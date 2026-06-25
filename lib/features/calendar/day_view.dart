@@ -78,6 +78,7 @@ const double _kTimelineRightPadding = 16.0;
 const double _kEventColumnGap = 4.0;
 const double _kSingleEventWidthFactor = 0.8;
 const double _kDayViewHourHeight = 60.0;
+const double _kDayViewTimelineHeight = _kDayViewHourHeight * 24;
 const double _kDayViewPixelsPerMinute = _kDayViewHourHeight / 60.0;
 const Color _dayGold = KemeticGold.base;
 const String _kNewEventPreviewClientEventId = '__day_view_new_event_preview__';
@@ -86,6 +87,34 @@ const ValueKey<String> _ritualCompletionFeedbackCardKey = ValueKey<String>(
 );
 const ValueKey<String> _ritualCompletionFeedbackRimKey = ValueKey<String>(
   'day-view-ritual-completion-feedback-rim',
+);
+@visibleForTesting
+const ValueKey<String> dayViewTimelineStackKey = ValueKey<String>(
+  'day_view_timeline_stack',
+);
+@visibleForTesting
+const ValueKey<String> dayViewTimelineGridLayerKey = ValueKey<String>(
+  'day_view_timeline_grid_layer',
+);
+@visibleForTesting
+const ValueKey<String> dayViewTimelineLabelLayerKey = ValueKey<String>(
+  'day_view_timeline_label_layer',
+);
+@visibleForTesting
+const ValueKey<String> dayViewTimelineGestureLayerKey = ValueKey<String>(
+  'day_view_timeline_gesture_layer',
+);
+@visibleForTesting
+const ValueKey<String> dayViewTimelineEventLayerKey = ValueKey<String>(
+  'day_view_timeline_event_layer',
+);
+@visibleForTesting
+const ValueKey<String> dayViewTimelinePreviewLayerKey = ValueKey<String>(
+  'day_view_timeline_preview_layer',
+);
+@visibleForTesting
+const ValueKey<String> dayViewTimelineOverlayLayerKey = ValueKey<String>(
+  'day_view_timeline_overlay_layer',
 );
 typedef DayViewRestorationCallback =
     void Function({
@@ -6243,44 +6272,19 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
   }
 
-  List<PositionedEventBlock> _eventBlocksTouchingHour(
-    int hour, {
-    List<PositionedEventBlock>? hourBlocks,
-  }) {
-    final rowStart = hour * 60.0;
-    final rowEnd = rowStart + 60.0;
-    final blocks = hourBlocks ?? _displayBlocks;
-    return blocks.where((block) {
+  bool _isPointOverEventBlockInTimeline(Offset eventAreaPosition) {
+    for (final block in _displayBlocks.where((b) => !_isPreviewBlock(b))) {
       final visualStart = block.event.startMin.toDouble();
       final visualEnd = visualStart + _eventVisualHeight(block.event);
-      return visualStart < rowEnd && visualEnd > rowStart;
-    }).toList();
-  }
-
-  bool _isPointOverEventBlock(
-    Offset localPosition,
-    int hour, {
-    List<PositionedEventBlock>? hourBlocks,
-  }) {
-    final rowStart = hour * 60.0;
-    for (final block in _eventBlocksTouchingHour(
-      hour,
-      hourBlocks: hourBlocks,
-    )) {
-      final visualStart = block.event.startMin.toDouble();
-      final visualEnd = visualStart + _eventVisualHeight(block.event);
-      final top = math.max(visualStart, rowStart) - rowStart;
-      final heightInRow =
-          math.min(visualEnd, rowStart + 60.0) -
-          math.max(visualStart, rowStart);
-      if (heightInRow <= 0) continue;
+      final height = visualEnd - visualStart;
+      if (height <= 0) continue;
       final rect = Rect.fromLTWH(
         block.leftOffset,
-        top,
+        visualStart,
         block.width,
-        heightInRow,
+        height,
       );
-      if (rect.contains(localPosition)) {
+      if (rect.contains(eventAreaPosition)) {
         return true;
       }
     }
@@ -6450,17 +6454,16 @@ class _DayViewGridState extends State<DayViewGrid> {
     return '$hour12:${m.toString().padLeft(2, '0')} $period';
   }
 
-  List<Widget> _buildPreviewTimeChipForHour(int hour) {
+  List<Widget> _buildPreviewTimeChip() {
     final start =
         _tempDragStartMin ??
         (_dragPreviewEvent != null ? _dragPreviewStartMin : null);
     if (start == null) return const [];
-    if (start < hour * 60 || start >= (hour + 1) * 60) return const [];
-    final top = (start - hour * 60).clamp(0, 59).toDouble();
+    final top = start.clamp(0, 24 * 60 - 1).toDouble();
     return [
       Positioned(
         right: 8,
-        top: (top - 10).clamp(0.0, 44.0),
+        top: (top - 10).clamp(0.0, _kDayViewTimelineHeight - 30.0),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           decoration: BoxDecoration(
@@ -6793,7 +6796,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                 key: _timelineKey,
                 builder: (context, candidateData, rejectedData) {
                   _timelineCtx = context;
-                  return ListView.builder(
+                  return ListView(
                     key: const PageStorageKey('day_timeline_list'),
                     clipBehavior: Clip.none,
                     controller: _scrollController,
@@ -6801,10 +6804,31 @@ class _DayViewGridState extends State<DayViewGrid> {
                       bottom: bottomPaddingAboveGlobalChrome(context, 24),
                     ),
                     cacheExtent: 600, // 🔧 OPTIMIZATION: Cache more items
-                    itemCount: 24,
-                    itemBuilder: (context, hour) {
-                      return _buildHourRow(hour);
-                    },
+                    children: [
+                      SizedBox(
+                        height: _kDayViewTimelineHeight,
+                        child: Stack(
+                          key: dayViewTimelineStackKey,
+                          clipBehavior: Clip.none,
+                          children: [
+                            _buildTimelineGridLayer(),
+                            _buildTimelineLabelLayer(),
+                            _buildTimelineGestureLayer(),
+                            _buildTimelineEventLayer(
+                              key: dayViewTimelineEventLayerKey,
+                              blocks: _displayBlocks.where(
+                                (block) => !_isPreviewBlock(block),
+                              ),
+                            ),
+                            _buildTimelineEventLayer(
+                              key: dayViewTimelinePreviewLayerKey,
+                              blocks: _displayBlocks.where(_isPreviewBlock),
+                            ),
+                            _buildTimelineOverlayLayer(),
+                          ],
+                        ),
+                      ),
+                    ],
                   );
                 },
                 onWillAcceptWithDetails: (_) => true,
@@ -6915,344 +6939,183 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
   }
 
-  Widget _buildHourRow(int hour) {
-    final hourBlocks = _displayBlocks
-        .where(
-          (b) =>
-              b.event.startMin >= hour * 60 &&
-              b.event.startMin < (hour + 1) * 60,
-        )
-        .toList();
-
-    return Container(
-      height: 60,
-      decoration: BoxDecoration(
-        color: hour.isEven ? const Color(0xFF070604) : const Color(0xFF080705),
-        border: Border(
-          top: BorderSide(
-            color: const Color(0xFF8A743C).withValues(alpha: 0.18),
-            width: 0.6,
-          ),
-        ),
-      ),
-      child: Stack(
-        clipBehavior: Clip.none, // allow events to span into next hour
+  Widget _buildTimelineGridLayer() {
+    return Positioned.fill(
+      key: dayViewTimelineGridLayerKey,
+      child: Column(
         children: [
-          // Hour label
-          Positioned(
-            left: 8,
-            top: 4,
-            child: Text(
-              _formatHour(hour),
-              style: TextStyle(
-                fontSize: 11,
-                letterSpacing: 0.2,
-                color: _dayViewSilverDim.withValues(alpha: 0.96),
-                fontFamilyFallback: _dayViewSansFallback,
+          for (var hour = 0; hour < 24; hour++)
+            Container(
+              height: _kDayViewHourHeight,
+              decoration: BoxDecoration(
+                color: hour.isEven
+                    ? const Color(0xFF070604)
+                    : const Color(0xFF080705),
+                border: Border(
+                  top: BorderSide(
+                    color: const Color(0xFF8A743C).withValues(alpha: 0.18),
+                    width: 0.6,
+                  ),
+                ),
               ),
             ),
-          ),
-
-          // Long-press area (covers event region, not label)
-          Positioned.fill(
-            left: 60,
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onLongPressStart: (details) {
-                if (kDebugMode) {
-                  debugPrint('[DayView] hour row longPressStart hour=$hour');
-                }
-                if (_isDraggingEvent) return;
-                if (_isPointOverEventBlock(
-                  details.localPosition,
-                  hour,
-                  hourBlocks: hourBlocks,
-                )) {
-                  if (kDebugMode) {
-                    debugPrint(
-                      '[DayView] hour row longPressStart skipped (over block)',
-                    );
-                  }
-                  return;
-                }
-                // Ignore if scrolling in progress
-                if (_scrollController.hasClients &&
-                    _scrollController.position.isScrollingNotifier.value) {
-                  return;
-                }
-                _handleLongPressStart(details);
-              },
-              onLongPressMoveUpdate: (details) {
-                if (_isDraggingEvent) return;
-                _handleLongPressMove(details);
-              },
-              onLongPressEnd: (_) {
-                if (_isDraggingEvent) return;
-                _handleLongPressEnd();
-              },
-            ),
-          ),
-
-          // Current time indicator within this hour (only if today)
-          if (_isToday() && _isCurrentHour(hour))
-            Positioned(
-              left: 0,
-              right: 0,
-              top: DateTime.now().toLocal().minute.toDouble(),
-              child: _buildNowLine(),
-            ),
-
-          // Drag preview target band/line
-          if (_dragPreviewStartMin != null &&
-              _dragPreviewEvent != null &&
-              _dragPreviewStartMin! >= hour * 60 &&
-              _dragPreviewStartMin! < (hour + 1) * 60) ...[
-            Builder(
-              builder: (_) {
-                final top = (_dragPreviewStartMin! - hour * 60)
-                    .clamp(0, 59)
-                    .toDouble();
-                const bandHeight = 15.0;
-                final bandTop = (top - bandHeight / 2).clamp(
-                  0.0,
-                  60.0 - bandHeight,
-                );
-                return Stack(
-                  children: [
-                    Positioned(
-                      left: 60,
-                      right: 8,
-                      top: bandTop,
-                      child: IgnorePointer(
-                        child: Container(
-                          height: bandHeight,
-                          decoration: BoxDecoration(
-                            color: _dayGold.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: 60,
-                      right: 8,
-                      top: top,
-                      child: IgnorePointer(
-                        child: Container(
-                          height: 1.5,
-                          color: _dayGold.withValues(alpha: 0.85),
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ],
-
-          // Event blocks
-          ..._buildHourBlocks(hourBlocks),
-
-          // Rows paint in order, so a later hour's background covers any
-          // previous-row overflow. Repaint the visible continuation above the
-          // current row background; tap/drag handling stays in the proxy layer.
-          ..._buildOverflowVisualsForHour(hour),
-
-          // Overflow portions of earlier blocks need their own hit targets.
-          ..._buildOverflowTapProxiesForHour(hour),
-
-          // Drag preview time chip (if active)
-          ..._buildPreviewTimeChipForHour(hour),
         ],
       ),
     );
   }
 
-  /// Build event blocks for a single hour using the day-wide overlap layout.
-  List<Widget> _buildHourBlocks(List<PositionedEventBlock> hourBlocks) {
-    if (hourBlocks.isEmpty) return const [];
+  Widget _buildTimelineLabelLayer() {
+    return Positioned.fill(
+      key: dayViewTimelineLabelLayerKey,
+      child: IgnorePointer(
+        child: Stack(
+          children: [
+            for (var hour = 0; hour < 24; hour++)
+              Positioned(
+                left: 8,
+                top: hour * _kDayViewHourHeight + 4,
+                child: Text(
+                  _formatHour(hour),
+                  style: TextStyle(
+                    fontSize: 11,
+                    letterSpacing: 0.2,
+                    color: _dayViewSilverDim.withValues(alpha: 0.96),
+                    fontFamilyFallback: _dayViewSansFallback,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
 
-    final sortedBlocks = [...hourBlocks]
+  Widget _buildTimelineGestureLayer() {
+    return Positioned.fill(
+      key: dayViewTimelineGestureLayerKey,
+      left: _kTimelineLabelWidth,
+      child: GestureDetector(
+        behavior: HitTestBehavior.translucent,
+        onLongPressStart: (details) {
+          if (kDebugMode) {
+            final minute = details.localPosition.dy.round().clamp(
+              0,
+              24 * 60 - 1,
+            );
+            debugPrint('[DayView] timeline longPressStart minute=$minute');
+          }
+          if (_isDraggingEvent) return;
+          if (_isPointOverEventBlockInTimeline(details.localPosition)) {
+            if (kDebugMode) {
+              debugPrint(
+                '[DayView] timeline longPressStart skipped (over block)',
+              );
+            }
+            return;
+          }
+          if (_scrollController.hasClients &&
+              _scrollController.position.isScrollingNotifier.value) {
+            return;
+          }
+          _handleLongPressStart(details);
+        },
+        onLongPressMoveUpdate: (details) {
+          if (_isDraggingEvent) return;
+          _handleLongPressMove(details);
+        },
+        onLongPressEnd: (_) {
+          if (_isDraggingEvent) return;
+          _handleLongPressEnd();
+        },
+      ),
+    );
+  }
+
+  Widget _buildTimelineEventLayer({
+    required Key key,
+    required Iterable<PositionedEventBlock> blocks,
+  }) {
+    final sortedBlocks = blocks.toList()
       ..sort((a, b) {
+        final startCmp = a.event.startMin.compareTo(b.event.startMin);
+        if (startCmp != 0) return startCmp;
         final leftCmp = a.leftOffset.compareTo(b.leftOffset);
         if (leftCmp != 0) return leftCmp;
         return _compareEventItemsBySchedule(a.event, b.event);
       });
 
-    return [
-      for (final block in sortedBlocks)
-        Positioned(
-          left: _kTimelineLabelWidth + block.leftOffset,
-          top: (block.event.startMin % 60).toDouble(),
-          child: _buildInteractiveEvent(
-            block,
-            hitHeight: _overlapHitHeightForBlock(block),
-          ),
-        ),
-    ];
-  }
-
-  List<Widget> _buildOverflowVisualsForHour(int hour) {
-    final rowStart = hour * 60.0;
-    final rowEnd = rowStart + 60.0;
-    final spillBlocks =
-        _displayBlocks.where((block) {
-          if (_isPreviewBlock(block)) return false;
-          final visualStart = block.event.startMin.toDouble();
-          final visualEnd = visualStart + _eventVisualHeight(block.event);
-          return visualStart < rowStart && visualEnd > rowStart;
-        }).toList()..sort((a, b) {
-          final leftCmp = a.leftOffset.compareTo(b.leftOffset);
-          if (leftCmp != 0) return leftCmp;
-          return _compareEventItemsBySchedule(a.event, b.event);
-        });
-
-    if (spillBlocks.isEmpty) return const [];
-
-    return [
-      for (final block in spillBlocks)
-        Builder(
-          builder: (_) {
-            final visualStart = block.event.startMin.toDouble();
-            final visualEnd = visualStart + _eventVisualHeight(block.event);
-            final visibleHeight =
-                math.min(visualEnd, rowEnd) - math.max(visualStart, rowStart);
-            if (visibleHeight <= 0) return const SizedBox.shrink();
-            final visualHeight = visualEnd - visualStart;
-            final yOffset = rowStart - visualStart;
-            final visualWidth = block.width + 4;
-
-            return Positioned(
-              key: dayViewOverflowVisualKey(
-                _eventIdentityKey(block.event),
-                hour,
-              ),
+    return Positioned.fill(
+      key: key,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          for (final block in sortedBlocks)
+            Positioned(
               left: _kTimelineLabelWidth + block.leftOffset,
-              top: 0,
-              child: IgnorePointer(
-                child: ExcludeSemantics(
-                  child: SizedBox(
-                    width: visualWidth,
-                    height: visibleHeight,
-                    child: ClipRect(
-                      child: OverflowBox(
-                        alignment: Alignment.topLeft,
-                        minWidth: visualWidth,
-                        maxWidth: visualWidth,
-                        minHeight: visualHeight,
-                        maxHeight: visualHeight,
-                        child: Transform.translate(
-                          offset: Offset(0, -yOffset),
-                          child: _buildEventBlock(block, isPreview: false),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+              top: block.event.startMin.toDouble(),
+              child: _buildInteractiveEvent(
+                block,
+                hitHeight: _overlapHitHeightForBlock(block),
               ),
-            );
-          },
-        ),
-    ];
-  }
-
-  List<Widget> _buildOverflowTapProxiesForHour(int hour) {
-    final rowStart = hour * 60.0;
-    final rowEnd = rowStart + 60.0;
-    final spillBlocks = _displayBlocks.where((block) {
-      final visualStart = block.event.startMin.toDouble();
-      final visualEnd = visualStart + _eventVisualHeight(block.event);
-      return visualStart < rowStart && visualEnd > rowStart;
-    }).toList();
-
-    if (spillBlocks.isEmpty) return const [];
-
-    return [
-      for (final block in spillBlocks)
-        Builder(
-          builder: (_) {
-            final visualStart = block.event.startMin.toDouble();
-            final visualEnd = visualStart + _eventVisualHeight(block.event);
-            final visibleTop = math.max(visualStart, rowStart) - rowStart;
-            final visibleHeight =
-                math.min(visualEnd, rowEnd) - math.max(visualStart, rowStart);
-            if (visibleHeight <= 0) return const SizedBox.shrink();
-
-            return Positioned(
-              left: _kTimelineLabelWidth + block.leftOffset,
-              top: visibleTop,
-              child: _buildOverflowTapProxy(block, height: visibleHeight),
-            );
-          },
-        ),
-    ];
-  }
-
-  Widget _buildOverflowTapProxy(
-    PositionedEventBlock block, {
-    required double height,
-  }) {
-    final event = block.event;
-    final hitWidth = block.width + 4;
-
-    Widget targetBox() => SizedBox(width: hitWidth, height: height);
-
-    if (!_isEventDraggable(event)) {
-      return GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: () => _showEventDetail(event),
-        onLongPress: () {
-          unawaited(AppHaptics.mediumImpact());
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("This event can't be moved"),
-              duration: Duration(milliseconds: 1200),
             ),
-          );
-        },
-        child: targetBox(),
-      );
-    }
-
-    return LongPressDraggable<_DragPayload>(
-      data: _DragPayload(event),
-      delay: const Duration(milliseconds: 350),
-      feedback: Material(
-        color: Colors.transparent,
-        child: _buildEventBlock(block, isPreview: false),
-      ),
-      childWhenDragging: targetBox(),
-      onDragUpdate: (details) => _handleDragUpdate(event, details),
-      onDragStarted: () {
-        _isDraggingEvent = true;
-        _dragPreviewEvent = event;
-        _dragPreviewStartMin = event.startMin;
-        _lastDragSnappedMinute = event.startMin;
-        unawaited(AppHaptics.selection());
-        if (kDebugMode) {
-          debugPrint('[DayView] overflow proxy drag title="${event.title}"');
-        }
-        setState(() {});
-      },
-      onDraggableCanceled: (_, _) {
-        _isDraggingEvent = false;
-        _clearDragPreview();
-        _lastDragSnappedMinute = null;
-      },
-      onDragEnd: (_) {
-        _isDraggingEvent = false;
-        _clearDragPreview();
-      },
-      onDragCompleted: () {
-        _isDraggingEvent = false;
-        _clearDragPreview();
-      },
-      child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
-        onTap: () => _showEventDetail(event),
-        child: targetBox(),
+        ],
       ),
     );
+  }
+
+  Widget _buildTimelineOverlayLayer() {
+    final now = DateTime.now().toLocal();
+    return Positioned.fill(
+      key: dayViewTimelineOverlayLayerKey,
+      child: IgnorePointer(
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            if (_isToday())
+              Positioned(
+                left: 0,
+                right: 0,
+                top: (now.hour * 60 + now.minute).toDouble(),
+                child: _buildNowLine(),
+              ),
+            ..._buildDragPreviewTargetAffordance(),
+            ..._buildPreviewTimeChip(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _buildDragPreviewTargetAffordance() {
+    final start = _dragPreviewStartMin;
+    if (start == null || _dragPreviewEvent == null) return const [];
+
+    final top = start.clamp(0, 24 * 60 - 1).toDouble();
+    const bandHeight = 15.0;
+    final bandTop = (top - bandHeight / 2).clamp(
+      0.0,
+      _kDayViewTimelineHeight - bandHeight,
+    );
+    return [
+      Positioned(
+        left: _kTimelineLabelWidth,
+        right: 8,
+        top: bandTop,
+        child: Container(
+          height: bandHeight,
+          decoration: BoxDecoration(
+            color: _dayGold.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(4),
+          ),
+        ),
+      ),
+      Positioned(
+        left: _kTimelineLabelWidth,
+        right: 8,
+        top: top.clamp(0.0, _kDayViewTimelineHeight - 1.5),
+        child: Container(height: 1.5, color: _dayGold.withValues(alpha: 0.85)),
+      ),
+    ];
   }
 
   void _handleLongPressStart(LongPressStartDetails details) {
@@ -8171,11 +8034,6 @@ class _DayViewGridState extends State<DayViewGrid> {
 
   Widget _buildNowLine() {
     return Container(height: 1, color: _dayGold.withValues(alpha: 0.42));
-  }
-
-  bool _isCurrentHour(int hour) {
-    final now = DateTime.now().toLocal();
-    return now.hour == hour;
   }
 
   bool _isToday() {

@@ -445,6 +445,15 @@ void main() {
 
         expect(find.text('New Event'), findsOneWidget);
         expect(find.text('4:30 PM'), findsOneWidget);
+        expect(
+          _dayViewTimelineLayerKeys(tester),
+          containsAllInOrder([
+            dayViewTimelineGridLayerKey,
+            dayViewTimelineEventLayerKey,
+            dayViewTimelinePreviewLayerKey,
+            dayViewTimelineOverlayLayerKey,
+          ]),
+        );
 
         await gesture.moveBy(const Offset(0, 45));
         await tester.pump();
@@ -457,47 +466,48 @@ void main() {
       },
     );
 
-    testWidgets('late-start real cards repaint into the next hour row', (
+    testWidgets('timeline grid layer stays below event and preview layers', (
       tester,
     ) async {
       await _setPhoneViewport(tester);
 
       await tester.pumpWidget(
         const _DayViewHarness(
-          initialScrollOffset: 8 * 60,
+          initialScrollOffset: 14 * 60,
           notes: [
             NoteData(
-              clientEventId: 'late-reminder',
-              title: 'journal every night',
+              clientEventId: 'multi-hour-card',
+              title: 'test',
               allDay: false,
-              start: TimeOfDay(hour: 8, minute: 30),
-              end: TimeOfDay(hour: 9, minute: 0),
+              start: TimeOfDay(hour: 15, minute: 30),
+              end: TimeOfDay(hour: 16, minute: 30),
               manualColor: Colors.green,
-              isReminder: true,
-            ),
-            NoteData(
-              clientEventId: 'late-math-card',
-              title: 'Explain the Mystery',
-              category: 'Daily Math Visuals · 30-Day Path',
-              allDay: false,
-              start: TimeOfDay(hour: 9, minute: 42),
-              end: TimeOfDay(hour: 10, minute: 0),
-              manualColor: Colors.blue,
             ),
           ],
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('journal every night'), findsWidgets);
-      expect(find.text('Explain the Mystery'), findsWidgets);
+      expect(find.text('test'), findsWidgets);
+
+      final keys = _dayViewTimelineLayerKeys(tester);
       expect(
-        find.byKey(dayViewOverflowVisualKey('cid:late-reminder', 9)),
-        findsOneWidget,
+        keys,
+        containsAllInOrder([
+          dayViewTimelineGridLayerKey,
+          dayViewTimelineLabelLayerKey,
+          dayViewTimelineEventLayerKey,
+          dayViewTimelinePreviewLayerKey,
+          dayViewTimelineOverlayLayerKey,
+        ]),
       );
       expect(
-        find.byKey(dayViewOverflowVisualKey('cid:late-math-card', 10)),
-        findsOneWidget,
+        keys.indexOf(dayViewTimelineGridLayerKey),
+        lessThan(keys.indexOf(dayViewTimelineEventLayerKey)),
+      );
+      expect(
+        keys.indexOf(dayViewTimelineEventLayerKey),
+        lessThan(keys.indexOf(dayViewTimelinePreviewLayerKey)),
       );
     });
   });
@@ -2580,6 +2590,11 @@ String? _ritualPulseMode(WidgetTester tester) {
 
 double _screenCenterX(WidgetTester tester) =>
     tester.getSize(find.byType(Scaffold)).width / 2;
+
+List<Key?> _dayViewTimelineLayerKeys(WidgetTester tester) {
+  final stack = tester.widget<Stack>(find.byKey(dayViewTimelineStackKey));
+  return stack.children.map((child) => child.key).toList();
+}
 
 const Map<int, FlowData> _defaultFlowIndex = {
   1: FlowData(id: 1, name: 'Practice', color: Colors.green, active: true),

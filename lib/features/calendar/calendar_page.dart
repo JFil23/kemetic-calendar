@@ -27515,8 +27515,6 @@ class CalendarPageState extends State<CalendarPage>
           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
         builder: (sheetCtx) {
-          final media = MediaQuery.of(sheetCtx);
-
           bool showReminders = _noteSheetShowReminders;
           bool scheduledFlowsExpanded = false;
           bool dayNotesExpanded = false;
@@ -27667,689 +27665,628 @@ class CalendarPageState extends State<CalendarPage>
                 );
               }
 
-              final keyboardInset = keyboardInsetOf(sheetCtx);
-              final sheetHeight = keyboardInset > 0
-                  ? math.min(
-                      media.size.height * 0.90,
-                      math.max(
-                        300.0,
-                        media.size.height -
-                            keyboardInset -
-                            media.padding.top -
-                            12,
-                      ),
-                    )
-                  : media.size.height * 0.90;
               const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
 
-              return Container(
-                height: sheetHeight,
-                decoration: const BoxDecoration(
-                  color: DaySheetTokens.bg,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-                  border: Border(
-                    top: BorderSide(color: DaySheetTokens.hair, width: 1),
-                  ),
-                ),
-                child: Padding(
-                  padding: EdgeInsets.only(
-                    left: 22,
-                    right: 22,
-                    top: 10,
-                    bottom: media.padding.bottom + 12,
-                  ),
-                  child: DefaultTextStyle(
-                    style: const TextStyle(color: Colors.white),
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.only(
-                        bottom: keyboardInset + media.padding.bottom + 180,
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // drag handle + explicit close (prevents getting trapped on tablets)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: SizedBox(
-                              height: 32,
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
-                                  Container(
-                                    width: 42,
-                                    height: 5,
-                                    decoration: BoxDecoration(
-                                      color: DaySheetTokens.silverLo.withValues(
-                                        alpha: 0.5,
-                                      ),
-                                      borderRadius: BorderRadius.circular(3),
-                                    ),
+              return DaySheetKeyboardSafeFrame(
+                child: DefaultTextStyle(
+                  style: const TextStyle(color: Colors.white),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // drag handle + explicit close (prevents getting trapped on tablets)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: SizedBox(
+                          height: 32,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Container(
+                                width: 42,
+                                height: 5,
+                                decoration: BoxDecoration(
+                                  color: DaySheetTokens.silverLo.withValues(
+                                    alpha: 0.5,
                                   ),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: IconButton(
-                                      tooltip: 'Close',
-                                      onPressed: () {
-                                        Navigator.of(sheetCtx).maybePop();
-                                      },
-                                      visualDensity: expandedVisualDensity(
-                                        sheetCtx,
-                                      ),
-                                      padding: expandedIconButtonPadding(
-                                        sheetCtx,
-                                        fallback: const EdgeInsets.all(4),
-                                      ),
-                                      constraints:
-                                          expandedIconButtonConstraints(
-                                            sheetCtx,
-                                          ),
-                                      icon: const Icon(
-                                        Icons.close,
-                                        color: DaySheetTokens.silverMid,
-                                      ),
-                                    ),
-                                  ),
-                                ],
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
                               ),
-                            ),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: IconButton(
+                                  tooltip: 'Close',
+                                  onPressed: () {
+                                    Navigator.of(sheetCtx).maybePop();
+                                  },
+                                  visualDensity: expandedVisualDensity(
+                                    sheetCtx,
+                                  ),
+                                  padding: expandedIconButtonPadding(
+                                    sheetCtx,
+                                    fallback: const EdgeInsets.all(4),
+                                  ),
+                                  constraints: expandedIconButtonConstraints(
+                                    sheetCtx,
+                                  ),
+                                  icon: const Icon(
+                                    Icons.close,
+                                    color: DaySheetTokens.silverMid,
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
+                        ),
+                      ),
 
-                          DaySheetTabBar(
-                            activeTab: showReminders
-                                ? DaySheetTab.reminders
-                                : DaySheetTab.notes,
-                            accent: selectedColor,
-                            onSelected: (tab) {
-                              if (tab == DaySheetTab.notes) {
-                                setSheetState(() => showReminders = false);
-                                _noteSheetShowReminders = false;
-                              } else {
-                                setSheetState(() => showReminders = true);
-                                _noteSheetShowReminders = true;
-                                if (!_reminderRulesLoaded) {
-                                  _loadReminderRules().then((_) {
-                                    if (mounted) setState(() {});
+                      DaySheetTabBar(
+                        activeTab: showReminders
+                            ? DaySheetTab.reminders
+                            : DaySheetTab.notes,
+                        accent: selectedColor,
+                        onSelected: (tab) {
+                          if (tab == DaySheetTab.notes) {
+                            setSheetState(() => showReminders = false);
+                            _noteSheetShowReminders = false;
+                          } else {
+                            setSheetState(() => showReminders = true);
+                            _noteSheetShowReminders = true;
+                            if (!_reminderRulesLoaded) {
+                              _loadReminderRules().then((_) {
+                                if (mounted) setState(() {});
+                              });
+                            }
+                          }
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      datePicker(),
+                      const SizedBox(height: 12),
+
+                      if (showReminders) ...[
+                        DaySheetSectionHeader(
+                          label: 'Reminders',
+                          count: dayReminderRules.length,
+                          topMargin: 8,
+                        ),
+                        if (!_reminderRulesLoaded)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 24),
+                            child: Center(
+                              child: CircularProgressIndicator(color: _gold),
+                            ),
+                          )
+                        else if (dayReminderRules.isEmpty)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: Text(
+                              'No reminders on this day',
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                          )
+                        else
+                          ListView.separated(
+                            primary: false,
+                            shrinkWrap: true,
+                            controller: null,
+                            physics: const NeverScrollableScrollPhysics(),
+                            itemCount: dayReminderRules.length,
+                            separatorBuilder: (_, _) => const SizedBox.shrink(),
+                            itemBuilder: (_, i) {
+                              final r = dayReminderRules[i];
+                              final ruleLines = _daySheetReminderRuleLines(r);
+                              final canManageReminderRule =
+                                  !_isCalendarSheetVisibleReminderRule(r);
+                              return DaySheetReminderRow(
+                                color: r.color,
+                                name: r.title,
+                                enabled: r.active,
+                                rulePrimary: ruleLines.primary,
+                                ruleSubline: ruleLines.subline,
+                                onTap: () async {
+                                  await openReminderEditorForSelectedDay(
+                                    existing: r,
+                                  );
+                                  if (!mounted) return;
+                                  await _loadReminderRules();
+                                  setSheetState(() {
+                                    showReminders = true;
+                                    _noteSheetShowReminders = true;
                                   });
-                                }
+                                },
+                                menu: PopupMenuButton<String>(
+                                  icon: const Icon(
+                                    Icons.more_vert,
+                                    color: DaySheetTokens.silverMid,
+                                  ),
+                                  color: DaySheetTokens.bgRaise,
+                                  onSelected: (v) async {
+                                    if (v == 'edit') {
+                                      final saved =
+                                          await openReminderEditorForSelectedDay(
+                                            existing: r,
+                                          );
+                                      if (!mounted) return;
+                                      if (saved) {
+                                        await _loadReminderRules();
+                                        setSheetState(() {
+                                          showReminders = true;
+                                          _noteSheetShowReminders = true;
+                                        });
+                                      }
+                                    } else if (v == 'end' &&
+                                        canManageReminderRule) {
+                                      await _endReminderRule(r.id);
+                                    } else if (v == 'delete' &&
+                                        canManageReminderRule) {
+                                      await _deleteReminderRule(r.id);
+                                    }
+                                    setSheetState(() {});
+                                  },
+                                  itemBuilder: (context) => [
+                                    const PopupMenuItem(
+                                      value: 'edit',
+                                      child: Text(
+                                        'Edit Reminder',
+                                        style: TextStyle(
+                                          color: DaySheetTokens.silverHi,
+                                        ),
+                                      ),
+                                    ),
+                                    if (canManageReminderRule) ...const [
+                                      PopupMenuItem(
+                                        value: 'end',
+                                        child: Text(
+                                          'End Reminder',
+                                          style: TextStyle(
+                                            color: DaySheetTokens.silverHi,
+                                          ),
+                                        ),
+                                      ),
+                                      PopupMenuItem(
+                                        value: 'delete',
+                                        child: Text(
+                                          'Delete',
+                                          style: TextStyle(
+                                            color: DaySheetTokens.silverHi,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        const SizedBox(height: 18),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: DaySheetFab.pill(
+                            label: 'Add reminder',
+                            onPressed: () async {
+                              final saved =
+                                  await openReminderEditorForSelectedDay();
+                              if (!mounted) return;
+                              if (saved) {
+                                await _loadReminderRules();
+                                setSheetState(() {
+                                  showReminders = true;
+                                  _noteSheetShowReminders = true;
+                                });
                               }
                             },
                           ),
-                          const SizedBox(height: 12),
-                          datePicker(),
-                          const SizedBox(height: 12),
-
-                          if (showReminders) ...[
-                            DaySheetSectionHeader(
-                              label: 'Reminders',
-                              count: dayReminderRules.length,
-                              topMargin: 8,
-                            ),
-                            if (!_reminderRulesLoaded)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 24),
-                                child: Center(
-                                  child: CircularProgressIndicator(
-                                    color: _gold,
+                        ),
+                      ] else ...[
+                        DaySheetSectionHeader(
+                          label: 'Scheduled flows',
+                          count: dayFlowRows.length,
+                          expanded: scheduledFlowsExpanded,
+                          onTap: () {
+                            setSheetState(() {
+                              scheduledFlowsExpanded = !scheduledFlowsExpanded;
+                            });
+                          },
+                        ),
+                        AnimatedCrossFade(
+                          firstChild: Column(
+                            children: [
+                              if (dayFlowRows.isEmpty)
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 8),
+                                  child: Text(
+                                    'No scheduled flows',
+                                    style: TextStyle(
+                                      fontFamily: DaySheetTokens.ui,
+                                      fontSize: 12,
+                                      color: DaySheetTokens.silverLo,
+                                    ),
                                   ),
                                 ),
-                              )
-                            else if (dayReminderRules.isEmpty)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(vertical: 12),
-                                child: Text(
-                                  'No reminders on this day',
-                                  style: TextStyle(color: Colors.white70),
+                              for (final row in dayFlowRows)
+                                DaySheetFlowRow(
+                                  color: row.color,
+                                  name: row.name,
+                                  meta: _calendarSheetScheduledFlowRowMeta(row),
+                                  onTap: row.flowId == null
+                                      ? null
+                                      : () {
+                                          final flowId = row.flowId;
+                                          if (flowId == null) return;
+                                          _openDaySheetFlowDetail(flowId);
+                                        },
                                 ),
-                              )
-                            else
-                              ListView.separated(
-                                primary: false,
-                                shrinkWrap: true,
-                                controller: null,
-                                physics: const NeverScrollableScrollPhysics(),
-                                itemCount: dayReminderRules.length,
-                                separatorBuilder: (_, _) =>
-                                    const SizedBox.shrink(),
-                                itemBuilder: (_, i) {
-                                  final r = dayReminderRules[i];
-                                  final ruleLines = _daySheetReminderRuleLines(
-                                    r,
-                                  );
-                                  final canManageReminderRule =
-                                      !_isCalendarSheetVisibleReminderRule(r);
-                                  return DaySheetReminderRow(
-                                    color: r.color,
-                                    name: r.title,
-                                    enabled: r.active,
-                                    rulePrimary: ruleLines.primary,
-                                    ruleSubline: ruleLines.subline,
-                                    onTap: () async {
-                                      await openReminderEditorForSelectedDay(
-                                        existing: r,
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton.icon(
+                                  onPressed: _openFlowsViewer,
+                                  icon: const Icon(
+                                    Icons.view_timeline,
+                                    color: DaySheetTokens.silverMid,
+                                    size: 17,
+                                  ),
+                                  label: const Text(
+                                    'Manage flows',
+                                    style: TextStyle(
+                                      fontFamily: DaySheetTokens.serif,
+                                      fontSize: 16,
+                                      color: DaySheetTokens.silverMid,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          secondChild: const SizedBox.shrink(),
+                          crossFadeState: scheduledFlowsExpanded
+                              ? CrossFadeState.showFirst
+                              : CrossFadeState.showSecond,
+                          duration: const Duration(milliseconds: 220),
+                        ),
+
+                        DaySheetSectionHeader(
+                          label: 'Notes on this day',
+                          count: dayEvents.length,
+                          expanded: dayNotesExpanded,
+                          onTap: () {
+                            setSheetState(() {
+                              dayNotesExpanded = !dayNotesExpanded;
+                            });
+                          },
+                        ),
+                        AnimatedCrossFade(
+                          firstChild: Column(
+                            children: [
+                              if (dayEvents.isEmpty)
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 8),
+                                  child: Text(
+                                    'No notes yet',
+                                    style: TextStyle(
+                                      fontFamily: DaySheetTokens.ui,
+                                      fontSize: 12,
+                                      color: DaySheetTokens.silverLo,
+                                    ),
+                                  ),
+                                )
+                              else
+                                for (final event in dayEvents)
+                                  DaySheetNoteRow(
+                                    name: event.title,
+                                    meta: _calendarSheetEventTimeRangeLabel(
+                                      event,
+                                    ),
+                                    color: event.color,
+                                    onTap: () {
+                                      _openDaySheetEventDetailInHostDayView(
+                                        sheetCtx: sheetCtx,
+                                        kYear: selYear,
+                                        kMonth: selMonth,
+                                        kDay: selDay,
+                                        event: event,
                                       );
-                                      if (!mounted) return;
-                                      await _loadReminderRules();
-                                      setSheetState(() {
-                                        showReminders = true;
-                                        _noteSheetShowReminders = true;
-                                      });
                                     },
-                                    menu: PopupMenuButton<String>(
-                                      icon: const Icon(
-                                        Icons.more_vert,
-                                        color: DaySheetTokens.silverMid,
-                                      ),
-                                      color: DaySheetTokens.bgRaise,
-                                      onSelected: (v) async {
-                                        if (v == 'edit') {
-                                          final saved =
-                                              await openReminderEditorForSelectedDay(
-                                                existing: r,
-                                              );
-                                          if (!mounted) return;
-                                          if (saved) {
-                                            await _loadReminderRules();
-                                            setSheetState(() {
-                                              showReminders = true;
-                                              _noteSheetShowReminders = true;
-                                            });
-                                          }
-                                        } else if (v == 'end' &&
-                                            canManageReminderRule) {
-                                          await _endReminderRule(r.id);
-                                        } else if (v == 'delete' &&
-                                            canManageReminderRule) {
-                                          await _deleteReminderRule(r.id);
-                                        }
-                                        setSheetState(() {});
-                                      },
-                                      itemBuilder: (context) => [
-                                        const PopupMenuItem(
-                                          value: 'edit',
-                                          child: Text(
-                                            'Edit Reminder',
-                                            style: TextStyle(
-                                              color: DaySheetTokens.silverHi,
-                                            ),
-                                          ),
-                                        ),
-                                        if (canManageReminderRule) ...const [
-                                          PopupMenuItem(
-                                            value: 'end',
-                                            child: Text(
-                                              'End Reminder',
-                                              style: TextStyle(
-                                                color: DaySheetTokens.silverHi,
-                                              ),
-                                            ),
-                                          ),
-                                          PopupMenuItem(
-                                            value: 'delete',
-                                            child: Text(
-                                              'Delete',
-                                              style: TextStyle(
-                                                color: DaySheetTokens.silverHi,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  );
-                                },
-                              ),
-                            const SizedBox(height: 18),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: DaySheetFab.pill(
-                                label: 'Add reminder',
-                                onPressed: () async {
-                                  final saved =
-                                      await openReminderEditorForSelectedDay();
-                                  if (!mounted) return;
-                                  if (saved) {
-                                    await _loadReminderRules();
-                                    setSheetState(() {
-                                      showReminders = true;
-                                      _noteSheetShowReminders = true;
-                                    });
-                                  }
-                                },
-                              ),
-                            ),
-                          ] else ...[
-                            DaySheetSectionHeader(
-                              label: 'Scheduled flows',
-                              count: dayFlowRows.length,
-                              expanded: scheduledFlowsExpanded,
-                              onTap: () {
-                                setSheetState(() {
-                                  scheduledFlowsExpanded =
-                                      !scheduledFlowsExpanded;
-                                });
-                              },
-                            ),
-                            AnimatedCrossFade(
-                              firstChild: Column(
-                                children: [
-                                  if (dayFlowRows.isEmpty)
-                                    const Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        vertical: 8,
-                                      ),
-                                      child: Text(
-                                        'No scheduled flows',
-                                        style: TextStyle(
-                                          fontFamily: DaySheetTokens.ui,
-                                          fontSize: 12,
-                                          color: DaySheetTokens.silverLo,
-                                        ),
-                                      ),
-                                    ),
-                                  for (final row in dayFlowRows)
-                                    DaySheetFlowRow(
-                                      color: row.color,
-                                      name: row.name,
-                                      meta: _calendarSheetScheduledFlowRowMeta(
-                                        row,
-                                      ),
-                                      onTap: row.flowId == null
-                                          ? null
-                                          : () {
-                                              final flowId = row.flowId;
-                                              if (flowId == null) return;
-                                              _openDaySheetFlowDetail(flowId);
-                                            },
-                                    ),
-                                  Align(
-                                    alignment: Alignment.centerRight,
-                                    child: TextButton.icon(
-                                      onPressed: _openFlowsViewer,
-                                      icon: const Icon(
-                                        Icons.view_timeline,
-                                        color: DaySheetTokens.silverMid,
-                                        size: 17,
-                                      ),
-                                      label: const Text(
-                                        'Manage flows',
-                                        style: TextStyle(
-                                          fontFamily: DaySheetTokens.serif,
-                                          fontSize: 16,
-                                          color: DaySheetTokens.silverMid,
-                                        ),
-                                      ),
-                                    ),
+                                    onDelete: () async {
+                                      await _deleteNoteByEvent(
+                                        selYear,
+                                        selMonth,
+                                        selDay,
+                                        event,
+                                      );
+                                      if (!sheetCtx.mounted) return;
+                                      if (Navigator.canPop(sheetCtx)) {
+                                        Navigator.pop(sheetCtx);
+                                      }
+                                    },
                                   ),
-                                ],
-                              ),
-                              secondChild: const SizedBox.shrink(),
-                              crossFadeState: scheduledFlowsExpanded
-                                  ? CrossFadeState.showFirst
-                                  : CrossFadeState.showSecond,
-                              duration: const Duration(milliseconds: 220),
-                            ),
+                            ],
+                          ),
+                          secondChild: const SizedBox.shrink(),
+                          crossFadeState: dayNotesExpanded
+                              ? CrossFadeState.showFirst
+                              : CrossFadeState.showSecond,
+                          duration: const Duration(milliseconds: 220),
+                        ),
 
-                            DaySheetSectionHeader(
-                              label: 'Notes on this day',
-                              count: dayEvents.length,
-                              expanded: dayNotesExpanded,
-                              onTap: () {
-                                setSheetState(() {
-                                  dayNotesExpanded = !dayNotesExpanded;
-                                });
-                              },
+                        DaySheetSectionHeader(
+                          label: editingIndex == null
+                              ? 'Add note'
+                              : 'Edit note',
+                          topMargin: 22,
+                        ),
+
+                        DaySheetTextField(
+                          controller: controllerTitle,
+                          scrollPadding: fieldScrollPadding,
+                          hint: 'Title',
+                        ),
+
+                        DaySheetTextField(
+                          controller: controllerLocation,
+                          scrollPadding: fieldScrollPadding,
+                          hint: 'Location or video call',
+                        ),
+
+                        DaySheetTextField(
+                          controller: controllerDetail,
+                          scrollPadding: fieldScrollPadding,
+                          hint: 'Details (optional)',
+                          minLines: 4,
+                          maxLines: 6,
+                        ),
+
+                        DaySheetCategoryChips(
+                          categories: NoteCategory.all,
+                          selected: selectedCategory,
+                          accent: selectedColor,
+                          onSelected: (value) {
+                            setSheetState(() {
+                              selectedCategory = value;
+                            });
+                            persistDaySheetSession();
+                          },
+                        ),
+
+                        DaySheetToggleRow(
+                          label: 'All-day',
+                          value: allDay,
+                          accent: selectedColor,
+                          onChanged: (v) {
+                            setSheetState(() => allDay = v);
+                            persistDaySheetSession();
+                          },
+                        ),
+
+                        const SizedBox(height: 18),
+
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DaySheetTimePill(
+                                caption: 'Starts',
+                                label: startTime == null
+                                    ? '--:--'
+                                    : _formatTimeOfDay(startTime!),
+                                onTap: pickStart,
+                                enabled: !allDay,
+                              ),
                             ),
-                            AnimatedCrossFade(
-                              firstChild: Column(
-                                children: [
-                                  if (dayEvents.isEmpty)
-                                    const Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        vertical: 8,
-                                      ),
-                                      child: Text(
-                                        'No notes yet',
-                                        style: TextStyle(
-                                          fontFamily: DaySheetTokens.ui,
-                                          fontSize: 12,
-                                          color: DaySheetTokens.silverLo,
-                                        ),
-                                      ),
-                                    )
-                                  else
-                                    for (final event in dayEvents)
-                                      DaySheetNoteRow(
-                                        name: event.title,
-                                        meta: _calendarSheetEventTimeRangeLabel(
-                                          event,
-                                        ),
-                                        color: event.color,
-                                        onTap: () {
-                                          _openDaySheetEventDetailInHostDayView(
-                                            sheetCtx: sheetCtx,
-                                            kYear: selYear,
-                                            kMonth: selMonth,
-                                            kDay: selDay,
-                                            event: event,
+                            const SizedBox(width: 30),
+                            Expanded(
+                              child: DaySheetTimePill(
+                                caption: 'Ends',
+                                label: endTime == null
+                                    ? '--:--'
+                                    : _formatTimeOfDay(endTime!),
+                                onTap: pickEnd,
+                                enabled: !allDay,
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 12),
+
+                        InkWell(
+                          onTap: availableCalendars.isEmpty
+                              ? null
+                              : () async {
+                                  final chosenId =
+                                      await showCupertinoModalPopup<String>(
+                                        context: sheetCtx,
+                                        builder: (popupCtx) {
+                                          return CupertinoActionSheet(
+                                            title: const GlossyText(
+                                              text: 'Calendar',
+                                              gradient: silverGloss,
+                                              style: TextStyle(fontSize: 18),
+                                            ),
+                                            actions: [
+                                              for (final calendar
+                                                  in availableCalendars)
+                                                CupertinoActionSheetAction(
+                                                  onPressed: () {
+                                                    Navigator.of(
+                                                      popupCtx,
+                                                    ).pop(calendar.id);
+                                                  },
+                                                  child: Text(
+                                                    calendar.name,
+                                                    style: TextStyle(
+                                                      color: calendar.color,
+                                                      fontSize: 17,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                            cancelButton:
+                                                CupertinoActionSheetAction(
+                                                  isDestructiveAction: true,
+                                                  onPressed: () => Navigator.of(
+                                                    popupCtx,
+                                                  ).pop(),
+                                                  child: const Text('Cancel'),
+                                                ),
                                           );
                                         },
-                                        onDelete: () async {
-                                          await _deleteNoteByEvent(
-                                            selYear,
-                                            selMonth,
-                                            selDay,
-                                            event,
-                                          );
-                                          if (!sheetCtx.mounted) return;
-                                          if (Navigator.canPop(sheetCtx)) {
-                                            Navigator.pop(sheetCtx);
-                                          }
-                                        },
-                                      ),
-                                ],
-                              ),
-                              secondChild: const SizedBox.shrink(),
-                              crossFadeState: dayNotesExpanded
-                                  ? CrossFadeState.showFirst
-                                  : CrossFadeState.showSecond,
-                              duration: const Duration(milliseconds: 220),
-                            ),
-
-                            DaySheetSectionHeader(
-                              label: editingIndex == null
-                                  ? 'Add note'
-                                  : 'Edit note',
-                              topMargin: 22,
-                            ),
-
-                            DaySheetTextField(
-                              controller: controllerTitle,
-                              scrollPadding: fieldScrollPadding,
-                              hint: 'Title',
-                            ),
-
-                            DaySheetTextField(
-                              controller: controllerLocation,
-                              scrollPadding: fieldScrollPadding,
-                              hint: 'Location or video call',
-                            ),
-
-                            DaySheetTextField(
-                              controller: controllerDetail,
-                              scrollPadding: fieldScrollPadding,
-                              hint: 'Details (optional)',
-                              minLines: 4,
-                              maxLines: 6,
-                            ),
-
-                            DaySheetCategoryChips(
-                              categories: NoteCategory.all,
-                              selected: selectedCategory,
-                              accent: selectedColor,
-                              onSelected: (value) {
-                                setSheetState(() {
-                                  selectedCategory = value;
-                                });
-                                persistDaySheetSession();
-                              },
-                            ),
-
-                            DaySheetToggleRow(
-                              label: 'All-day',
-                              value: allDay,
-                              accent: selectedColor,
-                              onChanged: (v) {
-                                setSheetState(() => allDay = v);
-                                persistDaySheetSession();
-                              },
-                            ),
-
-                            const SizedBox(height: 18),
-
-                            Row(
+                                      );
+                                  if (chosenId == null) return;
+                                  setSheetState(() {
+                                    selectedCalendarId = chosenId;
+                                    selectedCalendarName =
+                                        _calendarSummariesById[chosenId]?.name;
+                                  });
+                                  persistDaySheetSession();
+                                },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Expanded(
-                                  child: DaySheetTimePill(
-                                    caption: 'Starts',
-                                    label: startTime == null
-                                        ? '--:--'
-                                        : _formatTimeOfDay(startTime!),
-                                    onTap: pickStart,
-                                    enabled: !allDay,
-                                  ),
+                                const GlossyText(
+                                  text: 'Calendar',
+                                  gradient: silverGloss,
+                                  style: TextStyle(fontSize: 14),
                                 ),
-                                const SizedBox(width: 30),
-                                Expanded(
-                                  child: DaySheetTimePill(
-                                    caption: 'Ends',
-                                    label: endTime == null
-                                        ? '--:--'
-                                        : _formatTimeOfDay(endTime!),
-                                    onTap: pickEnd,
-                                    enabled: !allDay,
-                                  ),
+                                Row(
+                                  children: [
+                                    Text(
+                                      selectedCalendarLabel,
+                                      style: TextStyle(
+                                        color: selectedCalendar?.color ?? _gold,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    const Icon(
+                                      Icons.chevron_right,
+                                      size: 18,
+                                      color: Colors.white54,
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
+                          ),
+                        ),
 
-                            const SizedBox(height: 12),
+                        const SizedBox(height: 8),
 
-                            InkWell(
-                              onTap: availableCalendars.isEmpty
-                                  ? null
-                                  : () async {
-                                      final chosenId =
-                                          await showCupertinoModalPopup<String>(
-                                            context: sheetCtx,
-                                            builder: (popupCtx) {
-                                              return CupertinoActionSheet(
-                                                title: const GlossyText(
-                                                  text: 'Calendar',
-                                                  gradient: silverGloss,
-                                                  style: TextStyle(
-                                                    fontSize: 18,
-                                                  ),
-                                                ),
-                                                actions: [
-                                                  for (final calendar
-                                                      in availableCalendars)
-                                                    CupertinoActionSheetAction(
-                                                      onPressed: () {
-                                                        Navigator.of(
-                                                          popupCtx,
-                                                        ).pop(calendar.id);
-                                                      },
-                                                      child: Text(
-                                                        calendar.name,
-                                                        style: TextStyle(
-                                                          color: calendar.color,
-                                                          fontSize: 17,
-                                                          fontWeight:
-                                                              FontWeight.w600,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                ],
-                                                cancelButton:
-                                                    CupertinoActionSheetAction(
-                                                      isDestructiveAction: true,
-                                                      onPressed: () =>
-                                                          Navigator.of(
-                                                            popupCtx,
-                                                          ).pop(),
-                                                      child: const Text(
-                                                        'Cancel',
-                                                      ),
-                                                    ),
-                                              );
-                                            },
-                                          );
-                                      if (chosenId == null) return;
-                                      setSheetState(() {
-                                        selectedCalendarId = chosenId;
-                                        selectedCalendarName =
-                                            _calendarSummariesById[chosenId]
-                                                ?.name;
-                                      });
-                                      persistDaySheetSession();
-                                    },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
+                        // Alert row
+                        InkWell(
+                          onTap: () async {
+                            final picked = await _pickAlertMinutes(
+                              sheetCtx,
+                              alertMinutesBefore,
+                            );
+                            if (picked != null) {
+                              setSheetState(() {
+                                alertMinutesBefore = picked;
+                              });
+                              persistDaySheetSession();
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const GlossyText(
+                                  text: 'Alert',
+                                  gradient: silverGloss,
+                                  style: TextStyle(fontSize: 14),
                                 ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                                Row(
                                   children: [
-                                    const GlossyText(
-                                      text: 'Calendar',
-                                      gradient: silverGloss,
-                                      style: TextStyle(fontSize: 14),
+                                    GlossyText(
+                                      text: _alertLabelFor(alertMinutesBefore),
+                                      gradient: goldGloss,
+                                      style: const TextStyle(fontSize: 14),
                                     ),
-                                    Row(
-                                      children: [
-                                        Text(
-                                          selectedCalendarLabel,
-                                          style: TextStyle(
-                                            color:
-                                                selectedCalendar?.color ??
-                                                _gold,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        const Icon(
-                                          Icons.chevron_right,
-                                          size: 18,
-                                          color: Colors.white54,
-                                        ),
-                                      ],
+                                    const SizedBox(width: 4),
+                                    const Icon(
+                                      Icons.chevron_right,
+                                      size: 18,
+                                      color: Colors.white54,
                                     ),
                                   ],
                                 ),
-                              ),
+                              ],
                             ),
+                          ),
+                        ),
 
-                            const SizedBox(height: 8),
+                        const SizedBox(height: 8),
 
-                            // Alert row
-                            InkWell(
-                              onTap: () async {
-                                final picked = await _pickAlertMinutes(
-                                  sheetCtx,
-                                  alertMinutesBefore,
-                                );
-                                if (picked != null) {
-                                  setSheetState(() {
-                                    alertMinutesBefore = picked;
-                                  });
-                                  persistDaySheetSession();
-                                }
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
+                        InkWell(
+                          onTap: () async {
+                            final title = controllerTitle.text.trim();
+                            final editingEventId = editingNote?.id;
+                            if (editingEventId == null ||
+                                editingEventId.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    'Save this event first, then invite people inside the app.',
+                                  ),
                                 ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
+                              );
+                              return;
+                            }
+
+                            await _openEventInviteSheet(
+                              eventId: editingEventId,
+                              title: title.isEmpty ? 'Event' : title,
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const GlossyText(
+                                  text: 'Invitees',
+                                  gradient: silverGloss,
+                                  style: TextStyle(fontSize: 14),
+                                ),
+                                Row(
                                   children: [
-                                    const GlossyText(
-                                      text: 'Alert',
-                                      gradient: silverGloss,
-                                      style: TextStyle(fontSize: 14),
-                                    ),
-                                    Row(
-                                      children: [
-                                        GlossyText(
-                                          text: _alertLabelFor(
-                                            alertMinutesBefore,
-                                          ),
-                                          gradient: goldGloss,
-                                          style: const TextStyle(fontSize: 14),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        const Icon(
-                                          Icons.chevron_right,
-                                          size: 18,
-                                          color: Colors.white54,
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 8),
-
-                            InkWell(
-                              onTap: () async {
-                                final title = controllerTitle.text.trim();
-                                final editingEventId = editingNote?.id;
-                                if (editingEventId == null ||
-                                    editingEventId.isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'Save this event first, then invite people inside the app.',
+                                    Text(
+                                      editingNote?.id == null
+                                          ? 'Save first'
+                                          : 'Invite people',
+                                      style: const TextStyle(
+                                        color: _gold,
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
                                       ),
                                     ),
-                                  );
-                                  return;
-                                }
-
-                                await _openEventInviteSheet(
-                                  eventId: editingEventId,
-                                  title: title.isEmpty ? 'Event' : title,
-                                );
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const GlossyText(
-                                      text: 'Invitees',
-                                      gradient: silverGloss,
-                                      style: TextStyle(fontSize: 14),
-                                    ),
-                                    Row(
-                                      children: [
-                                        Text(
-                                          editingNote?.id == null
-                                              ? 'Save first'
-                                              : 'Invite people',
-                                          style: const TextStyle(
-                                            color: _gold,
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 4),
-                                        const Icon(
-                                          Icons.chevron_right,
-                                          size: 18,
-                                          color: Colors.white54,
-                                        ),
-                                      ],
+                                    const SizedBox(width: 4),
+                                    const Icon(
+                                      Icons.chevron_right,
+                                      size: 18,
+                                      color: Colors.white54,
                                     ),
                                   ],
                                 ),
-                              ),
+                              ],
                             ),
+                          ),
+                        ),
 
-                            const SizedBox(height: 8),
+                        const SizedBox(height: 8),
 
-                            if (!editingRepeatingNote) ...[
-                              // Repeat row
-                              InkWell(
-                                onTap: () async {
-                                  final result = await showCupertinoModalPopup<NoteRepeatOption>(
+                        if (!editingRepeatingNote) ...[
+                          // Repeat row
+                          InkWell(
+                            onTap: () async {
+                              final result =
+                                  await showCupertinoModalPopup<
+                                    NoteRepeatOption
+                                  >(
                                     context: sheetCtx,
                                     builder: (_) {
                                       return CupertinoActionSheet(
@@ -28473,523 +28410,487 @@ class CalendarPageState extends State<CalendarPage>
                                       );
                                     },
                                   );
-                                  if (result != null) {
-                                    setSheetState(() {
-                                      repeatOption = result;
-                                      if (result == NoteRepeatOption.never) {
-                                        endType = NoteRepeatEndType.never;
-                                        endDate = null;
-                                      }
-                                    });
-                                    persistDaySheetSession();
-                                  }
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const GlossyText(
-                                        text: 'Repeat',
-                                        gradient: silverGloss,
-                                        style: TextStyle(fontSize: 14),
-                                      ),
-                                      Row(
-                                        children: [
-                                          GlossyText(
-                                            text: _repeatOptionLabel(
-                                              repeatOption,
-                                              customFrequency,
-                                              customInterval,
-                                            ),
-                                            gradient: goldGloss,
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                            ),
-                                          ),
-                                          const SizedBox(width: 4),
-                                          const Icon(
-                                            Icons.chevron_right,
-                                            size: 18,
-                                            color: Colors.white54,
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-
-                              // End Repeat row
-                              InkWell(
-                                onTap: repeatOption == NoteRepeatOption.never
-                                    ? null
-                                    : () async {
-                                        final result =
-                                            await showCupertinoModalPopup<
-                                              NoteRepeatEndType
-                                            >(
-                                              context: sheetCtx,
-                                              builder: (_) {
-                                                return CupertinoActionSheet(
-                                                  title: const GlossyText(
-                                                    text: 'End Repeat',
-                                                    gradient: silverGloss,
-                                                    style: TextStyle(
-                                                      fontSize: 18,
-                                                    ),
-                                                  ),
-                                                  actions: [
-                                                    CupertinoActionSheetAction(
-                                                      onPressed: () =>
-                                                          Navigator.pop(
-                                                            sheetCtx,
-                                                            NoteRepeatEndType
-                                                                .never,
-                                                          ),
-                                                      child: const GlossyText(
-                                                        text: 'Never',
-                                                        gradient: goldGloss,
-                                                        style: TextStyle(
-                                                          fontSize: 17,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    CupertinoActionSheetAction(
-                                                      onPressed: () async {
-                                                        Navigator.pop(sheetCtx);
-                                                        final gDay =
-                                                            KemeticMath.toGregorian(
-                                                              selYear,
-                                                              selMonth,
-                                                              selDay,
-                                                            );
-                                                        final picked =
-                                                            await RecurrenceUntilDatePicker.show(
-                                                              context,
-                                                              initialDate:
-                                                                  endDate ??
-                                                                  gDay.add(
-                                                                    const Duration(
-                                                                      days: 30,
-                                                                    ),
-                                                                  ),
-                                                              allowPast: false,
-                                                              firstDate: gDay,
-                                                              lastDate: gDay.add(
-                                                                const Duration(
-                                                                  days:
-                                                                      365 * 10,
-                                                                ),
-                                                              ),
-                                                            );
-                                                        if (picked != null) {
-                                                          setSheetState(() {
-                                                            endType =
-                                                                NoteRepeatEndType
-                                                                    .onDate;
-                                                            endDate = picked;
-                                                          });
-                                                          persistDaySheetSession();
-                                                        }
-                                                      },
-                                                      child: const GlossyText(
-                                                        text: 'On Date…',
-                                                        gradient: goldGloss,
-                                                        style: TextStyle(
-                                                          fontSize: 17,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                  cancelButton:
-                                                      CupertinoActionSheetAction(
-                                                        isDestructiveAction:
-                                                            true,
-                                                        onPressed: () =>
-                                                            Navigator.pop(
-                                                              sheetCtx,
-                                                            ),
-                                                        child: const Text(
-                                                          'Cancel',
-                                                        ),
-                                                      ),
-                                                );
-                                              },
-                                            );
-                                        if (result != null) {
-                                          setSheetState(() {
-                                            endType = result;
-                                            if (result ==
-                                                NoteRepeatEndType.never) {
-                                              endDate = null;
-                                            }
-                                          });
-                                          persistDaySheetSession();
-                                        }
-                                      },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 12,
-                                  ),
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      GlossyText(
-                                        text: 'End Repeat',
-                                        gradient:
-                                            repeatOption ==
-                                                NoteRepeatOption.never
-                                            ? silverGloss
-                                            : silverGloss,
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color:
-                                              repeatOption ==
-                                                  NoteRepeatOption.never
-                                              ? Colors.white54
-                                              : Colors.white,
-                                        ),
-                                      ),
-                                      Row(
-                                        children: [
-                                          if (repeatOption !=
-                                              NoteRepeatOption.never)
-                                            GlossyText(
-                                              text: _endRepeatLabel(
-                                                endType,
-                                                endDate,
-                                                endCount,
-                                              ),
-                                              gradient: goldGloss,
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                              ),
-                                            )
-                                          else
-                                            const Text(
-                                              'Never',
-                                              style: TextStyle(
-                                                fontSize: 14,
-                                                color: Colors.white54,
-                                              ),
-                                            ),
-                                          const SizedBox(width: 4),
-                                          Icon(
-                                            Icons.chevron_right,
-                                            size: 18,
-                                            color:
-                                                repeatOption ==
-                                                    NoteRepeatOption.never
-                                                ? Colors.white24
-                                                : Colors.white54,
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-
-                            const SizedBox(height: 12),
-
-                            DaySheetSpectrumColorPicker(
-                              selectedColor: selectedColor,
-                              onChanged: (color) {
+                              if (result != null) {
                                 setSheetState(() {
-                                  selectedColor = color;
+                                  repeatOption = result;
+                                  if (result == NoteRepeatOption.never) {
+                                    endType = NoteRepeatEndType.never;
+                                    endDate = null;
+                                  }
                                 });
                                 persistDaySheetSession();
-                              },
-                            ),
-
-                            const SizedBox(height: 12),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: DaySheetSaveButton(
-                                label: 'Save',
-                                accent: selectedColor,
-                                onPressed: () async {
-                                  final t = controllerTitle.text.trim();
-                                  final loc = controllerLocation.text.trim();
-                                  final d = controllerDetail.text.trim();
-                                  String detailForSave = d;
-                                  if (initialCidMetadata.isNotEmpty) {
-                                    if (editingIndex != null &&
-                                        d == strippedInitialDetail) {
-                                      // Preserve original metadata if the user didn't change the text.
-                                      detailForSave = rawInitialDetail;
-                                    } else {
-                                      detailForSave = _appendCidMetadata(
-                                        d,
-                                        initialCidMetadata,
-                                      );
-                                    }
-                                  }
-
-                                  if (t.isEmpty) return;
-
-                                  // Validate end time is after start time
-                                  if (!allDay &&
-                                      startTime != null &&
-                                      endTime != null) {
-                                    if (_toMinutes(endTime!) <=
-                                        _toMinutes(startTime!)) {
-                                      endTime = _addMinutes(startTime!, 60);
-                                    }
-                                  }
-
-                                  final bool isRepeating =
-                                      repeatOption != NoteRepeatOption.never;
-
-                                  final bucketKey = _kKey(
-                                    sourceEditingKYear,
-                                    sourceEditingKMonth,
-                                    sourceEditingKDay,
-                                  );
-                                  final editIndex = editingIndex;
-                                  final existingNote = editIndex != null
-                                      ? (_notes[bucketKey] != null &&
-                                                editIndex <
-                                                    _notes[bucketKey]!.length
-                                            ? _notes[bucketKey]![editIndex]
-                                            : null)
-                                      : null;
-                                  final existingClientEventId =
-                                      existingNote?.clientEventId ??
-                                      (existingNote != null &&
-                                              (existingNote.flowId == null ||
-                                                  existingNote.flowId == -1)
-                                          ? _buildCid(
-                                              ky: sourceEditingKYear,
-                                              km: sourceEditingKMonth,
-                                              kd: sourceEditingKDay,
-                                              title: existingNote.title,
-                                              startHour:
-                                                  existingNote.start?.hour,
-                                              startMinute:
-                                                  existingNote.start?.minute,
-                                              allDay: existingNote.allDay,
-                                              flowId: -1,
-                                              calendarScopeToken:
-                                                  _calendarScopeToken(
-                                                    existingNote.calendarId,
-                                                  ),
-                                            )
-                                          : null);
-
-                                  try {
-                                    ({String clientEventId, String eventId})?
-                                    saveResult;
-                                    var updatedExistingStandalone = false;
-                                    var handledRepeatingEdit = false;
-
-                                    if (selectedCalendar != null &&
-                                        !selectedCalendar.canEdit) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'You can view this calendar, but you cannot edit it.',
-                                          ),
+                              }
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const GlossyText(
+                                    text: 'Repeat',
+                                    gradient: silverGloss,
+                                    style: TextStyle(fontSize: 14),
+                                  ),
+                                  Row(
+                                    children: [
+                                      GlossyText(
+                                        text: _repeatOptionLabel(
+                                          repeatOption,
+                                          customFrequency,
+                                          customInterval,
                                         ),
-                                      );
-                                      return;
-                                    }
-
-                                    final editingRepeatingFlow =
-                                        _repeatingNoteFlowForId(
-                                          existingNote?.flowId,
-                                        );
-                                    if (editingRepeatingFlow != null &&
-                                        existingNote != null) {
-                                      final scope =
-                                          await _showRepeatingEventScopeSheet(
-                                            context: sheetCtx,
-                                            isDelete: false,
-                                          );
-                                      if (scope == null) return;
-                                      await _applyRepeatingNoteEditScope(
-                                        originalNote: existingNote,
-                                        sourceKYear: sourceEditingKYear,
-                                        sourceKMonth: sourceEditingKMonth,
-                                        sourceKDay: sourceEditingKDay,
-                                        selYear: selYear,
-                                        selMonth: selMonth,
-                                        selDay: selDay,
-                                        title: t,
-                                        detail: detailForSave.isEmpty
-                                            ? null
-                                            : detailForSave,
-                                        location: loc.isEmpty ? null : loc,
-                                        calendarId: selectedCalendarId,
-                                        calendarName: selectedCalendarLabel,
-                                        allDay: allDay,
-                                        startTime: startTime,
-                                        endTime: endTime,
-                                        color: selectedColor,
-                                        category: selectedCategory,
-                                        alertMinutesBefore: alertMinutesBefore,
-                                        scope: scope,
-                                      );
-                                      handledRepeatingEdit = true;
-                                    } else if (!isRepeating) {
-                                      final canUpdateExisting =
-                                          existingNote?.id != null &&
-                                          ((existingNote?.flowId == null) ||
-                                              existingNote?.flowId == -1);
-                                      if (canUpdateExisting) {
-                                        updatedExistingStandalone = true;
-                                        saveResult =
-                                            await _updateSingleNoteOnly(
-                                              existingEventId:
-                                                  existingNote!.id!,
-                                              previousClientEventId:
-                                                  existingClientEventId,
-                                              selYear: selYear,
-                                              selMonth: selMonth,
-                                              selDay: selDay,
-                                              title: t,
-                                              detail: detailForSave.isEmpty
-                                                  ? null
-                                                  : detailForSave,
-                                              location: loc.isEmpty
-                                                  ? null
-                                                  : loc,
-                                              calendarId: selectedCalendarId,
-                                              calendarName:
-                                                  selectedCalendarLabel,
-                                              allDay: allDay,
-                                              startTime: startTime,
-                                              endTime: endTime,
-                                              color: selectedColor,
-                                              category: selectedCategory,
-                                              alertMinutesBefore:
-                                                  alertMinutesBefore,
-                                            );
-                                      } else {
-                                        saveResult = await _saveSingleNoteOnly(
-                                          selYear: selYear,
-                                          selMonth: selMonth,
-                                          selDay: selDay,
-                                          title: t,
-                                          detail: detailForSave.isEmpty
-                                              ? null
-                                              : detailForSave,
-                                          location: loc.isEmpty ? null : loc,
-                                          calendarId: selectedCalendarId,
-                                          calendarName: selectedCalendarLabel,
-                                          allDay: allDay,
-                                          startTime: startTime,
-                                          endTime: endTime,
-                                          color: selectedColor,
-                                          category: selectedCategory,
-                                          alertMinutesBefore:
-                                              alertMinutesBefore,
-                                        );
-                                      }
-                                    } else {
-                                      // Repeating note - create hidden flow
-                                      await _saveRepeatingNoteAsHiddenFlow(
-                                        selYear: selYear,
-                                        selMonth: selMonth,
-                                        selDay: selDay,
-                                        title: t,
-                                        detail: detailForSave.isEmpty
-                                            ? null
-                                            : detailForSave,
-                                        location: loc.isEmpty ? null : loc,
-                                        calendarId: selectedCalendarId,
-                                        calendarName: selectedCalendarLabel,
-                                        allDay: allDay,
-                                        startTime: startTime,
-                                        endTime: endTime,
-                                        repeatOption: repeatOption,
-                                        customFrequency: customFrequency,
-                                        customInterval: customInterval,
-                                        endType: endType,
-                                        endDate: endDate,
-                                        endCount: endCount,
-                                        color: selectedColor,
-                                        category: selectedCategory,
-                                        alertMinutesBefore: alertMinutesBefore,
-                                      );
-                                    }
-
-                                    if (!handledRepeatingEdit &&
-                                        editIndex != null &&
-                                        existingNote != null) {
-                                      if (updatedExistingStandalone) {
-                                        _removeLocalNoteOnly(
-                                          sourceEditingKYear,
-                                          sourceEditingKMonth,
-                                          sourceEditingKDay,
-                                          editIndex,
-                                        );
-                                      } else {
-                                        final cidMatches =
-                                            !isRepeating &&
-                                            existingClientEventId != null &&
-                                            saveResult != null &&
-                                            existingClientEventId ==
-                                                saveResult.clientEventId;
-                                        if (cidMatches) {
-                                          _removeLocalNoteOnly(
-                                            sourceEditingKYear,
-                                            sourceEditingKMonth,
-                                            sourceEditingKDay,
-                                            editIndex,
-                                          );
-                                        } else {
-                                          await _deleteNote(
-                                            sourceEditingKYear,
-                                            sourceEditingKMonth,
-                                            sourceEditingKDay,
-                                            editIndex,
-                                          );
-                                        }
-                                      }
-                                    }
-                                  } catch (e, stackTrace) {
-                                    if (kDebugMode) {
-                                      _calendarDebugPrint(
-                                        '[SaveNote] Error saving note: $e',
-                                      );
-                                      _calendarDebugPrint(
-                                        '[SaveNote] Stack trace: $stackTrace',
-                                      );
-                                    }
-                                    if (mounted) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text(
-                                            'Failed to save note: $e',
-                                          ),
-                                          backgroundColor: Colors.red,
-                                          duration: const Duration(seconds: 3),
-                                        ),
-                                      );
-                                    }
-                                    return; // Don't close sheet on error
-                                  }
-
-                                  if (!sheetCtx.mounted) return;
-                                  Navigator.pop(sheetCtx);
-                                },
+                                        gradient: goldGloss,
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                      const SizedBox(width: 4),
+                                      const Icon(
+                                        Icons.chevron_right,
+                                        size: 18,
+                                        color: Colors.white54,
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
-                          ],
+                          ),
+
+                          // End Repeat row
+                          InkWell(
+                            onTap: repeatOption == NoteRepeatOption.never
+                                ? null
+                                : () async {
+                                    final result =
+                                        await showCupertinoModalPopup<
+                                          NoteRepeatEndType
+                                        >(
+                                          context: sheetCtx,
+                                          builder: (_) {
+                                            return CupertinoActionSheet(
+                                              title: const GlossyText(
+                                                text: 'End Repeat',
+                                                gradient: silverGloss,
+                                                style: TextStyle(fontSize: 18),
+                                              ),
+                                              actions: [
+                                                CupertinoActionSheetAction(
+                                                  onPressed: () =>
+                                                      Navigator.pop(
+                                                        sheetCtx,
+                                                        NoteRepeatEndType.never,
+                                                      ),
+                                                  child: const GlossyText(
+                                                    text: 'Never',
+                                                    gradient: goldGloss,
+                                                    style: TextStyle(
+                                                      fontSize: 17,
+                                                    ),
+                                                  ),
+                                                ),
+                                                CupertinoActionSheetAction(
+                                                  onPressed: () async {
+                                                    Navigator.pop(sheetCtx);
+                                                    final gDay =
+                                                        KemeticMath.toGregorian(
+                                                          selYear,
+                                                          selMonth,
+                                                          selDay,
+                                                        );
+                                                    final picked =
+                                                        await RecurrenceUntilDatePicker.show(
+                                                          context,
+                                                          initialDate:
+                                                              endDate ??
+                                                              gDay.add(
+                                                                const Duration(
+                                                                  days: 30,
+                                                                ),
+                                                              ),
+                                                          allowPast: false,
+                                                          firstDate: gDay,
+                                                          lastDate: gDay.add(
+                                                            const Duration(
+                                                              days: 365 * 10,
+                                                            ),
+                                                          ),
+                                                        );
+                                                    if (picked != null) {
+                                                      setSheetState(() {
+                                                        endType =
+                                                            NoteRepeatEndType
+                                                                .onDate;
+                                                        endDate = picked;
+                                                      });
+                                                      persistDaySheetSession();
+                                                    }
+                                                  },
+                                                  child: const GlossyText(
+                                                    text: 'On Date…',
+                                                    gradient: goldGloss,
+                                                    style: TextStyle(
+                                                      fontSize: 17,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ],
+                                              cancelButton:
+                                                  CupertinoActionSheetAction(
+                                                    isDestructiveAction: true,
+                                                    onPressed: () =>
+                                                        Navigator.pop(sheetCtx),
+                                                    child: const Text('Cancel'),
+                                                  ),
+                                            );
+                                          },
+                                        );
+                                    if (result != null) {
+                                      setSheetState(() {
+                                        endType = result;
+                                        if (result == NoteRepeatEndType.never) {
+                                          endDate = null;
+                                        }
+                                      });
+                                      persistDaySheetSession();
+                                    }
+                                  },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  GlossyText(
+                                    text: 'End Repeat',
+                                    gradient:
+                                        repeatOption == NoteRepeatOption.never
+                                        ? silverGloss
+                                        : silverGloss,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color:
+                                          repeatOption == NoteRepeatOption.never
+                                          ? Colors.white54
+                                          : Colors.white,
+                                    ),
+                                  ),
+                                  Row(
+                                    children: [
+                                      if (repeatOption !=
+                                          NoteRepeatOption.never)
+                                        GlossyText(
+                                          text: _endRepeatLabel(
+                                            endType,
+                                            endDate,
+                                            endCount,
+                                          ),
+                                          gradient: goldGloss,
+                                          style: const TextStyle(fontSize: 14),
+                                        )
+                                      else
+                                        const Text(
+                                          'Never',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.white54,
+                                          ),
+                                        ),
+                                      const SizedBox(width: 4),
+                                      Icon(
+                                        Icons.chevron_right,
+                                        size: 18,
+                                        color:
+                                            repeatOption ==
+                                                NoteRepeatOption.never
+                                            ? Colors.white24
+                                            : Colors.white54,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ],
-                      ),
-                    ),
+
+                        const SizedBox(height: 12),
+
+                        DaySheetSpectrumColorPicker(
+                          selectedColor: selectedColor,
+                          onChanged: (color) {
+                            setSheetState(() {
+                              selectedColor = color;
+                            });
+                            persistDaySheetSession();
+                          },
+                        ),
+
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: DaySheetSaveButton(
+                            label: 'Save',
+                            accent: selectedColor,
+                            onPressed: () async {
+                              final t = controllerTitle.text.trim();
+                              final loc = controllerLocation.text.trim();
+                              final d = controllerDetail.text.trim();
+                              String detailForSave = d;
+                              if (initialCidMetadata.isNotEmpty) {
+                                if (editingIndex != null &&
+                                    d == strippedInitialDetail) {
+                                  // Preserve original metadata if the user didn't change the text.
+                                  detailForSave = rawInitialDetail;
+                                } else {
+                                  detailForSave = _appendCidMetadata(
+                                    d,
+                                    initialCidMetadata,
+                                  );
+                                }
+                              }
+
+                              if (t.isEmpty) return;
+
+                              // Validate end time is after start time
+                              if (!allDay &&
+                                  startTime != null &&
+                                  endTime != null) {
+                                if (_toMinutes(endTime!) <=
+                                    _toMinutes(startTime!)) {
+                                  endTime = _addMinutes(startTime!, 60);
+                                }
+                              }
+
+                              final bool isRepeating =
+                                  repeatOption != NoteRepeatOption.never;
+
+                              final bucketKey = _kKey(
+                                sourceEditingKYear,
+                                sourceEditingKMonth,
+                                sourceEditingKDay,
+                              );
+                              final editIndex = editingIndex;
+                              final existingNote = editIndex != null
+                                  ? (_notes[bucketKey] != null &&
+                                            editIndex <
+                                                _notes[bucketKey]!.length
+                                        ? _notes[bucketKey]![editIndex]
+                                        : null)
+                                  : null;
+                              final existingClientEventId =
+                                  existingNote?.clientEventId ??
+                                  (existingNote != null &&
+                                          (existingNote.flowId == null ||
+                                              existingNote.flowId == -1)
+                                      ? _buildCid(
+                                          ky: sourceEditingKYear,
+                                          km: sourceEditingKMonth,
+                                          kd: sourceEditingKDay,
+                                          title: existingNote.title,
+                                          startHour: existingNote.start?.hour,
+                                          startMinute:
+                                              existingNote.start?.minute,
+                                          allDay: existingNote.allDay,
+                                          flowId: -1,
+                                          calendarScopeToken:
+                                              _calendarScopeToken(
+                                                existingNote.calendarId,
+                                              ),
+                                        )
+                                      : null);
+
+                              try {
+                                ({String clientEventId, String eventId})?
+                                saveResult;
+                                var updatedExistingStandalone = false;
+                                var handledRepeatingEdit = false;
+
+                                if (selectedCalendar != null &&
+                                    !selectedCalendar.canEdit) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                        'You can view this calendar, but you cannot edit it.',
+                                      ),
+                                    ),
+                                  );
+                                  return;
+                                }
+
+                                final editingRepeatingFlow =
+                                    _repeatingNoteFlowForId(
+                                      existingNote?.flowId,
+                                    );
+                                if (editingRepeatingFlow != null &&
+                                    existingNote != null) {
+                                  final scope =
+                                      await _showRepeatingEventScopeSheet(
+                                        context: sheetCtx,
+                                        isDelete: false,
+                                      );
+                                  if (scope == null) return;
+                                  await _applyRepeatingNoteEditScope(
+                                    originalNote: existingNote,
+                                    sourceKYear: sourceEditingKYear,
+                                    sourceKMonth: sourceEditingKMonth,
+                                    sourceKDay: sourceEditingKDay,
+                                    selYear: selYear,
+                                    selMonth: selMonth,
+                                    selDay: selDay,
+                                    title: t,
+                                    detail: detailForSave.isEmpty
+                                        ? null
+                                        : detailForSave,
+                                    location: loc.isEmpty ? null : loc,
+                                    calendarId: selectedCalendarId,
+                                    calendarName: selectedCalendarLabel,
+                                    allDay: allDay,
+                                    startTime: startTime,
+                                    endTime: endTime,
+                                    color: selectedColor,
+                                    category: selectedCategory,
+                                    alertMinutesBefore: alertMinutesBefore,
+                                    scope: scope,
+                                  );
+                                  handledRepeatingEdit = true;
+                                } else if (!isRepeating) {
+                                  final canUpdateExisting =
+                                      existingNote?.id != null &&
+                                      ((existingNote?.flowId == null) ||
+                                          existingNote?.flowId == -1);
+                                  if (canUpdateExisting) {
+                                    updatedExistingStandalone = true;
+                                    saveResult = await _updateSingleNoteOnly(
+                                      existingEventId: existingNote!.id!,
+                                      previousClientEventId:
+                                          existingClientEventId,
+                                      selYear: selYear,
+                                      selMonth: selMonth,
+                                      selDay: selDay,
+                                      title: t,
+                                      detail: detailForSave.isEmpty
+                                          ? null
+                                          : detailForSave,
+                                      location: loc.isEmpty ? null : loc,
+                                      calendarId: selectedCalendarId,
+                                      calendarName: selectedCalendarLabel,
+                                      allDay: allDay,
+                                      startTime: startTime,
+                                      endTime: endTime,
+                                      color: selectedColor,
+                                      category: selectedCategory,
+                                      alertMinutesBefore: alertMinutesBefore,
+                                    );
+                                  } else {
+                                    saveResult = await _saveSingleNoteOnly(
+                                      selYear: selYear,
+                                      selMonth: selMonth,
+                                      selDay: selDay,
+                                      title: t,
+                                      detail: detailForSave.isEmpty
+                                          ? null
+                                          : detailForSave,
+                                      location: loc.isEmpty ? null : loc,
+                                      calendarId: selectedCalendarId,
+                                      calendarName: selectedCalendarLabel,
+                                      allDay: allDay,
+                                      startTime: startTime,
+                                      endTime: endTime,
+                                      color: selectedColor,
+                                      category: selectedCategory,
+                                      alertMinutesBefore: alertMinutesBefore,
+                                    );
+                                  }
+                                } else {
+                                  // Repeating note - create hidden flow
+                                  await _saveRepeatingNoteAsHiddenFlow(
+                                    selYear: selYear,
+                                    selMonth: selMonth,
+                                    selDay: selDay,
+                                    title: t,
+                                    detail: detailForSave.isEmpty
+                                        ? null
+                                        : detailForSave,
+                                    location: loc.isEmpty ? null : loc,
+                                    calendarId: selectedCalendarId,
+                                    calendarName: selectedCalendarLabel,
+                                    allDay: allDay,
+                                    startTime: startTime,
+                                    endTime: endTime,
+                                    repeatOption: repeatOption,
+                                    customFrequency: customFrequency,
+                                    customInterval: customInterval,
+                                    endType: endType,
+                                    endDate: endDate,
+                                    endCount: endCount,
+                                    color: selectedColor,
+                                    category: selectedCategory,
+                                    alertMinutesBefore: alertMinutesBefore,
+                                  );
+                                }
+
+                                if (!handledRepeatingEdit &&
+                                    editIndex != null &&
+                                    existingNote != null) {
+                                  if (updatedExistingStandalone) {
+                                    _removeLocalNoteOnly(
+                                      sourceEditingKYear,
+                                      sourceEditingKMonth,
+                                      sourceEditingKDay,
+                                      editIndex,
+                                    );
+                                  } else {
+                                    final cidMatches =
+                                        !isRepeating &&
+                                        existingClientEventId != null &&
+                                        saveResult != null &&
+                                        existingClientEventId ==
+                                            saveResult.clientEventId;
+                                    if (cidMatches) {
+                                      _removeLocalNoteOnly(
+                                        sourceEditingKYear,
+                                        sourceEditingKMonth,
+                                        sourceEditingKDay,
+                                        editIndex,
+                                      );
+                                    } else {
+                                      await _deleteNote(
+                                        sourceEditingKYear,
+                                        sourceEditingKMonth,
+                                        sourceEditingKDay,
+                                        editIndex,
+                                      );
+                                    }
+                                  }
+                                }
+                              } catch (e, stackTrace) {
+                                if (kDebugMode) {
+                                  _calendarDebugPrint(
+                                    '[SaveNote] Error saving note: $e',
+                                  );
+                                  _calendarDebugPrint(
+                                    '[SaveNote] Stack trace: $stackTrace',
+                                  );
+                                }
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Failed to save note: $e'),
+                                      backgroundColor: Colors.red,
+                                      duration: const Duration(seconds: 3),
+                                    ),
+                                  );
+                                }
+                                return; // Don't close sheet on error
+                              }
+
+                              if (!sheetCtx.mounted) return;
+                              Navigator.pop(sheetCtx);
+                            },
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
               );
