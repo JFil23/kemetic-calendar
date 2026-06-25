@@ -303,6 +303,68 @@ void main() {
   });
 
   test(
+    'getCommunityRhythmRollups calls aggregate RPC and sorts visible labels',
+    () async {
+      SharedPreferences.setMockInitialValues({});
+      Map<String, dynamic>? rpcPayload;
+
+      final rollups = await _withProfileServer(
+        (request) async {
+          if (request.uri.path == '/rest/v1/rpc/get_community_rhythm_rollups') {
+            rpcPayload = await _readJsonMap(request);
+            await _sendJson(
+              request,
+              body: [
+                {
+                  'metric': 'flows_began',
+                  'count_label': ' a few ',
+                  'is_thresholded': true,
+                  'sort_order': 2,
+                },
+                {
+                  'metric': 'flow_steps_completed',
+                  'count_label': '3',
+                  'is_thresholded': false,
+                  'sort_order': 1,
+                },
+                {
+                  'metric': 'reflections_recorded',
+                  'count_label': ' ',
+                  'is_thresholded': false,
+                  'sort_order': 3,
+                },
+              ],
+            );
+            return;
+          }
+
+          await _sendJson(request, statusCode: HttpStatus.notFound, body: {});
+        },
+        (client, _) async {
+          await client.auth.recoverSession(_sessionJson(ownerUserId));
+          return ProfileRepo(
+            client,
+          ).getCommunityRhythmRollups(localDate: DateTime(2026, 6, 24));
+        },
+      );
+
+      expect(rpcPayload, {'p_local_date': '2026-06-24'});
+      expect(rollups, hasLength(3));
+      expect(rollups!.map((rollup) => rollup.metric), [
+        'flow_steps_completed',
+        'flows_began',
+        'reflections_recorded',
+      ]);
+      expect(rollups[0].countLabel, '3');
+      expect(rollups[0].isVisible, isTrue);
+      expect(rollups[1].countLabel, 'a few');
+      expect(rollups[1].isThresholded, isTrue);
+      expect(rollups[2].countLabel, isNull);
+      expect(rollups[2].isVisible, isFalse);
+    },
+  );
+
+  test(
     'saveFlowPostToMyFlows creates profile-import metadata and snapshot events',
     () async {
       SharedPreferences.setMockInitialValues({});

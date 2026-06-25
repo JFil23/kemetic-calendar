@@ -41,6 +41,33 @@ class ProfileFeedResult {
   bool get hasError => errorMessage != null;
 }
 
+class CommunityRhythmRollup {
+  const CommunityRhythmRollup({
+    required this.metric,
+    required this.countLabel,
+    required this.isThresholded,
+    required this.sortOrder,
+  });
+
+  final String metric;
+  final String? countLabel;
+  final bool isThresholded;
+  final int sortOrder;
+
+  bool get isVisible => countLabel?.trim().isNotEmpty ?? false;
+
+  factory CommunityRhythmRollup.fromJson(Map<String, dynamic> json) {
+    final rawLabel = json['count_label'];
+    final countLabel = rawLabel?.toString().trim();
+    return CommunityRhythmRollup(
+      metric: (json['metric'] as String? ?? '').trim(),
+      countLabel: countLabel == null || countLabel.isEmpty ? null : countLabel,
+      isThresholded: (json['is_thresholded'] as bool?) ?? false,
+      sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
+    );
+  }
+}
+
 class ProfileRepo {
   final SupabaseClient _client;
 
@@ -919,6 +946,36 @@ class ProfileRepo {
     return result.data;
   }
 
+  Future<List<CommunityRhythmRollup>?> getCommunityRhythmRollups({
+    DateTime? localDate,
+  }) async {
+    try {
+      final date = DateUtils.dateOnly((localDate ?? DateTime.now()).toLocal());
+      final response = await withSupabaseAuthRetry(
+        _client,
+        () => _client.rpc(
+          'get_community_rhythm_rollups',
+          params: {'p_local_date': _dateOnlyIso(date)},
+        ),
+      );
+      final rows = (response as List<dynamic>?) ?? const [];
+      final rollups =
+          rows
+              .whereType<Map>()
+              .map(
+                (row) => CommunityRhythmRollup.fromJson(
+                  Map<String, dynamic>.from(row),
+                ),
+              )
+              .toList(growable: false)
+            ..sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+      return rollups;
+    } catch (e) {
+      _log('[ProfileRepo] Community rhythm rollups unavailable: $e');
+      return null;
+    }
+  }
+
   /// Fetch a single flow post by id.
   Future<FlowPost?> getFlowPostById(String postId) async {
     try {
@@ -1720,6 +1777,12 @@ class ProfileRepo {
   String _postgrestText(PostgrestException e) {
     return '${e.code} ${e.message} ${e.details ?? ''} ${e.hint ?? ''}'
         .toLowerCase();
+  }
+
+  String _dateOnlyIso(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year.toString().padLeft(4, '0')}-$month-$day';
   }
 
   Future<List<FlowPost>> _filterBlockedFlowPosts(List<FlowPost> posts) async {
