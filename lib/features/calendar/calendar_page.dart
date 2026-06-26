@@ -6985,11 +6985,28 @@ class CalendarPage extends StatefulWidget {
       }
     }
     if (readingHouseFlow != null) {
+      final mountedHost = CalendarPage._mountedState;
+      final sharedCalendarsRepo =
+          mountedHost?._sharedCalendarsRepo ??
+          SharedCalendarsRepo(Supabase.instance.client);
+      final onCalendarChanged =
+          mountedHost?._moveReadingHouseFlowToCalendar ??
+          (flow, calendar) => _moveReadingHouseFlowToCalendarHeadless(
+            flow,
+            calendar,
+            flowsRepo,
+          );
       return _pushDetachedFlowStudioRoute<_FlowStudioResult>(
         navigator,
         MaterialPageRoute<_FlowStudioResult>(
           builder: (_) => _ReadingHouseAuthoringPage(
             flow: readingHouseFlow!,
+            calendar: mountedHost?._calendarSummary(
+              readingHouseFlow.calendarId,
+            ),
+            personalCalendarId: mountedHost?._personalCalendarId,
+            sharedCalendarsRepo: sharedCalendarsRepo,
+            onCalendarChanged: onCalendarChanged,
             onSave: handleResult,
           ),
         ),
@@ -7029,6 +7046,29 @@ class CalendarPage extends StatefulWidget {
       },
       returnState: returnState,
     );
+  }
+
+  static Future<_Flow> _moveReadingHouseFlowToCalendarHeadless(
+    _Flow flow,
+    SharedCalendarSummary calendar,
+    FlowsRepo flowsRepo,
+  ) async {
+    final calendarId = calendar.id.trim();
+    if (calendarId.isEmpty) {
+      throw ArgumentError.value(
+        calendar.id,
+        'calendar.id',
+        'Must not be empty.',
+      );
+    }
+    await flowsRepo.updateCalendar(id: flow.id, calendarId: calendarId);
+    await UserEventsRepo(
+      Supabase.instance.client,
+    ).updateCalendarForFlowEvents(flowId: flow.id, calendarId: calendarId);
+    await flowsRepo.clearMyFiledFlowsCache();
+    unawaited(flowsRepo.refreshMyFiledFlows());
+    flow.calendarId = calendarId;
+    return flow;
   }
 
   static Future<int?> _pushDetachedMaatFlowTemplateDetail(

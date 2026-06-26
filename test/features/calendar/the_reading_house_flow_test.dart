@@ -802,12 +802,12 @@ void main() {
         'private reflections, notes, and local margin text stay private',
       ),
     );
+    expect(panel, contains('one-level replies'));
+    expect(panel, contains('Discussion rooms and chat remain future-facing'));
     for (final forbidden in <String>[
       'Share fragment',
-      'Reply',
       'Like',
       'House Chat',
-      'Discussion',
       'Leader',
     ]) {
       expect(panel, isNot(contains(forbidden)));
@@ -852,6 +852,15 @@ void main() {
     expect(myFlowsEdit, contains('_ReadingHouseAuthoringPage('));
     expect(myFlowsEdit, contains('_moveReadingHouseFlowToCalendar'));
     expect(myFlowsEdit, contains('_FlowStudioPage('));
+
+    final detachedMyFlowsEdit = _sourceBetween(
+      calendarPageSource,
+      'static Future<_FlowStudioResult?> _pushDetachedFlowStudioEditor',
+      '        builder: (_) => _FlowStudioPage(',
+    );
+    expect(detachedMyFlowsEdit, contains('_ReadingHouseAuthoringPage('));
+    expect(detachedMyFlowsEdit, contains('SharedCalendarsRepo('));
+    expect(detachedMyFlowsEdit, contains('_moveReadingHouseFlowToCalendar'));
 
     final directEdit = _sourceBetween(
       calendarPageSource,
