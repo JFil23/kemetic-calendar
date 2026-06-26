@@ -57,6 +57,7 @@ import 'the_djed_flow.dart';
 import 'the_djed_local_store.dart';
 import 'the_reading_house_flow.dart';
 import 'reading_house_private_margin_store.dart';
+import 'reading_house_shared_fragments_repo.dart';
 import 'maat_decan_flow.dart';
 import 'living_text_day_one_node_store.dart';
 import 'decan_id.dart';
@@ -64,6 +65,7 @@ import '../nodes/kemetic_node_search_delegate.dart';
 import '../onboarding/day_view_date_coachmark.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import '../../widgets/kemetic_day_info.dart';
+import '../../widgets/keyboard_aware.dart';
 import 'package:mobile/core/day_key.dart';
 import 'package:mobile/telemetry/telemetry.dart';
 import '../../data/user_events_repo.dart';
@@ -8908,7 +8910,13 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       const DecanWatchLocalStore();
   final ReadingHousePrivateMarginStore _readingHousePrivateMarginStore =
       const ReadingHousePrivateMarginStore();
+  final ReadingHouseSharedFragmentsRepo _readingHouseFragmentsRepo =
+      ReadingHouseSharedFragmentsRepo(Supabase.instance.client);
   final TextEditingController _eveningThresholdReleaseCarryController =
+      TextEditingController();
+  final TextEditingController _readingHouseFragmentBodyController =
+      TextEditingController();
+  final TextEditingController _readingHouseFragmentReferenceController =
       TextEditingController();
   OverlayEntry? _sheetFeedbackOverlay;
   Timer? _sheetFeedbackTimer;
@@ -8923,6 +8931,14 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   DailyOrientationEntry? _eveningThresholdPreviousOrientation;
   bool _eveningThresholdReleasePending = false;
   bool _readingHousePrivateMarginSaving = false;
+  bool _readingHouseFragmentsLoading = false;
+  bool _readingHouseFragmentSaving = false;
+  bool _readingHouseFragmentComposerOpen = false;
+  bool _readingHouseCanModerateFragments = false;
+  Object? _readingHouseFragmentsError;
+  int _readingHouseFragmentsLoadGeneration = 0;
+  List<ReadingHouseSharedFragment> _readingHouseFragments =
+      const <ReadingHouseSharedFragment>[];
   int _decanWatchResponseLoadGeneration = 0;
   Map<String, MaatFlowResponseValue> _responseValues =
       const <String, MaatFlowResponseValue>{};
@@ -8941,6 +8957,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     _clearSheetFeedback();
     _completionFeedbackScheduler.dispose();
     _eveningThresholdReleaseCarryController.dispose();
+    _readingHouseFragmentBodyController.dispose();
+    _readingHouseFragmentReferenceController.dispose();
     super.dispose();
   }
 
@@ -9037,6 +9055,18 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     });
   }
 
+  void _resetReadingHouseFragmentState() {
+    _readingHouseFragmentsLoadGeneration++;
+    _readingHouseFragments = const <ReadingHouseSharedFragment>[];
+    _readingHouseFragmentsLoading = false;
+    _readingHouseFragmentSaving = false;
+    _readingHouseFragmentsError = null;
+    _readingHouseCanModerateFragments = false;
+    _readingHouseFragmentComposerOpen = false;
+    _readingHouseFragmentBodyController.clear();
+    _readingHouseFragmentReferenceController.clear();
+  }
+
   @override
   void didUpdateWidget(covariant _MaatFlowCompletionPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -9049,6 +9079,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
       _readingHousePrivateMarginSaving = false;
+      _resetReadingHouseFragmentState();
       unawaited(_load());
     } else if (oldWidget.reloadSignal != widget.reloadSignal) {
       _responseValues = const <String, MaatFlowResponseValue>{};
@@ -9058,6 +9089,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
       _readingHousePrivateMarginSaving = false;
+      _resetReadingHouseFragmentState();
       unawaited(_load());
     } else if (!_sameResponseSpecs(
       oldWidget.responseSpecs,
@@ -9106,6 +9138,43 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         widget.responseSpecs.any(
           (spec) => spec.flowKey == kReadingHouseFlowKey,
         );
+  }
+
+  String? get _readingHouseCalendarId {
+    final calendarId = widget.event.calendarId?.trim();
+    return calendarId == null || calendarId.isEmpty ? null : calendarId;
+  }
+
+  String? get _readingHouseClientEventId {
+    final clientEventId = widget.event.clientEventId?.trim();
+    return clientEventId == null || clientEventId.isEmpty
+        ? null
+        : clientEventId;
+  }
+
+  int? get _readingHouseFlowId => widget.event.flowId;
+
+  bool get _hasReadingHouseFragmentContext {
+    return _isReadingHouseCompletion &&
+        _readingHouseCalendarId != null &&
+        _readingHouseFlowId != null &&
+        _readingHouseClientEventId != null;
+  }
+
+  String? get _readingHouseSelectedPosition {
+    return readingHousePositionFromResponseValues(_responseValues);
+  }
+
+  bool get _readingHouseFragmentsUnlocked {
+    return readingHouseSharedFragmentUnlockPosition(
+          _readingHouseSelectedPosition,
+        ) !=
+        null;
+  }
+
+  bool get _isReadingHouseSoloStudySitting {
+    return widget.event.behaviorPayload?['house_mode']?.toString().trim() ==
+        kReadingHouseSoloMode;
   }
 
   DateTime get _eventGregorianDate {
@@ -9327,6 +9396,152 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     }
   }
 
+  Future<void> _syncReadingHouseFragmentPositionIfNeeded() async {
+    if (!_hasReadingHouseFragmentContext || _isReadingHouseSoloStudySitting) {
+      return;
+    }
+    final position = _readingHouseSelectedPosition;
+    if (position == null) return;
+    try {
+      await _readingHouseFragmentsRepo.markReadingPosition(
+        calendarId: _readingHouseCalendarId!,
+        flowId: _readingHouseFlowId!,
+        clientEventId: _readingHouseClientEventId!,
+        eventNumber: widget.completion.eventNumber,
+        readingPosition: position,
+      );
+    } catch (_) {
+      // Fragment sharing will surface the error if the reader tries to share.
+    }
+  }
+
+  Future<void> _loadReadingHouseSharedFragmentsIfNeeded() async {
+    if (!_hasReadingHouseFragmentContext || _isReadingHouseSoloStudySitting) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseFragments = const <ReadingHouseSharedFragment>[];
+        _readingHouseFragmentsLoading = false;
+        _readingHouseFragmentsError = null;
+        _readingHouseCanModerateFragments = false;
+      });
+      return;
+    }
+
+    final generation = ++_readingHouseFragmentsLoadGeneration;
+    if (mounted) {
+      setState(() {
+        _readingHouseFragmentsLoading = true;
+        _readingHouseFragmentsError = null;
+      });
+    }
+    try {
+      final calendarId = _readingHouseCalendarId!;
+      final flowId = _readingHouseFlowId!;
+      final clientEventId = _readingHouseClientEventId!;
+      final results = await Future.wait<Object>(<Future<Object>>[
+        _readingHouseFragmentsRepo.listFragments(
+          calendarId: calendarId,
+          flowId: flowId,
+          clientEventId: clientEventId,
+        ),
+        _readingHouseFragmentsRepo.canModerateHouse(calendarId: calendarId),
+      ]);
+      if (!mounted || generation != _readingHouseFragmentsLoadGeneration) {
+        return;
+      }
+      setState(() {
+        _readingHouseFragments = results[0] as List<ReadingHouseSharedFragment>;
+        _readingHouseCanModerateFragments = results[1] == true;
+        _readingHouseFragmentsLoading = false;
+      });
+    } catch (error) {
+      if (!mounted || generation != _readingHouseFragmentsLoadGeneration) {
+        return;
+      }
+      setState(() {
+        _readingHouseFragmentsError = error;
+        _readingHouseFragmentsLoading = false;
+      });
+    }
+  }
+
+  Future<void> _syncAndLoadReadingHouseSharedFragments() async {
+    await _syncReadingHouseFragmentPositionIfNeeded();
+    await _loadReadingHouseSharedFragmentsIfNeeded();
+  }
+
+  Future<void> _shareReadingHouseFragment() async {
+    if (!_hasReadingHouseFragmentContext || _readingHouseFragmentSaving) {
+      return;
+    }
+    final position = _readingHouseSelectedPosition;
+    if (readingHouseSharedFragmentUnlockPosition(position) == null) {
+      _showSheetFeedback('Choose Carrying before bringing a fragment.');
+      return;
+    }
+    final body = _readingHouseFragmentBodyController.text.trim();
+    if (body.isEmpty) {
+      _showSheetFeedback('Add the fragment first.');
+      return;
+    }
+    setState(() {
+      _readingHouseFragmentSaving = true;
+      _readingHouseFragmentsError = null;
+    });
+    try {
+      await _readingHouseFragmentsRepo.shareFragment(
+        calendarId: _readingHouseCalendarId!,
+        flowId: _readingHouseFlowId!,
+        clientEventId: _readingHouseClientEventId!,
+        eventNumber: widget.completion.eventNumber,
+        readingPosition: position!,
+        passageReference: _readingHouseFragmentReferenceController.text,
+        body: body,
+      );
+      _readingHouseFragmentBodyController.clear();
+      _readingHouseFragmentReferenceController.clear();
+      if (!mounted) return;
+      setState(() {
+        _readingHouseFragmentComposerOpen = false;
+        _readingHouseFragmentSaving = false;
+      });
+      await _loadReadingHouseSharedFragmentsIfNeeded();
+      if (mounted) {
+        _showSheetFeedback('Fragment brought to the house.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseFragmentSaving = false;
+      });
+      _showSheetFeedback('Could not share this fragment.');
+    }
+  }
+
+  Future<void> _deleteReadingHouseFragment(
+    ReadingHouseSharedFragment fragment,
+  ) async {
+    if (_readingHouseFragmentSaving) return;
+    setState(() => _readingHouseFragmentSaving = true);
+    try {
+      await _readingHouseFragmentsRepo.deleteFragment(fragment.id);
+      if (!mounted) return;
+      setState(() {
+        _readingHouseFragmentSaving = false;
+      });
+      await _loadReadingHouseSharedFragmentsIfNeeded();
+      if (mounted) {
+        _showSheetFeedback('Fragment removed.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseFragmentSaving = false;
+      });
+      _showSheetFeedback('Could not remove this fragment.');
+    }
+  }
+
   Future<void> _persistDecanWatchResponseValues(
     Map<String, MaatFlowResponseValue> values,
   ) async {
@@ -9434,11 +9649,13 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         _status = nextStatus ?? (hasCompletionRow ? 'observed' : null);
         _loading = false;
       });
+      unawaited(_syncAndLoadReadingHouseSharedFragments());
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _loading = false;
       });
+      unawaited(_loadReadingHouseSharedFragmentsIfNeeded());
     }
   }
 
@@ -9795,6 +10012,9 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       });
       if (status == 'release') {
         _eveningThresholdReleaseCarryController.clear();
+      }
+      if (_isReadingHouseCompletion) {
+        unawaited(_syncAndLoadReadingHouseSharedFragments());
       }
       unawaited(_maybeCaptureLivingTextDayOneNode(status));
     } catch (_) {
@@ -10236,6 +10456,10 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     });
     _rememberInitialPromptDraftValue(value);
     unawaited(_persistDecanWatchResponseValues(nextValues));
+    if (_isReadingHouseCompletion &&
+        value.specId == kReadingHousePositionSpecId) {
+      unawaited(_syncAndLoadReadingHouseSharedFragments());
+    }
   }
 
   Future<void> _syncResponseBlocks(CompletionStatus completionStatus) async {
@@ -10321,6 +10545,287 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     );
   }
 
+  String _readingHouseFragmentAuthorLabel(ReadingHouseSharedFragment fragment) {
+    return fragment.isAuthoredBy(_readingHouseFragmentsRepo.currentUserId)
+        ? 'You'
+        : 'House member';
+  }
+
+  Widget _buildReadingHouseFragmentComposer(
+    CalendarCompletionPickerStyle style,
+  ) {
+    if (!_readingHouseFragmentComposerOpen) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: _readingHouseFragmentSaving
+              ? null
+              : () => setState(() {
+                  _readingHouseFragmentComposerOpen = true;
+                }),
+          icon: const Icon(Icons.format_quote),
+          label: const Text('Bring a fragment to the house'),
+        ),
+      );
+    }
+
+    InputDecoration decoration(String label) {
+      return InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: style.labelColor),
+        filled: true,
+        fillColor: style.unselectedBackgroundColor,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.unselectedBorderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.selectedBorderColor),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _readingHouseFragmentReferenceController,
+          textCapitalization: TextCapitalization.sentences,
+          textInputAction: TextInputAction.next,
+          scrollPadding: keyboardManagedTextFieldScrollPadding,
+          style: TextStyle(color: style.selectedForegroundColor),
+          decoration: decoration('Passage or page (optional)'),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _readingHouseFragmentBodyController,
+          minLines: 2,
+          maxLines: 5,
+          textCapitalization: TextCapitalization.sentences,
+          textInputAction: TextInputAction.newline,
+          scrollPadding: keyboardManagedTextFieldScrollPadding,
+          onChanged: (_) => setState(() {}),
+          style: TextStyle(color: style.selectedForegroundColor),
+          decoration: decoration('Fragment'),
+        ),
+        const SizedBox(height: 7),
+        Text(
+          'Your private reflection stays private.',
+          style: TextStyle(
+            color: style.labelColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            height: 1.25,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: _readingHouseFragmentSaving
+                  ? null
+                  : () => setState(() {
+                      _readingHouseFragmentComposerOpen = false;
+                      _readingHouseFragmentBodyController.clear();
+                      _readingHouseFragmentReferenceController.clear();
+                    }),
+              child: const Text('Cancel'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed:
+                  _readingHouseFragmentSaving ||
+                      _readingHouseFragmentBodyController.text.trim().isEmpty
+                  ? null
+                  : () => unawaited(_shareReadingHouseFragment()),
+              icon: _readingHouseFragmentSaving
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.add_comment_outlined, size: 17),
+              label: const Text('Share fragment'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReadingHouseFragmentList(CalendarCompletionPickerStyle style) {
+    if (_readingHouseFragmentsLoading) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: style.selectedBorderColor,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Loading fragments',
+            style: TextStyle(color: style.labelColor, fontSize: 13),
+          ),
+        ],
+      );
+    }
+    if (_readingHouseFragmentsError != null) {
+      return Text(
+        'House fragments unavailable.',
+        style: TextStyle(color: style.labelColor, fontSize: 13, height: 1.25),
+      );
+    }
+    if (_readingHouseFragments.isEmpty) {
+      return Text(
+        _readingHouseFragmentsUnlocked
+            ? 'No fragments shared for this sitting yet.'
+            : 'Choose Carrying to read or bring house fragments for this sitting.',
+        style: TextStyle(color: style.labelColor, fontSize: 13, height: 1.25),
+      );
+    }
+
+    final userId = _readingHouseFragmentsRepo.currentUserId;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final fragment in _readingHouseFragments)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: style.containerColor.withValues(alpha: 0.32),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: style.unselectedBorderColor),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _readingHouseFragmentAuthorLabel(fragment),
+                        style: TextStyle(
+                          color: style.selectedForegroundColor,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    if (fragment.isAuthoredBy(userId) ||
+                        _readingHouseCanModerateFragments)
+                      IconButton(
+                        tooltip: 'Delete fragment',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: _readingHouseFragmentSaving
+                            ? null
+                            : () => unawaited(
+                                _deleteReadingHouseFragment(fragment),
+                              ),
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        color: style.labelColor,
+                      ),
+                  ],
+                ),
+                if (fragment.passageReference != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    fragment.passageReference!,
+                    style: TextStyle(
+                      color: style.labelColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 5),
+                Text(
+                  fragment.body,
+                  style: TextStyle(
+                    color: style.unselectedForegroundColor,
+                    fontSize: 14,
+                    height: 1.32,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget? _buildReadingHouseSharedFragmentsSection() {
+    if (!_isReadingHouseCompletion ||
+        !_hasReadingHouseFragmentContext ||
+        _isReadingHouseSoloStudySitting) {
+      return null;
+    }
+    final style = widget.pickerStyle ?? const CalendarCompletionPickerStyle();
+    final canCompose = _readingHouseFragmentsUnlocked;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: style.unselectedBackgroundColor.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: style.unselectedBorderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.format_quote,
+                size: 18,
+                color: style.selectedBorderColor,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  readingHouseSharedFragmentCountSummary(
+                    _readingHouseFragments.length,
+                  ),
+                  style: TextStyle(
+                    color: style.selectedForegroundColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _buildReadingHouseFragmentList(style),
+          if (canCompose) ...[
+            const SizedBox(height: 10),
+            _buildReadingHouseFragmentComposer(style),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget? _buildCompletionLeadingContent(Widget? responseSection) {
+    final fragmentsSection = _buildReadingHouseSharedFragmentsSection();
+    if (responseSection == null) return fragmentsSection;
+    if (fragmentsSection == null) return responseSection;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [responseSection, const SizedBox(height: 12), fragmentsSection],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final standardStatus = CompletionStatusX.fromWireName(_status);
@@ -10332,6 +10837,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     final style = widget.pickerStyle ?? const CalendarCompletionPickerStyle();
     final eveningThresholdContext = _buildEveningThresholdContextWidgets();
     final responseSection = _buildResponseSection();
+    final leadingContent = _buildCompletionLeadingContent(responseSection);
 
     if (widget.completion.customStatusesOnly) {
       final customButtons = widget.completion.customStatusLabels.entries
@@ -10360,8 +10866,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ...eveningThresholdContext,
-            if (responseSection != null) ...[
-              responseSection,
+            if (leadingContent != null) ...[
+              leadingContent,
               SizedBox(height: style.labelGap),
             ],
             Text(
@@ -10390,7 +10896,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           loading: _loading,
           showPartial: widget.completion.showPartly,
           observedButtonKey: widget.observedButtonKey,
-          leadingContent: responseSection,
+          leadingContent: leadingContent,
           onReflect: widget.onAddReflection,
           style: widget.pickerStyle,
           onChanged: (status) {

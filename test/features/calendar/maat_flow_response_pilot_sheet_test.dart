@@ -592,7 +592,11 @@ void main() {
     expect(recorded.single['completion_status'], 'observed');
     expect(recorded.single['reading_position'], kReadingHousePositionCarrying);
     expect(recorded.single['writing_required'], isFalse);
-    expect(recorded.single['shared_fragments_phase'], 'future');
+    expect(
+      recorded.single['shared_fragments_phase'],
+      kReadingHouseSharedFragmentsPhaseEnabled,
+    );
+    expect(recorded.single['conversation_surfaces'], 'disabled');
     expect(recorded.single.toString(), isNot(contains('private reflection')));
     expect(recorded.single.toString(), isNot(contains('p. 12')));
     final margin = recorded.single['private_margin'] as Map<dynamic, dynamic>;

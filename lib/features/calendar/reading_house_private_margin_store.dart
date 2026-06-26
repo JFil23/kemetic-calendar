@@ -162,8 +162,9 @@ Map<String, dynamic> readingHousePrivateMarginCompletionMetadata(
       'short_note_recorded': shortNote != null,
       'sit_without_writing': sitWithoutWriting,
     },
-    'shared_fragments_phase': 'future',
-    'company_surfaces': 'disabled',
+    'shared_fragments_phase': kReadingHouseSharedFragmentsPhaseEnabled,
+    'company_surfaces': 'fragments_only',
+    'conversation_surfaces': 'disabled',
   };
 }
 

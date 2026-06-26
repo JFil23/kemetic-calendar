@@ -101,10 +101,10 @@ void main() {
     expect(payload['private_margin'], <String, dynamic>{
       'phase': 'enabled',
       'storage': 'local_only',
-      'shared_fragments': 'future',
+      'shared_fragments': kReadingHouseSharedFragmentsPhaseEnabled,
     });
     final presence = payload['house_presence'] as Map<String, dynamic>;
-    expect(presence['phase'], 'phase_3a');
+    expect(presence['phase'], 'phase_3b');
     expect(
       presence['membership_source'],
       kReadingHouseMembershipSourceSharedCalendar,
@@ -112,6 +112,11 @@ void main() {
     expect(presence['state_source'], 'active_joined_member_count');
     expect(presence['company_threshold'], 2);
     expect(presence['factual_summary_only'], isTrue);
+    expect(
+      presence['shared_fragments'],
+      kReadingHouseSharedFragmentsPhaseEnabled,
+    );
+    expect(presence['shared_fragment_unlock'], 'carrying_position_mark');
     expect(presence['private_reader_text_shared'], isFalse);
     expect(payload['share_prompt_on_complete'], isFalse);
     expect(payload['share_prompt_future'], isFalse);
@@ -380,17 +385,22 @@ void main() {
     );
   });
 
-  test('public copy stays honest about the Phase 3A boundary', () {
+  test('public copy stays honest about the Phase 3B boundary', () {
     expect(kReadingHouseOverview, contains('host-authored private sittings'));
     expect(kReadingHouseOverview, contains('local private margin'));
-    expect(kReadingHouseOverview, contains('Phase 3A shared presence'));
+    expect(kReadingHouseOverview, contains('Phase 3B opt-in shared fragments'));
     expect(
       kReadingHouseOverview,
       contains('accepted shared-calendar membership'),
     );
-    expect(kReadingHouseOverview, contains('Shared fragments'));
-    expect(kReadingHouseEnrollmentCopy, contains('Phase 3A'));
-    expect(kReadingHouseEnrollmentCopy, contains('shared presence'));
+    expect(
+      kReadingHouseOverview,
+      contains(
+        'private reflection and short-note text are never copied automatically',
+      ),
+    );
+    expect(kReadingHouseEnrollmentCopy, contains('Phase 3B'));
+    expect(kReadingHouseEnrollmentCopy, contains('opt-in shared fragments'));
     expect(kReadingHouseEnrollmentCopy, contains('writing stays optional'));
     final detail = readingHouseDetailText(
       kReadingHouseSittings.first,
@@ -400,37 +410,140 @@ void main() {
     expect(detail, contains('Theme\nWhat is the text asking you to carry?'));
     expect(detail, contains('Private prompt\nBefore company shapes'));
     expect(detail, contains('Host note\nBegin with your own encounter'));
-    expect(detail, contains('private reading position only'));
+    expect(detail, contains('Carrying opens opt-in shared fragments'));
     expect(detail, contains('House presence'));
-    expect(detail, contains('membership and factual status only'));
+    expect(detail, contains('Shared fragments are chosen by the reader'));
+    expect(
+      detail,
+      contains('replies, discussion, and chat remain future-facing'),
+    );
   });
 
-  test('payload enables presence but not social surfaces in Phase 3A', () {
-    final payload = readingHouseBehaviorPayload(
-      sitting: kReadingHouseSittings.first.asHostAuthored(),
-      schedule: readingHouseScheduleForDate(
-        kReadingHouseSittings.first,
-        DateTime(2026, 6),
-        TrackSkyTimeZone.pacific,
-      ),
-      plan: const ReadingHousePlan(mode: kReadingHouseDefaultMode),
-    );
+  test(
+    'payload enables fragments but not conversation surfaces in Phase 3B',
+    () {
+      final payload = readingHouseBehaviorPayload(
+        sitting: kReadingHouseSittings.first.asHostAuthored(),
+        schedule: readingHouseScheduleForDate(
+          kReadingHouseSittings.first,
+          DateTime(2026, 6),
+          TrackSkyTimeZone.pacific,
+        ),
+        plan: const ReadingHousePlan(mode: kReadingHouseDefaultMode),
+      );
 
-    expect(payload.containsKey('company_room_id'), isFalse);
-    expect(payload.containsKey('discussion_thread_id'), isFalse);
-    expect(payload.containsKey('house_chat_id'), isFalse);
-    final presence = payload['house_presence'] as Map<String, dynamic>;
-    expect(presence['member_list'], 'enabled');
-    expect(presence['invite_join'], 'shared_calendar_invite');
-    expect(presence['shared_fragments'], 'future');
-    expect(presence['replies'], 'future');
-    expect(presence['discussion'], 'future');
-    expect(presence['house_chat'], 'future');
-    expect(presence['global_commons_share'], isFalse);
-    final discussion = payload['discussion_model'] as Map<String, dynamic>;
-    expect(discussion['phase'], 'future');
-    expect(discussion['likes'], isFalse);
-    expect(discussion['ranking'], isFalse);
+      expect(payload.containsKey('company_room_id'), isFalse);
+      expect(payload.containsKey('discussion_thread_id'), isFalse);
+      expect(payload.containsKey('house_chat_id'), isFalse);
+      final presence = payload['house_presence'] as Map<String, dynamic>;
+      expect(presence['member_list'], 'enabled');
+      expect(presence['invite_join'], 'shared_calendar_invite');
+      expect(
+        presence['shared_fragments'],
+        kReadingHouseSharedFragmentsPhaseEnabled,
+      );
+      expect(presence['shared_fragment_scope'], 'house_sitting');
+      expect(presence['replies'], 'future');
+      expect(presence['discussion'], 'future');
+      expect(presence['house_chat'], 'future');
+      expect(presence['global_commons_share'], isFalse);
+      final discussion = payload['discussion_model'] as Map<String, dynamic>;
+      expect(discussion['phase'], 'future');
+      expect(discussion['likes'], isFalse);
+      expect(discussion['ranking'], isFalse);
+    },
+  );
+
+  test('Phase 3B fragment helpers require Carrying and stay factual', () {
+    expect(
+      readingHouseSharedFragmentUnlockPosition(kReadingHousePositionCarrying),
+      kReadingHousePositionCarrying,
+    );
+    expect(
+      readingHouseSharedFragmentUnlockPosition(kReadingHousePositionNotYet),
+      isNull,
+    );
+    expect(
+      readingHouseSharedFragmentCountSummary(0),
+      '0 fragments shared for this sitting',
+    );
+    expect(
+      readingHouseSharedFragmentCountSummary(1),
+      '1 fragment shared for this sitting',
+    );
+    expect(
+      readingHouseSharedFragmentCountSummary(2),
+      '2 fragments shared for this sitting',
+    );
+  });
+
+  test('Phase 3B shared fragment UI is opt-in and non-conversational', () {
+    final dayViewSource = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
+    final repoSource = File(
+      'lib/features/calendar/reading_house_shared_fragments_repo.dart',
+    ).readAsStringSync();
+
+    final fragmentSection = _sourceBetween(
+      dayViewSource,
+      'Widget? _buildReadingHouseSharedFragmentsSection()',
+      '  Widget? _buildCompletionLeadingContent',
+    );
+    expect(fragmentSection, contains('readingHouseSharedFragmentCountSummary'));
+    expect(fragmentSection, contains('_readingHouseFragmentsUnlocked'));
+
+    final composer = _sourceBetween(
+      dayViewSource,
+      'Widget _buildReadingHouseFragmentComposer',
+      '  Widget _buildReadingHouseFragmentList',
+    );
+    expect(composer, contains('Bring a fragment to the house'));
+    expect(composer, contains('Your private reflection stays private.'));
+    expect(composer, contains('_readingHouseFragmentBodyController'));
+    expect(composer, contains('_shareReadingHouseFragment()'));
+    expect(composer, isNot(contains('Reply')));
+    expect(composer, isNot(contains('Like')));
+    expect(composer, isNot(contains('Chat')));
+
+    expect(repoSource, contains('shareFragment'));
+    expect(repoSource, contains('readingHouseSharedFragmentUnlockPosition'));
+    expect(repoSource, contains('Choose Carrying before sharing a fragment.'));
+    expect(repoSource, isNot(contains('privateReflection')));
+    expect(repoSource, isNot(contains('shortNote')));
+  });
+
+  test('Phase 3B shared fragment RLS gates house membership and Carrying', () {
+    final migration = File(
+      '../supabase/migrations/20260625170000_reading_house_shared_fragments.sql',
+    ).readAsStringSync();
+
+    expect(migration, contains('reading_house_shared_fragments'));
+    expect(migration, contains('reading_house_sitting_positions'));
+    expect(migration, contains('reading_house_is_calendar_member'));
+    expect(migration, contains('reading_house_can_moderate_calendar'));
+    expect(migration, contains('reading_house_fragment_event_exists'));
+    expect(migration, contains('reading_house_has_fragment_unlock'));
+    expect(migration, contains("rhsp.reading_position = 'carrying'"));
+    expect(
+      migration,
+      contains("uec.metadata ->> 'reading_position' = 'carrying'"),
+    );
+    expect(
+      migration,
+      contains('reading_house_shared_fragments_select_members_unlocked'),
+    );
+    expect(
+      migration,
+      contains('reading_house_shared_fragments_insert_author_unlocked'),
+    );
+    expect(migration, contains('author_id = auth.uid()'));
+    expect(migration, contains('deleted_at is null'));
+    expect(migration, contains('delete_reading_house_shared_fragment'));
+    expect(migration, contains('FRAGMENT_NOT_EDITABLE'));
+    expect(migration, isNot(contains('reply')));
+    expect(migration, isNot(contains('likes')));
+    expect(migration, isNot(contains('ranking')));
   });
 
   test('Phase 3A authoring reuses shared-calendar membership', () {

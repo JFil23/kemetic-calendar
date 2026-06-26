@@ -943,7 +943,7 @@ class _ReadingHouseAuthoringPageState
           ],
           const SizedBox(height: 12),
           const Text(
-            'Membership uses shared-calendar access. The schedule and roster are visible to joined members; private reflections, notes, and local margin text stay private. Fragments, replies, discussion, and chat remain future-facing.',
+            'Membership uses shared-calendar access. The schedule, roster, and chosen sitting fragments are visible to joined members; private reflections, notes, and local margin text stay private. Replies, discussion, and chat remain future-facing.',
             style: TextStyle(color: Color(0xFFB7AAA0), height: 1.35),
           ),
         ],
@@ -1007,7 +1007,7 @@ class _ReadingHouseAuthoringPageState
                 const SizedBox(height: 8),
                 Text(
                   _canAuthorSittings
-                      ? 'Shape the private reading plan. Company surfaces remain future-facing only.'
+                      ? 'Shape the private reading plan. Readers can bring chosen fragments after Carrying; conversation remains future-facing.'
                       : 'Read the shared sitting plan. Hosts and calendar editors author sittings.',
                   style: const TextStyle(
                     color: Color(0xFFB7AAA0),

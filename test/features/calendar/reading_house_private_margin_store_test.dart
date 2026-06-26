@@ -72,7 +72,11 @@ void main() {
     expect(metadata['reader_sitting_phase'], 'enabled');
     expect(metadata['reading_position'], kReadingHousePositionNotYet);
     expect(metadata['writing_required'], isFalse);
-    expect(metadata['shared_fragments_phase'], 'future');
+    expect(
+      metadata['shared_fragments_phase'],
+      kReadingHouseSharedFragmentsPhaseEnabled,
+    );
+    expect(metadata['conversation_surfaces'], 'disabled');
     expect(metadata.toString(), isNot(contains('do not send this')));
     expect(metadata.toString(), isNot(contains('also private')));
     final margin = metadata['private_margin'] as Map<String, dynamic>;

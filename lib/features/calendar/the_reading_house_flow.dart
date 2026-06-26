@@ -10,7 +10,7 @@ const String kReadingHouseTitle = 'The Reading House';
 const String kReadingHouseGlyph = '𓉐';
 const String kReadingHouseTagline = 'A private-study foundation for one book.';
 const String kReadingHouseEnrollmentCopy =
-    'Phase 3A keeps the house private-first while adding shared presence: hosts shape sittings, readers keep local private margins, writing stays optional, and Open House/Company House state is derived from joined shared-calendar members. Fragments, replies, discussion, and chat remain future-facing.';
+    'Phase 3B keeps the house private-first while adding opt-in shared fragments: hosts shape sittings, readers keep local private margins, writing stays optional, and Carrying unlocks one chosen fragment for joined house members. Replies, discussion, and chat remain future-facing.';
 
 const String kReadingHouseBookTitlePromptId = 'reading-house-book-title';
 const String kReadingHouseEditionNotePromptId = 'reading-house-edition-note';
@@ -40,13 +40,15 @@ const String kReadingHouseHouseStateCompany = 'company_house';
 const String kReadingHouseHouseStateSolo = 'solo_study';
 const String kReadingHouseMembershipSourceSharedCalendar =
     'shared_calendar_members';
+const String kReadingHouseSharedFragmentsPhaseEnabled = 'enabled';
+const String kReadingHouseConversationSurfacesPhaseFuture = 'future';
 const int kReadingHouseCompanyMemberThreshold = 2;
 const int kReadingHouseDefaultHour = 19;
 const int kReadingHouseDefaultMinute = 0;
 const int kReadingHouseDefaultDurationMinutes = 60;
 
 const String kReadingHouseOverview =
-    'The Reading House is registered as a Ma’at flow with host-authored private sittings and Phase 3A shared presence. A book can begin from three starter sittings, then the host can edit, add, reorder, or delete the sitting plan. Each sitting opens with section, theme, host note, and private prompt; the reader can keep a local private margin, sit without writing, and must mark Carrying or Not yet before Observed, Partly, or Skipped. Open House and Company House state comes from accepted shared-calendar membership. Shared fragments, replies, discussion, and chat remain future-facing.';
+    'The Reading House is registered as a Ma’at flow with host-authored private sittings, shared presence, and Phase 3B opt-in shared fragments. A book can begin from three starter sittings, then the host can edit, add, reorder, or delete the sitting plan. Each sitting opens with section, theme, host note, and private prompt; the reader can keep a local private margin, sit without writing, and must mark Carrying or Not yet before Observed, Partly, or Skipped. Open House and Company House state comes from accepted shared-calendar membership. Carrying unlocks one chosen fragment for joined house members; private reflection and short-note text are never copied automatically. Replies, discussion, and chat remain future-facing.';
 
 class ReadingHousePlan {
   const ReadingHousePlan({
@@ -118,6 +120,20 @@ String readingHouseCarryingSummary(int carryingCount) {
   return '$count readers Carrying';
 }
 
+String readingHouseSharedFragmentCountSummary(int fragmentCount) {
+  final count = fragmentCount < 0 ? 0 : fragmentCount;
+  if (count == 1) return '1 fragment shared for this sitting';
+  return '$count fragments shared for this sitting';
+}
+
+String? readingHouseSharedFragmentUnlockPosition(String? position) {
+  final normalized = position?.trim().toLowerCase();
+  if (normalized == kReadingHousePositionCarrying) {
+    return kReadingHousePositionCarrying;
+  }
+  return null;
+}
+
 List<String> readingHouseFactualSummaryLines({
   required String houseState,
   required int activeJoinedMemberCount,
@@ -152,7 +168,7 @@ Map<String, dynamic> readingHouseCompanyPresenceContract(
   ReadingHousePlan plan,
 ) {
   return <String, dynamic>{
-    'phase': 'phase_3a',
+    'phase': 'phase_3b',
     'membership_source': kReadingHouseMembershipSourceSharedCalendar,
     'state_source': 'active_joined_member_count',
     'company_threshold': kReadingHouseCompanyMemberThreshold,
@@ -162,12 +178,14 @@ Map<String, dynamic> readingHouseCompanyPresenceContract(
     'member_list': 'enabled',
     'invite_join': 'shared_calendar_invite',
     'factual_summary_only': true,
-    'shared_fragments': 'future',
-    'replies': 'future',
-    'discussion': 'future',
-    'house_chat': 'future',
-    'global_commons_share': false,
+    'shared_fragments': kReadingHouseSharedFragmentsPhaseEnabled,
+    'shared_fragment_unlock': 'carrying_position_mark',
+    'shared_fragment_scope': 'house_sitting',
     'private_reader_text_shared': false,
+    'replies': kReadingHouseConversationSurfacesPhaseFuture,
+    'discussion': kReadingHouseConversationSurfacesPhaseFuture,
+    'house_chat': kReadingHouseConversationSurfacesPhaseFuture,
+    'global_commons_share': false,
     'solo_study_private': plan.isSolo,
   };
 }
@@ -807,7 +825,7 @@ Map<String, dynamic> readingHouseBehaviorPayload({
     'private_margin': const <String, dynamic>{
       'phase': 'enabled',
       'storage': 'local_only',
-      'shared_fragments': 'future',
+      'shared_fragments': kReadingHouseSharedFragmentsPhaseEnabled,
     },
     'house_presence': readingHouseCompanyPresenceContract(plan),
     'share_prompt_on_complete': false,
@@ -843,8 +861,8 @@ String readingHouseDetailText(
     'Theme\n${sitting.theme}',
     'Private prompt\n${sitting.privatePrompt}',
     'Private margin\nWrite a reflection, save a short note, or choose sit without writing. The margin stays on this device.',
-    'Position gate\nChoose Carrying or Not yet before marking Observed, Partly, or Skipped. This release records private reading position only; shared fragments and discussion unlock in a later phase.',
-    'House presence\nOpen House and Company House are derived from joined shared-calendar members. This phase shows membership and factual status only; fragments, replies, discussion, and chat remain future-facing.',
+    'Position gate\nChoose Carrying or Not yet before marking Observed, Partly, or Skipped. Carrying opens opt-in shared fragments; Not yet remains private waiting.',
+    'House presence\nOpen House and Company House are derived from joined shared-calendar members. Shared fragments are chosen by the reader for this house and sitting only; replies, discussion, and chat remain future-facing.',
     if (hostNote.isNotEmpty) 'Host note\n$hostNote',
     'Completion\nUse Observed when the sitting was honestly held, Partly when the reading position is partial, and Skipped when you did not sit. In company mode, Carrying and Not yet become factual presence states when shared surfaces arrive.',
   ].join('\n\n');
