@@ -8918,6 +8918,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       TextEditingController();
   final TextEditingController _readingHouseFragmentReferenceController =
       TextEditingController();
+  final TextEditingController _readingHouseReplyController =
+      TextEditingController();
   OverlayEntry? _sheetFeedbackOverlay;
   Timer? _sheetFeedbackTimer;
   final CalendarCompletionFeedbackScheduler _completionFeedbackScheduler =
@@ -8933,12 +8935,17 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   bool _readingHousePrivateMarginSaving = false;
   bool _readingHouseFragmentsLoading = false;
   bool _readingHouseFragmentSaving = false;
+  bool _readingHouseReplySaving = false;
   bool _readingHouseFragmentComposerOpen = false;
   bool _readingHouseCanModerateFragments = false;
+  String? _readingHouseReplyComposerFragmentId;
   Object? _readingHouseFragmentsError;
   int _readingHouseFragmentsLoadGeneration = 0;
   List<ReadingHouseSharedFragment> _readingHouseFragments =
       const <ReadingHouseSharedFragment>[];
+  Map<String, List<ReadingHouseFragmentReply>>
+  _readingHouseRepliesByFragmentId =
+      const <String, List<ReadingHouseFragmentReply>>{};
   int _decanWatchResponseLoadGeneration = 0;
   Map<String, MaatFlowResponseValue> _responseValues =
       const <String, MaatFlowResponseValue>{};
@@ -8959,6 +8966,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     _eveningThresholdReleaseCarryController.dispose();
     _readingHouseFragmentBodyController.dispose();
     _readingHouseFragmentReferenceController.dispose();
+    _readingHouseReplyController.dispose();
     super.dispose();
   }
 
@@ -9062,9 +9070,14 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     _readingHouseFragmentSaving = false;
     _readingHouseFragmentsError = null;
     _readingHouseCanModerateFragments = false;
+    _readingHouseRepliesByFragmentId =
+        const <String, List<ReadingHouseFragmentReply>>{};
+    _readingHouseReplySaving = false;
+    _readingHouseReplyComposerFragmentId = null;
     _readingHouseFragmentComposerOpen = false;
     _readingHouseFragmentBodyController.clear();
     _readingHouseFragmentReferenceController.clear();
+    _readingHouseReplyController.clear();
   }
 
   @override
@@ -9420,6 +9433,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       if (!mounted) return;
       setState(() {
         _readingHouseFragments = const <ReadingHouseSharedFragment>[];
+        _readingHouseRepliesByFragmentId =
+            const <String, List<ReadingHouseFragmentReply>>{};
         _readingHouseFragmentsLoading = false;
         _readingHouseFragmentsError = null;
         _readingHouseCanModerateFragments = false;
@@ -9444,6 +9459,11 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           flowId: flowId,
           clientEventId: clientEventId,
         ),
+        _readingHouseFragmentsRepo.listReplies(
+          calendarId: calendarId,
+          flowId: flowId,
+          clientEventId: clientEventId,
+        ),
         _readingHouseFragmentsRepo.canModerateHouse(calendarId: calendarId),
       ]);
       if (!mounted || generation != _readingHouseFragmentsLoadGeneration) {
@@ -9451,7 +9471,10 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       }
       setState(() {
         _readingHouseFragments = results[0] as List<ReadingHouseSharedFragment>;
-        _readingHouseCanModerateFragments = results[1] == true;
+        _readingHouseRepliesByFragmentId = _repliesByFragmentId(
+          results[1] as List<ReadingHouseFragmentReply>,
+        );
+        _readingHouseCanModerateFragments = results[2] == true;
         _readingHouseFragmentsLoading = false;
       });
     } catch (error) {
@@ -9463,6 +9486,27 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         _readingHouseFragmentsLoading = false;
       });
     }
+  }
+
+  Map<String, List<ReadingHouseFragmentReply>> _repliesByFragmentId(
+    List<ReadingHouseFragmentReply> replies,
+  ) {
+    final grouped = <String, List<ReadingHouseFragmentReply>>{};
+    for (final reply in replies) {
+      final fragmentId = reply.fragmentId.trim();
+      if (fragmentId.isEmpty) continue;
+      grouped.putIfAbsent(fragmentId, () => <ReadingHouseFragmentReply>[]);
+      grouped[fragmentId]!.add(reply);
+    }
+    return Map<String, List<ReadingHouseFragmentReply>>.unmodifiable(
+      grouped.map(
+        (fragmentId, values) =>
+            MapEntry<String, List<ReadingHouseFragmentReply>>(
+              fragmentId,
+              List<ReadingHouseFragmentReply>.unmodifiable(values),
+            ),
+      ),
+    );
   }
 
   Future<void> _syncAndLoadReadingHouseSharedFragments() async {
@@ -9539,6 +9583,70 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         _readingHouseFragmentSaving = false;
       });
       _showSheetFeedback('Could not remove this fragment.');
+    }
+  }
+
+  Future<void> _createReadingHouseReply(
+    ReadingHouseSharedFragment fragment,
+  ) async {
+    if (_readingHouseReplySaving) return;
+    final body = _readingHouseReplyController.text.trim();
+    if (body.isEmpty) {
+      _showSheetFeedback('Add a reply first.');
+      return;
+    }
+    setState(() {
+      _readingHouseReplySaving = true;
+      _readingHouseFragmentsError = null;
+    });
+    try {
+      await _readingHouseFragmentsRepo.createReply(
+        fragmentId: fragment.id,
+        body: body,
+        isHostAck: _readingHouseCanModerateFragments,
+      );
+      _readingHouseReplyController.clear();
+      if (!mounted) return;
+      setState(() {
+        _readingHouseReplyComposerFragmentId = null;
+        _readingHouseReplySaving = false;
+      });
+      await _loadReadingHouseSharedFragmentsIfNeeded();
+      if (mounted) {
+        _showSheetFeedback(
+          _readingHouseCanModerateFragments
+              ? 'Acknowledgment added.'
+              : 'Reply added.',
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseReplySaving = false;
+      });
+      _showSheetFeedback('Could not add this reply.');
+    }
+  }
+
+  Future<void> _deleteReadingHouseReply(ReadingHouseFragmentReply reply) async {
+    if (_readingHouseReplySaving) return;
+    setState(() => _readingHouseReplySaving = true);
+    try {
+      await _readingHouseFragmentsRepo.deleteReply(reply.id);
+      if (!mounted) return;
+      setState(() {
+        _readingHouseReplySaving = false;
+      });
+      await _loadReadingHouseSharedFragmentsIfNeeded();
+      if (mounted) {
+        _showSheetFeedback('Reply removed.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseReplySaving = false;
+      });
+      _showSheetFeedback('Could not remove this reply.');
     }
   }
 
@@ -10551,6 +10659,13 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         : 'House member';
   }
 
+  String _readingHouseReplyAuthorLabel(ReadingHouseFragmentReply reply) {
+    if (reply.isHostAck) return 'Host acknowledgment';
+    return reply.isAuthoredBy(_readingHouseFragmentsRepo.currentUserId)
+        ? 'You'
+        : 'House member';
+  }
+
   Widget _buildReadingHouseFragmentComposer(
     CalendarCompletionPickerStyle style,
   ) {
@@ -10755,9 +10870,190 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
                     height: 1.32,
                   ),
                 ),
+                _buildReadingHouseReplies(fragment, style),
               ],
             ),
           ),
+      ],
+    );
+  }
+
+  Widget _buildReadingHouseReplies(
+    ReadingHouseSharedFragment fragment,
+    CalendarCompletionPickerStyle style,
+  ) {
+    final replies =
+        _readingHouseRepliesByFragmentId[fragment.id] ??
+        const <ReadingHouseFragmentReply>[];
+    final userId = _readingHouseFragmentsRepo.currentUserId;
+    final composerOpen = _readingHouseReplyComposerFragmentId == fragment.id;
+
+    InputDecoration decoration() {
+      return InputDecoration(
+        labelText: _readingHouseCanModerateFragments
+            ? 'Host acknowledgment'
+            : 'Reply',
+        labelStyle: TextStyle(color: style.labelColor),
+        filled: true,
+        fillColor: style.unselectedBackgroundColor,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.unselectedBorderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.selectedBorderColor),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (replies.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final reply in replies)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 7),
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: style.unselectedBackgroundColor.withValues(alpha: 0.44),
+                borderRadius: BorderRadius.circular(7),
+                border: Border.all(
+                  color: style.unselectedBorderColor.withValues(alpha: 0.76),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _readingHouseReplyAuthorLabel(reply),
+                          style: TextStyle(
+                            color: reply.isHostAck
+                                ? style.selectedBorderColor
+                                : style.labelColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      if (reply.isAuthoredBy(userId) ||
+                          _readingHouseCanModerateFragments)
+                        IconButton(
+                          tooltip: 'Delete reply',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: _readingHouseReplySaving
+                              ? null
+                              : () =>
+                                    unawaited(_deleteReadingHouseReply(reply)),
+                          icon: const Icon(Icons.delete_outline, size: 17),
+                          color: style.labelColor,
+                        ),
+                    ],
+                  ),
+                  Text(
+                    reply.body,
+                    style: TextStyle(
+                      color: style.unselectedForegroundColor,
+                      fontSize: 13,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+        const SizedBox(height: 8),
+        if (!composerOpen)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _readingHouseReplySaving
+                  ? null
+                  : () => setState(() {
+                      _readingHouseReplyComposerFragmentId = fragment.id;
+                      _readingHouseReplyController.clear();
+                    }),
+              icon: Icon(
+                _readingHouseCanModerateFragments
+                    ? Icons.task_alt_outlined
+                    : Icons.reply_outlined,
+                size: 17,
+              ),
+              label: Text(
+                _readingHouseCanModerateFragments
+                    ? 'Acknowledge fragment'
+                    : 'Reply to fragment',
+              ),
+            ),
+          )
+        else ...[
+          TextField(
+            controller: _readingHouseReplyController,
+            minLines: 1,
+            maxLines: 4,
+            textCapitalization: TextCapitalization.sentences,
+            textInputAction: TextInputAction.newline,
+            scrollPadding: keyboardManagedTextFieldScrollPadding,
+            onChanged: (_) => setState(() {}),
+            style: TextStyle(color: style.selectedForegroundColor),
+            decoration: decoration(),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            'Replies stay inside this house fragment.',
+            style: TextStyle(
+              color: style.labelColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              height: 1.25,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: _readingHouseReplySaving
+                    ? null
+                    : () => setState(() {
+                        _readingHouseReplyComposerFragmentId = null;
+                        _readingHouseReplyController.clear();
+                      }),
+                child: const Text('Cancel'),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                onPressed:
+                    _readingHouseReplySaving ||
+                        _readingHouseReplyController.text.trim().isEmpty
+                    ? null
+                    : () => unawaited(_createReadingHouseReply(fragment)),
+                icon: _readingHouseReplySaving
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        _readingHouseCanModerateFragments
+                            ? Icons.task_alt_outlined
+                            : Icons.reply_outlined,
+                        size: 17,
+                      ),
+                label: Text(
+                  _readingHouseCanModerateFragments
+                      ? 'Add acknowledgment'
+                      : 'Add reply',
+                ),
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }

@@ -8160,7 +8160,7 @@ class _MaatFlowTemplateDetailPageState
         ),
         const SizedBox(height: 10),
         _buildMaatFlowNotice(
-          'Phase 3B keeps host-authored sittings private-first while adding opt-in house fragments after Carrying. Reader margins stay local; replies, discussion, house chat, and global sharing stay out of this surface.',
+          'Phase 3C keeps host-authored sittings private-first while adding opt-in house fragments and one-level replies after Carrying. Reader margins stay local; discussion rooms, house chat, and global sharing stay out of this surface.',
           borderColor: _palette.accent.withValues(alpha: 0.30),
         ),
         const SizedBox(height: 10),
