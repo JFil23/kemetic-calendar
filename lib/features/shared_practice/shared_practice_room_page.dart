@@ -31,6 +31,8 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
   late Future<SharedPracticeRoomSnapshot> _future;
   SharedPracticeRoomSnapshot? _snapshot;
   String? _presenceMarkedForClientEventId;
+  bool _visibilityUpdating = false;
+  final Set<String> _requestDecisionIds = <String>{};
 
   @override
   void initState() {
@@ -77,6 +79,55 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
     setState(() {
       _future = _load();
     });
+  }
+
+  Future<void> _setVisibility(SharedPracticeRoomVisibility visibility) async {
+    final snapshot = _snapshot;
+    if (snapshot == null || _visibilityUpdating) return;
+    setState(() => _visibilityUpdating = true);
+    try {
+      await _repo.setSharedPracticeVisibility(
+        roomId: snapshot.room.id,
+        visibility: visibility,
+        joinPolicy: visibility == SharedPracticeRoomVisibility.public
+            ? SharedPracticeJoinPolicy.ownerApproval
+            : SharedPracticeJoinPolicy.closed,
+      );
+      if (!mounted) return;
+      _refresh();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update visibility.')),
+      );
+    } finally {
+      if (mounted) setState(() => _visibilityUpdating = false);
+    }
+  }
+
+  Future<void> _respondToJoinRequest(
+    SharedPracticeJoinRequest request, {
+    required bool approve,
+  }) async {
+    if (_requestDecisionIds.contains(request.id)) return;
+    setState(() => _requestDecisionIds.add(request.id));
+    try {
+      await _repo.respondToJoinRequest(requestId: request.id, approve: approve);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(approve ? 'Request approved.' : 'Request denied.'),
+        ),
+      );
+      _refresh();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update that request.')),
+      );
+    } finally {
+      if (mounted) setState(() => _requestDecisionIds.remove(request.id));
+    }
   }
 
   Future<void> _openCompletionSheet(
@@ -150,6 +201,22 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
               padding: const EdgeInsets.fromLTRB(18, 8, 18, 110),
               children: [
                 _RoomHeader(snapshot: data),
+                if (data.viewerCanManage) ...[
+                  const SizedBox(height: 18),
+                  _RoomManagementSection(
+                    snapshot: data,
+                    visibilityUpdating: _visibilityUpdating,
+                    updatingRequestIds: _requestDecisionIds,
+                    onVisibilitySelected: (visibility) {
+                      unawaited(_setVisibility(visibility));
+                    },
+                    onRespondToRequest: (request, approve) {
+                      unawaited(
+                        _respondToJoinRequest(request, approve: approve),
+                      );
+                    },
+                  ),
+                ],
                 const SizedBox(height: 18),
                 _MemberSection(
                   snapshot: data,
@@ -253,6 +320,15 @@ class _RoomHeader extends StatelessWidget {
             _stepLine(step),
             style: const TextStyle(color: _muted, fontSize: 13, height: 1.35),
           ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _RoomPill(label: snapshot.room.visibility.label),
+            _RoomPill(label: snapshot.room.joinPolicy.label),
+          ],
+        ),
         const SizedBox(height: 16),
         Container(
           width: double.infinity,
@@ -274,6 +350,188 @@ class _RoomHeader extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _RoomManagementSection extends StatelessWidget {
+  const _RoomManagementSection({
+    required this.snapshot,
+    required this.visibilityUpdating,
+    required this.updatingRequestIds,
+    required this.onVisibilitySelected,
+    required this.onRespondToRequest,
+  });
+
+  final SharedPracticeRoomSnapshot snapshot;
+  final bool visibilityUpdating;
+  final Set<String> updatingRequestIds;
+  final ValueChanged<SharedPracticeRoomVisibility> onVisibilitySelected;
+  final void Function(SharedPracticeJoinRequest request, bool approve)
+  onRespondToRequest;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Panel(
+      title: 'Room Access',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final visibility in SharedPracticeRoomVisibility.values)
+                ChoiceChip(
+                  selected: snapshot.room.visibility == visibility,
+                  onSelected: visibilityUpdating
+                      ? null
+                      : (_) => onVisibilitySelected(visibility),
+                  label: Text(visibility.label),
+                  selectedColor: _gold.withValues(alpha: 0.22),
+                  backgroundColor: Colors.black.withValues(alpha: 0.20),
+                  labelStyle: TextStyle(
+                    color: snapshot.room.visibility == visibility
+                        ? _gold
+                        : Colors.white.withValues(alpha: 0.68),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                  side: BorderSide(
+                    color: snapshot.room.visibility == visibility
+                        ? _gold.withValues(alpha: 0.58)
+                        : Colors.white.withValues(alpha: 0.12),
+                  ),
+                ),
+            ],
+          ),
+          if (snapshot.joinRequests.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              'JOIN REQUESTS',
+              style: TextStyle(
+                color: _gold.withValues(alpha: 0.82),
+                fontSize: 10.5,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.4,
+              ),
+            ),
+            const SizedBox(height: 8),
+            for (final request in snapshot.joinRequests) ...[
+              _JoinRequestRow(
+                request: request,
+                updating: updatingRequestIds.contains(request.id),
+                onApprove: () => onRespondToRequest(request, true),
+                onDeny: () => onRespondToRequest(request, false),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ] else ...[
+            const SizedBox(height: 12),
+            Text(
+              'No pending join requests.',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.50),
+                fontFamily: _serif,
+                fontStyle: FontStyle.italic,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _JoinRequestRow extends StatelessWidget {
+  const _JoinRequestRow({
+    required this.request,
+    required this.updating,
+    required this.onApprove,
+    required this.onDeny,
+  });
+
+  final SharedPracticeJoinRequest request;
+  final bool updating;
+  final VoidCallback onApprove;
+  final VoidCallback onDeny;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.09)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              _Avatar(label: request.requesterLabel, size: 30),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  request.requesterLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: _serif,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (request.message?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 8),
+            Text(
+              request.message!,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.72),
+                fontFamily: _serif,
+                fontSize: 16,
+                height: 1.28,
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: updating ? null : onDeny,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white.withValues(alpha: 0.72),
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.18),
+                    ),
+                  ),
+                  child: const Text('Deny'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton(
+                  onPressed: updating ? null : onApprove,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _gold,
+                    foregroundColor: const Color(0xFF181106),
+                  ),
+                  child: Text(updating ? 'Saving...' : 'Approve'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
@@ -615,6 +873,32 @@ class _StatusPill extends StatelessWidget {
         style: TextStyle(
           color: _completionColor(status),
           fontSize: 10.5,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _RoomPill extends StatelessWidget {
+  const _RoomPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: _gold.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: _gold.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: _gold,
+          fontSize: 11,
           fontWeight: FontWeight.w800,
         ),
       ),

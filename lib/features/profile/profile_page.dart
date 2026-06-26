@@ -12,11 +12,14 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/navigation_fallback.dart';
 import '../../main.dart' show Events;
 import '../../data/profile_avatar_glyphs.dart';
+import '../../data/commons_models.dart';
+import '../../data/commons_repo.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
 import '../../data/flow_post_model.dart';
 import '../../data/insight_post_model.dart';
 import '../../data/profile_feed_item_model.dart';
+import '../../data/shared_practice_models.dart';
 import '../../utils/detail_sanitizer.dart';
 import '../../utils/kemetic_date_format.dart';
 import '../../services/app_haptics.dart';
@@ -169,11 +172,15 @@ class _ProfilePageState extends State<ProfilePage>
   static const double _feedRevealViewportThreshold = 0.74;
   static const double _feedPullToCloseThreshold = 96;
   final _repo = ProfileRepo(Supabase.instance.client);
+  final _commonsRepo = CommonsRepo(Supabase.instance.client);
   late final PageController _postPageController;
   late final PageController _insightPostPageController;
+  late final PageController _commonsPracticePageController;
   late final ScrollController _profileScrollController;
   late final ScrollController _feedScrollController;
   late final AnimationController _feedBloomController;
+  final TextEditingController _commonsAnswerController =
+      TextEditingController();
   final GlobalKey _feedRevealHintKey = GlobalKey();
   final GlobalKey _profileBasicsOnboardingKey = GlobalKey(
     debugLabel: 'profile_basics_onboarding',
@@ -197,9 +204,18 @@ class _ProfilePageState extends State<ProfilePage>
   _SocialFeedTab _selectedFeedTab = _SocialFeedTab.todaysCommons;
   bool _showGregorianFeedDates = false;
   ProfileFeedItem? _expandedFeedItem;
+  CommonsHomeSnapshot? _commonsHome;
   bool _feedCloseInFlight = false;
+  bool _commonsLoading = false;
+  bool _commonsAnswerEditing = false;
+  bool _commonsAnswerSaving = false;
+  bool _commonsAnswerDeleting = false;
+  String? _commonsErrorMessage;
   int _activePostIndex = 0;
   int _activeInsightPostIndex = 0;
+  int _activeCommonsPracticeIndex = 0;
+  final Set<String> _commonsJoiningRoomIds = <String>{};
+  final Set<String> _commonsVisibilityUpdatingRoomIds = <String>{};
   int _profileLoadSerial = 0;
   double _feedTopPullDistance = 0;
   Timer? _continuitySaveDebounce;
@@ -261,6 +277,7 @@ class _ProfilePageState extends State<ProfilePage>
     WidgetsBinding.instance.addObserver(this);
     _postPageController = PageController(viewportFraction: 0.96);
     _insightPostPageController = PageController(viewportFraction: 0.96);
+    _commonsPracticePageController = PageController(viewportFraction: 0.92);
     _profileScrollController = ScrollController()
       ..addListener(_handleProfileScroll);
     _feedScrollController = ScrollController()..addListener(_handleFeedScroll);
@@ -287,6 +304,8 @@ class _ProfilePageState extends State<ProfilePage>
       ..dispose();
     _postPageController.dispose();
     _insightPostPageController.dispose();
+    _commonsPracticePageController.dispose();
+    _commonsAnswerController.dispose();
     super.dispose();
   }
 
@@ -810,7 +829,10 @@ class _ProfilePageState extends State<ProfilePage>
     _scheduleContinuitySave();
     unawaited(_feedBloomController.forward(from: 0));
     if (_feedItems.isEmpty && !_feedLoading) {
-      await _loadFeedPage(reset: true);
+      unawaited(_loadFeedPage(reset: true));
+    }
+    if (_commonsHome == null && !_commonsLoading) {
+      unawaited(_loadCommonsHome());
     }
   }
 
@@ -965,6 +987,289 @@ class _ProfilePageState extends State<ProfilePage>
       _applyPendingContinuityAfterFrame();
       _maybeLoadMoreFeed();
     });
+  }
+
+  String _commonsQuestionId(DailyReflectionQuestion? question) {
+    if (question != null) {
+      return 'daily-reflection:${question.kYear}:${question.dayKey}';
+    }
+    final now = DateUtils.dateOnly(DateTime.now());
+    final month = now.month.toString().padLeft(2, '0');
+    final day = now.day.toString().padLeft(2, '0');
+    return 'daily-reflection:${now.year}-$month-$day';
+  }
+
+  ({String id, String text}) _commonsQuestionSeed() {
+    final daily = dailyReflectionQuestionForDate(DateTime.now());
+    return (
+      id: _commonsQuestionId(daily),
+      text: _withoutWrappingQuotes(daily?.question ?? ''),
+    );
+  }
+
+  CommonsQuestion _activeCommonsQuestion() {
+    final seed = _commonsQuestionSeed();
+    final questions = _commonsHome?.questions ?? const <CommonsQuestion>[];
+    for (final question in questions) {
+      if (question.id == seed.id) {
+        return CommonsQuestion(
+          id: question.id,
+          question: question.question.trim().isEmpty
+              ? seed.text
+              : question.question,
+          answers: question.answers,
+          myAnswer: question.myAnswer,
+        );
+      }
+    }
+    return CommonsQuestion(id: seed.id, question: seed.text);
+  }
+
+  Future<void> _loadCommonsHome({bool force = false}) async {
+    if (_commonsLoading && !force) return;
+    final seed = _commonsQuestionSeed();
+    if (!mounted) return;
+    setState(() {
+      _commonsLoading = true;
+      _commonsErrorMessage = null;
+    });
+    try {
+      final snapshot = await _commonsRepo.getCommonsHome(
+        localDate: DateTime.now(),
+        questionId: seed.id,
+        questionText: seed.text,
+      );
+      if (!mounted) return;
+      final question = snapshot.questions.isNotEmpty
+          ? snapshot.questions.first
+          : CommonsQuestion(id: seed.id, question: seed.text);
+      if (!_commonsAnswerEditing &&
+          !_commonsAnswerSaving &&
+          question.myAnswer != null) {
+        _commonsAnswerController.text = question.myAnswer!.bodyText;
+      }
+      setState(() {
+        _commonsHome = snapshot.questions.isEmpty
+            ? snapshot.copyWith(questions: <CommonsQuestion>[question])
+            : snapshot;
+        _commonsLoading = false;
+        _commonsErrorMessage = null;
+        final practiceCount = _commonsPracticeRooms().length;
+        if (practiceCount == 0) {
+          _activeCommonsPracticeIndex = 0;
+        } else if (_activeCommonsPracticeIndex >= practiceCount) {
+          _activeCommonsPracticeIndex = practiceCount - 1;
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _commonsLoading = false;
+        _commonsErrorMessage = 'Commons could not load. Pull back later.';
+      });
+    }
+  }
+
+  Future<void> _saveCommonsAnswer() async {
+    if (_commonsAnswerSaving) return;
+    final question = _activeCommonsQuestion();
+    final body = _commonsAnswerController.text.trim();
+    if (question.question.trim().isEmpty) {
+      _showCommonsActionSnack('No Commons question is available today.');
+      return;
+    }
+    if (body.isEmpty) {
+      _showCommonsActionSnack('Write an answer before saving.');
+      return;
+    }
+    setState(() => _commonsAnswerSaving = true);
+    try {
+      await _commonsRepo.answerQuestion(
+        questionId: question.id,
+        questionText: question.question,
+        body: body,
+      );
+      if (!mounted) return;
+      setState(() {
+        _commonsAnswerSaving = false;
+        _commonsAnswerEditing = false;
+      });
+      unawaited(_loadCommonsHome(force: true));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _commonsAnswerSaving = false);
+      _showCommonsActionSnack(
+        'Could not save your answer. Your draft stayed here.',
+      );
+    }
+  }
+
+  Future<void> _deleteCommonsAnswer(CommonsAnswer answer) async {
+    if (_commonsAnswerDeleting) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF0D0D0F),
+        title: const Text(
+          'Delete answer?',
+          style: TextStyle(color: Colors.white),
+        ),
+        content: const Text(
+          'This removes your public Commons answer.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    setState(() => _commonsAnswerDeleting = true);
+    try {
+      await _commonsRepo.deleteAnswer(answer.id);
+      if (!mounted) return;
+      _commonsAnswerController.clear();
+      setState(() {
+        _commonsAnswerDeleting = false;
+        _commonsAnswerEditing = false;
+      });
+      unawaited(_loadCommonsHome(force: true));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _commonsAnswerDeleting = false);
+      _showCommonsActionSnack('Could not delete that answer.');
+    }
+  }
+
+  Future<void> _reportCommonsAnswer(CommonsAnswer answer) async {
+    final ok = await _repo.reportContent(
+      contentType: 'commons_question_answer',
+      contentId: answer.id,
+      reportedUserId: answer.userId,
+      reason: 'user_report',
+    );
+    if (!mounted) return;
+    _showCommonsActionSnack(ok ? 'Report sent.' : 'Could not send report.');
+  }
+
+  Future<void> _blockCommonsAnswerAuthor(CommonsAnswer answer) async {
+    final ok = await _repo.blockUser(answer.userId);
+    if (!mounted) return;
+    _showCommonsActionSnack(ok ? 'User blocked.' : 'Could not block user.');
+    if (ok) unawaited(_loadCommonsHome(force: true));
+  }
+
+  List<CommonsPracticeRoom> _commonsPracticeRooms() {
+    final home = _commonsHome;
+    if (home == null) return const <CommonsPracticeRoom>[];
+    final rooms = <CommonsPracticeRoom>[];
+    final seen = <String>{};
+    for (final room in [
+      ...home.mySharedPractices,
+      ...home.publicSharedPractices,
+    ]) {
+      if (room.id.isEmpty || !seen.add(room.id)) continue;
+      rooms.add(room);
+    }
+    return rooms;
+  }
+
+  Future<void> _updateCommonsPracticeVisibility(
+    CommonsPracticeRoom room,
+    SharedPracticeRoomVisibility visibility,
+  ) async {
+    if (_commonsVisibilityUpdatingRoomIds.contains(room.id)) return;
+    setState(() => _commonsVisibilityUpdatingRoomIds.add(room.id));
+    try {
+      await _commonsRepo.setPracticeVisibility(
+        roomId: room.id,
+        visibility: visibility,
+        joinPolicy: visibility == SharedPracticeRoomVisibility.public
+            ? SharedPracticeJoinPolicy.ownerApproval
+            : SharedPracticeJoinPolicy.closed,
+      );
+      if (!mounted) return;
+      _showCommonsActionSnack('${visibility.label} visibility saved.');
+      unawaited(_loadCommonsHome(force: true));
+    } catch (e) {
+      if (!mounted) return;
+      _showCommonsActionSnack('Could not update that shared practice.');
+    } finally {
+      if (mounted) {
+        setState(() => _commonsVisibilityUpdatingRoomIds.remove(room.id));
+      }
+    }
+  }
+
+  Future<void> _requestJoinCommonsPractice(CommonsPracticeRoom room) async {
+    if (_commonsJoiningRoomIds.contains(room.id)) return;
+    final controller = TextEditingController();
+    final message = await showDialog<String?>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF0D0D0F),
+        title: const Text('Ask to join', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          maxLength: 500,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: 'Optional note',
+            hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.42)),
+            enabledBorder: OutlineInputBorder(
+              borderSide: BorderSide(
+                color: _profileGoldMid.withValues(alpha: 0.3),
+              ),
+            ),
+            focusedBorder: const OutlineInputBorder(
+              borderSide: BorderSide(color: _profileGoldMid),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(null),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('Send request'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (message == null) return;
+    setState(() => _commonsJoiningRoomIds.add(room.id));
+    try {
+      final request = await _commonsRepo.requestJoinSharedPractice(
+        roomId: room.id,
+        message: message,
+      );
+      if (!mounted) return;
+      _showCommonsActionSnack(
+        request.status == 'approved'
+            ? 'You joined this shared practice.'
+            : 'Join request sent.',
+      );
+      unawaited(_loadCommonsHome(force: true));
+    } catch (e) {
+      if (!mounted) return;
+      _showCommonsActionSnack('Could not send that join request.');
+    } finally {
+      if (mounted) {
+        setState(() => _commonsJoiningRoomIds.remove(room.id));
+      }
+    }
   }
 
   void _maybeLoadMoreFeed() {
@@ -2963,7 +3268,12 @@ class _ProfilePageState extends State<ProfilePage>
     });
     _scheduleContinuitySave();
     if (_feedItems.isEmpty && !_feedLoading) {
-      await _loadFeedPage(reset: true);
+      unawaited(_loadFeedPage(reset: true));
+    }
+    if (tab == _SocialFeedTab.todaysCommons &&
+        _commonsHome == null &&
+        !_commonsLoading) {
+      await _loadCommonsHome();
     }
   }
 
@@ -3336,6 +3646,13 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   List<InsightPost> _commonsInsightFragments() {
+    final homeFragments = _commonsHome?.fragments ?? const <InsightPost>[];
+    if (homeFragments.isNotEmpty) {
+      final posts = List<InsightPost>.from(homeFragments)
+        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      return posts.take(3).toList(growable: false);
+    }
+
     final byId = <String, InsightPost>{};
     for (final post in _insightPosts) {
       if (post.bodyText.trim().isNotEmpty) {
@@ -3355,6 +3672,10 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   List<ProfileFeedItem> _commonsDiscoverItems() {
+    final homeDiscover = _commonsHome?.discover ?? const <ProfileFeedItem>[];
+    if (homeDiscover.isNotEmpty) {
+      return homeDiscover.take(3).toList(growable: false);
+    }
     return _feedItems.take(3).toList(growable: false);
   }
 
@@ -3364,10 +3685,6 @@ class _ProfilePageState extends State<ProfilePage>
 
   void _openFlowsForCommons() {
     context.go('/flows');
-  }
-
-  void _openCalendarsForCommons() {
-    context.go('/calendars');
   }
 
   Future<void> _openPracticeTogetherForFlowPost(FlowPost post) async {
@@ -3388,55 +3705,50 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Widget _buildCommonsRhythmSection() {
-    final profile = _profile;
-    final activeFlows = profile?.activeFlowsCount;
-    final flowEvents = profile?.totalFlowEventsCount;
-    final postedFlows = _posts.length;
-    final postedInsights = _insightPosts.length;
-    final ownerPrefix = _isViewingOwnProfile ? 'You have' : 'This profile has';
-
-    if (profile == null || _postsLoading || _insightPostsLoading) {
+    final rhythm = _commonsHome?.rhythm;
+    if (_commonsLoading && rhythm == null) {
       return _buildCommonsSection(
         numeral: 'I',
-        title: "Today's Rhythm",
-        note: 'Community rollups are unavailable, so this uses profile data.',
+        title: 'Public Rhythm',
         children: [
           _buildCommonsPulseRow(
             count: '...',
-            text: 'your rhythm is loading from real profile data',
+            text: 'the public rhythm is loading',
             quiet: true,
           ),
         ],
       );
     }
 
+    final summary = rhythm ?? CommonsRhythmSummary.empty();
     return _buildCommonsSection(
       numeral: 'I',
-      title: "Today's Rhythm",
-      note: 'Community rollups are unavailable, so this shows profile rhythm.',
+      title: 'Public Rhythm',
+      note: _commonsErrorMessage,
       children: [
         _buildCommonsPulseRow(
-          count: (activeFlows ?? 0).toString(),
-          text:
-              '$ownerPrefix ${_plural(activeFlows ?? 0, 'active flow')} filed.',
+          count: summary.activeUsersTodayLabel,
+          text: 'people kept a Ma\'at flow today.',
         ),
         _buildCommonsPulseRow(
-          count: (flowEvents ?? 0).toString(),
-          text:
-              '${_plural(flowEvents ?? 0, 'flow event')} are on ${_isViewingOwnProfile ? 'your' : 'this'} path.',
+          count: summary.flowsKeptTodayLabel,
+          text: 'flow steps were recorded in public rhythm.',
         ),
         _buildCommonsPulseRow(
-          count: postedFlows.toString(),
-          text:
-              '${_plural(postedFlows, 'posted flow')} visible on this profile.',
-          quiet: postedFlows == 0,
+          count: summary.publicFragmentsTodayLabel,
+          text: 'public fragments were shared.',
+          quiet: summary.publicFragmentsTodayLabel == '0',
         ),
         _buildCommonsPulseRow(
-          count: postedInsights.toString(),
-          text:
-              '${_plural(postedInsights, 'posted insight')} visible on this profile.',
-          quiet: postedInsights == 0,
+          count: summary.publicRoomsOpenLabel,
+          text: 'public practices are open to join.',
+          quiet: summary.publicRoomsOpenLabel == '0',
         ),
+        if (summary.topFlowTitle?.trim().isNotEmpty == true)
+          _buildCommonsPulseRow(
+            count: summary.topFlowCountLabel ?? '',
+            text: 'most active flow today: ${summary.topFlowTitle}.',
+          ),
       ],
     );
   }
@@ -3620,9 +3932,13 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Widget _buildCommonsQuestionSection() {
-    final dailyQuestion = dailyReflectionQuestionForDate(DateTime.now());
-    final question = _withoutWrappingQuotes(dailyQuestion?.question ?? '');
-    final hasQuestion = question.isNotEmpty;
+    final question = _activeCommonsQuestion();
+    final questionText = _withoutWrappingQuotes(question.question);
+    final hasQuestion = questionText.isNotEmpty;
+    final myAnswer = question.myAnswer;
+    final answerCount = question.answers
+        .where((answer) => answer.id != myAnswer?.id)
+        .length;
     return _buildCommonsSection(
       numeral: 'II',
       title: 'Question of the Day',
@@ -3646,7 +3962,7 @@ class _ProfilePageState extends State<ProfilePage>
               const SizedBox(height: 9),
               Text(
                 hasQuestion
-                    ? question
+                    ? questionText
                     : 'No daily reflection question is available today.',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.9),
@@ -3658,54 +3974,239 @@ class _ProfilePageState extends State<ProfilePage>
                 ),
               ),
               const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: _profileGoldMid.withValues(alpha: 0.20),
+              if (hasQuestion)
+                _buildCommonsAnswerComposer(question)
+              else
+                _buildCommonsEmptyState(
+                  'No public question is open.',
+                  'You can still carry the daily reflection privately in your journal.',
+                ),
+              if (myAnswer != null && !_commonsAnswerEditing) ...[
+                const SizedBox(height: 12),
+                _buildCommonsAnswerCard(myAnswer, isMine: true),
+              ],
+              if (answerCount > 0) ...[
+                const SizedBox(height: 14),
+                Text(
+                  'PUBLIC ANSWERS',
+                  style: TextStyle(
+                    color: _profileGoldText.withValues(alpha: 0.72),
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.7,
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      'Answering in the commons is not enabled yet. For now, carry this privately in your journal.',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.62),
-                        fontFamily: _profileSerifFont,
-                        fontFamilyFallback: _profileSerifFallback,
-                        fontStyle: FontStyle.italic,
-                        fontSize: 16,
-                        height: 1.28,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _buildCommonsCompactButton(
-                          'Answer privately',
-                          primary: true,
-                          onPressed: _openJournalForCommonsQuestion,
-                        ),
-                        _buildCommonsCompactButton(
-                          'Share publicly later',
-                          onPressed: () => _showCommonsActionSnack(
-                            'Public commons answers are not enabled yet.',
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
+                const SizedBox(height: 8),
+                for (final answer
+                    in question.answers
+                        .where((answer) => answer.id != myAnswer?.id)
+                        .take(6)) ...[
+                  _buildCommonsAnswerCard(answer),
+                  const SizedBox(height: 8),
+                ],
+              ] else if (!_commonsLoading && myAnswer == null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  'No public answers yet.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.48),
+                    fontFamily: _profileSerifFont,
+                    fontFamilyFallback: _profileSerifFallback,
+                    fontStyle: FontStyle.italic,
+                    fontSize: 15,
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildCommonsAnswerComposer(CommonsQuestion question) {
+    final myAnswer = question.myAnswer;
+    final shouldCompose = _commonsAnswerEditing || myAnswer == null;
+    if (!shouldCompose) {
+      return Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          _buildCommonsCompactButton(
+            'Edit answer',
+            primary: true,
+            onPressed: () {
+              _commonsAnswerController.text = myAnswer.bodyText;
+              setState(() => _commonsAnswerEditing = true);
+            },
+          ),
+          _buildCommonsCompactButton(
+            'Answer privately',
+            onPressed: _openJournalForCommonsQuestion,
+          ),
+        ],
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.16),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _profileGoldMid.withValues(alpha: 0.20)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _commonsAnswerController,
+            enabled: !_commonsAnswerSaving,
+            minLines: 3,
+            maxLines: 5,
+            maxLength: 1200,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.9),
+              fontFamily: _profileSerifFont,
+              fontFamilyFallback: _profileSerifFallback,
+              fontSize: 17,
+              height: 1.3,
+            ),
+            decoration: InputDecoration(
+              hintText: 'Answer in the Commons',
+              hintStyle: TextStyle(
+                color: Colors.white.withValues(alpha: 0.42),
+                fontStyle: FontStyle.italic,
+              ),
+              counterStyle: TextStyle(
+                color: Colors.white.withValues(alpha: 0.36),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: _profileGoldMid.withValues(alpha: 0.18),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: BorderSide(
+                  color: _profileGoldText.withValues(alpha: 0.62),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _buildCommonsCompactButton(
+                _commonsAnswerSaving ? 'Saving...' : 'Save public answer',
+                primary: true,
+                onPressed: _commonsAnswerSaving
+                    ? null
+                    : () => unawaited(_saveCommonsAnswer()),
+              ),
+              _buildCommonsCompactButton(
+                'Cancel',
+                onPressed: _commonsAnswerSaving
+                    ? null
+                    : () {
+                        _commonsAnswerController.text =
+                            myAnswer?.bodyText ?? '';
+                        setState(() => _commonsAnswerEditing = false);
+                      },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommonsAnswerCard(CommonsAnswer answer, {bool isMine = false}) {
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isMine
+              ? _profileGoldText.withValues(alpha: 0.26)
+              : Colors.white.withValues(alpha: 0.09),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  isMine ? 'Your answer' : answer.authorLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: isMine
+                        ? _profileGoldText
+                        : Colors.white.withValues(alpha: 0.72),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              if (isMine)
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'edit') {
+                      _commonsAnswerController.text = answer.bodyText;
+                      setState(() => _commonsAnswerEditing = true);
+                    } else if (value == 'delete') {
+                      unawaited(_deleteCommonsAnswer(answer));
+                    }
+                  },
+                  icon: Icon(
+                    Icons.more_horiz_rounded,
+                    color: Colors.white.withValues(alpha: 0.58),
+                    size: 19,
+                  ),
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: 'edit', child: Text('Edit')),
+                    PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  ],
+                )
+              else
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    if (value == 'report') {
+                      unawaited(_reportCommonsAnswer(answer));
+                    } else if (value == 'block') {
+                      unawaited(_blockCommonsAnswerAuthor(answer));
+                    }
+                  },
+                  icon: Icon(
+                    Icons.more_horiz_rounded,
+                    color: Colors.white.withValues(alpha: 0.44),
+                    size: 19,
+                  ),
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: 'report', child: Text('Report')),
+                    PopupMenuItem(value: 'block', child: Text('Block user')),
+                  ],
+                ),
+            ],
+          ),
+          Text(
+            answer.bodyText,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.82),
+              fontFamily: _profileSerifFont,
+              fontFamilyFallback: _profileSerifFallback,
+              fontSize: 17,
+              height: 1.32,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -3821,89 +4322,286 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   Widget _buildCommonsPracticeTogetherSection() {
+    final rooms = _commonsPracticeRooms();
+    if (_commonsLoading && rooms.isEmpty) {
+      return _buildCommonsSection(
+        numeral: 'IV',
+        title: 'Practice Together',
+        children: [
+          _buildCommonsEmptyState(
+            'Shared practices are loading.',
+            'Your rooms will appear first, followed by public rooms open to join.',
+          ),
+        ],
+      );
+    }
+
     return _buildCommonsSection(
       numeral: 'IV',
       title: 'Practice Together',
-      children: [
-        _buildCommonsCard(
-          borderColor: _profileGoldMid.withValues(alpha: 0.28),
-          padding: EdgeInsets.zero,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: rooms.isEmpty
+          ? [
+              _buildCommonsEmptyState(
+                'Start a shared practice or make one public.',
+                'Your shared flows appear first. Public practices from other users appear after them.',
+              ),
+              const SizedBox(height: 10),
+              _buildCommonsGhostButton(
+                icon: Icons.add_rounded,
+                label: 'Start shared flow',
+                onPressed: _openFlowsForCommons,
+              ),
+            ]
+          : [
+              SizedBox(
+                height: _commonsPracticeCarouselHeight(context),
+                child: PageView.builder(
+                  controller: _commonsPracticePageController,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: rooms.length,
+                  onPageChanged: (index) {
+                    setState(() => _activeCommonsPracticeIndex = index);
+                  },
+                  itemBuilder: (context, index) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: _buildCommonsPracticeRoomCard(rooms[index]),
+                    );
+                  },
+                ),
+              ),
+              if (rooms.length > 1) ...[
+                const SizedBox(height: 10),
+                _buildCommonsCarouselDots(
+                  count: rooms.length,
+                  activeIndex: _activeCommonsPracticeIndex,
+                ),
+              ],
+              const SizedBox(height: 10),
+              _buildCommonsGhostButton(
+                icon: Icons.add_rounded,
+                label: 'Start shared flow',
+                onPressed: _openFlowsForCommons,
+              ),
+            ],
+    );
+  }
+
+  double _commonsPracticeCarouselHeight(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1.0);
+    return 306 + ((textScale - 1.0).clamp(0.0, 0.4) * 120);
+  }
+
+  Widget _buildCommonsPracticeRoomCard(CommonsPracticeRoom room) {
+    final isUpdating = _commonsVisibilityUpdatingRoomIds.contains(room.id);
+    return _buildCommonsCard(
+      borderColor: room.viewerCanManage
+          ? _profileGoldText.withValues(alpha: 0.36)
+          : _profileGoldMid.withValues(alpha: 0.22),
+      padding: const EdgeInsets.all(15),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(17, 17, 17, 8),
-                child: Text(
-                  'Add a Ma\'at flow to a shared calendar to keep it with others.',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.84),
-                    fontFamily: _profileSerifFont,
-                    fontFamilyFallback: _profileSerifFallback,
-                    fontSize: 21,
-                    height: 1.25,
-                  ),
-                ),
-              ),
-              Container(
-                margin: const EdgeInsets.fromLTRB(14, 12, 14, 0),
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.16),
-                  borderRadius: BorderRadius.circular(13),
-                  border: Border.all(
-                    color: _profileGoldMid.withValues(alpha: 0.18),
-                  ),
-                ),
-                child: Text(
-                  'Choose Practice Together on a real flow, then pick a shared calendar. Entries stay private unless intentionally shared.',
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.62),
-                    fontFamily: _profileSerifFont,
-                    fontFamilyFallback: _profileSerifFallback,
-                    fontStyle: FontStyle.italic,
-                    fontSize: 15,
-                    height: 1.3,
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
-                child: Row(
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: _buildCommonsCompactButton(
-                        'Choose flow',
-                        primary: true,
-                        onPressed: _openFlowsForCommons,
-                      ),
+                    _buildCommonsStatusPill(
+                      room.viewerCanManage ? 'Your Flow' : 'Public Flow',
+                      color: room.viewerCanManage
+                          ? _profileGoldText
+                          : const Color(0xFF30D5C8),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _buildCommonsCompactButton(
-                        'Choose calendar',
-                        onPressed: _openCalendarsForCommons,
+                    const SizedBox(height: 10),
+                    Text(
+                      room.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.9),
+                        fontFamily: _profileSerifFont,
+                        fontFamilyFallback: _profileSerifFallback,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                        height: 1.05,
                       ),
                     ),
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildCommonsGhostButton(
-                        icon: Icons.add_rounded,
-                        label: 'Start shared flow',
-                        onPressed: _openFlowsForCommons,
-                      ),
-                    ),
-                  ],
+              const SizedBox(width: 10),
+              IconButton(
+                onPressed: () => context.push(
+                  '/shared-practice/${Uri.encodeComponent(room.id)}',
+                ),
+                tooltip: 'Open shared practice',
+                icon: const Icon(Icons.open_in_new_rounded, size: 20),
+                color: _profileGoldText,
+                style: IconButton.styleFrom(
+                  backgroundColor: Colors.black.withValues(alpha: 0.28),
                 ),
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          Text(
+            [
+              if (room.calendarName?.trim().isNotEmpty == true)
+                room.calendarName!.trim(),
+              '${room.memberCount} ${_plural(room.memberCount, 'member')}',
+              room.joinPolicy.label,
+            ].join(' · '),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.58),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (room.viewerCanManage)
+            _buildCommonsPracticeVisibilityControls(room, isUpdating)
+          else
+            _buildCommonsPracticeViewerAction(room),
+          const Spacer(),
+          if (room.pendingJoinRequestCount > 0 && room.viewerCanManage) ...[
+            Text(
+              '${room.pendingJoinRequestCount} pending ${_plural(room.pendingJoinRequestCount, 'request')}',
+              style: TextStyle(
+                color: _profileGoldText.withValues(alpha: 0.82),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          Text(
+            room.viewerCanManage
+                ? 'Choose whether this shared flow stays private, invite-only, or appears publicly in Commons.'
+                : 'Ask to join public practices. Owners approve requests before the room becomes visible to you.',
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.50),
+              fontFamily: _profileSerifFont,
+              fontFamilyFallback: _profileSerifFallback,
+              fontStyle: FontStyle.italic,
+              fontSize: 14,
+              height: 1.24,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCommonsPracticeVisibilityControls(
+    CommonsPracticeRoom room,
+    bool isUpdating,
+  ) {
+    return Wrap(
+      spacing: 7,
+      runSpacing: 7,
+      children: [
+        for (final visibility in SharedPracticeRoomVisibility.values)
+          ChoiceChip(
+            selected: room.visibility == visibility,
+            onSelected: isUpdating
+                ? null
+                : (_) => unawaited(
+                    _updateCommonsPracticeVisibility(room, visibility),
+                  ),
+            label: Text(visibility.label),
+            selectedColor: _profileGoldMid.withValues(alpha: 0.30),
+            backgroundColor: Colors.black.withValues(alpha: 0.18),
+            disabledColor: Colors.black.withValues(alpha: 0.12),
+            labelStyle: TextStyle(
+              color: room.visibility == visibility
+                  ? _profileGoldText
+                  : Colors.white.withValues(alpha: 0.66),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w800,
+            ),
+            side: BorderSide(
+              color: room.visibility == visibility
+                  ? _profileGoldText.withValues(alpha: 0.48)
+                  : _profileGoldMid.withValues(alpha: 0.16),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildCommonsPracticeViewerAction(CommonsPracticeRoom room) {
+    if (room.viewerIsMember || room.viewerRequestStatus == 'approved') {
+      return _buildCommonsCompactButton(
+        'Open room',
+        primary: true,
+        onPressed: () =>
+            context.push('/shared-practice/${Uri.encodeComponent(room.id)}'),
+      );
+    }
+    final requested = room.viewerRequestStatus == 'pending';
+    final joining = _commonsJoiningRoomIds.contains(room.id);
+    return _buildCommonsCompactButton(
+      joining
+          ? 'Sending...'
+          : requested
+          ? 'Requested'
+          : room.requestLabel,
+      primary: !requested,
+      onPressed: requested || joining
+          ? null
+          : () => unawaited(_requestJoinCommonsPractice(room)),
+    );
+  }
+
+  Widget _buildCommonsStatusPill(String label, {required Color color}) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.13),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.48)),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: color,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.4,
         ),
+      ),
+    );
+  }
+
+  Widget _buildCommonsCarouselDots({
+    required int count,
+    required int activeIndex,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        for (var i = 0; i < count; i++)
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            margin: const EdgeInsets.symmetric(horizontal: 3),
+            height: 7,
+            width: i == activeIndex ? 18 : 7,
+            decoration: BoxDecoration(
+              color: i == activeIndex
+                  ? _profileGoldText
+                  : Colors.white.withValues(alpha: 0.28),
+              borderRadius: BorderRadius.circular(99),
+            ),
+          ),
       ],
     );
   }
@@ -3913,12 +4611,12 @@ class _ProfilePageState extends State<ProfilePage>
     return _buildCommonsSection(
       numeral: 'V',
       title: 'Discover Practices',
-      note: 'Finite real items from the same For You feed page.',
+      note: 'Public flows and insights from the wider rhythm.',
       children: _feedLoading && _feedItems.isEmpty
           ? [
               _buildCommonsEmptyState(
                 'Discover practices are loading.',
-                'Commons uses the same real feed data as For You.',
+                'Public posts will appear here when they are available.',
               ),
             ]
           : items.isEmpty
@@ -3955,7 +4653,7 @@ class _ProfilePageState extends State<ProfilePage>
   Widget _buildCommonsCompactButton(
     String label, {
     bool primary = false,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
   }) {
     return OutlinedButton(
       onPressed: onPressed,
@@ -3991,7 +4689,7 @@ class _ProfilePageState extends State<ProfilePage>
   Widget _buildCommonsGhostButton({
     required IconData icon,
     required String label,
-    required VoidCallback onPressed,
+    required VoidCallback? onPressed,
   }) {
     return OutlinedButton.icon(
       onPressed: onPressed,

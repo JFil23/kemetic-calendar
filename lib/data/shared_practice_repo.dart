@@ -191,6 +191,84 @@ class SharedPracticeRepo {
     );
   }
 
+  Future<SharedPracticeRoom> setSharedPracticeVisibility({
+    required String roomId,
+    required SharedPracticeRoomVisibility visibility,
+    SharedPracticeJoinPolicy? joinPolicy,
+  }) async {
+    final response = await _client.rpc(
+      'set_shared_practice_visibility',
+      params: <String, dynamic>{
+        'p_room_id': roomId.trim(),
+        'p_visibility': visibility.wireName,
+        'p_join_policy':
+            joinPolicy?.wireName ??
+            (visibility == SharedPracticeRoomVisibility.public
+                ? SharedPracticeJoinPolicy.ownerApproval.wireName
+                : SharedPracticeJoinPolicy.closed.wireName),
+      },
+    );
+    if (response is Map<String, dynamic>) {
+      return SharedPracticeRoom.fromJson(response);
+    }
+    if (response is Map) {
+      return SharedPracticeRoom.fromJson(Map<String, dynamic>.from(response));
+    }
+    throw StateError(
+      'Unexpected shared practice visibility response: ${response.runtimeType}',
+    );
+  }
+
+  Future<SharedPracticeJoinRequest> requestJoinSharedPractice({
+    required String roomId,
+    String? message,
+  }) async {
+    final response = await _client.rpc(
+      'request_join_shared_practice',
+      params: <String, dynamic>{
+        'p_room_id': roomId.trim(),
+        if (message != null && message.trim().isNotEmpty)
+          'p_message': message.trim(),
+      },
+    );
+    if (response is Map<String, dynamic>) {
+      return SharedPracticeJoinRequest.fromJson(response);
+    }
+    if (response is Map) {
+      return SharedPracticeJoinRequest.fromJson(
+        Map<String, dynamic>.from(response),
+      );
+    }
+    throw StateError(
+      'Unexpected shared practice join response: ${response.runtimeType}',
+    );
+  }
+
+  Future<SharedPracticeJoinRequest> respondToJoinRequest({
+    required String requestId,
+    required bool approve,
+  }) async {
+    final response = await _client.rpc(
+      'respond_to_join_request',
+      params: <String, dynamic>{
+        'p_request_id': requestId.trim(),
+        'p_decision': approve ? 'approved' : 'denied',
+      },
+    );
+    if (response is Map<String, dynamic>) {
+      return SharedPracticeJoinRequest.fromJson(response);
+    }
+    if (response is Map) {
+      return SharedPracticeJoinRequest.fromJson(
+        Map<String, dynamic>.from(response),
+      );
+    }
+    throw StateError(
+      'Unexpected shared practice join decision response: '
+      '${response.runtimeType}',
+    );
+  }
+
   Future<void> _mergeCompletionMetadata({
     required String clientEventId,
     required String sharedPracticeRoomId,

@@ -17,22 +17,121 @@ void main() {
     expect(source, isNot(contains("TODAY'S COMMONS")));
     expect(source, isNot(contains("Today's Commons")));
     expect(source, contains('dailyReflectionQuestionForDate'));
-    expect(source, contains("Today's Rhythm"));
+    expect(source, contains('Public Rhythm'));
+    expect(source, contains('_loadCommonsHome'));
+    expect(source, contains('CommonsRepo'));
     expect(source, contains('_commonsInsightFragments'));
     expect(source, contains('_commonsDiscoverItems'));
   });
 
-  test('Today Commons keeps rollups fallback-only in this slice', () {
-    expect(source, contains("Today's Rhythm"));
+  test('Today Commons uses Commons home instead of profile placeholders', () {
+    expect(source, contains('_commonsHome'));
+    expect(source, contains('getCommonsHome'));
+    expect(source, contains('answerQuestion'));
+    expect(source, contains('setPracticeVisibility'));
+    expect(source, contains('requestJoinSharedPractice'));
     expect(
       source,
-      contains(
-        'Community rollups are unavailable, so this shows profile rhythm.',
+      isNot(
+        contains(
+          'Community rollups are unavailable, so this shows profile rhythm.',
+        ),
       ),
     );
-    expect(source, isNot(contains('_communityRhythmRollups')));
-    expect(source, isNot(contains('_loadCommunityRhythmRollups')));
   });
+
+  test(
+    'Commons question supports answer compose, edit, delete, report, block',
+    () {
+      final questionSource = _methodSource(
+        source,
+        'Widget _buildCommonsQuestionSection()',
+        'Widget _buildCommonsAnswerComposer(CommonsQuestion question)',
+      );
+      final composerSource = _methodSource(
+        source,
+        'Widget _buildCommonsAnswerComposer(CommonsQuestion question)',
+        'Widget _buildCommonsAnswerCard(CommonsAnswer answer',
+      );
+      final answerCardSource = _methodSource(
+        source,
+        'Widget _buildCommonsAnswerCard(CommonsAnswer answer',
+        'Widget _buildCommonsReflectionSection()',
+      );
+
+      expect(questionSource, contains('_buildCommonsAnswerComposer(question)'));
+      expect(questionSource, contains('_buildCommonsAnswerCard(myAnswer'));
+      expect(questionSource, contains('PUBLIC ANSWERS'));
+      expect(composerSource, contains('_commonsAnswerEditing'));
+      expect(composerSource, contains('Edit answer'));
+      expect(composerSource, contains('Answer in the Commons'));
+      expect(composerSource, contains('Save public answer'));
+      expect(composerSource, contains('_saveCommonsAnswer()'));
+      expect(answerCardSource, contains('Your answer'));
+      expect(answerCardSource, contains("_deleteCommonsAnswer(answer)"));
+      expect(answerCardSource, contains("_reportCommonsAnswer(answer)"));
+      expect(answerCardSource, contains("_blockCommonsAnswerAuthor(answer)"));
+      expect(answerCardSource, contains("PopupMenuItem(value: 'edit'"));
+      expect(answerCardSource, contains("PopupMenuItem(value: 'delete'"));
+    },
+  );
+
+  test(
+    'Practice Together carousel orders own rooms first and exposes join states',
+    () {
+      final orderingSource = _methodSource(
+        source,
+        'List<CommonsPracticeRoom> _commonsPracticeRooms()',
+        'Future<void> _updateCommonsPracticeVisibility(',
+      );
+      final sectionSource = _methodSource(
+        source,
+        'Widget _buildCommonsPracticeTogetherSection()',
+        'double _commonsPracticeCarouselHeight(BuildContext context)',
+      );
+      final cardSource = _methodSource(
+        source,
+        'Widget _buildCommonsPracticeRoomCard(CommonsPracticeRoom room)',
+        'Widget _buildCommonsPracticeVisibilityControls(',
+      );
+      final controlsSource = _methodSource(
+        source,
+        'Widget _buildCommonsPracticeVisibilityControls(',
+        'Widget _buildCommonsPracticeViewerAction(CommonsPracticeRoom room)',
+      );
+      final viewerActionSource = _methodSource(
+        source,
+        'Widget _buildCommonsPracticeViewerAction(CommonsPracticeRoom room)',
+        'Widget _buildCommonsStatusPill(',
+      );
+
+      expect(
+        orderingSource.indexOf('...home.mySharedPractices'),
+        lessThan(orderingSource.indexOf('...home.publicSharedPractices')),
+      );
+      expect(orderingSource, contains('seen.add(room.id)'));
+      expect(sectionSource, contains('PageView.builder'));
+      expect(sectionSource, contains('_commonsPracticePageController'));
+      expect(sectionSource, contains('BouncingScrollPhysics'));
+      expect(sectionSource, contains('onPageChanged'));
+      expect(sectionSource, contains('_buildCommonsCarouselDots'));
+      expect(cardSource, contains("room.viewerCanManage ? 'Your Flow'"));
+      expect(cardSource, contains("'Public Flow'"));
+      expect(cardSource, contains('pendingJoinRequestCount'));
+      expect(
+        cardSource,
+        contains('Choose whether this shared flow stays private'),
+      );
+      expect(cardSource, contains('Ask to join public practices'));
+      expect(controlsSource, contains('SharedPracticeRoomVisibility.values'));
+      expect(controlsSource, contains('ChoiceChip'));
+      expect(controlsSource, contains('_updateCommonsPracticeVisibility'));
+      expect(viewerActionSource, contains("'Open room'"));
+      expect(viewerActionSource, contains("'Requested'"));
+      expect(viewerActionSource, contains('room.requestLabel'));
+      expect(viewerActionSource, contains('_requestJoinCommonsPractice(room)'));
+    },
+  );
 
   test('Discover Practices uses expanded For You blocks', () {
     final discoverSource = _methodSource(
@@ -73,11 +172,11 @@ void main() {
   });
 
   test('Discover Practices uses the loaded For You feed source', () {
+    expect(source, contains('final homeDiscover = _commonsHome?.discover'));
     expect(source, contains('return _feedItems.take(3).toList'));
-    expect(source, contains('same real feed data as For You.'));
     expect(
       source,
-      contains('Finite real items from the same For You feed page.'),
+      contains('Public flows and insights from the wider rhythm.'),
     );
   });
 
@@ -103,11 +202,9 @@ void main() {
   test('Today Commons keeps honest empty states', () {
     expect(source, contains('No fragments have been shared today.'));
     expect(source, contains('No discoverable practices yet.'));
-    expect(source, contains('Public commons answers are not enabled yet.'));
-    expect(
-      source,
-      contains('Entries stay private unless intentionally shared.'),
-    );
+    expect(source, contains('Answer in the Commons'));
+    expect(source, contains('Start a shared practice or make one public.'));
+    expect(source, contains('Choose whether this shared flow stays private'));
   });
 
   test('prototype social claims are not present', () {
@@ -131,6 +228,8 @@ void main() {
       'split=',
       'ov=',
       '%20',
+      'Finite real items',
+      'Finite real items from the same For You feed page.',
     ];
 
     for (final copy in removedPrototypeCopy) {

@@ -14,6 +14,11 @@ void main() {
           'created_by': 'user-1',
           'title': 'The Closing',
           'status': 'active',
+          'visibility': 'public',
+          'join_policy': 'owner_approval',
+          'member_count': 2,
+          'pending_request_count': 1,
+          'viewer_can_manage': true,
         },
         'calendar': {'id': 'cal-1', 'name': 'Family', 'color': 0xD4AE43},
         'local_date': '2026-06-24',
@@ -58,9 +63,25 @@ void main() {
             'moderation_status': 'visible',
           },
         ],
+        'join_requests': [
+          {
+            'id': 'request-1',
+            'room_id': 'room-1',
+            'requester_id': 'user-3',
+            'requester_display_name': 'Aset',
+            'message': 'I can keep this with care.',
+            'status': 'pending',
+          },
+        ],
+        'viewer_can_manage': true,
+        'viewer_is_member': true,
       });
 
       expect(snapshot.room.id, 'room-1');
+      expect(snapshot.room.visibility, SharedPracticeRoomVisibility.public);
+      expect(snapshot.room.joinPolicy, SharedPracticeJoinPolicy.ownerApproval);
+      expect(snapshot.room.pendingJoinRequestCount, 1);
+      expect(snapshot.viewerCanManage, isTrue);
       expect(snapshot.todayStep?.flowId, 84);
       expect(
         snapshot.members.first.completionStatus,
@@ -74,6 +95,7 @@ void main() {
         snapshot.entries.single.visibility,
         SharedPracticeVisibility.private,
       );
+      expect(snapshot.joinRequests.single.requesterLabel, 'Aset');
     });
 
     test('builds factual summary without interpretive language', () {
