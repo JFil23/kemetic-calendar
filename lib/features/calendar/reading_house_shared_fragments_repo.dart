@@ -196,6 +196,44 @@ class ReadingHouseAnnouncement {
   }
 }
 
+class ReadingHouseChatMessage {
+  const ReadingHouseChatMessage({
+    required this.id,
+    required this.calendarId,
+    required this.flowId,
+    required this.authorId,
+    required this.body,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String calendarId;
+  final int flowId;
+  final String authorId;
+  final String body;
+  final DateTime createdAt;
+
+  bool isAuthoredBy(String? userId) {
+    final normalized = userId?.trim();
+    return normalized != null &&
+        normalized.isNotEmpty &&
+        authorId == normalized;
+  }
+
+  factory ReadingHouseChatMessage.fromJson(Map<String, dynamic> json) {
+    return ReadingHouseChatMessage(
+      id: _cleanString(json['id']) ?? '',
+      calendarId: _cleanString(json['calendar_id']) ?? '',
+      flowId: _parseInt(json['flow_id']) ?? 0,
+      authorId: _cleanString(json['author_id']) ?? '',
+      body: _cleanString(json['body']) ?? '',
+      createdAt:
+          DateTime.tryParse(_cleanString(json['created_at']) ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    );
+  }
+}
+
 class ReadingHouseSharedFragmentsRepo {
   ReadingHouseSharedFragmentsRepo(this._client);
 
@@ -211,6 +249,17 @@ class ReadingHouseSharedFragmentsRepo {
       params: <String, dynamic>{'p_calendar_id': trimmedCalendarId},
     );
     return response == true;
+  }
+
+  Future<int> activeJoinedMemberCount({required String calendarId}) async {
+    final trimmedCalendarId = calendarId.trim();
+    if (trimmedCalendarId.isEmpty) return 0;
+    final rows = await _client
+        .from('shared_calendar_members')
+        .select('user_id')
+        .eq('calendar_id', trimmedCalendarId)
+        .eq('status', 'accepted');
+    return (rows as List).length;
   }
 
   Future<void> markReadingPosition({
@@ -334,6 +383,27 @@ class ReadingHouseSharedFragmentsRepo {
           (announcement) =>
               announcement.id.isNotEmpty && announcement.body.isNotEmpty,
         )
+        .toList(growable: false);
+  }
+
+  Future<List<ReadingHouseChatMessage>> listChatMessages({
+    required String calendarId,
+    required int flowId,
+  }) async {
+    final rows = await _client
+        .from('reading_house_chat_messages')
+        .select()
+        .eq('calendar_id', calendarId.trim())
+        .eq('flow_id', flowId)
+        .isFilter('deleted_at', null)
+        .order('created_at', ascending: true);
+    return (rows as List)
+        .whereType<Map>()
+        .map(
+          (row) =>
+              ReadingHouseChatMessage.fromJson(row.cast<String, dynamic>()),
+        )
+        .where((message) => message.id.isNotEmpty && message.body.isNotEmpty)
         .toList(growable: false);
   }
 
@@ -493,6 +563,34 @@ class ReadingHouseSharedFragmentsRepo {
     await _client.rpc(
       'delete_reading_house_announcement',
       params: <String, dynamic>{'p_announcement_id': trimmed},
+    );
+  }
+
+  Future<void> createChatMessage({
+    required String calendarId,
+    required int flowId,
+    required String body,
+  }) async {
+    final trimmedBody = body.trim();
+    if (trimmedBody.isEmpty) {
+      throw ArgumentError.value(body, 'body', 'Chat body is required.');
+    }
+    await _client.rpc(
+      'create_reading_house_chat_message',
+      params: <String, dynamic>{
+        'p_calendar_id': calendarId.trim(),
+        'p_flow_id': flowId,
+        'p_body': trimmedBody,
+      },
+    );
+  }
+
+  Future<void> deleteChatMessage(String messageId) async {
+    final trimmed = messageId.trim();
+    if (trimmed.isEmpty) return;
+    await _client.rpc(
+      'delete_reading_house_chat_message',
+      params: <String, dynamic>{'p_message_id': trimmed},
     );
   }
 }

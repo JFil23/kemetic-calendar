@@ -106,7 +106,7 @@ void main() {
       'auto_copy_to_house_margin': false,
     });
     final presence = payload['house_presence'] as Map<String, dynamic>;
-    expect(presence['phase'], 'phase_3d');
+    expect(presence['phase'], 'phase_4a');
     expect(
       presence['membership_source'],
       kReadingHouseMembershipSourceSharedCalendar,
@@ -131,6 +131,13 @@ void main() {
       kReadingHouseHostAnnouncementsPhaseEnabled,
     );
     expect(presence['announcement_scope'], 'house_notice_lane');
+    expect(presence['house_chat'], kReadingHouseHouseChatPhaseEnabled);
+    expect(presence['house_chat_scope'], 'full_house_support_lane');
+    expect(
+      presence['house_chat_membership'],
+      'accepted_shared_calendar_members',
+    );
+    expect(presence['house_chat_role'], 'logistics_and_quick_notes');
     expect(presence['private_reader_text_shared'], isFalse);
     expect(payload['share_prompt_on_complete'], isFalse);
     expect(payload['share_prompt_future'], isFalse);
@@ -140,6 +147,9 @@ void main() {
     expect(discussion['reply_depth'], 1);
     expect(discussion['likes'], isFalse);
     expect(discussion['ranking'], isFalse);
+    expect(discussion['house_chat'], kReadingHouseHouseChatPhaseEnabled);
+    expect(discussion['house_chat_role'], 'support_lane');
+    expect(discussion['pod_chat'], isFalse);
 
     final schedule = payload['schedule'] as Map<String, dynamic>;
     expect(schedule['timezone'], TrackSkyTimeZone.eastern.key);
@@ -399,10 +409,10 @@ void main() {
     );
   });
 
-  test('public copy stays honest about the Phase 3D boundary', () {
+  test('public copy stays honest about the Phase 4A boundary', () {
     expect(kReadingHouseOverview, contains('host-authored private sittings'));
     expect(kReadingHouseOverview, contains('local private margin'));
-    expect(kReadingHouseOverview, contains('Phase 3D host announcements'));
+    expect(kReadingHouseOverview, contains('Phase 4A House Chat'));
     expect(kReadingHouseOverview, contains('shared house margin'));
     expect(
       kReadingHouseOverview,
@@ -414,9 +424,10 @@ void main() {
         'private reflection, short-note text, and local private margin text are never copied automatically',
       ),
     );
-    expect(kReadingHouseEnrollmentCopy, contains('Phase 3D'));
+    expect(kReadingHouseEnrollmentCopy, contains('Phase 4A'));
     expect(kReadingHouseEnrollmentCopy, contains('one-level replies'));
     expect(kReadingHouseEnrollmentCopy, contains('host announcements'));
+    expect(kReadingHouseEnrollmentCopy, contains('secondary support lane'));
     expect(kReadingHouseEnrollmentCopy, contains('writing stays optional'));
     final detail = readingHouseDetailText(
       kReadingHouseSittings.first,
@@ -436,9 +447,13 @@ void main() {
     );
     expect(detail, contains('Host announcements'));
     expect(detail, contains('Fragment replies'));
+    expect(detail, contains('House Chat'));
+    expect(detail, contains('support lane'));
     expect(
       detail,
-      contains('No likes, ranking, discussion room, or chat is active'),
+      contains(
+        'No likes, ranking, discussion room, or nested thread is active',
+      ),
     );
   });
 
@@ -474,7 +489,9 @@ void main() {
       expect(presence['announcement_scope'], 'house_notice_lane');
       expect(presence['replies'], 'enabled');
       expect(presence['discussion'], 'future');
-      expect(presence['house_chat'], 'future');
+      expect(presence['house_chat'], 'enabled');
+      expect(presence['house_chat_scope'], 'full_house_support_lane');
+      expect(presence['house_chat_role'], 'logistics_and_quick_notes');
       expect(presence['global_commons_share'], isFalse);
       final discussion = payload['discussion_model'] as Map<String, dynamic>;
       expect(discussion['phase'], 'fragment_replies');
@@ -484,7 +501,9 @@ void main() {
       expect(discussion['discussion_room'], isFalse);
       expect(discussion['house_margin'], 'enabled');
       expect(discussion['host_announcements'], 'enabled');
-      expect(discussion['house_chat'], 'future');
+      expect(discussion['house_chat'], 'enabled');
+      expect(discussion['house_chat_role'], 'support_lane');
+      expect(discussion['pod_chat'], isFalse);
     },
   );
 
@@ -666,6 +685,107 @@ void main() {
     expect(repoSource, isNot(contains('shortNote')));
   });
 
+  test('Phase 4A UI keeps House Chat secondary and full-house only', () {
+    final dayViewSource = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
+    final repoSource = File(
+      'lib/features/calendar/reading_house_shared_fragments_repo.dart',
+    ).readAsStringSync();
+
+    final chatList = _sourceBetween(
+      dayViewSource,
+      'Widget _buildReadingHouseChatList',
+      '  Widget _buildReadingHouseChatComposer',
+    );
+    expect(chatList, contains('House Chat opens when readers join'));
+    expect(chatList, contains('use fragments and margin for the text itself'));
+    expect(chatList, contains('_deleteReadingHouseChatMessage(message)'));
+    expect(chatList, isNot(contains('Reply')));
+    expect(chatList, isNot(contains('Like')));
+    expect(chatList, isNot(contains('Reaction')));
+    expect(chatList, isNot(contains('ranking')));
+    expect(chatList, isNot(contains('pod')));
+
+    final chatComposer = _sourceBetween(
+      dayViewSource,
+      'Widget _buildReadingHouseChatComposer',
+      '  Widget? _buildReadingHouseChatSection',
+    );
+    expect(chatComposer, contains('Logistics or quick note'));
+    expect(chatComposer, contains('The reading stays in sittings'));
+    expect(chatComposer, contains('ValueListenableBuilder<TextEditingValue>'));
+    expect(chatComposer, contains('_sendReadingHouseChatMessage()'));
+    expect(chatComposer, isNot(contains('onChanged: (_) => setState(() {})')));
+    expect(chatComposer, isNot(contains('Reply')));
+    expect(chatComposer, isNot(contains('Like')));
+    expect(chatComposer, isNot(contains('Reaction')));
+
+    final chatSection = _sourceBetween(
+      dayViewSource,
+      'Widget? _buildReadingHouseChatSection',
+      '  Widget? _buildCompletionLeadingContent',
+    );
+    expect(chatSection, contains('House Chat'));
+    expect(chatSection, contains('For logistics and quick notes.'));
+    expect(chatSection, contains('_isReadingHouseSoloStudySitting'));
+    expect(chatSection, contains('_readingHouseCompanyChatActive'));
+    expect(chatSection, contains('_buildReadingHouseChatList(style)'));
+    expect(chatSection, contains('_buildReadingHouseChatComposer(style)'));
+
+    final leadingContent = _sourceBetween(
+      dayViewSource,
+      'Widget? _buildCompletionLeadingContent',
+      '  @override',
+    );
+    expect(
+      leadingContent.indexOf('final marginSection'),
+      lessThan(leadingContent.indexOf('final chatSection')),
+    );
+    expect(
+      leadingContent.indexOf('if (marginSection != null) marginSection'),
+      lessThan(leadingContent.indexOf('if (chatSection != null) chatSection')),
+    );
+
+    expect(repoSource, contains('ReadingHouseChatMessage'));
+    expect(repoSource, contains('activeJoinedMemberCount'));
+    expect(repoSource, contains('listChatMessages'));
+    expect(repoSource, contains('createChatMessage'));
+    expect(repoSource, contains('deleteChatMessage'));
+    expect(repoSource, isNot(contains('privateReflection')));
+    expect(repoSource, isNot(contains('shortNote')));
+  });
+
+  test('Phase 4A House Chat RLS derives access from house membership', () {
+    final migration = File(
+      '../supabase/migrations/20260626170000_reading_house_house_chat.sql',
+    ).readAsStringSync();
+
+    expect(migration, contains('reading_house_chat_messages'));
+    expect(migration, contains('reading_house_chat_messages_select_members'));
+    expect(migration, contains('reading_house_is_calendar_member'));
+    expect(migration, contains('reading_house_flow_on_calendar'));
+    expect(migration, contains('reading_house_is_solo_study_house'));
+    expect(migration, contains('create_reading_house_chat_message'));
+    expect(migration, contains('delete_reading_house_chat_message'));
+    expect(migration, contains('CHAT_NOT_AVAILABLE_FOR_SOLO_STUDY'));
+    expect(migration, contains('CHAT_OPENS_WHEN_READERS_JOIN'));
+    expect(migration, contains('CHAT_MESSAGE_NOT_EDITABLE'));
+    expect(migration, contains("scm.status = 'accepted'"));
+    expect(migration, contains('v_active_member_count < 2'));
+    expect(
+      migration,
+      contains('grant select on public.reading_house_chat_messages'),
+    );
+    expect(migration, isNot(contains('parent_message_id')));
+    expect(migration, isNot(contains('parent_reply_id')));
+    expect(migration, isNot(contains('likes')));
+    expect(migration, isNot(contains('reaction')));
+    expect(migration, isNot(contains('ranking')));
+    expect(migration, isNot(contains('global_commons')));
+    expect(migration, isNot(contains('pod')));
+  });
+
   test('Phase 3B shared fragment RLS gates house membership and Carrying', () {
     final migration = File(
       '../supabase/migrations/20260625170000_reading_house_shared_fragments.sql',
@@ -807,11 +927,15 @@ void main() {
       ),
     );
     expect(panel, contains('one-level replies'));
-    expect(panel, contains('Discussion rooms and chat remain future-facing'));
+    expect(panel, contains('House Chat logistics'));
+    expect(
+      panel,
+      contains('Discussion rooms, pods, likes, and ranking stay out'),
+    );
     for (final forbidden in <String>[
       'Share fragment',
       'Like',
-      'House Chat',
+      'Pod Chat',
       'Leader',
     ]) {
       expect(panel, isNot(contains(forbidden)));

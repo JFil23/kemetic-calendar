@@ -943,7 +943,7 @@ class _ReadingHouseAuthoringPageState
           ],
           const SizedBox(height: 12),
           const Text(
-            'Membership uses shared-calendar access. The schedule, roster, chosen sitting fragments, one-level replies, house margin, and host announcements are visible to joined members; private reflections, notes, and local margin text stay private. Discussion rooms and chat remain future-facing.',
+            'Membership uses shared-calendar access. The schedule, roster, chosen sitting fragments, one-level replies, house margin, host announcements, and House Chat logistics are visible to joined members; private reflections, notes, and local margin text stay private. Discussion rooms, pods, likes, and ranking stay out of this house.',
             style: TextStyle(color: Color(0xFFB7AAA0), height: 1.35),
           ),
         ],

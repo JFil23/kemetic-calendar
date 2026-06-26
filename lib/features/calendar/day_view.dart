@@ -8926,6 +8926,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       TextEditingController();
   final TextEditingController _readingHouseAnnouncementBodyController =
       TextEditingController();
+  final TextEditingController _readingHouseChatController =
+      TextEditingController();
   OverlayEntry? _sheetFeedbackOverlay;
   Timer? _sheetFeedbackTimer;
   final CalendarCompletionFeedbackScheduler _completionFeedbackScheduler =
@@ -8944,6 +8946,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   bool _readingHouseReplySaving = false;
   bool _readingHouseMarginSaving = false;
   bool _readingHouseAnnouncementSaving = false;
+  bool _readingHouseChatSending = false;
   bool _readingHouseFragmentComposerOpen = false;
   bool _readingHouseMarginComposerOpen = false;
   bool _readingHouseAnnouncementComposerOpen = false;
@@ -8959,9 +8962,12 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       const <ReadingHouseMarginItem>[];
   List<ReadingHouseAnnouncement> _readingHouseAnnouncements =
       const <ReadingHouseAnnouncement>[];
+  List<ReadingHouseChatMessage> _readingHouseChatMessages =
+      const <ReadingHouseChatMessage>[];
   Map<String, List<ReadingHouseFragmentReply>>
   _readingHouseRepliesByFragmentId =
       const <String, List<ReadingHouseFragmentReply>>{};
+  int _readingHouseActiveMemberCount = 0;
   int _decanWatchResponseLoadGeneration = 0;
   Map<String, MaatFlowResponseValue> _responseValues =
       const <String, MaatFlowResponseValue>{};
@@ -8986,6 +8992,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     _readingHouseMarginBodyController.dispose();
     _readingHouseMarginReferenceController.dispose();
     _readingHouseAnnouncementBodyController.dispose();
+    _readingHouseChatController.dispose();
     super.dispose();
   }
 
@@ -9087,10 +9094,13 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     _readingHouseFragments = const <ReadingHouseSharedFragment>[];
     _readingHouseMarginItems = const <ReadingHouseMarginItem>[];
     _readingHouseAnnouncements = const <ReadingHouseAnnouncement>[];
+    _readingHouseChatMessages = const <ReadingHouseChatMessage>[];
+    _readingHouseActiveMemberCount = 0;
     _readingHouseFragmentsLoading = false;
     _readingHouseFragmentSaving = false;
     _readingHouseMarginSaving = false;
     _readingHouseAnnouncementSaving = false;
+    _readingHouseChatSending = false;
     _readingHouseFragmentsError = null;
     _readingHouseCanModerateFragments = false;
     _readingHouseRepliesByFragmentId =
@@ -9108,6 +9118,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     _readingHouseMarginBodyController.clear();
     _readingHouseMarginReferenceController.clear();
     _readingHouseAnnouncementBodyController.clear();
+    _readingHouseChatController.clear();
   }
 
   @override
@@ -9218,6 +9229,11 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   bool get _isReadingHouseSoloStudySitting {
     return widget.event.behaviorPayload?['house_mode']?.toString().trim() ==
         kReadingHouseSoloMode;
+  }
+
+  bool get _readingHouseCompanyChatActive {
+    return !_isReadingHouseSoloStudySitting &&
+        _readingHouseActiveMemberCount >= kReadingHouseCompanyMemberThreshold;
   }
 
   DateTime get _eventGregorianDate {
@@ -9465,6 +9481,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         _readingHouseFragments = const <ReadingHouseSharedFragment>[];
         _readingHouseMarginItems = const <ReadingHouseMarginItem>[];
         _readingHouseAnnouncements = const <ReadingHouseAnnouncement>[];
+        _readingHouseChatMessages = const <ReadingHouseChatMessage>[];
+        _readingHouseActiveMemberCount = 0;
         _readingHouseRepliesByFragmentId =
             const <String, List<ReadingHouseFragmentReply>>{};
         _readingHouseFragmentsLoading = false;
@@ -9505,6 +9523,13 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           calendarId: calendarId,
           flowId: flowId,
         ),
+        _readingHouseFragmentsRepo.activeJoinedMemberCount(
+          calendarId: calendarId,
+        ),
+        _readingHouseFragmentsRepo.listChatMessages(
+          calendarId: calendarId,
+          flowId: flowId,
+        ),
       ]);
       if (!mounted || generation != _readingHouseFragmentsLoadGeneration) {
         return;
@@ -9518,6 +9543,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         _readingHouseMarginItems = results[3] as List<ReadingHouseMarginItem>;
         _readingHouseAnnouncements =
             results[4] as List<ReadingHouseAnnouncement>;
+        _readingHouseActiveMemberCount = results[5] as int;
+        _readingHouseChatMessages = results[6] as List<ReadingHouseChatMessage>;
         _readingHouseFragmentsLoading = false;
       });
     } catch (error) {
@@ -9830,6 +9857,73 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         _readingHouseAnnouncementSaving = false;
       });
       _showSheetFeedback('Could not remove this announcement.');
+    }
+  }
+
+  Future<void> _sendReadingHouseChatMessage() async {
+    if (!_hasReadingHouseFragmentContext || _readingHouseChatSending) {
+      return;
+    }
+    if (!_readingHouseCompanyChatActive) {
+      _showSheetFeedback('House Chat opens when readers join.');
+      return;
+    }
+    final body = _readingHouseChatController.text.trim();
+    if (body.isEmpty) {
+      _showSheetFeedback('Add a chat message first.');
+      return;
+    }
+    setState(() {
+      _readingHouseChatSending = true;
+      _readingHouseFragmentsError = null;
+    });
+    try {
+      await _readingHouseFragmentsRepo.createChatMessage(
+        calendarId: _readingHouseCalendarId!,
+        flowId: _readingHouseFlowId!,
+        body: body,
+      );
+      _readingHouseChatController.clear();
+      if (!mounted) return;
+      setState(() {
+        _readingHouseChatSending = false;
+      });
+      await _loadReadingHouseSharedFragmentsIfNeeded();
+      if (mounted) {
+        _showSheetFeedback('Chat message sent.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseChatSending = false;
+      });
+      _showSheetFeedback('Could not send this chat message.');
+    }
+  }
+
+  Future<void> _deleteReadingHouseChatMessage(
+    ReadingHouseChatMessage message,
+  ) async {
+    if (_readingHouseChatSending) return;
+    setState(() => _readingHouseChatSending = true);
+    try {
+      await _readingHouseFragmentsRepo.deleteChatMessage(message.id);
+      if (!mounted) return;
+      setState(() {
+        _readingHouseChatMessages = _readingHouseChatMessages
+            .where((candidate) => candidate.id != message.id)
+            .toList(growable: false);
+        _readingHouseChatSending = false;
+      });
+      if (mounted) {
+        _showSheetFeedback('Chat message removed.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseChatSending = false;
+      });
+      _showSheetFeedback('Could not remove this chat message.');
     }
   }
 
@@ -10851,6 +10945,12 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
 
   String _readingHouseMarginAuthorLabel(ReadingHouseMarginItem item) {
     return item.isAuthoredBy(_readingHouseFragmentsRepo.currentUserId)
+        ? 'You'
+        : 'House member';
+  }
+
+  String _readingHouseChatAuthorLabel(ReadingHouseChatMessage message) {
+    return message.isAuthoredBy(_readingHouseFragmentsRepo.currentUserId)
         ? 'You'
         : 'House member';
   }
@@ -11923,15 +12023,251 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     );
   }
 
+  Widget _buildReadingHouseChatList(CalendarCompletionPickerStyle style) {
+    if (_readingHouseFragmentsLoading) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: style.selectedBorderColor,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Loading house chat',
+            style: TextStyle(color: style.labelColor, fontSize: 13),
+          ),
+        ],
+      );
+    }
+    if (_readingHouseFragmentsError != null) {
+      return Text(
+        'House Chat unavailable.',
+        style: TextStyle(color: style.labelColor, fontSize: 13, height: 1.25),
+      );
+    }
+    if (!_readingHouseCompanyChatActive) {
+      return Text(
+        'House Chat opens when readers join. For logistics and quick notes; the reading stays in the sittings.',
+        style: TextStyle(color: style.labelColor, fontSize: 13, height: 1.25),
+      );
+    }
+    if (_readingHouseChatMessages.isEmpty) {
+      return Text(
+        'No chat messages yet. Use this for logistics and quick notes; use fragments and margin for the text itself.',
+        style: TextStyle(color: style.labelColor, fontSize: 13, height: 1.25),
+      );
+    }
+
+    final userId = _readingHouseFragmentsRepo.currentUserId;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final message in _readingHouseChatMessages)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: style.containerColor.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: style.unselectedBorderColor.withValues(alpha: 0.72),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _readingHouseChatAuthorLabel(message),
+                        style: TextStyle(
+                          color: style.labelColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        message.body,
+                        style: TextStyle(
+                          color: style.unselectedForegroundColor,
+                          fontSize: 14,
+                          height: 1.32,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (message.isAuthoredBy(userId) ||
+                    _readingHouseCanModerateFragments)
+                  IconButton(
+                    tooltip: 'Delete chat message',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: _readingHouseChatSending
+                        ? null
+                        : () => unawaited(
+                            _deleteReadingHouseChatMessage(message),
+                          ),
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    color: style.labelColor,
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildReadingHouseChatComposer(CalendarCompletionPickerStyle style) {
+    if (!_readingHouseCompanyChatActive) {
+      return const SizedBox.shrink();
+    }
+
+    InputDecoration decoration() {
+      return InputDecoration(
+        labelText: 'Logistics or quick note',
+        labelStyle: TextStyle(color: style.labelColor),
+        filled: true,
+        fillColor: style.unselectedBackgroundColor,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.unselectedBorderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.selectedBorderColor),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _readingHouseChatController,
+          minLines: 1,
+          maxLines: 4,
+          textCapitalization: TextCapitalization.sentences,
+          textInputAction: TextInputAction.newline,
+          scrollPadding: keyboardManagedTextFieldScrollPadding,
+          style: TextStyle(color: style.selectedForegroundColor),
+          decoration: decoration(),
+        ),
+        const SizedBox(height: 7),
+        Text(
+          'House Chat is for logistics and quick notes. The reading stays in sittings, fragments, and the house margin.',
+          style: TextStyle(
+            color: style.labelColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            height: 1.25,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerRight,
+          child: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _readingHouseChatController,
+            builder: (context, value, _) {
+              final canSend = value.text.trim().isNotEmpty;
+              return FilledButton.icon(
+                onPressed: _readingHouseChatSending || !canSend
+                    ? null
+                    : () => unawaited(_sendReadingHouseChatMessage()),
+                icon: _readingHouseChatSending
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.send_outlined, size: 17),
+                label: const Text('Send'),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget? _buildReadingHouseChatSection() {
+    if (!_isReadingHouseCompletion ||
+        !_hasReadingHouseFragmentContext ||
+        _isReadingHouseSoloStudySitting) {
+      return null;
+    }
+    final style = widget.pickerStyle ?? const CalendarCompletionPickerStyle();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: style.unselectedBackgroundColor.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: style.unselectedBorderColor.withValues(alpha: 0.72),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.forum_outlined, size: 18, color: style.labelColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'House Chat',
+                  style: TextStyle(
+                    color: style.selectedForegroundColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'For logistics and quick notes.',
+            style: TextStyle(
+              color: style.labelColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              height: 1.25,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _buildReadingHouseChatList(style),
+          if (_readingHouseCompanyChatActive) ...[
+            const SizedBox(height: 10),
+            _buildReadingHouseChatComposer(style),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget? _buildCompletionLeadingContent(Widget? responseSection) {
     final announcementsSection = _buildReadingHouseHostAnnouncementsSection();
     final fragmentsSection = _buildReadingHouseSharedFragmentsSection();
     final marginSection = _buildReadingHouseHouseMarginSection();
+    final chatSection = _buildReadingHouseChatSection();
     final sections = <Widget>[
       if (responseSection != null) responseSection,
       if (announcementsSection != null) announcementsSection,
       if (fragmentsSection != null) fragmentsSection,
       if (marginSection != null) marginSection,
+      if (chatSection != null) chatSection,
     ];
     if (sections.isEmpty) return null;
     if (sections.length == 1) return sections.single;
