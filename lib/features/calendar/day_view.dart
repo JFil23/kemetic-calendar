@@ -10934,7 +10934,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           textCapitalization: TextCapitalization.sentences,
           textInputAction: TextInputAction.newline,
           scrollPadding: keyboardManagedTextFieldScrollPadding,
-          onChanged: (_) => setState(() {}),
           style: TextStyle(color: style.selectedForegroundColor),
           decoration: decoration('Fragment'),
         ),
@@ -10963,20 +10962,24 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
               child: const Text('Cancel'),
             ),
             const SizedBox(width: 8),
-            FilledButton.icon(
-              onPressed:
-                  _readingHouseFragmentSaving ||
-                      _readingHouseFragmentBodyController.text.trim().isEmpty
-                  ? null
-                  : () => unawaited(_shareReadingHouseFragment()),
-              icon: _readingHouseFragmentSaving
-                  ? const SizedBox(
-                      width: 14,
-                      height: 14,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.add_comment_outlined, size: 17),
-              label: const Text('Share fragment'),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _readingHouseFragmentBodyController,
+              builder: (context, value, _) {
+                final canShare = value.text.trim().isNotEmpty;
+                return FilledButton.icon(
+                  onPressed: _readingHouseFragmentSaving || !canShare
+                      ? null
+                      : () => unawaited(_shareReadingHouseFragment()),
+                  icon: _readingHouseFragmentSaving
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.add_comment_outlined, size: 17),
+                  label: const Text('Share fragment'),
+                );
+              },
             ),
           ],
         ),
@@ -11213,7 +11216,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
             textCapitalization: TextCapitalization.sentences,
             textInputAction: TextInputAction.newline,
             scrollPadding: keyboardManagedTextFieldScrollPadding,
-            onChanged: (_) => setState(() {}),
             style: TextStyle(color: style.selectedForegroundColor),
             decoration: decoration(),
           ),
@@ -11241,29 +11243,33 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
                 child: const Text('Cancel'),
               ),
               const SizedBox(width: 8),
-              FilledButton.icon(
-                onPressed:
-                    _readingHouseReplySaving ||
-                        _readingHouseReplyController.text.trim().isEmpty
-                    ? null
-                    : () => unawaited(_createReadingHouseReply(fragment)),
-                icon: _readingHouseReplySaving
-                    ? const SizedBox(
-                        width: 14,
-                        height: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Icon(
-                        _readingHouseCanModerateFragments
-                            ? Icons.task_alt_outlined
-                            : Icons.reply_outlined,
-                        size: 17,
-                      ),
-                label: Text(
-                  _readingHouseCanModerateFragments
-                      ? 'Add acknowledgment'
-                      : 'Add reply',
-                ),
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: _readingHouseReplyController,
+                builder: (context, value, _) {
+                  final canReply = value.text.trim().isNotEmpty;
+                  return FilledButton.icon(
+                    onPressed: _readingHouseReplySaving || !canReply
+                        ? null
+                        : () => unawaited(_createReadingHouseReply(fragment)),
+                    icon: _readingHouseReplySaving
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            _readingHouseCanModerateFragments
+                                ? Icons.task_alt_outlined
+                                : Icons.reply_outlined,
+                            size: 17,
+                          ),
+                    label: Text(
+                      _readingHouseCanModerateFragments
+                          ? 'Add acknowledgment'
+                          : 'Add reply',
+                    ),
+                  );
+                },
               ),
             ],
           ),

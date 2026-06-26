@@ -535,6 +535,8 @@ void main() {
     expect(composer, contains('Bring a fragment to the house'));
     expect(composer, contains('Your private reflection stays private.'));
     expect(composer, contains('_readingHouseFragmentBodyController'));
+    expect(composer, contains('ValueListenableBuilder<TextEditingValue>'));
+    expect(composer, isNot(contains('onChanged: (_) => setState(() {})')));
     expect(composer, contains('_shareReadingHouseFragment()'));
     expect(composer, isNot(contains('Like')));
     expect(composer, isNot(contains('Chat')));
@@ -547,6 +549,8 @@ void main() {
     expect(replies, contains('Reply to fragment'));
     expect(replies, contains('Acknowledge fragment'));
     expect(replies, contains('Replies stay inside this house fragment.'));
+    expect(replies, contains('ValueListenableBuilder<TextEditingValue>'));
+    expect(replies, isNot(contains('onChanged: (_) => setState(() {})')));
     expect(replies, contains('_createReadingHouseReply(fragment)'));
     expect(replies, contains('_deleteReadingHouseReply(reply)'));
     expect(replies, isNot(contains('parentReply')));
