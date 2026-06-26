@@ -1,10 +1,22 @@
 part of 'calendar_page.dart';
 
 class _ReadingHouseAuthoringPage extends StatefulWidget {
-  const _ReadingHouseAuthoringPage({required this.flow, this.onSave});
+  const _ReadingHouseAuthoringPage({
+    required this.flow,
+    this.onSave,
+    this.calendar,
+    this.personalCalendarId,
+    this.sharedCalendarsRepo,
+    this.onCalendarChanged,
+  });
 
   final _Flow flow;
   final Future<void> Function(_FlowStudioResult result)? onSave;
+  final SharedCalendarSummary? calendar;
+  final String? personalCalendarId;
+  final SharedCalendarsRepo? sharedCalendarsRepo;
+  final Future<_Flow> Function(_Flow flow, SharedCalendarSummary calendar)?
+  onCalendarChanged;
 
   @override
   State<_ReadingHouseAuthoringPage> createState() =>
@@ -14,22 +26,30 @@ class _ReadingHouseAuthoringPage extends StatefulWidget {
 class _ReadingHouseAuthoringPageState
     extends State<_ReadingHouseAuthoringPage> {
   final UserEventsRepo _eventsRepo = UserEventsRepo(Supabase.instance.client);
+  late _Flow _flow;
+  SharedCalendarSummary? _calendar;
   List<ReadingHouseSitting> _sittings =
       readingHouseStarterSittingsForAuthoring();
+  List<SharedCalendarMember> _members = const <SharedCalendarMember>[];
   ReadingHousePlan _plan = const ReadingHousePlan();
   TrackSkyTimeZone _timezone = detectTrackSkyTimeZone();
   DateTime? _firstStart;
   bool _loading = true;
   bool _saving = false;
+  bool _membersLoading = false;
+  bool _presenceSaving = false;
   Object? _error;
+  Object? _membersError;
 
   @override
   void initState() {
     super.initState();
-    _plan = readingHousePlanFromFlowNotes(widget.flow.notes);
+    _flow = widget.flow;
+    _calendar = widget.calendar;
+    _plan = readingHousePlanFromFlowNotes(_flow.notes);
     _timezone =
         _readingHouseTimeZoneFromKey(
-          _readingHouseFlowNoteToken(widget.flow.notes, 'reading_house_tz='),
+          _readingHouseFlowNoteToken(_flow.notes, 'reading_house_tz='),
         ) ??
         detectTrackSkyTimeZone();
     _load();
@@ -38,14 +58,14 @@ class _ReadingHouseAuthoringPageState
   Future<void> _load() async {
     try {
       final rows = await _eventsRepo.getEventsForFlow(
-        widget.flow.id,
+        _flow.id,
         flowEventsOnly: true,
       );
       final sittings = <ReadingHouseSitting>[];
       for (final row in rows) {
         if (!isReadingHouseFlowReference(
-          flowName: widget.flow.name,
-          flowNotes: widget.flow.notes,
+          flowName: _flow.name,
+          flowNotes: _flow.notes,
           actionId: row.actionId,
           behaviorPayload: row.behaviorPayload,
         )) {
@@ -85,10 +105,11 @@ class _ReadingHouseAuthoringPageState
             : normalizeReadingHouseSittingOrder(sittings);
         _firstStart =
             _sittings.first.scheduledDate ??
-            widget.flow.start ??
+            _flow.start ??
             defaultReadingHouseStartDate(_timezone);
         _loading = false;
       });
+      unawaited(_loadHousePresence());
     } catch (error) {
       if (!mounted) return;
       setState(() {
@@ -98,8 +119,18 @@ class _ReadingHouseAuthoringPageState
     }
   }
 
+  Future<void> _loadHousePresence() async {
+    final calendarId = _flow.calendarId?.trim();
+    if (calendarId != null &&
+        calendarId.isNotEmpty &&
+        (_calendar == null || _calendar?.id.trim() != calendarId)) {
+      await _refreshHouseCalendar(calendarId);
+    }
+    await _loadHouseMembers();
+  }
+
   DateTime get _effectiveFirstStart {
-    final first = _firstStart ?? widget.flow.start ?? DateTime.now();
+    final first = _firstStart ?? _flow.start ?? DateTime.now();
     return DateTime(first.year, first.month, first.day);
   }
 
@@ -140,7 +171,329 @@ class _ReadingHouseAuthoringPageState
     );
   }
 
+  bool get _isSharedHouseCalendar {
+    final calendar = _calendar;
+    if (calendar == null || calendar.isPersonal || calendar.isSystem) {
+      return false;
+    }
+    final personalId = widget.personalCalendarId?.trim();
+    if (personalId != null &&
+        personalId.isNotEmpty &&
+        calendar.id.trim() == personalId) {
+      return false;
+    }
+    return calendar.status == SharedCalendarInviteStatus.accepted;
+  }
+
+  int get _activeJoinedMemberCount {
+    if (_plan.isSolo) return 1;
+    final accepted = _members
+        .where((member) => member.status == SharedCalendarInviteStatus.accepted)
+        .length;
+    if (accepted > 0) return accepted;
+    final summaryCount = _calendar?.memberCount ?? 1;
+    return summaryCount < 1 ? 1 : summaryCount;
+  }
+
+  String get _houseState => readingHouseHouseStateFor(
+    soloStudy: _plan.isSolo,
+    activeJoinedMemberCount: _activeJoinedMemberCount,
+  );
+
+  bool get _canAuthorSittings {
+    final calendar = _calendar;
+    if (calendar == null || !_isSharedHouseCalendar) return true;
+    return calendar.canEdit;
+  }
+
+  void _showAuthoringLockedMessage() {
+    _showPresenceMessage(
+      'View-only members can read the plan but cannot edit sittings.',
+    );
+  }
+
+  String? get _nextSittingLabel {
+    if (_sittings.isEmpty) return null;
+    final today = DateUtils.dateOnly(DateTime.now());
+    ReadingHouseSitting? next;
+    ReadingHouseOccurrenceSchedule? nextSchedule;
+    for (final sitting in normalizeReadingHouseSittingOrder(_sittings)) {
+      final schedule = readingHouseScheduleForSitting(
+        sitting,
+        _effectiveFirstStart,
+        _timezone,
+      );
+      final date = DateUtils.dateOnly(schedule.startLocal);
+      if (date.isBefore(today)) continue;
+      next = sitting;
+      nextSchedule = schedule;
+      break;
+    }
+    next ??= _sittings.first;
+    nextSchedule ??= readingHouseScheduleForSitting(
+      next,
+      _effectiveFirstStart,
+      _timezone,
+    );
+    return '${readingHouseSittingTitle(next)} · ${_dateLabel(nextSchedule.startLocal)}';
+  }
+
+  void _showPresenceMessage(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _loadHouseMembers() async {
+    final repo = widget.sharedCalendarsRepo;
+    final calendar = _calendar;
+    if (_plan.isSolo ||
+        repo == null ||
+        calendar == null ||
+        !_isSharedHouseCalendar ||
+        !calendar.canSeeMemberRoster) {
+      if (!mounted) return;
+      setState(() {
+        _members = const <SharedCalendarMember>[];
+        _membersLoading = false;
+        _membersError = null;
+      });
+      return;
+    }
+
+    setState(() {
+      _membersLoading = true;
+      _membersError = null;
+    });
+    try {
+      final members = await repo.listMembers(
+        calendar.id,
+        includePending: calendar.canSeePendingInvites,
+        expectedMemberCount: calendar.memberCount,
+        expectedPendingCount: calendar.pendingInviteCount,
+      );
+      if (!mounted) return;
+      setState(() {
+        _members = members;
+        _membersLoading = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _membersError = error;
+        _membersLoading = false;
+      });
+    }
+  }
+
+  Future<void> _refreshHouseCalendar(String calendarId) async {
+    final repo = widget.sharedCalendarsRepo;
+    if (repo == null) return;
+    final snapshot = await repo.loadSnapshot();
+    SharedCalendarSummary? updated;
+    for (final calendar in snapshot.calendars) {
+      if (calendar.id == calendarId) {
+        updated = calendar;
+        break;
+      }
+    }
+    if (!mounted || updated == null) return;
+    setState(() => _calendar = updated);
+  }
+
+  Future<void> _inviteReader() async {
+    final repo = widget.sharedCalendarsRepo;
+    final calendar = _calendar;
+    if (repo == null ||
+        calendar == null ||
+        !_isSharedHouseCalendar ||
+        !calendar.canManageMembership ||
+        _presenceSaving) {
+      return;
+    }
+    final userId = await context.push<String>(
+      '/profile-search'
+      '?title=${Uri.encodeComponent('Invite to Reading House')}'
+      '&hint=${Uri.encodeComponent('Search by @handle or display name')}'
+      '&select=picker',
+    );
+    if (!mounted || userId == null || userId.trim().isEmpty) return;
+
+    setState(() => _presenceSaving = true);
+    try {
+      await repo.inviteUser(
+        calendarId: calendar.id,
+        userId: userId.trim(),
+        role: SharedCalendarRole.viewer,
+        calendarName: calendar.name,
+        calendarColorValue: calendar.colorValue,
+      );
+      await _refreshHouseCalendar(calendar.id);
+      await _loadHouseMembers();
+      _showPresenceMessage('Reading House invite sent.');
+    } catch (error) {
+      _showPresenceMessage('Could not invite reader: $error');
+    } finally {
+      if (mounted) {
+        setState(() => _presenceSaving = false);
+      }
+    }
+  }
+
+  Future<void> _showMembers() async {
+    final repo = widget.sharedCalendarsRepo;
+    final calendar = _calendar;
+    if (repo == null ||
+        calendar == null ||
+        !_isSharedHouseCalendar ||
+        !calendar.canSeeMemberRoster) {
+      return;
+    }
+    final changed = await CalendarMembersSheet.show(
+      context,
+      repo: repo,
+      calendar: calendar,
+      pendingFirst: false,
+    );
+    if (!mounted) return;
+    if (changed == true) {
+      await _refreshHouseCalendar(calendar.id);
+    }
+    await _loadHouseMembers();
+  }
+
+  Future<void> _openSharedCalendarChooser() async {
+    final repo = widget.sharedCalendarsRepo;
+    final onCalendarChanged = widget.onCalendarChanged;
+    if (repo == null || onCalendarChanged == null) {
+      await CalendarPage.openSharedCalendarsFromAnyContext(
+        context,
+        restorationState: const <String, dynamic>{
+          'source': 'reading_house_phase_3a',
+        },
+      );
+      return;
+    }
+
+    final snapshot = await repo.loadSnapshot();
+    if (!mounted) return;
+    final options = snapshot.calendars
+        .where(
+          (calendar) =>
+              !calendar.isPersonal && !calendar.isSystem && calendar.canEdit,
+        )
+        .toList(growable: false);
+    if (options.isEmpty) {
+      await CalendarPage.openSharedCalendarsFromAnyContext(
+        context,
+        restorationState: const <String, dynamic>{
+          'source': 'reading_house_phase_3a',
+        },
+      );
+      return;
+    }
+
+    final selected = await _chooseSharedCalendar(options);
+    if (!mounted || selected == null || _presenceSaving) return;
+
+    setState(() => _presenceSaving = true);
+    try {
+      final updated = await onCalendarChanged(_flow, selected);
+      if (!mounted) return;
+      setState(() {
+        _flow = updated;
+        _calendar = selected;
+      });
+      await _refreshHouseCalendar(selected.id);
+      await _loadHouseMembers();
+      _showPresenceMessage('Reading House opened on ${selected.name}.');
+    } catch (error) {
+      _showPresenceMessage(
+        'Could not open this house on a shared calendar: $error',
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _presenceSaving = false);
+      }
+    }
+  }
+
+  Future<SharedCalendarSummary?> _chooseSharedCalendar(
+    List<SharedCalendarSummary> options,
+  ) {
+    return showModalBottomSheet<SharedCalendarSummary>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Container(
+            margin: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0C120F),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0x664FA58D)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Open House calendar',
+                  style: TextStyle(
+                    color: Color(0xFFF0D46E),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                const Text(
+                  'Choose a shared calendar. Joined members will see this house schedule; private reader text stays private.',
+                  style: TextStyle(color: Color(0xFFB7AAA0), height: 1.3),
+                ),
+                const SizedBox(height: 12),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: options.length,
+                    separatorBuilder: (_, _) =>
+                        const Divider(height: 1, color: Color(0x334FA58D)),
+                    itemBuilder: (itemContext, index) {
+                      final calendar = options[index];
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          calendar.name,
+                          style: const TextStyle(color: Color(0xFFE8D9C3)),
+                        ),
+                        subtitle: Text(
+                          readingHouseMemberCountSummary(calendar.memberCount),
+                          style: const TextStyle(color: Color(0xFFB7AAA0)),
+                        ),
+                        trailing: const Icon(
+                          Icons.chevron_right,
+                          color: Color(0xFF76CBB2),
+                        ),
+                        onTap: () => Navigator.of(sheetContext).pop(calendar),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _editSitting(ReadingHouseSitting sitting) async {
+    if (!_canAuthorSittings) {
+      _showAuthoringLockedMessage();
+      return;
+    }
     final scheduledDate = _dateForSitting(sitting);
     final edited = await showModalBottomSheet<ReadingHouseSitting>(
       context: context,
@@ -166,12 +519,20 @@ class _ReadingHouseAuthoringPageState
   }
 
   void _addSitting() {
+    if (!_canAuthorSittings) {
+      _showAuthoringLockedMessage();
+      return;
+    }
     setState(() {
       _sittings = addReadingHouseSitting(_sittings);
     });
   }
 
   void _deleteSitting(ReadingHouseSitting sitting) {
+    if (!_canAuthorSittings) {
+      _showAuthoringLockedMessage();
+      return;
+    }
     if (_sittings.length <= 1) return;
     setState(() {
       _sittings = deleteReadingHouseSitting(_sittings, sitting.eventNumber);
@@ -179,6 +540,10 @@ class _ReadingHouseAuthoringPageState
   }
 
   void _moveSitting(int oldIndex, int newIndex) {
+    if (!_canAuthorSittings) {
+      _showAuthoringLockedMessage();
+      return;
+    }
     setState(() {
       _sittings = reorderReadingHouseSitting(_sittings, oldIndex, newIndex);
     });
@@ -186,6 +551,10 @@ class _ReadingHouseAuthoringPageState
 
   Future<void> _save() async {
     if (_saving || _sittings.isEmpty) return;
+    if (!_canAuthorSittings) {
+      _showAuthoringLockedMessage();
+      return;
+    }
     setState(() => _saving = true);
 
     final normalized = normalizeReadingHouseSittingOrder(_sittings);
@@ -250,7 +619,7 @@ class _ReadingHouseAuthoringPageState
               hour: schedule.endLocal.hour,
               minute: schedule.endLocal.minute,
             ),
-            flowId: widget.flow.id,
+            flowId: _flow.id,
             category: 'Study',
             alertOffsetMinutes: _alertNoneMinutes,
             actionId: readingHouseActionId(sitting),
@@ -266,21 +635,21 @@ class _ReadingHouseAuthoringPageState
 
     final result = _FlowStudioResult(
       savedFlow: _Flow(
-        id: widget.flow.id,
-        calendarId: widget.flow.calendarId,
-        name: widget.flow.name,
-        color: widget.flow.color,
-        active: widget.flow.active,
-        isSaved: widget.flow.isSaved,
-        savedAt: widget.flow.savedAt,
+        id: _flow.id,
+        calendarId: _flow.calendarId,
+        name: _flow.name,
+        color: _flow.color,
+        active: _flow.active,
+        isSaved: _flow.isSaved,
+        savedAt: _flow.savedAt,
         rules: <FlowRule>[if (dates.isNotEmpty) _RuleDates(dates: dates)],
-        start: orderedDates.isEmpty ? widget.flow.start : orderedDates.first,
-        end: orderedDates.isEmpty ? widget.flow.end : orderedDates.last,
+        start: orderedDates.isEmpty ? _flow.start : orderedDates.first,
+        end: orderedDates.isEmpty ? _flow.end : orderedDates.last,
         notes: notes,
-        shareId: widget.flow.shareId,
-        isHidden: widget.flow.isHidden,
-        isReminder: widget.flow.isReminder,
-        reminderUuid: widget.flow.reminderUuid,
+        shareId: _flow.shareId,
+        isHidden: _flow.isHidden,
+        isReminder: _flow.isReminder,
+        reminderUuid: _flow.reminderUuid,
       ),
       plannedNotes: planned,
     );
@@ -337,40 +706,245 @@ class _ReadingHouseAuthoringPageState
             style: const TextStyle(color: Color(0xFFE8D9C3), height: 1.35),
           ),
           const SizedBox(height: 12),
+          if (_canAuthorSittings)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                IconButton(
+                  tooltip: 'Move up',
+                  onPressed: index == 0
+                      ? null
+                      : () => _moveSitting(index, index - 1),
+                  icon: const Icon(Icons.keyboard_arrow_up),
+                  color: const Color(0xFF76CBB2),
+                ),
+                IconButton(
+                  tooltip: 'Move down',
+                  onPressed: index >= _sittings.length - 1
+                      ? null
+                      : () => _moveSitting(index, index + 1),
+                  icon: const Icon(Icons.keyboard_arrow_down),
+                  color: const Color(0xFF76CBB2),
+                ),
+                IconButton(
+                  tooltip: 'Edit sitting',
+                  onPressed: () => _editSitting(sitting),
+                  icon: const Icon(Icons.edit_outlined),
+                  color: const Color(0xFF76CBB2),
+                ),
+                IconButton(
+                  tooltip: 'Delete sitting',
+                  onPressed: _sittings.length <= 1
+                      ? null
+                      : () => _deleteSitting(sitting),
+                  icon: const Icon(Icons.delete_outline),
+                  color: const Color(0xFFD98E73),
+                ),
+              ],
+            ),
+          if (!_canAuthorSittings)
+            const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'View only · hosts and calendar editors author sittings.',
+                style: TextStyle(color: Color(0xFFB7AAA0), height: 1.3),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMemberPreview() {
+    if (_plan.isSolo) return const SizedBox.shrink();
+    if (!_isSharedHouseCalendar) {
+      return const Text(
+        'No joined readers yet.',
+        style: TextStyle(color: Color(0xFFB7AAA0), height: 1.3),
+      );
+    }
+    if (_membersLoading) {
+      return const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          SizedBox(width: 8),
+          Text('Loading members', style: TextStyle(color: Color(0xFFB7AAA0))),
+        ],
+      );
+    }
+    if (_membersError != null) {
+      return Text(
+        readingHouseMemberCountSummary(_activeJoinedMemberCount),
+        style: const TextStyle(color: Color(0xFFB7AAA0), height: 1.3),
+      );
+    }
+
+    final accepted = _members
+        .where((member) => member.status == SharedCalendarInviteStatus.accepted)
+        .toList(growable: false);
+    final pending = _members
+        .where((member) => member.status == SharedCalendarInviteStatus.pending)
+        .toList(growable: false);
+    if (accepted.isEmpty) {
+      return Text(
+        readingHouseMemberCountSummary(_activeJoinedMemberCount),
+        style: const TextStyle(color: Color(0xFFB7AAA0), height: 1.3),
+      );
+    }
+
+    final visibleMembers = accepted.take(4).toList(growable: false);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final member in visibleMembers)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.person_outline,
+                  size: 16,
+                  color: Color(0xFF76CBB2),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '${member.displayLabel} · ${member.roleLabel}',
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Color(0xFFE8D9C3)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (accepted.length > visibleMembers.length)
+          Text(
+            '+${accepted.length - visibleMembers.length} more joined',
+            style: const TextStyle(color: Color(0xFFB7AAA0), height: 1.3),
+          ),
+        if (pending.isNotEmpty)
+          Text(
+            pending.length == 1
+                ? '1 invite pending'
+                : '${pending.length} invites pending',
+            style: const TextStyle(color: Color(0xFFB7AAA0), height: 1.3),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildHousePresencePanel() {
+    final houseState = _houseState;
+    final stateLabel = readingHouseHouseStateLabel(houseState);
+    final calendar = _calendar;
+    final calendarName = calendar?.name.trim();
+    final summaryLines = readingHouseFactualSummaryLines(
+      houseState: houseState,
+      activeJoinedMemberCount: _activeJoinedMemberCount,
+      nextSittingLabel: _nextSittingLabel,
+    );
+    final canInvite =
+        !_plan.isSolo &&
+        _isSharedHouseCalendar &&
+        calendar != null &&
+        calendar.canManageMembership;
+    final canShowMembers =
+        !_plan.isSolo &&
+        _isSharedHouseCalendar &&
+        calendar != null &&
+        calendar.canSeeMemberRoster;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 18),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C120F),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0x664FA58D)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
-                tooltip: 'Move up',
-                onPressed: index == 0
-                    ? null
-                    : () => _moveSitting(index, index - 1),
-                icon: const Icon(Icons.keyboard_arrow_up),
-                color: const Color(0xFF76CBB2),
+              const Icon(
+                Icons.groups_2_outlined,
+                color: Color(0xFF76CBB2),
+                size: 22,
               ),
-              IconButton(
-                tooltip: 'Move down',
-                onPressed: index >= _sittings.length - 1
-                    ? null
-                    : () => _moveSitting(index, index + 1),
-                icon: const Icon(Icons.keyboard_arrow_down),
-                color: const Color(0xFF76CBB2),
-              ),
-              IconButton(
-                tooltip: 'Edit sitting',
-                onPressed: () => _editSitting(sitting),
-                icon: const Icon(Icons.edit_outlined),
-                color: const Color(0xFF76CBB2),
-              ),
-              IconButton(
-                tooltip: 'Delete sitting',
-                onPressed: _sittings.length <= 1
-                    ? null
-                    : () => _deleteSitting(sitting),
-                icon: const Icon(Icons.delete_outline),
-                color: const Color(0xFFD98E73),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      stateLabel,
+                      style: const TextStyle(
+                        color: Color(0xFFF0D46E),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    if (calendarName != null && calendarName.isNotEmpty)
+                      Text(
+                        calendarName,
+                        style: const TextStyle(color: Color(0xFFB7AAA0)),
+                      ),
+                  ],
+                ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          for (final line in summaryLines)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(
+                line,
+                style: const TextStyle(color: Color(0xFFE8D9C3), height: 1.3),
+              ),
+            ),
+          const SizedBox(height: 12),
+          _buildMemberPreview(),
+          if (!_plan.isSolo) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 10,
+              runSpacing: 8,
+              children: [
+                if (!_isSharedHouseCalendar)
+                  OutlinedButton.icon(
+                    onPressed: _presenceSaving
+                        ? null
+                        : _openSharedCalendarChooser,
+                    icon: const Icon(Icons.group_add_outlined),
+                    label: const Text('Open on shared calendar'),
+                  ),
+                if (canInvite)
+                  OutlinedButton.icon(
+                    onPressed: _presenceSaving ? null : _inviteReader,
+                    icon: const Icon(Icons.person_add_alt_1_outlined),
+                    label: const Text('Invite reader'),
+                  ),
+                if (canShowMembers)
+                  TextButton.icon(
+                    onPressed: _showMembers,
+                    icon: const Icon(Icons.people_outline),
+                    label: const Text('Members'),
+                  ),
+              ],
+            ),
+          ],
+          const SizedBox(height: 12),
+          const Text(
+            'Membership uses shared-calendar access. The schedule and roster are visible to joined members; private reflections, notes, and local margin text stay private. Fragments, replies, discussion, and chat remain future-facing.',
+            style: TextStyle(color: Color(0xFFB7AAA0), height: 1.35),
           ),
         ],
       ),
@@ -387,17 +961,18 @@ class _ReadingHouseAuthoringPageState
         surfaceTintColor: Colors.transparent,
         title: const Text('Reading House'),
         actions: [
-          TextButton.icon(
-            onPressed: _saving ? null : _save,
-            icon: _saving
-                ? const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.check),
-            label: Text(_saving ? 'Saving' : 'Save'),
-          ),
+          if (_canAuthorSittings)
+            TextButton.icon(
+              onPressed: _saving ? null : _save,
+              icon: _saving
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.check),
+              label: Text(_saving ? 'Saving' : 'Save'),
+            ),
         ],
       ),
       body: _loading
@@ -430,26 +1005,30 @@ class _ReadingHouseAuthoringPageState
                   ),
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Shape the private reading plan. Company surfaces remain future-facing only.',
-                  style: TextStyle(
+                Text(
+                  _canAuthorSittings
+                      ? 'Shape the private reading plan. Company surfaces remain future-facing only.'
+                      : 'Read the shared sitting plan. Hosts and calendar editors author sittings.',
+                  style: const TextStyle(
                     color: Color(0xFFB7AAA0),
                     fontSize: 16,
                     height: 1.35,
                   ),
                 ),
                 const SizedBox(height: 22),
+                _buildHousePresencePanel(),
                 for (var i = 0; i < _sittings.length; i++)
                   _sittingTile(_sittings[i], i),
                 const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: OutlinedButton.icon(
-                    onPressed: _addSitting,
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Sitting'),
+                if (_canAuthorSittings)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: _addSitting,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add Sitting'),
+                    ),
                   ),
-                ),
               ],
             ),
     );

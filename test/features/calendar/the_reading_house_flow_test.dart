@@ -103,6 +103,16 @@ void main() {
       'storage': 'local_only',
       'shared_fragments': 'future',
     });
+    final presence = payload['house_presence'] as Map<String, dynamic>;
+    expect(presence['phase'], 'phase_3a');
+    expect(
+      presence['membership_source'],
+      kReadingHouseMembershipSourceSharedCalendar,
+    );
+    expect(presence['state_source'], 'active_joined_member_count');
+    expect(presence['company_threshold'], 2);
+    expect(presence['factual_summary_only'], isTrue);
+    expect(presence['private_reader_text_shared'], isFalse);
     expect(payload['share_prompt_on_complete'], isFalse);
     expect(payload['share_prompt_future'], isFalse);
 
@@ -335,12 +345,52 @@ void main() {
     );
   });
 
-  test('public copy stays honest about the Phase 2 boundary', () {
+  test('house state is derived from active joined members', () {
+    expect(
+      readingHouseHouseStateFor(soloStudy: true, activeJoinedMemberCount: 3),
+      kReadingHouseHouseStateSolo,
+    );
+    expect(
+      readingHouseHouseStateFor(soloStudy: false, activeJoinedMemberCount: 1),
+      kReadingHouseHouseStateOpen,
+    );
+    expect(
+      readingHouseHouseStateFor(soloStudy: false, activeJoinedMemberCount: 2),
+      kReadingHouseHouseStateCompany,
+    );
+
+    expect(
+      readingHouseFactualSummaryLines(
+        houseState: kReadingHouseHouseStateOpen,
+        activeJoinedMemberCount: 1,
+        nextSittingLabel: 'Reading House 1',
+      ),
+      <String>[
+        'House open · waiting for readers',
+        'Next sitting: Reading House 1',
+      ],
+    );
+    expect(
+      readingHouseFactualSummaryLines(
+        houseState: kReadingHouseHouseStateCompany,
+        activeJoinedMemberCount: 2,
+        carryingCount: 1,
+      ),
+      <String>['2 members joined', '1 reader Carrying'],
+    );
+  });
+
+  test('public copy stays honest about the Phase 3A boundary', () {
     expect(kReadingHouseOverview, contains('host-authored private sittings'));
     expect(kReadingHouseOverview, contains('local private margin'));
+    expect(kReadingHouseOverview, contains('Phase 3A shared presence'));
+    expect(
+      kReadingHouseOverview,
+      contains('accepted shared-calendar membership'),
+    );
     expect(kReadingHouseOverview, contains('Shared fragments'));
-    expect(kReadingHouseEnrollmentCopy, contains('Phase 2'));
-    expect(kReadingHouseEnrollmentCopy, contains('intent only'));
+    expect(kReadingHouseEnrollmentCopy, contains('Phase 3A'));
+    expect(kReadingHouseEnrollmentCopy, contains('shared presence'));
     expect(kReadingHouseEnrollmentCopy, contains('writing stays optional'));
     final detail = readingHouseDetailText(
       kReadingHouseSittings.first,
@@ -351,9 +401,11 @@ void main() {
     expect(detail, contains('Private prompt\nBefore company shapes'));
     expect(detail, contains('Host note\nBegin with your own encounter'));
     expect(detail, contains('private reading position only'));
+    expect(detail, contains('House presence'));
+    expect(detail, contains('membership and factual status only'));
   });
 
-  test('payload does not enable social/company surfaces in Phase 2', () {
+  test('payload enables presence but not social surfaces in Phase 3A', () {
     final payload = readingHouseBehaviorPayload(
       sitting: kReadingHouseSittings.first.asHostAuthored(),
       schedule: readingHouseScheduleForDate(
@@ -367,11 +419,243 @@ void main() {
     expect(payload.containsKey('company_room_id'), isFalse);
     expect(payload.containsKey('discussion_thread_id'), isFalse);
     expect(payload.containsKey('house_chat_id'), isFalse);
-    expect(payload.containsKey('global_commons_share'), isFalse);
+    final presence = payload['house_presence'] as Map<String, dynamic>;
+    expect(presence['member_list'], 'enabled');
+    expect(presence['invite_join'], 'shared_calendar_invite');
+    expect(presence['shared_fragments'], 'future');
+    expect(presence['replies'], 'future');
+    expect(presence['discussion'], 'future');
+    expect(presence['house_chat'], 'future');
+    expect(presence['global_commons_share'], isFalse);
     final discussion = payload['discussion_model'] as Map<String, dynamic>;
     expect(discussion['phase'], 'future');
     expect(discussion['likes'], isFalse);
     expect(discussion['ranking'], isFalse);
+  });
+
+  test('Phase 3A authoring reuses shared-calendar membership', () {
+    final authoringSource = File(
+      'lib/features/calendar/reading_house_authoring_page.dart',
+    ).readAsStringSync();
+    final calendarPageSource = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+
+    expect(authoringSource, contains('listMembers('));
+    expect(authoringSource, contains('inviteUser('));
+    expect(authoringSource, contains('SharedCalendarRole.viewer'));
+    expect(authoringSource, contains('CalendarMembersSheet.show'));
+    expect(authoringSource, contains('readingHouseFactualSummaryLines'));
+    expect(authoringSource, contains('readingHouseHouseStateFor'));
+    expect(calendarPageSource, contains('_moveReadingHouseFlowToCalendar'));
+    expect(calendarPageSource, contains('updateCalendarForFlowEvents'));
+
+    final panel = _sourceBetween(
+      authoringSource,
+      'Widget _buildHousePresencePanel()',
+      '  @override',
+    );
+    expect(panel, contains('Open on shared calendar'));
+    expect(panel, contains('Invite reader'));
+    expect(panel, contains('Members'));
+    expect(
+      panel,
+      contains(
+        'private reflections, notes, and local margin text stay private',
+      ),
+    );
+    for (final forbidden in <String>[
+      'Share fragment',
+      'Reply',
+      'Like',
+      'House Chat',
+      'Discussion',
+      'Leader',
+    ]) {
+      expect(panel, isNot(contains(forbidden)));
+    }
+  });
+
+  test('Reading House edit routes open the authoring surface', () {
+    final calendarPageSource = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+
+    final detachedRoute = _sourceBetween(
+      calendarPageSource,
+      'class _FlowEditorRoutePageState',
+      'class CalendarPageState',
+    );
+    expect(detachedRoute, contains('_loadReadingHouseRouteFlow'));
+    expect(detachedRoute, contains('getFlowById(widget.flowId)'));
+    expect(
+      detachedRoute,
+      contains('resolveMaatFlowKind(flowNotes: flow.notes)'),
+    );
+    expect(detachedRoute, contains('isReadingHouseFlowReference('));
+    expect(detachedRoute, contains('_buildReadingHouseAuthoringPage'));
+    expect(detachedRoute, contains('_ReadingHouseAuthoringPage('));
+    expect(detachedRoute, contains('onSave: _handleResult'));
+    expect(detachedRoute, contains('_buildGenericFlowEditor'));
+
+    final detachedGeneric = _sourceBetween(
+      detachedRoute,
+      'Widget _buildGenericFlowEditor()',
+      '  Widget _buildReadingHouseAuthoringPage',
+    );
+    expect(detachedGeneric, contains('_FlowStudioPage('));
+    expect(detachedGeneric, contains('editFlowId: widget.flowId'));
+
+    final myFlowsEdit = _sourceBetween(
+      calendarPageSource,
+      'Future<_FlowStudioResult?> _pushFlowStudioEditor',
+      '  _Flow? _readingHouseFlowForEditor',
+    );
+    expect(myFlowsEdit, contains('_ReadingHouseAuthoringPage('));
+    expect(myFlowsEdit, contains('_moveReadingHouseFlowToCalendar'));
+    expect(myFlowsEdit, contains('_FlowStudioPage('));
+
+    final directEdit = _sourceBetween(
+      calendarPageSource,
+      'void _openFlowEditorDirectly',
+      '  void _openFlowsViewer',
+    );
+    expect(directEdit, contains('_ReadingHouseAuthoringPage('));
+    expect(directEdit, contains('_moveReadingHouseFlowToCalendar'));
+    expect(directEdit, contains('_FlowStudioPage('));
+  });
+
+  test('joined readers keep Reading House flow context in Day View', () {
+    final calendarPageSource = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+
+    final sharedOpen = _sourceBetween(
+      calendarPageSource,
+      'static Future<void> openFiledCalendarEventFromAnyContext',
+      '  static Future<void> openMyFlowsFromAnyContext',
+    );
+    expect(sharedOpen, contains('_loadSharedCalendarFlowsForFiledEvents'));
+    expect(sharedOpen, contains('mountedHost._seedSharedCalendarFlows'));
+    expect(sharedOpen, contains('sharedCalendarFlows: sharedCalendarFlows'));
+
+    final flowHydration = _sourceBetween(
+      calendarPageSource,
+      'static Future<List<_Flow>> _loadSharedCalendarFlowsForFiledEvents',
+      '  static int? _firstVisibleMinuteFromSharedCalendarSnapshot',
+    );
+    expect(flowHydration, contains('_positiveFiledFlowId'));
+    expect(flowHydration, contains('getFlowById(flowId)'));
+    expect(flowHydration, contains('_flowFromFiledRowDetached(row)'));
+
+    final pendingIntent = _sourceBetween(
+      calendarPageSource,
+      'class _SharedCalendarRealDayViewIntent',
+      'class _CalendarWarmStateSnapshot',
+    );
+    expect(pendingIntent, contains('final List<_Flow> sharedCalendarFlows'));
+
+    final consumeIntent = _sourceBetween(
+      calendarPageSource,
+      'bool _consumePendingSharedCalendarRealDayViewIntentIfAny()',
+      '  Future<void> _requestInitialStartupRun',
+    );
+    expect(
+      consumeIntent,
+      contains('_seedSharedCalendarFlows(intent.sharedCalendarFlows)'),
+    );
+  });
+
+  test('Phase 3A viewer role cannot author sittings', () {
+    final authoringSource = File(
+      'lib/features/calendar/reading_house_authoring_page.dart',
+    ).readAsStringSync();
+
+    final authoringGate = _sourceBetween(
+      authoringSource,
+      'bool get _canAuthorSittings',
+      '  String? get _nextSittingLabel',
+    );
+    expect(authoringGate, contains('calendar.canEdit'));
+    expect(authoringGate, contains('View-only members can read the plan'));
+
+    for (final methodStart in <String>[
+      'Future<void> _editSitting',
+      'void _addSitting',
+      'void _deleteSitting',
+      'void _moveSitting',
+      'Future<void> _save',
+    ]) {
+      final method = _sourceBetween(
+        authoringSource,
+        methodStart,
+        methodStart == 'Future<void> _save'
+            ? '  Widget _sittingTile'
+            : _nextAuthoringMethodBoundary(methodStart),
+      );
+      expect(method, contains('!_canAuthorSittings'));
+      expect(method, contains('_showAuthoringLockedMessage'));
+    }
+
+    final tile = _sourceBetween(
+      authoringSource,
+      'Widget _sittingTile',
+      '  Widget _buildMemberPreview',
+    );
+    expect(tile, contains('if (_canAuthorSittings)'));
+    expect(tile, contains('Edit sitting'));
+    expect(tile, contains('Delete sitting'));
+    expect(tile, contains('View only · hosts and calendar editors'));
+
+    final build = _sourceBetween(
+      authoringSource,
+      'Widget build(BuildContext context)',
+      'class _ReadingHouseSittingDraftSheet',
+    );
+    expect(build, contains('if (_canAuthorSittings)'));
+    expect(build, contains('Add Sitting'));
+    expect(build, contains('Save'));
+    expect(build, contains('Read the shared sitting plan'));
+  });
+
+  test('Phase 3A privacy uses shared-calendar RLS conventions', () {
+    final schema = File('../db/schema.sql').readAsStringSync();
+    final listMembers = _sourceBetween(
+      schema,
+      'CREATE OR REPLACE FUNCTION "public"."list_shared_calendar_members"',
+      'ALTER FUNCTION "public"."list_shared_calendar_members"',
+    );
+    expect(listMembers, contains('v_actor_id uuid := auth.uid()'));
+    expect(listMembers, contains("scm.status = 'accepted'"));
+    expect(listMembers, contains('CALENDAR_NOT_ACCESSIBLE'));
+    expect(listMembers, contains("or (v_is_owner and scm.status = 'pending')"));
+
+    final invite = _sourceBetween(
+      schema,
+      'CREATE OR REPLACE FUNCTION "public"."invite_user_to_shared_calendar"',
+      'ALTER FUNCTION "public"."invite_user_to_shared_calendar"',
+    );
+    expect(invite, contains("scm.status = 'accepted'"));
+    expect(invite, contains("scm.role = 'owner'"));
+    expect(invite, contains('CALENDAR_NOT_INVITABLE'));
+    expect(invite, contains("v_role not in ('editor', 'viewer')"));
+
+    final filingView = _sourceBetween(
+      schema,
+      'CREATE OR REPLACE VIEW "public"."shared_calendar_filing_items_client"',
+      'ALTER VIEW "public"."shared_calendar_filing_items_client"',
+    );
+    expect(filingView, contains('"scm"."user_id" = "auth"."uid"()'));
+    expect(filingView, contains('"scm"."status" = \'accepted\'::"text"'));
+    expect(filingView, contains('"sc"."deleted_at" IS NULL'));
+
+    final memberPolicy = _sourceBetween(
+      schema,
+      'CREATE POLICY "shared_calendar_members_select_visible"',
+      'ALTER TABLE "public"."shared_calendar_notifications"',
+    );
+    expect(memberPolicy, contains('"user_id" = "auth"."uid"()'));
+    expect(memberPolicy, contains('can_view_shared_calendar_member_row'));
   });
 
   test('authoring edit sheet keeps text entry local until Save', () {
@@ -423,4 +707,19 @@ String _sourceBetween(String source, String start, String end) {
   final endIndex = source.indexOf(end, startIndex);
   expect(endIndex, isNonNegative, reason: 'Missing source end: $end');
   return source.substring(startIndex, endIndex);
+}
+
+String _nextAuthoringMethodBoundary(String methodStart) {
+  switch (methodStart) {
+    case 'Future<void> _editSitting':
+      return '  void _addSitting';
+    case 'void _addSitting':
+      return '  void _deleteSitting';
+    case 'void _deleteSitting':
+      return '  void _moveSitting';
+    case 'void _moveSitting':
+      return '  Future<void> _save';
+    default:
+      return '  Widget _sittingTile';
+  }
 }

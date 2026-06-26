@@ -10,7 +10,7 @@ const String kReadingHouseTitle = 'The Reading House';
 const String kReadingHouseGlyph = '𓉐';
 const String kReadingHouseTagline = 'A private-study foundation for one book.';
 const String kReadingHouseEnrollmentCopy =
-    'Phase 2 keeps the house private-first: hosts shape sittings, readers can keep a local margin, writing stays optional, and Carrying/Not yet is required before completion. Company mode is still intent only.';
+    'Phase 3A keeps the house private-first while adding shared presence: hosts shape sittings, readers keep local private margins, writing stays optional, and Open House/Company House state is derived from joined shared-calendar members. Fragments, replies, discussion, and chat remain future-facing.';
 
 const String kReadingHouseBookTitlePromptId = 'reading-house-book-title';
 const String kReadingHouseEditionNotePromptId = 'reading-house-edition-note';
@@ -35,12 +35,18 @@ const String kReadingHouseSittingSourceStarterDefault = 'starter_default';
 const String kReadingHouseSittingSourceHostAuthored = 'host_authored';
 const String kReadingHouseHostAuthoringPhaseFuture = 'future';
 const String kReadingHouseHostAuthoringPhaseEnabled = 'enabled';
+const String kReadingHouseHouseStateOpen = 'open_house';
+const String kReadingHouseHouseStateCompany = 'company_house';
+const String kReadingHouseHouseStateSolo = 'solo_study';
+const String kReadingHouseMembershipSourceSharedCalendar =
+    'shared_calendar_members';
+const int kReadingHouseCompanyMemberThreshold = 2;
 const int kReadingHouseDefaultHour = 19;
 const int kReadingHouseDefaultMinute = 0;
 const int kReadingHouseDefaultDurationMinutes = 60;
 
 const String kReadingHouseOverview =
-    'The Reading House is registered as a Ma’at flow with host-authored private sittings. A book can begin from three starter sittings, then the host can edit, add, reorder, or delete the sitting plan. Each sitting opens with section, theme, host note, and private prompt; the reader can keep a local private margin, sit without writing, and must mark Carrying or Not yet before Observed, Partly, or Skipped. Shared fragments, company rooms, discussion, and chat remain future-facing.';
+    'The Reading House is registered as a Ma’at flow with host-authored private sittings and Phase 3A shared presence. A book can begin from three starter sittings, then the host can edit, add, reorder, or delete the sitting plan. Each sitting opens with section, theme, host note, and private prompt; the reader can keep a local private margin, sit without writing, and must mark Carrying or Not yet before Observed, Partly, or Skipped. Open House and Company House state comes from accepted shared-calendar membership. Shared fragments, replies, discussion, and chat remain future-facing.';
 
 class ReadingHousePlan {
   const ReadingHousePlan({
@@ -74,6 +80,96 @@ class ReadingHousePlan {
   }
 
   bool get isSolo => normalizedMode == kReadingHouseSoloMode;
+}
+
+String readingHouseHouseStateFor({
+  required bool soloStudy,
+  required int activeJoinedMemberCount,
+}) {
+  if (soloStudy) return kReadingHouseHouseStateSolo;
+  final count = activeJoinedMemberCount < 0 ? 0 : activeJoinedMemberCount;
+  if (count >= kReadingHouseCompanyMemberThreshold) {
+    return kReadingHouseHouseStateCompany;
+  }
+  return kReadingHouseHouseStateOpen;
+}
+
+String readingHouseHouseStateLabel(String state) {
+  switch (state) {
+    case kReadingHouseHouseStateCompany:
+      return 'Company House';
+    case kReadingHouseHouseStateSolo:
+      return 'Solo Study';
+    case kReadingHouseHouseStateOpen:
+    default:
+      return 'Open House';
+  }
+}
+
+String readingHouseMemberCountSummary(int activeJoinedMemberCount) {
+  final count = activeJoinedMemberCount < 0 ? 0 : activeJoinedMemberCount;
+  if (count == 1) return '1 member joined';
+  return '$count members joined';
+}
+
+String readingHouseCarryingSummary(int carryingCount) {
+  final count = carryingCount < 0 ? 0 : carryingCount;
+  if (count == 1) return '1 reader Carrying';
+  return '$count readers Carrying';
+}
+
+List<String> readingHouseFactualSummaryLines({
+  required String houseState,
+  required int activeJoinedMemberCount,
+  int carryingCount = 0,
+  String? nextSittingLabel,
+}) {
+  final count = activeJoinedMemberCount < 0 ? 0 : activeJoinedMemberCount;
+  final lines = <String>[];
+  switch (houseState) {
+    case kReadingHouseHouseStateSolo:
+      lines.add('Solo study · private calendar');
+      break;
+    case kReadingHouseHouseStateCompany:
+      lines.add(readingHouseMemberCountSummary(count));
+      break;
+    case kReadingHouseHouseStateOpen:
+    default:
+      lines.add('House open · waiting for readers');
+      break;
+  }
+  if (carryingCount > 0) {
+    lines.add(readingHouseCarryingSummary(carryingCount));
+  }
+  final next = nextSittingLabel?.trim();
+  if (next != null && next.isNotEmpty) {
+    lines.add('Next sitting: $next');
+  }
+  return lines;
+}
+
+Map<String, dynamic> readingHouseCompanyPresenceContract(
+  ReadingHousePlan plan,
+) {
+  return <String, dynamic>{
+    'phase': 'phase_3a',
+    'membership_source': kReadingHouseMembershipSourceSharedCalendar,
+    'state_source': 'active_joined_member_count',
+    'company_threshold': kReadingHouseCompanyMemberThreshold,
+    'solo_state': kReadingHouseHouseStateSolo,
+    'open_state': kReadingHouseHouseStateOpen,
+    'company_state': kReadingHouseHouseStateCompany,
+    'member_list': 'enabled',
+    'invite_join': 'shared_calendar_invite',
+    'factual_summary_only': true,
+    'shared_fragments': 'future',
+    'replies': 'future',
+    'discussion': 'future',
+    'house_chat': 'future',
+    'global_commons_share': false,
+    'private_reader_text_shared': false,
+    'solo_study_private': plan.isSolo,
+  };
 }
 
 class ReadingHouseSitting {
@@ -713,6 +809,7 @@ Map<String, dynamic> readingHouseBehaviorPayload({
       'storage': 'local_only',
       'shared_fragments': 'future',
     },
+    'house_presence': readingHouseCompanyPresenceContract(plan),
     'share_prompt_on_complete': false,
     'share_prompt_future': sitting.sharePromptOnComplete,
     'discussion_model': const <String, dynamic>{
@@ -747,6 +844,7 @@ String readingHouseDetailText(
     'Private prompt\n${sitting.privatePrompt}',
     'Private margin\nWrite a reflection, save a short note, or choose sit without writing. The margin stays on this device.',
     'Position gate\nChoose Carrying or Not yet before marking Observed, Partly, or Skipped. This release records private reading position only; shared fragments and discussion unlock in a later phase.',
+    'House presence\nOpen House and Company House are derived from joined shared-calendar members. This phase shows membership and factual status only; fragments, replies, discussion, and chat remain future-facing.',
     if (hostNote.isNotEmpty) 'Host note\n$hostNote',
     'Completion\nUse Observed when the sitting was honestly held, Partly when the reading position is partial, and Skipped when you did not sit. In company mode, Carrying and Not yet become factual presence states when shared surfaces arrive.',
   ].join('\n\n');

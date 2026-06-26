@@ -8160,7 +8160,7 @@ class _MaatFlowTemplateDetailPageState
         ),
         const SizedBox(height: 10),
         _buildMaatFlowNotice(
-          'Phase 2 keeps host-authored sittings private-first. Reader margins stay local; invite links, shared fragments, one-level replies, house chat, and moderation stay out of this surface.',
+          'Phase 3A keeps host-authored sittings private-first while adding shared-calendar presence. Reader margins stay local; fragments, replies, discussion, house chat, and moderation stay out of this surface.',
           borderColor: _palette.accent.withValues(alpha: 0.30),
         ),
         const SizedBox(height: 10),

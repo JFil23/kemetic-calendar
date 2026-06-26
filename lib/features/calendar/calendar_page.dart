@@ -3674,6 +3674,7 @@ class _SharedCalendarRealDayViewIntent {
     required this.warmHiddenCalendarIds,
     required this.warmPersonalCalendarId,
     required this.sameCalendarEvents,
+    required this.sharedCalendarFlows,
   });
 
   final int kYear;
@@ -3688,6 +3689,7 @@ class _SharedCalendarRealDayViewIntent {
   final Set<String> warmHiddenCalendarIds;
   final String? warmPersonalCalendarId;
   final List<FiledEvent> sameCalendarEvents;
+  final List<_Flow> sharedCalendarFlows;
 }
 
 class _CalendarWarmStateSnapshot {
@@ -5328,6 +5330,36 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
+  static Future<List<_Flow>> _loadSharedCalendarFlowsForFiledEvents(
+    Iterable<FiledEvent> filedEvents,
+  ) async {
+    final flowIds = <int>{
+      for (final filedEvent in filedEvents)
+        if (_positiveFiledFlowId(filedEvent) case final flowId?) flowId,
+    }.toList()..sort();
+    if (flowIds.isEmpty) return const <_Flow>[];
+
+    final repo = FlowsRepo(Supabase.instance.client);
+    final flows = <_Flow>[];
+    for (final flowId in flowIds) {
+      try {
+        final row = await repo.getFlowById(flowId);
+        if (row != null) {
+          flows.add(_flowFromFiledRowDetached(row));
+        }
+      } catch (error, stackTrace) {
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[SharedCalendarEventTap] shared flow hydrate failed '
+            'flowId=$flowId: $error',
+          );
+          _calendarDebugPrint('$stackTrace');
+        }
+      }
+    }
+    return List<_Flow>.unmodifiable(flows);
+  }
+
   static int? _firstVisibleMinuteFromSharedCalendarSnapshot(
     _SharedCalendarEventDetailSnapshot snapshot,
   ) {
@@ -5400,12 +5432,17 @@ class CalendarPage extends StatefulWidget {
       kMonth: kDate.kMonth,
       kDay: kDate.kDay,
     );
+    final sharedCalendarFlows = await _loadSharedCalendarFlowsForFiledEvents(
+      <FiledEvent>{filedEvent, ...sameDayEvents},
+    );
+    if (!context.mounted) return;
 
     final mountedHost = _shouldUseMountedCalendarHost(context)
         ? _mountedCalendarHostForContext(context)
         : null;
     if (mountedHost != null) {
       mountedHost._rememberSharedCalendarSnapshot(calendar);
+      mountedHost._seedSharedCalendarFlows(sharedCalendarFlows);
       mountedHost._seedSameDaySharedCalendarFiledEvents(
         calendar: calendar,
         filedEvents: sameDayEvents,
@@ -5458,6 +5495,7 @@ class CalendarPage extends StatefulWidget {
       warmHiddenCalendarIds: warmCalendarSnapshot.hiddenCalendarIds,
       warmPersonalCalendarId: warmCalendarSnapshot.personalCalendarId,
       sameCalendarEvents: sameDayEvents,
+      sharedCalendarFlows: sharedCalendarFlows,
     );
     try {
       GoRouter.of(context).go('/');
@@ -8345,6 +8383,7 @@ class _FlowEditorRoutePage extends StatefulWidget {
 }
 
 class _FlowEditorRoutePageState extends State<_FlowEditorRoutePage> {
+  late final Future<_Flow?> _readingHouseRouteFlowFuture;
   bool _persisting = false;
 
   String get _fallbackLocation =>
@@ -8354,11 +8393,47 @@ class _FlowEditorRoutePageState extends State<_FlowEditorRoutePage> {
   @override
   void initState() {
     super.initState();
+    _readingHouseRouteFlowFuture = _loadReadingHouseRouteFlow();
     if (kDebugMode) {
       debugPrint(
         '[EditFlow] open studio source=route flowId=${widget.flowId} calendarId=${widget.calendarId}',
       );
     }
+  }
+
+  Future<_Flow?> _loadReadingHouseRouteFlow() async {
+    final mountedHost = CalendarPage._mountedState;
+    _Flow? mountedFlow;
+    for (final flow in mountedHost?._flows ?? const <_Flow>[]) {
+      if (flow.id == widget.flowId) {
+        mountedFlow = flow;
+        break;
+      }
+    }
+    final flow =
+        mountedFlow ??
+        CalendarPage._flowFromFiledRowDetached(
+          await FlowsRepo(
+            Supabase.instance.client,
+          ).getFlowById(widget.flowId).then((row) {
+            if (row == null) {
+              throw StateError('Flow ${widget.flowId} was not found.');
+            }
+            return row;
+          }),
+        );
+    if (widget.calendarId != null && widget.calendarId!.trim().isNotEmpty) {
+      flow.calendarId = widget.calendarId!.trim();
+    }
+    if (resolveMaatFlowKind(flowNotes: flow.notes) ==
+            MaatFlowKind.readingHouse ||
+        isReadingHouseFlowReference(
+          flowName: flow.name,
+          flowNotes: flow.notes,
+        )) {
+      return flow;
+    }
+    return null;
   }
 
   Future<void> _handleResult(_FlowStudioResult result) async {
@@ -8392,16 +8467,60 @@ class _FlowEditorRoutePageState extends State<_FlowEditorRoutePage> {
     popOrGo(context, _fallbackLocation);
   }
 
+  Widget _buildGenericFlowEditor() {
+    return _FlowStudioPage(
+      existingFlows: const <_Flow>[],
+      editFlowId: widget.flowId,
+      initialCalendarId: widget.calendarId,
+      onRouteResult: _handleResult,
+      onRouteClose: _handleClose,
+    );
+  }
+
+  Widget _buildReadingHouseAuthoringPage(_Flow flow) {
+    final mountedHost = CalendarPage._mountedState;
+    final sharedCalendarsRepo =
+        mountedHost?._sharedCalendarsRepo ??
+        SharedCalendarsRepo(Supabase.instance.client);
+    return _ReadingHouseAuthoringPage(
+      flow: flow,
+      calendar: mountedHost?._calendarSummary(flow.calendarId),
+      personalCalendarId: mountedHost?._personalCalendarId,
+      sharedCalendarsRepo: sharedCalendarsRepo,
+      onCalendarChanged: mountedHost?._moveReadingHouseFlowToCalendar,
+      onSave: _handleResult,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        _FlowStudioPage(
-          existingFlows: const <_Flow>[],
-          editFlowId: widget.flowId,
-          initialCalendarId: widget.calendarId,
-          onRouteResult: _handleResult,
-          onRouteClose: _handleClose,
+        FutureBuilder<_Flow?>(
+          future: _readingHouseRouteFlowFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Scaffold(
+                backgroundColor: Color(0xFF161310),
+                body: Center(
+                  child: CircularProgressIndicator(color: Color(0xFFE0B95A)),
+                ),
+              );
+            }
+            if (snapshot.hasError) {
+              if (kDebugMode) {
+                debugPrint(
+                  '[EditFlow] Reading House route detection failed; falling back to generic editor: ${snapshot.error}',
+                );
+              }
+              return _buildGenericFlowEditor();
+            }
+            final readingHouseFlow = snapshot.data;
+            if (readingHouseFlow != null) {
+              return _buildReadingHouseAuthoringPage(readingHouseFlow);
+            }
+            return _buildGenericFlowEditor();
+          },
         ),
         if (_persisting)
           const Positioned.fill(
@@ -9300,6 +9419,36 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
+  void _seedSharedCalendarFlows(
+    Iterable<_Flow> flows, {
+    bool publishWarmState = false,
+  }) {
+    var changed = false;
+    for (final flow in flows) {
+      if (flow.id <= 0) continue;
+      final existingIndex = _flows.indexWhere((existing) {
+        return existing.id == flow.id;
+      });
+      final nextFlow = _CalendarWarmStateStore._copyFlow(flow);
+      if (existingIndex >= 0) {
+        _flows[existingIndex] = nextFlow;
+      } else {
+        _flows.add(nextFlow);
+      }
+      if (flow.id >= _nextFlowId) {
+        _nextFlowId = flow.id + 1;
+      }
+      changed = true;
+    }
+    if (changed) {
+      _rebuildReminderRulesFromFlowsIfMissing();
+      _bumpDataVersion();
+      if (publishWarmState) {
+        _publishWarmStateSnapshot();
+      }
+    }
+  }
+
   _Note _noteFromSharedCalendarEventSnapshot(
     _SharedCalendarEventDetailSnapshot snapshot,
   ) {
@@ -9482,6 +9631,7 @@ class CalendarPageState extends State<CalendarPage>
     _flows
       ..clear()
       ..addAll(intent.warmStartFlows);
+    _seedSharedCalendarFlows(intent.sharedCalendarFlows);
     _notes
       ..clear()
       ..addEntries(
@@ -10255,7 +10405,13 @@ class CalendarPageState extends State<CalendarPage>
       return _pushFlowStudioRoute<_FlowStudioResult>(
         navigator,
         MaterialPageRoute<_FlowStudioResult>(
-          builder: (_) => _ReadingHouseAuthoringPage(flow: readingHouseFlow),
+          builder: (_) => _ReadingHouseAuthoringPage(
+            flow: readingHouseFlow,
+            calendar: _calendarSummary(readingHouseFlow.calendarId),
+            personalCalendarId: _personalCalendarId,
+            sharedCalendarsRepo: _sharedCalendarsRepo,
+            onCalendarChanged: _moveReadingHouseFlowToCalendar,
+          ),
         ),
         visibleState: <String, dynamic>{
           'mode': _kFlowStudioModeEditor,
@@ -12014,6 +12170,54 @@ class CalendarPageState extends State<CalendarPage>
     return _detailSheetTargetUsesCalendar(refreshed, calendarId)
         ? refreshed
         : optimisticTarget;
+  }
+
+  Future<_Flow> _moveReadingHouseFlowToCalendar(
+    _Flow flow,
+    SharedCalendarSummary calendar,
+  ) async {
+    final calendarId = calendar.id.trim();
+    if (calendarId.isEmpty) {
+      throw ArgumentError.value(
+        calendar.id,
+        'calendar.id',
+        'Must not be empty.',
+      );
+    }
+    await _flowsRepo.updateCalendar(id: flow.id, calendarId: calendarId);
+    await UserEventsRepo(
+      Supabase.instance.client,
+    ).updateCalendarForFlowEvents(flowId: flow.id, calendarId: calendarId);
+
+    _Flow? updated;
+    for (var i = 0; i < _flows.length; i++) {
+      final existing = _flows[i];
+      if (existing.id != flow.id) continue;
+      existing.calendarId = calendarId;
+      updated = existing;
+      break;
+    }
+    updated ??= flow..calendarId = calendarId;
+
+    final startDate = updated.start == null
+        ? null
+        : DateUtils.dateOnly(updated.start!);
+    final k = startDate == null ? null : KemeticMath.fromGregorian(startDate);
+    await _notifySharedCalendarItemAdded(
+      calendarId: calendarId,
+      itemType: 'flow',
+      itemId: updated.id.toString(),
+      itemTitle: updated.name,
+      flowId: updated.id,
+      startDate: startDate,
+      kYear: k?.kYear,
+      kMonth: k?.kMonth,
+      kDay: k?.kDay,
+    );
+    if (mounted) {
+      await _loadFromDisk(source: 'reading_house_shared_calendar_move');
+    }
+    return updated;
   }
 
   Future<DayViewSheetEventTarget?> _moveReminderEventToCalendar(
@@ -19278,11 +19482,6 @@ class CalendarPageState extends State<CalendarPage>
         }
       }
     }
-    if (kDebugMode) {
-      _calendarDebugPrint(
-        '[calendarFlowChrome] referencedFlowIds=${ids.length} flows=${_flows.length}',
-      );
-    }
     return ids;
   }
 
@@ -23354,6 +23553,10 @@ class CalendarPageState extends State<CalendarPage>
         rootBuilder: (innerCtx) {
           return _ReadingHouseAuthoringPage(
             flow: readingHouseFlow,
+            calendar: _calendarSummary(readingHouseFlow.calendarId),
+            personalCalendarId: _personalCalendarId,
+            sharedCalendarsRepo: _sharedCalendarsRepo,
+            onCalendarChanged: _moveReadingHouseFlowToCalendar,
             onSave: (result) async {
               await _persistFlowStudioResult(result);
               if (mounted) {
