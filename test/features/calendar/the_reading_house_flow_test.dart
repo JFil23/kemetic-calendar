@@ -102,9 +102,11 @@ void main() {
       'phase': 'enabled',
       'storage': 'local_only',
       'shared_fragments': kReadingHouseSharedFragmentsPhaseEnabled,
+      'house_margin': kReadingHouseHouseMarginPhaseEnabled,
+      'auto_copy_to_house_margin': false,
     });
     final presence = payload['house_presence'] as Map<String, dynamic>;
-    expect(presence['phase'], 'phase_3c');
+    expect(presence['phase'], 'phase_3d');
     expect(
       presence['membership_source'],
       kReadingHouseMembershipSourceSharedCalendar,
@@ -122,6 +124,13 @@ void main() {
       kReadingHouseFragmentRepliesPhaseEnabled,
     );
     expect(presence['reply_depth'], 1);
+    expect(presence['house_margin'], kReadingHouseHouseMarginPhaseEnabled);
+    expect(presence['house_margin_scope'], 'house');
+    expect(
+      presence['host_announcements'],
+      kReadingHouseHostAnnouncementsPhaseEnabled,
+    );
+    expect(presence['announcement_scope'], 'house_notice_lane');
     expect(presence['private_reader_text_shared'], isFalse);
     expect(payload['share_prompt_on_complete'], isFalse);
     expect(payload['share_prompt_future'], isFalse);
@@ -390,10 +399,11 @@ void main() {
     );
   });
 
-  test('public copy stays honest about the Phase 3C boundary', () {
+  test('public copy stays honest about the Phase 3D boundary', () {
     expect(kReadingHouseOverview, contains('host-authored private sittings'));
     expect(kReadingHouseOverview, contains('local private margin'));
-    expect(kReadingHouseOverview, contains('Phase 3C one-level replies'));
+    expect(kReadingHouseOverview, contains('Phase 3D host announcements'));
+    expect(kReadingHouseOverview, contains('shared house margin'));
     expect(
       kReadingHouseOverview,
       contains('accepted shared-calendar membership'),
@@ -401,11 +411,12 @@ void main() {
     expect(
       kReadingHouseOverview,
       contains(
-        'private reflection and short-note text are never copied automatically',
+        'private reflection, short-note text, and local private margin text are never copied automatically',
       ),
     );
-    expect(kReadingHouseEnrollmentCopy, contains('Phase 3C'));
+    expect(kReadingHouseEnrollmentCopy, contains('Phase 3D'));
     expect(kReadingHouseEnrollmentCopy, contains('one-level replies'));
+    expect(kReadingHouseEnrollmentCopy, contains('host announcements'));
     expect(kReadingHouseEnrollmentCopy, contains('writing stays optional'));
     final detail = readingHouseDetailText(
       kReadingHouseSittings.first,
@@ -418,6 +429,12 @@ void main() {
     expect(detail, contains('Carrying opens opt-in shared fragments'));
     expect(detail, contains('House presence'));
     expect(detail, contains('Shared fragments are chosen by the reader'));
+    expect(detail, contains('House margin'));
+    expect(
+      detail,
+      contains('Private margin text is not copied into the house margin'),
+    );
+    expect(detail, contains('Host announcements'));
     expect(detail, contains('Fragment replies'));
     expect(
       detail,
@@ -451,6 +468,10 @@ void main() {
       expect(presence['shared_fragment_scope'], 'house_sitting');
       expect(presence['fragment_replies'], 'enabled');
       expect(presence['reply_depth'], 1);
+      expect(presence['house_margin'], 'enabled');
+      expect(presence['house_margin_scope'], 'house');
+      expect(presence['host_announcements'], 'enabled');
+      expect(presence['announcement_scope'], 'house_notice_lane');
       expect(presence['replies'], 'enabled');
       expect(presence['discussion'], 'future');
       expect(presence['house_chat'], 'future');
@@ -461,6 +482,8 @@ void main() {
       expect(discussion['likes'], isFalse);
       expect(discussion['ranking'], isFalse);
       expect(discussion['discussion_room'], isFalse);
+      expect(discussion['house_margin'], 'enabled');
+      expect(discussion['host_announcements'], 'enabled');
       expect(discussion['house_chat'], 'future');
     },
   );
@@ -542,6 +565,103 @@ void main() {
     expect(repoSource, isNot(contains('shortNote')));
   });
 
+  test('Phase 3D UI separates house margin and host announcements', () {
+    final dayViewSource = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
+    final repoSource = File(
+      'lib/features/calendar/reading_house_shared_fragments_repo.dart',
+    ).readAsStringSync();
+
+    final marginSection = _sourceBetween(
+      dayViewSource,
+      'Widget? _buildReadingHouseHouseMarginSection',
+      '  Widget _buildReadingHouseAnnouncementComposer',
+    );
+    expect(marginSection, contains('House Margin'));
+    expect(marginSection, contains('_buildReadingHouseMarginList(style)'));
+    expect(marginSection, contains('_buildReadingHouseMarginComposer(style)'));
+
+    final marginComposer = _sourceBetween(
+      dayViewSource,
+      'Widget _buildReadingHouseMarginComposer',
+      '  Widget _buildReadingHouseMarginList',
+    );
+    expect(marginComposer, contains('Add margin item'));
+    expect(marginComposer, contains('Spoiler marker'));
+    expect(marginComposer, contains('Private notes stay private.'));
+    expect(marginComposer, contains('_createReadingHouseMarginItem()'));
+    expect(marginComposer, isNot(contains('Reply')));
+    expect(marginComposer, isNot(contains('Like')));
+    expect(marginComposer, isNot(contains('Chat')));
+
+    final marginList = _sourceBetween(
+      dayViewSource,
+      'Widget _buildReadingHouseMarginList',
+      '  Widget? _buildReadingHouseHouseMarginSection',
+    );
+    expect(
+      marginList,
+      contains(
+        'The margin is quiet. Add a quote, question, or note for the house.',
+      ),
+    );
+    expect(marginList, contains('_deleteReadingHouseMarginItem(item)'));
+    expect(marginList, isNot(contains('Reply')));
+    expect(marginList, isNot(contains('Like')));
+    expect(marginList, isNot(contains('Chat')));
+
+    final announcementComposer = _sourceBetween(
+      dayViewSource,
+      'Widget _buildReadingHouseAnnouncementComposer',
+      '  Widget _buildReadingHouseAnnouncementList',
+    );
+    expect(announcementComposer, contains('Add host announcement'));
+    expect(announcementComposer, contains('Announcement type'));
+    expect(announcementComposer, contains('_createReadingHouseAnnouncement()'));
+    expect(announcementComposer, isNot(contains('Reply')));
+    expect(announcementComposer, isNot(contains('Like')));
+    expect(announcementComposer, isNot(contains('Chat')));
+
+    final announcementList = _sourceBetween(
+      dayViewSource,
+      'Widget _buildReadingHouseAnnouncementList',
+      '  Widget? _buildReadingHouseHostAnnouncementsSection',
+    );
+    expect(announcementList, contains('Host announcement'));
+    expect(
+      announcementList,
+      contains('_deleteReadingHouseAnnouncement(announcement)'),
+    );
+    expect(announcementList, isNot(contains('Reply')));
+    expect(announcementList, isNot(contains('Like')));
+    expect(announcementList, isNot(contains('Chat')));
+
+    final announcementSection = _sourceBetween(
+      dayViewSource,
+      'Widget? _buildReadingHouseHostAnnouncementsSection',
+      '  Widget? _buildReadingHouseSharedFragmentsSection',
+    );
+    expect(announcementSection, contains('Host Announcements'));
+    expect(announcementSection, contains('_readingHouseCanModerateFragments'));
+    expect(
+      announcementSection,
+      contains('_buildReadingHouseAnnouncementComposer(style)'),
+    );
+    expect(announcementSection, isNot(contains('Reply')));
+    expect(announcementSection, isNot(contains('Like')));
+    expect(announcementSection, isNot(contains('Chat')));
+
+    expect(repoSource, contains('ReadingHouseMarginItem'));
+    expect(repoSource, contains('ReadingHouseAnnouncement'));
+    expect(repoSource, contains('createMarginItem'));
+    expect(repoSource, contains('deleteMarginItem'));
+    expect(repoSource, contains('createAnnouncement'));
+    expect(repoSource, contains('deleteAnnouncement'));
+    expect(repoSource, isNot(contains('privateReflection')));
+    expect(repoSource, isNot(contains('shortNote')));
+  });
+
   test('Phase 3B shared fragment RLS gates house membership and Carrying', () {
     final migration = File(
       '../supabase/migrations/20260625170000_reading_house_shared_fragments.sql',
@@ -608,6 +728,47 @@ void main() {
     expect(migration, isNot(contains('reaction')));
     expect(migration, isNot(contains('ranking')));
     expect(migration, isNot(contains('commons')));
+  });
+
+  test('Phase 3D margin and announcement RLS stays house scoped', () {
+    final migration = File(
+      '../supabase/migrations/20260626110000_reading_house_margin_announcements.sql',
+    ).readAsStringSync();
+
+    expect(migration, contains('reading_house_margin_items'));
+    expect(migration, contains('reading_house_announcements'));
+    expect(migration, contains('reading_house_flow_on_calendar'));
+    expect(migration, contains('reading_house_margin_items_select_members'));
+    expect(migration, contains('reading_house_announcements_select_members'));
+    expect(migration, contains('create_reading_house_margin_item'));
+    expect(migration, contains('delete_reading_house_margin_item'));
+    expect(migration, contains('create_reading_house_announcement'));
+    expect(migration, contains('delete_reading_house_announcement'));
+    expect(migration, contains('reading_house_is_calendar_member'));
+    expect(migration, contains('reading_house_can_moderate_calendar'));
+    expect(migration, contains('MARGIN_NOT_EDITABLE'));
+    expect(migration, contains('ANNOUNCEMENT_NOT_ALLOWED'));
+    expect(migration, contains('ANNOUNCEMENT_NOT_EDITABLE'));
+    expect(migration, contains('spoiler boolean not null default false'));
+    expect(
+      migration,
+      contains("announcement_type in ('schedule', 'pace', 'recap', 'note')"),
+    );
+    expect(
+      migration,
+      contains('grant select on public.reading_house_margin_items'),
+    );
+    expect(
+      migration,
+      contains('grant select on public.reading_house_announcements'),
+    );
+    expect(migration, isNot(contains('private_reflection')));
+    expect(migration, isNot(contains('short_note')));
+    expect(migration, isNot(contains('likes')));
+    expect(migration, isNot(contains('reaction')));
+    expect(migration, isNot(contains('ranking')));
+    expect(migration, isNot(contains('commons')));
+    expect(migration, isNot(contains('chat')));
   });
 
   test('Phase 3A authoring reuses shared-calendar membership', () {

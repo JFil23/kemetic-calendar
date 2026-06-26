@@ -99,6 +99,103 @@ class ReadingHouseFragmentReply {
   }
 }
 
+class ReadingHouseMarginItem {
+  const ReadingHouseMarginItem({
+    required this.id,
+    required this.calendarId,
+    required this.flowId,
+    required this.authorId,
+    required this.body,
+    required this.spoiler,
+    required this.createdAt,
+    this.clientEventId,
+    this.eventNumber,
+    this.passageReference,
+  });
+
+  final String id;
+  final String calendarId;
+  final int flowId;
+  final String? clientEventId;
+  final int? eventNumber;
+  final String authorId;
+  final String? passageReference;
+  final String body;
+  final bool spoiler;
+  final DateTime createdAt;
+
+  bool isAuthoredBy(String? userId) {
+    final normalized = userId?.trim();
+    return normalized != null &&
+        normalized.isNotEmpty &&
+        authorId == normalized;
+  }
+
+  factory ReadingHouseMarginItem.fromJson(Map<String, dynamic> json) {
+    return ReadingHouseMarginItem(
+      id: _cleanString(json['id']) ?? '',
+      calendarId: _cleanString(json['calendar_id']) ?? '',
+      flowId: _parseInt(json['flow_id']) ?? 0,
+      clientEventId: _cleanString(json['client_event_id']),
+      eventNumber: _parseInt(json['event_number']),
+      authorId: _cleanString(json['author_id']) ?? '',
+      passageReference: _cleanString(json['passage_reference']),
+      body: _cleanString(json['body']) ?? '',
+      spoiler: json['spoiler'] == true,
+      createdAt:
+          DateTime.tryParse(_cleanString(json['created_at']) ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    );
+  }
+}
+
+class ReadingHouseAnnouncement {
+  const ReadingHouseAnnouncement({
+    required this.id,
+    required this.calendarId,
+    required this.flowId,
+    required this.authorId,
+    required this.body,
+    required this.announcementType,
+    required this.createdAt,
+    this.clientEventId,
+    this.eventNumber,
+  });
+
+  final String id;
+  final String calendarId;
+  final int flowId;
+  final String? clientEventId;
+  final int? eventNumber;
+  final String authorId;
+  final String body;
+  final String announcementType;
+  final DateTime createdAt;
+
+  bool isAuthoredBy(String? userId) {
+    final normalized = userId?.trim();
+    return normalized != null &&
+        normalized.isNotEmpty &&
+        authorId == normalized;
+  }
+
+  factory ReadingHouseAnnouncement.fromJson(Map<String, dynamic> json) {
+    return ReadingHouseAnnouncement(
+      id: _cleanString(json['id']) ?? '',
+      calendarId: _cleanString(json['calendar_id']) ?? '',
+      flowId: _parseInt(json['flow_id']) ?? 0,
+      clientEventId: _cleanString(json['client_event_id']),
+      eventNumber: _parseInt(json['event_number']),
+      authorId: _cleanString(json['author_id']) ?? '',
+      body: _cleanString(json['body']) ?? '',
+      announcementType: _cleanString(json['announcement_type']) ?? 'note',
+      createdAt:
+          DateTime.tryParse(_cleanString(json['created_at']) ?? '') ??
+          DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    );
+  }
+}
+
 class ReadingHouseSharedFragmentsRepo {
   ReadingHouseSharedFragmentsRepo(this._client);
 
@@ -196,6 +293,50 @@ class ReadingHouseSharedFragmentsRepo {
         .toList(growable: false);
   }
 
+  Future<List<ReadingHouseMarginItem>> listMarginItems({
+    required String calendarId,
+    required int flowId,
+  }) async {
+    final rows = await _client
+        .from('reading_house_margin_items')
+        .select()
+        .eq('calendar_id', calendarId.trim())
+        .eq('flow_id', flowId)
+        .isFilter('deleted_at', null)
+        .order('created_at', ascending: true);
+    return (rows as List)
+        .whereType<Map>()
+        .map(
+          (row) => ReadingHouseMarginItem.fromJson(row.cast<String, dynamic>()),
+        )
+        .where((item) => item.id.isNotEmpty && item.body.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  Future<List<ReadingHouseAnnouncement>> listAnnouncements({
+    required String calendarId,
+    required int flowId,
+  }) async {
+    final rows = await _client
+        .from('reading_house_announcements')
+        .select()
+        .eq('calendar_id', calendarId.trim())
+        .eq('flow_id', flowId)
+        .isFilter('deleted_at', null)
+        .order('created_at', ascending: false);
+    return (rows as List)
+        .whereType<Map>()
+        .map(
+          (row) =>
+              ReadingHouseAnnouncement.fromJson(row.cast<String, dynamic>()),
+        )
+        .where(
+          (announcement) =>
+              announcement.id.isNotEmpty && announcement.body.isNotEmpty,
+        )
+        .toList(growable: false);
+  }
+
   Future<ReadingHouseSharedFragment> shareFragment({
     required String calendarId,
     required int flowId,
@@ -282,6 +423,76 @@ class ReadingHouseSharedFragmentsRepo {
     await _client.rpc(
       'delete_reading_house_shared_fragment',
       params: <String, dynamic>{'p_fragment_id': trimmed},
+    );
+  }
+
+  Future<void> createMarginItem({
+    required String calendarId,
+    required int flowId,
+    required String? clientEventId,
+    required int? eventNumber,
+    required String body,
+    String? passageReference,
+    bool spoiler = false,
+  }) async {
+    final trimmedBody = body.trim();
+    if (trimmedBody.isEmpty) {
+      throw ArgumentError.value(body, 'body', 'Margin body is required.');
+    }
+    await _client.rpc(
+      'create_reading_house_margin_item',
+      params: <String, dynamic>{
+        'p_calendar_id': calendarId.trim(),
+        'p_flow_id': flowId,
+        'p_client_event_id': _cleanString(clientEventId),
+        'p_event_number': eventNumber,
+        'p_body': trimmedBody,
+        'p_passage_reference': _cleanString(passageReference),
+        'p_spoiler': spoiler,
+      },
+    );
+  }
+
+  Future<void> deleteMarginItem(String marginId) async {
+    final trimmed = marginId.trim();
+    if (trimmed.isEmpty) return;
+    await _client.rpc(
+      'delete_reading_house_margin_item',
+      params: <String, dynamic>{'p_margin_id': trimmed},
+    );
+  }
+
+  Future<void> createAnnouncement({
+    required String calendarId,
+    required int flowId,
+    required String? clientEventId,
+    required int? eventNumber,
+    required String body,
+    String announcementType = 'note',
+  }) async {
+    final trimmedBody = body.trim();
+    if (trimmedBody.isEmpty) {
+      throw ArgumentError.value(body, 'body', 'Announcement body is required.');
+    }
+    await _client.rpc(
+      'create_reading_house_announcement',
+      params: <String, dynamic>{
+        'p_calendar_id': calendarId.trim(),
+        'p_flow_id': flowId,
+        'p_client_event_id': _cleanString(clientEventId),
+        'p_event_number': eventNumber,
+        'p_body': trimmedBody,
+        'p_announcement_type': _cleanString(announcementType) ?? 'note',
+      },
+    );
+  }
+
+  Future<void> deleteAnnouncement(String announcementId) async {
+    final trimmed = announcementId.trim();
+    if (trimmed.isEmpty) return;
+    await _client.rpc(
+      'delete_reading_house_announcement',
+      params: <String, dynamic>{'p_announcement_id': trimmed},
     );
   }
 }

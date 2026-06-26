@@ -8920,6 +8920,12 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       TextEditingController();
   final TextEditingController _readingHouseReplyController =
       TextEditingController();
+  final TextEditingController _readingHouseMarginBodyController =
+      TextEditingController();
+  final TextEditingController _readingHouseMarginReferenceController =
+      TextEditingController();
+  final TextEditingController _readingHouseAnnouncementBodyController =
+      TextEditingController();
   OverlayEntry? _sheetFeedbackOverlay;
   Timer? _sheetFeedbackTimer;
   final CalendarCompletionFeedbackScheduler _completionFeedbackScheduler =
@@ -8936,13 +8942,23 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   bool _readingHouseFragmentsLoading = false;
   bool _readingHouseFragmentSaving = false;
   bool _readingHouseReplySaving = false;
+  bool _readingHouseMarginSaving = false;
+  bool _readingHouseAnnouncementSaving = false;
   bool _readingHouseFragmentComposerOpen = false;
+  bool _readingHouseMarginComposerOpen = false;
+  bool _readingHouseAnnouncementComposerOpen = false;
+  bool _readingHouseMarginSpoiler = false;
   bool _readingHouseCanModerateFragments = false;
+  String _readingHouseAnnouncementType = 'note';
   String? _readingHouseReplyComposerFragmentId;
   Object? _readingHouseFragmentsError;
   int _readingHouseFragmentsLoadGeneration = 0;
   List<ReadingHouseSharedFragment> _readingHouseFragments =
       const <ReadingHouseSharedFragment>[];
+  List<ReadingHouseMarginItem> _readingHouseMarginItems =
+      const <ReadingHouseMarginItem>[];
+  List<ReadingHouseAnnouncement> _readingHouseAnnouncements =
+      const <ReadingHouseAnnouncement>[];
   Map<String, List<ReadingHouseFragmentReply>>
   _readingHouseRepliesByFragmentId =
       const <String, List<ReadingHouseFragmentReply>>{};
@@ -8967,6 +8983,9 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     _readingHouseFragmentBodyController.dispose();
     _readingHouseFragmentReferenceController.dispose();
     _readingHouseReplyController.dispose();
+    _readingHouseMarginBodyController.dispose();
+    _readingHouseMarginReferenceController.dispose();
+    _readingHouseAnnouncementBodyController.dispose();
     super.dispose();
   }
 
@@ -9066,8 +9085,12 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   void _resetReadingHouseFragmentState() {
     _readingHouseFragmentsLoadGeneration++;
     _readingHouseFragments = const <ReadingHouseSharedFragment>[];
+    _readingHouseMarginItems = const <ReadingHouseMarginItem>[];
+    _readingHouseAnnouncements = const <ReadingHouseAnnouncement>[];
     _readingHouseFragmentsLoading = false;
     _readingHouseFragmentSaving = false;
+    _readingHouseMarginSaving = false;
+    _readingHouseAnnouncementSaving = false;
     _readingHouseFragmentsError = null;
     _readingHouseCanModerateFragments = false;
     _readingHouseRepliesByFragmentId =
@@ -9075,9 +9098,16 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     _readingHouseReplySaving = false;
     _readingHouseReplyComposerFragmentId = null;
     _readingHouseFragmentComposerOpen = false;
+    _readingHouseMarginComposerOpen = false;
+    _readingHouseAnnouncementComposerOpen = false;
+    _readingHouseMarginSpoiler = false;
+    _readingHouseAnnouncementType = 'note';
     _readingHouseFragmentBodyController.clear();
     _readingHouseFragmentReferenceController.clear();
     _readingHouseReplyController.clear();
+    _readingHouseMarginBodyController.clear();
+    _readingHouseMarginReferenceController.clear();
+    _readingHouseAnnouncementBodyController.clear();
   }
 
   @override
@@ -9433,6 +9463,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       if (!mounted) return;
       setState(() {
         _readingHouseFragments = const <ReadingHouseSharedFragment>[];
+        _readingHouseMarginItems = const <ReadingHouseMarginItem>[];
+        _readingHouseAnnouncements = const <ReadingHouseAnnouncement>[];
         _readingHouseRepliesByFragmentId =
             const <String, List<ReadingHouseFragmentReply>>{};
         _readingHouseFragmentsLoading = false;
@@ -9465,6 +9497,14 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           clientEventId: clientEventId,
         ),
         _readingHouseFragmentsRepo.canModerateHouse(calendarId: calendarId),
+        _readingHouseFragmentsRepo.listMarginItems(
+          calendarId: calendarId,
+          flowId: flowId,
+        ),
+        _readingHouseFragmentsRepo.listAnnouncements(
+          calendarId: calendarId,
+          flowId: flowId,
+        ),
       ]);
       if (!mounted || generation != _readingHouseFragmentsLoadGeneration) {
         return;
@@ -9475,6 +9515,9 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           results[1] as List<ReadingHouseFragmentReply>,
         );
         _readingHouseCanModerateFragments = results[2] == true;
+        _readingHouseMarginItems = results[3] as List<ReadingHouseMarginItem>;
+        _readingHouseAnnouncements =
+            results[4] as List<ReadingHouseAnnouncement>;
         _readingHouseFragmentsLoading = false;
       });
     } catch (error) {
@@ -9647,6 +9690,146 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         _readingHouseReplySaving = false;
       });
       _showSheetFeedback('Could not remove this reply.');
+    }
+  }
+
+  Future<void> _createReadingHouseMarginItem() async {
+    if (!_hasReadingHouseFragmentContext || _readingHouseMarginSaving) {
+      return;
+    }
+    final body = _readingHouseMarginBodyController.text.trim();
+    if (body.isEmpty) {
+      _showSheetFeedback('Add a margin note first.');
+      return;
+    }
+    setState(() {
+      _readingHouseMarginSaving = true;
+      _readingHouseFragmentsError = null;
+    });
+    try {
+      await _readingHouseFragmentsRepo.createMarginItem(
+        calendarId: _readingHouseCalendarId!,
+        flowId: _readingHouseFlowId!,
+        clientEventId: _readingHouseClientEventId,
+        eventNumber: widget.completion.eventNumber,
+        body: body,
+        passageReference: _readingHouseMarginReferenceController.text,
+        spoiler: _readingHouseMarginSpoiler,
+      );
+      _readingHouseMarginBodyController.clear();
+      _readingHouseMarginReferenceController.clear();
+      if (!mounted) return;
+      setState(() {
+        _readingHouseMarginComposerOpen = false;
+        _readingHouseMarginSpoiler = false;
+        _readingHouseMarginSaving = false;
+      });
+      await _loadReadingHouseSharedFragmentsIfNeeded();
+      if (mounted) {
+        _showSheetFeedback('Margin item added to this house.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseMarginSaving = false;
+      });
+      _showSheetFeedback('Could not add this margin item.');
+    }
+  }
+
+  Future<void> _deleteReadingHouseMarginItem(
+    ReadingHouseMarginItem item,
+  ) async {
+    if (_readingHouseMarginSaving) return;
+    _readingHouseMarginSaving = true;
+    try {
+      await _readingHouseFragmentsRepo.deleteMarginItem(item.id);
+      if (!mounted) return;
+      setState(() {
+        _readingHouseMarginItems = _readingHouseMarginItems
+            .where((candidate) => candidate.id != item.id)
+            .toList(growable: false);
+        _readingHouseMarginSaving = false;
+      });
+      if (mounted) {
+        _showSheetFeedback('Margin item removed.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseMarginSaving = false;
+      });
+      _showSheetFeedback('Could not remove this margin item.');
+    }
+  }
+
+  Future<void> _createReadingHouseAnnouncement() async {
+    if (!_hasReadingHouseFragmentContext ||
+        !_readingHouseCanModerateFragments ||
+        _readingHouseAnnouncementSaving) {
+      return;
+    }
+    final body = _readingHouseAnnouncementBodyController.text.trim();
+    if (body.isEmpty) {
+      _showSheetFeedback('Add an announcement first.');
+      return;
+    }
+    setState(() {
+      _readingHouseAnnouncementSaving = true;
+      _readingHouseFragmentsError = null;
+    });
+    try {
+      await _readingHouseFragmentsRepo.createAnnouncement(
+        calendarId: _readingHouseCalendarId!,
+        flowId: _readingHouseFlowId!,
+        clientEventId: _readingHouseClientEventId,
+        eventNumber: widget.completion.eventNumber,
+        body: body,
+        announcementType: _readingHouseAnnouncementType,
+      );
+      _readingHouseAnnouncementBodyController.clear();
+      if (!mounted) return;
+      setState(() {
+        _readingHouseAnnouncementComposerOpen = false;
+        _readingHouseAnnouncementType = 'note';
+        _readingHouseAnnouncementSaving = false;
+      });
+      await _loadReadingHouseSharedFragmentsIfNeeded();
+      if (mounted) {
+        _showSheetFeedback('Host announcement added.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseAnnouncementSaving = false;
+      });
+      _showSheetFeedback('Could not add this announcement.');
+    }
+  }
+
+  Future<void> _deleteReadingHouseAnnouncement(
+    ReadingHouseAnnouncement announcement,
+  ) async {
+    if (_readingHouseAnnouncementSaving) return;
+    _readingHouseAnnouncementSaving = true;
+    try {
+      await _readingHouseFragmentsRepo.deleteAnnouncement(announcement.id);
+      if (!mounted) return;
+      setState(() {
+        _readingHouseAnnouncements = _readingHouseAnnouncements
+            .where((candidate) => candidate.id != announcement.id)
+            .toList(growable: false);
+        _readingHouseAnnouncementSaving = false;
+      });
+      if (mounted) {
+        _showSheetFeedback('Announcement removed.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseAnnouncementSaving = false;
+      });
+      _showSheetFeedback('Could not remove this announcement.');
     }
   }
 
@@ -10666,6 +10849,37 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         : 'House member';
   }
 
+  String _readingHouseMarginAuthorLabel(ReadingHouseMarginItem item) {
+    return item.isAuthoredBy(_readingHouseFragmentsRepo.currentUserId)
+        ? 'You'
+        : 'House member';
+  }
+
+  String _readingHouseAnnouncementTypeLabel(String type) {
+    switch (type.trim().toLowerCase()) {
+      case 'schedule':
+        return 'Schedule';
+      case 'pace':
+        return 'Pace';
+      case 'recap':
+        return 'Recap';
+      case 'note':
+      default:
+        return 'Note';
+    }
+  }
+
+  String? _readingHouseSittingTagLabel({
+    required String? clientEventId,
+    required int? eventNumber,
+  }) {
+    final hasSitting =
+        clientEventId?.trim().isNotEmpty == true || eventNumber != null;
+    if (!hasSitting) return null;
+    final number = eventNumber;
+    return number == null ? 'Sitting' : 'Sitting $number';
+  }
+
   Widget _buildReadingHouseFragmentComposer(
     CalendarCompletionPickerStyle style,
   ) {
@@ -11058,6 +11272,597 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     );
   }
 
+  Widget _buildReadingHouseMarginComposer(CalendarCompletionPickerStyle style) {
+    if (!_readingHouseMarginComposerOpen) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: _readingHouseMarginSaving
+              ? null
+              : () => setState(() {
+                  _readingHouseMarginComposerOpen = true;
+                }),
+          icon: const Icon(Icons.edit_note_outlined),
+          label: const Text('Add margin item'),
+        ),
+      );
+    }
+
+    InputDecoration decoration(String label) {
+      return InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: style.labelColor),
+        filled: true,
+        fillColor: style.unselectedBackgroundColor,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.unselectedBorderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.selectedBorderColor),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _readingHouseMarginReferenceController,
+          textCapitalization: TextCapitalization.sentences,
+          textInputAction: TextInputAction.next,
+          scrollPadding: keyboardManagedTextFieldScrollPadding,
+          style: TextStyle(color: style.selectedForegroundColor),
+          decoration: decoration('Passage, page, or link (optional)'),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _readingHouseMarginBodyController,
+          minLines: 2,
+          maxLines: 5,
+          textCapitalization: TextCapitalization.sentences,
+          textInputAction: TextInputAction.newline,
+          scrollPadding: keyboardManagedTextFieldScrollPadding,
+          style: TextStyle(color: style.selectedForegroundColor),
+          decoration: decoration('House margin note'),
+        ),
+        const SizedBox(height: 5),
+        CheckboxListTile(
+          value: _readingHouseMarginSpoiler,
+          onChanged: _readingHouseMarginSaving
+              ? null
+              : (value) => setState(() {
+                  _readingHouseMarginSpoiler = value == true;
+                }),
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: Text(
+            'Spoiler marker',
+            style: TextStyle(
+              color: style.labelColor,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          checkColor: style.selectedForegroundColor,
+          activeColor: style.selectedBorderColor,
+        ),
+        Text(
+          'Private notes stay private.',
+          style: TextStyle(
+            color: style.labelColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            height: 1.25,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: _readingHouseMarginSaving
+                  ? null
+                  : () => setState(() {
+                      _readingHouseMarginComposerOpen = false;
+                      _readingHouseMarginSpoiler = false;
+                      _readingHouseMarginBodyController.clear();
+                      _readingHouseMarginReferenceController.clear();
+                    }),
+              child: const Text('Cancel'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: _readingHouseMarginSaving
+                  ? null
+                  : () => unawaited(_createReadingHouseMarginItem()),
+              icon: _readingHouseMarginSaving
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.add, size: 17),
+              label: const Text('Add to margin'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReadingHouseMarginList(CalendarCompletionPickerStyle style) {
+    if (_readingHouseFragmentsLoading) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: style.selectedBorderColor,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Loading house margin',
+            style: TextStyle(color: style.labelColor, fontSize: 13),
+          ),
+        ],
+      );
+    }
+    if (_readingHouseFragmentsError != null) {
+      return Text(
+        'House margin unavailable.',
+        style: TextStyle(color: style.labelColor, fontSize: 13, height: 1.25),
+      );
+    }
+    if (_readingHouseMarginItems.isEmpty) {
+      return Text(
+        'The margin is quiet. Add a quote, question, or note for the house.',
+        style: TextStyle(color: style.labelColor, fontSize: 13, height: 1.25),
+      );
+    }
+
+    final userId = _readingHouseFragmentsRepo.currentUserId;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final item in _readingHouseMarginItems)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: style.containerColor.withValues(alpha: 0.28),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: style.unselectedBorderColor),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            _readingHouseMarginAuthorLabel(item),
+                            style: TextStyle(
+                              color: style.selectedForegroundColor,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          if (_readingHouseSittingTagLabel(
+                                clientEventId: item.clientEventId,
+                                eventNumber: item.eventNumber,
+                              ) !=
+                              null)
+                            Text(
+                              _readingHouseSittingTagLabel(
+                                clientEventId: item.clientEventId,
+                                eventNumber: item.eventNumber,
+                              )!,
+                              style: TextStyle(
+                                color: style.labelColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          if (item.spoiler)
+                            Text(
+                              'Spoiler',
+                              style: TextStyle(
+                                color: style.selectedBorderColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (item.isAuthoredBy(userId) ||
+                        _readingHouseCanModerateFragments)
+                      IconButton(
+                        tooltip: 'Delete margin item',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: _readingHouseMarginSaving
+                            ? null
+                            : () => unawaited(
+                                _deleteReadingHouseMarginItem(item),
+                              ),
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        color: style.labelColor,
+                      ),
+                  ],
+                ),
+                if (item.passageReference != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    item.passageReference!,
+                    style: TextStyle(
+                      color: style.labelColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 5),
+                Text(
+                  item.body,
+                  style: TextStyle(
+                    color: style.unselectedForegroundColor,
+                    fontSize: 14,
+                    height: 1.32,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget? _buildReadingHouseHouseMarginSection() {
+    if (!_isReadingHouseCompletion ||
+        !_hasReadingHouseFragmentContext ||
+        _isReadingHouseSoloStudySitting) {
+      return null;
+    }
+    final style = widget.pickerStyle ?? const CalendarCompletionPickerStyle();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: style.unselectedBackgroundColor.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: style.unselectedBorderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.notes_outlined,
+                size: 18,
+                color: style.selectedBorderColor,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'House Margin',
+                  style: TextStyle(
+                    color: style.selectedForegroundColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _buildReadingHouseMarginList(style),
+          const SizedBox(height: 10),
+          _buildReadingHouseMarginComposer(style),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReadingHouseAnnouncementComposer(
+    CalendarCompletionPickerStyle style,
+  ) {
+    if (!_readingHouseAnnouncementComposerOpen) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: _readingHouseAnnouncementSaving
+              ? null
+              : () => setState(() {
+                  _readingHouseAnnouncementComposerOpen = true;
+                }),
+          icon: const Icon(Icons.campaign_outlined),
+          label: const Text('Add host announcement'),
+        ),
+      );
+    }
+
+    InputDecoration decoration(String label) {
+      return InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: style.labelColor),
+        filled: true,
+        fillColor: style.unselectedBackgroundColor,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.unselectedBorderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.selectedBorderColor),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DropdownButtonFormField<String>(
+          initialValue: _readingHouseAnnouncementType,
+          decoration: decoration('Announcement type'),
+          dropdownColor: style.unselectedBackgroundColor,
+          style: TextStyle(color: style.selectedForegroundColor),
+          items: const <DropdownMenuItem<String>>[
+            DropdownMenuItem<String>(value: 'note', child: Text('Note')),
+            DropdownMenuItem<String>(
+              value: 'schedule',
+              child: Text('Schedule'),
+            ),
+            DropdownMenuItem<String>(value: 'pace', child: Text('Pace')),
+            DropdownMenuItem<String>(value: 'recap', child: Text('Recap')),
+          ],
+          onChanged: _readingHouseAnnouncementSaving
+              ? null
+              : (value) => setState(() {
+                  _readingHouseAnnouncementType = value ?? 'note';
+                }),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _readingHouseAnnouncementBodyController,
+          minLines: 2,
+          maxLines: 5,
+          textCapitalization: TextCapitalization.sentences,
+          textInputAction: TextInputAction.newline,
+          scrollPadding: keyboardManagedTextFieldScrollPadding,
+          style: TextStyle(color: style.selectedForegroundColor),
+          decoration: decoration('Host announcement'),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: _readingHouseAnnouncementSaving
+                  ? null
+                  : () => setState(() {
+                      _readingHouseAnnouncementComposerOpen = false;
+                      _readingHouseAnnouncementType = 'note';
+                      _readingHouseAnnouncementBodyController.clear();
+                    }),
+              child: const Text('Cancel'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: _readingHouseAnnouncementSaving
+                  ? null
+                  : () => unawaited(_createReadingHouseAnnouncement()),
+              icon: _readingHouseAnnouncementSaving
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.campaign_outlined, size: 17),
+              label: const Text('Add announcement'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReadingHouseAnnouncementList(
+    CalendarCompletionPickerStyle style,
+  ) {
+    if (_readingHouseFragmentsLoading) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: style.selectedBorderColor,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Loading host announcements',
+            style: TextStyle(color: style.labelColor, fontSize: 13),
+          ),
+        ],
+      );
+    }
+    if (_readingHouseFragmentsError != null) {
+      return Text(
+        'Host announcements unavailable.',
+        style: TextStyle(color: style.labelColor, fontSize: 13, height: 1.25),
+      );
+    }
+    if (_readingHouseAnnouncements.isEmpty) {
+      return Text(
+        'No host announcements yet.',
+        style: TextStyle(color: style.labelColor, fontSize: 13, height: 1.25),
+      );
+    }
+
+    final userId = _readingHouseFragmentsRepo.currentUserId;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final announcement in _readingHouseAnnouncements)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: style.containerColor.withValues(alpha: 0.28),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: style.unselectedBorderColor),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            'Host announcement',
+                            style: TextStyle(
+                              color: style.selectedForegroundColor,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Text(
+                            _readingHouseAnnouncementTypeLabel(
+                              announcement.announcementType,
+                            ),
+                            style: TextStyle(
+                              color: style.labelColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          if (_readingHouseSittingTagLabel(
+                                clientEventId: announcement.clientEventId,
+                                eventNumber: announcement.eventNumber,
+                              ) !=
+                              null)
+                            Text(
+                              _readingHouseSittingTagLabel(
+                                clientEventId: announcement.clientEventId,
+                                eventNumber: announcement.eventNumber,
+                              )!,
+                              style: TextStyle(
+                                color: style.labelColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (announcement.isAuthoredBy(userId) ||
+                        _readingHouseCanModerateFragments)
+                      IconButton(
+                        tooltip: 'Delete announcement',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: _readingHouseAnnouncementSaving
+                            ? null
+                            : () => unawaited(
+                                _deleteReadingHouseAnnouncement(announcement),
+                              ),
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        color: style.labelColor,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  announcement.body,
+                  style: TextStyle(
+                    color: style.unselectedForegroundColor,
+                    fontSize: 14,
+                    height: 1.32,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget? _buildReadingHouseHostAnnouncementsSection() {
+    if (!_isReadingHouseCompletion ||
+        !_hasReadingHouseFragmentContext ||
+        _isReadingHouseSoloStudySitting) {
+      return null;
+    }
+    final style = widget.pickerStyle ?? const CalendarCompletionPickerStyle();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: style.unselectedBackgroundColor.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: style.unselectedBorderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.campaign_outlined,
+                size: 18,
+                color: style.selectedBorderColor,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Host Announcements',
+                  style: TextStyle(
+                    color: style.selectedForegroundColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _buildReadingHouseAnnouncementList(style),
+          if (_readingHouseCanModerateFragments) ...[
+            const SizedBox(height: 10),
+            _buildReadingHouseAnnouncementComposer(style),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget? _buildReadingHouseSharedFragmentsSection() {
     if (!_isReadingHouseCompletion ||
         !_hasReadingHouseFragmentContext ||
@@ -11113,12 +11918,25 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   }
 
   Widget? _buildCompletionLeadingContent(Widget? responseSection) {
+    final announcementsSection = _buildReadingHouseHostAnnouncementsSection();
     final fragmentsSection = _buildReadingHouseSharedFragmentsSection();
-    if (responseSection == null) return fragmentsSection;
-    if (fragmentsSection == null) return responseSection;
+    final marginSection = _buildReadingHouseHouseMarginSection();
+    final sections = <Widget>[
+      if (responseSection != null) responseSection,
+      if (announcementsSection != null) announcementsSection,
+      if (fragmentsSection != null) fragmentsSection,
+      if (marginSection != null) marginSection,
+    ];
+    if (sections.isEmpty) return null;
+    if (sections.length == 1) return sections.single;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [responseSection, const SizedBox(height: 12), fragmentsSection],
+      children: [
+        for (var index = 0; index < sections.length; index++) ...[
+          if (index > 0) const SizedBox(height: 12),
+          sections[index],
+        ],
+      ],
     );
   }
 

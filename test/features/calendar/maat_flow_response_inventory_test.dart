@@ -130,7 +130,7 @@ const List<_InventoryFlow> _responseEnabledCoreFlows = <_InventoryFlow>[
     key: kReadingHouseFlowKey,
     title: kReadingHouseTitle,
     category: 'response-enabled core',
-    phase: 'Reading House Phase 3C',
+    phase: 'Reading House Phase 3D',
   ),
 ];
 
