@@ -636,6 +636,44 @@ class SharedPracticeRoomSnapshot {
   }
 }
 
+class JointFlowExperienceResult {
+  const JointFlowExperienceResult({
+    required this.calendarId,
+    required this.flowId,
+    required this.sharedPracticeRoomId,
+    this.createdCalendar = false,
+    this.reusedCalendar = false,
+    this.createdFlow = false,
+    this.participantUserIds = const <String>[],
+  });
+
+  final String calendarId;
+  final int flowId;
+  final String sharedPracticeRoomId;
+  final bool createdCalendar;
+  final bool reusedCalendar;
+  final bool createdFlow;
+  final List<String> participantUserIds;
+
+  factory JointFlowExperienceResult.fromJson(Map<String, dynamic> json) {
+    final participantsRaw = json['participant_user_ids'];
+    return JointFlowExperienceResult(
+      calendarId: _cleanString(json['calendar_id']) ?? '',
+      flowId: _parseInt(json['flow_id']) ?? 0,
+      sharedPracticeRoomId: _cleanString(json['shared_practice_room_id']) ?? '',
+      createdCalendar: json['created_calendar'] == true,
+      reusedCalendar: json['reused_calendar'] == true,
+      createdFlow: json['created_flow'] == true,
+      participantUserIds: participantsRaw is List
+          ? participantsRaw
+                .map(_cleanString)
+                .whereType<String>()
+                .toList(growable: false)
+          : const <String>[],
+    );
+  }
+}
+
 String buildSharedPracticeSummary({
   required int observed,
   required int partial,

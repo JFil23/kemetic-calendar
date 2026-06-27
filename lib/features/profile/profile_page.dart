@@ -20,6 +20,7 @@ import '../../data/flow_post_model.dart';
 import '../../data/insight_post_model.dart';
 import '../../data/profile_feed_item_model.dart';
 import '../../data/shared_practice_models.dart';
+import '../../data/shared_practice_repo.dart';
 import '../../utils/detail_sanitizer.dart';
 import '../../utils/kemetic_date_format.dart';
 import '../../services/app_haptics.dart';
@@ -3694,6 +3695,34 @@ class _ProfilePageState extends State<ProfilePage>
       return;
     }
     final title = cleanFlowTitle(post.name);
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id.trim();
+    final authorUserId = post.userId.trim();
+    if (currentUserId != null &&
+        currentUserId.isNotEmpty &&
+        authorUserId.isNotEmpty &&
+        authorUserId != currentUserId) {
+      try {
+        final result = await SharedPracticeRepo(Supabase.instance.client)
+            .createJointFlowExperienceFromCommons(
+              sourceFlowId: sourceFlowId,
+              participantUserIds: <String>[authorUserId],
+              calendarTitle: title.isEmpty ? 'Shared Practice' : title,
+              context: <String, dynamic>{
+                'flow_post_id': post.id,
+                'source': 'profile_flow_post',
+              },
+            );
+        if (!mounted || result.sharedPracticeRoomId.trim().isEmpty) return;
+        context.push(
+          '/shared-practice/${Uri.encodeComponent(result.sharedPracticeRoomId.trim())}',
+        );
+      } catch (_) {
+        if (!mounted) return;
+        _showCommonsActionSnack('Could not start shared practice.');
+      }
+      return;
+    }
+
     final roomId = await showSharedPracticeCalendarChooser(
       context: context,
       sourceFlowId: sourceFlowId,

@@ -82,6 +82,17 @@ class SharedPracticeRepo {
       roomId: roomId,
       localDate: startDate ?? DateTime.now(),
     );
+    final sharedFlowId = snapshot.room.sharedFlowId;
+    if (sharedFlowId != null && sharedFlowId > 0) {
+      try {
+        await ensureSharedExperienceForFlow(
+          flowId: sharedFlowId,
+          calendarId: snapshot.room.calendarId,
+        );
+      } catch (e) {
+        _log('ensure shared experience failed for $sharedFlowId: $e');
+      }
+    }
     unawaited(
       SharedCalendarsRepo(_client).notifySharedCalendarItemAdded(
         calendarId: snapshot.room.calendarId,
@@ -96,6 +107,77 @@ class SharedPracticeRepo {
       ),
     );
     return snapshot.room;
+  }
+
+  Future<String?> ensureSharedExperienceForFlow({
+    required int flowId,
+    required String? calendarId,
+  }) async {
+    final trimmedCalendarId = calendarId?.trim();
+    if (flowId <= 0 || trimmedCalendarId == null || trimmedCalendarId.isEmpty) {
+      return null;
+    }
+    final response = await _client.rpc(
+      'ensure_shared_experience_for_flow',
+      params: <String, dynamic>{
+        'p_flow_id': flowId,
+        'p_calendar_id': trimmedCalendarId,
+      },
+    );
+    final roomId = response?.toString().trim();
+    return roomId == null || roomId.isEmpty ? null : roomId;
+  }
+
+  Future<JointFlowExperienceResult> createJointFlowExperienceFromCommons({
+    required int sourceFlowId,
+    required List<String> participantUserIds,
+    String? calendarTitle,
+    String? clientRequestId,
+    Map<String, dynamic>? context,
+  }) async {
+    if (sourceFlowId <= 0) {
+      throw ArgumentError.value(
+        sourceFlowId,
+        'sourceFlowId',
+        'Must be positive.',
+      );
+    }
+    final participants = participantUserIds
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (participants.isEmpty) {
+      throw ArgumentError.value(
+        participantUserIds,
+        'participantUserIds',
+        'At least one other participant is required.',
+      );
+    }
+
+    final response = await _client.rpc(
+      'create_joint_flow_experience_from_commons',
+      params: <String, dynamic>{
+        'p_source_flow_id': sourceFlowId,
+        'p_participant_user_ids': participants,
+        if (calendarTitle != null && calendarTitle.trim().isNotEmpty)
+          'p_calendar_title': calendarTitle.trim(),
+        if (clientRequestId != null && clientRequestId.trim().isNotEmpty)
+          'p_client_request_id': clientRequestId.trim(),
+        if (context != null && context.isNotEmpty) 'p_context': context,
+      },
+    );
+    if (response is Map<String, dynamic>) {
+      return JointFlowExperienceResult.fromJson(response);
+    }
+    if (response is Map) {
+      return JointFlowExperienceResult.fromJson(
+        Map<String, dynamic>.from(response),
+      );
+    }
+    throw StateError(
+      'Unexpected joint flow experience response: ${response.runtimeType}',
+    );
   }
 
   Future<SharedPracticeRoomSnapshot> getSharedPracticeRoom({

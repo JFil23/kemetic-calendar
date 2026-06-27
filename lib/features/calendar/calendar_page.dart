@@ -11,6 +11,7 @@ import '../../data/user_events_repo.dart';
 import '../../data/flows_repo.dart';
 import '../../data/shared_calendar_models.dart';
 import '../../data/shared_calendars_repo.dart';
+import '../../data/shared_practice_repo.dart';
 import 'package:mobile/features/calendar/notify.dart';
 import 'package:flutter/rendering.dart';
 import '../../data/note_category.dart';
@@ -189,6 +190,32 @@ enum EndFlowActionResult { success, failed, notHandled }
 void _calendarDebugPrint(String? message, {int? wrapWidth}) {
   if (kDebugMode) {
     debugPrint(message, wrapWidth: wrapWidth);
+  }
+}
+
+Future<void> _ensureSharedExperienceForFlow({
+  required int flowId,
+  required String? calendarId,
+  required String source,
+}) async {
+  final trimmedCalendarId = calendarId?.trim();
+  if (flowId <= 0 || trimmedCalendarId == null || trimmedCalendarId.isEmpty) {
+    return;
+  }
+  try {
+    await SharedPracticeRepo(
+      Supabase.instance.client,
+    ).ensureSharedExperienceForFlow(
+      flowId: flowId,
+      calendarId: trimmedCalendarId,
+    );
+  } catch (e) {
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[$source] shared experience ensure failed for flow=$flowId '
+        'calendar=$trimmedCalendarId: $e',
+      );
+    }
   }
 }
 
@@ -7065,6 +7092,11 @@ class CalendarPage extends StatefulWidget {
     await UserEventsRepo(
       Supabase.instance.client,
     ).updateCalendarForFlowEvents(flowId: flow.id, calendarId: calendarId);
+    await _ensureSharedExperienceForFlow(
+      flowId: flow.id,
+      calendarId: calendarId,
+      source: 'reading_house_shared_calendar_move_headless',
+    );
     await flowsRepo.clearMyFiledFlowsCache();
     unawaited(flowsRepo.refreshMyFiledFlows());
     flow.calendarId = calendarId;
@@ -8154,6 +8186,11 @@ class CalendarPage extends StatefulWidget {
     }
 
     await commitGenerationIfNeeded();
+    await _ensureSharedExperienceForFlow(
+      flowId: savedId,
+      calendarId: f.calendarId,
+      source: 'CalendarPage._persistFlowStudioResultHeadless',
+    );
 
     if (isNewFlowSave) {
       await SharedCalendarsRepo(
@@ -12180,6 +12217,11 @@ class CalendarPageState extends State<CalendarPage>
     await UserEventsRepo(
       Supabase.instance.client,
     ).updateCalendarForFlowEvents(flowId: flowId, calendarId: calendarId);
+    await _ensureSharedExperienceForFlow(
+      flowId: flowId,
+      calendarId: calendarId,
+      source: 'detail_calendar_move_flow',
+    );
 
     String flowName = target.event.title;
     for (final flow in _flows) {
@@ -12228,6 +12270,11 @@ class CalendarPageState extends State<CalendarPage>
     await UserEventsRepo(
       Supabase.instance.client,
     ).updateCalendarForFlowEvents(flowId: flow.id, calendarId: calendarId);
+    await _ensureSharedExperienceForFlow(
+      flowId: flow.id,
+      calendarId: calendarId,
+      source: 'reading_house_shared_calendar_move',
+    );
 
     _Flow? updated;
     for (var i = 0; i < _flows.length; i++) {
@@ -21908,6 +21955,11 @@ class CalendarPageState extends State<CalendarPage>
       );
 
       _flows.add(persisted);
+      await _ensureSharedExperienceForFlow(
+        flowId: savedId,
+        calendarId: flow.calendarId,
+        source: 'CalendarPage._saveNewFlow',
+      );
       if (mounted) setState(() {});
       _notifyDayViewDataChanged();
 
@@ -22980,6 +23032,14 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('persist planned notes (apply) failed: $e');
         }
       }
+    }
+
+    if (edited.savedFlow != null && finalFlowId != null) {
+      await _ensureSharedExperienceForFlow(
+        flowId: finalFlowId,
+        calendarId: flowCalendarId,
+        source: 'CalendarPage._applyFlowStudioResult',
+      );
     }
 
     if (!notesAlreadyPersisted &&
@@ -31405,6 +31465,16 @@ class CalendarPageState extends State<CalendarPage>
       );
     }
 
+    Future<void> ensureSharedExperienceIfNeeded() async {
+      final savedFlow = saved;
+      if (savedFlow == null) return;
+      await _ensureSharedExperienceForFlow(
+        flowId: savedFlow.id,
+        calendarId: savedFlow.calendarId,
+        source: 'CalendarPage._persistFlowStudioResult',
+      );
+    }
+
     if (r.plannedNotes.isNotEmpty) {
       final repo2 = UserEventsRepo(Supabase.instance.client);
 
@@ -31547,6 +31617,7 @@ class CalendarPageState extends State<CalendarPage>
           );
         }
         await commitGenerationIfNeeded();
+        await ensureSharedExperienceIfNeeded();
         await notifyFlowAdditionIfNeeded();
         setState(() {});
         _notifyDayViewDataChanged();
@@ -31641,6 +31712,7 @@ class CalendarPageState extends State<CalendarPage>
 
     if (saved != null) {
       await commitGenerationIfNeeded();
+      await ensureSharedExperienceIfNeeded();
     }
 
     if (saved != null && isNewFlowSave) {
