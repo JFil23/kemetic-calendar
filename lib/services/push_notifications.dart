@@ -15,6 +15,7 @@ import 'push_web_subscription.dart'
     if (dart.library.html) 'push_web_subscription_web.dart';
 import 'push_web_context.dart'
     if (dart.library.html) 'push_web_context_web.dart';
+import '../telemetry/telemetry.dart';
 
 // ---- Firebase background handler (must be a top-level function) ----
 @pragma('vm:entry-point')
@@ -59,7 +60,12 @@ class _PushTokenRepo {
       'last_seen_at': nowIso,
       'updated_at': nowIso,
     };
-    debugPrint('[push] upsert payload: $payload');
+    if (kDebugMode) {
+      debugPrint(
+        '[push] upsert request user=${safeLogIdentifier(uid)} '
+        'platform=$platform tokenPresent=${token.isNotEmpty}',
+      );
+    }
 
     Future<void> saveWithPlatform(String platformValue) async {
       await _client.from('push_tokens').upsert({
@@ -365,11 +371,10 @@ class PushNotifications {
     _setRegistrationError(null);
     final currentSession = _client.auth.currentSession;
     final currentUser = _client.auth.currentUser;
-    debugPrint('[push] currentSession? ${currentSession != null}');
-    debugPrint(
-      '[push] currentUser? ${currentUser != null}, id=${currentUser?.id}',
-    );
-    debugPrint('[push] session.expiresAt: ${currentSession?.expiresAt}');
+    if (kDebugMode) {
+      debugPrint('[push] currentSession? ${currentSession != null}');
+      debugPrint('[push] currentUser? ${currentUser != null}');
+    }
 
     if (currentSession == null || currentUser?.id == null) {
       _setRegistrationError(
@@ -467,7 +472,11 @@ class PushNotifications {
   Future<bool> registerForUser() async {
     final session = _client.auth.currentSession;
     if (session == null) return false;
-    debugPrint('[push] registerForUser: user=${session.user.id}');
+    if (kDebugMode) {
+      debugPrint(
+        '[push] registerForUser: user=${safeLogIdentifier(session.user.id)}',
+      );
+    }
     final ok = await initAndRequestPermission();
     debugPrint('[push] permission ok: $ok');
     if (!ok) return false;
@@ -476,14 +485,7 @@ class PushNotifications {
       debugPrint('[push] token fetched: <null>');
       return false;
     }
-    if (kDebugMode) {
-      final suffix = token.length > 8
-          ? token.substring(token.length - 8)
-          : token;
-      debugPrint(
-        '[push] token registered=true len=${token.length} suffix=$suffix',
-      );
-    }
+    if (kDebugMode) debugPrint('[push] token registered=true');
     return true;
   }
 
@@ -910,7 +912,9 @@ class PushNotifications {
 
   Future<String?> _registerCurrentToken() async {
     final token = await _getToken();
-    debugPrint('[push] current token: ${summarizePushToken(token)}');
+    if (kDebugMode) {
+      debugPrint('[push] current token present: ${token != null}');
+    }
     if (token == null) {
       _setRegistrationError(
         _lastRegistrationError ?? 'The device did not return a push token.',

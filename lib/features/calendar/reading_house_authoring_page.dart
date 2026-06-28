@@ -943,7 +943,7 @@ class _ReadingHouseAuthoringPageState
           ],
           const SizedBox(height: 12),
           const Text(
-            'Membership uses shared-calendar access. The schedule, roster, chosen sitting fragments, one-level replies, house margin, host announcements, and House Chat logistics are visible to joined members; private reflections, notes, and local margin text stay private. Discussion rooms, pods, likes, and ranking stay out of this house.',
+            'Members can see the house schedule, roster, and chosen shared offerings. Private reflections, notes, and local margin text stay private.',
             style: TextStyle(color: Color(0xFFB7AAA0), height: 1.35),
           ),
         ],
@@ -1109,15 +1109,15 @@ class _ReadingHouseSittingDraftSheetState
   }
 
   Future<void> _pickDate() async {
-    final picked = await showDatePicker(
+    final picked = await MaatFlowDatePicker.show(
       context: context,
       initialDate: _scheduledDate,
-      firstDate: DateTime(2020),
-      lastDate: DateTime(2100),
+      initialMode: MaatFlowDatePickerMode.kemetic,
     );
     if (picked == null || !mounted) return;
     setState(() {
-      _scheduledDate = DateTime(picked.year, picked.month, picked.day);
+      final date = picked.date;
+      _scheduledDate = DateTime(date.year, date.month, date.day);
     });
   }
 
@@ -1132,10 +1132,12 @@ class _ReadingHouseSittingDraftSheetState
     });
   }
 
-  InputDecoration _fieldDecoration(String label) {
+  InputDecoration _fieldDecoration(String label, {String? hintText}) {
     return InputDecoration(
       labelText: label,
+      hintText: hintText,
       labelStyle: const TextStyle(color: Color(0xFF9C9086)),
+      hintStyle: const TextStyle(color: Color(0xFF7E746B)),
       enabledBorder: OutlineInputBorder(
         borderSide: BorderSide(
           color: widget.accentColor.withValues(alpha: 0.28),
@@ -1152,6 +1154,7 @@ class _ReadingHouseSittingDraftSheetState
     TextEditingController controller, {
     int maxLines = 1,
     Key? key,
+    String? hintText,
   }) {
     return TextField(
       key: key,
@@ -1163,7 +1166,7 @@ class _ReadingHouseSittingDraftSheetState
           : TextInputAction.newline,
       scrollPadding: keyboardManagedTextFieldScrollPadding,
       style: const TextStyle(color: Color(0xFFE8D9C3)),
-      decoration: _fieldDecoration(label),
+      decoration: _fieldDecoration(label, hintText: hintText),
     );
   }
 
@@ -1227,6 +1230,7 @@ class _ReadingHouseSittingDraftSheetState
                 _field(
                   'Sitting title',
                   _titleCtrl,
+                  hintText: 'Name this sitting...',
                   key: const ValueKey<String>(
                     'reading_house_sitting_title_field',
                   ),
@@ -1235,6 +1239,7 @@ class _ReadingHouseSittingDraftSheetState
                 _field(
                   'Section',
                   _sectionCtrl,
+                  hintText: 'Chapters, pages, maxims, or passage...',
                   key: const ValueKey<String>(
                     'reading_house_sitting_section_field',
                   ),
@@ -1244,6 +1249,7 @@ class _ReadingHouseSittingDraftSheetState
                   'Theme',
                   _themeCtrl,
                   maxLines: 2,
+                  hintText: 'What should the house hold while reading?',
                   key: const ValueKey<String>(
                     'reading_house_sitting_theme_field',
                   ),
@@ -1253,6 +1259,7 @@ class _ReadingHouseSittingDraftSheetState
                   'Private prompt',
                   _promptCtrl,
                   maxLines: 3,
+                  hintText: 'What should each reader sit with before sharing?',
                   key: const ValueKey<String>(
                     'reading_house_sitting_private_prompt_field',
                   ),
@@ -1262,6 +1269,7 @@ class _ReadingHouseSittingDraftSheetState
                   'Host note',
                   _noteCtrl,
                   maxLines: 2,
+                  hintText: 'Optional note, passage to watch, or context...',
                   key: const ValueKey<String>(
                     'reading_house_sitting_host_note_field',
                   ),

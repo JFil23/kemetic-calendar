@@ -303,7 +303,10 @@ void main() {
     expect(detail, contains('Book\nA Season of Study'));
     expect(detail, contains('Edition: Second edition'));
     expect(detail, contains('House question\nWhat should the house keep?'));
-    expect(detail, contains('Position gate'));
+    expect(detail, contains('Section\nOpening section'));
+    expect(detail, contains('Theme\nWhat is the text asking you to carry?'));
+    expect(detail, isNot(contains('Position gate')));
+    expect(detail, isNot(contains('House Chat')));
   });
 
   test('sitting resolver accepts persisted payload snapshots', () {
@@ -409,26 +412,29 @@ void main() {
     );
   });
 
-  test('public copy stays honest about the Phase 4A boundary', () {
-    expect(kReadingHouseOverview, contains('host-authored private sittings'));
-    expect(kReadingHouseOverview, contains('local private margin'));
-    expect(kReadingHouseOverview, contains('Phase 4A House Chat'));
-    expect(kReadingHouseOverview, contains('shared house margin'));
+  test('public copy uses the Per-Ankh badge and calm full description', () {
+    expect(kReadingHouseEnrollmentCopy, kReadingHouseHistoricalBadgeText);
+    expect(kReadingHouseHistoricalBadgeText, contains('Per-Ankh'));
+    expect(kReadingHouseHistoricalBadgeText, contains('House of Life'));
+    expect(
+      kReadingHouseHistoricalBadgeText,
+      contains('The text lived because a house kept it.'),
+    );
+    expect(kReadingHouseOverview, startsWith('The Reading House\n\n'));
+    expect(kReadingHouseOverview, contains('A house gathers around one book.'));
     expect(
       kReadingHouseOverview,
-      contains('accepted shared-calendar membership'),
+      contains('What you write in your margin is yours'),
     );
+    expect(kReadingHouseOverview, contains("the house's quiet signal"));
     expect(
       kReadingHouseOverview,
-      contains(
-        'private reflection, short-note text, and local private margin text are never copied automatically',
-      ),
+      contains('Nothing is counted, ranked, or performed.'),
     );
-    expect(kReadingHouseEnrollmentCopy, contains('Phase 4A'));
-    expect(kReadingHouseEnrollmentCopy, contains('one-level replies'));
-    expect(kReadingHouseEnrollmentCopy, contains('host announcements'));
-    expect(kReadingHouseEnrollmentCopy, contains('secondary support lane'));
-    expect(kReadingHouseEnrollmentCopy, contains('writing stays optional'));
+    expect(kReadingHouseOverview, contains('Per-Ankh'));
+    expect(kReadingHouseOverview, isNot(contains('Phase 4A')));
+    expect(kReadingHouseOverview, isNot(contains('feature')));
+
     final detail = readingHouseDetailText(
       kReadingHouseSittings.first,
       plan: const ReadingHousePlan(),
@@ -437,25 +443,66 @@ void main() {
     expect(detail, contains('Theme\nWhat is the text asking you to carry?'));
     expect(detail, contains('Private prompt\nBefore company shapes'));
     expect(detail, contains('Host note\nBegin with your own encounter'));
-    expect(detail, contains('Carrying opens opt-in shared fragments'));
-    expect(detail, contains('House presence'));
-    expect(detail, contains('Shared fragments are chosen by the reader'));
-    expect(detail, contains('House margin'));
-    expect(
-      detail,
-      contains('Private margin text is not copied into the house margin'),
-    );
-    expect(detail, contains('Host announcements'));
-    expect(detail, contains('Fragment replies'));
-    expect(detail, contains('House Chat'));
-    expect(detail, contains('support lane'));
-    expect(
-      detail,
-      contains(
-        'No likes, ranking, discussion room, or nested thread is active',
-      ),
-    );
+    expect(detail, isNot(contains('Position gate')));
+    expect(detail, isNot(contains('House presence')));
+    expect(detail, isNot(contains('House margin')));
+    expect(detail, isNot(contains('Host announcements')));
+    expect(detail, isNot(contains('Fragment replies')));
+    expect(detail, isNot(contains('House Chat')));
+    expect(detail, isNot(contains('Completion')));
   });
+
+  test(
+    'Reading House detail setup uses historical badge and app date picker',
+    () {
+      final calendarPageSource = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final detailSource = File(
+        'lib/features/calendar/calendar_maat_flows.dart',
+      ).readAsStringSync();
+      final authoringSource = File(
+        'lib/features/calendar/reading_house_authoring_page.dart',
+      ).readAsStringSync();
+
+      final templatesSource = _sourceBetween(
+        calendarPageSource,
+        'final List<_MaatFlowTemplate> _kMaatFlowTemplates = [',
+        '/* ─────────────────────────── CALENDAR PAGE',
+      );
+      final templateCount = RegExp(
+        r'  _MaatFlowTemplate\(',
+      ).allMatches(templatesSource).length;
+      final badgeCount = RegExp(
+        r'historicalBadgeText:',
+      ).allMatches(templatesSource).length;
+      expect(badgeCount, templateCount);
+      expect(
+        templatesSource,
+        contains('historicalBadgeText: kReadingHouseHistoricalBadgeText'),
+      );
+
+      final overviewZones = _sourceBetween(
+        detailSource,
+        'List<Widget> _buildMaatFlowOverviewZones',
+        '  Widget _buildMaatFlowDetailHero',
+      );
+      expect(overviewZones, contains('widget.template.historicalBadgeText'));
+      expect(overviewZones, contains('_buildMaatFlowHistoricalBadge'));
+
+      final readingHouseDetail = _sourceBetween(
+        detailSource,
+        'Widget _buildReadingHouseScaffold',
+        '  DaysOutsideYearEnrollmentWindow?',
+      );
+      expect(readingHouseDetail, isNot(contains('Phase 4A keeps')));
+      expect(readingHouseDetail, isNot(contains('pods, public sharing')));
+
+      expect(authoringSource, contains('MaatFlowDatePicker.show'));
+      expect(authoringSource, contains('MaatFlowDatePickerMode.kemetic'));
+      expect(authoringSource, isNot(contains('showDatePicker(')));
+    },
+  );
 
   test(
     'payload enables fragment replies but not broader conversation surfaces',
@@ -923,15 +970,13 @@ void main() {
     expect(
       panel,
       contains(
-        'private reflections, notes, and local margin text stay private',
+        'Private reflections, notes, and local margin text stay private',
       ),
     );
-    expect(panel, contains('one-level replies'));
-    expect(panel, contains('House Chat logistics'));
-    expect(
-      panel,
-      contains('Discussion rooms, pods, likes, and ranking stay out'),
-    );
+    expect(panel, contains('Members can see the house schedule'));
+    expect(panel, isNot(contains('one-level replies')));
+    expect(panel, isNot(contains('House Chat logistics')));
+    expect(panel, isNot(contains('Discussion rooms')));
     for (final forbidden in <String>[
       'Share fragment',
       'Like',
@@ -1168,6 +1213,17 @@ void main() {
     expect(draftSheet, contains('void dispose()'));
     expect(draftSheet, contains('ReadingHouseSitting _draftSitting()'));
     expect(draftSheet, contains('Navigator.of(context).pop(_draftSitting())'));
+    expect(draftSheet, contains('Name this sitting...'));
+    expect(draftSheet, contains('Chapters, pages, maxims, or passage...'));
+    expect(draftSheet, contains('What should the house hold while reading?'));
+    expect(
+      draftSheet,
+      contains('What should each reader sit with before sharing?'),
+    );
+    expect(
+      draftSheet,
+      contains('Optional note, passage to watch, or context...'),
+    );
     expect(draftSheet, isNot(contains('onChanged:')));
     expect(
       draftSheet.indexOf('TextEditingController(text: sitting.title)'),

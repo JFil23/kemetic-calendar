@@ -90,6 +90,7 @@ import '../../services/calendar_sync_service.dart';
 import '../../services/push_notifications.dart';
 import '../../services/app_restoration_service.dart';
 import '../../services/app_navigation_restoration_controller.dart';
+import '../../services/day_view_restoration_write_gate.dart';
 import '../../services/restoration_coordinator.dart';
 import '../../services/session_resume_service.dart';
 import '../../services/navigation_trace.dart';
@@ -3117,11 +3118,77 @@ const List<_MaatFlowLibraryCategory> _kMaatFlowLibraryCategories =
       _MaatFlowLibraryCategory.livingInMaat,
     ];
 
+const String _kTrackSkyBadgeText =
+    'In Kemet, the priests watched the sky to keep the calendar true, to read the coming of the flood, and to set the festivals in their seasons. The sky was the first clock and the first scripture - order written overhead for anyone who learned to read it.';
+const String _kDawnHouseRiteBadgeText =
+    "In Kemet, the priest entered the temple before sunrise, broke the seal on the shrine, and washed the god's image as the first light arrived. Dawn was not the start of work - it was the daily remaking of the world, and someone had to be awake to meet it.";
+const String _kEveningThresholdBadgeText =
+    'In Kemet, every temple gate had a keeper, and nothing crossed without being named. The threshold was a real boundary, not a doorway - what passed through it passed by choice. What was left at the gate stayed at the gate.';
+const String _kClosingBadgeText =
+    'In Kemet, sunset was not an ending but a departure. Ra boarded the night barque and began the dangerous passage through the twelve hours of darkness. The living closed their work, cooled the day, and let it go - because what is not set down cannot rest.';
+const String _kWeighingBadgeText =
+    "In Kemet, the heart was set on a scale against the feather of Ma'at, and Djehuty recorded what the balance showed. The scale did not condemn - it measured. A heart heavy with falsehood was simply a heart that did not match the truth.";
+const String _kOfferingTableBadgeText =
+    'In Kemet, the offering table was laid with water before bread, every single day, whether or not anyone felt moved to lay it. Provision was not gratitude - it was maintenance. What sustains life is fed first, and fed always.';
+const String _kTendingBadgeText =
+    'In Kemet, Aset gathered the scattered pieces of Ausar and Heru stood to restore the order that had collapsed. Care was never a warm feeling - it was specific labor, done for the vulnerable, whether or not it was easy. The gathering came before the standing.';
+const String _kKeptWordBadgeText =
+    'In Kemet, order in the kingdom began inside the palace walls. "The front of the house determines the back" - what was spoken truly in the closest relationships held everything further out together. You cannot keep order in the world while breaking it at home.';
+const String _kCourseBadgeText =
+    "In Kemet, a person stood inside three clocks at once: the sun's daily arc, the ten-day decan, and the turning season. To know the hour was not enough - you had to know what kind of time it was, and what that time was asking of you.";
+const String _kMoonReturnBadgeText =
+    'In Kemet, the moon was the Eye of Heru - wounded by Set, torn into pieces, and restored to wholeness by Djehuty across the month. The dark moon was not absence. It was the eye mid-healing, on its way back to full.';
+const String _kWagBadgeText =
+    'In Kemet, the Wag festival set water and bread before the blessed dead and spoke their names aloud. A name unspoken was a death deeper than the first. The living kept the dead alive by remembering them out loud - and trusted to be remembered in turn.';
+const String _kDecanWatchBadgeText =
+    'In Kemet, thirty-six star groups rose in turn through the night, each marking the passage of ten days. And above them stood the Imperishable Stars, which never set - the fixed point against which all time was measured. To watch them was to add your own count to a count older than memory.';
+const String _kDaysOutsideYearBadgeText =
+    'In Kemet, five days belonged to no month and no season - the births of Ausar, Heru, Set, Aset, and Nebet-Het, when ordinary time was suspended. You crossed the gap carrying nothing finished, and stepped into the new year remade.';
+const String _kOpenHandBadgeText =
+    'In Kemet, the just person recorded specific gifts on the tomb wall as proof of a life in Ma\'at: bread to the hungry, water to the thirsty, clothing to the naked, a boat to the one stranded on the shore. Generosity was not a sentiment. It was a list of things actually given.';
+const String _kDjedBadgeText =
+    'In Kemet, the Djed pillar - the backbone of Ausar - was hauled upright by ropes each year in a great ceremony. What had been scattered was gathered; what had fallen was made to stand. The spine holds not because it was never tested, but because it was raised again after the contest.';
+const String _kFairHearingBadgeText =
+    'In Kemet, the just official heard the petitioner out completely before judging - even when he could not grant every request. The Eloquent Peasant pleaded his case nine times, and the listening itself was part of the justice. A decision made before the hearing is finished is not a decision. It is a preference.';
+const String _kHouseOfLifeBadgeText =
+    'In Kemet, the Per-Ankh was a working scriptorium where texts were copied by hand, recited aloud, and corrected against the elders. Knowledge was not stored - it was kept alive by use, and what you learned accurately you owed to those who came after.';
+const String _kBoundaryStoneBadgeText =
+    "In Kemet, when the flood receded each year, the fields were re-surveyed and the boundary stones set back in their true places. To move a stone was to steal the land itself - Ma'at made visible in the earth. Knowing where what is yours ends is the beginning of order.";
+const String _kHotepBadgeText =
+    'In Kemet, htp named both the offering laid down and the peace received in return. The cool water was poured, the heart was cooled, and the day was complete. The work was finished not when you could give no more, but when what was owed had been given.';
+const String _kOpenMouthBadgeText =
+    'In Kemet, the heart conceived a thing and the tongue spoke it into being - this was how Ptah made the world. Speech was not description; it was creation. The Opening of the Mouth gave a statue the power to breathe and eat. What leaves your mouth is already shaping the world.';
+const String _kLivingRecordBadgeText =
+    "In Kemet, every event was dated and set in its place - Merer's logbook of the days, the year-by-year compartments of the Palermo Stone. Work outside of time was only an anecdote. What was dated, placed, and written down became record, and record endured.";
+const String _kHetHeruBadgeText =
+    'In Kemet, the Eye of Ra went out as Sekhmet and would not stop killing, even when called back. The gods did not fight her - they flooded the field with seven thousand jars of beer dyed red as blood. She drank, slept, and woke as Het-Heru, the Golden One. The fierce force was not defeated. It was filled.';
+const String _kShoreBadgeText =
+    'In Kemet, honest trade was weighed on a true scale, and Djehuty\'s ape sat beside the balance as its heart. "The measure is the eye of Ra." Goods gained by a tilted scale turned to lead by morning - what is taken dishonestly never truly stays.';
+const String _kAutobiographyBadgeText =
+    'In Kemet, a life was carved on the tomb wall for the living who passed by to read - not boasts, but a reckoning: what I built, what I gave, what I stood for. The account had to be honest, because the same deeds would be weighed on the scale. A life set down plainly is a life that endures.';
+const String _kFirstArrangementBadgeText =
+    'In Kemet, creation itself was Zep Tepi - the First Occasion, when the gods set each thing in its proper place and order rose out of the waters. To order a space is to repeat that first act in miniature: not to add, but to put what exists where it belongs.';
+const String _kLivingPatternBadgeText =
+    'In Kemet, the deepest principles were read from the natural world - the flood that gave and withdrew, the jackal at the desert\'s edge, the star that vanished and returned. Nature was a text written by the gods, and patient watching, not invention, was how you read it.';
+const String _kTrueNameBadgeText =
+    "In Kemet, the ren - the true name - was one of the real parts of a person, as real as the body. To know a thing's accurate name was to know its nature; Aset gained power over Ra by learning the name he had hidden. The account others gave you is not always the name the scale shows.";
+const String _kLivingTextBadgeText =
+    "In Kemet, a scribe's note in the margin could be carried into the next copy, and the next - a reader's insight becoming part of the text itself. The writing was never finished. Each careful reader added to a thing that had been growing for generations.";
+const String _kClearingBadgeText =
+    'In Kemet, the temperate person was likened to a tree grown in open sun - fruitful, shading others, ending its days in a grove. The hot-headed person was a tree in an enclosure, stripped of its leaves in a single moment. The difference was not temperament. It was where the heat could reach.';
+const String _kWanderingBadgeText =
+    'In Kemet, when Ausar was lost, Aset and Nebet-Het searched the length of the land, lamenting as they went, until they found him. Grief was given a shape and a journey. The searching was not weakness - it was the work, and "I found" was the cry at the end of it.';
+const String _kKhatBadgeText =
+    'In Kemet, the body was one of the five parts of a person, and the gods themselves tended it - Horus washing the flesh, Thoth washing the feet. The body was not a vessel to escape but a thing to restore. "Teti is sound because of his body."';
+const String _kOracleBadgeText =
+    'In Kemet, those seeking an answer slept in the shadow of the god and waited for the night to send a dream. The young Thutmose did this at the foot of the Sphinx, received his answer, woke, and acted - and became king. The dream was not idle. It was a message, if you prepared to receive it.';
+
 class _MaatFlowTemplate {
   final String key; // stable identifier (e.g., "wealth-economy")
   final String title; // flow title
   final String overview; // overview / description
   final String subtitle; // category and short list description
+  final String historicalBadgeText; // contextual source badge
   final _MaatFlowLibraryCategory libraryCategory;
   final String glyph;
   final String glyphMeaning;
@@ -3135,6 +3202,7 @@ class _MaatFlowTemplate {
     required this.title,
     required this.overview,
     required this.subtitle,
+    this.historicalBadgeText = '',
     required this.libraryCategory,
     required this.glyph,
     required this.glyphMeaning,
@@ -3169,6 +3237,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     overview:
         'Follow the Sky places major visible sky events on the calendar with simple witness prompts. Step outside when you can, notice what changed above you, and keep one clear line of observation in Kemetic time.',
     subtitle: 'Sky · Track the year\'s astronomical events in Kemetic time',
+    historicalBadgeText: _kTrackSkyBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: '𓇯',
     glyphMeaning: 'Sky and heavens',
@@ -3182,6 +3251,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kDawnHouseRiteTitle,
     overview: kDawnHouseRiteOverview,
     subtitle: 'Daily · Water, light, and one right act at dawn',
+    historicalBadgeText: _kDawnHouseRiteBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: '𓉐',
     glyphMeaning: 'House',
@@ -3195,6 +3265,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kEveningThresholdTitle,
     overview: kEveningThresholdOverview,
     subtitle: kEveningThresholdSubtitle,
+    historicalBadgeText: _kEveningThresholdBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kEveningThresholdGlyph,
     glyphMeaning: 'Sun at the threshold with the heart weighed',
@@ -3208,6 +3279,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kEveningThresholdRiteTitle,
     overview: kEveningThresholdRiteOverview,
     subtitle: 'Daily · Close the visible day before the night begins',
+    historicalBadgeText: _kClosingBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: '𓊌',
     glyphMeaning: 'Boundary or threshold',
@@ -3221,6 +3293,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheWeighingTitle,
     overview: kTheWeighingOverview,
     subtitle: 'Reckoning · Put material and spoken records on the scale',
+    historicalBadgeText: _kWeighingBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kTheWeighingGlyph,
     glyphMeaning: 'Balance and weighing',
@@ -3234,6 +3307,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kOfferingTableTitle,
     overview: kOfferingTableOverview,
     subtitle: 'Provision · Water first, then food, rest, and care',
+    historicalBadgeText: _kOfferingTableBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kOfferingTableGlyph,
     glyphMeaning: 'Offering table',
@@ -3247,6 +3321,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheTendingTitle,
     overview: kTheTendingOverview,
     subtitle: 'Care · Find who needs you and do the labor',
+    historicalBadgeText: _kTendingBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kTheTendingGlyph,
     glyphMeaning: 'Field and tending',
@@ -3260,6 +3335,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kKeptWordTitle,
     overview: kKeptWordOverview,
     subtitle: 'Speech · Name broken agreements and restore right order',
+    historicalBadgeText: _kKeptWordBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kKeptWordGlyph,
     glyphMeaning: 'Mouth and speech',
@@ -3273,6 +3349,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheCourseTitle,
     overview: kTheCourseOverview,
     subtitle: 'Time · Locate yourself in the day, decan, and season',
+    historicalBadgeText: _kCourseBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kTheCourseGlyph,
     glyphMeaning: 'Road, path, and course',
@@ -3286,6 +3363,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kMoonReturnTitle,
     overview: kMoonReturnOverview,
     subtitle: 'Sky · The Eye empties at the new moon and fills at the full',
+    historicalBadgeText: _kMoonReturnBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kMoonReturnGlyph,
     glyphMeaning: 'Moon',
@@ -3299,6 +3377,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheWagTitle,
     overview: kTheWagOverview,
     subtitle: 'Ancestors · Name the dead, set the table, hold the feast',
+    historicalBadgeText: _kWagBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kTheWagGlyph,
     glyphMeaning: 'Bark and procession',
@@ -3312,6 +3391,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kDecanWatchTitle,
     overview: kDecanWatchOverview,
     subtitle: 'Sky · Stand under the sky at each ten-day boundary',
+    historicalBadgeText: _kDecanWatchBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kDecanWatchGlyph,
     glyphMeaning: 'Star',
@@ -3325,6 +3405,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kDaysOutsideTheYearTitle,
     overview: kDaysOutsideTheYearOverview,
     subtitle: 'Threshold · Five births before the year opens',
+    historicalBadgeText: _kDaysOutsideYearBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kDaysOutsideTheYearGlyph,
     glyphMeaning: 'Year',
@@ -3338,6 +3419,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheOpenHandTitle,
     overview: kOpenHandOverview,
     subtitle: 'Giving · See need and give beyond the circle of obligation',
+    historicalBadgeText: _kOpenHandBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kTheOpenHandGlyph,
     glyphMeaning: 'Hand',
@@ -3351,6 +3433,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheDjedTitle,
     overview: kDjedOverview,
     subtitle: 'Stability · Name the spine and raise the Djed',
+    historicalBadgeText: _kDjedBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kTheDjedGlyph,
     glyphMeaning: 'Djed pillar',
@@ -3364,6 +3447,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kReadingHouseTitle,
     overview: kReadingHouseOverview,
     subtitle: 'Private study · Book-club foundation',
+    historicalBadgeText: kReadingHouseHistoricalBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kReadingHouseGlyph,
     glyphMeaning: 'House',
@@ -3377,6 +3461,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kFairHearingTitle,
     overview: kFairHearingOverview,
     subtitle: 'Judgment · Hear fully before deciding, pronounce clearly',
+    historicalBadgeText: _kFairHearingBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kFairHearingGlyph,
     glyphMeaning: 'Ear and hearing',
@@ -3390,6 +3475,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kHouseOfLifeTitle,
     overview: kHouseOfLifeOverview,
     subtitle: 'Knowledge · Write, recite, seek those who know more, transmit',
+    historicalBadgeText: _kHouseOfLifeBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kHouseOfLifeGlyph,
     glyphMeaning: 'House and life',
@@ -3403,6 +3489,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kBoundaryStoneTitle,
     overview: kBoundaryStoneOverview,
     subtitle: 'Restraint · Map what is yours and restore the stones that moved',
+    historicalBadgeText: _kBoundaryStoneBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kBoundaryStoneGlyph,
     glyphMeaning: 'Boundary-stone and landmark',
@@ -3416,6 +3503,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kHotepTitle,
     overview: kHotepOverview,
     subtitle: 'Rest · The offering was given. Cool the heart before sleep.',
+    historicalBadgeText: _kHotepBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kHotepGlyph,
     glyphMeaning: 'Offering table',
@@ -3429,6 +3517,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kOpenMouthTitle,
     overview: kOpenMouthOverview,
     subtitle: 'Speech · Govern what the mouth creates before it leaves',
+    historicalBadgeText: _kOpenMouthBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kOpenMouthGlyph,
     glyphMeaning: 'Mouth and speech',
@@ -3442,6 +3531,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kLivingRecordTitle,
     overview: kLivingRecordOverview,
     subtitle: 'Practice · Build the full decan record across ḥꜣw',
+    historicalBadgeText: _kLivingRecordBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kLivingRecordGlyph,
     glyphMeaning: 'Scribe palette and record',
@@ -3456,6 +3546,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     overview: kHetHeruOverview,
     subtitle:
         'Joy · Name the Sekhmet. Find the red beer. Wake as the golden one.',
+    historicalBadgeText: _kHetHeruBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kHetHeruGlyph,
     glyphMeaning: 'Het-Heru enclosure',
@@ -3469,6 +3560,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheShoreTitle,
     overview: kTheShoreOverview,
     subtitle: 'Exchange · Bring what you have and weigh it honestly',
+    historicalBadgeText: _kShoreBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kTheShoreGlyph,
     glyphMeaning: 'Shore and water edge',
@@ -3482,6 +3574,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheAutobiographyTitle,
     overview: kTheAutobiographyOverview,
     subtitle: 'Legacy · Survey the years and write the honest account',
+    historicalBadgeText: _kAutobiographyBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kTheAutobiographyGlyph,
     glyphMeaning: 'Record and person',
@@ -3495,6 +3588,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kFirstArrangementTitle,
     overview: kFirstArrangementOverview,
     subtitle: 'Space · See what is there and order it from the first occasion',
+    historicalBadgeText: _kFirstArrangementBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kFirstArrangementGlyph,
     glyphMeaning: 'Ordered land or ground',
@@ -3508,6 +3602,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kLivingPatternTitle,
     overview: kLivingPatternOverview,
     subtitle: 'Nature · Observe one subject until a real pattern appears',
+    historicalBadgeText: _kLivingPatternBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kLivingPatternGlyph,
     glyphMeaning: 'Patterned natural form',
@@ -3522,6 +3617,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     overview: kTrueNameOverview,
     subtitle:
         'Identity · Find the false account and speak what the scale shows',
+    historicalBadgeText: _kTrueNameBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kTrueNameGlyph,
     glyphMeaning: 'Spoken name',
@@ -3535,6 +3631,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kLivingTextTitle,
     overview: kLivingTextOverview,
     subtitle: 'Library · Read carefully, add your insights, leave a mark',
+    historicalBadgeText: _kLivingTextBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kLivingTextGlyph,
     glyphMeaning: 'Text and life',
@@ -3549,6 +3646,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     overview: kClearingOverview,
     subtitle:
         'Stillness · Find the heat-driven pattern. Create space before response.',
+    historicalBadgeText: _kClearingBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kClearingGlyph,
     glyphMeaning: 'Water and cleansing',
@@ -3563,6 +3661,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     overview: kWanderingOverview,
     subtitle:
         'Grief · Name the loss, search for what remains, stand when ready',
+    historicalBadgeText: _kWanderingBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kWanderingGlyph,
     glyphMeaning: 'Walking legs and movement',
@@ -3576,6 +3675,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kKhatTitle,
     overview: kKhatOverview,
     subtitle: 'Body · Listen to the body, provide what it needs, raise it',
+    historicalBadgeText: _kKhatBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kKhatGlyph,
     glyphMeaning: 'Corpse or mummy-form body',
@@ -3590,6 +3690,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     overview: kOracleOverview,
     subtitle:
         'Dreams · Prepare the question, receive what the night sends, act',
+    historicalBadgeText: _kOracleBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kOracleGlyph,
     glyphMeaning: 'Hearing and receiving an answer',
@@ -8705,7 +8806,7 @@ class CalendarPageState extends State<CalendarPage>
     final currentDocument =
         _journalController.currentDocument ??
         JournalDocument.fromPlainText(_journalController.currentDraft);
-    final nextDocument = MaatJournalResponseBlockUtils.upsert(
+    final nextDocument = MaatJournalResponseBlockUtils.upsertPlainUserText(
       currentDocument,
       block,
     );
@@ -8842,6 +8943,8 @@ class CalendarPageState extends State<CalendarPage>
   bool _calendarProgressSaveInFlight = false;
   DayViewRestorationState? _activeDayViewRestorationState;
   DayViewRestorationState? _pendingPersistentDayViewState;
+  final DayViewRestorationWriteGate _dayViewRestorationWriteGate =
+      DayViewRestorationWriteGate();
   bool _persistentDayViewRestoreAttempted = false;
   bool _pendingAuthResolutionForRestore = false;
   String? _tentativeRestorationUserId;
@@ -8873,6 +8976,7 @@ class CalendarPageState extends State<CalendarPage>
   final Map<int, int> _flowTotalEventCounts = <int, int>{};
   final Map<int, int> _flowRemainingEventCounts = <int, int>{};
   _MyFlowsFilingSnapshot? _myFlowsFilingSnapshotCache;
+  Future<_MyFlowsFilingSnapshot>? _myFlowsFilingSnapshotLoadInFlight;
   int _nextFlowId = 1;
   // Removed _nextAlarmId; notifications are persisted via Notify.scheduleAlertWithPersistence
   final ScrollController _scrollCtrl = ScrollController();
@@ -15716,7 +15820,20 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> _persistDayViewState(
     DayViewRestorationState state, {
     required String reason,
+    int? writeSessionId,
   }) async {
+    if (!_dayViewRestorationWriteGate.shouldPersist(
+      isOpen: state.isOpen,
+      sessionId: writeSessionId,
+    )) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[restoration] ignored stale day_view reason=$reason '
+          'open=${state.isOpen}',
+        );
+      }
+      return;
+    }
     _activeDayViewRestorationState = state;
     await AppRestorationService.instance.saveDayViewState(state);
     if (kDebugMode) {
@@ -15732,6 +15849,7 @@ class CalendarPageState extends State<CalendarPage>
     _pendingPersistentDayViewState = null;
     _persistentDayViewRestoreAttempted = true;
     _calendarOverlayRestoreAttempted = true;
+    _dayViewRestorationWriteGate.markActiveClosed();
     final dayViewState = _activeDayViewRestorationState;
     if (dayViewState != null && dayViewState.isOpen) {
       final closedState = dayViewState.copyWith(
@@ -27249,14 +27367,20 @@ class CalendarPageState extends State<CalendarPage>
       scrollOffset: initialScrollOffset,
       eventDetail: initialEventDetailRestorationState,
     );
+    final dayViewWriteSession = _dayViewRestorationWriteGate.beginOpen();
     _activeDayViewRestorationState = initialDayViewState;
     unawaited(_saveCalendarRestorationNow(reason: 'before_day_view_open'));
     unawaited(
-      _persistDayViewState(initialDayViewState, reason: 'day_view_open'),
+      _persistDayViewState(
+        initialDayViewState,
+        reason: 'day_view_open',
+        writeSessionId: dayViewWriteSession,
+      ),
     );
     var dayViewUserCloseReported = false;
     Future<void> persistUserClosedDayView() async {
       dayViewUserCloseReported = true;
+      _dayViewRestorationWriteGate.markClosed(dayViewWriteSession);
       final closedState =
           (_activeDayViewRestorationState ?? initialDayViewState).copyWith(
             isOpen: false,
@@ -27422,6 +27546,11 @@ class CalendarPageState extends State<CalendarPage>
                 if (dayViewUserCloseReported) {
                   return;
                 }
+                if (!_dayViewRestorationWriteGate.canAcceptOpenWrite(
+                  dayViewWriteSession,
+                )) {
+                  return;
+                }
                 final state = DayViewRestorationState(
                   isOpen: true,
                   kYear: kYear,
@@ -27432,9 +27561,12 @@ class CalendarPageState extends State<CalendarPage>
                   scrollOffset: scrollOffset,
                   eventDetail: eventDetail,
                 );
-                _activeDayViewRestorationState = state;
                 unawaited(
-                  _persistDayViewState(state, reason: 'day_view_state_changed'),
+                  _persistDayViewState(
+                    state,
+                    reason: 'day_view_state_changed',
+                    writeSessionId: dayViewWriteSession,
+                  ),
                 );
               },
         ),
@@ -27447,6 +27579,7 @@ class CalendarPageState extends State<CalendarPage>
               .shouldPreserveOverlayForLifecycleClose;
       if (!preserveForLifecycle &&
           (_activeDayViewRestorationState?.isOpen ?? true)) {
+        _dayViewRestorationWriteGate.markClosed(dayViewWriteSession);
         final closedState =
             (_activeDayViewRestorationState ?? initialDayViewState).copyWith(
               isOpen: false,
@@ -31103,14 +31236,28 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<_MyFlowsFilingSnapshot> _loadMyFlowsFilingSnapshot() async {
-    final rows = await _flowsRepo.refreshMyFiledFlows();
-    final snapshot = _myFlowsFilingSnapshotFromRows(rows);
-    _myFlowsFilingSnapshotCache = snapshot;
-    CalendarPage._reconcileRememberedMaatJoinsFromLiveSnapshot(snapshot);
-    return snapshot;
+    final inFlight = _myFlowsFilingSnapshotLoadInFlight;
+    if (inFlight != null) return inFlight;
+
+    final load = () async {
+      final rows = await _flowsRepo.refreshMyFiledFlows();
+      final snapshot = _myFlowsFilingSnapshotFromRows(rows);
+      _myFlowsFilingSnapshotCache = snapshot;
+      CalendarPage._reconcileRememberedMaatJoinsFromLiveSnapshot(snapshot);
+      return snapshot;
+    }();
+    _myFlowsFilingSnapshotLoadInFlight = load;
+    try {
+      return await load;
+    } finally {
+      if (identical(_myFlowsFilingSnapshotLoadInFlight, load)) {
+        _myFlowsFilingSnapshotLoadInFlight = null;
+      }
+    }
   }
 
   void _primeMyFlowsFilingSnapshotCache({String reason = 'prime'}) {
+    if (_myFlowsFilingSnapshotLoadInFlight != null) return;
     unawaited(() async {
       try {
         await _restoreMyFlowsFilingSnapshotCache(reason: reason);

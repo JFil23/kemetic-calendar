@@ -132,6 +132,35 @@ extension MaatFlowJournalPolicyX on MaatFlowJournalPolicy {
   }
 }
 
+enum MaatFlowJournalCarryMode { none, userReflection }
+
+extension MaatFlowJournalCarryModeX on MaatFlowJournalCarryMode {
+  String get wireName {
+    switch (this) {
+      case MaatFlowJournalCarryMode.none:
+        return 'none';
+      case MaatFlowJournalCarryMode.userReflection:
+        return 'user_reflection';
+    }
+  }
+
+  bool get carriesPlainUserText {
+    return this == MaatFlowJournalCarryMode.userReflection;
+  }
+
+  static MaatFlowJournalCarryMode fromWireName(String? raw) {
+    switch (raw?.trim().toLowerCase()) {
+      case 'user_reflection':
+      case 'user-reflection':
+      case 'reflection':
+        return MaatFlowJournalCarryMode.userReflection;
+      case 'none':
+      default:
+        return MaatFlowJournalCarryMode.none;
+    }
+  }
+}
+
 enum MaatFlowResponseJournalFormatter {
   standard,
   decanWatch,
@@ -367,6 +396,7 @@ class MaatFlowResponseSpec {
     this.options = const <MaatFlowResponseOption>[],
     this.requiredForObserved = false,
     this.journalPolicy = MaatFlowJournalPolicy.localOnly,
+    this.journalCarryMode = MaatFlowJournalCarryMode.none,
     this.journalLabel,
     this.journalGroupId,
     this.journalGroupLabel,
@@ -393,6 +423,7 @@ class MaatFlowResponseSpec {
   final List<MaatFlowResponseOption> options;
   final bool requiredForObserved;
   final MaatFlowJournalPolicy journalPolicy;
+  final MaatFlowJournalCarryMode journalCarryMode;
   final String? journalLabel;
   final String? journalGroupId;
   final String? journalGroupLabel;

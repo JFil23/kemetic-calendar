@@ -74,6 +74,7 @@ import '../../services/app_haptics.dart';
 import '../../services/app_restoration_service.dart';
 import '../../utils/external_link_utils.dart';
 import '../../utils/flow_filter_engine.dart';
+import '../../utils/text_editing_controller_sync.dart';
 import '../shared_practice/shared_practice_completion_sheet.dart';
 
 const double _kMinEventBlockHeight = 56.0;
@@ -3880,6 +3881,15 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       ],
     );
 
+    final keyboardBottomPadding =
+        math.max(
+              MediaQuery.viewInsetsOf(context).bottom,
+              keyboardInsetOf(context),
+            ) >
+            0
+        ? 120.0
+        : 0.0;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: DayViewRitualCompletionFeedbackCard._withVisual(
@@ -3888,6 +3898,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         child: scrollable
             ? SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.only(bottom: keyboardBottomPadding),
                 child: body,
               )
             : body,
@@ -4336,10 +4349,18 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final hasOnboardingClosingBanner =
         _isOnboardingTargetEvent(target.event) &&
         widget.onboardingClosingBannerBuilder != null;
-    final maxSheetHeight = math.min(
-      MediaQuery.sizeOf(context).height * 0.68,
-      520.0,
+    final media = MediaQuery.of(context);
+    final keyboardInset = math.max(
+      MediaQuery.viewInsetsOf(context).bottom,
+      keyboardInsetOf(context),
     );
+    final availableSheetHeight = math.max(
+      260.0,
+      media.size.height - keyboardInset - media.padding.top - 12,
+    );
+    final maxSheetHeight = keyboardInset > 0
+        ? availableSheetHeight
+        : math.min(media.size.height * 0.68, 520.0);
     final reservedChromeHeight = hasOnboardingClosingBanner ? 250.0 : 120.0;
     final sheetHeight = (_measuredHeights[currentKey] ?? 200.0)
         .clamp(0.0, math.max(180.0, maxSheetHeight - reservedChromeHeight))
@@ -4441,16 +4462,19 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       ],
     );
 
-    return SafeArea(
-      top: false,
-      child: hasOnboardingClosingBanner
-          ? ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(context).height * 0.94,
-              ),
-              child: SingleChildScrollView(child: content),
-            )
-          : content,
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      padding: EdgeInsets.only(bottom: keyboardInset),
+      child: SafeArea(
+        top: false,
+        child: hasOnboardingClosingBanner
+            ? ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: availableSheetHeight),
+                child: SingleChildScrollView(child: content),
+              )
+            : content,
+      ),
     );
   }
 
@@ -8542,8 +8566,11 @@ class _DecanWatchLocalNotesPanelState
       globalDecanId: _globalDecanId,
     );
     if (!mounted) return;
-    _skyController.text = record.skyNote ?? '';
-    _intentionController.text = record.decanIntention ?? '';
+    syncTextEditingControllerText(_skyController, record.skyNote ?? '');
+    syncTextEditingControllerText(
+      _intentionController,
+      record.decanIntention ?? '',
+    );
     setState(() {
       _observedFromInside =
           record.observedFromInside ||
@@ -8971,8 +8998,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   int _decanWatchResponseLoadGeneration = 0;
   Map<String, MaatFlowResponseValue> _responseValues =
       const <String, MaatFlowResponseValue>{};
-  final Set<String> _suppressedOfferResponseSourceIds = <String>{};
-  final Set<String> _includedOfferResponseSourceIds = <String>{};
   bool _responseDirty = false;
 
   @override
@@ -9127,8 +9152,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     if (oldWidget.event.clientEventId != widget.event.clientEventId) {
       _cancelCompletionFeedback();
       _responseValues = const <String, MaatFlowResponseValue>{};
-      _suppressedOfferResponseSourceIds.clear();
-      _includedOfferResponseSourceIds.clear();
       _responseDirty = false;
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
@@ -9137,8 +9160,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       unawaited(_load());
     } else if (oldWidget.reloadSignal != widget.reloadSignal) {
       _responseValues = const <String, MaatFlowResponseValue>{};
-      _suppressedOfferResponseSourceIds.clear();
-      _includedOfferResponseSourceIds.clear();
       _responseDirty = false;
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
@@ -9150,8 +9171,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       widget.responseSpecs,
     )) {
       _responseValues = const <String, MaatFlowResponseValue>{};
-      _suppressedOfferResponseSourceIds.clear();
-      _includedOfferResponseSourceIds.clear();
       _responseDirty = false;
       if (_usesDecanWatchResponseBridge) {
         unawaited(_loadDecanWatchResponseValuesIfNeeded());
@@ -10815,21 +10834,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     return sourceIds;
   }
 
-  List<MaatFlowResponseJournalPreview> _responseJournalPreviews({
-    CompletionStatus completionStatus = CompletionStatus.none,
-  }) {
-    final localDate = _eventGregorianDate;
-    return buildMaatFlowResponseJournalPreviews(
-      specs: widget.responseSpecs,
-      values: _responseValues,
-      completionStatus: completionStatus,
-      eventKey: _maatFlowResponseEventKey(widget.completion),
-      sourceIdForSpec: (spec) => _responseSourceId(spec, localDate),
-      sourceIdForGroup: (spec, groupId) =>
-          _responseGroupSourceId(spec, groupId, localDate),
-    );
-  }
-
   void _handleResponseChanged(MaatFlowResponseValue value) {
     final nextValues = <String, MaatFlowResponseValue>{
       ..._responseValues,
@@ -10852,56 +10856,22 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     if (writer == null || widget.responseSpecs.isEmpty) return;
 
     final localDate = _eventGregorianDate;
-    final previews = _responseJournalPreviews(
-      completionStatus: completionStatus,
-    );
-    final blocks = buildMaatJournalResponseBlocksForPolicy(
+    final includeText =
+        completionStatus == CompletionStatus.observed ||
+        completionStatus == CompletionStatus.partial;
+    final blocks = buildMaatJournalPlainUserTextBlocks(
       sourceIds: _responseBlockSourceIds(localDate),
-      previews: previews,
+      specs: widget.responseSpecs,
+      values: _responseValues,
       localDate: localDate,
-      includedOfferSourceIds: _journalIncludedOfferSourceIds(previews),
+      includeText: includeText,
+      sourceIdForSpec: (spec) => _responseSourceId(spec, localDate),
+      sourceIdForGroup: (spec, groupId) =>
+          _responseGroupSourceId(spec, groupId, localDate),
     );
     for (final block in blocks) {
       await writer(block);
     }
-  }
-
-  Set<String> _journalIncludedOfferSourceIds(
-    List<MaatFlowResponseJournalPreview> previews,
-  ) {
-    return previews
-        .where(
-          (preview) =>
-              preview.policy == MaatFlowJournalPolicy.offer &&
-              _isJournalPreviewIncluded(preview),
-        )
-        .map((preview) => preview.sourceId)
-        .toSet();
-  }
-
-  bool _isJournalPreviewIncluded(MaatFlowResponseJournalPreview preview) {
-    if (preview.policy != MaatFlowJournalPolicy.offer) return true;
-    if (preview.includeInJournalByDefault) {
-      return !_suppressedOfferResponseSourceIds.contains(preview.sourceId);
-    }
-    return _includedOfferResponseSourceIds.contains(preview.sourceId);
-  }
-
-  void _setJournalPreviewIncluded(
-    MaatFlowResponseJournalPreview preview,
-    bool included,
-  ) {
-    if (preview.policy != MaatFlowJournalPolicy.offer) return;
-    setState(() {
-      if (included) {
-        _suppressedOfferResponseSourceIds.remove(preview.sourceId);
-        _includedOfferResponseSourceIds.add(preview.sourceId);
-      } else {
-        _suppressedOfferResponseSourceIds.add(preview.sourceId);
-        _includedOfferResponseSourceIds.remove(preview.sourceId);
-      }
-      _responseDirty = true;
-    });
   }
 
   Widget? _buildResponseSection() {
@@ -10912,17 +10882,12 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       ),
       specs: widget.responseSpecs,
       values: _responseValues,
-      journalPreviews: _responseJournalPreviews(
-        completionStatus: CompletionStatusX.fromWireName(_status),
-      ),
       title: _isReadingHouseCompletion ? 'Private margin' : null,
       subtitle: _isReadingHouseCompletion
           ? 'Local notes stay on this device. Writing is optional; Carrying or Not yet is required.'
           : null,
       saveLabel: _isReadingHouseCompletion ? 'Save private margin' : 'Save',
       saving: _readingHousePrivateMarginSaving,
-      isJournalPreviewIncluded: _isJournalPreviewIncluded,
-      onJournalPreviewInclusionChanged: _setJournalPreviewIncluded,
       onSave: _isReadingHouseCompletion
           ? () => unawaited(_saveReadingHousePrivateMargin())
           : null,
@@ -12610,7 +12575,7 @@ class _TheTendingLocalNotesPanelState
     );
     final careList = await _store.loadCareList(widget.flowId);
     if (!mounted) return;
-    _controller.text = text;
+    syncTextEditingControllerText(_controller, text);
     setState(() {
       _careListCount = careList.length;
       _loading = false;
@@ -12859,7 +12824,7 @@ class _KeptWordLocalNotesPanelState extends State<_KeptWordLocalNotesPanel> {
     final completed = await _store.loadConversationCompleted(widget.flowId);
     final paused = await _store.loadConversationPaused(widget.flowId);
     if (!mounted) return;
-    _controller.text = text;
+    syncTextEditingControllerText(_controller, text);
     setState(() {
       _agreementCount = agreements.length;
       _conversationCompleted = completed;
@@ -13172,7 +13137,7 @@ class _TheWagLocalNotesPanelState extends State<_TheWagLocalNotesPanel> {
     );
     final ancestors = await _store.loadAncestorNames(widget.flowId);
     if (!mounted) return;
-    _controller.text = text;
+    syncTextEditingControllerText(_controller, text);
     setState(() {
       _ancestorCount = ancestors.length;
       _loading = false;
@@ -13419,7 +13384,7 @@ class _DaysOutsideYearLocalNotesPanelState
       widget.event.localPrompt,
     );
     if (!mounted) return;
-    _controller.text = text;
+    syncTextEditingControllerText(_controller, text);
     setState(() => _loading = false);
   }
 
@@ -13636,8 +13601,8 @@ class _OpenHandLocalNotesPanelState extends State<_OpenHandLocalNotesPanel> {
         ? await _store.loadDeferredStrangerActDate(widget.flowId)
         : '';
     if (!mounted) return;
-    _controller.text = text;
-    _deferredController.text = deferred;
+    syncTextEditingControllerText(_controller, text);
+    syncTextEditingControllerText(_deferredController, deferred);
     setState(() {
       _actCompleted = completed;
       _loading = false;
@@ -13905,7 +13870,7 @@ class _DjedLocalNotesPanelState extends State<_DjedLocalNotesPanel> {
     );
     final raisingCompleted = await _store.loadRaisingCompleted(widget.flowId);
     if (!mounted) return;
-    _controller.text = text;
+    syncTextEditingControllerText(_controller, text);
     setState(() {
       _directEngagementCompleted = directCompleted;
       _raisingCompleted = raisingCompleted;

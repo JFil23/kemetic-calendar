@@ -58,6 +58,12 @@ void main() {
       MaatFlowJournalPolicyX.fromWireName('local-only'),
       MaatFlowJournalPolicy.localOnly,
     );
+    expect(MaatFlowJournalCarryMode.none.wireName, 'none');
+    expect(MaatFlowJournalCarryMode.userReflection.wireName, 'user_reflection');
+    expect(
+      MaatFlowJournalCarryModeX.fromWireName('reflection'),
+      MaatFlowJournalCarryMode.userReflection,
+    );
 
     expect(MaatFlowResponseJournalFormatter.standard.wireName, 'standard');
     expect(MaatFlowResponseJournalFormatter.decanWatch.wireName, 'decan_watch');
@@ -523,6 +529,30 @@ void main() {
         reason: flowKey,
       );
     }
+  });
+
+  test('journal carry mode is explicit and reflection-aware', () {
+    final eveningThreshold = resolveMaatFlowResponseSpecs(
+      flowKey: kEveningThresholdRiteFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    ).single;
+    final boundaryStoneSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kBoundaryStoneFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final boundaryMarker = boundaryStoneSpecs.singleWhere(
+      (spec) => spec.id == 'boundary-stone-marker-restored',
+    );
+    final boundaryReflection = boundaryStoneSpecs.singleWhere(
+      (spec) => spec.id == 'boundary-stone-restored',
+    );
+
+    expect(eveningThreshold.journalCarryMode, MaatFlowJournalCarryMode.none);
+    expect(boundaryMarker.journalCarryMode, MaatFlowJournalCarryMode.none);
+    expect(
+      boundaryReflection.journalCarryMode,
+      MaatFlowJournalCarryMode.userReflection,
+    );
   });
 
   test(
@@ -1949,7 +1979,11 @@ void main() {
     expect(dayView, contains('resolveMaatFlowResponseSpecs('));
     expect(dayView, contains('MaatFlowResponseSurface.calendarSheet'));
     expect(dayView, contains('MaatFlowResponseSection('));
-    expect(dayView, contains('journalPreviews: _responseJournalPreviews('));
+    expect(dayView, contains('buildMaatJournalPlainUserTextBlocks('));
+    expect(dayView, isNot(contains('journalPreviews:')));
+    expect(dayView, isNot(contains('_responseJournalPreviews')));
+    expect(dayView, isNot(contains('Journal preview')));
+    expect(dayView, isNot(contains('Add to journal')));
     expect(dayView, contains('responseSpecs: responseSpecs'));
     expect(dayView, contains('class _CalendarEventDetailSheetState'));
     expect(dayView, contains('_MaatFlowCompletionPanel('));

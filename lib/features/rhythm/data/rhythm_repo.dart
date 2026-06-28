@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile/core/supabase_auth_retry.dart';
+import 'package:mobile/telemetry/telemetry.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/rhythm_models.dart';
@@ -34,8 +36,6 @@ class RhythmRepo {
   }
 
   String? get _userId => _client.auth.currentUser?.id;
-  String get _projectRef =>
-      Uri.tryParse(_supabaseUrl)?.host.split('.').first ?? '';
 
   void _logNoteAction(
     String action, {
@@ -44,10 +44,11 @@ class RhythmRepo {
     Object? error,
     String? detail,
   }) {
-    final uid = _userId ?? '<null>';
-    final url = _supabaseUrl;
+    if (!kDebugMode) return;
+    final uid = safeLogIdentifier(_userId);
     final buf = StringBuffer(
-      '[planner-notes] $action uid=$uid url=$url ref=$_projectRef',
+      '[planner-notes] $action user=$uid '
+      'supabaseConfigured=${_supabaseUrl.isNotEmpty}',
     );
     if (missingTables != null) buf.write(' missingTables=$missingTables');
     if (friendlyError != null) buf.write(' friendlyError="$friendlyError"');

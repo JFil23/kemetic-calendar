@@ -4789,6 +4789,7 @@ class _MaatFlowTemplateDetailPageState
     Widget? initialPromptSlot,
   }) {
     final palette = _palette;
+    final historicalBadgeText = widget.template.historicalBadgeText.trim();
     return [
       _buildMaatFlowDetailHero(tagline: tagline),
       const SizedBox(height: 16),
@@ -4806,6 +4807,10 @@ class _MaatFlowTemplateDetailPageState
       if (initialPromptSlot != null) ...[
         const SizedBox(height: 16),
         initialPromptSlot,
+      ],
+      if (historicalBadgeText.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        _buildMaatFlowHistoricalBadge(historicalBadgeText),
       ],
       if (extraOverviewNote != null) ...[
         const SizedBox(height: 12),
@@ -6082,6 +6087,15 @@ class _MaatFlowTemplateDetailPageState
           height: 1.38,
         ),
       ),
+    );
+  }
+
+  Widget _buildMaatFlowHistoricalBadge(String text) {
+    return _buildMaatFlowNotice(
+      text,
+      borderColor: _palette.accent.withValues(alpha: 0.30),
+      textColor: MaatFlowPalette.silverHi,
+      fontWeight: FontWeight.w500,
     );
   }
 
@@ -8124,10 +8138,6 @@ class _MaatFlowTemplateDetailPageState
           content: _detailContentForTemplate(overrideChips: null),
           tagline: kReadingHouseTagline,
           initialPromptSlot: initialPromptSlot,
-          extraOverviewNote: _buildMaatFlowNotice(
-            kReadingHouseEnrollmentCopy,
-            borderColor: _palette.accent.withValues(alpha: 0.38),
-          ),
           configurationControls: [
             _buildStartDateRow(
               context,
@@ -8157,11 +8167,6 @@ class _MaatFlowTemplateDetailPageState
               side: BorderSide(color: _palette.accent.withValues(alpha: 0.45)),
             ),
           ),
-        ),
-        const SizedBox(height: 10),
-        _buildMaatFlowNotice(
-          'Phase 4A keeps host-authored sittings private-first while adding opt-in house fragments, one-level replies, a house margin, host announcements, and House Chat for logistics. Reader margins stay local; pods, public sharing, likes, ranking, and discussion rooms stay out of this surface.',
-          borderColor: _palette.accent.withValues(alpha: 0.30),
         ),
         const SizedBox(height: 10),
         const _MaatFlowPrivacyFooter(),

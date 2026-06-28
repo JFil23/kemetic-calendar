@@ -9,8 +9,9 @@ const String kReadingHouseFlowKey = 'the-reading-house';
 const String kReadingHouseTitle = 'The Reading House';
 const String kReadingHouseGlyph = '𓉐';
 const String kReadingHouseTagline = 'A private-study foundation for one book.';
-const String kReadingHouseEnrollmentCopy =
-    'Phase 4A keeps the house private-first while adding House Chat as a secondary support lane beside shared house margin, host announcements, opt-in fragments, and one-level replies: hosts shape sittings, readers keep local private margins, writing stays optional, and Carrying unlocks one chosen fragment for joined house members. Pods, public discovery, likes, ranking, and discussion rooms remain out of scope.';
+const String kReadingHouseHistoricalBadgeText =
+    'In Kemet, the Per-Ankh — the House of Life — was where scribes gathered to read sacred texts aloud together, copy them by hand, and leave their own marks in the margins. Reading was never silent or solitary. The text lived because a house kept it.';
+const String kReadingHouseEnrollmentCopy = kReadingHouseHistoricalBadgeText;
 
 const String kReadingHouseBookTitlePromptId = 'reading-house-book-title';
 const String kReadingHouseEditionNotePromptId = 'reading-house-edition-note';
@@ -52,7 +53,12 @@ const int kReadingHouseDefaultMinute = 0;
 const int kReadingHouseDefaultDurationMinutes = 60;
 
 const String kReadingHouseOverview =
-    'The Reading House is registered as a Ma’at flow with host-authored private sittings, shared presence, opt-in shared fragments, one-level replies, a shared house margin, host announcements, and Phase 4A House Chat for logistics. A book can begin from three starter sittings, then the host can edit, add, reorder, or delete the sitting plan. Each sitting opens with section, theme, host note, and private prompt; the reader can keep a local private margin, sit without writing, and must mark Carrying or Not yet before Observed, Partly, or Skipped. Open House and Company House state comes from accepted shared-calendar membership. Carrying unlocks one chosen fragment for joined house members; private reflection, short-note text, and local private margin text are never copied automatically. Discussion rooms, pods, public discovery, likes, and ranking remain out of scope.';
+    'The Reading House\n\n'
+    'A house gathers around one book. Whoever opens the house is the host — they name the book, set the reading, and shape the sittings the house moves through together.\n\n'
+    'Each sitting opens the same way: a section to read, a theme to hold, and a question to sit with. You read on your own first. What you write in your margin is yours — private by default, never shared unless you choose to share it.\n\n'
+    "Before you mark a sitting complete, you say where you are: Carrying the reading forward, or Not yet. Carrying is the house's quiet signal that you're moving through the book together, at your own pace, in your own time.\n\n"
+    'When you choose to, you can offer one fragment of your reading to the house — a line that struck you, a thought worth passing on. Others can respond, once, in the shared margin. The house keeps what is offered. Nothing is counted, ranked, or performed.\n\n'
+    'A reading house can be kept solo — guided study, just you and the book — or opened to company, a small group moving through the same text in the tradition of the Per-Ankh, where reading was never done alone.';
 
 class ReadingHousePlan {
   const ReadingHousePlan({
@@ -881,15 +887,7 @@ String readingHouseDetailText(
     'Section\n${sitting.section}',
     'Theme\n${sitting.theme}',
     'Private prompt\n${sitting.privatePrompt}',
-    'Private margin\nWrite a reflection, save a short note, or choose sit without writing. The margin stays on this device.',
-    'Position gate\nChoose Carrying or Not yet before marking Observed, Partly, or Skipped. Carrying opens opt-in shared fragments; Not yet remains private waiting.',
-    'House presence\nOpen House and Company House are derived from joined shared-calendar members. Shared fragments are chosen by the reader for this house and sitting only; one-level replies stay attached to those fragments.',
-    'House margin\nHouse members can add shared quotes, questions, links, and between-sitting notes. Private margin text is not copied into the house margin.',
-    'Host announcements\nHosts can leave schedule, pace, recap, or note announcements for joined house members.',
-    'Fragment replies\nReplies stay one level deep on the chosen fragment. No likes, ranking, discussion room, or nested thread is active.',
-    'House Chat\nA full-house support lane opens for Company House logistics and quick notes. The reading stays in sittings, fragments, and the house margin.',
     if (hostNote.isNotEmpty) 'Host note\n$hostNote',
-    'Completion\nUse Observed when the sitting was honestly held, Partly when the reading position is partial, and Skipped when you did not sit. In company mode, Carrying and Not yet become factual presence states when shared surfaces arrive.',
   ].join('\n\n');
 }
 

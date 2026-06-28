@@ -500,15 +500,10 @@ Future<void> main() async {
     }
 
     if (kDebugMode) {
-      debugPrint('🔍 SUPABASE_URL: ${supabaseConfig.url}');
-      final key = supabaseConfig.anonKey;
-      final startLen = key.length >= 8 ? 8 : key.length;
-      final endLen = key.length >= 6 ? 6 : key.length;
-      final maskedKey = key.isEmpty
-          ? '<empty>'
-          : '${key.substring(0, startLen)}...${key.substring(key.length - endLen)} (len=${key.length})';
       debugPrint(
-        '🔍 ANON_KEY present: ${key.isNotEmpty}, fingerprint: $maskedKey',
+        '[boot] Supabase config present: '
+        'urlHost=${safeUriHost(supabaseConfig.url)} '
+        'anonKeyPresent=${supabaseConfig.anonKey.isNotEmpty}',
       );
     }
 
@@ -770,13 +765,15 @@ class Events {
   static bool get hasSession => supabase.auth.currentSession != null;
 
   static void debugAuthBanner([String origin = '']) {
+    if (!kDebugMode) return;
     final s = supabase.auth.currentSession;
     if (s == null) {
       debugPrint('[auth] ($origin) NO SESSION');
     } else {
-      final t = s.accessToken;
-      final tail = t.isEmpty ? '-' : t.substring(0, 10);
-      debugPrint('[auth] ($origin) user=${s.user.id} token=$tail…');
+      debugPrint(
+        '[auth] ($origin) user=${safeLogIdentifier(s.user.id)} '
+        'token=<redacted>',
+      );
     }
   }
 
@@ -786,12 +783,18 @@ class Events {
   ) async {
     final s = supabase.auth.currentSession;
     if (s == null) {
-      debugPrint('[events] skipped "$event" (no session)');
+      if (kDebugMode) {
+        debugPrint('[events] skipped "$event" (no session)');
+      }
       return;
     }
     try {
       await _repo.track(event: event, properties: props);
-      debugPrint('[events] inserted "$event" as ${s.user.id}');
+      if (kDebugMode) {
+        debugPrint(
+          '[events] inserted "$event" user=${safeLogIdentifier(s.user.id)}',
+        );
+      }
     } catch (e, st) {
       if (kDebugMode) {
         debugPrint('[events] failed "$event": $e');
@@ -911,9 +914,12 @@ class _FloatingMenuRouteObserver extends NavigatorObserver {
 /* ───────────────────────── Telemetry Route Observer ───────────────────────── */
 
 class TelemetryRouteObserver extends RouteObserver<PageRoute<dynamic>> {
+  final ScreenViewDedupe _screenViews = ScreenViewDedupe();
+
   void _send(PageRoute<dynamic>? route) {
     if (kDebugMode && _debugDaySheetSmokeBootRequested) return;
     final name = route?.settings.name ?? '/';
+    if (!_screenViews.shouldTrack(name, DateTime.now())) return;
     unawaited(Events.trackIfAuthed('screen_view', {'route': name}));
   }
 
