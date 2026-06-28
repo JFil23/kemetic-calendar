@@ -71,6 +71,35 @@ void main() {
         'minimum_version': 'Open the sheet and verify one balance',
       });
     });
+
+    test(
+      'accepted standalone invite sync skips already imported shares',
+      () async {
+        final source = await File('lib/data/share_repo.dart').readAsString();
+        final syncSource = _sourceBetween(
+          source,
+          'Future<bool> syncAcceptedInviteCalendarImports() async {',
+          'bool _isAcceptedInviteRow(Map<String, dynamic> row) {',
+        );
+        final applySource = _sourceBetween(
+          source,
+          'Future<bool> _applyAcceptedInviteCalendarImport({',
+          'Future<bool> _removeInviteCalendarImports({',
+        );
+
+        expect(syncSource, contains('imported_at'));
+        expect(syncSource, contains('var changed = false'));
+        expect(syncSource, contains('return changed'));
+        expect(applySource, contains('repo.getEventByClientEventId'));
+        expect(
+          applySource,
+          contains('accepted invite import already materialized'),
+        );
+        expect(applySource, contains('return false'));
+        expect(applySource, contains('markImported(shareId, isFlow: false)'));
+        expect(applySource, contains(r'event_share:$shareId'));
+      },
+    );
   });
 
   group('inbox unread guardrails', () {

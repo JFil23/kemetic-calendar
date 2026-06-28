@@ -69,6 +69,25 @@ void main() {
     );
   });
 
+  test('no-op invite import sync does not publish calendar invalidation', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final sync = _sourceBetween(
+      source,
+      'void _syncAcceptedInviteCalendarImportsInBackground(String reason) {',
+      'String? _canonicalDawnHouseRiteDetailForLoadedEvent',
+    );
+
+    expect(sync, contains('final changed = await ShareRepo'));
+    expect(sync, contains('if (!changed) return;'));
+    expect(
+      sync.indexOf('if (!changed) return;'),
+      lessThan(sync.indexOf('await _loadCalendarState()')),
+    );
+    expect(sync, contains('CalendarInvalidationReason.calendarImportSynced'));
+  });
+
   test('flow-only visible commit cannot replace painted standalone lane', () {
     expect(
       shouldCommitFlowOnlyVisibleCalendarState(
@@ -139,43 +158,46 @@ void main() {
     );
   });
 
-  test('load from disk guards flow-only commit with painted standalone lane', () {
-    final source = File(
-      'lib/features/calendar/calendar_page.dart',
-    ).readAsStringSync();
-    final load = _sourceBetween(
-      source,
-      'Future<void> _loadFromDisk({',
-      '/// Allows other screens (e.g., Settings) to trigger a fresh sync',
-    );
+  test(
+    'load from disk guards flow-only commit with painted standalone lane',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final load = _sourceBetween(
+        source,
+        'Future<void> _loadFromDisk({',
+        '/// Allows other screens (e.g., Settings) to trigger a fresh sync',
+      );
 
-    expect(load, contains('final hasPaintedStandaloneLaneAtLoadStart'));
-    expect(load, contains('shouldCommitFlowOnlyVisibleCalendarState'));
-    expect(
-      load,
-      contains('shouldPreservePaintedStandaloneLaneForHydrationCommit'),
-    );
-    expect(load, contains('_mergePaintedStandaloneLaneInto(newNotes)'));
-    expect(load, contains('hasPaintedStandaloneLaneAtLoadStart'));
-    expect(load, contains("commitVisibleCalendarState('flow_events')"));
-    expect(load, contains("commitVisibleCalendarState('complete')"));
-    expect(
-      load.indexOf('final hasPaintedStandaloneLaneAtLoadStart'),
-      lessThan(load.indexOf('shouldCommitFlowOnlyVisibleCalendarState')),
-    );
-    expect(
-      load.indexOf('shouldCommitFlowOnlyVisibleCalendarState'),
-      lessThan(load.indexOf("commitVisibleCalendarState('flow_events')")),
-    );
-    expect(
-      load.indexOf('shouldPreservePaintedStandaloneLaneForHydrationCommit'),
-      lessThan(load.indexOf("commitVisibleCalendarState('complete')")),
-    );
-    expect(
-      load.indexOf("commitVisibleCalendarState('flow_events')"),
-      lessThan(load.indexOf("commitVisibleCalendarState('complete')")),
-    );
-  });
+      expect(load, contains('final hasPaintedStandaloneLaneAtLoadStart'));
+      expect(load, contains('shouldCommitFlowOnlyVisibleCalendarState'));
+      expect(
+        load,
+        contains('shouldPreservePaintedStandaloneLaneForHydrationCommit'),
+      );
+      expect(load, contains('_mergePaintedStandaloneLaneInto(newNotes)'));
+      expect(load, contains('hasPaintedStandaloneLaneAtLoadStart'));
+      expect(load, contains("commitVisibleCalendarState('flow_events')"));
+      expect(load, contains("commitVisibleCalendarState('complete')"));
+      expect(
+        load.indexOf('final hasPaintedStandaloneLaneAtLoadStart'),
+        lessThan(load.indexOf('shouldCommitFlowOnlyVisibleCalendarState')),
+      );
+      expect(
+        load.indexOf('shouldCommitFlowOnlyVisibleCalendarState'),
+        lessThan(load.indexOf("commitVisibleCalendarState('flow_events')")),
+      );
+      expect(
+        load.indexOf('shouldPreservePaintedStandaloneLaneForHydrationCommit'),
+        lessThan(load.indexOf("commitVisibleCalendarState('complete')")),
+      );
+      expect(
+        load.indexOf("commitVisibleCalendarState('flow_events')"),
+        lessThan(load.indexOf("commitVisibleCalendarState('complete')")),
+      );
+    },
+  );
 }
 
 String _sourceBetween(String source, String start, String end) {

@@ -12,7 +12,7 @@ const _kTable = 'user_events';
 const _kReadableEventsTable = 'user_event_filing_items_client';
 
 void _log(String msg) {
-  if (kDebugMode) debugPrint('[user_events] $msg');
+  if (kDebugMode) debugPrint('[user_events] ${redactLogText(msg)}');
 }
 
 typedef FlowEventRow = ({
@@ -562,7 +562,7 @@ class UserEventsRepo {
       if (category != null) 'category': category,
     };
 
-    _log('insert → $payload');
+    _log('insert → ${safeLogMapSummary(payload)}');
     try {
       final row = await _client.from(_kTable).insert(payload).select().single();
       _log('insert ✓ id=${row['id']}');
@@ -608,14 +608,17 @@ class UserEventsRepo {
             ? 'unspecified'
             : caller;
         _log(
-          'upsert blocked by tombstone client_event_id=$clientEventId caller=$callerTag',
+          'upsert blocked by tombstone '
+          'client_event_id=${safeLogIdentifier(clientEventId)} '
+          'caller=$callerTag',
         );
         return UserEvent.fromRow(existing);
       }
     } catch (e) {
       if (kDebugMode) {
         debugPrint(
-          '[user_events] tombstone check failed for cid=$clientEventId: $e',
+          '[user_events] tombstone check failed for '
+          'cid=${safeLogIdentifier(clientEventId)}: ${redactLogText('$e')}',
         );
       }
     }
@@ -637,7 +640,10 @@ class UserEventsRepo {
     };
 
     final callerTag = caller == null || caller.isEmpty ? 'unspecified' : caller;
-    _log('upsert(client_event_id=$clientEventId caller=$callerTag) → $payload');
+    _log(
+      'upsert(client_event_id=${safeLogIdentifier(clientEventId)} '
+      'caller=$callerTag) → ${safeLogMapSummary(payload)}',
+    );
     try {
       final row = await _client
           .from(_kTable)
@@ -686,7 +692,7 @@ class UserEventsRepo {
     if (behaviorPayload != null) patch['behavior_payload'] = behaviorPayload;
     if (patch.isEmpty) throw ArgumentError('Nothing to update.');
 
-    _log('update($id) → $patch');
+    _log('update(${safeLogIdentifier(id)}) → ${safeLogMapSummary(patch)}');
     try {
       final row = await _client
           .from(_kTable)
@@ -766,7 +772,7 @@ class UserEventsRepo {
       'category': category,
     };
 
-    _log('replace($id) → $patch');
+    _log('replace(${safeLogIdentifier(id)}) → ${safeLogMapSummary(patch)}');
     try {
       final row = await _client
           .from(_kTable)
@@ -2604,7 +2610,10 @@ class UserEventsRepo {
       }
 
       if (kDebugMode) {
-        debugPrint('[UserEventsRepo] setFlowSaved DB row: $updated');
+        debugPrint(
+          '[UserEventsRepo] setFlowSaved DB row '
+          '${safeLogMapSummary(updated)}',
+        );
       }
     } on PostgrestException catch (e, st) {
       if (kDebugMode) {

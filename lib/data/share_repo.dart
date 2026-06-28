@@ -11,6 +11,7 @@ import '../core/kemetic_converter.dart';
 import 'share_models.dart';
 import 'user_events_repo.dart';
 import '../features/calendar/dawn_house_rite_flow.dart';
+import '../telemetry/telemetry.dart';
 import '../utils/event_cid_util.dart';
 import '../utils/flow_visibility.dart';
 
@@ -136,7 +137,7 @@ class ShareRepo {
 
   void _log(String message) {
     if (kDebugMode) {
-      debugPrint(message);
+      debugPrint(redactLogText(message));
     }
   }
 
@@ -651,7 +652,10 @@ class ShareRepo {
     SuggestedSchedule? suggestedSchedule,
   }) async {
     final normalizedRecipients = dedupeShareRecipients(recipients);
-    _log('[ShareRepo] Current user: ${_client.auth.currentUser?.id}');
+    _log(
+      '[ShareRepo] Current user: '
+      '${safeLogIdentifier(_client.auth.currentUser?.id)}',
+    );
     _log(
       '[ShareRepo] Current session: ${_client.auth.currentSession?.accessToken != null}',
     );
@@ -668,7 +672,9 @@ class ShareRepo {
       );
 
       _log('[ShareRepo] create_flow_share status=${response.status}');
-      _log('[ShareRepo] create_flow_share body=${response.data}');
+      _log(
+        '[ShareRepo] create_flow_share body=${safeLogCollectionSummary(response.data)}',
+      );
 
       // Handle HTTP errors
       if (response.status >= 400) {
@@ -691,7 +697,7 @@ class ShareRepo {
           ? response.data as Map<String, dynamic>
           : (jsonDecode(response.data as String) as Map<String, dynamic>);
 
-      _log('[ShareRepo] Response data keys: ${body.keys}');
+      _log('[ShareRepo] Response data ${safeLogMapSummary(body)}');
 
       // Extract shares list
       final sharesList = (body['shares'] as List<dynamic>? ?? [])
@@ -712,7 +718,7 @@ class ShareRepo {
       // Parse each share row from the database
       final results = <ShareResult>[];
       for (final row in sharesList) {
-        _log('[ShareRepo] Processing share row: $row');
+        _log('[ShareRepo] Processing share row ${safeLogMapSummary(row)}');
         results.add(ShareResult.fromJson(row));
       }
 
@@ -721,7 +727,9 @@ class ShareRepo {
           .cast<Map<String, dynamic>>();
 
       if (errorsList.isNotEmpty) {
-        _log('[ShareRepo] Errors from Edge function: $errorsList');
+        _log(
+          '[ShareRepo] Errors from Edge function count=${errorsList.length}',
+        );
         // Create ShareResult objects for errors
         for (final err in errorsList) {
           results.add(
@@ -995,7 +1003,9 @@ class ShareRepo {
       );
 
       _log('[ShareRepo] create_event_share status=${response.status}');
-      _log('[ShareRepo] create_event_share body=${response.data}');
+      _log(
+        '[ShareRepo] create_event_share body=${safeLogCollectionSummary(response.data)}',
+      );
 
       if (response.status >= 400) {
         return [ShareResult(status: null, error: 'HTTP ${response.status}')];
@@ -1835,15 +1845,17 @@ class ShareRepo {
     }
   }
 
-  Future<void> syncAcceptedInviteCalendarImports() async {
+  Future<bool> syncAcceptedInviteCalendarImports() async {
     final currentUserId = _client.auth.currentUser?.id;
     if (currentUserId == null || currentUserId.isEmpty) {
-      return;
+      return false;
     }
 
     final rows = await _client
         .from('event_shares')
-        .select('id, payload_json, response_status, deleted_at, status')
+        .select(
+          'id, payload_json, response_status, deleted_at, status, imported_at',
+        )
         .eq('recipient_id', currentUserId);
 
     final shareRows = (rows as List)
@@ -1862,18 +1874,21 @@ class ShareRepo {
     }
 
     final repo = UserEventsRepo(_client);
+    var changed = false;
     for (final row in shareRows) {
       final shareId = (row['id'] as String?)!.trim();
       final payload = _asMap(row['payload_json']);
+      final importedAt = _parseDateTimeValue(row['imported_at']);
       try {
         if (_isAcceptedInviteRow(row)) {
-          await _applyAcceptedInviteCalendarImport(
+          changed |= await _applyAcceptedInviteCalendarImport(
             repo: repo,
             shareId: shareId,
             payload: payload,
+            importedAt: importedAt,
           );
         } else {
-          await _removeInviteCalendarImports(
+          changed |= await _removeInviteCalendarImports(
             repo: repo,
             shareId: shareId,
             payload: payload,
@@ -1889,6 +1904,7 @@ class ShareRepo {
         }
       }
     }
+    return changed;
   }
 
   bool _isAcceptedInviteRow(Map<String, dynamic> row) {
@@ -1906,10 +1922,11 @@ class ShareRepo {
         EventInviteResponseStatus.accepted;
   }
 
-  Future<void> _applyAcceptedInviteCalendarImport({
+  Future<bool> _applyAcceptedInviteCalendarImport({
     required UserEventsRepo repo,
     required String shareId,
     required Map<String, dynamic>? payload,
+    DateTime? importedAt,
   }) async {
     final sourceFlow = _asMap(payload?['source_flow']);
     final sourceFlowId = _sourceFlowIdFromPayload(payload);
@@ -1922,35 +1939,65 @@ class ShareRepo {
       );
       await repo.deleteByClientId('event_share:$shareId');
       await repo.deleteByClientIdPrefix('event_share_flow:$shareId:');
-      return;
+      await markImported(shareId, isFlow: false);
+      return true;
     }
 
-    await _upsertStandaloneInviteEvent(
+    if (importedAt != null) {
+      final existing = await repo.getEventByClientEventId(
+        'event_share:$shareId',
+      );
+      if (existing != null) {
+        if (kDebugMode) {
+          _log(
+            '[ShareRepo] accepted invite import already materialized '
+            'shareId=${safeLogIdentifier(shareId)}',
+          );
+        }
+        return false;
+      }
+    }
+
+    final imported = await _upsertStandaloneInviteEvent(
       repo: repo,
       shareId: shareId,
       payload: payload,
     );
+    if (imported) {
+      await markImported(shareId, isFlow: false);
+    }
     await repo.deleteByClientIdPrefix('event_share_flow:$shareId:');
+    return imported;
   }
 
-  Future<void> _removeInviteCalendarImports({
+  Future<bool> _removeInviteCalendarImports({
     required UserEventsRepo repo,
     required String shareId,
     required Map<String, dynamic>? payload,
     required Set<int> acceptedSourceFlowIds,
   }) async {
-    await repo.deleteByClientId('event_share:$shareId');
-    await repo.deleteByClientIdPrefix('event_share_flow:$shareId:');
+    var changed = false;
+    final existingInvite = await repo.getEventByClientEventId(
+      'event_share:$shareId',
+    );
+    if (existingInvite != null) {
+      await repo.deleteByClientId('event_share:$shareId');
+      changed = true;
+    }
+    if (await _hasInviteFlowImportEvents(shareId)) {
+      await repo.deleteByClientIdPrefix('event_share_flow:$shareId:');
+      changed = true;
+    }
 
     final sourceFlowId = _sourceFlowIdFromPayload(payload);
     if (sourceFlowId == null ||
         sourceFlowId <= 0 ||
         acceptedSourceFlowIds.contains(sourceFlowId)) {
-      return;
+      return changed;
     }
 
     final userId = _client.auth.currentUser?.id;
-    if (userId == null || userId.isEmpty) return;
+    if (userId == null || userId.isEmpty) return changed;
 
     final rawByShareId = await _client
         .from('flows')
@@ -1976,10 +2023,24 @@ class ShareRepo {
       if (flowId == null || flowId <= 0) continue;
       await repo.deleteByFlowId(flowId);
       await repo.deleteFlow(flowId);
+      changed = true;
     }
+    return changed;
   }
 
-  Future<void> _upsertStandaloneInviteEvent({
+  Future<bool> _hasInviteFlowImportEvents(String shareId) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null || userId.isEmpty) return false;
+    final rows = await _client
+        .from('user_events')
+        .select('id')
+        .eq('user_id', userId)
+        .like('client_event_id', 'event_share_flow:$shareId:%')
+        .limit(1);
+    return (rows as List).isNotEmpty;
+  }
+
+  Future<bool> _upsertStandaloneInviteEvent({
     required UserEventsRepo repo,
     required String shareId,
     required Map<String, dynamic>? payload,
@@ -1988,7 +2049,7 @@ class ShareRepo {
       shareId: shareId,
       payload: payload,
     );
-    if (spec == null) return;
+    if (spec == null) return false;
     await repo.upsertByClientId(
       clientEventId: spec['client_event_id'] as String,
       title: spec['title'] as String,
@@ -2002,6 +2063,7 @@ class ShareRepo {
       behaviorPayload: spec['behavior_payload'] as Map<String, dynamic>?,
       caller: 'event_share_accept_import',
     );
+    return true;
   }
 
   Future<void> _upsertImportedFlowFromInvite({
@@ -2582,7 +2644,10 @@ class ShareRepo {
     int offset = 0,
   }) async {
     _log('📬 [ShareRepo] getInboxItems() called');
-    _log('📬 [ShareRepo] User ID: ${_client.auth.currentUser?.id}');
+    _log(
+      '📬 [ShareRepo] User ID: '
+      '${safeLogIdentifier(_client.auth.currentUser?.id)}',
+    );
 
     try {
       final items = await _fetchInboxItems(
@@ -2711,14 +2776,18 @@ class ShareRepo {
       if (!updated) {
         if (kDebugMode) {
           debugPrint(
-            '[ShareRepo] softDelete: no matching row updated for shareId=$shareId',
+            '[ShareRepo] softDelete: no matching row updated for '
+            'shareId=${safeLogIdentifier(shareId)}',
           );
         }
         return false;
       }
 
       if (kDebugMode) {
-        debugPrint('[ShareRepo] ✓ softDelete success for shareId=$shareId');
+        debugPrint(
+          '[ShareRepo] ✓ softDelete success for '
+          'shareId=${safeLogIdentifier(shareId)}',
+        );
       }
 
       return true;
@@ -2792,7 +2861,7 @@ class ShareRepo {
     }
     if (verbose) {
       _log('📬 [ShareRepo] Raw response type: ${response.runtimeType}');
-      _log('📬 [ShareRepo] Raw response: $response');
+      _log('📬 [ShareRepo] Raw response ${safeLogCollectionSummary(response)}');
     }
 
     final rows = response.cast<Map<String, dynamic>>();
@@ -2811,7 +2880,8 @@ class ShareRepo {
               .toList(growable: false);
     if (verbose) {
       _log(
-        '📬 [ShareRepo] Response has ${rows.length} rows, ${filtered.length} visible to uid=$uid',
+        '📬 [ShareRepo] Response has ${rows.length} rows, '
+        '${filtered.length} visible to uid=${safeLogIdentifier(uid)}',
       );
     }
 
@@ -3004,8 +3074,11 @@ class ShareRepo {
       )
       ..subscribe((status, [error]) {
         if (kDebugMode) {
+          final safeError = redactLogText(error?.toString() ?? 'null');
           debugPrint(
-            '[watchInbox] channel=$channelName status=$status error=$error',
+            '[watchInbox] channel=inbox_watch '
+            'user=${safeLogIdentifier(uid)} status=$status '
+            'error=$safeError',
           );
         }
         switch (status) {

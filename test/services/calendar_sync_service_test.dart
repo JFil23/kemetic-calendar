@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/services/calendar_sync_service.dart';
 
@@ -102,5 +104,21 @@ void main() {
 
       expect(result, isFalse);
     });
+  });
+
+  group('calendar sync log guardrails', () {
+    test(
+      'debug logs summarize cids and titles instead of printing values',
+      () async {
+        final source = await File(
+          'lib/services/calendar_sync_service.dart',
+        ).readAsString();
+
+        expect(source, isNot(contains(r'cid=$cid')));
+        expect(source, isNot(contains(r'title=${native.title}')));
+        expect(source, contains('_calendarSyncNativeSummary(cid, native)'));
+        expect(source, contains('_calendarSyncError(e)'));
+      },
+    );
   });
 }

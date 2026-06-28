@@ -12,6 +12,7 @@ import '../data/share_models.dart';
 import '../data/share_repo.dart';
 import '../data/user_events_repo.dart';
 import '../features/calendar/calendar_page.dart' show CalendarPage, KemeticMath;
+import '../telemetry/telemetry.dart';
 import '../utils/event_cid_util.dart';
 import '../utils/flow_filter_engine.dart';
 
@@ -124,7 +125,7 @@ class InboxRepo {
 
   void _log(String message) {
     if (kDebugMode) {
-      debugPrint(message);
+      debugPrint(redactLogText(message));
     }
   }
 
@@ -165,17 +166,25 @@ class InboxRepo {
       final exists = filedFlow != null;
 
       if (kDebugMode) {
-        _log('[InboxRepo] isFlowCurrentlyImported($shareId)');
-        _log('[InboxRepo]   userId: $userId');
+        _log(
+          '[InboxRepo] isFlowCurrentlyImported(${safeLogIdentifier(shareId)})',
+        );
+        _log('[InboxRepo]   userId: ${safeLogIdentifier(userId)}');
         _log('[InboxRepo]   exists: $exists');
         if (filedFlow != null) {
-          _log('[InboxRepo]   flow_id: ${filedFlow['id']}');
+          _log(
+            '[InboxRepo]   flow_id: '
+            '${safeLogIdentifier(filedFlow['id']?.toString())}',
+          );
           _log('[InboxRepo]   lifecycle: ${filedFlow['lifecycle']}');
           _log(
             '[InboxRepo]   visible_in_active_list: ${filedFlow['visible_in_active_list']}',
           );
         } else {
-          _log('[InboxRepo]   No flow found with share_id=$shareId');
+          _log(
+            '[InboxRepo]   No flow found with '
+            'share_id=${safeLogIdentifier(shareId)}',
+          );
         }
       }
 
@@ -221,7 +230,10 @@ class InboxRepo {
       final table = isFlow ? 'flow_shares' : 'event_shares';
       await _client.from(table).update({'imported_at': null}).eq('id', shareId);
 
-      _log('[InboxRepo] Cleared import status for $shareId in $table');
+      _log(
+        '[InboxRepo] Cleared import status for '
+        '${safeLogIdentifier(shareId)} in $table',
+      );
 
       return true;
     } catch (e) {
@@ -284,13 +296,12 @@ class InboxRepo {
       }
 
       if (kDebugMode) {
-        debugPrint(
-          '[watchConversations] ${grouped.length} conversations, keys: ${grouped.keys.toList()}',
-        );
+        debugPrint('[watchConversations] ${grouped.length} conversations');
         // ✅ Add per-thread logging
         for (final entry in grouped.entries) {
           debugPrint(
-            '[watchConversations] otherId=${entry.key} items=${entry.value.length}',
+            '[watchConversations] otherId=${safeLogIdentifier(entry.key)} '
+            'items=${entry.value.length}',
           );
         }
       }
@@ -642,7 +653,10 @@ class InboxRepo {
     required InboxShareItem share,
     DateTime? overrideStartDate,
   }) async {
-    _log('[InboxRepo] Starting import for: ${share.title}');
+    _log(
+      '[InboxRepo] Starting import for '
+      'title=<redacted chars=${share.title.length}>',
+    );
 
     try {
       // ✅ Make import resilient - handle null/empty payload gracefully
@@ -665,8 +679,11 @@ class InboxRepo {
       }
 
       if (kDebugMode) {
-        _log('[InboxRepo] Flow data: name=$name, color=$color');
-        _log('[InboxRepo] Rules type: ${rulesData.runtimeType}');
+        _log(
+          '[InboxRepo] Flow data: name=<redacted chars=${name.length}> '
+          'color=$color rules=${rulesData.length}',
+        );
+        _log('[InboxRepo] payload ${safeLogMapSummary(payloadJson)}');
       }
 
       final originFlowId =
@@ -766,7 +783,7 @@ class InboxRepo {
 
       if (kDebugMode) {
         _log('[InboxRepo] _scheduleImportedFlow for flowId=$flowId');
-        _log('[InboxRepo] payloadJson keys: ${payloadJson.keys}');
+        _log('[InboxRepo] payload ${safeLogMapSummary(payloadJson)}');
       }
 
       // ✅ 1. Use sender's event snapshots if present (NEW SHARES)

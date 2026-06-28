@@ -17,6 +17,41 @@ void main() {
       expect(redacted, isNot(contains('secret')));
       expect(redacted, isNot(contains('hi@example.com')));
     });
+
+    test('summarizes payload maps without private event content', () {
+      final summary = safeLogMapSummary({
+        'user_id': '123e4567-e89b-12d3-a456-426614174000',
+        'title': 'Therapy appointment',
+        'location': 'Private office',
+        'detail': 'Discuss sensitive notes',
+        'payload_json': {
+          'name': 'Hidden flow name',
+          'body': 'Private event body',
+        },
+        'starts_at': '2026-06-01T12:00:00Z',
+        'all_day': false,
+      });
+
+      expect(summary, contains('redactedKeys='));
+      expect(summary, contains('title'));
+      expect(summary, contains('location'));
+      expect(summary, contains('payload_json'));
+      expect(summary, contains('safeKeys=all_day,starts_at'));
+      expect(summary, isNot(contains('Therapy appointment')));
+      expect(summary, isNot(contains('Private office')));
+      expect(summary, isNot(contains('Hidden flow name')));
+      expect(summary, isNot(contains('123e4567')));
+    });
+
+    test('summarizes collections without row payload values', () {
+      final summary = safeLogCollectionSummary([
+        {'title': 'Recital', 'location': 'Private hall'},
+      ]);
+
+      expect(summary, 'list<size=1>');
+      expect(summary, isNot(contains('Recital')));
+      expect(summary, isNot(contains('Private hall')));
+    });
   });
 
   group('ScreenViewDedupe', () {

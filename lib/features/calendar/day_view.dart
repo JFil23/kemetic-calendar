@@ -6220,7 +6220,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     if (kDebugMode) {
       debugPrint(
         '[DayView] detail sheet requested from initial restoration '
-        'key=$key title="${target.event.title}"',
+        'key=$key title=<redacted chars=${target.event.title.length}>',
       );
     }
     _showEventDetail(target.event, initialTarget: target);
@@ -6973,7 +6973,11 @@ class _DayViewGridState extends State<DayViewGrid> {
                   }
                   if (kDebugMode) {
                     debugPrint(
-                      '[DayView] drop commit minute=$committedMinute id=${event.id} cid=${event.clientEventId} title="${event.title}" start=${event.startMin} end=${event.endMin}',
+                      '[DayView] drop commit minute=$committedMinute '
+                      'id=${safeLogIdentifier(event.id)} '
+                      'cid=${safeLogIdentifier(event.clientEventId)} '
+                      'title=<redacted chars=${event.title.length}> '
+                      'start=${event.startMin} end=${event.endMin}',
                     );
                   }
 
@@ -7270,7 +7274,9 @@ class _DayViewGridState extends State<DayViewGrid> {
     final draggable = !event.isReminder && !event.allDay;
     if (!draggable && kDebugMode) {
       debugPrint(
-        '[DayView] not draggable title="${event.title}" flowId=${event.flowId} isReminder=${event.isReminder} allDay=${event.allDay}',
+        '[DayView] not draggable title=<redacted chars=${event.title.length}> '
+        'flowId=${event.flowId} isReminder=${event.isReminder} '
+        'allDay=${event.allDay}',
       );
     }
     return draggable;
@@ -7359,7 +7365,10 @@ class _DayViewGridState extends State<DayViewGrid> {
         _lastDragSnappedMinute = event.startMin;
         unawaited(AppHaptics.selection());
         if (kDebugMode) {
-          debugPrint('[DayView] onDragStarted title="${event.title}"');
+          debugPrint(
+            '[DayView] onDragStarted '
+            'title=<redacted chars=${event.title.length}>',
+          );
         }
         setState(() {});
       },
@@ -8135,7 +8144,9 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
 
     if (kDebugMode) {
-      debugPrint('[_showEventDetail] Event: "${event.title}"');
+      debugPrint(
+        '[_showEventDetail] Event title=<redacted chars=${event.title.length}>',
+      );
       debugPrint(
         '[_showEventDetail] Event flowId: ${event.flowId} (${event.flowId.runtimeType})',
       );
@@ -8187,7 +8198,10 @@ class _DayViewGridState extends State<DayViewGrid> {
       ).whenComplete(releaseSheet);
       if (kDebugMode) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          debugPrint('[DayView] detail sheet opened title="${event.title}"');
+          debugPrint(
+            '[DayView] detail sheet opened '
+            'title=<redacted chars=${event.title.length}>',
+          );
         });
       }
     } catch (_) {

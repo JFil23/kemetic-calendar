@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
@@ -51,6 +52,24 @@ void main() {
     kMaatFlowResponseDraftStore.clearForTesting();
     CalendarEventDetailSheetCoordinator.debugResetForTests();
   });
+
+  test(
+    'Day View timeline does not render a false empty state while hydrating',
+    () async {
+      final source = await File(
+        'lib/features/calendar/day_view.dart',
+      ).readAsString();
+      final timelineSource = _sourceBetween(
+        source,
+        'Widget _buildTimelineEventLayer({',
+        'Widget _buildTimelineOverlayLayer() {',
+      );
+
+      expect(timelineSource, isNot(contains('No events')));
+      expect(timelineSource, isNot(contains('Nothing scheduled')));
+      expect(timelineSource, isNot(contains('empty')));
+    },
+  );
 
   group('DayViewGrid overlapping event gestures', () {
     testWidgets(
@@ -2941,4 +2960,12 @@ EventItem _eventFromNote(NoteData note) {
     reminderId: note.reminderId,
     behaviorPayload: note.behaviorPayload,
   );
+}
+
+String _sourceBetween(String source, String start, String end) {
+  final startIndex = source.indexOf(start);
+  expect(startIndex, isNonNegative, reason: 'Missing source start: $start');
+  final endIndex = source.indexOf(end, startIndex + start.length);
+  expect(endIndex, isNonNegative, reason: 'Missing source end: $end');
+  return source.substring(startIndex, endIndex);
 }

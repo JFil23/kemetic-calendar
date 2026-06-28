@@ -93,7 +93,6 @@ class _InboxPageState extends State<InboxPage> {
   late final InboxRepo _inboxRepo;
   late final ShareRepo _shareRepo;
   late final SharedCalendarsRepo _sharedCalendarsRepo;
-  StreamSubscription<Map<String, List<InboxShareItem>>>? _convSub;
   StreamSubscription<List<InboxShareItem>>? _inboxItemsSub;
   StreamSubscription<InboxUnreadState>? _unreadStateSub;
   StreamSubscription<List<SharedCalendarSentInvite>>? _sentCalendarInvitesSub;
@@ -124,16 +123,6 @@ class _InboxPageState extends State<InboxPage> {
     _unreadState = _shareRepo.currentUnreadState;
     _inboxRepo = InboxRepo(client);
     unawaited(_restoreCachedUnified());
-    _convSub = _inboxRepo.watchConversations().listen((threads) {
-      _latestThreads = threads;
-      _reconcileOptimisticReadState();
-      if (mounted) {
-        setState(() {
-          _unified = _buildUnifiedItems();
-          _loading = false;
-        });
-      }
-    });
     _inboxItemsSub = _inboxRepo.watchInbox().listen((items) {
       _applyInboxItems(items);
       if (mounted) {
@@ -294,7 +283,6 @@ class _InboxPageState extends State<InboxPage> {
 
   @override
   void dispose() {
-    _convSub?.cancel();
     _inboxItemsSub?.cancel();
     _unreadStateSub?.cancel();
     _sentCalendarInvitesSub?.cancel();

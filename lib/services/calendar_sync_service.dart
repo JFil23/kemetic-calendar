@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../data/user_events_repo.dart';
 import '../features/settings/settings_prefs.dart';
+import '../telemetry/telemetry.dart';
 
 const _channelName = 'com.kemetic.calendar/sync';
 const _permissionRetryCooldown = Duration(hours: 12);
@@ -46,6 +47,23 @@ bool isImportedDeviceCalendarEvent({String? clientEventId, String? category}) {
   final normalizedCategory = category?.trim().toLowerCase() ?? '';
   return normalizedCategory == 'native_sync';
 }
+
+String _calendarSyncCidSummary(String? cid) {
+  final length = cid?.trim().length ?? 0;
+  return length == 0 ? '<none>' : '<redacted chars=$length>';
+}
+
+String _calendarSyncTitleSummary(String? title) {
+  final length = title?.trim().length ?? 0;
+  return '<redacted chars=$length>';
+}
+
+String _calendarSyncNativeSummary(String cid, NativeCalendarEvent native) {
+  return 'cid=${_calendarSyncCidSummary(cid)} '
+      'title=${_calendarSyncTitleSummary(native.title)}';
+}
+
+String _calendarSyncError(Object error) => redactLogText(error.toString());
 
 @immutable
 class CalendarSyncStatus {
@@ -403,7 +421,9 @@ class CalendarPlatformBridge {
       final granted = await _channel.invokeMethod<bool>('requestPermissions');
       return granted ?? false;
     } catch (e) {
-      debugPrint('[calendar-sync] requestPermissions error: $e');
+      debugPrint(
+        '[calendar-sync] requestPermissions error: ${_calendarSyncError(e)}',
+      );
       return false;
     }
   }
@@ -424,7 +444,7 @@ class CalendarPlatformBridge {
           .map((m) => NativeCalendarEvent.fromMap(m, source: platform))
           .toList();
     } catch (e) {
-      debugPrint('[calendar-sync] fetchEvents error: $e');
+      debugPrint('[calendar-sync] fetchEvents error: ${_calendarSyncError(e)}');
       return const [];
     }
   }
@@ -437,7 +457,7 @@ class CalendarPlatformBridge {
       });
       return deleted ?? false;
     } catch (e) {
-      debugPrint('[calendar-sync] deleteEvent error: $e');
+      debugPrint('[calendar-sync] deleteEvent error: ${_calendarSyncError(e)}');
       return false;
     }
   }
@@ -448,7 +468,9 @@ class CalendarPlatformBridge {
       final deleted = await _channel.invokeMethod<int>('purgeKemeticEvents');
       return deleted ?? 0;
     } catch (e) {
-      debugPrint('[calendar-sync] purgeKemeticEvents error: $e');
+      debugPrint(
+        '[calendar-sync] purgeKemeticEvents error: ${_calendarSyncError(e)}',
+      );
       return 0;
     }
   }
@@ -647,8 +669,8 @@ class CalendarSyncService {
       await _stateBox?.put('lastSync', _now().toIso8601String());
       return const CalendarSyncRunResult.synced();
     } catch (e, st) {
-      debugPrint('[calendar-sync] sync failed: $e');
-      debugPrint('$st');
+      debugPrint('[calendar-sync] sync failed: ${_calendarSyncError(e)}');
+      debugPrint(redactLogText('$st'));
       return CalendarSyncRunResult.failed(e);
     } finally {
       _syncing = false;
@@ -706,7 +728,8 @@ class CalendarSyncService {
 
       if (!_shouldImportNativeEvent(native)) {
         debugPrint(
-          '[calendar-sync] skip native holiday/observance cid=$cid title=${native.title}',
+          '[calendar-sync] skip native holiday/observance '
+          '${_calendarSyncNativeSummary(cid, native)}',
         );
         continue;
       }
@@ -715,28 +738,32 @@ class CalendarSyncService {
           nativeHolidayKey != null &&
           supHolidayKeys.contains(nativeHolidayKey)) {
         debugPrint(
-          '[calendar-sync] skip duplicate holiday from native cid=$cid title=${native.title}',
+          '[calendar-sync] skip duplicate holiday from native '
+          '${_calendarSyncNativeSummary(cid, native)}',
         );
         continue;
       }
 
       if (_isAppOwnedCid(cid) || _hasAppOwnedMarker(native)) {
         debugPrint(
-          '[calendar-sync] skip app-owned cid=$cid title=${native.title}',
+          '[calendar-sync] skip app-owned '
+          '${_calendarSyncNativeSummary(cid, native)}',
         );
         continue;
       }
 
       if (!cid.startsWith('native:')) {
         debugPrint(
-          '[calendar-sync] skip non-native cid=$cid title=${native.title}',
+          '[calendar-sync] skip non-native '
+          '${_calendarSyncNativeSummary(cid, native)}',
         );
         continue;
       }
 
       if (sup == null && _deletedCids.contains(cid)) {
         debugPrint(
-          '[calendar-sync] skipping upsert for deleted-in-app cid=$cid',
+          '[calendar-sync] skipping upsert for deleted-in-app '
+          'cid=${_calendarSyncCidSummary(cid)}',
         );
         continue;
       }
@@ -819,7 +846,10 @@ class CalendarSyncService {
           .limit(1);
       if ((rowsByCid as List).isNotEmpty) return true;
     } catch (e) {
-      debugPrint('[calendar-sync] linked-data native prefix check failed: $e');
+      debugPrint(
+        '[calendar-sync] linked-data native prefix check failed: '
+        '${_calendarSyncError(e)}',
+      );
     }
 
     try {
@@ -832,7 +862,8 @@ class CalendarSyncService {
       if ((rowsByCategory as List).isNotEmpty) return true;
     } catch (e) {
       debugPrint(
-        '[calendar-sync] linked-data native category check failed: $e',
+        '[calendar-sync] linked-data native category check failed: '
+        '${_calendarSyncError(e)}',
       );
     }
 
@@ -917,7 +948,8 @@ class CalendarSyncService {
       deleted += (rowsByCid as List).length;
     } catch (e) {
       debugPrint(
-        '[calendar-sync] purge imported native rows by cid failed: $e',
+        '[calendar-sync] purge imported native rows by cid failed: '
+        '${_calendarSyncError(e)}',
       );
     }
 
@@ -938,7 +970,8 @@ class CalendarSyncService {
       deleted += (rowsByCategory as List).length;
     } catch (e) {
       debugPrint(
-        '[calendar-sync] purge imported native rows by category failed: $e',
+        '[calendar-sync] purge imported native rows by category failed: '
+        '${_calendarSyncError(e)}',
       );
     }
 
@@ -984,10 +1017,14 @@ class CalendarSyncService {
               'CalendarSyncService._removeStaleSupabaseNativeImports',
           deleteScope: 'native_missing_from_device',
         );
-        debugPrint('[calendar-sync] deleted stale imported event cid=$cid');
+        debugPrint(
+          '[calendar-sync] deleted stale imported event '
+          'cid=${_calendarSyncCidSummary(cid)}',
+        );
       } catch (e) {
         debugPrint(
-          '[calendar-sync] delete stale imported event failed cid=$cid err=$e',
+          '[calendar-sync] delete stale imported event failed '
+          'cid=${_calendarSyncCidSummary(cid)} err=${_calendarSyncError(e)}',
         );
       }
     }
@@ -1014,7 +1051,9 @@ class CalendarSyncService {
         limit: 2000,
       );
     } catch (e) {
-      debugPrint('[calendar-sync] supabase load failed: $e');
+      debugPrint(
+        '[calendar-sync] supabase load failed: ${_calendarSyncError(e)}',
+      );
       return const [];
     }
   }
@@ -1047,7 +1086,10 @@ class CalendarSyncService {
     await ensureInitialized();
     _deletedCids.add(cid);
     await _stateBox?.put(_deletedCidsKey, _deletedCids.toList());
-    debugPrint('[calendar-sync] recorded deleted-in-app cid=$cid');
+    debugPrint(
+      '[calendar-sync] recorded deleted-in-app '
+      'cid=${_calendarSyncCidSummary(cid)}',
+    );
   }
 }
 

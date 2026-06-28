@@ -370,6 +370,27 @@ void main() {
         expect(invitesSheet, contains('_buildEventInviteRow('));
       });
 
+      test('Inbox route owns one inbox stream subscription', () async {
+        final source = await File(
+          'lib/features/inbox/inbox_page.dart',
+        ).readAsString();
+        final initState = _sourceBetween(
+          source,
+          'void initState() {',
+          'void didUpdateWidget(covariant InboxPage oldWidget) {',
+        );
+        final dispose = _sourceBetween(
+          source,
+          'void dispose() {',
+          '@override\n  Widget build(BuildContext context)',
+        );
+
+        expect(_countOccurrences(initState, 'watchInbox().listen'), 1);
+        expect(initState, isNot(contains('watchConversations().listen')));
+        expect(source, isNot(contains('_convSub')));
+        expect(dispose, contains('_inboxItemsSub?.cancel();'));
+      });
+
       test(
         'Invites row and sheet preserve event RSVP routing and read rollup',
         () async {
@@ -585,4 +606,15 @@ String _sourceBetween(String source, String start, String end) {
   final endIndex = source.indexOf(end, startIndex + start.length);
   expect(endIndex, isNonNegative, reason: 'Missing source end: $end');
   return source.substring(startIndex, endIndex);
+}
+
+int _countOccurrences(String source, String needle) {
+  var count = 0;
+  var index = 0;
+  while (true) {
+    index = source.indexOf(needle, index);
+    if (index < 0) return count;
+    count++;
+    index += needle.length;
+  }
 }

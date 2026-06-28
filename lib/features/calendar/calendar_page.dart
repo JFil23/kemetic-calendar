@@ -3784,8 +3784,11 @@ class _SharedCalendarEventDetailSnapshot {
   final Map<String, dynamic>? behaviorPayload;
 
   String get debugIdentity =>
-      'calendarId=$calendarId eventId=$eventId clientEventId=$clientEventId '
-      'title="$title" start=${startsAtLocal.toIso8601String()}';
+      'calendarId=${safeLogIdentifier(calendarId)} '
+      'eventId=${safeLogIdentifier(eventId)} '
+      'clientEventId=${safeLogIdentifier(clientEventId)} '
+      'title=<redacted chars=${title.length}> '
+      'start=${startsAtLocal.toIso8601String()}';
 }
 
 class _SharedCalendarRealDayViewIntent {
@@ -19749,7 +19752,8 @@ class CalendarPageState extends State<CalendarPage>
     if (shouldSkip) {
       if (kDebugMode) {
         _calendarDebugPrint(
-          '[_addNote] skip add for title="$title" cid=${clientEventId ?? '<none>'} pending/tombstoned',
+          '[_addNote] skip add for title=<redacted chars=${title.length}> '
+          'cid=${safeLogIdentifier(clientEventId)} pending/tombstoned',
         );
       }
       return false;
@@ -21550,7 +21554,14 @@ class CalendarPageState extends State<CalendarPage>
         : '<none>';
     if (kDebugMode) {
       _calendarDebugPrint(
-        '[DayView] move start id=${evt.id} cid=${evt.clientEventId} rawId=$rawId rawCid=$rawClientId moveKey=$moveKeyForLog title="${evt.title}" flowId=${evt.flowId} startMin=${evt.startMin} endMin=${evt.endMin} proposedStart=$proposedStartMin',
+        '[DayView] move start id=${safeLogIdentifier(evt.id)} '
+        'cid=${safeLogIdentifier(evt.clientEventId)} '
+        'rawId=${safeLogIdentifier(rawId)} '
+        'rawCid=${safeLogIdentifier(rawClientId)} '
+        'moveKey=$moveKeyForLog '
+        'title=<redacted chars=${evt.title.length}> '
+        'flowId=${evt.flowId} startMin=${evt.startMin} '
+        'endMin=${evt.endMin} proposedStart=$proposedStartMin',
       );
     }
     if (evt.allDay) {
@@ -27155,7 +27166,8 @@ class CalendarPageState extends State<CalendarPage>
     if (kDebugMode) {
       _calendarDebugPrint(
         "[maatTemplate] Unsupported mounted Ma'at template "
-        'kind=${template.kind} key=${template.key} title="${template.title}"',
+        'kind=${template.kind} key=${template.key} '
+        'title=<redacted chars=${template.title.length}>',
       );
     }
     if (mounted) {
@@ -29986,9 +29998,10 @@ class CalendarPageState extends State<CalendarPage>
   void _syncAcceptedInviteCalendarImportsInBackground(String reason) {
     unawaited(() async {
       try {
-        await ShareRepo(
+        final changed = await ShareRepo(
           Supabase.instance.client,
         ).syncAcceptedInviteCalendarImports();
+        if (!changed) return;
         if (!mounted) return;
         await _loadCalendarState();
         if (!mounted) return;
@@ -30257,7 +30270,9 @@ class CalendarPageState extends State<CalendarPage>
               repMeta.location != null ||
               repMeta.category != null;
           _calendarDebugPrint(
-            '[loadFromDisk] hidden flow id=${f.id} name="${f.name}" fromDb=$fromDb fromRepMeta=$fromRepMeta',
+            '[loadFromDisk] hidden flow id=${f.id} '
+            'name=<redacted chars=${f.name.length}> '
+            'fromDb=$fromDb fromRepMeta=$fromRepMeta',
           );
         }
         final flow = _Flow(
@@ -30282,7 +30297,9 @@ class CalendarPageState extends State<CalendarPage>
         // Log flows with ID greater than 156 to catch all user-created flows
         if (kDebugMode && f.id > 156) {
           _calendarDebugPrint(
-            '[loadFlows] Flow ${f.id} "${f.name}" loaded with color=${f.color} (0x${f.color.toRadixString(16)})',
+            '[loadFlows] Flow ${f.id} loaded with '
+            'name=<redacted chars=${f.name.length}> '
+            'color=${f.color} (0x${f.color.toRadixString(16)})',
           );
         }
         if (flow.id >= nextFlowId) nextFlowId = flow.id + 1;
@@ -30344,7 +30361,8 @@ class CalendarPageState extends State<CalendarPage>
             final looksLikeRepeatingNote =
                 rn.detail != null || rn.location != null || rn.category != null;
             _calendarDebugPrint(
-              '[loadFromDisk] flow id=$fid name="${flow.name}" '
+              '[loadFromDisk] flow id=$fid '
+              'name=<redacted chars=${flow.name.length}> '
               'isReminder=${flow.isReminder} hidden=${flow.isHidden} '
               'notesLikeRepeatingNote=$looksLikeRepeatingNote',
             );

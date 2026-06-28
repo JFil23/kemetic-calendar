@@ -502,7 +502,7 @@ Future<void> main() async {
     if (kDebugMode) {
       debugPrint(
         '[boot] Supabase config present: '
-        'urlHost=${safeUriHost(supabaseConfig.url)} '
+        'urlConfigured=${supabaseConfig.url.isNotEmpty} '
         'anonKeyPresent=${supabaseConfig.anonKey.isNotEmpty}',
       );
     }
