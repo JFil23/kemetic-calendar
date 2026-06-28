@@ -3,17 +3,126 @@ import 'kemetic_node_model.dart';
 class KemeticNodeLibrary {
   KemeticNodeLibrary._();
 
-  static final List<KemeticNode> nodes = List.unmodifiable(_nodes);
+  static const List<String> _canonicalNodeOrder = [
+    'cosmic_order',
+    'human_emergence',
+    'ancient_african_tree',
+    'green_sahara',
+    'nile',
+    'kemet',
+    'rise_of_kush_and_kemet',
+    'maat',
+    'isfet',
+    'regnal_year',
+    'palermo_stone',
+    'wadi_el_jarf_papyri',
+    'imhotep',
+    'house_of_life',
+    'rekh_wer',
+    'ptah',
+    'memphite_theology',
+    'shu',
+    'nut',
+    'ra',
+    'khepri',
+    'khnum',
+    'djehuty',
+    'ausar',
+    'aset',
+    'nebet_het',
+    'heru',
+    'set',
+    'hawk',
+    'jackal',
+    'serpent',
+    'hathor',
+    'eye_of_ra',
+    'sekhmet',
+    'sopdet',
+    'sah',
+    'decans',
+    'dendera',
+    'esna_temple',
+    'architrave',
+    'abydos',
+    'duat',
+    'amduat',
+    'horizon',
+    'ka',
+    'ba',
+    'akh',
+    'ren',
+    'ib',
+    'sheut',
+    'shai',
+    'natron',
+    'false_door',
+    'offering_formula',
+    'hotep',
+    'tomb_inscriptions',
+    'pyramid_texts',
+    'middle_kingdom_funerary',
+    'coffin_texts',
+    'book_of_the_dead',
+    'declarations_of_innocence',
+    'papyrus_chester_beatty_iv',
+    'instruction_ptahhotep',
+    'instruction_amenemope',
+    'epagomenal_days',
+    'wp_rnpt',
+    'akhet',
+    'peret',
+    'shemu',
+    'renenutet',
+    'haw',
+  ];
 
   static final Map<String, KemeticNode> _byId = {
     for (final node in _nodes) node.id.toLowerCase(): node,
   };
+
+  static final List<KemeticNode> nodes = List.unmodifiable(
+    _buildCanonicalNodes(),
+  );
 
   static final Map<String, String> _aliases = {
     for (final node in _nodes)
       for (final alias in node.aliases)
         alias.toLowerCase(): node.id.toLowerCase(),
   };
+
+  static List<KemeticNode> _buildCanonicalNodes() {
+    final rawIds = _nodes.map((node) => node.id.toLowerCase()).toSet();
+    final orderedIds = _canonicalNodeOrder
+        .map((id) => id.toLowerCase())
+        .toList(growable: false);
+
+    final seen = <String>{};
+    final duplicates = <String>{};
+
+    for (final id in orderedIds) {
+      if (!seen.add(id)) {
+        duplicates.add(id);
+      }
+    }
+
+    final orderedIdSet = orderedIds.toSet();
+    final missingFromOrder = rawIds.difference(orderedIdSet);
+    final unknownInOrder = orderedIdSet.difference(rawIds);
+
+    if (duplicates.isNotEmpty ||
+        missingFromOrder.isNotEmpty ||
+        unknownInOrder.isNotEmpty) {
+      throw StateError(
+        'Invalid Kemetic library canonical order. '
+        'Duplicates: ${duplicates.join(', ')}. '
+        'Missing from order: ${missingFromOrder.join(', ')}. '
+        'Unknown in order: ${unknownInOrder.join(', ')}.',
+      );
+    }
+
+    return [for (final id in orderedIds) _byId[id]!];
+  }
 
   static KemeticNode? resolve(String idOrAlias) {
     final key = idOrAlias.trim().toLowerCase();

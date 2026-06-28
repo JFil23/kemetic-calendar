@@ -81,7 +81,7 @@ void main() {
   });
 
   test('rise of kush and kemet preserves the volcanic grid', () {
-    final node = KemeticNodeLibrary.nodes[4];
+    final node = KemeticNodeLibrary.resolve('rise_of_kush_and_kemet')!;
 
     expect(node.id, 'rise_of_kush_and_kemet');
     expect(node.title, 'Rise of Kush and Kemet');
