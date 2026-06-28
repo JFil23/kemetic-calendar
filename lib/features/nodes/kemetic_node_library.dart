@@ -4635,11 +4635,13 @@ Where this is maintained, abundance holds within Ma'at. Where it is not, food be
   ),
   KemeticNode(
     id: 'haw',
-    title: 'Ḥꜣw',
+    title: 'ḥꜣw',
     glyph: '𓇉𓄿𓅱𓏛𓏥',
     aliases: [
       'Haw',
       'HAw',
+      'ḥꜣw',
+      'Ḥꜣw',
       'Increase',
       'Surplus',
       'Abundance',
@@ -4696,7 +4698,7 @@ The Declarations of Innocence encode the same principle across forty-two domains
 
 — *Book of Coming Forth by Day*
 
-## When Ḥꜣw Exceeds Its Place
+## When ḥꜣw Exceeds Its Place
 
 The same word names the departure.
 
@@ -4716,7 +4718,7 @@ The Tomb of Paheri preserves the administrative form of this failure: the offici
 
 — *Tomb of Paheri*
 
-## The Nile and the Measure of Ḥꜣw
+## The Nile and the Measure of ḥꜣw
 
 The inundation embodies the ḥꜣw problem in the most visible terms.
 
@@ -4730,7 +4732,7 @@ The Pyramid Texts speak of the king entering the solar company where provisions 
 
 — *Pyramid Texts*, Utterance 413
 
-## Ḥꜣw in the Living Person
+## ḥꜣw in the Living Person
 
 The word names the condition that every person in Kemet encountered seasonally, in every exchange, and in every moment where capacity exceeded obligation.
 
@@ -4738,7 +4740,7 @@ There is always a gap between what was strictly required and what was available.
 
 The Kemetic tradition did not treat this as a test to be passed once. Hapy returns each year. The granary fills again. The charge is renewed. The authority of the office is still present on the morning after the levy was correctly taken. The gap between what is required and what is available opens again and again, and each time the same question is present in the word: is this ḥꜣw held within Ma'at, or has it departed?
 
-Ḥꜣw defines a continuous condition:
+ḥꜣw defines a continuous condition:
 
 • what arrives beyond the base must be recognized for what it is
 • what is recognized must be held within right relation to the circuit that produced it

@@ -204,7 +204,10 @@ class KemeticNodeSearchDelegate extends SearchDelegate<String?> {
     final results = <_NodeSearchResult>[];
     for (final node in nodes) {
       final title = node.title.trim();
-      final aliases = node.aliases.where((alias) => alias.trim().isNotEmpty);
+      final aliases = node.aliases
+          .where((alias) => alias.trim().isNotEmpty)
+          .toList(growable: false);
+      final displayAliases = node.displayAliases;
       final searchable = <String>[
         node.id,
         title,
@@ -219,9 +222,9 @@ class KemeticNodeSearchDelegate extends SearchDelegate<String?> {
           nodeId: node.id,
           title: title,
           glyph: node.glyph,
-          subtitle: aliases.isEmpty
+          subtitle: displayAliases.isEmpty
               ? 'Library entry'
-              : 'Library entry • ${aliases.join(', ')}',
+              : 'Library entry • ${displayAliases.join(', ')}',
           snippet: _snippetFor(
             [node.body, title, ...aliases],
             rawQuery,

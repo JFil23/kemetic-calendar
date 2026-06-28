@@ -16,6 +16,17 @@ void main() {
     );
   });
 
+  test('search keeps legacy haw transliteration alias', () {
+    final delegate = KemeticNodeSearchDelegate(
+      nodes: KemeticNodeLibrary.nodes,
+      insightEntriesFuture: Future.value(const <InsightEntry>[]),
+    );
+
+    expect(delegate.debugMatchingNodeIds('Ḥꜣw', const <InsightEntry>[]), [
+      'haw',
+    ]);
+  });
+
   test('search matches user insight body text', () {
     final now = DateTime(2026, 5, 16);
     final entry = InsightEntry(

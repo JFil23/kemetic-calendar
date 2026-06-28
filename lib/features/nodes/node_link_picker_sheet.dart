@@ -150,6 +150,7 @@ Future<NodeLinkPickerResult?> showNodeLinkPickerSheet({
                               itemBuilder: (context, index) {
                                 final node = filtered[index];
                                 final isCurrent = currentNode?.id == node.id;
+                                final displayAliases = node.displayAliases;
                                 return Card(
                                   color: isCurrent
                                       ? const Color(0xFF1E1A12)
@@ -169,7 +170,7 @@ Future<NodeLinkPickerResult?> showNodeLinkPickerSheet({
                                         color: Colors.white,
                                       ),
                                     ),
-                                    subtitle: node.aliases.isEmpty
+                                    subtitle: displayAliases.isEmpty
                                         ? (isCurrent
                                               ? const Text(
                                                   'Currently linked',
@@ -180,14 +181,14 @@ Future<NodeLinkPickerResult?> showNodeLinkPickerSheet({
                                               : null)
                                         : KemeticText(
                                             isCurrent
-                                                ? '${node.aliases.join(', ')}\nCurrently linked'
-                                                : node.aliases.join(', '),
+                                                ? '${displayAliases.join(', ')}\nCurrently linked'
+                                                : displayAliases.join(', '),
                                             style: const TextStyle(
                                               color: Colors.white54,
                                             ),
                                           ),
                                     isThreeLine:
-                                        isCurrent && node.aliases.isNotEmpty,
+                                        isCurrent && displayAliases.isNotEmpty,
                                     onTap: () => Navigator.of(
                                       ctx,
                                     ).pop(NodeLinkPickerResult.link(node)),

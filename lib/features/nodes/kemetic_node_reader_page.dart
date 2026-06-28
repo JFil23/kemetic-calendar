@@ -520,7 +520,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
   }
 
   Widget _buildHeader() {
-    final aliasChips = _node.aliases.where((a) => a.isNotEmpty).toList();
+    final aliasChips = _node.displayAliases;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

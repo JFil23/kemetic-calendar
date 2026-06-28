@@ -23,7 +23,7 @@ void main() {
   test('protected transliteration switches away from decorative fonts', () {
     const decorative = TextStyle(fontFamily: 'CormorantGaramond');
 
-    final protected = KemeticTypography.protect(decorative, 'Ḥꜣw');
+    final protected = KemeticTypography.protect(decorative, 'ḥꜣw');
     final ordinary = KemeticTypography.protect(decorative, 'Cosmic Order');
 
     expect(protected.fontFamily, KemeticTypography.kemeticLatinFontFamily);
@@ -49,7 +49,7 @@ void main() {
   test('mixed transliteration and glyph text keeps both protected stacks', () {
     final protected = KemeticTypography.protect(
       const TextStyle(fontFamily: 'CormorantGaramond'),
-      'Ḥꜣw 𓆄',
+      'ḥꜣw 𓆄',
     );
 
     expect(protected.fontFamily, KemeticTypography.kemeticLatinFontFamily);
@@ -75,7 +75,7 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    expect(find.text('Ḥꜣw'), findsWidgets);
+    expect(find.text('ḥꜣw'), findsWidgets);
     expect(find.text('𓆄 𓀀 𓉹 𓂀 𓁹 𓇳 𓊖'), findsWidgets);
   });
 

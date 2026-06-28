@@ -301,7 +301,6 @@ class KemeticGlyphSpecimenDebugView extends StatelessWidget {
   const KemeticGlyphSpecimenDebugView({super.key});
 
   static const List<String> _specimens = [
-    'Ḥꜣw',
     'ḥꜣw',
     'HAw',
     'Ma’at',

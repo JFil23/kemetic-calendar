@@ -542,9 +542,9 @@ void main() {
         'The Sign of Increase',
         'Increase in Service of Order',
         'Surplus as the Test of Character',
-        'When Ḥꜣw Exceeds Its Place',
-        'The Nile and the Measure of Ḥꜣw',
-        'Ḥꜣw in the Living Person',
+        'When ḥꜣw Exceeds Its Place',
+        'The Nile and the Measure of ḥꜣw',
+        'ḥꜣw in the Living Person',
       ],
     };
 
@@ -559,6 +559,8 @@ void main() {
       'haw': [
         'Haw',
         'HAw',
+        'ḥꜣw',
+        'Ḥꜣw',
         'Increase',
         'Surplus',
         'Abundance',
@@ -614,6 +616,23 @@ void main() {
       haw.linkMap.where((link) => link.phrase == 'Hapy').single.targetId,
       'nile',
     );
+  });
+
+  test('haw displays in lowercase transliteration form', () {
+    final node = KemeticNodeLibrary.resolve('haw');
+
+    expect(node, isNotNull);
+    expect(node!.title, 'ḥꜣw');
+    expect(KemeticNodeLibrary.resolve('ḥꜣw')?.id, 'haw');
+    expect(KemeticNodeLibrary.resolve('Ḥꜣw')?.id, 'haw');
+    expect(node.aliases, contains('HAw'));
+    expect(node.aliases, contains('Ḥꜣw'));
+    expect(node.aliases, contains('ḥꜣw'));
+    expect(node.displayAliases, contains('Haw'));
+    expect(node.displayAliases, contains('Increase'));
+    expect(node.displayAliases, isNot(contains('HAw')));
+    expect(node.displayAliases, isNot(contains('Ḥꜣw')));
+    expect(node.displayAliases, isNot(contains('ḥꜣw')));
   });
 
   test('scribal offering and false door nodes carry long-form essays', () {
