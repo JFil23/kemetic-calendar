@@ -82,6 +82,7 @@ import '../../utils/event_cid_util.dart';
 import '../../utils/detail_sanitizer.dart';
 import 'package:mobile/core/pinch_gesture_surface.dart';
 import 'package:mobile/core/touch_targets.dart';
+import 'package:mobile/shared/kemetic_text.dart';
 import '../journal/journal_event_badge.dart';
 import '../journal/journal_badge_utils.dart';
 import '../journal/journal_v2_document_model.dart';

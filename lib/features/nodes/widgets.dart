@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/core/touch_targets.dart';
+import 'package:mobile/shared/kemetic_text.dart';
 import '../../shared/glossy_text.dart';
 
 class NodeGlyphMark extends StatelessWidget {
@@ -32,14 +33,8 @@ class NodeGlyphMark extends StatelessWidget {
   final Color? borderColor;
   final Gradient? gradient;
 
-  static const List<String> _glyphFontFallback = [
-    'NotoSansEgyptianHieroglyphs',
-    'GentiumPlus',
-    'NotoSans',
-    'Roboto',
-    'Arial',
-    'sans-serif',
-  ];
+  static const List<String> _glyphFontFallback =
+      KemeticTypography.meduNeterFallback;
 
   String get _compactGlyph => glyph.replaceAll(RegExp(r'\s+'), '').trim();
 
@@ -60,7 +55,7 @@ class NodeGlyphMark extends StatelessWidget {
   }
 
   Widget _text(String text, TextStyle style, StrutStyle strutStyle) {
-    return Text(
+    return MeduGlyphText(
       text,
       maxLines: 1,
       overflow: TextOverflow.visible,
@@ -204,19 +199,9 @@ class GlyphBackButton extends StatelessWidget {
                       shaderCallback: (Rect bounds) =>
                           KemeticGold.gloss.createShader(bounds),
                       blendMode: BlendMode.srcIn,
-                      child: const Text(
+                      child: const MeduGlyphText(
                         '𓋴 𓄿 𓏏 𓂋',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.white,
-                          fontFamily: 'GentiumPlus',
-                          fontFamilyFallback: [
-                            'NotoSans',
-                            'Roboto',
-                            'Arial',
-                            'sans-serif',
-                          ],
-                        ),
+                        style: TextStyle(fontSize: 16, color: Colors.white),
                       ),
                     ),
                   ),

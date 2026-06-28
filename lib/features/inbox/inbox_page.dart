@@ -19,6 +19,7 @@ import 'dart:async';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/gestures.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:mobile/shared/kemetic_text.dart';
 import '../../services/restoration_coordinator.dart';
 import '../../services/session_resume_service.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
@@ -82,13 +83,8 @@ class _InboxPageState extends State<InboxPage> {
     ],
     stops: <double>[0.0, 0.42, 0.74, 1.0],
   );
-  static const List<String> _meduFontFallback = <String>[
-    'Noto Sans Egyptian Hieroglyphs',
-    'Apple Symbols',
-    'Segoe UI Symbol',
-    'Arial Unicode MS',
-    'NotoSans',
-  ];
+  static const List<String> _meduFontFallback =
+      KemeticTypography.meduNeterFallback;
 
   late final InboxRepo _inboxRepo;
   late final ShareRepo _shareRepo;
@@ -1583,7 +1579,7 @@ class _InboxPageState extends State<InboxPage> {
                 padding: padding,
                 child:
                     child ??
-                    Text(
+                    MeduGlyphText(
                       glyph!,
                       textAlign: TextAlign.center,
                       style: _summaryGlyphTextStyle(fontSize),
@@ -1617,10 +1613,13 @@ class _InboxPageState extends State<InboxPage> {
           Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('𓂝', style: _summaryGlyphTextStyle(9.5, height: 0.8)),
+              MeduGlyphText(
+                '𓂝',
+                style: _summaryGlyphTextStyle(9.5, height: 0.8),
+              ),
               Transform.translate(
                 offset: const Offset(0, -1),
-                child: Text(
+                child: MeduGlyphText(
                   '𓈙',
                   style: _summaryGlyphTextStyle(9.5, height: 0.8),
                 ),
@@ -1628,7 +1627,7 @@ class _InboxPageState extends State<InboxPage> {
             ],
           ),
           const SizedBox(width: 2),
-          Text('𓀀', style: _summaryGlyphTextStyle(13, height: 0.9)),
+          MeduGlyphText('𓀀', style: _summaryGlyphTextStyle(13, height: 0.9)),
         ],
       ),
     );

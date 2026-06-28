@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../shared/glossy_text.dart';
+import '../../shared/kemetic_text.dart';
 import 'kemetic_numeral.dart';
 import 'library_read_state.dart';
 import 'library_visual_tokens.dart';
@@ -243,7 +244,7 @@ class _ArticleCard extends StatelessWidget {
                         _IconBox(glyph: glyph),
                         const SizedBox(width: 12),
                         Expanded(
-                          child: Text(
+                          child: KemeticText(
                             title,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
@@ -261,7 +262,7 @@ class _ArticleCard extends StatelessWidget {
                     if (themes.isNotEmpty) ...[
                       const SizedBox(height: 20),
                       _TextColumn(
-                        child: Text(
+                        child: KemeticText(
                           themes.take(2).join(' · '),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -360,12 +361,16 @@ class _OpeningLine extends StatelessWidget {
     if (trimmed.isEmpty) return const SizedBox.shrink();
     final drop = trimmed.substring(0, 1);
     final rest = trimmed.length == 1 ? '' : trimmed.substring(1);
+    final style = KemeticTypography.protect(
+      LibraryVisualTokens.openingStyle(),
+      trimmed,
+    );
 
     return RichText(
       textAlign: TextAlign.start,
       textWidthBasis: TextWidthBasis.parent,
       text: TextSpan(
-        style: LibraryVisualTokens.openingStyle(),
+        style: style,
         children: [
           TextSpan(
             text: drop,

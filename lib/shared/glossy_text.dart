@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'kemetic_text.dart';
+
 // ---- Unified palette (one source of truth) ----
 const Color goldLight = Color(0xFFFFE8A3);
 const Color gold = Color(0xFFD4AF37);
@@ -68,17 +70,17 @@ class GlossyText extends StatelessWidget {
     final bool small = fs < 18.0;
     final bool unlimited = maxLines == null;
 
-    final TextStyle masked = style.copyWith(
+    final protectedStyle = KemeticTypography.protect(style, text);
+    final TextStyle masked = protectedStyle.copyWith(
       color: const Color(0xFFFFFFFF),
       height: style.height,
       fontSize: (style.fontSize != null)
           ? style.fontSize!.roundToDouble()
           : null,
       letterSpacing: 0,
-      fontFamily: style.fontFamily,
       fontFamilyFallback:
-          style.fontFamilyFallback ??
-          const ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
+          protectedStyle.fontFamilyFallback ??
+          KemeticTypography.kemeticLatinFallback,
       shadows: small ? null : style.shadows,
     );
 
@@ -129,12 +131,7 @@ class GlossyIcon extends StatelessWidget {
 }
 
 const List<String> meduNeterFontFallback = [
-  'Noto Sans Egyptian Hieroglyphs',
-  'NotoSansEgyptianHieroglyphs',
-  'NotoSans',
-  'Roboto',
-  'Arial',
-  'sans-serif',
+  ...KemeticTypography.meduNeterFallback,
 ];
 
 class MeduNeterGlyphs {
@@ -177,7 +174,7 @@ class GlossyGlyph extends StatelessWidget {
       fontWeight: FontWeight.w600,
       height: 1,
       letterSpacing: 0,
-      fontFamily: 'GentiumPlus',
+      fontFamily: KemeticTypography.meduNeterFontFamily,
       fontFamilyFallback: meduNeterFontFallback,
     );
 

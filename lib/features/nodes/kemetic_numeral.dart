@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../shared/kemetic_text.dart';
 import 'library_visual_tokens.dart';
 
 @immutable
@@ -137,7 +138,7 @@ class _KemeticNumeralGroupWidget extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           for (final row in group.rows)
-            Text(
+            MeduGlyphText(
               row,
               maxLines: 1,
               overflow: TextOverflow.visible,

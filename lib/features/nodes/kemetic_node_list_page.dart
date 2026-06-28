@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../core/navigation_fallback.dart';
+import '../../shared/kemetic_text.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
 import 'kemetic_node_library.dart';
 import 'library_canon_adapter.dart';
@@ -233,7 +234,7 @@ class _KemeticNodeListPageState extends State<KemeticNodeListPage>
             ),
             Transform.translate(
               offset: const Offset(0, 5),
-              child: Text(
+              child: MeduGlyphText(
                 '𓊪𓏤𓂋𓏛',
                 style: LibraryVisualTokens.chromeGlyphStyle(),
                 overflow: TextOverflow.clip,

@@ -22,7 +22,8 @@ class KemeticDayDropdown extends StatefulWidget {
 class _KemeticDayDropdownState extends State<KemeticDayDropdown> {
   final ScrollController _scrollController = ScrollController();
 
-  static const List<String> _meduFontFallback = ['GentiumPlus'];
+  static const List<String> _meduFontFallback =
+      KemeticTypography.meduNeterFallback;
   static const double _infoLineHeight = 1.35;
 
   @override

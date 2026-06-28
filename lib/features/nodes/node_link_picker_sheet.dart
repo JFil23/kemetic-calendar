@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../shared/glossy_text.dart';
+import '../../shared/kemetic_text.dart';
 import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/keyboard_aware.dart';
 import 'kemetic_node_library.dart';
@@ -90,7 +91,7 @@ Future<NodeLinkPickerResult?> showNodeLinkPickerSheet({
                       ),
                     ),
                     const SizedBox(height: 6),
-                    Text(
+                    KemeticText(
                       selectedText,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -122,7 +123,7 @@ Future<NodeLinkPickerResult?> showNodeLinkPickerSheet({
                             Icons.link_off,
                             color: Colors.white70,
                           ),
-                          title: Text(
+                          title: KemeticText(
                             'Remove link to ${currentNode.title}',
                             style: const TextStyle(color: Colors.white),
                           ),
@@ -162,7 +163,7 @@ Future<NodeLinkPickerResult?> showNodeLinkPickerSheet({
                                           ? KemeticGold.base
                                           : Colors.white70,
                                     ),
-                                    title: Text(
+                                    title: KemeticText(
                                       node.title,
                                       style: const TextStyle(
                                         color: Colors.white,
@@ -177,7 +178,7 @@ Future<NodeLinkPickerResult?> showNodeLinkPickerSheet({
                                                   ),
                                                 )
                                               : null)
-                                        : Text(
+                                        : KemeticText(
                                             isCurrent
                                                 ? '${node.aliases.join(', ')}\nCurrently linked'
                                                 : node.aliases.join(', '),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../shared/kemetic_text.dart';
+
 /// Centralized theme configuration for the app
 class AppTheme {
   AppTheme._();
@@ -18,6 +20,7 @@ class AppTheme {
     useMaterial3: true,
     brightness: Brightness.dark,
     fontFamily: 'GentiumPlus',
+    fontFamilyFallback: KemeticTypography.kemeticLatinFallback,
     materialTapTargetSize: MaterialTapTargetSize.padded,
 
     // Core colors
@@ -40,6 +43,7 @@ class AppTheme {
         fontSize: 20,
         fontWeight: FontWeight.w600,
         fontFamily: 'GentiumPlus',
+        fontFamilyFallback: KemeticTypography.kemeticLatinFallback,
       ),
     ),
 

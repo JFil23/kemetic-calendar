@@ -23,6 +23,7 @@ import 'package:mobile/widgets/pronounce_icon_button.dart';
 import 'package:mobile/services/speech/speech_service.dart';
 import 'package:mobile/features/calendar/speech_resolver.dart';
 import 'package:mobile/features/calendar/decan_id.dart';
+import 'package:mobile/shared/kemetic_text.dart';
 
 part 'kemetic_day_models.dart';
 part 'kemetic_day_data.dart';

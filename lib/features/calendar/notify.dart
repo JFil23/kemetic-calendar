@@ -8,6 +8,7 @@ import 'package:flutter/services.dart' show PlatformException;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/push_intent_bus.dart';
+import '../../shared/kemetic_text.dart';
 import '../settings/settings_prefs.dart';
 
 // Timezone DB (we schedule in LOCAL timezone)
@@ -441,14 +442,14 @@ class Notify {
     }
 
     if (kept.isEmpty) return null;
-    final result = kept.join('\n').trim();
+    final result = KemeticExternalText.asciiSafe(kept.join('\n').trim());
     return result.isEmpty ? null : result;
   }
 
   static String _sanitizeNotificationTitle(String raw) {
     final sanitized = _sanitizeNotificationBody(raw);
     if (sanitized == null || sanitized.isEmpty) {
-      return raw.trim();
+      return KemeticExternalText.asciiSafe(raw.trim());
     }
     return sanitized.replaceAll(RegExp(r'\s*\n\s*'), ' ').trim();
   }
@@ -1177,10 +1178,13 @@ class Notify {
       iOS: iosDetails,
     );
 
+    final safeTitle = KemeticExternalText.asciiSafe(title);
+    final safeBody = body == null ? null : KemeticExternalText.asciiSafe(body);
+
     await _plugin.show(
       DateTime.now().millisecondsSinceEpoch.remainder(1000000),
-      title,
-      body,
+      safeTitle.isEmpty ? 'Kemetic Calendar' : safeTitle,
+      safeBody?.isEmpty == true ? null : safeBody,
       details,
     );
   }
@@ -1634,6 +1638,11 @@ class Notify {
     bool requireExact = false,
     AndroidScheduleMode? androidScheduleMode,
   }) async {
+    final safeTitle = KemeticExternalText.asciiSafe(title);
+    final safeBody = body == null ? null : KemeticExternalText.asciiSafe(body);
+    final notificationTitle = safeTitle.isEmpty ? 'Reminder' : safeTitle;
+    final notificationBody = safeBody?.isEmpty == true ? null : safeBody;
+
     // Convert to timezone-aware datetime
     final tzScheduled = tz.TZDateTime.from(scheduledAt, tz.local);
 
@@ -1675,8 +1684,8 @@ class Notify {
     try {
       await _plugin.zonedSchedule(
         id,
-        title,
-        body,
+        notificationTitle,
+        notificationBody,
         tzScheduled,
         details,
         payload: payload,
@@ -1699,8 +1708,8 @@ class Notify {
         _logInexactAlarmFallback();
         await _plugin.zonedSchedule(
           id,
-          title,
-          body,
+          notificationTitle,
+          notificationBody,
           tzScheduled,
           details,
           payload: payload,

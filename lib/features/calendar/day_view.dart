@@ -14,6 +14,7 @@ import 'package:flutter/gestures.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:mobile/shared/kemetic_text.dart';
 import 'package:mobile/core/app_bottom_insets.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/core/touch_targets.dart';
@@ -3753,9 +3754,13 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                   visual: visual,
                 );
               } else {
+                final detailStyle = KemeticTypography.protect(
+                  _detailBodyStyle(visual: visual),
+                  displayDetail,
+                );
                 detailContent = RichText(
                   text: TextSpan(
-                    style: _detailBodyStyle(visual: visual),
+                    style: detailStyle,
                     children: _buildTextSpans(displayDetail),
                   ),
                 );

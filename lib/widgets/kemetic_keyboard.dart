@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile/core/touch_targets.dart';
+import 'package:mobile/shared/kemetic_text.dart';
 
 import 'kemetic_web_keyboard_input.dart'
     if (dart.library.js_interop) 'kemetic_web_keyboard_input_web.dart';
@@ -985,7 +986,10 @@ class _KeyboardPanelState extends State<_KeyboardPanel> {
         tapTargetSize: expandedTapTargetSize(context),
       ),
       segments: const [
-        ButtonSegment(value: _OutputMode.scholarly, label: Text('ꜣ')),
+        ButtonSegment(
+          value: _OutputMode.scholarly,
+          label: KemeticText('ꜣ', style: TextStyle()),
+        ),
         ButtonSegment(value: _OutputMode.ascii, label: Text('ASCII')),
       ],
       selected: {_mode},

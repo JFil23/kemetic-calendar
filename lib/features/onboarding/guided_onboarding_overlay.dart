@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:mobile/features/onboarding/onboarding_progress.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:mobile/shared/kemetic_text.dart';
 
 enum CoachmarkVariant { onboarding, helperBubble }
 
@@ -583,7 +584,7 @@ class CoachmarkCard extends StatelessWidget {
                   ),
                 ),
               SizedBox(height: _isHelper ? 6 : 8),
-              Text(
+              KemeticText(
                 target.body,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.84),
@@ -593,7 +594,7 @@ class CoachmarkCard extends StatelessWidget {
               ),
               if (target.instruction != null) ...[
                 SizedBox(height: _isHelper ? 8 : 12),
-                Text(
+                KemeticText(
                   target.instruction!,
                   style: const TextStyle(
                     color: Color(0xFFFFE7A3),

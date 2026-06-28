@@ -26,6 +26,7 @@ import 'package:mobile/services/daily_reflection_widget_bridge.dart'
     if (dart.library.html) 'package:mobile/services/daily_reflection_widget_bridge_web.dart';
 import 'package:mobile/services/navigation_trace.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:mobile/shared/kemetic_text.dart';
 import 'package:mobile/widgets/kemetic_app_bar_action.dart';
 import 'package:mobile/widgets/kemetic_day_info.dart';
 import 'package:mobile/widgets/kemetic_keyboard.dart';
@@ -3472,7 +3473,10 @@ class DecanInfoPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
-                  Text(info.meduNeter.glyph, style: RhythmTheme.subheading),
+                  MeduGlyphText(
+                    info.meduNeter.glyph,
+                    style: RhythmTheme.subheading,
+                  ),
                   const SizedBox(height: 4),
                   Text(
                     info.meduNeter.mantra,

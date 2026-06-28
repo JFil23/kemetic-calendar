@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import '../../data/insight_link_model.dart';
 import '../../data/insight_link_utils.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:mobile/shared/kemetic_text.dart';
 import '../../widgets/insight_link_text.dart';
 import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/keyboard_aware.dart';
@@ -26,6 +27,7 @@ class JournalBadgeSpanBuilder {
     bool compact = false,
     bool renderBadgesInline = true,
   }) {
+    final protectedStyle = KemeticTypography.protect(style, text);
     final spans = <InlineSpan>[];
     const startTag = '⟦EVENT_BADGE';
     const endTag = '⟧';
@@ -38,13 +40,17 @@ class JournalBadgeSpanBuilder {
 
       // If we can't find a closing tag, treat remainder as plain text
       if (end == -1) {
-        spans.add(TextSpan(text: text.substring(cursor), style: style));
+        spans.add(
+          TextSpan(text: text.substring(cursor), style: protectedStyle),
+        );
         return spans;
       }
 
       // Add any plain text before the token
       if (start > cursor) {
-        spans.add(TextSpan(text: text.substring(cursor, start), style: style));
+        spans.add(
+          TextSpan(text: text.substring(cursor, start), style: protectedStyle),
+        );
       }
 
       final rawContent = text.substring(start + startTag.length, end).trim();
@@ -98,7 +104,7 @@ class JournalBadgeSpanBuilder {
 
     // Trailing text after the last token
     if (cursor < text.length) {
-      spans.add(TextSpan(text: text.substring(cursor), style: style));
+      spans.add(TextSpan(text: text.substring(cursor), style: protectedStyle));
     }
 
     return spans;
@@ -267,7 +273,10 @@ class _FormattedTextEditingController extends TextEditingController {
     }
 
     final spans = <InlineSpan>[];
-    final baseStyle = style ?? const TextStyle();
+    final baseStyle = KemeticTypography.protect(
+      style ?? const TextStyle(),
+      text,
+    );
     final direction = Directionality.maybeOf(context) ?? TextDirection.ltr;
     final linkBoxes = _computeLinkBoxes(baseStyle, direction);
     int offset = 0;
@@ -905,9 +914,11 @@ class RichTextEditorState extends State<RichTextEditor> {
   }
 
   Widget _buildEditableView() {
-    final textStyle =
-        widget.textStyle ??
-        const TextStyle(color: Colors.white, fontSize: 16, height: 1.5);
+    final textStyle = KemeticTypography.protect(
+      widget.textStyle ??
+          const TextStyle(color: Colors.white, fontSize: 16, height: 1.5),
+      _controller.text,
+    );
     final placeholderStyle =
         widget.placeholderStyle ??
         const TextStyle(color: Color(0xFF666666), fontSize: 16, height: 1.5);
@@ -960,9 +971,12 @@ class RichTextEditorState extends State<RichTextEditor> {
   }
 
   Widget _buildReadOnlyView(BoxConstraints constraints) {
-    final baseStyle =
-        widget.textStyle ??
-        const TextStyle(color: Colors.white, fontSize: 16, height: 1.5);
+    final plainText = _currentBlock.ops.map((op) => op.insert).join();
+    final baseStyle = KemeticTypography.protect(
+      widget.textStyle ??
+          const TextStyle(color: Colors.white, fontSize: 16, height: 1.5),
+      plainText,
+    );
 
     final spans = <InlineSpan>[];
     for (final op in _currentBlock.ops) {
