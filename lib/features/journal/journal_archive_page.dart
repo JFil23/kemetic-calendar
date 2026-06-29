@@ -677,7 +677,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
 
     Widget badgeBody;
     if (badges.isEmpty) {
-      badgeBody = const JournalEmptyBadgeGlyph(size: 38);
+      badgeBody = const JournalEmptyBadgeGlyph();
     } else {
       if (maxHeight != null) {
         badgeBody = ConstrainedBox(

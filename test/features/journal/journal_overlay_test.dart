@@ -133,11 +133,25 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Badges'), findsOneWidget);
+      expect(find.byType(JournalEmptyBadgeGlyph), findsOneWidget);
       expect(find.text(kJournalEmptyBadgeGlyph), findsOneWidget);
-      expect(find.text('No badges yet'), findsNothing);
+      expect(find.text('No badges yet'), findsOneWidget);
       expect(
         find.text('Event badges you add from day view will appear here.'),
         findsNothing,
+      );
+      final glyph = tester.widget<JournalEmptyBadgeGlyph>(
+        find.byType(JournalEmptyBadgeGlyph),
+      );
+      expect(glyph.width, 156);
+      expect(glyph.height, 52);
+      expect(glyph.fontSize, 52);
+      expect(
+        find.descendant(
+          of: find.byType(JournalEmptyBadgeGlyph),
+          matching: find.text(kJournalEmptyBadgeGlyph),
+        ),
+        findsOneWidget,
       );
 
       await tester.pumpWidget(
@@ -147,8 +161,9 @@ void main() {
       await tester.pump(const Duration(milliseconds: 300));
 
       expect(find.text('Badges'), findsOneWidget);
+      expect(find.byType(JournalEmptyBadgeGlyph), findsOneWidget);
       expect(find.text(kJournalEmptyBadgeGlyph), findsOneWidget);
-      expect(find.text('No badges yet'), findsNothing);
+      expect(find.text('No badges yet'), findsOneWidget);
       expect(
         find.text('Event badges you add from day view will appear here.'),
         findsNothing,
@@ -197,6 +212,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(find.text(kJournalEmptyBadgeGlyph), findsNothing);
+    expect(find.byType(JournalEmptyBadgeGlyph), findsNothing);
     expect(find.text('1 badge'), findsOneWidget);
     expect(find.text('Existing badge'), findsOneWidget);
 
@@ -528,8 +544,9 @@ void main() {
       expect(repo.upsertCalls, 0);
       expect(controller.loadedDate, DateTime(2026, 6, 9));
       expect(controller.currentDraft, isEmpty);
+      expect(find.byType(JournalEmptyBadgeGlyph), findsOneWidget);
       expect(find.text(kJournalEmptyBadgeGlyph), findsOneWidget);
-      expect(find.text('No badges yet'), findsNothing);
+      expect(find.text('No badges yet'), findsOneWidget);
       expect(
         find.text('Event badges you add from day view will appear here.'),
         findsNothing,

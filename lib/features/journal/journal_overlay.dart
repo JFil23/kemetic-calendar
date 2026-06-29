@@ -1408,8 +1408,9 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   Widget _buildBadgeArea({required double height, bool compact = false}) {
     final badges = _extractBadges();
-    final badgeCountLabel =
-        '${badges.length} badge${badges.length == 1 ? '' : 's'}';
+    final badgeCountLabel = badges.isEmpty
+        ? 'No badges yet'
+        : '${badges.length} badge${badges.length == 1 ? '' : 's'}';
 
     return AnimatedContainer(
       key: widget.badgeAreaKey,
@@ -1437,15 +1438,14 @@ class _JournalOverlayState extends State<JournalOverlay>
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                if (badges.isNotEmpty)
-                  Text(
-                    badgeCountLabel,
-                    style: const TextStyle(
-                      color: Color(0xFF888888),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
+                Text(
+                  badgeCountLabel,
+                  style: const TextStyle(
+                    color: Color(0xFF888888),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
+                ),
               ],
             ),
           ),
@@ -1479,7 +1479,7 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   Widget _buildCompactBadgeList(List<EventBadgeToken> badges) {
     if (badges.isEmpty) {
-      return const JournalEmptyBadgeGlyph(size: 30);
+      return const JournalEmptyBadgeGlyph(width: 96, height: 32, fontSize: 32);
     }
 
     return SingleChildScrollView(

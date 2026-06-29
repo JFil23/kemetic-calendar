@@ -1,18 +1,40 @@
 import 'package:flutter/material.dart';
 
-import 'package:mobile/shared/glossy_text.dart';
-
 const String kJournalEmptyBadgeGlyph = '𓂝';
+const Color kJournalEmptyBadgeGlyphColor = Color(0x998E8A86);
+const double kJournalEmptyBadgeGlyphFontSize = 52;
 
 class JournalEmptyBadgeGlyph extends StatelessWidget {
-  const JournalEmptyBadgeGlyph({super.key, this.size = 46});
+  const JournalEmptyBadgeGlyph({
+    super.key,
+    this.width = 156,
+    this.height = 52,
+    this.fontSize = kJournalEmptyBadgeGlyphFontSize,
+  });
 
-  final double size;
+  final double width;
+  final double height;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: KemeticGold.glyph(kJournalEmptyBadgeGlyph, size: size),
+      child: SizedBox(
+        width: width,
+        height: height,
+        child: Center(
+          child: Text(
+            kJournalEmptyBadgeGlyph,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: kJournalEmptyBadgeGlyphColor,
+              fontSize: fontSize,
+              fontWeight: FontWeight.w300,
+              height: 1,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

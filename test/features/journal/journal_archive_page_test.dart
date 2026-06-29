@@ -151,7 +151,21 @@ void main() {
     await tester.tap(find.textContaining('Archive empty badge entry').first);
     await tester.pumpAndSettle();
 
+    expect(find.byType(JournalEmptyBadgeGlyph), findsOneWidget);
     expect(find.text(kJournalEmptyBadgeGlyph), findsOneWidget);
+    final glyph = tester.widget<JournalEmptyBadgeGlyph>(
+      find.byType(JournalEmptyBadgeGlyph),
+    );
+    expect(glyph.width, 156);
+    expect(glyph.height, 52);
+    expect(glyph.fontSize, 52);
+    expect(
+      find.descendant(
+        of: find.byType(JournalEmptyBadgeGlyph),
+        matching: find.text(kJournalEmptyBadgeGlyph),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('No badges for this entry'), findsNothing);
     expect(find.text('No badges yet'), findsNothing);
     expect(
