@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/journal_repo.dart';
 import 'package:mobile/features/journal/journal_archive_page.dart';
 import 'package:mobile/features/journal/journal_controller.dart';
+import 'package:mobile/features/journal/journal_empty_badge_glyph.dart';
 import 'package:mobile/features/reflections/decan_reflection_skin.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -117,6 +118,46 @@ void main() {
 
     expect(find.text('Saturday, May 23'), findsOneWidget);
     expect(find.text('1 characters'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('archive empty badge section shows receiving-hand glyph only', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.reset);
+
+    final entry = _entry(body: 'Archive empty badge entry');
+    final repo = _ArchiveRepo(entry);
+    final controller = JournalController.withRepo(
+      repo,
+      currentUserId: () => 'user-a',
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: JournalArchivePage(
+          repo: repo,
+          controller: controller,
+          isPortrait: true,
+          onClose: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.textContaining('Archive empty badge entry').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text(kJournalEmptyBadgeGlyph), findsOneWidget);
+    expect(find.text('No badges for this entry'), findsNothing);
+    expect(find.text('No badges yet'), findsNothing);
+    expect(
+      find.text('Event badges you add from day view will appear here.'),
+      findsNothing,
+    );
     expect(tester.takeException(), isNull);
   });
 

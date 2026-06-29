@@ -34,6 +34,7 @@ import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../nodes/kemetic_node_library.dart';
 import '../nodes/node_link_picker_sheet.dart';
+import 'journal_empty_badge_glyph.dart';
 
 enum JournalPresentationMode { overlay, page }
 
@@ -1407,9 +1408,8 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   Widget _buildBadgeArea({required double height, bool compact = false}) {
     final badges = _extractBadges();
-    final badgeCountLabel = badges.isEmpty
-        ? 'No badges yet'
-        : '${badges.length} badge${badges.length == 1 ? '' : 's'}';
+    final badgeCountLabel =
+        '${badges.length} badge${badges.length == 1 ? '' : 's'}';
 
     return AnimatedContainer(
       key: widget.badgeAreaKey,
@@ -1437,14 +1437,15 @@ class _JournalOverlayState extends State<JournalOverlay>
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                Text(
-                  badgeCountLabel,
-                  style: const TextStyle(
-                    color: Color(0xFF888888),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+                if (badges.isNotEmpty)
+                  Text(
+                    badgeCountLabel,
+                    style: const TextStyle(
+                      color: Color(0xFF888888),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -1478,16 +1479,7 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   Widget _buildCompactBadgeList(List<EventBadgeToken> badges) {
     if (badges.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 18),
-          child: Text(
-            'No badges yet',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF666666), fontSize: 12),
-          ),
-        ),
-      );
+      return const JournalEmptyBadgeGlyph(size: 30);
     }
 
     return SingleChildScrollView(
@@ -1510,16 +1502,7 @@ class _JournalOverlayState extends State<JournalOverlay>
 
   Widget _buildExpandedBadgeList(List<EventBadgeToken> badges) {
     if (badges.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 18),
-          child: Text(
-            'Event badges you add from day view will appear here.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF666666)),
-          ),
-        ),
-      );
+      return const JournalEmptyBadgeGlyph();
     }
 
     return Scrollbar(
