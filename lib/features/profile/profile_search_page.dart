@@ -7,6 +7,7 @@ import 'package:mobile/shared/glossy_text.dart';
 import '../../core/navigation_fallback.dart';
 import '../../data/profile_repo.dart';
 import '../../features/inbox/conversation_user.dart';
+import '../../repositories/dm_conversation_repo.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../../widgets/profile_avatar.dart';
 
@@ -32,12 +33,18 @@ class ProfileSearchPage extends StatefulWidget {
 
 class _ProfileSearchPageState extends State<ProfileSearchPage> {
   final _repo = ProfileRepo(Supabase.instance.client);
+  final _dmConversationRepo = DmConversationRepo(Supabase.instance.client);
   final _controller = TextEditingController();
 
   List<UserSearchResult> _results = [];
+  final Map<String, UserSearchResult> _selectedUsersById =
+      <String, UserSearchResult>{};
   bool _searching = false;
+  bool _startingConversation = false;
   String _query = '';
   Timer? _debounce;
+
+  bool get _isConversationMode => widget.selectionMode == 'conversation';
 
   @override
   void dispose() {
@@ -80,14 +87,49 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
         return;
       }
     }
-    if (widget.selectionMode == 'conversation') {
-      final currentUserId = Supabase.instance.client.auth.currentUser?.id;
-      if (currentUserId != null && currentUserId == user.userId) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You cannot message yourself')),
-        );
-        return;
+    if (_isConversationMode) {
+      _toggleSelectedUser(user);
+      return;
+    }
+    unawaited(
+      openDetailRoute<void>(
+        context,
+        '/profile/${Uri.encodeComponent(user.userId)}',
+      ),
+    );
+  }
+
+  void _toggleSelectedUser(UserSearchResult user) {
+    final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+    if (currentUserId != null && currentUserId == user.userId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You cannot message yourself')),
+      );
+      return;
+    }
+
+    final isSelected = _selectedUsersById.containsKey(user.userId);
+    if (!isSelected && _selectedUsersById.length >= 5) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Group chats are limited to 6 people')),
+      );
+      return;
+    }
+
+    setState(() {
+      if (isSelected) {
+        _selectedUsersById.remove(user.userId);
+      } else {
+        _selectedUsersById[user.userId] = user;
       }
+    });
+  }
+
+  Future<void> _startConversation() async {
+    if (_startingConversation || _selectedUsersById.isEmpty) return;
+    final users = _selectedUsersById.values.toList(growable: false);
+    if (users.length == 1) {
+      final user = users.single;
       unawaited(
         openDetailRoute<void>(
           context,
@@ -103,12 +145,32 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
       );
       return;
     }
-    unawaited(
-      openDetailRoute<void>(
-        context,
-        '/profile/${Uri.encodeComponent(user.userId)}',
-      ),
-    );
+
+    setState(() => _startingConversation = true);
+    try {
+      final conversationId = await _dmConversationRepo.createConversation(
+        participantIds: users
+            .map((user) => user.userId)
+            .toList(growable: false),
+      );
+      if (!mounted) return;
+      unawaited(
+        openDetailRoute<void>(
+          context,
+          '/inbox/dm/${Uri.encodeComponent(conversationId)}',
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(userFacingDmConversationError(e)),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _startingConversation = false);
+    }
   }
 
   @override
@@ -134,6 +196,27 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
             fontWeight: FontWeight.w600,
           ),
         ),
+        actions: _isConversationMode
+            ? [
+                TextButton(
+                  onPressed: _selectedUsersById.isEmpty || _startingConversation
+                      ? null
+                      : () => unawaited(_startConversation()),
+                  child: _startingConversation
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              KemeticGold.base,
+                            ),
+                          ),
+                        )
+                      : const Text('Start'),
+                ),
+              ]
+            : null,
       ),
       body: Padding(
         padding: bodyPadding,
@@ -141,6 +224,10 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildSearchField(scrollPadding: fieldScrollPadding),
+            if (_isConversationMode && _selectedUsersById.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              _buildSelectedPeopleChips(),
+            ],
             const SizedBox(height: 20),
             if (_searching)
               const Center(
@@ -157,6 +244,46 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSelectedPeopleChips() {
+    final users = _selectedUsersById.values.toList(growable: false);
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (final user in users)
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 180),
+            child: InputChip(
+              label: Text(
+                user.displayName?.isNotEmpty == true
+                    ? user.displayName!
+                    : (user.handle != null ? '@${user.handle}' : 'User'),
+                overflow: TextOverflow.ellipsis,
+              ),
+              avatar: ProfileAvatar(
+                radius: 12,
+                displayName: user.name,
+                avatarUrl: user.avatarUrl,
+                avatarGlyphIds: user.avatarGlyphIds,
+                backgroundColor: Colors.black,
+                foregroundColor: KemeticGold.base,
+              ),
+              deleteIcon: const Icon(Icons.close, size: 16),
+              onDeleted: () => _toggleSelectedUser(user),
+              backgroundColor: KemeticGold.base.withValues(alpha: 0.16),
+              side: BorderSide(color: KemeticGold.base.withValues(alpha: 0.36)),
+              labelStyle: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+              deleteIconColor: Colors.white70,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+          ),
+      ],
     );
   }
 
@@ -252,6 +379,8 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
           Divider(color: Colors.white.withValues(alpha: 0.05), height: 1),
       itemBuilder: (context, index) {
         final user = _results[index];
+        final isSelected =
+            _isConversationMode && _selectedUsersById.containsKey(user.userId);
         final subtitle =
             user.displayName != null && user.displayName!.isNotEmpty
             ? '@${user.handle ?? 'user'}'
@@ -282,7 +411,14 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
                   style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),
                 )
               : null,
-          trailing: KemeticGold.icon(Icons.chevron_right),
+          trailing: _isConversationMode
+              ? Icon(
+                  isSelected ? Icons.check_circle : Icons.add_circle_outline,
+                  color: isSelected
+                      ? KemeticGold.base
+                      : Colors.white.withValues(alpha: 0.45),
+                )
+              : KemeticGold.icon(Icons.chevron_right),
           onTap: () => _selectUser(user),
         );
       },

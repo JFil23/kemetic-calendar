@@ -11,8 +11,10 @@ import '../../data/shared_calendar_models.dart';
 import '../../data/share_repo.dart';
 import '../../data/shared_calendars_repo.dart';
 import '../../data/user_events_repo.dart';
+import '../../repositories/dm_conversation_repo.dart';
 import '../../repositories/inbox_repo.dart';
 import 'conversation_user.dart';
+import 'dm_conversation_models.dart';
 import '../../data/profile_repo.dart';
 import '../../utils/detail_sanitizer.dart';
 import 'dart:async';
@@ -87,9 +89,11 @@ class _InboxPageState extends State<InboxPage> {
       KemeticTypography.meduNeterFallback;
 
   late final InboxRepo _inboxRepo;
+  late final DmConversationRepo _dmConversationRepo;
   late final ShareRepo _shareRepo;
   late final SharedCalendarsRepo _sharedCalendarsRepo;
   StreamSubscription<List<InboxShareItem>>? _inboxItemsSub;
+  StreamSubscription<List<DmConversationSummary>>? _dmConversationsSub;
   StreamSubscription<InboxUnreadState>? _unreadStateSub;
   StreamSubscription<List<SharedCalendarSentInvite>>? _sentCalendarInvitesSub;
   StreamSubscription<List<SharedCalendarInvite>>? _incomingCalendarInvitesSub;
@@ -98,6 +102,7 @@ class _InboxPageState extends State<InboxPage> {
   List<InboxShareItem> _latestCalendarNotifications = const [];
   List<SharedCalendarSentInvite> _latestSentCalendarInvites = const [];
   List<SharedCalendarInvite> _latestIncomingCalendarInvites = const [];
+  List<DmConversationSummary> _latestDmConversations = const [];
   List<_UnifiedInboxItem> _unified = const [];
   final Set<String> _optimisticReadShareIds = <String>{};
   bool _loading = true;
@@ -118,6 +123,7 @@ class _InboxPageState extends State<InboxPage> {
     _sharedCalendarsRepo = SharedCalendarsRepo(client);
     _unreadState = _shareRepo.currentUnreadState;
     _inboxRepo = InboxRepo(client);
+    _dmConversationRepo = DmConversationRepo(client);
     unawaited(_restoreCachedUnified());
     _inboxItemsSub = _inboxRepo.watchInbox().listen((items) {
       _applyInboxItems(items);
@@ -128,6 +134,17 @@ class _InboxPageState extends State<InboxPage> {
         });
       }
     });
+    _dmConversationsSub = _dmConversationRepo
+        .watchConversationSummaries()
+        .listen((conversations) {
+          _latestDmConversations = conversations;
+          if (mounted) {
+            setState(() {
+              _unified = _buildUnifiedItems();
+              _loading = false;
+            });
+          }
+        });
     _unreadStateSub = _shareRepo.watchUnreadState().listen((state) {
       if (!mounted) {
         _unreadState = state;
@@ -189,6 +206,12 @@ class _InboxPageState extends State<InboxPage> {
     }
     final activity = await _shareRepo.getRecentActivity(limit: 50);
     _applyActivity(activity);
+    try {
+      _latestDmConversations = await _dmConversationRepo
+          .getConversationSummaries();
+    } catch (e) {
+      _logInboxImport('[InboxPage] Failed to refresh DM conversations: $e');
+    }
 
     if (!mounted) return;
     setState(() {
@@ -280,6 +303,7 @@ class _InboxPageState extends State<InboxPage> {
   @override
   void dispose() {
     _inboxItemsSub?.cancel();
+    _dmConversationsSub?.cancel();
     _unreadStateSub?.cancel();
     _sentCalendarInvitesSub?.cancel();
     _incomingCalendarInvitesSub?.cancel();
@@ -359,17 +383,17 @@ class _InboxPageState extends State<InboxPage> {
     );
   }
 
-  void _openUserSearch() {
-    unawaited(
-      openDetailRoute<void>(
-        context,
-        '/profile-search'
-        '?select=conversation'
-        '&title=${Uri.encodeComponent('New Message')}'
-        '&hint=${Uri.encodeComponent('Search people to message')}'
-        '&fallback=${Uri.encodeComponent('/inbox')}',
-      ),
+  Future<void> _openUserSearch() async {
+    await openDetailRoute<void>(
+      context,
+      '/profile-search'
+      '?select=conversation'
+      '&title=${Uri.encodeComponent('New Message')}'
+      '&hint=${Uri.encodeComponent('Search people to message')}'
+      '&fallback=${Uri.encodeComponent('/inbox')}',
     );
+    if (!mounted) return;
+    unawaited(_refreshUnified(showLoading: false));
   }
 
   Future<void> _resumeConversationIfNeeded() async {
@@ -586,7 +610,9 @@ class _InboxPageState extends State<InboxPage> {
             items: item.items!,
           )
         else if (item.kind == _UnifiedKind.calendarNotification)
-          _buildSharedCalendarThreadRow(item.calendarThread!),
+          _buildSharedCalendarThreadRow(item.calendarThread!)
+        else if (item.kind == _UnifiedKind.dmConversation)
+          _buildDmConversationBar(item.dmConversation!),
     ];
 
     return RefreshIndicator(
@@ -824,7 +850,17 @@ class _InboxPageState extends State<InboxPage> {
             )
             .toList(growable: false);
 
-    return [...calendarItems, ...messageItems]
+    final dmConversationItems = _latestDmConversations
+        .where((summary) => summary.archivedAt == null)
+        .map(
+          (summary) => _UnifiedInboxItem.dmConversation(
+            createdAt: summary.lastCreatedAt ?? summary.updatedAt,
+            dmConversation: summary,
+          ),
+        )
+        .toList(growable: false);
+
+    return [...calendarItems, ...messageItems, ...dmConversationItems]
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
   }
 
@@ -987,6 +1023,88 @@ class _InboxPageState extends State<InboxPage> {
             otherProfile: otherProfile,
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildDmConversationBar(DmConversationSummary summary) {
+    final currentUserId = _inboxRepo.currentUserId;
+    final preview = summary.previewFor(currentUserId);
+    final lastAt = summary.lastCreatedAt ?? summary.updatedAt;
+    final subtitle = lastAt.millisecondsSinceEpoch > 0
+        ? '$preview • ${_formatInboxTimestamp(lastAt)}'
+        : preview;
+
+    return _buildInboxRow(
+      leading: _buildDmConversationAvatar(summary, currentUserId),
+      title: summary.titleFor(currentUserId),
+      subtitle: subtitle,
+      trailing: _buildChevronTrail(summary.hasUnread),
+      onTap: () {
+        unawaited(_dmConversationRepo.markRead(summary.id));
+        unawaited(
+          openDetailRoute<void>(
+            context,
+            '/inbox/dm/${Uri.encodeComponent(summary.id)}',
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDmConversationAvatar(
+    DmConversationSummary summary,
+    String? currentUserId,
+  ) {
+    final users = summary.members
+        .map((member) => member.user)
+        .where((user) => user.id != currentUserId)
+        .toList(growable: false);
+    if (users.length == 1) return _buildMessageAvatar(users.single);
+
+    final visibleUsers = users.take(3).toList(growable: false);
+    if (visibleUsers.isEmpty) {
+      return _buildSummaryGlyphAvatar(glyph: '𓀀𓁐', fontSize: 20);
+    }
+
+    const avatarSize = 38.0;
+    const positions = <Offset>[Offset(0, 3), Offset(26, 3), Offset(13, 25)];
+
+    return SizedBox(
+      width: 66,
+      height: 66,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          for (var i = 0; i < visibleUsers.length; i++)
+            Positioned(
+              left: positions[i].dx,
+              top: positions[i].dy,
+              child: Container(
+                width: avatarSize,
+                height: avatarSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _mahoganyDeep,
+                  border: Border.all(color: _gold.withValues(alpha: 0.25)),
+                ),
+                child: ClipOval(
+                  child: ProfileAvatar(
+                    radius: avatarSize / 2,
+                    displayName:
+                        visibleUsers[i].displayName ??
+                        visibleUsers[i].handle ??
+                        'User',
+                    avatarUrl: visibleUsers[i].avatarUrl,
+                    avatarGlyphIds: visibleUsers[i].avatarGlyphIds,
+                    backgroundColor: Colors.transparent,
+                    foregroundColor: _gold,
+                    maxInitialCharacters: 1,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -2426,7 +2544,7 @@ class _InboxUnreadDot extends StatelessWidget {
   }
 }
 
-enum _UnifiedKind { message, calendarNotification }
+enum _UnifiedKind { message, calendarNotification, dmConversation }
 
 class _UnifiedInboxItem {
   _UnifiedInboxItem.message({
@@ -2437,7 +2555,8 @@ class _UnifiedInboxItem {
     required this.hasUnread,
   }) : kind = _UnifiedKind.message,
        calendarNotification = null,
-       calendarThread = null;
+       calendarThread = null,
+       dmConversation = null;
 
   _UnifiedInboxItem.calendarNotification({
     required this.createdAt,
@@ -2447,7 +2566,19 @@ class _UnifiedInboxItem {
        otherProfile = null,
        items = null,
        hasUnread = null,
-       calendarNotification = null;
+       calendarNotification = null,
+       dmConversation = null;
+
+  _UnifiedInboxItem.dmConversation({
+    required this.createdAt,
+    required this.dmConversation,
+  }) : kind = _UnifiedKind.dmConversation,
+       otherUserId = null,
+       otherProfile = null,
+       items = null,
+       hasUnread = null,
+       calendarNotification = null,
+       calendarThread = null;
 
   final _UnifiedKind kind;
   final DateTime createdAt;
@@ -2459,6 +2590,7 @@ class _UnifiedInboxItem {
   final bool? hasUnread;
   final InboxShareItem? calendarNotification;
   final SharedCalendarInboxThread? calendarThread;
+  final DmConversationSummary? dmConversation;
 }
 
 // Legacy code below - keeping for FlowPreviewCard compatibility

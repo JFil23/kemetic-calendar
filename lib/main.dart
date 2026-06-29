@@ -20,6 +20,7 @@ import 'utils/ics_parser.dart';
 import 'features/sharing/share_preview_page.dart';
 import 'features/inbox/inbox_page.dart';
 import 'features/inbox/inbox_conversation_page.dart';
+import 'features/inbox/inbox_dm_conversation_page.dart';
 import 'features/inbox/conversation_user.dart';
 import 'features/inbox/shared_flow_details_entry.dart';
 import 'features/inbox/shared_flow_details_page.dart';
@@ -90,6 +91,7 @@ import 'services/app_navigation_restoration_controller.dart';
 import 'services/restoration_coordinator.dart';
 import 'services/restoration_trace.dart';
 import 'services/session_resume_service.dart';
+import 'core/supabase_runtime_config_guard.dart' as runtime_config;
 
 // Conditional import: on web we use URL cleanup + visibility hook; elsewhere no-ops.
 import 'utils/web_history.dart'
@@ -98,6 +100,7 @@ import 'utils/web_history.dart'
 // ---- Supabase configuration via --dart-define ----
 const supabaseUrlEnv = String.fromEnvironment('SUPABASE_URL');
 const supabaseAnonKeyEnv = String.fromEnvironment('SUPABASE_ANON_KEY');
+const allowLocalSupabaseEnv = bool.fromEnvironment('ALLOW_LOCAL_SUPABASE');
 const appEnvironmentEnv = String.fromEnvironment(
   'APP_ENV',
   defaultValue: 'dev',
@@ -292,94 +295,27 @@ String _runtimeFallbackValue(
 }
 
 bool _hasValidSupabaseRuntimeConfig(String url, String anonKey) {
-  return _hasValidSupabaseUrl(url) && _hasValidSupabaseAnonKey(anonKey);
-}
-
-bool _hasValidSupabaseUrl(String url) {
-  final normalized = url.trim();
-  final parsed = Uri.tryParse(normalized);
-  return normalized.isNotEmpty &&
-      parsed != null &&
-      parsed.scheme == 'https' &&
-      parsed.host.endsWith('.supabase.co') &&
-      !_looksLikePlaceholder(normalized.toLowerCase());
-}
-
-bool _hasValidSupabaseAnonKey(String anonKey) {
-  final normalized = anonKey.trim();
-  final lower = normalized.toLowerCase();
-  return normalized.length > 20 &&
-      !_looksLikePlaceholder(lower) &&
-      !lower.contains('service_role') &&
-      !lower.contains('service-role');
+  return runtime_config.hasValidSupabaseRuntimeConfig(url, anonKey);
 }
 
 List<String> _runtimeConfigErrors(AppRuntimeConfig config) {
-  final errors = <String>[];
-  final url = config.url.trim();
-  final anonKey = config.anonKey.trim();
-  final envName = config.appEnvironment.trim().toLowerCase();
-  final siteUrl = config.appSiteUrl.trim();
-  final nativeRedirect = Uri.tryParse(nativeAuthRedirectUrl);
-
-  if (url.isEmpty) {
-    errors.add('SUPABASE_URL is missing.');
-  } else {
-    final parsed = Uri.tryParse(url);
-    final lowerUrl = url.toLowerCase();
-    if (parsed == null ||
-        parsed.scheme != 'https' ||
-        !parsed.host.endsWith('.supabase.co') ||
-        _looksLikePlaceholder(lowerUrl)) {
-      errors.add('SUPABASE_URL must be a real https://*.supabase.co URL.');
-    }
-  }
-
-  final lowerAnon = anonKey.toLowerCase();
-  if (anonKey.length <= 20) {
-    errors.add('SUPABASE_ANON_KEY is missing or too short.');
-  } else if (_looksLikePlaceholder(lowerAnon)) {
-    errors.add('SUPABASE_ANON_KEY still looks like a placeholder.');
-  } else if (lowerAnon.contains('service_role') ||
-      lowerAnon.contains('service-role')) {
-    errors.add('SUPABASE_ANON_KEY must not be a service role key.');
-  }
-
-  if (envName.isEmpty) {
-    errors.add('APP_ENV is missing.');
-  } else if (!const {'dev', 'staging', 'prod'}.contains(envName)) {
-    errors.add('APP_ENV must be one of dev, staging, or prod.');
-  }
-
-  if ((kReleaseMode || kProfileMode) && envName == 'dev') {
-    errors.add('Release/profile builds must set APP_ENV to staging or prod.');
-  }
-
-  final site = Uri.tryParse(siteUrl);
-  if (siteUrl.isEmpty ||
-      site == null ||
-      site.scheme != 'https' ||
-      site.host.isEmpty ||
-      _looksLikePlaceholder(siteUrl.toLowerCase())) {
-    errors.add('APP_SITE_URL must be a real https URL.');
-  }
-
-  if (nativeRedirect == null ||
-      nativeRedirect.scheme != 'kemet.app' ||
-      nativeRedirect.host != 'login-callback') {
-    errors.add('Native auth redirect must remain kemet.app://login-callback.');
-  }
-
-  return errors;
+  return runtime_config.supabaseRuntimeConfigErrors(
+    runtime_config.SupabaseRuntimeConfig(
+      url: config.url,
+      anonKey: config.anonKey,
+      appEnvironment: config.appEnvironment,
+      appSiteUrl: config.appSiteUrl,
+      nativeAuthRedirectUrl: nativeAuthRedirectUrl,
+    ),
+    allowLocalSupabase: allowLocalSupabaseEnv,
+    debugMode: kDebugMode,
+    releaseMode: kReleaseMode,
+    profileMode: kProfileMode,
+  );
 }
 
 bool _looksLikePlaceholder(String value) {
-  return value.contains('your-') ||
-      value.contains('your_') ||
-      value.contains('your_project') ||
-      value.contains('placeholder') ||
-      value.contains('example') ||
-      value.contains('change-me');
+  return runtime_config.looksLikeRuntimePlaceholder(value);
 }
 
 Widget _runtimeConfigErrorApp(List<String> errors) {
@@ -1233,6 +1169,13 @@ Map<String, dynamic>? _pushIntentDataFromQuery(Map<String, String> params) {
 
   return <String, dynamic>{
     'kind': kind,
+    if (_trimmedPushValue(params['type']) != null) 'type': params['type'],
+    if (_trimmedPushValue(
+          params['notification_type'] ?? params['notificationType'],
+        ) !=
+        null)
+      'notification_type':
+          params['notification_type'] ?? params['notificationType'],
     if (_trimmedPushValue(params['reflection_id'] ?? params['reflectionId']) !=
         null)
       'reflection_id': params['reflection_id'] ?? params['reflectionId'],
@@ -1245,6 +1188,13 @@ Map<String, dynamic>? _pushIntentDataFromQuery(Map<String, String> params) {
       'cta_ref': params['cta_ref'] ?? params['ctaRef'],
     if (_trimmedPushValue(params['sender_id'] ?? params['senderId']) != null)
       'sender_id': params['sender_id'] ?? params['senderId'],
+    if (_trimmedPushValue(
+          params['conversation_id'] ?? params['conversationId'],
+        ) !=
+        null)
+      'conversation_id': params['conversation_id'] ?? params['conversationId'],
+    if (_trimmedPushValue(params['message_id'] ?? params['messageId']) != null)
+      'message_id': params['message_id'] ?? params['messageId'],
     if (_trimmedPushValue(params['share_id'] ?? params['shareId']) != null)
       'share_id': params['share_id'] ?? params['shareId'],
     if (_trimmedPushValue(params['calendar_id'] ?? params['calendarId']) !=
@@ -1311,6 +1261,10 @@ String? _initialLocationFromPushData(
       (deliveryKeyForKind?.startsWith('maat_guidance:') == true
           ? 'maat_guidance'
           : null);
+  final pushType = _trimmedPushValue(data['type']);
+  final notificationType = _trimmedPushValue(
+    data['notification_type'] ?? data['notificationType'],
+  );
   final clientEventId = _trimmedPushValue(
     data['client_event_id'] ?? data['clientEventId'],
   );
@@ -1346,6 +1300,17 @@ String? _initialLocationFromPushData(
   }
 
   final shareKind = _trimmedPushValue(data['share_kind'] ?? data['shareKind']);
+  if (kind == 'dm_message_v2' ||
+      pushType == 'dm_message_v2' ||
+      notificationType == 'dm_message_v2') {
+    final conversationId = _trimmedPushValue(
+      data['conversation_id'] ?? data['conversationId'],
+    );
+    return conversationId == null
+        ? '/inbox'
+        : '/inbox/dm/${Uri.encodeComponent(conversationId)}';
+  }
+
   if (kind == 'flow_share' || (kind == 'dm' && shareKind == 'flow')) {
     final shareId = _trimmedPushValue(data['share_id'] ?? data['shareId']);
     return shareId == null
@@ -1593,6 +1558,18 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
             otherUserId: userId,
             extra: state.extra,
           ),
+        );
+      },
+    ),
+    _calmRoute(
+      path: '/inbox/dm/:conversationId',
+      builder: (context, state) {
+        final conversationId = Uri.decodeComponent(
+          state.pathParameters['conversationId']!,
+        );
+        return SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: InboxDmConversationPage(conversationId: conversationId),
         );
       },
     ),
@@ -3308,6 +3285,10 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
         (deliveryKeyForKind?.startsWith('maat_guidance:') == true
             ? 'maat_guidance'
             : null);
+    final pushType = _trimmedValue(data['type']);
+    final notificationType = _trimmedValue(
+      data['notification_type'] ?? data['notificationType'],
+    );
     final calendarIntent = CalendarPushOpenIntent.fromNotificationData(data);
     final clientEventId = _trimmedValue(
       data['client_event_id'] ?? data['clientEventId'],
@@ -3343,6 +3324,20 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
       final uid = supabase.auth.currentUser?.id;
       if (uid == null) return false;
       _router.go('/reflections/${Uri.encodeComponent(reflectionId)}');
+      return true;
+    }
+
+    if (kind == 'dm_message_v2' ||
+        pushType == 'dm_message_v2' ||
+        notificationType == 'dm_message_v2') {
+      final conversationId = _trimmedValue(
+        data['conversation_id'] ?? data['conversationId'],
+      );
+      if (conversationId != null) {
+        _router.go('/inbox/dm/${Uri.encodeComponent(conversationId)}');
+      } else {
+        _router.go('/inbox');
+      }
       return true;
     }
 

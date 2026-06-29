@@ -481,6 +481,15 @@ class AppRouteRegistry {
       prefixMatch: true,
     ),
     AppRouteDefinition(
+      pattern: '/inbox/dm/',
+      routeClass: NavigationRouteClass.transient,
+      owner: AppRouteOwner.inbox,
+      section: AppSection.inbox,
+      canBeOneShotTarget: true,
+      canRestoreAsSurface: true,
+      prefixMatch: true,
+    ),
+    AppRouteDefinition(
       pattern: '/nodes/',
       routeClass: NavigationRouteClass.transient,
       owner: AppRouteOwner.library,

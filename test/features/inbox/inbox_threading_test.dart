@@ -355,7 +355,9 @@ void main() {
 
         expect(
           source,
-          contains('enum _UnifiedKind { message, calendarNotification }'),
+          contains(
+            'enum _UnifiedKind { message, calendarNotification, dmConversation }',
+          ),
         );
         expect(
           unifiedBuilder,
