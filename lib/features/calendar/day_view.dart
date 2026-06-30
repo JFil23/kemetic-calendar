@@ -2464,6 +2464,57 @@ class CalendarEventDetailSheetCoordinator {
   }
 }
 
+@visibleForTesting
+const ValueKey<String> dayViewBottomSheetBackplateKey = ValueKey<String>(
+  'day-view-bottom-sheet-backplate',
+);
+
+class DayViewBottomSheetFrame extends StatelessWidget {
+  const DayViewBottomSheetFrame({
+    super.key,
+    required this.child,
+    this.borderRadius = 20,
+  });
+
+  final Widget child;
+  final double borderRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.vertical(top: Radius.circular(borderRadius));
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              key: dayViewBottomSheetBackplateKey,
+              decoration: BoxDecoration(
+                borderRadius: radius,
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xF7070605), Color(0xFA050403)],
+                ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0xCC000000),
+                    blurRadius: 28,
+                    spreadRadius: 6,
+                    offset: Offset(0, -8),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        child,
+      ],
+    );
+  }
+}
+
 class CalendarEventDetailSheet extends StatefulWidget {
   const CalendarEventDetailSheet({
     super.key,
@@ -4405,63 +4456,67 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildEventDetailTopActionRow(
-                rootContext: widget.hostContext,
-                sheetContext: context,
-                target: target,
-              ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOutCubic,
-                alignment: Alignment.topCenter,
-                child: _endFlowError == null
-                    ? const SizedBox.shrink()
-                    : Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                        child: _buildEventDetailInlineError(_endFlowError!),
-                      ),
-              ),
-              const SizedBox(height: 8),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOutCubic,
-                alignment: Alignment.bottomCenter,
-                child: SizedBox(
-                  height: sheetHeight,
-                  child: PageView.builder(
-                    key: pageViewKey,
-                    controller: _pageController,
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: pages.pages.length,
-                    onPageChanged: (index) {
-                      if (index == pages.currentIndex) return;
-                      final nextTarget = pages.pages[index];
-                      final nextPages = _detailSheetPagesForTarget(nextTarget);
-                      _resetPageController(nextPages.currentIndex);
-                      _moveToTarget(nextTarget);
-                    },
-                    itemBuilder: (context, index) {
-                      return _buildEventDetailSheetPage(
-                        target: pages.pages[index],
-                        completionReloadSignal: completionReloadSignal,
-                      );
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 46,
-                child: _buildEventDetailBottomActionRow(
+          child: DayViewBottomSheetFrame(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildEventDetailTopActionRow(
                   rootContext: widget.hostContext,
                   sheetContext: context,
                   target: target,
                 ),
-              ),
-            ],
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: _endFlowError == null
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                          child: _buildEventDetailInlineError(_endFlowError!),
+                        ),
+                ),
+                const SizedBox(height: 8),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.bottomCenter,
+                  child: SizedBox(
+                    height: sheetHeight,
+                    child: PageView.builder(
+                      key: pageViewKey,
+                      controller: _pageController,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: pages.pages.length,
+                      onPageChanged: (index) {
+                        if (index == pages.currentIndex) return;
+                        final nextTarget = pages.pages[index];
+                        final nextPages = _detailSheetPagesForTarget(
+                          nextTarget,
+                        );
+                        _resetPageController(nextPages.currentIndex);
+                        _moveToTarget(nextTarget);
+                      },
+                      itemBuilder: (context, index) {
+                        return _buildEventDetailSheetPage(
+                          target: pages.pages[index],
+                          completionReloadSignal: completionReloadSignal,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 46,
+                  child: _buildEventDetailBottomActionRow(
+                    rootContext: widget.hostContext,
+                    sheetContext: context,
+                    target: target,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],

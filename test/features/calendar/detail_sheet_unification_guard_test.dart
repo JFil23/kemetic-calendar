@@ -86,6 +86,33 @@ void main() {
     },
   );
 
+  test('shared detail sheet frame owns the matte backplate', () {
+    final frame = _sourceBetween(
+      dayView,
+      'class DayViewBottomSheetFrame extends StatelessWidget',
+      'class CalendarEventDetailSheet extends StatefulWidget',
+    );
+    expect(frame, contains('Positioned.fill'));
+    expect(frame, contains('IgnorePointer'));
+    expect(frame, contains('Color(0xF7070605)'));
+    expect(frame, contains('Color(0xFA050403)'));
+    expect(frame, contains('BoxShadow'));
+
+    final sharedSheetHost = _sourceBetween(
+      dayView,
+      '  Widget _buildSheet(BuildContext context, Object? completionReloadSignal) {',
+      '  String _formatTimeRange(int startMin, int endMin) {',
+    );
+    expect(sharedSheetHost, contains('DayViewBottomSheetFrame('));
+
+    final detailCardBuilder = _sourceBetween(
+      dayView,
+      '  Widget _buildEventDetailSheetPage({',
+      '  Widget _buildEventDetailTopActionRow({',
+    );
+    expect(detailCardBuilder, isNot(contains('DayViewBottomSheetFrame(')));
+  });
+
   test('Main Calendar keeps rendering behind detail and quick-add sheets', () {
     final overlayGate = _sourceBetween(
       calendarPage,
