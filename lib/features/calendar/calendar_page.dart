@@ -23,6 +23,7 @@ import 'package:flutter/foundation.dart';
 import 'landscape_month_view.dart';
 import 'dart:convert';
 import 'day_view.dart';
+import '../../core/feature_flags.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
 import '../journal/journal_controller.dart';
@@ -45,11 +46,9 @@ import '../ai_generation/flow_prompt_classifier.dart';
 import '../ai_generation/itinerary_prompt_parser.dart';
 import '../../models/ai_flow_generation_response.dart';
 import '../../services/ai_flow_generation_service.dart';
-import '../../services/ai_reflection_service.dart';
 import '../../data/decan_reflection_repo.dart';
 import '../../data/decan_reflection_model.dart';
 import '../../data/decan_reflection_prompt_state.dart';
-import '../../data/journal_repo.dart';
 import '../../widgets/kemetic_day_info.dart';
 import '../../widgets/insight_link_text.dart';
 import '../../widgets/keyboard_aware.dart';
@@ -69,6 +68,9 @@ import 'package:mobile/core/day_key.dart';
 import 'package:mobile/core/app_bottom_insets.dart';
 import 'package:mobile/core/global_menu_routes.dart';
 import 'package:mobile/core/navigation_persistence_policy.dart';
+import 'package:mobile/core/composition/composition_engine.dart';
+import 'package:mobile/core/composition/composition_models.dart';
+import 'package:mobile/core/composition/composition_usage_store.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:flutter/gestures.dart';
 import 'package:mobile/core/completion_status.dart';
@@ -84,7 +86,6 @@ import 'package:mobile/core/pinch_gesture_surface.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/shared/kemetic_text.dart';
 import '../journal/journal_event_badge.dart';
-import '../journal/journal_badge_utils.dart';
 import '../journal/journal_v2_document_model.dart';
 import 'package:mobile/telemetry/telemetry.dart';
 import '../../services/calendar_sync_service.dart';
@@ -166,10 +167,11 @@ import '../onboarding/starter_maat_flow_recommendation.dart';
 import '../rhythm/data/rhythm_repo.dart';
 import '../rhythm/event_todo_action.dart';
 import '../rhythm/event_todo_builder.dart';
-import '../rhythm/data/planner_badge_repo.dart';
 import '../rhythm/pages/todays_alignment_page.dart';
 import 'calendar_recurring_scope.dart';
 import 'day_sheet_scope.dart';
+import 'decan_reflection_composition/decan_reflection_composer.dart';
+import 'decan_reflection_composition/maat_flow_decan_fact_collector.dart';
 
 part 'calendar_flow_models.dart';
 part 'calendar_flow_studio_models.dart';
@@ -9004,11 +9006,7 @@ class CalendarPageState extends State<CalendarPage>
 
   // Repository instances
   late final FlowsRepo _flowsRepo = FlowsRepo(Supabase.instance.client);
-  late final JournalRepo _journalRepo = JournalRepo(Supabase.instance.client);
   late final RhythmRepo _rhythmRepo = RhythmRepo(Supabase.instance.client);
-  late final PlannerBadgeRepo _plannerBadgeRepo = PlannerBadgeRepo(
-    Supabase.instance.client,
-  );
   late final OnboardingStorage _onboardingStorage = OnboardingStorage(
     Supabase.instance.client,
   );
@@ -9017,9 +9015,12 @@ class CalendarPageState extends State<CalendarPage>
   );
   late final DecanReflectionPromptState _decanReflectionPromptState =
       DecanReflectionPromptState(Supabase.instance.client);
-  late final AIReflectionService _aiReflectionService = AIReflectionService(
-    Supabase.instance.client,
-  );
+  late final MaatFlowDecanFactCollector _maatFlowDecanFactCollector =
+      MaatFlowDecanFactCollector(Supabase.instance.client);
+  final DecanReflectionComposer _decanReflectionComposer =
+      const DecanReflectionComposer();
+  final CompositionUsageStore _compositionUsageStore =
+      const SharedPreferencesCompositionUsageStore();
   // Reminders (Flutter-only layer)
   late final ReminderService _reminderService = ReminderService();
   StreamSubscription<List<Reminder>>? _reminderSub; // unused now (safety)
@@ -33066,7 +33067,17 @@ class CalendarPageState extends State<CalendarPage>
                       fontSize: 12.5,
                     ),
                   ),
-                  if (prompt.badgeCount > 0) ...[
+                  if (prompt.isCompositionalV1 &&
+                      prompt.compositionalInteractionCount > 0) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '${prompt.compositionalInteractionCount} Ma’at interaction${prompt.compositionalInteractionCount == 1 ? '' : 's'} reflected',
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ] else if (prompt.badgeCount > 0) ...[
                     const SizedBox(height: 4),
                     Text(
                       '${prompt.badgeCount} badge${prompt.badgeCount == 1 ? '' : 's'} captured',
@@ -33233,191 +33244,6 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
-  JournalDocument? _documentFromJournalEntry(JournalEntry entry) {
-    final body = entry.body.trim();
-    if (body.isEmpty) return JournalDocument.fromPlainText('');
-
-    if (body.startsWith('{') && body.contains('"version"')) {
-      try {
-        final map = jsonDecode(body) as Map<String, dynamic>;
-        return JournalDocument.fromJson(map);
-      } catch (e) {
-        if (kDebugMode) {
-          _calendarDebugPrint(
-            'Failed to parse journal document for ${entry.gregDate}: $e',
-          );
-        }
-      }
-    }
-
-    return JournalDocument.fromPlainText(body);
-  }
-
-  Future<
-    List<
-      ({
-        EventBadgeToken token,
-        DateTime occurredOn,
-        DateTime? occurredAt,
-        List<String> tags,
-      })
-    >
-  >
-  _collectDecanBadges(DateTime decanStart, DateTime decanEnd) async {
-    final entries = await _journalRepo.listRange(
-      start: decanStart,
-      end: decanEnd,
-    );
-    final badges =
-        <
-          ({
-            EventBadgeToken token,
-            DateTime occurredOn,
-            DateTime? occurredAt,
-            List<String> tags,
-          })
-        >[];
-    final seen = <String>{};
-
-    void addBadges(
-      List<EventBadgeToken> tokens,
-      DateTime fallbackDay, {
-      List<String> tags = const <String>[],
-    }) {
-      final day = _dateOnlyLocal(fallbackDay);
-      for (final token in tokens) {
-        if (!seen.add(token.id)) continue;
-        final occurred = token.start != null
-            ? _dateOnlyLocal(token.start!)
-            : day;
-        badges.add((
-          token: token,
-          occurredOn: occurred,
-          occurredAt: token.start,
-          tags: tags,
-        ));
-      }
-    }
-
-    for (final entry in entries) {
-      final doc = _documentFromJournalEntry(entry);
-      if (doc == null) continue;
-      addBadges(JournalBadgeUtils.tokensFromDocument(doc), entry.gregDate);
-    }
-
-    final currentDoc = _journalController.currentDocument;
-    final currentDate = _journalController.currentDate;
-    final withinWindow =
-        currentDate != null &&
-        !currentDate.isBefore(_dateOnlyLocal(decanStart)) &&
-        !currentDate.isAfter(_dateOnlyLocal(decanEnd));
-    if (currentDoc != null && currentDate != null && withinWindow) {
-      addBadges(JournalBadgeUtils.tokensFromDocument(currentDoc), currentDate);
-    }
-
-    final plannerBadges = await _plannerBadgeRepo.fetchPlannerBadges(
-      start: decanStart,
-      end: decanEnd,
-    );
-    for (final badge in plannerBadges) {
-      final token = badge.toEventBadgeToken();
-      if (!seen.add(token.id)) continue;
-      badges.add((
-        token: token,
-        occurredOn: _dateOnlyLocal(badge.occurredOn),
-        occurredAt: null,
-        tags: badge.tags,
-      ));
-    }
-
-    badges.sort((a, b) {
-      final cmp = a.occurredOn.compareTo(b.occurredOn);
-      if (cmp != 0) return cmp;
-      if (a.occurredAt == null && b.occurredAt == null) return 0;
-      if (a.occurredAt == null) return 1;
-      if (b.occurredAt == null) return -1;
-      return a.occurredAt!.compareTo(b.occurredAt!);
-    });
-
-    return badges;
-  }
-
-  String _buildReflectionFromBadges(List<EventBadgeToken> badges) {
-    if (badges.isEmpty) {
-      return 'Time moved quietly this decan. Silence is still a shape—space held open for whatever wants to speak next.';
-    }
-
-    final titleCounts = <String, int>{};
-    int morningCount = 0;
-    int eveningCount = 0;
-
-    for (final b in badges) {
-      final t = b.title.trim().toLowerCase();
-      if (t.isNotEmpty) {
-        titleCounts[t] = (titleCounts[t] ?? 0) + 1;
-      }
-      final start = b.start;
-      if (start != null) {
-        final h = start.toLocal().hour;
-        if (h < 12) morningCount++;
-        if (h >= 18) eveningCount++;
-      }
-    }
-
-    final sorted = titleCounts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final dominant = sorted.isNotEmpty ? sorted.first.value : 0;
-    final total = badges.length;
-    final dominantRatio = total == 0 ? 0.0 : dominant / total;
-
-    final focused = dominantRatio >= 0.5;
-    final exploratory = sorted.length >= 3 && dominantRatio < 0.5;
-    final morningLean = morningCount > total / 2;
-    final eveningLean = eveningCount > total / 2;
-
-    final opening = focused
-        ? 'This decan moved in close circles—choosing depth over breadth.'
-        : exploratory
-        ? 'Your days touched many currents, yet an inner note stayed steady.'
-        : 'You moved with measured steps, neither rushing nor drifting.';
-
-    final pattern = focused
-        ? 'Returning to similar moments suggests you were seeking alignment more than variety—choosing what felt true over what was simply available.'
-        : exploratory
-        ? 'You let yourself explore without fixing on one shape. That kind of wandering is listening for what rings honest.'
-        : 'Your marks carried a quiet negotiation between stability and change, steadying yourself while testing new edges.';
-
-    final rhythm = morningLean
-        ? 'Mornings held more of your presence—as if first light gave the clearest signal.'
-        : eveningLean
-        ? 'Evenings gathered your energy—closing light became a place to settle what mattered.'
-        : 'Your hours spread across the day, a gentle pulse rather than a single surge.';
-
-    const silence =
-        'Some spaces stayed quiet—not as neglect, but as rest points waiting to receive you when you are ready.';
-
-    const invitation =
-        'As the next decan opens, carry forward the feeling that felt most like you, and let one quiet space be touched—only if it calls.';
-
-    const closing =
-        'Archive what mattered so you do not have to relearn it later. Endings are easier when you can see the shape you already made.';
-
-    final dominantTitle = sorted.isNotEmpty
-        ? 'Most frequent: “${sorted.first.key}”. '
-        : '';
-    final badgesLine = 'Badges logged: $total. ${dominantTitle.trim()}';
-
-    return [
-      opening,
-      pattern,
-      rhythm,
-      silence,
-      badgesLine,
-      invitation,
-      closing,
-    ].join('\n\n');
-  }
-
   Future<bool> _hasInteractedWithReflectionPrompt(DateTime decanStart) async {
     if (await _decanReflectionPromptState.hasInteracted(decanStart)) {
       return true;
@@ -33435,6 +33261,7 @@ class CalendarPageState extends State<CalendarPage>
     CalendarDecanReflectionPrompt prompt, {
     required String interactionKind,
   }) async {
+    await _recordCompositionalReflectionUsage(prompt);
     await _decanReflectionPromptState.markInteracted(prompt.decanStart);
     await _decanReflectionRepo.markPromptInteracted(
       decanStart: prompt.decanStart,
@@ -33443,32 +33270,25 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
-  Map<String, dynamic>? _reflectionPayloadMetadataForBadge(
-    EventBadgeToken token, {
-    required DateTime occurredOn,
-  }) {
-    if (!token.isCompletionBadge) return null;
-    final completionStatus = token.completionStatus;
-    if (completionStatus == CompletionStatus.none) return null;
-    final clientEventId = token.completionClientEventId ?? token.eventId;
-    final flowKind = resolveMaatFlowKind(actionId: clientEventId);
-    final metadata = <String, dynamic>{
-      'status': completionStatus.maatStatusName,
-      'completion_status': completionStatus.wireName,
-      'reflection_status': token.reflectionStatus.wireName,
-      if (token.sourceType != null) 'source_type': token.sourceType!.wireName,
-      'completed_on': _formatDateOnlyLocal(occurredOn),
-      'event_title': token.title,
-      if (clientEventId != null && clientEventId.trim().isNotEmpty)
-        'client_event_id': clientEventId.trim(),
-    };
-    if (flowKind != null) {
-      metadata['flow_key'] = flowKind.flowKey;
-      if (flowKind == MaatFlowKind.theWeighing) {
-        metadata['flow_title'] = kTheWeighingTitle;
-      }
-    }
-    return metadata;
+  Future<void> _recordCompositionalReflectionUsage(
+    CalendarDecanReflectionPrompt prompt,
+  ) async {
+    final phraseIds = decanCompositionPhraseIdsFromMetadata(
+      prompt.renderMetadata,
+    );
+    if (phraseIds.isEmpty) return;
+    final now = DateTime.now();
+    await _compositionUsageStore.recordAll(
+      phraseIds
+          .map(
+            (phraseId) => CompositionUsageRecord(
+              phraseId: phraseId,
+              date: now,
+              surface: kDecanReflectionSurface,
+            ),
+          )
+          .toList(growable: false),
+    );
   }
 
   Future<void> _maybeLoadDecanReflectionPrompt({bool force = false}) async {
@@ -33539,90 +33359,53 @@ class CalendarPageState extends State<CalendarPage>
         return;
       }
 
-      final decanBadges = await _collectDecanBadges(window.start, window.end);
-      final payloadBadges = decanBadges.map((b) {
-        final clientEventId = b.token.completionClientEventId;
-        final metadata = _reflectionPayloadMetadataForBadge(
-          b.token,
-          occurredOn: b.occurredOn,
-        );
-        return <String, dynamic>{
-          'title': b.token.title,
-          'details': b.token.description ?? b.token.title,
-          'tags': b.tags,
-          'event_id': b.token.eventId,
-          if (clientEventId != null && clientEventId.trim().isNotEmpty)
-            'client_event_id': clientEventId.trim(),
-          'occurred_on': _formatDateOnlyLocal(b.occurredOn),
-          if (b.occurredAt != null)
-            'occurred_at': b.occurredAt!.toUtc().toIso8601String(),
-          if (metadata != null) 'metadata': metadata,
-        };
-      }).toList();
-
-      String reflectionText = '';
-      int badgeCount = decanBadges.length;
-      String? reflectionId;
-      DecanReflectionRenderMetadata? responseRenderMetadata;
-
-      try {
-        final response = await _aiReflectionService.generateReflection(
-          decanName: window.decanName,
-          decanTheme: window.decanTheme,
-          decanContextKey: window.decanContextKey,
-          decanStart: window.start,
-          decanEnd: window.end,
-          includeHistory: false, // prioritize current decan’s badges
-          persist: true,
-          useKnowledgeGraph: true,
-          useDecisionMatrix: true,
-          badges: payloadBadges,
-        );
-        if (response.success &&
-            (response.reflection?.trim().isNotEmpty ?? false)) {
-          reflectionText = response.reflection!.trim();
-          badgeCount = response.badgeCount ?? badgeCount;
-          reflectionId = response.reflectionId;
-          responseRenderMetadata = response.renderMetadata;
-          Events.trackIfAuthed('decan_reflection_generated', {
-            'kg': true,
-            'decision_matrix': true,
-            'badge_count': badgeCount,
-            'persisted': response.reflectionId != null,
-            'branch': response.branch ?? 'unknown',
-            'renderer': response.renderMetadata?.renderer ?? response.modelUsed,
-            'used_llm': response.renderMetadata?.usedLlm,
-            'llm_cost': response.renderMetadata?.llmCost,
-            'spectrum_flow_key': response.renderMetadata?.spectrumFlowKey,
-          });
+      if (!FeatureFlags.enableCompositionalDecanReflections) {
+        if (_reflectionPrompt != null) {
+          setState(() => _reflectionPrompt = null);
         }
-      } catch (_) {
-        // Ignore and fall back to local generation
+        return;
       }
 
-      if (reflectionText.trim().isEmpty) {
-        reflectionText = _buildReflectionFromBadges(
-          decanBadges.map((b) => b.token).toList(),
-        );
-      }
+      final facts = await _maatFlowDecanFactCollector.collect(
+        decanStart: window.start,
+        decanEnd: window.end,
+        surface: kDecanReflectionSurface,
+      );
+      final usageHistory = await _compositionUsageStore.load();
+      final composition = _decanReflectionComposer.compose(
+        facts: facts,
+        usageHistory: usageHistory,
+        generatedAt: DateTime.now(),
+      );
 
-      if (reflectionText.trim().isEmpty) {
+      if (composition == null) {
+        if (_reflectionPrompt != null) {
+          setState(() => _reflectionPrompt = null);
+        }
         return;
       }
 
       if (!mounted) return;
       setState(() {
         _reflectionPrompt = CalendarDecanReflectionPrompt(
-          id: reflectionId,
+          id: null,
           decanName: window.decanName,
           decanTheme: window.decanTheme,
           decanStart: window.start,
           decanEnd: window.end,
-          badgeCount: badgeCount,
-          reflectionText: reflectionText.trim(),
-          persisted: reflectionId != null,
-          renderMetadata: responseRenderMetadata,
+          badgeCount: 0,
+          reflectionText: composition.output.text,
+          persisted: false,
+          renderMetadata: composition.renderMetadata,
         );
+      });
+      Events.trackIfAuthed('decan_reflection_generated', {
+        'renderer': kDecanReflectionCompositionalRenderer,
+        'used_llm': false,
+        'total_interactions':
+            composition.output.factSummary['total_interactions'],
+        'intent_id': composition.output.intentId,
+        'fact_fingerprint': composition.output.factFingerprint,
       });
     } catch (e) {
       if (kDebugMode) {
@@ -33656,6 +33439,16 @@ class CalendarPageState extends State<CalendarPage>
       );
       if (saved == null) {
         throw Exception('Unable to save reflection');
+      }
+      final renderMetadata = prompt.renderMetadata;
+      if (renderMetadata?.renderer == kDecanReflectionCompositionalRenderer) {
+        await _decanReflectionRepo.saveCompositionalGeneration(
+          reflection: saved,
+          renderMetadata: renderMetadata!,
+          modelVersion:
+              renderMetadata.raw['engine_version']?.toString() ??
+              kCompositionEngineVersion,
+        );
       }
 
       await _markReflectionPromptInteracted(

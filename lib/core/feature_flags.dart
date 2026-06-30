@@ -35,6 +35,13 @@ class FeatureFlags {
   static const bool enableUndoRedo = false;
 
   // =========================================================================
+  // COMPOSITIONAL REFLECTIONS
+  // =========================================================================
+
+  /// Enable local deterministic end-of-decan reflections.
+  static const bool enableCompositionalDecanReflections = true;
+
+  // =========================================================================
   // DEBUG FLAGS
   // =========================================================================
 
@@ -65,6 +72,9 @@ class FeatureFlags {
     if (enableDrawing) features.add('drawing');
     if (enableCharts) features.add('charts');
     if (enableUndoRedo) features.add('undo_redo');
+    if (enableCompositionalDecanReflections) {
+      features.add('compositional_decan_reflections');
+    }
     return features;
   }
 }

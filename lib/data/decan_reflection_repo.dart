@@ -374,6 +374,43 @@ class DecanReflectionRepo {
     }
   }
 
+  Future<void> saveCompositionalGeneration({
+    required DecanReflection reflection,
+    required DecanReflectionRenderMetadata renderMetadata,
+    required String modelVersion,
+  }) async {
+    final uid = _client.auth.currentUser?.id;
+    if (uid == null) return;
+    try {
+      final start = _fmtStoredDate(reflection.decanStart);
+      final end = _fmtStoredDate(reflection.decanEnd);
+      final sourceSnapshot = <String, dynamic>{
+        'decan_name': reflection.decanName,
+        'decan_theme': reflection.decanTheme,
+        'decan_start': start,
+        'decan_end': end,
+        'decan_reflection_id': reflection.id,
+        ...renderMetadata.raw,
+      };
+      await withSupabaseAuthRetry(
+        _client,
+        () => _client.from('reflection_generations').insert({
+          'user_id': uid,
+          'period_type': 'decan',
+          'period_key':
+              '$start:$end:${renderMetadata.renderer ?? modelVersion}',
+          'anchor_nodes': <String>[],
+          'source_snapshot': sourceSnapshot,
+          'generated_text': reflection.reflectionText,
+          'model_version': modelVersion,
+          'metadata': renderMetadata.raw,
+        }),
+      );
+    } catch (e) {
+      debugPrint('[DecanReflectionRepo] saveCompositionalGeneration error: $e');
+    }
+  }
+
   String _friendlyReadError(Object error) {
     if (isExpiredSupabaseJwtError(error)) {
       return 'Your session expired. Sign in again, then reopen Decan Reflections.';

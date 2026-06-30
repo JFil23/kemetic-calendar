@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/decan_reflection_model.dart';
 import '../../shared/glossy_text.dart';
+import 'decan_reflection_composition/decan_reflection_composer.dart';
 
 const decanReflectionLowerThirdBadgeKey = ValueKey<String>(
   'decan-reflection-lower-third-badge',
@@ -36,6 +37,12 @@ class CalendarDecanReflectionPrompt {
 
   bool get isTheWeighingSpectrum =>
       renderMetadata?.isTheWeighingSpectrum == true;
+
+  bool get isCompositionalV1 =>
+      renderMetadata?.renderer == kDecanReflectionCompositionalRenderer;
+
+  int get compositionalInteractionCount =>
+      decanCompositionInteractionCountFromMetadata(renderMetadata);
 
   String get badgeText {
     if (isTheWeighingSpectrum) {
