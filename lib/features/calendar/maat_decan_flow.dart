@@ -3386,7 +3386,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Before sleep, clear the space near your head.',
           'Place one small object there.',
-          'Write your oracle question on paper and set it under or beside the object.',
+          'Write your oracle question on paper.',
+          'Set the paper under or beside the object.',
         ],
         sourceNote:
             'The Dream Stela records that Thutmose rested in the shadow of the Great God — a deliberate spatial act before the dream. The incubation at Kemetic temples followed the same logic: you position yourself within the field of divine presence and wait. The reception chamber is that positioning, made domestic.',
@@ -3421,9 +3422,10 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'The oracle consultation was formal — a specific address to a specific presence, with a specific question, in a specific posture of receiving. This invocation follows that form.',
         spokenLine: 'The question is spoken once, then silence receives.',
         steps: <String>[
-          'Speak the invocation before lying down. Address who you are asking by name. Speak the question once, clearly, completely. Do not speak again before sleep.',
-          'Address the deity, principle, Ba, Ka, Ma’at, or divine presence you are asking.',
-          'Speak the question clearly once. Do not speak again before sleep.',
+          'Before lying down, address the deity, principle, Ba, Ka, Ma’at, or divine presence you are asking.',
+          'Speak the question once, clearly and completely.',
+          'Lie down.',
+          'Do not speak again before sleep.',
         ],
         sourceNote:
             'Temple dream incubation was a formal consultation — not a vague hope for inspiration but a specific request made in a specific place with specific preparation. The invocation formalizes the request so that what the night sends can be understood as responsive to it.',
@@ -3441,7 +3443,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'The dream disperses immediately. Record before anything else — before the phone, before speaking, before the day\'s logic takes over.',
         spokenLine: 'The night record is written before interpretation.',
         steps: <String>[
-          'Immediately upon waking — before the phone, before speaking to anyone, before anything — reach for the notebook and write. What images. What words. What feelings. What atmosphere. Do not interpret yet.',
+          'Immediately upon waking, reach for the notebook before the phone or speaking to anyone.',
           'Record images, words, feelings, colors, sequence, and atmosphere.',
           'Do not interpret yet.',
         ],
@@ -3476,7 +3478,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         purpose: 'Name what appeared more than once.',
         spokenLine: 'What returns asks to be examined.',
         steps: <String>[
-          'Review all recorded dreams from the first two decans.',
+          'Review all recorded dreams from the first two ten-day sections.',
           'Name what appeared more than once: figure, color, place, action, sound, feeling, or symbol.',
           'Keep the recurring element tied to the record.',
         ],
@@ -3493,9 +3495,10 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'Interpret the recurring element through four grounded questions.',
         spokenLine: 'Interpretation serves action.',
         steps: <String>[
-          'Interpret the recurring element with four questions.',
-          'Ask what it does, what principle it carries, how it relates to the oracle question, and what action it indicates.',
-          'Do not treat disturbing dream content as definitive truth.',
+          'Ask what the recurring element does.',
+          'Ask what principle it carries.',
+          'Ask how it relates to the oracle question.',
+          'Ask what action it indicates without treating disturbing dream content as definitive truth.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -3527,9 +3530,9 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'The oracle completes when the action is taken. Thutmose cleared the sand from around the Sphinx. The dream that produces no action was not a consultation — it was a night\'s sleep.',
         spokenLine: 'He awoke and acted.',
         steps: <String>[
-          'Take the specific action indicated before logging this event.',
-          'Write the complete oracle record: question, what the night sent, what it indicated, and what action was taken.',
-          'If the oracle stayed unclear, record that honestly and do only the grounded action you can justify.',
+          'If the oracle indicated a specific action, take that action before logging this event.',
+          'If the oracle stayed unclear, do only the grounded action you can justify before logging this event.',
+          'Write the complete oracle record: question, what the night sent, what it indicated or left unclear, and what action was taken.',
         ],
         sourceNote:
             'Thutmose\'s stela records the dream and then records that he commanded the sand to be cleared. The action is what closes the Stela\'s account — not the dream, not the interpretation, but the act taken in response.',

@@ -659,6 +659,117 @@ void main() {
     expect(issues, isEmpty);
   });
 
+  test('Oracle copy keeps invocation, recording, and action sequences clear', () {
+    final oracle = maatDecanFlowDefinitionForKey(kOracleFlowKey)!;
+    final event1 = maatDecanFlowEventByNumber(oracle, 1)!;
+    final event3 = maatDecanFlowEventByNumber(oracle, 3)!;
+    final event4 = maatDecanFlowEventByNumber(oracle, 4)!;
+    final event6 = maatDecanFlowEventByNumber(oracle, 6)!;
+    final event7 = maatDecanFlowEventByNumber(oracle, 7)!;
+    final event9 = maatDecanFlowEventByNumber(oracle, 9)!;
+
+    expect(event1.steps, <String>[
+      'Before sleep, clear the space near your head.',
+      'Place one small object there.',
+      'Write your oracle question on paper.',
+      'Set the paper under or beside the object.',
+    ]);
+
+    expect(event3.steps, <String>[
+      'Before lying down, address the deity, principle, Ba, Ka, Ma’at, or divine presence you are asking.',
+      'Speak the question once, clearly and completely.',
+      'Lie down.',
+      'Do not speak again before sleep.',
+    ]);
+    expect(
+      event3.steps,
+      isNot(
+        contains(
+          'Address the deity, principle, Ba, Ka, Ma’at, or divine presence you are asking.',
+        ),
+      ),
+    );
+    expect(
+      event3.steps,
+      isNot(
+        contains(
+          'Speak the question clearly once. Do not speak again before sleep.',
+        ),
+      ),
+    );
+
+    expect(event4.steps, <String>[
+      'Immediately upon waking, reach for the notebook before the phone or speaking to anyone.',
+      'Record images, words, feelings, colors, sequence, and atmosphere.',
+      'Do not interpret yet.',
+    ]);
+    expect(
+      event4.steps.where((step) => step.contains('Do not interpret yet')),
+      hasLength(1),
+    );
+    expect(
+      event4.steps.indexWhere((step) => step.startsWith('Record images')),
+      lessThan(event4.steps.indexOf('Do not interpret yet.')),
+    );
+
+    expect(
+      event6.steps,
+      contains(
+        'Review all recorded dreams from the first two ten-day sections.',
+      ),
+    );
+
+    expect(event7.steps, <String>[
+      'Ask what the recurring element does.',
+      'Ask what principle it carries.',
+      'Ask how it relates to the oracle question.',
+      'Ask what action it indicates without treating disturbing dream content as definitive truth.',
+    ]);
+
+    expect(event9.steps, <String>[
+      'If the oracle indicated a specific action, take that action before logging this event.',
+      'If the oracle stayed unclear, do only the grounded action you can justify before logging this event.',
+      'Write the complete oracle record: question, what the night sent, what it indicated or left unclear, and what action was taken.',
+    ]);
+    expect(event9.requiresRealWorldAction, isTrue);
+    expect(
+      event9.extraCompletionStatusLabels,
+      containsPair('oracle_complete', 'Oracle complete'),
+    );
+  });
+
+  test('Oracle words fields do not contain stage-direction wrappers', () {
+    final issues = <String>[];
+    final oracle = maatDecanFlowDefinitionForKey(kOracleFlowKey)!;
+
+    for (final event in oracle.events) {
+      for (final pattern in _oracleWordsStageDirectionPatterns) {
+        if (pattern.hasMatch(event.spokenLine)) {
+          issues.add(
+            'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+          );
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('Oracle steps keep source-note phrases out of actions', () {
+    final issues = <String>[];
+    final oracle = maatDecanFlowDefinitionForKey(kOracleFlowKey)!;
+
+    for (final event in oracle.events) {
+      for (final step in event.steps) {
+        if (_oracleSourceNotePhrasePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
   test('representative source-note upgrades are stored', () {
     expect(
       maatDecanFlowEventByNumber(
@@ -780,5 +891,18 @@ final _openMouthWordsStageDirectionPatterns = <RegExp>[
 
 final _openMouthSourceNotePhrasePattern = RegExp(
   r'\b(Memphite Theology|Opening of the Mouth|source|because)\b',
+  caseSensitive: false,
+);
+
+final _oracleWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*speak the invocation\b', caseSensitive: false),
+  RegExp(r'\bbefore lying down\b', caseSensitive: false),
+  RegExp(r'\bdo not speak again\b', caseSensitive: false),
+  RegExp(r'\bimmediately upon waking\b', caseSensitive: false),
+  RegExp(r'\bdo not interpret yet\b', caseSensitive: false),
+];
+
+final _oracleSourceNotePhrasePattern = RegExp(
+  r'\b(Dream Stela|Temple dream|Thutmose|source|because)\b',
   caseSensitive: false,
 );
