@@ -250,7 +250,8 @@ const List<KeptWordEvent> kKeptWordEvents = <KeptWordEvent>[
     steps: <String>[
       'Write the two or three people with whom you share the most significant household or working agreements.',
       'For each person, write the current agreements: who handles what, who said what, and what was last promised.',
-      'Mark each agreement kept, drifted, or broken. Mark any drifted or broken agreement for Decan 2.',
+      'Mark each agreement kept, drifted, or broken.',
+      'Mark any drifted or broken agreement for the next ten-day section.',
     ],
     sourceNote:
         'Merikare\'s teaching placed truth inside the palace first because that is where order is most likely to be protected or corrupted. Proximity makes drift comfortable — the closest agreements are the ones where it goes unnoticed longest.',
@@ -267,7 +268,7 @@ const List<KeptWordEvent> kKeptWordEvents = <KeptWordEvent>[
     spokenLine:
         'Do not utter falsehood, for you are a balance. Do not go off course, for you are impartiality. If it wavers, then you will waver.',
     steps: <String>[
-      'Name one shared rhythm that used to hold the household or relationship together and has drifted or stopped. Not a dramatic break — the small regular pattern that used to create order between two people.',
+      'Name one shared rhythm that used to hold the household or relationship together and has drifted or stopped.',
       'Name who was affected by the rhythm stopping.',
       'Write one sentence about whether anyone has named the change directly.',
     ],
@@ -288,10 +289,10 @@ const List<KeptWordEvent> kKeptWordEvents = <KeptWordEvent>[
     steps: <String>[
       'Review each drifted or broken agreement.',
       'Ask whether the break came from changed circumstances or from someone taking more than their agreed share.',
-      'Choose one agreement or shared rhythm to address first in Decan 2.',
+      'Choose one agreement or shared rhythm to address first in the next ten-day section.',
     ],
     optionalSteps: <String>[
-      'Before the decan closes, tell the person involved that you want a clear conversation about one thing in the next ten days.',
+      'Before this ten-day section closes, tell the person involved that you want a clear conversation about one thing in the next ten days.',
     ],
     sourceNote:
         'Ptahhotep\'s warning about greed specifically names what it separates: fathers from children, wives from husbands, friends from each other. The inventory closes by asking whether greed was the mechanism, because it is the one the holder rarely notices in themselves.',
@@ -308,7 +309,8 @@ const List<KeptWordEvent> kKeptWordEvents = <KeptWordEvent>[
     spokenLine:
         'Deliver the message exactly as it was given. Observe the truth; do not surpass it.',
     steps: <String>[
-      'Write the specific fact: We agreed to X. What has been happening is Y. I want to understand the gap. Keep it that short. The message that is longer than this has usually started editing the truth toward a preferred outcome.',
+      'Write the specific fact: We agreed to X. What has been happening is Y. I want to understand the gap.',
+      'Keep the message that short.',
       'Choose the least escalating medium that still counts as direct: spoken conversation, voice message, text, or written note.',
       'Send or schedule the message before marking this event prepared.',
     ],
@@ -331,11 +333,10 @@ const List<KeptWordEvent> kKeptWordEvents = <KeptWordEvent>[
     spokenLine: 'The dispute between Truth and Falsehood was settled.',
     steps: <String>[
       'If the conversation happened, write three private sentences: what I said, what they said, and what was agreed.',
-      'If it has not happened, mark conversation pending and schedule it before Decan 2 closes.',
-      'Name one thing that surprised you, if anything did.',
-    ],
-    optionalSteps: <String>[
+      'If it has not happened and can happen safely, mark conversation pending.',
+      'If it has not happened and can happen safely, schedule it before this ten-day section closes.',
       'If no conversation can happen safely, keep the flow paused locally rather than forcing contact.',
+      'Name one thing that surprised you, if anything did.',
     ],
     requiresConversation: true,
     localPrompt: KeptWordLocalPromptKind.conversationRecord,
@@ -351,7 +352,8 @@ const List<KeptWordEvent> kKeptWordEvents = <KeptWordEvent>[
     spokenLine: 'He was found still alive. The dispute was settled.',
     steps: <String>[
       'Name the current status of the break: resolved, in process, or named but unresolved.',
-      'If it remains unresolved, write the next concrete step as an agreement: who does what by when.',
+      'If it remains unresolved, write the next concrete step as an agreement.',
+      'Name who does what by when.',
       'Name one accurate thing the other person said that you had been holding differently.',
     ],
     sourceNote:
@@ -372,7 +374,7 @@ const List<KeptWordEvent> kKeptWordEvents = <KeptWordEvent>[
     steps: <String>[
       'Write the renewed agreement in one or two sentences.',
       'Name who needs to recognize it and how you will confirm recognition.',
-      'Read the written agreement aloud so the word becomes operative. The spoken agreement is more present than the written one.',
+      'Read the written agreement aloud.',
     ],
     localPrompt: KeptWordLocalPromptKind.renewedAgreement,
   ),
@@ -388,11 +390,8 @@ const List<KeptWordEvent> kKeptWordEvents = <KeptWordEvent>[
         'Do not be selfish with respect to your relatives, for greater is the claim of the good-natured man than that of the assertive. He who forsakes his relatives is truly poor.',
     steps: <String>[
       'Check whether anyone in the renewed agreement is carrying more than their share in practice.',
-      'If the weight has shifted, name the small correction before Event 9.',
+      'If the weight has shifted, name the small correction before the closing sitting.',
       'Name one thing the renewed agreement has already produced, if something has held.',
-    ],
-    optionalSteps: <String>[
-      'Make the correction short. Healthy agreements need small adjustments as they settle.',
     ],
     sourceNote:
         'Ptahhotep says the person who forsakes their relatives through selfishness becomes poor — not economically, but relationally. The rhythm check keeps the renewed agreement from drifting back into the old imbalance through small, unintentional taking.',
@@ -409,8 +408,10 @@ const List<KeptWordEvent> kKeptWordEvents = <KeptWordEvent>[
     spokenLine:
         'Speak Ma\'at within your palace. The front of the house determines the back. Observe Ma\'at, that you may endure long upon the earth.',
     steps: <String>[
-      'Return to your Day 1 inventory and speak only the current status that is true: kept, repaired, in process, or still broken.',
-      'For the shared rhythm named in Decan 1, name whether it returned and what made it possible, or what remains in the way.',
+      'Return to your Day 1 inventory.',
+      'Speak only the current status that is true: kept, repaired, in process, or still broken.',
+      'For the shared rhythm named in the first ten-day section, name whether it returned.',
+      'Name what made it possible or what remains in the way.',
       'Write one line that is now true that was not true at the start of this flow.',
     ],
     optionalSteps: <String>[
@@ -767,19 +768,19 @@ String _keptWordPurpose(KeptWordEvent event) {
     case 1:
       return 'The agreements that govern your closest sphere are running whether or not you look at them. This sitting makes the current terms visible so they can be honestly assessed.';
     case 2:
-      return 'Agreements have two kinds of failure: the promise broken, and the rhythm that quietly stopped. This sitting names the second kind.';
+      return 'Agreements have two kinds of failure: the promise broken, and the rhythm that quietly stopped. This sitting names the small regular pattern that used to create order between two people.';
     case 3:
       return 'Greed breaks agreements from the inside — not through dramatic violation but through taking a little more than was agreed, a little longer than was promised. This closing checks whether that is what happened.';
     case 4:
-      return 'The conversation starts with the fact, not the feeling. This sitting writes the message before it is delivered.';
+      return 'The conversation starts with the fact, not the feeling. This sitting writes the message before it is delivered. A longer message can start editing the truth toward a preferred outcome.';
     case 5:
       return 'The conversation is the event — not the outcome. This sitting records whether the direct exchange happened, not whether it resolved everything.';
     case 6:
       return 'The naming decan closes with where the break actually stands. Resolved, in process, or named but unresolved — all three are honest positions.';
     case 7:
-      return 'An agreement that both people would recognize is a real agreement. The test is whether you could each read it back and say: yes, that is what we agreed.';
+      return 'An agreement that both people would recognize is a real agreement. The test is whether you could each read it back and say: yes, that is what we agreed. Reading it aloud makes the word operative.';
     case 8:
-      return 'A renewed agreement shifts in practice before it shifts formally. This sitting catches the small drift before it becomes the next break.';
+      return 'A renewed agreement shifts in practice before it shifts formally. Healthy agreements need small adjustments as they settle. This sitting catches the small drift before it becomes the next break.';
     case 9:
       return 'The flow closes with one line that is now true that was not true at the start. That line is the measure of the cycle.';
   }

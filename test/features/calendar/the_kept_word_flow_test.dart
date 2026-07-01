@@ -120,6 +120,139 @@ void main() {
     expect(detail, contains('Lens\nLet Djehuty'));
   });
 
+  test('copy keeps conversation guardrails and safety branches clear', () {
+    final event2 = keptWordEventByNumber(2)!;
+    final event3 = keptWordEventByNumber(3)!;
+    final event4 = keptWordEventByNumber(4)!;
+    final event5 = keptWordEventByNumber(5)!;
+    final event6 = keptWordEventByNumber(6)!;
+    final event7 = keptWordEventByNumber(7)!;
+    final event8 = keptWordEventByNumber(8)!;
+    final event9 = keptWordEventByNumber(9)!;
+
+    expect(event2.steps, <String>[
+      'Name one shared rhythm that used to hold the household or relationship together and has drifted or stopped.',
+      'Name who was affected by the rhythm stopping.',
+      'Write one sentence about whether anyone has named the change directly.',
+    ]);
+    expect(
+      keptWordDetailText(event2, lens: KeptWordLens.neutral),
+      contains('small regular pattern'),
+    );
+
+    expect(
+      event3.steps,
+      contains(
+        'Choose one agreement or shared rhythm to address first in the next ten-day section.',
+      ),
+    );
+    expect(
+      event3.optionalSteps,
+      contains(
+        'Before this ten-day section closes, tell the person involved that you want a clear conversation about one thing in the next ten days.',
+      ),
+    );
+
+    expect(event4.steps, <String>[
+      'Write the specific fact: We agreed to X. What has been happening is Y. I want to understand the gap.',
+      'Keep the message that short.',
+      'Choose the least escalating medium that still counts as direct: spoken conversation, voice message, text, or written note.',
+      'Send or schedule the message before marking this event prepared.',
+    ]);
+    expect(
+      event4.optionalSteps,
+      contains(
+        'If the conversation is not safe or possible, pause the flow locally and seek appropriate support.',
+      ),
+    );
+    expect(
+      event4.steps.join(' '),
+      isNot(contains('started editing the truth')),
+    );
+    expect(
+      keptWordDetailText(event4, lens: KeptWordLens.neutral),
+      contains('A longer message can start editing the truth'),
+    );
+
+    expect(event5.steps, <String>[
+      'If the conversation happened, write three private sentences: what I said, what they said, and what was agreed.',
+      'If it has not happened and can happen safely, mark conversation pending.',
+      'If it has not happened and can happen safely, schedule it before this ten-day section closes.',
+      'If no conversation can happen safely, keep the flow paused locally rather than forcing contact.',
+      'Name one thing that surprised you, if anything did.',
+    ]);
+    expect(event5.optionalSteps, isEmpty);
+    expect(event5.requiresConversation, isTrue);
+
+    expect(event6.steps, <String>[
+      'Name the current status of the break: resolved, in process, or named but unresolved.',
+      'If it remains unresolved, write the next concrete step as an agreement.',
+      'Name who does what by when.',
+      'Name one accurate thing the other person said that you had been holding differently.',
+    ]);
+
+    expect(event7.steps, contains('Read the written agreement aloud.'));
+    expect(
+      keptWordDetailText(event7, lens: KeptWordLens.neutral),
+      contains('Reading it aloud makes the word operative'),
+    );
+
+    expect(
+      event8.steps,
+      contains(
+        'If the weight has shifted, name the small correction before the closing sitting.',
+      ),
+    );
+    expect(event8.optionalSteps, isEmpty);
+    expect(
+      keptWordDetailText(event8, lens: KeptWordLens.neutral),
+      contains('Healthy agreements need small adjustments as they settle'),
+    );
+
+    expect(event9.steps, <String>[
+      'Return to your Day 1 inventory.',
+      'Speak only the current status that is true: kept, repaired, in process, or still broken.',
+      'For the shared rhythm named in the first ten-day section, name whether it returned.',
+      'Name what made it possible or what remains in the way.',
+      'Write one line that is now true that was not true at the start of this flow.',
+    ]);
+    expect(
+      event9.optionalSteps,
+      contains(
+        'If you share, share only the generic closing line. Do not share names, agreements, or conversation content.',
+      ),
+    );
+    expect(event9.sharePromptOnComplete, isTrue);
+  });
+
+  test('words fields do not contain stage-direction wrappers', () {
+    final issues = <String>[];
+
+    for (final event in kKeptWordEvents) {
+      for (final pattern in _keptWordWordsStageDirectionPatterns) {
+        if (pattern.hasMatch(event.spokenLine)) {
+          issues.add('Event ${event.eventNumber} ${event.title}');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('steps keep rationale and source-note phrases out of actions', () {
+    final issues = <String>[];
+
+    for (final event in kKeptWordEvents) {
+      for (final step in event.steps) {
+        if (_keptWordRationaleOrSourcePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
   test('calendar join branch creates nine events without placeholders', () {
     final source = File(
       'lib/features/calendar/calendar_page.dart',
@@ -142,3 +275,16 @@ void main() {
     expect(branch, isNot(contains('kDawnHouseRiteDays')));
   });
 }
+
+final _keptWordWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*write\b', caseSensitive: false),
+  RegExp(r'^\s*before\b', caseSensitive: false),
+  RegExp(r'^\s*if\b', caseSensitive: false),
+  RegExp(r'\boptional\b', caseSensitive: false),
+  RegExp(r'\bdo not share\b', caseSensitive: false),
+];
+
+final _keptWordRationaleOrSourcePattern = RegExp(
+  r'\b(Merikare|Ptahhotep|Eloquent Peasant|Blinding of Truth|because|started editing the truth|more present than the written one|Healthy agreements)\b',
+  caseSensitive: false,
+);
