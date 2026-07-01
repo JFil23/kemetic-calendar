@@ -239,6 +239,7 @@ class DjedEvent {
   final int durationMinutesMax;
   final String spokenLine;
   final List<String> steps;
+  final List<String> optionalSteps;
   final String? sourceNote;
   final bool requiresDirectEngagement;
   final bool physicalRaising;
@@ -256,6 +257,7 @@ class DjedEvent {
     required this.spokenLine,
     required this.steps,
     required this.localPrompt,
+    this.optionalSteps = const <String>[],
     this.sourceNote,
     this.requiresDirectEngagement = false,
     this.physicalRaising = false,
@@ -376,12 +378,14 @@ const List<DjedEvent> kDjedEvents = <DjedEvent>[
     durationMinutesMin: 5,
     durationMinutesMax: 5,
     spokenLine:
-        'Before checking the commitment, speak: Unis, raise yourself from your side! Do my command, you who hate sleep but were made slack. Then check: has the engagement happened?',
+        'Unis, raise yourself from your side! Do my command, you who hate sleep but were made slack.',
     steps: <String>[
+      'Speak the invocation before checking the commitment.',
       'Check whether the direct engagement committed on Day 11 has happened.',
+      'Answer whether the engagement happened.',
       'If yes, record what occurred in one honest sentence.',
-      'If no, name the obstacle and what must move for the engagement to happen before Day 19.',
-      'Do it today if possible. The battle must occur before the Djed is raised.',
+      'If no, name the obstacle and the next action that moves the engagement before Day 19.',
+      'Do that next action today if possible.',
     ],
     localPrompt: DjedLocalPromptKind.directEngagement,
     requiresDirectEngagement: true,
@@ -439,8 +443,10 @@ const List<DjedEvent> kDjedEvents = <DjedEvent>[
     steps: <String>[
       'Name one moment in the last 10 days when a load-bearing element was tested.',
       'Name one way your relationship to what holds you upright has changed.',
-      'Optional: place a hand on the physical spine and notice what holds without announcement.',
       'Prepare standing room: the next event requires standing and raising the arms for about 30 seconds.',
+    ],
+    optionalSteps: <String>[
+      'Place a hand on the physical spine and notice what holds without announcement.',
     ],
     localPrompt: DjedLocalPromptKind.spinePractice,
     sourceNote: 'This event previews the physical raising required at Event 9.',
@@ -457,7 +463,8 @@ const List<DjedEvent> kDjedEvents = <DjedEvent>[
         'Stand up! Raise yourself like Ausar (Osiris)! Become established, become established. The Djed is raised. The spine holds. The identity endures.',
     steps: <String>[
       'Name the spine elements that held across the full cycle.',
-      'Stand upright with your spine straight. Raise your arms and hold for approximately thirty seconds. The body declares what the record produced.',
+      'Stand upright with your spine straight.',
+      'Raise your arms and hold for approximately thirty seconds.',
       'Speak the closing line while standing.',
       'Choose the maintenance practice that keeps the Djed upright.',
     ],
@@ -697,6 +704,8 @@ String djedDetailText(DjedEvent event, {required DjedLens lens}) {
       'Direct engagement\nChoose a concrete stabilizing act: a conversation, stopping a pattern, restarting a practice, or making a decision that addresses the structural threat.',
     'Words\n"${event.spokenLine}"',
     'Steps\n${_numberedLines(event.steps)}',
+    if (event.optionalSteps.isNotEmpty)
+      'Optional\n${_numberedLines(event.optionalSteps)}',
     if (lensLine.isNotEmpty) 'Lens\n$lensLine',
   ].join('\n\n');
 }
@@ -731,7 +740,7 @@ String _djedPurpose(DjedEvent event) {
     case 4:
       return 'The Djed was raised after a ceremonial battle, not before one. What threatens the spine is engaged directly — not in anger, not in confrontation, but in the specific act that meets the challenge instead of managing around it.';
     case 5:
-      return 'The midpoint check asks whether the battle happened — not whether it was won. The engagement is the event.';
+      return 'The midpoint check asks whether the battle happened before the Djed is raised — not whether it was won. The engagement is the event.';
     case 6:
       return 'Record what survived the battle without forcing a false victory.';
     case 7:
@@ -739,7 +748,7 @@ String _djedPurpose(DjedEvent event) {
     case 8:
       return 'Test whether the spine has functioned in daily pressure and prepare physical space for the raising.';
     case 9:
-      return 'The raising requires the body. This is not metaphorical — the Djed was physically raised. This event requires you to stand, lift your arms, and declare what holds while the body enacts the claim.';
+      return 'The raising requires the body. This is not metaphorical — the Djed was physically raised. The body declares what the record produced while the spoken claim is enacted standing, not seated.';
   }
   return 'Become established.';
 }
