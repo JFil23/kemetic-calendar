@@ -173,7 +173,8 @@ void main() {
       day.purpose,
       'The table was never about perfection — it was about the record being honest. The cycle closes with accuracy, not with achievement.',
     );
-    expect(detail, contains('Provision\nSpeak only the lines that are true:'));
+    expect(detail, contains('Provision\nSpeak only the lines that are true.'));
+    expect(detail, isNot(contains('Speak only the lines that are true:')));
     expect(
       detail,
       contains('Say, if true: My water was placed with attention.'),

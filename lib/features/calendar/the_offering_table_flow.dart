@@ -460,7 +460,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     purpose:
         'The table was never about perfection — it was about the record being honest. The cycle closes with accuracy, not with achievement.',
     provisionAct:
-        'Speak only the lines that are true:\nSay, if true: My water was placed with attention.\nSay, if true: Food, rest, or care was not treated as imaginary.\nSay, if true: I fed one need before it became collapse.\nSay, if true: I noticed who else depends on the table.\nSay, if true: What flowed to me was allowed to return.\nName one shortfall.\nName one provision that surprised you.',
+        'Speak only the lines that are true.\nSay, if true: My water was placed with attention.\nSay, if true: Food, rest, or care was not treated as imaginary.\nSay, if true: I fed one need before it became collapse.\nSay, if true: I noticed who else depends on the table.\nSay, if true: What flowed to me was allowed to return.\nName one shortfall.\nName one provision that surprised you.',
     optionalSteps: <String>[
       'Sit for one quiet breath after drinking the water.',
       'Share only this prompt if you choose: one thing the table held that I did not expect.',

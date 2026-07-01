@@ -2848,7 +2848,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 10,
         durationMinutesMax: 10,
-        purpose: 'Write one application from a real situation.',
+        purpose:
+            'A real situation gives the living text one application that can be tested outside the page.',
         spokenLine: 'The principle becomes readable through life.',
         steps: <String>[
           'Write 150-250 words on how one Library principle operated in a real situation.',
@@ -2977,7 +2978,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 5,
         durationMinutesMax: 8,
-        purpose: 'Take one real action from the cleared state before logging.',
+        purpose:
+            'The cleared state becomes part of the record only when one real action happens before logging.',
         spokenLine: 'The clearing acts without heat.',
         steps: <String>[
           'Take one real action from the cleared state before logging.',

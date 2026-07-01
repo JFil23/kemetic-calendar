@@ -95,10 +95,9 @@ kEveningThresholdEvents = <EveningThresholdEvent>[
     title: 'How did it land?',
     purpose:
         'You held something this morning. Before the day closes, place it on the scale - not to judge it, but to know what was true.',
-    spokenLine:
-        'Read your morning return aloud or silently. "This was what I named. This is what I met."',
+    spokenLine: 'This was what I named. This is what I met.',
     deliveryBeat:
-        'Pause. Do not rush this. The day is still happening. Let it settle before you answer.',
+        'Read your morning return aloud or silently. Pause. Do not rush this. The day is still happening. Let it settle before you answer.',
     sourceNote:
         'The Kemetic evening rite was not confession. It was reckoning: placing what occurred beside what was intended, and seeing the difference clearly.',
     completionStatusLabels: <String, String>{

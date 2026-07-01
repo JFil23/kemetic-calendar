@@ -146,7 +146,7 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
     steps: <String>[
       'Place a cup of water on your surface before you begin.',
       'Keep the water there while you write.',
-      'Speak the Words line before opening any record.',
+      'Speak the line before opening any record.',
       'Write one number you have not looked at directly in the last ten days: a balance, debt, supply, or physical record.',
       'Name one thing you received in the last ten days by saying plainly: I received ___.',
     ],
@@ -201,7 +201,7 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
         'My tongue is the plummet. My heart is the weight. I do not utter falsehood, for I am a balance.',
     steps: <String>[
       'Place water on your surface before sitting.',
-      'Speak the Words line before writing anything.',
+      'Speak the line before writing anything.',
       'Name one promise or agreement that remains open from the last ten days.',
       'State what was said.',
       'State what has been done.',
@@ -263,7 +263,7 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
         'I have come before you, my lord, bringing Truth, having repelled for you falsehood.',
     steps: <String>[
       'Stand before reading the four lines.',
-      'Speak the Words line before reading the four lines.',
+      'Speak the line before reading the four lines.',
       'Read slowly: I have not caused avoidable hunger in those who depend on me.',
       'Read slowly: I have not diverted what should have flowed.',
       'Read slowly: I have not made my record better than my conduct.',
@@ -309,7 +309,7 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
       'Say, if true: I did not take more than was due.',
       'Say, if true: I did not leave unprovided those in my care.',
       'Say, if true: I did not adjust the scale to favor myself.',
-      'Speak the Words line as the closing declaration after the truth-check lines.',
+      'Speak the closing declaration after the truth-check lines.',
       'Name one thing from this cycle that you will hold differently in the next.',
       'Name one thing the record shows you did well.',
       'Place a cup of water on your surface.',

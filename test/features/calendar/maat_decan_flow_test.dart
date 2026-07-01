@@ -384,6 +384,10 @@ void main() {
       'Add or revise your entry.',
     ]);
 
+    expect(
+      event8.purpose,
+      'A real situation gives the living text one application that can be tested outside the page.',
+    );
     expect(event8.optionalSteps, <String>['Share the useful part.']);
     expect(
       event9.spokenLine,
@@ -1425,6 +1429,10 @@ void main() {
     ]);
 
     expect(event5.spokenLine, 'The clearing acts without heat.');
+    expect(
+      event5.purpose,
+      'The cleared state becomes part of the record only when one real action happens before logging.',
+    );
     expect(event5.steps, <String>[
       'Take one real action from the cleared state before logging.',
       'Record the situation and what the heat response would have been.',

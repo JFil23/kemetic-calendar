@@ -126,7 +126,7 @@ void main() {
     );
     expect(
       kTheWeighingEvents[0].steps,
-      contains('Speak the Words line before opening any record.'),
+      contains('Speak the line before opening any record.'),
     );
     expect(
       kTheWeighingEvents[3].spokenLine,
@@ -134,7 +134,7 @@ void main() {
     );
     expect(
       kTheWeighingEvents[3].steps,
-      contains('Speak the Words line before writing anything.'),
+      contains('Speak the line before writing anything.'),
     );
     expect(
       kTheWeighingEvents[6].spokenLine,
@@ -144,7 +144,7 @@ void main() {
       kTheWeighingEvents[6].steps,
       containsAll(<String>[
         'Stand before reading the four lines.',
-        'Speak the Words line before reading the four lines.',
+        'Speak the line before reading the four lines.',
       ]),
     );
     expect(
@@ -156,7 +156,7 @@ void main() {
       containsAll(<String>[
         'Speak only the truth-check lines you can speak honestly.',
         'Remain silent on any truth-check line that is not accurate.',
-        'Speak the Words line as the closing declaration after the truth-check lines.',
+        'Speak the closing declaration after the truth-check lines.',
       ]),
     );
   });
