@@ -86,7 +86,7 @@ void main() {
     expect(detail, contains('Steps\n1. Place a cup of water'));
     expect(
       detail,
-      contains('2. Write down one number you have not looked at directly'),
+      contains('4. Write one number you have not looked at directly'),
     );
     expect(detail, isNot(contains('Optional\n- Place a cup of water')));
     expect(detail, contains('Lens\nLet Djehuty'));
@@ -95,10 +95,16 @@ void main() {
   });
 
   test('water promotion is primary for the specified reckoning events', () {
-    final expectedWater = <int, String>{
-      1: 'Place a cup of water on your surface before you begin. Let it sit while you write.',
-      4: 'Place water on your surface before sitting. The record needs a clean instrument.',
-      9: 'Offer water. Place a cup. The reckoning ends with provision, not punishment.',
+    final expectedWater = <int, List<String>>{
+      1: <String>[
+        'Place a cup of water on your surface before you begin.',
+        'Keep the water there while you write.',
+      ],
+      4: <String>['Place water on your surface before sitting.'],
+      9: <String>[
+        'Place a cup of water on your surface.',
+        'Let the water stand as the final offering.',
+      ],
     };
 
     for (final entry in expectedWater.entries) {
@@ -106,27 +112,125 @@ void main() {
         (event) => event.eventNumber == entry.key,
       );
 
-      expect(event.steps, contains(entry.value));
-      expect(event.optionalSteps, isNot(contains(entry.value)));
+      for (final waterStep in entry.value) {
+        expect(event.steps, contains(waterStep));
+        expect(event.optionalSteps, isNot(contains(waterStep)));
+      }
     }
   });
 
-  test('major spoken-line delivery beats are preserved', () {
+  test('stage directions removed from words are preserved as steps', () {
     expect(
       kTheWeighingEvents[0].spokenLine,
-      'Speak this before opening anything: I open my record without fear. What is here is what is true.',
+      'I open my record without fear. What is here is what is true.',
+    );
+    expect(
+      kTheWeighingEvents[0].steps,
+      contains('Speak the Words line before opening any record.'),
     );
     expect(
       kTheWeighingEvents[3].spokenLine,
-      'Before writing anything, speak this: My tongue is the plummet. My heart is the weight. I do not utter falsehood, for I am a balance.',
+      'My tongue is the plummet. My heart is the weight. I do not utter falsehood, for I am a balance.',
+    );
+    expect(
+      kTheWeighingEvents[3].steps,
+      contains('Speak the Words line before writing anything.'),
     );
     expect(
       kTheWeighingEvents[6].spokenLine,
-      'Speak this standing, before reading the four lines: I have come before you, my lord, bringing Truth, having repelled for you falsehood.',
+      'I have come before you, my lord, bringing Truth, having repelled for you falsehood.',
+    );
+    expect(
+      kTheWeighingEvents[6].steps,
+      containsAll(<String>[
+        'Stand before reading the four lines.',
+        'Speak the Words line before reading the four lines.',
+      ]),
     );
     expect(
       kTheWeighingEvents[8].spokenLine,
-      'The closing declaration is spoken four times because one repetition is not enough to establish what has been witnessed. Speak each truth-check line only if it is accurate. Then: I am pure. I am pure. I am pure. I am pure.',
+      'I am pure. I am pure. I am pure. I am pure.',
+    );
+    expect(
+      kTheWeighingEvents[8].steps,
+      containsAll(<String>[
+        'Speak only the truth-check lines you can speak honestly.',
+        'Remain silent on any truth-check line that is not accurate.',
+        'Speak the Words line as the closing declaration after the truth-check lines.',
+      ]),
+    );
+  });
+
+  test('conditional guardrails stay before risky actions', () {
+    expect(
+      kTheWeighingEvents[4].steps[2],
+      'Only if the gap can close with one clear message, send it before this ten-day section ends.',
+    );
+  });
+
+  test('words fields do not contain stage-direction wrappers', () {
+    final issues = <String>[];
+
+    for (final event in kTheWeighingEvents) {
+      for (final pattern in _wordsStageDirectionPatterns) {
+        if (pattern.hasMatch(event.spokenLine)) {
+          issues.add(
+            'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+          );
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('optional steps do not duplicate required steps', () {
+    final duplicates = <String>[];
+
+    for (final event in kTheWeighingEvents) {
+      final required = event.steps.map(_normalizedCopyStep).toSet();
+      for (final optional in event.optionalSteps) {
+        if (required.contains(_normalizedCopyStep(optional))) {
+          duplicates.add('Event ${event.eventNumber}: $optional');
+        }
+      }
+    }
+
+    expect(duplicates, isEmpty);
+  });
+
+  test('steps avoid source-note explanation phrases', () {
+    final issues = <String>[];
+
+    for (final event in kTheWeighingEvents) {
+      for (final step in event.steps) {
+        if (_sourceNotePhrasePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('timing labels preserve anchors in plain language', () {
+    expect(TheWeighingTimingSlot.openMorning.label, '30 minutes after dawn');
+    expect(
+      TheWeighingTimingSlot.checkMidday.label,
+      'around 11 AM where you are',
+    );
+    expect(TheWeighingTimingSlot.sealEvening.label, '30 minutes after sunset');
+    expect(
+      theWeighingTimingLabel(kTheWeighingEvents[0]),
+      'Day 1 · 30 minutes after dawn',
+    );
+    expect(
+      theWeighingTimingLabel(kTheWeighingEvents[1]),
+      'Day 5 · around 11 AM where you are',
+    );
+    expect(
+      theWeighingTimingLabel(kTheWeighingEvents[2]),
+      'Day 9 · 30 minutes after sunset',
     );
   });
 
@@ -176,4 +280,29 @@ void main() {
     expect(branch, contains('repo.deleteFlow(serverFlowId)'));
     expect(branch, contains('firstG.add(const Duration(days: 29))'));
   });
+}
+
+final _wordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*speak this\b', caseSensitive: false),
+  RegExp(r'^\s*before\b.*\bspeak this\b', caseSensitive: false),
+  RegExp(
+    r'\bbefore (opening|writing|reading|beginning)\b',
+    caseSensitive: false,
+  ),
+  RegExp(r'\bthen\s*:', caseSensitive: false),
+  RegExp(r'\btruth-check line', caseSensitive: false),
+  RegExp(r'\bclosing declaration\b', caseSensitive: false),
+];
+
+final _sourceNotePhrasePattern = RegExp(
+  r'\b(in Kemetic|the Kemite|Pyramid Texts|Amenemope|Spell 125|source|because)\b',
+  caseSensitive: false,
+);
+
+String _normalizedCopyStep(String value) {
+  return value
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
 }

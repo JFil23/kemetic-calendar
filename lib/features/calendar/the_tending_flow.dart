@@ -37,11 +37,11 @@ extension TheTendingTimingSlotX on TheTendingTimingSlot {
   String get label {
     switch (this) {
       case TheTendingTimingSlot.openMorning:
-        return 'Dawn + 30 min';
+        return '30 minutes after dawn';
       case TheTendingTimingSlot.checkMidday:
-        return '11:00 local';
+        return 'around 11 AM where you are';
       case TheTendingTimingSlot.sealEvening:
-        return 'Sunset + 30 min';
+        return '30 minutes after sunset';
     }
   }
 }
@@ -236,11 +236,12 @@ const List<TheTendingEvent> kTheTendingEvents = <TheTendingEvent>[
     durationMinutesMin: 8,
     durationMinutesMax: 10,
     spokenLine:
-        'Before writing anything: I look for who is in my care. I do not let need become invisible.',
+        'I look for who is in my care. I do not let need become invisible.',
     steps: <String>[
+      'Speak the line before writing anything.',
       'Name who is in your care in this season: person, animal, household, plant, place, promise, or vulnerable responsibility.',
       'Write one perceived need beside each name. Do not solve the whole list.',
-      'Choose one name that should not remain unseen this decan.',
+      'Choose one name that should not remain unseen in this ten-day section.',
     ],
     optionalSteps: <String>[
       'If the list feels too large, circle only the name with the nearest real-world need.',
@@ -261,7 +262,7 @@ const List<TheTendingEvent> kTheTendingEvents = <TheTendingEvent>[
     steps: <String>[
       'Name one need expressed by someone in your care during the last week.',
       'Write the exact words, gesture, silence, or behavior that carried the need.',
-      'Write the sentence without correcting, defending, or making it about yourself. The need does not require your interpretation to exist.',
+      'Write the sentence without correcting, defending, or making it about yourself.',
     ],
     optionalSteps: <String>[
       'If direct contact is not possible, observe one concrete condition that tells the truth.',
@@ -280,7 +281,7 @@ const List<TheTendingEvent> kTheTendingEvents = <TheTendingEvent>[
     steps: <String>[
       'Return to the care inventory.',
       'Mark each visible need as tended, partial, or unseen.',
-      'Choose one unseen name to carry explicitly into the next decan.',
+      'Choose one unseen name to carry explicitly into the next ten-day section.',
     ],
     optionalSteps: <String>[
       'Send one brief message if seeing alone would become avoidance.',
@@ -300,7 +301,7 @@ const List<TheTendingEvent> kTheTendingEvents = <TheTendingEvent>[
     spokenLine:
         'I gather what care requires. Warmth is not labor until it acts.',
     steps: <String>[
-      'Choose one care obligation from the first decan.',
+      'Choose one care obligation from the first ten-day section.',
       'Name the specific labor required: call, feed, clean, carry, pay, schedule, sit with, protect, repair, or ask.',
       'Commit to one act that can be completed before Day 19.',
     ],
@@ -322,7 +323,8 @@ const List<TheTendingEvent> kTheTendingEvents = <TheTendingEvent>[
     spokenLine:
         'One act of care completed is better than a feeling left unnamed.',
     steps: <String>[
-      'Do one small tending act now, or name the exact time it will happen today. A time named becomes a commitment. A commitment becomes the record.',
+      'Do one small tending act now.',
+      'If you cannot do it now, name the exact time it will happen today.',
       'Record what changed after the act, even if it was very small.',
       'If the act could not be done, name the exact blocker without self-excuse.',
     ],
@@ -342,8 +344,10 @@ const List<TheTendingEvent> kTheTendingEvents = <TheTendingEvent>[
     spokenLine: 'I seal this labor by what was done, not by what I meant.',
     steps: <String>[
       'Review the Day 11 commitment.',
-      'Name what was tended, what was partial, and what was avoided.',
-      'Carry only one unfinished care obligation into the restoration decan.',
+      'Name what was tended.',
+      'Name what was partial.',
+      'Name what was avoided.',
+      'Carry only one unfinished care obligation into the final ten-day section.',
     ],
     optionalSteps: <String>[
       'If you owe repair, write the first sentence plainly: I missed ___. I will ___.',
@@ -386,11 +390,11 @@ const List<TheTendingEvent> kTheTendingEvents = <TheTendingEvent>[
         'Repair is not declared complete while the need remains untouched.',
     steps: <String>[
       'Check whether the repair act named on Day 21 has actually been attempted.',
-      'Write what moved, what did not move, and what still belongs to you.',
-      'If the repair is blocked by another person, write what remains yours and release what is not. You are responsible only for your portion of the restoration.',
-    ],
-    optionalSteps: <String>[
-      'If the repair is blocked by another person, write what remains yours and release what is not.',
+      'Write what moved.',
+      'Write what did not move.',
+      'Write what still belongs to you.',
+      'If the repair is blocked by another person, write what remains yours.',
+      'Release what is not yours to repair.',
     ],
     localPrompt: TheTendingLocalPromptKind.day25RepairCheck,
   ),
@@ -402,9 +406,10 @@ const List<TheTendingEvent> kTheTendingEvents = <TheTendingEvent>[
     slot: TheTendingTimingSlot.sealEvening,
     durationMinutesMin: 8,
     durationMinutesMax: 10,
-    spokenLine:
-        'Before writing any closing line: I have not turned away from those placed in my care. Speak it once. Then check whether it is true.',
+    spokenLine: 'I have not turned away from those placed in my care.',
     steps: <String>[
+      'Speak the line once before writing any closing line.',
+      'Check whether the line is true.',
       'For each name you held locally, write one private closing line: tended, partial, unseen, or repaired.',
       'Name one thing the labor of this cycle restored.',
       'Name one tending practice you will carry into the next cycle without making a vow you cannot keep.',
@@ -744,11 +749,11 @@ String theTendingDetailText(
 String theTendingTimingLabel(TheTendingEvent event) {
   switch (event.slot) {
     case TheTendingTimingSlot.openMorning:
-      return 'Day ${event.flowDay} · dawn + 30 min';
+      return 'Day ${event.flowDay} · 30 minutes after dawn';
     case TheTendingTimingSlot.checkMidday:
-      return 'Day ${event.flowDay} · 11:00 local';
+      return 'Day ${event.flowDay} · around 11 AM where you are';
     case TheTendingTimingSlot.sealEvening:
-      return 'Day ${event.flowDay} · sunset + 30 min';
+      return 'Day ${event.flowDay} · 30 minutes after sunset';
   }
 }
 
@@ -765,19 +770,19 @@ String _theTendingPurpose(TheTendingEvent event) {
     case 1:
       return 'Aset searched before she gathered. She gathered before she restored. The search is the first labor — not the lesser one.';
     case 2:
-      return 'Explaining away a need is not the same as addressing it. This sitting distinguishes between the two.';
+      return 'Explaining away a need is not the same as addressing it. The need does not require your interpretation to exist. This sitting distinguishes between hearing and explaining.';
     case 3:
-      return 'The first decan closes with a status on each name: tended, partial, or unseen. Not resolution — status. The record is honest before the labor decan begins.';
+      return 'The first ten-day section closes with a status on each name: tended, partial, or unseen. Not resolution — status. The record is honest before the labor section begins.';
     case 4:
       return 'Warmth without labor is a feeling, not a practice. This sitting turns care that has been named into the act it requires.';
     case 5:
-      return 'The midpoint check is on whether the specific act was done — not on how you feel about the care.';
+      return 'The midpoint check is on whether the specific act was done — not on how you feel about the care. A time named becomes a commitment; a commitment becomes the record.';
     case 6:
       return 'The seal closes with what was done — not what was intended, not what would have been done under better circumstances. That is what carries forward.';
     case 7:
       return 'Standing is not standing over. Heru stood where the care had been missed and acted from there — not from safety, not from distance.';
     case 8:
-      return 'The check asks one thing: did the repair act move the situation? Not resolve it — move it.';
+      return 'The check asks one thing: did the repair act move the situation? Not resolve it — move it. You are responsible only for your portion of the restoration.';
     case 9:
       return 'The cycle closes with one honest line per person and one practice that continues. Care practiced once is a gesture. Care that continues is a practice.';
   }

@@ -35,11 +35,11 @@ extension TheWeighingTimingSlotX on TheWeighingTimingSlot {
   String get label {
     switch (this) {
       case TheWeighingTimingSlot.openMorning:
-        return 'Dawn + 30 min';
+        return '30 minutes after dawn';
       case TheWeighingTimingSlot.checkMidday:
-        return '11:00 local';
+        return 'around 11 AM where you are';
       case TheWeighingTimingSlot.sealEvening:
-        return 'Sunset + 30 min';
+        return '30 minutes after sunset';
     }
   }
 }
@@ -142,12 +142,13 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
     slot: TheWeighingTimingSlot.openMorning,
     durationMinutesMin: 5,
     durationMinutesMax: 8,
-    spokenLine:
-        'Speak this before opening anything: I open my record without fear. What is here is what is true.',
+    spokenLine: 'I open my record without fear. What is here is what is true.',
     steps: <String>[
-      'Place a cup of water on your surface before you begin. Let it sit while you write.',
-      'Write down one number you have not looked at directly in the last decan: a balance, debt, supply, or physical record. The number was there before you wrote it. Writing it makes it something you can actually weigh.',
-      'Name one thing you received in the last decan that went unacknowledged. Say plainly: I received ___.',
+      'Place a cup of water on your surface before you begin.',
+      'Keep the water there while you write.',
+      'Speak the Words line before opening any record.',
+      'Write one number you have not looked at directly in the last ten days: a balance, debt, supply, or physical record.',
+      'Name one thing you received in the last ten days by saying plainly: I received ___.',
     ],
     sourceNote:
         'The Kemite placed water first because the record must be witnessed before it can be weighed — not examined, not solved, but witnessed. What sustains you is named before anything else is counted.',
@@ -164,7 +165,7 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
         'The measure is the eye of Re. I do not adjust it to favor myself.',
     steps: <String>[
       'Name one place in the last five days where the actual count was softened.',
-      'If the imbalance is correctable, choose one small restorative act before Decan 1 closes.',
+      'Choose one small restorative act before Day 10 closes if the imbalance is correctable.',
     ],
     sourceNote:
         'Amenemope\'s Chapter 17 is specific: the grain measure belongs to Re, and tampering with it is theft from the god, not just from the transaction. The midpoint check is the moment the scale speaks again, without interference.',
@@ -182,11 +183,9 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
     steps: <String>[
       'Complete one financial, nutritional, physical, or domestic record that has been left open.',
       'Write one closing line naming the actual state of this thing.',
-      'Name one resource you will handle with more accuracy in the coming decan.',
+      'Name one resource you will handle with more accuracy in the next ten-day section.',
     ],
-    optionalSteps: <String>[
-      'Extinguish a light when you complete the event. What was open is now sealed.',
-    ],
+    optionalSteps: <String>['Extinguish a light when you complete the event.'],
     sourceNote:
         'The Declaration of Innocence names false balance and tampered scales in the same breath as murder and theft. The Kemite treated the distorted record as harm to the world, not as an inconvenience to the individual.',
   ),
@@ -199,11 +198,14 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
     durationMinutesMin: 5,
     durationMinutesMax: 8,
     spokenLine:
-        'Before writing anything, speak this: My tongue is the plummet. My heart is the weight. I do not utter falsehood, for I am a balance.',
+        'My tongue is the plummet. My heart is the weight. I do not utter falsehood, for I am a balance.',
     steps: <String>[
-      'Place water on your surface before sitting. The record needs a clean instrument.',
-      'Name one promise or agreement that remains open from the last decan.',
-      'State what was said, what has been done, and what remains undone.',
+      'Place water on your surface before sitting.',
+      'Speak the Words line before writing anything.',
+      'Name one promise or agreement that remains open from the last ten days.',
+      'State what was said.',
+      'State what has been done.',
+      'State what remains undone.',
       'Name one account you softened, exaggerated, or framed to favor yourself.',
     ],
     sourceNote:
@@ -222,7 +224,7 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
     steps: <String>[
       'Name one person whose understanding of an agreement with you may differ from yours.',
       'Write one sentence about the difference.',
-      'If the gap is small enough to close with one clear message, send it before this decan ends.',
+      'Only if the gap can close with one clear message, send it before this ten-day section ends.',
     ],
     sourceNote:
         'Amenemope treats written false witness as a grave disorder — not because writing is sacred, but because what is written persists and shapes what follows. The spoken and written record do the same damage when they drift from what was actually agreed.',
@@ -238,9 +240,10 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
     spokenLine:
         'I have not slandered a servant to his superior. I have not caused weeping. I seal my spoken record with what I know to be true.',
     steps: <String>[
-      'Name one spoken obligation from the second decan that was fulfilled.',
+      'Name one spoken obligation from the second ten days that was fulfilled.',
       'Say it fully: I said I would ___, and I did ___.',
-      'Name one spoken obligation that remains open and carry it explicitly into Decan 3.',
+      'Name one spoken obligation that remains open.',
+      'State that this obligation is being carried into the final ten days.',
     ],
     optionalSteps: <String>[
       'Write the one thing you are carrying forward on paper, not a screen.',
@@ -257,13 +260,15 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
     durationMinutesMin: 5,
     durationMinutesMax: 8,
     spokenLine:
-        'Speak this standing, before reading the four lines: I have come before you, my lord, bringing Truth, having repelled for you falsehood.',
+        'I have come before you, my lord, bringing Truth, having repelled for you falsehood.',
     steps: <String>[
+      'Stand before reading the four lines.',
+      'Speak the Words line before reading the four lines.',
       'Read slowly: I have not caused avoidable hunger in those who depend on me.',
       'Read slowly: I have not diverted what should have flowed.',
       'Read slowly: I have not made my record better than my conduct.',
       'Read slowly: I have not taken more than is due.',
-      'If any line required a pause, write one corrective act completable before this decan closes.',
+      'Write one corrective act you can complete before this final ten-day section closes if any line required a pause.',
     ],
     sourceNote:
         'The Declaration of Innocence was spoken before the 42 Assessors as a formal account of conduct, not a confession. Each line was weighed on its own. A pause at any line is information, not judgment — it shows where the record needs attention before it is sealed.',
@@ -294,19 +299,21 @@ const List<TheWeighingEvent> kTheWeighingEvents = <TheWeighingEvent>[
     slot: TheWeighingTimingSlot.sealEvening,
     durationMinutesMin: 8,
     durationMinutesMax: 10,
-    spokenLine:
-        'The closing declaration is spoken four times because one repetition is not enough to establish what has been witnessed. Speak each truth-check line only if it is accurate. Then: I am pure. I am pure. I am pure. I am pure.',
+    spokenLine: 'I am pure. I am pure. I am pure. I am pure.',
     steps: <String>[
-      'Speak only the lines you can speak honestly; remain silent on any line that is not accurate.',
-      'The material record of this decan was kept without distortion.',
-      'The spoken record of this decan was kept without distortion.',
-      'What I carried forward, I carried forward clearly.',
-      'I did not take more than was due.',
-      'I did not leave unprovided those in my care.',
-      'I did not adjust the scale to favor myself.',
+      'Speak only the truth-check lines you can speak honestly.',
+      'Remain silent on any truth-check line that is not accurate.',
+      'Say, if true: The material record of this ten-day section was kept without distortion.',
+      'Say, if true: The spoken record of this ten-day section was kept without distortion.',
+      'Say, if true: What I carried forward, I carried forward clearly.',
+      'Say, if true: I did not take more than was due.',
+      'Say, if true: I did not leave unprovided those in my care.',
+      'Say, if true: I did not adjust the scale to favor myself.',
+      'Speak the Words line as the closing declaration after the truth-check lines.',
       'Name one thing from this cycle that you will hold differently in the next.',
       'Name one thing the record shows you did well.',
-      'Offer water. Place a cup. The reckoning ends with provision, not punishment.',
+      'Place a cup of water on your surface.',
+      'Let the water stand as the final offering.',
     ],
     sourceNote:
         'The Weighing of the Heart did not require perfection — it required honesty. The heart heavier or lighter than the feather had been inaccurate, not evil. The seal closes the record so continuation can begin from truth rather than pretense.',
@@ -633,11 +640,11 @@ String theWeighingDetailText(
 String theWeighingTimingLabel(TheWeighingEvent event) {
   switch (event.slot) {
     case TheWeighingTimingSlot.openMorning:
-      return 'Day ${event.flowDay} · dawn + 30 min';
+      return 'Day ${event.flowDay} · 30 minutes after dawn';
     case TheWeighingTimingSlot.checkMidday:
-      return 'Day ${event.flowDay} · 11:00 local';
+      return 'Day ${event.flowDay} · around 11 AM where you are';
     case TheWeighingTimingSlot.sealEvening:
-      return 'Day ${event.flowDay} · sunset + 30 min';
+      return 'Day ${event.flowDay} · 30 minutes after sunset';
   }
 }
 
@@ -652,23 +659,23 @@ String _numberedLines(List<String> lines) {
 String _theWeighingPurpose(TheWeighingEvent event) {
   switch (event.eventNumber) {
     case 1:
-      return 'The number you haven\'t looked at is already operating on your life. This sitting names it — not to fix it, but because the unlooked-at thing cannot be weighed.';
+      return 'The number you have not looked at is already operating on your life. Writing does not create the weight; it places the existing weight where it can be weighed. The water witnesses the record before anything is counted.';
     case 2:
       return 'The scale that is privately adjusted is still adjusted, even if no one saw it. Amenemope said the measure belongs to Re — meaning the accurate count exists independent of what you reported.';
     case 3:
-      return 'The record sealed on a half-truth carries that half-truth into the next decan. The seal closes with what is actually true, not what is close enough.';
+      return 'The record sealed on a half-truth carries that half-truth into the next ten-day section. The seal closes with what is actually true, not what is close enough.';
     case 4:
-      return 'An agreement is a record spoken aloud. This sitting finds the gap between what was said and what has happened since, and names it in the same medium — speech — where the agreement was made.';
+      return 'An agreement is a record spoken aloud. This sitting finds the gap between what was said and what has happened since, and names it in the same medium — speech — where the agreement was made. The water keeps the instrument clean before the account begins.';
     case 5:
       return 'The person who understood your agreement differently is not necessarily wrong. This sitting asks whether the gap is a disagreement or a discrepancy — and which is yours to close.';
     case 6:
-      return 'The second decan closes with what is actually true about the spoken record, not what was intended. Intention does not seal a record — completion does.';
+      return 'The second ten-day section closes with what is actually true about the spoken record, not what was intended. Intention does not seal a record — completion does.';
     case 7:
       return 'The record you leave is not the one you intended — it is the one your conduct produced. These four lines are not aspirations. Read them as a fact-check.';
     case 8:
       return 'Someone with less power in your orbit has a different view of the same period. This sitting asks whether their account would recognize yours — not to accept it uncritically, but to check whether the gap is explainable.';
     case 9:
-      return 'These lines are not aspirational. Speak only the ones that are true. The seal closes with what was actually done.';
+      return 'The truth-check lines are weighed as record, not aspiration. The fourfold closing establishes what has been witnessed. The seal closes with what was actually done, and the water ending returns the reckoning to provision, not punishment.';
   }
   return 'Sit with what is true.';
 }

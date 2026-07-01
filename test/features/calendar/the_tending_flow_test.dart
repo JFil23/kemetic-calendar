@@ -93,13 +93,127 @@ void main() {
 
       expect(detail, contains('Purpose\n'));
       expect(detail, contains('Words\n"${event.spokenLine}"'));
-      expect(detail, contains('Steps\n1. Name who is in your care'));
+      expect(detail, contains('Steps\n1. Speak the line'));
+      expect(detail, contains('2. Name who is in your care'));
       expect(detail, isNot(contains('Private note:')));
       expect(detail, isNot(contains('Source\n')));
       expect(detail, contains('Lens\nLet Heru'));
       expect(detail, isNot(contains('CareListEntry')));
     },
   );
+
+  test('stage directions removed from words are preserved as steps', () {
+    expect(
+      kTheTendingEvents[0].spokenLine,
+      'I look for who is in my care. I do not let need become invisible.',
+    );
+    expect(
+      kTheTendingEvents[0].steps,
+      contains('Speak the line before writing anything.'),
+    );
+
+    expect(
+      kTheTendingEvents[8].spokenLine,
+      'I have not turned away from those placed in my care.',
+    );
+    expect(
+      kTheTendingEvents[8].steps,
+      containsAll(<String>[
+        'Speak the line once before writing any closing line.',
+        'Check whether the line is true.',
+      ]),
+    );
+  });
+
+  test('specific tending copy guardrails stay explicit', () {
+    expect(kTheTendingEvents[4].steps.take(2).toList(), <String>[
+      'Do one small tending act now.',
+      'If you cannot do it now, name the exact time it will happen today.',
+    ]);
+    expect(
+      kTheTendingEvents[7].steps,
+      containsAll(<String>[
+        'Write what moved.',
+        'Write what did not move.',
+        'Write what still belongs to you.',
+        'If the repair is blocked by another person, write what remains yours.',
+        'Release what is not yours to repair.',
+      ]),
+    );
+    expect(kTheTendingEvents[7].optionalSteps, isEmpty);
+    expect(
+      kTheTendingEvents[8].optionalSteps,
+      contains(
+        'If you share, share only the generic restoration line. Do not share names or care-list details.',
+      ),
+    );
+  });
+
+  test('words fields do not contain stage-direction wrappers', () {
+    final issues = <String>[];
+
+    for (final event in kTheTendingEvents) {
+      for (final pattern in _wordsStageDirectionPatterns) {
+        if (pattern.hasMatch(event.spokenLine)) {
+          issues.add(
+            'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+          );
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('optional steps do not duplicate required steps', () {
+    final duplicates = <String>[];
+
+    for (final event in kTheTendingEvents) {
+      final required = event.steps.map(_normalizedCopyStep).toSet();
+      for (final optional in event.optionalSteps) {
+        if (required.contains(_normalizedCopyStep(optional))) {
+          duplicates.add('Event ${event.eventNumber}: $optional');
+        }
+      }
+    }
+
+    expect(duplicates, isEmpty);
+  });
+
+  test('steps avoid source-note explanation phrases', () {
+    final issues = <String>[];
+
+    for (final event in kTheTendingEvents) {
+      for (final step in event.steps) {
+        if (_sourceNotePhrasePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('timing labels preserve anchors in plain language', () {
+    expect(TheTendingTimingSlot.openMorning.label, '30 minutes after dawn');
+    expect(
+      TheTendingTimingSlot.checkMidday.label,
+      'around 11 AM where you are',
+    );
+    expect(TheTendingTimingSlot.sealEvening.label, '30 minutes after sunset');
+    expect(
+      theTendingTimingLabel(kTheTendingEvents[0]),
+      'Day 1 · 30 minutes after dawn',
+    );
+    expect(
+      theTendingTimingLabel(kTheTendingEvents[1]),
+      'Day 5 · around 11 AM where you are',
+    );
+    expect(
+      theTendingTimingLabel(kTheTendingEvents[2]),
+      'Day 9 · 30 minutes after sunset',
+    );
+  });
 
   test('canonical detail rebuilds a stored tending event', () {
     final detail = canonicalTheTendingDetailTextForEvent(
@@ -140,4 +254,24 @@ void main() {
     expect(branch, contains('repo.deleteFlow(serverFlowId)'));
     expect(branch, contains('firstG.add(const Duration(days: 29))'));
   });
+}
+
+final _wordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*before\b', caseSensitive: false),
+  RegExp(r'\bbefore writing\b', caseSensitive: false),
+  RegExp(r'\bspeak it once\b', caseSensitive: false),
+  RegExp(r'\bthen check\b', caseSensitive: false),
+];
+
+final _sourceNotePhrasePattern = RegExp(
+  r'\b(in Kemetic|the Kemite|Pyramid Texts|Amenemope|Spell 125|source|because)\b',
+  caseSensitive: false,
+);
+
+String _normalizedCopyStep(String value) {
+  return value
+      .toLowerCase()
+      .replaceAll(RegExp(r'[^a-z0-9\s]'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
 }
