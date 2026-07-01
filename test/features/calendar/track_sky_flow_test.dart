@@ -1,7 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:mobile/features/calendar/track_sky_flow.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   const schedule = TrackSkyEventSchedule(
     dateIso: '2026-05-01',
     startTime24: '20:00',
@@ -77,6 +80,79 @@ void main() {
       event.detailSummary,
       contains('The careful observer may see what the hurried eye misses.'),
     );
+  });
+
+  test('eclipse narrative keeps watch action separate from reflection', () {
+    final event = buildEvent(
+      title: 'Worm Moon + Total Lunar Eclipse ("Blood Moon")',
+      category: 'Lunar Events',
+    );
+
+    expect(
+      event.trackingGuidance,
+      contains('Begin before the deepest hour of the eclipse'),
+    );
+    expect(
+      event.trackingGuidance,
+      contains('Stay through the change rather than treating it'),
+    );
+    expect(event.trackingGuidance, isNot(contains('Its meaning is')));
+    expect(
+      event.maatReflection,
+      contains('Its meaning is in the transformation.'),
+    );
+  });
+
+  test('planet guidance keeps observation steps ahead of rationale', () {
+    final parade = buildEvent(
+      title: '6-Planet Parade (Alignment)',
+      category: 'Planetary Highlights',
+    );
+
+    expect(parade.trackingGuidance, contains('Step out in evening twilight'));
+    expect(parade.trackingGuidance, contains('Begin low in the west'));
+    expect(
+      parade.trackingGuidance,
+      contains('use binoculars and patience for the faintest'),
+    );
+    expect(parade.trackingGuidance, isNot(contains('The meaning is')));
+    expect(parade.maatReflection, contains('briefly share one visible path'));
+
+    final venus = buildEvent(
+      title: 'Venus at Greatest Western Elongation',
+      category: 'Planetary Highlights',
+    );
+    expect(
+      venus.trackingGuidance,
+      contains('Look low toward the bright edge of dawn before sunrise.'),
+    );
+    expect(
+      venus.trackingGuidance,
+      contains('Watch it across several mornings'),
+    );
+    expect(venus.trackingGuidance, isNot(contains('Its lesson is')));
+    expect(
+      venus.maatReflection,
+      contains('Its lesson is movement as well as brightness.'),
+    );
+
+    final saturn = buildEvent(
+      title: 'Saturn at Opposition',
+      category: 'Planetary Highlights',
+    );
+    expect(
+      saturn.trackingGuidance,
+      contains('Watch the whole arc rather than one moment.'),
+    );
+    expect(
+      saturn.trackingGuidance,
+      contains('give the rings your attention in this season'),
+    );
+    expect(
+      saturn.trackingGuidance,
+      isNot(contains('rewards the longer watch')),
+    );
+    expect(saturn.maatReflection, contains('Saturn rewards the longer watch.'));
   });
 
   test('unmapped events fall back to best viewing plus reflection', () {
@@ -155,5 +231,45 @@ void main() {
 
     expect(normalized.startTime24, '21:00');
     expect(normalized.endTime24, '22:00');
+  });
+
+  test('asset-loaded events preserve timing and visibility caveats', () async {
+    clearTrackSkyFlowCache(TrackSkyTimeZone.pacific);
+
+    final markdown = await rootBundle.loadString(
+      TrackSkyTimeZone.pacific.assetPath,
+    );
+    expect(
+      markdown,
+      contains('Safety: Eclipse glasses ONLY for solar events.'),
+    );
+    expect(
+      markdown,
+      contains('not visible from Pacific mainland U.S. locations'),
+    );
+    expect(markdown, contains('Eclipse visibility remains location-specific.'));
+
+    final data = await loadTrackSkyFlowData(TrackSkyTimeZone.pacific);
+    expect(data.timezone, TrackSkyTimeZone.pacific);
+    expect(
+      data.events.any((event) => event.title == 'Total Solar Eclipse'),
+      isFalse,
+    );
+
+    final partialEclipse = data.events.singleWhere(
+      (event) => event.title.contains('Deep Partial Lunar Eclipse'),
+    );
+    expect(partialEclipse.schedule.dateIso, '2026-08-27');
+    expect(partialEclipse.schedule.startTime24, '19:17');
+    expect(partialEclipse.schedule.endTime24, '23:59');
+    expect(partialEclipse.schedule.allDay, isFalse);
+    expect(partialEclipse.trackingGuidance, contains('Watch the Moon before'));
+
+    final mercury = data.events.singleWhere(
+      (event) => event.title == 'Mercury at Greatest Western Elongation',
+    );
+    expect(mercury.schedule.dateIso, '2027-03-16');
+    expect(mercury.schedule.startTime24, '05:00');
+    expect(mercury.schedule.endTime24, '06:00');
   });
 }
