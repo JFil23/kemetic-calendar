@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/calendar/maat_flow_response_models.dart';
+import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
 import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
 
@@ -14,6 +16,23 @@ void main() {
     ]);
     expect(kReadingHouseSittings.first.title, 'Open the Text');
     expect(kReadingHouseSittings.last.sharePromptOnComplete, isFalse);
+  });
+
+  test('starter opening prompt stays reflective without response modes', () {
+    final sitting = kReadingHouseSittings.first;
+
+    expect(
+      sitting.privatePrompt,
+      'Before company shapes the reading, what is this opening asking you to hold privately?',
+    );
+    expect(sitting.privatePrompt, isNot(contains('write one private line')));
+    expect(sitting.privatePrompt, isNot(contains('save a short note')));
+    expect(sitting.privatePrompt, isNot(contains('sit without writing')));
+    expect(sitting.theme, 'What is the text asking you to carry?');
+    expect(
+      sitting.hostNote,
+      'Begin with your own encounter. The house can receive a fragment later.',
+    );
   });
 
   test('schedule uses a fixed editable evening hour', () {
@@ -154,6 +173,71 @@ void main() {
     final schedule = payload['schedule'] as Map<String, dynamic>;
     expect(schedule['timezone'], TrackSkyTimeZone.eastern.key);
     expect(schedule['hour'], kReadingHouseDefaultHour);
+  });
+
+  test('completion specs preserve private margin response choices', () {
+    final specs = resolveMaatFlowResponseSpecs(
+      flowKey: kReadingHouseFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+
+    expect(specs.map((spec) => spec.id), <String>[
+      kReadingHousePrivateReflectionSpecId,
+      kReadingHouseShortNoteSpecId,
+      kReadingHouseSitWithoutWritingSpecId,
+      kReadingHousePositionSpecId,
+    ]);
+
+    final reflection = specs.firstWhere(
+      (spec) => spec.id == kReadingHousePrivateReflectionSpecId,
+    );
+    expect(reflection.label, 'Private reflection');
+    expect(
+      reflection.prompt,
+      'Begin with the private prompt. Writing is optional.',
+    );
+    expect(reflection.placeholder, 'What did this section ask you to hold?');
+    expect(reflection.journalPolicy, MaatFlowJournalPolicy.localOnly);
+    expect(reflection.privacyClass, 'app_record_private');
+
+    final shortNote = specs.firstWhere(
+      (spec) => spec.id == kReadingHouseShortNoteSpecId,
+    );
+    expect(shortNote.label, 'Short note');
+    expect(shortNote.prompt, 'Save a small local marker for your own return.');
+    expect(
+      shortNote.placeholder,
+      'Page, phrase, question, or next place to return.',
+    );
+    expect(shortNote.journalPolicy, MaatFlowJournalPolicy.localOnly);
+    expect(shortNote.privacyClass, 'app_record_private');
+
+    final sittingWithoutWriting = specs.firstWhere(
+      (spec) => spec.id == kReadingHouseSitWithoutWritingSpecId,
+    );
+    expect(sittingWithoutWriting.label, 'Sit without writing');
+    expect(
+      sittingWithoutWriting.placeholder,
+      'I sat with the reading without writing a reflection.',
+    );
+    expect(
+      sittingWithoutWriting.journalPolicy,
+      MaatFlowJournalPolicy.localOnly,
+    );
+    expect(sittingWithoutWriting.privacyClass, 'app_record_private');
+
+    final position = specs.firstWhere(
+      (spec) => spec.id == kReadingHousePositionSpecId,
+    );
+    expect(position.label, 'Reading position');
+    expect(position.prompt, 'Choose one before marking the sitting.');
+    expect(position.requiredForObserved, isTrue);
+    expect(position.options.map((option) => option.id), <String>[
+      kReadingHousePositionCarrying,
+      kReadingHousePositionNotYet,
+    ]);
+    expect(position.journalPolicy, MaatFlowJournalPolicy.localOnly);
+    expect(position.privacyClass, 'app_record_private');
   });
 
   test(
@@ -441,7 +525,15 @@ void main() {
     );
     expect(detail, contains('Section\nOpening section'));
     expect(detail, contains('Theme\nWhat is the text asking you to carry?'));
-    expect(detail, contains('Private prompt\nBefore company shapes'));
+    expect(
+      detail,
+      contains(
+        'Private prompt\nBefore company shapes the reading, what is this opening asking you to hold privately?',
+      ),
+    );
+    expect(detail, isNot(contains('write one private line')));
+    expect(detail, isNot(contains('save a short note')));
+    expect(detail, isNot(contains('sit without writing')));
     expect(detail, contains('Host note\nBegin with your own encounter'));
     expect(detail, isNot(contains('Position gate')));
     expect(detail, isNot(contains('House presence')));

@@ -333,7 +333,7 @@ const List<ReadingHouseSitting> kReadingHouseSittings = <ReadingHouseSitting>[
     section: 'Opening section',
     theme: 'What is the text asking you to carry?',
     privatePrompt:
-        'Before company shapes the reading, write one private line, save a short note, or sit without writing.',
+        'Before company shapes the reading, what is this opening asking you to hold privately?',
     hostNote:
         'Begin with your own encounter. The house can receive a fragment later.',
   ),
