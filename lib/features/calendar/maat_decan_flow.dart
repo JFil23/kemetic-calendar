@@ -3181,10 +3181,10 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 8,
         durationMinutesMax: 8,
         purpose:
-            'The body is reporting something right now — not what you think it should be feeling, but what it is actually communicating in this moment.',
+            'The body is reporting something right now — not what you think it should be feeling, but what it is actually communicating in this moment. The inventory is not an assessment; it is the act of listening to a report the body has been trying to give.',
         spokenLine: 'Teti is sound because of his body.',
         steps: <String>[
-          'Sit or lie down. Move attention from feet upward to face. The inventory is not an assessment — it is the act of listening to a report the body has been trying to give.',
+          'Sit or lie down.',
           'Move attention from feet to face.',
           'Write three things the body is communicating right now, without judging or correcting them.',
         ],
@@ -3221,7 +3221,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Name one specific thing the body has been asking for and not receiving.',
           'Choose from sleep, water, food timing, movement, rest, touch, or less of something excessive.',
-          'Write the smallest honest way to provide it this decan.',
+          'Write the smallest honest way to provide it in this ten-day section.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -3250,10 +3250,11 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'The anointing was not comfort — it was the mechanism of bodily agency: "you shall make him have control of his body." The body that receives deliberate care is the body the person can actually inhabit.',
+            'The anointing was not comfort — it was the mechanism of bodily agency: "you shall make him have control of his body." The Pyramid Texts anointed the forehead first because the forehead is the face the person presents to the world. The body that receives deliberate care is the body the person can actually inhabit.',
         spokenLine: 'Ointment returns attention to the body.',
         steps: <String>[
-          'After washing, apply oil, lotion, cream, or water to some part of the body with deliberate attention — not as grooming but as care. The Pyramid Texts anointed the forehead first because the forehead is the face the person presents to the world.',
+          'After washing, apply oil, lotion, cream, or water to some part of the body with deliberate attention.',
+          'Begin with the forehead if that is available to you.',
           'Record what the act returned to your relationship with the body.',
           'Keep body details private by default.',
         ],
@@ -3287,11 +3288,12 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 20,
         durationMinutesMax: 20,
         purpose:
-            'The Pyramid Texts repeated this command because the rising is the primary physical act of restoration. Not the most dramatic, not the most strenuous — the most fundamental. Move before logging.',
+            'The Pyramid Texts repeated this command because the rising is the primary physical act of restoration. Not the most dramatic, not the most strenuous — the most fundamental. The record follows the movement.',
         spokenLine:
-            'Speak this before beginning to move: Stand up, repel your earth, clear away your dust, raise yourself. Then begin.',
+            'Stand up, repel your earth, clear away your dust, raise yourself.',
         steps: <String>[
-          'Move deliberately for at least 20 minutes before logging.',
+          'Speak the line before beginning to move.',
+          'Begin moving deliberately for at least 20 minutes before logging.',
           'Walking, stretching, dancing, swimming, lifting, gardening, or physical cleaning all count if sustained and attended to.',
           'Record what the movement returned to the body.',
         ],
@@ -3330,7 +3332,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Return to the three body reports from Event 1.',
           'Write what shifted.',
-          'Stand fully at the end and record the khat’s current state compared to Day 1.',
+          'Stand fully at the end.',
+          'Record the khat’s current state compared to Day 1.',
         ],
         requiresRealWorldAction: true,
       ),

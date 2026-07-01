@@ -351,7 +351,7 @@ void main() {
         maatDecanFlowDefinitionForKey(kKhatFlowKey)!,
         7,
       )!.spokenLine,
-      'Speak this before beginning to move: Stand up, repel your earth, clear away your dust, raise yourself. Then begin.',
+      'Stand up, repel your earth, clear away your dust, raise yourself.',
     );
     expect(
       maatDecanFlowEventByNumber(
@@ -360,6 +360,79 @@ void main() {
       )!.spokenLine,
       'Write the closing mark and then speak: Completed correctly; the living text includes this mark.',
     );
+  });
+
+  test('Khat copy keeps words speakable and movement directions in steps', () {
+    final khat = maatDecanFlowDefinitionForKey(kKhatFlowKey)!;
+    final event1 = maatDecanFlowEventByNumber(khat, 1)!;
+    final event5 = maatDecanFlowEventByNumber(khat, 5)!;
+    final event7 = maatDecanFlowEventByNumber(khat, 7)!;
+    final event9 = maatDecanFlowEventByNumber(khat, 9)!;
+
+    expect(event1.steps, <String>[
+      'Sit or lie down.',
+      'Move attention from feet to face.',
+      'Write three things the body is communicating right now, without judging or correcting them.',
+    ]);
+    expect(event1.purpose, contains('The inventory is not an assessment'));
+
+    expect(event5.steps, <String>[
+      'After washing, apply oil, lotion, cream, or water to some part of the body with deliberate attention.',
+      'Begin with the forehead if that is available to you.',
+      'Record what the act returned to your relationship with the body.',
+      'Keep body details private by default.',
+    ]);
+    expect(event5.purpose, contains('anointed the forehead first'));
+
+    expect(event7.spokenLine, isNot(contains('Speak this')));
+    expect(event7.spokenLine, isNot(contains('Then begin')));
+    expect(event7.steps, contains('Speak the line before beginning to move.'));
+    expect(
+      event7.steps,
+      contains(
+        'Begin moving deliberately for at least 20 minutes before logging.',
+      ),
+    );
+
+    expect(
+      event9.steps,
+      containsAll(<String>[
+        'Stand fully at the end.',
+        'Record the khat’s current state compared to Day 1.',
+      ]),
+    );
+  });
+
+  test('Khat words fields do not contain stage-direction wrappers', () {
+    final issues = <String>[];
+    final khat = maatDecanFlowDefinitionForKey(kKhatFlowKey)!;
+
+    for (final event in khat.events) {
+      for (final pattern in _khatWordsStageDirectionPatterns) {
+        if (pattern.hasMatch(event.spokenLine)) {
+          issues.add(
+            'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+          );
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('Khat steps keep source-note phrases out of actions', () {
+    final issues = <String>[];
+    final khat = maatDecanFlowDefinitionForKey(kKhatFlowKey)!;
+
+    for (final event in khat.events) {
+      for (final step in event.steps) {
+        if (_khatSourceNotePhrasePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
   });
 
   test('representative source-note upgrades are stored', () {
@@ -451,3 +524,14 @@ void main() {
     );
   });
 }
+
+final _khatWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*speak this\b', caseSensitive: false),
+  RegExp(r'\bbefore beginning\b', caseSensitive: false),
+  RegExp(r'\bthen begin\b', caseSensitive: false),
+];
+
+final _khatSourceNotePhrasePattern = RegExp(
+  r'\b(Pyramid Texts|source|because)\b',
+  caseSensitive: false,
+);
