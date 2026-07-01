@@ -1321,13 +1321,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 3,
         durationMinutesMax: 5,
         purpose:
-            'The offering is complete when it meets the measure of what was owed — not when the giver has given everything possible. This distinction is the practice.',
+            'The offering is complete when it meets the measure of what was owed — not when the giver has given everything possible. Hotep does not happen from a working position; the body must be allowed to sit where the offering can close. This distinction is the practice.',
         spokenLine:
             'I have come having gotten Horus\'s eye, that your heart may become cool with it.',
         steps: <String>[
-          'Place water on your surface and sit somewhere you actually rest. Not a working position — a resting one. Hotep does not happen at the desk.',
+          'Place water on your surface.',
+          'Sit somewhere you actually rest, not in a working position.',
           'Write what you are currently offering: time, labor, care, attention, skill.',
-          'Write what is owed. The offering is complete when it meets the measure, not when you can give no more.',
+          'Write what is owed.',
           'Drink the water.',
         ],
         sourceNote:
@@ -1366,7 +1367,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Name what is producing the inability to rest or fear of tomorrow.',
           'Ask whether it is real incompleteness or the distortion that more is always owed.',
-          'Carry that distinction into Decan 2.',
+          'Carry that distinction into the next ten-day section.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -1380,8 +1381,9 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         purpose:
             'The central question of Hotep is not "have I done enough" — it is "have I done what was owed." These produce different answers.',
         spokenLine:
-            'Speak this before the question: Do not go to bed fearing tomorrow. God is success; man is failure. Then sit with the question for at least two minutes: Has the offering of this period been made?',
+            'Do not go to bed fearing tomorrow. God is success; man is failure.',
         steps: <String>[
+          'Speak the line before the question.',
           'Sit with the question for at least two minutes: Has the offering of this period been made?',
           'Answer with the Day 1 measure, not with a vague feeling of enough.',
           'Write: The offering is complete, or The offering is incomplete in [specific way].',
@@ -1398,13 +1400,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 3,
         durationMinutesMax: 5,
         purpose:
-            'Name what you are carrying to bed that your anxiety cannot actually change.',
+            'Name what you are carrying to bed that your anxiety cannot actually change. What remains after that sorting is the real offering.',
         spokenLine:
             'Man knows not what tomorrow will be. What I cannot control, I set down here.',
         steps: <String>[
           'Write the outcomes, choices, or circumstances you are carrying to bed but cannot control.',
-          'Draw a line through each one and place them outside the bed.',
-          'Name what remains that is genuinely yours. That is the real offering.',
+          'Draw a line through each one.',
+          'Place the page away from the bed.',
+          'Name what remains that is genuinely yours.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -1439,7 +1442,9 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'She will cool the heart with them on the day of awaking. Hotep. The heart begins to be cooled.',
         steps: <String>[
           'Before sleep, put work down thirty minutes earlier than usual.',
-          'Place water, sit, and speak the line.',
+          'Place water beside you.',
+          'Sit.',
+          'Speak the line.',
           'Write one sentence about the real obstacle to resting in what has been given.',
         ],
         requiresRealWorldAction: true,
@@ -1470,16 +1475,18 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'The cool heart is the product of the completed offering, not its prerequisite. This sitting produces the cool heart by closing the offering record and placing what cannot be controlled outside the sleeping space.',
+            'The cool heart is the product of the completed offering, not its prerequisite. This sitting produces the cool heart by closing the offering record and placing what cannot be controlled outside the sleeping space. The act is physical because the cool heart is physical.',
         spokenLine:
             'These your cool waters have come from your son. Your heart will not become weary with it. Hotep.',
         steps: <String>[
-          'Place water and sit where you will be before sleep.',
+          'Place water where you will be before sleep.',
+          'Sit where you will be before sleep.',
           'Name aloud what you offered across this flow: time, labor, care, presence, skill.',
           'Speak: What was owed has been given.',
-          'Write anything left in the bed that is not yours to control and place the paper away from where you sleep. The act is physical because the cool heart is physical.',
-          'Drink the water. Lie down.',
-          'sleep',
+          'Write anything left in the bed that is not yours to control.',
+          'Place the paper away from where you sleep.',
+          'Drink the water.',
+          'Lie down to sleep.',
         ],
         extraCompletionStatusLabels: <String, String>{'cooled': 'Cooled'},
         sourceNote:

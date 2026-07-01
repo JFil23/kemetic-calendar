@@ -355,6 +355,13 @@ void main() {
     );
     expect(
       maatDecanFlowEventByNumber(
+        maatDecanFlowDefinitionForKey(kHotepFlowKey)!,
+        4,
+      )!.spokenLine,
+      'Do not go to bed fearing tomorrow. God is success; man is failure.',
+    );
+    expect(
+      maatDecanFlowEventByNumber(
         maatDecanFlowDefinitionForKey(kLivingTextFlowKey)!,
         9,
       )!.spokenLine,
@@ -427,6 +434,102 @@ void main() {
     for (final event in khat.events) {
       for (final step in event.steps) {
         if (_khatSourceNotePhrasePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('Hotep copy keeps words speakable and closing actions explicit', () {
+    final hotep = maatDecanFlowDefinitionForKey(kHotepFlowKey)!;
+    final event1 = maatDecanFlowEventByNumber(hotep, 1)!;
+    final event4 = maatDecanFlowEventByNumber(hotep, 4)!;
+    final event5 = maatDecanFlowEventByNumber(hotep, 5)!;
+    final event7 = maatDecanFlowEventByNumber(hotep, 7)!;
+    final event9 = maatDecanFlowEventByNumber(hotep, 9)!;
+
+    expect(event1.steps, <String>[
+      'Place water on your surface.',
+      'Sit somewhere you actually rest, not in a working position.',
+      'Write what you are currently offering: time, labor, care, attention, skill.',
+      'Write what is owed.',
+      'Drink the water.',
+    ]);
+    expect(event1.purpose, contains('Hotep does not happen'));
+
+    expect(
+      event4.spokenLine,
+      'Do not go to bed fearing tomorrow. God is success; man is failure.',
+    );
+    expect(event4.steps, <String>[
+      'Speak the line before the question.',
+      'Sit with the question for at least two minutes: Has the offering of this period been made?',
+      'Answer with the Day 1 measure, not with a vague feeling of enough.',
+      'Write: The offering is complete, or The offering is incomplete in [specific way].',
+    ]);
+
+    expect(
+      event5.steps,
+      containsAll(<String>[
+        'Draw a line through each one.',
+        'Place the page away from the bed.',
+        'Name what remains that is genuinely yours.',
+      ]),
+    );
+    expect(event5.purpose, contains('the real offering'));
+
+    expect(
+      event7.steps,
+      containsAll(<String>[
+        'Place water beside you.',
+        'Sit.',
+        'Speak the line.',
+      ]),
+    );
+
+    expect(
+      event9.spokenLine,
+      'These your cool waters have come from your son. Your heart will not become weary with it. Hotep.',
+    );
+    expect(event9.steps, <String>[
+      'Place water where you will be before sleep.',
+      'Sit where you will be before sleep.',
+      'Name aloud what you offered across this flow: time, labor, care, presence, skill.',
+      'Speak: What was owed has been given.',
+      'Write anything left in the bed that is not yours to control.',
+      'Place the paper away from where you sleep.',
+      'Drink the water.',
+      'Lie down to sleep.',
+    ]);
+    expect(event9.purpose, contains('The act is physical'));
+  });
+
+  test('Hotep words fields do not contain stage-direction wrappers', () {
+    final issues = <String>[];
+    final hotep = maatDecanFlowDefinitionForKey(kHotepFlowKey)!;
+
+    for (final event in hotep.events) {
+      for (final pattern in _hotepWordsStageDirectionPatterns) {
+        if (pattern.hasMatch(event.spokenLine)) {
+          issues.add(
+            'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+          );
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('Hotep steps keep source-note phrases out of actions', () {
+    final issues = <String>[];
+    final hotep = maatDecanFlowDefinitionForKey(kHotepFlowKey)!;
+
+    for (final event in hotep.events) {
+      for (final step in event.steps) {
+        if (_hotepSourceNotePhrasePattern.hasMatch(step)) {
           issues.add('Event ${event.eventNumber}: $step');
         }
       }
@@ -533,5 +636,17 @@ final _khatWordsStageDirectionPatterns = <RegExp>[
 
 final _khatSourceNotePhrasePattern = RegExp(
   r'\b(Pyramid Texts|source|because)\b',
+  caseSensitive: false,
+);
+
+final _hotepWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*speak this\b', caseSensitive: false),
+  RegExp(r'\bbefore the question\b', caseSensitive: false),
+  RegExp(r'\bthen sit\b', caseSensitive: false),
+  RegExp(r'\bhas the offering\b', caseSensitive: false),
+];
+
+final _hotepSourceNotePhrasePattern = RegExp(
+  r'\b(Pyramid Texts|Amenemope|source|because)\b',
   caseSensitive: false,
 );
