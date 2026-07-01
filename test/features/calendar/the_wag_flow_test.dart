@@ -141,8 +141,7 @@ void main() {
 
   test('table water instruction is primary and source note is upgraded', () {
     final table = kWagEvents.singleWhere((event) => event.eventNumber == 3);
-    const waterText =
-        'Set water before you read any names. The water is the first provision — it goes before everything else.';
+    const waterText = 'Set water before you read any names.';
 
     expect(table.steps.first, waterText);
     expect(table.optionalSteps, isNot(contains(waterText)));
@@ -150,6 +149,123 @@ void main() {
       kWagEvents.first.sourceNote,
       'The Kemite understood the ren — the name — as a constituent part of the person, as real as the body. A name not spoken eventually becomes as if it never existed. This sitting is not commemorative — it is active. Speaking the name continues what the name holds.',
     );
+  });
+
+  test('Wag copy preserves offering, reversion, and truth-check order', () {
+    final event1 = kWagEvents.singleWhere((event) => event.eventNumber == 1);
+    final event2 = kWagEvents.singleWhere((event) => event.eventNumber == 2);
+    final event3 = kWagEvents.singleWhere((event) => event.eventNumber == 3);
+    final event5 = kWagEvents.singleWhere((event) => event.eventNumber == 5);
+    final event6 = kWagEvents.singleWhere((event) => event.eventNumber == 6);
+    final event7 = kWagEvents.singleWhere((event) => event.eventNumber == 7);
+    final event8 = kWagEvents.singleWhere((event) => event.eventNumber == 8);
+    final event9 = kWagEvents.singleWhere((event) => event.eventNumber == 9);
+
+    expect(event1.steps, contains('Read each name aloud once.'));
+    expect(event1.steps, contains('Do not read silently for this rite.'));
+    expect(event1.steps.join(' '), isNot(contains('name doing its work')));
+
+    expect(
+      event2.steps.last,
+      'Place water on the surface while you add to the list.',
+    );
+    expect(_wagPurposeText(event2), contains('water is already present'));
+
+    expect(event3.steps, <String>[
+      'Set water before you read any names.',
+      'Read the complete list of names aloud.',
+      'After each name, say: I speak your name. You live.',
+    ]);
+    expect(_wagPurposeText(event3), contains('Water is the first provision'));
+
+    expect(event5.kemeticDay, 17);
+    expect(event5.schedule, WagScheduleKind.solarDusk);
+    expect(event5.steps, <String>[
+      'Go to the surface prepared on Day 11.',
+      'Place water, bread or food, and anything fragrant there now.',
+      'Read the complete list of names aloud at dusk.',
+      'Do not hurry the reading.',
+      'Leave the offerings on the surface through the night.',
+    ]);
+    expect(_wagPurposeText(event5), contains('call the dead to the table'));
+
+    expect(event6.kemeticDay, 18);
+    expect(event6.schedule, WagScheduleKind.feastMorning);
+    expect(event6.steps, <String>[
+      'Return to the prepared surface.',
+      'Add fresh water.',
+      'Read the complete list of names slowly.',
+      'After each name, speak: [Name] - this bread is yours. This water is yours. You live.',
+      'Sit with memory before eating.',
+      'Eat the bread and drink the water as reversion.',
+    ]);
+    expect(
+      event6.steps.where((step) => step.contains('Sit with memory')),
+      hasLength(1),
+    );
+    expect(
+      event6.steps.where((step) => step.contains('reversion')),
+      hasLength(1),
+    );
+    expect(_wagPurposeText(event6), contains('The reversion is not rushed'));
+
+    expect(event7.steps.last, 'Drink water.');
+    expect(
+      _wagPurposeText(event7),
+      contains('still responsible for the transmission'),
+    );
+
+    expect(event8.steps, <String>[
+      'Write one sentence you would want spoken after your name at a future Wag.',
+      'Ask whether that sentence is true of you now, partly true, or not yet true.',
+    ]);
+    expect(event8.optionalSteps, <String>[
+      'Add your own name to the continuity, not as dead, but as one who will eventually be spoken for.',
+    ]);
+
+    expect(event9.steps, <String>[
+      'Read the complete list of names one final time.',
+      'Speak only the lines that are true.',
+      'Say, if true: I have made invocation-offerings for the blessed dead.',
+      'Say, if true: Their names have been spoken.',
+      'Say, if true: They live.',
+      'Say, if true: I am their continuation.',
+      'Say, if true: They are my foundation.',
+      'Write next year\'s Wag date somewhere you will see it.',
+      'Place water one more time.',
+      'Drink it.',
+    ]);
+    expect(_wagPurposeText(event9), contains('fact-check'));
+  });
+
+  test('Wag words and steps keep field-purity guardrails', () {
+    final issues = <String>[];
+
+    for (final event in kWagEvents) {
+      final requiredSteps = event.steps.toSet();
+      for (final pattern in _wagWordsStageDirectionPatterns) {
+        if (pattern.hasMatch(event.spokenLine)) {
+          issues.add(
+            'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+          );
+        }
+      }
+      for (final step in event.steps) {
+        if (step.startsWith('Optional:')) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+        if (_wagRequiredStepRationalePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+      for (final optionalStep in event.optionalSteps) {
+        if (requiredSteps.contains(optionalStep)) {
+          issues.add('Event ${event.eventNumber}: $optionalStep');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
   });
 
   test(
@@ -185,3 +301,20 @@ void main() {
     },
   );
 }
+
+String _wagPurposeText(WagEvent event) {
+  return wagDetailText(event, lens: WagLens.neutral).split('\n\n').first;
+}
+
+final _wagWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*before\b', caseSensitive: false),
+  RegExp(r'^\s*read\b', caseSensitive: false),
+  RegExp(r'^\s*speak only\b', caseSensitive: false),
+  RegExp(r'\bif true\b', caseSensitive: false),
+  RegExp(r'\bthen\b', caseSensitive: false),
+];
+
+final _wagRequiredStepRationalePattern = RegExp(
+  r'\b(name doing its work|water is the first provision|water is already doing|call the dead to the table|offering returning|rite completing|living version of the autobiography|declaration of success|cycle closes|source note)\b',
+  caseSensitive: false,
+);

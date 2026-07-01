@@ -272,7 +272,8 @@ const List<WagEvent> kWagEvents = <WagEvent>[
       'Write the known names on paper: parents, grandparents, great-grandparents, and the dead you personally knew.',
       'For unknown names, write: [Name unknown] - [their relationship to you].',
       'Add one ancestor of practice, craft, community, or way of being.',
-      'Read each name aloud once. Reading silently is not enough for this rite. The name spoken aloud is the name doing its work.',
+      'Read each name aloud once.',
+      'Do not read silently for this rite.',
     ],
     optionalSteps: <String>[
       'Use the local list only as a private backup; the handwritten page is the primary act.',
@@ -294,7 +295,7 @@ const List<WagEvent> kWagEvents = <WagEvent>[
     steps: <String>[
       'Look at the Day 1 list and add anyone missing.',
       'Name one ancestor known only by story, or one ancestor of your practice or tradition.',
-      'Place water on the surface while you add to the list. The water is already doing its work before the additional names are written.',
+      'Place water on the surface while you add to the list.',
     ],
     sourceNote:
         'Kemetic offering practice acknowledged that not all names were known — the formula could address ancestors by relationship rather than personal name. The gap in the record is not a gap in the obligation. Unknown ancestors are addressed as such, not omitted.',
@@ -312,7 +313,7 @@ const List<WagEvent> kWagEvents = <WagEvent>[
     spokenLine:
         'I have not neglected the days concerning their meat offerings.',
     steps: <String>[
-      'Set water before you read any names. The water is the first provision — it goes before everything else.',
+      'Set water before you read any names.',
       'Read the complete list of names aloud.',
       'After each name, say: I speak your name. You live.',
     ],
@@ -358,7 +359,8 @@ const List<WagEvent> kWagEvents = <WagEvent>[
     steps: <String>[
       'Go to the surface prepared on Day 11.',
       'Place water, bread or food, and anything fragrant there now.',
-      'Read the complete list of names aloud at dusk, without hurrying. The names read at the vigil call the dead to the table. Take the time the reading requires.',
+      'Read the complete list of names aloud at dusk.',
+      'Do not hurry the reading.',
       'Leave the offerings on the surface through the night.',
     ],
     sourceNote:
@@ -378,11 +380,12 @@ const List<WagEvent> kWagEvents = <WagEvent>[
     spokenLine:
         'A thousand of bread, a thousand of beer, a thousand of cattle, a thousand of fowl, a thousand of everything sweet, a thousand of every kind of clothing - for [name], and for all those who came before.',
     steps: <String>[
-      'Return to the prepared surface and add fresh water.',
+      'Return to the prepared surface.',
+      'Add fresh water.',
       'Read the complete list of names slowly.',
       'After each name, speak: [Name] - this bread is yours. This water is yours. You live.',
-      'Sit with memory before eating. Do not rush the reversion. The bread and water that follow are the offering returning through you — the rite completing in the body.',
-      'Sit with memory, then eat the bread and drink the water as reversion.',
+      'Sit with memory before eating.',
+      'Eat the bread and drink the water as reversion.',
     ],
     sourceNote:
         'The thousand-offering formula activated provision through speech. The reversion that followed sustained the living person who gave it. Both acts complete the same provision cycle.',
@@ -404,7 +407,7 @@ const List<WagEvent> kWagEvents = <WagEvent>[
       'Choose one person among the dead and name one specific thing they gave you.',
       'Ask whether the living have heard that person named with this gift.',
       'Name one way to carry the gift forward more intentionally.',
-      'Drink water as acknowledgment that you are still living and therefore still responsible for the transmission.',
+      'Drink water.',
     ],
     sourceNote:
         'Spell 125\'s prohibition against stealing the dead\'s cakes was practical: the dead depended on that provision. The living equivalent is the gift received from the dead — carried forward, it sustains; left dormant, it depletes.',
@@ -423,8 +426,10 @@ const List<WagEvent> kWagEvents = <WagEvent>[
         'A man lives when his name is spoken. Speak the names. They live.',
     steps: <String>[
       'Write one sentence you would want spoken after your name at a future Wag.',
-      'Ask whether that sentence is true of you now, partly true, or not yet true. This is not a guilt check — it is the living version of the autobiography, written while there is still time to edit it.',
-      'Optional: add your own name to the continuity, not as dead, but as one who will eventually be spoken for.',
+      'Ask whether that sentence is true of you now, partly true, or not yet true.',
+    ],
+    optionalSteps: <String>[
+      'Add your own name to the continuity, not as dead, but as one who will eventually be spoken for.',
     ],
     sourceNote:
         'The ren principle places the living inside continuity: names received, names spoken, names eventually carried.',
@@ -443,9 +448,15 @@ const List<WagEvent> kWagEvents = <WagEvent>[
         'I have made invocation-offerings for the blessed dead. Their names have been spoken. They live. I am their continuation. They are my foundation.',
     steps: <String>[
       'Read the complete list of names one final time.',
-      'Speak only the lines that are true. Each is a fact-check, not a declaration of success.',
+      'Speak only the lines that are true.',
+      'Say, if true: I have made invocation-offerings for the blessed dead.',
+      'Say, if true: Their names have been spoken.',
+      'Say, if true: They live.',
+      'Say, if true: I am their continuation.',
+      'Say, if true: They are my foundation.',
       'Write next year\'s Wag date somewhere you will see it.',
-      'Place water one more time. Drink it. The cycle closes.',
+      'Place water one more time.',
+      'Drink it.',
     ],
     sourceNote:
         'Harkhuf invited future passers-by to speak the offering formula in exchange for his intercession. The Wag operates on the same exchange: the living tend the dead, and the dead are available as foundation. The cycle closes with water that confirms both sides of the provision.',
@@ -707,21 +718,21 @@ String _wagPurpose(WagEvent event) {
     case WagEventKind.beginNaming:
       return 'The name spoken is not symbolic — in Kemetic understanding, it is the mechanism of continuation. The Wag begins with the names because without them there is no table and no feast.';
     case WagEventKind.extendNames:
-      return 'The naming extends to the unknown because the offering is not limited by the record. Ancestors without known names still have names — they are simply lost. Addressing them by relationship is the honest substitute.';
+      return 'The naming extends to the unknown because the offering is not limited by the record. Ancestors without known names still have names — they are simply lost. Addressing them by relationship is the honest substitute. The water is already present as provision while the additional names are written.';
     case WagEventKind.tableSet:
-      return 'Neglecting the appointed days for the dead was named in the Declaration of Innocence as a specific wrong. The table set before the feast is the household\'s answer to that accusation.';
+      return 'Neglecting the appointed days for the dead was named in the Declaration of Innocence as a specific wrong. The table set before the feast is the household\'s answer to that accusation. Water is the first provision; it goes before everything else.';
     case WagEventKind.approach:
       return 'The approach is the preparation — the surface chosen, the offerings gathered, the focus named. The invocation came forth through the living voice. The living voice must know who it is speaking for before it begins.';
     case WagEventKind.vigil:
-      return 'The vigil holds the night open for the dead. The offerings placed at dusk stay through the night because the Wag feast continues past the hour of the living\'s participation.';
+      return 'The vigil holds the night open for the dead. The names read at the vigil call the dead to the table. The offerings placed at dusk stay through the night because the Wag feast continues past the hour of the living\'s participation.';
     case WagEventKind.feast:
-      return 'The feast is provision given and received. The thousand-offering formula activates provision through speech. The reversion — eating and drinking — closes the cycle by making the offering real in the body of the one who gave it.';
+      return 'The feast is provision given and received. The thousand-offering formula activates provision through speech. The reversion — eating and drinking — closes the cycle by making the offering real in the body of the one who gave it. The reversion is not rushed.';
     case WagEventKind.whatTheyGave:
-      return 'To receive what the dead gave and not carry it forward is the living equivalent of stealing their cakes — the transmission ends with you instead of passing through you.';
+      return 'To receive what the dead gave and not carry it forward is the living equivalent of stealing their cakes — the transmission ends with you instead of passing through you. The water acknowledges that you are still living and therefore still responsible for the transmission.';
     case WagEventKind.whatYouLeave:
-      return 'The future Wag that speaks your name will speak what was actually done, not what was intended. This sitting asks which of those two things you are currently building.';
+      return 'The future Wag that speaks your name will speak what was actually done, not what was intended. This sitting asks which of those two things you are currently building. The true, partly true, or not yet true check is the living version of the autobiography, written while there is still time to edit it.';
     case WagEventKind.cycleConfirmed:
-      return 'The annual cycle closes with the names read one final time and the closing lines spoken only if they are true. The water drunk last is the offering returned through the body that gave it.';
+      return 'The annual cycle closes with the names read one final time and the closing lines spoken only if they are true. Each closing line is a fact-check, not a declaration of success. The water drunk last is the offering returned through the body that gave it.';
   }
 }
 
