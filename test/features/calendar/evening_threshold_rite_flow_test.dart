@@ -74,6 +74,28 @@ void main() {
     expect(detail, contains('Evening act\nClose one open loop'));
   });
 
+  test('copy guards keep Evening safety gates and quiet lines clear', () {
+    final lampAndShadow = kEveningThresholdRiteDays[17];
+
+    expect(lampAndShadow.dayNumber, 18);
+    expect(lampAndShadow.title, 'Lamp and Shadow');
+    expect(
+      lampAndShadow.eveningAct,
+      'If it can safely wait, let one thing remain unfinished without anxiety.',
+    );
+    expect(lampAndShadow.eveningAct, startsWith('If it can safely wait'));
+    expect(lampAndShadow.eveningAct, isNot(contains('without anxiety, if')));
+    expect(
+      lampAndShadow.purpose,
+      'Not every task needs completion today. This rite names what can rest in darkness without becoming abandoned.',
+    );
+    expect(
+      lampAndShadow.words,
+      'Light has done its work. Shadow now teaches rest, protection, and renewal.',
+    );
+    expect(lampAndShadow.words, isNot(contains('If it can safely wait')));
+  });
+
   test('builds thirty JSON-safe evening event payloads', () {
     final startDate = DateTime(2026, 6, 1);
     final starts = <DateTime>{};
@@ -105,6 +127,41 @@ void main() {
 
     expect(kEveningThresholdRiteDays, hasLength(30));
     expect(starts, hasLength(30));
+  });
+
+  test('payload keeps evening scheduler and transform keys stable', () {
+    final schedule = eveningThresholdScheduleForDate(
+      DateTime(2026, 6, 18),
+      TrackSkyTimeZone.central,
+      fallbackMinutesAfterMidnight: 21 * 60,
+    );
+    final payload = eveningThresholdRiteBehaviorPayload(
+      day: kEveningThresholdRiteDays[17],
+      schedule: schedule,
+      discreet: true,
+      lens: EveningThresholdRiteLens.hiddenRenewal,
+    );
+
+    expect(payload['kind'], 'maat_evening_threshold_rite_day');
+    expect(payload['flow_key'], kEveningThresholdRiteFlowKey);
+    expect(payload['day'], 18);
+    expect(payload['duration_minutes'], kEveningThresholdRiteDurationMinutes);
+    expect(payload['burden'], 'low');
+    expect(payload['completion_options'], <String>[
+      'observed',
+      'partly_observed',
+      'skipped',
+    ]);
+    expect(payload['missed_event_rule'], 'expire_quietly');
+    expect(payload['discreet_mode'], isTrue);
+    expect(payload['lens'], EveningThresholdRiteLens.hiddenRenewal.key);
+
+    final schedulePayload = payload['schedule'] as Map<String, dynamic>;
+    expect(schedulePayload['type'], 'local_sunset_plus_20_minutes');
+    expect(schedulePayload['fallback'], 'user_selected_evening_time');
+    expect(schedulePayload['timezone'], TrackSkyTimeZone.central.key);
+    expect(schedulePayload['iana_timezone'], TrackSkyTimeZone.central.ianaName);
+    expect(schedulePayload['fallback_minutes_after_midnight'], 21 * 60);
   });
 
   test('purpose copy checkpoints match the upgraded thirty-evening rite', () {
