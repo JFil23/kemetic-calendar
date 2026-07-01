@@ -198,6 +198,100 @@ void main() {
     expect(issues, isEmpty);
   });
 
+  test('Shore copy keeps exchange gates and bread test clear', () {
+    final shore = maatDecanFlowDefinitionForKey(kTheShoreFlowKey)!;
+    final event2 = maatDecanFlowEventByNumber(shore, 2)!;
+    final event3 = maatDecanFlowEventByNumber(shore, 3)!;
+    final event4 = maatDecanFlowEventByNumber(shore, 4)!;
+    final event5 = maatDecanFlowEventByNumber(shore, 5)!;
+    final event6 = maatDecanFlowEventByNumber(shore, 6)!;
+    final event7 = maatDecanFlowEventByNumber(shore, 7)!;
+    final event8 = maatDecanFlowEventByNumber(shore, 8)!;
+    final event9 = maatDecanFlowEventByNumber(shore, 9)!;
+
+    expect(event2.purpose, startsWith('Honest measure requires'));
+    expect(
+      event3.steps[1],
+      'Write the specific act that would increase its real value before the next ten-day section.',
+    );
+    expect(event4.purpose, startsWith('One specific exchange'));
+
+    expect(event5.requiresRealWorldAction, isTrue);
+    expect(event5.purpose, contains('before this event is logged'));
+    expect(event5.purpose, contains('A planned exchange'));
+    expect(event5.steps, <String>[
+      'Make one real exchange before logging this event.',
+      'Record what was offered, what was received, and whether both sides received honest value.',
+      'If it has not happened, name the blocker.',
+      'Name the next concrete opening.',
+    ]);
+
+    expect(event6.steps, <String>[
+      'Review the exchange.',
+      'Ask whether you delivered what you promised.',
+      'Ask whether the other side delivered what they promised.',
+      'Name any correction, return, or completion still owed.',
+    ]);
+    expect(event7.purpose, startsWith('Direct, indirect'));
+
+    expect(event8.steps, <String>[
+      'Eat something while doing this event.',
+      'Ask whether you can eat without planning how to protect what you have or how to get more before it runs out.',
+      'Ask whether this gain feels easy or anxious.',
+      'Name what made it peaceful, or what made it uneasy.',
+    ]);
+
+    expect(event9.steps, <String>[
+      'Write what you brought, what you exchanged, what returned, and what you will pass forward.',
+      'Write the final line of the exchange story.',
+    ]);
+    expect(event9.optionalSteps, <String>[
+      'Share the closing record only if it does not expose private details.',
+    ]);
+    expect(event9.sharePromptOnComplete, isTrue);
+  });
+
+  test('Shore words fields do not contain stage-direction wrappers', () {
+    final issues = <String>[];
+    final shore = maatDecanFlowDefinitionForKey(kTheShoreFlowKey)!;
+
+    for (final event in shore.events) {
+      for (final pattern in _shoreWordsStageDirectionPatterns) {
+        if (pattern.hasMatch(event.spokenLine)) {
+          issues.add(
+            'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+          );
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('Shore steps keep rationale and optional sharing out', () {
+    final issues = <String>[];
+    final shore = maatDecanFlowDefinitionForKey(kTheShoreFlowKey)!;
+
+    for (final event in shore.events) {
+      final requiredSteps = event.steps.toSet();
+      for (final step in event.steps) {
+        if (_shoreRequiredStepRationalePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+        if (_shoreRequiredStepOptionalSharingPattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+      for (final optionalStep in event.optionalSteps) {
+        if (requiredSteps.contains(optionalStep)) {
+          issues.add('Event ${event.eventNumber}: $optionalStep');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
   test('Living Text emits library CTA only on Events 4 and 7', () {
     final definition = maatDecanFlowDefinitionForKey(kLivingTextFlowKey)!;
     final flowStart = DateTime(2026, 5, 16);
@@ -1866,6 +1960,23 @@ final _fairHearingRequiredStepRationalePattern = RegExp(
 );
 
 final _fairHearingRequiredStepOptionalSharingPattern = RegExp(
+  r'\b(optionally|if desired|share|post|public)\b',
+  caseSensitive: false,
+);
+
+final _shoreWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*(before|after|then)\b', caseSensitive: false),
+  RegExp(r'\bspeak only\b', caseSensitive: false),
+  RegExp(r'\bif true\b', caseSensitive: false),
+  RegExp(r'\btruth-check\b', caseSensitive: false),
+];
+
+final _shoreRequiredStepRationalePattern = RegExp(
+  r'\b(The act is the event|Logging a planned exchange|bread test is practical|can this bread be eaten|source note|Shipwrecked Sailor|Amenemope|diagnostic, not a moral preference)\b',
+  caseSensitive: false,
+);
+
+final _shoreRequiredStepOptionalSharingPattern = RegExp(
   r'\b(optionally|if desired|share|post|public)\b',
   caseSensitive: false,
 );

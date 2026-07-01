@@ -2170,7 +2170,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 5,
         durationMinutesMax: 5,
-        purpose: 'Weigh the exchange value without inflation or deflation.',
+        purpose:
+            'Honest measure requires exchange value without inflation or deflation.',
         spokenLine: 'The measure is the eye of Re.',
         steps: <String>[
           'Choose two or three items from your inventory.',
@@ -2186,11 +2187,11 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 5,
         durationMinutesMax: 5,
-        purpose: 'Choose one offering whose real value can increase.',
+        purpose: 'One offering can be cultivated so its real value increases.',
         spokenLine: 'Fortunate is a scribe skilled in his office.',
         steps: <String>[
           'Name one offering that could become more valuable with focused development.',
-          'Write the specific act that would increase its real value before the next decan.',
+          'Write the specific act that would increase its real value before the next ten-day section.',
           'Name how the offering would be measured more honestly after that cultivation.',
         ],
       ),
@@ -2202,7 +2203,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 8,
         durationMinutesMax: 8,
-        purpose: 'Prepare one specific exchange at honest measure.',
+        purpose:
+            'One specific exchange must be prepared at honest measure before it is offered.',
         spokenLine: 'Do not tilt the scale nor falsify the weights.',
         steps: <String>[
           'Name one specific exchange you intend to make: what you will offer, to whom, and what return you seek.',
@@ -2219,13 +2221,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'The shore is a physical place. The exchange must actually happen before this event is logged.',
+            'The shore is a physical place. The exchange must actually happen before this event is logged. A planned exchange is not the same as a completed one.',
         spokenLine:
             'The Ape sits by the balance, while his heart is the plummet.',
         steps: <String>[
-          'Make one real exchange before logging this event. The act is the event. Logging a planned exchange is not the same as recording a completed one.',
+          'Make one real exchange before logging this event.',
           'Record what was offered, what was received, and whether both sides received honest value.',
-          'If it has not happened, name the blocker and the next concrete opening.',
+          'If it has not happened, name the blocker.',
+          'Name the next concrete opening.',
         ],
         requiresRealWorldAction: true,
         extraCompletionStatusLabels: <String, String>{'exchanged': 'Exchanged'},
@@ -2238,12 +2241,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.evening,
         durationMinutesMin: 5,
         durationMinutesMax: 5,
-        purpose: 'Review whether the exchange was delivered at honest measure.',
+        purpose:
+            'Honest measure is confirmed by whether each side delivered what was promised.',
         spokenLine:
             'When jewels are heaped upon gold, at daybreak they turn to lead.',
         steps: <String>[
           'Review the exchange.',
-          'Ask whether you delivered what you promised and whether the other side did too.',
+          'Ask whether you delivered what you promised.',
+          'Ask whether the other side delivered what they promised.',
           'Name any correction, return, or completion still owed.',
         ],
       ),
@@ -2255,7 +2260,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 8,
         durationMinutesMax: 8,
-        purpose: 'Account for direct, indirect, and reputational return.',
+        purpose:
+            'Direct, indirect, and reputational return each belong in the account.',
         spokenLine: 'Make a good reputation for me in your city.',
         steps: <String>[
           'Account for the return: direct material return, indirect opportunity, and reputational return.',
@@ -2276,7 +2282,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         spokenLine:
             'Better is bread when the mind is at ease than riches with anxiety.',
         steps: <String>[
-          'Eat something while doing this event. The bread test is practical: can this bread be eaten without planning how to protect what you have, or how to get more before it runs out?',
+          'Eat something while doing this event.',
+          'Ask whether you can eat without planning how to protect what you have or how to get more before it runs out.',
           'Ask whether this gain feels easy or anxious.',
           'Name what made it peaceful, or what made it uneasy.',
         ],
@@ -2291,12 +2298,15 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.evening,
         durationMinutesMin: 8,
         durationMinutesMax: 8,
-        purpose: 'Close the account and pass the story forward.',
+        purpose:
+            'The account closes when what came to shore is weighed, told, and kept private where privacy is owed.',
         spokenLine: 'What came to the shore has been weighed and told.',
         steps: <String>[
-          'Close the account: what you brought, what you exchanged, what returned, and what you will pass forward.',
+          'Write what you brought, what you exchanged, what returned, and what you will pass forward.',
           'Write the final line of the exchange story.',
-          'Optionally share the closing record, without exposing private details.',
+        ],
+        optionalSteps: <String>[
+          'Share the closing record only if it does not expose private details.',
         ],
         sharePromptOnComplete: true,
       ),
