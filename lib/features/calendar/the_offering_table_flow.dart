@@ -210,10 +210,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     purpose:
         'The hunger that doesn\'t feel like hunger is usually the oldest one. This rite names it before it gets louder.',
     provisionAct:
-        'Name one hunger that is not food: sleep, touch, silence, medical care, sunlight, movement, or help. Give it one small portion.',
-    optionalSteps: <String>[
-      'If no portion is possible now, schedule the first honest opening for it.',
-    ],
+        'Name one hunger that is not food: sleep, touch, silence, medical care, sunlight, movement, or help. Give it one small portion. If no portion is possible now, schedule the first honest opening for it.',
   ),
   OfferingTableDay(
     dayNumber: 9,
@@ -222,10 +219,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     purpose:
         'The first decan closes. One small gap is the only repair the seal requires — not everything, just the one that can move.',
     provisionAct:
-        'Choose one provision repair completable before noon: drink, eat, wash, stretch, rest ten minutes, refill, or ask for help.',
-    optionalSteps: <String>[
-      'Mark it done only after the body has actually received it.',
-    ],
+        'Choose one provision repair completable before noon: drink, eat, wash, stretch, rest ten minutes, refill, or ask for help. Mark it complete only after the body has actually received it.',
   ),
   OfferingTableDay(
     dayNumber: 10,
@@ -318,10 +312,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     purpose:
         'The provision line breaks quietly through deferred communication. This rite names what needs to be said while saying it is still simple.',
     provisionAct:
-        'Send or speak one practical care message: I have this, I need this, I will bring this, or I cannot do this today.',
-    optionalSteps: <String>[
-      'Keep it plain. Do not turn it into apology theater.',
-    ],
+        'Send or speak one plain practical care message: I have this, I need this, I will bring this, or I cannot do this today. Do not turn it into apology theater.',
   ),
   OfferingTableDay(
     dayNumber: 18,
@@ -392,10 +383,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     purpose:
         'Something you are holding — a reply, a payment, a permission — is keeping something else from moving. This rite moves it.',
     provisionAct:
-        'Find one thing delayed by you: reply, payment, return, permission, food, help, or information. Move it one step downstream.',
-    optionalSteps: <String>[
-      'If it cannot move today, tell the affected person what is true.',
-    ],
+        'Find one thing delayed by you: reply, payment, return, permission, food, help, or information. Move it one step downstream. If it cannot move today, tell the affected person what is true.',
   ),
   OfferingTableDay(
     dayNumber: 24,
@@ -430,10 +418,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     purpose:
         'In the temple, offerings were eventually consumed — that was called reversion, and it was sacred. Provision that is never received serves nothing. This rite uses what was given.',
     provisionAct:
-        'Let one support return through action. Eat the food, drink the water, use the help, accept the rest, or put the tool to work.',
-    optionalSteps: <String>[
-      'Do not leave provision as a symbol if it can nourish the day.',
-    ],
+        'Let one support return through action. Eat the food, drink the water, use the help, accept the rest, or put the tool to work. Do not leave provision as a symbol if it can nourish the day.',
   ),
   OfferingTableDay(
     dayNumber: 27,
@@ -454,10 +439,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     purpose:
         'Relationships sustained by history alone are slowly depleting. This rite adds one provision before the account needs to draw down.',
     provisionAct:
-        'Choose one relationship that sustains you. Give it one provision: honest thanks, time, food, help, repair, or a clean boundary.',
-    optionalSteps: <String>[
-      'Make the provision concrete enough that the other person can receive it.',
-    ],
+        'Choose one relationship that sustains you. Give it one concrete provision the other person can receive: honest thanks, time, food, help, repair, or a clean boundary.',
   ),
   OfferingTableDay(
     dayNumber: 29,
@@ -476,9 +458,9 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     section: 'Flowing Table',
     title: 'The Table Is Complete',
     purpose:
-        'The table was never about perfection — it was about the record being honest. Speak what is true. The cycle closes with accuracy, not with achievement.',
+        'The table was never about perfection — it was about the record being honest. The cycle closes with accuracy, not with achievement.',
     provisionAct:
-        'Speak only the lines that are true:\n- My water was placed with attention.\n- Food, rest, or care was not treated as imaginary.\n- I fed one need before it became collapse.\n- I noticed who else depends on the table.\n- What flowed to me was allowed to return.\nThen name one shortfall and one provision that surprised you.',
+        'Speak only the lines that are true:\nSay, if true: My water was placed with attention.\nSay, if true: Food, rest, or care was not treated as imaginary.\nSay, if true: I fed one need before it became collapse.\nSay, if true: I noticed who else depends on the table.\nSay, if true: What flowed to me was allowed to return.\nName one shortfall.\nName one provision that surprised you.',
     optionalSteps: <String>[
       'Sit for one quiet breath after drinking the water.',
       'Share only this prompt if you choose: one thing the table held that I did not expect.',
