@@ -466,6 +466,95 @@ void main() {
     expect(issues, isEmpty);
   });
 
+  test('Clearing copy keeps action gates and optional sharing explicit', () {
+    final clearing = maatDecanFlowDefinitionForKey(kClearingFlowKey)!;
+    final event4 = maatDecanFlowEventByNumber(clearing, 4)!;
+    final event5 = maatDecanFlowEventByNumber(clearing, 5)!;
+    final event9 = maatDecanFlowEventByNumber(clearing, 9)!;
+
+    expect(event4.steps, <String>[
+      'Choose one concrete physical or procedural act that creates space before response: wait one hour, walk outside, write before sending, sleep on it, or consult the day card first.',
+      'Do not use "try to be calmer" as the act.',
+      'Write it as: Before responding to [situation], I will [specific act].',
+      'Write when you will use it and what heat situation it interrupts.',
+    ]);
+
+    expect(event5.spokenLine, 'The clearing acts without heat.');
+    expect(event5.steps, <String>[
+      'Take one real action from the cleared state before logging.',
+      'Record the situation and what the heat response would have been.',
+      'Write what you did instead and what changed.',
+    ]);
+    expect(event5.requiresRealWorldAction, isTrue);
+    expect(
+      event5.extraCompletionStatusLabels,
+      containsPair('from_the_clearing', 'from the clearing'),
+    );
+
+    expect(event9.steps, <String>[
+      'Name one person or situation that benefits from your shade.',
+      'Write the heat situation where you will continue setting yourself apart.',
+      'Record the shade you intend to provide.',
+    ]);
+    expect(event9.optionalSteps, <String>[
+      'Share only the one-line commitment.',
+    ]);
+    expect(event9.sharePromptOnComplete, isTrue);
+  });
+
+  test('Clearing words fields do not contain stage-direction wrappers', () {
+    final issues = <String>[];
+    final clearing = maatDecanFlowDefinitionForKey(kClearingFlowKey)!;
+
+    for (final event in clearing.events) {
+      for (final pattern in _clearingWordsStageDirectionPatterns) {
+        if (pattern.hasMatch(event.spokenLine)) {
+          issues.add(
+            'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+          );
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('Clearing steps keep source-note phrases out of actions', () {
+    final issues = <String>[];
+    final clearing = maatDecanFlowDefinitionForKey(kClearingFlowKey)!;
+
+    for (final event in clearing.events) {
+      for (final step in event.steps) {
+        if (_clearingSourceNotePhrasePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('Clearing optional steps do not duplicate required steps', () {
+    final issues = <String>[];
+    final clearing = maatDecanFlowDefinitionForKey(kClearingFlowKey)!;
+
+    for (final event in clearing.events) {
+      final requiredSteps = event.steps.toSet();
+      for (final step in event.steps) {
+        if (step.startsWith('Optional:')) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+      for (final optionalStep in event.optionalSteps) {
+        if (requiredSteps.contains(optionalStep)) {
+          issues.add('Event ${event.eventNumber}: $optionalStep');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
   test('Wandering copy keeps closing instructions in steps', () {
     final wandering = maatDecanFlowDefinitionForKey(kWanderingFlowKey)!;
     final event1 = maatDecanFlowEventByNumber(wandering, 1)!;
@@ -1165,6 +1254,19 @@ final _hetHeruWordsStageDirectionPatterns = <RegExp>[
 
 final _hetHeruSourceNotePhrasePattern = RegExp(
   r'\b(Book of the Heavenly Cow|Dendera|source note|same Eye in different modes|not the defeat|token gesture)\b',
+  caseSensitive: false,
+);
+
+final _clearingWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*speak only\b', caseSensitive: false),
+  RegExp(r'\btrue lines\b', caseSensitive: false),
+  RegExp(r'\bif true\b', caseSensitive: false),
+  RegExp(r'\boptionally\b', caseSensitive: false),
+  RegExp(r'\bshare only\b', caseSensitive: false),
+];
+
+final _clearingSourceNotePhrasePattern = RegExp(
+  r'\b(Amenemope|source note|foliage|enclosed space|surrounded by other trees|side effect)\b',
   caseSensitive: false,
 );
 

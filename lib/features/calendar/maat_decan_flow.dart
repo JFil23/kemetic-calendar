@@ -2913,8 +2913,9 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'The act of setting yourself apart is physical and procedural, not just intentional. The clearing is found by getting out of the enclosure, not by deciding the enclosure is no longer one.',
         spokenLine: 'Set yourself apart before the response forms.',
         steps: <String>[
-          'Choose one physical or procedural act that creates space before response. Specific enough to follow without deciding in the moment. "Try to be calmer" is not the act. "Before responding to [situation], I will [specific act]" is.',
-          'Use a concrete practice: wait one hour, walk outside, write before sending, sleep on it, or consult the day card first.',
+          'Choose one concrete physical or procedural act that creates space before response: wait one hour, walk outside, write before sending, sleep on it, or consult the day card first.',
+          'Do not use "try to be calmer" as the act.',
+          'Write it as: Before responding to [situation], I will [specific act].',
           'Write when you will use it and what heat situation it interrupts.',
         ],
       ),
@@ -3000,8 +3001,9 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Name one person or situation that benefits from your shade.',
           'Write the heat situation where you will continue setting yourself apart.',
-          'Record the shade you intend to provide. Optionally share only the one-line commitment.',
+          'Record the shade you intend to provide.',
         ],
+        optionalSteps: <String>['Share only the one-line commitment.'],
         sourceNote:
             'Amenemope says the temperate person reaches their end in a grove — surrounded by other trees, part of an ecosystem. The shade is not a side effect of the clearing. It is the clearing\'s gift to the people around it.',
         sharePromptOnComplete: true,
