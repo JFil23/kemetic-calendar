@@ -236,6 +236,110 @@ void main() {
     },
   );
 
+  test('House of Life copy keeps knowledge actions and truth checks clear', () {
+    final houseOfLife = maatDecanFlowDefinitionForKey(kHouseOfLifeFlowKey)!;
+    final event1 = maatDecanFlowEventByNumber(houseOfLife, 1)!;
+    final event2 = maatDecanFlowEventByNumber(houseOfLife, 2)!;
+    final event3 = maatDecanFlowEventByNumber(houseOfLife, 3)!;
+    final event4 = maatDecanFlowEventByNumber(houseOfLife, 4)!;
+    final event5 = maatDecanFlowEventByNumber(houseOfLife, 5)!;
+    final event7 = maatDecanFlowEventByNumber(houseOfLife, 7)!;
+    final event8 = maatDecanFlowEventByNumber(houseOfLife, 8)!;
+    final event9 = maatDecanFlowEventByNumber(houseOfLife, 9)!;
+
+    expect(event1.purpose, contains('weakest discipline'));
+    expect(event1.steps.last, 'Name the weakest of the three.');
+    expect(event2.purpose, startsWith('Accuracy begins'));
+    expect(
+      event3.steps.first,
+      'Write: In the second ten-day section, I will practice writing, reciting, and seeking on [subject].',
+    );
+
+    expect(event4.purpose, contains('specific gap'));
+    expect(event4.steps, <String>[
+      'Write one complete account of something you have learned, as if the reader cannot ask you to clarify.',
+      'Read it back and correct anything that depends on you standing beside the text.',
+      'Name the specific gap the writing revealed in your understanding.',
+    ]);
+
+    expect(event5.purpose, contains('Collapse is useful data'));
+    expect(event5.steps, <String>[
+      'Speak one concept or principle from memory, accurately and in order.',
+      'Mark what stays fluent when spoken.',
+      'Mark what collapses when spoken.',
+      'If something collapses, write the exact sentence, term, or sequence that needs repair.',
+      'If someone asks a question you cannot answer accurately, write it as the next thing to learn.',
+    ]);
+
+    expect(event7.purpose, startsWith('Transmission requires'));
+    expect(event8.requiresRealWorldAction, isTrue);
+    expect(event8.purpose, contains('living knowledge'));
+    expect(event8.steps, <String>[
+      'If the transmission happened, write what you gave and to whom.',
+      'Ask what the recipient understood and what confused them.',
+      'If the transmission has not happened, do it today.',
+      'If it cannot happen today, name exactly when before the closing sitting.',
+    ]);
+
+    expect(event9.steps, contains('Speak only the lines that are true.'));
+    expect(event9.steps, contains('Say, if true: I wrote.'));
+    expect(event9.steps, contains('Say, if true: I recited.'));
+    expect(event9.steps, contains('Say, if true: I sought.'));
+    expect(event9.steps, contains('Say, if true: I transmitted.'));
+    expect(
+      event9.steps,
+      contains('Say, if true: What I know is more accurate.'),
+    );
+    expect(
+      event9.steps.any((step) => step.contains('I wrote; I recited')),
+      isFalse,
+    );
+  });
+
+  test(
+    'House of Life words fields do not contain stage-direction wrappers',
+    () {
+      final issues = <String>[];
+      final houseOfLife = maatDecanFlowDefinitionForKey(kHouseOfLifeFlowKey)!;
+
+      for (final event in houseOfLife.events) {
+        for (final pattern in _houseOfLifeWordsStageDirectionPatterns) {
+          if (pattern.hasMatch(event.spokenLine)) {
+            issues.add(
+              'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+            );
+          }
+        }
+      }
+
+      expect(issues, isEmpty);
+    },
+  );
+
+  test('House of Life steps keep rationale and optional sharing out', () {
+    final issues = <String>[];
+    final houseOfLife = maatDecanFlowDefinitionForKey(kHouseOfLifeFlowKey)!;
+
+    for (final event in houseOfLife.events) {
+      final requiredSteps = event.steps.toSet();
+      for (final step in event.steps) {
+        if (_houseOfLifeRequiredStepRationalePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+        if (_houseOfLifeRequiredStepOptionalSharingPattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+      for (final optionalStep in event.optionalSteps) {
+        if (requiredSteps.contains(optionalStep)) {
+          issues.add('Event ${event.eventNumber}: $optionalStep');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
   test('Ma’at decan closing events expose their special completion labels', () {
     expect(
       maatDecanFlowEventByNumber(
@@ -1634,6 +1738,24 @@ final _livingTextRequiredStepRationalePattern = RegExp(
 
 final _livingTextRequiredStepOptionalPattern = RegExp(
   r'\b(optionally|if desired|share the useful part|share the final line|use Post to share|Shared,)\b',
+  caseSensitive: false,
+);
+
+final _houseOfLifeWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*(before|after|then)\b', caseSensitive: false),
+  RegExp(r'\bspeak only\b', caseSensitive: false),
+  RegExp(r'\bif true\b', caseSensitive: false),
+  RegExp(r'\btrue lines\b', caseSensitive: false),
+  RegExp(r'\btruth-check\b', caseSensitive: false),
+];
+
+final _houseOfLifeRequiredStepRationalePattern = RegExp(
+  r'\b(The gaps are not failures|Per Ankh.s next assignment|Collapse is useful data|depends on the text rather than on itself|This is where the practice begins|Choose what is accurate enough|Do or record the transmission|source note|Chester Beatty|passive custodians|The source your current understanding|The scribe who could only locate)\b',
+  caseSensitive: false,
+);
+
+final _houseOfLifeRequiredStepOptionalSharingPattern = RegExp(
+  r'\b(optionally|if desired|share|post|public)\b',
   caseSensitive: false,
 );
 

@@ -939,13 +939,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'The Per Ankh was a working scriptorium — not a library where the learned went to read, but a workshop where texts were produced, tested, and transmitted. This sitting enters it as a practitioner, not a browser.',
+            'The Per Ankh was a working scriptorium — not a library where the learned went to read, but a workshop where texts were produced, tested, and transmitted. This sitting enters it as a practitioner, not a browser. The weakest discipline is where the practice begins.',
         spokenLine:
             'Come to me, Djehuty, that you may give advice and make me skillful in your office.',
         steps: <String>[
           'Name what you are currently learning - a skill, craft, practice, tradition, or body of knowledge.',
           'Check the three disciplines: writing it down, speaking or reciting it, and seeking those who know more.',
-          'Name the weakest of the three. This is where the practice begins.',
+          'Name the weakest of the three.',
         ],
         sourceNote:
             'The Per Ankh\'s priests were not passive custodians — they copied, produced, interpreted, and applied what they held. Knowledge that sits in the archive without being used is not living knowledge. This sitting names what you are actively working with, and where the work is weakest.',
@@ -959,7 +959,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Check whether you are receiving the subject as it is or bending it toward what you already believe.',
+            'Accuracy begins by seeing whether the subject is being received as it is or bent toward what you already believe.',
         spokenLine: 'Say what he said. Neither take away nor add to it.',
         steps: <String>[
           'Name where you are adding: interpreting early, filling gaps, or importing your own agenda.',
@@ -976,11 +976,11 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Commit the next decan to writing, reciting, and seeking on the subject you named.',
+            'The next ten-day section is committed to writing, reciting, and seeking on the subject you named.',
         spokenLine:
             'See, it is good if you write frequently. Understanding transforms an eager person.',
         steps: <String>[
-          'Write: In the second decan, I will practice writing, reciting, and seeking on [subject].',
+          'Write: In the second ten-day section, I will practice writing, reciting, and seeking on [subject].',
           'Name one person, text, teacher, or practitioner who knows more than you.',
           'Name one thing you will write down this week with enough clarity for another reader.',
         ],
@@ -994,13 +994,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'What you can write precisely has been learned. What you can only gesture at is still loose in the understanding. Writing is the test.',
+            'What you can write precisely has been learned. What you can only gesture at is still loose in the understanding. Writing is the test. A specific gap is the Per Ankh\'s next assignment, not a failure.',
         spokenLine:
             'Write with your hand, recite with your mouth, and converse with those more knowledgeable than you.',
         steps: <String>[
           'Write one complete account of something you have learned, as if the reader cannot ask you to clarify.',
           'Read it back and correct anything that depends on you standing beside the text.',
-          'Name what the writing revealed about the gaps in your understanding. The gaps are not failures — they are the Per Ankh\'s next assignment.',
+          'Name the specific gap the writing revealed in your understanding.',
         ],
         sourceNote:
             'The Kemetic scribe was valued for the accuracy of the hand — the transmission that neither added nor removed. Writing what you know precisely enough for a future reader who cannot ask you to clarify is the scribal standard. Where the writing breaks down is where the learning is still incomplete.',
@@ -1014,12 +1014,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'The scribe who could recite what they copied had internalized it. The scribe who could only locate it in the text had stored it, not learned it.',
+            'The scribe who could recite what they copied had internalized it. The scribe who could only locate it in the text had stored it, not learned it. Collapse is useful data because it shows where understanding still depends on the text rather than on itself.',
         spokenLine:
             'Write with your hand, recite with your mouth, and converse with those more knowledgeable than you.',
         steps: <String>[
           'Speak one concept or principle from memory, accurately and in order.',
-          'Notice what is fluent and what collapses when spoken. Collapse is useful data — it shows where the understanding depends on the text rather than on itself.',
+          'Mark what stays fluent when spoken.',
+          'Mark what collapses when spoken.',
+          'If something collapses, write the exact sentence, term, or sequence that needs repair.',
           'If someone asks a question you cannot answer accurately, write it as the next thing to learn.',
         ],
       ),
@@ -1053,7 +1055,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Choose what is accurate enough to pass forward and who could receive it.',
+            'Transmission requires knowing what is accurate enough to pass forward and who could receive it.',
         spokenLine:
             'Writing was their memory-priest. The pen was their child, the papyrus surface their wife.',
         steps: <String>[
@@ -1072,13 +1074,15 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 5,
         durationMinutesMax: 5,
-        purpose: 'Do or record the transmission promised on Day 21.',
+        purpose:
+            'The transmission promised on Day 21 becomes living knowledge only when it is given, received, and recorded honestly.',
         spokenLine:
             'Neither take away nor add to it. Give what was learned to those who will receive it.',
         steps: <String>[
           'If the transmission happened, write what you gave and to whom.',
-          'If not, do it today or name exactly when before the close.',
           'Ask what the recipient understood and what confused them.',
+          'If the transmission has not happened, do it today.',
+          'If it cannot happen today, name exactly when before the closing sitting.',
         ],
         requiresRealWorldAction: true,
       ),
@@ -1097,7 +1101,12 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Name what you can now say with precision on the subject you studied.',
           'Name what remains beyond this 30-day cycle and how you will keep learning it.',
-          'Speak only the true lines: I wrote; I recited; I sought; I transmitted; what I know is more accurate.',
+          'Speak only the lines that are true.',
+          'Say, if true: I wrote.',
+          'Say, if true: I recited.',
+          'Say, if true: I sought.',
+          'Say, if true: I transmitted.',
+          'Say, if true: What I know is more accurate.',
           'Open one ḥꜣw node entry and read slowly, as the scribe reads.',
         ],
         sharePromptOnComplete: true,
