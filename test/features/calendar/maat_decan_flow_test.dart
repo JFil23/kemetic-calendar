@@ -579,6 +579,92 @@ void main() {
     expect(issues, isEmpty);
   });
 
+  test('Living Record copy keeps journal and guidance actions clear', () {
+    final livingRecord = maatDecanFlowDefinitionForKey(kLivingRecordFlowKey)!;
+    final event1 = maatDecanFlowEventByNumber(livingRecord, 1)!;
+    final event2 = maatDecanFlowEventByNumber(livingRecord, 2)!;
+    final event3 = maatDecanFlowEventByNumber(livingRecord, 3)!;
+    final event4 = maatDecanFlowEventByNumber(livingRecord, 4)!;
+    final event5 = maatDecanFlowEventByNumber(livingRecord, 5)!;
+    final event6 = maatDecanFlowEventByNumber(livingRecord, 6)!;
+    final event7 = maatDecanFlowEventByNumber(livingRecord, 7)!;
+    final event8 = maatDecanFlowEventByNumber(livingRecord, 8)!;
+    final event9 = maatDecanFlowEventByNumber(livingRecord, 9)!;
+
+    expect(event1.steps.last, 'Speak the line.');
+    expect(event2.purpose, startsWith('One node grounds'));
+    expect(event3.purpose, startsWith('A scheduled act gives'));
+    expect(event4.purpose, contains('specific record is more useful'));
+    expect(event4.purpose, contains('entry has been recognized'));
+    expect(event4.steps, <String>[
+      'Open the journal.',
+      'Write at least three substantive sentences about what this decan has meant, what you actually did in Ma\'at, what resisted the period, and one unanswered question.',
+      'Notice any badges generated from the entry.',
+    ]);
+    expect(
+      event4.steps.where((step) => step.contains('at least three')),
+      hasLength(1),
+    );
+    expect(event5.purpose, startsWith('The record becomes communal'));
+    expect(event6.purpose, startsWith('The alignment grid functions'));
+    expect(event7.purpose, startsWith('Flow Studio functions'));
+    expect(event8.steps, <String>[
+      'Open the Ma\'at guidance card, a recent guidance delivery, or the decan opening.',
+      'Name the pattern it identified and the one act it recommends.',
+      'If possible, complete the act today.',
+      'If not, write what the right response is.',
+      'Write: Ma\'at guidance, Day 25: [what it said]. My response: [what I did or decided].',
+    ]);
+    expect(
+      event9.purpose,
+      'The final journal entry and physical closing line bound the decan account so it can be returned to as a measured record.',
+    );
+  });
+
+  test(
+    'Living Record words fields do not contain stage-direction wrappers',
+    () {
+      final issues = <String>[];
+      final livingRecord = maatDecanFlowDefinitionForKey(kLivingRecordFlowKey)!;
+
+      for (final event in livingRecord.events) {
+        for (final pattern in _livingRecordWordsStageDirectionPatterns) {
+          if (pattern.hasMatch(event.spokenLine)) {
+            issues.add(
+              'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+            );
+          }
+        }
+      }
+
+      expect(issues, isEmpty);
+    },
+  );
+
+  test('Living Record steps keep rationale and optional actions out', () {
+    final issues = <String>[];
+    final livingRecord = maatDecanFlowDefinitionForKey(kLivingRecordFlowKey)!;
+
+    for (final event in livingRecord.events) {
+      final requiredSteps = event.steps.toSet();
+      for (final step in event.steps) {
+        if (step.startsWith('Optionally')) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+        if (_livingRecordRationalePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+      for (final optionalStep in event.optionalSteps) {
+        if (requiredSteps.contains(optionalStep)) {
+          issues.add('Event ${event.eventNumber}: $optionalStep');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
   test('True Name copy keeps posture and declaration sequence explicit', () {
     final trueName = maatDecanFlowDefinitionForKey(kTrueNameFlowKey)!;
     final event7 = maatDecanFlowEventByNumber(trueName, 7)!;
@@ -1560,6 +1646,18 @@ final _livingPatternWordsStageDirectionPatterns = <RegExp>[
 
 final _livingPatternRationalePattern = RegExp(
   r'\b(Anubis theology|source note|not from what the subject is supposed to represent|patient watching over thirty days|lesson extracted|Then write it)\b',
+  caseSensitive: false,
+);
+
+final _livingRecordWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*speak the line\b', caseSensitive: false),
+  RegExp(r'^\s*write\b', caseSensitive: false),
+  RegExp(r'\bthen\b', caseSensitive: false),
+  RegExp(r'\bif possible\b', caseSensitive: false),
+];
+
+final _livingRecordRationalePattern = RegExp(
+  r'\b(record has been opened|Specific is more useful|Badges are signals|entry has been recognized|record is being read|Merer|Palermo Stone|source note|specific app action)\b',
   caseSensitive: false,
 );
 

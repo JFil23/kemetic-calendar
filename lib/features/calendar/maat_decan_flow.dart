@@ -1726,7 +1726,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Open today\'s day card in ḥꜣw and read the Kemetic date, decan name, Ma\'at principle, and cosmic context.',
           'Write the date down outside the app: Kemetic date, season, and decan name.',
-          'Speak the line. The record has been opened.',
+          'Speak the line.',
         ],
         requiresRealWorldAction: true,
         sourceNote:
@@ -1741,7 +1741,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Ground the decan record in one node that explains what this period is asking.',
+            'One node grounds the decan record by explaining what this period is asking.',
         spokenLine:
             'Better is the profession of the scribe than all professions. The one skilled in it is fit for office.',
         steps: <String>[
@@ -1761,7 +1761,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Turn the decan quality from insight into one scheduled act with a date.',
+            'A scheduled act gives the decan quality a date and turns insight into work placed in time.',
         spokenLine:
             'I have hoed emmer for you, I have plowed barley for you: the work of the season is placed in time.',
         steps: <String>[
@@ -1780,13 +1780,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'The journal is the papyrus — the private record from which the guidance system builds its account. What is written with honesty and specificity produces more accurate guidance than what is performed there with care for appearance.',
+            'The journal is the papyrus — the private record from which the guidance system builds its account. What is written with honesty and specificity produces more accurate guidance than what is performed there with care for appearance. A specific record is more useful than a comprehensive one. Badges are signals that the entry has been recognized.',
         spokenLine:
             'Their writing was their memory-priest. The pen was their child. Their names endured.',
         steps: <String>[
-          'Open the journal and write at least three substantive sentences.',
-          'Write at least three substantive sentences about what this decan has meant, what you actually did in Ma\'at, what resisted the period, and one unanswered question. Specific is more useful than comprehensive.',
-          'Notice any badges generated from the entry. They are signals that the record is being read.',
+          'Open the journal.',
+          'Write at least three substantive sentences about what this decan has meant, what you actually did in Ma\'at, what resisted the period, and one unanswered question.',
+          'Notice any badges generated from the entry.',
         ],
         requiresRealWorldAction: true,
         sourceNote:
@@ -1801,7 +1801,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Let the record become communal: read what others have placed on the wall, then add one small true thing.',
+            'The record becomes communal when what others have placed on the wall is read and one small true thing is added.',
         spokenLine:
             'O living ones who pass by: read what was done, speak the name, and let the record continue.',
         steps: <String>[
@@ -1823,7 +1823,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Use the alignment grid as a provisioning ledger: what was consumed, aligned, disrupted, and owed.',
+            'The alignment grid functions as a provisioning ledger: what was consumed, aligned, disrupted, and owed.',
         spokenLine:
             'What occurred must be dated. What is dated must be placed. What is placed shows what was given and what is owed.',
         steps: <String>[
@@ -1842,7 +1842,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Use Flow Studio as the Per Ankh workshop: intention becomes a structured path on the calendar.',
+            'Flow Studio functions as the Per Ankh workshop: intention becomes a structured path on the calendar.',
         spokenLine:
             'What the heart thinks, the tongue commands. The intention spoken becomes the flow that structures the work.',
         steps: <String>[
@@ -1869,7 +1869,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Open the Ma\'at guidance card, a recent guidance delivery, or the decan opening.',
           'Name the pattern it identified and the one act it recommends.',
-          'If possible, complete the act today. If not, write what the right response is.',
+          'If possible, complete the act today.',
+          'If not, write what the right response is.',
           'Write: Ma\'at guidance, Day 25: [what it said]. My response: [what I did or decided].',
         ],
         sourceNote:
@@ -1885,7 +1886,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 8,
         durationMinutesMax: 10,
         purpose:
-            'Close the decan account by writing the final journal entry and physical closing line.',
+            'The final journal entry and physical closing line bound the decan account so it can be returned to as a measured record.',
         spokenLine:
             'I will put my annals among people and love of me among the gods. The record is real. The record persists.',
         steps: <String>[
