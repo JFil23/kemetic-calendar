@@ -208,13 +208,13 @@ String decanWatchDetailText(
 }) {
   final lensLine = lens.detailLine.trim();
   final dayCardLine = context == null
-      ? 'Open the ḥꜣw day card for this decan opening. Read the decan name, quality, and Ma’at principle.'
-      : 'Open the ḥꜣw day card for ${context.kemeticDateLabel}. Read ${context.decanName} and the Ma’at principle: ${context.maatPrinciple}';
+      ? 'The ḥꜣw day card is the calendar card for this decan opening. Open it. Read the decan name, quality, and Ma’at principle.'
+      : 'The ḥꜣw day card is the calendar card for ${context.kemeticDateLabel}. Open it. Read the decan name and quality shown there, including ${context.decanName}, and the Ma’at principle: ${context.maatPrinciple}';
   return <String>[
-    'Purpose\nStand under the night sky at the opening of ${occurrence.decanName} and take one bearing for the next ten days.',
-    'Outdoor\nGo outside if you can. If safety, access, or weather prevents that, stand at a window or threshold and mark the completion as observed from inside.',
+    'Purpose\nThe opening of ${occurrence.decanName} is a night-sky boundary: the sky has been counting, and one bearing can be taken for the next ten days.',
+    'Outdoor\nGo outside if you can. If safety, access, or weather prevents that, stand at a window or threshold. Inside observation still counts; mark the completion as observed from inside. A clouded sky is still a valid record.',
     'Words\n"$kDecanWatchRequiredLine"',
-    'Steps\n${_numberedLines(const <String>['Go outside. Phone down; open sky for at least one minute.', 'Look up. Face north first for the Imperishable Stars, then scan the full sky.', 'Speak the required line.', 'Note the sky in one line. A clouded sky is still a valid record.', 'Open the ḥꜣw day card. Read the decan name, quality, and Ma’at principle.', 'Reset intention. Name one bearing for the coming ten days.'])}',
+    'Steps\n${_numberedLines(const <String>['Go outside.', 'Put the phone down.', 'Stand under open sky for at least one minute.', 'Look up.', 'Face north first for the Imperishable Stars.', 'Scan the full sky.', 'Speak the line.', 'Note the sky in one line.', 'Open the ḥꜣw day card.', 'Read the decan name, quality, and Ma’at principle.', 'Reset intention.', 'Name one bearing for the coming ten days.'])}',
     'Day Card\n$dayCardLine',
     if (lensLine.isNotEmpty) 'Lens\n$lensLine',
   ].join('\n\n');
