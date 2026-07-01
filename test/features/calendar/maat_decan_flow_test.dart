@@ -337,7 +337,7 @@ void main() {
         maatDecanFlowDefinitionForKey(kTrueNameFlowKey)!,
         8,
       )!.spokenLine,
-      'Stand. Speak the accurate account, then speak the evidence. Then: I am pure, I am pure, I am pure, I am pure. Standing, four times.',
+      'I am pure. I am pure. I am pure. I am pure.',
     );
     expect(
       maatDecanFlowEventByNumber(
@@ -367,6 +367,85 @@ void main() {
       )!.spokenLine,
       'Write the closing mark and then speak: Completed correctly; the living text includes this mark.',
     );
+  });
+
+  test('True Name copy keeps posture and declaration sequence explicit', () {
+    final trueName = maatDecanFlowDefinitionForKey(kTrueNameFlowKey)!;
+    final event7 = maatDecanFlowEventByNumber(trueName, 7)!;
+    final event8 = maatDecanFlowEventByNumber(trueName, 8)!;
+
+    expect(event7.purpose, contains('imagination must be specific'));
+    expect(event7.steps, <String>[
+      'Choose one specific current situation where the false account operates, not a general pattern.',
+      'Imagine acting from the accurate account in specific detail.',
+      'Write what that looks like before you attempt it.',
+    ]);
+
+    expect(event8.spokenLine, 'I am pure. I am pure. I am pure. I am pure.');
+    expect(event8.steps, <String>[
+      'Stand before speaking. The declaration is not made while seated.',
+      'Speak the accurate account aloud, then speak the evidence.',
+      'Say the closing declaration.',
+      'Record what it felt like.',
+    ]);
+    expect(event8.requiresRealWorldAction, isTrue);
+    expect(
+      event8.extraCompletionStatusLabels,
+      containsPair('declared', 'Declared'),
+    );
+  });
+
+  test('True Name words fields do not contain posture wrappers', () {
+    final issues = <String>[];
+    final trueName = maatDecanFlowDefinitionForKey(kTrueNameFlowKey)!;
+
+    for (final event in trueName.events) {
+      for (final pattern in _trueNameWordsStageDirectionPatterns) {
+        if (pattern.hasMatch(event.spokenLine)) {
+          issues.add(
+            'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+          );
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('True Name steps keep source-note phrases out of actions', () {
+    final issues = <String>[];
+    final trueName = maatDecanFlowDefinitionForKey(kTrueNameFlowKey)!;
+
+    for (final event in trueName.events) {
+      for (final step in event.steps) {
+        if (_trueNameSourceNotePhrasePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('True Name optional steps do not duplicate required steps', () {
+    final issues = <String>[];
+    final trueName = maatDecanFlowDefinitionForKey(kTrueNameFlowKey)!;
+
+    for (final event in trueName.events) {
+      final requiredSteps = event.steps.toSet();
+      for (final step in event.steps) {
+        if (step.startsWith('Optional:')) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+      for (final optionalStep in event.optionalSteps) {
+        if (requiredSteps.contains(optionalStep)) {
+          issues.add('Event ${event.eventNumber}: $optionalStep');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
   });
 
   test('Het-Heru copy keeps optional and truth-check actions explicit', () {
@@ -1244,6 +1323,20 @@ final _khatWordsStageDirectionPatterns = <RegExp>[
   RegExp(r'\bbefore beginning\b', caseSensitive: false),
   RegExp(r'\bthen begin\b', caseSensitive: false),
 ];
+
+final _trueNameWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*stand\b', caseSensitive: false),
+  RegExp(r'\bstanding\b', caseSensitive: false),
+  RegExp(r'\bbefore speaking\b', caseSensitive: false),
+  RegExp(r'\bthen:\b', caseSensitive: false),
+  RegExp(r'\bthen speak\b', caseSensitive: false),
+  RegExp(r'\bwhile seated\b', caseSensitive: false),
+];
+
+final _trueNameSourceNotePhrasePattern = RegExp(
+  r'\b(Ren theology|Memphite Theology|Declaration of Innocence|42 Assessors|source note|posture was not ceremonial|heart conceives before)\b',
+  caseSensitive: false,
+);
 
 final _hetHeruWordsStageDirectionPatterns = <RegExp>[
   RegExp(r'^\s*speak only\b', caseSensitive: false),

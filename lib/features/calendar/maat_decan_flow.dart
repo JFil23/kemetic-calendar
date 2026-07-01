@@ -2589,11 +2589,11 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 8,
         durationMinutesMax: 10,
         purpose:
-            'The Memphite Theology places conception before declaration: the heart must know the form before the tongue can command it into existence. This sitting lets the heart conceive the accurate account in a specific current situation before the tongue is asked to declare it.',
+            'The Memphite Theology places conception before declaration: the heart must know the form before the tongue can command it into existence. This sitting lets the heart conceive the accurate account in a specific current situation before the tongue is asked to declare it. The imagination must be specific to do its work.',
         spokenLine:
             'The heart conceives; the tongue releases the word into form.',
         steps: <String>[
-          'Choose one specific current situation where the false account operates. Not in general — one situation. The imagination must be specific to do its work.',
+          'Choose one specific current situation where the false account operates, not a general pattern.',
           'Imagine acting from the accurate account in specific detail.',
           'Write what that looks like before you attempt it.',
         ],
@@ -2610,12 +2610,12 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMax: 8,
         purpose:
             'The Declaration of Innocence was spoken standing, before the divine court, aloud. Not written. Not thought. Spoken. This sitting follows the same form.',
-        spokenLine:
-            'Stand. Speak the accurate account, then speak the evidence. Then: I am pure, I am pure, I am pure, I am pure. Standing, four times.',
+        spokenLine: 'I am pure. I am pure. I am pure. I am pure.',
         steps: <String>[
           'Stand before speaking. The declaration is not made while seated.',
           'Speak the accurate account aloud, then speak the evidence.',
-          'Close with: I am pure, I am pure, I am pure, I am pure. Then record what it felt like.',
+          'Say the closing declaration.',
+          'Record what it felt like.',
         ],
         sourceNote:
             'The Declaration was spoken in a hall, before 42 Assessors, standing. The posture was not ceremonial — it was the form in which the declaration carried weight. This sitting follows it.',
