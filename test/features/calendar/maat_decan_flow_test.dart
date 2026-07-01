@@ -369,6 +369,103 @@ void main() {
     );
   });
 
+  test('Het-Heru copy keeps optional and truth-check actions explicit', () {
+    final hetHeru = maatDecanFlowDefinitionForKey(kHetHeruFlowKey)!;
+    final event1 = maatDecanFlowEventByNumber(hetHeru, 1)!;
+    final event6 = maatDecanFlowEventByNumber(hetHeru, 6)!;
+    final event9 = maatDecanFlowEventByNumber(hetHeru, 9)!;
+
+    expect(event1.steps, <String>[
+      'Read the core story: Ra sent the Eye as Sekhmet, she kept destroying after he called her back, and the gods flooded the field with red beer.',
+      'Name your Sekhmet: resentment, ambition, grief, perfectionism, anger, or another force with its own momentum.',
+      'Write: My Sekhmet is [specific thing]. It was sent out for [wound or purpose]. It is still going because [what sustains it].',
+    ]);
+    expect(event1.optionalSteps, <String>[
+      'Name the beautiful thing this force used to make before it went too far.',
+    ]);
+
+    expect(event6.steps, <String>[
+      'Return to the Sekhmet from Day 1. Has it become less self-perpetuating?',
+      'Write what actually happened, not what you hoped would happen.',
+      'If it is still active, name what more beer would look like.',
+      'If something shifted, name the first sign of Het-Heru.',
+    ]);
+
+    expect(
+      event9.spokenLine,
+      'Het-Heru, Mistress of Joy. The Eye that was sent out has returned, not defeated but transformed. The dance continues.',
+    );
+    expect(event9.steps, <String>[
+      'Return to Day 1 and write what changed in how that force is operating.',
+      'Name the beer you poured and the Het-Heru quality that emerged from the same source as the Sekhmet.',
+      'Speak only the lines that are true.',
+      'Say, if true: I named the Sekhmet.',
+      'Say, if true: I found what it sought.',
+      'Say, if true: I poured the beer.',
+      'Say, if true: I let music reach me.',
+      'Say, if true: I shared a feast.',
+      'Do one beautiful thing now: look, listen, smell, touch, or move with deliberate delight.',
+    ]);
+    expect(event9.requiresRealWorldAction, isTrue);
+    expect(
+      event9.extraCompletionStatusLabels,
+      containsPair('golden_one_present', 'Golden One present'),
+    );
+  });
+
+  test('Het-Heru words fields do not contain truth-check wrappers', () {
+    final issues = <String>[];
+    final hetHeru = maatDecanFlowDefinitionForKey(kHetHeruFlowKey)!;
+
+    for (final event in hetHeru.events) {
+      for (final pattern in _hetHeruWordsStageDirectionPatterns) {
+        if (pattern.hasMatch(event.spokenLine)) {
+          issues.add(
+            'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+          );
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('Het-Heru steps keep source-note phrases out of actions', () {
+    final issues = <String>[];
+    final hetHeru = maatDecanFlowDefinitionForKey(kHetHeruFlowKey)!;
+
+    for (final event in hetHeru.events) {
+      for (final step in event.steps) {
+        if (_hetHeruSourceNotePhrasePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('Het-Heru optional steps do not duplicate required steps', () {
+    final issues = <String>[];
+    final hetHeru = maatDecanFlowDefinitionForKey(kHetHeruFlowKey)!;
+
+    for (final event in hetHeru.events) {
+      final requiredSteps = event.steps.toSet();
+      for (final step in event.steps) {
+        if (step.startsWith('Optional:')) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+      for (final optionalStep in event.optionalSteps) {
+        if (requiredSteps.contains(optionalStep)) {
+          issues.add('Event ${event.eventNumber}: $optionalStep');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
   test('Wandering copy keeps closing instructions in steps', () {
     final wandering = maatDecanFlowDefinitionForKey(kWanderingFlowKey)!;
     final event1 = maatDecanFlowEventByNumber(wandering, 1)!;
@@ -1058,6 +1155,18 @@ final _khatWordsStageDirectionPatterns = <RegExp>[
   RegExp(r'\bbefore beginning\b', caseSensitive: false),
   RegExp(r'\bthen begin\b', caseSensitive: false),
 ];
+
+final _hetHeruWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*speak only\b', caseSensitive: false),
+  RegExp(r'\btrue lines\b', caseSensitive: false),
+  RegExp(r'\bif true\b', caseSensitive: false),
+  RegExp(r'\bclosing instructions\b', caseSensitive: false),
+];
+
+final _hetHeruSourceNotePhrasePattern = RegExp(
+  r'\b(Book of the Heavenly Cow|Dendera|source note|same Eye in different modes|not the defeat|token gesture)\b',
+  caseSensitive: false,
+);
 
 final _wanderingWordsStageDirectionPatterns = <RegExp>[
   RegExp(r'^\s*before\b', caseSensitive: false),

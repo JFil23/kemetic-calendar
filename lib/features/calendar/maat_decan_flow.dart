@@ -1933,7 +1933,9 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'Read the core story: Ra sent the Eye as Sekhmet, she kept destroying after he called her back, and the gods flooded the field with red beer.',
           'Name your Sekhmet: resentment, ambition, grief, perfectionism, anger, or another force with its own momentum.',
           'Write: My Sekhmet is [specific thing]. It was sent out for [wound or purpose]. It is still going because [what sustains it].',
-          'Optional: name the beautiful thing this force used to make before it went too far.',
+        ],
+        optionalSteps: <String>[
+          'Name the beautiful thing this force used to make before it went too far.',
         ],
         sourceNote:
             'In the Book of the Heavenly Cow, Sekhmet\'s origin is Ra\'s wound and his legitimate anger. The force was right at the beginning. The problem arrived when it could not be recalled. This sitting names the force and its original purpose before deciding what the beer should be.',
@@ -2031,7 +2033,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Return to the Sekhmet from Day 1. Has it become less self-perpetuating?',
           'Write what actually happened, not what you hoped would happen.',
-          'If it is still active, name what more beer would look like. If something shifted, name the first sign of Het-Heru.',
+          'If it is still active, name what more beer would look like.',
+          'If something shifted, name the first sign of Het-Heru.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -2089,7 +2092,12 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Return to Day 1 and write what changed in how that force is operating.',
           'Name the beer you poured and the Het-Heru quality that emerged from the same source as the Sekhmet.',
-          'Speak only the true lines: I named the Sekhmet; I found what it sought; I poured the beer; I let music reach me; I shared a feast.',
+          'Speak only the lines that are true.',
+          'Say, if true: I named the Sekhmet.',
+          'Say, if true: I found what it sought.',
+          'Say, if true: I poured the beer.',
+          'Say, if true: I let music reach me.',
+          'Say, if true: I shared a feast.',
           'Do one beautiful thing now: look, listen, smell, touch, or move with deliberate delight.',
         ],
         requiresRealWorldAction: true,
