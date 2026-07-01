@@ -120,6 +120,122 @@ void main() {
     });
   });
 
+  test('Living Text copy separates optional actions and save/share sequence', () {
+    final livingText = maatDecanFlowDefinitionForKey(kLivingTextFlowKey)!;
+    final event2 = maatDecanFlowEventByNumber(livingText, 2)!;
+    final event3 = maatDecanFlowEventByNumber(livingText, 3)!;
+    final event4 = maatDecanFlowEventByNumber(livingText, 4)!;
+    final event5 = maatDecanFlowEventByNumber(livingText, 5)!;
+    final event6 = maatDecanFlowEventByNumber(livingText, 6)!;
+    final event7 = maatDecanFlowEventByNumber(livingText, 7)!;
+    final event8 = maatDecanFlowEventByNumber(livingText, 8)!;
+    final event9 = maatDecanFlowEventByNumber(livingText, 9)!;
+
+    expect(event2.steps, <String>[
+      'Choose the Library entry you keep circling or dismissing.',
+      'Read it fully.',
+      'Write what the avoidance was about.',
+    ]);
+    expect(event2.optionalSteps, <String>[
+      'Add one question the avoidance raises.',
+    ]);
+
+    expect(event3.purpose, contains('unanswered question'));
+    expect(event3.steps, <String>[
+      'Choose an important entry you do not fully understand.',
+      'Open the node and tap Your Insights.',
+      'Write the exact unclear passage or concept as a question.',
+      'Save it to the node so the gap remains visible in your own record.',
+    ]);
+
+    expect(event4.steps.last, 'Save it to the node.');
+    expect(event4.optionalSteps, <String>[
+      'If it belongs to others, use Post to share it on your profile.',
+    ]);
+
+    expect(event5.purpose, contains('tappable in the living text'));
+    expect(event5.steps, <String>[
+      'Find two Library entries that connect in a way the app does not already show.',
+      'Open Your Insights on one of the two nodes.',
+      'Write and save the connection in one or two sentences.',
+      'Use Link Insight to highlight the phrase that points toward the second node and select the target node.',
+    ]);
+
+    expect(event6.steps, <String>[
+      'Choose an entry that feels incomplete.',
+      'Open the node and tap Your Insights.',
+      'Name the missing question or modern situation the entry does not yet address.',
+      'Save it to the node.',
+    ]);
+    expect(event6.optionalSteps, <String>[
+      'Share it if it should be available to the next person who finds the same gap.',
+    ]);
+
+    expect(event7.purpose, contains('worth leaving in the record'));
+    expect(event7.steps, <String>[
+      'Open the node you chose on Day 1.',
+      'Return to Your Insights.',
+      'Add or revise your entry.',
+    ]);
+
+    expect(event8.optionalSteps, <String>['Share the useful part.']);
+    expect(
+      event9.spokenLine,
+      'Completed correctly; the living text includes this mark.',
+    );
+    expect(event9.steps, <String>[
+      'Write your closing mark: what you read, what you added, and how the Library is richer because of it.',
+      'Speak the closing line.',
+      'Name reflections, questions, and connections without calling them comments.',
+    ]);
+    expect(event9.optionalSteps, <String>['Share the final line if desired.']);
+    expect(event9.sharePromptOnComplete, isTrue);
+  });
+
+  test('Living Text words fields do not contain stage-direction wrappers', () {
+    final issues = <String>[];
+    final livingText = maatDecanFlowDefinitionForKey(kLivingTextFlowKey)!;
+
+    for (final event in livingText.events) {
+      for (final pattern in _livingTextWordsStageDirectionPatterns) {
+        if (pattern.hasMatch(event.spokenLine)) {
+          issues.add(
+            'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+          );
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test(
+    'Living Text required steps keep rationale and optional sharing out',
+    () {
+      final issues = <String>[];
+      final livingText = maatDecanFlowDefinitionForKey(kLivingTextFlowKey)!;
+
+      for (final event in livingText.events) {
+        final requiredSteps = event.steps.toSet();
+        for (final step in event.steps) {
+          if (_livingTextRequiredStepRationalePattern.hasMatch(step)) {
+            issues.add('Event ${event.eventNumber}: $step');
+          }
+          if (_livingTextRequiredStepOptionalPattern.hasMatch(step)) {
+            issues.add('Event ${event.eventNumber}: $step');
+          }
+        }
+        for (final optionalStep in event.optionalSteps) {
+          if (requiredSteps.contains(optionalStep)) {
+            issues.add('Event ${event.eventNumber}: $optionalStep');
+          }
+        }
+      }
+
+      expect(issues, isEmpty);
+    },
+  );
+
   test('Ma’at decan closing events expose their special completion labels', () {
     expect(
       maatDecanFlowEventByNumber(
@@ -365,7 +481,7 @@ void main() {
         maatDecanFlowDefinitionForKey(kLivingTextFlowKey)!,
         9,
       )!.spokenLine,
-      'Write the closing mark and then speak: Completed correctly; the living text includes this mark.',
+      'Completed correctly; the living text includes this mark.',
     );
   });
 
@@ -1323,6 +1439,23 @@ final _khatWordsStageDirectionPatterns = <RegExp>[
   RegExp(r'\bbefore beginning\b', caseSensitive: false),
   RegExp(r'\bthen begin\b', caseSensitive: false),
 ];
+
+final _livingTextWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*write\b', caseSensitive: false),
+  RegExp(r'\bthen speak\b', caseSensitive: false),
+  RegExp(r'\bbefore .*speak\b', caseSensitive: false),
+  RegExp(r'\bspeak:\b', caseSensitive: false),
+];
+
+final _livingTextRequiredStepRationalePattern = RegExp(
+  r'\b(as useful to the record|This makes|Shared,|decan doing its work|worth leaving in the record|source note)\b',
+  caseSensitive: false,
+);
+
+final _livingTextRequiredStepOptionalPattern = RegExp(
+  r'\b(optionally|if desired|share the useful part|share the final line|use Post to share|Shared,)\b',
+  caseSensitive: false,
+);
 
 final _trueNameWordsStageDirectionPatterns = <RegExp>[
   RegExp(r'^\s*stand\b', caseSensitive: false),

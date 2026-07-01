@@ -2690,8 +2690,9 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Choose the Library entry you keep circling or dismissing.',
           'Read it fully.',
-          'Write what the avoidance was about. Optionally add a question.',
+          'Write what the avoidance was about.',
         ],
+        optionalSteps: <String>['Add one question the avoidance raises.'],
       ),
       MaatDecanFlowEvent(
         eventNumber: 3,
@@ -2701,12 +2702,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 8,
         durationMinutesMax: 8,
-        purpose: 'Record confusion in Your Insights.',
+        purpose:
+            'Confusion belongs in Your Insights. The unanswered question is as useful to the living record as what you can already answer.',
         spokenLine: 'No one is born wise.',
         steps: <String>[
           'Choose an important entry you do not fully understand.',
-          'Name the exact passage or concept that is unclear.',
-          'Open the node and tap Your Insights. Write the question exactly as it sits — what you cannot yet answer is as useful to the record as what you can.',
+          'Open the node and tap Your Insights.',
+          'Write the exact unclear passage or concept as a question.',
           'Save it to the node so the gap remains visible in your own record.',
         ],
         requiresRealWorldAction: true,
@@ -2725,7 +2727,10 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Return to the node you chose on Day 1 and tap Your Insights.',
           'Add a reflection from your lived experience — what the entry opened in you that the entry itself could not say.',
-          'Save it to the node. If it belongs to others, use Post to share it on your profile.',
+          'Save it to the node.',
+        ],
+        optionalSteps: <String>[
+          'If it belongs to others, use Post to share it on your profile.',
         ],
         sourceNote:
             'Scribal annotations in Kemetic manuscripts were often incorporated into subsequent copies — the reader\'s gloss became part of the text. What your experience adds to the entry belongs in the record alongside the original.',
@@ -2742,13 +2747,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 5,
         durationMinutesMax: 8,
-        purpose: 'Add a short connection between two Library entries.',
+        purpose:
+            'A short connection between two Library entries makes the relationship tappable in the living text.',
         spokenLine: 'A living text shows relation.',
         steps: <String>[
           'Find two Library entries that connect in a way the app does not already show.',
-          'Open one of the two nodes. In Your Insights, write the connection in one or two sentences.',
-          'After saving, use Link Insight to highlight the phrase that points toward the second node, then select the target node.',
-          'This makes your connection tappable for anyone who reads your insight.',
+          'Open Your Insights on one of the two nodes.',
+          'Write and save the connection in one or two sentences.',
+          'Use Link Insight to highlight the phrase that points toward the second node and select the target node.',
         ],
         requiresRealWorldAction: true,
       ),
@@ -2765,8 +2771,12 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'The living text receives what the older text could not know.',
         steps: <String>[
           'Choose an entry that feels incomplete.',
-          'Open the node and tap Your Insights. Name the missing question or modern situation the entry does not yet address.',
-          'Save it to the node. Shared, it becomes available to the next person who finds the same gap.',
+          'Open the node and tap Your Insights.',
+          'Name the missing question or modern situation the entry does not yet address.',
+          'Save it to the node.',
+        ],
+        optionalSteps: <String>[
+          'Share it if it should be available to the next person who finds the same gap.',
         ],
         requiresRealWorldAction: true,
       ),
@@ -2778,12 +2788,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 8,
         durationMinutesMax: 8,
-        purpose: 'Re-read the first entry after the decan has turned.',
+        purpose:
+            'The first entry reads differently after the decan has turned. What you see now that you did not see three decans ago is the decan doing its work, and that change is worth leaving in the record.',
         spokenLine: 'The reader returns changed.',
         steps: <String>[
-          'Open the node you chose on Day 1. Return to Your Insights and add or revise your entry.',
-          'What you see now that you did not see three decans ago is the decan doing its work.',
-          'That change is worth leaving in the record.',
+          'Open the node you chose on Day 1.',
+          'Return to Your Insights.',
+          'Add or revise your entry.',
         ],
         requiresRealWorldAction: true,
         libraryCta: kMaatLibraryCtaAddInsight,
@@ -2803,8 +2814,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Write 150-250 words on how one Library principle operated in a real situation.',
           'Remove identifying details if needed.',
-          'Optionally share the useful part.',
         ],
+        optionalSteps: <String>['Share the useful part.'],
         sharePromptOnComplete: true,
       ),
       MaatDecanFlowEvent(
@@ -2817,13 +2828,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMax: 10,
         purpose:
             'The colophon closed with the scribe\'s mark: who was here, what was completed. Not a flourish — a record. This sitting produces the same mark on the living text.',
-        spokenLine:
-            'Write the closing mark and then speak: Completed correctly; the living text includes this mark.',
+        spokenLine: 'Completed correctly; the living text includes this mark.',
         steps: <String>[
           'Write your closing mark: what you read, what you added, and how the Library is richer because of it.',
+          'Speak the closing line.',
           'Name reflections, questions, and connections without calling them comments.',
-          'Share the final line if desired.',
         ],
+        optionalSteps: <String>['Share the final line if desired.'],
         sharePromptOnComplete: true,
         sourceNote:
             'The Kemetic colophon was a formal record, not a signature of pride. The scribe\'s name claimed engagement, not authorship. Your colophon does the same: not "I wrote this" but "I was here, I engaged with this, what I added belongs to it now."',
