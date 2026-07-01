@@ -631,11 +631,12 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 30,
         durationMinutesMax: 60,
         purpose:
-            'Removal is the active half of ordering. The object in the wrong space does the same damage to the room\'s function as the boundary stone in the wrong field.',
+            'Removal is the active half of ordering. The object in the wrong space does the same damage to the room\'s function as the boundary stone in the wrong field. A hallway pile or same-room corner keeps the false relation in place.',
         spokenLine: 'What does not belong here is set in its true place.',
         steps: <String>[
-          'Physically remove every item marked "does not belong here." Each item goes where it truly belongs — not to the hallway, not to a corner of the same room. If it belongs nowhere you inhabit, release it.',
-          'Put each item where it truly belongs, discard it, or release it.',
+          'Physically remove every item marked "does not belong here."',
+          'Put each item where it truly belongs, not in the hallway or a corner of the same room.',
+          'If it belongs nowhere you inhabit, discard it or release it.',
           'Record what remains.',
         ],
         requiresRealWorldAction: true,
@@ -691,7 +692,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Open air into the space.',
           'Wipe surfaces with water.',
-          'Add one intentional scent and record the state of the space after purification.',
+          'Add one intentional scent.',
+          'Record the state of the space after purification.',
         ],
         requiresRealWorldAction: true,
       ),
@@ -708,7 +710,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Use the space for its main purpose.',
           'Do not adjust while using it.',
-          'Afterward, write what was easier, what remains misaligned, and what the space communicated.',
+          'Afterward, write what was easier.',
+          'Write what remains misaligned and what the space communicated.',
         ],
         requiresRealWorldAction: true,
       ),
@@ -721,11 +724,12 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 10,
         purpose:
-            'The ordering established in Decan 2 returns to disorder without maintenance. The five-minute daily practice is what makes the ordering permanent rather than a one-time reset.',
+            'The ordering established in the second ten-day section returns to disorder without maintenance. The five-minute daily practice is what makes the ordering permanent rather than a one-time reset. The instruction must be specific enough to follow without thinking about it.',
         spokenLine: 'What is arranged must be returned to arrangement.',
         steps: <String>[
-          'Write the maintenance practice as a specific instruction: When I [enter/leave] this space each [morning/evening], I will [specific acts]. Specific enough to follow on Day 31 without thinking about it.',
-          'It must return objects, clear surfaces, and include one sensory act of purification.',
+          'Write the maintenance practice as a specific instruction: When I [enter/leave] this space each [morning/evening], I will [specific acts].',
+          'Include how the practice returns objects.',
+          'Include how the practice clears surfaces and performs one sensory act of purification.',
           'Share only the one-sentence statement of what the space now communicates.',
         ],
         sourceNote:

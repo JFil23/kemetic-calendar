@@ -369,6 +369,124 @@ void main() {
     );
   });
 
+  test('First Arrangement copy keeps removal guardrails and actions explicit', () {
+    final arrangement = maatDecanFlowDefinitionForKey(
+      kFirstArrangementFlowKey,
+    )!;
+    final event4 = maatDecanFlowEventByNumber(arrangement, 4)!;
+    final event7 = maatDecanFlowEventByNumber(arrangement, 7)!;
+    final event8 = maatDecanFlowEventByNumber(arrangement, 8)!;
+    final event9 = maatDecanFlowEventByNumber(arrangement, 9)!;
+
+    expect(event4.purpose, contains('hallway pile'));
+    expect(event4.steps, <String>[
+      'Physically remove every item marked "does not belong here."',
+      'Put each item where it truly belongs, not in the hallway or a corner of the same room.',
+      'If it belongs nowhere you inhabit, discard it or release it.',
+      'Record what remains.',
+    ]);
+    expect(event4.requiresRealWorldAction, isTrue);
+    expect(
+      event4.extraCompletionStatusLabels,
+      containsPair('cleared', 'Cleared'),
+    );
+
+    expect(event7.steps, <String>[
+      'Open air into the space.',
+      'Wipe surfaces with water.',
+      'Add one intentional scent.',
+      'Record the state of the space after purification.',
+    ]);
+
+    expect(event8.steps, <String>[
+      'Use the space for its main purpose.',
+      'Do not adjust while using it.',
+      'Afterward, write what was easier.',
+      'Write what remains misaligned and what the space communicated.',
+    ]);
+
+    expect(
+      event9.purpose,
+      contains('second ten-day section returns to disorder'),
+    );
+    expect(event9.steps, <String>[
+      'Write the maintenance practice as a specific instruction: When I [enter/leave] this space each [morning/evening], I will [specific acts].',
+      'Include how the practice returns objects.',
+      'Include how the practice clears surfaces and performs one sensory act of purification.',
+      'Share only the one-sentence statement of what the space now communicates.',
+    ]);
+    expect(
+      event9.extraCompletionStatusLabels,
+      containsPair('maintenance_established', 'Maintenance established'),
+    );
+  });
+
+  test(
+    'First Arrangement words fields do not contain stage-direction wrappers',
+    () {
+      final issues = <String>[];
+      final arrangement = maatDecanFlowDefinitionForKey(
+        kFirstArrangementFlowKey,
+      )!;
+
+      for (final event in arrangement.events) {
+        for (final pattern in _firstArrangementWordsStageDirectionPatterns) {
+          if (pattern.hasMatch(event.spokenLine)) {
+            issues.add(
+              'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+            );
+          }
+        }
+      }
+
+      expect(issues, isEmpty);
+    },
+  );
+
+  test(
+    'First Arrangement steps keep rationale out without losing guardrails',
+    () {
+      final issues = <String>[];
+      final arrangement = maatDecanFlowDefinitionForKey(
+        kFirstArrangementFlowKey,
+      )!;
+
+      for (final event in arrangement.events) {
+        for (final step in event.steps) {
+          if (_firstArrangementRationalePattern.hasMatch(step)) {
+            issues.add('Event ${event.eventNumber}: $step');
+          }
+        }
+      }
+
+      expect(issues, isEmpty);
+      expect(
+        maatDecanFlowEventByNumber(arrangement, 4)!.steps,
+        contains(
+          'Put each item where it truly belongs, not in the hallway or a corner of the same room.',
+        ),
+      );
+    },
+  );
+
+  test('First Arrangement optional steps do not duplicate required steps', () {
+    final issues = <String>[];
+    final arrangement = maatDecanFlowDefinitionForKey(
+      kFirstArrangementFlowKey,
+    )!;
+
+    for (final event in arrangement.events) {
+      final requiredSteps = event.steps.toSet();
+      for (final optionalStep in event.optionalSteps) {
+        if (requiredSteps.contains(optionalStep)) {
+          issues.add('Event ${event.eventNumber}: $optionalStep');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
   test('Khat copy keeps words speakable and movement directions in steps', () {
     final khat = maatDecanFlowDefinitionForKey(kKhatFlowKey)!;
     final event1 = maatDecanFlowEventByNumber(khat, 1)!;
@@ -865,6 +983,18 @@ final _khatWordsStageDirectionPatterns = <RegExp>[
   RegExp(r'\bbefore beginning\b', caseSensitive: false),
   RegExp(r'\bthen begin\b', caseSensitive: false),
 ];
+
+final _firstArrangementWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*physically\b', caseSensitive: false),
+  RegExp(r'^\s*write\b', caseSensitive: false),
+  RegExp(r'^\s*stand\b', caseSensitive: false),
+  RegExp(r'\bdo not\b', caseSensitive: false),
+];
+
+final _firstArrangementRationalePattern = RegExp(
+  r'\b(boundary stone|Zep Tepi|Temple|source|because|does the same damage|one-time reset|without thinking about it)\b',
+  caseSensitive: false,
+);
 
 final _khatSourceNotePhrasePattern = RegExp(
   r'\b(Pyramid Texts|source|because)\b',
