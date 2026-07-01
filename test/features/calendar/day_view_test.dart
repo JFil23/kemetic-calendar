@@ -671,7 +671,7 @@ void main() {
         expect(find.text('Purpose'), findsNothing);
 
         final bodyFinder = find.textContaining(
-          'These lines are not aspirational',
+          'Speak only the truth-check lines you can speak honestly.',
         );
         expect(bodyFinder, findsOneWidget);
         final bodyText = tester.widget<Text>(bodyFinder);

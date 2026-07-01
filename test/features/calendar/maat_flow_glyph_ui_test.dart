@@ -16,13 +16,14 @@ void main() {
       'final List<_MaatFlowTemplate> _kMaatFlowTemplates = [',
       'CALENDAR PAGE (flows + notes)',
     );
-    const templateCount = 32;
+    const templateCount = 33;
 
     expect(
       _countOccurrences(templateList, '_MaatFlowTemplate('),
       templateCount,
     );
     expect(templateList, contains('key: kOracleFlowKey'));
+    expect(templateList, contains('key: kReadingHouseFlowKey'));
     expect(_countOccurrences(templateList, 'glyph:'), templateCount);
     expect(_countOccurrences(templateList, 'glyphMeaning:'), templateCount);
     expect(_countOccurrences(templateList, 'glyphSourceWord:'), templateCount);
@@ -275,7 +276,7 @@ void main() {
       ),
       reason: 'Footer privacy copy should be low-emphasis.',
     );
-    expect(_countOccurrences(source, 'const _MaatFlowPrivacyFooter(),'), 10);
+    expect(_countOccurrences(source, 'const _MaatFlowPrivacyFooter(),'), 11);
     _expectFooterAfter(source, '...kTheTendingEvents.map(');
     _expectFooterAfter(source, '...kKeptWordEvents.map(');
     _expectFooterAfter(source, '...kWagEvents.map(');
@@ -288,6 +289,7 @@ void main() {
       source,
       '(occurrence) => _buildMoonReturnOccurrenceTile(context, occurrence)',
     );
+    _expectFooterAfter(source, '_buildReadingHouseSittingTile(');
   });
 
   test('all Ma’at Flow detail branches use the shared detail scaffold', () {

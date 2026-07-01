@@ -4,7 +4,7 @@ import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
 
 void main() {
   test('default initial prompt resolver exposes the prompt-enabled flows', () {
-    expect(kInitialMaatFlowPromptSpecs, hasLength(31));
+    expect(kInitialMaatFlowPromptSpecs, hasLength(32));
 
     final expectedLabelsByFlow = <String, List<String>>{
       'the-moon-return': <String>['What do you set down?'],
@@ -14,6 +14,12 @@ void main() {
       'the-offering-table': <String>[
         'What was fed?',
         'What did you provide today?',
+      ],
+      'the-reading-house': <String>[
+        'Book',
+        'Edition note',
+        'House question',
+        'Mode',
       ],
       'the-decan-watch': <String>[
         'Visibility',
