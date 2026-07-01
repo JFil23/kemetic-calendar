@@ -546,6 +546,127 @@ void main() {
     expect(issues, isEmpty);
   });
 
+  test('Boundary Stone copy keeps purpose explanatory and marker actions explicit', () {
+    final boundaryStone = maatDecanFlowDefinitionForKey(kBoundaryStoneFlowKey)!;
+    final event1 = maatDecanFlowEventByNumber(boundaryStone, 1)!;
+    final event2 = maatDecanFlowEventByNumber(boundaryStone, 2)!;
+    final event3 = maatDecanFlowEventByNumber(boundaryStone, 3)!;
+    final event6 = maatDecanFlowEventByNumber(boundaryStone, 6)!;
+    final event7 = maatDecanFlowEventByNumber(boundaryStone, 7)!;
+    final event8 = maatDecanFlowEventByNumber(boundaryStone, 8)!;
+
+    expect(event1.purpose, contains('The four fields are mapped'));
+
+    expect(
+      event2.purpose,
+      'Enough is the measure in each domain - not the maximum that can be taken.',
+    );
+    expect(event2.steps, <String>[
+      'Return to resources, labor, credit, and force.',
+      'For each domain, write what enough looks like.',
+      'Mark any domain where the measure is genuinely unclear.',
+      'Name where you may be taking from not knowing the line rather than from actual entitlement.',
+    ]);
+
+    expect(
+      event3.purpose,
+      'The first map points to one domain for honest survey in the second ten-day section.',
+    );
+    expect(event3.steps, <String>[
+      'Look at the map.',
+      'Name which field is larger, smaller, or more contested than you thought.',
+      'Name one domain where you suspect the stone has moved.',
+      'Write: In the second ten-day section, I will look honestly at [domain].',
+    ]);
+
+    expect(
+      event6.purpose,
+      'The survey findings name what was taken beyond measure and what restoration would require.',
+    );
+    expect(event6.steps, <String>[
+      'For each moved stone, name what was taken beyond the measure and by how much.',
+      'For each, name what restoration would look like in exact words.',
+      'Carry these restorations into the third ten-day section as commitments.',
+    ]);
+
+    expect(
+      event7.purpose,
+      'Restoration begins with the moved stone that most strained relationship or trust.',
+    );
+    expect(event7.steps, <String>[
+      'Choose the moved stone that caused the most relational damage.',
+      'Write: To restore [domain], I will [specific act] by [date].',
+      'Name the actual proportionate measure.',
+      'Write where the stone belongs.',
+    ]);
+    expect(event7.requiresRealWorldAction, isTrue);
+
+    expect(
+      event8.purpose,
+      'The first restoration check names whether the Day 21 act happened and locates one simpler restoration before the closing sitting.',
+    );
+    expect(event8.steps, <String>[
+      'If the restoration happened, write what changed.',
+      'If not, name exactly what is between you and the restoration.',
+      'Choose a second, simpler stone that can be restored before the closing sitting.',
+    ]);
+    expect(event8.requiresRealWorldAction, isTrue);
+
+    final issues = <String>[];
+    for (final event in boundaryStone.events) {
+      for (final pattern in _boundaryStonePurposeActionStartPatterns) {
+        if (pattern.hasMatch(event.purpose)) {
+          issues.add('Event ${event.eventNumber}: ${event.purpose}');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test(
+    'Boundary Stone words fields do not contain stage-direction wrappers',
+    () {
+      final issues = <String>[];
+      final boundaryStone = maatDecanFlowDefinitionForKey(
+        kBoundaryStoneFlowKey,
+      )!;
+
+      for (final event in boundaryStone.events) {
+        for (final pattern in _boundaryStoneWordsStageDirectionPatterns) {
+          if (pattern.hasMatch(event.spokenLine)) {
+            issues.add(
+              'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+            );
+          }
+        }
+      }
+
+      expect(issues, isEmpty);
+    },
+  );
+
+  test('Boundary Stone steps keep rationale out without losing guardrails', () {
+    final issues = <String>[];
+    final boundaryStone = maatDecanFlowDefinitionForKey(kBoundaryStoneFlowKey)!;
+
+    for (final event in boundaryStone.events) {
+      final requiredSteps = event.steps.toSet();
+      for (final step in event.steps) {
+        if (_boundaryStoneRequiredStepRationalePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+      for (final optionalStep in event.optionalSteps) {
+        if (requiredSteps.contains(optionalStep)) {
+          issues.add('Event ${event.eventNumber}: $optionalStep');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
   test('Ma’at decan closing events expose their special completion labels', () {
     expect(
       maatDecanFlowEventByNumber(
@@ -1996,6 +2117,28 @@ final _houseOfLifeRequiredStepRationalePattern = RegExp(
 
 final _houseOfLifeRequiredStepOptionalSharingPattern = RegExp(
   r'\b(optionally|if desired|share|post|public)\b',
+  caseSensitive: false,
+);
+
+final _boundaryStonePurposeActionStartPatterns = <RegExp>[
+  RegExp(r'^\s*map\b', caseSensitive: false),
+  RegExp(r'^\s*name\b', caseSensitive: false),
+  RegExp(r'^\s*read\b', caseSensitive: false),
+  RegExp(r'^\s*record\b', caseSensitive: false),
+  RegExp(r'^\s*choose\b', caseSensitive: false),
+  RegExp(r'^\s*write\b', caseSensitive: false),
+  RegExp(r'^\s*carry\b', caseSensitive: false),
+];
+
+final _boundaryStoneWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*(before|after|then)\b', caseSensitive: false),
+  RegExp(r'\bspeak:\b', caseSensitive: false),
+  RegExp(r'\bthen speak\b', caseSensitive: false),
+  RegExp(r'\bbefore .*speak\b', caseSensitive: false),
+];
+
+final _boundaryStoneRequiredStepRationalePattern = RegExp(
+  r'\b(After the Nile flood|boundary-stone surveyors|Amenemope|Ptahhotep|source note|not a metaphor|beginning of restored trust|not loss|because the water)\b',
   caseSensitive: false,
 );
 

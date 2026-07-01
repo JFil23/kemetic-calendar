@@ -1149,7 +1149,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'After the Nile flood, the boundaries were resurveyed because the water had moved them. The stone was replaced not according to memory but according to the original measurement. Map the four fields from the same starting question: what is actually mine?',
+            'After the Nile flood, the boundaries were resurveyed because the water had moved them. The stone was replaced not according to memory but according to the original measurement. The four fields are mapped from the same starting question: what is actually mine?',
         spokenLine:
             'Do not move the markers on the boundaries of the fields, nor alter the measuring line.',
         steps: <String>[
@@ -1169,11 +1169,12 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Name what enough means in each domain - not the maximum you can take.',
+            'Enough is the measure in each domain - not the maximum that can be taken.',
         spokenLine:
             'Do not be covetous for a single cubit. The measure is exact.',
         steps: <String>[
-          'Return to resources, labor, credit, and force. For each, write what enough looks like.',
+          'Return to resources, labor, credit, and force.',
+          'For each domain, write what enough looks like.',
           'Mark any domain where the measure is genuinely unclear.',
           'Name where you may be taking from not knowing the line rather than from actual entitlement.',
         ],
@@ -1187,13 +1188,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Read the map and choose one domain for honest survey in Decan 2.',
+            'The first map points to one domain for honest survey in the second ten-day section.',
         spokenLine:
             'The boundary of the fields is set. What is mine is named. What is not mine is also named.',
         steps: <String>[
-          'Look at the map. What field is larger, smaller, or more contested than you thought?',
+          'Look at the map.',
+          'Name which field is larger, smaller, or more contested than you thought.',
           'Name one domain where you suspect the stone has moved.',
-          'Write: In Decan 2, I will look honestly at [domain].',
+          'Write: In the second ten-day section, I will look honestly at [domain].',
         ],
       ),
       MaatDecanFlowEvent(
@@ -1245,13 +1247,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Record what was taken beyond measure and what restoration would require.',
+            'The survey findings name what was taken beyond measure and what restoration would require.',
         spokenLine:
             'I have not taken more than my share. I have not used force beyond necessity.',
         steps: <String>[
           'For each moved stone, name what was taken beyond the measure and by how much.',
           'For each, name what restoration would look like in exact words.',
-          'Carry these restorations into Decan 3 as commitments.',
+          'Carry these restorations into the third ten-day section as commitments.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -1263,13 +1265,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Choose the moved stone that most strained relationship or trust and begin placing it back.',
+            'Restoration begins with the moved stone that most strained relationship or trust.',
         spokenLine:
             'Guard yourself against the blemish of greediness. He who forsakes his relatives is truly poor.',
         steps: <String>[
           'Choose the moved stone that caused the most relational damage.',
           'Write: To restore [domain], I will [specific act] by [date].',
-          'Name the actual proportionate measure. This is where the stone belongs.',
+          'Name the actual proportionate measure.',
+          'Write where the stone belongs.',
         ],
         requiresRealWorldAction: true,
         sourceNote:
@@ -1284,13 +1287,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 3,
         durationMinutesMax: 5,
         purpose:
-            'Record whether the Day 21 restoration happened and choose one simpler restoration before the close.',
+            'The first restoration check names whether the Day 21 act happened and locates one simpler restoration before the closing sitting.',
         spokenLine:
             'Do not be selfish in the division. Greater is the claim of the good-natured person than the assertive.',
         steps: <String>[
           'If the restoration happened, write what changed.',
           'If not, name exactly what is between you and the restoration.',
-          'Choose a second, simpler stone that can be restored before Day 29.',
+          'Choose a second, simpler stone that can be restored before the closing sitting.',
         ],
         requiresRealWorldAction: true,
       ),
