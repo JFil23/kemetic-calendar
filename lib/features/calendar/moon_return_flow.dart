@@ -309,9 +309,9 @@ String moonReturnDetailText(
 String _moonReturnPurpose(MoonReturnEventKind kind) {
   switch (kind) {
     case MoonReturnEventKind.emptyEye:
-      return 'Stand under the empty sky at the new moon and set down one thing from the last cycle.';
+      return 'The new moon opens an empty-sky threshold: one thing from the last cycle can be set down without needing the moon to be visible.';
     case MoonReturnEventKind.wholeEye:
-      return 'Stand under the full moon sky and name one thing that filled in this cycle.';
+      return 'The full moon marks the Eye restored to wholeness; what has filled in this cycle is named under its returning light.';
   }
 }
 
@@ -331,17 +331,20 @@ List<String> _moonReturnSteps(
   switch (kind) {
     case MoonReturnEventKind.emptyEye:
       return <String>[
-        'Step outside at dusk. You are not looking for the moon; you are standing with the empty sky.',
+        'Step outside at dusk.',
+        'Stand with the empty sky.',
         'Name one thing from the last lunar cycle that you are setting down.',
         if (variant == MoonReturnCopyVariant.wepRonpetNew)
           'Name the year-opening threshold plainly: what should not cross into the opened year?'
         else if (variant == MoonReturnCopyVariant.solarEclipseNew)
           'If this is an eclipse window, name the rare darkness as a marked threshold.',
-        'Speak the line, then return inside.',
+        'Speak the line.',
+        'Return inside.',
       ].where((line) => line.trim().isNotEmpty).toList();
     case MoonReturnEventKind.wholeEye:
       return <String>[
-        'Go outside at moonrise. If clouds block the moon, face its direction and stand under the sky anyway.',
+        'Go outside at moonrise.',
+        'If clouds block the moon, face its direction and stand under the sky anyway.',
         'Stand for one minute in the full moon sky.',
         if (variant == MoonReturnCopyVariant.blueMoonFull)
           'Notice that the Eye fills twice this Gregorian month; receive what filled again.'
@@ -350,7 +353,8 @@ List<String> _moonReturnSteps(
         else if (variant == MoonReturnCopyVariant.supermoonFull)
           'Notice the nearest full Eye of the year and receive accordingly.',
         'Name one thing that has filled since the new moon: In this cycle, ___ filled.',
-        'Speak the line, then return inside.',
+        'Speak the line.',
+        'Return inside.',
       ].where((line) => line.trim().isNotEmpty).toList();
   }
 }
@@ -358,9 +362,9 @@ List<String> _moonReturnSteps(
 String _moonReturnOutdoorLine(MoonReturnEventKind kind) {
   switch (kind) {
     case MoonReturnEventKind.emptyEye:
-      return 'The new moon event requires going outside at dusk, but it does not require seeing the moon.';
+      return 'The new moon event requires going outside at dusk, but it does not require seeing the moon. If safety, access, or weather prevents going outside, stand at a window or threshold and keep the empty-sky witness.';
     case MoonReturnEventKind.wholeEye:
-      return 'The full moon event requires going outside at moonrise. Clouds are acceptable; presence under the sky is the act.';
+      return 'The full moon event requires going outside at moonrise unless safety, access, or weather prevents it. Clouds are acceptable; presence under the sky is the act.';
   }
 }
 
