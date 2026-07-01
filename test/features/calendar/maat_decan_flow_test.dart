@@ -483,6 +483,100 @@ void main() {
       )!.spokenLine,
       'Completed correctly; the living text includes this mark.',
     );
+    expect(
+      maatDecanFlowEventByNumber(
+        maatDecanFlowDefinitionForKey(kLivingPatternFlowKey)!,
+        8,
+      )!.spokenLine,
+      'Watching [subject] for thirty days taught me [lesson].',
+    );
+  });
+
+  test('Living Pattern copy keeps principle and lesson sequence explicit', () {
+    final livingPattern = maatDecanFlowDefinitionForKey(kLivingPatternFlowKey)!;
+    final event6 = maatDecanFlowEventByNumber(livingPattern, 6)!;
+    final event8 = maatDecanFlowEventByNumber(livingPattern, 8)!;
+    final event9 = maatDecanFlowEventByNumber(livingPattern, 9)!;
+
+    expect(event6.steps, <String>[
+      'Write one sentence: [Subject] demonstrates: [principle].',
+      'Reject any principle not directly traceable to a specific behavior you observed and recorded.',
+    ]);
+    expect(
+      event6.steps.where((step) => step.contains('demonstrates')),
+      hasLength(1),
+    );
+    expect(
+      event6.steps.where((step) => step.startsWith('Reject')),
+      hasLength(1),
+    );
+
+    expect(
+      event8.spokenLine,
+      'Watching [subject] for thirty days taught me [lesson].',
+    );
+    expect(event8.steps, <String>[
+      'Speak the lesson aloud once before writing it.',
+      'Write one actionable lesson: Watching ___ taught me ___.',
+      'Keep it tied to the observed pattern.',
+    ]);
+    expect(event8.optionalSteps, <String>['Share the lesson to the feed.']);
+    expect(event8.sharePromptOnComplete, isTrue);
+    expect(
+      event8.extraCompletionStatusLabels,
+      containsPair('lesson_extracted', 'Lesson extracted'),
+    );
+
+    expect(
+      event9.purpose,
+      'The lesson enters the record only when it produces one action before logging.',
+    );
+  });
+
+  test(
+    'Living Pattern words fields do not contain stage-direction wrappers',
+    () {
+      final issues = <String>[];
+      final livingPattern = maatDecanFlowDefinitionForKey(
+        kLivingPatternFlowKey,
+      )!;
+
+      for (final event in livingPattern.events) {
+        for (final pattern in _livingPatternWordsStageDirectionPatterns) {
+          if (pattern.hasMatch(event.spokenLine)) {
+            issues.add(
+              'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+            );
+          }
+        }
+      }
+
+      expect(issues, isEmpty);
+    },
+  );
+
+  test('Living Pattern steps keep rationale and optional actions out', () {
+    final issues = <String>[];
+    final livingPattern = maatDecanFlowDefinitionForKey(kLivingPatternFlowKey)!;
+
+    for (final event in livingPattern.events) {
+      final requiredSteps = event.steps.toSet();
+      for (final step in event.steps) {
+        if (step.startsWith('Optionally')) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+        if (_livingPatternRationalePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+      for (final optionalStep in event.optionalSteps) {
+        if (requiredSteps.contains(optionalStep)) {
+          issues.add('Event ${event.eventNumber}: $optionalStep');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
   });
 
   test('True Name copy keeps posture and declaration sequence explicit', () {
@@ -1454,6 +1548,18 @@ final _livingTextRequiredStepRationalePattern = RegExp(
 
 final _livingTextRequiredStepOptionalPattern = RegExp(
   r'\b(optionally|if desired|share the useful part|share the final line|use Post to share|Shared,)\b',
+  caseSensitive: false,
+);
+
+final _livingPatternWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'\bbefore writing\b', caseSensitive: false),
+  RegExp(r'\bsay it aloud\b', caseSensitive: false),
+  RegExp(r'\bthen write\b', caseSensitive: false),
+  RegExp(r'\boptionally\b', caseSensitive: false),
+];
+
+final _livingPatternRationalePattern = RegExp(
+  r'\b(Anubis theology|source note|not from what the subject is supposed to represent|patient watching over thirty days|lesson extracted|Then write it)\b',
   caseSensitive: false,
 );
 

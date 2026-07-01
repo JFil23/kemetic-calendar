@@ -851,9 +851,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'The principle must come from the observed behavior — not from what the subject is supposed to represent, but from what the specific observed pattern actually demonstrates.',
         spokenLine: 'The principle must come from observed behavior.',
         steps: <String>[
-          'Write one sentence beginning with "[Subject] demonstrates: [principle]." Reject any principle not directly traceable to a specific behavior you observed and recorded.',
           'Write one sentence: [Subject] demonstrates: [principle].',
-          'Reject any principle that did not come from observed behavior.',
+          'Reject any principle not directly traceable to a specific behavior you observed and recorded.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -882,13 +881,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMax: 15,
         purpose:
             'The lesson is the observation\'s product — one actionable principle derived from patient watching over thirty days.',
-        spokenLine:
-            'Speak the lesson before writing it: Watching [subject] for thirty days taught me [lesson]. Say it aloud once. Then write it.',
+        spokenLine: 'Watching [subject] for thirty days taught me [lesson].',
         steps: <String>[
+          'Speak the lesson aloud once before writing it.',
           'Write one actionable lesson: Watching ___ taught me ___.',
           'Keep it tied to the observed pattern.',
-          'Optionally share the lesson to the feed.',
         ],
+        optionalSteps: <String>['Share the lesson to the feed.'],
         sharePromptOnComplete: true,
         sourceNote:
             'The Anubis theology did not remain an observation — it became the threshold guardian, the weigher of hearts, the guide of the dead. The lesson extracted from the natural world becomes a principle of conduct. This sitting names that principle and commits it to the record.',
@@ -904,7 +903,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 10,
         durationMinutesMax: 15,
-        purpose: 'Take one action based on the lesson before logging.',
+        purpose:
+            'The lesson enters the record only when it produces one action before logging.',
         spokenLine: 'The lesson enters the record through action.',
         steps: <String>[
           'Take one specific action based on the lesson before logging.',
