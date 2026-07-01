@@ -667,6 +667,145 @@ void main() {
     expect(issues, isEmpty);
   });
 
+  test('Autobiography copy keeps record, correction, and sharing boundaries clear', () {
+    final autobiography = maatDecanFlowDefinitionForKey(
+      kTheAutobiographyFlowKey,
+    )!;
+    final event2 = maatDecanFlowEventByNumber(autobiography, 2)!;
+    final event3 = maatDecanFlowEventByNumber(autobiography, 3)!;
+    final event4 = maatDecanFlowEventByNumber(autobiography, 4)!;
+    final event5 = maatDecanFlowEventByNumber(autobiography, 5)!;
+    final event6 = maatDecanFlowEventByNumber(autobiography, 6)!;
+    final event7 = maatDecanFlowEventByNumber(autobiography, 7)!;
+    final event8 = maatDecanFlowEventByNumber(autobiography, 8)!;
+
+    expect(
+      event2.purpose,
+      'The works of your life belong in sequence so the record can count what was actually done.',
+    );
+    expect(
+      event2.steps.first,
+      'List the works of your life: completed, in progress, attempted but unfinished, and prevented by circumstance.',
+    );
+
+    expect(
+      event3.purpose,
+      'What was given beyond obligation belongs in the account.',
+    );
+    expect(
+      event3.steps.first,
+      'Name what you gave beyond obligation: time, skill, provision, protection, knowledge, or care.',
+    );
+
+    expect(
+      event4.purpose,
+      'The capacities, works, and gifts can reveal the consistent pattern that has actually held.',
+    );
+    expect(event4.steps, contains('Write the thread in one sentence.'));
+
+    expect(
+      event5.purpose,
+      'What continued despite disruption is part of the account.',
+    );
+    expect(event5.steps, contains('Write what did not stop.'));
+
+    expect(
+      event6.purpose,
+      'The governing principle must come from the record, not from the claim you wish were true.',
+    );
+    expect(
+      event6.steps.first,
+      'Based on the record, write the governing principle that has actually shaped your choices.',
+    );
+
+    expect(event7.steps, <String>[
+      'Write the four-section document: Capacities, Works, Gifts, Claim.',
+      'Give the document 30-45 minutes.',
+      'Read the document back once.',
+      'Correct anything inflated or deflated until the autobiography is accurate, not improved to sound better.',
+    ]);
+    expect(event7.steps.join('\n'), contains('Correct'));
+    expect(event7.steps.join('\n'), contains('not improved to sound better'));
+
+    expect(
+      event8.purpose,
+      'A witnessed line tests the account against someone who belongs to that part of the record.',
+    );
+    expect(event8.steps, <String>[
+      'Choose one line that can be shared without exposing names, private details, or sensitive content.',
+      'Share the line only with someone who witnessed, shaped, or belongs to that part of the account.',
+      'If no safe person can receive it, keep the line private and record why it is not shared.',
+      'Record what they confirmed or corrected, or record the privacy reason if the line stayed private.',
+    ]);
+    expect(event8.optionalSteps, <String>[
+      'Use the feed only for a generic line with names and private details removed.',
+    ]);
+    expect(event8.requiresRealWorldAction, isTrue);
+    expect(event8.sharePromptOnComplete, isTrue);
+
+    final issues = <String>[];
+    for (final event in autobiography.events) {
+      for (final pattern in _autobiographyPurposeActionStartPatterns) {
+        if (pattern.hasMatch(event.purpose)) {
+          issues.add('Event ${event.eventNumber}: ${event.purpose}');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test(
+    'Autobiography words fields do not contain stage-direction wrappers',
+    () {
+      final issues = <String>[];
+      final autobiography = maatDecanFlowDefinitionForKey(
+        kTheAutobiographyFlowKey,
+      )!;
+
+      for (final event in autobiography.events) {
+        for (final pattern in _autobiographyWordsStageDirectionPatterns) {
+          if (pattern.hasMatch(event.spokenLine)) {
+            issues.add(
+              'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+            );
+          }
+        }
+      }
+
+      expect(issues, isEmpty);
+    },
+  );
+
+  test(
+    'Autobiography steps keep rationale and public sharing out of actions',
+    () {
+      final issues = <String>[];
+      final autobiography = maatDecanFlowDefinitionForKey(
+        kTheAutobiographyFlowKey,
+      )!;
+
+      for (final event in autobiography.events) {
+        final requiredSteps = event.steps.toSet();
+        for (final step in event.steps) {
+          if (_autobiographyRequiredStepRationalePattern.hasMatch(step)) {
+            issues.add('Event ${event.eventNumber}: $step');
+          }
+          if (_autobiographyRequiredStepPublicSharingPattern.hasMatch(step)) {
+            issues.add('Event ${event.eventNumber}: $step');
+          }
+        }
+        for (final optionalStep in event.optionalSteps) {
+          if (requiredSteps.contains(optionalStep)) {
+            issues.add('Event ${event.eventNumber}: $optionalStep');
+          }
+        }
+      }
+
+      expect(issues, isEmpty);
+    },
+  );
+
   test('Ma’at decan closing events expose their special completion labels', () {
     expect(
       maatDecanFlowEventByNumber(
@@ -2139,6 +2278,33 @@ final _boundaryStoneWordsStageDirectionPatterns = <RegExp>[
 
 final _boundaryStoneRequiredStepRationalePattern = RegExp(
   r'\b(After the Nile flood|boundary-stone surveyors|Amenemope|Ptahhotep|source note|not a metaphor|beginning of restored trust|not loss|because the water)\b',
+  caseSensitive: false,
+);
+
+final _autobiographyPurposeActionStartPatterns = <RegExp>[
+  RegExp(r'^\s*list\b', caseSensitive: false),
+  RegExp(r'^\s*name\b', caseSensitive: false),
+  RegExp(r'^\s*find\b', caseSensitive: false),
+  RegExp(r'^\s*state\b', caseSensitive: false),
+  RegExp(r'^\s*let\b', caseSensitive: false),
+  RegExp(r'^\s*share\b', caseSensitive: false),
+  RegExp(r'^\s*allow\b', caseSensitive: false),
+];
+
+final _autobiographyWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*(before|after|then)\b', caseSensitive: false),
+  RegExp(r'\bspeak:\b', caseSensitive: false),
+  RegExp(r'\bthen speak\b', caseSensitive: false),
+  RegExp(r'\bbefore .*speak\b', caseSensitive: false),
+];
+
+final _autobiographyRequiredStepRationalePattern = RegExp(
+  r'\b(Kemetic autobiography|tomb wall|source note|not as a|fact-check on what the years|carving was not closed|Section 4 claim)\b',
+  caseSensitive: false,
+);
+
+final _autobiographyRequiredStepPublicSharingPattern = RegExp(
+  r'\b(feed|post|profile|public|publicly)\b',
   caseSensitive: false,
 );
 

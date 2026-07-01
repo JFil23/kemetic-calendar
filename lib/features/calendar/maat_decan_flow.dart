@@ -2358,7 +2358,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 15,
         durationMinutesMax: 15,
-        purpose: 'List the works of your life in sequence.',
+        purpose:
+            'The works of your life belong in sequence so the record can count what was actually done.',
         spokenLine: 'What was done is counted.',
         steps: <String>[
           'List the works of your life: completed, in progress, attempted but unfinished, and prevented by circumstance.',
@@ -2374,7 +2375,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 10,
         durationMinutesMax: 10,
-        purpose: 'Name what was given beyond obligation.',
+        purpose: 'What was given beyond obligation belongs in the account.',
         spokenLine: 'I gave bread to the hungry and clothed the naked.',
         steps: <String>[
           'Name what you gave beyond obligation: time, skill, provision, protection, knowledge, or care.',
@@ -2391,7 +2392,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 15,
         durationMinutesMax: 15,
         purpose:
-            'Find the consistent pattern across capacities, works, and gifts.',
+            'The capacities, works, and gifts can reveal the consistent pattern that has actually held.',
         spokenLine: 'The account has a thread.',
         steps: <String>[
           'Read the capacities, works, and gifts.',
@@ -2407,7 +2408,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 10,
         durationMinutesMax: 10,
-        purpose: 'Name what continued despite disruption.',
+        purpose: 'What continued despite disruption is part of the account.',
         spokenLine: 'What persisted is part of the account.',
         steps: <String>[
           'Name the disruptions that interrupted your path.',
@@ -2423,7 +2424,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.evening,
         durationMinutesMin: 10,
         durationMinutesMax: 10,
-        purpose: 'State the principle that actually shaped the record.',
+        purpose:
+            'The governing principle must come from the record, not from the claim you wish were true.',
         spokenLine: 'The record shows the governing principle.',
         steps: <String>[
           'Based on the record, write the governing principle that has actually shaped your choices.',
@@ -2440,12 +2442,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 30,
         durationMinutesMax: 45,
         purpose:
-            'The four-section document is a fact-check on the life so far. Allow the full thirty to forty-five minutes. This is not a note — it is a document.',
+            'The four-section document is a fact-check on the life so far. The full thirty to forty-five minutes belong to the work because this is not a note — it is a document.',
         spokenLine: 'I will put my annals among people.',
         steps: <String>[
           'Write the four-section document: Capacities, Works, Gifts, Claim.',
-          'Allow 30-45 minutes; this is a document, not a short note.',
-          'Read the document back once and correct anything inflated or deflated. Not improved — corrected. The autobiography must be accurate.',
+          'Give the document 30-45 minutes.',
+          'Read the document back once.',
+          'Correct anything inflated or deflated until the autobiography is accurate, not improved to sound better.',
         ],
         extraCompletionStatusLabels: <String, String>{
           'autobiography_written': 'Autobiography written',
@@ -2459,12 +2462,17 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 5,
         durationMinutesMax: 10,
-        purpose: 'Let one witnessed line meet another person.',
+        purpose:
+            'A witnessed line tests the account against someone who belongs to that part of the record.',
         spokenLine: 'Let me be tended and do not report me wrongly.',
         steps: <String>[
-          'Share one line from the autobiography with someone who witnessed, shaped, or belongs to that part of the account.',
-          'Record what they confirmed or corrected.',
-          'Use the feed only if there is no clear person to receive the line.',
+          'Choose one line that can be shared without exposing names, private details, or sensitive content.',
+          'Share the line only with someone who witnessed, shaped, or belongs to that part of the account.',
+          'If no safe person can receive it, keep the line private and record why it is not shared.',
+          'Record what they confirmed or corrected, or record the privacy reason if the line stayed private.',
+        ],
+        optionalSteps: <String>[
+          'Use the feed only for a generic line with names and private details removed.',
         ],
         requiresRealWorldAction: true,
         sharePromptOnComplete: true,
