@@ -1381,9 +1381,9 @@ Akhet · The Measuring of the World as It Returns to Water
 
 The Nile has risen past its banks. Field lines vanish beneath the flood. Roads dissolve into channels. The boundaries that governed labor, taxation, inheritance, and memory disappear under water — and what had been precisely measured returns to uncertainty.
 
-This was not treated as disaster.
+This was treated as return, not disaster.
 
-Ḏḥwty carries more than a name. As ibis, he walks the edge between water and land, probing where what is hidden must be found. As baboon, he belongs to dawn — the one who cries out when light returns and the cycle has completed its passage through darkness. As lunar power, he counts change without losing continuity: the moon fills and empties without losing its course. As scribe of the netjeru, he preserves what would otherwise vanish into speech, flood, and forgetting. These are not separate roles. They are one function — the function of making return legible.
+Ḏḥwty carries more than a name. As ibis, he walks the edge between water and land, probing where what is hidden must be found. As baboon, he belongs to dawn — the one who cries out when light returns and the cycle has completed its passage through darkness. As lunar power, he counts change without losing continuity: the moon fills and empties without losing its course. As scribe of the netjeru, he preserves what would otherwise vanish into speech, flood, and forgetting. These roles belong to one function: making return legible.
 
 The flood returns the land to a condition before distinction. Field and river, road and channel, owned and unowned — all held temporarily in suspension. The Coffin Texts remember this as the beginning: solitude in the waters, before a place to stand had been established.
 
@@ -1391,7 +1391,7 @@ The flood returns the land to a condition before distinction. Field and river, r
 
 That image belongs to the first month because the Nile restores it annually. What the world holds most precisely — its measures, its divisions, its records — is returned to formlessness. Nothing can be planted. Nothing can be taxed. Nothing can be crossed by memory alone.
 
-The first duty is not labor. It is attention.
+The first duty is attention, before labor.
 
 The Hymn to Hapy praises the inundation because it makes grain possible, fills storehouses, and renews the offerings on which temple, household, and ka all depend. But the flood gives only condition. Too little water brings hunger. Too much brings destruction. Water without measure becomes danger. This is why the first duty of Akhet is not sowing but reckoning — watching sky, watching water, marking the return of Sopdet before dawn, holding what the heavens and the river reveal together before any hand reaches for a tool.
 
@@ -1401,7 +1401,7 @@ Papyrus Chester Beatty IV preserves the scribal principle: writings keep names a
 
 — Papyrus Chester Beatty IV
 
-What dissolves must be observed before it is acted upon. What is observed must be measured. What is measured can return to order.
+Dissolution must be observed before it is acted upon, then measured carefully enough to return to order.
 ''',
   2: '''
 Month 2 — Paopi / Mnḫt
@@ -1417,7 +1417,7 @@ The Nile has become the year's primary road.
 
 When land routes dissolve, water routes open. Boats cross where feet cannot. Food moves between settlements. Papyrus, fish, beer, grain reserves, tools, and offerings travel the current. Priests carry offerings into temples. Scribes carry records from one season into the next. The flood has made the land unreliable and turned the river into the great corridor of Akhet.
 
-The Pyramid Texts place the deceased in the solar bark, rowing with the imperishable ones and joining the ordered movement of Ra across the sky. Movement here is not wandering. It is passage within a known course, sustained through each of its stages.
+The Pyramid Texts place the deceased in the solar bark, rowing with the imperishable ones and joining the ordered movement of Ra across the sky. Movement here follows a known course, sustained through each of its stages.
 
 — Pyramid Texts
 
@@ -1427,7 +1427,7 @@ The Wadi el-Jarf Papyri preserve the practical face of this truth: crews, boats,
 
 — Wadi el-Jarf Papyri
 
-What has been measured must now travel. What travels must remain aligned. What remains aligned can sustain the next stage of the year.
+What has been measured must now travel, remain aligned, and sustain the next stage of the year without spilling its purpose.
 ''',
   3: '''
 Month 3 — Hathor / Ḥwt-Ḥr
@@ -1435,7 +1435,7 @@ Akhet · Joy Held in Right Measure
 
 The flood season has not ended, but it has softened. The Nile settles into its banks. Routes are trusted where they were uncertain. Water finds its pattern. What had been suspended beneath the flood — paths, fields, the geometry of daily movement — begins to show its edges.
 
-This is not yet the full return of the land. It is the first moment where the world becomes livable.
+The land has not fully returned yet, but this is the first moment where the world becomes livable.
 
 Ḥwt-Ḥr carries a name that is already strange: House of Heru. She is a dwelling for the falcon of kingship — a sky mother who contains the solar heir, an enclosure for royal power built into the body of a netjeret. She is also the great celestial cow who bears the solar disk between her horns and carries Ra across the heavens each day. She is the golden one of music, desire, intoxication, and festival. She is the Lady of the West, who receives the dead and welcomes the ba into the ordered passage beyond the horizon.
 
@@ -1445,13 +1445,13 @@ That last nature must not be passed over quickly. The Eye of Ra is solar force t
 
 — Book of the Heavenly Cow
 
-These are not separate Hathors. They are one function appearing wherever power must be held without being harmed — wherever delight must return without becoming excess, wherever the dangerous heat of the Eye must be soothed back into radiance. Her name says it plainly: she is the house that contains the force that would otherwise escape its source.
+They are one function appearing wherever power must be held without being harmed — wherever delight must return without becoming excess, wherever the dangerous heat of the Eye must be soothed back into radiance. Her name says it plainly: she is the house that contains the force that would otherwise escape its source.
 
-This is why joy belongs to her month, and why it is not what it appears on the surface.
+This is why joy belongs to her month, and why surface pleasure is too small a name for it.
 
-In Kemet, beauty is not decoration. It is right relation made visible. Music, garlands, mirrors, beer, dance, and festival do not stand outside Ma'at — they restore the body to the order it serves. The stability established in Thoth and carried in Paopi now becomes something that can be felt. That knowing is what Hathor governs.
+In Kemet, beauty is right relation made visible. Music, garlands, mirrors, beer, dance, and festival do not stand outside Ma'at — they restore the body to the order it serves. The stability established in Thoth and carried in Paopi now becomes something that can be felt. That knowing is what Hathor governs.
 
-The Book of Coming Forth by Day places her with Ra as a destination of the freed ba — not as ornament at the end of the journey, but as welcome within the ordered path of return. Joy is not the reward that follows alignment. It is the sign of it.
+The Book of Coming Forth by Day places her with Ra as a destination of the freed ba — not as ornament at the end of the journey, but as welcome within the ordered path of return. Joy marks alignment rather than rewarding it after the fact.
 
 — Book of Coming Forth by Day
 
@@ -1459,21 +1459,21 @@ At Dendera, the great rites traced the goddess ascending toward the solar disk i
 
 — Dendera Temple traditions
 
-What has stabilized may rejoice. What rejoices must remain in proportion. What remains in proportion strengthens the order that made joy possible.
+What has stabilized may rejoice, and joy kept in proportion strengthens the order that made it possible.
 ''',
   4: '''
 Month 4 — Ka-ḥer-Ka / Kȝ-ḥr-Kȝ
 Akhet closing · Life Upon Life — Vitality Placed Into the Earth
 
-The floodwaters are withdrawing. The land returns from beneath the surface in slow revelation — first the higher ground, then the lower, then the black silt deposited at the field's edge. That darkness is not absence. It is the most fertile substance the year produces. The flood has made its deposit. Now the earth is ready to receive.
+The floodwaters are withdrawing. The land returns from beneath the surface in slow revelation — first the higher ground, then the lower, then the black silt deposited at the field's edge. That darkness is fertility itself, the richest substance the year produces. The flood has made its deposit. Now the earth is ready to receive.
 
 Kȝ-ḥr-Kȝ names life layered upon life.
 
-The ka is not a vague spiritual presence. It is vital force — the sustaining power that receives, endures, and must be fed. Gods carry kas. Kings carry the royal ka, the divine current that passes through rulers as living inheritance. The dead return to their kas; the offering formula addresses them directly because the ka requires provision to remain present. The living are upheld by the ka while breath remains in the body. Its sign is two arms raised: the posture of receiving and embracing.
+The ka is vital force — the sustaining power that receives, endures, and must be fed. Gods carry kas. Kings carry the royal ka, the divine current that passes through rulers as living inheritance. The dead return to their kas; the offering formula addresses them directly because the ka requires provision to remain present. The living are upheld by the ka while breath remains in the body. Its sign is two arms raised: the posture of receiving and embracing.
 
-Ka upon Ka is not simply more life. It is life entrusted to life — the ka of the previous harvest becoming the seed of the next, the ka of the ancestor sustaining the ka of the descendant, vital force meeting vital force in the act of continuation. That meeting takes place here, in the field.
+Ka upon Ka means life entrusted to life — the ka of the previous harvest becoming the seed of the next, the ka of the ancestor sustaining the ka of the descendant, vital force meeting vital force in the act of continuation. That meeting takes place here, in the field.
 
-The seed entering the dark earth is not discarded. It is placed — in the way an offering is placed, with attention to direction, name, and purpose. What has been measured in Thoth, carried in Paopi, and made livable in Hathor now enters the ground. Planting is not the beginning of labor. It is the year's first act of trust.
+The seed entering the dark earth is placed, not discarded — set down in the way an offering is placed, with attention to direction, name, and purpose. What has been measured in Thoth, carried in Paopi, and made livable in Hathor now enters the ground. Planting becomes the year's first act of trust.
 
 The Pyramid Texts present this grammar through Ausar. His body is the field. His breaking is the preparation of soil. His gathering by Heru is the gathering of grain. His restoration is the return of what was entrusted to darkness. What enters below in the correct manner can emerge above in a form that sustains the living.
 
@@ -1485,7 +1485,7 @@ The Pyramid Texts preserve the repeated offering of bread and beer to the ka so 
 
 — Pyramid Texts
 
-What receives life must be prepared. What is prepared must be entrusted. What is entrusted must be allowed to transform in darkness before it can rise.
+Life must be prepared for, entrusted, and then left in the dark long enough to transform before it can rise.
 ''',
   5: '''
 Month 5 — Šef-Bedet / Šf-bdt
@@ -1497,13 +1497,13 @@ The dramatic work is finished. Flood has come and gone. Boundaries have been res
 
 Šf-bdt names the work of this month twice.
 
-Šf is the act: to feed, to provide, to nourish — the verb of active giving. Bdt is the substance: emmer wheat, bread, offering — the grain that fills the granary and the altar alike. Together they name right provision not once but in doubled form, as if the name itself insists that the act and the substance cannot be separated. To feed is not simply to distribute. It is to place the right thing where the right need exists, in the right measure, at the right time.
+Šf is the act: to feed, to provide, to nourish — the verb of active giving. Bdt is the substance: emmer wheat, bread, offering — the grain that fills the granary and the altar alike. Together they name right provision not once but in doubled form, as if the name itself insists that the act and the substance cannot be separated. To feed means placing the right thing where the right need exists, in the right measure, at the right time.
 
 Bdt is also what the offering table receives. The same grain that sustains the living sustains the ka of the dead, appears before the netjeru, and moves from field to storehouse to altar to mouth. The name of this month holds all of those passages in one word.
 
 Renenutet stands close to the month.
 
-She is the nourishing cobra — serpent of nursing, harvest, granary, birth, and destiny. Her form matters. She does not only feed. She watches over what has been given. At the granary she guards with her gaze. Her cobra hood is not threat but encirclement: the posture of protecting what must not be wasted. Nourishment separated from guardianship becomes generosity that exhausts itself. What she gives, she also protects.
+She is the nourishing cobra — serpent of nursing, harvest, granary, birth, and destiny. Her form matters. She feeds and watches over what has been given. At the granary she guards with her gaze. Her cobra hood encircles rather than threatens: the posture of protecting what must not be wasted. Nourishment separated from guardianship becomes generosity that exhausts itself. What she gives, she also protects.
 
 Renenutet is also bound to Shai — the force of what each life grows into through what it receives. A child fed in right measure becomes what it was meant to become. One fed without care, or fed past proportion, meets a different fate. The field follows the same law. What is nourished grows into its portion; what is neglected meets a different harvest.
 
@@ -1511,13 +1511,13 @@ The Hymn to Hapy praises the inundation because it makes grain possible and fill
 
 — Hymn to Hapy
 
-The Pyramid Texts present bread and beer, water and oils to the ka so that provision may continue without interruption. Not once. Repeatedly. The offering is not a single generous act. It is sustained relation.
+The Pyramid Texts present bread and beer, water and oils to the ka so that provision may continue without interruption. Not once. Repeatedly. The offering is sustained relation, not a single generous act.
 
 — Pyramid Texts
 
 Too little water weakens the root. Too much floods and rots it. Too little food starves the household. Too much empties the storehouse before the lean season arrives. Nourishment belongs to Ma'at only when it holds its proportion through time.
 
-What has begun must be nourished. What is nourished must be measured. What is measured without interruption can endure.
+What has begun must be nourished in measure, without interruption, so it can endure.
 ''',
   6: '''
 Month 6 — Rekh-Wer / Rḫ-wr
@@ -1527,7 +1527,7 @@ Peret has found its rhythm. The seedlings that needed urgent care in Šef-Bedet 
 
 This is where Rekh-Wer opens.
 
-Rḫ carries the sense of knowing, but also of being able — the competence that lives inside knowledge, not separate from it. A rekh is one who knows the right word, the right measure, the right formula. Wr means great, but it is greatness as load-bearing, not greatness as prominence: the elder who holds the weight, the chief who carries the measure, the greatest in the sense that more depends on this knowing than on any other. Great Knowing is not a privilege. It is a burden the year places on those who carry it.
+Rḫ carries the sense of knowing, but also of being able — the competence that lives inside knowledge, not separate from it. A rekh is one who knows the right word, the right measure, the right formula. Wr means great, but it is greatness as load-bearing, not greatness as prominence: the elder who holds the weight, the chief who carries the measure, the greatest in the sense that more depends on this knowing than on any other. Great Knowing becomes the burden the year places on those who carry it.
 
 This burden belongs to two forces simultaneously.
 
@@ -1535,9 +1535,9 @@ Djehuty stands at one side of the month: scribe, counter, mediator, preserver of
 
 Sekhmet stands at the other side: the Eye of Ra as heat and executing force, the netjeret who acts when imbalance reaches the threshold of requiring power rather than correction. Her presence means knowledge must be prepared to act — not as display, not as aggression, but as the capacity to move when stillness would allow disorder to spread unchallenged.
 
-These are not opposing forces.
+These forces are not opposed.
 
-They are one demand appearing in two forms: knowing what is true, and possessing the force to act only on that truth. Knowledge without power remains inert when Isfet requires answer. Power without knowledge becomes destruction dressed as remedy.
+They meet as one demand appearing in two forms: knowing what is true, and possessing the force to act only on that truth. Knowledge without power remains inert when Isfet requires answer. Power without knowledge becomes destruction dressed as remedy.
 
 The House of Life belongs to this month. Sacred texts, medical writings, astronomical tables, ritual instructions, and funerary compositions had to be copied with an exactness that left no room for approximation. A copied error became ritual failure. A misread astronomical calculation disturbed sacred timing. A false medical record brought harm where healing was owed. The scribe who copies carelessly does not merely produce an inaccurate text. He produces Isfet with an educated hand behind it.
 
@@ -1545,11 +1545,11 @@ Papyrus Chester Beatty IV preserves the scribal principle: writings keep names a
 
 — Papyrus Chester Beatty IV
 
-The Book of Coming Forth by Day carries the same truth into the deepest stakes. Its chapters protect the heart, preserve the name, free the ba, and open the path through the hidden region. Knowledge there is not ornament or achievement. It is survival.
+The Book of Coming Forth by Day carries the same truth into the deepest stakes. Its chapters protect the heart, preserve the name, free the ba, and open the path through the hidden region. Knowledge there becomes survival, not ornament or achievement.
 
 — Book of Coming Forth by Day
 
-What is known must be measured truthfully. What is measured truthfully must be recorded accurately. What is recorded accurately must guide action. When knowledge serves Ma'at, the world becomes maintainable. When knowledge serves appetite, Isfet gains an educated hand.
+Known truth must be measured honestly, recorded accurately, and allowed to guide action. When knowledge serves Ma'at, the world becomes maintainable. When knowledge serves appetite, Isfet gains an educated hand.
 ''',
   7: '''
 Month 7 — Rekh-Nedjes / Rḫ-nḏs
@@ -1557,9 +1557,9 @@ Peret · Knowing Tested Under Pressure
 
 The fields of Peret are no longer young. What was planted in Ka-ḥer-Ka has grown into established presence. The systems of care set in motion through Šef-Bedet and refined through Rekh-Wer now carry the weight of daily use. Tools have been worked. Methods have been applied. Labor has found its rhythm. What was learned in the protected time of formation must now demonstrate what it actually is.
 
-Rekh-Nedjes does not name lesser knowing in the sense of inferior knowing. It names knowing that has become small, close, and exposed — knowing pressed against reality rather than held safely within it.
+Rekh-Nedjes names lesser knowing, but not inferior knowing. It names knowing made small, close, and exposed — pressed against reality rather than held safely within it.
 
-Nḏs carries social weight as well. The nedjes person is not the elite, the officially protected, the one whose errors are absorbed by rank and institution. The nedjes is ordinary — exposed to consequence in a way that privilege is not. Rekh-Nedjes is what knowing looks like when the protection of the House of Life, the shelter of the master teacher, and the controlled conditions of instruction are removed. What remains is the knowledge itself, meeting the world directly.
+Nḏs carries social weight as well. The nedjes person stands outside elite protection — outside the rank and institution that can absorb another person's errors. The nedjes is ordinary, exposed to consequence in a way privilege is not. Rekh-Nedjes is what knowing looks like when the protection of the House of Life, the shelter of the master teacher, and the controlled conditions of instruction are removed. What remains is the knowledge itself, meeting the world directly.
 
 The contrast with Rekh-Wer is the heart of the month.
 
@@ -1579,9 +1579,9 @@ The Instruction of Amenemope warns against the heated person — against speech 
 
 — Instruction of Amenemope
 
-That warning belongs here. Tested knowing is not loud. It does not need to announce itself by force or prove its validity through intensity. It holds its form when disturbed — adjusting method without losing direction, enduring pressure without becoming what it was meant to resist.
+That warning belongs here. Tested knowing is quiet. It does not need to announce itself by force or prove its validity through intensity. It holds its form when disturbed — adjusting method without losing direction, enduring pressure without becoming what it was meant to resist.
 
-What was learned must now endure. What endures must adapt without losing its measure. What keeps its measure under pressure becomes wisdom that can be trusted.
+What was learned must now endure, adapt without losing measure, and become wisdom that can be trusted under pressure.
 ''',
   8: '''
 Month 8 — Renwet / Rnnwt
@@ -1597,11 +1597,11 @@ Rnn is the verb of nursing — the bringing up of what is young, fragile, and de
 
 This is why she is bound to Shai.
 
-Shai is not fate as external decree delivered from outside the life. Shai is what accumulates from within it — the destiny that grows from what was given and what was done with the giving. A child fed in right measure develops into its portion. A field tended with care produces its portion. A household that received and circulated correctly meets a different fate than one that hoarded, wasted, or consumed beyond its measure. Renenutet and Shai together name the law: what is nourished grows into what it was always capable of becoming, for better or worse, depending on how the nourishment moved.
+Shai works from within the life rather than arriving as an external decree. It is the destiny that grows from what was given and what was done with the giving. A child fed in right measure develops into its portion. A field tended with care produces its portion. A household that received and circulated correctly meets a different fate than one that hoarded, wasted, or consumed beyond its measure. Renenutet and Shai together name the law: what is nourished grows into what it was always capable of becoming, for better or worse, depending on how the nourishment moved.
 
 At the granary, her cobra form matters.
 
-She does not only give. She watches what has arrived. Her gaze encircles the stored grain the way the uraeus encircles the royal brow — protecting what must not be damaged, warning what must not approach carelessly. The serpent does not threaten the grain. She guards the conditions under which the grain can remain what it is: provision, offering, seed, inheritance.
+She gives, and she watches what has arrived. Her gaze encircles the stored grain the way the uraeus encircles the royal brow — protecting what must not be damaged, warning what must not approach carelessly. The serpent guards the conditions under which the grain can remain what it is: provision, offering, seed, inheritance.
 
 The Hymn to Hapy praises the inundation because it makes barley, creates emmer, fills storehouses, and brings offerings into being.
 
@@ -1617,7 +1617,7 @@ The offering formula names bread, beer, oxen, fowl, linen, and every good and pu
 
 That formula rests on harvest. What the field has returned must reach further than the hand that gathered it: to the netjeru, to the ancestors, to the household, to those who labored, to the vulnerable, and to the seed that will carry the cycle forward.
 
-Receiving is a test of Ma'at. What has returned must circulate. What circulates must be measured. What is measured must preserve life beyond the moment of plenty.
+Receiving is a test of Ma'at. The harvest must circulate in measure, preserving life beyond the moment of plenty.
 ''',
   9: '''
 Month 9 — Hnsw / Ḫnsw
@@ -1641,11 +1641,11 @@ The Book of Coming Forth by Day places Ma'at at the head of the great bark — n
 
 — Book of Coming Forth by Day
 
-That image governs the month. When Ma'at leads, movement becomes passage: purposeful, directed, accountable at its end. When appetite leads instead, the same road becomes exploitation — heat used as aggression, trade as extraction, travel as the scattering of what should have been carried intact. The journey does not make itself right by the fact of moving. It is made right by what stands at its front.
+That image governs the month. When Ma'at leads, movement becomes passage: purposeful, directed, accountable at its end. When appetite leads instead, the same road becomes exploitation — heat used as aggression, trade as extraction, travel as the scattering of what should have been carried intact. The journey is made right by what stands at its front, not by movement alone.
 
 Khonsu's healing nature belongs here as well. He was called upon for those who needed restoration across distance — the oracle whose answer traveled beyond the immediate moment to reach what required remedy. Movement under Ma'at does not only carry goods. It carries the conditions of return.
 
-What moves must keep direction. What carries under heat must not burn what it passes. What travels under night must not lose the measure that guides return.
+What moves must keep direction; what carries under heat or travels under night must not lose the measure that guides return.
 ''',
   10: '''
 Month 10 — Ḥenti-ḥet / Ḥnt-ḥtj
@@ -1653,11 +1653,11 @@ Shemu · Foremost of Offerings — Power Returned to Measure
 
 The storehouses are full. The harvest has been gathered and measured. The year has produced what it can produce. The Nile is at its lowest course — pulled back to its channel, giving what remains in the irrigation basins but offering nothing new. The land is at its hottest. The fields are dry and silent. The productive force of the year has reached its limit.
 
-What happens at the limit is the question this month asks.
+At the limit, the month asks a different question.
 
 Ḥnt-ḥtj places offering at the front.
 
-Ḥnt means foremost — the first, the one who goes before. The root of ḥtj carries hotep: offering, satisfaction, rest, and the settled condition of a relationship where all dues have been placed. Peace in this sense is not emptiness or stillness for its own sake. It is the active condition that arrives when what is owed has been paid and what is due has reached its recipient. The god receives. The ka receives. The ancestor receives. The household receives. The worker receives. The vulnerable receive. The seed for the next cycle is set aside. Nothing is left waiting while another consumes past its measure.
+Ḥnt means foremost — the first, the one who goes before. The root of ḥtj carries hotep: offering, satisfaction, rest, and the settled condition of a relationship where all dues have been placed. Peace in this sense is the active condition that arrives when what is owed has been paid and what is due has reached its recipient. The god receives. The ka receives. The ancestor receives. The household receives. The worker receives. The vulnerable receive. The seed for the next cycle is set aside. Nothing is left waiting while another consumes past its measure.
 
 Foremost of Offerings names a month in which offering must lead — placed at the front of every decision about what has been accumulated.
 
@@ -1677,9 +1677,9 @@ The Pyramid Texts give the royal form of the remedy: Ma'at is established in the
 
 — Pyramid Texts
 
-That establishment happens through offering. Not through taking more, not through greater effort, not through the force that filled the storehouse. Ma'at enters through the open hand — what has been gathered placed where it belongs.
+That establishment happens through offering: not through taking more, not through greater effort, not through the force that filled the storehouse. Ma'at enters through the open hand — what has been gathered placed where it belongs.
 
-What has been gathered must be offered. What is offered restores relation. What restores relation brings rest that does not neglect. Where offering is made in measure, peace becomes active.
+What has been gathered must be offered back into relation; in that measured return, peace becomes active without becoming neglect.
 ''',
   11: '''
 Month 11 — Pa-Ipi / ỉpt-ḥmt
@@ -1695,7 +1695,7 @@ The month turns toward the dead.
 
 Aset and Nebet-Het give the month its governing image. They stand on either side of the body of Ausar — Aset at the head, her wings extended in the gesture of protection and restoration, her knowledge and speech working to gather what had been scattered; Nebet-Het at the feet, mourning netjeret, guardian of the threshold, the one who keeps the passage from death from becoming abandonment. They do not mourn as spectators. Their presence is the act. Attendance is what prevents the dead from being abandoned to silence.
 
-In Kemetic understanding, the dead are not safe by being buried. They require maintenance: the name spoken, the offering placed, the false door addressed, the tomb kept as a site of living relation. To forget is not merely to lose memory — it is to withdraw the provision that sustains the ka. The dead who receive no offering, whose name no mouth speaks, gradually cease to be present. Remembrance is not sentiment. It is maintenance of a sacred dependency.
+In Kemetic understanding, burial alone does not make the dead safe. They require maintenance: the name spoken, the offering placed, the false door addressed, the tomb kept as a site of living relation. To forget is not merely to lose memory — it is to withdraw the provision that sustains the ka. The dead who receive no offering, whose name no mouth speaks, gradually cease to be present. Remembrance maintains a sacred dependency; it is not sentiment.
 
 The annual procession at Abdju belongs here.
 
@@ -1703,7 +1703,7 @@ The raised earth at Abdju marked the place of Ausar's restoration — not as met
 
 — Book of Coming Forth by Day
 
-That line names what Pa-Ipi asks. The raised earth is not only soil. It is the reappearance of what had gone below — the proof that burial correctly enacted becomes return.
+That line names what Pa-Ipi asks. The raised earth is more than soil: the reappearance of what had gone below, the proof that burial correctly enacted becomes return.
 
 The ka also depends on transmission between the living.
 
@@ -1711,9 +1711,9 @@ Papyrus Chester Beatty IV preserves the scribal principle: writings keep names a
 
 — Papyrus Chester Beatty IV
 
-Memory that is not enacted — not spoken, not placed, not transmitted — breaks the chain between ancestor, living, and those still to come. Each life is carried by those before it and becomes ground for those after it. This is not sentiment. It is the structure of continuity.
+Memory that is not enacted — not spoken, not placed, not transmitted — breaks the chain between ancestor, living, and those still to come. Each life is carried by those before it and becomes ground for those after it. This is the structure of continuity, not sentiment.
 
-What is remembered can remain present. What is honored can continue. What is returned to the ka strengthens the living current between dead, living, and those still to come.
+What is remembered, honored, and returned to the ka strengthens the living current between dead, living, and those still to come.
 ''',
   12: '''
 Month 12 — Mesut-Ra / Mswt-Rꜥ
@@ -1721,7 +1721,7 @@ Shemu into threshold · The Birth of Ra and the Stillness Before Emergence
 
 The year approaches its edge.
 
-The flood has not returned. The heat of Shemu continues, pressing down on land that has nothing more to give. The storehouses hold their contents. The fields are silent. Pa-Ipi has gathered what must be remembered and passed what must continue. The year has done its work. What remains is not more work but something different — the discipline of allowing completion to be complete.
+The flood has not returned. The heat of Shemu continues, pressing down on land that has nothing more to give. The storehouses hold their contents. The fields are silent. Pa-Ipi has gathered what must be remembered and passed what must continue. The year has done its work. What remains is the discipline of allowing completion to be complete.
 
 Mswt-Rꜥ means the Birth of Ra.
 
@@ -1729,11 +1729,11 @@ The name is strange when it appears at the end of the year rather than the begin
 
 Mesut-Ra is the Duat of the year.
 
-Nut gives the month its body. As sky, mother, vault, and womb, she contains what has not yet emerged. Each evening she swallows the sun and each morning she gives birth to him — not as recovery from loss but as the completion of a passage that disappearance makes possible. In her body, what ends is not destroyed. It is held. What is held undergoes transformation that cannot be forced or witnessed from outside. What emerges has become, inside the darkness, what the new day requires.
+Nut gives the month its body. As sky, mother, vault, and womb, she contains what has not yet emerged. Each evening she swallows the sun and each morning she gives birth to him — not as recovery from loss but as the completion of a passage that disappearance makes possible. In her body, ending is held rather than destroyed. What is held undergoes transformation that cannot be forced or witnessed from outside. What emerges has become, inside the darkness, what the new day requires.
 
 Khepri waits inside this same truth.
 
-The scarab does not appear before the night has done its work. His name means the becoming one — kheper: transformation still in process, still hidden, not yet released into the world where it can be named and seen. To call Khepri forth before the darkness has completed its passage is to receive something that is not yet what it needs to be. The becoming cannot be hurried into being.
+The scarab waits until the night has done its work. His name means the becoming one — kheper: transformation still in process, still hidden, not yet released into the world where it can be named and seen. To call Khepri forth before the darkness has completed its passage is to receive something that is not yet what it needs to be. The becoming cannot be hurried into being.
 
 The Amduat traces the nightly form of this law. Ra passes through twelve ordered hours in the Duat, each with its own sequence of transformation, each dependent on the one before it. The sixth hour holds the deepest renewal — the hidden center where power is most fully restored before the return toward dawn begins. None of the hours can be omitted. None can be exchanged. Renewal depends on the full ordered passage through what cannot yet be seen.
 
@@ -1749,7 +1749,7 @@ The month therefore asks for clearing, not accumulation. Altars are addressed an
 
 No more is demanded from the old year.
 
-What has ended must be allowed to end. What is forming must not be pulled into visibility before the passage is complete. What will be born must be held until the moment of birth arrives under Ma'at.
+What has ended must be allowed to end, and what is forming must stay held until the moment of birth arrives under Ma'at.
 ''',
   13: '''
 Month 13 – Heriu Renpet (ḥr.w rnpt)
@@ -1757,7 +1757,7 @@ Days Upon the Year — The Threshold Where the Gods Are Born
 
 Heriu Renpet means the Days Upon the Year.
 
-They are not an ordinary month. They stand outside the counted cycle, after the twelve months have completed their work and before Wp Rnpt opens the year again. They are days of suspension: not harvest, not flood, not planting, not travel, not offering, but the pause in which time loosens its ordinary form so the powers of the next cycle can enter.
+They stand outside the counted cycle, after the twelve months have completed their work and before Wp Rnpt opens the year again. They are days of suspension: not harvest, not flood, not planting, not travel, not offering, but the pause in which time loosens its ordinary form so the powers of the next cycle can enter.
 
 The year has exhaled.
 
@@ -1787,11 +1787,9 @@ Purification belongs to these days.
 
 Natron, water, silence, cleared altars, completed offerings, and closed records all serve the same purpose: nothing disordered should cross into the opening of the year. What has ended must be released. What must continue must be made clean enough to pass.
 
-Heriu Renpet teaches that renewal does not begin with motion.
+Heriu Renpet teaches that renewal begins with readiness, not motion.
 
-It begins with readiness.
-
-What has completed must be sealed. What is disordered must be left behind. What is necessary must be born in its proper place. Only then can the year open without carrying Isfet across the threshold.
+What has completed must be sealed, what is disordered left behind, and what is necessary born in its proper place. Only then can the year open without carrying Isfet across the threshold.
 ''',
 };
 
@@ -1803,13 +1801,13 @@ The first decanal star to rise does not rule the night. It gives bearing. Its ap
 
 The flood is still high. No field boundary is visible. No road holds its former course. The world has returned to a condition where first sight matters more than it will at any other point in the cycle.
 
-Attention is not intervention. The ibis probes the waterline before moving. Djehuty's first form belongs here — beak at the water's edge, searching where the hidden will later be found. The Coffin Texts remember the beginning as solitude in the waters, before a place to stand had been established.
+Attention comes before intervention. The ibis probes the waterline before moving. Djehuty's first form belongs here — beak at the water's edge, searching where the hidden will later be found. The Coffin Texts remember the beginning as solitude in the waters, before a place to stand had been established.
 
 — Coffin Texts, Spell 76
 
 A misplaced beginning carries its error forward through every correction that follows.
 
-Where attention is placed correctly, the year can be measured. Where it is scattered, every later reckoning begins from distortion.
+Attention placed correctly lets the year be measured. Scattered attention distorts every later reckoning.
 ''',
   '''
 Integration — Bringing Observation into Coherence
@@ -1818,13 +1816,13 @@ A single star does not guide. Stars guide by their relation to one another — t
 
 The flood still covers much of the land, but it is no longer unreadable. Currents reveal hidden edges. Birds return to particular places. Pattern begins to surface inside uncertainty. The work now moves inward.
 
-In Kemetic thought, the heart is not emotion alone. It is the chamber where what has been perceived is ordered before it is spoken or acted upon. The Memphite Theology describes creation through heart and tongue: the heart conceives, the tongue releases the word into form.
+Here the heart gathers perception into order before it is spoken or acted upon. The Memphite Theology describes creation through heart and tongue: the heart conceives, the tongue releases the word into form.
 
 — Memphite Theology
 
 But speech cannot come first. Before the year can be named, counted, or acted upon, what has been seen must hold together in the ib.
 
-Where observation is brought into the heart, judgment becomes possible. Where it is released too early, action speaks before truth has formed.
+Observation brought into the heart makes judgment possible. Released too early, action speaks before truth has formed.
 ''',
   '''
 Expression — Releasing Understanding into Shared Order
@@ -1839,7 +1837,7 @@ Papyrus Chester Beatty IV preserves the principle plainly: writings keep names a
 
 What remains in one mind can be lost with that mind. Record completes observation.
 
-Where understanding is released into shared form, Ma'at can be carried forward. Where it is held without expression, the pattern fragments and Isfet enters through forgetting.
+Understanding released into shared form lets Ma'at be carried forward. Held without expression, the pattern fragments and Isfet enters through forgetting.
 ''',
   '''
 Initiation of Motion — What Was Set Begins to Move
@@ -1848,18 +1846,18 @@ A decanal star becomes useful when it rises into view. Its appearance does not c
 
 The flood still covers much of the land, but the people are no longer held in pure waiting. Boats are loaded. Channels are trusted. Goods begin to cross between settlements. What Thoth measured is placed into motion.
 
-This is not haste. A thing that rises too quickly can fall. A boat pushed into the wrong current loses its course. A burden lifted before it is balanced spills what it was meant to preserve. The Pyramid Texts place ordered movement in the solar bark — the deceased joins the rowing of the imperishable powers not through urgency but through aligned purpose.
+This movement has no place for haste. A thing that rises too quickly can fall. A boat pushed into the wrong current loses its course. A burden lifted before it is balanced spills what it was meant to preserve. The Pyramid Texts place ordered movement in the solar bark — the deceased joins the rowing of the imperishable powers not through urgency but through aligned purpose.
 
 — Pyramid Texts
 
-Where motion begins in measure, the path can open and sustain itself. Where motion begins without measure, the burden becomes disorder before the journey has truly started.
+Motion that begins in measure opens a path that can sustain itself. Motion without measure turns the burden into disorder before the journey has truly started.
 ''',
   '''
 Sustained Effort — Motion That Remains Aligned
 
 The star has risen. Movement has begun. The question changes — no longer whether the path can open, but whether it can be maintained without distortion.
 
-The heart governs this phase. In Kemetic thought, the ib is the chamber of discernment. It holds direction while the body, the boat, the hand, and the record carry it forward. Movement without the heart becomes strain. Effort without inner regulation becomes force that forgets its own form.
+The heart governs this phase. The ib holds direction while the body, the boat, the hand, and the record carry it forward. Movement without the heart becomes strain. Effort without inner regulation becomes force that forgets its own form.
 
 The Memphite Theology describes creation through heart and tongue: the heart conceives, the tongue releases the word into form.
 
@@ -1867,12 +1865,12 @@ The Memphite Theology describes creation through heart and tongue: the heart con
 
 Paopi applies this to motion. The route must remain correctly conceived while cargo crosses water and messages travel distance. A load must be adjusted while moving. A crew must keep pace without breaking. What carried a correct beginning must carry it through to arrival.
 
-Where the heart governs motion, the burden reaches its place. Where motion outruns discernment, Ma'at is lost in the carrying.
+When the heart governs motion, the burden reaches its place. When motion outruns discernment, Ma'at is lost in the carrying.
 ''',
   '''
 Stability — Movement That No Longer Falters
 
-nfr is not surface beauty. It is rightness made visible — a star beautiful because it holds its place in relation, returns as expected, and can be trusted by those who know how to watch.
+nfr means rightness made visible — a star beautiful because it holds its place in relation, returns as expected, and can be trusted by those who know how to watch.
 
 Routes are no longer experimental. Boats know the channels. Carried goods reach their destinations. Offerings arrive without confusion. Records travel with the things they name. The motion begun in ꜥḥꜣy and regulated in ḥry-ib ꜥḥꜣy has become dependable.
 
@@ -1882,7 +1880,7 @@ The Wadi el-Jarf Papyri show this order in practical form: dated movements, work
 
 A carried order is beautiful when it reaches without spilling, speaks without distortion, and continues without strain.
 
-Where movement becomes stable, Ma'at travels through the world. Where it remains unstable, even right intention fails to arrive whole.
+Stable movement lets Ma'at travel through the world. Unstable movement keeps even right intention from arriving whole.
 ''',
   '''
 Stability Regained — What Endures Becomes Visible
@@ -1891,13 +1889,13 @@ Sah moves through the night sky carrying the memory of restoration. In Kemetic s
 
 The flood has withdrawn enough that the world shows its shape again. Paths hold underfoot. The field's edge is visible. What had been form has returned as form — not assumed, but confirmed by the foot that tests it.
 
-This first stability is not the full breath of harvest or festival. It is the release of tension when the ground proves reliable. The Pyramid Texts describe Heru gathering the limbs of Ausar and joining what had been separated so that nothing of him can be disturbed.
+This first stability comes before the full breath of harvest or festival. It is the release of tension when the ground proves reliable. The Pyramid Texts describe Heru gathering the limbs of Ausar and joining what had been separated so that nothing of him can be disturbed.
 
 — Pyramid Texts
 
-Stability is not the denial of disruption. It is form that has endured through it.
+Stability does not deny disruption. It is form that has endured through it.
 
-Where stability is recognized correctly, joy can begin to rise. Where it is assumed too early, celebration rests on what has not yet been confirmed.
+Stability recognized correctly lets joy begin to rise. Assumed too early, celebration rests on what has not yet been confirmed.
 ''',
   '''
 Harmonization — Stability Shared and Lived
@@ -1906,13 +1904,13 @@ A star's usefulness is not only that it appears. It appears in relation — belo
 
 So too with the land. The field holds. Movement is possible. But stability that remains isolated has not yet become harmony. Work must enter rhythm between people: boats timed, labor coordinated, offerings prepared, households returning to shared measure.
 
-The heart governs this phase. In Kemetic thought, the ib is what weighs relation before action becomes disorder. A community out of rhythm can damage a stable field. Hathor's music belongs here — not as entertainment but as the practice of relation held through timing. Hands, voices, and breath enter one pattern without losing their distinct parts.
+The heart governs this phase. Here the ib weighs relation before action becomes disorder. A community out of rhythm can damage a stable field. Hathor's music belongs here — not as entertainment but as the practice of relation held through timing. Hands, voices, and breath enter one pattern without losing their distinct parts.
 
 The Book of Coming Forth by Day places Hathor with Ra as a destination of the freed ba — welcome within the ordered path, not decoration at its edge.
 
 — Book of Coming Forth by Day
 
-Where the heart keeps rhythm, community strengthens Ma'at. Where rhythm breaks, even restored ground begins to strain.
+When the heart keeps rhythm, community strengthens Ma'at. When rhythm breaks, even restored ground begins to strain.
 ''',
   '''
 Expression — Order Made Visible Through Beauty
@@ -1925,29 +1923,29 @@ But Hathor is also the Eye of Ra. The same power that delights can become destru
 
 — Dendera Temple traditions
 
-What is stable can become graceful. What is graceful can be remembered. What is remembered strengthens the pattern that produced it.
+Stable order can become graceful. Remembered grace strengthens the pattern that produced it.
 
-Where beauty expresses Ma'at, joy preserves order. Where expression escapes measure, delight moves toward the consuming heat of the Eye.
+Beauty that expresses Ma'at lets joy preserve order. Expression that escapes measure moves delight toward the consuming heat of the Eye.
 ''',
   '''
 Renewed Strength — Power Returning to the Body
 
-The Foreleg turns through the northern sky without setting. Unlike stars that rise and fall with the seasons, it holds its circuit above the horizon through the full year — one of the imperishable ones, fixed in the dark above the place where Kemet sleeps. Its strength is not in brightness. It is in constancy.
+The Foreleg turns through the northern sky without setting. Unlike stars that rise and fall with the seasons, it holds its circuit above the horizon through the full year — one of the imperishable ones, fixed in the dark above the place where Kemet sleeps. Its strength rests in constancy, not brightness.
 
 The floodwaters have withdrawn. The black silt is visible at the field's edge. Strength has returned to the land, but it has not yet been spent. Seed waits. Tools have been lifted but not yet driven. The body of the year braces before committing its full weight.
 
-The Pyramid Texts describe Heru gathering the limbs of Ausar — joining what had been separated, making the restored body secure before power can act through it again. Restoration is not sudden display.
+The Pyramid Texts describe Heru gathering the limbs of Ausar — joining what had been separated, making the restored body secure before power can act through it again. Restoration gathers itself before display.
 
 — Pyramid Texts
 
-Where returned strength is recognized before it is spent, the next movement can hold its form. Where force is released before it is stable, renewal is weakened at its root.
+Returned strength, recognized before it is spent, lets the next movement hold its form. Force released before it is stable weakens renewal at the root.
 ''',
   '''
 Control — Strength Brought Under Awareness
 
-The foreleg can brace, push, lift, or strike. Its value depends entirely on what governs it. Force by itself is not Ma'at. Force held in right relation becomes support.
+The foreleg can brace, push, lift, or strike. Its value depends entirely on what governs it. Force enters Ma'at only when held in right relation; then it becomes support.
 
-The heart is the regulator. Labor has returned to the field. Bodies regain rhythm after the long season of flood and waiting. The risk now is not weakness — it is the opposite. Overworking the soil, spending strength before the seedling is secure, forcing growth before its time: all of these turn vitality into damage.
+The heart is the regulator. Labor has returned to the field. Bodies regain rhythm after the long season of flood and waiting. Weakness is no longer the main risk; excess is. Overworking the soil, spending strength before the seedling is secure, forcing growth before its time: all of these turn vitality into damage.
 
 The Book of Coming Forth by Day preserves the concern that the heart not stand against the person in the hall of judgment. The heart knows what was done with strength.
 
@@ -1955,22 +1953,22 @@ The Book of Coming Forth by Day preserves the concern that the heart not stand a
 
 Ka upon Ka requires governance. The first ka is life received. The second is life preserved through measure.
 
-Where strength is governed by the ib, force becomes useful. Where strength acts without discernment, Isfet begins as excess inside renewal.
+Strength governed by the ib becomes useful force. Strength acting without discernment lets Isfet begin as excess inside renewal.
 ''',
   '''
 Application — Strength Put Into Right Use
 
-A star becomes a guide when its appearance can be trusted. The foreleg becomes useful when its force can be placed without breaking what it supports. This decan is not about raw vitality. It is about strength made reliable enough to direct action.
+A star becomes a guide when its appearance can be trusted. The foreleg becomes useful when its force can be placed without breaking what it supports. This decan moves past raw vitality toward strength reliable enough to direct action.
 
 The seed is in the earth. The field has received its charge. Tools are at work. Canals are checked. Soil is turned where needed. Labor has found its steady rhythm — not dramatic, not urgent, but continuous.
 
-The work is not to prove strength. The work is to place it where continuity needs it. The Pyramid Texts present offerings to the ka so life may be sustained without interruption. That same logic governs the field — energy must feed the cycle, not consume it.
+The work is to place strength where continuity needs it. The Pyramid Texts present offerings to the ka so life may be sustained without interruption. That same logic governs the field — energy must feed the cycle, not consume it.
 
 — Pyramid Texts
 
 Ka-ḥer-Ka reaches its proper form when vitality becomes contribution.
 
-Where strength serves continuity, Ma'at takes root in the field. Where strength seeks display, the planted future is placed at risk.
+Strength that serves continuity roots Ma'at in the field. Strength that seeks display puts the planted future at risk.
 ''',
   '''
 Attention — Seeing What Must Be Tended First
@@ -1979,7 +1977,7 @@ The star that rises foremost in a watch does not complete the night. It directs 
 
 Peret has opened. The green growth is present in the field but not yet secure. A small imbalance at this stage — water pooling unevenly, a root weakening beneath a surface that still looks sound — becomes a larger loss later. The field can fail quietly, without drama, before any visible sign appears.
 
-The work is therefore not intervention first. It is seeing first.
+The work begins with seeing before intervention.
 
 Renenutet's cobra form belongs here. The cobra watches before it acts. It knows the full situation before it moves. Her guardianship of the granary begins with attention — the eye that recognizes threat before the threat becomes loss.
 
@@ -1987,14 +1985,14 @@ The Hymn to Hapy praises the flood for making nourishment possible. But what the
 
 — Hymn to Hapy
 
-Where fragile growth is seen early, care can arrive in measure. Where need is noticed only after damage appears, nourishment becomes repair instead of preservation.
+Fragile growth seen early can receive care in measure. Need noticed only after damage appears turns nourishment into repair instead of preservation.
 ''',
   '''
 Sustained Nurturing — Care Directed with Understanding
 
 Attention has found what needs tending. Now response must be measured. The heart decides how nourishment moves — where water is needed, where labor should be placed, where restraint matters more than addition.
 
-In Kemetic thought, the ib is the chamber of proportion. It does not only feel need. It weighs response against what the whole system can bear.
+Here the ib is the chamber of proportion. It does more than feel need; it weighs response against what the whole system can bear.
 
 Too little care abandons life. Too much smothers it. Giving without measure can exhaust the giver, damage the root, or empty what must be preserved for later. The Pyramid Texts show this through offering — bread and beer are not vague abundance. They are named, directed, and placed so the ka receives without being overwhelmed and without being starved.
 
@@ -2002,7 +2000,7 @@ Too little care abandons life. Too much smothers it. Giving without measure can 
 
 Renenutet nourishes, but she also guards what is stored. She does not give from an inexhaustible source. She gives from a measured one.
 
-Where care is directed by the heart, life is sustained without depletion. Where care loses proportion, even nourishment becomes disorder.
+Care directed by the heart sustains life without depletion. Care that loses proportion turns even nourishment into disorder.
 ''',
   '''
 Trust — Allowing Growth to Continue
@@ -2011,11 +2009,11 @@ A star guides by consistency — not by constant adjustment, but by holding its 
 
 The early weakness has been seen. Water has been balanced. Labor has been placed where it was needed. The seedling no longer requires constant correction. Growth has found its own rhythm.
 
-This is not neglect. It is the final form of proper nourishment.
+This is the final form of proper nourishment.
 
 A field interfered with too heavily can be damaged by the hand that meant to help it. A child overguarded can be kept from developing the strength it will need. Renenutet's work is visible here as guarded confidence — she does not leave the granary, but she no longer needs to intervene in every movement of the grain.
 
-Where care has been measured correctly, growth proceeds without strain. Where control continues past its proper time, care becomes interference and Ma'at is weakened by excess.
+Measured care lets growth proceed without strain. Control continued past its proper time becomes interference, and Ma'at is weakened by excess.
 ''',
   '''
 Formation — Shaping Through Understanding
@@ -2026,7 +2024,7 @@ The fields of Peret are growing steadily. The early crisis has passed. What rema
 
 Water softens clay. The wheel turns. Pressure applied too quickly collapses the wall. Pressure withheld too long leaves formlessness where structure was needed. Khnum's craft requires knowledge held in the hand — knowing where resistance is, where softness is, and what the vessel needs to become before the hands release it.
 
-Where knowledge gives form to effort, the work can hold. Where force shapes without understanding, what is made carries failure inside it.
+Knowledge that gives form to effort lets the work hold. Force that shapes without understanding leaves failure inside what is made.
 ''',
   '''
 Discernment — Guiding Knowledge with Judgment
@@ -2035,13 +2033,13 @@ The first form has appeared on the wheel. It is not finished. This is the stage 
 
 The heart governs the craft.
 
-In Kemetic thought, the ib is the chamber where what has been seen is weighed before the hand moves again. Technique without discernment becomes strain. The Memphite Theology describes creation through heart and tongue: the heart conceives before the tongue releases the word into form.
+The ib weighs what has been seen before the hand moves again. Technique without discernment becomes strain. The Memphite Theology describes creation through heart and tongue: the heart conceives before the tongue releases the word into form.
 
 — Memphite Theology
 
 Khnum gives the same principle a material body. A vessel is shaped before it can hold. A body is formed before it can breathe. The apprentice who begins to see the error before it hardens has entered the heart of the craft.
 
-Where knowledge is governed by the ib, skill becomes trustworthy. Where knowledge moves without judgment, it creates disorder with precision.
+Knowledge governed by the ib becomes trustworthy skill. Knowledge moving without judgment creates disorder with precision.
 ''',
   '''
 Competence — Knowledge That Can Be Trusted
@@ -2056,14 +2054,14 @@ Papyrus Chester Beatty IV praises writings because they keep names alive in the 
 
 — Papyrus Chester Beatty IV
 
-Competence is not display. It is repeatable right action.
+Competence is repeatable right action, not display.
 
-Where knowledge can be trusted, it becomes inheritance. Where skill cannot be repeated, the next cycle must begin from uncertainty.
+Knowledge that can be trusted becomes inheritance. Skill that cannot be repeated leaves the next cycle to begin from uncertainty.
 ''',
   '''
 Trial — Knowledge Entering the Field
 
-A star earns the designation noble by returning to its place. Its nobility is not rank conferred from outside — it is reliability demonstrated through time. The stars named špsswt are the ones who have held their position long enough to be trusted by those who watch.
+A star earns the designation noble by returning to its place. Its nobility comes from reliability demonstrated through time, not rank conferred from outside. The stars named špsswt are the ones who have held their position long enough to be trusted by those who watch.
 
 The late fields of Peret test the same question. The crop faces increasing heat. The tool meets harder ground. The body carries fatigue into work that has lost its newness. Method must now hold under the conditions that were absent when it was first formed.
 
@@ -2071,14 +2069,14 @@ Knowledge that has not been tested can still be imagination. The Contendings of 
 
 — Contendings of Heru and Set
 
-Where knowledge remains aligned under first strain, it can mature into what the noble ones name. Where difficulty causes immediate abandonment, the earlier formation was not yet stable.
+Knowledge that remains aligned under first strain can mature into what the noble ones name. Difficulty that causes immediate abandonment shows the earlier formation was not yet stable.
 ''',
   '''
 Adaptation — Refining Without Breaking
 
 The trial has revealed the limits of the method. The question is no longer whether difficulty exists. It does. The question is whether the heart can correct the course without collapsing what it was holding.
 
-Adaptation is not surrender. It is Ma'at preserved through recalibration.
+Adaptation preserves Ma'at through recalibration; it does not surrender.
 
 In the Contendings, Heru does not win by force alone. The dispute continues through argument, humiliation, renewed counsel, and repeated judgment. Aset's protection keeps the claim from becoming reckless appetite. Djehuty's measure keeps the tribunal from dissolving into chaos. The claim endures because what governs it remains aligned even when method requires adjustment.
 
@@ -2086,7 +2084,7 @@ In the Contendings, Heru does not win by force alone. The dispute continues thro
 
 A pace may need to slow. A tool may need reshaping. A judgment may need more evidence before it can stand. The heart holds direction while method changes.
 
-Where adjustment preserves measure, pressure becomes instruction. Where adjustment is refused, strain becomes fracture.
+Adjustment that preserves measure turns pressure into instruction. Refused adjustment lets strain become fracture.
 ''',
   '''
 Quiet Competence — Mastery Without Display
@@ -2101,12 +2099,12 @@ The Instruction of Amenemope values the quiet person over the heated one — not
 
 This is what knowledge looks like after it has earned its designation.
 
-Where competence remains steady, Ma'at is preserved without noise. Where skill still needs display, it has not yet become fully stable.
+Steady competence preserves Ma'at without noise. Skill that still needs display has not yet become fully stable.
 ''',
   '''
 Return — The First Signs of Answer
 
-Birds gather where food appears. Their movement is not random to the careful watcher — it reveals where grain, water, and life have begun to concentrate. When the birds return in numbers, the land is answering.
+Birds gather where food appears. Their movement reveals, to the careful watcher, where grain, water, and life have begun to concentrate. When the birds return in numbers, the land is answering.
 
 The early harvest has begun. First grain is cut. First yields are carried in from the outer fields. The cycle has entered its returning phase, but the return is not yet settled. What has arrived represents the beginning of abundance, not its full measure.
 
@@ -2116,7 +2114,7 @@ Renenutet is present as promise held under attention. Her nourishment has begun 
 
 — Hymn to Hapy
 
-Where return is observed with clarity, distribution can be measured. Where first gain becomes excitement without measure, disorder enters before the storehouse is full.
+Return observed with clarity allows distribution to be measured. First gain received with unmeasured excitement lets disorder enter before the storehouse is full.
 ''',
   '''
 Distribution — Receiving in Right Measure
@@ -2133,7 +2131,7 @@ The offering formula gives the proper pattern: provision named, directed, and pl
 
 The first share belongs to relation: netjeru, ancestors, household, those who labored, the vulnerable, and the seed that must carry the next cycle forward.
 
-Where receiving is governed by the heart, plenty becomes continuity. Where receiving loses measure, harvest becomes appetite.
+Receiving governed by the heart turns plenty into continuity. Receiving without measure turns harvest into appetite.
 ''',
   '''
 Stability — Reward That Can Be Sustained
@@ -2150,14 +2148,14 @@ The offering formula prays for provision named and directed for the ka — not a
 
 — Offering Formula
 
-Where reward is held in balance, abundance becomes peace. Where it is grasped without measure, plenty becomes the beginning of future lack.
+Reward held in balance becomes peace. Grasped without measure, plenty becomes the beginning of future lack.
 ''',
   '''
 Departure — Entering the Path Under Constraint
 
 This star rises below the ascending one — positioned beneath what is moving upward, carrying the weight of the journey before the road has opened into ease.
 
-Shemu is not a gentle season for travel. The sun presses down. The road is exposed. Loads are already waiting at the dock and the granary door. The journey does not begin when conditions are favorable. It begins because what must move cannot wait for comfort.
+Shemu is no gentle season for travel. The sun presses down. The road is exposed. Loads are already waiting at the dock and the granary door. The journey begins because what must move cannot wait for favorable conditions.
 
 Khonsu crosses the night not by removing the darkness but by moving through it with measure. The bark carries Ma'at at its prow not to smooth the water but to ensure the direction is right before the first stroke.
 
@@ -2165,7 +2163,7 @@ The Book of Coming Forth by Day places Ma'at at the head of the great bark — l
 
 — Book of Coming Forth by Day
 
-Where Ma'at leads the path, constraint becomes discipline. Where movement begins without her, the journey carries disorder from its first step.
+When Ma'at leads the path, constraint becomes discipline. Movement begun without her carries disorder from its first step.
 ''',
   '''
 Endurance — Carrying with Discipline
@@ -2174,22 +2172,22 @@ The shoulder above Sah is the bearing point held high — weight taken on and ca
 
 The departure has been made. Now the question is whether the load can be carried without distortion across the full distance.
 
-Heat remains. The route does not shorten because the body tires. A load carried with improper distribution injures the carrier and damages what was meant to arrive whole. Endurance here is not stubbornness — it is proportion held over time. Ra completes his course because the bark maintains direction through each hour. Khonsu crosses the full arc of the night because the lunar measure keeps its rhythm.
+Heat remains. The route does not shorten because the body tires. A load carried with improper distribution injures the carrier and damages what was meant to arrive whole. Endurance here is proportion held over time, not stubbornness. Ra completes his course because the bark maintains direction through each hour. Khonsu crosses the full arc of the night because the lunar measure keeps its rhythm.
 
 The Wadi el-Jarf Papyri show this in the practical record: crews, routes, deliveries, and counted days — great work sustained because each stage arrived where it was sent.
 
 — Wadi el-Jarf Papyri
 
-Where endurance is measured, movement remains sustainable. Where endurance becomes blind force, the path damages what it was meant to carry.
+Measured endurance keeps movement sustainable. Blind endurance damages what the path was meant to carry.
 ''',
   '''
 Recovery — Right Measure in Descent
 
-What is lifted must be set down. What has traveled must be secured. What has endured must recover before endurance becomes collapse.
+Lifted weight must be set down, what has traveled must be secured, and what has endured must recover before endurance becomes collapse.
 
 The shoulder beneath Sah is the bearing point released — weight lowered in order, the load placed correctly rather than dropped from exhaustion.
 
-This is not the end of movement. It is the completion of one movement so that the next can begin without carrying the damage of the last.
+This completes one movement so the next can begin without carrying the damage of the last.
 
 Ra enters the west without ceasing to be Ra. The descent is not defeat — it is the next required phase of the cycle. Khonsu wanes without losing his course. Lessening that happens in right time belongs to Ma'at as fully as the full phase does.
 
@@ -2197,12 +2195,12 @@ The Instruction of Amenemope warns against the heated person — against force t
 
 — Instruction of Amenemope
 
-Where recovery is honored, endurance can continue in the next stage. Where reduction is refused, strength breaks and the journey turns against what it was carrying.
+Honored recovery lets endurance continue into the next stage. When reduction is refused, strength breaks and the journey turns against what it was carrying.
 ''',
   '''
 Vigilance — Authority Held Under Pressure
 
-Heru stands upon Sah. His authority is not the authority of unchallenged force — it is authority recognized after contest, after the restoration of Ausar, after the claim was tested before the full assembly and found to be what it said it was. Sah carries the stellar form of that restoration: endurance proven, the disrupted body gathered and made whole.
+Heru stands upon Sah. His authority is recognized after contest, after the restoration of Ausar, after the claim was tested before the full assembly and found to be what it said it was. Sah carries the stellar form of that restoration: endurance proven, the disrupted body gathered and made whole.
 
 Authority standing on a proven foundation is watchful, not aggressive.
 
@@ -2212,7 +2210,7 @@ The Contendings of Heru and Set preserve the question beneath the decan: whether
 
 — Contendings of Heru and Set
 
-Where Heru stands upon Sah, power watches in service to continuity. Where authority forgets its foundation, protection becomes domination.
+When Heru stands upon Sah, power watches in service to continuity. Authority that forgets its foundation turns protection into domination.
 ''',
   '''
 Restraint — Power Drawn Back Into the Heart
@@ -2221,7 +2219,7 @@ The heart now asks what force is actually required — and answers: less than wh
 
 This is the decan of cooling.
 
-In Kemetic thought, the ib is the chamber of discernment. It receives the pressure of heat, desire, and the momentum of sustained effort, then determines whether continued action would preserve Ma'at or begin to consume what it built. The harvest has been secured. The stores are counted. What served the year's work cannot simply continue as if the work were not done.
+The ib receives the pressure of heat, desire, and the momentum of sustained effort, then determines whether continued action would preserve Ma'at or begin to consume what it built. The harvest has been secured. The stores are counted. What served the year's work cannot simply continue as if the work were not done.
 
 The Instruction of Amenemope warns against the heated person — against speech and action that continue past the measure of what the moment actually requires.
 
@@ -2229,14 +2227,14 @@ The Instruction of Amenemope warns against the heated person — against speech 
 
 Heru's authority is strongest when it does not become Set's appetite. The throne is kept by judgment, not by constant exertion. Power that knows how to refrain has reached a higher order than power that only acts.
 
-Where restraint governs strength, what has been preserved remains available. Where action continues past measure, the hand damages what it meant to protect.
+Strength governed by restraint keeps what has been preserved available. Action continued past measure damages what the hand meant to protect.
 ''',
   '''
 Release — Offering That Restores the Whole
 
 A star guides by appearing in its proper place. Heru guides when rightful power becomes recognizable through action that restores relation. The star of Heru upon Sah is that recognition made visible — authority completing itself through release.
 
-What has been held must not be kept past its time.
+What has been held must be released in its time.
 
 Water is given. Food is shared. Offerings are placed before the netjeru and the ka. Grain reaches those who labored for it. The excess that would otherwise harden inside the storehouse is returned to circulation before it becomes weight.
 
@@ -2246,7 +2244,7 @@ The hand opens not because value has disappeared, but because value becomes Ma'a
 
 Heru's victory does not end in hoarding the throne. It restores the order through which life can continue.
 
-Where release is measured, offering restores the whole. Where what should be returned is kept, abundance begins to decay inside the hand that holds it.
+Measured release lets offering restore the whole. What should be returned begins to decay inside the closed hand.
 ''',
   '''
 Remembrance — What Endures Is Recognized
@@ -2255,13 +2253,13 @@ nfr is rightness that holds through time. A star is beautiful because it returns
 
 The year has nearly completed its arc. Before anything is transmitted, it must be recognized. What proved true under use? What held its form through the long heat of Shemu? What name deserves to be spoken because the life behind it served what it was meant to serve?
 
-This is not the decan of correction. It is the decan of clear seeing — before the hand reaches to transmit, the eye must confirm what actually endured.
+This decan belongs to clear seeing rather than correction — before the hand reaches to transmit, the eye must confirm what actually endured.
 
 The Book of Coming Forth by Day names the sacred work at Abdju as the raising of the earth — not the building of something new, but the reappearance of what had gone below and proven it could return.
 
 — Book of Coming Forth by Day
 
-Where endurance is recognized correctly, the future receives a trustworthy guide. Where memory is neglected, the next cycle approaches renewal without its foundation.
+Endurance recognized correctly gives the future a trustworthy guide. Neglected memory leaves the next cycle approaching renewal without its foundation.
 ''',
   '''
 Integration — Memory Brought Into the Heart
@@ -2276,14 +2274,14 @@ Papyrus Chester Beatty IV teaches that writings preserve names in the mouth of t
 
 — Papyrus Chester Beatty IV
 
-Where memory is brought into the heart and weighed, inheritance becomes clear. Where memory is carried without discernment, the past becomes weight instead of guidance.
+Memory brought into the heart and weighed becomes clear inheritance. Carried without discernment, the past becomes weight instead of guidance.
 ''',
   '''
 Continuity — What Is Carried Forward
 
 The star of the beautiful star is the most stable point of what has already proven itself — the concentrated form of endurance made ready to travel forward.
 
-What has been recognized has entered the heart. What the heart has weighed has been selected. Now it must pass.
+Recognized memory has entered the heart. What the heart has weighed has been selected. Now it must pass.
 
 Names must be spoken so the ka can receive. Measures must be handed to the next hand that will need them. Methods must be demonstrated so the apprentice can carry them into seasons that have not yet arrived. Obligations must be named so the household knows what it owes and what it holds in trust.
 
@@ -2291,14 +2289,14 @@ The offering formula gives the ritual structure: provision named, directed, and 
 
 — Offering Formula
 
-Continuity is not clinging. It is correct passage. What has served Ma'at is carried forward. What would disorder the next cycle is not enthroned as inheritance.
+Continuity is correct passage, not clinging. What has served Ma'at is carried forward. What would disorder the next cycle is not enthroned as inheritance.
 
-Where continuity is maintained, the chain remains alive. Where transmission breaks, names fade, offerings lose direction, and the year approaches renewal without its memory.
+Maintained continuity keeps the chain alive. Broken transmission lets names fade, offerings lose direction, and leaves the year approaching renewal without its memory.
 ''',
   '''
 Emergence — Strength Gathering in Stillness
 
-The crocodile belongs to both water and land. It moves between surface and depth without announcement. Its power is present long before it is displayed — the stillness above water is not absence of force but force concentrated in waiting.
+The crocodile belongs to both water and land. It moves between surface and depth without announcement. Its power is present long before it is displayed — the stillness above water is force concentrated in waiting, not an absence.
 
 The year is almost complete. The next cycle has not yet opened. What is forming belongs to the hidden place and must not be drawn out before it is ready.
 
@@ -2306,7 +2304,7 @@ Mesut-Ra carries the birth of Ra, but birth begins before appearance. The Book o
 
 — Book of Coming Forth by Day
 
-Where hidden strength is allowed to gather without interference, emergence can come whole. Where emergence is forced before the passage has completed, what is born carries the incompleteness inside it.
+Hidden strength allowed to gather without interference can emerge whole. Emergence forced before the passage has completed carries incompleteness inside what is born.
 ''',
   '''
 Attentive Stillness — The Heart Awake in Silence
@@ -2321,14 +2319,14 @@ The Amduat shows that Ra's nightly passage through the Duat is not empty darknes
 
 Mesut-Ra requires the same from the year's final watch. Purification performed. Records closed. Offerings completed. What is disordered must be addressed before the threshold opens.
 
-Where stillness remains awake, order is preserved between cycles. Where the heart loses attention, the threshold becomes vulnerable to what should have been released.
+Stillness kept awake preserves order between cycles. A heart that loses attention leaves the threshold vulnerable to what should have been released.
 ''',
   '''
 Threshold — Readiness Before Rebirth
 
 A star before dawn does not create the sun. It announces that the night has reached its final measure — that the passage has completed enough that emergence is near, though not yet present.
 
-This is the last decan of the year. Not the last action — the last readiness.
+This is the last decan of the year: the last readiness, not the last action.
 
 The old year has nothing more to prove. The records are closed. The offerings have been placed. The altars have been cleared. The lamps are low. What remained unresolved has either been addressed or must be acknowledged as carried forward as debt rather than inheritance.
 
@@ -2340,7 +2338,7 @@ The Book of Coming Forth by Day names him as the one who comes forth from dusk a
 
 Readiness is complete when nothing more needs to be added.
 
-Where the threshold is kept intact, rebirth can arrive under Ma'at. Where it is disturbed, the new cycle begins before the old one has truly finished.
+An intact threshold lets rebirth arrive under Ma'at. A disturbed threshold lets the new cycle begin before the old one has truly finished.
 ''',
 ];
 
