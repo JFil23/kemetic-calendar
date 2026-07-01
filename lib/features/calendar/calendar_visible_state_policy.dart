@@ -1,11 +1,11 @@
 bool shouldCommitFlowOnlyVisibleCalendarState({
   required int flowAddedCount,
   required bool keepWarmStartSnapshotVisible,
-  required bool hasPaintedStandaloneLane,
+  required bool hasPaintedEventSnapshot,
 }) {
   if (flowAddedCount <= 0) return false;
   if (keepWarmStartSnapshotVisible) return false;
-  if (hasPaintedStandaloneLane) return false;
+  if (hasPaintedEventSnapshot) return false;
   return true;
 }
 
@@ -17,4 +17,14 @@ bool shouldPreservePaintedStandaloneLaneForHydrationCommit({
   return hasPaintedStandaloneLane &&
       source == 'invalidation:calendarImportSynced' &&
       commitPhase == 'complete';
+}
+
+bool shouldPublishCompletedVisibleCalendarSnapshot({
+  required bool loadComplete,
+  required bool hasIncomingEventSnapshot,
+  required bool hasPaintedEventSnapshot,
+}) {
+  if (loadComplete) return true;
+  if (!hasPaintedEventSnapshot) return hasIncomingEventSnapshot;
+  return false;
 }

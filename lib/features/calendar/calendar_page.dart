@@ -9140,6 +9140,10 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
+  bool _hasPaintedEventSnapshot(Map<String, List<_Note>> notesByDay) {
+    return notesByDay.values.any((notes) => notes.isNotEmpty);
+  }
+
   bool _sameStandaloneLaneNote(_Note a, _Note b) {
     final aClientEventId = a.clientEventId?.trim();
     final bClientEventId = b.clientEventId?.trim();
@@ -30239,6 +30243,9 @@ class CalendarPageState extends State<CalendarPage>
       final hasPaintedStandaloneLaneAtLoadStart = _hasPaintedStandaloneLane(
         _notes,
       );
+      final hasPaintedEventSnapshotAtLoadStart = _hasPaintedEventSnapshot(
+        _notes,
+      );
       final focusWindow = fastStartupMode
           ? _computeStartupVisibleHydrationWindow()
           : null;
@@ -30384,6 +30391,9 @@ class CalendarPageState extends State<CalendarPage>
         }
       }
 
+      var flowHydrationComplete = true;
+      var standaloneHydrationComplete = false;
+
       Future<Map<int, List<FlowEventRow>>> loadFlowEvents() async {
         final eventsByFlowId = <int, List<FlowEventRow>>{};
         if (hydrationFlowIds.isEmpty) {
@@ -30426,6 +30436,7 @@ class CalendarPageState extends State<CalendarPage>
           return eventsByFlowId;
         }
 
+        var fallbackHadError = false;
         for (final flowId in hydrationFlowIds) {
           try {
             final flowEvents = await repo.getEventsForFlow(
@@ -30441,6 +30452,7 @@ class CalendarPageState extends State<CalendarPage>
               );
             }
           } catch (err, st) {
+            fallbackHadError = true;
             if (kDebugMode) {
               _calendarDebugPrint(
                 '[loadFromDisk] failed to hydrate events for flow $flowId: $err',
@@ -30448,6 +30460,9 @@ class CalendarPageState extends State<CalendarPage>
               _calendarDebugPrint('$st');
             }
           }
+        }
+        if (fallbackHadError) {
+          flowHydrationComplete = false;
         }
 
         return eventsByFlowId;
@@ -30475,8 +30490,31 @@ class CalendarPageState extends State<CalendarPage>
       int flowAddedCount = 0;
       bool committedVisibleCalendar = false;
 
-      void commitVisibleCalendarState(String phase) {
+      void commitVisibleCalendarState(
+        String phase, {
+        bool loadComplete = false,
+      }) {
         if (!mounted) return;
+        final hasIncomingEventSnapshot = newNotes.values.any(
+          (notes) => notes.isNotEmpty,
+        );
+        if (phase == 'complete' &&
+            !shouldPublishCompletedVisibleCalendarSnapshot(
+              loadComplete: loadComplete,
+              hasIncomingEventSnapshot: hasIncomingEventSnapshot,
+              hasPaintedEventSnapshot: hasPaintedEventSnapshotAtLoadStart,
+            )) {
+          if (kDebugMode) {
+            _calendarDebugPrint(
+              '[loadFromDisk] skipped incomplete complete commit '
+              'source=$source incomingEvents=$hasIncomingEventSnapshot '
+              'paintedEvents=$hasPaintedEventSnapshotAtLoadStart '
+              'flowComplete=$flowHydrationComplete '
+              'standaloneComplete=$standaloneHydrationComplete',
+            );
+          }
+          return;
+        }
         final preservePaintedStandaloneLane =
             shouldPreservePaintedStandaloneLaneForHydrationCommit(
               source: source,
@@ -30523,7 +30561,9 @@ class CalendarPageState extends State<CalendarPage>
         _bumpDataVersion();
         _lastSuccessfulHydrationAt = DateTime.now();
         _warmStartCacheRestoredForUserId = _activeWarmStartUserId();
-        _warmStartSnapshotVisible = false;
+        if (loadComplete || !hasPaintedEventSnapshotAtLoadStart) {
+          _warmStartSnapshotVisible = false;
+        }
         if (!committedVisibleCalendar &&
             preserveViewport &&
             preservedScrollOffset != null) {
@@ -30761,6 +30801,7 @@ class CalendarPageState extends State<CalendarPage>
             }
           }
         } catch (err, st) {
+          flowHydrationComplete = false;
           if (kDebugMode) {
             _calendarDebugPrint(
               '[loadFromDisk] failed to hydrate events for flow $flowId: $err',
@@ -30778,7 +30819,7 @@ class CalendarPageState extends State<CalendarPage>
       final shouldCommitFlowOnly = shouldCommitFlowOnlyVisibleCalendarState(
         flowAddedCount: flowAddedCount,
         keepWarmStartSnapshotVisible: keepWarmStartSnapshotVisible,
-        hasPaintedStandaloneLane: hasPaintedStandaloneLaneAtLoadStart,
+        hasPaintedEventSnapshot: hasPaintedEventSnapshotAtLoadStart,
       );
       if (shouldCommitFlowOnly) {
         // Standalone notes/reminders can be slower or time out. Flow-backed
@@ -31024,6 +31065,7 @@ class CalendarPageState extends State<CalendarPage>
             '(${standaloneWindow.startUtc.toIso8601String()} → ${standaloneWindow.endUtc.toIso8601String()})',
           );
         }
+        standaloneHydrationComplete = true;
       } catch (err, st) {
         if (kDebugMode) {
           _calendarDebugPrint(
@@ -31033,7 +31075,10 @@ class CalendarPageState extends State<CalendarPage>
         }
       }
 
-      commitVisibleCalendarState('complete');
+      commitVisibleCalendarState(
+        'complete',
+        loadComplete: flowHydrationComplete && standaloneHydrationComplete,
+      );
 
       Future<void> finishNonCriticalPostProcessing() async {
         try {

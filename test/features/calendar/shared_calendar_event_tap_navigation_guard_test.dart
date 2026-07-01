@@ -369,7 +369,12 @@ void main() {
         expect(loadFromDisk, contains('hasPaintedStandaloneLaneAtLoadStart'));
         expect(
           loadFromDisk,
-          contains('commitVisibleCalendarState(String phase)'),
+          contains('void commitVisibleCalendarState(\n        String phase'),
+        );
+        expect(loadFromDisk, contains('hasPaintedEventSnapshotAtLoadStart'));
+        expect(
+          loadFromDisk,
+          contains('shouldPublishCompletedVisibleCalendarSnapshot'),
         );
         expect(loadFromDisk, contains('preservePaintedStandaloneLane'));
         expect(
