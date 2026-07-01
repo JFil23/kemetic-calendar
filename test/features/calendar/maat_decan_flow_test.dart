@@ -538,6 +538,127 @@ void main() {
     expect(issues, isEmpty);
   });
 
+  test('Open Mouth copy keeps words speakable and truth checks in steps', () {
+    final openMouth = maatDecanFlowDefinitionForKey(kOpenMouthFlowKey)!;
+    final event2 = maatDecanFlowEventByNumber(openMouth, 2)!;
+    final event3 = maatDecanFlowEventByNumber(openMouth, 3)!;
+    final event4 = maatDecanFlowEventByNumber(openMouth, 4)!;
+    final event5 = maatDecanFlowEventByNumber(openMouth, 5)!;
+    final event6 = maatDecanFlowEventByNumber(openMouth, 6)!;
+    final event7 = maatDecanFlowEventByNumber(openMouth, 7)!;
+    final event8 = maatDecanFlowEventByNumber(openMouth, 8)!;
+    final event9 = maatDecanFlowEventByNumber(openMouth, 9)!;
+
+    expect(event2.steps, <String>[
+      'Choose one piece of speech from the last five days.',
+      'Write what it created.',
+      'Choose one thing not said.',
+      'Write what its absence created.',
+      'Name the speech pattern from Day 1 that the next ten-day section should govern.',
+    ]);
+    expect(
+      event3.steps,
+      contains(
+        'Write: In the next ten-day section, I will practice [discipline]. I will say [needed thing].',
+      ),
+    );
+    expect(
+      event4.steps,
+      contains('Choose one discipline for this ten-day section.'),
+    );
+    expect(event4.steps, contains('Define the specific practice.'));
+
+    expect(event5.steps, <String>[
+      'Name one thing you did not say this decan that was better kept back.',
+      'Check whether the thing that needs to be said has been said.',
+      'If it has not been said, name the time before this ten-day section ends when you will say it.',
+      'Practice one deliberate pause in a conversation today.',
+    ]);
+    expect(event5.requiresRealWorldAction, isTrue);
+
+    expect(
+      event6.steps,
+      contains('Record whether the important thing has been said.'),
+    );
+    expect(
+      event6.steps,
+      contains('If it has not been said, name what remains in the way.'),
+    );
+    expect(
+      event6.steps,
+      contains(
+        'Name one conversation that changed when the mouth was governed.',
+      ),
+    );
+    expect(event7.purpose, contains('not ready to be declared'));
+    expect(event7.steps, contains('Write it first.'));
+    expect(
+      event7.steps,
+      isNot(
+        contains(
+          'Write it first. What is not fully conceived is not ready to be declared.',
+        ),
+      ),
+    );
+    expect(
+      event8.steps,
+      contains('If it has not been said, say it before the closing sitting.'),
+    );
+    expect(event8.requiresRealWorldAction, isTrue);
+
+    expect(
+      event9.spokenLine,
+      'My mouth is open. My speech is governed. What I command, I create with care.',
+    );
+    expect(event9.steps, <String>[
+      'Name the most significant speech pattern the inventory revealed.',
+      'Name what the governance practice produced.',
+      'Name what was spoken that needed to be spoken: I said [thing] on [day]. It is now in the world.',
+      'Check whether the line is true before speaking it.',
+      'Speak only the parts of the line that are true.',
+      'Say, if true: My speech was not heated.',
+      'Say, if true: My heart was not hasty.',
+      'Say, if true: I said what needed to be said.',
+      'Sit in intentional silence for one full minute.',
+    ]);
+    expect(
+      event9.extraCompletionStatusLabels,
+      containsPair('spoken', 'Spoken'),
+    );
+  });
+
+  test('Open Mouth words fields do not contain stage-direction wrappers', () {
+    final issues = <String>[];
+    final openMouth = maatDecanFlowDefinitionForKey(kOpenMouthFlowKey)!;
+
+    for (final event in openMouth.events) {
+      for (final pattern in _openMouthWordsStageDirectionPatterns) {
+        if (pattern.hasMatch(event.spokenLine)) {
+          issues.add(
+            'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+          );
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('Open Mouth steps keep source-note phrases out of actions', () {
+    final issues = <String>[];
+    final openMouth = maatDecanFlowDefinitionForKey(kOpenMouthFlowKey)!;
+
+    for (final event in openMouth.events) {
+      for (final step in event.steps) {
+        if (_openMouthSourceNotePhrasePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
   test('representative source-note upgrades are stored', () {
     expect(
       maatDecanFlowEventByNumber(
@@ -648,5 +769,16 @@ final _hotepWordsStageDirectionPatterns = <RegExp>[
 
 final _hotepSourceNotePhrasePattern = RegExp(
   r'\b(Pyramid Texts|Amenemope|source|because)\b',
+  caseSensitive: false,
+);
+
+final _openMouthWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*speak only\b', caseSensitive: false),
+  RegExp(r'\bthen sit\b', caseSensitive: false),
+  RegExp(r'\bintentional silence\b', caseSensitive: false),
+];
+
+final _openMouthSourceNotePhrasePattern = RegExp(
+  r'\b(Memphite Theology|Opening of the Mouth|source|because)\b',
   caseSensitive: false,
 );

@@ -1542,9 +1542,11 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         spokenLine:
             'My speech has not been heated. My heart has not been hasty.',
         steps: <String>[
-          'Choose one piece of speech from the last five days and write what it created.',
-          'Choose one thing not said and write what its absence created.',
-          'Name the speech pattern from Day 1 that Decan 2 should govern.',
+          'Choose one piece of speech from the last five days.',
+          'Write what it created.',
+          'Choose one thing not said.',
+          'Write what its absence created.',
+          'Name the speech pattern from Day 1 that the next ten-day section should govern.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -1562,7 +1564,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Name the speech pattern that would most improve what your mouth creates if governed.',
           'Name the one thing not said that needs to be said before this flow closes.',
-          'Write: In Decan 2, I will practice [discipline]. I will say [needed thing].',
+          'Write: In the next ten-day section, I will practice [discipline]. I will say [needed thing].',
         ],
       ),
       MaatDecanFlowEvent(
@@ -1579,7 +1581,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Review the five disciplines: pause, accuracy, relevance, timing, witness before speaking.',
           'For each, write whether it is currently operating in your speech.',
-          'Choose one discipline for this decan and define the specific practice.',
+          'Choose one discipline for this ten-day section.',
+          'Define the specific practice.',
         ],
         sourceNote:
             'Amenemope\'s image of the tongue as a steering oar places the problem clearly: an oar not controlled by the navigator creates the illusion of movement while taking the vessel in the wrong direction. Choose the discipline most absent.',
@@ -1598,7 +1601,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'Do not pour out your words to others. Be strong in your heart.',
         steps: <String>[
           'Name one thing you did not say this decan that was better kept back.',
-          'Check the thing that needs to be said: has it been said? If not, when before the decan ends?',
+          'Check whether the thing that needs to be said has been said.',
+          'If it has not been said, name the time before this ten-day section ends when you will say it.',
           'Practice one deliberate pause in a conversation today.',
         ],
         requiresRealWorldAction: true,
@@ -1617,8 +1621,9 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'Your ears have been unplugged, your mouth has been opened, the bonds have been loosened.',
         steps: <String>[
           'For your chosen discipline, write one honest sentence about how it operated.',
-          'Record whether the important thing has been said; if not, name what remains in the way.',
-          'Name one conversation that went differently because the mouth was governed.',
+          'Record whether the important thing has been said.',
+          'If it has not been said, name what remains in the way.',
+          'Name one conversation that changed when the mouth was governed.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -1630,13 +1635,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'The heart conceives before the tongue declares. Writing the true thing first is the heart\'s work — making it real through speech is the tongue\'s work. This sitting completes the first half.',
+            'The heart conceives before the tongue declares. Writing the true thing first is the heart\'s work — making it real through speech is the tongue\'s work. What is not fully conceived is not ready to be declared. This sitting completes the first half.',
         spokenLine:
             'Your tongue is the plummet. Your heart is the weight. I open my mouth with care.',
         steps: <String>[
           'Ask what your mouth has been creating across this flow.',
           'Name one specific, true, currently unspoken thing you will bring into the world by saying it.',
-          'Write it first. What is not fully conceived is not ready to be declared.',
+          'Write it first.',
         ],
         sourceNote:
             'The Memphite Theology describes creation as: heart conceives, tongue declares, world forms. The mouth that speaks before the heart has finished conceiving is interrupting the process. Writing the sentence first is the heart\'s work completed before the tongue takes over.',
@@ -1654,7 +1659,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'Open your mouth, for you have been tended. The bonds are loosened. You are sound.',
         steps: <String>[
           'If the thing written on Day 21 has been said, write what happened when it entered the world.',
-          'If not, today is the day. Say it before Event 9.',
+          'If it has not been said, say it before the closing sitting.',
           'Write the most accurate thing you learned about your own speech.',
         ],
         requiresRealWorldAction: true,
@@ -1670,12 +1675,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         purpose:
             'The flow closes with what was spoken that needed to be spoken, and with one minute of intentional silence. The silence is not the absence of speech — it is the space the governed mouth creates.',
         spokenLine:
-            'Speak only what is true: My mouth is open. My speech is governed. What I command, I create with care. Then sit in intentional silence for one full minute.',
+            'My mouth is open. My speech is governed. What I command, I create with care.',
         steps: <String>[
           'Name the most significant speech pattern the inventory revealed.',
           'Name what the governance practice produced.',
           'Name what was spoken that needed to be spoken: I said [thing] on [day]. It is now in the world.',
-          'Speak only the true lines: my speech was not heated; my heart was not hasty; I said what needed to be said.',
+          'Check whether the line is true before speaking it.',
+          'Speak only the parts of the line that are true.',
+          'Say, if true: My speech was not heated.',
+          'Say, if true: My heart was not hasty.',
+          'Say, if true: I said what needed to be said.',
           'Sit in intentional silence for one full minute.',
         ],
         extraCompletionStatusLabels: <String, String>{'spoken': 'Spoken'},
