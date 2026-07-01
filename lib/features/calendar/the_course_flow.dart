@@ -160,14 +160,12 @@ const List<CourseEvent> kTheCourseEvents = <CourseEvent>[
     durationMinutesMin: 3,
     durationMinutesMax: 5,
     spokenLine:
-        'Face east, or face the window: Riser, Riser! Beetle, Beetle! Your life is related to mine; my life is related to yours. Sustenance is for my morning, Abundance is for my evening. Famine will not have control of this life.',
+        'Riser, Riser! Beetle, Beetle! Your life is related to mine; my life is related to yours. Sustenance is for my morning, Abundance is for my evening. Famine will not have control of this life.',
     steps: <String>[
+      'Face east, or face the window.',
       'Open the ḥꜣw day card. Read the Kemetic date, decan name, and Ma\'at principle before you close it.',
       'Name one thing appropriate for the morning part of this particular day.',
       'Do one opening act that matches the day instead of only the task list.',
-    ],
-    optionalSteps: <String>[
-      'Face east for a moment. This is the direction of return.',
     ],
     sourceNote:
         'Pyramid Texts Utterance 388 addressed the returning Sun as an entity that had just arrived and with whom the speaker was in reciprocal relationship. The day card locates you in the Kemetic count; facing east makes the location physical.',
@@ -218,8 +216,8 @@ const List<CourseEvent> kTheCourseEvents = <CourseEvent>[
         'The sky\'s door has been opened to you. You shall set course to your proper work and make your yearly supply.',
     steps: <String>[
       'Open the ḥꜣw day card before anything else.',
-      'Read the decan name, ten-day theme, and Ma\'at principle for the current decan.',
-      'Name what this specific decan calls for in your life right now.',
+      'Read the current decan name, ten-day theme, and Ma\'at principle.',
+      'Name what this ten-day decan calls for in your life right now.',
     ],
     sourceNote:
         'The 36 decans were star groups that rose in the eastern sky at ten-day intervals, serving as the Kemetic clock. Each had a distinct character. This rite makes the current decan\'s quality something you actively work with, not just observe.',
@@ -269,7 +267,7 @@ const List<CourseEvent> kTheCourseEvents = <CourseEvent>[
     durationMinutesMin: 5,
     durationMinutesMax: 8,
     spokenLine:
-        'Locate the current season first. Then speak: I ordered everything in its proper place. Hapy gave me honor on every field, so that none hungered during my years, none thirsted therein.',
+        'I ordered everything in its proper place. Hapy gave me honor on every field, so that none hungered during my years, none thirsted therein.',
     steps: <String>[
       'Open the ḥꜣw day card and locate the current season before speaking.',
       'Read the season branch shown here and name what this season asks in your life.',
@@ -308,7 +306,12 @@ const List<CourseEvent> kTheCourseEvents = <CourseEvent>[
         'Riser, Riser! Beetle, Beetle! Your life is related to mine; mine is related to yours. Sustenance is for the morning. Abundance is for the evening. I have ordered what I can in its proper place.',
     steps: <String>[
       'Open the ḥꜣw day card. Let it be the first thing you read.',
-      'Speak only the closing truth lines that are true: I know the decan, I know the season, I greeted dawn, I did a decan act, I did a seasonal act.',
+      'Speak only the closing truth lines that are true.',
+      'Say, if true: I know the decan.',
+      'Say, if true: I know the season.',
+      'Say, if true: I greeted dawn.',
+      'Say, if true: I did a decan act.',
+      'Say, if true: I did a seasonal act.',
       'Name one practice from these thirty days that you will continue past the flow.',
       'Speak the final line: The course is continuous. I am in it.',
     ],
@@ -712,7 +715,7 @@ String _numberedLines(List<String> lines) {
 String _coursePurpose(CourseEvent event) {
   switch (event.eventNumber) {
     case 1:
-      return 'The Pyramid Texts addressed the returning sun directly because it had actually just arrived. This rite does the same — the day has returned. Locating yourself in it before the tasks begin is not metaphorical.';
+      return 'The Pyramid Texts addressed the returning sun directly because it had actually just arrived. This rite does the same — the day has returned. Locating yourself in it before the tasks begin is not metaphorical. Facing east or the window makes the location physical.';
     case 2:
       return 'The solar barge crossed a threshold at dusk into the hidden passage. The visible day has actually ended. Naming one completed thing and one thing that passes through night is the scribe\'s record of the crossing.';
     case 3:
