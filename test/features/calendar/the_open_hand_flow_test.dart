@@ -76,6 +76,125 @@ void main() {
     expect(payload.toString(), isNot(contains('stranger_act_record')));
   });
 
+  test('copy keeps provision gates and truth checks explicit', () {
+    final event1 = kOpenHandEvents[0];
+    final event2 = kOpenHandEvents[1];
+    final event3 = kOpenHandEvents[2];
+    final event4 = kOpenHandEvents[3];
+    final event5 = kOpenHandEvents[4];
+    final event6 = kOpenHandEvents[5];
+    final event7 = kOpenHandEvents[6];
+    final event8 = kOpenHandEvents[7];
+    final event9 = kOpenHandEvents[8];
+
+    expect(
+      event1.steps.last,
+      'Write: This ten-day section, I will give ___ to ___.',
+    );
+    expect(
+      event2.steps.first,
+      'Complete the act of provision identified on Day 1 before marking this event observed.',
+    );
+    expect(event2.requiresOutwardAct, isTrue);
+    expect(
+      event3.steps,
+      contains(
+        'Carry it into the second ten-day section without excuse or editing.',
+      ),
+    );
+    expect(event4.steps, <String>[
+      'Write three named acts of outward provision for this ten-day section.',
+      'For each act, write what will be given and who or what receives it.',
+      'Write when each act will happen before Day 19.',
+      'Mark which act is easiest, which is most needed, and which one resists you.',
+    ]);
+    expect(event5.steps, <String>[
+      'Choose one act from the Day 11 list that benefits someone outside your circle of obligation.',
+      'Name any resistance to giving without a relational claim.',
+      'Complete the act before marking this event observed.',
+      'If it cannot be completed today, write the exact date it will be completed instead of claiming it as done.',
+    ]);
+    expect(event5.requiresOutwardAct, isTrue);
+    expect(event5.strangerAct, isTrue);
+    expect(
+      event6.steps.last,
+      'Name one thing the giving of this ten-day section taught you about capacity, resistance, or need.',
+    );
+    expect(event7.steps, <String>[
+      'Map one kind of provision that entered your life this month: money, food, attention, skill, help, access, or time.',
+      'Name the threshold where provision tends to stop with you as a material observation, not self-criticism.',
+      'Choose one specific act that moves provision beyond you in the final ten-day section.',
+    ]);
+    expect(
+      openHandDetailText(event8, lens: OpenHandLens.neutral),
+      contains(
+        'The midpoint keeps attention on what changed because provision moved.',
+      ),
+    );
+    expect(
+      event9.steps,
+      contains('Speak only the truth-check lines that are true.'),
+    );
+    expect(event9.steps, contains('Say, if true: I saw need.'));
+    expect(event9.steps, contains('Say, if true: I gave outside obligation.'));
+    expect(
+      event9.steps,
+      contains('Say, if true: I gave to someone I do not know.'),
+    );
+    expect(event9.steps, contains('Say, if true: Provision is less blocked.'));
+    expect(
+      event9.steps.any(
+        (step) => step.contains('I saw need; I gave outside obligation'),
+      ),
+      isFalse,
+    );
+    expect(
+      openHandDetailText(event5, lens: OpenHandLens.neutral),
+      contains(
+        'Resistance marks where obligation has been mistaken for the edge of provision.',
+      ),
+    );
+  });
+
+  test('words fields do not contain stage-direction wrappers', () {
+    final issues = <String>[];
+
+    for (final event in kOpenHandEvents) {
+      for (final pattern in _openHandWordsStageDirectionPatterns) {
+        if (pattern.hasMatch(event.spokenLine)) {
+          issues.add(
+            'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+          );
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('steps keep rationale and optional sharing out of required actions', () {
+    final issues = <String>[];
+
+    for (final event in kOpenHandEvents) {
+      for (final step in event.steps) {
+        if (_openHandRequiredStepRationalePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+        if (_openHandRequiredStepOptionalSharingPattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+    expect(
+      kOpenHandEvents
+          .where((event) => event.sharePromptOnComplete)
+          .map((event) => event.eventNumber),
+      <int>[9],
+    );
+  });
+
   test('enrollment wrapper accepts picker rows and rejects ordinary dates', () {
     final window = openHandNextEnrollmentWindow(TrackSkyTimeZone.pacific);
     final selected = DateTime(
@@ -178,3 +297,23 @@ void main() {
     expect(dayView, contains('TheOpenHandLocalStore'));
   });
 }
+
+final _openHandWordsStageDirectionPatterns = <RegExp>[
+  RegExp(
+    r'^\s*(speak|say|write|name|before|after|then)\b',
+    caseSensitive: false,
+  ),
+  RegExp(r'\btruth-check\b', caseSensitive: false),
+  RegExp(r'\bif true\b', caseSensitive: false),
+  RegExp(r'\bmarking this event\b', caseSensitive: false),
+];
+
+final _openHandRequiredStepRationalePattern = RegExp(
+  r'\b(The act is the event|logging follows|Named acts become commitments|The commitment becomes the record|The resistance to giving|exactly what this act is designed|The threshold is where|flood is pooling|Naming it is the first step|source note|Spell 125|Ptahhotep|Harkhuf|Hapidjefa|Eloquent Peasant|Hymns to Hapy)\b',
+  caseSensitive: false,
+);
+
+final _openHandRequiredStepOptionalSharingPattern = RegExp(
+  r'\b(optionally|if desired|share|post|feed|public)\b',
+  caseSensitive: false,
+);
