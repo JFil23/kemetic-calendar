@@ -86,6 +86,118 @@ void main() {
     }
   });
 
+  test('Fair Hearing copy keeps hearing and delayed judgment clear', () {
+    final fairHearing = maatDecanFlowDefinitionForKey(kFairHearingFlowKey)!;
+    final event1 = maatDecanFlowEventByNumber(fairHearing, 1)!;
+    final event2 = maatDecanFlowEventByNumber(fairHearing, 2)!;
+    final event3 = maatDecanFlowEventByNumber(fairHearing, 3)!;
+    final event4 = maatDecanFlowEventByNumber(fairHearing, 4)!;
+    final event5 = maatDecanFlowEventByNumber(fairHearing, 5)!;
+    final event7 = maatDecanFlowEventByNumber(fairHearing, 7)!;
+    final event8 = maatDecanFlowEventByNumber(fairHearing, 8)!;
+    final event9 = maatDecanFlowEventByNumber(fairHearing, 9)!;
+
+    expect(event1.purpose, contains('strongest preference'));
+    expect(
+      event1.steps.last,
+      'Circle the situation where your preference is strongest.',
+    );
+    expect(event2.purpose, startsWith('A named preference'));
+    expect(event2.steps, <String>[
+      'Return to the most charged situation from Day 1 and name what you prefer to be true.',
+      'Name who has more power and who has less.',
+      'Name whether your preference aligns with the more powerful party.',
+      'Write: My preference in [situation] is [specific view]. I will hold this preference lightly until I have heard fully.',
+    ]);
+    expect(event3.purpose, contains('second ten-day section'));
+    expect(
+      event3.steps.first,
+      'Choose one situation for the second ten-day section - the one where fairness will require the most from you.',
+    );
+    expect(
+      event3.steps.last,
+      'Write: In the second ten-day section, I will give the full fair hearing to [situation]. I will hear [person or side] before I decide.',
+    );
+
+    expect(event4.purpose, contains('premature'));
+    expect(event4.steps, <String>[
+      'Before the hearing, write one sentence about what you expect to hear.',
+      'Give the actual hearing.',
+      'Do not interrupt.',
+      'Do not signal or state your conclusion while the person is still speaking.',
+      'Afterward, write one thing you heard that complicated or expanded your view.',
+    ]);
+    expect(event4.requiresRealWorldAction, isTrue);
+
+    expect(
+      event5.steps.first,
+      'Test whether you would hear the claim the same way if the parties were reversed.',
+    );
+    expect(event7.steps, <String>[
+      'Ask whether the hearing was full.',
+      'Ask whether the measure was consistent.',
+      'Ask whether the decision was based on what was heard.',
+      'For any no or partial answer, name exactly what was missing.',
+      'If something was not fully heard, name whether an acknowledgment is owed.',
+    ]);
+    expect(
+      event8.steps.last,
+      'Name what a fair hearing would require before the closing sitting.',
+    );
+    expect(event9.steps, contains('Speak only the lines that are true.'));
+    expect(event9.steps, contains('Say, if true: I heard fully.'));
+    expect(event9.steps, contains('Say, if true: I applied the same measure.'));
+    expect(
+      event9.steps,
+      contains('Say, if true: I pronounced a decision clearly.'),
+    );
+    expect(
+      event9.steps.any((step) => step.contains('I heard fully;')),
+      isFalse,
+    );
+  });
+
+  test('Fair Hearing words fields do not contain stage-direction wrappers', () {
+    final issues = <String>[];
+    final fairHearing = maatDecanFlowDefinitionForKey(kFairHearingFlowKey)!;
+
+    for (final event in fairHearing.events) {
+      for (final pattern in _fairHearingWordsStageDirectionPatterns) {
+        if (pattern.hasMatch(event.spokenLine)) {
+          issues.add(
+            'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+          );
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('Fair Hearing steps keep rationale and optional sharing out', () {
+    final issues = <String>[];
+    final fairHearing = maatDecanFlowDefinitionForKey(kFairHearingFlowKey)!;
+
+    for (final event in fairHearing.events) {
+      final requiredSteps = event.steps.toSet();
+      for (final step in event.steps) {
+        if (_fairHearingRequiredStepRationalePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+        if (_fairHearingRequiredStepOptionalSharingPattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+      for (final optionalStep in event.optionalSteps) {
+        if (requiredSteps.contains(optionalStep)) {
+          issues.add('Event ${event.eventNumber}: $optionalStep');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
   test('Living Text emits library CTA only on Events 4 and 7', () {
     final definition = maatDecanFlowDefinitionForKey(kLivingTextFlowKey)!;
     final flowStart = DateTime(2026, 5, 16);
@@ -1738,6 +1850,23 @@ final _livingTextRequiredStepRationalePattern = RegExp(
 
 final _livingTextRequiredStepOptionalPattern = RegExp(
   r'\b(optionally|if desired|share the useful part|share the final line|use Post to share|Shared,)\b',
+  caseSensitive: false,
+);
+
+final _fairHearingWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'\bspeak only\b', caseSensitive: false),
+  RegExp(r'\bif true\b', caseSensitive: false),
+  RegExp(r'\btrue lines\b', caseSensitive: false),
+  RegExp(r'\btruth-check\b', caseSensitive: false),
+];
+
+final _fairHearingRequiredStepRationalePattern = RegExp(
+  r'\b(This is where the fair hearing is most needed|The conclusion that forms|is premature|not a fair hearing|efficient confirmation|Ptahhotep|Khunanup|Eloquent Peasant|source note|dramatic silence|ordinary silence)\b',
+  caseSensitive: false,
+);
+
+final _fairHearingRequiredStepOptionalSharingPattern = RegExp(
+  r'\b(optionally|if desired|share|post|public)\b',
   caseSensitive: false,
 );
 

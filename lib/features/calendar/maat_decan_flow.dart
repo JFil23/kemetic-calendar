@@ -386,13 +386,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'The hearing begins before you think it does. The view formed before the full account is heard is already shaping what you will hear. This sitting names that view.',
+            'The hearing begins before you think it does. The view formed before the full account is heard is already shaping what you will hear. This sitting names that view. The strongest preference marks where the fair hearing is most needed.',
         spokenLine:
             'Be patient, so that you may learn Ma\'at. Control your own preference, so that the humble petitioner may gain.',
         steps: <String>[
           'List the work, family, friendship, community, or self-judgment situations where your view affects an outcome.',
           'For each, mark whether you have already formed a view before fully hearing all sides.',
-          'Circle the situation where your preference is strongest. This is where the fair hearing is most needed.',
+          'Circle the situation where your preference is strongest.',
         ],
         sourceNote:
             'Khunanup appealed nine times because the first hearing produced no decision. The petitioner must persist; the judge must eventually decide. This sitting names who is waiting for a real hearing.',
@@ -406,12 +406,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Name the preference that will tilt the balance if you pretend you do not have one.',
+            'A named preference can be held lightly. An unnamed preference tilts the balance while pretending not to exist.',
         spokenLine:
             'Control your own preference, so that the humble petitioner may gain.',
         steps: <String>[
           'Return to the most charged situation from Day 1 and name what you prefer to be true.',
-          'Ask who has more power and who has less. Does your preference align with the more powerful party?',
+          'Name who has more power and who has less.',
+          'Name whether your preference aligns with the more powerful party.',
           'Write: My preference in [situation] is [specific view]. I will hold this preference lightly until I have heard fully.',
         ],
       ),
@@ -424,13 +425,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Choose the one live judgment that will receive the Decan 2 fair-hearing practice.',
+            'One live judgment receives the second ten-day section of fair-hearing practice.',
         spokenLine:
             'Do not be partial, and do not give in to a whim. Let your decision be pronounced.',
         steps: <String>[
-          'Choose one situation for Decan 2 - the one where fairness will require the most from you.',
+          'Choose one situation for the second ten-day section - the one where fairness will require the most from you.',
           'Name who has not yet been fully heard.',
-          'Write: In Decan 2, I will give the full fair hearing to [situation]. I will hear [person or side] before I decide.',
+          'Write: In the second ten-day section, I will give the full fair hearing to [situation]. I will hear [person or side] before I decide.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -442,12 +443,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Ptahhotep said the wronged person needs to unburden the heart even when not every request can be granted. The full hearing is itself a form of justice, before the decision.',
+            'Ptahhotep said the wronged person needs to unburden the heart even when not every request can be granted. The full hearing is itself a form of justice, before the decision. A conclusion formed while the person is still speaking is premature.',
         spokenLine:
             'Be patient when listening to the words of a petitioner. Do not dismiss him until he has completely unburdened himself.',
         steps: <String>[
           'Before the hearing, write one sentence about what you expect to hear.',
-          'Give the actual hearing. Do not interrupt. Do not signal your conclusion. The conclusion that forms while the person is still speaking is premature.',
+          'Give the actual hearing.',
+          'Do not interrupt.',
+          'Do not signal or state your conclusion while the person is still speaking.',
           'Afterward, write one thing you heard that complicated or expanded your view.',
         ],
         requiresRealWorldAction: true,
@@ -463,11 +466,11 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Test whether the balance changes when a different person is standing on it.',
+            'The same measure must hold when a different person is standing on it.',
         spokenLine:
             'Do not cover your face against one whom you know; do not blind your sight against one whom you have seen.',
         steps: <String>[
-          'If the parties were reversed, would you hear the claim the same way?',
+          'Test whether you would hear the claim the same way if the parties were reversed.',
           'Name one piece of evidence you have minimized because of who offered it.',
           'Write: I have been minimizing [account] because [reason]. I will hear it again with the same attention.',
         ],
@@ -505,11 +508,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Review the process: not whether the outcome favored everyone, but whether the hearing was fair.',
+            'The process is reviewed by whether the hearing was fair, not by whether the outcome favored everyone.',
         spokenLine:
             'Do not utter falsehood, for you are a balance. If it wavers, then you will waver.',
         steps: <String>[
-          'Ask whether the hearing was full, the measure was consistent, and the decision was based on what was heard.',
+          'Ask whether the hearing was full.',
+          'Ask whether the measure was consistent.',
+          'Ask whether the decision was based on what was heard.',
           'For any no or partial answer, name exactly what was missing.',
           'If something was not fully heard, name whether an acknowledgment is owed.',
         ],
@@ -523,13 +528,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Look beyond the main case and name the person whose appeal has simply not been heard.',
+            'The practice looks beyond the main case to the person whose appeal has simply not been heard.',
         spokenLine:
             'Do not be a hawk to the commoners. One who is deaf to Ma\'at has no friend.',
         steps: <String>[
           'Name someone who has appealed to you and genuinely has not been heard.',
           'Name what they are asking and why they have not been heard.',
-          'Name what a fair hearing would require before this flow closes.',
+          'Name what a fair hearing would require before the closing sitting.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -547,7 +552,10 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Name the situation where the fair hearing was most complete.',
           'Name the situation where partiality or incompleteness still entered.',
-          'Speak only the truth-check lines that apply: I heard fully; I applied the same measure; I pronounced a decision clearly.',
+          'Speak only the lines that are true.',
+          'Say, if true: I heard fully.',
+          'Say, if true: I applied the same measure.',
+          'Say, if true: I pronounced a decision clearly.',
           'Write one continuing practice: When I am called to judge, I will [practice] before I decide.',
         ],
         sourceNote:
