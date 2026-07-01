@@ -3026,12 +3026,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'The loss named specifically is the loss that can be searched for. Aset did not search for "what was gone" — she searched for Ausar. The name begins the search.',
+            'The loss named specifically is the loss that can be searched for. Aset did not search for "what was gone" — she searched for Ausar. The name begins the search. The water is provision for the body while it does this work.',
         spokenLine: 'My brother, for I have searched for you.',
         steps: <String>[
           'Write the name of what was lost. If it is not a person, name it as specifically as one.',
           'Write one sentence about what it gave you that you cannot get elsewhere right now.',
-          'Place water nearby and drink it slowly after writing the name. The provision the body needs when it is doing this work.',
+          'Place water nearby.',
+          'Drink it slowly after writing the name.',
         ],
         sourceNote:
             'Aset\'s search began with Ausar\'s specific identity — not with the category of loss but with the specific person. The specific name makes the search possible.',
@@ -3162,11 +3163,11 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMax: 8,
         purpose:
             'The Pyramid Texts command to stand is not a demand to stop grieving — it is the voice of love that has searched, found, and now asks the found one to rise. The physical act is the event.',
-        spokenLine:
-            'Before standing: Stand up for me. Then stand. Then choose one act.',
+        spokenLine: 'Stand up for me.',
         steps: <String>[
+          'Speak the line before standing.',
           'Stand physically before logging.',
-          'Choose one small act using a restored capacity: eat something wanted, listen to music, see something beautiful, or speak the name of what was lost to someone safe.',
+          'Do one small act using a restored capacity: eat something wanted, listen to music, see something beautiful, or speak the name of what was lost to someone safe.',
           'Record the act.',
         ],
         sourceNote:

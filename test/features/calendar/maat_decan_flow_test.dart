@@ -344,7 +344,7 @@ void main() {
         maatDecanFlowDefinitionForKey(kWanderingFlowKey)!,
         9,
       )!.spokenLine,
-      'Before standing: Stand up for me. Then stand. Then choose one act.',
+      'Stand up for me.',
     );
     expect(
       maatDecanFlowEventByNumber(
@@ -367,6 +367,81 @@ void main() {
       )!.spokenLine,
       'Write the closing mark and then speak: Completed correctly; the living text includes this mark.',
     );
+  });
+
+  test('Wandering copy keeps closing instructions in steps', () {
+    final wandering = maatDecanFlowDefinitionForKey(kWanderingFlowKey)!;
+    final event1 = maatDecanFlowEventByNumber(wandering, 1)!;
+    final event9 = maatDecanFlowEventByNumber(wandering, 9)!;
+
+    expect(event1.purpose, contains('water is provision'));
+    expect(event1.steps, <String>[
+      'Write the name of what was lost. If it is not a person, name it as specifically as one.',
+      'Write one sentence about what it gave you that you cannot get elsewhere right now.',
+      'Place water nearby.',
+      'Drink it slowly after writing the name.',
+    ]);
+
+    expect(event9.spokenLine, 'Stand up for me.');
+    expect(event9.steps, <String>[
+      'Speak the line before standing.',
+      'Stand physically before logging.',
+      'Do one small act using a restored capacity: eat something wanted, listen to music, see something beautiful, or speak the name of what was lost to someone safe.',
+      'Record the act.',
+    ]);
+    expect(event9.requiresRealWorldAction, isTrue);
+    expect(event9.sharePromptOnComplete, isFalse);
+  });
+
+  test('Wandering words fields do not contain stage-direction wrappers', () {
+    final issues = <String>[];
+    final wandering = maatDecanFlowDefinitionForKey(kWanderingFlowKey)!;
+
+    for (final event in wandering.events) {
+      for (final pattern in _wanderingWordsStageDirectionPatterns) {
+        if (pattern.hasMatch(event.spokenLine)) {
+          issues.add(
+            'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+          );
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test(
+    'Wandering steps keep rationale and source-note phrases out of actions',
+    () {
+      final issues = <String>[];
+      final wandering = maatDecanFlowDefinitionForKey(kWanderingFlowKey)!;
+
+      for (final event in wandering.events) {
+        for (final step in event.steps) {
+          if (_wanderingRationalePhrasePattern.hasMatch(step)) {
+            issues.add('Event ${event.eventNumber}: $step');
+          }
+        }
+      }
+
+      expect(issues, isEmpty);
+    },
+  );
+
+  test('Wandering optional steps do not duplicate required steps', () {
+    final issues = <String>[];
+    final wandering = maatDecanFlowDefinitionForKey(kWanderingFlowKey)!;
+
+    for (final event in wandering.events) {
+      final requiredSteps = event.steps.toSet();
+      for (final optionalStep in event.optionalSteps) {
+        if (requiredSteps.contains(optionalStep)) {
+          issues.add('Event ${event.eventNumber}: $optionalStep');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
   });
 
   test('First Arrangement copy keeps removal guardrails and actions explicit', () {
@@ -983,6 +1058,18 @@ final _khatWordsStageDirectionPatterns = <RegExp>[
   RegExp(r'\bbefore beginning\b', caseSensitive: false),
   RegExp(r'\bthen begin\b', caseSensitive: false),
 ];
+
+final _wanderingWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*before\b', caseSensitive: false),
+  RegExp(r'\bthen stand\b', caseSensitive: false),
+  RegExp(r'\bthen choose\b', caseSensitive: false),
+  RegExp(r'\bbefore logging\b', caseSensitive: false),
+];
+
+final _wanderingRationalePhrasePattern = RegExp(
+  r'\b(Pyramid Texts|source|because|provision the body needs|The provision|not a demand to stop grieving)\b',
+  caseSensitive: false,
+);
 
 final _firstArrangementWordsStageDirectionPatterns = <RegExp>[
   RegExp(r'^\s*physically\b', caseSensitive: false),
