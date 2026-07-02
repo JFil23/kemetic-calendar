@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:mobile/services/calendar_sync_service.dart';
+import 'package:mobile/services/google_calendar_web_import_provider.dart';
 import 'package:mobile/data/user_events_repo.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -163,6 +164,24 @@ void main() {
         expect(source, contains('_calendarSyncError(e)'));
       },
     );
+
+    test('web import state initialization is not bypassed', () async {
+      final source = await File(
+        'lib/services/calendar_sync_service.dart',
+      ).readAsString();
+      final start = source.indexOf('Future<void> ensureInitialized() async');
+      final end = source.indexOf('Future<void> start() async', start);
+
+      expect(start, isNonNegative);
+      expect(end, greaterThan(start));
+      final ensureInitialized = source.substring(start, end);
+
+      expect(ensureInitialized, isNot(contains('if (kIsWeb) return;')));
+      expect(
+        ensureInitialized,
+        contains('Hive.openBox<dynamic>(_stateBoxName)'),
+      );
+    });
   });
 
   group('one-way calendar import', () {
@@ -224,6 +243,9 @@ void main() {
         final dartBridge = await File(
           'lib/services/calendar_sync_service.dart',
         ).readAsString();
+        final webProvider = await File(
+          'lib/services/google_calendar_web_import_provider.dart',
+        ).readAsString();
         final androidBridge = await File(
           'android/app/src/main/kotlin/com/jaralephillips/hawcalendar/MainActivity.kt',
         ).readAsString();
@@ -256,6 +278,162 @@ void main() {
         expect(iosPlist, contains('one-way import'));
         expect(iosPlist, isNot(contains('read and write your calendar')));
         expect(iosPlist, isNot(contains('stay in sync with Apple Calendar')));
+
+        expect(
+          googleCalendarScopesAreReadOnly(googleCalendarReadOnlyScopes),
+          isTrue,
+        );
+        expect(
+          googleCalendarReadOnlyScopes,
+          isNot(contains('https://www.googleapis.com/auth/calendar')),
+        );
+        expect(
+          googleCalendarReadOnlyScopes,
+          isNot(contains('https://www.googleapis.com/auth/calendar.events')),
+        );
+        expect(webProvider, contains('OAuthProvider.google'));
+        expect(webProvider, contains('googleCalendarReadOnlyScopeString'));
+        expect(webProvider, isNot(contains('.post(')));
+        expect(webProvider, isNot(contains('.put(')));
+        expect(webProvider, isNot(contains('.patch(')));
+        expect(webProvider, isNot(contains('.delete(')));
+      },
+    );
+
+    test(
+      'web calendar import starts Google read-only authorization when needed',
+      () async {
+        final platform = _FakeCalendarPlatformBridge(events: const []);
+        final webProvider = _FakeCalendarWebImportProvider(
+          hasAccess: false,
+          events: const [],
+        );
+        final service = CalendarSyncService(
+          Supabase.instance.client,
+          platform: platform,
+          webImportProvider: webProvider,
+          eventsStore: _FakeCalendarSyncEventStore(),
+          runLegacyUnlinkReset: false,
+          forceWebImport: true,
+        );
+        addTearDown(service.dispose);
+
+        final result = await service.sync(interactive: true);
+
+        expect(result.state, CalendarSyncRunState.authorizationStarted);
+        expect(webProvider.requestReadAccessCount, 1);
+        expect(platform.requestPermissionsCount, 0);
+        expect(platform.fetchEventsCount, 0);
+      },
+    );
+
+    test(
+      'web calendar import writes imported external events into HAw',
+      () async {
+        final webEvent = NativeCalendarEvent(
+          nativeId: 'hashed-google-event',
+          title: 'External web appointment',
+          description: 'private web notes',
+          location: 'Private web location',
+          allDay: false,
+          start: DateTime.utc(2026, 7, 1, 16),
+          end: DateTime.utc(2026, 7, 1, 17),
+          calendarId: 'google:hashed-calendar',
+          timeZone: 'America/Los_Angeles',
+          lastModified: DateTime.utc(2026, 7, 1, 15),
+          clientEventId: null,
+          source: 'google-web',
+        );
+        final platform = _FakeCalendarPlatformBridge(events: const []);
+        final webProvider = _FakeCalendarWebImportProvider(
+          hasAccess: true,
+          events: [webEvent],
+        );
+        final store = _FakeCalendarSyncEventStore();
+        final service = CalendarSyncService(
+          Supabase.instance.client,
+          platform: platform,
+          webImportProvider: webProvider,
+          eventsStore: store,
+          runLegacyUnlinkReset: false,
+          forceWebImport: true,
+          now: () => DateTime.utc(2026, 7, 1, 12),
+        );
+        addTearDown(service.dispose);
+
+        final result = await service.sync(
+          windowStart: DateTime.utc(2026, 7),
+          windowEnd: DateTime.utc(2026, 7, 2),
+          interactive: true,
+        );
+
+        expect(result.state, CalendarSyncRunState.synced);
+        expect(webProvider.fetchEventsCount, 1);
+        expect(platform.requestPermissionsCount, 0);
+        expect(platform.fetchEventsCount, 0);
+        expect(store.upserts, hasLength(1));
+        expect(
+          store.upserts.single.clientEventId,
+          'native:google-web:hashed-google-event',
+        );
+        expect(store.upserts.single.title, 'External web appointment');
+        expect(store.upserts.single.detail, 'private web notes');
+        expect(store.upserts.single.category, 'native_sync');
+        expect(store.updatedIds, isEmpty);
+        expect(store.deletedClientIds, isEmpty);
+        expect(store.deletedPrefixes, isEmpty);
+        expect(store.deletedCategories, isEmpty);
+      },
+    );
+
+    test(
+      'web calendar import preserves pending state until last sync is recorded',
+      () async {
+        final webEvent = NativeCalendarEvent(
+          nativeId: 'pending-web-event',
+          title: 'Pending web appointment',
+          description: null,
+          location: null,
+          allDay: false,
+          start: DateTime.utc(2026, 7, 1, 16),
+          end: DateTime.utc(2026, 7, 1, 17),
+          calendarId: 'google:hashed-calendar',
+          timeZone: 'America/Los_Angeles',
+          lastModified: DateTime.utc(2026, 7, 1, 15),
+          clientEventId: null,
+          source: 'google-web',
+        );
+        final webProvider = _FakeCalendarWebImportProvider(
+          hasAccess: false,
+          events: [webEvent],
+        );
+        final service = CalendarSyncService(
+          Supabase.instance.client,
+          webImportProvider: webProvider,
+          eventsStore: _FakeCalendarSyncEventStore(),
+          runLegacyUnlinkReset: false,
+          forceWebImport: true,
+          now: () => DateTime.utc(2026, 7, 1, 12),
+        );
+        addTearDown(service.dispose);
+
+        final authorization = await service.sync(interactive: true);
+
+        expect(authorization.state, CalendarSyncRunState.authorizationStarted);
+        expect(await service.hasPendingWebImport(), isTrue);
+        expect((await service.getStatus()).lastSyncAt, isNull);
+
+        webProvider.hasAccess = true;
+        final imported = await service.sync(
+          windowStart: DateTime.utc(2026, 7),
+          windowEnd: DateTime.utc(2026, 7, 2),
+          interactive: true,
+        );
+        final status = await service.getStatus();
+
+        expect(imported.state, CalendarSyncRunState.synced);
+        expect(await service.hasPendingWebImport(), isFalse);
+        expect(status.lastSyncAt, DateTime.utc(2026, 7, 1, 12));
       },
     );
 
@@ -318,6 +496,70 @@ void main() {
           'native:android:kept-device-event',
         );
         expect(store.events.single.title, 'Kept external event');
+      },
+    );
+
+    test(
+      'web import continues after a recently deleted external event',
+      () async {
+        final deletedNative = NativeCalendarEvent(
+          nativeId: 'deleted-web-event',
+          title: 'Deleted web event',
+          description: null,
+          location: null,
+          allDay: false,
+          start: DateTime.utc(2026, 7, 1, 16),
+          end: DateTime.utc(2026, 7, 1, 17),
+          calendarId: 'google:external-calendar',
+          timeZone: 'America/Los_Angeles',
+          lastModified: DateTime.utc(2026, 7, 1, 15),
+          clientEventId: null,
+          source: 'google-web',
+        );
+        final keptNative = NativeCalendarEvent(
+          nativeId: 'kept-web-event',
+          title: 'Kept web event',
+          description: 'safe web import',
+          location: null,
+          allDay: false,
+          start: DateTime.utc(2026, 7, 1, 18),
+          end: DateTime.utc(2026, 7, 1, 19),
+          calendarId: 'google:external-calendar',
+          timeZone: 'America/Los_Angeles',
+          lastModified: DateTime.utc(2026, 7, 1, 17),
+          clientEventId: null,
+          source: 'google-web',
+        );
+        final webProvider = _FakeCalendarWebImportProvider(
+          hasAccess: true,
+          events: [deletedNative, keptNative],
+        );
+        final store = _FakeCalendarSyncEventStore(
+          recentlyDeletedCids: const {'native:google-web:deleted-web-event'},
+        );
+        final service = CalendarSyncService(
+          Supabase.instance.client,
+          webImportProvider: webProvider,
+          eventsStore: store,
+          runLegacyUnlinkReset: false,
+          forceWebImport: true,
+          now: () => DateTime.utc(2026, 7, 1, 12),
+        );
+        addTearDown(service.dispose);
+
+        final result = await service.sync(
+          windowStart: DateTime.utc(2026, 7),
+          windowEnd: DateTime.utc(2026, 7, 2),
+          interactive: true,
+        );
+
+        expect(result.state, CalendarSyncRunState.synced);
+        expect(store.upserts, hasLength(1));
+        expect(
+          store.upserts.single.clientEventId,
+          'native:google-web:kept-web-event',
+        );
+        expect(store.events.single.title, 'Kept web event');
       },
     );
   });
@@ -386,6 +628,36 @@ class _FakeCalendarPlatformBridge extends CalendarPlatformBridge {
   @override
   Future<bool> requestPermissions() async {
     requestPermissionsCount += 1;
+    return true;
+  }
+
+  @override
+  Future<List<NativeCalendarEvent>> fetchEvents(
+    DateTime start,
+    DateTime end,
+  ) async {
+    fetchEventsCount += 1;
+    return events;
+  }
+}
+
+class _FakeCalendarWebImportProvider implements CalendarWebImportProvider {
+  _FakeCalendarWebImportProvider({
+    required this.hasAccess,
+    required this.events,
+  });
+
+  bool hasAccess;
+  final List<NativeCalendarEvent> events;
+  int requestReadAccessCount = 0;
+  int fetchEventsCount = 0;
+
+  @override
+  Future<bool> hasReadAccess() async => hasAccess;
+
+  @override
+  Future<bool> requestReadAccess({required String redirectTo}) async {
+    requestReadAccessCount += 1;
     return true;
   }
 

@@ -12,6 +12,7 @@ import 'package:mobile/shared/glossy_text.dart';
 import '../../core/navigation_fallback.dart';
 import '../../main.dart' show Events, appEnvironmentEnv;
 import '../../services/calendar_sync_service.dart';
+import '../../services/google_calendar_web_import_provider.dart';
 import '../../services/navigation_trace.dart';
 import '../../services/push_notifications.dart';
 import '../../services/speech/speech_service.dart';
@@ -95,7 +96,18 @@ class _SettingsPageState extends State<SettingsPage> {
 
   bool get _hasSession => Supabase.instance.client.auth.currentSession != null;
   bool get _nativeCalendarSyncAvailable => !kIsWeb;
+  bool get _calendarImportAvailable => true;
   bool get _calendarBusy => _syncingCalendar || _unlinkingCalendar;
+
+  CalendarSyncService _calendarSyncService() {
+    final client = Supabase.instance.client;
+    return sharedCalendarSyncService(
+      client,
+      webImportProvider: kIsWeb
+          ? GoogleCalendarWebImportProvider(client)
+          : null,
+    );
+  }
 
   Future<void> _signOut() async {
     if (_signingOut) return;
@@ -142,17 +154,13 @@ class _SettingsPageState extends State<SettingsPage> {
     final prefs = await SharedPreferences.getInstance();
     await SettingsPrefs.clearLegacyReminderPrefs(prefs);
 
-    CalendarSyncStatus? calendarStatus;
-    if (_nativeCalendarSyncAvailable) {
-      final sync = sharedCalendarSyncService(Supabase.instance.client);
-      calendarStatus = await sync.getStatus();
-    }
+    final calendarStatus = await _calendarSyncService().getStatus();
 
     if (!mounted) return;
     setState(() {
       _realTimeAlerts = SettingsPrefs.realTimeAlertsEnabledFrom(prefs);
       _autoCalendarSync =
-          _nativeCalendarSyncAvailable &&
+          _calendarImportAvailable &&
           SettingsPrefs.autoCalendarSyncEnabledFrom(prefs);
       _usHolidaysEnabled = SettingsPrefs.usHolidaysEnabledFrom(prefs);
       _dailyCosmicContextBadgeEnabled =
@@ -171,6 +179,7 @@ class _SettingsPageState extends State<SettingsPage> {
       unawaited(_refreshPushTestReceiptStatus());
     }
     unawaited(_maybeShowSettingsHelper());
+    unawaited(_resumePendingWebCalendarImport());
   }
 
   Future<void> _maybeShowSettingsHelper() async {
@@ -215,6 +224,28 @@ class _SettingsPageState extends State<SettingsPage> {
         },
       ),
     );
+  }
+
+  Future<void> _resumePendingWebCalendarImport() async {
+    if (!kIsWeb || !_hasSession) return;
+    final sync = _calendarSyncService();
+    if (!await sync.hasPendingWebImport()) return;
+
+    if (!await sync.hasWebCalendarReadAccess()) {
+      await sync.clearPendingWebImport();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Google Calendar was not connected. Try import again when you are ready.',
+          ),
+          backgroundColor: Colors.orange.shade700,
+        ),
+      );
+      return;
+    }
+
+    await _syncCalendarNow();
   }
 
   Future<void> _save() async {
@@ -433,10 +464,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _refreshCalendarStatus() async {
-    if (!_nativeCalendarSyncAvailable) return;
-    final status = await sharedCalendarSyncService(
-      Supabase.instance.client,
-    ).getStatus();
+    final status = await _calendarSyncService().getStatus();
     if (!mounted) return;
     setState(() {
       _calendarSyncStatus = status;
@@ -706,10 +734,8 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _setAutoCalendarSync(bool enabled) async {
-    if (!_nativeCalendarSyncAvailable) return;
-
     final messenger = ScaffoldMessenger.of(context);
-    final sync = sharedCalendarSyncService(Supabase.instance.client);
+    final sync = _calendarSyncService();
 
     setState(() {
       _autoCalendarSync = enabled;
@@ -751,15 +777,32 @@ class _SettingsPageState extends State<SettingsPage> {
     }
 
     try {
-      await sync.start();
+      final result = kIsWeb
+          ? await sync.sync(interactive: true)
+          : await sync.start().then(
+              (_) => const CalendarSyncRunResult.synced(),
+            );
+      if (result.didSync) {
+        final calendarState = CalendarPage.globalKey.currentState;
+        if (calendarState != null) {
+          await calendarState.reloadFromOutside();
+        }
+      }
       await _refreshCalendarStatus();
       if (!mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text('Automatic calendar import turned on.'),
-          backgroundColor: Colors.green.shade700,
-        ),
-      );
+      if (result.state == CalendarSyncRunState.authorizationStarted) {
+        return;
+      }
+      if (result.state == CalendarSyncRunState.authorizationRequired) {
+        _showCalendarSyncResult(result);
+      } else {
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text('Automatic calendar import turned on.'),
+            backgroundColor: Colors.green.shade700,
+          ),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
@@ -847,20 +890,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _syncCalendarNow() async {
-    final client = Supabase.instance.client;
     final messenger = ScaffoldMessenger.of(context);
-
-    if (!_nativeCalendarSyncAvailable) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Native calendar import is only available in the iOS/Android app.',
-          ),
-          backgroundColor: Colors.orange.shade700,
-        ),
-      );
-      return;
-    }
 
     if (!_hasSession) {
       messenger.showSnackBar(
@@ -877,7 +907,7 @@ class _SettingsPageState extends State<SettingsPage> {
     });
 
     try {
-      final sync = sharedCalendarSyncService(client);
+      final sync = _calendarSyncService();
       final result = await sync.sync(interactive: true);
 
       if (result.didSync) {
@@ -889,7 +919,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
       await _refreshCalendarStatus();
       if (mounted) {
-        _showCalendarSyncResult(result);
+        if (result.state != CalendarSyncRunState.authorizationStarted) {
+          _showCalendarSyncResult(result);
+        }
       }
     } catch (e) {
       if (!mounted) return;
@@ -909,20 +941,7 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _unlinkCalendarAccounts() async {
-    final client = Supabase.instance.client;
     final messenger = ScaffoldMessenger.of(context);
-
-    if (!_nativeCalendarSyncAvailable) {
-      messenger.showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Native calendar import cleanup is only available in the iOS/Android app.',
-          ),
-          backgroundColor: Colors.orange.shade700,
-        ),
-      );
-      return;
-    }
 
     if (!_hasSession) {
       messenger.showSnackBar(
@@ -973,7 +992,7 @@ class _SettingsPageState extends State<SettingsPage> {
     });
 
     try {
-      final sync = sharedCalendarSyncService(client);
+      final sync = _calendarSyncService();
       final result = await sync.unlinkImportedCalendarData(
         interactive: true,
         markResetCompleted: true,
@@ -1054,6 +1073,26 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         );
         return;
+      case CalendarSyncRunState.authorizationRequired:
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Connect Google Calendar with read-only access to import events.',
+            ),
+            backgroundColor: Colors.orange.shade700,
+          ),
+        );
+        return;
+      case CalendarSyncRunState.authorizationStarted:
+        messenger.showSnackBar(
+          SnackBar(
+            content: const Text(
+              'Opening Google Calendar read-only permission...',
+            ),
+            backgroundColor: Colors.green.shade700,
+          ),
+        );
+        return;
       case CalendarSyncRunState.skippedInProgress:
         messenger.showSnackBar(
           SnackBar(
@@ -1066,7 +1105,7 @@ class _SettingsPageState extends State<SettingsPage> {
         messenger.showSnackBar(
           SnackBar(
             content: const Text(
-              'Native calendar import is unavailable in this web context.',
+              'Calendar import is not configured for this web build.',
             ),
             backgroundColor: Colors.orange.shade700,
           ),
@@ -1302,23 +1341,22 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   String _syncButtonLabel() {
-    if (!_nativeCalendarSyncAvailable) return 'Import unavailable on web';
     if (_syncingCalendar) return 'Importing...';
     if (!_hasSession) return 'Sign in to import';
+    if (kIsWeb) return 'Import from Google';
     return 'Import now';
   }
 
   List<String> _calendarStatusLines() {
     final lines = <String>[];
 
-    if (!_nativeCalendarSyncAvailable) {
-      lines.add('Web builds cannot access the native device calendar.');
-      return lines;
-    }
-
     lines.add(
       _autoCalendarSync
-          ? 'Automatic import is on. The app keeps reading external calendar changes into HAw after sign-in.'
+          ? kIsWeb
+                ? 'Automatic import is on. After Google Calendar is connected, HAw reads external changes into HAw after sign-in.'
+                : 'Automatic import is on. The app keeps reading external calendar changes into HAw after sign-in.'
+          : kIsWeb
+          ? 'Automatic import is off. Use Import from Google whenever you want to read external events into HAw again.'
           : 'Automatic import is off. Use Import now whenever you want to read external events into HAw again.',
     );
 
@@ -1341,7 +1379,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
     if (!_hasSession) {
       lines.add(
-        'Sign in is required before any device calendar import can run.',
+        kIsWeb
+            ? 'Sign in is required before Google Calendar import can run.'
+            : 'Sign in is required before any device calendar import can run.',
       );
     }
 
@@ -1819,18 +1859,13 @@ class _SettingsPageState extends State<SettingsPage> {
                   title: 'Keep external calendar import on',
                   subtitle: _nativeCalendarSyncAvailable
                       ? 'Runs after sign-in and reads external calendar changes in the background.'
-                      : 'Native calendar import is not available in web builds.',
+                      : 'Uses Google Calendar read-only access to read external events into HAw.',
                   value: _autoCalendarSync,
-                  onChanged: !_nativeCalendarSyncAvailable || _calendarBusy
-                      ? null
-                      : _setAutoCalendarSync,
+                  onChanged: _calendarBusy ? null : _setAutoCalendarSync,
                 ),
                 const SizedBox(height: 16),
                 _primaryButton(
-                  onPressed:
-                      !_nativeCalendarSyncAvailable ||
-                          _calendarBusy ||
-                          !_hasSession
+                  onPressed: _calendarBusy || !_hasSession
                       ? null
                       : _syncCalendarNow,
                   child: Row(
@@ -1872,10 +1907,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                     ),
-                    onPressed:
-                        !_nativeCalendarSyncAvailable ||
-                            _calendarBusy ||
-                            !_hasSession
+                    onPressed: _calendarBusy || !_hasSession
                         ? null
                         : _unlinkCalendarAccounts,
                     child: Text(

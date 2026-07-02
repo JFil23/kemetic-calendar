@@ -91,7 +91,9 @@ import 'services/app_navigation_restoration_controller.dart';
 import 'services/restoration_coordinator.dart';
 import 'services/restoration_trace.dart';
 import 'services/session_resume_service.dart';
+import 'services/google_calendar_web_import_provider.dart';
 import 'core/supabase_runtime_config_guard.dart' as runtime_config;
+import 'utils/auth_redirect.dart';
 
 // Conditional import: on web we use URL cleanup + visibility hook; elsewhere no-ops.
 import 'utils/web_history.dart'
@@ -4757,7 +4759,12 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _calendarSync = sharedCalendarSyncService(supabase);
+    _calendarSync = sharedCalendarSyncService(
+      supabase,
+      webImportProvider: kIsWeb
+          ? GoogleCalendarWebImportProvider(supabase)
+          : null,
+    );
 
     // React to auth changes (includes initialSession)
     _authSub = supabase.auth.onAuthStateChange.listen(

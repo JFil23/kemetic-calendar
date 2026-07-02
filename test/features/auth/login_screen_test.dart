@@ -339,6 +339,9 @@ void main() {
       final loginSource = await File(
         'lib/features/auth/login_screen.dart',
       ).readAsString();
+      final authRedirectSource = await File(
+        'lib/utils/auth_redirect.dart',
+      ).readAsString();
       final mainSource = await File('lib/main.dart').readAsString();
       final androidManifest = await File(
         'android/app/src/main/AndroidManifest.xml',
@@ -348,7 +351,7 @@ void main() {
       expect(loginSource, contains('resetPasswordForEmail('));
       expect(loginSource, contains('redirectTo: authRedirectTo()'));
       expect(
-        loginSource,
+        authRedirectSource,
         contains("nativeAuthRedirectUrl = 'kemet.app://login-callback'"),
       );
       expect(mainSource, contains('authRedirectTo()'));

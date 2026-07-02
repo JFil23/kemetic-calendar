@@ -1,10 +1,10 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../shared/glossy_text.dart';
+import '../../utils/auth_redirect.dart';
 import '../../utils/external_link_utils.dart';
 
 const String emailConfirmationRequiredMessage =
@@ -15,7 +15,6 @@ const String passwordUpdatedMessage =
     'Password updated. You can now sign in with your new password.';
 const String termsUrl = 'https://maat.app/terms';
 const String privacyPolicyUrl = 'https://maat.app/privacy';
-const String nativeAuthRedirectUrl = 'kemet.app://login-callback';
 
 abstract class EmailAuthClient {
   Future<EmailAuthResult> createAccount({
@@ -83,16 +82,6 @@ class SupabaseEmailAuthClient implements EmailAuthClient {
         .updateUser(UserAttributes(password: password))
         .timeout(_requestTimeout);
   }
-}
-
-String authRedirectTo() {
-  if (kIsWeb) {
-    return Uri.base
-        .removeFragment()
-        .replace(queryParameters: const {})
-        .toString();
-  }
-  return nativeAuthRedirectUrl;
 }
 
 @visibleForTesting
