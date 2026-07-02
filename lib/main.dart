@@ -477,6 +477,7 @@ Future<void> main() async {
     } else {
       await _readBootInitialAppLinkIntent();
       await _readBootInitialPushIntent();
+      _bootExplicitIntentLocation ??= _initialLocationFromWebBrowserLocation();
       _bootRestoredLocation = await _readBootRestoredLocation();
     }
     final initialLocation = _resolveInitialLocation();
@@ -899,6 +900,19 @@ String _resolveInitialLocation() {
     'restored=${_bootRestoredLocation ?? '<none>'}',
   );
   return location;
+}
+
+String? _initialLocationFromWebBrowserLocation() {
+  if (!kIsWeb) return null;
+
+  final uri = Uri.base;
+  final path = uri.path.trim();
+  if (path.isEmpty || path == '/') return null;
+
+  return Uri(
+    path: path.startsWith('/') ? path : '/$path',
+    query: uri.query.trim().isEmpty ? null : uri.query,
+  ).toString();
 }
 
 String _routerLocationForTrace() {

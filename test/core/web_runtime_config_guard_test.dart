@@ -64,6 +64,34 @@ void main() {
       expect(defaultIndex, greaterThan(webEnvIndex));
     });
 
+    test('web direct routes win over passive restoration on boot', () {
+      expect(
+        mainSource,
+        contains(
+          '_bootExplicitIntentLocation ??= '
+          '_initialLocationFromWebBrowserLocation();',
+        ),
+      );
+      expect(
+        mainSource,
+        contains('String? _initialLocationFromWebBrowserLocation()'),
+      );
+      expect(mainSource, contains('if (!kIsWeb) return null;'));
+      expect(mainSource, contains('final uri = Uri.base;'));
+      expect(mainSource, contains("if (path.isEmpty || path == '/')"));
+      expect(mainSource, contains("query: uri.query.trim().isEmpty"));
+
+      final webRouteIndex = mainSource.indexOf(
+        '_bootExplicitIntentLocation ??= '
+        '_initialLocationFromWebBrowserLocation();',
+      );
+      final restoreIndex = mainSource.indexOf(
+        '_bootRestoredLocation = await _readBootRestoredLocation();',
+      );
+      expect(webRouteIndex, greaterThanOrEqualTo(0));
+      expect(restoreIndex, greaterThan(webRouteIndex));
+    });
+
     test('release defaults still depend on strict Supabase validation', () {
       final combinedSource = '$mainSource\n$runtimeGuardSource';
       expect(
