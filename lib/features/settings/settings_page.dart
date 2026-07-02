@@ -726,7 +726,7 @@ class _SettingsPageState extends State<SettingsPage> {
       messenger.showSnackBar(
         SnackBar(
           content: const Text(
-            'Automatic calendar sync turned off. You can still sync manually.',
+            'Automatic calendar import turned off. You can still import manually.',
           ),
           backgroundColor: Colors.green.shade700,
         ),
@@ -742,7 +742,7 @@ class _SettingsPageState extends State<SettingsPage> {
       messenger.showSnackBar(
         SnackBar(
           content: const Text(
-            'Automatic calendar sync will start after you sign in.',
+            'Automatic calendar import will start after you sign in.',
           ),
           backgroundColor: Colors.orange.shade700,
         ),
@@ -756,7 +756,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: const Text('Automatic calendar sync turned on.'),
+          content: const Text('Automatic calendar import turned on.'),
           backgroundColor: Colors.green.shade700,
         ),
       );
@@ -764,7 +764,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Could not start automatic calendar sync: $e'),
+          content: Text('Could not start automatic calendar import: $e'),
           backgroundColor: Colors.red.shade700,
         ),
       );
@@ -854,7 +854,7 @@ class _SettingsPageState extends State<SettingsPage> {
       messenger.showSnackBar(
         SnackBar(
           content: const Text(
-            'Native calendar sync is only available in the iOS/Android app.',
+            'Native calendar import is only available in the iOS/Android app.',
           ),
           backgroundColor: Colors.orange.shade700,
         ),
@@ -865,7 +865,7 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!_hasSession) {
       messenger.showSnackBar(
         SnackBar(
-          content: const Text('Sign in to sync your device calendar.'),
+          content: const Text('Sign in to import your external calendar.'),
           backgroundColor: Colors.red.shade700,
         ),
       );
@@ -895,7 +895,7 @@ class _SettingsPageState extends State<SettingsPage> {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Calendar sync failed: $e'),
+          content: Text('Calendar import failed: $e'),
           backgroundColor: Colors.red.shade700,
         ),
       );
@@ -916,7 +916,7 @@ class _SettingsPageState extends State<SettingsPage> {
       messenger.showSnackBar(
         SnackBar(
           content: const Text(
-            'Native calendar unlink cleanup is only available in the iOS/Android app.',
+            'Native calendar import cleanup is only available in the iOS/Android app.',
           ),
           backgroundColor: Colors.orange.shade700,
         ),
@@ -927,7 +927,9 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!_hasSession) {
       messenger.showSnackBar(
         SnackBar(
-          content: const Text('Sign in before unlinking synced calendar data.'),
+          content: const Text(
+            'Sign in before clearing imported calendar data.',
+          ),
           backgroundColor: Colors.red.shade700,
         ),
       );
@@ -940,11 +942,11 @@ class _SettingsPageState extends State<SettingsPage> {
         return AlertDialog(
           backgroundColor: const Color(0xFF0C0C0C),
           title: const Text(
-            'Unlink Calendar Sync',
+            'Clear Calendar Import',
             style: TextStyle(color: Colors.white),
           ),
           content: const Text(
-            'This removes imported Apple/Google calendar events from Kemetic, clears sync state, and turns automatic calendar sync off until you re-enable it. If older hAw exports still exist on the device calendar, the cleanup also removes those legacy copies.',
+            'This removes imported Apple/Google calendar events from HAw, clears local import state, and turns automatic calendar import off. HAw will not create, update, export, or delete events in your outside calendar.',
             style: TextStyle(color: Colors.white70, height: 1.4),
           ),
           actions: [
@@ -957,7 +959,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 backgroundColor: Colors.red.shade700,
               ),
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Unlink and clear'),
+              child: const Text('Clear import data'),
             ),
           ],
         );
@@ -972,7 +974,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
     try {
       final sync = sharedCalendarSyncService(client);
-      final result = await sync.unlinkAndPurge(
+      final result = await sync.unlinkImportedCalendarData(
         interactive: true,
         markResetCompleted: true,
       );
@@ -992,30 +994,23 @@ class _SettingsPageState extends State<SettingsPage> {
 
       final parts = <String>[
         if (result.removedImportedEvents > 0)
-          'removed ${result.removedImportedEvents} imported device-calendar events from Kemetic',
-        if (result.removedNativeEvents > 0)
-          'removed ${result.removedNativeEvents} legacy hAw exports from the device calendar',
+          'removed ${result.removedImportedEvents} imported external-calendar events from HAw',
       ];
       final summary = parts.isEmpty
-          ? 'Calendar import state was cleared and automatic sync was turned off.'
-          : '${parts.join('; ')}. Automatic sync is now off.';
-      final suffix = result.permissionGranted
-          ? ''
-          : ' Grant calendar access and run this again if older exported hAw copies still remain on the device calendar.';
+          ? 'Calendar import state was cleared and automatic import was turned off.'
+          : '${parts.join('; ')}. Automatic import is now off.';
 
       messenger.showSnackBar(
         SnackBar(
-          content: Text('$summary$suffix'),
-          backgroundColor: result.permissionGranted
-              ? Colors.green.shade700
-              : Colors.orange.shade700,
+          content: Text(summary),
+          backgroundColor: Colors.green.shade700,
         ),
       );
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Could not unlink synced calendar data: $e'),
+          content: Text('Could not clear imported calendar data: $e'),
           backgroundColor: Colors.red.shade700,
         ),
       );
@@ -1043,7 +1038,7 @@ class _SettingsPageState extends State<SettingsPage> {
         messenger.showSnackBar(
           SnackBar(
             content: const Text(
-              'Imported device-calendar data was cleared. Re-enable sync when you want Kemetic to import again.',
+              'Imported external-calendar data was cleared. Re-enable import when you want HAw to read external events again.',
             ),
             backgroundColor: Colors.orange.shade700,
           ),
@@ -1053,7 +1048,7 @@ class _SettingsPageState extends State<SettingsPage> {
         messenger.showSnackBar(
           SnackBar(
             content: const Text(
-              'Calendar access is not granted on this device.',
+              'Calendar read access is not granted on this device.',
             ),
             backgroundColor: Colors.red.shade700,
           ),
@@ -1062,7 +1057,7 @@ class _SettingsPageState extends State<SettingsPage> {
       case CalendarSyncRunState.skippedInProgress:
         messenger.showSnackBar(
           SnackBar(
-            content: const Text('Calendar sync is already running.'),
+            content: const Text('Calendar import is already running.'),
             backgroundColor: Colors.orange.shade700,
           ),
         );
@@ -1071,7 +1066,7 @@ class _SettingsPageState extends State<SettingsPage> {
         messenger.showSnackBar(
           SnackBar(
             content: const Text(
-              'Native calendar sync is unavailable in this web context.',
+              'Native calendar import is unavailable in this web context.',
             ),
             backgroundColor: Colors.orange.shade700,
           ),
@@ -1080,7 +1075,7 @@ class _SettingsPageState extends State<SettingsPage> {
       case CalendarSyncRunState.skippedNoSession:
         messenger.showSnackBar(
           SnackBar(
-            content: const Text('Sign in to sync your calendar.'),
+            content: const Text('Sign in to import your calendar.'),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -1098,7 +1093,7 @@ class _SettingsPageState extends State<SettingsPage> {
       case CalendarSyncRunState.failed:
         messenger.showSnackBar(
           SnackBar(
-            content: Text('Calendar sync failed: ${result.error}'),
+            content: Text('Calendar import failed: ${result.error}'),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -1307,10 +1302,10 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   String _syncButtonLabel() {
-    if (!_nativeCalendarSyncAvailable) return 'Native sync unavailable on web';
-    if (_syncingCalendar) return 'Syncing...';
-    if (!_hasSession) return 'Sign in to sync';
-    return 'Sync now';
+    if (!_nativeCalendarSyncAvailable) return 'Import unavailable on web';
+    if (_syncingCalendar) return 'Importing...';
+    if (!_hasSession) return 'Sign in to import';
+    return 'Import now';
   }
 
   List<String> _calendarStatusLines() {
@@ -1323,8 +1318,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
     lines.add(
       _autoCalendarSync
-          ? 'Automatic sync is on. The app keeps importing device-calendar changes after sign-in.'
-          : 'Automatic sync is off. Use Sync now whenever you want to import again.',
+          ? 'Automatic import is on. The app keeps reading external calendar changes into HAw after sign-in.'
+          : 'Automatic import is off. Use Import now whenever you want to read external events into HAw again.',
     );
 
     final lastSync = _calendarSyncStatus?.lastSyncAt?.toLocal();
@@ -1341,11 +1336,13 @@ class _SettingsPageState extends State<SettingsPage> {
 
     final lastReset = _calendarSyncStatus?.lastResetAt?.toLocal();
     if (lastReset != null) {
-      lines.add('Last unlink cleanup: ${_formatTimestamp(lastReset)}');
+      lines.add('Last import cleanup: ${_formatTimestamp(lastReset)}');
     }
 
     if (!_hasSession) {
-      lines.add('Sign in is required before any device calendar sync can run.');
+      lines.add(
+        'Sign in is required before any device calendar import can run.',
+      );
     }
 
     return lines;
@@ -1814,15 +1811,15 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             const SizedBox(height: 16),
             _sectionCard(
-              title: 'Calendar Sync',
+              title: 'Calendar Import',
               description:
-                  'Device calendar sync only imports external events into Kemetic. Events you create in Kemetic stay in Kemetic.',
+                  'One-way import only: external calendar events can appear in HAw, and HAw events stay in HAw. The app does not export, create, update, or delete events in outside calendars.',
               children: [
                 _settingSwitch(
-                  title: 'Keep device calendar synced automatically',
+                  title: 'Keep external calendar import on',
                   subtitle: _nativeCalendarSyncAvailable
-                      ? 'Runs after sign-in and keeps importing device-calendar changes in the background.'
-                      : 'Native calendar sync is not available in web builds.',
+                      ? 'Runs after sign-in and reads external calendar changes in the background.'
+                      : 'Native calendar import is not available in web builds.',
                   value: _autoCalendarSync,
                   onChanged: !_nativeCalendarSyncAvailable || _calendarBusy
                       ? null
@@ -1853,7 +1850,7 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                         const SizedBox(width: 10),
                       ] else ...[
-                        const Icon(Icons.sync),
+                        const Icon(Icons.file_download_outlined),
                         const SizedBox(width: 10),
                       ],
                       Text(_syncButtonLabel()),
@@ -1883,8 +1880,8 @@ class _SettingsPageState extends State<SettingsPage> {
                         : _unlinkCalendarAccounts,
                     child: Text(
                       _unlinkingCalendar
-                          ? 'Unlinking calendars...'
-                          : 'Unlink and clear synced calendar data',
+                          ? 'Clearing import data...'
+                          : 'Clear imported calendar data',
                     ),
                   ),
                 ),
