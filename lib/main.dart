@@ -251,7 +251,7 @@ Future<Map<String, String>> _loadWebRuntimeEnvJson() async {
   if (!kIsWeb) return const {};
 
   try {
-    final response = await http.get(Uri.base.resolve('env.json'));
+    final response = await http.get(Uri.base.resolve('/env.json'));
     if (response.statusCode != 200) {
       if (kDebugMode) {
         debugPrint('[env] env.json returned HTTP ${response.statusCode}');

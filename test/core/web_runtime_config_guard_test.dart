@@ -25,7 +25,8 @@ void main() {
     });
 
     test('web startup can read env.json without bypassing validation', () {
-      expect(mainSource, contains("Uri.base.resolve('env.json')"));
+      expect(mainSource, contains("Uri.base.resolve('/env.json')"));
+      expect(mainSource, isNot(contains("Uri.base.resolve('env.json')")));
       expect(mainSource, contains('http.get'));
       expect(mainSource, contains("webEnv['SUPABASE_URL']"));
       expect(mainSource, contains("webEnv['SUPABASE_ANON_KEY']"));
