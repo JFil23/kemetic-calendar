@@ -16,6 +16,13 @@
 3. Shared calendar selection UI was verified, but the smoke account's expanded member calendar had no upcoming events to display.
 4. Push notification permission, subscription, and notification click-through were not fully exercised; manifest, messaging worker reference, and deep-link routes were checked.
 
+## Calendar Import Privacy Boundary
+
+- Calendar Import is one-way: external calendar -> HAw.
+- HAw does not create, update, delete, or export events to outside calendars.
+- Android requests `READ_CALENDAR` only.
+- Destructive clear/disconnect was not manually smoked on the dev account.
+
 ## Account Deletion
 
 - Repo verification date: 2026-06-01 PDT
