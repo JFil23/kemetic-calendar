@@ -21,6 +21,7 @@
 - Calendar Import is one-way: external calendar -> HAw.
 - HAw does not create, update, delete, or export events to outside calendars.
 - Android requests `READ_CALENDAR` only.
+- PWA email-only accounts need Supabase manual identity linking enabled, or users must use the Google sign-in / already-Google-linked path for Calendar Import.
 - Destructive clear/disconnect was not manually smoked on the dev account.
 
 ## Account Deletion
