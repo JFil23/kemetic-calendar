@@ -16,6 +16,19 @@
 3. Shared calendar selection UI was verified, but the smoke account's expanded member calendar had no upcoming events to display.
 4. Push notification permission, subscription, and notification click-through were not fully exercised; manifest, messaging worker reference, and deep-link routes were checked.
 
+### Screenshot Smoke Discipline
+
+Before screenshot QA, verify the local app state is the intended test subject:
+
+1. Confirm the branch.
+2. Confirm `HEAD`.
+3. Run with `--dart-define-from-file=env/dev.json`.
+4. Reinstall the app on the target device or emulator.
+5. Confirm the installed app timestamp changed.
+6. Confirm the signed-in account and data set.
+
+For Commons-specific QA, either sign the emulator into the same account as the PWA baseline or seed the smoke account with equivalent Commons data, including a visible shared practice room. Otherwise data differences such as missing shared rooms or different Discover posts should not be treated as UI regressions.
+
 ## Calendar Import Privacy Boundary
 
 - Calendar Import is one-way: external calendar -> HAw.
