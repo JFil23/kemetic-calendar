@@ -1512,6 +1512,22 @@ GoRoute _utilitySheetRoute({
   );
 }
 
+DateTime? _parseLocalDateQuery(String? raw) {
+  final text = raw?.trim();
+  if (text == null || text.isEmpty) return null;
+  final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$').firstMatch(text);
+  if (match == null) return null;
+  final year = int.tryParse(match.group(1)!);
+  final month = int.tryParse(match.group(2)!);
+  final day = int.tryParse(match.group(3)!);
+  if (year == null || month == null || day == null) return null;
+  final parsed = DateTime(year, month, day);
+  if (parsed.year != year || parsed.month != month || parsed.day != day) {
+    return null;
+  }
+  return DateUtils.dateOnly(parsed);
+}
+
 GoRouter _createRouter({required String initialLocation}) => GoRouter(
   navigatorKey: _rootNavigatorKey,
   initialLocation: initialLocation,
@@ -1631,7 +1647,12 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         }
         return SessionTrackedRoute(
           location: state.uri.toString(),
-          child: SharedPracticeRoomPage(roomId: roomId),
+          child: SharedPracticeRoomPage(
+            roomId: roomId,
+            initialLocalDate: _parseLocalDateQuery(
+              state.uri.queryParameters['date'],
+            ),
+          ),
         );
       },
     ),

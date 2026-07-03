@@ -2308,15 +2308,24 @@ class _SharedPracticeDetailModule extends StatelessWidget {
     required this.roomId,
     required this.calendarName,
     required this.flowTitle,
+    required this.localDate,
+    required this.onOpenRoute,
   });
 
   final String roomId;
   final String? calendarName;
   final String flowTitle;
+  final DateTime localDate;
+  final ValueChanged<String> onOpenRoute;
 
   @override
   Widget build(BuildContext context) {
     final calendar = calendarName?.trim();
+    final routePath = Uri(
+      pathSegments: <String>['shared-practice', roomId],
+      queryParameters: <String, String>{'date': _sharedPracticeDate(localDate)},
+    ).toString();
+    final route = routePath.startsWith('/') ? routePath : '/$routePath';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -2343,11 +2352,7 @@ class _SharedPracticeDetailModule extends StatelessWidget {
               ),
               const Spacer(),
               TextButton(
-                onPressed: () {
-                  context.push(
-                    '/shared-practice/${Uri.encodeComponent(roomId)}',
-                  );
-                },
+                onPressed: () => onOpenRoute(route),
                 style: TextButton.styleFrom(
                   foregroundColor: _dayGold,
                   padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -2380,6 +2385,15 @@ class _SharedPracticeDetailModule extends StatelessWidget {
       ),
     );
   }
+}
+
+String _sharedPracticeDate(DateTime value) {
+  final local = DateTime(value.year, value.month, value.day);
+  return [
+    local.year.toString().padLeft(4, '0'),
+    local.month.toString().padLeft(2, '0'),
+    local.day.toString().padLeft(2, '0'),
+  ].join('-');
 }
 
 class EventItem {
@@ -3847,6 +3861,10 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             roomId: sharedPracticeRoomId,
             calendarName: currentEvent.calendarName,
             flowTitle: flow?.name ?? currentEvent.title,
+            localDate: DateUtils.dateOnly(
+              KemeticMath.toGregorian(target.ky, target.km, target.kd),
+            ),
+            onOpenRoute: (route) => _openSharedPracticeRoute(route, context),
           ),
         ],
         if (hasMaatCompletionPanel && responseSpecs.isNotEmpty) ...[
@@ -4305,46 +4323,62 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       target.event,
     );
 
+    final calendarTextStyle = _goldHeaderStyle.copyWith(
+      fontSize: 15,
+      color: calendarEnabled ? _dayGold : Colors.white24,
+    );
+
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _buildEventDetailPrimaryAction(
           rootContext: rootContext,
           sheetContext: sheetContext,
           target: target,
         ),
-        TextButton(
-          onPressed: calendarEnabled
-              ? () async {
-                  final updatedTarget =
-                      await CalendarPage.showDetailSheetCalendarPicker(
-                        context: sheetContext,
-                        target: target,
-                        onOptimisticTargetChanged: (optimisticTarget) {
-                          if (sheetContext.mounted) {
-                            _moveToTarget(optimisticTarget);
-                          }
-                        },
-                      );
-                  if (!sheetContext.mounted || updatedTarget == null) return;
-                  _moveToTarget(updatedTarget);
-                }
-              : null,
-          child: calendarEnabled
-              ? KemeticGold.text(
-                  calendarLabel,
-                  style: _goldHeaderStyle.copyWith(fontSize: 15),
-                )
-              : Text(
-                  calendarLabel,
-                  style: _goldHeaderStyle.copyWith(
-                    fontSize: 15,
-                    color: Colors.white24,
-                  ),
-                ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: calendarEnabled
+                  ? () async {
+                      final updatedTarget =
+                          await CalendarPage.showDetailSheetCalendarPicker(
+                            context: sheetContext,
+                            target: target,
+                            onOptimisticTargetChanged: (optimisticTarget) {
+                              if (sheetContext.mounted) {
+                                _moveToTarget(optimisticTarget);
+                              }
+                            },
+                          );
+                      if (!sheetContext.mounted || updatedTarget == null) {
+                        return;
+                      }
+                      _moveToTarget(updatedTarget);
+                    }
+                  : null,
+              child: Text(
+                calendarLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: calendarTextStyle,
+              ),
+            ),
+          ),
         ),
       ],
     );
+  }
+
+  void _openSharedPracticeRoute(String route, BuildContext sheetContext) {
+    final hostContext = widget.hostContext;
+    Navigator.of(sheetContext).maybePop();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!hostContext.mounted) return;
+      hostContext.push(route);
+    });
   }
 
   @override

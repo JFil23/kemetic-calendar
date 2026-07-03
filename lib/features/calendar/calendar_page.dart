@@ -6487,6 +6487,37 @@ class CalendarPage extends StatefulWidget {
     }
   }
 
+  static Future<
+    ({List<SharedCalendarSummary> calendars, String? personalCalendarId})
+  >
+  _loadHeadlessEditableCalendarsForFlow(String? currentCalendarId) async {
+    final repo = SharedCalendarsRepo(Supabase.instance.client);
+    SharedCalendarsSnapshot? snapshot;
+    try {
+      snapshot = await repo.loadSnapshot();
+    } catch (_) {
+      snapshot = await repo.restoreCachedSnapshot();
+    }
+    final current = currentCalendarId?.trim();
+    final calendars = (snapshot?.calendars ?? const <SharedCalendarSummary>[])
+        .where(
+          (calendar) =>
+              calendar.canEdit ||
+              (current != null && current.isNotEmpty && calendar.id == current),
+        )
+        .toList(growable: false);
+    calendars.sort((a, b) {
+      if (a.isPersonal != b.isPersonal) {
+        return a.isPersonal ? -1 : 1;
+      }
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+    return (
+      calendars: calendars,
+      personalCalendarId: snapshot?.personalCalendarId,
+    );
+  }
+
   static Future<void> _fileHeadlessEventDelivery({
     required EventFilingService eventFiling,
     required String debugLabel,
@@ -7180,11 +7211,12 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
-  static Future<_Flow> _moveReadingHouseFlowToCalendarHeadless(
+  static Future<_Flow> _moveFlowToCalendarHeadless(
     _Flow flow,
     SharedCalendarSummary calendar,
-    FlowsRepo flowsRepo,
-  ) async {
+    FlowsRepo flowsRepo, {
+    String source = 'flow_detail_calendar_move_headless',
+  }) async {
     final calendarId = calendar.id.trim();
     if (calendarId.isEmpty) {
       throw ArgumentError.value(
@@ -7200,12 +7232,42 @@ class CalendarPage extends StatefulWidget {
     await _ensureSharedExperienceForFlow(
       flowId: flow.id,
       calendarId: calendarId,
-      source: 'reading_house_shared_calendar_move_headless',
+      source: source,
+    );
+    final startDate = flow.start == null
+        ? null
+        : DateUtils.dateOnly(flow.start!);
+    final k = startDate == null ? null : KemeticMath.fromGregorian(startDate);
+    await SharedCalendarsRepo(
+      Supabase.instance.client,
+    ).notifySharedCalendarItemAdded(
+      calendarId: calendarId,
+      itemType: 'flow',
+      itemId: flow.id.toString(),
+      itemTitle: flow.name,
+      flowId: flow.id,
+      startDate: startDate,
+      kYear: k?.kYear,
+      kMonth: k?.kMonth,
+      kDay: k?.kDay,
     );
     await flowsRepo.clearMyFiledFlowsCache();
     unawaited(flowsRepo.refreshMyFiledFlows());
     flow.calendarId = calendarId;
     return flow;
+  }
+
+  static Future<_Flow> _moveReadingHouseFlowToCalendarHeadless(
+    _Flow flow,
+    SharedCalendarSummary calendar,
+    FlowsRepo flowsRepo,
+  ) {
+    return _moveFlowToCalendarHeadless(
+      flow,
+      calendar,
+      flowsRepo,
+      source: 'reading_house_shared_calendar_move_headless',
+    );
   }
 
   static Future<int?> _pushDetachedMaatFlowTemplateDetail(
@@ -7237,6 +7299,7 @@ class CalendarPage extends StatefulWidget {
     required FlowsRepo flowsRepo,
     int? initialFlowId,
   }) {
+    final mountedHost = CalendarPage._mountedState;
     if (initialFlowId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!navigator.mounted) return;
@@ -7295,6 +7358,10 @@ class CalendarPage extends StatefulWidget {
       onImportFlow: (_) async {
         await flowsRepo.refreshMyFiledFlows();
       },
+      onCalendarChanged:
+          mountedHost?._moveFlowToCalendar ??
+          (flow, calendar) =>
+              _moveFlowToCalendarHeadless(flow, calendar, flowsRepo),
     );
   }
 
@@ -8104,6 +8171,45 @@ class CalendarPage extends StatefulWidget {
     throw ArgumentError('Unknown rule type ${j['type']}');
   }
 
+  static ({
+    String? detail,
+    String? location,
+    String? category,
+    int? alertMinutes,
+  })
+  _decodeHeadlessFlowNotes(String? rawNotes) {
+    if (rawNotes == null || rawNotes.isEmpty) {
+      return (detail: null, location: null, category: null, alertMinutes: null);
+    }
+
+    try {
+      final meta = jsonDecode(rawNotes) as Map<String, dynamic>;
+      if (meta['kind'] == 'repeating_note') {
+        return (
+          detail: (meta['detail'] as String?)?.trim(),
+          location: (meta['location'] as String?)?.trim(),
+          category: (meta['category'] as String?)?.trim(),
+          alertMinutes: (meta['alertMinutes'] as num?)?.toInt(),
+        );
+      }
+    } catch (_) {
+      // Fall through to legacy Flow Studio note decoding.
+    }
+
+    try {
+      final decoded = notesDecode(rawNotes);
+      final overview = decoded.overview.trim();
+      return (
+        detail: overview.isEmpty ? null : overview,
+        location: null,
+        category: null,
+        alertMinutes: null,
+      );
+    } catch (_) {
+      return (detail: null, location: null, category: null, alertMinutes: null);
+    }
+  }
+
   // Headless persistence helper: save/delete flows + planned notes without calendar state.
   static Future<int?> _persistFlowStudioResultHeadless(
     _FlowStudioResult r,
@@ -8288,6 +8394,145 @@ class CalendarPage extends StatefulWidget {
         await rollbackNewFlowSave(error, stackTrace);
         rethrow;
       }
+    }
+
+    Future<int> materializeRuleEventsIfNeeded() async {
+      if (!f.active || f.rules.isEmpty || r.plannedNotes.isNotEmpty) return 0;
+
+      final scheduleStart = DateUtils.dateOnly(f.start ?? DateTime.now());
+      final scheduleEnd = DateUtils.dateOnly(
+        f.end ?? scheduleStart.add(const Duration(days: 90)),
+      );
+      final noteTitle = f.name.trim().isEmpty ? 'Flow Event' : f.name.trim();
+      final noteMeta = _decodeHeadlessFlowNotes(f.notes);
+      final eventFiling = EventFilingService();
+      final candidateDates = <DateTime>[];
+
+      for (
+        var date = scheduleStart;
+        !date.isAfter(scheduleEnd);
+        date = date.add(const Duration(days: 1))
+      ) {
+        final kDate = KemeticMath.fromGregorian(date);
+        for (final rule in f.rules) {
+          if (rule.matches(
+            ky: kDate.kYear,
+            km: kDate.kMonth,
+            kd: kDate.kDay,
+            g: date,
+          )) {
+            candidateDates.add(date);
+            break;
+          }
+        }
+      }
+
+      if (candidateDates.isEmpty) return 0;
+
+      await userEventsRepo.deleteByFlowId(
+        savedId,
+        fromDate: scheduleStart.toUtc(),
+        semantic: 'flow_reschedule',
+        suppressesClient: false,
+        sourceFeature: 'CalendarPage._persistFlowStudioResultHeadless',
+        deleteScope: 'flow_reschedule',
+      );
+
+      var savedCount = 0;
+      for (final date in candidateDates) {
+        final kDate = KemeticMath.fromGregorian(date);
+        for (final rule in f.rules) {
+          if (!rule.matches(
+            ky: kDate.kYear,
+            km: kDate.kMonth,
+            kd: kDate.kDay,
+            g: date,
+          )) {
+            continue;
+          }
+
+          final startHour = rule.allDay ? 9 : (rule.start?.hour ?? 9);
+          final startMinute = rule.allDay ? 0 : (rule.start?.minute ?? 0);
+          final startsAt = DateTime(
+            date.year,
+            date.month,
+            date.day,
+            startHour,
+            startMinute,
+          );
+
+          DateTime? endsAt;
+          if (!rule.allDay) {
+            endsAt = rule.end == null
+                ? startsAt.add(const Duration(hours: 1))
+                : DateTime(
+                    date.year,
+                    date.month,
+                    date.day,
+                    rule.end!.hour,
+                    rule.end!.minute,
+                  );
+          }
+
+          final cid = EventCidUtil.buildClientEventId(
+            ky: kDate.kYear,
+            km: kDate.kMonth,
+            kd: kDate.kDay,
+            title: noteTitle,
+            startHour: startHour,
+            startMinute: startMinute,
+            allDay: rule.allDay,
+            flowId: savedId,
+          );
+          clientEventIds.add(cid);
+
+          final savedEvent = await userEventsRepo.upsertByClientId(
+            clientEventId: cid,
+            title: noteTitle,
+            startsAtUtc: startsAt.toUtc(),
+            detail: noteMeta.detail,
+            location: noteMeta.location,
+            allDay: rule.allDay,
+            endsAtUtc: endsAt?.toUtc(),
+            calendarId: f.calendarId,
+            flowLocalId: savedId,
+            category: noteMeta.category,
+            caller: 'flow_save_rules_headless',
+          );
+          firstClientEventId ??= savedEvent.clientEventId ?? cid;
+          savedCount++;
+
+          final bodyLines = <String>[
+            if ((noteMeta.location ?? '').trim().isNotEmpty)
+              noteMeta.location!.trim(),
+            if ((noteMeta.detail ?? '').trim().isNotEmpty)
+              noteMeta.detail!.trim(),
+          ];
+          await _fileHeadlessEventDelivery(
+            eventFiling: eventFiling,
+            debugLabel: 'flowStudioHeadlessRules',
+            clientEventId: cid,
+            startsAtLocal: startsAt,
+            alertOffsetMinutes: noteMeta.alertMinutes ?? _alertNoneMinutes,
+            title: noteTitle,
+            body: bodyLines.isEmpty ? null : bodyLines.join('\n'),
+            kYear: kDate.kYear,
+            kMonth: kDate.kMonth,
+            kDay: kDate.kDay,
+            eventId: savedEvent.id,
+            flowId: savedId,
+          );
+        }
+      }
+
+      return savedCount;
+    }
+
+    try {
+      await materializeRuleEventsIfNeeded();
+    } catch (error, stackTrace) {
+      await rollbackNewFlowSave(error, stackTrace);
+      rethrow;
     }
 
     await commitGenerationIfNeeded();
@@ -11666,6 +11911,22 @@ class CalendarPageState extends State<CalendarPage>
     return calendars;
   }
 
+  List<SharedCalendarSummary> _editableCalendarsForFlow(
+    String? currentCalendarId,
+  ) {
+    final current = _normalizeCalendarId(currentCalendarId);
+    final calendars = _calendarSummariesById.values
+        .where((calendar) => calendar.canEdit || calendar.id == current)
+        .toList(growable: false);
+    calendars.sort((a, b) {
+      if (a.isPersonal != b.isPersonal) {
+        return a.isPersonal ? -1 : 1;
+      }
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+    return calendars;
+  }
+
   String _detailSheetCalendarActionLabel(SharedCalendarSummary calendar) {
     if (calendar.isPersonal) return 'Calendar';
     final name = calendar.name.trim();
@@ -11800,6 +12061,88 @@ class CalendarPageState extends State<CalendarPage>
     }
     if (changed) {
       _bumpDataVersion();
+    }
+  }
+
+  bool _noteMatchesFlowEvent(_Note note, FlowEventRow event) {
+    final eventId = event.id?.trim();
+    if (eventId != null && eventId.isNotEmpty) {
+      return note.id?.trim() == eventId;
+    }
+
+    final clientEventId = event.clientEventId?.trim();
+    if (clientEventId != null && clientEventId.isNotEmpty) {
+      return note.clientEventId?.trim() == clientEventId;
+    }
+
+    final localStart = event.startsAtUtc.toLocal();
+    final localEnd = event.endsAtUtc?.toLocal();
+    final eventStart = event.allDay ? null : TimeOfDay.fromDateTime(localStart);
+    final eventEnd = localEnd == null ? null : TimeOfDay.fromDateTime(localEnd);
+    return note.title.trim().toLowerCase() ==
+            event.title.trim().toLowerCase() &&
+        note.allDay == event.allDay &&
+        note.start == eventStart &&
+        note.end == eventEnd;
+  }
+
+  Future<void> _refreshMovedFlowEventsFromServer({
+    required int flowId,
+    required String calendarId,
+    required String source,
+  }) async {
+    final events = await UserEventsRepo(
+      Supabase.instance.client,
+    ).getEventsForFlow(flowId, flowEventsOnly: true);
+    if (events.isEmpty) return;
+
+    final fallbackCalendarName = _detailSheetCalendarEventName(calendarId);
+    var changed = false;
+    for (final bucket in _notes.values) {
+      for (var i = 0; i < bucket.length; i++) {
+        final note = bucket[i];
+        if (note.flowId != flowId) continue;
+        FlowEventRow? matchingEvent;
+        for (final event in events) {
+          if (_noteMatchesFlowEvent(note, event)) {
+            matchingEvent = event;
+            break;
+          }
+        }
+        if (matchingEvent == null) continue;
+
+        final behaviorPayload = matchingEvent.behaviorPayload == null
+            ? note.behaviorPayload
+            : Map<String, dynamic>.from(matchingEvent.behaviorPayload!);
+        final next = note.copyWith(
+          id: matchingEvent.id,
+          clientEventId: matchingEvent.clientEventId,
+          calendarId: matchingEvent.calendarId ?? calendarId,
+          calendarName: matchingEvent.calendarName ?? fallbackCalendarName,
+          category: matchingEvent.category,
+          actionId: matchingEvent.actionId,
+          behaviorPayload: behaviorPayload,
+        );
+        if (next.id != note.id ||
+            next.clientEventId != note.clientEventId ||
+            next.calendarId != note.calendarId ||
+            next.calendarName != note.calendarName ||
+            next.category != note.category ||
+            next.actionId != note.actionId ||
+            !mapEquals(next.behaviorPayload, note.behaviorPayload)) {
+          bucket[i] = next;
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) {
+      _bumpDataVersion();
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[$source] refreshed moved flow event payloads for flow=$flowId',
+        );
+      }
     }
   }
 
@@ -12333,6 +12676,11 @@ class CalendarPageState extends State<CalendarPage>
       calendarId: calendarId,
       source: 'detail_calendar_move_flow',
     );
+    await _refreshMovedFlowEventsFromServer(
+      flowId: flowId,
+      calendarId: calendarId,
+      source: 'detail_calendar_move_flow',
+    );
 
     String flowName = target.event.title;
     for (final flow in _flows) {
@@ -12365,10 +12713,11 @@ class CalendarPageState extends State<CalendarPage>
         : optimisticTarget;
   }
 
-  Future<_Flow> _moveReadingHouseFlowToCalendar(
+  Future<_Flow> _moveFlowToCalendar(
     _Flow flow,
-    SharedCalendarSummary calendar,
-  ) async {
+    SharedCalendarSummary calendar, {
+    String source = 'flow_detail_calendar_move',
+  }) async {
     final calendarId = calendar.id.trim();
     if (calendarId.isEmpty) {
       throw ArgumentError.value(
@@ -12384,7 +12733,12 @@ class CalendarPageState extends State<CalendarPage>
     await _ensureSharedExperienceForFlow(
       flowId: flow.id,
       calendarId: calendarId,
-      source: 'reading_house_shared_calendar_move',
+      source: source,
+    );
+    await _refreshMovedFlowEventsFromServer(
+      flowId: flow.id,
+      calendarId: calendarId,
+      source: source,
     );
 
     _Flow? updated;
@@ -12413,9 +12767,20 @@ class CalendarPageState extends State<CalendarPage>
       kDay: k?.kDay,
     );
     if (mounted) {
-      await _loadFromDisk(source: 'reading_house_shared_calendar_move');
+      await _loadFromDisk(source: source);
     }
     return updated;
+  }
+
+  Future<_Flow> _moveReadingHouseFlowToCalendar(
+    _Flow flow,
+    SharedCalendarSummary calendar,
+  ) {
+    return _moveFlowToCalendar(
+      flow,
+      calendar,
+      source: 'reading_house_shared_calendar_move',
+    );
   }
 
   Future<DayViewSheetEventTarget?> _moveReminderEventToCalendar(
@@ -23541,6 +23906,7 @@ class CalendarPageState extends State<CalendarPage>
                               }
                             },
                             onAppendToJournal: _appendToJournalAndRefresh,
+                            onCalendarChanged: _moveFlowToCalendar,
                           );
                         },
                       ),
@@ -23683,6 +24049,7 @@ class CalendarPageState extends State<CalendarPage>
                   }
                 },
                 onAppendToJournal: _appendToJournalAndRefresh,
+                onCalendarChanged: _moveFlowToCalendar,
               ),
             ),
             visibleState: const <String, dynamic>{
@@ -23881,6 +24248,7 @@ class CalendarPageState extends State<CalendarPage>
             }
           },
           onAppendToJournal: _appendToJournalAndRefresh,
+          onCalendarChanged: _moveFlowToCalendar,
         );
       },
     );
@@ -23978,6 +24346,7 @@ class CalendarPageState extends State<CalendarPage>
             }());
           },
           onAppendToJournal: _appendToJournalAndRefresh,
+          onCalendarChanged: _moveFlowToCalendar,
           onEndMaatFlow: (flow) {
             unawaited(_endFlow(flow.id));
             Navigator.of(innerCtx).maybePop();

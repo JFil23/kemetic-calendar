@@ -187,6 +187,103 @@ void main() {
     await _closeFlowStudio(tester);
   });
 
+  testWidgets('manual partial date range cannot save an inactive flow shell', (
+    tester,
+  ) async {
+    _useLargeSurface(tester);
+    dynamic savedResult;
+    final draft = _buildDraft(
+      startDate: DateTime(2026, 7, 2),
+      endDate: DateTime(2026, 7, 2),
+    )..['endDate'] = null;
+
+    await _openFlowStudio(
+      tester,
+      initialDraftJson: draft,
+      onRouteResult: (result) async {
+        savedResult = result;
+      },
+    );
+
+    await tester.enterText(_nameField(), 'Partial Range Guard');
+    await tester.tap(find.text('Save').first);
+    await _pumpFlowStudio(tester);
+
+    expect(savedResult, isNull);
+    expect(
+      find.text(
+        'Pick both start and end dates before saving a scheduled flow.',
+      ),
+      findsOneWidget,
+    );
+
+    await _closeFlowStudio(tester);
+  });
+
+  testWidgets('manual date range and weekday save a schedulable flow payload', (
+    tester,
+  ) async {
+    _useLargeSurface(tester);
+    dynamic savedResult;
+    final thursday = DateTime(2026, 7, 2);
+    final draft = _buildDraft(startDate: thursday, endDate: thursday);
+
+    await _openFlowStudio(
+      tester,
+      initialDraftJson: draft,
+      onRouteResult: (result) async {
+        savedResult = result;
+      },
+    );
+
+    await tester.enterText(_nameField(), 'Schedulable Smoke Flow');
+    await _tapChip(tester, 'Thu');
+    await tester.tap(find.text('Save').first);
+    await _pumpFlowStudio(tester);
+
+    expect(savedResult, isNotNull);
+    expect(savedResult.savedFlow.name, 'Schedulable Smoke Flow');
+    expect(savedResult.savedFlow.active, isTrue);
+    expect(savedResult.savedFlow.isSaved, isFalse);
+    expect(savedResult.savedFlow.start, thursday);
+    expect(savedResult.savedFlow.end, thursday);
+    expect(savedResult.savedFlow.rules, isNotEmpty);
+    expect(List<dynamic>.from(savedResult.plannedNotes as Iterable), isEmpty);
+
+    await _closeFlowStudio(tester);
+  });
+
+  testWidgets('manual range rule with no matching date cannot save', (
+    tester,
+  ) async {
+    _useLargeSurface(tester);
+    dynamic savedResult;
+    final thursday = DateTime(2026, 7, 2);
+    final draft = _buildDraft(startDate: thursday, endDate: thursday)
+      ..['splitByPeriod'] = false;
+
+    await _openFlowStudio(
+      tester,
+      initialDraftJson: draft,
+      onRouteResult: (result) async {
+        savedResult = result;
+      },
+    );
+
+    await tester.enterText(_nameField(), 'No Matching Date Guard');
+    await _tapChip(tester, 'Fri');
+    await tester.tap(find.text('Save').first);
+    await _pumpFlowStudio(tester);
+
+    expect(savedResult, isNull);
+    expect(
+      find.text('Pick at least one date inside the selected range.'),
+      findsOneWidget,
+    );
+
+    await _closeFlowStudio(tester);
+  });
+
   testWidgets('shared import snapshot events save without weekday selection', (
     tester,
   ) async {

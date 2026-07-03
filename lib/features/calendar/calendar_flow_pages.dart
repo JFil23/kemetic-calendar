@@ -142,6 +142,7 @@ class _FlowPreviewPage extends StatefulWidget {
     this.initialEventsByFlow,
     this.actionPolicy,
     this.showFlowOptions = true,
+    this.onCalendarChanged,
   });
 
   final _Flow flow;
@@ -152,6 +153,8 @@ class _FlowPreviewPage extends StatefulWidget {
   final Map<int, List<FlowEventRow>>? initialEventsByFlow;
   final FlowDetailActionPolicy? actionPolicy;
   final bool showFlowOptions;
+  final Future<_Flow> Function(_Flow flow, SharedCalendarSummary calendar)?
+  onCalendarChanged;
   final String Function(int km, int di) getDecanLabel;
   final String Function(DateTime? g) fmt;
   final void Function(_Flow flow) onEdit;
@@ -178,6 +181,10 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   String? _expandedDayKey;
   DateTime? _selectedStartForSaved;
   bool _isImportingSaved = false;
+  bool _calendarChangeInFlight = false;
+  Map<String, SharedCalendarSummary> _detachedCalendarSummariesById =
+      const <String, SharedCalendarSummary>{};
+  String? _detachedPersonalCalendarId;
 
   UserEventsRepo get _eventsRepo =>
       _userEventsRepo ??= UserEventsRepo(Supabase.instance.client);
@@ -210,6 +217,227 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  CalendarPageState? get _calendarPageState =>
+      CalendarPage.globalKey.currentState;
+
+  SharedCalendarSummary? _calendarSummaryFor(_Flow flow) {
+    final pageStateSummary = _calendarPageState?._calendarSummary(
+      flow.calendarId,
+    );
+    if (pageStateSummary != null) return pageStateSummary;
+    final trimmed = flow.calendarId?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return _detachedCalendarSummariesById[trimmed];
+  }
+
+  String _calendarLabelFor(_Flow flow) {
+    final summary = _calendarSummaryFor(flow);
+    final name = summary?.name.trim();
+    if (summary?.isPersonal == true) return 'My Calendar';
+    if (name != null && name.isNotEmpty) return name;
+    return 'My Calendar';
+  }
+
+  Color _calendarColorFor(_Flow flow) {
+    return _calendarSummaryFor(flow)?.color ?? _gold;
+  }
+
+  FlowEventRow _eventWithCalendar(
+    FlowEventRow event,
+    SharedCalendarSummary calendar,
+  ) {
+    return (
+      id: event.id,
+      clientEventId: event.clientEventId,
+      calendarId: calendar.id,
+      calendarName: calendar.name,
+      calendarColor: calendar.colorValue,
+      calendarIsPersonal: calendar.isPersonal,
+      title: event.title,
+      detail: event.detail,
+      location: event.location,
+      allDay: event.allDay,
+      startsAtUtc: event.startsAtUtc,
+      endsAtUtc: event.endsAtUtc,
+      flowLocalId: event.flowLocalId,
+      category: event.category,
+      actionId: event.actionId,
+      behaviorPayload: event.behaviorPayload,
+    );
+  }
+
+  Future<void> _openFlowCalendarPicker(_Flow flow) async {
+    if (_calendarChangeInFlight || widget.onCalendarChanged == null) return;
+    final pageState = _calendarPageState;
+    late final List<SharedCalendarSummary> calendars;
+    String? selectedCalendarId;
+    if (pageState != null) {
+      await pageState._loadCalendarState();
+      if (!mounted) return;
+      calendars = pageState._editableCalendarsForFlow(flow.calendarId);
+      selectedCalendarId = flow.calendarId ?? pageState._personalCalendarId;
+    } else {
+      final choices = await CalendarPage._loadHeadlessEditableCalendarsForFlow(
+        flow.calendarId,
+      );
+      if (!mounted) return;
+      calendars = choices.calendars;
+      selectedCalendarId =
+          flow.calendarId ??
+          choices.personalCalendarId ??
+          _detachedPersonalCalendarId;
+      setState(() {
+        _detachedPersonalCalendarId =
+            choices.personalCalendarId ?? _detachedPersonalCalendarId;
+        _detachedCalendarSummariesById = <String, SharedCalendarSummary>{
+          for (final calendar in calendars) calendar.id: calendar,
+        };
+      });
+    }
+
+    if (calendars.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No editable calendars available.')),
+      );
+      return;
+    }
+
+    final chosenId = await _showCalendarChoiceSheet(
+      context: context,
+      calendars: calendars,
+      selectedCalendarId: selectedCalendarId,
+      title: 'Flow calendar',
+    );
+    if (!mounted || chosenId == null || chosenId.trim().isEmpty) return;
+    if (chosenId == flow.calendarId) return;
+
+    final chosenCalendar = calendars.firstWhere(
+      (calendar) => calendar.id == chosenId,
+      orElse: () => calendars.first,
+    );
+    final previousCalendarId = flow.calendarId;
+    final events = _eventsByFlow[flow.id];
+
+    setState(() {
+      _calendarChangeInFlight = true;
+      flow.calendarId = chosenCalendar.id;
+      if (events != null) {
+        _eventsByFlow[flow.id] = events
+            .map((event) => _eventWithCalendar(event, chosenCalendar))
+            .toList(growable: false);
+      }
+    });
+
+    try {
+      final updated = await widget.onCalendarChanged!(flow, chosenCalendar);
+      if (!mounted) return;
+      setState(() {
+        final index = _flowSequence.indexWhere(
+          (candidate) => candidate.id == updated.id,
+        );
+        if (index >= 0) {
+          _flowSequence[index] = updated;
+        } else {
+          flow.calendarId = updated.calendarId;
+        }
+        _calendarChangeInFlight = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        flow.calendarId = previousCalendarId;
+        if (events != null) {
+          _eventsByFlow[flow.id] = events;
+        }
+        _calendarChangeInFlight = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to change flow calendar.')),
+      );
+    }
+  }
+
+  Widget _buildFlowCalendarSelector(
+    _Flow flow, {
+    required bool dashboard,
+    _MyFlowCardPalette? palette,
+  }) {
+    final canChange = widget.onCalendarChanged != null && flow.id > 0;
+    final color = dashboard
+        ? palette?.accent ?? _calendarColorFor(flow)
+        : _calendarColorFor(flow);
+    final textColor = dashboard
+        ? const Color(0xFFE8D9C3)
+        : const Color(0xFFE8D6A8);
+    final labelColor = dashboard ? const Color(0xFF4A3E22) : Colors.white70;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: ValueKey<String>('flow-calendar-picker-${flow.id}'),
+        onTap: canChange ? () => _openFlowCalendarPicker(flow) : null,
+        borderRadius: BorderRadius.circular(dashboard ? 10 : 8),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Row(
+            children: [
+              Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'FLOW CALENDAR',
+                      style: TextStyle(
+                        color: labelColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      _calendarLabelFor(flow),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: textColor,
+                        fontSize: dashboard ? 19 : 16,
+                        fontFamily: dashboard
+                            ? MaatFlowListTokens.fontFamily
+                            : 'GentiumPlus',
+                        fontFamilyFallback: dashboard
+                            ? MaatFlowListTokens.fontFallback
+                            : null,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (_calendarChangeInFlight)
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: color,
+                  ),
+                )
+              else if (canChange)
+                Icon(Icons.chevron_right, color: color),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   ({bool kemetic, bool split, String overview, String? maatKey}) _metaFor(
@@ -1126,6 +1354,8 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
             ),
           ],
         ),
+        const SizedBox(height: 10),
+        _buildFlowCalendarSelector(flow, dashboard: false),
         const SizedBox(height: 16),
 
         // Schedule
@@ -1363,6 +1593,8 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           palette: palette,
           progressLabel: 'Day $progressDay · $total',
         ),
+        const SizedBox(height: 18),
+        _buildFlowCalendarSelector(flow, dashboard: true, palette: palette),
         const SizedBox(height: 34),
         if (error != null)
           _buildDashboardMessage(
@@ -1514,7 +1746,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   }) {
     final values = <({String label, String value, bool accent})>[
       (
-        label: 'CALENDAR',
+        label: 'SYSTEM',
         value: meta.kemetic ? 'Kemetic' : 'Gregorian',
         accent: false,
       ),
@@ -3316,6 +3548,7 @@ class _FlowsViewerPage extends StatefulWidget {
     required this.onEndFlow,
     this.onImportFlow,
     this.onAppendToJournal,
+    this.onCalendarChanged,
     this.initialFilingSnapshot,
     this.onPreviewFlowForTesting,
   });
@@ -3328,6 +3561,8 @@ class _FlowsViewerPage extends StatefulWidget {
   final FutureOr<void> Function(int flowId) onEndFlow;
   final Future<void> Function(int? importedFlowId)? onImportFlow;
   final Future<void> Function(String text)? onAppendToJournal;
+  final Future<_Flow> Function(_Flow flow, SharedCalendarSummary calendar)?
+  onCalendarChanged;
   final ValueChanged<int>? onPreviewFlowForTesting;
 
   @override
@@ -3413,6 +3648,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
           onEdit: (flow) =>
               unawaited(_runAndReload(() => widget.onEditFlow(flow.id))),
           onAppendToJournal: widget.onAppendToJournal,
+          onCalendarChanged: widget.onCalendarChanged,
           onEndMaatFlow: (flow) {
             unawaited(_runAndReload(() => widget.onEndFlow(flow.id)));
             Navigator.of(context).pop();

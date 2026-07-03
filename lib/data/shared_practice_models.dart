@@ -538,6 +538,39 @@ class SharedPracticeRoomSnapshot {
   final bool viewerCanManage;
   final bool viewerIsMember;
 
+  bool get isSharedCalendarPractice {
+    return calendar.id.trim().isNotEmpty && !calendar.isPersonal;
+  }
+
+  int get visibleMemberCount {
+    if (members.isNotEmpty) return members.length;
+    if (room.memberCount > 0) return room.memberCount;
+    return 0;
+  }
+
+  String get memberCountLabel {
+    final count = visibleMemberCount;
+    return count == 1 ? '1 member' : '$count members';
+  }
+
+  String get sharedThroughLabel {
+    final name = calendar.name.trim();
+    return name.isEmpty
+        ? 'Shared through shared calendar'
+        : 'Shared through $name';
+  }
+
+  List<String> get accessPillLabels {
+    if (isSharedCalendarPractice) {
+      return <String>[
+        'Shared calendar practice',
+        sharedThroughLabel,
+        memberCountLabel,
+      ];
+    }
+    return <String>[room.visibility.label, room.joinPolicy.label];
+  }
+
   factory SharedPracticeRoomSnapshot.fromJson(Map<String, dynamic> json) {
     final room = Map<String, dynamic>.from(json['room'] as Map? ?? const {});
     final calendar = Map<String, dynamic>.from(
