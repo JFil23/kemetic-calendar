@@ -9,11 +9,13 @@ class RhythmStateButtonGroup extends StatelessWidget {
     super.key,
     required this.current,
     this.onChanged,
+    this.onMoveToTomorrow,
     this.onDelete,
   });
 
   final RhythmItemState current;
   final ValueChanged<RhythmItemState>? onChanged;
+  final VoidCallback? onMoveToTomorrow;
   final VoidCallback? onDelete;
 
   @override
@@ -24,6 +26,7 @@ class RhythmStateButtonGroup extends StatelessWidget {
             RhythmItemState state,
             IconData icon,
             bool isActive,
+            String tooltip,
             VoidCallback? onTap,
           })
         >[
@@ -31,6 +34,7 @@ class RhythmStateButtonGroup extends StatelessWidget {
             state: RhythmItemState.done,
             icon: Icons.check_circle_rounded,
             isActive: current == RhythmItemState.done,
+            tooltip: 'Done',
             onTap: onChanged != null
                 ? () => onChanged!(
                     current == RhythmItemState.done
@@ -39,23 +43,34 @@ class RhythmStateButtonGroup extends StatelessWidget {
                   )
                 : null,
           ),
-          (
-            state: RhythmItemState.partial,
-            icon: Icons.adjust_rounded,
-            isActive: current == RhythmItemState.partial,
-            onTap: onChanged != null
-                ? () => onChanged!(
-                    current == RhythmItemState.partial
-                        ? RhythmItemState.pending
-                        : RhythmItemState.partial,
-                  )
-                : null,
-          ),
+          if (onMoveToTomorrow != null && current != RhythmItemState.done)
+            (
+              state: RhythmItemState.partial,
+              icon: Icons.arrow_forward_rounded,
+              isActive: false,
+              tooltip: 'Move to tomorrow',
+              onTap: onMoveToTomorrow,
+            )
+          else if (onMoveToTomorrow == null)
+            (
+              state: RhythmItemState.partial,
+              icon: Icons.adjust_rounded,
+              isActive: current == RhythmItemState.partial,
+              tooltip: 'Partial',
+              onTap: onChanged != null
+                  ? () => onChanged!(
+                      current == RhythmItemState.partial
+                          ? RhythmItemState.pending
+                          : RhythmItemState.partial,
+                    )
+                  : null,
+            ),
           if (onDelete != null)
             (
               state: RhythmItemState.skipped,
               icon: Icons.delete_outline_rounded,
               isActive: false,
+              tooltip: 'Delete',
               onTap: onDelete,
             )
           else
@@ -63,6 +78,7 @@ class RhythmStateButtonGroup extends StatelessWidget {
               state: RhythmItemState.skipped,
               icon: Icons.remove_circle_outline_rounded,
               isActive: current == RhythmItemState.skipped,
+              tooltip: 'Skipped',
               onTap: onChanged != null
                   ? () => onChanged!(
                       current == RhythmItemState.skipped
@@ -85,6 +101,7 @@ class RhythmStateButtonGroup extends StatelessWidget {
               state: options[i].state,
               isActive: options[i].isActive,
               icon: options[i].icon,
+              tooltip: options[i].tooltip,
               onTap: options[i].onTap,
             ),
           ],
@@ -100,6 +117,7 @@ class RhythmStateDot extends StatelessWidget {
     required this.state,
     required this.isActive,
     this.icon,
+    this.tooltip,
     this.onTap,
     this.padding = const EdgeInsets.all(8),
     this.iconSize = 18,
@@ -108,6 +126,7 @@ class RhythmStateDot extends StatelessWidget {
 
   final RhythmItemState state;
   final IconData? icon;
+  final String? tooltip;
   final bool isActive;
   final VoidCallback? onTap;
   final EdgeInsets padding;
@@ -159,7 +178,7 @@ class RhythmStateDot extends StatelessWidget {
         ? kMinInteractiveDimension
         : 0.0;
 
-    return GestureDetector(
+    final dot = GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
       child: ConstrainedBox(
@@ -190,5 +209,7 @@ class RhythmStateDot extends StatelessWidget {
         ),
       ),
     );
+    if (tooltip == null || tooltip!.trim().isEmpty) return dot;
+    return Tooltip(message: tooltip!, child: dot);
   }
 }
