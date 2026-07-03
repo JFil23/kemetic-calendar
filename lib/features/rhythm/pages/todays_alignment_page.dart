@@ -2798,9 +2798,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     final items = _itemsForDecanDay(decanDay);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: items.isEmpty
-          ? () => _showNutritionFullscreen(decanDay, decanName)
-          : null,
+      onTap: () => _showNutritionFullscreen(decanDay, decanName),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         padding: const EdgeInsets.all(14),

@@ -146,6 +146,13 @@ void main() {
           source,
           isNot(contains('onDoubleTap: () => _showNutritionFullscreen')),
         );
+        expect(
+          source,
+          contains(
+            'onTap: () => _showNutritionFullscreen(decanDay, decanName)',
+          ),
+        );
+        expect(source, isNot(contains('onTap: items.isEmpty')));
       },
     );
   });
