@@ -374,6 +374,45 @@ class RhythmRepo {
     }
   }
 
+  Future<RhythmRepoResult<RhythmTodo?>> updateTodoDueDate(
+    String todoId,
+    DateTime dueDate,
+  ) async {
+    final uid = _userId;
+    if (uid == null) {
+      return const RhythmRepoResult(data: null, friendlyError: 'Not signed in');
+    }
+    final target = DateUtils.dateOnly(dueDate);
+    final dueDateIso = DateFormat('yyyy-MM-dd').format(target);
+    try {
+      final row = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('todos')
+            .update({
+              'due_date': dueDateIso,
+              'status': 'pending',
+              'completed_at': null,
+            })
+            .eq('id', todoId)
+            .eq('user_id', uid)
+            .select(
+              'id, title, notes, due_date, due_time, show_on_checklist, show_on_calendar, status',
+            )
+            .maybeSingle(),
+      );
+      if (row == null) return const RhythmRepoResult(data: null);
+      return RhythmRepoResult(
+        data: _todoFromRow(Map<String, dynamic>.from(row)),
+      );
+    } catch (e) {
+      if (_isMissingTable(e)) {
+        return const RhythmRepoResult(data: null, missingTables: true);
+      }
+      return RhythmRepoResult(data: null, friendlyError: _friendlyMessage(e));
+    }
+  }
+
   Future<RhythmRepoResult<bool>> deleteTodo(String todoId) async {
     final uid = _userId;
     if (uid == null) {
