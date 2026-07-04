@@ -33147,15 +33147,15 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     final kToday = _today;
-    final size = MediaQuery.sizeOf(context);
     final orientation = MediaQuery.orientationOf(context);
     final isLandscape = orientation == Orientation.landscape;
     final routeIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;
     final routeShouldRemainRendered =
         routeIsCurrent ||
         CalendarPage._hasCalendarOwnedTransientOverlayOpenOrOpening;
-    // Landscape grid only on phone-sized screens; tablets/desktop stay on portrait layout.
-    final useGrid = isLandscape && size.shortestSide < 600;
+    // Wide landscape screens should use the full-screen month scheduler instead
+    // of stretching the portrait year scroller across the whole viewport.
+    final useGrid = isLandscape;
     final shouldBuildLandscapeGrid = useGrid && routeShouldRemainRendered;
     if (!shouldBuildLandscapeGrid) {
       _landscapeTodayAction = null;

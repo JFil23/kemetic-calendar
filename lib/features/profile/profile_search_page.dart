@@ -10,6 +10,7 @@ import '../../features/inbox/conversation_user.dart';
 import '../../repositories/dm_conversation_repo.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../../widgets/profile_avatar.dart';
+import '../../widgets/responsive_content_rail.dart';
 
 class ProfileSearchPage extends StatefulWidget {
   final bool returnFullResult;
@@ -218,30 +219,33 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
               ]
             : null,
       ),
-      body: Padding(
-        padding: bodyPadding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSearchField(scrollPadding: fieldScrollPadding),
-            if (_isConversationMode && _selectedUsersById.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _buildSelectedPeopleChips(),
+      body: ResponsiveContentRail(
+        maxWidth: 640,
+        child: Padding(
+          padding: bodyPadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSearchField(scrollPadding: fieldScrollPadding),
+              if (_isConversationMode && _selectedUsersById.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _buildSelectedPeopleChips(),
+              ],
+              const SizedBox(height: 20),
+              if (_searching)
+                const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
+                  ),
+                )
+              else if (_results.isEmpty && _query.length < 2)
+                _buildHint()
+              else if (_results.isEmpty)
+                _buildEmpty()
+              else
+                Expanded(child: _buildResultsList()),
             ],
-            const SizedBox(height: 20),
-            if (_searching)
-              const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
-                ),
-              )
-            else if (_results.isEmpty && _query.length < 2)
-              _buildHint()
-            else if (_results.isEmpty)
-              _buildEmpty()
-            else
-              Expanded(child: _buildResultsList()),
-          ],
+          ),
         ),
       ),
     );

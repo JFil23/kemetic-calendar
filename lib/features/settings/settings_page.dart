@@ -17,6 +17,7 @@ import '../../services/navigation_trace.dart';
 import '../../services/push_notifications.dart';
 import '../../services/speech/speech_service.dart';
 import '../../utils/external_link_utils.dart';
+import '../../widgets/responsive_content_rail.dart';
 import '../calendar/calendar_page.dart';
 import '../calendar/notify.dart';
 import '../calendar/speech_resolver.dart';
@@ -1752,324 +1753,327 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(16, 12, 16, scrollBottomPadding),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Only live device, privacy, and account controls are surfaced here.',
-              style: TextStyle(color: Colors.white60, height: 1.4),
-            ),
-            const SizedBox(height: 16),
-            _sectionCard(
-              title: 'Notifications',
-              description:
-                  'Push alerts are opt-in per device. Scheduled reminder notifications continue to be driven by the events and reminders you create.',
-              children: [
-                KeyedSubtree(
-                  key: _settingsControlsHelperKey,
-                  child: _settingSwitch(
-                    title: 'Push alerts on this device',
-                    subtitle: _pushToggleSubtitle(),
-                    value: _realTimeAlerts,
-                    onChanged: _requestingPush ? null : _setRealTimeAlerts,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _primaryButton(
-                  onPressed: _requestingPush || !_hasSession
-                      ? null
-                      : () => _setRealTimeAlerts(true),
-                  child: Text(_pushButtonLabel()),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Color(0xFF3A3A3A)),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    onPressed: _canSendPushSelfTest ? _sendPushTest : null,
-                    child: Text(
-                      _sendingPushTest
-                          ? 'Sending test push...'
-                          : 'Send test push to this device',
+      body: ResponsiveContentRail(
+        maxWidth: 760,
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(16, 12, 16, scrollBottomPadding),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Only live device, privacy, and account controls are surfaced here.',
+                style: TextStyle(color: Colors.white60, height: 1.4),
+              ),
+              const SizedBox(height: 16),
+              _sectionCard(
+                title: 'Notifications',
+                description:
+                    'Push alerts are opt-in per device. Scheduled reminder notifications continue to be driven by the events and reminders you create.',
+                children: [
+                  KeyedSubtree(
+                    key: _settingsControlsHelperKey,
+                    child: _settingSwitch(
+                      title: 'Push alerts on this device',
+                      subtitle: _pushToggleSubtitle(),
+                      value: _realTimeAlerts,
+                      onChanged: _requestingPush ? null : _setRealTimeAlerts,
                     ),
                   ),
-                ),
-                _statusLine(_pushStatusText()),
-                for (final line in pushDiagnosticLines) _statusLine(line),
-                const SizedBox(height: 16),
-                const Divider(color: Color(0xFF1D1D1D), height: 1),
-                const SizedBox(height: 16),
-                const Text(
-                  'Push test receipt',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                for (final line in pushReceiptLines) _statusLine(line),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Color(0xFF3A3A3A)),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                    onPressed:
-                        _checkingPushTestReceipt ||
-                            !_hasSession ||
-                            _pushTestDeliveryKey == null
+                  const SizedBox(height: 16),
+                  _primaryButton(
+                    onPressed: _requestingPush || !_hasSession
                         ? null
-                        : () => _refreshPushTestReceiptStatus(),
-                    child: Text(
-                      _checkingPushTestReceipt
-                          ? 'Checking receipt...'
-                          : 'Refresh push test receipt',
-                    ),
+                        : () => _setRealTimeAlerts(true),
+                    child: Text(_pushButtonLabel()),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _sectionCard(
-              title: 'Calendar Import',
-              description:
-                  'One-way import only: external calendar events can appear in HAw, and HAw events stay in HAw. The app does not export, create, update, or delete events in outside calendars.',
-              children: [
-                _settingSwitch(
-                  title: 'Keep external calendar import on',
-                  subtitle: _nativeCalendarSyncAvailable
-                      ? 'Runs after sign-in and reads external calendar changes in the background.'
-                      : 'Uses Google Calendar read-only access to read external events into HAw.',
-                  value: _autoCalendarSync,
-                  onChanged: _calendarBusy ? null : _setAutoCalendarSync,
-                ),
-                const SizedBox(height: 16),
-                _primaryButton(
-                  onPressed: _calendarBusy || !_hasSession
-                      ? null
-                      : _syncCalendarNow,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (_syncingCalendar) ...[
-                        const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.black,
-                            ),
-                          ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Color(0xFF3A3A3A)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
                         ),
-                        const SizedBox(width: 10),
-                      ] else ...[
-                        const Icon(Icons.file_download_outlined),
-                        const SizedBox(width: 10),
-                      ],
-                      Text(_syncButtonLabel()),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red.shade200,
-                      side: BorderSide(color: Colors.red.shade300),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 14,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                      onPressed: _canSendPushSelfTest ? _sendPushTest : null,
+                      child: Text(
+                        _sendingPushTest
+                            ? 'Sending test push...'
+                            : 'Send test push to this device',
                       ),
                     ),
+                  ),
+                  _statusLine(_pushStatusText()),
+                  for (final line in pushDiagnosticLines) _statusLine(line),
+                  const SizedBox(height: 16),
+                  const Divider(color: Color(0xFF1D1D1D), height: 1),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Push test receipt',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  for (final line in pushReceiptLines) _statusLine(line),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Color(0xFF3A3A3A)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                      onPressed:
+                          _checkingPushTestReceipt ||
+                              !_hasSession ||
+                              _pushTestDeliveryKey == null
+                          ? null
+                          : () => _refreshPushTestReceiptStatus(),
+                      child: Text(
+                        _checkingPushTestReceipt
+                            ? 'Checking receipt...'
+                            : 'Refresh push test receipt',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _sectionCard(
+                title: 'Calendar Import',
+                description:
+                    'One-way import only: external calendar events can appear in HAw, and HAw events stay in HAw. The app does not export, create, update, or delete events in outside calendars.',
+                children: [
+                  _settingSwitch(
+                    title: 'Keep external calendar import on',
+                    subtitle: _nativeCalendarSyncAvailable
+                        ? 'Runs after sign-in and reads external calendar changes in the background.'
+                        : 'Uses Google Calendar read-only access to read external events into HAw.',
+                    value: _autoCalendarSync,
+                    onChanged: _calendarBusy ? null : _setAutoCalendarSync,
+                  ),
+                  const SizedBox(height: 16),
+                  _primaryButton(
                     onPressed: _calendarBusy || !_hasSession
                         ? null
-                        : _unlinkCalendarAccounts,
-                    child: Text(
-                      _unlinkingCalendar
-                          ? 'Clearing import data...'
-                          : 'Clear imported calendar data',
+                        : _syncCalendarNow,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_syncingCalendar) ...[
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.black,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                        ] else ...[
+                          const Icon(Icons.file_download_outlined),
+                          const SizedBox(width: 10),
+                        ],
+                        Text(_syncButtonLabel()),
+                      ],
                     ),
                   ),
-                ),
-                for (final line in calendarStatusLines) _statusLine(line),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _sectionCard(
-              title: 'Calendar Content',
-              description:
-                  'Optional data sources that add entries inside the app without changing your core sync behavior.',
-              children: [
-                _settingSwitch(
-                  title: 'Add U.S. holidays as notes',
-                  subtitle: _seedingHolidays
-                      ? 'Applying holiday notes...'
-                      : 'Adds standard U.S. holidays as editable app notes.',
-                  value: _usHolidaysEnabled,
-                  onChanged: _seedingHolidays ? null : _toggleUsHolidays,
-                  trailing: _seedingHolidays
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: KemeticGold.base,
-                          ),
-                        )
-                      : null,
-                ),
-                const SizedBox(height: 16),
-                _settingSwitch(
-                  title: 'The Day’s Rhythm badge',
-                  subtitle:
-                      'Shows today\'s Day Card rhythm once per local Gregorian day.',
-                  value: _dailyCosmicContextBadgeEnabled,
-                  onChanged: _setDailyCosmicContextBadgeEnabled,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _sectionCard(
-              title: 'Speech',
-              description:
-                  'Pronunciation still runs through the device or browser TTS engine. You can choose an English voice on this device and preview it here.',
-              children: [
-                DropdownButtonFormField<String?>(
-                  key: ValueKey(_selectedSpeechVoiceId),
-                  initialValue: _selectedSpeechVoiceId,
-                  decoration: _dropdownDecoration('Pronunciation voice'),
-                  dropdownColor: const Color(0xFF101010),
-                  style: const TextStyle(color: Colors.white),
-                  items: [
-                    const DropdownMenuItem<String?>(
-                      value: null,
-                      child: Text('System default'),
-                    ),
-                    ..._speechVoices.map(
-                      (voice) => DropdownMenuItem<String?>(
-                        value: voice.id,
-                        child: Text(voice.displayLabel),
-                      ),
-                    ),
-                  ],
-                  onChanged: _loadingSpeechVoices || _savingSpeechVoice
-                      ? null
-                      : _setSpeechVoice,
-                ),
-                const SizedBox(height: 12),
-                ValueListenableBuilder<String?>(
-                  valueListenable: SpeechService.instance.activeUtteranceId,
-                  builder: (context, activeUtteranceId, child) {
-                    final previewActive =
-                        activeUtteranceId == _speechPreviewUtteranceId;
-                    return SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: Color(0xFF3A3A3A)),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 14,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red.shade200,
+                        side: BorderSide(color: Colors.red.shade300),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
                         ),
-                        onPressed: _loadingSpeechVoices || _savingSpeechVoice
-                            ? null
-                            : _previewSpeechVoice,
-                        child: Text(
-                          previewActive
-                              ? 'Stop voice preview'
-                              : (_loadingSpeechVoices
-                                    ? 'Loading available voices...'
-                                    : 'Preview selected voice'),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
                         ),
                       ),
-                    );
-                  },
-                ),
-                for (final line in speechStatusLines) _statusLine(line),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _visibilityNotice(),
-            const SizedBox(height: 18),
-            _footerHeading('Legal & Support'),
-            _compactFooterRow(
-              icon: Icons.description_outlined,
-              title: 'Terms',
-              onPressed: () => _openExternalSupportTarget(_termsUrl),
-            ),
-            _thinDivider(),
-            _compactFooterRow(
-              icon: Icons.privacy_tip_outlined,
-              title: 'Privacy',
-              onPressed: () => _openExternalSupportTarget(_privacyPolicyUrl),
-            ),
-            _thinDivider(),
-            _compactFooterRow(
-              icon: Icons.help_outline,
-              title: 'Support',
-              onPressed: () => _openExternalSupportTarget(_supportUrl),
-            ),
-            const SizedBox(height: 18),
-            _footerHeading('Danger Zone'),
-            _compactFooterRow(
-              icon: Icons.delete_outline,
-              title: _deletingAccount
-                  ? 'Deleting account...'
-                  : 'Delete account',
-              subtitle: _hasSession
-                  ? (_accountStatus ??
-                        'Permanently removes your sign-in and account data.')
-                  : 'Sign in to manage or delete your account.',
-              destructive: true,
-              onPressed: _deletingAccount || !_hasSession
-                  ? null
-                  : _deleteAccount,
-            ),
-            _thinDivider(),
-            _compactFooterRow(
-              icon: Icons.logout,
-              title: _signingOut ? 'Signing out...' : 'Sign out',
-              onPressed: _signingOut ? null : _signOut,
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Preferences stay local to this device. Push registration and calendar permission are also device-specific.',
-              style: TextStyle(color: Colors.white60, height: 1.4),
-            ),
-            const SizedBox(height: 12),
-            _buildMarker(),
-          ],
+                      onPressed: _calendarBusy || !_hasSession
+                          ? null
+                          : _unlinkCalendarAccounts,
+                      child: Text(
+                        _unlinkingCalendar
+                            ? 'Clearing import data...'
+                            : 'Clear imported calendar data',
+                      ),
+                    ),
+                  ),
+                  for (final line in calendarStatusLines) _statusLine(line),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _sectionCard(
+                title: 'Calendar Content',
+                description:
+                    'Optional data sources that add entries inside the app without changing your core sync behavior.',
+                children: [
+                  _settingSwitch(
+                    title: 'Add U.S. holidays as notes',
+                    subtitle: _seedingHolidays
+                        ? 'Applying holiday notes...'
+                        : 'Adds standard U.S. holidays as editable app notes.',
+                    value: _usHolidaysEnabled,
+                    onChanged: _seedingHolidays ? null : _toggleUsHolidays,
+                    trailing: _seedingHolidays
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: KemeticGold.base,
+                            ),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  _settingSwitch(
+                    title: 'The Day’s Rhythm badge',
+                    subtitle:
+                        'Shows today\'s Day Card rhythm once per local Gregorian day.',
+                    value: _dailyCosmicContextBadgeEnabled,
+                    onChanged: _setDailyCosmicContextBadgeEnabled,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _sectionCard(
+                title: 'Speech',
+                description:
+                    'Pronunciation still runs through the device or browser TTS engine. You can choose an English voice on this device and preview it here.',
+                children: [
+                  DropdownButtonFormField<String?>(
+                    key: ValueKey(_selectedSpeechVoiceId),
+                    initialValue: _selectedSpeechVoiceId,
+                    decoration: _dropdownDecoration('Pronunciation voice'),
+                    dropdownColor: const Color(0xFF101010),
+                    style: const TextStyle(color: Colors.white),
+                    items: [
+                      const DropdownMenuItem<String?>(
+                        value: null,
+                        child: Text('System default'),
+                      ),
+                      ..._speechVoices.map(
+                        (voice) => DropdownMenuItem<String?>(
+                          value: voice.id,
+                          child: Text(voice.displayLabel),
+                        ),
+                      ),
+                    ],
+                    onChanged: _loadingSpeechVoices || _savingSpeechVoice
+                        ? null
+                        : _setSpeechVoice,
+                  ),
+                  const SizedBox(height: 12),
+                  ValueListenableBuilder<String?>(
+                    valueListenable: SpeechService.instance.activeUtteranceId,
+                    builder: (context, activeUtteranceId, child) {
+                      final previewActive =
+                          activeUtteranceId == _speechPreviewUtteranceId;
+                      return SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(color: Color(0xFF3A3A3A)),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                          ),
+                          onPressed: _loadingSpeechVoices || _savingSpeechVoice
+                              ? null
+                              : _previewSpeechVoice,
+                          child: Text(
+                            previewActive
+                                ? 'Stop voice preview'
+                                : (_loadingSpeechVoices
+                                      ? 'Loading available voices...'
+                                      : 'Preview selected voice'),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  for (final line in speechStatusLines) _statusLine(line),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _visibilityNotice(),
+              const SizedBox(height: 18),
+              _footerHeading('Legal & Support'),
+              _compactFooterRow(
+                icon: Icons.description_outlined,
+                title: 'Terms',
+                onPressed: () => _openExternalSupportTarget(_termsUrl),
+              ),
+              _thinDivider(),
+              _compactFooterRow(
+                icon: Icons.privacy_tip_outlined,
+                title: 'Privacy',
+                onPressed: () => _openExternalSupportTarget(_privacyPolicyUrl),
+              ),
+              _thinDivider(),
+              _compactFooterRow(
+                icon: Icons.help_outline,
+                title: 'Support',
+                onPressed: () => _openExternalSupportTarget(_supportUrl),
+              ),
+              const SizedBox(height: 18),
+              _footerHeading('Danger Zone'),
+              _compactFooterRow(
+                icon: Icons.delete_outline,
+                title: _deletingAccount
+                    ? 'Deleting account...'
+                    : 'Delete account',
+                subtitle: _hasSession
+                    ? (_accountStatus ??
+                          'Permanently removes your sign-in and account data.')
+                    : 'Sign in to manage or delete your account.',
+                destructive: true,
+                onPressed: _deletingAccount || !_hasSession
+                    ? null
+                    : _deleteAccount,
+              ),
+              _thinDivider(),
+              _compactFooterRow(
+                icon: Icons.logout,
+                title: _signingOut ? 'Signing out...' : 'Sign out',
+                onPressed: _signingOut ? null : _signOut,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Preferences stay local to this device. Push registration and calendar permission are also device-specific.',
+                style: TextStyle(color: Colors.white60, height: 1.4),
+              ),
+              const SizedBox(height: 12),
+              _buildMarker(),
+            ],
+          ),
         ),
       ),
     );

@@ -15,6 +15,7 @@ import '../../shared/glossy_text.dart';
 import '../../widgets/gregorian_date_picker.dart';
 import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/keyboard_aware.dart';
+import '../../widgets/responsive_content_rail.dart';
 import '../calendar/notify.dart';
 import '../reminders/reminder_rule.dart';
 
@@ -668,7 +669,10 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
       child: SafeArea(
         top: widget.routeMode && widget.routeModeSafeAreaTop,
         child: widget.routeMode
-            ? SizedBox.expand(child: content)
+            ? ResponsiveContentRail(
+                maxWidth: 760,
+                child: SizedBox.expand(child: content),
+              )
             : SizedBox(
                 height: MediaQuery.of(context).size.height * 0.9,
                 child: content,

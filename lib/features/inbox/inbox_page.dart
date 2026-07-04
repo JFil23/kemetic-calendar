@@ -27,6 +27,7 @@ import '../../services/session_resume_service.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
 import '../../widgets/kemetic_heart_icon.dart';
 import '../../widgets/profile_avatar.dart';
+import '../../widgets/responsive_content_rail.dart';
 import '../calendar/calendar_page.dart' show CalendarPage;
 import '../calendars/shared_calendars_sheet.dart';
 import 'inbox_threading.dart';
@@ -378,7 +379,13 @@ class _InboxPageState extends State<InboxPage> {
         ),
       ),
       body: _InboxMahoganySurface(
-        child: Stack(children: [Positioned.fill(child: _buildBody())]),
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: ResponsiveContentRail(maxWidth: 760, child: _buildBody()),
+            ),
+          ],
+        ),
       ),
     );
   }

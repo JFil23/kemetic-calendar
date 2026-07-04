@@ -4544,9 +4544,10 @@ class _FlowHubMaatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isWide = MediaQuery.sizeOf(context).shortestSide >= 600;
     return _FlowHubCardShell(
       onTap: onTap,
-      height: 281,
+      height: isWide ? 300 : 281,
       featured: true,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(18, 26, 18, 14),
