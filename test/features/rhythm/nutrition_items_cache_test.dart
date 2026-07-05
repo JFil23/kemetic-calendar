@@ -39,6 +39,17 @@ void main() {
     expect(loaded.single.schedule.time.minute, 30);
   });
 
+  test('defaults missing stored time to 9 AM', () {
+    final schedule = IntakeSchedule.fromJson({
+      'mode': 'decan',
+      'decan_days': [4],
+      'repeat': true,
+    });
+
+    expect(schedule.time.hour, 9);
+    expect(schedule.time.minute, 0);
+  });
+
   test('ignores malformed cached rows', () async {
     SharedPreferences.setMockInitialValues({
       NutritionItemsCache.keyForUser('user-a'): [

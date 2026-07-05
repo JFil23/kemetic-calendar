@@ -21,6 +21,33 @@ bool plannerNutritionAppliesEveryDay(NutritionItem item) {
   return item.schedule.decanDays.containsAll(plannerNutritionEveryDecanDay);
 }
 
+List<NutritionItem> plannerNutritionItemsForDecanDay(
+  Iterable<NutritionItem> items,
+  int decanDay,
+) {
+  if (decanDay < 1 || decanDay > 10) return const <NutritionItem>[];
+  final dayItems = items
+      .where(
+        (item) =>
+            item.enabled &&
+            item.schedule.mode == IntakeMode.decan &&
+            item.schedule.decanDays.contains(decanDay),
+      )
+      .toList();
+  dayItems.sort(plannerCompareNutritionItemsByTime);
+  return dayItems;
+}
+
+int plannerCompareNutritionItemsByTime(NutritionItem a, NutritionItem b) {
+  final aTime = a.schedule.time;
+  final bTime = b.schedule.time;
+  final hourCmp = aTime.hour.compareTo(bTime.hour);
+  if (hourCmp != 0) return hourCmp;
+  final minuteCmp = aTime.minute.compareTo(bTime.minute);
+  if (minuteCmp != 0) return minuteCmp;
+  return a.nutrient.toLowerCase().compareTo(b.nutrient.toLowerCase());
+}
+
 NutritionItem plannerNutritionWithEveryDayMapping(
   NutritionItem item, {
   required int activeDecanDay,

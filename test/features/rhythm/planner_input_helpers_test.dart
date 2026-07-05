@@ -9,17 +9,23 @@ import 'package:mobile/features/rhythm/planner/planner_input_helpers.dart';
 NutritionItem _nutritionItem({
   required String id,
   Set<int> decanDays = const <int>{4},
+  int hour = 21,
+  int minute = 0,
+  String nutrient = 'Magnesium',
+  String source = 'Pumpkin seeds',
+  bool enabled = true,
 }) {
   return NutritionItem(
     id: id,
-    nutrient: 'Magnesium',
-    source: 'Pumpkin seeds',
+    nutrient: nutrient,
+    source: source,
     purpose: 'Rest',
+    enabled: enabled,
     schedule: IntakeSchedule(
       mode: IntakeMode.decan,
       decanDays: decanDays,
       repeat: true,
-      time: const TimeOfDay(hour: 21, minute: 0),
+      time: TimeOfDay(hour: hour, minute: minute),
     ),
   );
 }
@@ -63,6 +69,22 @@ void main() {
       expect(item.schedule.decanDays, plannerNutritionEveryDecanDay);
     });
 
+    test('editing day mapping preserves the saved time', () {
+      final item = plannerNutritionWithEveryDayMapping(
+        _nutritionItem(
+          id: 'nutrition-1',
+          decanDays: const <int>{3},
+          hour: 14,
+          minute: 30,
+        ),
+        activeDecanDay: 3,
+        everyDay: true,
+      );
+
+      expect(item.schedule.time.hour, 14);
+      expect(item.schedule.time.minute, 30);
+    });
+
     test('unchecking Every day narrows the entry to the viewed decan day', () {
       final item = plannerNutritionWithEveryDayMapping(
         _nutritionItem(
@@ -75,6 +97,25 @@ void main() {
 
       expect(item.schedule.decanDays, const <int>{8});
       expect(plannerNutritionAppliesEveryDay(item), isFalse);
+    });
+
+    test('nutrition items for a decan day sort by saved time', () {
+      final items = [
+        _nutritionItem(id: 'night', hour: 21, minute: 0, nutrient: 'Zinc'),
+        _nutritionItem(
+          id: 'other-day',
+          decanDays: const <int>{5},
+          hour: 6,
+          minute: 0,
+        ),
+        _nutritionItem(id: 'disabled', hour: 7, minute: 0, enabled: false),
+        _nutritionItem(id: 'afternoon', hour: 14, minute: 30),
+        _nutritionItem(id: 'morning', hour: 9, minute: 0),
+      ];
+
+      final sorted = plannerNutritionItemsForDecanDay(items, 4);
+
+      expect(sorted.map((item) => item.id), ['morning', 'afternoon', 'night']);
     });
 
     test(
@@ -141,6 +182,11 @@ void main() {
 
         expect(source, contains('Future<bool> _showNutritionItemEditor'));
         expect(source, contains('maxLines: null'));
+        expect(source, contains('NutritionTimeEditorRow('));
+        expect(source, contains('showTimePicker'));
+        expect(source, contains('useRootNavigator: true'));
+        expect(source, contains('_selectedTime = picked'));
+        expect(source, contains('time: _selectedTime'));
         expect(source, isNot(contains('_buildNutritionEditableCell')));
         expect(
           source,
