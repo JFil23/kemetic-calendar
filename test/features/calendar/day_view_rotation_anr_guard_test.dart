@@ -88,7 +88,7 @@ void main() {
       final orientationBuild = _sourceBetween(
         calendarSource,
         'final previousOrientation = _lastOrientation;',
-        'if (shouldBuildWideDayView) {',
+        'if (!routeShouldRemainRendered) {',
       );
 
       expect(syncEntry, contains('_reminderSyncGate.runCoalesced'));
@@ -112,26 +112,15 @@ void main() {
       );
     });
 
-    test('wide Calendar route embeds Day View instead of landscape month grid', () {
-      final wideDecision = _sourceBetween(
+    test('wide Calendar route keeps the main calendar surface', () {
+      final calendarRootDecision = _sourceBetween(
         calendarSource,
-        'final media = MediaQuery.of(context);',
-        'if (shouldBuildWideDayView) {',
-      );
-      final wideBranch = _sourceBetween(
-        calendarSource,
-        'if (shouldBuildWideDayView) {',
+        '// ✅ HARDENING 2: Gate build until state is restored to prevent race condition',
         'final scaffold = Scaffold(',
       );
-      final wideBuilder = _sourceBetween(
-        calendarSource,
-        'Widget _buildWideCalendarDayView({',
-        'Widget _buildBodyWithJournal() {',
-      );
 
-      expect(wideDecision, contains('final isWideLandscape ='));
       expect(
-        wideDecision,
+        calendarRootDecision,
         contains(
           'final routeShouldRemainRendered =\n'
           '        routeIsCurrent ||\n'
@@ -139,24 +128,25 @@ void main() {
         ),
       );
       expect(
-        wideDecision,
-        contains(
-          'final shouldBuildWideDayView = isWideLandscape && routeShouldRemainRendered;',
-        ),
+        calendarRootDecision,
+        contains('if (!routeShouldRemainRendered) {'),
         reason:
             'Calendar-owned sheets keep the route painted behind them; unrelated covered routes still shrink below.',
       );
-      expect(wideBranch, contains('_buildWideCalendarDayView('));
-      expect(wideBranch, isNot(contains('LandscapeMonthView(')));
-      expect(wideBuilder, contains('DayViewPage('));
-      expect(wideBuilder, isNot(contains('LandscapeMonthView(')));
+      expect(calendarRootDecision, isNot(contains('shouldBuildWideDayView')));
+      expect(calendarRootDecision, isNot(contains('DayViewPage(')));
+      expect(calendarRootDecision, isNot(contains('LandscapeMonthView(')));
+      expect(
+        calendarSource,
+        isNot(contains('Widget _buildWideCalendarDayView({')),
+      );
     });
 
     test('covered Calendar route skips heavy calendar body builds', () {
       final coveredRouteBranch = _sourceBetween(
         calendarSource,
         'if (!routeShouldRemainRendered) {',
-        'if (shouldBuildWideDayView) {',
+        'final scaffold = Scaffold(',
       );
 
       expect(coveredRouteBranch, contains('Scaffold('));

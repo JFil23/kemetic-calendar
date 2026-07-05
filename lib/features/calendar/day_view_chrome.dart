@@ -61,7 +61,14 @@ class KemeticDayViewHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final headerHeight = expandedTouchTargetMinDimension(context, fallback: 44);
+    final baseHeaderHeight = expandedTouchTargetMinDimension(
+      context,
+      fallback: 44,
+    );
+    final isWideSurface = MediaQuery.sizeOf(context).shortestSide >= 600;
+    final headerHeight = isWideSurface && baseHeaderHeight < 56
+        ? 56.0
+        : baseHeaderHeight;
     final miniCalendarHeight = expandedTouchTargetMinDimension(
       context,
       fallback: 32,

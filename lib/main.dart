@@ -2766,6 +2766,14 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
 
   Future<void> _openPrimarySectionFromDrawer(AppSection section) {
     unawaited(_closeFloatingMenu());
+    if (section == AppSection.calendar) {
+      final navigationContext = _rootNavigatorKey.currentContext ?? context;
+      final navigator = Navigator.maybeOf(
+        navigationContext,
+        rootNavigator: true,
+      );
+      navigator?.popUntil((route) => route.isFirst);
+    }
     openPrimarySection(context, section, router: widget.router);
     return Future<void>.value();
   }

@@ -83,7 +83,7 @@ void main() {
     });
 
     testWidgets(
-      'tablet landscape CalendarPage renders Day View schedule instead of LandscapeMonthView',
+      'tablet landscape CalendarPage opens on the main calendar surface',
       (tester) async {
         await _setCalendarTabletLandscapeViewport(tester);
 
@@ -91,9 +91,10 @@ void main() {
 
         expect(tester.takeException(), isNull);
         expect(find.byType(CalendarPage), findsOneWidget);
-        expect(find.byType(DayViewPage), findsOneWidget);
-        expect(find.byType(DayViewGrid), findsOneWidget);
+        expect(find.byType(DayViewPage), findsNothing);
+        expect(find.byType(DayViewGrid), findsNothing);
         expect(find.byType(LandscapeMonthView), findsNothing);
+        expect(_portraitCalendarScrollFinder(), findsOneWidget);
 
         await _disposeCalendarPageAndDrainTimers(tester);
       },

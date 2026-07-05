@@ -143,6 +143,10 @@ void main() {
 
       expect(primary, contains('openPrimarySection(context, section'));
       expect(primary, contains('unawaited(_closeFloatingMenu())'));
+      expect(primary, contains('if (section == AppSection.calendar)'));
+      expect(primary, contains('Navigator.maybeOf('));
+      expect(primary, contains('rootNavigator: true'));
+      expect(primary, contains('popUntil((route) => route.isFirst)'));
       expect(primary, isNot(contains('await _closeFloatingMenu();')));
       expect(profile, contains('openDetailRoute<void>'));
       expect(profile, contains("'/profile/me'"));

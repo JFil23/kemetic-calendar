@@ -10298,20 +10298,6 @@ class CalendarPageState extends State<CalendarPage>
     await _saveCalendarEventDetailOverlayState(state);
   }
 
-  void _handleCalendarEventDetailRestorationChanged(
-    EventDetailRestorationState? state,
-  ) {
-    if (state == null) {
-      if (!_preserveEventDetailOverlayForOrientationHandoff) {
-        _activeCalendarEventDetailRestoration = null;
-      }
-      unawaited(_clearCalendarEventDetailOverlayState());
-      return;
-    }
-    _activeCalendarEventDetailRestoration = state;
-    unawaited(_saveCalendarEventDetailOverlayState(state));
-  }
-
   Future<void> _clearCalendarEventDetailOverlayState() {
     if (_preserveEventDetailOverlayForOrientationHandoff) {
       return Future<void>.value();
@@ -16125,6 +16111,11 @@ class CalendarPageState extends State<CalendarPage>
       _persistentDayViewRestoreAttempted = true;
       return;
     }
+    if (!_canRestorePersistentDayViewRouteForCurrentViewport()) {
+      _persistentDayViewRestoreAttempted = true;
+      _pendingPersistentDayViewState = null;
+      return;
+    }
     if (!RestorationCoordinator.instance.canRestoreSurface(
       RestorationCoordinator.calendarDayViewSurface,
       requireRootTarget: true,
@@ -16146,6 +16137,11 @@ class CalendarPageState extends State<CalendarPage>
     if (!mounted || _persistentDayViewRestoreAttempted) return;
     if (!_restoreDayViewRouteOnStartup) {
       _persistentDayViewRestoreAttempted = true;
+      return;
+    }
+    if (!_canRestorePersistentDayViewRouteForCurrentViewport()) {
+      _persistentDayViewRestoreAttempted = true;
+      _pendingPersistentDayViewState = null;
       return;
     }
     if (!RestorationCoordinator.instance.canRestoreSurface(
@@ -16223,6 +16219,12 @@ class CalendarPageState extends State<CalendarPage>
       initialShowGregorian: state.showGregorian,
       initialEventDetailRestorationState: detail,
     );
+  }
+
+  bool _canRestorePersistentDayViewRouteForCurrentViewport() {
+    final media = MediaQuery.maybeOf(context);
+    if (media == null) return true;
+    return media.size.shortestSide < 600;
   }
 
   void _applyTodayFallbackAfterRestore({required String reason}) {
@@ -32915,18 +32917,12 @@ class CalendarPageState extends State<CalendarPage>
       return const SizedBox.shrink();
     }
 
-    final kToday = _today;
     final media = MediaQuery.of(context);
     final orientation = media.orientation;
-    final isWideLandscape =
-        orientation == Orientation.landscape && media.size.shortestSide >= 600;
     final routeIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;
     final routeShouldRemainRendered =
         routeIsCurrent ||
         CalendarPage._hasCalendarOwnedTransientOverlayOpenOrOpening;
-    // Wide landscape screens use the schedule-style Day View instead of the
-    // landscape month grid that made events feel clipped and overview-like.
-    final shouldBuildWideDayView = isWideLandscape && routeShouldRemainRendered;
     _landscapeTodayAction = null;
 
     // ========================================
@@ -32963,26 +32959,6 @@ class CalendarPageState extends State<CalendarPage>
 
     if (!routeShouldRemainRendered) {
       return const Scaffold(backgroundColor: _bg, body: SizedBox.shrink());
-    }
-
-    if (shouldBuildWideDayView) {
-      final ky = _lastViewKy ?? kToday.kYear;
-      final km = _lastViewKm ?? kToday.kMonth;
-      final kd = (_lastViewKd ?? kToday.kDay).clamp(1, _maxDayForMonth(ky, km));
-
-      if (kDebugMode) {
-        _calendarDebugPrint('\n📱 [CALENDAR] Building wide DayViewPage');
-        _calendarDebugPrint('   initialKy: $ky');
-        _calendarDebugPrint('   initialKm: $km');
-        _calendarDebugPrint('   initialKd: $kd');
-        _calendarDebugPrint('   onAddNote callback: PROVIDED');
-      }
-
-      return _buildWideCalendarDayView(
-        initialKy: ky,
-        initialKm: km,
-        initialKd: kd,
-      );
     }
 
     final scaffold = Scaffold(
@@ -33048,133 +33024,6 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     return content;
-  }
-
-  Widget _buildWideCalendarDayView({
-    required int initialKy,
-    required int initialKm,
-    required int initialKd,
-  }) {
-    return DayViewPage(
-      initialKy: initialKy,
-      initialKm: initialKm,
-      initialKd: initialKd,
-      showGregorian: _showGregorian,
-      notesForDay: _noteDataForDay,
-      flowIndex: _buildCalendarFlowChromeIndex(),
-      flowIndexBuilder: _buildCalendarFlowChromeIndex,
-      activeLedgerFlowIds: _buildActiveLedgerFlowIds(),
-      activeLedgerFlowIdsBuilder: _buildActiveLedgerFlowIds,
-      dataVersion: _dayViewDataVersion,
-      getMonthName: (km) => getMonthById(km).displayFull,
-      initialEventDetailRestorationState: _activeCalendarEventDetailRestoration,
-      eventDetailRequestListenable: _dayViewEventDetailRequest,
-      onEventDetailRequestHandled: () {
-        if (_dayViewEventDetailRequest.value != null) {
-          _dayViewEventDetailRequest.value = null;
-        }
-      },
-      onClose: () {
-        if (Navigator.canPop(context)) {
-          unawaited(Navigator.of(context).maybePop());
-        }
-      },
-      onManageFlows: (flowId) => _getMyFlowsCallback()(flowId),
-      onOpenQuickAdd: (_) => _openQuickAddSheet(),
-      onOpenSearch: (ctx) async => _openSearchForContext(ctx),
-      onOpenProfile: (ctx) => _openProfile(ctx),
-      onDeleteNote: (ky, km, kd, evt) async {
-        await _deleteNoteByEvent(ky, km, kd, evt);
-      },
-      onEditNote: (ky, km, kd, evt) async {
-        await _editNoteByEvent(ky, km, kd, evt);
-      },
-      onMoveEventTime: _moveEventInDayView,
-      onShareNote: (evt) async {
-        await _shareNoteSimple(evt);
-      },
-      onAddNote: (ky, km, kd) =>
-          _openDaySheet(ky, km, kd, allowDateChange: true),
-      onOpenAddNoteWithTime:
-          (
-            ky,
-            km,
-            kd, {
-            TimeOfDay? start,
-            TimeOfDay? end,
-            bool allDay = false,
-          }) {
-            _openDaySheet(
-              ky,
-              km,
-              kd,
-              allowDateChange: true,
-              initialStartTime: start,
-              initialEndTime: end,
-              initialAllDay: allDay,
-            );
-          },
-      onCreateTimedEvent: _handleCreateTimedEvent,
-      onEndFlow: (id) => _endFlow(id),
-      onEditReminder: (id) => _editReminderById(id),
-      onEndReminder: (id) => _endReminderRule(id),
-      onShareReminder: (evt) => _shareNoteSimple(evt),
-      onAppendToJournal: _appendToJournalAndRefresh,
-      onWriteJournalResponse: _writeMaatJournalResponseBlockAndRefresh,
-      shouldPreserveEventDetailRestorationOnClose: () =>
-          _preserveEventDetailOverlayForOrientationHandoff ||
-          RestorationCoordinator
-              .instance
-              .shouldPreserveOverlayForLifecycleClose,
-      onSaveFlow: _saveFlowById,
-      loadCompletedClientEventIds: _loadCompletedClientEventIds,
-      onRecordCompletion:
-          ({
-            required String clientEventId,
-            required int flowId,
-            required DateTime completedOnDate,
-            Map<String, dynamic>? metadata,
-          }) => _recordEventCompletion(
-            clientEventId: clientEventId,
-            flowId: flowId,
-            completedOnDate: completedOnDate,
-            metadata: metadata,
-          ),
-      onUnrecordCompletion: _unrecordEventCompletion,
-      onRemoveCompletionBadge: _removeCompletionBadgeAndRefresh,
-      onRestorationStateChanged:
-          ({
-            required int kYear,
-            required int kMonth,
-            required int kDay,
-            required bool showGregorian,
-            int? firstVisibleMinute,
-            double? scrollOffset,
-            EventDetailRestorationState? eventDetail,
-          }) {
-            _restorationInteractedSinceBoot = true;
-            _lastViewKy = kYear;
-            _lastViewKm = kMonth;
-            _lastViewKd = kDay;
-            _showGregorian = showGregorian;
-            final activeEventDetail = _activeCalendarEventDetailRestoration;
-            final eventDetailChanged =
-                (eventDetail == null && activeEventDetail != null) ||
-                (eventDetail != null &&
-                    !_sameEventDetailRestorationState(
-                      activeEventDetail,
-                      eventDetail,
-                    ));
-            if (eventDetailChanged) {
-              _handleCalendarEventDetailRestorationChanged(eventDetail);
-            }
-            if (_rememberLastView) {
-              _scheduleCalendarRestorationSave(
-                reason: 'wide_day_view_state_changed',
-              );
-            }
-          },
-    );
   }
 
   Widget _buildBodyWithJournal() {
