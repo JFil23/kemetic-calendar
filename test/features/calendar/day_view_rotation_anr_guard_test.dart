@@ -88,7 +88,7 @@ void main() {
       final orientationBuild = _sourceBetween(
         calendarSource,
         'final previousOrientation = _lastOrientation;',
-        'if (shouldBuildLandscapeGrid) {',
+        'if (shouldBuildWideDayView) {',
       );
 
       expect(syncEntry, contains('_reminderSyncGate.runCoalesced'));
@@ -112,21 +112,26 @@ void main() {
       );
     });
 
-    test('covered Calendar route does not build hidden landscape grid', () {
-      final landscapeBranch = _sourceBetween(
+    test('wide Calendar route embeds Day View instead of landscape month grid', () {
+      final wideDecision = _sourceBetween(
         calendarSource,
-        'final routeIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;',
-        'if (shouldBuildLandscapeGrid) {',
+        'final media = MediaQuery.of(context);',
+        'if (shouldBuildWideDayView) {',
       );
-      final gridBranch = _sourceBetween(
+      final wideBranch = _sourceBetween(
         calendarSource,
-        'if (shouldBuildLandscapeGrid) {',
+        'if (shouldBuildWideDayView) {',
         'final scaffold = Scaffold(',
       );
+      final wideBuilder = _sourceBetween(
+        calendarSource,
+        'Widget _buildWideCalendarDayView({',
+        'Widget _buildBodyWithJournal() {',
+      );
 
-      expect(landscapeBranch, contains('final useGrid ='));
+      expect(wideDecision, contains('final isWideLandscape ='));
       expect(
-        landscapeBranch,
+        wideDecision,
         contains(
           'final routeShouldRemainRendered =\n'
           '        routeIsCurrent ||\n'
@@ -134,22 +139,24 @@ void main() {
         ),
       );
       expect(
-        landscapeBranch,
+        wideDecision,
         contains(
-          'final shouldBuildLandscapeGrid = useGrid && routeShouldRemainRendered;',
+          'final shouldBuildWideDayView = isWideLandscape && routeShouldRemainRendered;',
         ),
         reason:
             'Calendar-owned sheets keep the route painted behind them; unrelated covered routes still shrink below.',
       );
-      expect(gridBranch, contains('LandscapeMonthView('));
-      expect(gridBranch, isNot(contains('if (useGrid) {')));
+      expect(wideBranch, contains('_buildWideCalendarDayView('));
+      expect(wideBranch, isNot(contains('LandscapeMonthView(')));
+      expect(wideBuilder, contains('DayViewPage('));
+      expect(wideBuilder, isNot(contains('LandscapeMonthView(')));
     });
 
     test('covered Calendar route skips heavy calendar body builds', () {
       final coveredRouteBranch = _sourceBetween(
         calendarSource,
         'if (!routeShouldRemainRendered) {',
-        'if (shouldBuildLandscapeGrid) {',
+        'if (shouldBuildWideDayView) {',
       );
 
       expect(coveredRouteBranch, contains('Scaffold('));

@@ -795,7 +795,6 @@ void main() {
       ).readAsStringSync();
 
       for (final styleDefinition in const [
-        'const TextStyle _monthTitleGold = TextStyle(',
         'const TextStyle _seasonStyle = TextStyle(',
         'const TextStyle _decanStyle = TextStyle(',
         'const TextStyle _weekdayLabelStyle = TextStyle(',

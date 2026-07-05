@@ -270,11 +270,25 @@ void _expectTransparentMenuBubbleSurface(WidgetTester tester) {
     matching: find.byType(GlossyGlyph),
   );
   expect(glyphFinder, findsOneWidget);
+  final material = tester.widget<Material>(
+    find.descendant(
+      of: find.byKey(globalMenuBubbleSurfaceKey),
+      matching: find.byType(Material),
+    ),
+  );
+  expect(material.clipBehavior, Clip.antiAlias);
 
   final glyph = tester.widget<GlossyGlyph>(glyphFinder);
   expect(glyph.glyph, '𓉹');
   expect(glyph.gradient, same(globalTransparentMenuBubbleStyle.glyphGradient));
   expect(glyph.size, globalTransparentMenuBubbleStyle.glyphSize);
+
+  final surfaceRect = tester.getRect(find.byKey(globalMenuBubbleSurfaceKey));
+  final glyphRect = tester.getRect(glyphFinder);
+  expect(glyphRect.left, greaterThanOrEqualTo(surfaceRect.left));
+  expect(glyphRect.top, greaterThanOrEqualTo(surfaceRect.top));
+  expect(glyphRect.right, lessThanOrEqualTo(surfaceRect.right));
+  expect(glyphRect.bottom, lessThanOrEqualTo(surfaceRect.bottom));
 }
 
 List<GlobalSideDrawerItem> _drawerItems({VoidCallback? onSelected}) {

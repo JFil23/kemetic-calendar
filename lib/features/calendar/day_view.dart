@@ -79,6 +79,7 @@ import '../../utils/text_editing_controller_sync.dart';
 import '../shared_practice/shared_practice_completion_sheet.dart';
 
 const double _kMinEventBlockHeight = 56.0;
+const double _kWideMinEventBlockHeight = 68.0;
 const double _kTimelineLabelWidth = 60.0;
 const double _kTimelineRightPadding = 16.0;
 const double _kEventColumnGap = 4.0;
@@ -2090,6 +2091,7 @@ class EventLayoutEngine {
     required double textScale,
     required int day, // For debug logging
     double singleEventWidthFactor = _kSingleEventWidthFactor,
+    double minEventBlockHeight = _kMinEventBlockHeight,
   }) {
     if (kDebugMode) {
       debugPrint(
@@ -2106,6 +2108,7 @@ class EventLayoutEngine {
       textScale: textScale,
       day: day,
       singleEventWidthFactor: singleEventWidthFactor,
+      minEventBlockHeight: minEventBlockHeight,
     );
   }
 
@@ -2116,6 +2119,7 @@ class EventLayoutEngine {
     required double textScale,
     required int day,
     double singleEventWidthFactor = _kSingleEventWidthFactor,
+    double minEventBlockHeight = _kMinEventBlockHeight,
   }) {
     if (events.isEmpty) return [];
 
@@ -2123,11 +2127,16 @@ class EventLayoutEngine {
     final overlapGroups = _buildOverlapGroups(
       sortedEvents,
       textScale: textScale,
+      minEventBlockHeight: minEventBlockHeight,
     );
     final blocks = <PositionedEventBlock>[];
 
     for (final group in overlapGroups) {
-      final columnAssignments = _assignColumns(group, textScale: textScale);
+      final columnAssignments = _assignColumns(
+        group,
+        textScale: textScale,
+        minEventBlockHeight: minEventBlockHeight,
+      );
       final highestColumn = columnAssignments.values.fold<int>(0, math.max);
       final totalColumns = highestColumn + 1;
       final columnWidth = _columnWidthForGroup(
@@ -2172,6 +2181,7 @@ class EventLayoutEngine {
   static List<List<EventItem>> _buildOverlapGroups(
     List<EventItem> events, {
     required double textScale,
+    required double minEventBlockHeight,
   }) {
     final groups = <List<EventItem>>[];
     var currentGroup = <EventItem>[];
@@ -2180,7 +2190,11 @@ class EventLayoutEngine {
     for (final event in events) {
       if (currentGroup.isEmpty) {
         currentGroup = [event];
-        currentGroupMaxBottom = _eventVisualEndMin(event, textScale: textScale);
+        currentGroupMaxBottom = _eventVisualEndMin(
+          event,
+          textScale: textScale,
+          minEventBlockHeight: minEventBlockHeight,
+        );
         continue;
       }
 
@@ -2188,14 +2202,22 @@ class EventLayoutEngine {
         currentGroup.add(event);
         currentGroupMaxBottom = math.max(
           currentGroupMaxBottom,
-          _eventVisualEndMin(event, textScale: textScale),
+          _eventVisualEndMin(
+            event,
+            textScale: textScale,
+            minEventBlockHeight: minEventBlockHeight,
+          ),
         );
         continue;
       }
 
       groups.add(currentGroup);
       currentGroup = [event];
-      currentGroupMaxBottom = _eventVisualEndMin(event, textScale: textScale);
+      currentGroupMaxBottom = _eventVisualEndMin(
+        event,
+        textScale: textScale,
+        minEventBlockHeight: minEventBlockHeight,
+      );
     }
 
     if (currentGroup.isNotEmpty) {
@@ -2221,6 +2243,7 @@ class EventLayoutEngine {
   static Map<EventItem, int> _assignColumns(
     List<EventItem> events, {
     required double textScale,
+    required double minEventBlockHeight,
   }) {
     final assignments = <EventItem, int>{};
     final columnBottoms = <int, double>{}; // column -> rendered visual bottom
@@ -2234,7 +2257,11 @@ class EventLayoutEngine {
       }
 
       assignments[event] = column;
-      columnBottoms[column] = _eventVisualEndMin(event, textScale: textScale);
+      columnBottoms[column] = _eventVisualEndMin(
+        event,
+        textScale: textScale,
+        minEventBlockHeight: minEventBlockHeight,
+      );
     }
 
     return assignments;
@@ -4868,14 +4895,33 @@ bool _eventsShareStableIdentity(EventItem a, EventItem b) {
   return _eventIdentityKey(a) == _eventIdentityKey(b);
 }
 
-bool _eventsOverlap(EventItem a, EventItem b, {double textScale = 1.0}) {
-  return _eventVisualTop(a) < _eventVisualEndMin(b, textScale: textScale) &&
-      _eventVisualTop(b) < _eventVisualEndMin(a, textScale: textScale);
+bool _eventsOverlap(
+  EventItem a,
+  EventItem b, {
+  double textScale = 1.0,
+  double minEventBlockHeight = _kMinEventBlockHeight,
+}) {
+  return _eventVisualTop(a) <
+          _eventVisualEndMin(
+            b,
+            textScale: textScale,
+            minEventBlockHeight: minEventBlockHeight,
+          ) &&
+      _eventVisualTop(b) <
+          _eventVisualEndMin(
+            a,
+            textScale: textScale,
+            minEventBlockHeight: minEventBlockHeight,
+          );
 }
 
 double _eventVisualTop(EventItem event) => event.startMin.toDouble();
 
-double _eventVisualHeightForLayout(EventItem event, {double textScale = 1.0}) {
+double _eventVisualHeightForLayout(
+  EventItem event, {
+  double textScale = 1.0,
+  double minEventBlockHeight = _kMinEventBlockHeight,
+}) {
   int durationMinutes = event.endMin - event.startMin;
   if (durationMinutes <= 0) {
     durationMinutes = 15;
@@ -4891,16 +4937,27 @@ double _eventVisualHeightForLayout(EventItem event, {double textScale = 1.0}) {
         .toDouble()
         .clamp(42.0, 90.0)
         .toDouble();
-    return math.max(compactPreviewHeight, durationHeight);
+    return math.max(
+      minEventBlockHeight,
+      math.max(compactPreviewHeight, durationHeight),
+    );
   }
 
   final double rawHeight = durationMinutes.toDouble();
-  return rawHeight < _kMinEventBlockHeight ? _kMinEventBlockHeight : rawHeight;
+  return rawHeight < minEventBlockHeight ? minEventBlockHeight : rawHeight;
 }
 
-double _eventVisualEndMin(EventItem event, {double textScale = 1.0}) {
+double _eventVisualEndMin(
+  EventItem event, {
+  double textScale = 1.0,
+  double minEventBlockHeight = _kMinEventBlockHeight,
+}) {
   return _eventVisualTop(event) +
-      _eventVisualHeightForLayout(event, textScale: textScale);
+      _eventVisualHeightForLayout(
+        event,
+        textScale: textScale,
+        minEventBlockHeight: minEventBlockHeight,
+      );
 }
 
 int _compareEventItemsBySchedule(EventItem a, EventItem b) {
@@ -6157,6 +6214,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   double? _cachedAvailableWidth;
   double? _cachedTextScale;
   double? _cachedSingleEventWidthFactor;
+  double? _cachedMinEventBlockHeight;
   List<PositionedEventBlock> _displayBlocks = const [];
   final Map<TrackSkyTimeZone, TrackSkyFlowData> _trackSkyDataByTimeZone =
       <TrackSkyTimeZone, TrackSkyFlowData>{};
@@ -6862,6 +6920,12 @@ class _DayViewGridState extends State<DayViewGrid> {
     return _usesTabletLandscapeLayout(context) ? 1.0 : _kSingleEventWidthFactor;
   }
 
+  double _minEventBlockHeight(BuildContext context) {
+    return _usesTabletLandscapeLayout(context)
+        ? _kWideMinEventBlockHeight
+        : _kMinEventBlockHeight;
+  }
+
   double _layoutTextScale(BuildContext context) {
     final textScaler = MediaQuery.maybeTextScalerOf(context);
     if (textScaler == null) return 1.0;
@@ -6877,6 +6941,7 @@ class _DayViewGridState extends State<DayViewGrid> {
             candidate.event,
             block.event,
             textScale: textScale,
+            minEventBlockHeight: _minEventBlockHeight(context),
           ),
         )
         .map((candidate) => _eventHitHeight(candidate.event))
@@ -6893,6 +6958,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         final availableWidth = _timelineAvailableWidthFor(layoutWidth);
         final textScale = _layoutTextScale(context);
         final singleEventWidthFactor = _singleEventWidthFactor(context);
+        final minEventBlockHeight = _minEventBlockHeight(context);
 
         // ✅ NEW: Dedupe notes before rendering to handle legacy duplicates
         final dedupedNotes = _dedupeNotesForUI(widget.notes);
@@ -6905,7 +6971,8 @@ class _DayViewGridState extends State<DayViewGrid> {
             _cachedFlowHash != flowHash ||
             _cachedAvailableWidth != availableWidth ||
             _cachedTextScale != textScale ||
-            _cachedSingleEventWidthFactor != singleEventWidthFactor) {
+            _cachedSingleEventWidthFactor != singleEventWidthFactor ||
+            _cachedMinEventBlockHeight != minEventBlockHeight) {
           if (kDebugMode) {
             final originalCount = widget.notes.length;
             final dedupedCount = dedupedNotes.length;
@@ -6924,12 +6991,14 @@ class _DayViewGridState extends State<DayViewGrid> {
             textScale: textScale,
             day: widget.kd,
             singleEventWidthFactor: singleEventWidthFactor,
+            minEventBlockHeight: minEventBlockHeight,
           );
           _cachedNotesHash = notesHash;
           _cachedFlowHash = flowHash;
           _cachedAvailableWidth = availableWidth;
           _cachedTextScale = textScale;
           _cachedSingleEventWidthFactor = singleEventWidthFactor;
+          _cachedMinEventBlockHeight = minEventBlockHeight;
         }
 
         _displayBlocks = _buildDisplayBlocks(
@@ -7492,6 +7561,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     return _eventVisualHeightForLayout(
       event,
       textScale: _layoutTextScale(context),
+      minEventBlockHeight: _minEventBlockHeight(context),
     );
   }
 
@@ -7522,6 +7592,8 @@ class _DayViewGridState extends State<DayViewGrid> {
 
     final int durationMinutes = (event.endMin - event.startMin).clamp(15, 180);
     final double height = _eventVisualHeight(event);
+    final useCompactEventPreview =
+        _usesTabletLandscapeLayout(context) && durationMinutes < 45;
 
     final borderRadius = BorderRadius.circular(graphic != null ? 7 : 6);
 
@@ -7615,6 +7687,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                 event,
                 durationMinutes,
                 isPreview: isPreview,
+                compact: useCompactEventPreview,
               ),
             ),
           ],
@@ -7706,6 +7779,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                 event,
                 durationMinutes,
                 isPreview: isPreview,
+                compact: useCompactEventPreview,
               ),
             ),
           ],
@@ -7818,6 +7892,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                 event,
                 durationMinutes,
                 isPreview: isPreview,
+                compact: useCompactEventPreview,
               ),
             ),
           ],
@@ -7857,6 +7932,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           event,
           durationMinutes,
           isPreview: isPreview,
+          compact: useCompactEventPreview,
         ),
       );
     }
@@ -7931,6 +8007,7 @@ class _DayViewGridState extends State<DayViewGrid> {
               event,
               durationMinutes,
               isPreview: isPreview,
+              compact: useCompactEventPreview,
             ),
           ),
         ],
@@ -7943,6 +8020,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     EventItem event,
     int durationMinutes, {
     bool isPreview = false,
+    bool compact = false,
   }) {
     final flow = _chromeFlowForId(event.flowId);
     final bool hasFlow = flow != null;
@@ -7968,7 +8046,8 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
 
     final showTitle = event.title.trim().isNotEmpty;
-    final showPreviewLabel = !isGraphicFlow || (hasFlow && !event.isReminder);
+    final showPreviewLabel =
+        !compact && (!isGraphicFlow || (hasFlow && !event.isReminder));
     final graphicFlowNameColor = (graphic?.labelColor ?? _dayGold).withValues(
       alpha: isPreview ? 0.92 : 1.0,
     );
@@ -7982,7 +8061,8 @@ class _DayViewGridState extends State<DayViewGrid> {
     final flowColor = !isGraphicFlow
         ? visual.category.withValues(alpha: isPreview ? 0.52 : 0.68)
         : null;
-    final titleMaxLines = (event.isReminder || hasFlow || durationMinutes < 90)
+    final titleMaxLines =
+        (compact || event.isReminder || hasFlow || durationMinutes < 90)
         ? 1
         : 2;
     final trackSkyTeaser = isTrackSky
@@ -8170,7 +8250,8 @@ class _DayViewGridState extends State<DayViewGrid> {
                   overflow: TextOverflow.ellipsis,
                 ),
 
-        if (isTrackSky &&
+        if (!compact &&
+            isTrackSky &&
             trackSkyTeaser.isNotEmpty &&
             durationMinutes >= 45) ...[
           const SizedBox(height: 0),

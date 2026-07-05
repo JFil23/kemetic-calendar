@@ -20,7 +20,6 @@ import 'package:mobile/utils/calendar_event_markers.dart';
 import 'package:mobile/utils/flow_filter_engine.dart';
 import 'package:mobile/utils/flow_visibility.dart';
 import 'package:flutter/foundation.dart';
-import 'landscape_month_view.dart';
 import 'dart:convert';
 import 'day_view.dart';
 import '../../core/feature_flags.dart';
@@ -464,11 +463,6 @@ const Gradient _maatBadgeGoldGloss = LinearGradient(
 // Base text styles (color overridden to white inside gloss wrappers)
 const TextStyle _titleGold = TextStyle(
   fontSize: 22,
-  fontWeight: FontWeight.w500,
-  color: Colors.white,
-);
-const TextStyle _monthTitleGold = TextStyle(
-  fontSize: 20,
   fontWeight: FontWeight.w500,
   color: Colors.white,
 );
@@ -13160,7 +13154,6 @@ class CalendarPageState extends State<CalendarPage>
   bool _portraitRecenterPending = false;
 
   // ✅ ADD: Feedback loop prevention flag
-  bool _isUpdatingFromLandscape = false;
   bool _isUpdatingFromPortrait = false;
 
   // ✅ ADD: First-build gating flag to prevent race condition
@@ -13257,118 +13250,12 @@ class CalendarPageState extends State<CalendarPage>
 
     // ✅ ONLY UPDATE IF CHANGED AND NOT UPDATING FROM LANDSCAPE OR PORTRAIT
     if ((_lastViewKy != newKy || _lastViewKm != newKm) &&
-        !_isUpdatingFromLandscape &&
         !_isUpdatingFromPortrait) {
       // ✅ HARDENING 1: Clamp day when month changes
       final maxDay = _maxDayForMonth(newKy, newKm);
       final clampedKd = (_lastViewKd ?? 1).clamp(1, maxDay);
 
       _setView(newKy, newKm, kd: clampedKd);
-    }
-  }
-
-  void _updateCenteredMonthWide() {
-    // ✅ ONLY update if we don't already have a valid state
-    // ✅ FIX 2: Removed _lastViewKy! >= 1 check - accept historical years
-    if (_lastViewKy != null &&
-        _lastViewKm != null &&
-        _lastViewKm! >= 1 &&
-        _lastViewKm! <= 13) {
-      if (kDebugMode) {
-        _calendarDebugPrint(
-          '✓ [CALENDAR] Skipping _updateCenteredMonthWide - using existing state: $_lastViewKy-$_lastViewKm',
-        );
-      }
-      return;
-    }
-
-    final candidates = <(int ky, int km, double dist)>[];
-
-    // ✅ OPTIMIZED: Try saved/today month first (most likely mounted)
-    final base = _lastViewKy ?? _today.kYear;
-    final baseMonth = _lastViewKm ?? _today.kMonth;
-
-    ScrollableState? scrollableState;
-    RenderBox? viewportBox;
-
-    // Try saved/today month first
-    var ctx = keyForMonth(base, baseMonth).currentContext;
-    if (ctx != null) {
-      scrollableState = Scrollable.maybeOf(ctx); // ✅ Use CHILD context!
-      if (scrollableState != null) {
-        final vpBox = scrollableState.context.findRenderObject() as RenderBox?;
-        if (vpBox != null && vpBox.hasSize) {
-          viewportBox = vpBox;
-        }
-      }
-    }
-
-    // Fallback: search nearby months if first attempt failed
-    if (viewportBox == null) {
-      for (var dy = -220; dy <= 220; dy++) {
-        final ky = base + dy;
-        for (var km = 1; km <= 13; km++) {
-          ctx = keyForMonth(ky, km).currentContext;
-          if (ctx != null) {
-            scrollableState = Scrollable.maybeOf(ctx);
-            if (scrollableState != null) {
-              final vpBox =
-                  scrollableState.context.findRenderObject() as RenderBox?;
-              if (vpBox != null && vpBox.hasSize) {
-                viewportBox = vpBox;
-                break;
-              }
-            }
-          }
-        }
-        if (viewportBox != null) break;
-      }
-    }
-
-    if (scrollableState == null || viewportBox == null) return;
-
-    // ✅ Calculate viewport center in global coordinates (SAME as _updateCenteredMonth)
-    final viewportTopGlobal = viewportBox.localToGlobal(Offset.zero).dy;
-    final viewportCenterY = viewportTopGlobal + (viewportBox.size.height / 2);
-
-    bool addIfMounted(int ky, int km) {
-      final ctx = keyForMonth(ky, km).currentContext;
-      if (ctx == null) return false;
-      final rb = ctx.findRenderObject() as RenderBox?;
-      if (rb == null || !rb.hasSize) return false;
-
-      // ✅ CORRECT: Use same calculation as _centerMonth() and _updateCenteredMonth()
-      final monthCenterGlobal = rb
-          .localToGlobal(rb.size.center(Offset.zero))
-          .dy;
-      final dist = (monthCenterGlobal - viewportCenterY).abs();
-      candidates.add((ky, km, dist));
-      return true;
-    }
-
-    // Wider search for landscape (±220 years)
-    for (var dy = -220; dy <= 220; dy++) {
-      final ky = base + dy;
-      var foundAny = false;
-      for (var km = 1; km <= 13; km++) {
-        foundAny = addIfMounted(ky, km) || foundAny;
-      }
-      if (foundAny && candidates.length >= 6) break;
-    }
-
-    if (candidates.isEmpty) return;
-    candidates.sort((a, b) => a.$3.compareTo(b.$3));
-
-    // ✅ Only update if not already set
-    if (_lastViewKy == null || _lastViewKm == null) {
-      final newKy = candidates.first.$1;
-      final newKm = candidates.first.$2;
-      final maxDay = _maxDayForMonth(newKy, newKm);
-      final clampedKd = (_lastViewKd ?? 1).clamp(1, maxDay);
-
-      _lastViewKy = newKy;
-      _lastViewKm = newKm;
-      _lastViewKd = clampedKd;
     }
   }
 
@@ -13448,7 +13335,7 @@ class CalendarPageState extends State<CalendarPage>
 
   /// ✅ FIX 4: Handle month change from portrait scroll (with feedback loop guard)
   void _handlePortraitMonthChanged(int ky, int km) {
-    if (_isUpdatingFromLandscape || _isUpdatingFromPortrait) return;
+    if (_isUpdatingFromPortrait) return;
 
     _isUpdatingFromPortrait = true;
     try {
@@ -16708,27 +16595,6 @@ class CalendarPageState extends State<CalendarPage>
     _lastViewKd = _sessionDayForMonth(centered.$1, centered.$2);
   }
 
-  void _commitLandscapeVisibleMonthForRotation(int ky, int km) {
-    _restorationInteractedSinceBoot = true;
-    _lastViewKy = ky;
-    _lastViewKm = km;
-    _lastViewKd = _sessionDayForMonth(ky, km);
-    if (_rememberLastView) {
-      _scheduleCalendarRestorationSave(reason: 'landscape_rotation_commit');
-    }
-    final orientation = MediaQuery.maybeOf(context)?.orientation;
-    if (orientation == Orientation.portrait) {
-      _portraitRecenterPending = true;
-      if (mounted) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            setState(() {});
-          }
-        });
-      }
-    }
-  }
-
   void _scheduleEventDetailOrientationHandoff() {
     if (_eventDetailOrientationHandoffScheduled ||
         !CalendarEventDetailSheetCoordinator.isOpenOrOpening ||
@@ -17069,57 +16935,6 @@ class CalendarPageState extends State<CalendarPage>
 
   double? _centeredScrollOffsetForContext(BuildContext? targetCtx) {
     return _scrollOffsetForContext(targetCtx, alignment: 0.5);
-  }
-
-  /// ✅ Handle month change from landscape view (WITH CORRECT FEEDBACK LOOP GUARD TIMING)
-  void _handleLandscapeMonthChanged(int ky, int km) {
-    // ✅ PREVENT FEEDBACK LOOP: Don't update if we're already updating
-    if (_isUpdatingFromLandscape) {
-      if (kDebugMode) {
-        _calendarDebugPrint(
-          '🔄 [CALENDAR] Ignoring landscape update (already updating)',
-        );
-      }
-      return;
-    }
-
-    if (kDebugMode) {
-      _calendarDebugPrint(
-        '🔄 [CALENDAR] Landscape month changed: Year $ky, Month $km',
-      );
-    }
-
-    // ✅ SET FLAG: Prevent portrait from triggering landscape update
-    _isUpdatingFromLandscape = true;
-
-    // ✅ FIX 5: Exception-safe callback handling
-    try {
-      _restorationInteractedSinceBoot = true;
-      // ✅ HARDENING 1: Clamp day when month changes, or use today's day if month matches today
-      final maxDay = _maxDayForMonth(ky, km);
-      int clampedKd;
-
-      // If this is today's month, use today's day; otherwise clamp existing day
-      if (ky == _today.kYear && km == _today.kMonth) {
-        clampedKd = _today.kDay.clamp(1, maxDay);
-      } else {
-        clampedKd = (_lastViewKd ?? 1).clamp(1, maxDay);
-      }
-
-      _setView(ky, km, kd: clampedKd);
-    } catch (e) {
-      if (kDebugMode) {
-        _calendarDebugPrint(
-          '⚠️ [CALENDAR] Error in landscape month change: $e',
-        );
-      }
-    } finally {
-      // ✅ CLEAR FLAG AFTER FRAME: This ensures portrait's scroll listener can see the flag
-      // Using post-frame callback prevents the flag from clearing before portrait processes the update
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _isUpdatingFromLandscape = false;
-      });
-    }
   }
 
   @override
@@ -22651,16 +22466,6 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
-  /// Gregorian label for a Kemetic month/year (handles epagomenal spanning years).
-  String _gregYearLabelFor(int kYear, int kMonth) {
-    final lastDay = (kMonth == 13)
-        ? (KemeticMath.isLeapKemeticYear(kYear) ? 6 : 5)
-        : 30;
-    final yStart = KemeticMath.toGregorian(kYear, kMonth, 1).year;
-    final yEnd = KemeticMath.toGregorian(kYear, kMonth, lastDay).year;
-    return (yStart == yEnd) ? '$yStart' : '$yStart/$yEnd';
-  }
-
   String _monthLabel(int kMonth) => getMonthById(kMonth).displayFull;
 
   /* ───── TODAY snap/center ───── */
@@ -23045,42 +22850,6 @@ class CalendarPageState extends State<CalendarPage>
       }
     }
     _scrollToToday();
-  }
-
-  Widget _buildLandscapeCalendarTitle(int ky, int km) {
-    final titleGradient = _showGregorian ? whiteGloss : goldGloss;
-    return GestureDetector(
-      onTap: _handleCalendarToggleTapped,
-      child: RepaintBoundary(
-        key: _calendarToggleKey,
-        child: Padding(
-          padding: const EdgeInsets.only(left: 6.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _GlossyMonthNameText(
-                text: _monthLabel(km),
-                style: _monthTitleGold.copyWith(fontSize: 18),
-                gradient: titleGradient,
-              ),
-              GlossyText(
-                text: _gregYearLabelFor(ky, km),
-                gradient: titleGradient,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white,
-                ),
-                maxLines: 1,
-                softWrap: false,
-                overflow: TextOverflow.fade,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 
   PreferredSizeWidget _buildCalendarAppBar({
@@ -33147,19 +32916,18 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     final kToday = _today;
-    final orientation = MediaQuery.orientationOf(context);
-    final isLandscape = orientation == Orientation.landscape;
+    final media = MediaQuery.of(context);
+    final orientation = media.orientation;
+    final isWideLandscape =
+        orientation == Orientation.landscape && media.size.shortestSide >= 600;
     final routeIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;
     final routeShouldRemainRendered =
         routeIsCurrent ||
         CalendarPage._hasCalendarOwnedTransientOverlayOpenOrOpening;
-    // Wide landscape screens should use the full-screen month scheduler instead
-    // of stretching the portrait year scroller across the whole viewport.
-    final useGrid = isLandscape;
-    final shouldBuildLandscapeGrid = useGrid && routeShouldRemainRendered;
-    if (!shouldBuildLandscapeGrid) {
-      _landscapeTodayAction = null;
-    }
+    // Wide landscape screens use the schedule-style Day View instead of the
+    // landscape month grid that made events feel clipped and overview-like.
+    final shouldBuildWideDayView = isWideLandscape && routeShouldRemainRendered;
+    _landscapeTodayAction = null;
 
     // ========================================
     // DEBUG: Log orientation changes
@@ -33197,121 +32965,23 @@ class CalendarPageState extends State<CalendarPage>
       return const Scaffold(backgroundColor: _bg, body: SizedBox.shrink());
     }
 
-    if (shouldBuildLandscapeGrid) {
-      // ✅ FIX 5: Only call if state is missing (optimization)
-      // The method already has a guard, but this prevents unnecessary function calls
-      // ✅ FIX 6: Also prevent during landscape updates to avoid side effects
-      if (!_isUpdatingFromLandscape &&
-          (_lastViewKy == null || _lastViewKm == null)) {
-        _updateCenteredMonthWide();
-      }
-
+    if (shouldBuildWideDayView) {
       final ky = _lastViewKy ?? kToday.kYear;
       final km = _lastViewKm ?? kToday.kMonth;
+      final kd = (_lastViewKd ?? kToday.kDay).clamp(1, _maxDayForMonth(ky, km));
 
       if (kDebugMode) {
-        _calendarDebugPrint('\n📱 [CALENDAR] Building LandscapeMonthView');
+        _calendarDebugPrint('\n📱 [CALENDAR] Building wide DayViewPage');
         _calendarDebugPrint('   initialKy: $ky');
         _calendarDebugPrint('   initialKm: $km');
-        _calendarDebugPrint('   initialKd: null');
+        _calendarDebugPrint('   initialKd: $kd');
         _calendarDebugPrint('   onAddNote callback: PROVIDED');
       }
 
-      return Scaffold(
-        backgroundColor: _bg,
-        appBar: _buildCalendarAppBar(
-          useLandscapeGrid: true,
-          titleOverride: _buildLandscapeCalendarTitle(ky, km),
-        ),
-        body: LandscapeMonthView(
-          embeddedInCalendarScaffold: true,
-          initialKy: ky,
-          initialKm: km,
-          initialKd: _lastViewKd ?? _today.kDay, // ✅ Highlight current day
-          showGregorian: _showGregorian,
-          dataVersion: _dayViewDataVersion,
-          notesForDay: (ky, km, kd) {
-            final notes = _getNotes(ky, km, kd);
-            return notes
-                .map(
-                  (n) => NoteData(
-                    id: n.id?.toString(),
-                    clientEventId: n.clientEventId,
-                    calendarId: n.calendarId,
-                    calendarName: n.calendarName,
-                    title: n.title,
-                    detail: n.detail,
-                    location: n.location,
-                    allDay: n.allDay,
-                    start: n.start,
-                    end: n.end,
-                    flowId: n.flowId,
-                    manualColor: n.manualColor,
-                    category: n.category,
-                    isReminder: n.isReminder,
-                    reminderId: n.reminderId,
-                    behaviorPayload: n.behaviorPayload,
-                  ),
-                )
-                .toList();
-          },
-          flowIndex: _buildCalendarFlowChromeIndex(),
-          activeLedgerFlowIds: _buildActiveLedgerFlowIds(),
-          getMonthName: (km) => getMonthById(km).displayFull,
-          onManageFlows: _getMyFlowsCallback(),
-          onAddNote: (ky, km, kd) {
-            if (kDebugMode) {
-              _calendarDebugPrint(
-                '\n🎯 [CALLBACK] onAddNote received from landscape',
-              );
-              _calendarDebugPrint('   Date: $ky-$km-$kd');
-            }
-            _openDaySheet(ky, km, kd, allowDateChange: true);
-          },
-          onMonthChanged: _handleLandscapeMonthChanged, // ✅ ADD CALLBACK
-          onVisibleMonthCommitted: _commitLandscapeVisibleMonthForRotation,
-          onTodayActionChanged: (action) {
-            _landscapeTodayAction = action;
-          },
-          onDeleteNote: (ky, km, kd, evt) async =>
-              _deleteNoteByEvent(ky, km, kd, evt),
-          onEditNote: (ky, km, kd, evt) async {
-            await _editNoteByEvent(ky, km, kd, evt);
-          },
-          onEditReminder: (id) async => _editReminderById(id),
-          onEndReminder: (id) async => _endReminderRule(id),
-          onShareReminder: (evt) async => _shareNoteSimple(evt),
-          onShareNote: (evt) async {
-            await _shareNoteSimple(evt);
-          },
-          onAppendToJournal: _appendToJournalAndRefresh,
-          onWriteJournalResponse: _writeMaatJournalResponseBlockAndRefresh,
-          onEndFlow: (id) => _endFlow(id),
-          onSaveFlow: _saveFlowById,
-          onRecordCompletion:
-              ({
-                required String clientEventId,
-                required int flowId,
-                required DateTime completedOnDate,
-                Map<String, dynamic>? metadata,
-              }) => _recordEventCompletion(
-                clientEventId: clientEventId,
-                flowId: flowId,
-                completedOnDate: completedOnDate,
-                metadata: metadata,
-              ),
-          onUnrecordCompletion: _unrecordEventCompletion,
-          onRemoveCompletionBadge: _removeCompletionBadgeAndRefresh,
-          initialEventDetailRestorationState:
-              _activeCalendarEventDetailRestoration,
-          onEventDetailRestorationChanged:
-              _handleCalendarEventDetailRestorationChanged,
-          shouldPreserveEventDetailRestorationOnClose: () =>
-              _preserveEventDetailOverlayForOrientationHandoff ||
-              RestorationCoordinator
-                  .instance
-                  .shouldPreserveOverlayForLifecycleClose,
-        ),
+      return _buildWideCalendarDayView(
+        initialKy: ky,
+        initialKm: km,
+        initialKd: kd,
       );
     }
 
@@ -33378,6 +33048,133 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     return content;
+  }
+
+  Widget _buildWideCalendarDayView({
+    required int initialKy,
+    required int initialKm,
+    required int initialKd,
+  }) {
+    return DayViewPage(
+      initialKy: initialKy,
+      initialKm: initialKm,
+      initialKd: initialKd,
+      showGregorian: _showGregorian,
+      notesForDay: _noteDataForDay,
+      flowIndex: _buildCalendarFlowChromeIndex(),
+      flowIndexBuilder: _buildCalendarFlowChromeIndex,
+      activeLedgerFlowIds: _buildActiveLedgerFlowIds(),
+      activeLedgerFlowIdsBuilder: _buildActiveLedgerFlowIds,
+      dataVersion: _dayViewDataVersion,
+      getMonthName: (km) => getMonthById(km).displayFull,
+      initialEventDetailRestorationState: _activeCalendarEventDetailRestoration,
+      eventDetailRequestListenable: _dayViewEventDetailRequest,
+      onEventDetailRequestHandled: () {
+        if (_dayViewEventDetailRequest.value != null) {
+          _dayViewEventDetailRequest.value = null;
+        }
+      },
+      onClose: () {
+        if (Navigator.canPop(context)) {
+          unawaited(Navigator.of(context).maybePop());
+        }
+      },
+      onManageFlows: (flowId) => _getMyFlowsCallback()(flowId),
+      onOpenQuickAdd: (_) => _openQuickAddSheet(),
+      onOpenSearch: (ctx) async => _openSearchForContext(ctx),
+      onOpenProfile: (ctx) => _openProfile(ctx),
+      onDeleteNote: (ky, km, kd, evt) async {
+        await _deleteNoteByEvent(ky, km, kd, evt);
+      },
+      onEditNote: (ky, km, kd, evt) async {
+        await _editNoteByEvent(ky, km, kd, evt);
+      },
+      onMoveEventTime: _moveEventInDayView,
+      onShareNote: (evt) async {
+        await _shareNoteSimple(evt);
+      },
+      onAddNote: (ky, km, kd) =>
+          _openDaySheet(ky, km, kd, allowDateChange: true),
+      onOpenAddNoteWithTime:
+          (
+            ky,
+            km,
+            kd, {
+            TimeOfDay? start,
+            TimeOfDay? end,
+            bool allDay = false,
+          }) {
+            _openDaySheet(
+              ky,
+              km,
+              kd,
+              allowDateChange: true,
+              initialStartTime: start,
+              initialEndTime: end,
+              initialAllDay: allDay,
+            );
+          },
+      onCreateTimedEvent: _handleCreateTimedEvent,
+      onEndFlow: (id) => _endFlow(id),
+      onEditReminder: (id) => _editReminderById(id),
+      onEndReminder: (id) => _endReminderRule(id),
+      onShareReminder: (evt) => _shareNoteSimple(evt),
+      onAppendToJournal: _appendToJournalAndRefresh,
+      onWriteJournalResponse: _writeMaatJournalResponseBlockAndRefresh,
+      shouldPreserveEventDetailRestorationOnClose: () =>
+          _preserveEventDetailOverlayForOrientationHandoff ||
+          RestorationCoordinator
+              .instance
+              .shouldPreserveOverlayForLifecycleClose,
+      onSaveFlow: _saveFlowById,
+      loadCompletedClientEventIds: _loadCompletedClientEventIds,
+      onRecordCompletion:
+          ({
+            required String clientEventId,
+            required int flowId,
+            required DateTime completedOnDate,
+            Map<String, dynamic>? metadata,
+          }) => _recordEventCompletion(
+            clientEventId: clientEventId,
+            flowId: flowId,
+            completedOnDate: completedOnDate,
+            metadata: metadata,
+          ),
+      onUnrecordCompletion: _unrecordEventCompletion,
+      onRemoveCompletionBadge: _removeCompletionBadgeAndRefresh,
+      onRestorationStateChanged:
+          ({
+            required int kYear,
+            required int kMonth,
+            required int kDay,
+            required bool showGregorian,
+            int? firstVisibleMinute,
+            double? scrollOffset,
+            EventDetailRestorationState? eventDetail,
+          }) {
+            _restorationInteractedSinceBoot = true;
+            _lastViewKy = kYear;
+            _lastViewKm = kMonth;
+            _lastViewKd = kDay;
+            _showGregorian = showGregorian;
+            final activeEventDetail = _activeCalendarEventDetailRestoration;
+            final eventDetailChanged =
+                (eventDetail == null && activeEventDetail != null) ||
+                (eventDetail != null &&
+                    !_sameEventDetailRestorationState(
+                      activeEventDetail,
+                      eventDetail,
+                    ));
+            if (eventDetailChanged) {
+              _handleCalendarEventDetailRestorationChanged(eventDetail);
+            }
+            if (_rememberLastView) {
+              _scheduleCalendarRestorationSave(
+                reason: 'wide_day_view_state_changed',
+              );
+            }
+          },
+    );
   }
 
   Widget _buildBodyWithJournal() {

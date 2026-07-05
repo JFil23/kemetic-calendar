@@ -210,6 +210,7 @@ class _GlobalMenuBubbleSurface extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
         child: _GlobalMenuBubbleInk(onPressed: onPressed, child: glyph),
       ),
     );
@@ -227,15 +228,24 @@ class _GlobalMenuBubbleInk extends StatelessWidget {
     return InkWell(
       customBorder: const CircleBorder(),
       onTap: onPressed,
-      child: Center(
-        child: InboxUnreadDotOverlay(
-          top: -1,
-          right: -1,
-          size: 7,
-          dotColor: const Color(0xFFFF3B30),
-          borderColor: const Color(0xFF07080A),
-          borderWidth: 1.1,
-          child: child,
+      child: SizedBox.expand(
+        child: Center(
+          child: SizedBox.square(
+            dimension: 34,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.center,
+              child: InboxUnreadDotOverlay(
+                top: -1,
+                right: -1,
+                size: 7,
+                dotColor: const Color(0xFFFF3B30),
+                borderColor: const Color(0xFF07080A),
+                borderWidth: 1.1,
+                child: child,
+              ),
+            ),
+          ),
         ),
       ),
     );

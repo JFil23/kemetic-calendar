@@ -8,7 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/calendar_completion.dart';
-import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
+import 'package:mobile/features/calendar/calendar_page.dart'
+    show CalendarPage, KemeticMath;
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/landscape_month_view.dart';
 import 'package:mobile/features/calendar/living_text_day_one_node_store.dart';
@@ -70,6 +71,55 @@ void main() {
       expect(timelineSource, isNot(contains('empty')));
     },
   );
+
+  group('CalendarPage responsive route split', () {
+    setUp(() {
+      AppRestorationService.debugUserIdResolver = () =>
+          'calendar-page-responsive-route-test';
+    });
+
+    tearDown(() {
+      AppRestorationService.debugUserIdResolver = null;
+    });
+
+    testWidgets(
+      'tablet landscape CalendarPage renders Day View schedule instead of LandscapeMonthView',
+      (tester) async {
+        await _setCalendarTabletLandscapeViewport(tester);
+
+        await _pumpCalendarPageUntilReady(tester);
+
+        expect(tester.takeException(), isNull);
+        expect(find.byType(CalendarPage), findsOneWidget);
+        expect(find.byType(DayViewPage), findsOneWidget);
+        expect(find.byType(DayViewGrid), findsOneWidget);
+        expect(find.byType(LandscapeMonthView), findsNothing);
+
+        await _disposeCalendarPageAndDrainTimers(tester);
+      },
+    );
+
+    testWidgets(
+      'phone portrait CalendarPage keeps the portrait calendar path',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        await _pumpCalendarPageUntilReady(tester);
+
+        final exception = tester.takeException();
+        if (exception != null) {
+          expect(exception.toString(), contains('RenderFlex overflowed'));
+        }
+        expect(find.byType(CalendarPage), findsOneWidget);
+        expect(find.byType(DayViewPage), findsNothing);
+        expect(find.byType(DayViewGrid), findsNothing);
+        expect(find.byType(LandscapeMonthView), findsNothing);
+        expect(_portraitCalendarScrollFinder(), findsOneWidget);
+
+        await _disposeCalendarPageAndDrainTimers(tester);
+      },
+    );
+  });
 
   group('DayViewGrid overlapping event gestures', () {
     testWidgets(
@@ -194,6 +244,44 @@ void main() {
       },
     );
 
+    testWidgets('tablet landscape short event cards reserve compact height', (
+      tester,
+    ) async {
+      await _setTabletLandscapeViewport(tester);
+
+      await tester.pumpWidget(
+        _DayViewHarness(
+          notes: [
+            _timedNote(
+              title: 'Noon check-in',
+              startHour: 12,
+              startMinute: 0,
+              endHour: 12,
+              endMinute: 30,
+              flowId: 1,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Noon check-in'), findsWidgets);
+
+      final eventSizedBoxes = tester.widgetList<SizedBox>(
+        find.ancestor(
+          of: find.text('Noon check-in'),
+          matching: find.byType(SizedBox),
+        ),
+      );
+
+      expect(
+        eventSizedBoxes.any((box) => box.height == 70),
+        isTrue,
+        reason: '68px wide card plus 2px hit padding avoids clipped text.',
+      );
+    });
+
     testWidgets('Track Sky event cards fit long moon copy without overflow', (
       tester,
     ) async {
@@ -253,6 +341,31 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(LandscapeMonthView), findsOneWidget);
       expect(find.byType(DayViewGrid), findsNothing);
+    });
+
+    testWidgets('tablet landscape Day View keeps the schedule grid surface', (
+      tester,
+    ) async {
+      await _setTabletLandscapeViewport(tester);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DayViewPage(
+            initialKy: 1,
+            initialKm: 2,
+            initialKd: 5,
+            showGregorian: false,
+            notesForDay: (_, _, _) => const [],
+            flowIndex: const {},
+            getMonthName: (month) => 'Month $month',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(LandscapeMonthView), findsNothing);
+      expect(find.byType(DayViewGrid), findsOneWidget);
     });
 
     test(
@@ -2438,12 +2551,43 @@ Future<void> _setPhoneLandscapeViewport(WidgetTester tester) async {
   });
 }
 
+Future<void> _setCalendarTabletLandscapeViewport(WidgetTester tester) async {
+  tester.view.devicePixelRatio = 1.0;
+  tester.view.physicalSize = const Size(1024, 768);
+  addTearDown(() async {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+}
+
 Future<void> _setTabletLandscapeViewport(WidgetTester tester) async {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = const Size(1194, 834);
   addTearDown(() async {
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();
+  });
+}
+
+Future<void> _pumpCalendarPageUntilReady(WidgetTester tester) async {
+  await tester.pumpWidget(MaterialApp(home: CalendarPage(key: UniqueKey())));
+  for (var attempt = 0; attempt < 30; attempt++) {
+    await tester.pump(const Duration(milliseconds: 50));
+    if (find.byType(Scaffold).evaluate().isNotEmpty) {
+      return;
+    }
+  }
+}
+
+Future<void> _disposeCalendarPageAndDrainTimers(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump(const Duration(milliseconds: 500));
+}
+
+Finder _portraitCalendarScrollFinder() {
+  return find.byWidgetPredicate((widget) {
+    final key = widget.key;
+    return key is PageStorageKey && key.value == 'calendar_portrait_scroll';
   });
 }
 
