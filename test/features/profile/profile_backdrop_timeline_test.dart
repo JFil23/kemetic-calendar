@@ -58,9 +58,9 @@ void main() {
         .where((file) => file.path.endsWith('.png'))
         .toList();
 
-    expect(pubspec, contains('assets/profile/day_cycle_alt_2/'));
     expect(assetFiles, hasLength(profileBackdropFrames.length));
     for (final frame in profileBackdropFrames) {
+      expect(pubspec, contains('- ${frame.assetPath}'));
       expect(File(frame.assetPath).existsSync(), isTrue);
     }
   });
