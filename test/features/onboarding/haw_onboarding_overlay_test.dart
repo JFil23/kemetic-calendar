@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/onboarding/decan_compass_copy_repo.dart';
 import 'package:mobile/features/onboarding/onboarding_overlay.dart';
 
+const Color _readableOnboardingGhost = Color(0xFF746440);
+
 void main() {
   HawCompassCopy compassCopy() {
     return const HawCompassCopy(
@@ -66,6 +68,9 @@ void main() {
 
     await tester.pump(const Duration(seconds: 6));
     expect(find.text('tap to begin'), findsOneWidget);
+    expect(_textColor(tester, 'skip'), _readableOnboardingGhost);
+    expect(_textColor(tester, 'tap to begin'), _readableOnboardingGhost);
+    expect(_textColor(tester, 'this is ḥꜣw'), _readableOnboardingGhost);
     await tester.tap(find.text('tap to begin'));
     await tester.pumpAndSettle();
 
@@ -85,6 +90,7 @@ void main() {
         HawOnboardingSlide.orientation,
       ]),
     );
+    expect(_textColor(tester, 'next'), _readableOnboardingGhost);
     await tester.tap(find.text('next'));
     await tester.pumpAndSettle();
 
@@ -237,4 +243,8 @@ Finder _richTextContaining(String text) {
   return find.byWidgetPredicate((widget) {
     return widget is RichText && widget.text.toPlainText().contains(text);
   });
+}
+
+Color? _textColor(WidgetTester tester, String text) {
+  return tester.widget<Text>(find.text(text)).style?.color;
 }
