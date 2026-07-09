@@ -13362,6 +13362,7 @@ class CalendarPageState extends State<CalendarPage>
       OnboardingProgressStorage();
   OnboardingProgress _onboardingProgress = const OnboardingProgress();
   HawCompassCopy? _onboardingCompassCopy;
+  HawOnboardingSlide _activeHawOnboardingSlide = HawOnboardingSlide.exhale;
   bool _firstMaatFlowSheetOpenOrOpening = false;
   bool _showingCurrentDecanIntroCoachmark = false;
   bool _showingFirstFlowDayCoachmark = false;
@@ -13389,6 +13390,8 @@ class CalendarPageState extends State<CalendarPage>
   // Leave false for normal onboarding behavior. Flip to true only for local iteration.
   static final bool _replayOnboardingOnEveryLaunch = false;
   static bool _hasPresentedOnboardingThisLaunch = false;
+  static OnboardingProgress? _onboardingReviewSessionProgress;
+  static HawOnboardingSlide? _onboardingReviewSessionSlide;
   static const String _onboardingContinuationStageKeyPrefix =
       'onboarding_v1_continuation_stage';
   static const int _onboardingReviewFirstFlowId = 990001;
@@ -14470,7 +14473,10 @@ class CalendarPageState extends State<CalendarPage>
 
   Future<void> _saveOnboardingProgress(OnboardingProgress progress) async {
     _onboardingProgress = progress;
-    if (_onboardingReviewMode) return;
+    if (_onboardingReviewMode) {
+      _onboardingReviewSessionProgress = progress;
+      return;
+    }
     final userId = _currentUserId;
     if (userId == null || userId.isEmpty) return;
     await _onboardingProgressStorage.save(userId, progress);
@@ -14480,6 +14486,64 @@ class CalendarPageState extends State<CalendarPage>
     OnboardingProgress Function(OnboardingProgress progress) update,
   ) async {
     await _saveOnboardingProgress(update(_onboardingProgress));
+  }
+
+  HawOnboardingSlide _hawSlideForProgress(OnboardingProgress progress) {
+    switch (progress.currentStep) {
+      case TrueOnboardingStep.welcome:
+        return HawOnboardingSlide.exhale;
+      case TrueOnboardingStep.currentDecanIntro:
+        return HawOnboardingSlide.orientation;
+      case TrueOnboardingStep.firstMaatFlow:
+        return HawOnboardingSlide.recommendedFlow;
+      case TrueOnboardingStep.firstFlowCalendarDay:
+      case TrueOnboardingStep.firstFlowDayEvent:
+      case TrueOnboardingStep.eventDetailObservedJournal:
+      case TrueOnboardingStep.menuExplore:
+        return HawOnboardingSlide.dayView;
+      case TrueOnboardingStep.profileBasics:
+      case TrueOnboardingStep.complete:
+        return HawOnboardingSlide.exhale;
+    }
+  }
+
+  TrueOnboardingStep _onboardingStepForHawSlide(HawOnboardingSlide slide) {
+    switch (slide) {
+      case HawOnboardingSlide.exhale:
+      case HawOnboardingSlide.segmentation:
+        return TrueOnboardingStep.welcome;
+      case HawOnboardingSlide.orientation:
+        return TrueOnboardingStep.currentDecanIntro;
+      case HawOnboardingSlide.recommendedFlow:
+        return TrueOnboardingStep.firstMaatFlow;
+      case HawOnboardingSlide.dayView:
+        return TrueOnboardingStep.firstFlowDayEvent;
+      case HawOnboardingSlide.closing:
+        return TrueOnboardingStep.eventDetailObservedJournal;
+    }
+  }
+
+  void _handleHawSlideChanged(HawOnboardingSlide slide) {
+    _activeHawOnboardingSlide = slide;
+    if (_onboardingReviewMode) {
+      _onboardingReviewSessionSlide = slide;
+    }
+    final step = _onboardingStepForHawSlide(slide);
+    if (_onboardingProgress.currentStep == step &&
+        (slide.index < HawOnboardingSlide.orientation.index ||
+            _onboardingProgress.hasSeenCurrentDecanIntro)) {
+      return;
+    }
+    unawaited(
+      _updateOnboardingProgress(
+        (progress) => progress.copyWith(
+          currentStep: step,
+          hasSeenWelcome: slide != HawOnboardingSlide.exhale,
+          hasSeenCurrentDecanIntro:
+              slide.index >= HawOnboardingSlide.orientation.index,
+        ),
+      ),
+    );
   }
 
   Future<OnboardingProgress?> _markOnboardingHelperCompleted(
@@ -14569,9 +14633,19 @@ class CalendarPageState extends State<CalendarPage>
     if (!mounted || _showOnboarding) return;
 
     if (_onboardingReviewMode) {
-      if (_hasPresentedOnboardingThisLaunch) return;
-      _hasPresentedOnboardingThisLaunch = true;
-      _onboardingProgress = const OnboardingProgress();
+      if (!_hasPresentedOnboardingThisLaunch) {
+        _hasPresentedOnboardingThisLaunch = true;
+        _onboardingReviewSessionProgress = const OnboardingProgress();
+        _onboardingReviewSessionSlide = HawOnboardingSlide.exhale;
+      }
+      _onboardingProgress =
+          _onboardingReviewSessionProgress ?? const OnboardingProgress();
+      if (_onboardingProgress.currentStep == TrueOnboardingStep.complete) {
+        return;
+      }
+      _activeHawOnboardingSlide =
+          _onboardingReviewSessionSlide ??
+          _hawSlideForProgress(_onboardingProgress);
       _hydrateFirstFlowTargetFromProgress(_onboardingProgress);
       await _waitForOnboardingCalendarReady();
       if (!mounted) return;
@@ -14589,6 +14663,7 @@ class CalendarPageState extends State<CalendarPage>
       if (_hasPresentedOnboardingThisLaunch) return;
       _hasPresentedOnboardingThisLaunch = true;
       await _saveOnboardingProgress(const OnboardingProgress());
+      _activeHawOnboardingSlide = HawOnboardingSlide.exhale;
       await _loadOnboardingCompassCopy();
       GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
       setState(() => _showOnboarding = true);
@@ -14597,6 +14672,7 @@ class CalendarPageState extends State<CalendarPage>
 
     final progress = await _onboardingProgressStorage.load(userId);
     _onboardingProgress = progress;
+    _activeHawOnboardingSlide = _hawSlideForProgress(progress);
     _hydrateFirstFlowTargetFromProgress(progress);
 
     final hasCompleted = await _onboardingStorage.hasCompleted(userId);
@@ -14632,7 +14708,10 @@ class CalendarPageState extends State<CalendarPage>
     if (!mounted) return;
 
     GuidedOnboardingController.instance.setExternalOverlaySuppressed(false);
-    setState(() => _showOnboarding = false);
+    setState(() {
+      _showOnboarding = false;
+      _activeHawOnboardingSlide = HawOnboardingSlide.exhale;
+    });
   }
 
   void _handleOnboardingSkip() {
@@ -33265,6 +33344,8 @@ class CalendarPageState extends State<CalendarPage>
               recommendedFlowBuilder: _buildHawRecommendedFlow,
               dayViewBuilder: _buildHawDayView,
               dayViewEventTargetKey: _firstFlowEventBlockKey,
+              initialSlide: _activeHawOnboardingSlide,
+              onSlideChanged: _handleHawSlideChanged,
               onEntryStateSelected: _handleHawEntryStateSelected,
               onSkip: _handleOnboardingSkip,
               onComplete: _handleOnboardingComplete,

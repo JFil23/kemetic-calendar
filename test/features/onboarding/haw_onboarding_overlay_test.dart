@@ -156,6 +156,39 @@ void main() {
     expect(joinedFlow, isFalse);
   });
 
+  testWidgets('can restore directly to Recommended First Flow after remount', (
+    tester,
+  ) async {
+    final eventKey = GlobalKey();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: OnboardingOverlay(
+          initialSlide: HawOnboardingSlide.recommendedFlow,
+          compassCopy: compassCopy(),
+          dayViewEventTargetKey: eventKey,
+          onEntryStateSelected: (_) async {},
+          onSkip: () {},
+          onComplete: () {},
+          recommendedFlowBuilder: (context, onJoined) {
+            return const Center(child: Text('Join Flow'));
+          },
+          dayViewBuilder: (context, onEventOpened, onClosingComplete) {
+            return SizedBox(key: eventKey);
+          },
+        ),
+      ),
+    );
+
+    await tester.pump();
+    expect(find.text('tap to begin'), findsNothing);
+    expect(find.text('Recommended First Flow'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 260));
+    expect(find.text('Join Flow'), findsOneWidget);
+    expect(find.text('tap to begin'), findsNothing);
+  });
+
   testWidgets('closing copy is removed before seal appears', (tester) async {
     final phases = <HawClosingPhase>[];
     var completed = false;

@@ -545,6 +545,11 @@ void main() {
     expect(emptyCarryBranch, contains('Scrollable.ensureVisible('));
     expect(
       emptyCarryBranch,
+      contains('duration: const Duration(milliseconds: 620)'),
+    );
+    expect(emptyCarryBranch, contains('curve: Curves.easeInOutCubic'));
+    expect(
+      emptyCarryBranch,
       contains('_eveningThresholdCarryFocusNode.requestFocus();'),
     );
     expect(
@@ -595,6 +600,107 @@ void main() {
     expect(fieldAndPrompt, isNot(contains('focusedErrorBorder')));
     expect(fieldAndPrompt, isNot(contains('forceErrorText')));
     expect(fieldAndPrompt, isNot(contains('errorText')));
+  });
+
+  test('onboarding slide persistence prevents date picker remount reset', () {
+    final calendarPageSource = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final overlayMount = _sourceBetween(
+      calendarPageSource,
+      'child: OnboardingOverlay(',
+      'onEntryStateSelected: _handleHawEntryStateSelected,',
+    );
+    final progressMapper = _methodSource(
+      calendarPageSource,
+      '_hawSlideForProgress',
+    );
+    final stepMapper = _methodSource(
+      calendarPageSource,
+      '_onboardingStepForHawSlide',
+    );
+    final slideChanged = _methodSource(
+      calendarPageSource,
+      '_handleHawSlideChanged',
+    );
+    final saveProgress = _methodSource(
+      calendarPageSource,
+      '_saveOnboardingProgress',
+    );
+    final maybePresent = _methodSource(
+      calendarPageSource,
+      '_maybePresentOnboarding',
+    );
+
+    expect(overlayMount, contains('initialSlide: _activeHawOnboardingSlide'));
+    expect(overlayMount, contains('onSlideChanged: _handleHawSlideChanged'));
+    expect(
+      calendarPageSource,
+      contains('static OnboardingProgress? _onboardingReviewSessionProgress;'),
+    );
+    expect(
+      calendarPageSource,
+      contains('static HawOnboardingSlide? _onboardingReviewSessionSlide;'),
+    );
+    expect(
+      progressMapper,
+      contains(
+        'TrueOnboardingStep.firstMaatFlow:\n'
+        '        return HawOnboardingSlide.recommendedFlow;',
+      ),
+    );
+    expect(
+      stepMapper,
+      contains(
+        'case HawOnboardingSlide.recommendedFlow:\n'
+        '        return TrueOnboardingStep.firstMaatFlow;',
+      ),
+    );
+    expect(slideChanged, contains('_activeHawOnboardingSlide = slide;'));
+    expect(slideChanged, contains('_onboardingReviewSessionSlide = slide;'));
+    expect(slideChanged, contains('unawaited('));
+    expect(slideChanged, contains('_updateOnboardingProgress('));
+    expect(
+      saveProgress,
+      contains('_onboardingReviewSessionProgress = progress;'),
+    );
+    expect(
+      maybePresent,
+      contains(
+        '_onboardingReviewSessionProgress ?? const OnboardingProgress()',
+      ),
+    );
+    expect(maybePresent, contains('_onboardingReviewSessionSlide ??'));
+    expect(maybePresent, contains('TrueOnboardingStep.complete'));
+  });
+
+  test('embedded onboarding detail does not restore stale scroll offsets', () {
+    final source = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+    final stateFields = _sourceBetween(
+      source,
+      'class _MaatFlowTemplateDetailPageState',
+      'MaatFlowPalette get _palette',
+    );
+    final detailScaffold = _sourceBetween(
+      source,
+      'Widget _buildMaatFlowDetailScaffold',
+      'Widget? _buildCurrentInitialPromptSlot',
+    );
+    final disposeMethod = _methodSource(source, 'dispose');
+
+    expect(
+      stateFields,
+      contains('ScrollController _detailScrollController = ScrollController('),
+    );
+    expect(
+      stateFields,
+      contains('keepScrollOffset: !widget.embeddedInOnboarding'),
+    );
+    expect(disposeMethod, contains('_detailScrollController.dispose();'));
+    expect(detailScaffold, contains('controller: _detailScrollController'));
+    expect(detailScaffold, isNot(contains('jumpTo(')));
   });
 
   test('onboarding decan arc stays horizontal on narrow PWA widths', () {

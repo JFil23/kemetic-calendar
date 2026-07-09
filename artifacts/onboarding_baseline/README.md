@@ -45,6 +45,10 @@ prompt, or a helper from a later part of the app before the handoff is complete.
   red, orange, pink, or error-looking treatment.
 - Slide 4: after typing, the field remains in the gold system and clears the
   prompted state.
+- Slide 4: opening, canceling, or picking a start date must keep the user on
+  Recommended First Flow; it must not restart at `Enter ḥꜣw`.
+- Slide 4: any guided movement toward the carry field or Join Flow area should
+  scroll smoothly and must not restore a stale/jumpy scroll offset.
 
 ## Evening Threshold Empty-Carry Interaction
 

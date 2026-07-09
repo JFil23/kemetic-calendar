@@ -2163,6 +2163,9 @@ class _MaatFlowArcChevron extends StatelessWidget {
 
 class _MaatFlowTemplateDetailPageState
     extends State<_MaatFlowTemplateDetailPage> {
+  late final ScrollController _detailScrollController = ScrollController(
+    keepScrollOffset: !widget.embeddedInOnboarding,
+  );
   late TrackSkyTimeZone _previewTrackSkyTimeZone;
   Future<TrackSkyFlowData>? _trackSkyFuture;
   bool _dawnDiscreetMode = false;
@@ -2293,6 +2296,7 @@ class _MaatFlowTemplateDetailPageState
     _eveningThresholdCarryFocusNode.removeListener(
       _handleEveningThresholdCarryFocusChange,
     );
+    _detailScrollController.dispose();
     _eveningThresholdCarryFocusNode.dispose();
     _eveningThresholdInitialCarryController.dispose();
     super.dispose();
@@ -3587,12 +3591,12 @@ class _MaatFlowTemplateDetailPageState
         if (!fieldContext.mounted) return;
         await Scrollable.ensureVisible(
           fieldContext,
-          duration: const Duration(milliseconds: 360),
-          curve: Curves.easeOutCubic,
-          alignment: 0.38,
+          duration: const Duration(milliseconds: 620),
+          curve: Curves.easeInOutCubic,
+          alignment: 0.42,
           alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
         );
-        await Future<void>.delayed(const Duration(milliseconds: 60));
+        await Future<void>.delayed(const Duration(milliseconds: 120));
       }
       if (!mounted) return;
       _eveningThresholdCarryFocusNode.requestFocus();
@@ -4695,6 +4699,7 @@ class _MaatFlowTemplateDetailPageState
         top: !embedded,
         bottom: false,
         child: ListView(
+          controller: _detailScrollController,
           padding: bodyPadding,
           children: [
             Center(

@@ -68,6 +68,7 @@ class OnboardingOverlay extends StatefulWidget {
     required this.onEntryStateSelected,
     required this.onSkip,
     required this.onComplete,
+    this.initialSlide = HawOnboardingSlide.exhale,
     this.onSlideChanged,
   });
 
@@ -78,6 +79,7 @@ class OnboardingOverlay extends StatefulWidget {
   final Future<void> Function(String entryState) onEntryStateSelected;
   final VoidCallback onSkip;
   final VoidCallback onComplete;
+  final HawOnboardingSlide initialSlide;
   final ValueChanged<HawOnboardingSlide>? onSlideChanged;
 
   @override
@@ -85,7 +87,7 @@ class OnboardingOverlay extends StatefulWidget {
 }
 
 class _OnboardingOverlayState extends State<OnboardingOverlay> {
-  HawOnboardingSlide _slide = HawOnboardingSlide.exhale;
+  late HawOnboardingSlide _slide = widget.initialSlide;
   final List<Timer> _timers = <Timer>[];
 
   bool _s1Line1 = false;
@@ -721,7 +723,7 @@ class _SegmentationSlide extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(44, 96, 44, 80),
+        padding: const EdgeInsets.fromLTRB(44, 78, 44, 54),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -744,12 +746,12 @@ class _SegmentationSlide extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 42),
+            const SizedBox(height: 34),
             Expanded(
               child: ListView.separated(
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: _entryOptions.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 18),
+                separatorBuilder: (_, _) => const SizedBox(height: 14),
                 itemBuilder: (context, index) {
                   final option = _entryOptions[index];
                   final selected = selectedValue == option.value;
@@ -774,7 +776,7 @@ class _SegmentationSlide extends StatelessWidget {
                               : const Duration(milliseconds: 250),
                           curve: Curves.easeOut,
                           width: double.infinity,
-                          constraints: const BoxConstraints(minHeight: 76),
+                          constraints: const BoxConstraints(minHeight: 72),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 24,
                             vertical: 14,
