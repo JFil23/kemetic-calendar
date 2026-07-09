@@ -2171,6 +2171,7 @@ class _MaatFlowTemplateDetailPageState
   bool _dawnJoinInFlight = false;
   bool _eveningThresholdStartDateTouched = false;
   bool _eveningThresholdJoinInFlight = false;
+  bool _eveningThresholdCarryNudgeVisible = false;
   final TextEditingController _eveningThresholdInitialCarryController =
       TextEditingController();
   bool _eveningDiscreetMode = false;
@@ -3560,9 +3561,9 @@ class _MaatFlowTemplateDetailPageState
     if (_eveningThresholdJoinInFlight) return;
     final initialCarry = _eveningThresholdInitialCarryController.text.trim();
     if (initialCarry.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Name what you carry today first.')),
-      );
+      setState(() {
+        _eveningThresholdCarryNudgeVisible = true;
+      });
       return;
     }
     setState(() {
@@ -4964,7 +4965,9 @@ class _MaatFlowTemplateDetailPageState
     return LayoutBuilder(
       builder: (context, constraints) {
         final textScale = MediaQuery.textScalerOf(context).scale(1);
-        final useVertical = constraints.maxWidth < 330 || textScale > 1.3;
+        final useVertical =
+            !widget.embeddedInOnboarding &&
+            (constraints.maxWidth < 330 || textScale > 1.3);
         if (useVertical) {
           return Column(
             children: [
@@ -6652,9 +6655,6 @@ class _MaatFlowTemplateDetailPageState
     final l10n = MaterialLocalizations.of(context);
     final selectedStart =
         _picked ?? defaultEveningThresholdStartDate(_previewTrackSkyTimeZone);
-    final initialCarryReady = _eveningThresholdInitialCarryController.text
-        .trim()
-        .isNotEmpty;
     final firstEvent = kEveningThresholdEvents.first;
     final firstSchedule = dailyEveningThresholdScheduleForDate(
       localDate: selectedStart,
@@ -6685,7 +6685,7 @@ class _MaatFlowTemplateDetailPageState
       context,
       joinButton: _buildTemplateStickyJoinButton(
         text: _eveningThresholdJoinInFlight ? 'Joining…' : 'Join Flow',
-        onPressed: _eveningThresholdJoinInFlight || !initialCarryReady
+        onPressed: _eveningThresholdJoinInFlight
             ? null
             : () => _joinEveningThresholdFlow(selectedStart),
       ),
@@ -6706,7 +6706,11 @@ class _MaatFlowTemplateDetailPageState
               maxLines: 3,
               minLines: 2,
               textInputAction: TextInputAction.newline,
-              onChanged: (_) => setState(() {}),
+              onChanged: (value) => setState(() {
+                if (value.trim().isNotEmpty) {
+                  _eveningThresholdCarryNudgeVisible = false;
+                }
+              }),
               style: const TextStyle(
                 color: Colors.white,
                 fontFamily: MaatFlowListTokens.fontFamily,
@@ -6733,6 +6737,29 @@ class _MaatFlowTemplateDetailPageState
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide(color: _palette.accent),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 32,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 420),
+                curve: Curves.easeOut,
+                opacity: _eveningThresholdCarryNudgeVisible ? 1 : 0,
+                child: Align(
+                  alignment: Alignment.topLeft,
+                  child: Text(
+                    'A few words here will carry the flow forward.',
+                    style: TextStyle(
+                      color: _palette.accent.withValues(alpha: 0.70),
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                      fontSize: 14,
+                      fontStyle: FontStyle.italic,
+                      height: 1.25,
+                    ),
+                  ),
                 ),
               ),
             ),

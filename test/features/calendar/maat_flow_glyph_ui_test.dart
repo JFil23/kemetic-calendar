@@ -501,6 +501,74 @@ void main() {
     expect(expandableTile, contains('MaatFlowSurface('));
     expect(scaffold, contains('leading: _MaatFlowGlyphTile('));
   });
+
+  test('Evening Threshold empty join uses a gentle fixed nudge', () {
+    final source = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+    final joinMethod = _sourceBetween(
+      source,
+      'Future<void> _joinEveningThresholdFlow',
+      'Future<void> _joinEveningThresholdRiteFlow',
+    );
+    final emptyCarryBranch = _sourceBetween(
+      joinMethod,
+      'if (initialCarry.isEmpty) {',
+      'setState(() {\n      _eveningThresholdJoinInFlight = true;',
+    );
+    final scaffold = _sourceBetween(
+      source,
+      'Widget _buildEveningThresholdScaffold(BuildContext context)',
+      'Widget _buildEveningThresholdRiteScaffold(BuildContext context)',
+    );
+    final fieldAndNudge = _sourceBetween(
+      scaffold,
+      'TextField(',
+      'const _MaatFlowDetailSectionLabel(\'TIMEZONE\')',
+    );
+
+    expect(
+      emptyCarryBranch,
+      contains('_eveningThresholdCarryNudgeVisible = true'),
+    );
+    expect(emptyCarryBranch, isNot(contains('ScaffoldMessenger.of(context)')));
+    expect(emptyCarryBranch, isNot(contains('showSnackBar')));
+    expect(source, isNot(contains('Name what you carry today first.')));
+
+    expect(scaffold, contains('onPressed: _eveningThresholdJoinInFlight'));
+    expect(scaffold, isNot(contains('!initialCarryReady')));
+    expect(fieldAndNudge, contains('AnimatedOpacity('));
+    expect(fieldAndNudge, contains('height: 32'));
+    expect(
+      fieldAndNudge,
+      contains('A few words here will carry the flow forward.'),
+    );
+    expect(fieldAndNudge, isNot(contains('errorBorder')));
+    expect(fieldAndNudge, isNot(contains('focusedErrorBorder')));
+  });
+
+  test('onboarding decan arc stays horizontal on narrow PWA widths', () {
+    final source = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+    final arc = _sourceBetween(
+      source,
+      'Widget _buildMaatFlowArc',
+      'Widget _buildMaatFlowArcCard',
+    );
+
+    expect(arc, contains('!widget.embeddedInOnboarding'));
+    expect(arc, contains('constraints.maxWidth < 330'));
+    expect(arc, contains('return Column('));
+    expect(arc, contains('return MaatFlowSurface('));
+    expect(
+      arc,
+      contains(
+        '!widget.embeddedInOnboarding &&\n'
+        '            (constraints.maxWidth < 330 || textScale > 1.3)',
+      ),
+    );
+  });
 }
 
 String _sourceBetween(String source, String start, String end) {
