@@ -2171,7 +2171,10 @@ class _MaatFlowTemplateDetailPageState
   bool _dawnJoinInFlight = false;
   bool _eveningThresholdStartDateTouched = false;
   bool _eveningThresholdJoinInFlight = false;
-  bool _eveningThresholdCarryNudgeVisible = false;
+  final FocusNode _eveningThresholdCarryFocusNode = FocusNode();
+  final GlobalKey _eveningThresholdCarryFieldKey = GlobalKey();
+  bool _eveningThresholdCarryPrompted = false;
+  bool _eveningThresholdCarryHintVisible = false;
   final TextEditingController _eveningThresholdInitialCarryController =
       TextEditingController();
   bool _eveningDiscreetMode = false;
@@ -2239,6 +2242,9 @@ class _MaatFlowTemplateDetailPageState
   void initState() {
     super.initState();
     _previewTrackSkyTimeZone = detectTrackSkyTimeZone();
+    _eveningThresholdCarryFocusNode.addListener(
+      _handleEveningThresholdCarryFocusChange,
+    );
     if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
       _trackSkyFuture = loadTrackSkyFlowData(_previewTrackSkyTimeZone);
     } else if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
@@ -2284,8 +2290,17 @@ class _MaatFlowTemplateDetailPageState
 
   @override
   void dispose() {
+    _eveningThresholdCarryFocusNode.removeListener(
+      _handleEveningThresholdCarryFocusChange,
+    );
+    _eveningThresholdCarryFocusNode.dispose();
     _eveningThresholdInitialCarryController.dispose();
     super.dispose();
+  }
+
+  void _handleEveningThresholdCarryFocusChange() {
+    if (!mounted) return;
+    setState(() {});
   }
 
   String _kemeticLabelFor(DateTime g) {
@@ -3562,8 +3577,25 @@ class _MaatFlowTemplateDetailPageState
     final initialCarry = _eveningThresholdInitialCarryController.text.trim();
     if (initialCarry.isEmpty) {
       setState(() {
-        _eveningThresholdCarryNudgeVisible = true;
+        _eveningThresholdCarryPrompted = true;
+        _eveningThresholdCarryHintVisible = true;
       });
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      final fieldContext = _eveningThresholdCarryFieldKey.currentContext;
+      if (fieldContext != null) {
+        if (!fieldContext.mounted) return;
+        await Scrollable.ensureVisible(
+          fieldContext,
+          duration: const Duration(milliseconds: 360),
+          curve: Curves.easeOutCubic,
+          alignment: 0.38,
+          alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 60));
+      }
+      if (!mounted) return;
+      _eveningThresholdCarryFocusNode.requestFocus();
       return;
     }
     setState(() {
@@ -6680,6 +6712,12 @@ class _MaatFlowTemplateDetailPageState
         minute: finalSchedule.endLocal.minute,
       ),
     );
+    final carryFieldActive =
+        _eveningThresholdCarryPrompted ||
+        _eveningThresholdCarryFocusNode.hasFocus;
+    final carryBorderColor = carryFieldActive
+        ? MaatFlowPalette.gold.withValues(alpha: 0.78)
+        : MaatFlowPalette.gold.withValues(alpha: 0.30);
 
     return _buildMaatFlowDetailScaffold(
       context,
@@ -6701,61 +6739,94 @@ class _MaatFlowTemplateDetailPageState
           tagline: widget.template.subtitle,
           configurationControls: [
             const _MaatFlowDetailSectionLabel('WHAT DO YOU CARRY TODAY?'),
-            TextField(
-              controller: _eveningThresholdInitialCarryController,
-              maxLines: 3,
-              minLines: 2,
-              textInputAction: TextInputAction.newline,
-              onChanged: (value) => setState(() {
-                if (value.trim().isNotEmpty) {
-                  _eveningThresholdCarryNudgeVisible = false;
-                }
-              }),
-              style: const TextStyle(
-                color: Colors.white,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 15,
-                height: 1.35,
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOutCubic,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: carryFieldActive
+                    ? [
+                        BoxShadow(
+                          color: MaatFlowPalette.gold.withValues(alpha: 0.14),
+                          blurRadius: 18,
+                          spreadRadius: 1,
+                        ),
+                      ]
+                    : const [],
               ),
-              decoration: InputDecoration(
-                hintText: 'What do you carry today?',
-                hintStyle: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.36),
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
+              child: TextSelectionTheme(
+                data: TextSelectionTheme.of(context).copyWith(
+                  cursorColor: MaatFlowPalette.gold,
+                  selectionColor: MaatFlowPalette.gold.withValues(alpha: 0.26),
+                  selectionHandleColor: MaatFlowPalette.gold,
                 ),
-                filled: true,
-                fillColor: Colors.black.withValues(alpha: 0.28),
-                contentPadding: const EdgeInsets.all(14),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(
-                    color: _palette.accent.withValues(alpha: 0.28),
+                child: TextField(
+                  key: _eveningThresholdCarryFieldKey,
+                  focusNode: _eveningThresholdCarryFocusNode,
+                  controller: _eveningThresholdInitialCarryController,
+                  cursorColor: MaatFlowPalette.gold,
+                  maxLines: 3,
+                  minLines: 2,
+                  textInputAction: TextInputAction.newline,
+                  onChanged: (value) {
+                    if (value.trim().isEmpty ||
+                        (!_eveningThresholdCarryPrompted &&
+                            !_eveningThresholdCarryHintVisible)) {
+                      return;
+                    }
+                    setState(() {
+                      _eveningThresholdCarryPrompted = false;
+                      _eveningThresholdCarryHintVisible = false;
+                    });
+                  },
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: MaatFlowListTokens.fontFamily,
+                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                    fontSize: 15,
+                    height: 1.35,
                   ),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: _palette.accent),
+                  decoration: InputDecoration(
+                    hintText: 'What do you carry today?',
+                    hintStyle: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.36),
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                    ),
+                    filled: true,
+                    fillColor: Colors.black.withValues(alpha: 0.28),
+                    contentPadding: const EdgeInsets.all(14),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: carryBorderColor),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                        color: carryBorderColor,
+                        width: 1.4,
+                      ),
+                    ),
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 8),
             SizedBox(
-              height: 32,
+              height: 42,
               child: AnimatedOpacity(
                 duration: const Duration(milliseconds: 420),
                 curve: Curves.easeOut,
-                opacity: _eveningThresholdCarryNudgeVisible ? 1 : 0,
+                opacity: _eveningThresholdCarryHintVisible ? 1 : 0,
                 child: Align(
                   alignment: Alignment.topLeft,
                   child: Text(
-                    'A few words here will carry the flow forward.',
+                    'Name what you carry today before this flow begins.',
                     style: TextStyle(
-                      color: _palette.accent.withValues(alpha: 0.70),
+                      color: MaatFlowPalette.gold.withValues(alpha: 0.72),
                       fontFamily: MaatFlowListTokens.fontFamily,
                       fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                      fontSize: 14,
+                      fontSize: 13.5,
                       fontStyle: FontStyle.italic,
                       height: 1.25,
                     ),

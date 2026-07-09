@@ -170,20 +170,20 @@ const Map<String, _FallbackCompassCopy> _fallbackCompassCopy = {
   ),
   'm04_d1': _FallbackCompassCopy(
     rhythmPhrase:
-        'The first decan of Khoiak centers on structure before display.',
+        'The first decan of Ka-her-Ka centers on structure before display.',
     orientationQuestion: 'What needs its first sound shape today?',
     dayAlignedReturnKey: 'shape_first',
   ),
   'm04_d2': _FallbackCompassCopy(
     rhythmPhrase:
-        'The second decan of Khoiak centers on strengthening what can carry weight.',
+        'The second decan of Ka-her-Ka centers on strengthening what can carry weight.',
     orientationQuestion:
         'What should be reinforced before it is asked to hold more?',
     dayAlignedReturnKey: 'reinforce_weight',
   ),
   'm04_d3': _FallbackCompassCopy(
     rhythmPhrase:
-        'The third decan of Khoiak centers on completing the support beneath the work.',
+        'The third decan of Ka-her-Ka centers on completing the support beneath the work.',
     orientationQuestion: 'What support is unfinished but necessary?',
     dayAlignedReturnKey: 'complete_support',
   ),

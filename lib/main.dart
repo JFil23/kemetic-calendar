@@ -64,6 +64,7 @@ import 'features/nodes/kemetic_node_library.dart';
 import 'features/nodes/kemetic_node_list_page.dart';
 import 'features/nodes/kemetic_node_reader_page.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
+import 'package:mobile/features/onboarding/onboarding_review_config.dart';
 import 'features/onboarding/onboarding_progress.dart';
 import 'features/onboarding/onboarding_storage.dart';
 import 'features/profile/edit_profile_page.dart';
@@ -222,6 +223,10 @@ bool _isDebugDaySheetSmokeLocation(String? raw) {
 
 String? _debugInitialLocationFromDefines() {
   if (!kDebugMode) return null;
+  if (onboardingReviewRuntimeEnabled &&
+      isOnboardingReviewLocation(_debugInitialRouteEnv)) {
+    return kOnboardingReviewRoute;
+  }
   if (_debugDaySheetSmokeEnv) return _kDebugDaySheetSmokeRoute;
   if (_isDebugDaySheetSmokeLocation(_debugInitialRouteEnv)) {
     return _kDebugDaySheetSmokeRoute;
@@ -1556,6 +1561,16 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
           );
         },
       ),
+    if (onboardingReviewRuntimeEnabled)
+      _calmRoute(
+        path: kOnboardingReviewRoute,
+        builder: (context, state) {
+          return SessionTrackedRoute(
+            location: state.uri.toString(),
+            child: CalendarPage.buildOnboardingReviewRoute(),
+          );
+        },
+      ),
     _calmRoute(
       path: '/inbox',
       builder: (context, state) {
@@ -2583,6 +2598,10 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
 
   bool get _shouldSuppressFloatingMenuForCurrentRoute {
     if (_currentUri.queryParameters['onboarding'] == '1') return true;
+    if (onboardingReviewRuntimeEnabled &&
+        isOnboardingReviewLocation(_currentUri.toString())) {
+      return true;
+    }
     final path = _currentUri.path.isEmpty ? '/' : _currentUri.path;
     return path == '/calendars';
   }
@@ -2614,6 +2633,10 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     if (_menuMounted || _menuOpen) return true;
     if (MediaQuery.viewInsetsOf(context).bottom > 0) return true;
     if (GuidedOnboardingController.instance.suppressExternalOverlays) {
+      return true;
+    }
+    if (onboardingReviewRuntimeEnabled &&
+        isOnboardingReviewLocation(_currentUri.toString())) {
       return true;
     }
     if (isDailyCosmicContextRouteSuppressed(_currentUri)) return true;
@@ -2679,6 +2702,10 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     }
 
     final path = _currentUri.path;
+    if (onboardingReviewRuntimeEnabled &&
+        isOnboardingReviewLocation(_currentUri.toString())) {
+      return true;
+    }
     if (_currentUri.queryParameters['onboarding'] == '1') return true;
     if (path.startsWith('/maat-guidance/')) return true;
     if (path.startsWith('/rhythm/editor/')) return true;

@@ -10166,6 +10166,19 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
             : null);
   }
 
+  bool get _isOnboardingReviewEvent {
+    final raw = widget.event.behaviorPayload?['review_mode'];
+    if (raw is bool) return raw;
+    return raw?.toString().trim().toLowerCase() == 'true';
+  }
+
+  String? get _onboardingReviewCarryText {
+    final raw = widget.event.behaviorPayload?['review_initial_carry']
+        ?.toString()
+        .trim();
+    return raw == null || raw.isEmpty ? null : raw;
+  }
+
   static DateTime? _parseDateOnly(String? raw) {
     if (raw == null || raw.isEmpty) return null;
     final parsed = DateTime.tryParse(raw);
@@ -10175,6 +10188,24 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
 
   Future<void> _loadEveningThresholdOrientationState(String userId) async {
     if (!_isEveningThresholdCompletion) return;
+    if (_isOnboardingReviewEvent) {
+      final orientationDate = _eveningThresholdOrientationDate();
+      final carryText = _onboardingReviewCarryText;
+      final orientation = DailyOrientationEntry(
+        userId: userId,
+        localDate: orientationDate,
+        chosenReturn: carryText,
+        source: 'onboarding_review',
+        status: 'started',
+      );
+      if (!mounted) return;
+      setState(() {
+        _eveningThresholdOrientation = orientation;
+        _eveningThresholdPreviousOrientation =
+            widget.completion.eventNumber == 2 ? orientation : null;
+      });
+      return;
+    }
     final repo = DailyOrientationRepo(Supabase.instance.client);
     final orientationDate = _eveningThresholdOrientationDate();
     final previousDate = _eveningThresholdPreviousOrientationDate();
@@ -10204,6 +10235,16 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     }
 
     final clientEventId = widget.event.clientEventId?.trim();
+    if (_isOnboardingReviewEvent) {
+      await _loadEveningThresholdOrientationState('onboarding_review');
+      if (!mounted) return;
+      setState(() {
+        _status = null;
+        _loading = false;
+      });
+      return;
+    }
+
     final user = Supabase.instance.client.auth.currentUser;
     if (clientEventId == null || clientEventId.isEmpty || user == null) {
       if (mounted) {
@@ -10411,6 +10452,28 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     String? releaseCarryText,
   }) async {
     if (!_isEveningThresholdCompletion) return true;
+    if (_isOnboardingReviewEvent) {
+      final orientationDate = _eveningThresholdOrientationDate();
+      final carryText = releaseCarryText?.trim().isNotEmpty == true
+          ? releaseCarryText!.trim()
+          : _onboardingReviewCarryText;
+      final orientation = DailyOrientationEntry(
+        userId: 'onboarding_review',
+        localDate: orientationDate,
+        chosenReturn: carryText,
+        source: 'onboarding_review',
+        landingStatus: widget.completion.eventNumber == 1 ? status : null,
+        status: 'started',
+      );
+      if (mounted) {
+        setState(() {
+          _eveningThresholdOrientation = orientation;
+          _eveningThresholdPreviousOrientation =
+              widget.completion.eventNumber == 2 ? orientation : null;
+        });
+      }
+      return true;
+    }
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null || userId.trim().isEmpty) return true;
     if (!await _ensureEveningThresholdCanChoose()) return false;
@@ -10490,6 +10553,19 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         _cancelCompletionFeedback();
         if (!mounted) return;
         setState(() => _saving = false);
+        return;
+      }
+      if (_isOnboardingReviewEvent) {
+        if (!mounted) return;
+        setState(() {
+          _status = status;
+          _saving = false;
+          _responseDirty = false;
+          _eveningThresholdReleasePending = false;
+        });
+        if (status == 'release') {
+          _eveningThresholdReleaseCarryController.clear();
+        }
         return;
       }
       final metadata = <String, dynamic>{
@@ -10631,6 +10707,17 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     if (clientEventId == null || clientEventId.isEmpty) return;
     setState(() => _saving = true);
     try {
+      if (_isOnboardingReviewEvent) {
+        if (!mounted) return;
+        setState(() {
+          _status = null;
+          _saving = false;
+          _responseDirty = false;
+          _eveningThresholdReleasePending = false;
+        });
+        _eveningThresholdReleaseCarryController.clear();
+        return;
+      }
       final callback = widget.onUnrecordCompletion;
       if (callback != null) {
         await callback(clientEventId);

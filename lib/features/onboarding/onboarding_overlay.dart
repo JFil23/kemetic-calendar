@@ -498,35 +498,38 @@ class _HawOnboardingClosingBannerState
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: _HawColors.border, width: 0.5),
           ),
-          child: Stack(
-            children: [
-              Positioned(
-                top: 0,
-                right: 0,
-                child: AnimatedOpacity(
-                  duration: _reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 300),
-                  opacity: _phase == HawClosingPhase.copyVisible ? 1 : 0,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: _beginClose,
-                    child: Semantics(
-                      button: true,
-                      label: 'Close closing message',
+          child: SizedBox(
+            height: 184,
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: AnimatedOpacity(
+                    duration: _reduceMotion
+                        ? Duration.zero
+                        : const Duration(milliseconds: 300),
+                    opacity: _phase == HawClosingPhase.copyVisible ? 1 : 0,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
                       onTap: _beginClose,
-                      child: const SizedBox(
-                        width: 44,
-                        height: 44,
-                        child: Center(
-                          child: Text(
-                            '×',
-                            style: TextStyle(
-                              color: _HawColors.goldGhost,
-                              fontFamily: _HawType.displayFamily,
-                              fontFamilyFallback: _HawType.displayFallback,
-                              fontSize: 20,
-                              height: 1,
+                      child: Semantics(
+                        button: true,
+                        label: 'Close closing message',
+                        onTap: _beginClose,
+                        child: const SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: Center(
+                            child: Text(
+                              '×',
+                              style: TextStyle(
+                                color: _HawColors.goldGhost,
+                                fontFamily: _HawType.displayFamily,
+                                fontFamilyFallback: _HawType.displayFallback,
+                                fontSize: 20,
+                                height: 1,
+                              ),
                             ),
                           ),
                         ),
@@ -534,58 +537,58 @@ class _HawOnboardingClosingBannerState
                     ),
                   ),
                 ),
-              ),
-              if (showCopy)
-                AnimatedOpacity(
-                  duration: _reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 500),
-                  curve: Curves.easeOut,
-                  opacity: copyVisible ? 1 : 0,
-                  child: const Padding(
-                    padding: EdgeInsets.only(top: 34),
-                    child: Text(
-                      'At the end of the day,\nmark your truth.\n\n'
-                      'The next morning\nwill carry you forward.',
-                      style: TextStyle(
-                        color: _HawColors.goldMuted,
-                        fontFamily: _HawType.bodyFamily,
-                        fontFamilyFallback: _HawType.bodyFallback,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w300,
-                        height: 1.7,
+                if (showCopy)
+                  AnimatedOpacity(
+                    duration: _reduceMotion
+                        ? Duration.zero
+                        : const Duration(milliseconds: 500),
+                    curve: Curves.easeOut,
+                    opacity: copyVisible ? 1 : 0,
+                    child: const Padding(
+                      padding: EdgeInsets.only(top: 34),
+                      child: Text(
+                        'At the end of the day,\nmark your truth.\n\n'
+                        'The next morning\nwill carry you forward.',
+                        style: TextStyle(
+                          color: _HawColors.goldMuted,
+                          fontFamily: _HawType.bodyFamily,
+                          fontFamilyFallback: _HawType.bodyFallback,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w300,
+                          height: 1.7,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              if (showSeal)
-                AnimatedOpacity(
-                  duration: _reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 600),
-                  curve: Curves.easeOut,
-                  opacity:
-                      _phase == HawClosingPhase.sealFadingIn ||
-                          _phase == HawClosingPhase.sealHolding
-                      ? 1
-                      : 0,
-                  child: const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'this is ḥꜣw',
-                      style: TextStyle(
-                        color: _HawColors.goldPrimary,
-                        fontFamily: _HawType.bodyFamily,
-                        fontFamilyFallback: _HawType.bodyFallback,
-                        fontStyle: FontStyle.italic,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w300,
-                        height: 1.2,
+                if (showSeal)
+                  AnimatedOpacity(
+                    duration: _reduceMotion
+                        ? Duration.zero
+                        : const Duration(milliseconds: 600),
+                    curve: Curves.easeOut,
+                    opacity:
+                        _phase == HawClosingPhase.sealFadingIn ||
+                            _phase == HawClosingPhase.sealHolding
+                        ? 1
+                        : 0,
+                    child: const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'this is ḥꜣw',
+                        style: TextStyle(
+                          color: _HawColors.goldPrimary,
+                          fontFamily: _HawType.bodyFamily,
+                          fontFamilyFallback: _HawType.bodyFallback,
+                          fontStyle: FontStyle.italic,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w300,
+                          height: 1.2,
+                        ),
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -1256,7 +1259,7 @@ class _HawColors {
   static const Color goldDim = Color(0xFF5A4E30);
   static const Color goldGhost = Color(0xFF3A3220);
   static const Color readableGhost = Color(0xFF746440);
-  static const Color wordmarkEmphasis = Color(0xFF8A7A58);
+  static const Color wordmarkEmphasis = Color(0xFFC9A84C);
   static const Color border = Color(0xFF2A2416);
   static const Color cardBg = Color(0xFF0D0B07);
 }

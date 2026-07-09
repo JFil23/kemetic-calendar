@@ -502,10 +502,15 @@ void main() {
     expect(scaffold, contains('leading: _MaatFlowGlyphTile('));
   });
 
-  test('Evening Threshold empty join uses a gentle fixed nudge', () {
+  test('Evening Threshold empty join uses prompted scroll-focus nudge', () {
     final source = File(
       'lib/features/calendar/calendar_maat_flows.dart',
     ).readAsStringSync();
+    final stateFields = _sourceBetween(
+      source,
+      'class _MaatFlowTemplateDetailPageState',
+      'Future<void> _completeJoin(int id) async',
+    );
     final joinMethod = _sourceBetween(
       source,
       'Future<void> _joinEveningThresholdFlow',
@@ -521,30 +526,75 @@ void main() {
       'Widget _buildEveningThresholdScaffold(BuildContext context)',
       'Widget _buildEveningThresholdRiteScaffold(BuildContext context)',
     );
-    final fieldAndNudge = _sourceBetween(
+    final fieldAndPrompt = _sourceBetween(
       scaffold,
-      'TextField(',
+      'AnimatedContainer(',
       'const _MaatFlowDetailSectionLabel(\'TIMEZONE\')',
     );
 
+    expect(stateFields, contains('FocusNode _eveningThresholdCarryFocusNode'));
+    expect(stateFields, contains('GlobalKey _eveningThresholdCarryFieldKey'));
+    expect(stateFields, contains('bool _eveningThresholdCarryPrompted'));
+    expect(stateFields, contains('bool _eveningThresholdCarryHintVisible'));
+
+    expect(emptyCarryBranch, contains('_eveningThresholdCarryPrompted = true'));
     expect(
       emptyCarryBranch,
-      contains('_eveningThresholdCarryNudgeVisible = true'),
+      contains('_eveningThresholdCarryHintVisible = true'),
+    );
+    expect(emptyCarryBranch, contains('Scrollable.ensureVisible('));
+    expect(
+      emptyCarryBranch,
+      contains('_eveningThresholdCarryFocusNode.requestFocus();'),
+    );
+    expect(
+      emptyCarryBranch.indexOf('Scrollable.ensureVisible('),
+      lessThan(
+        emptyCarryBranch.indexOf(
+          '_eveningThresholdCarryFocusNode.requestFocus();',
+        ),
+      ),
     );
     expect(emptyCarryBranch, isNot(contains('ScaffoldMessenger.of(context)')));
     expect(emptyCarryBranch, isNot(contains('showSnackBar')));
+    expect(emptyCarryBranch, isNot(contains('SnackBar')));
     expect(source, isNot(contains('Name what you carry today first.')));
 
     expect(scaffold, contains('onPressed: _eveningThresholdJoinInFlight'));
     expect(scaffold, isNot(contains('!initialCarryReady')));
-    expect(fieldAndNudge, contains('AnimatedOpacity('));
-    expect(fieldAndNudge, contains('height: 32'));
     expect(
-      fieldAndNudge,
-      contains('A few words here will carry the flow forward.'),
+      scaffold,
+      contains(': () => _joinEveningThresholdFlow(selectedStart)'),
     );
-    expect(fieldAndNudge, isNot(contains('errorBorder')));
-    expect(fieldAndNudge, isNot(contains('focusedErrorBorder')));
+    expect(scaffold, isNot(contains('initialCarry.isEmpty ? null')));
+
+    expect(fieldAndPrompt, contains('TextField('));
+    expect(fieldAndPrompt, contains('key: _eveningThresholdCarryFieldKey'));
+    expect(
+      fieldAndPrompt,
+      contains('focusNode: _eveningThresholdCarryFocusNode'),
+    );
+    expect(fieldAndPrompt, contains('cursorColor: MaatFlowPalette.gold'));
+    expect(fieldAndPrompt, contains('TextSelectionTheme('));
+    expect(fieldAndPrompt, contains('selectionColor: MaatFlowPalette.gold'));
+    expect(fieldAndPrompt, isNot(contains('_palette.accent')));
+    expect(fieldAndPrompt, contains('AnimatedOpacity('));
+    expect(fieldAndPrompt, contains('height: 42'));
+    expect(
+      fieldAndPrompt,
+      contains('Name what you carry today before this flow begins.'),
+    );
+    expect(fieldAndPrompt, contains('value.trim().isEmpty'));
+    expect(fieldAndPrompt, contains('_eveningThresholdCarryPrompted = false'));
+    expect(
+      fieldAndPrompt,
+      contains('_eveningThresholdCarryHintVisible = false'),
+    );
+    expect(fieldAndPrompt, isNot(contains('validator')));
+    expect(fieldAndPrompt, isNot(contains('errorBorder')));
+    expect(fieldAndPrompt, isNot(contains('focusedErrorBorder')));
+    expect(fieldAndPrompt, isNot(contains('forceErrorText')));
+    expect(fieldAndPrompt, isNot(contains('errorText')));
   });
 
   test('onboarding decan arc stays horizontal on narrow PWA widths', () {

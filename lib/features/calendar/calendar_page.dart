@@ -161,6 +161,7 @@ import '../onboarding/daily_orientation_repo.dart';
 import '../onboarding/decan_compass_copy_repo.dart';
 import '../onboarding/onboarding_overlay.dart';
 import '../onboarding/onboarding_progress.dart';
+import '../onboarding/onboarding_review_config.dart';
 import '../onboarding/onboarding_storage.dart';
 import '../onboarding/starter_maat_flow_recommendation.dart';
 import '../rhythm/data/rhythm_repo.dart';
@@ -3952,12 +3953,14 @@ class CalendarPage extends StatefulWidget {
   final int? initialFlowIdToEdit;
   final bool openMyFlowsOnLaunch;
   final bool debugDaySheetSmokeOnLaunch;
+  final bool onboardingReviewMode;
 
   CalendarPage({
     Key? key,
     this.initialFlowIdToEdit,
     this.openMyFlowsOnLaunch = false,
     this.debugDaySheetSmokeOnLaunch = false,
+    this.onboardingReviewMode = false,
   }) : super(key: key ?? CalendarPage.globalKey);
 
   // Global key for accessing calendar state from other pages
@@ -3969,6 +3972,13 @@ class CalendarPage extends StatefulWidget {
     return CalendarPage(
       key: const ValueKey<String>('debug_day_sheet_smoke_calendar'),
       debugDaySheetSmokeOnLaunch: true,
+    );
+  }
+
+  static Widget buildOnboardingReviewRoute() {
+    return CalendarPage(
+      key: const ValueKey<String>('debug_onboarding_review_calendar'),
+      onboardingReviewMode: true,
     );
   }
 
@@ -9354,6 +9364,7 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   String? _activeWarmStartUserId() {
+    if (_onboardingReviewMode) return null;
     final userId = Supabase.instance.client.auth.currentUser?.id.trim();
     if (userId == null || userId.isEmpty) return null;
     return userId;
@@ -13380,6 +13391,10 @@ class CalendarPageState extends State<CalendarPage>
   static bool _hasPresentedOnboardingThisLaunch = false;
   static const String _onboardingContinuationStageKeyPrefix =
       'onboarding_v1_continuation_stage';
+  static const int _onboardingReviewFirstFlowId = 990001;
+
+  bool get _onboardingReviewMode =>
+      widget.onboardingReviewMode && onboardingReviewRuntimeEnabled;
   static const List<int> _onboardingAnchorDays = [
     1,
     2,
@@ -13472,6 +13487,58 @@ class CalendarPageState extends State<CalendarPage>
 
   bool get _debugDaySheetSmokeEnabled =>
       kDebugMode && widget.debugDaySheetSmokeOnLaunch;
+
+  void _configureOnboardingReviewState() {
+    assert(_onboardingReviewMode);
+
+    const personalCalendarId = 'onboarding-review-personal';
+    const ownerId = 'onboarding-review-owner';
+    final calendar = SharedCalendarSummary(
+      id: personalCalendarId,
+      ownerId: ownerId,
+      name: 'Review Calendar',
+      colorValue: DaySheetTokens.gold.toARGB32(),
+      icon: 'calendar',
+      isPersonal: true,
+      role: SharedCalendarRole.owner,
+      status: SharedCalendarInviteStatus.accepted,
+      memberCount: 1,
+      pendingInviteCount: 0,
+      liveEventCount: 0,
+      liveFlowCount: 0,
+    );
+
+    _calendarSummariesById = <String, SharedCalendarSummary>{
+      personalCalendarId: calendar,
+    };
+    _personalCalendarId = personalCalendarId;
+    _calendarStateLoaded = true;
+    _hiddenCalendarIds = <String>{};
+    _manualTombstonesLoaded = true;
+    _pendingInitialHydration = false;
+    _reminderRulesLoaded = true;
+    _remindersLoaded = true;
+    _floatingReminders = <Reminder>[];
+    _reminderRules.clear();
+    _notes.clear();
+    _flows.clear();
+    _flowTotalEventCounts.clear();
+    _flowRemainingEventCounts.clear();
+    _lastViewKy = _today.kYear;
+    _lastViewKm = _today.kMonth;
+    _lastViewKd = _today.kDay;
+    _pendingPersistentDayViewState = null;
+    _persistentDayViewRestoreAttempted = true;
+    _calendarOverlayRestoreAttempted = true;
+    _restoredCalendarAnchorTarget = null;
+    _restoredCalendarAnchorAlignment = null;
+    _restoredCalendarScrollOffset = null;
+    _restorationInteractedSinceBoot = true;
+    _restored = true;
+    _initialViewportSettled = true;
+    _dataVersion++;
+    _dayViewDataVersion.value++;
+  }
 
   void _configureDebugDaySheetSmokeState() {
     assert(_debugDaySheetSmokeEnabled);
@@ -13817,6 +13884,16 @@ class CalendarPageState extends State<CalendarPage>
       _scrollCtrl.addListener(_onVerticalScroll);
       _configureDebugDaySheetSmokeState();
       _scheduleDebugDaySheetSmoke();
+      return;
+    }
+
+    if (_onboardingReviewMode) {
+      _journalController = JournalController(Supabase.instance.client);
+      _journalController.onCompletionBadgesRemoved =
+          _handleJournalCompletionBadgesRemoved;
+      _scrollCtrl.addListener(_onVerticalScroll);
+      _configureOnboardingReviewState();
+      _scheduleOnboardingPresentation();
       return;
     }
 
@@ -14393,6 +14470,7 @@ class CalendarPageState extends State<CalendarPage>
 
   Future<void> _saveOnboardingProgress(OnboardingProgress progress) async {
     _onboardingProgress = progress;
+    if (_onboardingReviewMode) return;
     final userId = _currentUserId;
     if (userId == null || userId.isEmpty) return;
     await _onboardingProgressStorage.save(userId, progress);
@@ -14408,6 +14486,14 @@ class CalendarPageState extends State<CalendarPage>
     String helperId, {
     bool clearActiveHelper = true,
   }) async {
+    if (_onboardingReviewMode) {
+      if (clearActiveHelper &&
+          GuidedOnboardingController.instance.target?.variant ==
+              CoachmarkVariant.helperBubble) {
+        GuidedOnboardingController.instance.clear();
+      }
+      return _onboardingProgress;
+    }
     final userId = _currentUserId;
     if (userId == null || userId.isEmpty) return null;
     final completion = OnboardingHelperCompletionService.instance
@@ -14464,7 +14550,7 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> _persistOnboardingContinuationStage(
     _OnboardingContinuationStage stage,
   ) async {
-    if (_replayOnboardingOnEveryLaunch) return;
+    if (_onboardingReviewMode || _replayOnboardingOnEveryLaunch) return;
 
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
@@ -14481,6 +14567,20 @@ class CalendarPageState extends State<CalendarPage>
 
   Future<void> _maybePresentOnboarding() async {
     if (!mounted || _showOnboarding) return;
+
+    if (_onboardingReviewMode) {
+      if (_hasPresentedOnboardingThisLaunch) return;
+      _hasPresentedOnboardingThisLaunch = true;
+      _onboardingProgress = const OnboardingProgress();
+      _hydrateFirstFlowTargetFromProgress(_onboardingProgress);
+      await _waitForOnboardingCalendarReady();
+      if (!mounted) return;
+      await _loadOnboardingCompassCopy();
+      if (!mounted) return;
+      GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
+      setState(() => _showOnboarding = true);
+      return;
+    }
 
     final userId = _currentUserId;
     if (userId == null) return;
@@ -14561,7 +14661,7 @@ class CalendarPageState extends State<CalendarPage>
       ),
     );
     final userId = _currentUserId;
-    if (userId != null && userId.isNotEmpty) {
+    if (!_onboardingReviewMode && userId != null && userId.isNotEmpty) {
       await DailyOrientationRepo(Supabase.instance.client).complete(
         userId: userId,
         localDate: DateTime.now(),
@@ -14570,9 +14670,23 @@ class CalendarPageState extends State<CalendarPage>
       );
     }
     await _markOnboardingCompletedIfNeeded();
-    unawaited(
-      Events.trackIfAuthed('onboarding_completed', const <String, dynamic>{}),
-    );
+    if (!_onboardingReviewMode) {
+      unawaited(
+        Events.trackIfAuthed('onboarding_completed', const <String, dynamic>{}),
+      );
+    }
+    if (_onboardingReviewMode) {
+      GuidedOnboardingController.instance.clear();
+      GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
+      if (mounted) {
+        setState(() {
+          _reflectionPrompt = null;
+          _showCalendarToggleCoachmark = false;
+          _calendarAfterOnboardingHelperPrompted = false;
+        });
+      }
+      return;
+    }
     if (mounted) {
       context.go('/');
     }
@@ -14586,7 +14700,7 @@ class CalendarPageState extends State<CalendarPage>
       ),
     );
     final userId = _currentUserId;
-    if (userId != null && userId.isNotEmpty) {
+    if (!_onboardingReviewMode && userId != null && userId.isNotEmpty) {
       await DailyOrientationRepo(Supabase.instance.client).start(
         userId: userId,
         localDate: DateTime.now(),
@@ -14595,24 +14709,27 @@ class CalendarPageState extends State<CalendarPage>
         chosenReturn: _onboardingCompassCopy?.dayAlignedReturnKey,
       );
     }
-    unawaited(
-      Events.trackIfAuthed('onboarding_entry_state_selected', <String, dynamic>{
-        'entry_state': entryState,
-      }),
-    );
+    if (!_onboardingReviewMode) {
+      unawaited(
+        Events.trackIfAuthed(
+          'onboarding_entry_state_selected',
+          <String, dynamic>{'entry_state': entryState},
+        ),
+      );
+    }
   }
 
   Future<void> _handleHawRecommendedFlowJoined(int flowId) async {
     final template = _maatTemplateForKey(kEveningThresholdFlowKey);
-    if (template != null) {
+    if (!_onboardingReviewMode && template != null) {
       CalendarPage._rememberJoinedMaatFlowTemplate(
         templateKey: template.key,
         flowId: flowId,
       );
+      _myFlowsFilingSnapshotCache = null;
+      await _flowsRepo.clearMyFiledFlowsCache();
+      await _loadFromDisk(source: 'onboarding_evening_threshold_join');
     }
-    _myFlowsFilingSnapshotCache = null;
-    await _flowsRepo.clearMyFiledFlowsCache();
-    await _loadFromDisk(source: 'onboarding_evening_threshold_join');
     final firstEvent = _firstUpcomingNoteForFlow(flowId);
     final eventDate = firstEvent == null
         ? DateUtils.dateOnly(DateTime.now())
@@ -14648,12 +14765,116 @@ class CalendarPageState extends State<CalendarPage>
     if (mounted) {
       setState(() {});
     }
-    unawaited(
-      Events.trackIfAuthed(
-        'onboarding_evening_threshold_joined',
-        <String, dynamic>{'flow_id': flowId},
+    if (!_onboardingReviewMode) {
+      unawaited(
+        Events.trackIfAuthed(
+          'onboarding_evening_threshold_joined',
+          <String, dynamic>{'flow_id': flowId},
+        ),
+      );
+    }
+  }
+
+  Future<int> _addOnboardingReviewEveningThresholdInstance({
+    required _MaatFlowTemplate template,
+    DateTime? startDate,
+    TrackSkyTimeZone? trackSkyTimeZone,
+    String? eveningThresholdInitialCarry,
+  }) async {
+    final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+    final firstGregorian = DateUtils.dateOnly(
+      startDate ?? defaultEveningThresholdStartDate(timezone),
+    );
+    final event = kEveningThresholdEvents.firstWhere(
+      (candidate) => candidate.kind == EveningThresholdEventKind.theReturn,
+      orElse: () => kEveningThresholdEvents.first,
+    );
+    final schedule = dailyEveningThresholdScheduleForDate(
+      localDate: firstGregorian,
+      timezone: timezone,
+      event: event,
+    );
+    final eventDate = DateUtils.dateOnly(schedule.startLocal);
+    final kDate = KemeticMath.fromGregorian(eventDate);
+    final startTod = TimeOfDay(
+      hour: schedule.startLocal.hour,
+      minute: schedule.startLocal.minute,
+    );
+    final endTod = TimeOfDay(
+      hour: schedule.endLocal.hour,
+      minute: schedule.endLocal.minute,
+    );
+    final title = eveningThresholdEventTitle(event);
+    final detail = eveningThresholdDetailText(event);
+    final clientEventId = _buildCid(
+      ky: kDate.kYear,
+      km: kDate.kMonth,
+      kd: kDate.kDay,
+      title: title,
+      startHour: startTod.hour,
+      startMinute: startTod.minute,
+      allDay: false,
+      flowId: _onboardingReviewFirstFlowId,
+    );
+    final trimmedCarry = eveningThresholdInitialCarry?.trim();
+
+    _flows.removeWhere((flow) => flow.id == _onboardingReviewFirstFlowId);
+    _removeLocalNotesForFlowReplacement(_onboardingReviewFirstFlowId);
+    _flows.add(
+      _Flow(
+        id: _onboardingReviewFirstFlowId,
+        calendarId: _personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: <FlowRule>[
+          _RuleDates(
+            dates: <DateTime>{eventDate},
+            allDay: false,
+            start: startTod,
+            end: endTod,
+          ),
+        ],
+        start: eventDate,
+        end: eventDate,
+        notes: [
+          'mode=review',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'review_only=1',
+        ].join(';'),
       ),
     );
+    _flowTotalEventCounts[_onboardingReviewFirstFlowId] = 1;
+    _flowRemainingEventCounts[_onboardingReviewFirstFlowId] = 1;
+    _addNote(
+      kDate.kYear,
+      kDate.kMonth,
+      kDate.kDay,
+      title,
+      detail,
+      clientEventId: clientEventId,
+      calendarId: _personalCalendarId,
+      allDay: false,
+      start: startTod,
+      end: endTod,
+      flowId: _onboardingReviewFirstFlowId,
+      category: 'Ritual',
+      actionId: eveningThresholdActionId(event),
+      behaviorPayload: <String, dynamic>{
+        ...eveningThresholdBehaviorPayload(event: event, schedule: schedule),
+        'review_mode': true,
+        'review_source': 'onboarding_review',
+        if (trimmedCarry != null && trimmedCarry.isNotEmpty)
+          'review_initial_carry': trimmedCarry,
+      },
+      notify: false,
+    );
+    _notifyDayViewDataChanged();
+    if (mounted) setState(() {});
+    return _onboardingReviewFirstFlowId;
   }
 
   Widget _buildHawRecommendedFlow(
@@ -14699,6 +14920,14 @@ class CalendarPageState extends State<CalendarPage>
             List<ReadingHouseSitting>? readingHouseSittings,
             String? eveningThresholdInitialCarry,
           }) {
+            if (_onboardingReviewMode) {
+              return _addOnboardingReviewEveningThresholdInstance(
+                template: template,
+                startDate: startDate,
+                trackSkyTimeZone: trackSkyTimeZone,
+                eveningThresholdInitialCarry: eveningThresholdInitialCarry,
+              );
+            }
             return _addMaatFlowInstance(
               template: template,
               startDate: startDate,
@@ -14749,8 +14978,18 @@ class CalendarPageState extends State<CalendarPage>
     );
     final focusEvent = targetNote == null ? null : _noteToEventItem(targetNote);
 
-    List<NoteData> notesForDayFn(int y, int m, int d) =>
-        _noteDataForDay(y, m, d);
+    List<NoteData> notesForDayFn(int y, int m, int d) {
+      if (_onboardingReviewMode) {
+        if (targetNote == null ||
+            y != target.ky ||
+            m != target.km ||
+            d != target.kd) {
+          return const <NoteData>[];
+        }
+        return <NoteData>[_noteDataFromNote(targetNote)];
+      }
+      return _noteDataForDay(y, m, d);
+    }
 
     return DayViewPage(
       initialKy: target.ky,
@@ -14843,7 +15082,7 @@ class CalendarPageState extends State<CalendarPage>
           currentStep: TrueOnboardingStep.eventDetailObservedJournal,
         );
         final userId = _currentUserId;
-        if (userId != null) {
+        if (!_onboardingReviewMode && userId != null) {
           unawaited(
             _onboardingProgressStorage.save(userId, _onboardingProgress),
           );
@@ -14902,14 +15141,16 @@ class CalendarPageState extends State<CalendarPage>
       ),
     );
     final userId = _currentUserId;
-    if (userId != null && userId.isNotEmpty) {
+    if (!_onboardingReviewMode && userId != null && userId.isNotEmpty) {
       await DailyOrientationRepo(
         Supabase.instance.client,
       ).skip(userId: userId, localDate: DateTime.now());
     }
-    unawaited(
-      Events.trackIfAuthed('onboarding_skipped', const <String, dynamic>{}),
-    );
+    if (!_onboardingReviewMode) {
+      unawaited(
+        Events.trackIfAuthed('onboarding_skipped', const <String, dynamic>{}),
+      );
+    }
     await _markOnboardingCompletedIfNeeded();
     if (mounted) {
       context.go('/');
@@ -14917,6 +15158,7 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _markOnboardingCompletedIfNeeded() async {
+    if (_onboardingReviewMode) return;
     if (_replayOnboardingOnEveryLaunch) return;
 
     _onboardingContinuationStage = _OnboardingContinuationStage.none;
@@ -15035,11 +15277,13 @@ class CalendarPageState extends State<CalendarPage>
         onNext: () => unawaited(_handleCurrentDecanNext()),
       ),
     );
-    unawaited(
-      Events.trackIfAuthed('onboarding_current_decan_seen', <String, dynamic>{
-        'decan': _currentDecanName(expanded: false),
-      }),
-    );
+    if (!_onboardingReviewMode) {
+      unawaited(
+        Events.trackIfAuthed('onboarding_current_decan_seen', <String, dynamic>{
+          'decan': _currentDecanName(expanded: false),
+        }),
+      );
+    }
   }
 
   Future<void> _handleCurrentDecanNext() async {
@@ -15375,14 +15619,17 @@ class CalendarPageState extends State<CalendarPage>
       ),
     );
     await _markOnboardingCompletedIfNeeded();
-    unawaited(
-      Events.trackIfAuthed('onboarding_completed', const <String, dynamic>{}),
-    );
+    if (!_onboardingReviewMode) {
+      unawaited(
+        Events.trackIfAuthed('onboarding_completed', const <String, dynamic>{}),
+      );
+    }
   }
 
   Future<void> _maybeShowCalendarHelperAfterOnboarding(
     OnboardingProgress progress,
   ) async {
+    if (_onboardingReviewMode) return;
     final userId = _currentUserId;
     if (!mounted ||
         _calendarAfterOnboardingHelperPrompted ||
@@ -27497,7 +27744,7 @@ class CalendarPageState extends State<CalendarPage>
         currentStep: TrueOnboardingStep.firstFlowDayEvent,
       );
       final userId = _currentUserId;
-      if (userId != null) {
+      if (!_onboardingReviewMode && userId != null) {
         unawaited(_onboardingProgressStorage.save(userId, _onboardingProgress));
       }
       unawaited(
@@ -30009,6 +30256,10 @@ class CalendarPageState extends State<CalendarPage>
 
     if (_debugDaySheetSmokeEnabled) {
       _scheduleDebugDaySheetSmoke();
+      return;
+    }
+
+    if (_onboardingReviewMode) {
       return;
     }
 
@@ -33351,6 +33602,12 @@ class CalendarPageState extends State<CalendarPage>
 
   Future<void> _maybeLoadDecanReflectionPrompt({bool force = false}) async {
     if (!mounted || _reflectionInFlight) return;
+    if (_onboardingReviewMode) {
+      if (_reflectionPrompt != null) {
+        setState(() => _reflectionPrompt = null);
+      }
+      return;
+    }
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
 

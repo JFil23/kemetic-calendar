@@ -4,7 +4,7 @@ import 'package:mobile/features/onboarding/decan_compass_copy_repo.dart';
 import 'package:mobile/features/onboarding/onboarding_overlay.dart';
 
 const Color _readableOnboardingGhost = Color(0xFF746440);
-const Color _wordmarkEmphasis = Color(0xFF8A7A58);
+const Color _wordmarkEmphasis = Color(0xFFC9A84C);
 
 void main() {
   HawCompassCopy compassCopy() {
