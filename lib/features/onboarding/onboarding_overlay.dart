@@ -644,16 +644,27 @@ class _ExhaleSlide extends StatelessWidget {
                 : const Duration(milliseconds: 1400),
             curve: Curves.easeOut,
             opacity: wordmarkVisible ? 1 : 0,
-            child: const Text(
-              'this is ḥꜣw',
-              style: TextStyle(
-                color: _HawColors.readableGhost,
-                fontFamily: _HawType.bodyFamily,
-                fontFamilyFallback: _HawType.bodyFallback,
-                fontStyle: FontStyle.italic,
-                fontSize: 17,
-                fontWeight: FontWeight.w300,
-                height: 1.2,
+            child: RichText(
+              text: const TextSpan(
+                text: 'this is ',
+                children: [
+                  TextSpan(
+                    text: 'ḥꜣw',
+                    style: TextStyle(
+                      color: _HawColors.wordmarkEmphasis,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+                style: TextStyle(
+                  color: _HawColors.readableGhost,
+                  fontFamily: _HawType.bodyFamily,
+                  fontFamilyFallback: _HawType.bodyFallback,
+                  fontStyle: FontStyle.italic,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w300,
+                  height: 1.2,
+                ),
               ),
             ),
           ),
@@ -1245,6 +1256,7 @@ class _HawColors {
   static const Color goldDim = Color(0xFF5A4E30);
   static const Color goldGhost = Color(0xFF3A3220);
   static const Color readableGhost = Color(0xFF746440);
+  static const Color wordmarkEmphasis = Color(0xFF8A7A58);
   static const Color border = Color(0xFF2A2416);
   static const Color cardBg = Color(0xFF0D0B07);
 }

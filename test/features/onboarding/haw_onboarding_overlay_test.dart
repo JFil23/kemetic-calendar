@@ -4,6 +4,7 @@ import 'package:mobile/features/onboarding/decan_compass_copy_repo.dart';
 import 'package:mobile/features/onboarding/onboarding_overlay.dart';
 
 const Color _readableOnboardingGhost = Color(0xFF746440);
+const Color _wordmarkEmphasis = Color(0xFF8A7A58);
 
 void main() {
   HawCompassCopy compassCopy() {
@@ -70,7 +71,14 @@ void main() {
     expect(find.text('tap to begin'), findsOneWidget);
     expect(_textColor(tester, 'skip'), _readableOnboardingGhost);
     expect(_textColor(tester, 'tap to begin'), _readableOnboardingGhost);
-    expect(_textColor(tester, 'this is ḥꜣw'), _readableOnboardingGhost);
+    final openingWordmark = _textSpanForPlainText(tester, 'this is ḥꜣw');
+    expect(openingWordmark.text, 'this is ');
+    expect(openingWordmark.style?.color, _readableOnboardingGhost);
+    expect(openingWordmark.style?.fontWeight, FontWeight.w300);
+    final hawSpan = openingWordmark.children?.single as TextSpan;
+    expect(hawSpan.text, 'ḥꜣw');
+    expect(hawSpan.style?.color, _wordmarkEmphasis);
+    expect(hawSpan.style?.fontWeight, FontWeight.w400);
     await tester.tap(find.text('tap to begin'));
     await tester.pumpAndSettle();
 
@@ -243,6 +251,15 @@ Finder _richTextContaining(String text) {
   return find.byWidgetPredicate((widget) {
     return widget is RichText && widget.text.toPlainText().contains(text);
   });
+}
+
+TextSpan _textSpanForPlainText(WidgetTester tester, String text) {
+  final richText = tester.widget<RichText>(
+    find.byWidgetPredicate((widget) {
+      return widget is RichText && widget.text.toPlainText() == text;
+    }),
+  );
+  return richText.text as TextSpan;
 }
 
 Color? _textColor(WidgetTester tester, String text) {
