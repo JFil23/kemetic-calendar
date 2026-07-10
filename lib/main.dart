@@ -1791,7 +1791,14 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
             'currentUserIdPresent': currentUserId != null,
           },
         );
-        final userId = rawUserId == 'me' ? currentUserId : rawUserId;
+        final useReviewProfile =
+            rawUserId == 'me' &&
+            onboardingReviewSessionRequested &&
+            (currentUserId == null || currentUserId.trim().isEmpty);
+        final userId = rawUserId == 'me'
+            ? currentUserId ??
+                  (useReviewProfile ? kOnboardingReviewHelperUserId : null)
+            : rawUserId;
         NavigationTrace.instance.record(
           'profile route user resolved',
           state: <String, Object?>{
@@ -1824,7 +1831,9 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
           child: ProfilePage(
             key: ValueKey(userId),
             userId: userId,
-            isMyProfile: currentUserId != null && currentUserId == userId,
+            isMyProfile:
+                useReviewProfile ||
+                (currentUserId != null && currentUserId == userId),
           ),
         );
       },
@@ -2224,7 +2233,13 @@ class _MyAppState extends State<MyApp> {
       theme: AppTheme.dark,
       routerConfig: _router,
       builder: (context, child) {
-        return NavigationTraceOverlay(
+        final isReviewRoute =
+            onboardingReviewSessionRequested ||
+            (onboardingReviewRuntimeEnabled &&
+                isOnboardingReviewLocation(
+                  _router.routeInformationProvider.value.uri.toString(),
+                ));
+        final app = NavigationTraceOverlay(
           child: _scaledMediaQuery(
             context: context,
             child: SessionLifecycleBridge(
@@ -2237,6 +2252,11 @@ class _MyAppState extends State<MyApp> {
             ),
           ),
         );
+        if (!isReviewRoute) return app;
+        return FocusTraversalGroup(
+          policy: WidgetOrderTraversalPolicy(),
+          child: app,
+        );
       },
     );
   }
@@ -2248,10 +2268,16 @@ class _MyAppState extends State<MyApp> {
     }
 
     final signedIn = supabase.auth.currentSession != null;
+    final isReviewRoute =
+        onboardingReviewSessionRequested ||
+        (onboardingReviewRuntimeEnabled &&
+            isOnboardingReviewLocation(
+              _router.routeInformationProvider.value.uri.toString(),
+            ));
     if (signedIn && _passwordRecoverySession) {
       return _buildPasswordRecoveryApp();
     }
-    return signedIn ? _buildAuthedApp() : _buildLoginApp();
+    return signedIn || isReviewRoute ? _buildAuthedApp() : _buildLoginApp();
   }
 }
 
@@ -2303,9 +2329,22 @@ class _AppChromeState extends State<_AppChrome> {
     });
   }
 
+  Uri _readRouterUri() {
+    final configuration = widget.router.routerDelegate.currentConfiguration;
+    final topMatch = configuration.lastOrNull;
+    if (topMatch is ImperativeRouteMatch) return topMatch.matches.uri;
+    final delegateUri = configuration.uri;
+    if (delegateUri.path.isNotEmpty) return delegateUri;
+    return widget.router.routeInformationProvider.value.uri;
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (supabase.auth.currentSession == null) {
+    final isReviewRoute =
+        onboardingReviewSessionRequested ||
+        (onboardingReviewRuntimeEnabled &&
+            isOnboardingReviewLocation(_readRouterUri().toString()));
+    if (supabase.auth.currentSession == null && !isReviewRoute) {
       return widget.child;
     }
 
@@ -2584,10 +2623,19 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
 
   bool get _shouldMountFloatingMenu {
     if (!_launchOverlayDismissed.value) return false;
-    if (GuidedOnboardingController.instance.suppressExternalOverlays) {
+    final activeHelper = GuidedOnboardingController.instance.target;
+    final showingMenuExploreHelper =
+        activeHelper?.helperId == OnboardingHelperIds.calendarMenuExplore;
+    if (GuidedOnboardingController.instance.suppressExternalOverlays &&
+        !showingMenuExploreHelper) {
       return false;
     }
+    final isReviewRoute =
+        onboardingReviewSessionRequested ||
+        (onboardingReviewRuntimeEnabled &&
+            isOnboardingReviewLocation(_currentUri.toString()));
     if (supabase.auth.currentSession == null &&
+        !isReviewRoute &&
         !(kDebugMode &&
             (_debugForceGlobalFloatingMenu ||
                 _debugForceGlobalFloatingMenuForTesting))) {
@@ -2598,10 +2646,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
 
   bool get _shouldSuppressFloatingMenuForCurrentRoute {
     if (_currentUri.queryParameters['onboarding'] == '1') return true;
-    if (onboardingReviewRuntimeEnabled &&
-        isOnboardingReviewLocation(_currentUri.toString())) {
-      return true;
-    }
     final path = _currentUri.path.isEmpty ? '/' : _currentUri.path;
     return path == '/calendars';
   }
@@ -2635,8 +2679,9 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     if (GuidedOnboardingController.instance.suppressExternalOverlays) {
       return true;
     }
-    if (onboardingReviewRuntimeEnabled &&
-        isOnboardingReviewLocation(_currentUri.toString())) {
+    if (onboardingReviewSessionRequested ||
+        (onboardingReviewRuntimeEnabled &&
+            isOnboardingReviewLocation(_currentUri.toString()))) {
       return true;
     }
     if (isDailyCosmicContextRouteSuppressed(_currentUri)) return true;
@@ -2702,8 +2747,9 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     }
 
     final path = _currentUri.path;
-    if (onboardingReviewRuntimeEnabled &&
-        isOnboardingReviewLocation(_currentUri.toString())) {
+    if (onboardingReviewSessionRequested ||
+        (onboardingReviewRuntimeEnabled &&
+            isOnboardingReviewLocation(_currentUri.toString()))) {
       return true;
     }
     if (_currentUri.queryParameters['onboarding'] == '1') return true;
@@ -2767,6 +2813,10 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       return;
     }
     _openFloatingMenu();
+    final activeHelper = GuidedOnboardingController.instance.target;
+    if (activeHelper?.helperId == OnboardingHelperIds.calendarMenuExplore) {
+      activeHelper?.onDismiss?.call();
+    }
   }
 
   void _openFloatingMenu() {

@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/onboarding/decan_compass_copy_repo.dart';
 import 'package:mobile/features/onboarding/onboarding_overlay.dart';
 
-const Color _readableOnboardingGhost = Color(0xFF746440);
-const Color _wordmarkEmphasis = Color(0xFFC9A84C);
+const Color _oldDimSecondaryText = Color(0xFF746440);
+const Color _onboardingActionCue = Color(0xFFA89560);
+const Color _wordmarkLead = Color(0xFFB09C68);
+const Color _wordmarkEmphasis = Color(0xFFE0C465);
 
 void main() {
   HawCompassCopy compassCopy() {
@@ -69,16 +71,32 @@ void main() {
 
     await tester.pump(const Duration(seconds: 6));
     expect(find.text('tap to begin'), findsOneWidget);
-    expect(_textColor(tester, 'skip'), _readableOnboardingGhost);
-    expect(_textColor(tester, 'tap to begin'), _readableOnboardingGhost);
+    expect(_textColor(tester, 'skip'), _onboardingActionCue);
+    expect(_textColor(tester, 'tap to begin'), _onboardingActionCue);
+    expect(
+      _onboardingActionCue.computeLuminance(),
+      greaterThan(_oldDimSecondaryText.computeLuminance()),
+    );
     final openingWordmark = _textSpanForPlainText(tester, 'this is ḥꜣw');
     expect(openingWordmark.text, 'this is ');
-    expect(openingWordmark.style?.color, _readableOnboardingGhost);
+    expect(openingWordmark.style?.color, _wordmarkLead);
     expect(openingWordmark.style?.fontWeight, FontWeight.w300);
     final hawSpan = openingWordmark.children?.single as TextSpan;
     expect(hawSpan.text, 'ḥꜣw');
     expect(hawSpan.style?.color, _wordmarkEmphasis);
     expect(hawSpan.style?.fontWeight, FontWeight.w400);
+    expect(
+      _wordmarkLead.computeLuminance(),
+      greaterThan(_oldDimSecondaryText.computeLuminance()),
+    );
+    expect(
+      _wordmarkEmphasis.computeLuminance(),
+      greaterThan(_wordmarkLead.computeLuminance()),
+    );
+    expect(
+      _wordmarkEmphasis.computeLuminance(),
+      greaterThan(_onboardingActionCue.computeLuminance()),
+    );
     await tester.tap(find.text('tap to begin'));
     await tester.pumpAndSettle();
 
@@ -98,7 +116,7 @@ void main() {
         HawOnboardingSlide.orientation,
       ]),
     );
-    expect(_textColor(tester, 'next'), _readableOnboardingGhost);
+    expect(_textColor(tester, 'next'), _onboardingActionCue);
     await tester.tap(find.text('next'));
     await tester.pumpAndSettle();
 
@@ -248,6 +266,15 @@ void main() {
     );
     expect(copy.orientationQuestion, 'What remains when the water recedes?');
     expect(copy.dayAlignedReturnKey, 'settle_after_flood');
+  });
+
+  test('Ka-her-Ka fallback keeps the accepted onboarding spelling', () {
+    final copy = DecanCompassCopyRepo.fallbackForDay(kMonth: 4, kDay: 22);
+
+    expect(copy.dateLabel, contains('Ka-her-Ka'));
+    expect(copy.monthName, 'Ka-her-Ka');
+    expect(copy.dateLabel, isNot(contains('Ka-ḥer-Ka')));
+    expect(copy.dateLabel, isNot(contains('Khoiak')));
   });
 
   test('compass fallback covers all 365 Kemetic days', () {

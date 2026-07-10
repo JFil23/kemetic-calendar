@@ -93,6 +93,7 @@ class DailyCosmicContextController extends ChangeNotifier {
 
   DailyCosmicContextBadge? _current;
   String? _activeUserId;
+  VoidCallback? _onboardingDismissed;
   int _evaluationSerial = 0;
   bool _disposed = false;
 
@@ -148,11 +149,27 @@ class DailyCosmicContextController extends ChangeNotifier {
     await _prefs.markShown(normalizedUserId, badge.gregorianDateKey);
   }
 
+  void showOnboardingBadge(
+    DailyCosmicContextBadge badge, {
+    VoidCallback? onDismissed,
+  }) {
+    _evaluationSerial += 1;
+    _activeUserId = null;
+    _onboardingDismissed = onDismissed;
+    _setCurrent(badge);
+  }
+
   Future<void> dismiss() async {
     _evaluationSerial += 1;
     final badge = _current;
     final userId = _activeUserId;
+    final onboardingDismissed = _onboardingDismissed;
+    _onboardingDismissed = null;
     _clearCurrent();
+    if (onboardingDismissed != null) {
+      onboardingDismissed();
+      return;
+    }
     if (badge == null || userId == null || userId.trim().isEmpty) return;
     await _prefs.markShown(userId, badge.gregorianDateKey);
   }
@@ -180,6 +197,7 @@ class DailyCosmicContextController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _onboardingDismissed = null;
     _disposed = true;
     super.dispose();
   }

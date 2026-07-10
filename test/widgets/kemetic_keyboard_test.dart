@@ -137,6 +137,7 @@ void main() {
       await _openCustomKeyboard(tester);
       await tester.longPress(find.byKey(const ValueKey('kemetic-action-left')));
       await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 180));
 
       expect(
         find.byKey(const ValueKey('kemetic-keyboard-panel')),
@@ -479,6 +480,74 @@ void main() {
       },
     );
 
+    testWidgets('enters multiple glyphs without closing the custom keyboard', (
+      tester,
+    ) async {
+      final controller = TextEditingController();
+
+      await tester.pumpWidget(_KeyboardHarness(controller: controller));
+      await _openCustomKeyboard(tester);
+
+      await _tapKeyboardKey(tester, 'ḥ');
+      expect(
+        find.byKey(const ValueKey('kemetic-keyboard-panel')),
+        findsOneWidget,
+      );
+      expect(_editableFocusNode(tester).hasFocus, isTrue);
+      expect(controller.text, 'ḥ');
+      expect(controller.selection, const TextSelection.collapsed(offset: 1));
+
+      await _tapKeyboardKey(tester, 'ꜣ');
+      expect(
+        find.byKey(const ValueKey('kemetic-keyboard-panel')),
+        findsOneWidget,
+      );
+      expect(_editableFocusNode(tester).hasFocus, isTrue);
+      expect(controller.text, 'ḥꜣ');
+      expect(controller.selection, const TextSelection.collapsed(offset: 2));
+
+      await _tapKeyboardKey(tester, 'w');
+      expect(
+        find.byKey(const ValueKey('kemetic-keyboard-panel')),
+        findsOneWidget,
+      );
+      expect(_editableFocusNode(tester).hasFocus, isTrue);
+      expect(controller.text, 'ḥꜣw');
+      expect(controller.selection, const TextSelection.collapsed(offset: 3));
+    });
+
+    testWidgets('keeps the custom keyboard open through panel focus churn', (
+      tester,
+    ) async {
+      final controller = TextEditingController();
+
+      await tester.pumpWidget(_KeyboardHarness(controller: controller));
+      await _openCustomKeyboard(tester);
+
+      final keyFinder = find.byKey(const ValueKey('kemetic-key-ḥ'));
+      await tester.ensureVisible(keyFinder);
+      final gesture = await tester.startGesture(tester.getCenter(keyFinder));
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pump();
+
+      expect(
+        find.byKey(const ValueKey('kemetic-keyboard-panel')),
+        findsOneWidget,
+      );
+      expect(_editableFocusNode(tester).hasFocus, isTrue);
+
+      await gesture.up();
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('kemetic-keyboard-panel')),
+        findsOneWidget,
+      );
+      expect(_editableFocusNode(tester).hasFocus, isTrue);
+      expect(controller.text, 'ḥ');
+      expect(controller.selection, const TextSelection.collapsed(offset: 1));
+    });
+
     testWidgets('keeps focus on the text field when moving the cursor', (
       tester,
     ) async {
@@ -556,11 +625,12 @@ void main() {
     testWidgets('closes cleanly when returning to the system keyboard', (
       tester,
     ) async {
-      await tester.pumpWidget(
-        _KeyboardHarness(controller: TextEditingController()),
-      );
+      final controller = TextEditingController(text: 'ḥꜣw');
+      await tester.pumpWidget(_KeyboardHarness(controller: controller));
 
       await _openCustomKeyboard(tester);
+      controller.selection = const TextSelection.collapsed(offset: 3);
+      await tester.pump();
       await tester.tap(find.text('ABC'));
       await tester.pumpAndSettle();
 
@@ -568,6 +638,20 @@ void main() {
         find.byKey(const ValueKey('kemetic-keyboard-panel')),
         findsNothing,
       );
+      expect(controller.text, 'ḥꜣw');
+      expect(controller.selection, const TextSelection.collapsed(offset: 3));
+      expect(_editableFocusNode(tester).hasFocus, isTrue);
+
+      await _pressToggle(tester);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('kemetic-keyboard-panel')),
+        findsOneWidget,
+      );
+      expect(controller.text, 'ḥꜣw');
+      expect(controller.selection, const TextSelection.collapsed(offset: 3));
+      expect(_editableFocusNode(tester).hasFocus, isTrue);
       expect(tester.takeException(), isNull);
     });
 
@@ -589,7 +673,7 @@ void main() {
       },
     );
 
-    testWidgets('dismisses the custom keyboard when the field loses focus', (
+    testWidgets('restores custom keyboard focus after transient focus loss', (
       tester,
     ) async {
       await tester.pumpWidget(
@@ -599,11 +683,13 @@ void main() {
       await _openCustomKeyboard(tester);
       FocusManager.instance.primaryFocus?.unfocus();
       await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 180));
 
       expect(
         find.byKey(const ValueKey('kemetic-keyboard-panel')),
-        findsNothing,
+        findsOneWidget,
       );
+      expect(_editableFocusNode(tester).hasFocus, isTrue);
     });
 
     testWidgets('moves the cursor to the start and end of the field', (

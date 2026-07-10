@@ -10,11 +10,13 @@ class PlannerWeighingHeader extends StatelessWidget {
     required this.percent,
     required this.dateLabel,
     this.question,
+    this.showProgressStatus = true,
   });
 
   final int percent;
   final String dateLabel;
   final Widget? question;
+  final bool showProgressStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -38,30 +40,33 @@ class PlannerWeighingHeader extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           MaatScale(tiltDegrees: tiltDegrees, progress: progress),
-          Text(
-            '$percent%',
-            style: const TextStyle(
-              color: PlannerVisualTokens.textWarm,
-              fontSize: 54,
-              fontWeight: FontWeight.w600,
-              fontFamily: PlannerVisualTokens.serifFamily,
-              fontFamilyFallback: PlannerVisualTokens.serifFallback,
-              height: 1,
-              shadows: [Shadow(color: Color(0x33C8A84A), blurRadius: 24)],
+          if (showProgressStatus) ...[
+            Text(
+              '$percent%',
+              style: const TextStyle(
+                color: PlannerVisualTokens.textWarm,
+                fontSize: 54,
+                fontWeight: FontWeight.w600,
+                fontFamily: PlannerVisualTokens.serifFamily,
+                fontFamilyFallback: PlannerVisualTokens.serifFallback,
+                height: 1,
+                shadows: [Shadow(color: Color(0x33C8A84A), blurRadius: 24)],
+              ),
             ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            'ALIGNED',
-            style: TextStyle(
-              color: const Color(
-                0xFFC8A84A,
-              ).withValues(alpha: PlannerVisualTokens.liftedAlpha(0.48)),
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 3,
+            const SizedBox(height: 3),
+            Text(
+              'ALIGNED',
+              style: TextStyle(
+                color: const Color(
+                  0xFFC8A84A,
+                ).withValues(alpha: PlannerVisualTokens.liftedAlpha(0.48)),
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 3,
+              ),
             ),
-          ),
+          ] else
+            const SizedBox(height: 58),
           if (question != null) ...[
             const SizedBox(height: 20),
             ConstrainedBox(

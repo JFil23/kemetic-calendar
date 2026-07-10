@@ -78,7 +78,9 @@ void main() {
       expect(shell, contains('globalSideDrawerScrimKey'));
       expect(shell, contains('onTap: () => unawaited(_closeFloatingMenu())'));
       expect(drawer, contains('globalSideDrawerForegroundKey'));
-      expect(drawer, contains('AnimatedSlide'));
+      expect(drawer, contains('TweenAnimationBuilder<double>'));
+      expect(drawer, contains('Transform.translate'));
+      expect(drawer, isNot(contains('AnimatedSlide')));
       expect(drawerWidget, isNot(contains('globalSideDrawerScrimKey')));
       expect(drawerWidget, isNot(contains('GestureDetector')));
     },

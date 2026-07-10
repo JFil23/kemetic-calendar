@@ -21,11 +21,13 @@ artifacts/onboarding_oracle/2026-07-09_recording/Screen Recording 2026-07-03 at 
 ## Canonical First-Run Flow
 
 ```txt
-Enter ḥꜣw -> understand today -> choose or skip first flow -> arrive at calendar -> receive Day's Rhythm -> after closing it, see only Tap to explore
+Enter ḥꜣw → understand today → choose/skip first flow → Recommended First Flow → Join Flow → Day View/Event → Day's Rhythm → Tap to explore → complete
 ```
 
 The sequence must feel continuous. The user should not see a jump, a stale
 prompt, or a helper from a later part of the app before the handoff is complete.
+The full-screen `OnboardingOverlay` is the first-run source of truth. Legacy
+coachmark/resume steps may only resume into the same state transitions.
 
 ## Slides 1-4 Visual Parity Checklist
 
@@ -47,8 +49,13 @@ prompt, or a helper from a later part of the app before the handoff is complete.
   prompted state.
 - Slide 4: opening, canceling, or picking a start date must keep the user on
   Recommended First Flow; it must not restart at `Enter ḥꜣw`.
+- Slide 4: the date picker uses an onboarding-safe scrim; the full-screen
+  onboarding overlay remains mounted and visible behind the picker.
 - Slide 4: any guided movement toward the carry field or Join Flow area should
   scroll smoothly and must not restore a stale/jumpy scroll offset.
+- Slide 4: keyboard opening must not squeeze or visually break the recommended
+  flow detail; the embedded detail honors the keyboard inset and keeps the gold
+  field treatment stable.
 
 ## Evening Threshold Empty-Carry Interaction
 
@@ -79,6 +86,77 @@ When the user enters non-empty text:
 - The hint fades out.
 - The user can tap `Join Flow` again to proceed.
 
+## Join Flow Handoff
+
+For the real first-run Recommended First Flow path:
+
+- The first Evening Threshold flow row and target event must exist before the
+  onboarding overlay advances.
+- The overlay must not wait for a full calendar cache reload before advancing.
+- The local runtime cache must stage the target first-flow event immediately so
+  Day View can focus it.
+- The rest of the materialized Evening Threshold event window may continue in
+  the background.
+- The Join Flow transition target is under 4 seconds. Anything over 6 seconds is
+  a blocker.
+- The embedded onboarding Day View shows only the first-flow target event during
+  the handoff so existing user data cannot contaminate the first landing moment.
+
+## Day's Rhythm And Menu Handoff
+
+- Day's Rhythm close advances onboarding to `menuExplore`, not `complete`.
+- After Day's Rhythm closes, the next visible guide is only `Tap to explore`.
+- `Tap to explore` points at the menu button and does not hide the menu.
+- `hasSeenMenuPrompt` must remain false until the menu helper is actually
+  completed or dismissed.
+- `completedOnboarding` must remain false until the menu helper is completed or
+  dismissed.
+- Reflection/decan prompts stay suppressed while onboarding is incomplete, while
+  the current step is before or at `menuExplore`, or while the menu helper has
+  not completed.
+
+## Post-Onboarding Helper Sequence
+
+After Day's Rhythm closes, the final onboarding handoff is the menu helper:
+
+```txt
+Tap to explore
+Create with flows, journal, planner, and tools.
+```
+
+- The helper anchors to the bottom-left menu button.
+- The bubble sits above and to the right of the menu button.
+- The menu button remains visible, highlighted, and tappable.
+- The helper points toward the menu button.
+- No yellow `Enter ḥꜣw` pill competes with this helper.
+- Tapping the menu opens the drawer and clears/completes this handoff.
+- `Got it` may dismiss it, but must not hide or block the menu.
+
+After the menu handoff, the accepted helpers are:
+
+- Journal:
+
+```txt
+Observed events will appear here
+Observed events are added to your ledger.
+```
+
+- Flow Studio:
+
+```txt
+Start with Ma’at
+Choose a guided rhythm, ḥꜣw carries it into your calendar.
+```
+
+- Profile:
+
+```txt
+Your community lives below
+Scroll down for shared flows and confirmations.
+```
+
+Planner, Library, Inbox, Calendars, and Reflections stay quiet.
+
 ## Accepted Onboarding Guards
 
 - The three-decan arc must stay horizontal during onboarding, including narrow
@@ -86,7 +164,6 @@ When the user enters non-empty text:
 - Opening or canceling the date picker must not reset onboarding state.
 - First-time users must not receive a reflection/decan prompt during the
   onboarding handoff.
-- After Day's Rhythm closes, the next visible guide is only `Tap to explore`.
 - Planner has no first-run helper.
 - Planner must not show a meaningless empty `0%`.
 - Library, Inbox, Calendars, and Reflections stay quiet during first-run

@@ -655,15 +655,13 @@ class GlobalSideDrawerForeground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final drawerOffset = open ? globalSideDrawerWidth(context) : 0.0;
-    final foregroundWidth = MediaQuery.sizeOf(context).width;
-
-    return AnimatedSlide(
-      offset: Offset(
-        foregroundWidth == 0 ? 0 : drawerOffset / foregroundWidth,
-        0,
-      ),
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: drawerOffset, end: drawerOffset),
       duration: globalSideDrawerTransitionDuration,
       curve: globalSideDrawerTransitionCurve,
+      builder: (context, offset, child) {
+        return Transform.translate(offset: Offset(offset, 0), child: child);
+      },
       child: SizedBox.expand(key: globalSideDrawerForegroundKey, child: child),
     );
   }

@@ -123,6 +123,7 @@ void main() {
       overlayGate,
       contains('CalendarEventDetailSheetCoordinator.isOpenOrOpening'),
     );
+    expect(overlayGate, contains('_calendarOwnedTransientRouteDepth > 0'));
     expect(
       overlayGate,
       contains('(mountedState?._daySheetOpenOrOpening ?? false)'),
@@ -135,7 +136,7 @@ void main() {
     final buildGate = _sourceBetween(
       calendarPage,
       '    final routeIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;',
-      '    if (shouldBuildLandscapeGrid) {',
+      '    final scaffold = Scaffold(',
     );
     expect(buildGate, contains('final routeShouldRemainRendered ='));
     expect(

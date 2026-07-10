@@ -44,7 +44,7 @@ void main() {
   });
 
   testWidgets(
-    'opening /flows defers Add Flow helper hydration out of route build',
+    "opening /flows defers Ma'at Flows helper hydration out of route build",
     (tester) async {
       await _seedCompletedOnboarding();
       final remoteStore = _FakeRemoteStore();
@@ -65,20 +65,20 @@ void main() {
       expect(remoteStore.loadCount, 1);
       expect(
         GuidedOnboardingController.instance.target?.helperId,
-        OnboardingHelperIds.flowStudioAddFlow,
+        OnboardingHelperIds.flowStudioMaatFlows,
       );
     },
   );
 
-  testWidgets('completed Add Flow helper stays hidden on /flows', (
+  testWidgets("completed Ma'at Flows helper stays hidden on /flows", (
     tester,
   ) async {
     await _seedCompletedOnboarding(
-      seenHelpers: const {OnboardingHelperIds.flowStudioAddFlow},
+      seenHelpers: const {OnboardingHelperIds.flowStudioMaatFlows},
     );
     final remoteStore = _FakeRemoteStore(
       completedByUser: const {
-        _testUserId: {OnboardingHelperIds.flowStudioAddFlow},
+        _testUserId: {OnboardingHelperIds.flowStudioMaatFlows},
       },
     );
     OnboardingHelperCompletionService.resetForTesting(remoteStore: remoteStore);

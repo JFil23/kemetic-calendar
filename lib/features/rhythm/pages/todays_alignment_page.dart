@@ -3062,6 +3062,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 
         final progress = _progress();
         final progressPercent = (progress * 100).round();
+        final hasMeaningfulProgressData = _hasMeaningfulProgressData();
         final plannerAction = _todayPlannerAction();
         final listBottomPadding = bottomPaddingAboveGlobalChrome(context, 32);
         final keyboardInset = keyboardInsetOf(context);
@@ -3095,6 +3096,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
             percent: progressPercent,
             dateLabel: dateLabel,
             question: question,
+            showProgressStatus: hasMeaningfulProgressData,
           ),
           const PlannerHorizon(),
         ];
@@ -3339,6 +3341,13 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         .where((i) => i.state == RhythmItemState.partial)
         .length;
     return (doneAlignment + partialAlignment * 0.5) / totalAlignment;
+  }
+
+  bool _hasMeaningfulProgressData() {
+    final todayTodos = _todosByDay[_todayLocal] ?? const <RhythmTodo>[];
+    return todayTodos.isNotEmpty ||
+        _todayNutritionItems().isNotEmpty ||
+        _alignmentItems.isNotEmpty;
   }
 
   List<RhythmItem> _completed() {

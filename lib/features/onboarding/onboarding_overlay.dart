@@ -662,7 +662,7 @@ class _ExhaleSlide extends StatelessWidget {
                   ),
                 ],
                 style: TextStyle(
-                  color: _HawColors.readableGhost,
+                  color: _HawColors.wordmarkLead,
                   fontFamily: _HawType.bodyFamily,
                   fontFamilyFallback: _HawType.bodyFallback,
                   fontStyle: FontStyle.italic,
@@ -1171,7 +1171,7 @@ class _TypographicCue extends StatelessWidget {
             child: Text(
               label,
               style: const TextStyle(
-                color: _HawColors.readableGhost,
+                color: _HawColors.actionCue,
                 fontFamily: _HawType.bodyFamily,
                 fontFamilyFallback: _HawType.bodyFallback,
                 fontStyle: FontStyle.italic,
@@ -1260,8 +1260,9 @@ class _HawColors {
   static const Color goldStrong = Color(0xFFB8A06A);
   static const Color goldDim = Color(0xFF5A4E30);
   static const Color goldGhost = Color(0xFF3A3220);
-  static const Color readableGhost = Color(0xFF746440);
-  static const Color wordmarkEmphasis = Color(0xFFC9A84C);
+  static const Color actionCue = Color(0xFFA89560);
+  static const Color wordmarkLead = Color(0xFFB09C68);
+  static const Color wordmarkEmphasis = Color(0xFFE0C465);
   static const Color border = Color(0xFF2A2416);
   static const Color cardBg = Color(0xFF0D0B07);
 }

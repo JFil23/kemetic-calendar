@@ -76,7 +76,7 @@ class DecanCompassCopyRepo {
       3 => 'third',
       _ => 'threshold',
     };
-    final monthName = month.displayShort;
+    final monthName = _onboardingMonthName(month.displayShort);
     final dateLabel = kMonth == 13 ? '$monthName $kDay' : '$monthName $kDay';
     final fallbackCopy = _fallbackCompassCopy[decanKey];
 
@@ -95,6 +95,14 @@ class DecanCompassCopyRepo {
       dayAlignedReturnKey:
           fallbackCopy?.dayAlignedReturnKey ?? 'return_to_attention',
     );
+  }
+
+  static String _onboardingMonthName(String value) {
+    return value
+        .replaceAll('Ka-ḥer-Ka', 'Ka-her-Ka')
+        .replaceAll('Ka-Ḥer-Ka', 'Ka-her-Ka')
+        .replaceAll('Khoiak', 'Ka-her-Ka')
+        .replaceAll('Koiak', 'Ka-her-Ka');
   }
 }
 

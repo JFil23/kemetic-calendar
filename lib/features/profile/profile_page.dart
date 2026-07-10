@@ -32,6 +32,7 @@ import '../calendar/calendar_page.dart';
 import '../calendar/kemetic_month_metadata.dart' show getMonthById;
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import '../onboarding/onboarding_progress.dart';
+import '../onboarding/onboarding_review_config.dart';
 import '../shared_practice/shared_practice_calendar_chooser_sheet.dart';
 import 'flow_post_engagement_row.dart';
 import 'package:mobile/shared/glossy_text.dart';
@@ -449,6 +450,33 @@ class _ProfilePageState extends State<ProfilePage>
 
   Future<void> _loadProfile({bool showSpinner = true}) async {
     final loadSerial = ++_profileLoadSerial;
+
+    if (onboardingReviewSessionRequested &&
+        widget.userId == kOnboardingReviewHelperUserId) {
+      setState(() {
+        _profile = UserProfile(
+          id: kOnboardingReviewHelperUserId,
+          handle: 'review',
+          displayName: 'Review Profile',
+          avatarGlyphIds: const ['maat', 'increase', 'me'],
+          bio: 'Onboarding review profile',
+          activeFlowsCount: 1,
+          totalFlowEventsCount: 1,
+          followersCount: 0,
+          followingCount: 0,
+          createdAt: DateTime(2026),
+        );
+        _isFollowing = false;
+        _loading = false;
+        _cacheHydrating = false;
+        _postsLoading = false;
+        _insightPostsLoading = false;
+        _feedLoading = false;
+      });
+      _maybeShowProfileCommunityHelper();
+      return;
+    }
+
     unawaited(_restoreCachedPostedContent(loadSerial));
 
     NavigationTrace.instance.record(
@@ -615,26 +643,37 @@ class _ProfilePageState extends State<ProfilePage>
     OnboardingProgress? loadedProgress,
   ]) async {
     if (!_isViewingOwnProfile || _profileCommunityHelperPrompted) return;
-    final userId = _currentUserId;
+    final reviewMode = onboardingReviewSessionRequested;
+    final userId =
+        _currentUserId ?? (reviewMode ? kOnboardingReviewHelperUserId : null);
     if (userId == null) return;
-    final storage = OnboardingProgressStorage();
-    final progress = loadedProgress ?? await storage.load(userId);
-    if (!mounted || !progress.completedOnboarding) {
-      return;
+    if (!reviewMode) {
+      final storage = OnboardingProgressStorage();
+      final progress = loadedProgress ?? await storage.load(userId);
+      if (!mounted || !progress.completedOnboarding) {
+        return;
+      }
     }
     const helper = OnboardingHelperRegistry.profileCommunityFeed;
     final helperService = OnboardingHelperCompletionService.instance;
-    await helperService.hydrateUser(userId);
-    if (!mounted || !helperService.shouldShowHelperSync(userId, helper.id)) {
+    if (!reviewMode) {
+      await helperService.hydrateUser(userId);
+    }
+    if (!mounted ||
+        (!reviewMode &&
+            !helperService.shouldShowHelperSync(userId, helper.id))) {
       return;
     }
     _profileCommunityHelperPrompted = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(() async {
         if (!mounted || _feedRevealed) return;
-        await helperService.hydrateUser(userId);
+        if (!reviewMode) {
+          await helperService.hydrateUser(userId);
+        }
         if (!mounted ||
-            !helperService.shouldShowHelperSync(userId, helper.id)) {
+            (!reviewMode &&
+                !helperService.shouldShowHelperSync(userId, helper.id))) {
           return;
         }
         NavigationTrace.instance.record(
@@ -657,6 +696,10 @@ class _ProfilePageState extends State<ProfilePage>
             helperUserId: userId,
             sourceWidget: helper.sourceWidget,
             onDismiss: () async {
+              if (reviewMode) {
+                GuidedOnboardingController.instance.clear();
+                return;
+              }
               final completion = helperService.markHelperCompleted(
                 userId,
                 helper.id,

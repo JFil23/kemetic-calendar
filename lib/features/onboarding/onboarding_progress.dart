@@ -73,6 +73,7 @@ class OnboardingHelperIds {
   OnboardingHelperIds._();
 
   static const String calendarToggle = 'calendar_toggle';
+  static const String calendarMenuExplore = 'calendar_menu_explore';
   static const String monthDetails = 'calendar_month_details';
   static const String dayCardLongPress = 'calendar_day_card_long_press';
   static const String journalBadges = 'journal_badges';
@@ -89,6 +90,7 @@ class OnboardingHelperIds {
 
   static const Set<String> all = {
     calendarToggle,
+    calendarMenuExplore,
     monthDetails,
     dayCardLongPress,
     journalBadges,
@@ -101,6 +103,7 @@ class OnboardingHelperIds {
 
   static const Map<String, int> versions = {
     calendarToggle: defaultVersion,
+    calendarMenuExplore: defaultVersion,
     monthDetails: defaultVersion,
     dayCardLongPress: defaultVersion,
     journalBadges: defaultVersion,
@@ -112,6 +115,7 @@ class OnboardingHelperIds {
   };
 
   static const Map<String, Set<String>> legacyAliases = {
+    'calendarMenuExplore': {calendarMenuExplore},
     'calendarToggle': {calendarToggle},
     'monthDetails': {monthDetails},
     'dayCardLongPress': {dayCardLongPress},
@@ -193,14 +197,15 @@ class OnboardingHelperRegistry {
 
   static const String flowHubPageAddFlowSourceWidget =
       'FlowHubPage.addFlowHelper';
+  static const String flowHubPageMaatFlowsSourceWidget =
+      'FlowHubPage.maatFlowsHelper';
   static const String maatFlowListAddFlowSourceWidget =
       'MaatFlowListPage.addFlowHelper';
 
   static const flowStudioAddFlow = OnboardingHelperDefinition(
     id: OnboardingHelperIds.flowStudioAddFlow,
-    title: 'Build your own rhythm',
-    body:
-        'Create personal flows for study, health, family, writing, business, or spiritual practice.',
+    title: 'Add a custom flow',
+    body: 'Create a personal rhythm from scratch when you need one.',
     analyticsEvent: 'helper_seen_flow_builder',
     sourceWidget: 'FlowStudioAddFlowHelper',
   );
@@ -215,10 +220,18 @@ class OnboardingHelperRegistry {
 
   static const flowStudioMaatFlows = OnboardingHelperDefinition(
     id: OnboardingHelperIds.flowStudioMaatFlows,
-    title: 'Ma’at template flows',
-    body: 'Ma’at templates give you ready-made rhythms to adapt.',
+    title: 'Start with Ma’at',
+    body: 'Choose a guided rhythm, ḥꜣw carries it into your calendar.',
     analyticsEvent: 'helper_seen_flow_studio_maat_flows',
     sourceWidget: 'FlowStudioMaatFlowsHelper',
+  );
+
+  static const calendarMenuExplore = OnboardingHelperDefinition(
+    id: OnboardingHelperIds.calendarMenuExplore,
+    title: 'Tap to explore',
+    body: 'Create with flows, journal, planner, and tools.',
+    analyticsEvent: 'helper_seen_calendar_menu_explore',
+    sourceWidget: 'CalendarPage.menuExploreHelper',
   );
 
   static const calendarToggle = OnboardingHelperDefinition(
@@ -248,9 +261,8 @@ class OnboardingHelperRegistry {
 
   static const journalBadges = OnboardingHelperDefinition(
     id: OnboardingHelperIds.journalBadges,
-    title: 'Your record gathers here',
-    body:
-        'Reflections, observed events, and journal badges will appear here over time.',
+    title: 'Observed events will appear here',
+    body: 'Observed events are added to your ledger.',
     analyticsEvent: 'helper_seen_journal_badges',
     sourceWidget: 'JournalPage.journalBadgesHelper',
   );
@@ -267,14 +279,14 @@ class OnboardingHelperRegistry {
   static const profileCommunityFeed = OnboardingHelperDefinition(
     id: OnboardingHelperIds.profileCommunityFeed,
     title: 'Your community lives below',
-    body:
-        'Scroll down to reveal the community feed, where shared flows and confirmations begin to gather.',
+    body: 'Scroll down for shared flows and confirmations.',
     analyticsEvent: 'helper_seen_profile_community_feed',
     sourceWidget: 'ProfilePage.profileCommunityFeedHelper',
   );
 
   static const List<OnboardingHelperDefinition> all = [
     calendarToggle,
+    calendarMenuExplore,
     monthDetails,
     dayCardLongPress,
     journalBadges,
@@ -287,6 +299,7 @@ class OnboardingHelperRegistry {
 
   static const Map<String, OnboardingHelperDefinition> byId = {
     OnboardingHelperIds.calendarToggle: calendarToggle,
+    OnboardingHelperIds.calendarMenuExplore: calendarMenuExplore,
     OnboardingHelperIds.monthDetails: monthDetails,
     OnboardingHelperIds.dayCardLongPress: dayCardLongPress,
     OnboardingHelperIds.journalBadges: journalBadges,

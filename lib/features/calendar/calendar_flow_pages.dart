@@ -4270,8 +4270,8 @@ class _FlowHubPage extends StatefulWidget {
 }
 
 class _FlowHubPageState extends State<_FlowHubPage> {
-  final GlobalKey _addFlowHelperKey = GlobalKey(
-    debugLabel: 'flow_studio_add_flow_helper',
+  final GlobalKey _maatFlowsHelperKey = GlobalKey(
+    debugLabel: 'flow_studio_maat_flows_helper',
   );
   bool _helperPrompted = false;
   bool _helperPromptScheduled = false;
@@ -4279,37 +4279,45 @@ class _FlowHubPageState extends State<_FlowHubPage> {
   @override
   void initState() {
     super.initState();
-    _scheduleFlowStudioAddFlowHelper();
+    _scheduleFlowStudioMaatFlowsHelper();
   }
 
-  void _scheduleFlowStudioAddFlowHelper() {
+  void _scheduleFlowStudioMaatFlowsHelper() {
     if (_helperPromptScheduled) return;
     _helperPromptScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(_maybeShowFlowStudioAddFlowHelper());
+      unawaited(_maybeShowFlowStudioMaatFlowsHelper());
     });
   }
 
-  Future<void> _maybeShowFlowStudioAddFlowHelper() async {
+  Future<void> _maybeShowFlowStudioMaatFlowsHelper() async {
     if (_helperPrompted) return;
-    final userId = Supabase.instance.client.auth.currentUser?.id;
+    final reviewMode = onboardingReviewSessionRequested;
+    final userId =
+        Supabase.instance.client.auth.currentUser?.id ??
+        (reviewMode ? kOnboardingReviewHelperUserId : null);
     if (userId == null || userId.isEmpty) return;
-    const helper = OnboardingHelperRegistry.flowStudioAddFlow;
+    const helper = OnboardingHelperRegistry.flowStudioMaatFlows;
     final helperService = OnboardingHelperCompletionService.instance;
-    if (!await helperService.shouldShowHelper(userId, helper.id)) {
+    if (!reviewMode &&
+        !await helperService.shouldShowHelper(userId, helper.id)) {
       return;
     }
     _helperPrompted = true;
     await Future<void>.delayed(const Duration(milliseconds: 500));
     if (!mounted) return;
-    await helperService.hydrateUser(userId);
-    if (!mounted || !helperService.shouldShowHelperSync(userId, helper.id)) {
+    if (!reviewMode) {
+      await helperService.hydrateUser(userId);
+    }
+    if (!mounted ||
+        (!reviewMode &&
+            !helperService.shouldShowHelperSync(userId, helper.id))) {
       return;
     }
     GuidedOnboardingController.instance.show(
       CoachmarkTarget(
-        key: _addFlowHelperKey,
+        key: _maatFlowsHelperKey,
         title: helper.title,
         body: helper.body,
         placement: CoachmarkPlacement.below,
@@ -4318,8 +4326,12 @@ class _FlowHubPageState extends State<_FlowHubPage> {
         dismissLabel: 'Got it',
         helperId: helper.id,
         helperUserId: userId,
-        sourceWidget: OnboardingHelperRegistry.flowHubPageAddFlowSourceWidget,
+        sourceWidget: OnboardingHelperRegistry.flowHubPageMaatFlowsSourceWidget,
         onDismiss: () async {
+          if (reviewMode) {
+            GuidedOnboardingController.instance.clear();
+            return;
+          }
           final completion = helperService.markHelperCompleted(
             userId,
             helper.id,
@@ -4349,7 +4361,7 @@ class _FlowHubPageState extends State<_FlowHubPage> {
   void _handleCreateNew() {
     unawaited(
       _markFlowStudioHelperCompleted(
-        OnboardingHelperRegistry.flowStudioAddFlow.id,
+        OnboardingHelperRegistry.flowStudioMaatFlows.id,
       ),
     );
     widget.onCreateNew();
@@ -4358,7 +4370,7 @@ class _FlowHubPageState extends State<_FlowHubPage> {
   void _handleOpenMyFlows() {
     unawaited(
       _markFlowStudioHelperCompleted(
-        OnboardingHelperRegistry.flowStudioSavedFlows.id,
+        OnboardingHelperRegistry.flowStudioMaatFlows.id,
       ),
     );
     widget.openMyFlows();
@@ -4442,6 +4454,7 @@ class _FlowHubPageState extends State<_FlowHubPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _FlowHubMaatCard(
+                        key: _maatFlowsHelperKey,
                         title: _kMaatFlowsDisplayTitle,
                         subtitle:
                             'Practices offered by the tradition. Each one a\npath you can walk.',
@@ -4457,7 +4470,6 @@ class _FlowHubPageState extends State<_FlowHubPage> {
                       ),
                       const SizedBox(height: 14),
                       _FlowHubAddCard(
-                        key: _addFlowHelperKey,
                         title: 'Add Flow',
                         subtitle: 'Begin something new',
                         onTap: _handleCreateNew,
@@ -4531,6 +4543,7 @@ class _FlowHubCardShell extends StatelessWidget {
 
 class _FlowHubMaatCard extends StatelessWidget {
   const _FlowHubMaatCard({
+    super.key,
     required this.title,
     required this.subtitle,
     required this.joinedText,
@@ -4707,7 +4720,6 @@ class _FlowHubMyFlowsCard extends StatelessWidget {
 
 class _FlowHubAddCard extends StatelessWidget {
   const _FlowHubAddCard({
-    super.key,
     required this.title,
     required this.subtitle,
     required this.onTap,

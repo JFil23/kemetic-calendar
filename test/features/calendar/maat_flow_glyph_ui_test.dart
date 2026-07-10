@@ -472,9 +472,16 @@ void main() {
       contains('final embedded = widget.embeddedInOnboarding;'),
     );
     expect(detailScaffold, contains('final scrollBottomPadding ='));
+    expect(
+      detailScaffold,
+      contains('final keyboardInset = media.viewInsets.bottom;'),
+    );
     expect(detailScaffold, contains('ctaHeight +'));
-    expect(detailScaffold, contains('(embedded ? 0 : media.padding.bottom) +'));
-    expect(detailScaffold, contains('(embedded ? 18 : 24);'));
+    expect(
+      detailScaffold,
+      contains('(embedded ? keyboardInset : media.padding.bottom) +'),
+    );
+    expect(detailScaffold, contains('(embedded ? 96 : 24);'));
     expect(detailScaffold, contains('final bodyPadding = embedded'));
     expect(detailScaffold, contains('final ctaPadding = embedded'));
     expect(overviewZones, contains('fontSize: 16'));
@@ -521,6 +528,10 @@ void main() {
       'if (initialCarry.isEmpty) {',
       'setState(() {\n      _eveningThresholdJoinInFlight = true;',
     );
+    final promptScrollHelper = _methodSource(
+      source,
+      '_ensureEveningThresholdCarryPromptVisible',
+    );
     final scaffold = _sourceBetween(
       source,
       'Widget _buildEveningThresholdScaffold(BuildContext context)',
@@ -528,32 +539,45 @@ void main() {
     );
     final fieldAndPrompt = _sourceBetween(
       scaffold,
-      'AnimatedContainer(',
+      'key: _eveningThresholdCarryPromptKey',
       'const _MaatFlowDetailSectionLabel(\'TIMEZONE\')',
     );
 
     expect(stateFields, contains('FocusNode _eveningThresholdCarryFocusNode'));
+    expect(stateFields, contains('GlobalKey _eveningThresholdCarryPromptKey'));
     expect(stateFields, contains('GlobalKey _eveningThresholdCarryFieldKey'));
     expect(stateFields, contains('bool _eveningThresholdCarryPrompted'));
     expect(stateFields, contains('bool _eveningThresholdCarryHintVisible'));
+    expect(
+      promptScrollHelper,
+      contains('_eveningThresholdCarryPromptKey.currentContext'),
+    );
+    expect(promptScrollHelper, contains('Scrollable.ensureVisible('));
+    expect(promptScrollHelper, contains('curve: Curves.easeInOutCubic'));
 
     expect(emptyCarryBranch, contains('_eveningThresholdCarryPrompted = true'));
     expect(
       emptyCarryBranch,
       contains('_eveningThresholdCarryHintVisible = true'),
     );
-    expect(emptyCarryBranch, contains('Scrollable.ensureVisible('));
+    expect(
+      emptyCarryBranch,
+      contains('_ensureEveningThresholdCarryPromptVisible('),
+    );
     expect(
       emptyCarryBranch,
       contains('duration: const Duration(milliseconds: 620)'),
     );
-    expect(emptyCarryBranch, contains('curve: Curves.easeInOutCubic'));
+    expect(
+      emptyCarryBranch,
+      contains('duration: const Duration(milliseconds: 260)'),
+    );
     expect(
       emptyCarryBranch,
       contains('_eveningThresholdCarryFocusNode.requestFocus();'),
     );
     expect(
-      emptyCarryBranch.indexOf('Scrollable.ensureVisible('),
+      emptyCarryBranch.indexOf('_ensureEveningThresholdCarryPromptVisible('),
       lessThan(
         emptyCarryBranch.indexOf(
           '_eveningThresholdCarryFocusNode.requestFocus();',
@@ -573,6 +597,7 @@ void main() {
     );
     expect(scaffold, isNot(contains('initialCarry.isEmpty ? null')));
 
+    expect(fieldAndPrompt, contains('key: _eveningThresholdCarryPromptKey'));
     expect(fieldAndPrompt, contains('TextField('));
     expect(fieldAndPrompt, contains('key: _eveningThresholdCarryFieldKey'));
     expect(
@@ -631,6 +656,15 @@ void main() {
       calendarPageSource,
       '_maybePresentOnboarding',
     );
+    final calendarPageLifecycle = _sourceBetween(
+      calendarPageSource,
+      'void _configureDebugDaySheetSmokeState()',
+      '  // ✅ Called when we pop back to Calendar from another page',
+    );
+    final reviewReset = _methodSource(
+      calendarPageSource,
+      '_resetOnboardingReviewSessionForRoute',
+    );
 
     expect(overlayMount, contains('initialSlide: _activeHawOnboardingSlide'));
     expect(overlayMount, contains('onSlideChanged: _handleHawSlideChanged'));
@@ -672,7 +706,50 @@ void main() {
     );
     expect(maybePresent, contains('_onboardingReviewSessionSlide ??'));
     expect(maybePresent, contains('TrueOnboardingStep.complete'));
+    expect(
+      calendarPageLifecycle,
+      contains('_resetOnboardingReviewSessionForRoute();'),
+    );
+    expect(
+      reviewReset,
+      contains('_onboardingReviewSessionProgress = const OnboardingProgress()'),
+    );
+    expect(
+      reviewReset,
+      contains('_onboardingReviewSessionSlide = HawOnboardingSlide.exhale'),
+    );
+    expect(
+      reviewReset,
+      contains(
+        'GuidedOnboardingController.instance.setExternalOverlaySuppressed(true)',
+      ),
+    );
   });
+
+  test(
+    'embedded onboarding date picker preserves visible overlay backdrop',
+    () {
+      final flowDetailSource = File(
+        'lib/features/calendar/calendar_maat_flows.dart',
+      ).readAsStringSync();
+      final maatPickerSource = File(
+        'lib/widgets/maat_flow_date_picker.dart',
+      ).readAsStringSync();
+      final stonePickerSource = File(
+        'lib/shared/date_picker/stone_register_date_picker.dart',
+      ).readAsStringSync();
+      final pickDate = _methodSource(flowDetailSource, '_pickDate');
+
+      expect(pickDate, contains('barrierColor: widget.embeddedInOnboarding'));
+      expect(pickDate, contains('Colors.black.withValues(alpha: 0.28)'));
+      expect(maatPickerSource, contains('Color? barrierColor'));
+      expect(maatPickerSource, contains('bool useRootNavigator = false'));
+      expect(maatPickerSource, contains('barrierColor: barrierColor'));
+      expect(stonePickerSource, contains('Color? barrierColor'));
+      expect(stonePickerSource, contains('barrierColor: barrierColor'));
+      expect(stonePickerSource, contains('useRootNavigator: useRootNavigator'));
+    },
+  );
 
   test('embedded onboarding detail does not restore stale scroll offsets', () {
     final source = File(
@@ -700,8 +777,213 @@ void main() {
     );
     expect(disposeMethod, contains('_detailScrollController.dispose();'));
     expect(detailScaffold, contains('controller: _detailScrollController'));
+    expect(
+      detailScaffold,
+      contains('final keyboardInset = media.viewInsets.bottom;'),
+    );
+    expect(
+      detailScaffold,
+      contains('embedded ? keyboardInset : media.padding.bottom'),
+    );
+    expect(detailScaffold, contains('14 + keyboardInset'));
+    expect(detailScaffold, contains('resizeToAvoidBottomInset: true'));
+    expect(detailScaffold, contains('AnimatedPadding('));
     expect(detailScaffold, isNot(contains('jumpTo(')));
   });
+
+  test(
+    'canonical onboarding handoff waits for menu helper before completion',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final recommendedFlow = _methodSource(source, '_buildHawRecommendedFlow');
+      final joined = _methodSource(source, '_handleHawRecommendedFlowJoined');
+      final completeHaw = _methodSource(source, '_completeHawOnboarding');
+      final dayRhythm = _methodSource(source, '_showOnboardingDayRhythm');
+      final rhythmDismissed = _methodSource(
+        source,
+        '_handleObservedJournalPromptNext',
+      );
+      final menuCoachmark = _methodSource(source, '_showMenuExploreCoachmark');
+      final completeTrue = _methodSource(source, '_completeTrueOnboarding');
+
+      expect(
+        recommendedFlow,
+        contains('deferEveningThresholdRemainingEvents: true'),
+      );
+      expect(recommendedFlow, contains('reloadAfterHeadlessJoin: false'));
+      expect(
+        recommendedFlow,
+        contains('_stageEveningThresholdOnboardingTarget('),
+      );
+      expect(
+        joined,
+        isNot(
+          contains(
+            "_loadFromDisk(source: 'onboarding_evening_threshold_join')",
+          ),
+        ),
+      );
+      expect(joined, contains('_firstFlowTargetNoteForDay('));
+      expect(
+        completeHaw,
+        contains('currentStep: TrueOnboardingStep.eventDetailObservedJournal'),
+      );
+      expect(completeHaw, contains('completedOnboarding: false'));
+      expect(completeHaw, contains('hasSeenMenuPrompt: false'));
+      expect(completeHaw, contains('await _showOnboardingDayRhythm();'));
+      expect(completeHaw, isNot(contains('_markOnboardingCompletedIfNeeded')));
+      expect(dayRhythm, contains('dailyCosmicContextBadgeForDate('));
+      expect(dayRhythm, contains('showOnboardingBadge('));
+      expect(
+        dayRhythm,
+        contains(
+          'onDismissed: () => unawaited(_handleObservedJournalPromptNext())',
+        ),
+      );
+      expect(
+        rhythmDismissed,
+        contains('currentStep: TrueOnboardingStep.menuExplore'),
+      );
+      expect(rhythmDismissed, contains('hasSeenMenuPrompt: false'));
+      expect(rhythmDismissed, contains('completedOnboarding: false'));
+      expect(
+        menuCoachmark,
+        contains('const helper = OnboardingHelperRegistry.calendarMenuExplore'),
+      );
+      expect(menuCoachmark, contains('title: helper.title'));
+      expect(menuCoachmark, contains('body: helper.body'));
+      expect(menuCoachmark, contains('variant: CoachmarkVariant.helperBubble'));
+      expect(menuCoachmark, contains('key: globalMenuButtonKey'));
+      expect(menuCoachmark, contains('allowBackgroundInteraction: true'));
+      expect(menuCoachmark, isNot(contains("nextLabel: 'Enter ḥꜣw'")));
+      expect(
+        menuCoachmark,
+        contains('onDismiss: () => unawaited(_completeTrueOnboarding())'),
+      );
+      expect(completeTrue, contains('hasSeenMenuPrompt: true'));
+      expect(completeTrue, contains('completedOnboarding: true'));
+      expect(completeTrue, contains('_markOnboardingCompletedIfNeeded();'));
+    },
+  );
+
+  test('PWA review route can mount handoff overlays without a session', () {
+    final mainSource = File('lib/main.dart').readAsStringSync();
+    final reviewConfigSource = File(
+      'lib/features/onboarding/onboarding_review_config.dart',
+    ).readAsStringSync();
+    final appChromeBuild = _sourceBetween(
+      mainSource,
+      'class _AppChrome',
+      '@visibleForTesting\nWidget buildGlobalFloatingMenuShellForTesting',
+    );
+    final myAppBuild = _methodSource(mainSource, 'build');
+    final authedApp = _methodSource(mainSource, '_buildAuthedApp');
+    final shouldMountFloatingMenu = _sourceBetween(
+      mainSource,
+      'bool get _shouldMountFloatingMenu',
+      'bool get _shouldSuppressFloatingMenuForCurrentRoute',
+    );
+    final suppressFloatingMenuForRoute = _sourceBetween(
+      mainSource,
+      'bool get _shouldSuppressFloatingMenuForCurrentRoute',
+      'bool _shouldActivateFloatingMenu',
+    );
+
+    expect(reviewConfigSource, contains('final fragment = uri?.fragment'));
+    expect(reviewConfigSource, contains('kOnboardingReviewDebugRouteEnv'));
+    expect(
+      reviewConfigSource,
+      contains('bool get onboardingReviewSessionRequested'),
+    );
+    expect(
+      reviewConfigSource,
+      contains('isOnboardingReviewLocation(Uri.base.toString())'),
+    );
+    expect(
+      reviewConfigSource,
+      contains('fragmentPath == kOnboardingReviewRoute'),
+    );
+    expect(appChromeBuild, contains('final isReviewRoute ='));
+    expect(appChromeBuild, contains('onboardingReviewSessionRequested'));
+    expect(
+      appChromeBuild,
+      contains('supabase.auth.currentSession == null && !isReviewRoute'),
+    );
+    expect(appChromeBuild, contains('GuidedOnboardingOverlayHost('));
+    expect(myAppBuild, contains('signedIn || isReviewRoute'));
+    expect(authedApp, contains('FocusTraversalGroup('));
+    expect(authedApp, contains('WidgetOrderTraversalPolicy()'));
+    expect(shouldMountFloatingMenu, contains('final isReviewRoute ='));
+    expect(
+      shouldMountFloatingMenu,
+      contains('onboardingReviewSessionRequested'),
+    );
+    expect(shouldMountFloatingMenu, contains('!isReviewRoute'));
+    expect(
+      suppressFloatingMenuForRoute,
+      isNot(contains('isOnboardingReviewLocation')),
+    );
+  });
+
+  test('Evening Threshold onboarding join defers non-target events', () {
+    final serviceSource = File(
+      'lib/features/calendar/flow_join_service.dart',
+    ).readAsStringSync();
+    final joinSource = _methodSource(
+      serviceSource,
+      'joinEveningThresholdHeadless',
+    );
+
+    expect(joinSource, contains('bool deferRemainingEvents = false'));
+    expect(
+      joinSource,
+      contains('final firstReturnIndex = schedules.indexWhere'),
+    );
+    expect(joinSource, contains('synchronousIndexes = deferRemainingEvents'));
+    expect(joinSource, contains('evening_threshold_join_headless_deferred'));
+    expect(joinSource, contains('_publishHeadlessCalendarInvalidation('));
+  });
+
+  test(
+    'first-run onboarding suppresses reflection prompts until menu explore completes',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final suppression = _sourceBetween(
+        source,
+        'bool get _shouldSuppressDecanReflectionForOnboarding',
+        'Future<void> _maybeLoadDecanReflectionPrompt',
+      );
+      final maybeReflection = _methodSource(
+        source,
+        '_maybeLoadDecanReflectionPrompt',
+      );
+      final dayView = _methodSource(source, '_buildHawDayView');
+      final maybePresent = _methodSource(source, '_maybePresentOnboarding');
+
+      expect(suppression, contains('_onboardingReviewMode || _showOnboarding'));
+      expect(suppression, contains('!progress.completedOnboarding'));
+      expect(suppression, contains('!progress.hasSeenMenuPrompt'));
+      expect(suppression, contains('TrueOnboardingStep.menuExplore'));
+      expect(
+        maybeReflection,
+        contains('_shouldSuppressDecanReflectionForOnboarding'),
+      );
+      expect(dayView, contains('final isolateOnboardingTarget'));
+      expect(
+        dayView,
+        contains('_onboardingReviewMode || isolateOnboardingTarget'),
+      );
+      expect(
+        maybePresent,
+        contains('progress.currentStep == TrueOnboardingStep.menuExplore'),
+      );
+      expect(maybePresent, contains('_showMenuExploreCoachmark();'));
+    },
+  );
 
   test('onboarding decan arc stays horizontal on narrow PWA widths', () {
     final source = File(

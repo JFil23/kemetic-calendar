@@ -1213,7 +1213,9 @@ void main() {
       expect(drawer, contains('globalSideDrawerScrimKey'));
       expect(drawer, contains('globalSideDrawerForegroundKey'));
       expect(drawer, contains('class GlobalSideDrawerForeground'));
-      expect(drawer, contains('AnimatedSlide'));
+      expect(drawer, contains('TweenAnimationBuilder<double>'));
+      expect(drawer, contains('Transform.translate'));
+      expect(drawer, isNot(contains('AnimatedSlide')));
     });
 
     test('global bubble hit area matches the visible circle', () async {
