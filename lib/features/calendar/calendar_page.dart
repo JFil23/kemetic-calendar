@@ -109,6 +109,7 @@ import '../../widgets/kemetic_date_picker.dart' show showKemeticDatePicker;
 import '../../widgets/recurrence_until_date_picker.dart';
 import '../../utils/external_link_utils.dart';
 import 'calendar_invalidation.dart';
+import 'onboarding_target_reconciliation.dart';
 import 'calendar_visible_state_policy.dart';
 import 'calendar_completion.dart';
 import 'reminder_sync_idempotence.dart';
@@ -9472,6 +9473,149 @@ class CalendarPageState extends State<CalendarPage>
     return preserved;
   }
 
+  void _rememberPendingOnboardingTargetEvent({
+    required String dayKey,
+    required int flowId,
+    required String clientEventId,
+  }) {
+    final trimmedClientEventId = clientEventId.trim();
+    if (flowId <= 0 || trimmedClientEventId.isEmpty) return;
+
+    final bucket = _notes[dayKey];
+    _Note? stagedNote;
+    if (bucket != null) {
+      for (final note in bucket) {
+        if (note.clientEventId?.trim() == trimmedClientEventId) {
+          stagedNote = note;
+          break;
+        }
+      }
+    }
+    if (stagedNote == null) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[onboardingTarget] no staged note found to remember '
+          'flow=$flowId cid=${safeLogIdentifier(trimmedClientEventId)} '
+          'day=$dayKey',
+        );
+      }
+      return;
+    }
+
+    _pendingOnboardingTargetDayKey = dayKey;
+    _pendingOnboardingTargetClientEventId = trimmedClientEventId;
+    _pendingOnboardingTargetFlowId = flowId;
+    _pendingOnboardingTargetNote = _CalendarWarmStateStore._copyNote(stagedNote)
+        .copyWith(
+          behaviorPayload: <String, dynamic>{
+            if (stagedNote.behaviorPayload != null)
+              ...stagedNote.behaviorPayload!,
+            'onboarding_pending_target': true,
+          },
+        );
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[onboardingTarget] remembered pending first-flow target '
+        'flow=$flowId cid=${safeLogIdentifier(trimmedClientEventId)} '
+        'day=$dayKey',
+      );
+    }
+  }
+
+  void _clearPendingOnboardingTargetEvent(String reason) {
+    if (_pendingOnboardingTargetNote == null &&
+        _pendingOnboardingTargetClientEventId == null) {
+      return;
+    }
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[onboardingTarget] cleared pending first-flow target reason=$reason '
+        'flow=$_pendingOnboardingTargetFlowId '
+        'cid=${safeLogIdentifier(_pendingOnboardingTargetClientEventId)}',
+      );
+    }
+    _pendingOnboardingTargetDayKey = null;
+    _pendingOnboardingTargetClientEventId = null;
+    _pendingOnboardingTargetFlowId = null;
+    _pendingOnboardingTargetNote = null;
+  }
+
+  bool _noteMatchesPendingOnboardingTarget(_Note note) {
+    final pendingClientEventId = _pendingOnboardingTargetClientEventId?.trim();
+    final noteClientEventId = note.clientEventId?.trim();
+    if (pendingClientEventId != null &&
+        pendingClientEventId.isNotEmpty &&
+        noteClientEventId != null &&
+        noteClientEventId.isNotEmpty &&
+        pendingClientEventId == noteClientEventId) {
+      return true;
+    }
+
+    final pendingNote = _pendingOnboardingTargetNote;
+    final pendingFlowId = _pendingOnboardingTargetFlowId;
+    if (pendingNote == null || pendingFlowId == null || pendingFlowId <= 0) {
+      return false;
+    }
+    return note.flowId == pendingFlowId &&
+        note.title == pendingNote.title &&
+        note.allDay == pendingNote.allDay &&
+        note.start?.hour == pendingNote.start?.hour &&
+        note.start?.minute == pendingNote.start?.minute &&
+        note.end?.hour == pendingNote.end?.hour &&
+        note.end?.minute == pendingNote.end?.minute;
+  }
+
+  bool _noteIsPendingOnboardingTargetCopy(_Note note) {
+    return note.behaviorPayload?['onboarding_pending_target'] == true &&
+        _noteMatchesPendingOnboardingTarget(note);
+  }
+
+  int _mergePendingOnboardingTargetInto(
+    Map<String, List<_Note>> notesByDay, {
+    required String source,
+    required String phase,
+  }) {
+    final pendingDayKey = _pendingOnboardingTargetDayKey;
+    final pendingNote = _pendingOnboardingTargetNote;
+    if (pendingDayKey == null || pendingDayKey.isEmpty || pendingNote == null) {
+      return 0;
+    }
+
+    final reconciliation = reconcilePendingOnboardingTarget<_Note>(
+      refreshedItems: notesByDay.values.expand((bucket) => bucket),
+      matchesTarget: _noteMatchesPendingOnboardingTarget,
+      isPendingCopy: _noteIsPendingOnboardingTargetCopy,
+    );
+
+    for (final entry in notesByDay.entries) {
+      entry.value.removeWhere(_noteIsPendingOnboardingTargetCopy);
+    }
+    notesByDay.removeWhere((_, bucket) => bucket.isEmpty);
+
+    if (reconciliation.authoritativeTargetFound) {
+      _clearPendingOnboardingTargetEvent(
+        'authoritative_refresh:$source:$phase',
+      );
+      return 0;
+    }
+    if (!reconciliation.shouldPreservePending) return 0;
+
+    final bucket = notesByDay.putIfAbsent(pendingDayKey, () => <_Note>[]);
+    if (bucket.any(_noteMatchesPendingOnboardingTarget)) {
+      return 0;
+    }
+    bucket.add(_CalendarWarmStateStore._copyNote(pendingNote));
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[onboardingTarget] preserved pending first-flow target during '
+        'refresh source=$source phase=$phase '
+        'flow=$_pendingOnboardingTargetFlowId '
+        'cid=${safeLogIdentifier(_pendingOnboardingTargetClientEventId)}',
+      );
+    }
+    return 1;
+  }
+
   TimeOfDay? _timeOfDayFromMinutes(dynamic raw) {
     final totalMinutes = (raw as num?)?.toInt();
     if (totalMinutes == null || totalMinutes < 0) return null;
@@ -13400,6 +13544,10 @@ class CalendarPageState extends State<CalendarPage>
   ({int ky, int km, int kd})? _firstMaatFlowEventKDate;
   int? _firstMaatFlowId;
   String? _firstMaatFlowEventClientEventId;
+  String? _pendingOnboardingTargetDayKey;
+  String? _pendingOnboardingTargetClientEventId;
+  int? _pendingOnboardingTargetFlowId;
+  _Note? _pendingOnboardingTargetNote;
   final GlobalKey _firstFlowDayKey = GlobalKey(
     debugLabel: 'onboarding_first_flow_day',
   );
@@ -15119,6 +15267,11 @@ class CalendarPageState extends State<CalendarPage>
       ky: kDate.kYear,
       km: kDate.kMonth,
       kd: kDate.kDay,
+    );
+    _rememberPendingOnboardingTargetEvent(
+      dayKey: _kKey(kDate.kYear, kDate.kMonth, kDate.kDay),
+      flowId: flowId,
+      clientEventId: clientEventId,
     );
     _notifyDayViewDataChanged();
     if (mounted) setState(() {});
@@ -31216,6 +31369,12 @@ class CalendarPageState extends State<CalendarPage>
         bool loadComplete = false,
       }) {
         if (!mounted) return;
+        final preservedOnboardingTargetCount =
+            _mergePendingOnboardingTargetInto(
+              newNotes,
+              source: source,
+              phase: phase,
+            );
         final hasIncomingEventSnapshot = newNotes.values.any(
           (notes) => notes.isNotEmpty,
         );
@@ -31274,7 +31433,8 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint(
             '[loadFromDisk] committed phase=$phase '
             '_flows.length=${_flows.length} _notes keys=${_notes.length} '
-            'preservedStandalone=$preservedStandaloneCount',
+            'preservedStandalone=$preservedStandaloneCount '
+            'preservedOnboardingTarget=$preservedOnboardingTargetCount',
           );
         }
 

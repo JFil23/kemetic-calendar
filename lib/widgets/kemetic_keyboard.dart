@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
@@ -58,6 +59,29 @@ class KemeticKeyboardRevealScope extends InheritedWidget {
   }
 }
 
+T? _tryActiveContextLookup<T>(T Function() lookup) {
+  try {
+    return lookup();
+  } on FlutterError catch (error) {
+    if (error.toString().contains('deactivated widget')) {
+      return null;
+    }
+    rethrow;
+  }
+}
+
+EditableTextState? _editableFromFocusNode(FocusNode? focus) {
+  final focusContext = focus?.context;
+  if (focusContext == null || !focusContext.mounted) return null;
+  final editable = _tryActiveContextLookup(
+    () => focusContext.findAncestorStateOfType<EditableTextState>(),
+  );
+  if (editable == null || !editable.mounted || !editable.context.mounted) {
+    return null;
+  }
+  return editable;
+}
+
 /// ChangeNotifier that tracks the currently focused editable field and whether
 /// the Medu Neter keyboard is open.
 class KemeticKeyboardController extends ChangeNotifier {
@@ -82,9 +106,7 @@ class KemeticKeyboardController extends ChangeNotifier {
   EditableTextState? get lastEditable => _lastEditable;
 
   EditableTextState? _findEditableFromFocus() {
-    final focus = FocusManager.instance.primaryFocus;
-    if (focus?.context == null) return null;
-    return focus!.context!.findAncestorStateOfType<EditableTextState>();
+    return _editableFromFocusNode(FocusManager.instance.primaryFocus);
   }
 
   void ensureEditableFromFocus() {
@@ -401,6 +423,8 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
   bool _revealScheduled = false;
   bool _revealNeedsDelayedPass = false;
   bool _lastPointerDownInsideKeyboardChrome = false;
+  bool _deactivating = false;
+  Timer? _revealDelayedTimer;
   int _keyboardChromePointerEpoch = 0;
 
   @override
@@ -414,13 +438,33 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
 
   @override
   void dispose() {
+    _deactivating = true;
+    _revealDelayedTimer?.cancel();
+    _revealDelayedTimer = null;
     deactivateWebCustomKeyboardInput();
     WidgetsBinding.instance.removeObserver(this);
     _revealedController?.removeListener(_handleEditableValueChanged);
+    _revealedController = null;
     _controller.removeListener(_handleControllerChanged);
     FocusManager.instance.removeListener(_handleFocusChange);
     _controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    _deactivating = false;
+  }
+
+  @override
+  void deactivate() {
+    _deactivating = true;
+    _revealDelayedTimer?.cancel();
+    _revealDelayedTimer = null;
+    _revealedController?.removeListener(_handleEditableValueChanged);
+    _revealedController = null;
+    super.deactivate();
   }
 
   @override
@@ -473,22 +517,27 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
       _revealScheduled = false;
       final includeDelayedPass = _revealNeedsDelayedPass;
       _revealNeedsDelayedPass = false;
-      if (!mounted) return;
+      if (!mounted || _deactivating) return;
       _revealFocusedEditableNow();
       if (!includeDelayedPass) return;
-      Future<void>.delayed(const Duration(milliseconds: 140), () {
-        if (mounted) _revealFocusedEditableNow();
+      _revealDelayedTimer?.cancel();
+      _revealDelayedTimer = Timer(const Duration(milliseconds: 140), () {
+        _revealDelayedTimer = null;
+        if (mounted && !_deactivating) _revealFocusedEditableNow();
       });
     });
   }
 
   void _revealFocusedEditableNow() {
-    if (!mounted) return;
+    if (!mounted || _deactivating) return;
     final target = _controller.editable ?? _controller.lastEditable;
     if (!_controller._isUsable(target)) return;
     final editable = target;
     if (editable == null) return;
-    if (!KemeticKeyboardRevealScope.isEnabledFor(editable.context)) return;
+    final revealEnabled = _tryActiveContextLookup(
+      () => KemeticKeyboardRevealScope.isEnabledFor(editable.context),
+    );
+    if (revealEnabled != true) return;
 
     final media = MediaQuery.maybeOf(context);
     if (media == null) return;
@@ -519,7 +568,9 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
       scrollPosition: _scrollPositionFor(editable.widget.scrollController),
     );
 
-    final scrollable = Scrollable.maybeOf(editable.context);
+    final scrollable = _tryActiveContextLookup(
+      () => Scrollable.maybeOf(editable.context),
+    );
     if (scrollable == null) return;
 
     if (!scrolledTextContent) {
@@ -613,13 +664,9 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
 
   void _handleFocusChange() {
     // Ignore transient focus churn while swapping keyboards.
-    if (_opening) return;
+    if (_opening || _deactivating) return;
 
-    final focus = FocusManager.instance.primaryFocus;
-    EditableTextState? editable;
-    if (focus?.context != null) {
-      editable = focus!.context!.findAncestorStateOfType<EditableTextState>();
-    }
+    final editable = _editableFromFocusNode(FocusManager.instance.primaryFocus);
 
     // Custom mode: keep last target, prevent system keyboard from re-opening.
     if (_controller.isCustomMode) {
@@ -723,10 +770,10 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
   bool _containsActiveEditable(Offset globalPosition) {
     final editable = _controller.editable ?? _controller.lastEditable;
     if (!_controller._isUsable(editable)) return false;
-    return _containsRenderObject(
-      editable!.context.findRenderObject(),
-      globalPosition,
+    final renderObject = _tryActiveContextLookup(
+      () => editable!.context.findRenderObject(),
     );
+    return _containsRenderObject(renderObject, globalPosition);
   }
 
   bool _containsGlobalPosition(GlobalKey key, Offset globalPosition) {

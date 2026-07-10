@@ -1049,6 +1049,65 @@ void main() {
   });
 
   test(
+    'onboarding first-flow target survives transient hydration refresh gaps',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final stage = _sourceBetween(
+        source,
+        'void _stageEveningThresholdOnboardingTarget({',
+        'Widget _buildHawRecommendedFlow',
+      );
+      final merge = _sourceBetween(
+        source,
+        'int _mergePendingOnboardingTargetInto(',
+        'TimeOfDay? _timeOfDayFromMinutes',
+      );
+      final loadCommit = _sourceBetween(
+        source,
+        'void commitVisibleCalendarState(',
+        'committedVisibleCalendar = true;',
+      );
+
+      expect(source, contains('_pendingOnboardingTargetClientEventId'));
+      expect(source, contains('_pendingOnboardingTargetNote'));
+      expect(source, contains("'onboarding_pending_target': true"));
+      expect(stage, contains('_rememberPendingOnboardingTargetEvent'));
+      expect(
+        stage.indexOf('_addNote('),
+        lessThan(stage.indexOf('_rememberPendingOnboardingTargetEvent')),
+        reason:
+            'The optimistic first-flow note must exist before it is remembered.',
+      );
+
+      expect(merge, contains('reconcilePendingOnboardingTarget<_Note>'));
+      expect(merge, contains('reconciliation.authoritativeTargetFound'));
+      expect(merge, contains('reconciliation.shouldPreservePending'));
+      expect(merge, contains('_noteIsPendingOnboardingTargetCopy'));
+      expect(
+        merge,
+        contains('removeWhere(_noteIsPendingOnboardingTargetCopy)'),
+      );
+      expect(merge, contains('_clearPendingOnboardingTargetEvent'));
+      expect(
+        merge,
+        contains('bucket.add(_CalendarWarmStateStore._copyNote(pendingNote))'),
+      );
+      expect(merge, contains('_noteMatchesPendingOnboardingTarget'));
+
+      expect(loadCommit, contains('_mergePendingOnboardingTargetInto'));
+      expect(
+        loadCommit.indexOf('_mergePendingOnboardingTargetInto'),
+        lessThan(loadCommit.indexOf('_notes\n          ..clear()')),
+        reason:
+            'The pending onboarding target must be merged before reload commits replace _notes.',
+      );
+      expect(loadCommit, contains('preservedOnboardingTargetCount'));
+    },
+  );
+
+  test(
     'mounted Track Sky, Moon Return, Wag, Days Outside, Decan Watch, Open Hand, Djed, Reading House, Offering Table, Tending, Kept Word, and Course persist events before filing alerts',
     () {
       final source = File(

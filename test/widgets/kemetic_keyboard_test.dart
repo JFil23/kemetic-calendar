@@ -754,6 +754,31 @@ void main() {
 
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets(
+      'ignores deactivated focus contexts during custom keyboard teardown',
+      (tester) async {
+        final harnessKey = GlobalKey<_KeyboardTeardownHarnessState>();
+
+        await tester.pumpWidget(_KeyboardTeardownHarness(key: harnessKey));
+        await _openCustomKeyboardOnField(
+          tester,
+          const ValueKey('teardown-input'),
+        );
+
+        final keyFinder = find.byKey(const ValueKey('kemetic-key-ḥ'));
+        await tester.ensureVisible(keyFinder);
+        await tester.tap(keyFinder);
+
+        harnessKey.currentState!.hideField();
+        await tester.pump();
+        FocusManager.instance.primaryFocus?.unfocus();
+        await tester.pump(const Duration(milliseconds: 180));
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 }
 
@@ -873,6 +898,51 @@ class _KeyboardHarness extends StatelessWidget {
 
     return MaterialApp(
       home: Scaffold(body: KemeticKeyboardHost(child: _buildInputBody())),
+    );
+  }
+}
+
+class _KeyboardTeardownHarness extends StatefulWidget {
+  const _KeyboardTeardownHarness({super.key});
+
+  @override
+  State<_KeyboardTeardownHarness> createState() =>
+      _KeyboardTeardownHarnessState();
+}
+
+class _KeyboardTeardownHarnessState extends State<_KeyboardTeardownHarness> {
+  final TextEditingController _controller = TextEditingController();
+  bool _showField = true;
+
+  void hideField() {
+    setState(() => _showField = false);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        body: KemeticKeyboardHost(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: _showField
+                ? TextField(
+                    key: const ValueKey('teardown-input'),
+                    controller: _controller,
+                  )
+                : const SizedBox(
+                    key: ValueKey('teardown-input-removed'),
+                    height: 56,
+                  ),
+          ),
+        ),
+      ),
     );
   }
 }
