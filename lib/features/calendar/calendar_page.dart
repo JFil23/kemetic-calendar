@@ -118,6 +118,7 @@ import 'decan_reflection_badge.dart';
 import 'event_filing_service.dart';
 import 'maat_flow_palette.dart';
 import 'maat_flow_visual_tokens.dart';
+import '../onboarding/decan_reflection_onboarding_gate.dart';
 import 'maat_flow_interactive_primitives.dart';
 import 'maat_flow_response_journal_blocks.dart';
 import 'maat_flow_response_models.dart';
@@ -14673,14 +14674,15 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _saveOnboardingProgress(OnboardingProgress progress) async {
-    _onboardingProgress = progress;
+    final normalized = _withReflectionDecanBaseline(progress);
+    _onboardingProgress = normalized;
     if (_onboardingReviewMode) {
-      _onboardingReviewSessionProgress = progress;
+      _onboardingReviewSessionProgress = normalized;
       return;
     }
     final userId = _currentUserId;
     if (userId == null || userId.isEmpty) return;
-    await _onboardingProgressStorage.save(userId, progress);
+    await _onboardingProgressStorage.save(userId, normalized);
   }
 
   Future<void> _updateOnboardingProgress(
@@ -14871,7 +14873,9 @@ class CalendarPageState extends State<CalendarPage>
       return;
     }
 
-    final progress = await _onboardingProgressStorage.load(userId);
+    final progress = _withReflectionDecanBaseline(
+      await _onboardingProgressStorage.load(userId),
+    );
     _onboardingProgress = progress;
     _activeHawOnboardingSlide = _hawSlideForProgress(progress);
     _hydrateFirstFlowTargetFromProgress(progress);
@@ -14901,7 +14905,7 @@ class CalendarPageState extends State<CalendarPage>
         !progress.hasSeenMenuPrompt) {
       await _waitForOnboardingCalendarReady();
       if (!mounted) return;
-      GuidedOnboardingController.instance.setExternalOverlaySuppressed(false);
+      GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
       _showMenuExploreCoachmark();
       return;
     }
@@ -16033,37 +16037,58 @@ class CalendarPageState extends State<CalendarPage>
         completedOnboarding: false,
       ),
     );
-    GuidedOnboardingController.instance.setExternalOverlaySuppressed(false);
     _showMenuExploreCoachmark();
   }
 
   void _showMenuExploreCoachmark() {
     if (!mounted) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future<void>.delayed(const Duration(milliseconds: 260), () {
-        if (!mounted) return;
-        const helper = OnboardingHelperRegistry.calendarMenuExplore;
-        final helperUserId = (_currentUserId?.trim().isNotEmpty ?? false)
-            ? _currentUserId!.trim()
-            : 'onboarding-review';
-        GuidedOnboardingController.instance.show(
-          CoachmarkTarget(
-            key: globalMenuButtonKey,
-            title: helper.title,
-            body: helper.body,
-            placement: CoachmarkPlacement.above,
-            variant: CoachmarkVariant.helperBubble,
-            showDismissButton: true,
-            dismissLabel: 'Got it',
-            allowBackgroundInteraction: true,
-            helperId: helper.id,
-            helperUserId: helperUserId,
-            sourceWidget: helper.sourceWidget,
-            onDismiss: () => unawaited(_completeTrueOnboarding()),
-          ),
-        );
-      });
-    });
+    unawaited(_showMenuExploreCoachmarkWhenReady());
+  }
+
+  Future<void> _showMenuExploreCoachmarkWhenReady() async {
+    await _waitForCoachmarkTargetReady(globalMenuButtonKey);
+    if (!mounted) return;
+    if (_onboardingProgress.currentStep != TrueOnboardingStep.menuExplore ||
+        _onboardingProgress.hasSeenMenuPrompt) {
+      return;
+    }
+    const helper = OnboardingHelperRegistry.calendarMenuExplore;
+    final helperUserId = (_currentUserId?.trim().isNotEmpty ?? false)
+        ? _currentUserId!.trim()
+        : 'onboarding-review';
+    GuidedOnboardingController.instance.show(
+      CoachmarkTarget(
+        key: globalMenuButtonKey,
+        title: helper.title,
+        body: helper.body,
+        placement: CoachmarkPlacement.above,
+        variant: CoachmarkVariant.helperBubble,
+        showDismissButton: true,
+        dismissLabel: 'Got it',
+        allowBackgroundInteraction: true,
+        helperId: helper.id,
+        helperUserId: helperUserId,
+        sourceWidget: helper.sourceWidget,
+        onDismiss: () => unawaited(_completeTrueOnboarding()),
+      ),
+      externalOverlaySuppressed: false,
+    );
+  }
+
+  Future<void> _waitForCoachmarkTargetReady(
+    GlobalKey key, {
+    int maxFrames = 12,
+  }) async {
+    for (var frame = 0; frame < maxFrames; frame += 1) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      final renderObject = key.currentContext?.findRenderObject();
+      if (renderObject is RenderBox &&
+          renderObject.hasSize &&
+          !renderObject.size.isEmpty) {
+        return;
+      }
+    }
   }
 
   Future<void> _completeTrueOnboarding() async {
@@ -34000,6 +34025,7 @@ class CalendarPageState extends State<CalendarPage>
     String decanContextKey,
     int kMonth,
     int kYear,
+    int decanIndex,
   })?
   _latestCompletedDecanWindow() {
     final now = DateTime.now();
@@ -34053,6 +34079,7 @@ class CalendarPageState extends State<CalendarPage>
       decanContextKey: '$kMonth-$completedDecan',
       kMonth: kMonth,
       kYear: kYear,
+      decanIndex: completedDecan,
     );
   }
 
@@ -34123,6 +34150,50 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
+  OnboardingDecanIdentity? _currentOnboardingDecanIdentity() {
+    final kem = KemeticMath.fromGregorian(DateTime.now());
+    return OnboardingDecanIdentity.fromKemeticDay(
+      kYear: kem.kYear,
+      kMonth: kem.kMonth,
+      kDay: kem.kDay,
+    );
+  }
+
+  OnboardingProgress _withReflectionDecanBaseline(OnboardingProgress progress) {
+    if (progress.reflectionSignupDecanIdentity?.trim().isNotEmpty == true) {
+      return progress;
+    }
+    if (progress.completedOnboarding &&
+        progress.currentStep == TrueOnboardingStep.complete) {
+      return progress;
+    }
+    final currentDecan = _currentOnboardingDecanIdentity();
+    if (currentDecan == null) return progress;
+    return progress.copyWith(
+      reflectionSignupDecanIdentity: currentDecan.wireName,
+    );
+  }
+
+  Future<void> _refreshFirstDecanBoundaryCrossingIfNeeded(
+    OnboardingDecanIdentity? currentDecan,
+  ) async {
+    if (_onboardingReviewMode || currentDecan == null) return;
+    final progress = _onboardingProgress;
+    if (progress.hasCrossedFirstDecanBoundary) return;
+    if (!DecanReflectionOnboardingGate.hasCrossedBoundary(
+      signupDecanIdentity: progress.reflectionSignupDecanIdentity,
+      currentDecanIdentity: currentDecan,
+    )) {
+      return;
+    }
+    await _saveOnboardingProgress(
+      progress.copyWith(
+        hasCrossedFirstDecanBoundary: true,
+        firstReflectionEligibleDecanIdentity: currentDecan.wireName,
+      ),
+    );
+  }
+
   Future<void> _maybeLoadDecanReflectionPrompt({bool force = false}) async {
     if (!mounted || _reflectionInFlight) return;
     if (_shouldSuppressDecanReflectionForOnboarding) {
@@ -34133,6 +34204,9 @@ class CalendarPageState extends State<CalendarPage>
     }
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
+
+    final currentDecan = _currentOnboardingDecanIdentity();
+    await _refreshFirstDecanBoundaryCrossingIfNeeded(currentDecan);
 
     final today = DateUtils.dateOnly(DateTime.now());
     if (_lastReflectionCheckDay != null &&
@@ -34145,6 +34219,22 @@ class CalendarPageState extends State<CalendarPage>
 
     final window = _latestCompletedDecanWindow();
     if (window == null) {
+      if (_reflectionPrompt != null) {
+        setState(() => _reflectionPrompt = null);
+      }
+      return;
+    }
+
+    final promptDecan = OnboardingDecanIdentity(
+      kYear: window.kYear,
+      kMonth: window.kMonth,
+      decan: window.decanIndex,
+    );
+    if (DecanReflectionOnboardingGate.shouldBlock(
+      progress: _onboardingProgress,
+      currentDecanIdentity: currentDecan,
+      promptDecanIdentity: promptDecan,
+    )) {
       if (_reflectionPrompt != null) {
         setState(() => _reflectionPrompt = null);
       }

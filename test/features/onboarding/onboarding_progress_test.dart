@@ -25,6 +25,19 @@ void main() {
     expect(progress.currentStep, TrueOnboardingStep.complete);
   });
 
+  test('reflection decan onboarding gate fields persist locally', () {
+    final progress = const OnboardingProgress().copyWith(
+      reflectionSignupDecanIdentity: '2026:4:2',
+      hasCrossedFirstDecanBoundary: true,
+      firstReflectionEligibleDecanIdentity: '2026:4:3',
+    );
+    final restored = OnboardingProgress.fromJson(progress.toJson());
+
+    expect(restored.reflectionSignupDecanIdentity, '2026:4:2');
+    expect(restored.hasCrossedFirstDecanBoundary, isTrue);
+    expect(restored.firstReflectionEligibleDecanIdentity, '2026:4:3');
+  });
+
   test('profile basics require a glyph avatar and display name or handle', () {
     expect(
       hasCompletedProfileBasics(

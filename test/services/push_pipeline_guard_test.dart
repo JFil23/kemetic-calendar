@@ -231,9 +231,17 @@ void main() {
       expect(pushNavigationSource, contains("kind == 'decan_reflection'"));
       expect(
         pushNavigationSource,
+        contains('_canOpenDecanReflectionPush(uid)'),
+      );
+      expect(
+        pushNavigationSource,
         contains(
           "_router.go('/reflections/\${Uri.encodeComponent(reflectionId)}')",
         ),
+      );
+      expect(
+        pushNavigationSource,
+        contains('progress.currentStep == TrueOnboardingStep.complete'),
       );
       final decanReflectionNavigationSource = _sourceBetween(
         pushNavigationSource,

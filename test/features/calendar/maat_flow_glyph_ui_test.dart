@@ -696,7 +696,7 @@ void main() {
     expect(slideChanged, contains('_updateOnboardingProgress('));
     expect(
       saveProgress,
-      contains('_onboardingReviewSessionProgress = progress;'),
+      contains('_onboardingReviewSessionProgress = normalized;'),
     );
     expect(
       maybePresent,
@@ -805,7 +805,10 @@ void main() {
         source,
         '_handleObservedJournalPromptNext',
       );
-      final menuCoachmark = _methodSource(source, '_showMenuExploreCoachmark');
+      final menuCoachmark = _methodSource(
+        source,
+        '_showMenuExploreCoachmarkWhenReady',
+      );
       final completeTrue = _methodSource(source, '_completeTrueOnboarding');
 
       expect(
@@ -852,11 +855,13 @@ void main() {
         menuCoachmark,
         contains('const helper = OnboardingHelperRegistry.calendarMenuExplore'),
       );
+      expect(menuCoachmark, contains('_waitForCoachmarkTargetReady'));
       expect(menuCoachmark, contains('title: helper.title'));
       expect(menuCoachmark, contains('body: helper.body'));
       expect(menuCoachmark, contains('variant: CoachmarkVariant.helperBubble'));
       expect(menuCoachmark, contains('key: globalMenuButtonKey'));
       expect(menuCoachmark, contains('allowBackgroundInteraction: true'));
+      expect(menuCoachmark, contains('externalOverlaySuppressed: false'));
       expect(menuCoachmark, isNot(contains("nextLabel: 'Enter ḥꜣw'")));
       expect(
         menuCoachmark,
@@ -972,6 +977,15 @@ void main() {
         maybeReflection,
         contains('_shouldSuppressDecanReflectionForOnboarding'),
       );
+      expect(
+        maybeReflection,
+        contains('_refreshFirstDecanBoundaryCrossingIfNeeded(currentDecan)'),
+      );
+      expect(
+        maybeReflection,
+        contains('DecanReflectionOnboardingGate.shouldBlock'),
+      );
+      expect(maybeReflection, contains('promptDecanIdentity: promptDecan'));
       expect(dayView, contains('final isolateOnboardingTarget'));
       expect(
         dayView,

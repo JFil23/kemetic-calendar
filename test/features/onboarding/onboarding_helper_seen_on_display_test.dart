@@ -152,8 +152,10 @@ void main() {
       contains('const helper = OnboardingHelperRegistry.calendarMenuExplore'),
     );
     expect(calendarSource, contains('key: globalMenuButtonKey'));
+    expect(calendarSource, contains('_waitForCoachmarkTargetReady'));
     expect(calendarSource, contains('variant: CoachmarkVariant.helperBubble'));
     expect(calendarSource, contains('allowBackgroundInteraction: true'));
+    expect(calendarSource, contains('externalOverlaySuppressed: false'));
     expect(calendarSource, contains('helperId: helper.id'));
     expect(calendarSource, contains('sourceWidget: helper.sourceWidget'));
     expect(

@@ -75,7 +75,7 @@ class GuidedOnboardingController extends ChangeNotifier {
   bool get suppressExternalOverlays =>
       _suppressExternalOverlays || _target != null;
 
-  void show(CoachmarkTarget target) {
+  void show(CoachmarkTarget target, {bool? externalOverlaySuppressed}) {
     assert(() {
       if (target.variant != CoachmarkVariant.helperBubble) return true;
       final helperId = target.helperId;
@@ -108,6 +108,9 @@ class GuidedOnboardingController extends ChangeNotifier {
       return true;
     }());
     _target = target;
+    if (externalOverlaySuppressed != null) {
+      _suppressExternalOverlays = externalOverlaySuppressed;
+    }
     notifyListeners();
   }
 
@@ -425,6 +428,9 @@ class _GuidedOnboardingOverlayState extends State<GuidedOnboardingOverlay>
         final size = Size(constraints.maxWidth, constraints.maxHeight);
         final target = widget.target;
         final isHelper = target.variant == CoachmarkVariant.helperBubble;
+        if (isHelper && target.key != null && _primaryRect == null) {
+          return const SizedBox.shrink();
+        }
         final cardWidth = isHelper
             ? math.min(size.width - 28, 320.0).clamp(220.0, 320.0).toDouble()
             : math.min(size.width - 32, 360.0);

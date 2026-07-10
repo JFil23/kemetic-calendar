@@ -3445,6 +3445,7 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     if (kind == 'decan_reflection' && reflectionId != null) {
       final uid = supabase.auth.currentUser?.id;
       if (uid == null) return false;
+      if (!await _canOpenDecanReflectionPush(uid)) return false;
       _router.go('/reflections/${Uri.encodeComponent(reflectionId)}');
       return true;
     }
@@ -3568,6 +3569,19 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     }
 
     return false;
+  }
+
+  Future<bool> _canOpenDecanReflectionPush(String userId) async {
+    try {
+      final progress = await OnboardingProgressStorage().loadLocal(userId);
+      if (progress.completedOnboarding) {
+        return progress.hasSeenMenuPrompt &&
+            progress.currentStep == TrueOnboardingStep.complete;
+      }
+      return OnboardingStorage(supabase).isCompletedLocally(userId);
+    } catch (_) {
+      return false;
+    }
   }
 
   void _openSharedFlow(String shareId) {

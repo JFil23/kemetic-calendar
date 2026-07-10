@@ -346,6 +346,9 @@ class OnboardingProgress {
     this.hasSeenMenuPrompt = false,
     this.completedOnboarding = false,
     this.skippedOnboarding = false,
+    this.reflectionSignupDecanIdentity,
+    this.firstReflectionEligibleDecanIdentity,
+    this.hasCrossedFirstDecanBoundary = false,
     this.seenHelpers = const <String>{},
   });
 
@@ -365,6 +368,9 @@ class OnboardingProgress {
   final bool hasSeenMenuPrompt;
   final bool completedOnboarding;
   final bool skippedOnboarding;
+  final String? reflectionSignupDecanIdentity;
+  final String? firstReflectionEligibleDecanIdentity;
+  final bool hasCrossedFirstDecanBoundary;
   final Set<String> seenHelpers;
 
   OnboardingProgress copyWith({
@@ -388,6 +394,11 @@ class OnboardingProgress {
     bool? hasSeenMenuPrompt,
     bool? completedOnboarding,
     bool? skippedOnboarding,
+    String? reflectionSignupDecanIdentity,
+    bool clearReflectionSignupDecanIdentity = false,
+    String? firstReflectionEligibleDecanIdentity,
+    bool clearFirstReflectionEligibleDecanIdentity = false,
+    bool? hasCrossedFirstDecanBoundary,
     Set<String>? seenHelpers,
   }) {
     return OnboardingProgress(
@@ -425,6 +436,17 @@ class OnboardingProgress {
           (this.completedOnboarding ||
               (currentStep ?? this.currentStep) == TrueOnboardingStep.complete),
       skippedOnboarding: skippedOnboarding ?? this.skippedOnboarding,
+      reflectionSignupDecanIdentity: clearReflectionSignupDecanIdentity
+          ? null
+          : (reflectionSignupDecanIdentity ??
+                this.reflectionSignupDecanIdentity),
+      firstReflectionEligibleDecanIdentity:
+          clearFirstReflectionEligibleDecanIdentity
+          ? null
+          : (firstReflectionEligibleDecanIdentity ??
+                this.firstReflectionEligibleDecanIdentity),
+      hasCrossedFirstDecanBoundary:
+          hasCrossedFirstDecanBoundary ?? this.hasCrossedFirstDecanBoundary,
       seenHelpers: seenHelpers ?? this.seenHelpers,
     );
   }
@@ -455,6 +477,10 @@ class OnboardingProgress {
     'hasSeenMenuPrompt': hasSeenMenuPrompt,
     'completedOnboarding': completedOnboarding,
     'skippedOnboarding': skippedOnboarding,
+    'reflectionSignupDecanIdentity': reflectionSignupDecanIdentity,
+    'firstReflectionEligibleDecanIdentity':
+        firstReflectionEligibleDecanIdentity,
+    'hasCrossedFirstDecanBoundary': hasCrossedFirstDecanBoundary,
     'seenHelpers': seenHelpers.toList()..sort(),
   };
 
@@ -491,6 +517,12 @@ class OnboardingProgress {
       hasSeenMenuPrompt: json['hasSeenMenuPrompt'] == true,
       completedOnboarding: json['completedOnboarding'] == true,
       skippedOnboarding: json['skippedOnboarding'] == true,
+      reflectionSignupDecanIdentity:
+          json['reflectionSignupDecanIdentity'] as String?,
+      firstReflectionEligibleDecanIdentity:
+          json['firstReflectionEligibleDecanIdentity'] as String?,
+      hasCrossedFirstDecanBoundary:
+          json['hasCrossedFirstDecanBoundary'] == true,
       seenHelpers: helperIds,
     );
   }
