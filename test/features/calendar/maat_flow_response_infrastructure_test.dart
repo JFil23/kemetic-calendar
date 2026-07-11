@@ -8,6 +8,7 @@ import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/maat_flow_response_models.dart';
+import 'package:mobile/features/calendar/maat_flow_response_projection.dart';
 import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
 import 'package:mobile/features/calendar/the_days_outside_year_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_flow.dart';
@@ -547,7 +548,10 @@ void main() {
       (spec) => spec.id == 'boundary-stone-restored',
     );
 
-    expect(eveningThreshold.journalCarryMode, MaatFlowJournalCarryMode.none);
+    expect(
+      eveningThreshold.journalCarryMode,
+      MaatFlowJournalCarryMode.userReflection,
+    );
     expect(boundaryMarker.journalCarryMode, MaatFlowJournalCarryMode.none);
     expect(
       boundaryReflection.journalCarryMode,
@@ -933,7 +937,7 @@ void main() {
     );
   });
 
-  test('Dawn House and Closing journal formatters read naturally', () {
+  test('Dawn House formatter and Closing raw projection read naturally', () {
     final dawnSpec = resolveMaatFlowResponseSpecs(
       flowKey: kDawnHouseRiteFlowKey,
       surface: MaatFlowResponseSurface.calendarSheet,
@@ -955,19 +959,34 @@ void main() {
       flowKey: kEveningThresholdRiteFlowKey,
       surface: MaatFlowResponseSurface.calendarSheet,
     ).single;
-    final closing = buildMaatFlowResponseJournalPreview(
-      spec: closingSpec,
-      value: MaatFlowResponseValue.text(
-        specId: closingSpec.id,
-        text: 'the unfinished worry and leave it for tomorrow\'s light.',
-        multiline: true,
-      ),
+    const closingText = 'Tonight I release the need to be perfect.';
+    final localDate = DateTime(2026, 7, 11);
+    final sourceId = closingSpec.sourceId(
+      clientEventId: 'evt-hidden-practice',
+      localDate: localDate,
+    );
+    final closing = buildMaatJournalResponseProjections(
+      specs: <MaatFlowResponseSpec>[closingSpec],
+      values: <String, MaatFlowResponseValue>{
+        closingSpec.id: MaatFlowResponseValue.text(
+          specId: closingSpec.id,
+          text: closingText,
+          multiline: true,
+        ),
+      },
+      completionStatus: CompletionStatus.observed,
+      localDate: localDate,
+      sourceIdForSpec: (_) => sourceId,
+      sourceIdForGroup: (_, _) => sourceId,
     );
 
+    expect(closing, hasLength(1));
     expect(
-      closing!.text,
-      'The Closing: I release the unfinished worry and leave it for tomorrow\'s light.',
+      closing.single.block.projectionKind,
+      MaatJournalResponseProjectionKind.plainUserText,
     );
+    expect(closing.single.block.text, closingText);
+    expect(closing.single.block.text, isNot(contains('The Closing:')));
   });
 
   test('Offering Table and Days Outside formatters read naturally', () {

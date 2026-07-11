@@ -8,7 +8,7 @@ import 'package:mobile/features/calendar/maat_flow_response_projection.dart';
 import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
 
 void main() {
-  const responseText = 'I release the need to control tomorrow.';
+  const responseText = 'Tonight I release the need to be perfect.';
   final localDate = DateTime(2026, 7, 11);
 
   MaatFlowResponseSpec closingSpec() {
@@ -139,7 +139,7 @@ void main() {
     },
   );
 
-  test('completion projection updates one formatted journal block id', () {
+  test('completion projection updates one plain user-text journal source', () {
     final spec = closingSpec();
     final sourceId = spec.sourceId(
       clientEventId: 'evt-hidden-practice',
@@ -165,21 +165,23 @@ void main() {
     expect(projections, hasLength(1));
     expect(
       projections.single.block.projectionKind,
-      MaatJournalResponseProjectionKind.formatted,
+      MaatJournalResponseProjectionKind.plainUserText,
     );
     expect(projections.single.block.sourceId, sourceId);
     expect(
       projections.single.block.blockId,
       maatJournalResponseBlockId(sourceId),
     );
-    expect(projections.single.block.text, contains('control tomorrow'));
+    expect(projections.single.block.text, responseText);
+    expect(projections.single.block.text, isNot(contains('The Closing:')));
+    expect(projections.single.block.text, isNot(contains('I release Tonight')));
 
     final updated = buildMaatJournalResponseProjections(
       specs: <MaatFlowResponseSpec>[spec],
       values: <String, MaatFlowResponseValue>{
         spec.id: MaatFlowResponseValue.text(
           specId: spec.id,
-          text: 'I release the old pressure.',
+          text: 'Tonight I release the old pressure.',
           multiline: true,
         ),
       },
@@ -189,6 +191,8 @@ void main() {
       sourceIdForGroup: (_, _) => sourceId,
     );
     expect(updated.single.block.blockId, projections.single.block.blockId);
-    expect(updated.single.block.text, contains('old pressure'));
+    expect(updated.single.block.sourceId, projections.single.block.sourceId);
+    expect(updated.single.block.text, 'Tonight I release the old pressure.');
+    expect(updated.single.block.text, isNot(contains(responseText)));
   });
 }

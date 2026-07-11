@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/completion_status.dart';
+import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
 import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
 import 'package:mobile/features/calendar/maat_flow_response_models.dart';
 import 'package:mobile/features/calendar/maat_flow_response_projection.dart';
@@ -35,14 +36,15 @@ void main() {
   });
 
   test(
-    'Evening Threshold closing response uses formatted journal behavior',
+    'Evening Threshold closing response uses plain user-text journal behavior',
     () {
       final spec = resolveMaatFlowResponseSpecs(
         flowKey: kEveningThresholdRiteFlowKey,
         surface: MaatFlowResponseSurface.calendarSheet,
       ).singleWhere((spec) => spec.id == 'closing-release-tonight');
 
-      expect(spec.journalBehavior, MaatFlowJournalBehavior.formatted);
+      expect(spec.journalBehavior, MaatFlowJournalBehavior.plainUserText);
+      expect(spec.journalCarryMode, MaatFlowJournalCarryMode.userReflection);
       expect(
         spec.journalFormatter,
         MaatFlowResponseJournalFormatter.closingRelease,
@@ -65,9 +67,9 @@ void main() {
     'projection routing is exhaustive and does not infer from loose fields',
     () {
       final formattedSpec = resolveMaatFlowResponseSpecs(
-        flowKey: kEveningThresholdRiteFlowKey,
+        flowKey: kDawnHouseRiteFlowKey,
         surface: MaatFlowResponseSurface.calendarSheet,
-      ).singleWhere((spec) => spec.id == 'closing-release-tonight');
+      ).singleWhere((spec) => spec.id == 'dawn-house-order-act');
       const plainSpec = MaatFlowResponseSpec(
         id: 'plain-reflection',
         flowKey: 'test-flow',
@@ -88,8 +90,7 @@ void main() {
         values: <String, MaatFlowResponseValue>{
           formattedSpec.id: MaatFlowResponseValue.text(
             specId: formattedSpec.id,
-            text: 'the need to control tomorrow',
-            multiline: true,
+            text: 'clearing the table before sunrise',
           ),
           plainSpec.id: MaatFlowResponseValue.text(
             specId: plainSpec.id,

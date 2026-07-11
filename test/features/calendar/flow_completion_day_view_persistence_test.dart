@@ -17,8 +17,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 const int _flowId = 917;
 const String _clientEventId = 'cid-evening-threshold-rite-17-persistence';
 const String _specId = 'closing-release-tonight';
-const String _firstResponse = 'gate day view persistence marker.';
-const String _updatedResponse = 'gate day view persistence marker updated.';
+const String _firstResponse = 'Tonight I release the need to be perfect.';
+const String _updatedResponse = 'Tonight I release the old pressure.';
 
 Future<void> _ensureSupabaseInitialized() async {
   try {
@@ -116,12 +116,24 @@ void main() {
       ).values;
       expect(firstValues[_specId]?.text, _firstResponse);
 
-      var responseBlocks = MaatJournalResponseBlockUtils.extract(document);
-      expect(responseBlocks, hasLength(1));
-      final firstBlock = responseBlocks.single;
-      expect(firstBlock.text, contains(_firstResponse));
-      final firstBlockId = firstBlock.blockId;
-      final firstSourceId = firstBlock.sourceId;
+      expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+      var plainSources =
+          MaatJournalResponseBlockUtils.extractPlainUserTextSources(document);
+      expect(plainSources, hasLength(1));
+      expect(plainSources.values.single, _firstResponse);
+      expect(
+        document.toPlainText(),
+        'Existing journal body.\n\n$_firstResponse',
+      );
+      expect(document.toPlainText(), isNot(contains('The Closing:')));
+      expect(
+        document.toPlainText(),
+        isNot(contains('What do you release tonight?')),
+      );
+      expect(document.toPlainText(), isNot(contains('I release Tonight')));
+      expect(_occurrences(document.toPlainText(), 'I release'), 1);
+      final firstSourceId = plainSources.keys.single;
+      final firstBlockId = maatJournalResponseBlockId(firstSourceId);
 
       var badges = JournalBadgeUtils.completionTokensFromDocument(document);
       expect(badges, hasLength(1));
@@ -148,13 +160,25 @@ void main() {
       ).values;
       expect(updatedValues[_specId]?.text, _updatedResponse);
 
-      responseBlocks = MaatJournalResponseBlockUtils.extract(document);
-      expect(responseBlocks, hasLength(1));
-      final updatedBlock = responseBlocks.single;
-      expect(updatedBlock.blockId, firstBlockId);
-      expect(updatedBlock.sourceId, firstSourceId);
-      expect(updatedBlock.text, contains(_updatedResponse));
-      expect(updatedBlock.text, isNot(contains(_firstResponse)));
+      expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
+      plainSources = MaatJournalResponseBlockUtils.extractPlainUserTextSources(
+        document,
+      );
+      expect(plainSources, hasLength(1));
+      expect(plainSources.keys.single, firstSourceId);
+      expect(
+        maatJournalResponseBlockId(plainSources.keys.single),
+        firstBlockId,
+      );
+      expect(plainSources.values.single, _updatedResponse);
+      expect(
+        document.toPlainText(),
+        'Existing journal body.\n\n$_updatedResponse',
+      );
+      expect(document.toPlainText(), isNot(contains(_firstResponse)));
+      expect(document.toPlainText(), isNot(contains('The Closing:')));
+      expect(document.toPlainText(), isNot(contains('I release Tonight')));
+      expect(_occurrences(document.toPlainText(), 'I release'), 1);
 
       badges = JournalBadgeUtils.completionTokensFromDocument(document);
       expect(badges, hasLength(1));
@@ -305,6 +329,18 @@ Future<void> _pumpInteraction(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 650));
   await tester.pump();
+}
+
+int _occurrences(String haystack, String needle) {
+  if (needle.isEmpty) return 0;
+  var count = 0;
+  var index = 0;
+  while (true) {
+    index = haystack.indexOf(needle, index);
+    if (index < 0) return count;
+    count += 1;
+    index += needle.length;
+  }
 }
 
 Future<void> _setPhoneViewport(WidgetTester tester) async {

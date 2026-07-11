@@ -1,40 +1,48 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
+import 'package:mobile/features/calendar/maat_flow_response_projection.dart';
 import 'package:mobile/features/calendar/maat_flow_response_models.dart';
 import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 
 void main() {
-  test(
-    'Evening Threshold closing formatter preserves ritual journal voice',
-    () {
-      final spec = resolveMaatFlowResponseSpecs(
-        flowKey: kEveningThresholdRiteFlowKey,
-        surface: MaatFlowResponseSurface.calendarSheet,
-      ).singleWhere((spec) => spec.id == 'closing-release-tonight');
+  test('Evening Threshold closing projection carries exact journal text', () {
+    final spec = resolveMaatFlowResponseSpecs(
+      flowKey: kEveningThresholdRiteFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    ).singleWhere((spec) => spec.id == 'closing-release-tonight');
+    const text = 'Tonight I release the need to be perfect.';
+    final localDate = DateTime(2026, 7, 11);
+    final sourceId = spec.sourceId(
+      clientEventId: 'evt-hidden-practice',
+      localDate: localDate,
+    );
 
-      final previews = buildMaatFlowResponseJournalPreviews(
-        specs: <MaatFlowResponseSpec>[spec],
-        values: <String, MaatFlowResponseValue>{
-          spec.id: MaatFlowResponseValue.text(
-            specId: spec.id,
-            text: 'the need to control tomorrow',
-            multiline: true,
-          ),
-        },
-        completionStatus: CompletionStatus.observed,
-        clientEventId: 'evt-hidden-practice',
-        localDate: DateTime(2026, 7, 11),
-      );
+    final projections = buildMaatJournalResponseProjections(
+      specs: <MaatFlowResponseSpec>[spec],
+      values: <String, MaatFlowResponseValue>{
+        spec.id: MaatFlowResponseValue.text(
+          specId: spec.id,
+          text: text,
+          multiline: true,
+        ),
+      },
+      completionStatus: CompletionStatus.observed,
+      localDate: localDate,
+      sourceIdForSpec: (_) => sourceId,
+      sourceIdForGroup: (_, _) => sourceId,
+    );
 
-      expect(previews, hasLength(1));
-      expect(
-        previews.single.text,
-        'The Closing: I release the need to control tomorrow.',
-      );
-    },
-  );
+    expect(projections, hasLength(1));
+    expect(
+      projections.single.block.projectionKind,
+      MaatJournalResponseProjectionKind.plainUserText,
+    );
+    expect(projections.single.block.text, text);
+    expect(projections.single.block.text, isNot(contains('The Closing:')));
+    expect(projections.single.block.text, isNot(contains('I release Tonight')));
+  });
 
   test('Offering Table grouped formatter writes one grouped sentence', () {
     final specs = resolveMaatFlowResponseSpecs(
