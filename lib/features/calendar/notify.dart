@@ -136,6 +136,13 @@ class Notify {
       'Notification permission is off for this device. Turn it on before event alerts can fire.';
   static const exactAlarmUnavailableMessage =
       'Exact alarm permission is off for this device. Turn on Alarms & reminders before event-time alerts can fire at the event time.';
+  @visibleForTesting
+  static const debugStartupDarwinInitializationSettings =
+      DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      );
 
   static bool _inited = false;
   static Future<void>? _initFuture;
@@ -1030,11 +1037,7 @@ class Notify {
     const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
 
     // 3) iOS/macOS init
-    const darwinInit = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
+    const darwinInit = debugStartupDarwinInitializationSettings;
 
     const initSettings = InitializationSettings(
       android: androidInit,
