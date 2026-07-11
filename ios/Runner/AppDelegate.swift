@@ -30,6 +30,8 @@ import WidgetKit
       switch call.method {
       case "requestPermissions":
         self.handleRequestPermissions(result: result)
+      case "hasPermissions":
+        result(self.hasCalendarPermission())
       case "getStableDeviceId":
         result(self.stableDeviceId())
       case "fetchEvents":
@@ -70,6 +72,14 @@ import WidgetKit
     } else {
       eventStore.requestAccess(to: .event, completion: complete)
     }
+  }
+
+  private func hasCalendarPermission() -> Bool {
+    let status = EKEventStore.authorizationStatus(for: .event)
+    if #available(iOS 17.0, *) {
+      return status == .fullAccess
+    }
+    return status == .authorized
   }
 
   private func stableDeviceId() -> String? {

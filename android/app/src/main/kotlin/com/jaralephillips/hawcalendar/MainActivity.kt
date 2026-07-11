@@ -33,6 +33,7 @@ class MainActivity : FlutterActivity() {
     MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName).setMethodCallHandler { call, result ->
       when (call.method) {
         "requestPermissions" -> handleRequestPermissions(result)
+        "hasPermissions" -> result.success(hasCalendarPermission())
         "getStableDeviceId" -> result.success(getStableDeviceId())
         "fetchEvents" -> {
           val args = call.arguments as? Map<*, *>

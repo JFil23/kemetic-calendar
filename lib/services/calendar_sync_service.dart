@@ -438,6 +438,19 @@ class CalendarPlatformBridge {
     }
   }
 
+  Future<bool> hasPermissions() async {
+    if (kIsWeb) return false;
+    try {
+      final granted = await _channel.invokeMethod<bool>('hasPermissions');
+      return granted ?? false;
+    } catch (e) {
+      debugPrint(
+        '[calendar-sync] hasPermissions error: ${_calendarSyncError(e)}',
+      );
+      return false;
+    }
+  }
+
   Future<List<NativeCalendarEvent>> fetchEvents(
     DateTime start,
     DateTime end,
@@ -845,11 +858,15 @@ class CalendarSyncService {
     final lastPermissionDeniedAt = parseCalendarSyncTimestamp(
       _stateBox?.get('lastPermissionDenied'),
     );
+    final nativePermissionGranted = !_usesWebImport && !interactive
+        ? await _platform.hasPermissions()
+        : null;
     if (!interactive &&
         shouldBackOffCalendarPermissionRequest(
           now: now,
           lastPermissionDeniedAt: lastPermissionDeniedAt,
-        )) {
+        ) &&
+        nativePermissionGranted != true) {
       if (kDebugMode) {
         debugPrint('[calendar-sync] skip permission retry (recent denial)');
       }
@@ -878,10 +895,15 @@ class CalendarSyncService {
               : const CalendarSyncRunResult.authorizationRequired();
         }
       } else {
-        final granted = await _platform.requestPermissions();
-        if (!granted) {
-          await _stateBox?.put('lastPermissionDenied', now.toIso8601String());
-          return const CalendarSyncRunResult.permissionDenied();
+        if (!interactive && nativePermissionGranted != true) {
+          return const CalendarSyncRunResult.authorizationRequired();
+        }
+        if (interactive) {
+          final granted = await _platform.requestPermissions();
+          if (!granted) {
+            await _stateBox?.put('lastPermissionDenied', now.toIso8601String());
+            return const CalendarSyncRunResult.permissionDenied();
+          }
         }
         await _stateBox?.delete('lastPermissionDenied');
         nativeEvents = await _platform.fetchEvents(start, end);

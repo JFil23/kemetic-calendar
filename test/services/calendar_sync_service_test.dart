@@ -186,6 +186,53 @@ void main() {
 
   group('one-way calendar import', () {
     test(
+      'native background sync does not request Calendar permission',
+      () async {
+        final platform = _FakeCalendarPlatformBridge(events: const []);
+        final service = CalendarSyncService(
+          Supabase.instance.client,
+          platform: platform,
+          eventsStore: _FakeCalendarSyncEventStore(),
+          runLegacyUnlinkReset: false,
+          now: () => DateTime.utc(2026, 7, 1, 12),
+        );
+        addTearDown(service.dispose);
+
+        final result = await service.sync(interactive: false);
+
+        expect(result.state, CalendarSyncRunState.authorizationRequired);
+        expect(platform.hasPermissionsCount, 1);
+        expect(platform.requestPermissionsCount, 0);
+        expect(platform.fetchEventsCount, 0);
+      },
+    );
+
+    test(
+      'native background sync proceeds silently when Calendar permission is already granted',
+      () async {
+        final platform = _FakeCalendarPlatformBridge(
+          events: const [],
+          permissionsGranted: true,
+        );
+        final service = CalendarSyncService(
+          Supabase.instance.client,
+          platform: platform,
+          eventsStore: _FakeCalendarSyncEventStore(),
+          runLegacyUnlinkReset: false,
+          now: () => DateTime.utc(2026, 7, 1, 12),
+        );
+        addTearDown(service.dispose);
+
+        final result = await service.sync(interactive: false);
+
+        expect(result.state, CalendarSyncRunState.synced);
+        expect(platform.hasPermissionsCount, 1);
+        expect(platform.requestPermissionsCount, 0);
+        expect(platform.fetchEventsCount, 1);
+      },
+    );
+
+    test(
       'imports external events into HAw without external write calls',
       () async {
         final native = NativeCalendarEvent(
@@ -619,11 +666,22 @@ Future<void> _clearCalendarSyncBoxes() async {
 }
 
 class _FakeCalendarPlatformBridge extends CalendarPlatformBridge {
-  _FakeCalendarPlatformBridge({required this.events});
+  _FakeCalendarPlatformBridge({
+    required this.events,
+    this.permissionsGranted = false,
+  });
 
   final List<NativeCalendarEvent> events;
+  final bool permissionsGranted;
+  int hasPermissionsCount = 0;
   int requestPermissionsCount = 0;
   int fetchEventsCount = 0;
+
+  @override
+  Future<bool> hasPermissions() async {
+    hasPermissionsCount += 1;
+    return permissionsGranted;
+  }
 
   @override
   Future<bool> requestPermissions() async {
