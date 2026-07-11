@@ -149,14 +149,19 @@ class DailyCosmicContextController extends ChangeNotifier {
     await _prefs.markShown(normalizedUserId, badge.gregorianDateKey);
   }
 
-  void showOnboardingBadge(
+  bool showOnboardingBadge(
     DailyCosmicContextBadge badge, {
     VoidCallback? onDismissed,
   }) {
+    if (_onboardingDismissed != null &&
+        _current?.gregorianDateKey == badge.gregorianDateKey) {
+      return false;
+    }
     _evaluationSerial += 1;
     _activeUserId = null;
     _onboardingDismissed = onDismissed;
     _setCurrent(badge);
+    return true;
   }
 
   Future<void> dismiss() async {

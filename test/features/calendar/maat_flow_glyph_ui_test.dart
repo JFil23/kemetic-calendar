@@ -837,13 +837,20 @@ void main() {
       expect(completeHaw, contains('hasSeenMenuPrompt: false'));
       expect(completeHaw, contains('await _showOnboardingDayRhythm();'));
       expect(completeHaw, isNot(contains('_markOnboardingCompletedIfNeeded')));
+      expect(dayRhythm, contains('OnboardingDayRhythmState.scheduled'));
+      expect(dayRhythm, contains('OnboardingDayRhythmState.visible'));
+      expect(dayRhythm, contains('OnboardingDayRhythmState.completed'));
       expect(dayRhythm, contains('dailyCosmicContextBadgeForDate('));
       expect(dayRhythm, contains('showOnboardingBadge('));
       expect(
         dayRhythm,
         contains(
-          'onDismissed: () => unawaited(_handleObservedJournalPromptNext())',
+          'onDismissed: () => unawaited(_handleOnboardingDayRhythmDismissed())',
         ),
+      );
+      expect(
+        source,
+        contains('Future<void> _handleOnboardingDayRhythmDismissed()'),
       );
       expect(
         rhythmDismissed,

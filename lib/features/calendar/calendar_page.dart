@@ -14880,6 +14880,17 @@ class CalendarPageState extends State<CalendarPage>
     _activeHawOnboardingSlide = _hawSlideForProgress(progress);
     _hydrateFirstFlowTargetFromProgress(progress);
 
+    if (progress.currentStep == TrueOnboardingStep.eventDetailObservedJournal) {
+      await _waitForOnboardingCalendarReady();
+      if (!mounted) return;
+      if (progress.onboardingDayRhythmState == OnboardingDayRhythmState.idle) {
+        unawaited(_showOnboardingDayRhythm());
+      } else {
+        unawaited(_handleObservedJournalPromptNext());
+      }
+      return;
+    }
+
     final hasCompleted = await _onboardingStorage.hasCompleted(userId);
     if (!mounted) return;
     if (hasCompleted || progress.completedOnboarding) {
@@ -15590,10 +15601,20 @@ class CalendarPageState extends State<CalendarPage>
     await _persistOnboardingContinuationStage(
       _OnboardingContinuationStage.none,
     );
-    _onboardingProgress = _onboardingProgress.copyWith(
+    final completeProgress = _onboardingProgress.copyWith(
       currentStep: TrueOnboardingStep.complete,
       completedOnboarding: true,
     );
+    final currentDecan = _currentOnboardingDecanIdentity();
+    _onboardingProgress =
+        completeProgress.reflectionSignupDecanIdentity?.trim().isNotEmpty ==
+            true
+        ? completeProgress
+        : (currentDecan == null
+              ? completeProgress
+              : completeProgress.copyWith(
+                  reflectionSignupDecanIdentity: currentDecan.wireName,
+                ));
     await _onboardingProgressStorage.save(userId, _onboardingProgress);
     await _onboardingStorage.markCompleted(userId);
   }
@@ -16013,22 +16034,68 @@ class CalendarPageState extends State<CalendarPage>
 
   Future<void> _showOnboardingDayRhythm() async {
     if (!mounted) return;
+    final rhythmState = _onboardingProgress.onboardingDayRhythmState;
+    if (rhythmState == OnboardingDayRhythmState.completed) {
+      await _handleObservedJournalPromptNext();
+      return;
+    }
+    if (rhythmState == OnboardingDayRhythmState.scheduled ||
+        rhythmState == OnboardingDayRhythmState.visible) {
+      return;
+    }
+
+    await _updateOnboardingProgress(
+      (progress) => progress.copyWith(
+        currentStep: TrueOnboardingStep.eventDetailObservedJournal,
+        completedOnboarding: false,
+        hasSeenObservedJournalPrompt: false,
+        hasSeenMenuPrompt: false,
+        onboardingDayRhythmState: OnboardingDayRhythmState.scheduled,
+      ),
+    );
+    if (!mounted) return;
     GuidedOnboardingController.instance.clear();
     GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
 
     final badge = dailyCosmicContextBadgeForDate(_onboardingDayRhythmDate());
     if (badge == null) {
-      await _handleObservedJournalPromptNext();
+      await _handleOnboardingDayRhythmDismissed();
       return;
     }
 
+    await _updateOnboardingProgress(
+      (progress) => progress.copyWith(
+        onboardingDayRhythmState: OnboardingDayRhythmState.visible,
+      ),
+    );
+    if (!mounted) return;
     _onboardingDayRhythmController.showOnboardingBadge(
       badge,
-      onDismissed: () => unawaited(_handleObservedJournalPromptNext()),
+      onDismissed: () => unawaited(_handleOnboardingDayRhythmDismissed()),
     );
   }
 
+  Future<void> _handleOnboardingDayRhythmDismissed() async {
+    if (_onboardingProgress.onboardingDayRhythmState !=
+        OnboardingDayRhythmState.completed) {
+      await _updateOnboardingProgress(
+        (progress) => progress.copyWith(
+          onboardingDayRhythmState: OnboardingDayRhythmState.completed,
+        ),
+      );
+    }
+    await _handleObservedJournalPromptNext();
+  }
+
   Future<void> _handleObservedJournalPromptNext() async {
+    if (_onboardingProgress.currentStep == TrueOnboardingStep.complete) {
+      return;
+    }
+    if (_onboardingProgress.currentStep == TrueOnboardingStep.menuExplore ||
+        _onboardingProgress.hasSeenObservedJournalPrompt) {
+      _showMenuExploreCoachmark();
+      return;
+    }
     await _updateOnboardingProgress(
       (progress) => progress.copyWith(
         hasSeenObservedJournalPrompt: true,

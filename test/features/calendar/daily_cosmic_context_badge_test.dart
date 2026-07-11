@@ -77,6 +77,39 @@ void main() {
   });
 
   test(
+    'onboarding badge duplicate requests collapse to one presentation',
+    () async {
+      final controller = DailyCosmicContextController(now: () => _firstDay);
+      addTearDown(controller.dispose);
+      final badge = dailyCosmicContextBadgeForDate(_firstDay)!;
+      var dismissCount = 0;
+
+      expect(
+        controller.showOnboardingBadge(
+          badge,
+          onDismissed: () {
+            dismissCount += 1;
+          },
+        ),
+        isTrue,
+      );
+      expect(
+        controller.showOnboardingBadge(
+          badge,
+          onDismissed: () {
+            dismissCount += 1;
+          },
+        ),
+        isFalse,
+      );
+      expect(controller.current, same(badge));
+
+      await controller.dismiss();
+      expect(dismissCount, 1);
+    },
+  );
+
+  test(
     'shown marker stores only the date and never the context body',
     () async {
       const editedCopy = 'Edited live copy that should never be persisted.';
@@ -587,6 +620,23 @@ void main() {
       );
     },
   );
+
+  test('global daily context waits for completed onboarding handoff', () async {
+    final source = await File('lib/main.dart').readAsString();
+    final completionGate = _sourceBetween(
+      source,
+      'Future<bool> _dailyCosmicContextOnboardingComplete(String userId) async {',
+      'void _resetFloatingMenuStateAfterFrame()',
+    );
+
+    expect(completionGate, contains('progress.hasSeenMenuPrompt'));
+    expect(
+      completionGate,
+      contains('progress.currentStep == TrueOnboardingStep.complete'),
+    );
+    expect(completionGate, contains('OnboardingDayRhythmState.scheduled'));
+    expect(completionGate, contains('OnboardingDayRhythmState.visible'));
+  });
 }
 
 String _sourceBetween(String source, String start, String end) {

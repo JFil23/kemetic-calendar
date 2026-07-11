@@ -26,6 +26,8 @@ import 'features/inbox/shared_flow_details_entry.dart';
 import 'features/inbox/shared_flow_details_page.dart';
 import 'features/inbox/inbox_threading.dart';
 import 'features/invites/event_invite_details_page.dart';
+import 'data/decan_reflection_model.dart';
+import 'data/decan_reflection_repo.dart';
 import 'data/profile_model.dart';
 import 'data/profile_repo.dart';
 import 'data/flow_post_model.dart';
@@ -63,6 +65,7 @@ import 'features/maat_guidance/maat_guidance_floating_card.dart';
 import 'features/nodes/kemetic_node_library.dart';
 import 'features/nodes/kemetic_node_list_page.dart';
 import 'features/nodes/kemetic_node_reader_page.dart';
+import 'package:mobile/features/onboarding/decan_reflection_onboarding_gate.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import 'package:mobile/features/onboarding/onboarding_review_config.dart';
 import 'features/onboarding/onboarding_progress.dart';
@@ -1317,7 +1320,7 @@ String? _initialLocationFromPushData(
     data['reflectionId'] ?? data['reflection_id'],
   );
   if (kind == 'decan_reflection' && reflectionId != null) {
-    return '/reflections/${Uri.encodeComponent(reflectionId)}';
+    return '/';
   }
 
   final shareKind = _trimmedPushValue(data['share_kind'] ?? data['shareKind']);
@@ -2721,7 +2724,14 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
 
     try {
       final progress = await OnboardingProgressStorage().loadLocal(userId);
-      if (progress.completedOnboarding) return true;
+      if (progress.completedOnboarding) {
+        return progress.hasSeenMenuPrompt &&
+            progress.currentStep == TrueOnboardingStep.complete &&
+            progress.onboardingDayRhythmState !=
+                OnboardingDayRhythmState.scheduled &&
+            progress.onboardingDayRhythmState !=
+                OnboardingDayRhythmState.visible;
+      }
       return OnboardingStorage(supabase).isCompletedLocally(userId);
     } catch (_) {
       return false;
@@ -3445,7 +3455,9 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     if (kind == 'decan_reflection' && reflectionId != null) {
       final uid = supabase.auth.currentUser?.id;
       if (uid == null) return false;
-      if (!await _canOpenDecanReflectionPush(uid)) return false;
+      if (!await _canOpenDecanReflectionPush(uid, reflectionId: reflectionId)) {
+        return false;
+      }
       _router.go('/reflections/${Uri.encodeComponent(reflectionId)}');
       return true;
     }
@@ -3571,12 +3583,49 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     return false;
   }
 
-  Future<bool> _canOpenDecanReflectionPush(String userId) async {
+  OnboardingDecanIdentity? _currentPushDecanIdentity() {
+    final kem = KemeticMath.fromGregorian(DateTime.now());
+    return OnboardingDecanIdentity.fromKemeticDay(
+      kYear: kem.kYear,
+      kMonth: kem.kMonth,
+      kDay: kem.kDay,
+    );
+  }
+
+  OnboardingDecanIdentity? _reflectionPushDecanIdentity(
+    DecanReflection? reflection,
+  ) {
+    if (reflection == null) return null;
+    final kem = KemeticMath.fromGregorian(reflection.decanStart);
+    return OnboardingDecanIdentity.fromKemeticDay(
+      kYear: kem.kYear,
+      kMonth: kem.kMonth,
+      kDay: kem.kDay,
+    );
+  }
+
+  Future<bool> _canOpenDecanReflectionPush(
+    String userId, {
+    String? reflectionId,
+  }) async {
     try {
       final progress = await OnboardingProgressStorage().loadLocal(userId);
       if (progress.completedOnboarding) {
-        return progress.hasSeenMenuPrompt &&
-            progress.currentStep == TrueOnboardingStep.complete;
+        if (!progress.hasSeenMenuPrompt ||
+            progress.currentStep != TrueOnboardingStep.complete) {
+          return false;
+        }
+        DecanReflection? reflection;
+        if (reflectionId != null && reflectionId.trim().isNotEmpty) {
+          reflection = await DecanReflectionRepo(
+            supabase,
+          ).getById(reflectionId.trim());
+        }
+        return !DecanReflectionOnboardingGate.shouldBlock(
+          progress: progress,
+          currentDecanIdentity: _currentPushDecanIdentity(),
+          promptDecanIdentity: _reflectionPushDecanIdentity(reflection),
+        );
       }
       return OnboardingStorage(supabase).isCompletedLocally(userId);
     } catch (_) {

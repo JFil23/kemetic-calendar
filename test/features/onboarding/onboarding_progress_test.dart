@@ -38,6 +38,19 @@ void main() {
     expect(restored.firstReflectionEligibleDecanIdentity, '2026:4:3');
   });
 
+  test('onboarding Day Rhythm handoff state persists locally', () {
+    final progress = const OnboardingProgress().copyWith(
+      onboardingDayRhythmState: OnboardingDayRhythmState.visible,
+    );
+    final restored = OnboardingProgress.fromJson(progress.toJson());
+
+    expect(restored.onboardingDayRhythmState, OnboardingDayRhythmState.visible);
+    expect(
+      OnboardingDayRhythmStateWire.fromWire('completed'),
+      OnboardingDayRhythmState.completed,
+    );
+  });
+
   test('profile basics require a glyph avatar and display name or handle', () {
     expect(
       hasCompletedProfileBasics(

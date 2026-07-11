@@ -224,14 +224,16 @@ void main() {
       expect(initialRouteSource, contains("kind == 'decan_reflection'"));
       expect(
         initialRouteSource,
-        contains("'/reflections/\${Uri.encodeComponent(reflectionId)}'"),
+        contains("if (kind == 'decan_reflection' && reflectionId != null)"),
       );
+      expect(initialRouteSource, contains("return '/';"));
       expect(initialRouteSource, isNot(contains('node_ref')));
       expect(initialRouteSource, isNot(contains('/nodes/')));
       expect(pushNavigationSource, contains("kind == 'decan_reflection'"));
+      expect(pushNavigationSource, contains('reflectionId: reflectionId'));
       expect(
         pushNavigationSource,
-        contains('_canOpenDecanReflectionPush(uid)'),
+        contains('DecanReflectionOnboardingGate.shouldBlock'),
       );
       expect(
         pushNavigationSource,
@@ -241,7 +243,7 @@ void main() {
       );
       expect(
         pushNavigationSource,
-        contains('progress.currentStep == TrueOnboardingStep.complete'),
+        contains('progress.currentStep != TrueOnboardingStep.complete'),
       );
       final decanReflectionNavigationSource = _sourceBetween(
         pushNavigationSource,

@@ -20,6 +20,37 @@ enum TrueOnboardingStep {
   complete,
 }
 
+enum OnboardingDayRhythmState { idle, scheduled, visible, completed }
+
+extension OnboardingDayRhythmStateWire on OnboardingDayRhythmState {
+  String get wireName {
+    switch (this) {
+      case OnboardingDayRhythmState.idle:
+        return 'idle';
+      case OnboardingDayRhythmState.scheduled:
+        return 'scheduled';
+      case OnboardingDayRhythmState.visible:
+        return 'visible';
+      case OnboardingDayRhythmState.completed:
+        return 'completed';
+    }
+  }
+
+  static OnboardingDayRhythmState fromWire(String? raw) {
+    switch (raw) {
+      case 'scheduled':
+        return OnboardingDayRhythmState.scheduled;
+      case 'visible':
+        return OnboardingDayRhythmState.visible;
+      case 'completed':
+        return OnboardingDayRhythmState.completed;
+      case 'idle':
+      default:
+        return OnboardingDayRhythmState.idle;
+    }
+  }
+}
+
 extension TrueOnboardingStepWire on TrueOnboardingStep {
   String get wireName {
     switch (this) {
@@ -349,6 +380,7 @@ class OnboardingProgress {
     this.reflectionSignupDecanIdentity,
     this.firstReflectionEligibleDecanIdentity,
     this.hasCrossedFirstDecanBoundary = false,
+    this.onboardingDayRhythmState = OnboardingDayRhythmState.idle,
     this.seenHelpers = const <String>{},
   });
 
@@ -371,6 +403,7 @@ class OnboardingProgress {
   final String? reflectionSignupDecanIdentity;
   final String? firstReflectionEligibleDecanIdentity;
   final bool hasCrossedFirstDecanBoundary;
+  final OnboardingDayRhythmState onboardingDayRhythmState;
   final Set<String> seenHelpers;
 
   OnboardingProgress copyWith({
@@ -399,6 +432,7 @@ class OnboardingProgress {
     String? firstReflectionEligibleDecanIdentity,
     bool clearFirstReflectionEligibleDecanIdentity = false,
     bool? hasCrossedFirstDecanBoundary,
+    OnboardingDayRhythmState? onboardingDayRhythmState,
     Set<String>? seenHelpers,
   }) {
     return OnboardingProgress(
@@ -447,6 +481,8 @@ class OnboardingProgress {
                 this.firstReflectionEligibleDecanIdentity),
       hasCrossedFirstDecanBoundary:
           hasCrossedFirstDecanBoundary ?? this.hasCrossedFirstDecanBoundary,
+      onboardingDayRhythmState:
+          onboardingDayRhythmState ?? this.onboardingDayRhythmState,
       seenHelpers: seenHelpers ?? this.seenHelpers,
     );
   }
@@ -481,6 +517,7 @@ class OnboardingProgress {
     'firstReflectionEligibleDecanIdentity':
         firstReflectionEligibleDecanIdentity,
     'hasCrossedFirstDecanBoundary': hasCrossedFirstDecanBoundary,
+    'onboardingDayRhythmState': onboardingDayRhythmState.wireName,
     'seenHelpers': seenHelpers.toList()..sort(),
   };
 
@@ -523,6 +560,9 @@ class OnboardingProgress {
           json['firstReflectionEligibleDecanIdentity'] as String?,
       hasCrossedFirstDecanBoundary:
           json['hasCrossedFirstDecanBoundary'] == true,
+      onboardingDayRhythmState: OnboardingDayRhythmStateWire.fromWire(
+        json['onboardingDayRhythmState'] as String?,
+      ),
       seenHelpers: helperIds,
     );
   }
