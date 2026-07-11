@@ -9088,10 +9088,15 @@ class CalendarPageState extends State<CalendarPage>
     final currentDocument =
         _journalController.currentDocument ??
         JournalDocument.fromPlainText(_journalController.currentDraft);
-    final nextDocument = MaatJournalResponseBlockUtils.upsertPlainUserText(
-      currentDocument,
-      block,
-    );
+    final nextDocument = switch (block.projectionKind) {
+      MaatJournalResponseProjectionKind.formatted =>
+        MaatJournalResponseBlockUtils.upsert(currentDocument, block),
+      MaatJournalResponseProjectionKind.plainUserText =>
+        MaatJournalResponseBlockUtils.upsertPlainUserText(
+          currentDocument,
+          block,
+        ),
+    };
     await _journalController.updateDocument(nextDocument);
     _notifyDayViewDataChanged();
   }

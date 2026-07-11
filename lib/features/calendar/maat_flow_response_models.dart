@@ -161,6 +161,53 @@ extension MaatFlowJournalCarryModeX on MaatFlowJournalCarryMode {
   }
 }
 
+enum MaatFlowJournalBehavior { formatted, plainUserText, none }
+
+extension MaatFlowJournalBehaviorX on MaatFlowJournalBehavior {
+  String get wireName {
+    switch (this) {
+      case MaatFlowJournalBehavior.formatted:
+        return 'formatted';
+      case MaatFlowJournalBehavior.plainUserText:
+        return 'plain_user_text';
+      case MaatFlowJournalBehavior.none:
+        return 'none';
+    }
+  }
+
+  bool get writesJournal {
+    switch (this) {
+      case MaatFlowJournalBehavior.formatted:
+      case MaatFlowJournalBehavior.plainUserText:
+        return true;
+      case MaatFlowJournalBehavior.none:
+        return false;
+    }
+  }
+
+  static MaatFlowJournalBehavior fromWireName(String? raw) {
+    final normalized = raw?.trim().toLowerCase();
+    if (normalized == null || normalized.isEmpty) {
+      return MaatFlowJournalBehavior.none;
+    }
+    switch (normalized) {
+      case 'formatted':
+      case 'policy':
+      case 'policy_formatted':
+        return MaatFlowJournalBehavior.formatted;
+      case 'plain_user_text':
+      case 'plain-user-text':
+      case 'user_reflection':
+        return MaatFlowJournalBehavior.plainUserText;
+      case 'none':
+      case 'no_journal':
+        return MaatFlowJournalBehavior.none;
+      default:
+        throw FormatException('Unknown Ma_at flow journal behavior: $raw');
+    }
+  }
+}
+
 enum MaatFlowResponseJournalFormatter {
   standard,
   decanWatch,
@@ -395,6 +442,7 @@ class MaatFlowResponseSpec {
     this.placeholder,
     this.options = const <MaatFlowResponseOption>[],
     this.requiredForObserved = false,
+    required this.journalBehavior,
     this.journalPolicy = MaatFlowJournalPolicy.localOnly,
     this.journalCarryMode = MaatFlowJournalCarryMode.none,
     this.journalLabel,
@@ -422,6 +470,7 @@ class MaatFlowResponseSpec {
   final String? placeholder;
   final List<MaatFlowResponseOption> options;
   final bool requiredForObserved;
+  final MaatFlowJournalBehavior journalBehavior;
   final MaatFlowJournalPolicy journalPolicy;
   final MaatFlowJournalCarryMode journalCarryMode;
   final String? journalLabel;
@@ -609,6 +658,68 @@ class MaatFlowResponseValue {
     final normalized = optionId.trim();
     if (normalized.isEmpty) return '';
     return spec.optionById(normalized)?._displayLabel ?? normalized;
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'spec_id': specId,
+      'kind': kind.wireName,
+      if (text != null) 'text': text,
+      if (optionIds.isNotEmpty) 'option_ids': optionIds,
+      if (checked != null) 'checked': checked,
+    };
+  }
+
+  static MaatFlowResponseValue? fromJson(Map<dynamic, dynamic>? json) {
+    if (json == null) return null;
+    final specId = json['spec_id']?.toString().trim();
+    if (specId == null || specId.isEmpty) return null;
+    final kind = MaatFlowResponseKindX.fromWireName(json['kind']?.toString());
+    switch (kind) {
+      case MaatFlowResponseKind.text:
+      case MaatFlowResponseKind.multiline:
+        return MaatFlowResponseValue.text(
+          specId: specId,
+          text: json['text']?.toString() ?? '',
+          multiline: kind == MaatFlowResponseKind.multiline,
+        );
+      case MaatFlowResponseKind.statusNote:
+        return MaatFlowResponseValue.statusNote(
+          specId: specId,
+          text: json['text']?.toString() ?? '',
+        );
+      case MaatFlowResponseKind.choice:
+        final options = _optionIdsFromJson(json['option_ids']);
+        if (options.isEmpty) {
+          return MaatFlowResponseValue.choice(specId: specId, optionId: '');
+        }
+        return MaatFlowResponseValue.choice(
+          specId: specId,
+          optionId: options.first,
+        );
+      case MaatFlowResponseKind.chips:
+        return MaatFlowResponseValue.chips(
+          specId: specId,
+          optionIds: _optionIdsFromJson(json['option_ids']),
+        );
+      case MaatFlowResponseKind.checkbox:
+        return MaatFlowResponseValue.checkbox(
+          specId: specId,
+          checked: json['checked'] == true,
+        );
+    }
+  }
+
+  static List<String> _optionIdsFromJson(Object? raw) {
+    if (raw is Iterable) {
+      return raw
+          .map((value) => value.toString().trim())
+          .where((value) => value.isNotEmpty)
+          .toList(growable: false);
+    }
+    final single = raw?.toString().trim();
+    if (single == null || single.isEmpty) return const <String>[];
+    return <String>[single];
   }
 }
 

@@ -17,6 +17,7 @@ void main() {
       kind: MaatFlowResponseKind.text,
       label: 'Mirror Note',
       journalPolicy: MaatFlowJournalPolicy.mirror,
+      journalBehavior: MaatFlowJournalBehavior.formatted,
     );
     final preview = buildMaatFlowResponseJournalPreview(
       spec: spec,
@@ -46,6 +47,7 @@ void main() {
       kind: MaatFlowResponseKind.multiline,
       label: 'Offer Note',
       journalPolicy: MaatFlowJournalPolicy.offer,
+      journalBehavior: MaatFlowJournalBehavior.formatted,
     );
     final preview = buildMaatFlowResponseJournalPreview(
       spec: spec,
@@ -86,6 +88,7 @@ void main() {
       kind: MaatFlowResponseKind.multiline,
       label: 'Private Note',
       journalPolicy: MaatFlowJournalPolicy.redactedSummary,
+      journalBehavior: MaatFlowJournalBehavior.formatted,
       redactedSummary: 'Private response recorded.',
     );
     final preview = buildMaatFlowResponseJournalPreview(
@@ -121,6 +124,7 @@ void main() {
         journalGroupId: 'private-group',
         journalGroupLabel: 'Private Group',
         journalPolicy: MaatFlowJournalPolicy.redactedSummary,
+        journalBehavior: MaatFlowJournalBehavior.formatted,
         redactedSummary: 'Grouped private response recorded.',
       ),
       MaatFlowResponseSpec(
@@ -132,6 +136,7 @@ void main() {
         journalGroupId: 'private-group',
         journalGroupLabel: 'Private Group',
         journalPolicy: MaatFlowJournalPolicy.redactedSummary,
+        journalBehavior: MaatFlowJournalBehavior.formatted,
       ),
     ];
     final previews = buildMaatFlowResponseJournalPreviews(
@@ -167,6 +172,7 @@ void main() {
       kind: MaatFlowResponseKind.text,
       label: 'Local Note',
       journalPolicy: MaatFlowJournalPolicy.localOnly,
+      journalBehavior: MaatFlowJournalBehavior.none,
     );
     final sourceId = spec.sourceId(clientEventId: 'event-1');
     final preview = buildMaatFlowResponseJournalPreview(
@@ -204,6 +210,7 @@ void main() {
         journalGroupId: 'boundary-restoration',
         journalGroupLabel: 'The Boundary Stone',
         journalPolicy: MaatFlowJournalPolicy.offer,
+        journalBehavior: MaatFlowJournalBehavior.formatted,
         options: <MaatFlowResponseOption>[
           MaatFlowResponseOption(id: 'ownership', label: 'Ownership'),
           MaatFlowResponseOption(id: 'returned', label: 'Returned'),
@@ -218,6 +225,7 @@ void main() {
         journalGroupId: 'boundary-restoration',
         journalGroupLabel: 'The Boundary Stone',
         journalPolicy: MaatFlowJournalPolicy.offer,
+        journalBehavior: MaatFlowJournalBehavior.formatted,
         journalCarryMode: MaatFlowJournalCarryMode.userReflection,
         journalFormatter:
             MaatFlowResponseJournalFormatter.boundaryStoneRestoration,
@@ -284,6 +292,7 @@ void main() {
       kind: MaatFlowResponseKind.multiline,
       label: 'Repeated ritual note',
       journalPolicy: MaatFlowJournalPolicy.mirror,
+      journalBehavior: MaatFlowJournalBehavior.formatted,
     );
     const reflectionSpec = MaatFlowResponseSpec(
       id: 'reflection-note',
@@ -292,6 +301,7 @@ void main() {
       kind: MaatFlowResponseKind.multiline,
       label: 'Reflection note',
       journalPolicy: MaatFlowJournalPolicy.mirror,
+      journalBehavior: MaatFlowJournalBehavior.formatted,
       journalCarryMode: MaatFlowJournalCarryMode.userReflection,
     );
     final unmarkedSourceId = unmarkedSpec.sourceId(clientEventId: 'event-1');
@@ -549,6 +559,7 @@ void main() {
       kind: MaatFlowResponseKind.text,
       label: 'Empty Note',
       journalPolicy: MaatFlowJournalPolicy.mirror,
+      journalBehavior: MaatFlowJournalBehavior.formatted,
     );
     final sourceId = spec.sourceId(clientEventId: 'event-1');
     final preview = buildMaatFlowResponseJournalPreview(

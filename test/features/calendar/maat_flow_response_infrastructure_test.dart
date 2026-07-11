@@ -567,6 +567,7 @@ void main() {
         kind: MaatFlowResponseKind.multiline,
         label: 'Sky note',
         journalPolicy: MaatFlowJournalPolicy.offer,
+        journalBehavior: MaatFlowJournalBehavior.formatted,
       );
       const bothSpec = MaatFlowResponseSpec(
         id: 'intention',
@@ -574,6 +575,7 @@ void main() {
         surface: MaatFlowResponseSurface.both,
         kind: MaatFlowResponseKind.text,
         label: 'Intention',
+        journalBehavior: MaatFlowJournalBehavior.none,
       );
       const resolver = MaatFlowResponseResolver(
         specs: <MaatFlowResponseSpec>[spec, bothSpec],
@@ -618,6 +620,7 @@ void main() {
       label: 'Visibility',
       journalLabel: 'The Decan Watch',
       journalPolicy: MaatFlowJournalPolicy.mirror,
+      journalBehavior: MaatFlowJournalBehavior.formatted,
       options: <MaatFlowResponseOption>[
         MaatFlowResponseOption(id: 'outside', label: 'Outside'),
         MaatFlowResponseOption(id: 'inside', label: 'Inside'),
@@ -645,6 +648,7 @@ void main() {
       kind: MaatFlowResponseKind.text,
       label: 'One act',
       journalPolicy: MaatFlowJournalPolicy.offer,
+      journalBehavior: MaatFlowJournalBehavior.formatted,
     );
     final offer = buildMaatFlowResponseJournalPreview(
       spec: offerSpec,
@@ -664,6 +668,7 @@ void main() {
       kind: MaatFlowResponseKind.multiline,
       label: 'Private accounting',
       journalPolicy: MaatFlowJournalPolicy.redactedSummary,
+      journalBehavior: MaatFlowJournalBehavior.formatted,
       redactedSummary: 'Private response recorded.',
     );
     final redacted = buildMaatFlowResponseJournalPreview(
@@ -1832,6 +1837,7 @@ void main() {
         kind: MaatFlowResponseKind.text,
         label: 'Local only',
         journalPolicy: MaatFlowJournalPolicy.localOnly,
+        journalBehavior: MaatFlowJournalBehavior.none,
       );
       expect(
         buildMaatFlowResponseJournalPreview(
@@ -1848,6 +1854,7 @@ void main() {
         kind: MaatFlowResponseKind.text,
         label: 'Mirror',
         journalPolicy: MaatFlowJournalPolicy.mirror,
+        journalBehavior: MaatFlowJournalBehavior.formatted,
       );
       expect(
         buildMaatFlowResponseJournalPreview(
@@ -1979,7 +1986,7 @@ void main() {
     expect(dayView, contains('resolveMaatFlowResponseSpecs('));
     expect(dayView, contains('MaatFlowResponseSurface.calendarSheet'));
     expect(dayView, contains('MaatFlowResponseSection('));
-    expect(dayView, contains('buildMaatJournalPlainUserTextBlocks('));
+    expect(dayView, contains('buildMaatJournalResponseProjections('));
     expect(dayView, isNot(contains('journalPreviews:')));
     expect(dayView, isNot(contains('_responseJournalPreviews')));
     expect(dayView, isNot(contains('Journal preview')));
@@ -1992,6 +1999,13 @@ void main() {
       'lib/features/calendar/calendar_completion.dart',
     ).readAsStringSync();
     expect(completion, contains('final Widget? leadingContent;'));
+
+    final projection = File(
+      'lib/features/calendar/maat_flow_response_projection.dart',
+    ).readAsStringSync();
+    expect(projection, contains('buildMaatJournalResponseBlocksForPolicy('));
+    expect(projection, contains('buildMaatJournalPlainUserTextBlocks('));
+    expect(projection, contains('switch (spec.journalBehavior)'));
 
     final portraitGrid = File(
       'lib/features/calendar/calendar_grid_widgets.dart',

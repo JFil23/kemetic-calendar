@@ -28,9 +28,11 @@ import 'landscape_month_view.dart';
 import 'maat_flow_identity.dart';
 import 'maat_flow_interactive_primitives.dart';
 import 'maat_flow_palette.dart';
+import 'maat_flow_completion_response_persistence.dart';
 import 'maat_flow_response_draft_store.dart';
 import 'maat_flow_response_journal_blocks.dart';
 import 'maat_flow_response_models.dart';
+import 'maat_flow_response_projection.dart';
 import 'maat_flow_response_resolver.dart';
 import 'maat_flow_visual_tokens.dart';
 import 'track_sky_flow.dart';
@@ -77,6 +79,9 @@ import '../../utils/external_link_utils.dart';
 import '../../utils/flow_filter_engine.dart';
 import '../../utils/text_editing_controller_sync.dart';
 import '../shared_practice/shared_practice_completion_sheet.dart';
+
+typedef MaatCompletionMetadataLoader =
+    Future<Map<String, dynamic>?> Function({required String clientEventId});
 
 const double _kMinEventBlockHeight = 56.0;
 const double _kWideMinEventBlockHeight = 68.0;
@@ -1607,6 +1612,7 @@ Widget? buildDayViewMaatFlowCompletionPanel({
   onRecordCompletion,
   Future<void> Function(String clientEventId)? onUnrecordCompletion,
   Future<void> Function(String badgeId)? onRemoveCompletionBadge,
+  MaatCompletionMetadataLoader? loadCompletionMetadata,
   MaatJournalResponseBlockWriter? onWriteJournalResponse,
   Future<void> Function(CompletionStatus status)? onCompletionContinuity,
   ValueChanged<CompletionStatus>? onUserCompletionFeedback,
@@ -1636,6 +1642,7 @@ Widget? buildDayViewMaatFlowCompletionPanel({
     onRecordCompletion: onRecordCompletion,
     onUnrecordCompletion: onUnrecordCompletion,
     onRemoveCompletionBadge: onRemoveCompletionBadge,
+    loadCompletionMetadata: loadCompletionMetadata,
     onWriteJournalResponse: onWriteJournalResponse,
     onCompletionContinuity: onCompletionContinuity,
     onUserCompletionFeedback: onUserCompletionFeedback,
@@ -2582,6 +2589,7 @@ class CalendarEventDetailSheet extends StatefulWidget {
     this.onRecordCompletion,
     this.onUnrecordCompletion,
     this.onRemoveCompletionBadge,
+    this.loadCompletionMetadata,
     this.onboardingEventClientEventId,
     this.onboardingObservedKey,
     this.onboardingJournalKey,
@@ -2628,6 +2636,7 @@ class CalendarEventDetailSheet extends StatefulWidget {
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
+  final MaatCompletionMetadataLoader? loadCompletionMetadata;
   final String? onboardingEventClientEventId;
   final GlobalKey? onboardingObservedKey;
   final GlobalKey? onboardingJournalKey;
@@ -3662,6 +3671,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           onRecordCompletion: widget.onRecordCompletion,
           onUnrecordCompletion: widget.onUnrecordCompletion,
           onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
+          loadCompletionMetadata: widget.loadCompletionMetadata,
           onWriteJournalResponse: widget.onWriteJournalResponse,
           onCompletionContinuity: (status) => _appendCompletionContinuity(
             target,
@@ -5105,6 +5115,7 @@ class DayViewPage extends StatefulWidget {
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
+  final MaatCompletionMetadataLoader? loadCompletionMetadata;
   final String? onboardingEventClientEventId;
   final GlobalKey? onboardingEventTargetKey;
   final GlobalKey? onboardingObservedKey;
@@ -5162,6 +5173,7 @@ class DayViewPage extends StatefulWidget {
     this.onRecordCompletion,
     this.onUnrecordCompletion,
     this.onRemoveCompletionBadge,
+    this.loadCompletionMetadata,
     this.onboardingEventClientEventId,
     this.onboardingEventTargetKey,
     this.onboardingObservedKey,
@@ -6003,6 +6015,8 @@ class _DayViewPageState extends State<DayViewPage> {
                             onUnrecordCompletion: widget.onUnrecordCompletion,
                             onRemoveCompletionBadge:
                                 widget.onRemoveCompletionBadge,
+                            loadCompletionMetadata:
+                                widget.loadCompletionMetadata,
                             onboardingEventClientEventId:
                                 widget.onboardingEventClientEventId,
                             onboardingEventTargetKey:
@@ -6125,6 +6139,7 @@ class DayViewGrid extends StatefulWidget {
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
+  final MaatCompletionMetadataLoader? loadCompletionMetadata;
   final String? onboardingEventClientEventId;
   final GlobalKey? onboardingEventTargetKey;
   final GlobalKey? onboardingObservedKey;
@@ -6183,6 +6198,7 @@ class DayViewGrid extends StatefulWidget {
     this.onRecordCompletion,
     this.onUnrecordCompletion,
     this.onRemoveCompletionBadge,
+    this.loadCompletionMetadata,
     this.onboardingEventClientEventId,
     this.onboardingEventTargetKey,
     this.onboardingObservedKey,
@@ -8363,6 +8379,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           onRecordCompletion: widget.onRecordCompletion,
           onUnrecordCompletion: widget.onUnrecordCompletion,
           onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
+          loadCompletionMetadata: widget.loadCompletionMetadata,
           onboardingEventClientEventId: widget.onboardingEventClientEventId,
           onboardingObservedKey: widget.onboardingObservedKey,
           onboardingJournalKey: widget.onboardingJournalKey,
@@ -9081,6 +9098,7 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
     required this.onRecordCompletion,
     this.onUnrecordCompletion,
     this.onRemoveCompletionBadge,
+    this.loadCompletionMetadata,
     this.onWriteJournalResponse,
     this.onCompletionContinuity,
     this.onUserCompletionFeedback,
@@ -9106,6 +9124,7 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
+  final MaatCompletionMetadataLoader? loadCompletionMetadata;
   final MaatJournalResponseBlockWriter? onWriteJournalResponse;
   final Future<void> Function(CompletionStatus status)? onCompletionContinuity;
   final ValueChanged<CompletionStatus>? onUserCompletionFeedback;
@@ -9187,6 +9206,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   int _decanWatchResponseLoadGeneration = 0;
   Map<String, MaatFlowResponseValue> _responseValues =
       const <String, MaatFlowResponseValue>{};
+  Map<String, dynamic> _loadedCompletionMetadata = const <String, dynamic>{};
+  Set<String> _dirtyResponseSpecIds = const <String>{};
   bool _responseDirty = false;
 
   @override
@@ -9341,6 +9362,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     if (oldWidget.event.clientEventId != widget.event.clientEventId) {
       _cancelCompletionFeedback();
       _responseValues = const <String, MaatFlowResponseValue>{};
+      _loadedCompletionMetadata = const <String, dynamic>{};
+      _dirtyResponseSpecIds = const <String>{};
       _responseDirty = false;
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
@@ -9349,6 +9372,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       unawaited(_load());
     } else if (oldWidget.reloadSignal != widget.reloadSignal) {
       _responseValues = const <String, MaatFlowResponseValue>{};
+      _loadedCompletionMetadata = const <String, dynamic>{};
+      _dirtyResponseSpecIds = const <String>{};
       _responseDirty = false;
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
@@ -9360,6 +9385,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       widget.responseSpecs,
     )) {
       _responseValues = const <String, MaatFlowResponseValue>{};
+      _loadedCompletionMetadata = const <String, dynamic>{};
+      _dirtyResponseSpecIds = const <String>{};
       _responseDirty = false;
       if (_usesDecanWatchResponseBridge) {
         unawaited(_loadDecanWatchResponseValuesIfNeeded());
@@ -9480,6 +9507,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     if (nextValues.isEmpty || nextValues == _responseValues) return;
     setState(() {
       _responseValues = nextValues;
+      _dirtyResponseSpecIds = const <String>{};
       _responseDirty = false;
     });
   }
@@ -9599,6 +9627,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     }
     setState(() {
       _responseValues = nextValues;
+      _dirtyResponseSpecIds = const <String>{};
       _responseDirty = false;
     });
   }
@@ -9614,6 +9643,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     if (!mounted) return;
     setState(() {
       _responseValues = values;
+      _dirtyResponseSpecIds = const <String>{};
       _responseDirty = false;
     });
   }
@@ -9638,6 +9668,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       if (!mounted) return true;
       setState(() {
         _responseDirty = false;
+        _dirtyResponseSpecIds = const <String>{};
         _readingHousePrivateMarginSaving = false;
       });
       if (showFeedback) {
@@ -10245,8 +10276,11 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       return;
     }
 
+    final metadataLoader = widget.loadCompletionMetadata;
     final user = Supabase.instance.client.auth.currentUser;
-    if (clientEventId == null || clientEventId.isEmpty || user == null) {
+    if (clientEventId == null ||
+        clientEventId.isEmpty ||
+        (metadataLoader == null && user == null)) {
       if (mounted) {
         setState(() {
           _status = null;
@@ -10259,28 +10293,63 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       return;
     }
 
-    await _loadEveningThresholdOrientationState(user.id);
+    if (user != null) {
+      await _loadEveningThresholdOrientationState(user.id);
+    }
 
     try {
-      final row = await Supabase.instance.client
-          .from('user_event_completions')
-          .select('metadata')
-          .eq('user_id', user.id)
-          .eq('client_event_id', clientEventId)
-          .maybeSingle();
-      final metadata = row?['metadata'];
-      final rawStatus = metadata is Map
-          ? metadata['status']?.toString().trim().toLowerCase()
-          : null;
+      Map<String, dynamic>? loadedMetadata;
+      var hasCompletionRow = false;
+      if (metadataLoader != null) {
+        loadedMetadata = await metadataLoader(clientEventId: clientEventId);
+        hasCompletionRow = loadedMetadata != null;
+      } else {
+        final row = await Supabase.instance.client
+            .from('user_event_completions')
+            .select('metadata')
+            .eq('user_id', user!.id)
+            .eq('client_event_id', clientEventId)
+            .maybeSingle();
+        final metadata = row?['metadata'];
+        loadedMetadata = metadata is Map
+            ? Map<String, dynamic>.from(metadata)
+            : null;
+        hasCompletionRow = row != null;
+      }
+      final metadataMap = loadedMetadata ?? const <String, dynamic>{};
+      final canonicalResponses = extractMaatCompletionResponseValues(
+        metadataMap,
+        specs: widget.responseSpecs,
+      ).values;
+      final hydratedResponseValues = canonicalResponses.isEmpty
+          ? _responseValues
+          : _mergeInitialPromptDraftValues(canonicalResponses);
+      if (canonicalResponses.isNotEmpty) {
+        kMaatFlowResponseDraftStore.rememberValues(
+          flowKey: widget.completion.flowKey,
+          values: canonicalResponses,
+        );
+      }
+      final rawStatus = metadataMap['status']?.toString().trim().toLowerCase();
       final nextStatus =
           _normalizeStatus(rawStatus) ??
           (widget.completion.customStatusLabels.containsKey(rawStatus)
               ? rawStatus
               : null);
-      final hasCompletionRow = row != null;
       if (!mounted) return;
       setState(() {
         _status = nextStatus ?? (hasCompletionRow ? 'observed' : null);
+        _loadedCompletionMetadata = metadataMap;
+        if (user == null) {
+          _eveningThresholdOrientation = null;
+          _eveningThresholdPreviousOrientation = null;
+          _eveningThresholdReleasePending = false;
+        }
+        if (canonicalResponses.isNotEmpty) {
+          _responseValues = hydratedResponseValues;
+        }
+        _dirtyResponseSpecIds = const <String>{};
+        _responseDirty = false;
         _loading = false;
       });
       unawaited(_syncAndLoadReadingHouseSharedFragments());
@@ -10568,7 +10637,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         }
         return;
       }
-      final metadata = <String, dynamic>{
+      var metadata = <String, dynamic>{
+        ..._loadedCompletionMetadata,
         ...widget.completion.metadataFor(
           status: status,
           completedOnDate: completedOnDate,
@@ -10617,6 +10687,20 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           readingHousePrivateMarginCompletionMetadata(_responseValues),
         );
       }
+      metadata = buildMaatCompletionResponseMetadata(
+        existingMetadata: metadata,
+        specs: widget.responseSpecs,
+        currentValues: _responseValues,
+        dirtySpecIds: _dirtyResponseSpecIds,
+        clientEventId: clientEventId,
+        flowId: flowId,
+        localDate: completedOnDate,
+        eventKey: _maatFlowResponseEventKey(widget.completion),
+        completedAt: DateTime.now().toUtc(),
+        sourceIdForSpec: (spec) => _responseSourceId(spec, completedOnDate),
+        sourceIdForGroup: (spec, groupId) =>
+            _responseGroupSourceId(spec, groupId, completedOnDate),
+      );
       final completionIdentity = widget.identity;
       final completionContinuity = widget.onCompletionContinuity;
       final callback = widget.onRecordCompletion;
@@ -10662,11 +10746,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         status: completionStatus,
       );
       if (completionStatus.createsJournalContinuity) {
-        try {
-          await _syncResponseBlocks(completionStatus);
-        } on Object {
-          // Keep completion persistence independent from journal response sync.
-        }
+        await _syncResponseBlocks(completionStatus);
       }
       if (completionStatus.createsJournalContinuity &&
           completionContinuity != null) {
@@ -10676,6 +10756,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       setState(() {
         _status = status;
         _saving = false;
+        _loadedCompletionMetadata = metadata;
+        _dirtyResponseSpecIds = const <String>{};
         _responseDirty = false;
         _eveningThresholdReleasePending = false;
       });
@@ -10739,15 +10821,13 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           ),
         );
       }
-      try {
-        await _syncResponseBlocks(CompletionStatus.skipped);
-      } on Object {
-        // Keep clear persistence independent from journal response sync.
-      }
+      await _syncResponseBlocks(CompletionStatus.skipped);
       if (!mounted) return;
       setState(() {
         _status = null;
         _saving = false;
+        _loadedCompletionMetadata = const <String, dynamic>{};
+        _dirtyResponseSpecIds = const <String>{};
         _responseDirty = false;
         _eveningThresholdReleasePending = false;
       });
@@ -11094,22 +11174,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     );
   }
 
-  List<String> _responseBlockSourceIds(DateTime localDate) {
-    final sourceIds = <String>[];
-    final seenGroups = <String>{};
-    for (final spec in widget.responseSpecs) {
-      final groupId = spec.normalizedJournalGroupId;
-      if (groupId == null) {
-        sourceIds.add(_responseSourceId(spec, localDate));
-        continue;
-      }
-      if (seenGroups.add(groupId)) {
-        sourceIds.add(_responseGroupSourceId(spec, groupId, localDate));
-      }
-    }
-    return sourceIds;
-  }
-
   void _handleResponseChanged(MaatFlowResponseValue value) {
     final nextValues = <String, MaatFlowResponseValue>{
       ..._responseValues,
@@ -11117,6 +11181,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     };
     setState(() {
       _responseValues = nextValues;
+      _dirtyResponseSpecIds = <String>{..._dirtyResponseSpecIds, value.specId};
       _responseDirty = true;
     });
     _rememberInitialPromptDraftValue(value);
@@ -11132,21 +11197,17 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     if (writer == null || widget.responseSpecs.isEmpty) return;
 
     final localDate = _eventGregorianDate;
-    final includeText =
-        completionStatus == CompletionStatus.observed ||
-        completionStatus == CompletionStatus.partial;
-    final blocks = buildMaatJournalPlainUserTextBlocks(
-      sourceIds: _responseBlockSourceIds(localDate),
+    final projections = buildMaatJournalResponseProjections(
       specs: widget.responseSpecs,
       values: _responseValues,
+      completionStatus: completionStatus,
       localDate: localDate,
-      includeText: includeText,
       sourceIdForSpec: (spec) => _responseSourceId(spec, localDate),
       sourceIdForGroup: (spec, groupId) =>
           _responseGroupSourceId(spec, groupId, localDate),
     );
-    for (final block in blocks) {
-      await writer(block);
+    for (final projection in projections) {
+      await writer(projection.block);
     }
   }
 
