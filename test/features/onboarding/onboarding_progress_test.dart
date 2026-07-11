@@ -55,6 +55,78 @@ void main() {
     );
   });
 
+  test(
+    'daily context gate blocks satisfied current and future onboarding identity',
+    () {
+      final completed = const OnboardingProgress().copyWith(
+        currentStep: TrueOnboardingStep.complete,
+        completedOnboarding: true,
+        hasSeenMenuPrompt: true,
+        onboardingDayRhythmState: OnboardingDayRhythmState.completed,
+      );
+
+      expect(
+        shouldAllowDailyCosmicContextAfterOnboardingHandoff(
+          progress: completed.copyWith(
+            lastSatisfiedDayRhythmIdentity: '2026-07-10',
+          ),
+          todayIdentity: '2026-07-10',
+        ),
+        isFalse,
+      );
+      expect(
+        shouldAllowDailyCosmicContextAfterOnboardingHandoff(
+          progress: completed.copyWith(
+            lastSatisfiedDayRhythmIdentity: '2026-07-11',
+          ),
+          todayIdentity: '2026-07-10',
+        ),
+        isFalse,
+        reason:
+            'A future event-derived handoff identity must not allow '
+            'an immediate adjacent-day replay.',
+      );
+      expect(
+        shouldAllowDailyCosmicContextAfterOnboardingHandoff(
+          progress: completed.copyWith(
+            lastSatisfiedDayRhythmIdentity: '2026-07-10',
+          ),
+          todayIdentity: '2026-07-11',
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test('daily context gate denies incomplete onboarding and menu handoff', () {
+    final base = const OnboardingProgress().copyWith(
+      completedOnboarding: true,
+      onboardingDayRhythmState: OnboardingDayRhythmState.completed,
+    );
+
+    expect(
+      shouldAllowDailyCosmicContextAfterOnboardingHandoff(
+        progress: base.copyWith(
+          currentStep: TrueOnboardingStep.menuExplore,
+          hasSeenMenuPrompt: false,
+        ),
+        todayIdentity: '2026-07-10',
+      ),
+      isFalse,
+    );
+    expect(
+      shouldAllowDailyCosmicContextAfterOnboardingHandoff(
+        progress: base.copyWith(
+          currentStep: TrueOnboardingStep.complete,
+          hasSeenMenuPrompt: true,
+          onboardingDayRhythmState: OnboardingDayRhythmState.visible,
+        ),
+        todayIdentity: '2026-07-10',
+      ),
+      isFalse,
+    );
+  });
+
   test('profile basics require a glyph avatar and display name or handle', () {
     expect(
       hasCompletedProfileBasics(

@@ -13545,6 +13545,7 @@ class CalendarPageState extends State<CalendarPage>
   ({int ky, int km, int kd})? _firstMaatFlowEventKDate;
   int? _firstMaatFlowId;
   String? _firstMaatFlowEventClientEventId;
+  String? _firstMaatFlowOnboardingDayRhythmIdentity;
   String? _pendingOnboardingTargetDayKey;
   String? _pendingOnboardingTargetClientEventId;
   int? _pendingOnboardingTargetFlowId;
@@ -15052,6 +15053,9 @@ class CalendarPageState extends State<CalendarPage>
       km: kDate.kMonth,
       kd: kDate.kDay,
     );
+    final canonicalDayRhythmIdentity =
+        _firstMaatFlowOnboardingDayRhythmIdentity ??
+        _onboardingDayRhythmIdentity();
 
     await _updateOnboardingProgress(
       (progress) => progress.copyWith(
@@ -15060,6 +15064,9 @@ class CalendarPageState extends State<CalendarPage>
         firstMaatFlowTemplateId: kEveningThresholdFlowKey,
         firstMaatFlowEventDate: eventDate,
         firstMaatFlowEventClientEventId: _firstMaatFlowEventClientEventId,
+        onboardingDayRhythmDateIdentity:
+            progress.onboardingDayRhythmDateIdentity ??
+            canonicalDayRhythmIdentity,
         currentStep: TrueOnboardingStep.firstFlowDayEvent,
       ),
     );
@@ -15173,6 +15180,8 @@ class CalendarPageState extends State<CalendarPage>
       },
       notify: false,
     );
+    _firstMaatFlowOnboardingDayRhythmIdentity =
+        dailyCosmicContextGregorianDateKey(trackSkyNowInZone(timezone));
     _notifyDayViewDataChanged();
     if (mounted) setState(() {});
     return _onboardingReviewFirstFlowId;
@@ -15283,6 +15292,8 @@ class CalendarPageState extends State<CalendarPage>
       km: kDate.kMonth,
       kd: kDate.kDay,
     );
+    _firstMaatFlowOnboardingDayRhythmIdentity =
+        dailyCosmicContextGregorianDateKey(trackSkyNowInZone(timezone));
     _rememberPendingOnboardingTargetEvent(
       dayKey: _kKey(kDate.kYear, kDate.kMonth, kDate.kDay),
       flowId: flowId,
@@ -15622,6 +15633,8 @@ class CalendarPageState extends State<CalendarPage>
   void _hydrateFirstFlowTargetFromProgress(OnboardingProgress progress) {
     _firstMaatFlowId = int.tryParse(progress.firstMaatFlowId ?? '');
     _firstMaatFlowEventClientEventId = progress.firstMaatFlowEventClientEventId;
+    _firstMaatFlowOnboardingDayRhythmIdentity =
+        progress.onboardingDayRhythmDateIdentity;
     final eventDate = progress.firstMaatFlowEventDate;
     if (eventDate == null) {
       _firstMaatFlowEventKDate = null;
@@ -15844,6 +15857,9 @@ class CalendarPageState extends State<CalendarPage>
       km: kDate.kMonth,
       kd: kDate.kDay,
     );
+    final canonicalDayRhythmIdentity =
+        _firstMaatFlowOnboardingDayRhythmIdentity ??
+        _onboardingDayRhythmIdentity();
 
     await _updateOnboardingProgress(
       (progress) => progress.copyWith(
@@ -15852,6 +15868,9 @@ class CalendarPageState extends State<CalendarPage>
         firstMaatFlowTemplateId: template.key,
         firstMaatFlowEventDate: eventDate,
         firstMaatFlowEventClientEventId: firstEvent?.note.clientEventId,
+        onboardingDayRhythmDateIdentity:
+            progress.onboardingDayRhythmDateIdentity ??
+            canonicalDayRhythmIdentity,
         currentStep: TrueOnboardingStep.firstFlowCalendarDay,
       ),
     );
@@ -16024,11 +16043,24 @@ class CalendarPageState extends State<CalendarPage>
     setState(() {});
   }
 
+  DateTime? _dateFromDayRhythmIdentity(String? identity) {
+    final trimmed = identity?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    final pieces = trimmed.split('-');
+    if (pieces.length != 3) return null;
+    final year = int.tryParse(pieces[0]);
+    final month = int.tryParse(pieces[1]);
+    final day = int.tryParse(pieces[2]);
+    if (year == null || month == null || day == null) return null;
+    return DateTime(year, month, day);
+  }
+
   DateTime _onboardingDayRhythmDate() {
-    final target = _firstMaatFlowEventKDate;
-    if (target == null) return DateUtils.dateOnly(DateTime.now());
     return DateUtils.dateOnly(
-      KemeticMath.toGregorian(target.ky, target.km, target.kd),
+      _dateFromDayRhythmIdentity(
+            _onboardingProgress.onboardingDayRhythmDateIdentity,
+          ) ??
+          trackSkyNowInZone(detectTrackSkyTimeZone()),
     );
   }
 

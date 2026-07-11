@@ -590,6 +590,37 @@ class OnboardingProgress {
   }
 }
 
+String? _cleanDayRhythmIdentity(String? identity) {
+  final trimmed = identity?.trim();
+  if (trimmed == null || trimmed.isEmpty) return null;
+  return trimmed;
+}
+
+String? onboardingSatisfiedDayRhythmIdentity(OnboardingProgress progress) {
+  return _cleanDayRhythmIdentity(progress.lastSatisfiedDayRhythmIdentity) ??
+      _cleanDayRhythmIdentity(progress.onboardingDayRhythmDateIdentity);
+}
+
+bool shouldAllowDailyCosmicContextAfterOnboardingHandoff({
+  required OnboardingProgress progress,
+  required String todayIdentity,
+}) {
+  final normalizedToday = todayIdentity.trim();
+  if (normalizedToday.isEmpty) return false;
+
+  final satisfiedIdentity = onboardingSatisfiedDayRhythmIdentity(progress);
+  if (satisfiedIdentity != null &&
+      satisfiedIdentity.compareTo(normalizedToday) >= 0) {
+    return false;
+  }
+
+  return progress.completedOnboarding &&
+      progress.hasSeenMenuPrompt &&
+      progress.currentStep == TrueOnboardingStep.complete &&
+      progress.onboardingDayRhythmState != OnboardingDayRhythmState.scheduled &&
+      progress.onboardingDayRhythmState != OnboardingDayRhythmState.visible;
+}
+
 class OnboardingProgressStorage {
   static const String _keyPrefix = 'onboarding_v2_progress';
   static final Map<String, Future<void>> _helperCompletionQueues =

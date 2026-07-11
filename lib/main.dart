@@ -2761,25 +2761,10 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
             widget.dailyCosmicContextNowForTesting?.call() ?? DateTime.now(),
           ),
         );
-        final satisfiedIdentity =
-            progress.lastSatisfiedDayRhythmIdentity ??
-            progress.onboardingDayRhythmDateIdentity ??
-            (progress.onboardingDayRhythmState ==
-                        OnboardingDayRhythmState.completed &&
-                    progress.firstMaatFlowEventDate != null
-                ? dailyCosmicContextGregorianDateKey(
-                    progress.firstMaatFlowEventDate!,
-                  )
-                : null);
-        if (satisfiedIdentity == todayIdentity) {
-          return false;
-        }
-        return progress.hasSeenMenuPrompt &&
-            progress.currentStep == TrueOnboardingStep.complete &&
-            progress.onboardingDayRhythmState !=
-                OnboardingDayRhythmState.scheduled &&
-            progress.onboardingDayRhythmState !=
-                OnboardingDayRhythmState.visible;
+        return shouldAllowDailyCosmicContextAfterOnboardingHandoff(
+          progress: progress,
+          todayIdentity: todayIdentity,
+        );
       }
       return OnboardingStorage(supabase).isCompletedLocally(userId);
     } catch (_) {

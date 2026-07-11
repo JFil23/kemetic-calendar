@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/features/calendar/daily_cosmic_context_badge.dart';
+import 'package:mobile/features/calendar/track_sky_flow.dart';
 import 'package:mobile/features/settings/settings_prefs.dart';
 import 'package:mobile/widgets/kemetic_day_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 
 const _userId = 'daily-cosmic-user';
 final _firstDay = DateTime(2026, 6, 9);
@@ -628,22 +631,27 @@ void main() {
       'Future<bool> _dailyCosmicContextOnboardingComplete(String userId) async {',
       'void _resetFloatingMenuStateAfterFrame()',
     );
+    final progressSource = await File(
+      'lib/features/onboarding/onboarding_progress.dart',
+    ).readAsString();
+    final handoffGate = _sourceBetween(
+      progressSource,
+      'bool shouldAllowDailyCosmicContextAfterOnboardingHandoff({',
+      'class OnboardingProgressStorage',
+    );
 
-    expect(completionGate, contains('progress.hasSeenMenuPrompt'));
+    expect(handoffGate, contains('progress.hasSeenMenuPrompt'));
     expect(
-      completionGate,
+      handoffGate,
       contains('progress.currentStep == TrueOnboardingStep.complete'),
     );
-    expect(completionGate, contains('progress.lastSatisfiedDayRhythmIdentity'));
+    expect(handoffGate, contains('onboardingSatisfiedDayRhythmIdentity'));
+    expect(handoffGate, contains('compareTo(normalizedToday) >= 0'));
     expect(
       completionGate,
-      contains('progress.onboardingDayRhythmDateIdentity'),
+      contains('shouldAllowDailyCosmicContextAfterOnboardingHandoff'),
     );
-    expect(completionGate, contains('progress.firstMaatFlowEventDate'));
-    expect(completionGate, contains('satisfiedIdentity == todayIdentity'));
-    expect(completionGate, contains('return false;'));
-    expect(completionGate, contains('OnboardingDayRhythmState.scheduled'));
-    expect(completionGate, contains('OnboardingDayRhythmState.visible'));
+    expect(completionGate, isNot(contains('progress.firstMaatFlowEventDate')));
   });
 
   test('onboarding Day Rhythm dismissal marks identity satisfied', () async {
@@ -665,6 +673,58 @@ void main() {
     expect(showMethod, contains('lastSatisfiedDayRhythmIdentity'));
     expect(dismissMethod, contains('lastSatisfiedDayRhythmIdentity: identity'));
     expect(dismissMethod, contains('DailyCosmicContextPrefs().markShown'));
+  });
+
+  test(
+    'onboarding Day Rhythm uses canonical identity, not first event date',
+    () async {
+      final source = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final dateMethod = _sourceBetween(
+        source,
+        'DateTime _onboardingDayRhythmDate() {',
+        'String _onboardingDayRhythmIdentity() {',
+      );
+      final joinedMethod = _sourceBetween(
+        source,
+        'Future<void> _handleHawRecommendedFlowJoined(int flowId) async {',
+        'Future<int> _addOnboardingReviewEveningThresholdInstance({',
+      );
+      final stagedMethod = _sourceBetween(
+        source,
+        'void _stageEveningThresholdOnboardingTarget({',
+        'Widget _buildHawRecommendedFlow(',
+      );
+
+      expect(
+        dateMethod,
+        contains('_onboardingProgress.onboardingDayRhythmDateIdentity'),
+      );
+      expect(
+        dateMethod,
+        contains('trackSkyNowInZone(detectTrackSkyTimeZone())'),
+      );
+      expect(dateMethod, isNot(contains('_firstMaatFlowEventKDate')));
+      expect(dateMethod, isNot(contains('KemeticMath.toGregorian')));
+      expect(joinedMethod, contains('canonicalDayRhythmIdentity'));
+      expect(joinedMethod, contains('onboardingDayRhythmDateIdentity'));
+      expect(stagedMethod, contains('trackSkyNowInZone(timezone)'));
+    },
+  );
+
+  test('timezone identity uses local day, not raw UTC day at boundary', () {
+    final utcBoundary = DateTime.utc(2026, 7, 11, 2, 30);
+    final pacificNow = trackSkyNowInZone(
+      TrackSkyTimeZone.pacific,
+      now: utcBoundary,
+    );
+    final utcNow = _instantInIanaZone(utcBoundary, 'UTC');
+    final aheadOfUtcNow = _instantInIanaZone(utcBoundary, 'Africa/Cairo');
+
+    expect(dailyCosmicContextGregorianDateKey(pacificNow), '2026-07-10');
+    expect(dailyCosmicContextGregorianDateKey(utcNow), '2026-07-11');
+    expect(dailyCosmicContextGregorianDateKey(aheadOfUtcNow), '2026-07-11');
   });
 }
 
@@ -709,4 +769,10 @@ KemeticDayInfo _testDayInfo({required String cosmicContext}) {
       mantra: 'test',
     ),
   );
+}
+
+DateTime _instantInIanaZone(DateTime instant, String ianaName) {
+  tzdata.initializeTimeZones();
+  final zoned = tz.TZDateTime.from(instant.toUtc(), tz.getLocation(ianaName));
+  return DateTime(zoned.year, zoned.month, zoned.day, zoned.hour, zoned.minute);
 }
