@@ -110,6 +110,53 @@ void main() {
     );
   });
 
+  test('same gate applies to all proactive decan UI', () {
+    final duringMenuExplore =
+        completeProgress(
+          crossed: true,
+          firstEligibleDecan: nextDecan.wireName,
+        ).copyWith(
+          currentStep: TrueOnboardingStep.menuExplore,
+          completedOnboarding: false,
+          hasSeenMenuPrompt: false,
+        );
+
+    expect(
+      DecanReflectionOnboardingGate.shouldBlock(
+        progress: duringMenuExplore,
+        currentDecanIdentity: nextDecan,
+        promptDecanIdentity: nextDecan,
+      ),
+      isTrue,
+      reason:
+          'The shared proactive-decan gate must suppress lower-thirds and guidance during menuExplore.',
+    );
+    expect(
+      DecanReflectionOnboardingGate.shouldBlock(
+        progress: completeProgress(
+          crossed: true,
+          firstEligibleDecan: nextDecan.wireName,
+        ),
+        currentDecanIdentity: nextDecan,
+        promptDecanIdentity: signupDecan,
+      ),
+      isTrue,
+      reason:
+          'Queued signup-decan guidance must be discarded instead of shown later.',
+    );
+    expect(
+      DecanReflectionOnboardingGate.shouldBlock(
+        progress: completeProgress(
+          crossed: true,
+          firstEligibleDecan: nextDecan.wireName,
+        ),
+        currentDecanIdentity: laterDecan,
+        promptDecanIdentity: laterDecan,
+      ),
+      isFalse,
+    );
+  });
+
   test('legacy completed users without a signup baseline remain eligible', () {
     expect(
       DecanReflectionOnboardingGate.shouldBlock(

@@ -1313,7 +1313,7 @@ String? _initialLocationFromPushData(
         ? deliveryKey.substring('maat_guidance:'.length)
         : null;
     final id = deliveryId ?? keyId;
-    return id == null ? null : '/maat-guidance/${Uri.encodeComponent(id)}';
+    return id == null ? null : '/';
   }
 
   final reflectionId = _trimmedPushValue(
@@ -1534,6 +1534,21 @@ DateTime? _parseLocalDateQuery(String? raw) {
     return null;
   }
   return DateUtils.dateOnly(parsed);
+}
+
+OnboardingDecanIdentity? _maatGuidanceDecanIdentityFromPeriodKey(String? raw) {
+  final text = raw?.trim();
+  if (text == null || text.isEmpty) return null;
+  final parts = text.split(':');
+  if (parts.isEmpty) return null;
+  final startDate = _parseLocalDateQuery(parts.first);
+  if (startDate == null) return null;
+  final kemetic = KemeticMath.fromGregorian(startDate);
+  return OnboardingDecanIdentity.fromKemeticDay(
+    kYear: kemetic.kYear,
+    kMonth: kemetic.kMonth,
+    kDay: kemetic.kDay,
+  );
 }
 
 GoRouter _createRouter({required String initialLocation}) => GoRouter(
@@ -2429,6 +2444,9 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   bool _rebuildScheduled = false;
   bool? _lastGuidanceSuppressed;
   int _dailyCosmicContextEvaluationSerial = 0;
+  int _maatGuidanceGateEvaluationSerial = 0;
+  bool _maatGuidanceProactiveUiAllowed = false;
+  OnboardingProgress? _maatGuidanceGateProgress;
 
   @override
   void initState() {
@@ -2442,7 +2460,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     _maatGuidancePostEnsureRefresh.addListener(
       _handleMaatGuidancePostEnsureRefresh,
     );
-    _maatGuidanceController.addListener(_scheduleRebuild);
+    _maatGuidanceController.addListener(_handleMaatGuidanceChanged);
     _dailyCosmicContextController.addListener(_scheduleRebuild);
     _shellBackChannel.setMethodCallHandler(_handleShellBackMethodCall);
     GuidedOnboardingController.instance.addListener(
@@ -2462,10 +2480,12 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
           }),
         );
       }
+      _scheduleMaatGuidanceGateEvaluation();
       _scheduleRebuild();
       _scheduleDailyCosmicContextEvaluation();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _scheduleMaatGuidanceGateEvaluation();
       _scheduleDailyCosmicContextEvaluation();
     });
   }
@@ -2481,6 +2501,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     _currentUri = _readRouterUri();
     widget.router.routerDelegate.addListener(_handleRouteChanged);
     widget.router.routeInformationProvider.addListener(_handleRouteChanged);
+    _scheduleMaatGuidanceGateEvaluation();
     _scheduleDailyCosmicContextEvaluation();
   }
 
@@ -2494,7 +2515,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     _maatGuidancePostEnsureRefresh.removeListener(
       _handleMaatGuidancePostEnsureRefresh,
     );
-    _maatGuidanceController.removeListener(_scheduleRebuild);
+    _maatGuidanceController.removeListener(_handleMaatGuidanceChanged);
     _dailyCosmicContextController.removeListener(_scheduleRebuild);
     _shellBackChannel.setMethodCallHandler(null);
     GuidedOnboardingController.instance.removeListener(
@@ -2544,12 +2565,19 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       _scheduleDailyCosmicContextEvaluation();
     }
     if (supabase.auth.currentSession == null) return;
+    _scheduleMaatGuidanceGateEvaluation();
     unawaited(_maatGuidanceController.evaluateAndRefresh());
   }
 
   void _handleMaatGuidancePostEnsureRefresh() {
     if (supabase.auth.currentSession == null) return;
+    _scheduleMaatGuidanceGateEvaluation();
     unawaited(_maatGuidanceController.refresh(force: true));
+  }
+
+  void _handleMaatGuidanceChanged() {
+    _scheduleMaatGuidanceGateEvaluation();
+    _scheduleRebuild();
   }
 
   Uri _readRouterUri() {
@@ -2572,6 +2600,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     if (!_menuMounted || _menuOpen) {
       _resetFloatingMenuState();
     }
+    _scheduleMaatGuidanceGateEvaluation();
     unawaited(_maatGuidanceController.refresh());
     _scheduleDailyCosmicContextEvaluation();
     _scheduleRebuild();
@@ -2583,11 +2612,13 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
         _menuMounted) {
       _resetFloatingMenuState();
     }
+    _scheduleMaatGuidanceGateEvaluation();
     _scheduleDailyCosmicContextEvaluation();
     _scheduleRebuild();
   }
 
   void _handleExternalOverlayGateChanged() {
+    _scheduleMaatGuidanceGateEvaluation();
     _scheduleDailyCosmicContextEvaluation();
     _scheduleRebuild();
   }
@@ -2725,6 +2756,24 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     try {
       final progress = await OnboardingProgressStorage().loadLocal(userId);
       if (progress.completedOnboarding) {
+        final todayIdentity = dailyCosmicContextGregorianDateKey(
+          DateUtils.dateOnly(
+            widget.dailyCosmicContextNowForTesting?.call() ?? DateTime.now(),
+          ),
+        );
+        final satisfiedIdentity =
+            progress.lastSatisfiedDayRhythmIdentity ??
+            progress.onboardingDayRhythmDateIdentity ??
+            (progress.onboardingDayRhythmState ==
+                        OnboardingDayRhythmState.completed &&
+                    progress.firstMaatFlowEventDate != null
+                ? dailyCosmicContextGregorianDateKey(
+                    progress.firstMaatFlowEventDate!,
+                  )
+                : null);
+        if (satisfiedIdentity == todayIdentity) {
+          return false;
+        }
         return progress.hasSeenMenuPrompt &&
             progress.currentStep == TrueOnboardingStep.complete &&
             progress.onboardingDayRhythmState !=
@@ -2738,6 +2787,80 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     }
   }
 
+  OnboardingDecanIdentity? _currentProactiveDecanIdentity() {
+    final now = DateUtils.dateOnly(
+      widget.dailyCosmicContextNowForTesting?.call() ?? DateTime.now(),
+    );
+    final kemetic = KemeticMath.fromGregorian(now);
+    return OnboardingDecanIdentity.fromKemeticDay(
+      kYear: kemetic.kYear,
+      kMonth: kemetic.kMonth,
+      kDay: kemetic.kDay,
+    );
+  }
+
+  OnboardingDecanIdentity? _maatGuidancePromptDecanIdentity() {
+    return _maatGuidanceDecanIdentityFromPeriodKey(
+      _maatGuidanceController.current?.decanPeriodKey,
+    );
+  }
+
+  void _scheduleMaatGuidanceGateEvaluation() {
+    final serial = ++_maatGuidanceGateEvaluationSerial;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || serial != _maatGuidanceGateEvaluationSerial) return;
+      unawaited(_evaluateMaatGuidanceGate(serial));
+    });
+    WidgetsBinding.instance.ensureVisualUpdate();
+  }
+
+  Future<void> _evaluateMaatGuidanceGate(int serial) async {
+    var allowed = false;
+    OnboardingProgress? progressForPromptGate;
+    final userId = supabase.auth.currentUser?.id.trim();
+    if (userId != null && userId.isNotEmpty) {
+      try {
+        final progress = await OnboardingProgressStorage().loadLocal(userId);
+        if (progress.completedOnboarding) {
+          progressForPromptGate = progress;
+          final currentDecan = _currentProactiveDecanIdentity();
+          allowed = !DecanReflectionOnboardingGate.shouldBlock(
+            progress: progress,
+            currentDecanIdentity: currentDecan,
+            promptDecanIdentity: currentDecan,
+          );
+          final currentDelivery = _maatGuidanceController.current;
+          if (currentDelivery != null &&
+              DecanReflectionOnboardingGate.shouldBlock(
+                progress: progress,
+                currentDecanIdentity: currentDecan,
+                promptDecanIdentity: _maatGuidanceDecanIdentityFromPeriodKey(
+                  currentDelivery.decanPeriodKey,
+                ),
+              )) {
+            unawaited(_maatGuidanceController.dismissCurrent());
+          }
+        } else {
+          allowed = await OnboardingStorage(
+            supabase,
+          ).isCompletedLocally(userId);
+        }
+      } catch (_) {
+        allowed = false;
+        progressForPromptGate = null;
+      }
+    }
+    if (!mounted || serial != _maatGuidanceGateEvaluationSerial) return;
+    if (_maatGuidanceProactiveUiAllowed == allowed &&
+        _maatGuidanceGateProgress == progressForPromptGate) {
+      return;
+    }
+    setState(() {
+      _maatGuidanceProactiveUiAllowed = allowed;
+      _maatGuidanceGateProgress = progressForPromptGate;
+    });
+  }
+
   void _resetFloatingMenuStateAfterFrame() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_menuMounted) return;
@@ -2748,6 +2871,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   bool _shouldSuppressMaatGuidance(BuildContext context) {
     if (!_launchOverlayDismissed.value) return true;
     if (supabase.auth.currentSession == null) return true;
+    if (!_maatGuidanceProactiveUiAllowed) return true;
     if (_dailyCosmicContextController.hasVisibleBadge) return true;
     if (_floatingMenuModalDepth.value > 0) return true;
     if (_menuMounted || _menuOpen) return true;
@@ -2765,6 +2889,19 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     if (_currentUri.queryParameters['onboarding'] == '1') return true;
     if (path.startsWith('/maat-guidance/')) return true;
     if (path.startsWith('/rhythm/editor/')) return true;
+    final progress = _maatGuidanceGateProgress;
+    if (progress != null && progress.completedOnboarding) {
+      final promptDecan =
+          _maatGuidancePromptDecanIdentity() ??
+          _currentProactiveDecanIdentity();
+      if (DecanReflectionOnboardingGate.shouldBlock(
+        progress: progress,
+        currentDecanIdentity: _currentProactiveDecanIdentity(),
+        promptDecanIdentity: promptDecan,
+      )) {
+        return true;
+      }
+    }
     return false;
   }
 
@@ -3449,6 +3586,11 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
           : null;
       final id = deliveryId ?? keyId;
       if (id == null) return false;
+      final uid = supabase.auth.currentUser?.id;
+      if (uid == null) return false;
+      if (!await _canOpenMaatGuidancePush(uid, deliveryId: id)) {
+        return false;
+      }
       _router.go('/maat-guidance/${Uri.encodeComponent(id)}');
       return true;
     }
@@ -3625,6 +3767,34 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
           progress: progress,
           currentDecanIdentity: _currentPushDecanIdentity(),
           promptDecanIdentity: _reflectionPushDecanIdentity(reflection),
+        );
+      }
+      return OnboardingStorage(supabase).isCompletedLocally(userId);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> _canOpenMaatGuidancePush(
+    String userId, {
+    required String deliveryId,
+  }) async {
+    try {
+      final progress = await OnboardingProgressStorage().loadLocal(userId);
+      if (progress.completedOnboarding) {
+        if (!progress.hasSeenMenuPrompt ||
+            progress.currentStep != TrueOnboardingStep.complete) {
+          return false;
+        }
+        final delivery = await MaatGuidanceRepo(
+          supabase,
+        ).getById(deliveryId.trim());
+        return !DecanReflectionOnboardingGate.shouldBlock(
+          progress: progress,
+          currentDecanIdentity: _currentPushDecanIdentity(),
+          promptDecanIdentity: _maatGuidanceDecanIdentityFromPeriodKey(
+            delivery?.decanPeriodKey,
+          ),
         );
       }
       return OnboardingStorage(supabase).isCompletedLocally(userId);

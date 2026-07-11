@@ -16032,10 +16032,32 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
+  String _onboardingDayRhythmIdentity() {
+    return dailyCosmicContextGregorianDateKey(_onboardingDayRhythmDate());
+  }
+
   Future<void> _showOnboardingDayRhythm() async {
     if (!mounted) return;
     final rhythmState = _onboardingProgress.onboardingDayRhythmState;
     if (rhythmState == OnboardingDayRhythmState.completed) {
+      if (_onboardingProgress.lastSatisfiedDayRhythmIdentity == null) {
+        final identity =
+            _onboardingProgress.onboardingDayRhythmDateIdentity ??
+            _onboardingDayRhythmIdentity();
+        await _updateOnboardingProgress(
+          (progress) => progress.copyWith(
+            onboardingDayRhythmDateIdentity:
+                progress.onboardingDayRhythmDateIdentity ?? identity,
+            lastSatisfiedDayRhythmIdentity: identity,
+          ),
+        );
+        final userId = _currentUserId;
+        if (!_onboardingReviewMode &&
+            userId != null &&
+            userId.trim().isNotEmpty) {
+          await DailyCosmicContextPrefs().markShown(userId.trim(), identity);
+        }
+      }
       await _handleObservedJournalPromptNext();
       return;
     }
@@ -16044,6 +16066,8 @@ class CalendarPageState extends State<CalendarPage>
       return;
     }
 
+    final rhythmDate = _onboardingDayRhythmDate();
+    final rhythmIdentity = dailyCosmicContextGregorianDateKey(rhythmDate);
     await _updateOnboardingProgress(
       (progress) => progress.copyWith(
         currentStep: TrueOnboardingStep.eventDetailObservedJournal,
@@ -16051,13 +16075,14 @@ class CalendarPageState extends State<CalendarPage>
         hasSeenObservedJournalPrompt: false,
         hasSeenMenuPrompt: false,
         onboardingDayRhythmState: OnboardingDayRhythmState.scheduled,
+        onboardingDayRhythmDateIdentity: rhythmIdentity,
       ),
     );
     if (!mounted) return;
     GuidedOnboardingController.instance.clear();
     GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
 
-    final badge = dailyCosmicContextBadgeForDate(_onboardingDayRhythmDate());
+    final badge = dailyCosmicContextBadgeForDate(rhythmDate);
     if (badge == null) {
       await _handleOnboardingDayRhythmDismissed();
       return;
@@ -16066,6 +16091,7 @@ class CalendarPageState extends State<CalendarPage>
     await _updateOnboardingProgress(
       (progress) => progress.copyWith(
         onboardingDayRhythmState: OnboardingDayRhythmState.visible,
+        onboardingDayRhythmDateIdentity: badge.gregorianDateKey,
       ),
     );
     if (!mounted) return;
@@ -16076,13 +16102,24 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _handleOnboardingDayRhythmDismissed() async {
+    final identity =
+        _onboardingProgress.onboardingDayRhythmDateIdentity ??
+        _onboardingDayRhythmIdentity();
     if (_onboardingProgress.onboardingDayRhythmState !=
-        OnboardingDayRhythmState.completed) {
+            OnboardingDayRhythmState.completed ||
+        _onboardingProgress.lastSatisfiedDayRhythmIdentity != identity) {
       await _updateOnboardingProgress(
         (progress) => progress.copyWith(
           onboardingDayRhythmState: OnboardingDayRhythmState.completed,
+          onboardingDayRhythmDateIdentity:
+              progress.onboardingDayRhythmDateIdentity ?? identity,
+          lastSatisfiedDayRhythmIdentity: identity,
         ),
       );
+    }
+    final userId = _currentUserId;
+    if (!_onboardingReviewMode && userId != null && userId.trim().isNotEmpty) {
+      await DailyCosmicContextPrefs().markShown(userId.trim(), identity);
     }
     await _handleObservedJournalPromptNext();
   }

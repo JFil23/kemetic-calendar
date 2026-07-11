@@ -381,6 +381,8 @@ class OnboardingProgress {
     this.firstReflectionEligibleDecanIdentity,
     this.hasCrossedFirstDecanBoundary = false,
     this.onboardingDayRhythmState = OnboardingDayRhythmState.idle,
+    this.onboardingDayRhythmDateIdentity,
+    this.lastSatisfiedDayRhythmIdentity,
     this.seenHelpers = const <String>{},
   });
 
@@ -404,6 +406,8 @@ class OnboardingProgress {
   final String? firstReflectionEligibleDecanIdentity;
   final bool hasCrossedFirstDecanBoundary;
   final OnboardingDayRhythmState onboardingDayRhythmState;
+  final String? onboardingDayRhythmDateIdentity;
+  final String? lastSatisfiedDayRhythmIdentity;
   final Set<String> seenHelpers;
 
   OnboardingProgress copyWith({
@@ -433,6 +437,10 @@ class OnboardingProgress {
     bool clearFirstReflectionEligibleDecanIdentity = false,
     bool? hasCrossedFirstDecanBoundary,
     OnboardingDayRhythmState? onboardingDayRhythmState,
+    String? onboardingDayRhythmDateIdentity,
+    bool clearOnboardingDayRhythmDateIdentity = false,
+    String? lastSatisfiedDayRhythmIdentity,
+    bool clearLastSatisfiedDayRhythmIdentity = false,
     Set<String>? seenHelpers,
   }) {
     return OnboardingProgress(
@@ -483,6 +491,14 @@ class OnboardingProgress {
           hasCrossedFirstDecanBoundary ?? this.hasCrossedFirstDecanBoundary,
       onboardingDayRhythmState:
           onboardingDayRhythmState ?? this.onboardingDayRhythmState,
+      onboardingDayRhythmDateIdentity: clearOnboardingDayRhythmDateIdentity
+          ? null
+          : (onboardingDayRhythmDateIdentity ??
+                this.onboardingDayRhythmDateIdentity),
+      lastSatisfiedDayRhythmIdentity: clearLastSatisfiedDayRhythmIdentity
+          ? null
+          : (lastSatisfiedDayRhythmIdentity ??
+                this.lastSatisfiedDayRhythmIdentity),
       seenHelpers: seenHelpers ?? this.seenHelpers,
     );
   }
@@ -518,6 +534,8 @@ class OnboardingProgress {
         firstReflectionEligibleDecanIdentity,
     'hasCrossedFirstDecanBoundary': hasCrossedFirstDecanBoundary,
     'onboardingDayRhythmState': onboardingDayRhythmState.wireName,
+    'onboardingDayRhythmDateIdentity': onboardingDayRhythmDateIdentity,
+    'lastSatisfiedDayRhythmIdentity': lastSatisfiedDayRhythmIdentity,
     'seenHelpers': seenHelpers.toList()..sort(),
   };
 
@@ -563,6 +581,10 @@ class OnboardingProgress {
       onboardingDayRhythmState: OnboardingDayRhythmStateWire.fromWire(
         json['onboardingDayRhythmState'] as String?,
       ),
+      onboardingDayRhythmDateIdentity:
+          json['onboardingDayRhythmDateIdentity'] as String?,
+      lastSatisfiedDayRhythmIdentity:
+          json['lastSatisfiedDayRhythmIdentity'] as String?,
       seenHelpers: helperIds,
     );
   }

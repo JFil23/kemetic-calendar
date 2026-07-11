@@ -41,10 +41,14 @@ void main() {
   test('onboarding Day Rhythm handoff state persists locally', () {
     final progress = const OnboardingProgress().copyWith(
       onboardingDayRhythmState: OnboardingDayRhythmState.visible,
+      onboardingDayRhythmDateIdentity: '2026-07-10',
+      lastSatisfiedDayRhythmIdentity: '2026-07-10',
     );
     final restored = OnboardingProgress.fromJson(progress.toJson());
 
     expect(restored.onboardingDayRhythmState, OnboardingDayRhythmState.visible);
+    expect(restored.onboardingDayRhythmDateIdentity, '2026-07-10');
+    expect(restored.lastSatisfiedDayRhythmIdentity, '2026-07-10');
     expect(
       OnboardingDayRhythmStateWire.fromWire('completed'),
       OnboardingDayRhythmState.completed,

@@ -634,8 +634,37 @@ void main() {
       completionGate,
       contains('progress.currentStep == TrueOnboardingStep.complete'),
     );
+    expect(completionGate, contains('progress.lastSatisfiedDayRhythmIdentity'));
+    expect(
+      completionGate,
+      contains('progress.onboardingDayRhythmDateIdentity'),
+    );
+    expect(completionGate, contains('progress.firstMaatFlowEventDate'));
+    expect(completionGate, contains('satisfiedIdentity == todayIdentity'));
+    expect(completionGate, contains('return false;'));
     expect(completionGate, contains('OnboardingDayRhythmState.scheduled'));
     expect(completionGate, contains('OnboardingDayRhythmState.visible'));
+  });
+
+  test('onboarding Day Rhythm dismissal marks identity satisfied', () async {
+    final source = await File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsString();
+    final showMethod = _sourceBetween(
+      source,
+      'Future<void> _showOnboardingDayRhythm() async {',
+      'Future<void> _handleOnboardingDayRhythmDismissed() async {',
+    );
+    final dismissMethod = _sourceBetween(
+      source,
+      'Future<void> _handleOnboardingDayRhythmDismissed() async {',
+      'Future<void> _handleObservedJournalPromptNext() async {',
+    );
+
+    expect(showMethod, contains('onboardingDayRhythmDateIdentity'));
+    expect(showMethod, contains('lastSatisfiedDayRhythmIdentity'));
+    expect(dismissMethod, contains('lastSatisfiedDayRhythmIdentity: identity'));
+    expect(dismissMethod, contains('DailyCosmicContextPrefs().markShown'));
   });
 }
 

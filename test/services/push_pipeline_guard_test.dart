@@ -172,6 +172,10 @@ void main() {
         pushNavigationSource,
         contains("deliveryKey.startsWith('maat_guidance:')"),
       );
+      expect(
+        pushNavigationSource,
+        contains('await _canOpenMaatGuidancePush(uid, deliveryId: id)'),
+      );
       expect(pushNavigationSource, contains("'/maat-guidance/"));
       expect(pushNavigationSource, contains("kind == 'decan_reflection'"));
       expect(pushNavigationSource, contains("'/reflections/"));
