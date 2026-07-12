@@ -36,12 +36,12 @@ void main() {
     expect(controller.current!.gregorianDateKey, '2026-06-09');
 
     final prefs = await SharedPreferences.getInstance();
-    expect(
-      prefs.getString(
-        DailyCosmicContextPrefs.lastShownGregorianDateKeyForUser(_userId),
-      ),
-      '2026-06-09',
+    final markerKey = DailyCosmicContextPrefs.lastShownGregorianDateKeyForUser(
+      _userId,
     );
+    expect(prefs.getString(markerKey), isNull);
+    await controller.recordVisiblePresentation(controller.current!);
+    expect(prefs.getString(markerKey), '2026-06-09');
     expect(
       DailyCosmicContextPrefs.lastShownGregorianDateKeyForUser(_userId),
       'daily_cosmic_context:last_shown_gregorian_date:$_userId',
@@ -131,6 +131,8 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       final markerKey =
           DailyCosmicContextPrefs.lastShownGregorianDateKeyForUser(_userId);
+      expect(prefs.getString(markerKey), isNull);
+      await controller.recordVisiblePresentation(controller.current!);
       expect(prefs.getString(markerKey), '2026-06-09');
       expect(prefs.getString(markerKey), isNot(contains(editedCopy)));
       expect(
@@ -385,6 +387,101 @@ void main() {
       isFalse,
     );
   });
+
+  testWidgets(
+    'pending daily rhythm is not consumed until visible presentation',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var resolveCount = 0;
+      final controller = DailyCosmicContextController(
+        now: () => _firstDay,
+        badgeForDate: (date) {
+          resolveCount += 1;
+          return _testBadge(
+            date,
+            cosmicContext: 'Today asks for visible rhythm.',
+          );
+        },
+      );
+      addTearDown(controller.dispose);
+
+      final prefs = await SharedPreferences.getInstance();
+      final markerKey =
+          DailyCosmicContextPrefs.lastShownGregorianDateKeyForUser(_userId);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              fit: StackFit.expand,
+              children: [
+                const Text('Restored page'),
+                DailyCosmicContextOverlayHost(controller: controller),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      await controller.evaluate(
+        userId: _userId,
+        isAuthenticated: true,
+        onboardingComplete: true,
+        suppressed: false,
+      );
+
+      expect(controller.current, isNotNull);
+      expect(prefs.getString(markerKey), isNull);
+
+      await controller.evaluate(
+        userId: _userId,
+        isAuthenticated: true,
+        onboardingComplete: true,
+        suppressed: true,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 260));
+
+      expect(controller.current, isNull);
+      expect(find.byKey(dailyCosmicContextOverlayKey), findsNothing);
+      expect(prefs.getString(markerKey), isNull);
+
+      await controller.evaluate(
+        userId: _userId,
+        isAuthenticated: true,
+        onboardingComplete: true,
+        suppressed: false,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 260));
+
+      expect(find.byKey(dailyCosmicContextOverlayKey), findsOneWidget);
+      expect(find.text('The Day’s Rhythm'), findsOneWidget);
+      expect(prefs.getString(markerKey), '2026-06-09');
+
+      await tester.tap(find.byKey(dailyCosmicContextDismissButtonKey));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 260));
+      expect(find.byKey(dailyCosmicContextOverlayKey), findsNothing);
+
+      await controller.evaluate(
+        userId: _userId,
+        isAuthenticated: true,
+        onboardingComplete: true,
+        suppressed: false,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 260));
+
+      expect(find.byKey(dailyCosmicContextOverlayKey), findsNothing);
+      expect(resolveCount, 2);
+      expect(prefs.getString(markerKey), '2026-06-09');
+    },
+  );
 
   testWidgets(
     'overlay presents rhythm title kemetic-first metadata and hides deck label',
