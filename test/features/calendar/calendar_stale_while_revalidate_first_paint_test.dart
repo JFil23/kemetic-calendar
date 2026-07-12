@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:mobile/features/calendar/calendar_invalidation.dart';
 import 'package:mobile/features/calendar/calendar_page.dart'
     show CalendarPage, KemeticMath;
 import 'package:mobile/features/calendar/calendar_warm_start_cache_identity.dart';
@@ -117,7 +118,7 @@ void main() {
 
         final frames = <String>[];
         await _pumpCalendar(tester);
-        frames.add(_visibleFrame(tester));
+        frames.add(_visibleFrameForTitle(tester, 'Journal every day'));
 
         expect(
           _hasCalendarBody(tester),
@@ -284,6 +285,136 @@ void main() {
           reason:
               'Fresh row has the same client_event_id and should replace the '
               'warm copy without duplication. frames=$frames',
+        );
+      },
+    );
+
+    testWidgets(
+      'startup backfill without standalone authority does not erase warm standalone event',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        await _seedWarmSnapshot(title: 'Journal every day');
+        _backend.blockRefresh = true;
+        _backend.freshStandaloneEvents = const <Map<String, Object?>>[];
+
+        final frames = <String>[];
+        await _pumpCalendar(tester);
+        frames.add(_visibleFrame(tester));
+
+        expect(
+          find.text('Journal every day'),
+          findsOneWidget,
+          reason:
+              'The warm standalone event must paint before the startup '
+              'backfill completes. frames=$frames requests=${_backend.requestLog}',
+        );
+
+        _backend.release();
+        for (var i = 0; i < 40; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+          if (i % 4 == 0) {
+            await tester.runAsync<void>(() async {
+              await Future<void>.delayed(Duration.zero);
+            });
+          }
+          frames.add(_visibleFrameForTitle(tester, 'Journal every day'));
+        }
+
+        expect(
+          find.text('Journal every day'),
+          findsOneWidget,
+          reason:
+              'A startup backfill that did not authoritatively load the '
+              'standalone/reminder lane must not erase the painted warm event. '
+              'frames=$frames requests=${_backend.requestLog}',
+        );
+        expect(
+          _eventFrameDisappearedAfterFirstPaint(frames),
+          isFalse,
+          reason:
+              'No intermediate frame may clear the warm standalone lane. '
+              'frames=$frames',
+        );
+      },
+    );
+
+    testWidgets(
+      'authoritative standalone empty result removes warm event after partial preservation',
+      (tester) async {
+        const title = 'Journal every day';
+        await _setPhoneViewport(tester);
+        await _seedWarmSnapshot(title: title);
+        _backend.blockRefresh = true;
+        _backend.freshStandaloneEvents = const <Map<String, Object?>>[];
+
+        final partialFrames = <String>[];
+        await _pumpCalendar(tester);
+        partialFrames.add(_visibleFrameForTitle(tester, title));
+
+        expect(
+          find.text(title),
+          findsOneWidget,
+          reason:
+              'The warm standalone event must paint before the startup '
+              'backfill completes. frames=$partialFrames requests=${_backend.requestLog}',
+        );
+
+        _backend.release();
+        for (var i = 0; i < 40; i++) {
+          await tester.pump(const Duration(milliseconds: 50));
+          if (i % 4 == 0) {
+            await tester.runAsync<void>(() async {
+              await Future<void>.delayed(Duration.zero);
+            });
+          }
+          partialFrames.add(_visibleFrameForTitle(tester, title));
+          expect(
+            _visibleTitleCount(tester, title),
+            lessThanOrEqualTo(1),
+            reason:
+                'Partial-authority preservation must not duplicate the warm '
+                'standalone lane. frames=$partialFrames',
+          );
+        }
+
+        expect(
+          find.text(title),
+          findsOneWidget,
+          reason:
+              'The partial startup backfill omitted standalone rows but must '
+              'not remove the painted warm event. frames=$partialFrames',
+        );
+        expect(
+          _eventFrameDisappearedAfterFirstPaint(partialFrames),
+          isFalse,
+          reason:
+              'No disappearance is allowed before an authoritative standalone '
+              'load has completed. frames=$partialFrames',
+        );
+
+        final authoritativeFrames = <String>[];
+        CalendarInvalidationBus.instance.publish(
+          const CalendarInvalidated(
+            reason: CalendarInvalidationReason.eventSaved,
+          ),
+        );
+        await _pumpUntilTitleGone(tester, title, authoritativeFrames);
+
+        expect(
+          find.text(title),
+          findsNothing,
+          reason:
+              'Once a later authoritative standalone hydration returns empty, '
+              'the stale warm standalone event must be removed. '
+              'partial=$partialFrames authoritative=$authoritativeFrames '
+              'requests=${_backend.requestLog}',
+        );
+        expect(
+          _visibleTitleCount(tester, title),
+          0,
+          reason:
+              'Authoritative removal must leave no duplicate or stale visible '
+              'copy behind. frames=$authoritativeFrames',
         );
       },
     );
@@ -518,6 +649,51 @@ String _visibleFrame(WidgetTester tester) {
     return 'loading';
   }
   return 'empty';
+}
+
+String _visibleFrameForTitle(WidgetTester tester, String title) {
+  if (!_hasCalendarBody(tester)) return 'blank';
+  if (find.text(title).evaluate().isNotEmpty) return 'event';
+  if (find.byType(CircularProgressIndicator).evaluate().isNotEmpty) {
+    return 'loading';
+  }
+  return 'empty';
+}
+
+bool _eventFrameDisappearedAfterFirstPaint(List<String> frames) {
+  var painted = false;
+  for (final frame in frames) {
+    if (frame == 'event') {
+      painted = true;
+      continue;
+    }
+    if (painted && frame == 'empty') return true;
+  }
+  return false;
+}
+
+int _visibleTitleCount(WidgetTester tester, String title) {
+  return find.text(title).evaluate().length;
+}
+
+Future<void> _pumpUntilTitleGone(
+  WidgetTester tester,
+  String title,
+  List<String> frames, {
+  int maxPumps = 120,
+}) async {
+  for (var i = 0; i < maxPumps; i++) {
+    await tester.pump(const Duration(milliseconds: 50));
+    if (i % 4 == 0) {
+      await tester.runAsync<void>(() async {
+        await Future<void>.delayed(Duration.zero);
+      });
+    }
+    frames.add(_visibleFrameForTitle(tester, title));
+    if (find.text(title).evaluate().isEmpty) {
+      return;
+    }
+  }
 }
 
 Future<void> _setPhoneViewport(WidgetTester tester) async {

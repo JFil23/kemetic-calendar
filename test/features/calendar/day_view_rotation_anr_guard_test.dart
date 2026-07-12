@@ -41,13 +41,20 @@ void main() {
     });
 
     test('shared note render adapter does not mutate reminders', () {
+      final getNotes = _sourceBetween(
+        calendarSource,
+        'List<_Note> _getNotes(int kYear, int kMonth, int kDay)',
+        'DaySheetDayWindow _calendarSheetDayWindow',
+      );
       final helper = _sourceBetween(
         calendarSource,
         'List<NoteData> _noteDataForDay(int y, int m, int d)',
         '// Build a reminder id',
       );
 
-      expect(helper, contains('_dedupeVisibleDayNotes'));
+      expect(getNotes, contains('_isCalendarVisible(note.calendarId)'));
+      expect(getNotes, contains('_dedupeVisibleDayNotes'));
+      expect(helper, contains('_getNotes(y, m, d)'));
       expect(helper, contains('_noteDataFromNote(note)'));
       expect(helper, isNot(contains('_reminderService')));
       expect(helper, isNot(contains('addOrUpdate')));

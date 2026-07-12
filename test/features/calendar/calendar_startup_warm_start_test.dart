@@ -199,6 +199,9 @@ void main() {
         hasPaintedStandaloneLane: true,
       ),
       isFalse,
+      reason:
+          'An authoritative standalone result may still remove stale painted '
+          'events; only partial-authority startup backfill preserves them.',
     );
     expect(
       shouldPreservePaintedStandaloneLaneForHydrationCommit(
@@ -209,6 +212,56 @@ void main() {
       isFalse,
     );
   });
+
+  test('startup backfill complete commit preserves painted standalone lane', () {
+    expect(
+      shouldPreservePaintedStandaloneLaneForHydrationCommit(
+        source: 'startup_backfill:init',
+        commitPhase: 'complete',
+        hasPaintedStandaloneLane: true,
+        standaloneLaneAuthoritative: false,
+      ),
+      isTrue,
+      reason:
+          'Startup backfill is a partial-authority refresh while warm state is '
+          'painted; it cannot delete standalone/reminder events unless that '
+          'lane was loaded authoritatively.',
+    );
+  });
+
+  test(
+    'warm startup reminder sync may update local cache without prompting',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final startup = _sourceBetween(
+        source,
+        'Future<void> _runStartupPipeline(String reason) async {',
+        'String? _canonicalDawnHouseRiteDetailForLoadedEvent',
+      );
+      final postProcessing = _sourceBetween(
+        source,
+        'Future<void> finishNonCriticalPostProcessing() async {',
+        'if (fastStartupMode) {',
+      );
+
+      expect(
+        startup,
+        isNot(contains('updateLocalCache: !keepWarmStartVisible')),
+        reason:
+            'Warm startup may avoid destructive reloads, but authorized '
+            'reminder occurrences still need to materialize locally.',
+      );
+      expect(
+        postProcessing,
+        isNot(contains('skipped reminder regen after warm-start backfill')),
+        reason:
+            'Warm-start backfill must not globally suppress local reminder lane '
+            'materialization.',
+      );
+    },
+  );
 
   test(
     'load from disk guards flow-only commit with painted standalone lane',

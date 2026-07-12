@@ -9220,7 +9220,7 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   List<NoteData> _noteDataForDay(int y, int m, int d) {
-    final notes = _dedupeVisibleDayNotes(_notes['$y-$m-$d'] ?? const <_Note>[]);
+    final notes = _getNotes(y, m, d);
     return [for (final note in notes) _noteDataFromNote(note)];
   }
 
@@ -9571,12 +9571,53 @@ class CalendarPageState extends State<CalendarPage>
     return _standaloneDedupeKey(a) == _standaloneDedupeKey(b);
   }
 
+  bool _sameStableStandaloneLaneNote(_Note a, _Note b) {
+    final aClientEventId = a.clientEventId?.trim();
+    final bClientEventId = b.clientEventId?.trim();
+    if (aClientEventId != null &&
+        aClientEventId.isNotEmpty &&
+        bClientEventId != null &&
+        bClientEventId.isNotEmpty) {
+      return aClientEventId == bClientEventId;
+    }
+
+    final aId = a.id?.trim();
+    final bId = b.id?.trim();
+    if (aId != null && aId.isNotEmpty && bId != null && bId.isNotEmpty) {
+      return aId == bId;
+    }
+
+    if (a.isReminder && b.isReminder) {
+      final aReminderId = a.reminderId?.trim();
+      final bReminderId = b.reminderId?.trim();
+      return aReminderId != null &&
+          aReminderId.isNotEmpty &&
+          bReminderId != null &&
+          bReminderId.isNotEmpty &&
+          aReminderId == bReminderId &&
+          a.allDay == b.allDay &&
+          a.start?.hour == b.start?.hour &&
+          a.start?.minute == b.start?.minute;
+    }
+
+    return false;
+  }
+
   int _mergePaintedStandaloneLaneInto(Map<String, List<_Note>> notesByDay) {
     var preserved = 0;
     for (final entry in _notes.entries) {
       final bucket = notesByDay.putIfAbsent(entry.key, () => <_Note>[]);
       for (final note in entry.value) {
         if (!_noteBelongsToStandaloneLane(note)) continue;
+        if (notesByDay.values.any(
+          (incomingBucket) => incomingBucket.any(
+            (incoming) =>
+                _noteBelongsToStandaloneLane(incoming) &&
+                _sameStableStandaloneLaneNote(incoming, note),
+          ),
+        )) {
+          continue;
+        }
         if (bucket.any(
           (incoming) =>
               _noteBelongsToStandaloneLane(incoming) &&
@@ -31295,10 +31336,7 @@ class CalendarPageState extends State<CalendarPage>
           source: 'startup_backfill:$reason',
           preserveViewport: true,
         );
-        await _syncReminderEvents(
-          refreshUi: false,
-          updateLocalCache: !keepWarmStartVisible,
-        );
+        await _syncReminderEvents(refreshUi: false, updateLocalCache: true);
         await _persistWarmStartCacheNow(
           debugReason: 'startup_backfill_complete',
         );
@@ -31841,6 +31879,7 @@ class CalendarPageState extends State<CalendarPage>
               source: source,
               commitPhase: phase,
               hasPaintedStandaloneLane: hasPaintedStandaloneLaneAtLoadStart,
+              standaloneLaneAuthoritative: !keepWarmStartSnapshotVisible,
             );
         final preservedStandaloneCount = preservePaintedStandaloneLane
             ? _mergePaintedStandaloneLaneInto(newNotes)
@@ -32440,17 +32479,9 @@ class CalendarPageState extends State<CalendarPage>
         }
 
         try {
-          if (keepWarmStartSnapshotVisible) {
-            if (kDebugMode) {
-              _calendarDebugPrint(
-                '[loadFromDisk] skipped reminder regen after warm-start backfill',
-              );
-            }
-          } else {
-            final changed = await _regenReminderNotes(notify: false);
-            if (changed) {
-              _refreshNoteCacheUi();
-            }
+          final changed = await _regenReminderNotes(notify: false);
+          if (changed) {
+            _refreshNoteCacheUi();
           }
         } catch (err, st) {
           if (kDebugMode) {
