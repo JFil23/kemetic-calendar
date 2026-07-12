@@ -1,13 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <item name="android:windowSplashScreenBackground">@color/splash_bg</item>
+        <item name="android:windowSplashScreenBackground">@color/boot_background</item>
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/launch_word</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/boot_background</item>
         <item name="android:windowSplashScreenAnimationDuration">0</item>
-        <item name="android:windowBackground">@color/splash_bg</item>
+        <item name="android:windowBackground">@color/boot_background</item>
+        <item name="android:statusBarColor">@color/boot_background</item>
+        <item name="android:navigationBarColor">@color/boot_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <item name="android:windowBackground">@color/splash_bg</item>
+        <item name="android:windowBackground">@color/boot_background</item>
+        <item name="android:statusBarColor">@color/boot_background</item>
+        <item name="android:navigationBarColor">@color/boot_background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 </resources>

@@ -1,3 +1,4 @@
 <resources>
+    <color name="boot_background">#171518</color>
     <color name="splash_bg">#171518</color>
 </resources>
