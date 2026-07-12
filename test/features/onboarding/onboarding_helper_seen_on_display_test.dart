@@ -158,6 +158,7 @@ void main() {
     expect(calendarSource, contains('externalOverlaySuppressed: false'));
     expect(calendarSource, contains('helperId: helper.id'));
     expect(calendarSource, contains('sourceWidget: helper.sourceWidget'));
+    expect(calendarSource, contains('showWhenHelperCompleted: true'));
     expect(
       mainSource,
       contains(

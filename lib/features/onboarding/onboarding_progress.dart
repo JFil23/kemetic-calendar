@@ -601,6 +601,13 @@ String? onboardingSatisfiedDayRhythmIdentity(OnboardingProgress progress) {
       _cleanDayRhythmIdentity(progress.onboardingDayRhythmDateIdentity);
 }
 
+bool shouldPresentFinalOnboardingMenuHandoff(OnboardingProgress progress) {
+  if (progress.hasSeenMenuPrompt) return false;
+  if (progress.currentStep == TrueOnboardingStep.menuExplore) return true;
+  return progress.completedOnboarding &&
+      progress.currentStep == TrueOnboardingStep.complete;
+}
+
 bool shouldAllowDailyCosmicContextAfterOnboardingHandoff({
   required OnboardingProgress progress,
   required String todayIdentity,

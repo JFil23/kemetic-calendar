@@ -797,9 +797,15 @@ void main() {
       final source = File(
         'lib/features/calendar/calendar_page.dart',
       ).readAsStringSync();
+      final authListener = _sourceBetween(
+        source,
+        '_authSub = Supabase.instance.client.auth.onAuthStateChange.listen',
+        '// Initialize journal controller',
+      );
       final recommendedFlow = _methodSource(source, '_buildHawRecommendedFlow');
       final joined = _methodSource(source, '_handleHawRecommendedFlowJoined');
       final completeHaw = _methodSource(source, '_completeHawOnboarding');
+      final maybePresent = _methodSource(source, '_maybePresentOnboarding');
       final dayRhythm = _methodSource(source, '_showOnboardingDayRhythm');
       final rhythmDismissed = _methodSource(
         source,
@@ -837,6 +843,33 @@ void main() {
       expect(completeHaw, contains('hasSeenMenuPrompt: false'));
       expect(completeHaw, contains('await _showOnboardingDayRhythm();'));
       expect(completeHaw, isNot(contains('_markOnboardingCompletedIfNeeded')));
+      expect(
+        maybePresent,
+        contains('shouldPresentFinalOnboardingMenuHandoff(progress)'),
+      );
+      expect(
+        authListener,
+        contains('_scheduleOnboardingPresentation();'),
+        reason:
+            'The initial onboarding presentation attempt can run before auth '
+            'restores, so auth restoration must retry the handoff presenter.',
+      );
+      expect(
+        maybePresent,
+        contains('_onboardingPresentationScheduled = false;'),
+        reason:
+            'A no-user early return must not permanently consume the one-shot '
+            'onboarding presentation schedule.',
+      );
+      expect(
+        maybePresent.indexOf(
+          'shouldPresentFinalOnboardingMenuHandoff(progress)',
+        ),
+        lessThan(maybePresent.indexOf('final hasCompleted =')),
+        reason:
+            'The stale complete/unseen-menu recovery must run before the '
+            'completed-onboarding branch can short-circuit into generic helpers.',
+      );
       expect(dayRhythm, contains('OnboardingDayRhythmState.scheduled'));
       expect(dayRhythm, contains('OnboardingDayRhythmState.visible'));
       expect(dayRhythm, contains('OnboardingDayRhythmState.completed'));
@@ -861,6 +894,12 @@ void main() {
       expect(
         menuCoachmark,
         contains('const helper = OnboardingHelperRegistry.calendarMenuExplore'),
+      );
+      expect(
+        menuCoachmark,
+        contains(
+          'shouldPresentFinalOnboardingMenuHandoff(_onboardingProgress)',
+        ),
       );
       expect(menuCoachmark, contains('_waitForCoachmarkTargetReady'));
       expect(menuCoachmark, contains('title: helper.title'));
@@ -1000,7 +1039,7 @@ void main() {
       );
       expect(
         maybePresent,
-        contains('progress.currentStep == TrueOnboardingStep.menuExplore'),
+        contains('shouldPresentFinalOnboardingMenuHandoff(progress)'),
       );
       expect(maybePresent, contains('_showMenuExploreCoachmark();'));
     },

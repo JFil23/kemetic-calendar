@@ -92,6 +92,44 @@ void main() {
     expect(remoteStore.loadCount, 1);
     expect(GuidedOnboardingController.instance.target, isNull);
   });
+
+  testWidgets('final menu handoff can show even if helper was completed', (
+    tester,
+  ) async {
+    final remoteStore = _FakeRemoteStore(
+      completedByUser: const {
+        _testUserId: {OnboardingHelperIds.calendarMenuExplore},
+      },
+    );
+    OnboardingHelperCompletionService.resetForTesting(remoteStore: remoteStore);
+    await OnboardingHelperCompletionService.instance.hydrateUser(_testUserId);
+
+    GuidedOnboardingController.instance.show(
+      const CoachmarkTarget(
+        title: 'Tap to explore',
+        body: 'Create with flows, journal, planner, and tools.',
+        placement: CoachmarkPlacement.center,
+        variant: CoachmarkVariant.helperBubble,
+        helperId: OnboardingHelperIds.calendarMenuExplore,
+        helperUserId: _testUserId,
+        sourceWidget: 'CalendarPage.menuExploreHelper',
+        showWhenHelperCompleted: true,
+      ),
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: GuidedOnboardingOverlayHost(child: SizedBox.expand()),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('Tap to explore'), findsOneWidget);
+    expect(
+      find.text('Create with flows, journal, planner, and tools.'),
+      findsOneWidget,
+    );
+  });
 }
 
 Future<void> _pumpFlowStudioRoute(WidgetTester tester) async {

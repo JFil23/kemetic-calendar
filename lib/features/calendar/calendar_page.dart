@@ -14460,6 +14460,7 @@ class CalendarPageState extends State<CalendarPage>
           event == AuthChangeEvent.signedIn) {
         if (!mounted) return;
         unawaited(_loadCalendarState());
+        _scheduleOnboardingPresentation();
         _restoreWarmStartCacheForFirstPaint(reason: 'auth:${event.name}');
         _restoreMyFlowsFilingSnapshotCacheAfterFirstFrame(
           reason: 'auth:${event.name}',
@@ -15160,7 +15161,10 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     final userId = _currentUserId;
-    if (userId == null) return;
+    if (userId == null) {
+      _onboardingPresentationScheduled = false;
+      return;
+    }
 
     if (_replayOnboardingOnEveryLaunch) {
       if (_hasPresentedOnboardingThisLaunch) return;
@@ -15179,6 +15183,14 @@ class CalendarPageState extends State<CalendarPage>
     _onboardingProgress = progress;
     _activeHawOnboardingSlide = _hawSlideForProgress(progress);
     _hydrateFirstFlowTargetFromProgress(progress);
+
+    if (shouldPresentFinalOnboardingMenuHandoff(progress)) {
+      await _waitForOnboardingCalendarReady();
+      if (!mounted) return;
+      GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
+      _showMenuExploreCoachmark();
+      return;
+    }
 
     if (progress.currentStep == TrueOnboardingStep.eventDetailObservedJournal) {
       await _waitForOnboardingCalendarReady();
@@ -15209,15 +15221,6 @@ class CalendarPageState extends State<CalendarPage>
         _OnboardingContinuationStage.none,
       );
       unawaited(_maybeShowCalendarHelperAfterOnboarding(effectiveProgress));
-      return;
-    }
-
-    if (progress.currentStep == TrueOnboardingStep.menuExplore &&
-        !progress.hasSeenMenuPrompt) {
-      await _waitForOnboardingCalendarReady();
-      if (!mounted) return;
-      GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
-      _showMenuExploreCoachmark();
       return;
     }
 
@@ -16483,8 +16486,7 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> _showMenuExploreCoachmarkWhenReady() async {
     await _waitForCoachmarkTargetReady(globalMenuButtonKey);
     if (!mounted) return;
-    if (_onboardingProgress.currentStep != TrueOnboardingStep.menuExplore ||
-        _onboardingProgress.hasSeenMenuPrompt) {
+    if (!shouldPresentFinalOnboardingMenuHandoff(_onboardingProgress)) {
       return;
     }
     const helper = OnboardingHelperRegistry.calendarMenuExplore;
@@ -16504,6 +16506,7 @@ class CalendarPageState extends State<CalendarPage>
         helperId: helper.id,
         helperUserId: helperUserId,
         sourceWidget: helper.sourceWidget,
+        showWhenHelperCompleted: true,
         onDismiss: () => unawaited(_completeTrueOnboarding()),
       ),
       externalOverlaySuppressed: false,

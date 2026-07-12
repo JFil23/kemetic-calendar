@@ -39,6 +39,7 @@ class CoachmarkTarget {
     this.helperId,
     this.helperUserId,
     this.sourceWidget,
+    this.showWhenHelperCompleted = false,
   });
 
   final GlobalKey? key;
@@ -60,6 +61,7 @@ class CoachmarkTarget {
   final String? helperId;
   final String? helperUserId;
   final String? sourceWidget;
+  final bool showWhenHelperCompleted;
 }
 
 class GuidedOnboardingController extends ChangeNotifier {
@@ -156,6 +158,7 @@ class GuidedOnboardingOverlayHost extends StatelessWidget {
         final helperId = target?.helperId;
         final helperUserId = target?.helperUserId;
         final isCompletedHelper =
+            target?.showWhenHelperCompleted != true &&
             helperId != null &&
             helperUserId != null &&
             service.isHelperCompletedSync(helperUserId, helperId);

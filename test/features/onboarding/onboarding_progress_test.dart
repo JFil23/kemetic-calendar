@@ -127,6 +127,48 @@ void main() {
     );
   });
 
+  test('complete users with unseen menu handoff remain recoverable', () {
+    final staleCompleted = const OnboardingProgress().copyWith(
+      currentStep: TrueOnboardingStep.complete,
+      completedOnboarding: true,
+      hasSeenMenuPrompt: false,
+    );
+
+    expect(
+      shouldPresentFinalOnboardingMenuHandoff(staleCompleted),
+      isTrue,
+      reason:
+          'Completed users missing the final menu handoff must still receive '
+          'only the Tap to explore handoff instead of silently staying '
+          'ineligible forever.',
+    );
+    expect(
+      shouldPresentFinalOnboardingMenuHandoff(
+        staleCompleted.copyWith(skippedOnboarding: true),
+      ),
+      isTrue,
+      reason:
+          'Skipping the instructional flow should still preserve the lightweight '
+          'final menu handoff.',
+    );
+    expect(
+      shouldPresentFinalOnboardingMenuHandoff(
+        staleCompleted.copyWith(hasSeenMenuPrompt: true),
+      ),
+      isFalse,
+    );
+    expect(
+      shouldAllowDailyCosmicContextAfterOnboardingHandoff(
+        progress: staleCompleted,
+        todayIdentity: '2026-07-10',
+      ),
+      isFalse,
+      reason:
+          'Today’s Rhythm should remain gated until the recovered handoff is '
+          'actually acknowledged.',
+    );
+  });
+
   test('profile basics require a glyph avatar and display name or handle', () {
     expect(
       hasCompletedProfileBasics(
