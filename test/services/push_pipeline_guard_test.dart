@@ -285,15 +285,10 @@ void main() {
           'void _startInitialTasks()',
           'void _consumePendingWebPushIntent()',
         );
-        final mainBootReadSource = _sourceBetween(
-          mainSource,
-          'await AppWindowService.instance.ensureInitialized();',
-          'final initialLocation = _resolveInitialLocation();',
-        );
         final normalBootReadSource = _sourceBetween(
-          mainBootReadSource,
-          '} else {',
-          '}\n    ',
+          mainSource,
+          'await _readBootInitialAppLinkIntent();',
+          'final initialLocation = _resolveInitialLocation();',
         );
 
         expect(pushSource, contains('class PushInitialMessage'));

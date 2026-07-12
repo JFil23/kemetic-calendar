@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:app_links/app_links.dart';
@@ -40,6 +41,7 @@ import 'utils/event_cid_util.dart';
 import 'telemetry/telemetry.dart';
 import 'shared/glossy_text.dart';
 
+import 'root_boot.dart';
 import 'utils/hive_local_storage_web.dart';
 import 'core/async_guard.dart';
 import 'core/app_link_intent.dart';
@@ -396,6 +398,12 @@ PushInitialMessage? _bootInitialPushMessage;
 String? _bootInitialAppLinkSignature;
 String? _lastHandledAuthCallbackSignature;
 DateTime? _lastHandledAuthCallbackAt;
+final BootCoordinator _rootBootCoordinator = BootCoordinator();
+bool _bootSupabaseInitialized = false;
+bool _postFirstFrameWarmupsStarted = false;
+
+@visibleForTesting
+BootCoordinator get rootBootCoordinatorForTesting => _rootBootCoordinator;
 
 void _configureLogging() {
   if (kReleaseMode || kProfileMode) {
@@ -422,6 +430,64 @@ void _startBackgroundWarmups() {
   }());
 }
 
+Future<void> _waitForFirstRasterizedFrameForStartup() async {
+  final binding = WidgetsBinding.instance;
+  if (!binding.firstFrameRasterized) {
+    try {
+      await binding.waitUntilFirstFrameRasterized.timeout(
+        const Duration(seconds: 4),
+      );
+    } catch (_) {
+      // Test bindings and interrupted launches may not report rasterization.
+    }
+  }
+
+  try {
+    await binding.endOfFrame.timeout(const Duration(milliseconds: 500));
+  } catch (_) {
+    // Best effort: startup warmups should never crash launch.
+  }
+  try {
+    await SchedulerBinding.instance.scheduleTask<void>(
+      () {},
+      Priority.idle,
+      debugLabel: 'post-first-frame startup idle gate',
+    );
+  } catch (_) {
+    // If the scheduler rejects the idle task during shutdown, keep launch alive.
+  }
+}
+
+void _startPostFirstFrameWarmups() {
+  unawaited(() async {
+    await _waitForFirstRasterizedFrameForStartup();
+    Timer.run(() {
+      unawaited(() async {
+        try {
+          await ProfileRepo(Supabase.instance.client).preloadLocalCaches();
+        } catch (_) {
+          // best-effort; profile reads still fall back to the repository
+        }
+      }());
+      _startBackgroundWarmups();
+    });
+  }());
+}
+
+void _startPostFirstFrameWarmupsOnce() {
+  if (_postFirstFrameWarmupsStarted) return;
+  if (!_bootSupabaseInitialized) return;
+  _postFirstFrameWarmupsStarted = true;
+  _startPostFirstFrameWarmups();
+}
+
+void _handleRootBootReadyFrame() {
+  _traceRouterLocationAfterFrame('after_root_boot_ready_frame');
+  if (!_debugDaySheetSmokeBootRequested) {
+    _startPostFirstFrameWarmupsOnce();
+  }
+}
+
 Future<void> main() async {
   await runZoned(() async {
     _configureLogging();
@@ -433,36 +499,47 @@ Future<void> main() async {
     // Register background handler for FCM (no-op on web)
     registerPushBackgroundHandler();
 
-    var supabaseConfig = await _loadSupabaseConfig();
-    var runtimeConfigErrors = _runtimeConfigErrors(supabaseConfig);
-    if (_debugDaySheetSmokeBootRequested && runtimeConfigErrors.isNotEmpty) {
-      supabaseConfig = _debugDaySheetSmokeFallbackConfig();
-      runtimeConfigErrors = _runtimeConfigErrors(supabaseConfig);
-      if (kDebugMode) {
-        debugPrint(
-          '[debug-smoke] Using local placeholder Supabase config for $_kDebugDaySheetSmokeRoute',
-        );
-      }
-    }
+    runApp(
+      RootBootApp(
+        coordinator: _rootBootCoordinator,
+        onReadyFrame: _handleRootBootReadyFrame,
+      ),
+    );
+    _rootBootCoordinator.start(_bootstrapApplication);
+  }, zoneSpecification: _releasePrintSilencer);
+}
 
+Future<Widget> _bootstrapApplication() async {
+  var supabaseConfig = await _loadSupabaseConfig();
+  var runtimeConfigErrors = _runtimeConfigErrors(supabaseConfig);
+  if (_debugDaySheetSmokeBootRequested && runtimeConfigErrors.isNotEmpty) {
+    supabaseConfig = _debugDaySheetSmokeFallbackConfig();
+    runtimeConfigErrors = _runtimeConfigErrors(supabaseConfig);
     if (kDebugMode) {
       debugPrint(
-        '[boot] Supabase config present: '
-        'urlConfigured=${supabaseConfig.url.isNotEmpty} '
-        'anonKeyPresent=${supabaseConfig.anonKey.isNotEmpty}',
+        '[debug-smoke] Using local placeholder Supabase config for $_kDebugDaySheetSmokeRoute',
       );
     }
+  }
 
-    if (runtimeConfigErrors.isNotEmpty) {
-      runApp(_runtimeConfigErrorApp(runtimeConfigErrors));
-      return;
-    }
+  if (kDebugMode) {
+    debugPrint(
+      '[boot] Supabase config present: '
+      'urlConfigured=${supabaseConfig.url.isNotEmpty} '
+      'anonKeyPresent=${supabaseConfig.anonKey.isNotEmpty}',
+    );
+  }
 
-    // Normalize URL: strip trailing slash if present
-    final supabaseUrl = supabaseConfig.url.endsWith('/')
-        ? supabaseConfig.url.substring(0, supabaseConfig.url.length - 1)
-        : supabaseConfig.url;
+  if (runtimeConfigErrors.isNotEmpty) {
+    return _runtimeConfigErrorApp(runtimeConfigErrors);
+  }
 
+  // Normalize URL: strip trailing slash if present
+  final supabaseUrl = supabaseConfig.url.endsWith('/')
+      ? supabaseConfig.url.substring(0, supabaseConfig.url.length - 1)
+      : supabaseConfig.url;
+
+  if (!_bootSupabaseInitialized) {
     await Supabase.initialize(
       url: supabaseUrl, // Use normalized URL
       anonKey: supabaseConfig.anonKey,
@@ -471,54 +548,50 @@ Future<void> main() async {
         localStorage: kIsWeb ? HiveLocalStorageWeb() : null,
       ),
     );
+    _bootSupabaseInitialized = true;
+  }
 
-    if (!_debugDaySheetSmokeBootRequested) {
-      await _refreshSessionIfNeeded('boot');
+  if (!_debugDaySheetSmokeBootRequested) {
+    await _refreshSessionIfNeeded('boot');
+  }
 
-      await ProfileRepo(Supabase.instance.client).preloadLocalCaches();
-    }
+  await AppWindowService.instance.ensureInitialized();
+  await AppRestorationService.instance.initialize();
+  await NavigationTrace.instance.load();
+  if (_debugDaySheetSmokeBootRequested) {
+    _bootExplicitIntentLocation = _kDebugDaySheetSmokeRoute;
+    _bootRestoredLocation = null;
+  } else {
+    await _readBootInitialAppLinkIntent();
+    await _readBootInitialPushIntent();
+    _bootExplicitIntentLocation ??= _initialLocationFromWebBrowserLocation();
+    _bootRestoredLocation = await _readBootRestoredLocation();
+  }
+  final initialLocation = _resolveInitialLocation();
+  _router = _createRouter(initialLocation: initialLocation);
+  traceRestoration('boot router created initialLocation=$initialLocation');
+  traceRestoration(
+    'boot route apply prepared explicit=${_bootExplicitIntentLocation ?? '<none>'} '
+    'restored=${_bootRestoredLocation ?? '<none>'} '
+    'initial=$initialLocation',
+  );
+  final restoreTargetLocation = _authDeferredRestorePending
+      ? _bootAuthDeferredRestoredLocation
+      : initialLocation;
+  RestorationCoordinator.instance.beginLaunchRestore(
+    reason: RestorationRestoreReason.coldLaunch,
+    targetLocation: restoreTargetLocation,
+  );
+  _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded();
 
-    await AppWindowService.instance.ensureInitialized();
-    await AppRestorationService.instance.initialize();
-    await NavigationTrace.instance.load();
-    if (_debugDaySheetSmokeBootRequested) {
-      _bootExplicitIntentLocation = _kDebugDaySheetSmokeRoute;
-      _bootRestoredLocation = null;
-    } else {
-      await _readBootInitialAppLinkIntent();
-      await _readBootInitialPushIntent();
-      _bootExplicitIntentLocation ??= _initialLocationFromWebBrowserLocation();
-      _bootRestoredLocation = await _readBootRestoredLocation();
-    }
-    final initialLocation = _resolveInitialLocation();
-    _router = _createRouter(initialLocation: initialLocation);
-    traceRestoration('boot router created initialLocation=$initialLocation');
-    traceRestoration(
-      'boot route apply prepared explicit=${_bootExplicitIntentLocation ?? '<none>'} '
-      'restored=${_bootRestoredLocation ?? '<none>'} '
-      'initial=$initialLocation',
-    );
-    final restoreTargetLocation = _authDeferredRestorePending
-        ? _bootAuthDeferredRestoredLocation
-        : initialLocation;
-    RestorationCoordinator.instance.beginLaunchRestore(
-      reason: RestorationRestoreReason.coldLaunch,
-      targetLocation: restoreTargetLocation,
-    );
-    _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded();
+  // 🚨 Initialize notifications/push without blocking the first frame.
+  // AuthGate will re-attempt on sign-in if these fail.
+  if (!_debugDaySheetSmokeBootRequested) {
+    // Web/PWA boot hardening (iOS PWA friendly)
+    _startWebBootTasks();
+  }
 
-    // 🚨 Initialize notifications/push without blocking the first frame.
-    // AuthGate will re-attempt on sign-in if these fail.
-    if (!_debugDaySheetSmokeBootRequested) {
-      _startBackgroundWarmups();
-
-      // Web/PWA boot hardening (iOS PWA friendly)
-      _startWebBootTasks();
-    }
-
-    runApp(const MyApp());
-    _traceRouterLocationAfterFrame('after_run_app_first_frame');
-  }, zoneSpecification: _releasePrintSilencer);
+  return const MyApp();
 }
 
 final supabase = Supabase.instance.client;
@@ -771,12 +844,28 @@ const bool _debugForceGlobalFloatingMenu = bool.fromEnvironment(
   'FORCE_GLOBAL_MENU_FOR_TESTING',
 );
 bool _debugForceGlobalFloatingMenuForTesting = false;
+bool _debugSkipLaunchShellDetachedOverlayRestore = false;
 
 int get globalFloatingMenuModalDepthValue => _floatingMenuModalDepth.value;
 
 @visibleForTesting
 NavigatorObserver get globalFloatingMenuRouteObserverForTesting =>
     _floatingMenuRouteObserver;
+
+@visibleForTesting
+Widget buildLaunchShellForTesting({required Widget child}) =>
+    _LaunchShell(child: child);
+
+@visibleForTesting
+void resetLaunchShellForTesting() {
+  _launchOverlayDismissed.value = false;
+  _debugSkipLaunchShellDetachedOverlayRestore = false;
+}
+
+@visibleForTesting
+void setLaunchShellDetachedOverlayRestoreSuppressedForTesting(bool value) {
+  _debugSkipLaunchShellDetachedOverlayRestore = value;
+}
 
 bool get rootNavigatorContextMountedForNavigationTrace =>
     _rootNavigatorKey.currentContext?.mounted ?? false;
@@ -1002,7 +1091,6 @@ Future<void> _readBootInitialPushIntent() async {
     }
     return;
   }
-
   final initial = await PushNotifications.instance(
     Supabase.instance.client,
   ).takeInitialMessage();
@@ -4027,31 +4115,41 @@ class _LaunchShell extends StatefulWidget {
 
 class _LaunchShellState extends State<_LaunchShell>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _fadeController = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 420),
-  );
-  late final Animation<double> _fadeOut = Tween<double>(
-    begin: 1,
-    end: 0,
-  ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeOut));
+  AnimationController? _fadeController;
+  Animation<double>? _fadeOut;
 
   bool _dismissed = false;
+
+  AnimationController get _launchFadeController {
+    return _fadeController ??= AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+    );
+  }
+
+  Animation<double> get _launchFadeOut {
+    return _fadeOut ??= Tween<double>(begin: 1, end: 0).animate(
+      CurvedAnimation(parent: _launchFadeController, curve: Curves.easeOut),
+    );
+  }
 
   @override
   void initState() {
     super.initState();
-    if (supabase.auth.currentSession == null) {
-      _dismissed = true;
-      _launchOverlayDismissed.value = true;
-      return;
-    }
-
-    _launchOverlayDismissed.value = false;
+    final shouldShowOverlay = _shouldShowLaunchOverlay();
+    _dismissed = !shouldShowOverlay;
+    _launchOverlayDismissed.value = !shouldShowOverlay;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_restoreDetachedCalendarOverlayAfterBoot());
-      _dismissOverlay();
+      if (!_debugSkipLaunchShellDetachedOverlayRestore) {
+        unawaited(_restoreDetachedCalendarOverlayAfterBoot());
+      }
+      if (shouldShowOverlay) unawaited(_dismissOverlay());
     });
+  }
+
+  bool _shouldShowLaunchOverlay() {
+    if (supabase.auth.currentSession == null) return false;
+    return _webAuthExchangeInProgress.value;
   }
 
   Future<void> _restoreDetachedCalendarOverlayAfterBoot() async {
@@ -4082,11 +4180,9 @@ class _LaunchShellState extends State<_LaunchShell>
       return;
     }
 
-    await Future<void>.delayed(const Duration(milliseconds: 950));
     await _waitForWebAuthExchangeToSettle();
-    await CalendarPage.waitForInitialCalendarRestorationToSettle();
     if (!mounted) return;
-    await _fadeController.forward();
+    await _launchFadeController.forward();
     if (!mounted) return;
     setState(() => _dismissed = true);
     _launchOverlayDismissed.value = true;
@@ -4094,7 +4190,7 @@ class _LaunchShellState extends State<_LaunchShell>
 
   @override
   void dispose() {
-    _fadeController.dispose();
+    _fadeController?.dispose();
     super.dispose();
   }
 
@@ -4110,7 +4206,7 @@ class _LaunchShellState extends State<_LaunchShell>
             // standalone web auth/bootstrap.
             ignoring: true,
             child: FadeTransition(
-              opacity: _fadeOut,
+              opacity: _launchFadeOut,
               child: const ColoredBox(
                 color: _launchBackdrop,
                 child: Center(
@@ -5184,47 +5280,26 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _handleAuthStateChange(AuthState data) async {
-    final ev = data.event;
-    final isSessionReadyEvent =
-        ev == AuthChangeEvent.initialSession || ev == AuthChangeEvent.signedIn;
-    if (isSessionReadyEvent) {
-      _prepareDeferredBootRestoreForAuth(ev);
-    }
-    if (!isSessionReadyEvent && mounted) setState(() {});
+  void _startPostAuthStartupWarmupsAfterFirstFrame() {
+    unawaited(() async {
+      await _waitForFirstRasterizedFrameForStartup();
+      if (!mounted || supabase.auth.currentSession == null) return;
+      _startPostAuthStartupWarmups();
+    }());
+  }
 
-    if (isSessionReadyEvent) {
-      Events.debugAuthBanner('onAuthStateChange:$ev');
-      final shouldReplayBeforeStartup =
-          _authDeferredRestorePending || _bootDeferredRestorePreparedForAuth;
-      final pendingPlannerLaunch = _pendingPlannerLaunchIntent;
-      if (pendingPlannerLaunch != null) {
-        _pendingPlannerLaunchIntent = null;
-        _bootRestoreDeferredForAuth = false;
-        _bootAuthDeferredRestoredLocation = null;
-        _bootDeferredRestorePreparedForAuth = false;
-        traceRestoration(
-          'auth deferred restore skipped event=${ev.name} '
-          'reason=pending_planner_launch_intent',
-        );
-        _routeToPlanner(pendingPlannerLaunch);
-      } else {
-        await _replayDeferredBootRestoreAfterAuth(ev);
-      }
-      if (mounted) setState(() {});
-      if (shouldReplayBeforeStartup) {
-        _startPostAuthStartupWarmups();
-      } else {
-        await _ensureProfile(); // keep profiles hydrated with email
-        await UserEventsRepo.refreshTelemetrySettings(supabase);
-        await _logAppOpenOnce(); // one-shot per cold start
-      }
+  void _startAuthenticatedServiceWarmupsAfterFirstFrame() {
+    unawaited(() async {
+      await _waitForFirstRasterizedFrameForStartup();
+      if (!mounted || supabase.auth.currentSession == null) return;
+
       fireAndForgetGuarded(
         'notify init',
         _initNotificationsSafely(),
         onError: _logAuthGateError,
       );
       final pushEnabled = await SettingsPrefs.realTimeAlertsEnabled();
+      if (!mounted || supabase.auth.currentSession == null) return;
       if (pushEnabled) {
         final push = PushNotifications.instance(supabase);
         if (!kIsWeb) {
@@ -5259,6 +5334,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       }
       final autoCalendarSyncEnabled =
           await SettingsPrefs.autoCalendarSyncEnabled();
+      if (!mounted || supabase.auth.currentSession == null) return;
       if (autoCalendarSyncEnabled) {
         fireAndForgetGuarded(
           'calendar sync start',
@@ -5268,6 +5344,37 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       } else {
         _calendarSync?.stop();
       }
+    }());
+  }
+
+  Future<void> _handleAuthStateChange(AuthState data) async {
+    final ev = data.event;
+    final isSessionReadyEvent =
+        ev == AuthChangeEvent.initialSession || ev == AuthChangeEvent.signedIn;
+    if (isSessionReadyEvent) {
+      _prepareDeferredBootRestoreForAuth(ev);
+    }
+    if (!isSessionReadyEvent && mounted) setState(() {});
+
+    if (isSessionReadyEvent) {
+      Events.debugAuthBanner('onAuthStateChange:$ev');
+      final pendingPlannerLaunch = _pendingPlannerLaunchIntent;
+      if (pendingPlannerLaunch != null) {
+        _pendingPlannerLaunchIntent = null;
+        _bootRestoreDeferredForAuth = false;
+        _bootAuthDeferredRestoredLocation = null;
+        _bootDeferredRestorePreparedForAuth = false;
+        traceRestoration(
+          'auth deferred restore skipped event=${ev.name} '
+          'reason=pending_planner_launch_intent',
+        );
+        _routeToPlanner(pendingPlannerLaunch);
+      } else {
+        await _replayDeferredBootRestoreAfterAuth(ev);
+      }
+      if (mounted) setState(() {});
+      _startPostAuthStartupWarmupsAfterFirstFrame();
+      _startAuthenticatedServiceWarmupsAfterFirstFrame();
     }
 
     if (ev == AuthChangeEvent.signedOut) {

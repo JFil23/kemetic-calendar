@@ -678,7 +678,18 @@ void main() {
         main.indexOf(
           '_router = _createRouter(initialLocation: initialLocation);',
         ),
-        lessThan(main.indexOf('runApp(const MyApp())')),
+        lessThan(main.indexOf('return const MyApp();')),
+      );
+      expect(main, contains('RootBootApp('));
+      expect(
+        main,
+        contains('_rootBootCoordinator.start(_bootstrapApplication)'),
+      );
+      expect(
+        main.indexOf('runApp('),
+        lessThan(
+          main.indexOf('_rootBootCoordinator.start(_bootstrapApplication)'),
+        ),
       );
       expect(main, contains('late final GoRouter _router;'));
       expect(main, isNot(contains('final _router = GoRouter(')));
@@ -1289,9 +1300,10 @@ void main() {
         expect(main, contains('beginLaunchRestore'));
         expect(main, contains('RestorationRestoreReason.coldLaunch'));
         expect(main, isNot(contains('RestorationRestoreReason.authResume')));
+        expect(launchDismiss, contains('_waitForWebAuthExchangeToSettle'));
         expect(
           launchDismiss,
-          contains('waitForInitialCalendarRestorationToSettle'),
+          isNot(contains('waitForInitialCalendarRestorationToSettle')),
         );
 
         expect(todayCommand, contains('suppressRestoreForUserNavigation'));
@@ -1460,7 +1472,10 @@ void main() {
           '/// Public entrypoint so other screens',
         );
 
-        expect(main, contains('_dismissOverlay();'));
+        expect(
+          main,
+          contains('if (shouldShowOverlay) unawaited(_dismissOverlay())'),
+        );
         expect(
           main,
           isNot(contains('waitForInitialCalendarOverlayPresentation')),
