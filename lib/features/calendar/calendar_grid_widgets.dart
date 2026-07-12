@@ -29,7 +29,6 @@ class _YearSection extends StatelessWidget {
     this.onMonthHeaderTap,
     this.onDecanTap,
     this.todayDayKey,
-    this.temporalAnchorVisible = true,
   });
 
   final int kYear;
@@ -63,7 +62,6 @@ class _YearSection extends StatelessWidget {
   final Key? Function(int kMonth)? monthHeaderKeyProvider;
   final Key? Function(int kMonth, int kDay)? dayAnchorKeyProvider;
   final Key? todayDayKey; // 🔑
-  final bool temporalAnchorVisible;
 
   @override
   Widget build(BuildContext context) {
@@ -84,7 +82,6 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -119,7 +116,6 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -154,7 +150,6 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -189,7 +184,6 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -226,7 +220,6 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -261,7 +254,6 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -296,7 +288,6 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -331,7 +322,6 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -368,7 +358,6 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -403,7 +392,6 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -438,7 +426,6 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,
@@ -473,7 +460,6 @@ class _YearSection extends StatelessWidget {
           todayDayKey: todayDayKey,
           notesGetter: notesGetter,
           flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
           onDayTap: onDayTap,
           showGregorian: showGregorian,
           expansionLevel: expansionLevel,

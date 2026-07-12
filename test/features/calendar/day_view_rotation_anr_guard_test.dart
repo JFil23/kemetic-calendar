@@ -70,6 +70,11 @@ void main() {
     });
 
     test('reminder sync pauses and coalesces during orientation changes', () {
+      final calendarState = _sourceBetween(
+        calendarSource,
+        'class CalendarPageState extends State<CalendarPage>',
+        'Widget _buildInitialCalendarLoadingScaffold()',
+      );
       final syncEntry = _sourceBetween(
         calendarSource,
         'Future<void> _syncReminderEvents({',
@@ -86,9 +91,9 @@ void main() {
         '/* ───── helpers ───── */',
       );
       final orientationBuild = _sourceBetween(
-        calendarSource,
+        calendarState,
         'final previousOrientation = _lastOrientation;',
-        'if (!routeShouldRemainRendered) {',
+        'final scaffold = Scaffold(',
       );
 
       expect(syncEntry, contains('_reminderSyncGate.runCoalesced'));
@@ -113,10 +118,15 @@ void main() {
     });
 
     test('wide Calendar route keeps the main calendar surface', () {
-      final calendarRootDecision = _sourceBetween(
+      final calendarState = _sourceBetween(
         calendarSource,
-        '// ✅ HARDENING 2: Gate build until state is restored to prevent race condition',
-        'final scaffold = Scaffold(',
+        'class CalendarPageState extends State<CalendarPage>',
+        'Widget _buildInitialCalendarLoadingScaffold()',
+      );
+      final calendarRootDecision = _sourceBetween(
+        calendarState,
+        '@override\n  Widget build(BuildContext context) {',
+        'final media = MediaQuery.of(context);',
       );
 
       expect(
@@ -132,6 +142,16 @@ void main() {
         contains('if (!routeShouldRemainRendered) {'),
         reason:
             'Calendar-owned sheets keep the route painted behind them; unrelated covered routes still shrink below.',
+      );
+      expect(
+        calendarRootDecision,
+        contains(
+          'return const Scaffold(backgroundColor: _bg, body: SizedBox.shrink())',
+        ),
+      );
+      expect(
+        calendarRootDecision,
+        contains('_buildInitialCalendarLoadingScaffold()'),
       );
       expect(calendarRootDecision, isNot(contains('shouldBuildWideDayView')));
       expect(calendarRootDecision, isNot(contains('DayViewPage(')));

@@ -256,6 +256,29 @@ void main() {
       );
     },
   );
+
+  test('deferred startup idle gate is bounded', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final wait = _sourceBetween(
+      source,
+      'Future<void> _waitForFirstRasterizedFrameForDeferredStartup() async {',
+      'void _restoreMyFlowsFilingSnapshotCacheAfterFirstFrame({',
+    );
+
+    expect(wait, contains('waitUntilFirstFrameRasterized.timeout'));
+    expect(wait, contains('binding.endOfFrame.timeout'));
+    expect(wait, contains('SchedulerBinding.instance'));
+    expect(wait, contains('.scheduleTask<void>('));
+    expect(
+      wait,
+      contains('.timeout(const Duration(milliseconds: 250))'),
+      reason:
+          'A browser that never reaches an idle slot must not strand calendar '
+          'hydration behind the first-frame deferral gate.',
+    );
+  });
 }
 
 String _sourceBetween(String source, String start, String end) {

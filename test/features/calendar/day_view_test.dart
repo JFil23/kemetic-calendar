@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -10,6 +11,7 @@ import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/calendar_completion.dart';
 import 'package:mobile/features/calendar/calendar_page.dart'
     show CalendarPage, KemeticMath;
+import 'package:mobile/features/calendar/calendar_warm_start_cache_identity.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/landscape_month_view.dart';
 import 'package:mobile/features/calendar/living_text_day_one_node_store.dart';
@@ -23,6 +25,11 @@ import 'package:mobile/services/app_restoration_service.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+const String _responsiveRouteUserId =
+    '6c1681cf-09da-4e4e-9af7-72ec7e4d2f01';
+const String _responsiveRouteSupabaseUrl = 'https://example.supabase.co';
+const String _responsiveRouteCachedTitle = 'Responsive Route Cached Event';
 
 Future<void> _ensureSupabaseInitialized() async {
   try {
@@ -75,11 +82,20 @@ void main() {
   group('CalendarPage responsive route split', () {
     setUp(() {
       AppRestorationService.debugUserIdResolver = () =>
-          'calendar-page-responsive-route-test';
+          _responsiveRouteUserId;
+      CalendarPage.debugSuppressPendingEventInviteOverlay = true;
+      CalendarPage.debugSuppressCalendarOnboardingHelpers = true;
     });
 
-    tearDown(() {
+    tearDown(() async {
+      try {
+        await Supabase.instance.client.auth.signOut(scope: SignOutScope.local);
+      } catch (_) {
+        // The local session is cleared before Supabase attempts remote sign-out.
+      }
       AppRestorationService.debugUserIdResolver = null;
+      CalendarPage.debugSuppressPendingEventInviteOverlay = false;
+      CalendarPage.debugSuppressCalendarOnboardingHelpers = false;
     });
 
     testWidgets(
@@ -87,6 +103,7 @@ void main() {
       (tester) async {
         await _setCalendarTabletLandscapeViewport(tester);
 
+        await _prepareResponsiveCalendarStartupState();
         await _pumpCalendarPageUntilReady(tester);
 
         expect(tester.takeException(), isNull);
@@ -105,6 +122,7 @@ void main() {
       (tester) async {
         await _setPhoneViewport(tester);
 
+        await _prepareResponsiveCalendarStartupState();
         await _pumpCalendarPageUntilReady(tester);
 
         final exception = tester.takeException();
@@ -2574,7 +2592,7 @@ Future<void> _pumpCalendarPageUntilReady(WidgetTester tester) async {
   await tester.pumpWidget(MaterialApp(home: CalendarPage(key: UniqueKey())));
   for (var attempt = 0; attempt < 30; attempt++) {
     await tester.pump(const Duration(milliseconds: 50));
-    if (find.byType(Scaffold).evaluate().isNotEmpty) {
+    if (_portraitCalendarScrollFinder().evaluate().isNotEmpty) {
       return;
     }
   }
@@ -2588,8 +2606,107 @@ Future<void> _disposeCalendarPageAndDrainTimers(WidgetTester tester) async {
 Finder _portraitCalendarScrollFinder() {
   return find.byWidgetPredicate((widget) {
     final key = widget.key;
-    return key is PageStorageKey && key.value == 'calendar_portrait_scroll';
+    return key is PageStorageKey &&
+        (key.value == 'calendar_portrait_scroll' ||
+            key.value == 'calendar_portrait_scroll_startup_month');
   });
+}
+
+Future<void> _prepareResponsiveCalendarStartupState() async {
+  if (Supabase.instance.client.auth.currentUser?.id !=
+      _responsiveRouteUserId) {
+    await _recoverResponsiveRouteTestSession();
+  }
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool(
+    'onboarding_v1_completed:$_responsiveRouteUserId',
+    true,
+  );
+  await prefs.setBool('calendar:cid_migration_done', true);
+  await prefs.setString(
+    _responsiveRouteWarmCacheKey(),
+    jsonEncode(_responsiveRouteWarmSnapshot()),
+  );
+}
+
+String _responsiveRouteWarmCacheKey() {
+  final key = calendarWarmStartCacheKeyForUrl(
+    supabaseUrl: _responsiveRouteSupabaseUrl,
+    userId: _responsiveRouteUserId,
+  );
+  if (key == null) {
+    throw StateError('Responsive route test Supabase URL must produce a key.');
+  }
+  return key;
+}
+
+Map<String, Object?> _responsiveRouteWarmSnapshot() {
+  final today = KemeticMath.fromGregorian(DateTime.now());
+  final projectRef = calendarWarmStartProjectRefFromUrl(
+    _responsiveRouteSupabaseUrl,
+  );
+  if (projectRef == null) {
+    throw StateError(
+      'Responsive route test Supabase URL must produce a project ref.',
+    );
+  }
+
+  return <String, Object?>{
+    'schemaVersion': calendarWarmStartCacheSchemaVersion,
+    'projectRef': projectRef,
+    'userId': _responsiveRouteUserId,
+    'savedAt': DateTime.now().toUtc().toIso8601String(),
+    'loadCompleted': true,
+    'nextFlowId': 1,
+    'flows': const <Object?>[],
+    'notes': <String, Object?>{
+      '${today.kYear}-${today.kMonth}-${today.kDay}': <Object?>[
+        <String, Object?>{
+          'id': 'responsive-route-warm-event',
+          'clientEventId': 'cid-responsive-route-warm-event',
+          'title': _responsiveRouteCachedTitle,
+          'detail': 'Warm cached event for responsive route tests',
+          'allDay': true,
+          'flowId': -1,
+          'resolvedColor': 0xFFB0B6C3,
+          'category': 'note',
+          'isReminder': false,
+        },
+      ],
+    },
+    'flowTotalEventCounts': const <String, Object?>{},
+    'flowRemainingEventCounts': const <String, Object?>{},
+  };
+}
+
+Future<void> _recoverResponsiveRouteTestSession() async {
+  final expiresAt =
+      DateTime.now().add(const Duration(days: 365)).millisecondsSinceEpoch ~/
+      1000;
+  await Supabase.instance.client.auth.recoverSession(
+    jsonEncode(<String, Object?>{
+      'access_token': 'responsive-route-test-access-token-$expiresAt',
+      'expires_in': 31536000,
+      'refresh_token': 'responsive-route-test-refresh-token',
+      'token_type': 'bearer',
+      'user': <String, Object?>{
+        'id': _responsiveRouteUserId,
+        'app_metadata': <String, Object?>{
+          'provider': 'email',
+          'providers': <String>['email'],
+        },
+        'user_metadata': <String, Object?>{},
+        'aud': 'authenticated',
+        'email': 'calendar-route-test@example.com',
+        'phone': '',
+        'created_at': '2026-01-01T00:00:00.000000Z',
+        'email_confirmed_at': '2026-01-01T00:00:00.000000Z',
+        'role': 'authenticated',
+        'updated_at': '2026-01-01T00:00:00.000000Z',
+      },
+      'expiresAt': expiresAt,
+    }),
+  );
 }
 
 NoteData _timedNote({

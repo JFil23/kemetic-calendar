@@ -56,7 +56,9 @@ void main() {
         final detachedSearch = _sourceBetween(
           calendar,
           'static Future<void> openSearchFromAnyContext(BuildContext context) async {',
-          'static Future<({Map<String, List<_Note>> notes, List<_Flow> flows})>',
+          'static Future<\n'
+              '    ({Map<String, List<_Note>> notes, List<_Flow> flows, bool hasSnapshot})\n'
+              '  >',
         );
         expect(detachedSearch, contains('openResult: (ky, km, kd, note)'));
         expect(detachedSearch, contains('_routeHomeForSearchResult('));
@@ -100,7 +102,9 @@ void main() {
         calendar,
         'static EventDetailRestorationState?\n'
             '  _eventDetailRestorationStateForSearchNote({',
-        'static Future<({Map<String, List<_Note>> notes, List<_Flow> flows})>',
+        'static Future<\n'
+            '    ({Map<String, List<_Note>> notes, List<_Flow> flows, bool hasSnapshot})\n'
+            '  >',
       );
 
       expect(helper, contains('note.clientEventId?.trim()'));
