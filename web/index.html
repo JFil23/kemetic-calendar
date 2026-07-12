@@ -95,9 +95,28 @@
     html, body {
       margin: 0;
       height: 100%;
-      background-color: #000000;
+      background-color: #171518;
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
+    }
+
+    #pwa-boot-splash {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      z-index: 2147483647;
+      background: #171518;
+      color: #D4AF37;
+      font-family: GentiumPlus, Georgia, "Times New Roman", serif;
+      font-size: 42px;
+      line-height: 1;
+      pointer-events: none;
+      transition: opacity 120ms ease;
+    }
+
+    #pwa-boot-splash.pwa-boot-splash--dismissed {
+      opacity: 0;
     }
 
     /*
@@ -324,6 +343,25 @@
   </script>
 </head>
 <body>
+<div id="pwa-boot-splash" aria-hidden="true">ḥꜣw</div>
+<script>
+  (function () {
+    const splash = document.getElementById('pwa-boot-splash');
+    if (!splash) return;
+
+    let removed = false;
+    function removeBootSplash() {
+      if (removed) return;
+      removed = true;
+      splash.classList.add('pwa-boot-splash--dismissed');
+      window.requestAnimationFrame(function () {
+        splash.remove();
+      });
+    }
+
+    window.addEventListener('flutter-first-frame', removeBootSplash, { once: true });
+  })();
+</script>
 <script>
   // 👇 request persistent storage on Safari
   if (navigator.storage && navigator.storage.persist) {
