@@ -662,11 +662,15 @@ class OnboardingProgressStorage {
   }
 
   Future<OnboardingProgress> loadLocal(String userId) async {
+    return await loadLocalIfPresent(userId) ?? const OnboardingProgress();
+  }
+
+  Future<OnboardingProgress?> loadLocalIfPresent(String userId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_keyForUser(userId));
       if (raw == null || raw.trim().isEmpty) {
-        return const OnboardingProgress();
+        return null;
       }
       final decoded = jsonDecode(raw);
       if (decoded is! Map<String, dynamic>) {
@@ -677,6 +681,27 @@ class OnboardingProgressStorage {
       debugPrint('[OnboardingProgressStorage] Failed to load progress: $e');
       return const OnboardingProgress();
     }
+  }
+
+  Future<OnboardingProgress> loadLocalReconciledWithLegacyCompletion(
+    String userId, {
+    required Future<bool> Function() legacyCompleted,
+  }) async {
+    final localProgress = await loadLocalIfPresent(userId);
+    if (localProgress != null) {
+      if (localProgress.completedOnboarding) return localProgress;
+      if (!await legacyCompleted()) return localProgress;
+      final reconciled = markOnboardingProgressComplete(localProgress);
+      await saveLocal(userId, reconciled);
+      return reconciled;
+    }
+
+    if (!await legacyCompleted()) return const OnboardingProgress();
+    final reconciled = markOnboardingProgressComplete(
+      const OnboardingProgress(),
+    );
+    await saveLocal(userId, reconciled);
+    return reconciled;
   }
 
   Future<void> save(String userId, OnboardingProgress progress) async {

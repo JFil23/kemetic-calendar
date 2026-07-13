@@ -239,6 +239,32 @@ void main() {
     expect(saved['hasSeenMenuPrompt'], isTrue);
   });
 
+  test(
+    'storage distinguishes absent v2 progress from incomplete v2 progress',
+    () async {
+      final menuExploreProgress = <String, dynamic>{
+        'currentStep': TrueOnboardingStep.menuExplore.wireName,
+        'completedOnboarding': false,
+        'hasSeenMenuPrompt': false,
+      };
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'onboarding_v2_progress:user-a': jsonEncode(menuExploreProgress),
+      });
+      OnboardingHelperCompletionService.resetForTesting(
+        remoteStore: _FakeRemoteStore(),
+      );
+      final storage = OnboardingProgressStorage();
+
+      expect(await storage.loadLocalIfPresent('missing-user'), isNull);
+      final loaded = await storage.loadLocalIfPresent('user-a');
+
+      expect(loaded, isNotNull);
+      expect(loaded!.currentStep, TrueOnboardingStep.menuExplore);
+      expect(loaded.completedOnboarding, isFalse);
+      expect(loaded.hasSeenMenuPrompt, isFalse);
+    },
+  );
+
   test('incomplete onboarding keeps the final menu handoff unchanged', () {
     final freshHandoff = OnboardingProgress.fromJson(<String, dynamic>{
       'currentStep': TrueOnboardingStep.menuExplore.wireName,
@@ -257,6 +283,84 @@ void main() {
       isFalse,
     );
   });
+
+  test(
+    'legacy completion reconciles incomplete menu handoff v2 once',
+    () async {
+      final menuExploreProgress = <String, dynamic>{
+        'currentStep': TrueOnboardingStep.menuExplore.wireName,
+        'completedOnboarding': false,
+        'hasSeenMenuPrompt': false,
+      };
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'onboarding_v2_progress:user-a': jsonEncode(menuExploreProgress),
+      });
+      OnboardingHelperCompletionService.resetForTesting(
+        remoteStore: _FakeRemoteStore(),
+      );
+      final storage = OnboardingProgressStorage();
+      var legacyReadCount = 0;
+
+      final reconciled = await storage.loadLocalReconciledWithLegacyCompletion(
+        'user-a',
+        legacyCompleted: () async {
+          legacyReadCount += 1;
+          return true;
+        },
+      );
+
+      expect(legacyReadCount, 1);
+      expect(reconciled.currentStep, TrueOnboardingStep.complete);
+      expect(reconciled.completedOnboarding, isTrue);
+      expect(reconciled.hasSeenMenuPrompt, isTrue);
+      expect(shouldPresentFinalOnboardingMenuHandoff(reconciled), isFalse);
+      expect(
+        shouldAllowDailyCosmicContextAfterOnboardingHandoff(
+          progress: reconciled,
+          todayIdentity: '2026-07-10',
+        ),
+        isTrue,
+      );
+
+      final persisted = await storage.loadLocalIfPresent('user-a');
+      expect(persisted?.currentStep, TrueOnboardingStep.complete);
+      expect(persisted?.completedOnboarding, isTrue);
+      expect(persisted?.hasSeenMenuPrompt, isTrue);
+
+      final second = await storage.loadLocalReconciledWithLegacyCompletion(
+        'user-a',
+        legacyCompleted: () async {
+          fail('Already reconciled v2 progress should not reread legacy');
+        },
+      );
+      expect(second.toJson(), reconciled.toJson());
+    },
+  );
+
+  test(
+    'legacy completion only creates completed v2 when no v2 record exists',
+    () async {
+      final storage = OnboardingProgressStorage();
+      var legacyReadCount = 0;
+
+      final reconciled = await storage.loadLocalReconciledWithLegacyCompletion(
+        'user-a',
+        legacyCompleted: () async {
+          legacyReadCount += 1;
+          return true;
+        },
+      );
+
+      expect(legacyReadCount, 1);
+      expect(reconciled.currentStep, TrueOnboardingStep.complete);
+      expect(reconciled.completedOnboarding, isTrue);
+      expect(reconciled.hasSeenMenuPrompt, isTrue);
+      expect(
+        (await storage.loadLocalIfPresent('user-a'))?.completedOnboarding,
+        isTrue,
+      );
+    },
+  );
 
   test('terminal completion helper cannot create a poisoned record', () {
     final completed = markOnboardingProgressComplete(

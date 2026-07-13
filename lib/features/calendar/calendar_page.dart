@@ -15178,7 +15178,10 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     final progress = _withReflectionDecanBaseline(
-      await _onboardingProgressStorage.load(userId),
+      await _onboardingProgressStorage.loadLocalReconciledWithLegacyCompletion(
+        userId,
+        legacyCompleted: () => _onboardingStorage.hasCompleted(userId),
+      ),
     );
     _onboardingProgress = progress;
     _activeHawOnboardingSlide = _hawSlideForProgress(progress);
@@ -15203,21 +15206,13 @@ class CalendarPageState extends State<CalendarPage>
       return;
     }
 
-    final hasCompleted = await _onboardingStorage.hasCompleted(userId);
-    if (!mounted) return;
-    if (hasCompleted || progress.completedOnboarding) {
-      final effectiveProgress = progress.completedOnboarding
-          ? progress
-          : markOnboardingProgressComplete(progress);
-      if (!progress.completedOnboarding) {
-        await _saveOnboardingProgress(effectiveProgress);
-      }
+    if (progress.completedOnboarding) {
       _onboardingContinuationStage = _OnboardingContinuationStage.none;
       _canShowCalendarToggleCoachmarkOnReturn = false;
       await _persistOnboardingContinuationStage(
         _OnboardingContinuationStage.none,
       );
-      unawaited(_maybeShowCalendarHelperAfterOnboarding(effectiveProgress));
+      unawaited(_maybeShowCalendarHelperAfterOnboarding(progress));
       return;
     }
 

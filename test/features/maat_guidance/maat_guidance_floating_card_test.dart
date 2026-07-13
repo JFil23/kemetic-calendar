@@ -44,8 +44,22 @@ void main() {
       gateEvaluation,
       contains('_maatGuidanceController.dismissCurrent()'),
     );
+    expect(
+      gateEvaluation,
+      contains('loadLocalReconciledWithLegacyCompletion('),
+    );
+    expect(
+      gateEvaluation.indexOf('loadLocalReconciledWithLegacyCompletion('),
+      lessThan(gateEvaluation.indexOf('isCompletedLocally(userId)')),
+      reason:
+          'Proactive guidance must consume legacy completion through the v2 '
+          'reconciliation boundary.',
+    );
+    expect(gateEvaluation, isNot(contains('loadLocalIfPresent(')));
     expect(pushGate, contains('DecanReflectionOnboardingGate.shouldBlock'));
     expect(pushGate, contains('_maatGuidanceDecanIdentityFromPeriodKey'));
+    expect(pushGate, contains('loadLocalReconciledWithLegacyCompletion('));
+    expect(pushGate, isNot(contains('loadLocalIfPresent(')));
   });
 
   testWidgets('floating card dismiss button does not require an Overlay', (

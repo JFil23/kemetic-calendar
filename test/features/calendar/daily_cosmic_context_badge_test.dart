@@ -745,9 +745,25 @@ void main() {
     expect(handoffGate, contains('onboardingSatisfiedDayRhythmIdentity'));
     expect(handoffGate, contains('compareTo(normalizedToday) >= 0'));
     expect(
+      handoffGate,
+      contains('shouldAllowDailyCosmicContextAfterOnboardingHandoff'),
+    );
+    expect(
+      completionGate,
+      contains('loadLocalReconciledWithLegacyCompletion('),
+    );
+    expect(
       completionGate,
       contains('shouldAllowDailyCosmicContextAfterOnboardingHandoff'),
     );
+    expect(
+      completionGate.indexOf('loadLocalReconciledWithLegacyCompletion('),
+      lessThan(completionGate.indexOf('isCompletedLocally(userId)')),
+      reason:
+          'The global Rhythm gate must consume legacy completion through the '
+          'v2 reconciliation boundary before evaluating surfaces.',
+    );
+    expect(completionGate, isNot(contains('loadLocalIfPresent(')));
     expect(completionGate, isNot(contains('progress.firstMaatFlowEventDate')));
   });
 
@@ -765,11 +781,35 @@ void main() {
       'Future<void> _handleOnboardingDayRhythmDismissed() async {',
       'Future<void> _handleObservedJournalPromptNext() async {',
     );
+    final observedNextMethod = _sourceBetween(
+      source,
+      'Future<void> _handleObservedJournalPromptNext() async {',
+      'void _showMenuExploreCoachmark()',
+    );
 
     expect(showMethod, contains('onboardingDayRhythmDateIdentity'));
     expect(showMethod, contains('lastSatisfiedDayRhythmIdentity'));
     expect(dismissMethod, contains('lastSatisfiedDayRhythmIdentity: identity'));
     expect(dismissMethod, contains('DailyCosmicContextPrefs().markShown'));
+    expect(
+      observedNextMethod,
+      contains(
+        '_onboardingProgress.currentStep == TrueOnboardingStep.complete',
+      ),
+    );
+    expect(
+      observedNextMethod.indexOf(
+        '_onboardingProgress.currentStep == TrueOnboardingStep.complete',
+      ),
+      lessThan(
+        observedNextMethod.indexOf(
+          '_onboardingProgress.currentStep == TrueOnboardingStep.menuExplore',
+        ),
+      ),
+      reason:
+          'Completed returning users must bail out before the observed-journal '
+          'path can rewrite progress back to menuExplore.',
+    );
   });
 
   test(

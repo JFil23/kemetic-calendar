@@ -166,6 +166,16 @@ void main() {
         'Future<bool> _handlePushNavigation(Map<String, dynamic> data) async {',
         'void _openSharedFlow(String shareId) {',
       );
+      final decanReflectionPushGate = _sourceBetween(
+        mainSource,
+        'Future<bool> _canOpenDecanReflectionPush(',
+        'Future<bool> _canOpenMaatGuidancePush(',
+      );
+      final maatGuidancePushGate = _sourceBetween(
+        mainSource,
+        'Future<bool> _canOpenMaatGuidancePush(',
+        'void _openSharedFlow(String shareId) {',
+      );
 
       expect(pushNavigationSource, contains("kind == 'maat_guidance'"));
       expect(
@@ -179,6 +189,28 @@ void main() {
       expect(pushNavigationSource, contains("'/maat-guidance/"));
       expect(pushNavigationSource, contains("kind == 'decan_reflection'"));
       expect(pushNavigationSource, contains("'/reflections/"));
+      expect(
+        decanReflectionPushGate,
+        contains('loadLocalReconciledWithLegacyCompletion('),
+      );
+      expect(
+        decanReflectionPushGate.indexOf(
+          'loadLocalReconciledWithLegacyCompletion(',
+        ),
+        lessThan(decanReflectionPushGate.indexOf('isCompletedLocally(userId)')),
+      );
+      expect(decanReflectionPushGate, isNot(contains('loadLocalIfPresent(')));
+      expect(
+        maatGuidancePushGate,
+        contains('loadLocalReconciledWithLegacyCompletion('),
+      );
+      expect(
+        maatGuidancePushGate.indexOf(
+          'loadLocalReconciledWithLegacyCompletion(',
+        ),
+        lessThan(maatGuidancePushGate.indexOf('isCompletedLocally(userId)')),
+      );
+      expect(maatGuidancePushGate, isNot(contains('loadLocalIfPresent(')));
       expect(pushNavigationSource, contains("kind == 'calendar_event'"));
       expect(
         pushNavigationSource,

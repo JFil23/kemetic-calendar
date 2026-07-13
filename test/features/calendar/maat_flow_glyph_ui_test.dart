@@ -866,21 +866,24 @@ void main() {
             'onboarding presentation schedule.',
       );
       expect(
-        maybePresent.indexOf(
-          'shouldPresentFinalOnboardingMenuHandoff(progress)',
-        ),
-        lessThan(maybePresent.indexOf('final hasCompleted =')),
+        maybePresent,
+        contains('loadLocalReconciledWithLegacyCompletion('),
         reason:
-            'The stale complete/unseen-menu recovery must run before the '
-            'completed-onboarding branch can short-circuit into generic helpers.',
+            'CalendarPage must consume legacy completion through the v2 '
+            'reconciliation boundary before checking handoff eligibility.',
       );
       expect(
-        maybePresent,
-        contains('markOnboardingProgressComplete(progress)'),
+        maybePresent.indexOf('loadLocalReconciledWithLegacyCompletion('),
+        lessThan(
+          maybePresent.indexOf(
+            'shouldPresentFinalOnboardingMenuHandoff(progress)',
+          ),
+        ),
         reason:
-            'Legacy completion promotion must use the canonical terminal '
-            'onboarding invariant.',
+            'The reconciled v2 lifecycle must be authoritative before '
+            'CalendarPage decides whether to show Tap to explore.',
       );
+      expect(maybePresent, isNot(contains('final hasCompleted =')));
       expect(
         markCompleted,
         contains('markOnboardingProgressComplete(\n      _onboardingProgress,'),

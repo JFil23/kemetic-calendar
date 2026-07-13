@@ -2842,19 +2842,21 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     if (kDebugMode && testingOverride != null) return testingOverride;
 
     try {
-      final progress = await OnboardingProgressStorage().loadLocal(userId);
-      if (progress.completedOnboarding) {
-        final todayIdentity = dailyCosmicContextGregorianDateKey(
-          DateUtils.dateOnly(
-            widget.dailyCosmicContextNowForTesting?.call() ?? DateTime.now(),
-          ),
-        );
-        return shouldAllowDailyCosmicContextAfterOnboardingHandoff(
-          progress: progress,
-          todayIdentity: todayIdentity,
-        );
-      }
-      return OnboardingStorage(supabase).isCompletedLocally(userId);
+      final progress = await OnboardingProgressStorage()
+          .loadLocalReconciledWithLegacyCompletion(
+            userId,
+            legacyCompleted: () =>
+                OnboardingStorage(supabase).isCompletedLocally(userId),
+          );
+      final todayIdentity = dailyCosmicContextGregorianDateKey(
+        DateUtils.dateOnly(
+          widget.dailyCosmicContextNowForTesting?.call() ?? DateTime.now(),
+        ),
+      );
+      return shouldAllowDailyCosmicContextAfterOnboardingHandoff(
+        progress: progress,
+        todayIdentity: todayIdentity,
+      );
     } catch (_) {
       return false;
     }
@@ -2893,7 +2895,12 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     final userId = supabase.auth.currentUser?.id.trim();
     if (userId != null && userId.isNotEmpty) {
       try {
-        final progress = await OnboardingProgressStorage().loadLocal(userId);
+        final progress = await OnboardingProgressStorage()
+            .loadLocalReconciledWithLegacyCompletion(
+              userId,
+              legacyCompleted: () =>
+                  OnboardingStorage(supabase).isCompletedLocally(userId),
+            );
         if (progress.completedOnboarding) {
           progressForPromptGate = progress;
           final currentDecan = _currentProactiveDecanIdentity();
@@ -2913,10 +2920,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
               )) {
             unawaited(_maatGuidanceController.dismissCurrent());
           }
-        } else {
-          allowed = await OnboardingStorage(
-            supabase,
-          ).isCompletedLocally(userId);
         }
       } catch (_) {
         allowed = false;
@@ -3824,7 +3827,12 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     String? reflectionId,
   }) async {
     try {
-      final progress = await OnboardingProgressStorage().loadLocal(userId);
+      final progress = await OnboardingProgressStorage()
+          .loadLocalReconciledWithLegacyCompletion(
+            userId,
+            legacyCompleted: () =>
+                OnboardingStorage(supabase).isCompletedLocally(userId),
+          );
       if (progress.completedOnboarding) {
         if (!progress.hasSeenMenuPrompt ||
             progress.currentStep != TrueOnboardingStep.complete) {
@@ -3842,7 +3850,7 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
           promptDecanIdentity: _reflectionPushDecanIdentity(reflection),
         );
       }
-      return OnboardingStorage(supabase).isCompletedLocally(userId);
+      return false;
     } catch (_) {
       return false;
     }
@@ -3853,7 +3861,12 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     required String deliveryId,
   }) async {
     try {
-      final progress = await OnboardingProgressStorage().loadLocal(userId);
+      final progress = await OnboardingProgressStorage()
+          .loadLocalReconciledWithLegacyCompletion(
+            userId,
+            legacyCompleted: () =>
+                OnboardingStorage(supabase).isCompletedLocally(userId),
+          );
       if (progress.completedOnboarding) {
         if (!progress.hasSeenMenuPrompt ||
             progress.currentStep != TrueOnboardingStep.complete) {
@@ -3870,7 +3883,7 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
           ),
         );
       }
-      return OnboardingStorage(supabase).isCompletedLocally(userId);
+      return false;
     } catch (_) {
       return false;
     }
