@@ -62,7 +62,7 @@ void main() {
     );
   });
 
-  test('event hydration may stage flow data internally before standalone', () {
+  test('event hydration publishes only after standalone lane completes', () {
     final source = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
@@ -72,12 +72,8 @@ void main() {
       '/// Allows other screens (e.g., Settings) to trigger a fresh sync',
     );
 
-    expect(load, contains("commitVisibleCalendarState('flow_events')"));
+    expect(load, isNot(contains("commitVisibleCalendarState('flow_events')")));
     expect(load, contains(completeCommitMarker));
-    expect(
-      load.indexOf("commitVisibleCalendarState('flow_events')"),
-      lessThan(load.indexOf('final standaloneResult = await standaloneFuture')),
-    );
     expect(
       load.indexOf('final standaloneResult = await standaloneFuture'),
       lessThan(load.indexOf(completeCommitMarker)),
@@ -105,87 +101,16 @@ void main() {
     expect(sync, contains('CalendarInvalidationReason.calendarImportSynced'));
   });
 
-  test('flow-only visible commit cannot replace painted event snapshot', () {
+  test('visible snapshot policy requires every event lane to complete', () {
     expect(
-      shouldCommitFlowOnlyVisibleCalendarState(
-        flowAddedCount: 3,
-        keepWarmStartSnapshotVisible: false,
-        hasPaintedEventSnapshot: false,
-      ),
-      isTrue,
-    );
-    expect(
-      shouldCommitFlowOnlyVisibleCalendarState(
-        flowAddedCount: 3,
-        keepWarmStartSnapshotVisible: true,
-        hasPaintedEventSnapshot: false,
-      ),
-      isFalse,
-    );
-    expect(
-      shouldCommitFlowOnlyVisibleCalendarState(
-        flowAddedCount: 3,
-        keepWarmStartSnapshotVisible: false,
-        hasPaintedEventSnapshot: true,
-      ),
-      isFalse,
-    );
-    expect(
-      shouldCommitFlowOnlyVisibleCalendarState(
-        flowAddedCount: 0,
-        keepWarmStartSnapshotVisible: false,
-        hasPaintedEventSnapshot: false,
-      ),
-      isFalse,
-    );
-  });
-
-  test('completed visible snapshot policy preserves last-good events', () {
-    expect(
-      shouldPublishCompletedVisibleCalendarSnapshot(
-        loadComplete: false,
-        hasIncomingEventSnapshot: false,
-        hasPaintedEventSnapshot: true,
-      ),
+      shouldPublishCompletedVisibleCalendarSnapshot(loadComplete: false),
       isFalse,
       reason: 'transient empty hydration must not erase visible events',
     );
     expect(
-      shouldPublishCompletedVisibleCalendarSnapshot(
-        loadComplete: false,
-        hasIncomingEventSnapshot: true,
-        hasPaintedEventSnapshot: true,
-      ),
-      isFalse,
-      reason: 'partial newer data must wait until the snapshot is complete',
-    );
-    expect(
-      shouldPublishCompletedVisibleCalendarSnapshot(
-        loadComplete: true,
-        hasIncomingEventSnapshot: false,
-        hasPaintedEventSnapshot: true,
-      ),
+      shouldPublishCompletedVisibleCalendarSnapshot(loadComplete: true),
       isTrue,
       reason: 'a completed refresh may confirm the true empty state',
-    );
-    expect(
-      shouldPublishCompletedVisibleCalendarSnapshot(
-        loadComplete: true,
-        hasIncomingEventSnapshot: true,
-        hasPaintedEventSnapshot: true,
-      ),
-      isTrue,
-      reason: 'a complete newer snapshot may replace stale event blocks',
-    );
-    expect(
-      shouldPublishCompletedVisibleCalendarSnapshot(
-        loadComplete: false,
-        hasIncomingEventSnapshot: true,
-        hasPaintedEventSnapshot: false,
-      ),
-      isTrue,
-      reason:
-          'first paint may use useful incoming events when no prior state exists',
     );
   });
 
@@ -277,52 +202,36 @@ void main() {
     },
   );
 
-  test(
-    'load from disk guards flow-only commit with painted standalone lane',
-    () {
-      final source = File(
-        'lib/features/calendar/calendar_page.dart',
-      ).readAsStringSync();
-      final load = _sourceBetween(
-        source,
-        'Future<void> _loadFromDisk({',
-        '/// Allows other screens (e.g., Settings) to trigger a fresh sync',
-      );
+  test('load from disk never publishes a flow-only event candidate', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final load = _sourceBetween(
+      source,
+      'Future<void> _loadFromDisk({',
+      '/// Allows other screens (e.g., Settings) to trigger a fresh sync',
+    );
 
-      expect(load, contains('final hasPaintedStandaloneLaneAtLoadStart'));
-      expect(load, contains('final hasPaintedEventSnapshotAtLoadStart'));
-      expect(load, contains('shouldCommitFlowOnlyVisibleCalendarState'));
-      expect(load, contains('shouldPublishCompletedVisibleCalendarSnapshot'));
-      expect(
-        load,
-        contains('shouldPreservePaintedStandaloneLaneForHydrationCommit'),
-      );
-      expect(load, contains('_mergePaintedStandaloneLaneInto(newNotes)'));
-      expect(load, contains('hasPaintedStandaloneLaneAtLoadStart'));
-      expect(load, contains("commitVisibleCalendarState('flow_events')"));
-      expect(load, contains(completeCommitMarker));
-      expect(
-        load.indexOf('final hasPaintedStandaloneLaneAtLoadStart'),
-        lessThan(load.indexOf('shouldCommitFlowOnlyVisibleCalendarState')),
-      );
-      expect(
-        load.indexOf('final hasPaintedEventSnapshotAtLoadStart'),
-        lessThan(load.indexOf('shouldPublishCompletedVisibleCalendarSnapshot')),
-      );
-      expect(
-        load.indexOf('shouldCommitFlowOnlyVisibleCalendarState'),
-        lessThan(load.indexOf("commitVisibleCalendarState('flow_events')")),
-      );
-      expect(
-        load.indexOf('shouldPreservePaintedStandaloneLaneForHydrationCommit'),
-        lessThan(load.indexOf(completeCommitMarker)),
-      );
-      expect(
-        load.indexOf("commitVisibleCalendarState('flow_events')"),
-        lessThan(load.indexOf(completeCommitMarker)),
-      );
-    },
-  );
+    expect(load, contains('final hasPaintedStandaloneLaneAtLoadStart'));
+    expect(load, contains('final hasPaintedEventSnapshotAtLoadStart'));
+    expect(load, contains('shouldPublishCompletedVisibleCalendarSnapshot'));
+    expect(
+      load,
+      contains('shouldPreservePaintedStandaloneLaneForHydrationCommit'),
+    );
+    expect(load, contains('_mergePaintedStandaloneLaneInto(newNotes)'));
+    expect(load, contains('hasPaintedStandaloneLaneAtLoadStart'));
+    expect(load, isNot(contains("commitVisibleCalendarState('flow_events')")));
+    expect(load, contains(completeCommitMarker));
+    expect(
+      load.indexOf('final hasPaintedEventSnapshotAtLoadStart'),
+      lessThan(load.indexOf('shouldPublishCompletedVisibleCalendarSnapshot')),
+    );
+    expect(
+      load.indexOf('shouldPreservePaintedStandaloneLaneForHydrationCommit'),
+      lessThan(load.indexOf(completeCommitMarker)),
+    );
+  });
 
   test('deferred startup idle gate is bounded', () {
     final source = File(

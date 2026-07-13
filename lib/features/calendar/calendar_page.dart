@@ -10047,10 +10047,13 @@ class CalendarPageState extends State<CalendarPage>
     final key = _warmStartCacheKey(resolvedUserId);
     if (key == null) return;
 
-    if (_flows.isEmpty &&
-        _notes.isEmpty &&
-        !_hasUsableCalendarSnapshotForPaint()) {
-      await prefs.remove(key);
+    if (!_hasUsableCalendarSnapshotForPaint()) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[warmStart] skip non-authoritative cache save '
+          'reason=$debugReason',
+        );
+      }
       return;
     }
 
@@ -31580,6 +31583,9 @@ class CalendarPageState extends State<CalendarPage>
       final hasPaintedEventSnapshotAtLoadStart = _hasPaintedEventSnapshot(
         _notes,
       );
+      final deferColdSnapshotPublication =
+          source.startsWith('startup_cold_authoritative:') &&
+          !_hasUsableCalendarSnapshotForPaint();
       final repo = UserEventsRepo(Supabase.instance.client);
 
       // Flow-first: load flows, then events; join only to known active flows
@@ -31811,6 +31817,7 @@ class CalendarPageState extends State<CalendarPage>
 
       int flowAddedCount = 0;
       bool committedVisibleCalendar = false;
+      bool deferredColdSnapshotReady = false;
 
       void commitVisibleCalendarState(
         String phase, {
@@ -31823,19 +31830,14 @@ class CalendarPageState extends State<CalendarPage>
               source: source,
               phase: phase,
             );
-        final hasIncomingEventSnapshot = newNotes.values.any(
-          (notes) => notes.isNotEmpty,
-        );
         if (phase == 'complete' &&
             !shouldPublishCompletedVisibleCalendarSnapshot(
               loadComplete: loadComplete,
-              hasIncomingEventSnapshot: hasIncomingEventSnapshot,
-              hasPaintedEventSnapshot: hasPaintedEventSnapshotAtLoadStart,
             )) {
           if (kDebugMode) {
             _calendarDebugPrint(
               '[loadFromDisk] skipped incomplete complete commit '
-              'source=$source incomingEvents=$hasIncomingEventSnapshot '
+              'source=$source '
               'paintedEvents=$hasPaintedEventSnapshotAtLoadStart '
               'flowComplete=$flowHydrationComplete '
               'standaloneComplete=$standaloneHydrationComplete',
@@ -31891,6 +31893,11 @@ class CalendarPageState extends State<CalendarPage>
         _lastSuccessfulHydrationAt = DateTime.now();
         _warmStartCacheRestoredForUserId = _activeWarmStartUserId();
         _warmStartCacheRestoredForProjectRef = _activeWarmStartProjectRef();
+        if (deferColdSnapshotPublication && loadComplete) {
+          deferredColdSnapshotReady = true;
+          committedVisibleCalendar = true;
+          return;
+        }
         if (loadComplete) {
           _hasPublishedCalendarSnapshot = true;
           _publishedCalendarSnapshotUserId = _activeWarmStartUserId();
@@ -32153,21 +32160,10 @@ class CalendarPageState extends State<CalendarPage>
           '[loadFromDisk] flow notes added to newNotes: $flowAddedCount',
         );
       }
-      final shouldCommitFlowOnly = shouldCommitFlowOnlyVisibleCalendarState(
-        flowAddedCount: flowAddedCount,
-        keepWarmStartSnapshotVisible: keepWarmStartSnapshotVisible,
-        hasPaintedEventSnapshot: hasPaintedEventSnapshotAtLoadStart,
-      );
-      if (shouldCommitFlowOnly) {
-        // Standalone notes/reminders can be slower or time out. Flow-backed
-        // calendar events should still reach the first useful frame promptly,
-        // but never by replacing an already-painted standalone lane.
-        commitVisibleCalendarState('flow_events');
-      } else if (kDebugMode && flowAddedCount > 0) {
+      if (kDebugMode && flowAddedCount > 0) {
         _calendarDebugPrint(
-          '[loadFromDisk] skipped flow_events partial commit source=$source '
-          'keepWarmStart=$keepWarmStartSnapshotVisible '
-          'hasStandalone=$hasPaintedStandaloneLaneAtLoadStart',
+          '[loadFromDisk] staged flow events until all lanes complete '
+          'source=$source keepWarmStart=$keepWarmStartSnapshotVisible',
         );
       }
 
@@ -32417,6 +32413,32 @@ class CalendarPageState extends State<CalendarPage>
         loadComplete: flowHydrationComplete && standaloneHydrationComplete,
       );
 
+      Future<void> finishEventLanePostProcessing() async {
+        try {
+          final changed = await _regenReminderNotes(notify: false);
+          if (changed && !deferredColdSnapshotReady) {
+            _refreshNoteCacheUi();
+          }
+        } catch (err, st) {
+          if (kDebugMode) {
+            _calendarDebugPrint('[loadFromDisk] reminder regen failed: $err');
+            _calendarDebugPrint('$st');
+          }
+        }
+      }
+
+      if (committedVisibleCalendar) {
+        await finishEventLanePostProcessing();
+      }
+      if (deferredColdSnapshotReady && mounted) {
+        _hasPublishedCalendarSnapshot = true;
+        _publishedCalendarSnapshotUserId = _activeWarmStartUserId();
+        _publishedCalendarSnapshotProjectRef = _activeWarmStartProjectRef();
+        _initialCalendarLoadFinished = true;
+        _warmStartSnapshotVisible = false;
+        _bumpDataVersion();
+      }
+
       Future<void> finishNonCriticalPostProcessing() async {
         try {
           final flowEventCounts = await flowEventCountsFuture;
@@ -32443,18 +32465,6 @@ class CalendarPageState extends State<CalendarPage>
             _calendarDebugPrint(
               '[loadFromDisk] failed to load flow activity counts: $err',
             );
-            _calendarDebugPrint('$st');
-          }
-        }
-
-        try {
-          final changed = await _regenReminderNotes(notify: false);
-          if (changed) {
-            _refreshNoteCacheUi();
-          }
-        } catch (err, st) {
-          if (kDebugMode) {
-            _calendarDebugPrint('[loadFromDisk] reminder regen failed: $err');
             _calendarDebugPrint('$st');
           }
         }

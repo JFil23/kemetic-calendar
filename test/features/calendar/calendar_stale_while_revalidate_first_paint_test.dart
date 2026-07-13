@@ -25,6 +25,7 @@ const String _rejectedTitle = 'Rejected Warm Anchor';
 const String _clientEventId = 'cid-stale-while-revalidate-anchor';
 const String _focusedColdTitle = 'Focused cold-start event';
 const String _wideColdTitle = 'Wide cold-start event';
+const String _standaloneColdTitle = 'Cold standalone event';
 const int _coldFlowId = 731;
 
 final _backend = _CalendarSwrBackend();
@@ -588,6 +589,98 @@ void main() {
           containsAll(const <String>{_focusedColdTitle, _wideColdTitle}),
         );
         expect(find.byType(CircularProgressIndicator), findsNothing);
+
+        final prefs = await SharedPreferences.getInstance();
+        String? rawSnapshot;
+        for (var i = 0; i < 40 && rawSnapshot == null; i++) {
+          await tester.pump(const Duration(milliseconds: 25));
+          if (i % 4 == 0) {
+            await tester.runAsync<void>(() async {
+              await Future<void>.delayed(Duration.zero);
+            });
+          }
+          rawSnapshot = prefs.getString(_warmCacheKey(_testUserId));
+        }
+        expect(rawSnapshot, isNotNull);
+        final snapshot = jsonDecode(rawSnapshot!) as Map<String, dynamic>;
+        expect(snapshot['schemaVersion'], calendarWarmStartCacheSchemaVersion);
+        expect(snapshot['loadCompleted'], isTrue);
+        final cachedTitles = <String>{
+          for (final bucket in (snapshot['notes'] as Map).values)
+            for (final note in bucket as List)
+              (note as Map)['title']! as String,
+        };
+        expect(
+          cachedTitles,
+          containsAll(const <String>{_focusedColdTitle, _wideColdTitle}),
+          reason:
+              'The first trusted warm snapshot must contain the complete cold '
+              'event candidate.',
+        );
+      },
+    );
+
+    testWidgets(
+      'disposing during cold hydration cannot persist a flow-only warm snapshot',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        final calendarKey = GlobalKey<CalendarPageState>();
+        _backend
+          ..freshFlows = <Map<String, Object?>>[_coldFlowRow()]
+          ..freshFlowEvents = <Map<String, Object?>>[
+            _flowEventRow(title: _focusedColdTitle, dayOffset: 0),
+          ]
+          ..freshStandaloneEvents = <Map<String, Object?>>[
+            _standaloneEventRow(title: _standaloneColdTitle),
+          ]
+          ..blockStandaloneRefresh = true;
+
+        await _pumpCalendar(tester, key: calendarKey);
+        for (var i = 0; i < 120 && !_backend.standaloneRequestStarted; i++) {
+          await tester.pump(const Duration(milliseconds: 25));
+          if (i % 4 == 0) {
+            await tester.runAsync<void>(() async {
+              await Future<void>.delayed(Duration.zero);
+            });
+          }
+        }
+        for (var i = 0; i < 32; i++) {
+          await tester.pump(const Duration(milliseconds: 25));
+          if (i % 4 == 0) {
+            await tester.runAsync<void>(() async {
+              await Future<void>.delayed(Duration.zero);
+            });
+          }
+        }
+
+        expect(
+          _backend.standaloneRequestStarted,
+          isTrue,
+          reason: 'The fixture must hold the standalone lane open.',
+        );
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(
+          calendarKey.currentState!.debugLoadedEventTitlesForTesting,
+          isEmpty,
+          reason:
+              'A cold candidate is not authoritative until both flow and '
+              'standalone lanes finish.',
+        );
+
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.runAsync<void>(() async {
+          await Future<void>.delayed(Duration.zero);
+        });
+        await tester.pump();
+
+        final prefs = await SharedPreferences.getInstance();
+        expect(
+          prefs.getString(_warmCacheKey(_testUserId)),
+          isNull,
+          reason:
+              'Disposal must not flush a partial event candidate as a trusted '
+              'warm-start snapshot.',
+        );
       },
     );
   });
@@ -642,6 +735,25 @@ void main() {
         find.text(_rejectedTitle),
         findsNothing,
         reason: 'Unsupported warm cache schema versions should cold-load once.',
+      );
+    });
+
+    testWidgets('legacy v2 warm snapshot is rejected after authority upgrade', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+      await _seedWarmSnapshot(title: _rejectedTitle, schemaVersion: 2);
+      _backend.blockRefresh = true;
+
+      await _pumpCalendar(tester);
+      await _pumpWarmRestoreWindow(tester);
+
+      expect(
+        find.text(_rejectedTitle),
+        findsNothing,
+        reason:
+            'V2 snapshots may have been persisted from a flow-only candidate '
+            'and must cold-load once under the authoritative schema.',
       );
     });
 
@@ -1161,6 +1273,7 @@ Future<void> _recoverTestSession() async {
 class _CalendarSwrBackend extends http.BaseClient {
   Completer<void> _release = Completer<void>();
   Completer<void> _wideFlowRelease = Completer<void>();
+  Completer<void> _standaloneRelease = Completer<void>();
   final List<String> requestLog = <String>[];
   List<Map<String, Object?>> freshStandaloneEvents = const [];
   List<Map<String, Object?>> freshFlows = const [];
@@ -1168,6 +1281,8 @@ class _CalendarSwrBackend extends http.BaseClient {
   bool blockRefresh = false;
   bool blockWideFlowRefresh = false;
   bool wideFlowRequestStarted = false;
+  bool blockStandaloneRefresh = false;
+  bool standaloneRequestStarted = false;
   bool failRefresh = false;
 
   void reset() {
@@ -1177,8 +1292,12 @@ class _CalendarSwrBackend extends http.BaseClient {
     if (!_wideFlowRelease.isCompleted) {
       _wideFlowRelease.complete();
     }
+    if (!_standaloneRelease.isCompleted) {
+      _standaloneRelease.complete();
+    }
     _release = Completer<void>();
     _wideFlowRelease = Completer<void>();
+    _standaloneRelease = Completer<void>();
     requestLog.clear();
     freshStandaloneEvents = const [];
     freshFlows = const [];
@@ -1186,6 +1305,8 @@ class _CalendarSwrBackend extends http.BaseClient {
     blockRefresh = false;
     blockWideFlowRefresh = false;
     wideFlowRequestStarted = false;
+    blockStandaloneRefresh = false;
+    standaloneRequestStarted = false;
     failRefresh = false;
   }
 
@@ -1194,11 +1315,18 @@ class _CalendarSwrBackend extends http.BaseClient {
       _release.complete();
     }
     releaseWideFlowRefresh();
+    releaseStandaloneRefresh();
   }
 
   void releaseWideFlowRefresh() {
     if (!_wideFlowRelease.isCompleted) {
       _wideFlowRelease.complete();
+    }
+  }
+
+  void releaseStandaloneRefresh() {
+    if (!_standaloneRelease.isCompleted) {
+      _standaloneRelease.complete();
     }
   }
 
@@ -1249,6 +1377,10 @@ class _CalendarSwrBackend extends http.BaseClient {
             })
             .toList(growable: false);
         return _json(request, rows);
+      }
+      if (blockStandaloneRefresh) {
+        standaloneRequestStarted = true;
+        await _standaloneRelease.future;
       }
       return _json(request, freshStandaloneEvents);
     }
