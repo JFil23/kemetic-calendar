@@ -547,7 +547,7 @@ class OnboardingProgress {
           )
         : const <String>{};
     final eventDateRaw = json['firstMaatFlowEventDate'] as String?;
-    return OnboardingProgress(
+    final progress = OnboardingProgress(
       onboardingVersion:
           (json['onboardingVersion'] as num?)?.toInt() ??
           kTrueOnboardingVersion,
@@ -587,7 +587,29 @@ class OnboardingProgress {
           json['lastSatisfiedDayRhythmIdentity'] as String?,
       seenHelpers: helperIds,
     );
+    return normalizeOnboardingProgressInvariants(progress);
   }
+}
+
+OnboardingProgress normalizeOnboardingProgressInvariants(
+  OnboardingProgress progress,
+) {
+  if (progress.completedOnboarding &&
+      progress.currentStep == TrueOnboardingStep.complete &&
+      !progress.hasSeenMenuPrompt) {
+    return progress.copyWith(hasSeenMenuPrompt: true);
+  }
+  return progress;
+}
+
+OnboardingProgress markOnboardingProgressComplete(OnboardingProgress progress) {
+  return normalizeOnboardingProgressInvariants(
+    progress.copyWith(
+      currentStep: TrueOnboardingStep.complete,
+      completedOnboarding: true,
+      hasSeenMenuPrompt: true,
+    ),
+  );
 }
 
 String? _cleanDayRhythmIdentity(String? identity) {
@@ -664,9 +686,10 @@ class OnboardingProgressStorage {
   Future<void> saveLocal(String userId, OnboardingProgress progress) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final normalized = progress.copyWith(
+      final invariantProgress = normalizeOnboardingProgressInvariants(progress);
+      final normalized = invariantProgress.copyWith(
         seenHelpers: OnboardingHelperIds.normalizeCompletedHelperKeys(
-          progress.seenHelpers,
+          invariantProgress.seenHelpers,
         ),
       );
       await prefs.setString(

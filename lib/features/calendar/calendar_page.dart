@@ -15208,10 +15208,7 @@ class CalendarPageState extends State<CalendarPage>
     if (hasCompleted || progress.completedOnboarding) {
       final effectiveProgress = progress.completedOnboarding
           ? progress
-          : progress.copyWith(
-              currentStep: TrueOnboardingStep.complete,
-              completedOnboarding: true,
-            );
+          : markOnboardingProgressComplete(progress);
       if (!progress.completedOnboarding) {
         await _saveOnboardingProgress(effectiveProgress);
       }
@@ -15914,9 +15911,8 @@ class CalendarPageState extends State<CalendarPage>
     await _persistOnboardingContinuationStage(
       _OnboardingContinuationStage.none,
     );
-    final completeProgress = _onboardingProgress.copyWith(
-      currentStep: TrueOnboardingStep.complete,
-      completedOnboarding: true,
+    final completeProgress = markOnboardingProgressComplete(
+      _onboardingProgress,
     );
     final currentDecan = _currentOnboardingDecanIdentity();
     _onboardingProgress =

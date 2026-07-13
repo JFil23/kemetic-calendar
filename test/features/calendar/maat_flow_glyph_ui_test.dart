@@ -806,6 +806,10 @@ void main() {
       final joined = _methodSource(source, '_handleHawRecommendedFlowJoined');
       final completeHaw = _methodSource(source, '_completeHawOnboarding');
       final maybePresent = _methodSource(source, '_maybePresentOnboarding');
+      final markCompleted = _methodSource(
+        source,
+        '_markOnboardingCompletedIfNeeded',
+      );
       final dayRhythm = _methodSource(source, '_showOnboardingDayRhythm');
       final rhythmDismissed = _methodSource(
         source,
@@ -869,6 +873,20 @@ void main() {
         reason:
             'The stale complete/unseen-menu recovery must run before the '
             'completed-onboarding branch can short-circuit into generic helpers.',
+      );
+      expect(
+        maybePresent,
+        contains('markOnboardingProgressComplete(progress)'),
+        reason:
+            'Legacy completion promotion must use the canonical terminal '
+            'onboarding invariant.',
+      );
+      expect(
+        markCompleted,
+        contains('markOnboardingProgressComplete(\n      _onboardingProgress,'),
+        reason:
+            '_markOnboardingCompletedIfNeeded must not persist complete + '
+            'unseen-menu progress.',
       );
       expect(dayRhythm, contains('OnboardingDayRhythmState.scheduled'));
       expect(dayRhythm, contains('OnboardingDayRhythmState.visible'));
