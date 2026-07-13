@@ -7,7 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile/features/calendar/calendar_invalidation.dart';
 import 'package:mobile/features/calendar/calendar_page.dart'
-    show CalendarPage, KemeticMath;
+    show CalendarPage, CalendarPageState, KemeticMath;
 import 'package:mobile/features/calendar/calendar_warm_start_cache_identity.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/services/app_restoration_service.dart';
@@ -23,6 +23,9 @@ const String _cachedTitle = 'Cached Akhet Anchor';
 const String _freshTitle = 'Fresh Akhet Anchor';
 const String _rejectedTitle = 'Rejected Warm Anchor';
 const String _clientEventId = 'cid-stale-while-revalidate-anchor';
+const String _focusedColdTitle = 'Focused cold-start event';
+const String _wideColdTitle = 'Wide cold-start event';
+const int _coldFlowId = 731;
 
 final _backend = _CalendarSwrBackend();
 
@@ -514,6 +517,79 @@ void main() {
         expect(_hasCalendarBody(tester), isTrue, reason: 'frame=$frame');
       },
     );
+
+    testWidgets(
+      'cold start keeps loading authority until the wide event snapshot is complete',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        final calendarKey = GlobalKey<CalendarPageState>();
+        _backend
+          ..freshFlows = <Map<String, Object?>>[_coldFlowRow()]
+          ..freshFlowEvents = <Map<String, Object?>>[
+            _flowEventRow(title: _focusedColdTitle, dayOffset: 0),
+            _flowEventRow(title: _wideColdTitle, dayOffset: 180),
+          ]
+          ..blockWideFlowRefresh = true;
+
+        await _pumpCalendar(tester, key: calendarKey);
+        for (var i = 0; i < 120 && !_backend.wideFlowRequestStarted; i++) {
+          await tester.pump(const Duration(milliseconds: 25));
+          if (i % 4 == 0) {
+            await tester.runAsync<void>(() async {
+              await Future<void>.delayed(Duration.zero);
+            });
+          }
+        }
+
+        expect(
+          _backend.wideFlowRequestStarted,
+          isTrue,
+          reason:
+              'The fixture must block the authoritative wide event request.',
+        );
+        expect(
+          find.byType(CircularProgressIndicator),
+          findsOneWidget,
+          reason:
+              'A focused subset is not an authoritative cold-start snapshot. '
+              'The loader must remain until the wide request completes.',
+        );
+        expect(find.text(_focusedColdTitle), findsNothing);
+        expect(
+          calendarKey.currentState!.debugLoadedEventTitlesForTesting,
+          isEmpty,
+          reason:
+              'Partial cold-start events must not be published behind the loader.',
+        );
+
+        _backend.releaseWideFlowRefresh();
+        for (var i = 0; i < 160; i++) {
+          await tester.pump(const Duration(milliseconds: 25));
+          if (i % 4 == 0) {
+            await tester.runAsync<void>(() async {
+              await Future<void>.delayed(Duration.zero);
+            });
+          }
+          final titles =
+              calendarKey.currentState?.debugLoadedEventTitlesForTesting;
+          if (titles?.containsAll(const <String>{
+                _focusedColdTitle,
+                _wideColdTitle,
+              }) ==
+              true) {
+            break;
+          }
+        }
+
+        final titles =
+            calendarKey.currentState!.debugLoadedEventTitlesForTesting;
+        expect(
+          titles,
+          containsAll(const <String>{_focusedColdTitle, _wideColdTitle}),
+        );
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+      },
+    );
   });
 
   group('CalendarPage warm-start cache boundaries', () {
@@ -586,7 +662,7 @@ void main() {
   });
 }
 
-Future<void> _pumpCalendar(WidgetTester tester) async {
+Future<void> _pumpCalendar(WidgetTester tester, {Key? key}) async {
   addTearDown(() async {
     _backend.release();
     await tester.pumpWidget(const SizedBox.shrink());
@@ -595,7 +671,9 @@ Future<void> _pumpCalendar(WidgetTester tester) async {
       await tester.pump(const Duration(milliseconds: 250));
     }
   });
-  await tester.pumpWidget(MaterialApp(home: CalendarPage(key: UniqueKey())));
+  await tester.pumpWidget(
+    MaterialApp(home: CalendarPage(key: key ?? UniqueKey())),
+  );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 150));
 }
@@ -855,6 +933,58 @@ Map<String, Object?> _standaloneEventRow({
   };
 }
 
+Map<String, Object?> _coldFlowRow() {
+  final now = DateTime.now().toUtc();
+  return <String, Object?>{
+    'id': _coldFlowId,
+    'user_id': _testUserId,
+    'calendar_id': null,
+    'name': 'Cold-start authority fixture',
+    'color': 0xFFD4AF37,
+    'active': true,
+    'is_saved': false,
+    'start_date': now.subtract(const Duration(days: 30)).toIso8601String(),
+    'end_date': now.add(const Duration(days: 220)).toIso8601String(),
+    'notes': null,
+    'rules': const <Object?>[],
+    'share_id': null,
+    'is_hidden': false,
+    'is_reminder': false,
+    'reminder_uuid': null,
+    'created_at': now.toIso8601String(),
+    'updated_at': now.toIso8601String(),
+  };
+}
+
+Map<String, Object?> _flowEventRow({
+  required String title,
+  required int dayOffset,
+}) {
+  final start = DateUtils.dateOnly(
+    DateTime.now().add(Duration(days: dayOffset)),
+  ).toUtc();
+  return <String, Object?>{
+    'id': 'flow-event-$dayOffset',
+    'calendar_id': null,
+    'calendar_name': null,
+    'calendar_color': null,
+    'calendar_is_personal': true,
+    'client_event_id': 'cold-flow-event-$dayOffset',
+    'title': title,
+    'detail': 'Cold-start fixture event',
+    'location': null,
+    'all_day': true,
+    'starts_at': start.toIso8601String(),
+    'ends_at': start.add(const Duration(hours: 1)).toIso8601String(),
+    'flow_local_id': _coldFlowId,
+    'filed_flow_id': _coldFlowId,
+    'item_kind': 'flow',
+    'category': 'flow',
+    'action_id': null,
+    'behavior_payload': null,
+  };
+}
+
 ({int kYear, int kMonth, int kDay}) _nonTodayRestorationTarget(
   ({int kYear, int kMonth, int kDay}) today,
 ) {
@@ -1030,25 +1160,45 @@ Future<void> _recoverTestSession() async {
 
 class _CalendarSwrBackend extends http.BaseClient {
   Completer<void> _release = Completer<void>();
+  Completer<void> _wideFlowRelease = Completer<void>();
   final List<String> requestLog = <String>[];
   List<Map<String, Object?>> freshStandaloneEvents = const [];
+  List<Map<String, Object?>> freshFlows = const [];
+  List<Map<String, Object?>> freshFlowEvents = const [];
   bool blockRefresh = false;
+  bool blockWideFlowRefresh = false;
+  bool wideFlowRequestStarted = false;
   bool failRefresh = false;
 
   void reset() {
     if (!_release.isCompleted) {
       _release.complete();
     }
+    if (!_wideFlowRelease.isCompleted) {
+      _wideFlowRelease.complete();
+    }
     _release = Completer<void>();
+    _wideFlowRelease = Completer<void>();
     requestLog.clear();
     freshStandaloneEvents = const [];
+    freshFlows = const [];
+    freshFlowEvents = const [];
     blockRefresh = false;
+    blockWideFlowRefresh = false;
+    wideFlowRequestStarted = false;
     failRefresh = false;
   }
 
   void release() {
     if (!_release.isCompleted) {
       _release.complete();
+    }
+    releaseWideFlowRefresh();
+  }
+
+  void releaseWideFlowRefresh() {
+    if (!_wideFlowRelease.isCompleted) {
+      _wideFlowRelease.complete();
     }
   }
 
@@ -1068,12 +1218,38 @@ class _CalendarSwrBackend extends http.BaseClient {
     if (path.contains('/rest/v1/flows_with_calendars')) {
       if (blockRefresh) await _release.future;
       if (failRefresh) return _error(request);
-      return _json(request, const <Object?>[]);
+      return _json(request, freshFlows);
     }
 
     if (path.contains('/rest/v1/user_event_filing_items_client')) {
       if (blockRefresh) await _release.future;
       if (failRefresh) return _error(request);
+      final itemKinds = request.url.queryParametersAll['item_kind'] ?? const [];
+      if (itemKinds.any((value) => value == 'eq.flow')) {
+        final bounds = request.url.queryParametersAll['starts_at'] ?? const [];
+        final start = _queryDateBound(bounds, 'gte.');
+        final end = _queryDateBound(bounds, 'lt.');
+        final span = start == null || end == null
+            ? null
+            : end.difference(start);
+        if (blockWideFlowRefresh &&
+            span != null &&
+            span > const Duration(days: 200)) {
+          wideFlowRequestStarted = true;
+          await _wideFlowRelease.future;
+        }
+        final rows = freshFlowEvents
+            .where((row) {
+              final startsAt = DateTime.parse(
+                row['starts_at']! as String,
+              ).toUtc();
+              if (start != null && startsAt.isBefore(start)) return false;
+              if (end != null && !startsAt.isBefore(end)) return false;
+              return true;
+            })
+            .toList(growable: false);
+        return _json(request, rows);
+      }
       return _json(request, freshStandaloneEvents);
     }
 
@@ -1102,6 +1278,14 @@ class _CalendarSwrBackend extends http.BaseClient {
     }
 
     return _json(request, <String, Object?>{});
+  }
+
+  DateTime? _queryDateBound(List<String> values, String prefix) {
+    for (final value in values) {
+      if (!value.startsWith(prefix)) continue;
+      return DateTime.tryParse(value.substring(prefix.length))?.toUtc();
+    }
+    return null;
   }
 
   http.StreamedResponse _json(http.BaseRequest request, Object? body) {

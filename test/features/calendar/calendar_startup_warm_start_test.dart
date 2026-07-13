@@ -23,13 +23,19 @@ void main() {
         "await _restoreWarmStartCacheIfAvailable(reason: 'startup_gate:\$reason')",
       ),
     );
+    expect(startup, contains('await _initialPersistedViewStateLoad;'));
     expect(
       startup,
       contains('_syncAcceptedInviteCalendarImportsInBackground(reason)'),
     );
     expect(startup, contains('final keepWarmStartVisible'));
-    expect(startup, contains("source: 'startup:\$reason'"));
+    expect(startup, contains("source: 'startup_cold_authoritative:\$reason'"));
     expect(startup, contains("source: 'startup_backfill:\$reason'"));
+    expect(startup, contains('if (keepWarmStartVisible) {'));
+    expect(
+      startup.indexOf('await _initialPersistedViewStateLoad;'),
+      lessThan(startup.indexOf("await _restoreWarmStartCacheIfAvailable")),
+    );
     expect(
       startup.indexOf("await _restoreWarmStartCacheIfAvailable"),
       lessThan(
@@ -42,15 +48,21 @@ void main() {
     );
     expect(
       startup.indexOf('final keepWarmStartVisible'),
-      lessThan(startup.indexOf("source: 'startup:\$reason'")),
+      lessThan(
+        startup.indexOf("source: 'startup_cold_authoritative:\$reason'"),
+      ),
     );
     expect(
-      startup.indexOf("source: 'startup:\$reason'"),
+      startup.indexOf("source: 'startup_cold_authoritative:\$reason'"),
       lessThan(startup.indexOf("source: 'startup_backfill:\$reason'")),
+    );
+    expect(
+      startup,
+      isNot(contains("await _loadFromDisk(source: 'startup:\$reason')")),
     );
   });
 
-  test('startup live load can paint flow events before standalone lane', () {
+  test('event hydration may stage flow data internally before standalone', () {
     final source = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
@@ -70,6 +82,8 @@ void main() {
       load.indexOf('final standaloneResult = await standaloneFuture'),
       lessThan(load.indexOf(completeCommitMarker)),
     );
+    expect(load, isNot(contains('fastStartupMode')));
+    expect(load, isNot(contains('focusWindow')));
   });
 
   test('no-op invite import sync does not publish calendar invalidation', () {
@@ -243,7 +257,7 @@ void main() {
       final postProcessing = _sourceBetween(
         source,
         'Future<void> finishNonCriticalPostProcessing() async {',
-        'if (fastStartupMode) {',
+        'await finishNonCriticalPostProcessing();',
       );
 
       expect(

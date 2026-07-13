@@ -9084,6 +9084,7 @@ class CalendarPageState extends State<CalendarPage>
   String? _startupLastReason;
   bool _pendingInitialHydration = false;
   String? _initialStartupUserId;
+  Future<void>? _initialPersistedViewStateLoad;
   // Track whether the clientEventId migration has been executed.
   // This ensures the migration runs at most once per app session to avoid
   // concurrent modification errors and repeated work.
@@ -9113,6 +9114,13 @@ class CalendarPageState extends State<CalendarPage>
   String? _publishedCalendarSnapshotProjectRef;
   bool _initialCalendarLoadFinished = false;
   bool _sharedCalendarRealDayViewOpening = false;
+
+  @visibleForTesting
+  Set<String> get debugLoadedEventTitlesForTesting => <String>{
+    for (final notes in _notes.values)
+      for (final note in notes) note.title,
+  };
+
   void _bumpDataVersion() {
     // why: force landscape PageView child to reconstruct once when data hydrates
     if (!mounted) return;
@@ -14423,7 +14431,7 @@ class CalendarPageState extends State<CalendarPage>
     // We no longer listen to every change to avoid UI loops; checks happen on load/resume/refresh.
 
     // ✅ Load persisted state first, fallback to today
-    _loadPersistedViewState();
+    _initialPersistedViewStateLoad = _loadPersistedViewState();
     _restoreWarmStartCacheForFirstPaint(reason: 'initState');
     _restoreMyFlowsFilingSnapshotCacheAfterFirstFrame(reason: 'initState');
     calendarPushOpenIntent.addListener(_handleCalendarPushOpenIntent);
@@ -29032,8 +29040,6 @@ class CalendarPageState extends State<CalendarPage>
   static const int _flowHydrationLookbackDays = 365; // 12 months back
   static const int _flowHydrationLookaheadDays = 540; // ~18 months ahead
   static const Duration _flowHydrationPadding = Duration(days: 14);
-  static const Duration _startupVisibleHydrationLead = Duration(days: 45);
-  static const Duration _startupVisibleHydrationTrail = Duration(days: 60);
 
   ({DateTime startUtc, DateTime endUtc}) _computeFlowHydrationWindow(
     Set<int> activeFlowIds,
@@ -29107,43 +29113,6 @@ class CalendarPageState extends State<CalendarPage>
     // Treat end as exclusive so the final day is fully included.
     final endExclusive = end.add(const Duration(days: 1));
     return (startUtc: start.toUtc(), endUtc: endExclusive.toUtc());
-  }
-
-  ({DateTime startUtc, DateTime endUtc})
-  _computeStartupVisibleHydrationWindow() {
-    final targetKy = _lastViewKy ?? _today.kYear;
-    final targetKm = _lastViewKm ?? _today.kMonth;
-    final monthStart = DateUtils.dateOnly(
-      KemeticMath.toGregorian(targetKy, targetKm, 1),
-    );
-    final monthEnd = DateUtils.dateOnly(
-      KemeticMath.toGregorian(
-        targetKy,
-        targetKm,
-        _maxDayForMonth(targetKy, targetKm),
-      ),
-    );
-    final start = monthStart.subtract(_startupVisibleHydrationLead);
-    final endExclusive = monthEnd
-        .add(_startupVisibleHydrationTrail)
-        .add(const Duration(days: 1));
-    return (startUtc: start.toUtc(), endUtc: endExclusive.toUtc());
-  }
-
-  ({DateTime startUtc, DateTime endUtc}) _clampHydrationWindowToFocus(
-    ({DateTime startUtc, DateTime endUtc}) base,
-    ({DateTime startUtc, DateTime endUtc}) focus,
-  ) {
-    final startUtc = base.startUtc.isAfter(focus.startUtc)
-        ? base.startUtc
-        : focus.startUtc;
-    final endUtc = base.endUtc.isBefore(focus.endUtc)
-        ? base.endUtc
-        : focus.endUtc;
-    if (!endUtc.isAfter(startUtc)) {
-      return focus;
-    }
-    return (startUtc: startUtc, endUtc: endUtc);
   }
 
   Future<void> _handleCreateTimedEvent(
@@ -31311,14 +31280,21 @@ class CalendarPageState extends State<CalendarPage>
       }
       return;
     }
+    await _initialPersistedViewStateLoad;
+    if (_pendingAuthResolutionForRestore) {
+      await _loadPersistedViewState(trigger: 'startup_pipeline:$reason');
+    }
+    if (!mounted) return;
     await _restoreWarmStartCacheIfAvailable(reason: 'startup_gate:$reason');
     if (!mounted) return;
     _syncAcceptedInviteCalendarImportsInBackground(reason);
     final keepWarmStartVisible = _hasWarmStartSnapshotVisibleForCurrentUser();
     // If warm-start data is already on screen, keep it stable until the
     // backfill finishes instead of doing an intermediate visible-window swap.
+    // Without a warm snapshot, publish one authoritative cold-start load so
+    // event lanes cannot arrive in visible stages.
     if (!keepWarmStartVisible) {
-      await _loadFromDisk(source: 'startup:$reason');
+      await _loadFromDisk(source: 'startup_cold_authoritative:$reason');
     }
     await _restoreMyFlowsFilingSnapshotCache(reason: 'startup:$reason');
     if (widget.openMyFlowsOnLaunch && _myFlowsFilingSnapshotCache == null) {
@@ -31336,10 +31312,12 @@ class CalendarPageState extends State<CalendarPage>
     await _maybeLoadDecanReflectionPrompt();
     unawaited(() async {
       try {
-        await _loadFromDisk(
-          source: 'startup_backfill:$reason',
-          preserveViewport: true,
-        );
+        if (keepWarmStartVisible) {
+          await _loadFromDisk(
+            source: 'startup_backfill:$reason',
+            preserveViewport: true,
+          );
+        }
         await _syncReminderEvents(refreshUi: false, updateLocalCache: true);
         await _persistWarmStartCacheNow(
           debugReason: 'startup_backfill_complete',
@@ -31593,7 +31571,6 @@ class CalendarPageState extends State<CalendarPage>
           ? _calendarScrollOffsetForPreservation()
           : null;
       await _ensureManualDeleteTombstonesLoaded();
-      final fastStartupMode = source.startsWith('startup:');
       final warmStartBackfillMode = source.startsWith('startup_backfill:');
       final keepWarmStartSnapshotVisible =
           warmStartBackfillMode && _hasWarmStartSnapshotVisibleForCurrentUser();
@@ -31603,9 +31580,6 @@ class CalendarPageState extends State<CalendarPage>
       final hasPaintedEventSnapshotAtLoadStart = _hasPaintedEventSnapshot(
         _notes,
       );
-      final focusWindow = fastStartupMode
-          ? _computeStartupVisibleHydrationWindow()
-          : null;
       final repo = UserEventsRepo(Supabase.instance.client);
 
       // Flow-first: load flows, then events; join only to known active flows
@@ -31737,9 +31711,6 @@ class CalendarPageState extends State<CalendarPage>
       ({DateTime startUtc, DateTime endUtc})? flowWindow;
       if (hydrationFlowIds.isNotEmpty) {
         flowWindow = _computeFlowHydrationWindow(hydrationFlowIds, flowIndex);
-        if (focusWindow != null) {
-          flowWindow = _clampHydrationWindowToFocus(flowWindow, focusWindow);
-        }
         if (kDebugMode) {
           _calendarDebugPrint(
             '[loadFromDisk] flow hydration window '
@@ -31825,13 +31796,7 @@ class CalendarPageState extends State<CalendarPage>
         return eventsByFlowId;
       }
 
-      var standaloneWindow = _computeStandaloneHydrationWindow(newFlows);
-      if (focusWindow != null) {
-        standaloneWindow = _clampHydrationWindowToFocus(
-          standaloneWindow,
-          focusWindow,
-        );
-      }
+      final standaloneWindow = _computeStandaloneHydrationWindow(newFlows);
       final flowEventsFuture = loadFlowEvents();
       final standaloneFuture = repo.getStandaloneEventsForDateRangeAll(
         startUtc: standaloneWindow.startUtc,
@@ -32495,11 +32460,7 @@ class CalendarPageState extends State<CalendarPage>
         }
       }
 
-      if (fastStartupMode) {
-        unawaited(finishNonCriticalPostProcessing());
-      } else {
-        await finishNonCriticalPostProcessing();
-      }
+      await finishNonCriticalPostProcessing();
     } catch (e, stackTrace) {
       if (kDebugMode) {
         _calendarDebugPrint('Supabase sync FAILED: $e');
