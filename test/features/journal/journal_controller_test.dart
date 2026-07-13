@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -444,6 +445,236 @@ void main() {
     },
   );
 
+  group('Contract 2B journal readiness', () {
+    test(
+      'delayed init retains completion continuity and appends exactly once',
+      () async {
+        final repo = _QueuedJournalRepo();
+        final initResponse = repo.queueResponse();
+        final controller = JournalController.withRepo(repo);
+
+        final initFuture = controller.init();
+        await _waitFor(() => repo.requests.length == 1);
+
+        final token = _completionBadge(
+          id: 'calendar:user_flow:cid:event-1',
+          clientEventId: 'event-1',
+          status: CompletionStatus.observed,
+        );
+        final appendFuture = controller.appendToToday('$token ');
+
+        expect(
+          await _hasSettled(appendFuture),
+          isFalse,
+          reason:
+              'Completion continuity must wait for journal readiness instead of '
+              'mutating a partially initialized controller.',
+        );
+
+        initResponse.complete(null);
+        await initFuture;
+        await appendFuture;
+
+        final tokens = _completionTokens(controller);
+        expect(tokens, hasLength(1));
+        expect(tokens.single.id, 'calendar:user_flow:cid:event-1');
+      },
+    );
+
+    test(
+      'concurrent completion continuity requests share delayed init safely',
+      () async {
+        final repo = _QueuedJournalRepo();
+        final initResponse = repo.queueResponse();
+        final controller = JournalController.withRepo(repo);
+
+        final initFuture = controller.init();
+        await _waitFor(() => repo.requests.length == 1);
+
+        final observed = _completionBadge(
+          id: 'calendar:user_flow:cid:event-1',
+          clientEventId: 'event-1',
+          status: CompletionStatus.observed,
+        );
+        final partial = _completionBadge(
+          id: 'calendar:user_flow:cid:event-1',
+          clientEventId: 'event-1',
+          status: CompletionStatus.partial,
+        );
+        final second = _completionBadge(
+          id: 'calendar:user_flow:cid:event-2',
+          clientEventId: 'event-2',
+          status: CompletionStatus.observed,
+        );
+
+        final observedFuture = controller.appendToToday('$observed ');
+        final partialFuture = controller.appendToToday('$partial ');
+        final secondFuture = controller.appendToToday('$second ');
+
+        expect(await _hasSettled(observedFuture), isFalse);
+        expect(await _hasSettled(partialFuture), isFalse);
+        expect(await _hasSettled(secondFuture), isFalse);
+        expect(repo.getByDateStrictCalls, 1);
+
+        initResponse.complete(null);
+        await initFuture;
+        await Future.wait([observedFuture, partialFuture, secondFuture]);
+
+        final tokens = _completionTokens(controller);
+        expect(tokens, hasLength(2));
+        expect(
+          tokens
+              .singleWhere(
+                (token) => token.id == 'calendar:user_flow:cid:event-1',
+              )
+              .completionStatus,
+          CompletionStatus.partial,
+        );
+        expect(
+          tokens
+              .singleWhere(
+                (token) => token.id == 'calendar:user_flow:cid:event-2',
+              )
+              .completionStatus,
+          CompletionStatus.observed,
+        );
+      },
+    );
+
+    test(
+      'append waits for loaded document and preserves existing content',
+      () async {
+        final today = _today();
+        final existing = _ordinaryBadge('existing-badge');
+        final repo = _QueuedJournalRepo();
+        final initResponse = repo.queueResponse();
+        final controller = JournalController.withRepo(repo);
+
+        final initFuture = controller.init();
+        await _waitFor(() => repo.requests.length == 1);
+
+        final completion = _completionBadge(
+          id: 'calendar:user_flow:cid:event-1',
+          clientEventId: 'event-1',
+          status: CompletionStatus.observed,
+        );
+        final appendFuture = controller.appendToToday('$completion ');
+
+        expect(await _hasSettled(appendFuture), isFalse);
+        expect(controller.currentDocument, isNull);
+
+        initResponse.complete(
+          _entry(
+            date: today,
+            body: _documentJsonWithBadges('server text', [existing]),
+            updatedAt: DateTime.now().toUtc(),
+          ),
+        );
+        await initFuture;
+        await appendFuture;
+
+        expect(controller.currentDraft, 'server text');
+        final tokens = JournalBadgeUtils.tokensFromDocument(
+          controller.currentDocument!,
+        );
+        expect(tokens.map((token) => token.id), contains('existing-badge'));
+        expect(
+          tokens.map((token) => token.id),
+          contains('calendar:user_flow:cid:event-1'),
+        );
+      },
+    );
+
+    test(
+      'updateDocument waits for loaded state before replacing document',
+      () async {
+        final today = _today();
+        final repo = _QueuedJournalRepo();
+        final initResponse = repo.queueResponse();
+        final controller = JournalController.withRepo(repo);
+
+        final initFuture = controller.init();
+        await _waitFor(() => repo.requests.length == 1);
+
+        final updateFuture = controller.updateDocument(
+          JournalDocument.fromPlainText('replacement text'),
+        );
+
+        expect(await _hasSettled(updateFuture), isFalse);
+        expect(controller.currentDocument, isNull);
+
+        initResponse.complete(
+          _entry(
+            date: today,
+            body: _documentJson('server text'),
+            updatedAt: DateTime.now().toUtc(),
+          ),
+        );
+        await initFuture;
+        await updateFuture;
+
+        expect(controller.currentDraft, 'replacement text');
+        final prefs = await SharedPreferences.getInstance();
+        expect(
+          prefs.getString(_documentKey(_dateKey(today))),
+          contains('replacement text'),
+        );
+      },
+    );
+
+    test(
+      'permanent init failure reaches an explicit terminal append failure',
+      () async {
+        final controller = _FailingInitJournalController();
+
+        final token = _completionBadge(
+          id: 'calendar:user_flow:cid:event-1',
+          clientEventId: 'event-1',
+          status: CompletionStatus.observed,
+        );
+        final appendFuture = controller.appendToToday('$token ');
+        await expectLater(
+          appendFuture,
+          throwsA(isA<StateError>()),
+          reason:
+              'If continuity cannot be retained or delivered, the journal owner '
+              'must report an explicit terminal failure.',
+        );
+        expect(controller.currentDocument, isNull);
+      },
+    );
+
+    test(
+      'other journal operations do not run against partially initialized state',
+      () async {
+        final repo = _QueuedJournalRepo();
+        final initResponse = repo.queueResponse();
+        final controller = JournalController.withRepo(repo);
+
+        final initFuture = controller.init();
+        await _waitFor(() => repo.requests.length == 1);
+
+        final updateFuture = controller.updateDocument(
+          JournalDocument.fromPlainText('unsafe early write'),
+        );
+
+        expect(
+          await _hasSettled(updateFuture),
+          isFalse,
+          reason:
+              'Journal mutations should wait for initialization instead of '
+              'writing against an empty pre-load document.',
+        );
+
+        initResponse.complete(null);
+        await initFuture;
+        await updateFuture;
+
+        expect(controller.currentDraft, 'unsafe early write');
+      },
+    );
+  });
+
   test(
     'clearToday reports all completion badges but not ordinary badges',
     () async {
@@ -556,6 +787,36 @@ String _ordinaryBadge(String id) {
   );
 }
 
+List<EventBadgeToken> _completionTokens(JournalController controller) {
+  final document = controller.currentDocument;
+  if (document == null) return const <EventBadgeToken>[];
+  return JournalBadgeUtils.completionTokensFromDocument(document);
+}
+
+Future<bool> _hasSettled(Future<Object?> future) async {
+  var settled = false;
+  unawaited(
+    future.then<void>((_) {}, onError: (_, _) {}).whenComplete(() {
+      settled = true;
+    }),
+  );
+  await Future<void>.delayed(Duration.zero);
+  return settled;
+}
+
+Future<void> _waitFor(
+  bool Function() predicate, {
+  Duration timeout = const Duration(seconds: 1),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (!predicate()) {
+    if (DateTime.now().isAfter(deadline)) {
+      fail('Timed out waiting for predicate.');
+    }
+    await Future<void>.delayed(Duration.zero);
+  }
+}
+
 JournalEntry _entry({
   required DateTime date,
   required String body,
@@ -571,6 +832,39 @@ JournalEntry _entry({
     createdAt: updatedAt,
     updatedAt: updatedAt,
   );
+}
+
+class _QueuedJournalRepo extends _FakeJournalRepo {
+  final Queue<Completer<JournalEntry?>> _responses =
+      Queue<Completer<JournalEntry?>>();
+  final List<DateTime> requests = <DateTime>[];
+
+  Completer<JournalEntry?> queueResponse() {
+    final response = Completer<JournalEntry?>();
+    _responses.add(response);
+    return response;
+  }
+
+  @override
+  Future<JournalEntry?> getByDateStrict(DateTime localDate) {
+    getByDateStrictCalls += 1;
+    requests.add(localDate);
+    if (_responses.isEmpty) {
+      return Future<JournalEntry?>.error(
+        StateError('No journal response queued.'),
+      );
+    }
+    return _responses.removeFirst().future;
+  }
+}
+
+class _FailingInitJournalController extends JournalController {
+  _FailingInitJournalController() : super.withRepo(_FakeJournalRepo());
+
+  @override
+  Future<void> init() async {
+    throw StateError('permanent auth failure');
+  }
 }
 
 class _UpsertCall {
