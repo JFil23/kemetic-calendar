@@ -822,6 +822,179 @@ void main() {
       },
     );
 
+    testWidgets(
+      'Ma_at completion record failure does not write journal continuity',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        var recordAttempts = 0;
+        var appendAttempts = 0;
+
+        await _openTheWeighingDetail(
+          tester,
+          clientEventId: 'cid-maat-record-fails',
+          onAppendToJournal: (text) async {
+            appendAttempts += 1;
+          },
+          onRecordCompletion:
+              ({
+                required String clientEventId,
+                required int flowId,
+                required DateTime completedOnDate,
+                Map<String, dynamic>? metadata,
+              }) async {
+                recordAttempts += 1;
+                throw StateError('completion write failed');
+              },
+        );
+
+        await tester.ensureVisible(find.text('Observed').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+
+        final local = await const CalendarCompletionLocalStore().load(
+          'cid:cid-maat-record-fails',
+        );
+        expect(recordAttempts, 1);
+        expect(appendAttempts, 0);
+        expect(local.completionStatus, CompletionStatus.none);
+        expect(find.text('Could not record this sitting.'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Ma_at journal append failure reports partial success after completion persists',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        var appendAttempts = 0;
+        final recordedStatuses = <CompletionStatus>[];
+        final unrecordedClientEventIds = <String>[];
+        final removedBadgeIds = <String>[];
+
+        await _openTheWeighingDetail(
+          tester,
+          clientEventId: 'cid-maat-continuity-fails',
+          onAppendToJournal: (text) async {
+            appendAttempts += 1;
+            throw StateError('journal unavailable');
+          },
+          onRecordCompletion:
+              ({
+                required String clientEventId,
+                required int flowId,
+                required DateTime completedOnDate,
+                Map<String, dynamic>? metadata,
+              }) async {
+                recordedStatuses.add(
+                  CompletionStatusX.fromWireName(
+                    metadata?['completion_status']?.toString(),
+                  ),
+                );
+              },
+          onUnrecordCompletion: (clientEventId) async {
+            unrecordedClientEventIds.add(clientEventId);
+          },
+          onRemoveCompletionBadge: (badgeId) async {
+            removedBadgeIds.add(badgeId);
+          },
+        );
+
+        await tester.ensureVisible(find.text('Observed').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+
+        var local = await const CalendarCompletionLocalStore().load(
+          'cid:cid-maat-continuity-fails',
+        );
+        expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
+        expect(appendAttempts, 1);
+        expect(local.completionStatus, CompletionStatus.observed);
+        expect(
+          find.text(kCalendarCompletionContinuityFailureMessage),
+          findsOneWidget,
+        );
+
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+
+        local = await const CalendarCompletionLocalStore().load(
+          'cid:cid-maat-continuity-fails',
+        );
+        expect(appendAttempts, 1);
+        expect(unrecordedClientEventIds, <String>['cid-maat-continuity-fails']);
+        expect(removedBadgeIds, hasLength(1));
+        expect(removedBadgeIds.single, startsWith('calendar:maat_flow:'));
+        expect(local.completionStatus, CompletionStatus.none);
+      },
+    );
+
+    testWidgets(
+      'Ma_at post-commit failure does not invite a duplicate journal append',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        var appendAttempts = 0;
+        final appendedTexts = <String>[];
+        final recordedStatuses = <CompletionStatus>[];
+        final unrecordedClientEventIds = <String>[];
+
+        await _openTheWeighingDetail(
+          tester,
+          clientEventId: 'cid-maat-post-commit-fails',
+          onAppendToJournal: (text) async {
+            appendAttempts += 1;
+            appendedTexts.add(text);
+            throw const CalendarCompletionPostCommitException();
+          },
+          onRecordCompletion:
+              ({
+                required String clientEventId,
+                required int flowId,
+                required DateTime completedOnDate,
+                Map<String, dynamic>? metadata,
+              }) async {
+                recordedStatuses.add(
+                  CompletionStatusX.fromWireName(
+                    metadata?['completion_status']?.toString(),
+                  ),
+                );
+              },
+          onUnrecordCompletion: (clientEventId) async {
+            unrecordedClientEventIds.add(clientEventId);
+          },
+        );
+
+        await tester.ensureVisible(find.text('Observed').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+
+        var local = await const CalendarCompletionLocalStore().load(
+          'cid:cid-maat-post-commit-fails',
+        );
+        expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
+        expect(appendAttempts, 1);
+        expect(appendedTexts, hasLength(1));
+        expect(local.completionStatus, CompletionStatus.observed);
+        expect(
+          find.text(kCalendarCompletionPostCommitFailureMessage),
+          findsOneWidget,
+        );
+
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+
+        local = await const CalendarCompletionLocalStore().load(
+          'cid:cid-maat-post-commit-fails',
+        );
+        expect(appendAttempts, 1);
+        expect(unrecordedClientEventIds, <String>[
+          'cid-maat-post-commit-fails',
+        ]);
+        expect(local.completionStatus, CompletionStatus.none);
+      },
+    );
+
     testWidgets('overlapping math cards remain visible as compact previews', (
       tester,
     ) async {
@@ -949,6 +1122,88 @@ void main() {
             .toList();
         expect(tokens.map((token) => token.id).toSet(), hasLength(1));
         expect(tokens.last.completionStatus, CompletionStatus.skipped);
+      },
+    );
+
+    testWidgets(
+      'completion journal append failure reports partial success after completion persists',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        var appendAttempts = 0;
+        final recordedStatuses = <CompletionStatus>[];
+        final unrecordedClientEventIds = <String>[];
+        final removedBadgeIds = <String>[];
+
+        await tester.pumpWidget(
+          _DayViewHarness(
+            notes: [
+              _timedNote(
+                clientEventId: 'cid-journal-append-fails',
+                title: 'Journal Append Fails',
+                startHour: 10,
+                startMinute: 0,
+                endHour: 11,
+                endMinute: 0,
+                flowId: 1,
+              ),
+            ],
+            onAppendToJournal: (text) async {
+              appendAttempts += 1;
+              throw StateError('journal unavailable');
+            },
+            onRecordCompletion:
+                ({
+                  required String clientEventId,
+                  required int flowId,
+                  required DateTime completedOnDate,
+                  Map<String, dynamic>? metadata,
+                }) async {
+                  recordedStatuses.add(
+                    CompletionStatusX.fromWireName(
+                      metadata?['completion_status']?.toString() ??
+                          metadata?['status']?.toString(),
+                    ),
+                  );
+                },
+            onUnrecordCompletion: (clientEventId) async {
+              unrecordedClientEventIds.add(clientEventId);
+            },
+            onRemoveCompletionBadge: (badgeId) async {
+              removedBadgeIds.add(badgeId);
+            },
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Journal Append Fails'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+
+        expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
+        expect(appendAttempts, 1);
+        expect(
+          find.text(kCalendarCompletionContinuityFailureMessage),
+          findsOneWidget,
+        );
+        var local = await const CalendarCompletionLocalStore().load(
+          'cid:cid-journal-append-fails',
+        );
+        expect(local.completionStatus, CompletionStatus.observed);
+
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+
+        local = await const CalendarCompletionLocalStore().load(
+          'cid:cid-journal-append-fails',
+        );
+        expect(appendAttempts, 1);
+        expect(unrecordedClientEventIds, <String>['cid-journal-append-fails']);
+        expect(removedBadgeIds, hasLength(1));
+        expect(removedBadgeIds.single, startsWith('calendar:user_flow:'));
+        expect(local.completionStatus, CompletionStatus.none);
       },
     );
 
@@ -2613,8 +2868,7 @@ Finder _portraitCalendarScrollFinder() {
 }
 
 Future<void> _prepareResponsiveCalendarStartupState() async {
-  if (Supabase.instance.client.auth.currentUser?.id !=
-      _responsiveRouteUserId) {
+  if (Supabase.instance.client.auth.currentUser?.id != _responsiveRouteUserId) {
     await _recoverResponsiveRouteTestSession();
   }
   final prefs = await SharedPreferences.getInstance();
@@ -2730,6 +2984,71 @@ NoteData _timedNote({
     flowId: flowId,
     behaviorPayload: behaviorPayload,
   );
+}
+
+typedef _RecordCompletionCallback =
+    Future<void> Function({
+      required String clientEventId,
+      required int flowId,
+      required DateTime completedOnDate,
+      Map<String, dynamic>? metadata,
+    });
+
+Future<String> _openTheWeighingDetail(
+  WidgetTester tester, {
+  required String clientEventId,
+  Future<void> Function(String text)? onAppendToJournal,
+  _RecordCompletionCallback? onRecordCompletion,
+  Future<void> Function(String clientEventId)? onUnrecordCompletion,
+  Future<void> Function(String badgeId)? onRemoveCompletionBadge,
+}) async {
+  final event = kTheWeighingEvents.singleWhere(
+    (event) => event.eventNumber == 9,
+  );
+  final title = theWeighingEventTitle(event);
+
+  await tester.pumpWidget(
+    _DayViewHarness(
+      initialScrollOffset: 9 * 60,
+      flowIndex: const <int, FlowData>{
+        90: FlowData(
+          id: 90,
+          name: kTheWeighingTitle,
+          color: Colors.amber,
+          active: true,
+          notes: 'weighing_lens=neutral',
+        ),
+      },
+      notes: [
+        NoteData(
+          clientEventId: clientEventId,
+          title: title,
+          detail: theWeighingDetailText(event, lens: TheWeighingLens.neutral),
+          category: event.decanSection,
+          allDay: false,
+          start: const TimeOfDay(hour: 10, minute: 0),
+          end: const TimeOfDay(hour: 10, minute: 10),
+          flowId: 90,
+        ),
+      ],
+      onAppendToJournal: onAppendToJournal,
+      onRecordCompletion: onRecordCompletion,
+      onUnrecordCompletion: onUnrecordCompletion,
+      onRemoveCompletionBadge: onRemoveCompletionBadge,
+    ),
+  );
+  await tester.pumpAndSettle();
+
+  final eventSurface = find
+      .ancestor(
+        of: find.text(title).first,
+        matching: find.byType(GestureDetector),
+      )
+      .last;
+  await tester.tap(eventSurface);
+  await tester.pumpAndSettle();
+
+  return title;
 }
 
 NoteData _livingTextNote({

@@ -9149,14 +9149,22 @@ class CalendarPageState extends State<CalendarPage>
 
   Future<void> _appendToJournalAndRefresh(String text) async {
     if (text.trim().isEmpty) return;
-    if (!await _ensureJournalControllerReady()) return;
+    if (!await _ensureJournalControllerReady()) {
+      throw StateError('Journal controller is not ready for append.');
+    }
     await _journalController.appendToToday(text);
-    _notifyDayViewDataChanged();
+    try {
+      _notifyDayViewDataChanged();
+    } catch (_) {
+      throw const CalendarCompletionPostCommitException();
+    }
   }
 
   Future<void> _removeCompletionBadgeAndRefresh(String badgeId) async {
     if (badgeId.trim().isEmpty) return;
-    if (!await _ensureJournalControllerReady()) return;
+    if (!await _ensureJournalControllerReady()) {
+      throw StateError('Journal controller is not ready for badge removal.');
+    }
     await _journalController.removeBadge(badgeId);
     _notifyDayViewDataChanged();
   }
@@ -9165,7 +9173,9 @@ class CalendarPageState extends State<CalendarPage>
     MaatJournalResponseBlock block,
   ) async {
     if (block.sourceId.trim().isEmpty) return;
-    if (!await _ensureJournalControllerReady()) return;
+    if (!await _ensureJournalControllerReady()) {
+      throw StateError('Journal controller is not ready for response sync.');
+    }
     final localDate = block.localDate;
     if (localDate != null) {
       await _journalController.loadDate(DateUtils.dateOnly(localDate));

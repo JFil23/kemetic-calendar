@@ -3292,12 +3292,10 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       completionStatus: completionStatus,
       sourceType: sourceType,
     );
-    try {
-      await cb('$token ');
-      if (triggerHaptic) {
-        unawaited(AppHaptics.productiveAction());
-      }
-    } catch (_) {}
+    await cb('$token ');
+    if (triggerHaptic) {
+      unawaited(AppHaptics.productiveAction());
+    }
   }
 
   Future<void> _appendCompletionContinuity(
@@ -9324,6 +9322,16 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     });
   }
 
+  void _showCompletionResultMessage(String message) {
+    if (_isEveningThresholdCompletion) {
+      _showSheetFeedback(message);
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
   void _resetReadingHouseFragmentState() {
     _readingHouseFragmentsLoadGeneration++;
     _readingHouseFragments = const <ReadingHouseSharedFragment>[];
@@ -10613,6 +10621,9 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     final completedOnDate = DateUtils.dateOnly(
       KemeticMath.toGregorian(widget.ky, widget.km, widget.kd),
     );
+    var completionRecorded = false;
+    var journalContinuityRecorded = !completionStatus.createsJournalContinuity;
+    Map<String, dynamic>? persistedMetadata;
     try {
       final thresholdApplied = await _applyEveningThresholdCompletion(
         status,
@@ -10745,12 +10756,14 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         identity: completionIdentity,
         status: completionStatus,
       );
+      completionRecorded = true;
+      persistedMetadata = metadata;
       if (completionStatus.createsJournalContinuity) {
         await _syncResponseBlocks(completionStatus);
-      }
-      if (completionStatus.createsJournalContinuity &&
-          completionContinuity != null) {
-        await completionContinuity(completionStatus);
+        if (completionContinuity != null) {
+          await completionContinuity(completionStatus);
+        }
+        journalContinuityRecorded = true;
       }
       if (!mounted) return;
       setState(() {
@@ -10768,17 +10781,55 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         unawaited(_syncAndLoadReadingHouseSharedFragments());
       }
       unawaited(_maybeCaptureLivingTextDayOneNode(status));
-    } catch (_) {
-      _cancelCompletionFeedback();
+    } on CalendarCompletionPostCommitException {
       if (!mounted) return;
-      setState(() => _saving = false);
-      if (_isEveningThresholdCompletion) {
-        _showSheetFeedback('Could not record this sitting.');
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not record this sitting.')),
-        );
+      if (!completionRecorded) {
+        _cancelCompletionFeedback();
+        setState(() => _saving = false);
+        _showCompletionResultMessage('Could not record this sitting.');
+        return;
       }
+      setState(() {
+        _status = status;
+        _saving = false;
+        _loadedCompletionMetadata =
+            persistedMetadata ?? _loadedCompletionMetadata;
+        _dirtyResponseSpecIds = const <String>{};
+        _responseDirty = false;
+        _eveningThresholdReleasePending = false;
+      });
+      if (status == 'release') {
+        _eveningThresholdReleaseCarryController.clear();
+      }
+      _showCompletionResultMessage(kCalendarCompletionPostCommitFailureMessage);
+    } catch (_) {
+      if (!mounted) return;
+      if (!journalContinuityRecorded) {
+        _cancelCompletionFeedback();
+      }
+      setState(() {
+        if (completionRecorded) {
+          _status = status;
+          _loadedCompletionMetadata =
+              persistedMetadata ?? _loadedCompletionMetadata;
+          if (journalContinuityRecorded) {
+            _dirtyResponseSpecIds = const <String>{};
+            _responseDirty = false;
+            _eveningThresholdReleasePending = false;
+          }
+        }
+        _saving = false;
+      });
+      if (journalContinuityRecorded && status == 'release') {
+        _eveningThresholdReleaseCarryController.clear();
+      }
+      _showCompletionResultMessage(
+        completionRecorded
+            ? journalContinuityRecorded
+                  ? kCalendarCompletionPostCommitFailureMessage
+                  : kCalendarCompletionContinuityFailureMessage
+            : 'Could not record this sitting.',
+      );
     }
   }
 

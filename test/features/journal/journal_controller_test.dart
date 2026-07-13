@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/data/journal_repo.dart';
+import 'package:mobile/features/calendar/calendar_completion.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_controller.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
@@ -405,6 +406,41 @@ void main() {
         ).map((badge) => badge.id),
         <String>['badge-note'],
       );
+    },
+  );
+
+  test(
+    'appendToToday replaces repeated completion continuity badge by identity',
+    () async {
+      final controller = JournalController.withRepo(_FakeJournalRepo());
+      await controller.init();
+
+      final observed = buildCalendarCompletionBadgeToken(
+        identity: 'cid:event-1',
+        sourceType: CompletionSourceType.userFlow,
+        completionStatus: CompletionStatus.observed,
+        eventId: 'event-1',
+        title: 'Practice',
+        color: Colors.green,
+      );
+      final partial = buildCalendarCompletionBadgeToken(
+        identity: 'cid:event-1',
+        sourceType: CompletionSourceType.userFlow,
+        completionStatus: CompletionStatus.partial,
+        eventId: 'event-1',
+        title: 'Practice',
+        color: Colors.green,
+      );
+
+      await controller.appendToToday('$observed ');
+      await controller.appendToToday('$partial ');
+
+      final tokens = JournalBadgeUtils.tokensFromDocument(
+        controller.currentDocument!,
+      );
+      expect(tokens, hasLength(1));
+      expect(tokens.single.id, 'calendar:user_flow:cid:event-1');
+      expect(tokens.single.completionStatus, CompletionStatus.partial);
     },
   );
 
