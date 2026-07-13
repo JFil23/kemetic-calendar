@@ -827,7 +827,6 @@ class Events {
 /* ───────────────────────── Routing/Telemetry ───────────────────────── */
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
-const Color _launchBackdrop = Color(0xFF171518);
 final ValueNotifier<int> _floatingMenuModalDepth = ValueNotifier<int>(0);
 final ValueNotifier<bool> _launchOverlayDismissed = ValueNotifier<bool>(false);
 final ValueNotifier<int> _maatGuidancePostEnsureRefresh = ValueNotifier<int>(0);
@@ -4220,86 +4219,10 @@ class _LaunchShellState extends State<_LaunchShell>
             ignoring: true,
             child: FadeTransition(
               opacity: _launchFadeOut,
-              child: const ColoredBox(
-                color: _launchBackdrop,
-                child: Center(
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 32),
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: _ShimmeringLaunchWord(),
-                    ),
-                  ),
-                ),
-              ),
+              child: const LaunchWordSurface(),
             ),
           ),
       ],
-    );
-  }
-}
-
-class _ShimmeringLaunchWord extends StatefulWidget {
-  const _ShimmeringLaunchWord();
-
-  @override
-  State<_ShimmeringLaunchWord> createState() => _ShimmeringLaunchWordState();
-}
-
-class _ShimmeringLaunchWordState extends State<_ShimmeringLaunchWord>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2600),
-  )..repeat();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final shimmerOffset = (_controller.value * 2.6) - 1.3;
-        final shimmerGradient = LinearGradient(
-          begin: Alignment(-1.6 + shimmerOffset, 0),
-          end: Alignment(1.6 + shimmerOffset, 0),
-          colors: const [
-            goldDeep,
-            gold,
-            goldLight,
-            Color(0xFFFFF8DD),
-            goldLight,
-            gold,
-            goldDeep,
-          ],
-          stops: const [0.0, 0.2, 0.38, 0.5, 0.62, 0.8, 1.0],
-        );
-
-        return GlossyText(
-          text: 'ḥꜣw',
-          gradient: shimmerGradient,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 42,
-            fontWeight: FontWeight.w500,
-            fontFamily: 'GentiumPlus',
-            fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
-            shadows: [
-              Shadow(
-                color: Color(0x552C1A00),
-                blurRadius: 18,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

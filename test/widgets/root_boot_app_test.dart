@@ -3,8 +3,27 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/root_boot.dart';
+import 'package:mobile/shared/glossy_text.dart';
 
 void main() {
+  testWidgets('boot shell owns the animated glossy launch word', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const RootBootShell());
+
+    final glossyWord = find.descendant(
+      of: find.byType(RootBootShell),
+      matching: find.byType(GlossyText),
+    );
+    expect(glossyWord, findsOneWidget);
+
+    final before = tester.widget<GlossyText>(glossyWord).gradient;
+    await tester.pump(const Duration(milliseconds: 1300));
+    final after = tester.widget<GlossyText>(glossyWord).gradient;
+
+    expect(after, isNot(equals(before)));
+  });
+
   testWidgets('blocked bootstrap keeps RootBootShell visible', (tester) async {
     final coordinator = BootCoordinator();
     final bootstrap = Completer<Widget>();
