@@ -1,7 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-const int calendarWarmStartCacheSchemaVersion = 3;
-const String calendarWarmStartCacheKeyPrefix = 'calendar:warm_start:v3';
+const int calendarWarmStartCacheSchemaVersion = 4;
+const String calendarWarmStartCacheKeyPrefix = 'calendar:warm_start:v4';
 
 String? calendarWarmStartProjectRefFromClient(SupabaseClient client) {
   const restSuffix = '/rest/v1';

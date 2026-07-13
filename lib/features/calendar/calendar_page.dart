@@ -90,6 +90,7 @@ import '../journal/journal_event_badge.dart';
 import '../journal/journal_v2_document_model.dart';
 import 'package:mobile/telemetry/telemetry.dart';
 import '../../services/calendar_sync_service.dart';
+import '../../services/calendar_snapshot_repository.dart';
 import '../../services/push_notifications.dart';
 import '../../services/app_restoration_service.dart';
 import '../../services/app_navigation_restoration_controller.dart';
@@ -3824,8 +3825,8 @@ class _SharedCalendarRealDayViewIntent {
   final List<_Flow> sharedCalendarFlows;
 }
 
-class _CalendarWarmStateSnapshot {
-  const _CalendarWarmStateSnapshot({
+class _CalendarDetachedStateSnapshot {
+  const _CalendarDetachedStateSnapshot({
     required this.notes,
     required this.flows,
     required this.calendarSummariesById,
@@ -3834,87 +3835,15 @@ class _CalendarWarmStateSnapshot {
     required this.hasSnapshot,
   });
 
-  static const empty = _CalendarWarmStateSnapshot(
-    notes: <String, List<_Note>>{},
-    flows: <_Flow>[],
-    calendarSummariesById: <String, SharedCalendarSummary>{},
-    hiddenCalendarIds: <String>{},
-    personalCalendarId: null,
-    hasSnapshot: false,
-  );
-
   final Map<String, List<_Note>> notes;
   final List<_Flow> flows;
   final Map<String, SharedCalendarSummary> calendarSummariesById;
   final Set<String> hiddenCalendarIds;
   final String? personalCalendarId;
   final bool hasSnapshot;
-
-  bool get hasCalendarData => notes.isNotEmpty || flows.isNotEmpty;
-  bool hasDay(int kYear, int kMonth, int kDay) =>
-      notes['$kYear-$kMonth-$kDay']?.isNotEmpty == true;
 }
 
-class _CalendarWarmStateStore {
-  static String? _userId;
-  static Map<String, List<_Note>> _notes = <String, List<_Note>>{};
-  static List<_Flow> _flows = <_Flow>[];
-  static Map<String, SharedCalendarSummary> _calendarSummariesById =
-      <String, SharedCalendarSummary>{};
-  static Set<String> _hiddenCalendarIds = <String>{};
-  static String? _personalCalendarId;
-  static bool _hasSnapshot = false;
-
-  static void save({
-    required String? userId,
-    required Map<String, List<_Note>> notes,
-    required List<_Flow> flows,
-    required Map<String, SharedCalendarSummary> calendarSummariesById,
-    required Set<String> hiddenCalendarIds,
-    required String? personalCalendarId,
-    required bool hasSnapshot,
-  }) {
-    final trimmedUserId = userId?.trim();
-    if (trimmedUserId == null || trimmedUserId.isEmpty) return;
-    _userId = trimmedUserId;
-    _notes = _copyNotesByDay(notes);
-    _flows = flows.map(_copyFlow).toList(growable: false);
-    _calendarSummariesById = Map<String, SharedCalendarSummary>.from(
-      calendarSummariesById,
-    );
-    _hiddenCalendarIds = Set<String>.from(hiddenCalendarIds);
-    _personalCalendarId = personalCalendarId;
-    _hasSnapshot = hasSnapshot;
-  }
-
-  static _CalendarWarmStateSnapshot snapshotForUser(String? userId) {
-    final trimmedUserId = userId?.trim();
-    if (trimmedUserId == null ||
-        trimmedUserId.isEmpty ||
-        trimmedUserId != _userId) {
-      return _CalendarWarmStateSnapshot.empty;
-    }
-    return _CalendarWarmStateSnapshot(
-      notes: _copyNotesByDay(_notes),
-      flows: _flows.map(_copyFlow).toList(growable: false),
-      calendarSummariesById: Map<String, SharedCalendarSummary>.from(
-        _calendarSummariesById,
-      ),
-      hiddenCalendarIds: Set<String>.from(_hiddenCalendarIds),
-      personalCalendarId: _personalCalendarId,
-      hasSnapshot: _hasSnapshot,
-    );
-  }
-
-  static Map<String, List<_Note>> _copyNotesByDay(
-    Map<String, List<_Note>> source,
-  ) {
-    return <String, List<_Note>>{
-      for (final entry in source.entries)
-        entry.key: entry.value.map(_copyNote).toList(growable: true),
-    };
-  }
-
+class _CalendarModelCopy {
   static _Note _copyNote(_Note note) {
     return _Note(
       id: note.id,
@@ -4007,6 +3936,11 @@ class CalendarPage extends StatefulWidget {
   static bool debugSuppressPendingEventInviteOverlay = false;
   @visibleForTesting
   static bool debugSuppressCalendarOnboardingHelpers = false;
+  @visibleForTesting
+  static void debugResetWarmStateStoreForTesting() {
+    CalendarSnapshotRepository.instance.clearRetainedSnapshotMemory();
+  }
+
   @visibleForTesting
   static Future<void> Function(BuildContext context)?
   debugOpenSharedCalendarsFromAnyContext;
@@ -5182,86 +5116,29 @@ class CalendarPage extends StatefulWidget {
   >
   _loadWarmStartSearchSnapshot() async {
     final userId = Supabase.instance.client.auth.currentUser?.id.trim();
-    if (userId == null || userId.isEmpty) {
+    final projectRef = calendarWarmStartProjectRefFromClient(
+      Supabase.instance.client,
+    );
+    if (userId == null || userId.isEmpty || projectRef == null) {
       return (
         notes: <String, List<_Note>>{},
         flows: <_Flow>[],
         hasSnapshot: false,
       );
     }
-    final memorySnapshot = _CalendarWarmStateStore.snapshotForUser(userId);
-    if (memorySnapshot.hasSnapshot) {
-      return (
-        notes: memorySnapshot.notes,
-        flows: memorySnapshot.flows,
-        hasSnapshot: true,
-      );
-    }
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(
-        calendarWarmStartCacheKeyForClient(
-              client: Supabase.instance.client,
-              userId: userId,
-            ) ??
-            '',
+      final document = await CalendarSnapshotRepository.instance.restore(
+        CalendarSnapshotIdentity(projectRef: projectRef, userId: userId),
       );
-      if (raw == null || raw.trim().isEmpty) {
+      if (document == null) {
         return (
           notes: <String, List<_Note>>{},
           flows: <_Flow>[],
           hasSnapshot: false,
         );
       }
-
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map) {
-        return (
-          notes: <String, List<_Note>>{},
-          flows: <_Flow>[],
-          hasSnapshot: false,
-        );
-      }
-      final json = Map<String, dynamic>.from(decoded);
-      if ((json['schemaVersion'] as num?)?.toInt() !=
-          CalendarPageState._kWarmStartCacheSchemaVersion) {
-        return (
-          notes: <String, List<_Note>>{},
-          flows: <_Flow>[],
-          hasSnapshot: false,
-        );
-      }
-      if (json['loadCompleted'] != true) {
-        return (
-          notes: <String, List<_Note>>{},
-          flows: <_Flow>[],
-          hasSnapshot: false,
-        );
-      }
-      final snapshotUserId = (json['userId'] as String?)?.trim();
-      if (snapshotUserId == null ||
-          snapshotUserId.isEmpty ||
-          snapshotUserId != userId) {
-        return (
-          notes: <String, List<_Note>>{},
-          flows: <_Flow>[],
-          hasSnapshot: false,
-        );
-      }
-      final projectRef = calendarWarmStartProjectRefFromClient(
-        Supabase.instance.client,
-      );
-      final snapshotProjectRef = (json['projectRef'] as String?)?.trim();
-      if (projectRef == null ||
-          snapshotProjectRef == null ||
-          snapshotProjectRef != projectRef) {
-        return (
-          notes: <String, List<_Note>>{},
-          flows: <_Flow>[],
-          hasSnapshot: false,
-        );
-      }
+      final json = document.json;
 
       final flows = ((json['flows'] as List?) ?? const [])
           .map(_deserializeWarmStartSearchFlow)
@@ -5295,23 +5172,36 @@ class CalendarPage extends StatefulWidget {
     }
   }
 
-  static Future<_CalendarWarmStateSnapshot>
+  static Future<_CalendarDetachedStateSnapshot>
   _loadWarmCalendarStateSnapshot() async {
     final userId = Supabase.instance.client.auth.currentUser?.id.trim();
-    final memorySnapshot = _CalendarWarmStateStore.snapshotForUser(userId);
-    final warmStart = memorySnapshot.hasSnapshot
-        ? (
-            notes: memorySnapshot.notes,
-            flows: memorySnapshot.flows,
-            hasSnapshot: true,
-          )
-        : await _loadWarmStartSearchSnapshot();
+    final projectRef = calendarWarmStartProjectRefFromClient(
+      Supabase.instance.client,
+    );
+    final warmStart = await _loadWarmStartSearchSnapshot();
+    final document = userId == null || userId.isEmpty || projectRef == null
+        ? null
+        : await CalendarSnapshotRepository.instance.restore(
+            CalendarSnapshotIdentity(projectRef: projectRef, userId: userId),
+          );
 
-    final calendarSummariesById = <String, SharedCalendarSummary>{
-      ...memorySnapshot.calendarSummariesById,
-    };
-    var hiddenCalendarIds = Set<String>.from(memorySnapshot.hiddenCalendarIds);
-    var personalCalendarId = memorySnapshot.personalCalendarId;
+    final calendarSummariesById = <String, SharedCalendarSummary>{};
+    for (final raw
+        in (document?.json['calendarSummaries'] as List?) ?? const []) {
+      if (raw is! Map) continue;
+      final summary = SharedCalendarSummary.fromRow(
+        Map<String, dynamic>.from(raw),
+      );
+      if (summary.id.trim().isNotEmpty) {
+        calendarSummariesById[summary.id] = summary;
+      }
+    }
+    var hiddenCalendarIds =
+        ((document?.json['hiddenCalendarIds'] as List?) ?? const [])
+            .whereType<String>()
+            .toSet();
+    var personalCalendarId = (document?.json['personalCalendarId'] as String?)
+        ?.trim();
 
     try {
       final cachedSharedCalendars = await SharedCalendarsRepo(
@@ -5334,13 +5224,13 @@ class CalendarPage extends StatefulWidget {
       }
     }
 
-    return _CalendarWarmStateSnapshot(
+    return _CalendarDetachedStateSnapshot(
       notes: warmStart.notes,
       flows: warmStart.flows,
       calendarSummariesById: calendarSummariesById,
       hiddenCalendarIds: hiddenCalendarIds,
       personalCalendarId: personalCalendarId,
-      hasSnapshot: memorySnapshot.hasSnapshot || warmStart.hasSnapshot,
+      hasSnapshot: document != null || warmStart.hasSnapshot,
     );
   }
 
@@ -9093,12 +8983,11 @@ class CalendarPageState extends State<CalendarPage>
   // Narrower initial window for faster startup; flows can still widen it.
   static const int _standaloneHydrationWindowYears = 1;
   static const Duration _standaloneHydrationPadding = Duration(days: 30);
-  static const int _kWarmStartCacheSchemaVersion =
-      calendarWarmStartCacheSchemaVersion;
   static const Duration _warmStartCacheDebounce = Duration(milliseconds: 600);
-  static const int _warmStartCacheMaxChars = 850000;
   static const Duration _warmStartTrimPast = Duration(days: 120);
   static const Duration _warmStartTrimFuture = Duration(days: 365);
+  static const Duration _startupVisibleHydrationLead = Duration(days: 45);
+  static const Duration _startupVisibleHydrationTrail = Duration(days: 60);
 
   int _dataVersion = 0;
   final ValueNotifier<int> _dayViewDataVersion = ValueNotifier<int>(0);
@@ -9112,6 +9001,9 @@ class CalendarPageState extends State<CalendarPage>
   bool _hasPublishedCalendarSnapshot = false;
   String? _publishedCalendarSnapshotUserId;
   String? _publishedCalendarSnapshotProjectRef;
+  CalendarSnapshotCoverage? _authoritativeSnapshotCoverage;
+  Set<String> _authoritativeSnapshotLanes = const <String>{};
+  int _authoritativeSnapshotGeneration = 0;
   bool _initialCalendarLoadFinished = false;
   bool _sharedCalendarRealDayViewOpening = false;
 
@@ -9120,6 +9012,14 @@ class CalendarPageState extends State<CalendarPage>
     for (final notes in _notes.values)
       for (final note in notes) note.title,
   };
+
+  @visibleForTesting
+  ({int? kYear, int? kMonth, int? kDay}) get debugCurrentViewForTesting =>
+      (kYear: _lastViewKy, kMonth: _lastViewKm, kDay: _lastViewKd);
+
+  @visibleForTesting
+  bool get debugTodayAnchorVisibleForTesting =>
+      _isTodayDayAnchorVisibleInCalendarViewport();
 
   void _bumpDataVersion() {
     // why: force landscape PageView child to reconstruct once when data hydrates
@@ -9131,9 +9031,8 @@ class CalendarPageState extends State<CalendarPage>
   void _notifyDayViewDataChanged({bool persistWarmStartCache = true}) {
     if (!mounted) return;
     _dayViewDataVersion.value++;
-    _publishWarmStateSnapshot();
     if (persistWarmStartCache) {
-      _scheduleWarmStartCacheSave();
+      _publishWarmStateSnapshot();
     }
   }
 
@@ -9205,15 +9104,9 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   void _publishWarmStateSnapshot() {
-    _CalendarWarmStateStore.save(
-      userId: _activeWarmStartUserId(),
-      notes: _notes,
-      flows: _flows,
-      calendarSummariesById: _calendarSummariesById,
-      hiddenCalendarIds: _hiddenCalendarIds,
-      personalCalendarId: _personalCalendarId,
-      hasSnapshot: _hasUsableCalendarSnapshotForPaint(),
-    );
+    if (_hasUsableCalendarSnapshotForPaint()) {
+      _scheduleWarmStartCacheSave();
+    }
   }
 
   NoteData _noteDataFromNote(_Note n) {
@@ -9374,8 +9267,6 @@ class CalendarPageState extends State<CalendarPage>
   MonthExpansionLevel _monthExpansion = MonthExpansionLevel.compact;
   MonthExpansionLevel? _monthExpansionRestorationTarget;
   bool _currentDecanVisibleInViewport = true;
-  bool _startupFullCalendarScrollEnabled = false;
-  bool _startupFullCalendarScrollEnableScheduled = false;
   double? _scaleGestureAnchor;
   double _pinchExpansionValue = 0.0; // 0=compact,1=stacked,2=labeled,3=details
   bool _isPinching = false;
@@ -9515,10 +9406,15 @@ class CalendarPageState extends State<CalendarPage>
     return calendarWarmStartProjectRefFromClient(Supabase.instance.client);
   }
 
-  String? _warmStartCacheKey(String userId) => calendarWarmStartCacheKey(
-    projectRef: _activeWarmStartProjectRef(),
-    userId: userId,
-  );
+  CalendarSnapshotIdentity? _activeCalendarSnapshotIdentity({String? userId}) {
+    final resolvedUserId = userId ?? _activeWarmStartUserId();
+    final projectRef = _activeWarmStartProjectRef();
+    if (resolvedUserId == null || projectRef == null) return null;
+    return CalendarSnapshotIdentity(
+      projectRef: projectRef,
+      userId: resolvedUserId,
+    );
+  }
 
   bool _hasWarmStartSnapshotVisibleForCurrentUser() {
     final userId = _activeWarmStartUserId();
@@ -9682,7 +9578,7 @@ class CalendarPageState extends State<CalendarPage>
     _pendingOnboardingTargetDayKey = dayKey;
     _pendingOnboardingTargetClientEventId = trimmedClientEventId;
     _pendingOnboardingTargetFlowId = flowId;
-    _pendingOnboardingTargetNote = _CalendarWarmStateStore._copyNote(stagedNote)
+    _pendingOnboardingTargetNote = _CalendarModelCopy._copyNote(stagedNote)
         .copyWith(
           behaviorPayload: <String, dynamic>{
             if (stagedNote.behaviorPayload != null)
@@ -9781,7 +9677,7 @@ class CalendarPageState extends State<CalendarPage>
     if (bucket.any(_noteMatchesPendingOnboardingTarget)) {
       return 0;
     }
-    bucket.add(_CalendarWarmStateStore._copyNote(pendingNote));
+    bucket.add(_CalendarModelCopy._copyNote(pendingNote));
     if (kDebugMode) {
       _calendarDebugPrint(
         '[onboardingTarget] preserved pending first-flow target during '
@@ -9970,11 +9866,7 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
-  Map<String, dynamic> _buildWarmStartSnapshot({
-    required String userId,
-    required String projectRef,
-    required bool trimmed,
-  }) {
+  Map<String, dynamic> _buildWarmStartPayload({required bool trimmed}) {
     final centerDay =
         (_lastViewKy != null && _lastViewKm != null && _lastViewKd != null)
         ? DateUtils.dateOnly(
@@ -9998,14 +9890,14 @@ class CalendarPageState extends State<CalendarPage>
     });
 
     return <String, dynamic>{
-      'schemaVersion': _kWarmStartCacheSchemaVersion,
-      'projectRef': projectRef,
-      'userId': userId,
-      'savedAt': DateTime.now().toUtc().toIso8601String(),
-      'loadCompleted': true,
       'nextFlowId': _nextFlowId,
       'flows': _flows.map(_serializeWarmStartFlow).toList(growable: false),
       'notes': notesJson,
+      'calendarSummaries': _calendarSummariesById.values
+          .map((calendar) => calendar.toCacheJson())
+          .toList(growable: false),
+      'hiddenCalendarIds': _hiddenCalendarIds.toList(growable: false),
+      'personalCalendarId': _personalCalendarId,
       'flowTotalEventCounts': _encodeWarmStartIntMap(_flowTotalEventCounts),
       'flowRemainingEventCounts': _encodeWarmStartIntMap(
         _flowRemainingEventCounts,
@@ -10035,68 +9927,73 @@ class CalendarPageState extends State<CalendarPage>
     await _persistWarmStartCacheNow(debugReason: reason);
   }
 
-  Future<void> _persistWarmStartCacheNow({
+  Future<bool> _persistWarmStartCacheNow({
     String? userId,
     String debugReason = 'debounced',
   }) async {
     final resolvedUserId = userId ?? _activeWarmStartUserId();
-    if (resolvedUserId == null) return;
-    final projectRef = _activeWarmStartProjectRef();
-    if (projectRef == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    final key = _warmStartCacheKey(resolvedUserId);
-    if (key == null) return;
+    if (resolvedUserId == null) return false;
+    final identity = _activeCalendarSnapshotIdentity(userId: resolvedUserId);
+    if (identity == null) return false;
 
-    if (!_hasUsableCalendarSnapshotForPaint()) {
+    final coverage = _authoritativeSnapshotCoverage;
+    if (!_hasUsableCalendarSnapshotForPaint() ||
+        coverage == null ||
+        !_authoritativeSnapshotLanes.containsAll(
+          calendarSnapshotRequiredLanes,
+        )) {
       if (kDebugMode) {
         _calendarDebugPrint(
           '[warmStart] skip non-authoritative cache save '
           'reason=$debugReason',
         );
       }
-      return;
+      return false;
     }
 
-    var encoded = jsonEncode(
-      _buildWarmStartSnapshot(
-        userId: resolvedUserId,
-        projectRef: projectRef,
-        trimmed: false,
-      ),
-    );
-    if (encoded.length > _warmStartCacheMaxChars) {
-      encoded = jsonEncode(
-        _buildWarmStartSnapshot(
-          userId: resolvedUserId,
-          projectRef: projectRef,
-          trimmed: true,
+    try {
+      final document = await CalendarSnapshotRepository.instance.promote(
+        CalendarSnapshotCandidate(
+          identity: identity,
+          coverage: coverage,
+          completedLanes: _authoritativeSnapshotLanes,
+          generation: math.max(1, _authoritativeSnapshotGeneration),
+          payload: _buildWarmStartPayload(trimmed: false),
+          source: debugReason,
         ),
       );
-      if (encoded.length > _warmStartCacheMaxChars) {
-        if (kDebugMode) {
-          _calendarDebugPrint(
-            '[warmStart] skip cache save reason=$debugReason size=${encoded.length}',
-          );
-        }
-        return;
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[warmStart] promoted last-good reason=$debugReason '
+          'generation=${document.generation} events=${document.eventCount} '
+          'flows=${document.flowCount}',
+        );
       }
-    }
-
-    await prefs.setString(key, encoded);
-    if (kDebugMode) {
-      _calendarDebugPrint(
-        '[warmStart] saved cache reason=$debugReason size=${encoded.length}',
+      return true;
+    } catch (error) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[warmStart] persistence failed reason=$debugReason '
+          'type=${error.runtimeType}',
+        );
+      }
+      unawaited(
+        Events.trackIfAuthed('calendar_snapshot_persist_failed', {
+          'reason': debugReason,
+          'error_type': error.runtimeType.toString(),
+        }),
       );
+      return false;
     }
   }
 
   Future<void> _restoreWarmStartCacheIfAvailable({
     String reason = 'startup',
   }) async {
-    final userId = _activeWarmStartUserId();
-    if (userId == null) return;
-    final projectRef = _activeWarmStartProjectRef();
-    if (projectRef == null) return;
+    final identity = _activeCalendarSnapshotIdentity();
+    if (identity == null) return;
+    final userId = identity.userId;
+    final projectRef = identity.projectRef;
     if (_warmStartCacheRestoredForUserId == userId &&
         _warmStartCacheRestoredForProjectRef == projectRef) {
       return;
@@ -10104,48 +10001,29 @@ class CalendarPageState extends State<CalendarPage>
 
     try {
       await _loadEndedReminderIds();
-      final prefs = await SharedPreferences.getInstance();
-      final key = _warmStartCacheKey(userId);
-      if (key == null) return;
-      final raw = prefs.getString(key);
-      if (raw == null || raw.trim().isEmpty) {
-        _warmStartCacheRestoredForUserId = userId;
-        _warmStartCacheRestoredForProjectRef = projectRef;
+      final document = await CalendarSnapshotRepository.instance.restore(
+        identity,
+      );
+      _warmStartCacheRestoredForUserId = userId;
+      _warmStartCacheRestoredForProjectRef = projectRef;
+      if (document == null) return;
+      final requiredCoverage = _computeStartupVisibleHydrationWindow();
+      if (!document.covers(
+        CalendarSnapshotCoverage(
+          startUtc: requiredCoverage.startUtc,
+          endUtc: requiredCoverage.endUtc,
+        ),
+      )) {
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[warmStart] retained snapshot does not cover restored viewport '
+            'reason=$reason',
+          );
+        }
         return;
       }
 
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map) {
-        _warmStartCacheRestoredForUserId = userId;
-        _warmStartCacheRestoredForProjectRef = projectRef;
-        return;
-      }
-      final json = Map<String, dynamic>.from(decoded);
-      if ((json['schemaVersion'] as num?)?.toInt() !=
-          _kWarmStartCacheSchemaVersion) {
-        _warmStartCacheRestoredForUserId = userId;
-        _warmStartCacheRestoredForProjectRef = projectRef;
-        return;
-      }
-      if (json['loadCompleted'] != true) {
-        _warmStartCacheRestoredForUserId = userId;
-        _warmStartCacheRestoredForProjectRef = projectRef;
-        return;
-      }
-      final snapshotUserId = (json['userId'] as String?)?.trim();
-      if (snapshotUserId == null ||
-          snapshotUserId.isEmpty ||
-          snapshotUserId != userId) {
-        _warmStartCacheRestoredForUserId = userId;
-        _warmStartCacheRestoredForProjectRef = projectRef;
-        return;
-      }
-      final snapshotProjectRef = (json['projectRef'] as String?)?.trim();
-      if (snapshotProjectRef == null || snapshotProjectRef != projectRef) {
-        _warmStartCacheRestoredForUserId = userId;
-        _warmStartCacheRestoredForProjectRef = projectRef;
-        return;
-      }
+      final json = document.json;
 
       final flows = ((json['flows'] as List?) ?? const [])
           .map(_deserializeWarmStartFlow)
@@ -10186,6 +10064,23 @@ class CalendarPageState extends State<CalendarPage>
       final remainingCounts = _decodeWarmStartIntMap(
         json['flowRemainingEventCounts'],
       );
+      final calendarSummaries = <String, SharedCalendarSummary>{};
+      for (final raw in (json['calendarSummaries'] as List?) ?? const []) {
+        if (raw is! Map) continue;
+        final summary = SharedCalendarSummary.fromRow(
+          Map<String, dynamic>.from(raw),
+        );
+        if (summary.id.trim().isNotEmpty) {
+          calendarSummaries[summary.id] = summary;
+        }
+      }
+      final hiddenCalendarIds =
+          ((json['hiddenCalendarIds'] as List?) ?? const [])
+              .whereType<String>()
+              .where((id) => id.trim().isNotEmpty)
+              .toSet();
+      final personalCalendarId = (json['personalCalendarId'] as String?)
+          ?.trim();
 
       if (!mounted) return;
       setState(() {
@@ -10201,20 +10096,26 @@ class CalendarPageState extends State<CalendarPage>
         _flowRemainingEventCounts
           ..clear()
           ..addAll(remainingCounts);
+        _calendarSummariesById = calendarSummaries;
+        _hiddenCalendarIds = hiddenCalendarIds;
+        _personalCalendarId = personalCalendarId?.isEmpty == true
+            ? null
+            : personalCalendarId;
+        _calendarStateLoaded = calendarSummaries.isNotEmpty;
+        _initialCalendarLoadFinished = true;
         _nextFlowId = nextFlowId > 0 ? nextFlowId : _nextFlowId;
       });
       _rebuildReminderRulesFromFlowsIfMissing();
-      _warmStartCacheRestoredForUserId = userId;
-      _warmStartCacheRestoredForProjectRef = projectRef;
+      _authoritativeSnapshotCoverage = document.coverage;
+      _authoritativeSnapshotLanes = document.completedLanes;
+      _authoritativeSnapshotGeneration = document.generation;
       _warmStartSnapshotVisible = true;
       _lastSuccessfulHydrationAt ??= DateTime.now();
       if (kDebugMode) {
-        final totalNotes = notesByDay.values.fold<int>(
-          0,
-          (sum, list) => sum + list.length,
-        );
         _calendarDebugPrint(
-          '[warmStart] restored cache reason=$reason flows=${flows.length} notes=$totalNotes',
+          '[warmStart] restored last-good reason=$reason '
+          'generation=${document.generation} flows=${document.flowCount} '
+          'events=${document.eventCount}',
         );
       }
       _notifyDayViewDataChanged(persistWarmStartCache: false);
@@ -10228,8 +10129,20 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   void _restoreWarmStartCacheForFirstPaint({required String reason}) {
+    final persistedViewLoad = _initialPersistedViewStateLoad;
     final flight = _warmStartRestoreFlight ??=
-        _restoreWarmStartCacheIfAvailable(reason: reason).whenComplete(() {
+        (() async {
+          if (persistedViewLoad != null) {
+            await persistedViewLoad;
+          }
+          if (!mounted) return;
+          if (_pendingAuthResolutionForRestore &&
+              Supabase.instance.client.auth.currentUser != null) {
+            await _loadPersistedViewState(trigger: 'warm_first_paint:$reason');
+          }
+          if (!mounted) return;
+          await _restoreWarmStartCacheIfAvailable(reason: reason);
+        })().whenComplete(() {
           _warmStartRestoreFlight = null;
         });
     unawaited(flight);
@@ -10271,7 +10184,7 @@ class CalendarPageState extends State<CalendarPage>
       final existingIndex = _flows.indexWhere((existing) {
         return existing.id == flow.id;
       });
-      final nextFlow = _CalendarWarmStateStore._copyFlow(flow);
+      final nextFlow = _CalendarModelCopy._copyFlow(flow);
       if (existingIndex >= 0) {
         _flows[existingIndex] = nextFlow;
       } else {
@@ -13643,6 +13556,8 @@ class CalendarPageState extends State<CalendarPage>
 
   bool _initialJumpScheduled = false;
   bool _initialViewportSettled = false;
+  Completer<void>? _initialViewportSettlementCompleter;
+  int? _calendarScrollBaseYear;
   bool _orientationJumpScheduled = false;
   bool _portraitRecenterPending = false;
 
@@ -13936,7 +13851,6 @@ class CalendarPageState extends State<CalendarPage>
 
   // for centering and for snapping to today
   final _centerKey = GlobalKey();
-  int? _currentYearCenterMonth;
   final _todayDayKey = GlobalKey(); // 🔑 individual day chip
   final _viewDayAnchorKey = GlobalKey(debugLabel: 'calendar_view_day_anchor');
   final _calendarToggleKey = GlobalKey(debugLabel: 'calendar_toggle_haw');
@@ -14521,6 +14435,13 @@ class CalendarPageState extends State<CalendarPage>
         _initialStartupUserId = null;
         _warmStartSnapshotVisible = false;
         _warmStartCacheRestoredForUserId = null;
+        _warmStartCacheRestoredForProjectRef = null;
+        _hasPublishedCalendarSnapshot = false;
+        _publishedCalendarSnapshotUserId = null;
+        _publishedCalendarSnapshotProjectRef = null;
+        _authoritativeSnapshotCoverage = null;
+        _authoritativeSnapshotLanes = const <String>{};
+        _authoritativeSnapshotGeneration = 0;
         _myFlowsFilingSnapshotCache = null;
         _lastSuccessfulHydrationAt = null;
       }
@@ -17425,6 +17346,9 @@ class CalendarPageState extends State<CalendarPage>
         '[restoration] calendar fallback=today reason=$reason',
       );
     }
+    if (!_initialViewportSettled) {
+      _calendarScrollBaseYear = _today.kYear;
+    }
     _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
     _scheduleInitialViewportRestore();
     if (!mounted) {
@@ -17458,6 +17382,7 @@ class CalendarPageState extends State<CalendarPage>
   }) {
     _suppressPendingRestoresForUserNavigation();
     _applyTodayFallbackAfterRestore(reason: reason);
+    _restorationInteractedSinceBoot = true;
     _scrollToToday(animate: animate);
   }
 
@@ -17533,11 +17458,17 @@ class CalendarPageState extends State<CalendarPage>
         'event=${event.name} user=$authUserId mismatch=$userMismatch',
       );
     }
-    await _loadPersistedViewState(trigger: 'auth:${event.name}');
+    await _loadPersistedViewState(
+      trigger: 'auth:${event.name}',
+      allowUserInteractionOverride: userMismatch,
+    );
   }
 
   /// ✅ Load persisted view state from permanent per-window restoration first.
-  Future<void> _loadPersistedViewState({String trigger = 'startup'}) async {
+  Future<void> _loadPersistedViewState({
+    String trigger = 'startup',
+    bool allowUserInteractionOverride = false,
+  }) async {
     if (_consumePendingTodayNavigationCommand(trigger: trigger)) {
       return;
     }
@@ -17548,6 +17479,17 @@ class CalendarPageState extends State<CalendarPage>
     try {
       final readResult = await AppRestorationService.instance
           .readBestSnapshot();
+      if (_restorationInteractedSinceBoot && !allowUserInteractionOverride) {
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[restoration] ignored stale persisted view '
+            'trigger=$trigger after user navigation',
+          );
+        }
+        _pendingAuthResolutionForRestore = false;
+        _tentativeRestorationUserId = null;
+        return;
+      }
       if (readResult.isAwaitingAuth) {
         _pendingAuthResolutionForRestore = true;
         _tentativeRestorationUserId = null;
@@ -17588,6 +17530,18 @@ class CalendarPageState extends State<CalendarPage>
         );
       }
 
+      if (_restorationInteractedSinceBoot && !allowUserInteractionOverride) {
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[restoration] ignored stale persisted fallback '
+            'trigger=$trigger after user navigation',
+          );
+        }
+        _pendingAuthResolutionForRestore = false;
+        _tentativeRestorationUserId = null;
+        return;
+      }
+
       if (savedCalendar != null) {
         final today = KemeticMath.fromGregorian(DateTime.now());
 
@@ -17617,6 +17571,9 @@ class CalendarPageState extends State<CalendarPage>
         }
 
         setState(() {
+          if (!_initialViewportSettled) {
+            _calendarScrollBaseYear = savedCalendar!.kYear;
+          }
           _lastViewKy = savedCalendar!.kYear;
           _lastViewKm = savedCalendar.kMonth;
           _lastViewKd = clampedDay;
@@ -17649,11 +17606,7 @@ class CalendarPageState extends State<CalendarPage>
         return;
       }
 
-      if (_hasWarmStartSnapshotVisibleForCurrentUser()) {
-        _settleInitialViewportWithoutStartupJump();
-      } else {
-        _scheduleInitialViewportRestore();
-      }
+      _scheduleInitialViewportRestore();
       if (shouldRestoreDayViewRoute) {
         _schedulePersistentDayViewRestore();
       }
@@ -17715,16 +17668,32 @@ class CalendarPageState extends State<CalendarPage>
   void _scheduleInitialViewportRestore() {
     if (_initialJumpScheduled) return;
     _initialJumpScheduled = true;
+    _initialViewportSettlementCompleter = Completer<void>();
 
     void finishRestore() {
-      _initialViewportSettled = true;
-      _initialJumpScheduled = false;
+      final settlement = _initialViewportSettlementCompleter;
+      if (settlement != null && !settlement.isCompleted) {
+        settlement.complete();
+      }
+      if (!mounted) {
+        _initialViewportSettled = true;
+        _initialJumpScheduled = false;
+        return;
+      }
+      setState(() {
+        _initialViewportSettled = true;
+        _initialJumpScheduled = false;
+      });
     }
 
     void attemptRestore(int tries) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) {
           finishRestore();
+          return;
+        }
+        if (!_scrollCtrl.hasClients && !_initialCalendarLoadFinished) {
+          attemptRestore(tries);
           return;
         }
         bool ok = false;
@@ -17760,6 +17729,9 @@ class CalendarPageState extends State<CalendarPage>
           ok = true;
         }
         ok = ok || _jumpToCurrentViewNow(animate: false);
+        if (!ok) {
+          _materializeCurrentViewYearForRestore();
+        }
         if (ok || tries >= 20) {
           _restoredCalendarAnchorTarget = null;
           _restoredCalendarAnchorAlignment = null;
@@ -17774,12 +17746,41 @@ class CalendarPageState extends State<CalendarPage>
     attemptRestore(0);
   }
 
-  void _settleInitialViewportWithoutStartupJump() {
-    _restoredCalendarAnchorTarget = null;
-    _restoredCalendarAnchorAlignment = null;
-    _restoredCalendarScrollOffset = null;
-    _initialJumpScheduled = false;
-    _initialViewportSettled = true;
+  Future<void> _awaitInitialViewportSettlementForFirstPaint() async {
+    if (_initialViewportSettled) return;
+    if (!_initialJumpScheduled) {
+      _scheduleInitialViewportRestore();
+    }
+    final settlement = _initialViewportSettlementCompleter;
+    if (settlement != null) {
+      await settlement.future;
+    }
+  }
+
+  void _materializeCurrentViewYearForRestore() {
+    if (!_scrollCtrl.hasClients || !_scrollCtrl.position.hasContentDimensions) {
+      return;
+    }
+    final targetYear = _lastViewKy;
+    final baseYear = _calendarScrollBaseYear ?? _today.kYear;
+    if (targetYear == null || targetYear == baseYear) return;
+
+    const bufferedYearsPerDirection = 200;
+    final yearDistance = (targetYear - baseYear).abs();
+    final yearCenterIndex = (yearDistance - 0.5).clamp(
+      0.0,
+      bufferedYearsPerDirection.toDouble(),
+    );
+    final fraction = yearCenterIndex / bufferedYearsPerDirection;
+    final position = _scrollCtrl.position;
+    final directionalExtent = targetYear < baseYear
+        ? position.minScrollExtent
+        : position.maxScrollExtent;
+    final targetPixels = (directionalExtent * fraction)
+        .clamp(position.minScrollExtent, position.maxScrollExtent)
+        .toDouble();
+    if ((position.pixels - targetPixels).abs() < 1) return;
+    position.jumpTo(targetPixels);
   }
 
   int _sessionDayForMonth(int ky, int km) {
@@ -18192,6 +18193,7 @@ class CalendarPageState extends State<CalendarPage>
 
   @override
   void didPushNext() {
+    unawaited(_flushPendingWarmStartCacheSave(reason: 'did_push_next'));
     unawaited(_flushPendingCalendarRestorationSave(reason: 'did_push_next'));
     if (!_canShowCalendarToggleCoachmarkOnReturn) return;
     _calendarToggleCoachmarkArmedForReturn = true;
@@ -19317,7 +19319,9 @@ class CalendarPageState extends State<CalendarPage>
     required List<DateTime> occurrences,
     int? flowId,
     bool notify = true,
+    Map<String, List<_Note>>? notesTarget,
   }) {
+    final target = notesTarget ?? _notes;
     var changed = false;
     final calendarName = _calendarSummary(rule.calendarId)?.name;
     for (final day in occurrences) {
@@ -19337,7 +19341,7 @@ class CalendarPageState extends State<CalendarPage>
       // Skip if a canonical DB-backed note already exists for this flow/time/title.
       if (flowId != null && flowId > 0) {
         final key = _kKey(k.kYear, k.kMonth, k.kDay);
-        final bucket = _notes[key];
+        final bucket = target[key];
         if (bucket != null) {
           final targetTitle = rule.title.trim().toLowerCase();
           final hasCanonical = bucket.any((n) {
@@ -19378,6 +19382,7 @@ class CalendarPageState extends State<CalendarPage>
             flowId: flowId,
             alertOffsetMinutes: rule.alertOffsetMinutes,
             notify: false,
+            notesTarget: target,
           ) ||
           changed;
     }
@@ -19386,6 +19391,45 @@ class CalendarPageState extends State<CalendarPage>
       _refreshNoteCacheUi();
     }
     return changed;
+  }
+
+  int? _loadedFlowIdForReminderRule(ReminderRule rule, Iterable<_Flow> flows) {
+    final dbUuid = _dbReminderUuidFromRuleId(rule.id);
+    if (dbUuid == null) return null;
+    for (final flow in flows) {
+      if (flow.isReminder && flow.reminderUuid == dbUuid) {
+        return flow.id;
+      }
+    }
+    return null;
+  }
+
+  void _stageReminderOccurrencesForHydration({
+    required Map<String, List<_Note>> notesTarget,
+    required Iterable<_Flow> flows,
+  }) {
+    if (_reminderRules.isEmpty) return;
+    final today = DateUtils.dateOnly(DateTime.now());
+    final windowEnd = _reminderWindowEnd(today, _reminderRules);
+    for (final rule in _reminderRules) {
+      _materializeReminderLocally(
+        rule: rule,
+        occurrences: _generateReminderOccurrences(rule, today, windowEnd),
+        flowId: _loadedFlowIdForReminderRule(rule, flows),
+        notify: false,
+        notesTarget: notesTarget,
+      );
+    }
+    if (kDebugMode) {
+      final todayK = KemeticMath.fromGregorian(today);
+      final todayKey = _kKey(todayK.kYear, todayK.kMonth, todayK.kDay);
+      final todayReminderCount =
+          notesTarget[todayKey]?.where((note) => note.isReminder).length ?? 0;
+      _calendarDebugPrint(
+        '[reminders] staged hydration rules=${_reminderRules.length} '
+        'todayCount=$todayReminderCount',
+      );
+    }
   }
 
   Future<void> _syncReminderEvents({
@@ -19756,34 +19800,6 @@ class CalendarPageState extends State<CalendarPage>
     if (changed) {
       _refreshNoteCacheUi();
     }
-  }
-
-  Future<bool> _regenReminderNotes({bool notify = true}) async {
-    await _loadReminderRules();
-    if (_reminderRules.isEmpty) return false;
-    final today = DateUtils.dateOnly(DateTime.now());
-    final windowEnd = _reminderWindowEnd(today, _reminderRules);
-    var changed = false;
-    // Clear existing reminder notes
-    for (final r in _reminderRules) {
-      changed = _pruneReminderNotes(r.id, fromDate: null) || changed;
-    }
-    for (final r in _reminderRules) {
-      final occs = _generateReminderOccurrences(r, today, windowEnd);
-      final flowId = await _findFlowIdByReminderUuid(r.id);
-      changed =
-          _materializeReminderLocally(
-            rule: r,
-            occurrences: occs,
-            flowId: flowId,
-            notify: false,
-          ) ||
-          changed;
-    }
-    if (changed && notify) {
-      _refreshNoteCacheUi();
-    }
-    return changed;
   }
 
   void _rebuildReminderRulesFromFlowsIfMissing() {
@@ -21134,6 +21150,7 @@ class CalendarPageState extends State<CalendarPage>
     String? actionId,
     Map<String, dynamic>? behaviorPayload,
     bool notify = true,
+    Map<String, List<_Note>>? notesTarget,
   }) {
     final shouldSkip =
         _isPendingDelete(
@@ -21159,7 +21176,8 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     final k = _kKey(kYear, kMonth, kDay);
-    final list = _notes.putIfAbsent(k, () => <_Note>[]);
+    final target = notesTarget ?? _notes;
+    final list = target.putIfAbsent(k, () => <_Note>[]);
     list.add(
       _Note(
         id: id,
@@ -21187,7 +21205,7 @@ class CalendarPageState extends State<CalendarPage>
       ),
     );
     // Do not schedule notifications here; scheduling is handled by the caller.
-    if (notify) {
+    if (notify && identical(target, _notes)) {
       _refreshNoteCacheUi();
     }
     return true;
@@ -24064,7 +24082,10 @@ class CalendarPageState extends State<CalendarPage>
         return;
       }
     }
-    _scrollToToday();
+    _applyTodayNavigationCommand(
+      animate: true,
+      reason: 'today_command:app_bar',
+    );
   }
 
   PreferredSizeWidget _buildCalendarAppBar({
@@ -24226,7 +24247,10 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> openQuickAddFromOutside() => _openQuickAddSheet();
 
   void jumpToTodayFromOutside({bool animate = true}) =>
-      _scrollToToday(animate: animate);
+      _applyTodayNavigationCommand(
+        animate: animate,
+        reason: 'today_command:outside',
+      );
 
   Future<void> _openJournalFromAppBar() async {
     if (!_journalInitialized) {
@@ -29118,6 +29142,55 @@ class CalendarPageState extends State<CalendarPage>
     return (startUtc: start.toUtc(), endUtc: endExclusive.toUtc());
   }
 
+  ({DateTime startUtc, DateTime endUtc})
+  _computeStartupVisibleHydrationWindow() {
+    final targetKy = _lastViewKy ?? _today.kYear;
+    final targetKm = _lastViewKm ?? _today.kMonth;
+    final monthStart = DateUtils.dateOnly(
+      KemeticMath.toGregorian(targetKy, targetKm, 1),
+    );
+    final monthEnd = DateUtils.dateOnly(
+      KemeticMath.toGregorian(
+        targetKy,
+        targetKm,
+        _maxDayForMonth(targetKy, targetKm),
+      ),
+    );
+    final start = monthStart.subtract(_startupVisibleHydrationLead);
+    final endExclusive = monthEnd
+        .add(_startupVisibleHydrationTrail)
+        .add(const Duration(days: 1));
+    return (startUtc: start.toUtc(), endUtc: endExclusive.toUtc());
+  }
+
+  ({DateTime startUtc, DateTime endUtc}) _clampHydrationWindowToFocus(
+    ({DateTime startUtc, DateTime endUtc}) base,
+    ({DateTime startUtc, DateTime endUtc}) focus,
+  ) {
+    final startUtc = base.startUtc.isAfter(focus.startUtc)
+        ? base.startUtc
+        : focus.startUtc;
+    final endUtc = base.endUtc.isBefore(focus.endUtc)
+        ? base.endUtc
+        : focus.endUtc;
+    if (!endUtc.isAfter(startUtc)) return focus;
+    return (startUtc: startUtc, endUtc: endUtc);
+  }
+
+  ({DateTime startUtc, DateTime endUtc}) _expandHydrationWindowToInclude(
+    ({DateTime startUtc, DateTime endUtc}) base,
+    ({DateTime startUtc, DateTime endUtc}) required,
+  ) {
+    return (
+      startUtc: base.startUtc.isBefore(required.startUtc)
+          ? base.startUtc
+          : required.startUtc,
+      endUtc: base.endUtc.isAfter(required.endUtc)
+          ? base.endUtc
+          : required.endUtc,
+    );
+  }
+
   Future<void> _handleCreateTimedEvent(
     int ky,
     int km,
@@ -31292,12 +31365,19 @@ class CalendarPageState extends State<CalendarPage>
     if (!mounted) return;
     _syncAcceptedInviteCalendarImportsInBackground(reason);
     final keepWarmStartVisible = _hasWarmStartSnapshotVisibleForCurrentUser();
-    // If warm-start data is already on screen, keep it stable until the
-    // backfill finishes instead of doing an intermediate visible-window swap.
-    // Without a warm snapshot, publish one authoritative cold-start load so
-    // event lanes cannot arrive in visible stages.
+    // A cold start establishes authoritative coverage for the restored
+    // viewport first. The broad history refresh is always an offscreen
+    // candidate and cannot clear the focused or retained last-good snapshot.
     if (!keepWarmStartVisible) {
-      await _loadFromDisk(source: 'startup_cold_authoritative:$reason');
+      await _loadFromDisk(source: 'startup_focused_authoritative:$reason');
+      if (!mounted) return;
+    }
+    await _awaitInitialViewportSettlementForFirstPaint();
+    if (!mounted) return;
+    if (!keepWarmStartVisible) {
+      unawaited(
+        _persistWarmStartCacheNow(debugReason: 'startup_focused_complete'),
+      );
     }
     await _restoreMyFlowsFilingSnapshotCache(reason: 'startup:$reason');
     if (widget.openMyFlowsOnLaunch && _myFlowsFilingSnapshotCache == null) {
@@ -31315,13 +31395,23 @@ class CalendarPageState extends State<CalendarPage>
     await _maybeLoadDecanReflectionPrompt();
     unawaited(() async {
       try {
-        if (keepWarmStartVisible) {
-          await _loadFromDisk(
-            source: 'startup_backfill:$reason',
-            preserveViewport: true,
-          );
+        final generationBeforeBackfill = _authoritativeSnapshotGeneration;
+        await _loadFromDisk(
+          source: 'startup_backfill:$reason',
+          preserveViewport: true,
+        );
+        if (!mounted) return;
+        if (_authoritativeSnapshotGeneration == generationBeforeBackfill) {
+          if (kDebugMode) {
+            _calendarDebugPrint(
+              '[startup] backfill incomplete; retained last-good generation '
+              '$generationBeforeBackfill',
+            );
+          }
+          return;
         }
         await _syncReminderEvents(refreshUi: false, updateLocalCache: true);
+        if (!mounted) return;
         await _persistWarmStartCacheNow(
           debugReason: 'startup_backfill_complete',
         );
@@ -31574,6 +31664,9 @@ class CalendarPageState extends State<CalendarPage>
           ? _calendarScrollOffsetForPreservation()
           : null;
       await _ensureManualDeleteTombstonesLoaded();
+      final focusedStartupMode = source.startsWith(
+        'startup_focused_authoritative:',
+      );
       final warmStartBackfillMode = source.startsWith('startup_backfill:');
       final keepWarmStartSnapshotVisible =
           warmStartBackfillMode && _hasWarmStartSnapshotVisibleForCurrentUser();
@@ -31584,8 +31677,11 @@ class CalendarPageState extends State<CalendarPage>
         _notes,
       );
       final deferColdSnapshotPublication =
-          source.startsWith('startup_cold_authoritative:') &&
-          !_hasUsableCalendarSnapshotForPaint();
+          focusedStartupMode && !_hasUsableCalendarSnapshotForPaint();
+      final startupViewportWindow = focusedStartupMode || warmStartBackfillMode
+          ? _computeStartupVisibleHydrationWindow()
+          : null;
+      final focusWindow = focusedStartupMode ? startupViewportWindow : null;
       final repo = UserEventsRepo(Supabase.instance.client);
 
       // Flow-first: load flows, then events; join only to known active flows
@@ -31595,6 +31691,7 @@ class CalendarPageState extends State<CalendarPage>
 
       // Load flows into _flows list
       final serverFlows = await repo.getAllFlows();
+      if (!mounted) return;
       if (kDebugMode) {
         _calendarDebugPrint(
           '[loadFromDisk] getAllFlows count: ${serverFlows.length}',
@@ -31717,6 +31814,14 @@ class CalendarPageState extends State<CalendarPage>
       ({DateTime startUtc, DateTime endUtc})? flowWindow;
       if (hydrationFlowIds.isNotEmpty) {
         flowWindow = _computeFlowHydrationWindow(hydrationFlowIds, flowIndex);
+        if (focusWindow != null) {
+          flowWindow = _clampHydrationWindowToFocus(flowWindow, focusWindow);
+        } else if (warmStartBackfillMode && startupViewportWindow != null) {
+          flowWindow = _expandHydrationWindowToInclude(
+            flowWindow,
+            startupViewportWindow,
+          );
+        }
         if (kDebugMode) {
           _calendarDebugPrint(
             '[loadFromDisk] flow hydration window '
@@ -31751,64 +31856,38 @@ class CalendarPageState extends State<CalendarPage>
             );
           }
         } catch (err, st) {
+          flowHydrationComplete = false;
           if (kDebugMode) {
             _calendarDebugPrint(
               '[loadFromDisk] batched flow event fetch failed: $err',
             );
             _calendarDebugPrint('$st');
           }
-        }
-
-        if (eventsByFlowId.isNotEmpty) {
-          if (kDebugMode) {
-            eventsByFlowId.forEach((fid, events) {
-              _calendarDebugPrint(
-                '[loadFromDisk] flow $fid events (batched) count: ${events.length}',
-              );
-            });
-          }
           return eventsByFlowId;
-        }
-
-        var fallbackHadError = false;
-        for (final flowId in hydrationFlowIds) {
-          try {
-            final flowEvents = await repo.getEventsForFlow(
-              flowId,
-              startUtc: flowWindow?.startUtc,
-              endUtc: flowWindow?.endUtc,
-              flowEventsOnly: true,
-            );
-            eventsByFlowId[flowId] = flowEvents;
-            if (kDebugMode) {
-              _calendarDebugPrint(
-                '[loadFromDisk] getEventsForFlow($flowId) count: ${flowEvents.length} (fallback)',
-              );
-            }
-          } catch (err, st) {
-            fallbackHadError = true;
-            if (kDebugMode) {
-              _calendarDebugPrint(
-                '[loadFromDisk] failed to hydrate events for flow $flowId: $err',
-              );
-              _calendarDebugPrint('$st');
-            }
-          }
-        }
-        if (fallbackHadError) {
-          flowHydrationComplete = false;
         }
 
         return eventsByFlowId;
       }
 
-      final standaloneWindow = _computeStandaloneHydrationWindow(newFlows);
+      var standaloneWindow = _computeStandaloneHydrationWindow(newFlows);
+      if (focusWindow != null) {
+        standaloneWindow = _clampHydrationWindowToFocus(
+          standaloneWindow,
+          focusWindow,
+        );
+      } else if (warmStartBackfillMode && startupViewportWindow != null) {
+        standaloneWindow = _expandHydrationWindowToInclude(
+          standaloneWindow,
+          startupViewportWindow,
+        );
+      }
       final flowEventsFuture = loadFlowEvents();
       final standaloneFuture = repo.getStandaloneEventsForDateRangeAll(
         startUtc: standaloneWindow.startUtc,
         endUtc: standaloneWindow.endUtc,
         pageSize: 1000,
         flowOwnersById: flowOwnersById,
+        throwOnError: true,
       );
       final flowEventCountsFuture = _flowsRepo.loadMyFlowEventCounts(
         flowIds: newFlows.map((flow) => flow.id),
@@ -31893,6 +31972,24 @@ class CalendarPageState extends State<CalendarPage>
         _lastSuccessfulHydrationAt = DateTime.now();
         _warmStartCacheRestoredForUserId = _activeWarmStartUserId();
         _warmStartCacheRestoredForProjectRef = _activeWarmStartProjectRef();
+        if (loadComplete) {
+          final coverageStart = flowWindow == null
+              ? standaloneWindow.startUtc
+              : (flowWindow.startUtc.isAfter(standaloneWindow.startUtc)
+                    ? flowWindow.startUtc
+                    : standaloneWindow.startUtc);
+          final coverageEnd = flowWindow == null
+              ? standaloneWindow.endUtc
+              : (flowWindow.endUtc.isBefore(standaloneWindow.endUtc)
+                    ? flowWindow.endUtc
+                    : standaloneWindow.endUtc);
+          _authoritativeSnapshotCoverage = CalendarSnapshotCoverage(
+            startUtc: coverageStart,
+            endUtc: coverageEnd,
+          );
+          _authoritativeSnapshotLanes = calendarSnapshotRequiredLanes;
+          _authoritativeSnapshotGeneration++;
+        }
         if (deferColdSnapshotPublication && loadComplete) {
           deferredColdSnapshotReady = true;
           committedVisibleCalendar = true;
@@ -32408,28 +32505,15 @@ class CalendarPageState extends State<CalendarPage>
         }
       }
 
+      _stageReminderOccurrencesForHydration(
+        notesTarget: newNotes,
+        flows: newFlows,
+      );
+
       commitVisibleCalendarState(
         'complete',
         loadComplete: flowHydrationComplete && standaloneHydrationComplete,
       );
-
-      Future<void> finishEventLanePostProcessing() async {
-        try {
-          final changed = await _regenReminderNotes(notify: false);
-          if (changed && !deferredColdSnapshotReady) {
-            _refreshNoteCacheUi();
-          }
-        } catch (err, st) {
-          if (kDebugMode) {
-            _calendarDebugPrint('[loadFromDisk] reminder regen failed: $err');
-            _calendarDebugPrint('$st');
-          }
-        }
-      }
-
-      if (committedVisibleCalendar) {
-        await finishEventLanePostProcessing();
-      }
       if (deferredColdSnapshotReady && mounted) {
         _hasPublishedCalendarSnapshot = true;
         _publishedCalendarSnapshotUserId = _activeWarmStartUserId();
@@ -32442,24 +32526,18 @@ class CalendarPageState extends State<CalendarPage>
       Future<void> finishNonCriticalPostProcessing() async {
         try {
           final flowEventCounts = await flowEventCountsFuture;
-          if (mounted) {
-            setState(() {
-              _flowTotalEventCounts
-                ..clear()
-                ..addAll(flowEventCounts.total);
-              _flowRemainingEventCounts
-                ..clear()
-                ..addAll(flowEventCounts.remaining);
-            });
-          } else {
+          if (!mounted) return;
+          setState(() {
             _flowTotalEventCounts
               ..clear()
               ..addAll(flowEventCounts.total);
             _flowRemainingEventCounts
               ..clear()
               ..addAll(flowEventCounts.remaining);
+          });
+          if (flowHydrationComplete && standaloneHydrationComplete) {
+            _scheduleWarmStartCacheSave();
           }
-          _scheduleWarmStartCacheSave();
         } catch (err, st) {
           if (kDebugMode) {
             _calendarDebugPrint(
@@ -34159,7 +34237,18 @@ class CalendarPageState extends State<CalendarPage>
     final scaffold = Scaffold(
       backgroundColor: _bg,
       appBar: _buildCalendarAppBar(useLandscapeGrid: false),
-      body: _buildBodyWithJournal(),
+      body: Stack(
+        children: [
+          _buildBodyWithJournal(),
+          if (!_initialViewportSettled)
+            const Positioned.fill(
+              child: ColoredBox(
+                color: _bg,
+                child: Center(child: CircularProgressIndicator(color: _gold)),
+              ),
+            ),
+        ],
+      ),
     );
 
     Widget content = scaffold;
@@ -34847,16 +34936,13 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
-  int _currentYearCenterMonthForScroll() {
-    final existing = _currentYearCenterMonth;
-    if (existing != null) return existing;
-    final preferredMonth = _lastViewKy == _today.kYear ? _lastViewKm : null;
-    final resolved = (preferredMonth ?? _today.kMonth).clamp(1, 13).toInt();
-    _currentYearCenterMonth = resolved;
-    return resolved;
+  int _centerYearMonthForScroll(int baseYear) {
+    final restoredMonth = _lastViewKy == baseYear ? _lastViewKm : null;
+    final fallbackMonth = baseYear == _today.kYear ? _today.kMonth : 1;
+    return (restoredMonth ?? fallbackMonth).clamp(1, 13).toInt();
   }
 
-  String? _currentYearSeasonHeaderForMonth(int kMonth) {
+  String? _centerYearSeasonHeaderForMonth(int kMonth) {
     switch (kMonth) {
       case 1:
         return 'Flood season (Akhet)';
@@ -34875,12 +34961,13 @@ class CalendarPageState extends State<CalendarPage>
     return 'Shemu';
   }
 
-  Widget _buildCurrentYearMonthSliver({
+  Widget _buildCenterYearMonthSliver({
     required int kYear,
     required int kMonth,
     required int centerMonth,
+    required bool isTodayYear,
   }) {
-    final sectionHeader = _currentYearSeasonHeaderForMonth(kMonth);
+    final sectionHeader = _centerYearSeasonHeaderForMonth(kMonth);
     final child = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -34893,13 +34980,14 @@ class CalendarPageState extends State<CalendarPage>
                 _calendarDayAnchorKeyFor(kYear, m, d),
             kYear: kYear,
             kMonth: kMonth,
+            temporalAnchorVisible:
+                isTodayYear && _currentDecanVisibleInViewport,
             seasonShort: _seasonShortForMonth(kMonth),
-            todayMonth: _today.kMonth,
-            todayDay: _today.kDay,
-            todayDayKey: _todayDayKey,
+            todayMonth: isTodayYear ? _today.kMonth : null,
+            todayDay: isTodayYear ? _today.kDay : null,
+            todayDayKey: isTodayYear ? _todayDayKey : null,
             notesGetter: (m, d) => _getNotes(kYear, m, d),
             flowColorsGetter: (ky, km, kd) => getFlowColorsForDay(ky, km, kd),
-            temporalAnchorVisible: _currentDecanVisibleInViewport,
             onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
             showGregorian: _showGregorian,
             expansionLevel: _monthExpansion,
@@ -34926,9 +35014,9 @@ class CalendarPageState extends State<CalendarPage>
             key: keyForMonth(kYear, 13),
             child: _EpagomenalCard(
               kYear: kYear,
-              todayMonth: _today.kMonth,
-              todayDay: _today.kDay,
-              todayDayKey: _todayDayKey,
+              todayMonth: isTodayYear ? _today.kMonth : null,
+              todayDay: isTodayYear ? _today.kDay : null,
+              todayDayKey: isTodayYear ? _todayDayKey : null,
               notesGetter: (m, d) => _getNotes(kYear, 13, d),
               flowColorsGetter: (ky, km, kd) => getFlowColorsForDay(ky, km, kd),
               onDayTap: (c, m, d) => _openDayView(c, kYear, 13, d),
@@ -34959,60 +35047,11 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
-  bool get _shouldUseStartupSingleMonthCalendar {
-    return !_startupFullCalendarScrollEnabled &&
-        _hasUsableCalendarSnapshotForPaint() &&
-        !_initialCalendarLoadFinished;
-  }
-
-  void _scheduleFullCalendarScrollAfterStartupFrame() {
-    if (_startupFullCalendarScrollEnableScheduled) return;
-    _startupFullCalendarScrollEnableScheduled = true;
-    unawaited(() async {
-      await _waitForFirstRasterizedFrameForDeferredStartup();
-      void enableFullCalendarScroll() {
-        if (!mounted || _startupFullCalendarScrollEnabled) return;
-        setState(() {
-          _startupFullCalendarScrollEnabled = true;
-        });
-      }
-
-      if (_isWidgetTestBindingForDeferredStartup()) {
-        enableFullCalendarScroll();
-      } else {
-        Timer.run(enableFullCalendarScroll);
-      }
-    }());
-  }
-
-  Widget _buildStartupSingleMonthCalendarScrollView({
-    required ({int kYear, int kMonth, int kDay}) kToday,
-    required int centerMonth,
-  }) {
-    _scheduleFullCalendarScrollAfterStartupFrame();
-    return CustomScrollView(
-      key: const PageStorageKey('calendar_portrait_scroll_startup_month'),
-      anchor: 0.0,
-      slivers: [
-        _buildCurrentYearMonthSliver(
-          kYear: kToday.kYear,
-          kMonth: centerMonth,
-          centerMonth: centerMonth,
-        ),
-      ],
-    );
-  }
-
   Widget _buildCalendarScrollView() {
     final kToday = _today;
-    final centerMonth = _currentYearCenterMonthForScroll();
-
-    if (_shouldUseStartupSingleMonthCalendar) {
-      return _buildStartupSingleMonthCalendarScrollView(
-        kToday: kToday,
-        centerMonth: centerMonth,
-      );
-    }
+    final baseYear = _calendarScrollBaseYear ?? _lastViewKy ?? kToday.kYear;
+    final centerIsTodayYear = baseYear == kToday.kYear;
+    final centerMonth = _centerYearMonthForScroll(baseYear);
 
     // ✅ FIX 4: Wrap with NotificationListener to capture scroll-end events
     return NotificationListener<ScrollNotification>(
@@ -35042,18 +35081,19 @@ class CalendarPageState extends State<CalendarPage>
         key: const PageStorageKey('calendar_portrait_scroll'),
         controller: _scrollCtrl,
         anchor: 0.0, // start the center sliver at the top on cold open
-        center: _centerKey, // startup month in the current Kemetic year
+        center: _centerKey,
         slivers: [
           // PAST years
           SliverList(
             delegate: SliverChildBuilderDelegate(
               (ctx, i) {
-                final kYear = kToday.kYear - (i + 1);
+                final kYear = baseYear - (i + 1);
+                final isTodayYear = kYear == kToday.kYear;
                 return _YearSection(
                   kYear: kYear,
-                  todayMonth: null,
-                  todayDay: null,
-                  todayDayKey: null, // no anchor in past/future lists
+                  todayMonth: isTodayYear ? kToday.kMonth : null,
+                  todayDay: isTodayYear ? kToday.kDay : null,
+                  todayDayKey: isTodayYear ? _todayDayKey : null,
                   monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
                   monthHeaderKeyProvider: (m) => keyForMonthHeader(kYear, m),
                   dayAnchorKeyProvider: (m, d) =>
@@ -35092,25 +35132,26 @@ class CalendarPageState extends State<CalendarPage>
             ),
           ),
 
-          // CURRENT year, split by month so the first drawable frame does not
-          // construct every month/day card before cached content is visible.
+          // CENTER: one persistent tree, lazily split by month.
           for (var month = 1; month <= 13; month++)
-            _buildCurrentYearMonthSliver(
-              kYear: kToday.kYear,
+            _buildCenterYearMonthSliver(
+              kYear: baseYear,
               kMonth: month,
               centerMonth: centerMonth,
+              isTodayYear: centerIsTodayYear,
             ),
 
           // FUTURE years
           SliverList(
             delegate: SliverChildBuilderDelegate(
               (ctx, i) {
-                final kYear = kToday.kYear + (i + 1);
+                final kYear = baseYear + (i + 1);
+                final isTodayYear = kYear == kToday.kYear;
                 return _YearSection(
                   kYear: kYear,
-                  todayMonth: null,
-                  todayDay: null,
-                  todayDayKey: null,
+                  todayMonth: isTodayYear ? kToday.kMonth : null,
+                  todayDay: isTodayYear ? kToday.kDay : null,
+                  todayDayKey: isTodayYear ? _todayDayKey : null,
                   monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
                   monthHeaderKeyProvider: (m) => keyForMonthHeader(kYear, m),
                   dayAnchorKeyProvider: (m, d) =>

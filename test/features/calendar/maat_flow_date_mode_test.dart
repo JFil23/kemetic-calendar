@@ -1092,7 +1092,7 @@ void main() {
       expect(merge, contains('_clearPendingOnboardingTargetEvent'));
       expect(
         merge,
-        contains('bucket.add(_CalendarWarmStateStore._copyNote(pendingNote))'),
+        contains('bucket.add(_CalendarModelCopy._copyNote(pendingNote))'),
       );
       expect(merge, contains('_noteMatchesPendingOnboardingTarget'));
 

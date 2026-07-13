@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('startup calendar first paint does not eagerly build current year', () {
+  test('startup calendar keeps one lazy authoritative portrait tree', () {
     final source = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
@@ -19,24 +19,22 @@ void main() {
 
     expect(
       scrollViewSource,
-      isNot(contains('child: _YearSection(')),
+      contains('_buildCenterYearMonthSliver('),
       reason:
-          'The current year must be split into month-level slivers so the '
-          'first drawable frame does not construct every month/day card before '
-          'showing cached calendar content.',
+          'The restored center year must remain split into lazy month slivers.',
     );
-    expect(scrollViewSource, contains('_buildCurrentYearMonthSliver('));
+    expect(scrollViewSource, isNot(contains('child: _YearSection(')));
     expect(
       scrollViewSource,
-      contains('_shouldUseStartupSingleMonthCalendar'),
-      reason:
-          'A valid warm cache must draw a single selected month before the '
-          'full current-year scroll tree is allowed to build.',
+      isNot(contains('_shouldUseStartupSingleMonthCalendar')),
     );
+    expect(source, isNot(contains('calendar_portrait_scroll_startup_month')));
     expect(
       source,
-      contains('void _scheduleFullCalendarScrollAfterStartupFrame()'),
+      isNot(contains('void _scheduleFullCalendarScrollAfterStartupFrame()')),
+      reason:
+          'Startup must not replace a temporary tree with a second calendar.',
     );
-    expect(source, contains('int _currentYearCenterMonthForScroll()'));
+    expect(source, contains('int _centerYearMonthForScroll(int baseYear)'));
   });
 }

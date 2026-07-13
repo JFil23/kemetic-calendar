@@ -212,15 +212,23 @@ void main() {
         );
         expect(intent, contains('final EventDetailRestorationState detail'));
 
-        final warmStore = _sourceBetween(
+        final detachedSnapshot = _sourceBetween(
           calendar,
-          'class _CalendarWarmStateStore',
+          'class _CalendarDetachedStateSnapshot',
           'class CalendarPage extends StatefulWidget',
         );
-        expect(warmStore, contains('static void save({'));
-        expect(warmStore, contains('snapshotForUser'));
-        expect(warmStore, contains('_copyNotesByDay'));
-        expect(warmStore, contains('_copyFlow'));
+        expect(
+          detachedSnapshot,
+          contains('final Map<String, List<_Note>> notes'),
+        );
+        expect(detachedSnapshot, contains('class _CalendarModelCopy'));
+        expect(detachedSnapshot, contains('static _Note _copyNote'));
+        expect(detachedSnapshot, contains('static _Flow _copyFlow'));
+        expect(calendar, isNot(contains('class _CalendarWarmStateStore')));
+        expect(
+          calendar,
+          contains('CalendarSnapshotRepository.instance.restore'),
+        );
 
         final consumer = _sourceBetween(
           calendar,

@@ -22,14 +22,15 @@ import 'package:mobile/features/calendar/the_weighing_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
 import 'package:mobile/services/app_restoration_service.dart';
+import 'package:mobile/services/calendar_snapshot_repository.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-const String _responsiveRouteUserId =
-    '6c1681cf-09da-4e4e-9af7-72ec7e4d2f01';
+const String _responsiveRouteUserId = '6c1681cf-09da-4e4e-9af7-72ec7e4d2f01';
 const String _responsiveRouteSupabaseUrl = 'https://example.supabase.co';
 const String _responsiveRouteCachedTitle = 'Responsive Route Cached Event';
+late MemoryCalendarSnapshotStore _responsiveSnapshotStore;
 
 Future<void> _ensureSupabaseInitialized() async {
   try {
@@ -53,6 +54,11 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
+    _responsiveSnapshotStore = MemoryCalendarSnapshotStore();
+    CalendarSnapshotRepository.instance.debugReplaceStore(
+      _responsiveSnapshotStore,
+    );
+    CalendarPage.debugResetWarmStateStoreForTesting();
     kMaatFlowResponseDraftStore.clearForTesting();
     CalendarEventDetailSheetCoordinator.debugResetForTests();
   });
@@ -81,8 +87,7 @@ void main() {
 
   group('CalendarPage responsive route split', () {
     setUp(() {
-      AppRestorationService.debugUserIdResolver = () =>
-          _responsiveRouteUserId;
+      AppRestorationService.debugUserIdResolver = () => _responsiveRouteUserId;
       CalendarPage.debugSuppressPendingEventInviteOverlay = true;
       CalendarPage.debugSuppressCalendarOnboardingHelpers = true;
     });
@@ -2861,9 +2866,7 @@ Future<void> _disposeCalendarPageAndDrainTimers(WidgetTester tester) async {
 Finder _portraitCalendarScrollFinder() {
   return find.byWidgetPredicate((widget) {
     final key = widget.key;
-    return key is PageStorageKey &&
-        (key.value == 'calendar_portrait_scroll' ||
-            key.value == 'calendar_portrait_scroll_startup_month');
+    return key is PageStorageKey && key.value == 'calendar_portrait_scroll';
   });
 }
 
@@ -2872,26 +2875,38 @@ Future<void> _prepareResponsiveCalendarStartupState() async {
     await _recoverResponsiveRouteTestSession();
   }
   final prefs = await SharedPreferences.getInstance();
-  await prefs.setBool(
-    'onboarding_v1_completed:$_responsiveRouteUserId',
-    true,
-  );
+  await prefs.setBool('onboarding_v1_completed:$_responsiveRouteUserId', true);
   await prefs.setBool('calendar:cid_migration_done', true);
-  await prefs.setString(
-    _responsiveRouteWarmCacheKey(),
-    jsonEncode(_responsiveRouteWarmSnapshot()),
+  final identity = _responsiveRouteSnapshotIdentity();
+  final now = DateTime.now().toUtc();
+  await CalendarSnapshotRepository.instance.promote(
+    CalendarSnapshotCandidate(
+      identity: identity,
+      coverage: CalendarSnapshotCoverage(
+        startUtc: now.subtract(const Duration(days: 365)),
+        endUtc: now.add(const Duration(days: 365)),
+      ),
+      completedLanes: calendarSnapshotRequiredLanes,
+      generation: 1,
+      payload: Map<String, dynamic>.from(_responsiveRouteWarmSnapshot()),
+      source: 'responsive_route_test',
+    ),
   );
 }
 
-String _responsiveRouteWarmCacheKey() {
-  final key = calendarWarmStartCacheKeyForUrl(
-    supabaseUrl: _responsiveRouteSupabaseUrl,
+CalendarSnapshotIdentity _responsiveRouteSnapshotIdentity() {
+  final projectRef = calendarWarmStartProjectRefFromUrl(
+    _responsiveRouteSupabaseUrl,
+  );
+  if (projectRef == null) {
+    throw StateError(
+      'Responsive route test Supabase URL must produce a project ref.',
+    );
+  }
+  return CalendarSnapshotIdentity(
+    projectRef: projectRef,
     userId: _responsiveRouteUserId,
   );
-  if (key == null) {
-    throw StateError('Responsive route test Supabase URL must produce a key.');
-  }
-  return key;
 }
 
 Map<String, Object?> _responsiveRouteWarmSnapshot() {

@@ -29,9 +29,16 @@ void main() {
       contains('_syncAcceptedInviteCalendarImportsInBackground(reason)'),
     );
     expect(startup, contains('final keepWarmStartVisible'));
-    expect(startup, contains("source: 'startup_cold_authoritative:\$reason'"));
+    expect(
+      startup,
+      contains("source: 'startup_focused_authoritative:\$reason'"),
+    );
     expect(startup, contains("source: 'startup_backfill:\$reason'"));
-    expect(startup, contains('if (keepWarmStartVisible) {'));
+    expect(
+      startup,
+      contains('await _awaitInitialViewportSettlementForFirstPaint();'),
+    );
+    expect(startup, contains('if (!keepWarmStartVisible) {'));
     expect(
       startup.indexOf('await _initialPersistedViewStateLoad;'),
       lessThan(startup.indexOf("await _restoreWarmStartCacheIfAvailable")),
@@ -49,13 +56,22 @@ void main() {
     expect(
       startup.indexOf('final keepWarmStartVisible'),
       lessThan(
-        startup.indexOf("source: 'startup_cold_authoritative:\$reason'"),
+        startup.indexOf("source: 'startup_focused_authoritative:\$reason'"),
       ),
     );
     expect(
-      startup.indexOf("source: 'startup_cold_authoritative:\$reason'"),
+      startup.indexOf("source: 'startup_focused_authoritative:\$reason'"),
+      lessThan(
+        startup.indexOf(
+          'await _awaitInitialViewportSettlementForFirstPaint();',
+        ),
+      ),
+    );
+    expect(
+      startup.indexOf('await _awaitInitialViewportSettlementForFirstPaint();'),
       lessThan(startup.indexOf("source: 'startup_backfill:\$reason'")),
     );
+    expect(startup, isNot(contains('startup_cold_authoritative')));
     expect(
       startup,
       isNot(contains("await _loadFromDisk(source: 'startup:\$reason')")),
@@ -79,7 +95,33 @@ void main() {
       lessThan(load.indexOf(completeCommitMarker)),
     );
     expect(load, isNot(contains('fastStartupMode')));
-    expect(load, isNot(contains('focusWindow')));
+    expect(load, contains('final focusWindow = focusedStartupMode'));
+    expect(load, contains('_computeStartupVisibleHydrationWindow()'));
+    expect(load, contains('_clampHydrationWindowToFocus'));
+    expect(load, contains('_expandHydrationWindowToInclude'));
+  });
+
+  test('portrait calendar centers its lazy year range on restored state', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final scroll = _sourceBetween(
+      source,
+      'Widget _buildCalendarScrollView() {',
+      'Map<int, FlowData> _buildCalendarFlowChromeIndex()',
+    );
+
+    expect(
+      scroll,
+      contains(
+        'final baseYear = _calendarScrollBaseYear ?? _lastViewKy ?? kToday.kYear;',
+      ),
+    );
+    expect(scroll, contains('final kYear = baseYear - (i + 1);'));
+    expect(scroll, contains('kYear: baseYear,'));
+    expect(scroll, contains('final kYear = baseYear + (i + 1);'));
+    expect(scroll, isNot(contains('final kYear = kToday.kYear - (i + 1);')));
+    expect(scroll, isNot(contains('final kYear = kToday.kYear + (i + 1);')));
   });
 
   test('no-op invite import sync does not publish calendar invalidation', () {
