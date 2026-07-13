@@ -9222,7 +9222,6 @@ class CalendarPageState extends State<CalendarPage>
   double? _lastKnownCalendarScrollOffset;
   String? _restoredCalendarAnchorTarget;
   double? _restoredCalendarAnchorAlignment;
-  double? _restoredCalendarScrollOffset;
   int _lastCalendarProgressSaveAtMs = 0;
   bool _calendarProgressSaveInFlight = false;
   DayViewRestorationState? _activeDayViewRestorationState;
@@ -9263,7 +9262,9 @@ class CalendarPageState extends State<CalendarPage>
   Future<_MyFlowsFilingSnapshot>? _myFlowsFilingSnapshotLoadInFlight;
   int _nextFlowId = 1;
   // Removed _nextAlarmId; notifications are persisted via Notify.scheduleAlertWithPersistence
-  final ScrollController _scrollCtrl = ScrollController();
+  final ScrollController _scrollCtrl = ScrollController(
+    keepScrollOffset: false,
+  );
   MonthExpansionLevel _monthExpansion = MonthExpansionLevel.compact;
   MonthExpansionLevel? _monthExpansionRestorationTarget;
   bool _currentDecanVisibleInViewport = true;
@@ -13973,7 +13974,6 @@ class CalendarPageState extends State<CalendarPage>
     _calendarOverlayRestoreAttempted = true;
     _restoredCalendarAnchorTarget = null;
     _restoredCalendarAnchorAlignment = null;
-    _restoredCalendarScrollOffset = null;
     _restorationInteractedSinceBoot = true;
     _restored = true;
     _initialViewportSettled = true;
@@ -14274,7 +14274,6 @@ class CalendarPageState extends State<CalendarPage>
     _calendarOverlayRestoreAttempted = true;
     _restoredCalendarAnchorTarget = null;
     _restoredCalendarAnchorAlignment = null;
-    _restoredCalendarScrollOffset = null;
     _restorationInteractedSinceBoot = true;
     _restored = true;
     _initialViewportSettled = true;
@@ -17068,16 +17067,11 @@ class CalendarPageState extends State<CalendarPage>
     int? overrideKy,
     int? overrideKm,
     int? overrideKd,
-    double? overrideScrollOffset,
   }) {
     final ky = overrideKy ?? _lastViewKy ?? _today.kYear;
     final km = overrideKm ?? _lastViewKm ?? _today.kMonth;
     final maxDay = _maxDayForMonth(ky, km);
     final kd = (overrideKd ?? _lastViewKd ?? _today.kDay).clamp(1, maxDay);
-    final scrollOffset =
-        overrideScrollOffset ??
-        (_scrollCtrl.hasClients ? _scrollCtrl.position.pixels : null) ??
-        _lastKnownCalendarScrollOffset;
     final viewportAnchor = _currentViewportCalendarAnchor();
     return CalendarRestorationState(
       kYear: ky,
@@ -17089,7 +17083,6 @@ class CalendarPageState extends State<CalendarPage>
       anchorAlignment: viewportAnchor?.alignment,
       viewportHeight: _currentViewportHeight(),
       layoutRevision: _kCalendarRestorationLayoutRevision,
-      scrollOffset: scrollOffset,
     );
   }
 
@@ -17097,7 +17090,9 @@ class CalendarPageState extends State<CalendarPage>
     CalendarRestorationState state, {
     required String reason,
   }) async {
-    _lastKnownCalendarScrollOffset = state.scrollOffset;
+    if (state.scrollOffset != null) {
+      _lastKnownCalendarScrollOffset = state.scrollOffset;
+    }
     await AppRestorationService.instance.saveCalendarState(state);
     await SessionResumeService.saveScopedState(_kSessionScopeCalendarView, {
       'schemaVersion': _kCalendarViewStateSchemaVersion,
@@ -17358,7 +17353,6 @@ class CalendarPageState extends State<CalendarPage>
       _persistentDayViewRestoreAttempted = false;
       _restoredCalendarAnchorTarget = null;
       _restoredCalendarAnchorAlignment = null;
-      _restoredCalendarScrollOffset = null;
       _restorationInteractedSinceBoot = false;
       _restored = true;
       return;
@@ -17370,7 +17364,6 @@ class CalendarPageState extends State<CalendarPage>
       _persistentDayViewRestoreAttempted = false;
       _restoredCalendarAnchorTarget = null;
       _restoredCalendarAnchorAlignment = null;
-      _restoredCalendarScrollOffset = null;
       _restorationInteractedSinceBoot = false;
       _restored = true;
     });
@@ -17581,7 +17574,6 @@ class CalendarPageState extends State<CalendarPage>
           _monthExpansion = _parseExpansion(savedCalendar.expansion);
           _restoredCalendarAnchorTarget = savedCalendar.anchorTarget;
           _restoredCalendarAnchorAlignment = savedCalendar.anchorAlignment;
-          _restoredCalendarScrollOffset = savedCalendar.scrollOffset;
           _pendingPersistentDayViewState =
               shouldRestoreDayViewRoute &&
                   savedDayView != null &&
@@ -17711,23 +17703,8 @@ class CalendarPageState extends State<CalendarPage>
             _restoredCalendarAnchorAlignment = null;
           }
         }
-        final restoredOffset = _restoredCalendarScrollOffset;
-        if (!ok &&
-            restoredOffset != null &&
-            _scrollCtrl.hasClients &&
-            _scrollCtrl.position.hasContentDimensions) {
-          final position = _scrollCtrl.position;
-          final clamped = restoredOffset.clamp(
-            position.minScrollExtent,
-            position.maxScrollExtent,
-          );
-          _scrollCtrl.jumpTo(clamped);
-          _lastKnownCalendarScrollOffset = clamped.toDouble();
-          _restoredCalendarAnchorTarget = null;
-          _restoredCalendarAnchorAlignment = null;
-          _restoredCalendarScrollOffset = null;
-          ok = true;
-        }
+        // Raw pixels belong to the previous sliver geometry. Cross-recreation
+        // restoration is anchored by the persisted Kemetic date instead.
         ok = ok || _jumpToCurrentViewNow(animate: false);
         if (!ok) {
           _materializeCurrentViewYearForRestore();
@@ -17735,7 +17712,6 @@ class CalendarPageState extends State<CalendarPage>
         if (ok || tries >= 20) {
           _restoredCalendarAnchorTarget = null;
           _restoredCalendarAnchorAlignment = null;
-          _restoredCalendarScrollOffset = null;
           finishRestore();
         } else {
           attemptRestore(tries + 1);

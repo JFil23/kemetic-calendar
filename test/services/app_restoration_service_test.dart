@@ -525,6 +525,40 @@ void main() {
   });
 
   test(
+    'keeps logical calendar position when a legacy centered offset is negative',
+    () async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _snapshotKey(),
+        jsonEncode({
+          'schemaVersion': AppRestorationService.schemaVersion,
+          'userId': 'user-1',
+          'windowId': 'window-1',
+          'updatedAtMs': 1234,
+          'calendar': {
+            'kYear': 6267,
+            'kMonth': 4,
+            'kDay': 12,
+            'showGregorian': false,
+            'expansion': 'details',
+            'anchorTarget': 'dayChip',
+            'anchorAlignment': 0.5,
+            'scrollOffset': -163.0,
+          },
+        }),
+      );
+
+      final snapshot = await AppRestorationService.instance.readSnapshot();
+
+      expect(snapshot?.calendar, isNotNull);
+      expect(snapshot?.calendar?.kYear, 6267);
+      expect(snapshot?.calendar?.kMonth, 4);
+      expect(snapshot?.calendar?.kDay, 12);
+      expect(snapshot?.calendar?.scrollOffset, isNull);
+    },
+  );
+
+  test(
     'drops invalid nested restoration payloads without losing route',
     () async {
       final prefs = await SharedPreferences.getInstance();

@@ -291,6 +291,8 @@ class CalendarRestorationState {
     final anchorAlignment = (json['anchorAlignment'] as num?)?.toDouble();
     final viewportHeight = (json['viewportHeight'] as num?)?.toDouble();
     final layoutRevision = _asInt(json['layoutRevision']);
+    // Older centered calendar trees could persist negative raw offsets. The
+    // logical Kemetic date remains valid even when that optional pixel is not.
     final scrollOffset = _readOptionalScrollOffset(json);
     if (kYear == null ||
         kMonth == null ||
@@ -316,10 +318,7 @@ class CalendarRestorationState {
                 viewportHeight <= 0)) ||
         (json.containsKey('layoutRevision') &&
             json['layoutRevision'] != null &&
-            (layoutRevision == null || layoutRevision < 1)) ||
-        (json.containsKey('scrollOffset') &&
-            json['scrollOffset'] != null &&
-            scrollOffset == null)) {
+            (layoutRevision == null || layoutRevision < 1))) {
       return null;
     }
     return CalendarRestorationState(

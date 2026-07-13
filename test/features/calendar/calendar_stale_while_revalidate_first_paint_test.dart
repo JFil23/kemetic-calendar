@@ -376,6 +376,72 @@ void main() {
       },
     );
 
+    testWidgets('logical saved month wins over a stale portrait pixel offset', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+      final today = KemeticMath.fromGregorian(DateTime.now());
+      final target = _nonTodayRestorationTarget(today);
+      final prefs = await SharedPreferences.getInstance();
+      await _seedCalendarRestorationPrefs(
+        prefs,
+        target: target,
+        includeAnchor: false,
+        scrollOffset: 100000,
+      );
+      await _seedWarmSnapshot(title: _cachedTitle, target: target);
+      _backend.blockRefresh = true;
+
+      final frames = <_CalendarMovementFrame>[];
+      await _pumpCalendar(tester);
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 25));
+        await _recordMovementFrame(
+          tester,
+          frames,
+          today: today,
+          target: target,
+        );
+        if (i % 4 == 0) {
+          await tester.runAsync<void>(() async {
+            await Future<void>.delayed(Duration.zero);
+          });
+        }
+      }
+
+      final firstMeaningful = frames.where((frame) => frame.meaningful).first;
+      expect(
+        firstMeaningful.savedMonthVisible,
+        isTrue,
+        reason:
+            'The logical Kemetic month is authoritative across a rebuilt '
+            'scroll tree; a stale raw pixel offset must not publish another '
+            'month first. frames=${_movementFrameSummary(frames)}',
+      );
+    });
+
+    testWidgets(
+      'portrait scroll does not use PageStorage as a second restore authority',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        await _seedWarmSnapshot(title: _cachedTitle);
+        _backend.blockRefresh = true;
+
+        await _pumpCalendar(tester);
+        final scrollView = tester.widget<CustomScrollView>(
+          find.byKey(const PageStorageKey('calendar_portrait_scroll')),
+        );
+
+        expect(
+          scrollView.controller?.keepScrollOffset,
+          isFalse,
+          reason:
+              'AppRestorationService owns cross-recreation calendar position; '
+              'PageStorage must not apply an unrelated raw pixel offset first.',
+        );
+      },
+    );
+
     testWidgets('one Today tap wins over an in-flight persisted restore', (
       tester,
     ) async {
@@ -1467,6 +1533,8 @@ Future<void> _seedWarmSnapshot({
 Future<void> _seedCalendarRestorationPrefs(
   SharedPreferences prefs, {
   ({int kYear, int kMonth, int kDay})? target,
+  bool includeAnchor = true,
+  double? scrollOffset,
 }) async {
   final kToday = KemeticMath.fromGregorian(DateTime.now());
   final restored = target ?? kToday;
@@ -1482,10 +1550,11 @@ Future<void> _seedCalendarRestorationPrefs(
       'kDay': restored.kDay,
       'showGregorian': false,
       'expansion': 'details',
-      'anchorTarget': 'dayChip',
-      'anchorAlignment': 0.5,
+      if (includeAnchor) 'anchorTarget': 'dayChip',
+      if (includeAnchor) 'anchorAlignment': 0.5,
       'viewportHeight': 1200.0,
       'layoutRevision': 1,
+      if (scrollOffset != null) 'scrollOffset': scrollOffset,
     },
   };
 
