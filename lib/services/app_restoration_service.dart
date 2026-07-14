@@ -708,11 +708,15 @@ class _SnapshotCandidate {
     required this.snapshot,
     required this.raw,
     required this.source,
+    this.precedenceSource,
   });
 
   final AppRestorationSnapshot snapshot;
   final Map<String, dynamic> raw;
   final String source;
+  final String? precedenceSource;
+
+  String get sourceForPrecedence => precedenceSource ?? source;
 }
 
 class _PendingCalendarRestorationIntent {
@@ -807,6 +811,19 @@ class AppRestorationService {
   static String? Function()? debugPlatformLastActiveUserIdReader;
   static void Function(String? userId)? debugPlatformLastActiveUserIdWriter;
   static void Function(String message)? debugLogWriter;
+
+  /// Tie-break order for divergent snapshots with the same provenance time.
+  ///
+  /// Current-window stores outrank cross-window/latest stores, and every local
+  /// store outranks remote state. Higher values are more authoritative.
+  static const Map<String, int> _snapshotSourcePrecedence = <String, int>{
+    'prefs': 500,
+    'critical': 400,
+    'latest_prefs': 300,
+    'latest_critical': 200,
+    'remote_window': 100,
+    'remote_latest': 90,
+  };
 
   String? _deviceId;
   Future<String>? _deviceIdFuture;
@@ -1253,6 +1270,7 @@ class AppRestorationService {
     String userId,
     String windowId, {
     required bool clearIfInvalid,
+    String precedenceSource = 'prefs',
   }) async {
     final raw = await _loadRawFor(
       userId,
@@ -1304,6 +1322,7 @@ class AppRestorationService {
       snapshot: snapshot,
       raw: migrated,
       source: 'prefs',
+      precedenceSource: precedenceSource,
     );
     _log('candidate loaded ${_candidateTrace(candidate)}');
     return candidate;
@@ -1634,6 +1653,7 @@ class AppRestorationService {
         userId,
         windowId,
         clearIfInvalid: clearIfInvalid,
+        precedenceSource: 'latest_prefs',
       );
       if (candidate != null) {
         candidates.add(candidate);
@@ -1649,12 +1669,46 @@ class AppRestorationService {
     for (final candidate in candidates) {
       final currentWinner = winner;
       if (currentWinner == null ||
-          candidate.snapshot.updatedAtMs >=
-              currentWinner.snapshot.updatedAtMs) {
+          _candidateOutranks(candidate, currentWinner)) {
         winner = candidate;
       }
     }
     return winner;
+  }
+
+  bool _candidateOutranks(
+    _SnapshotCandidate candidate,
+    _SnapshotCandidate incumbent,
+  ) {
+    final candidateTimestamp = candidate.snapshot.updatedAtMs;
+    final incumbentTimestamp = incumbent.snapshot.updatedAtMs;
+    if (candidateTimestamp != incumbentTimestamp) {
+      return candidateTimestamp > incumbentTimestamp;
+    }
+
+    final candidateDigest = _restorationContentDigest(candidate.raw);
+    final incumbentDigest = _restorationContentDigest(incumbent.raw);
+    if (candidateDigest == incumbentDigest) {
+      return false;
+    }
+
+    final candidateSource = candidate.sourceForPrecedence;
+    final incumbentSource = incumbent.sourceForPrecedence;
+    final candidateRank = _snapshotSourcePrecedence[candidateSource] ?? 0;
+    final incumbentRank = _snapshotSourcePrecedence[incumbentSource] ?? 0;
+    _log(
+      'candidate collision updatedAtMs=$candidateTimestamp '
+      'candidateSource=$candidateSource incumbentSource=$incumbentSource '
+      'reason=timestamp_collision_content_divergence',
+    );
+    if (candidateRank != incumbentRank) {
+      return candidateRank > incumbentRank;
+    }
+    final sourceOrder = candidateSource.compareTo(incumbentSource);
+    if (sourceOrder != 0) {
+      return sourceOrder < 0;
+    }
+    return candidateDigest.compareTo(incumbentDigest) < 0;
   }
 
   Future<_SnapshotCandidate?> _readSnapshotCandidateForUser(

@@ -728,6 +728,60 @@ void main() {
     );
   });
 
+  test('equal timestamp and content keeps current-window prefs', () async {
+    final raw = <String, dynamic>{
+      'schemaVersion': AppRestorationService.schemaVersion,
+      'userId': 'user-1',
+      'windowId': 'window-1',
+      'updatedAtMs': 2000,
+      ..._durableRouteFields('/inbox'),
+    };
+    final serialized = jsonEncode(raw);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_snapshotKey(), serialized);
+    _debugCriticalSnapshots['window-1'] = serialized;
+
+    final result = await AppRestorationService.instance.readBestSnapshot();
+
+    expect(result.source, 'prefs');
+    expect(result.snapshot?.routeLocation, '/inbox');
+  });
+
+  test(
+    'equal timestamp divergence traces collision and uses source precedence',
+    () async {
+      final logs = <String>[];
+      AppRestorationService.debugLogWriter = logs.add;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _snapshotKey(),
+        jsonEncode({
+          'schemaVersion': AppRestorationService.schemaVersion,
+          'userId': 'user-1',
+          'windowId': 'window-1',
+          'updatedAtMs': 2000,
+          ..._durableRouteFields('/inbox'),
+        }),
+      );
+      _debugCriticalSnapshots['window-1'] = jsonEncode({
+        'schemaVersion': AppRestorationService.schemaVersion,
+        'userId': 'user-1',
+        'windowId': 'window-1',
+        'updatedAtMs': 2000,
+        ..._durableRouteFields('/journal'),
+      });
+
+      final result = await AppRestorationService.instance.readBestSnapshot();
+
+      expect(result.source, 'prefs');
+      expect(result.snapshot?.routeLocation, '/inbox');
+      expect(
+        logs,
+        contains(contains('reason=timestamp_collision_content_divergence')),
+      );
+    },
+  );
+
   test('restores the latest snapshot when the window id changes', () async {
     await _saveDurableRoute('/settings');
     await AppRestorationService.instance.saveCalendarState(
