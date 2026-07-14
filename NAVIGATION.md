@@ -191,6 +191,47 @@ separate layers:
 - One-shot intents never write durable state until they resolve into a real
   visible route.
 
+### Termination-Safe Primary Route Restoration
+
+- `UX-RESTORE-001`: A durable primary-route selection must update the
+  termination-safe critical snapshot synchronously in the same task as the user
+  action and before the route request.
+- `UX-RESTORE-002`: Shared mutation queues, cloud persistence, and secondary
+  local writes may run asynchronously, but cannot gate, delay, or reorder the
+  critical route snapshot.
+- `UX-RESTORE-003`: If the process terminates immediately after the target route
+  becomes visible, the next launch must restore that target without requiring
+  any pending future to complete.
+- `UX-RESTORE-004`: Only `recordPrimaryTabSelection(AppSection)` may write
+  durable primary navigation state.
+- `UX-RESTORE-005`: Restoration must not paint default Calendar as an
+  intermediate or fallback when the critical snapshot identifies another valid
+  primary destination.
+
+`UX-NAV-001` still applies: synchronous critical recording plus route dispatch
+must keep `tap_up → route_requested` p95 at or below 20 ms.
+
+#### Deterministic Regression Test
+
+The termination-safety regression test must:
+
+1. Seed Calendar as the stored destination.
+2. Block the shared asynchronous mutation queue.
+3. Open Planner through the real production handler.
+4. Do not await the persistence future or settle queued work.
+5. Read the critical snapshot or instantiate a fresh restoration service.
+6. Assert that Planner is already durable and restores.
+7. Release the blocked queue only after the assertion.
+
+This test must be red on `ac0780c`. A test that awaits the write is invalid.
+
+#### Device Gate
+
+Run five consecutive Planner → immediate swipe-termination → relaunch cycles.
+Planner must restore five out of five times, with no Calendar fallback and no
+loading-wheel-to-wrong-route sequence. Record the full build identity at the
+beginning and end of the gate.
+
 Smoke caveat: the deployed schema currently does not expose
 `user_onboarding_helper_completions`, so onboarding helper overlays can appear
 for the disposable PWA smoke account. Dismiss them manually per device during
