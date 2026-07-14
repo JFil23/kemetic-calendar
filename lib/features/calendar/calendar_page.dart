@@ -96,6 +96,7 @@ import '../../services/app_restoration_service.dart';
 import '../../services/app_navigation_restoration_controller.dart';
 import '../../services/day_view_restoration_write_gate.dart';
 import '../../services/restoration_coordinator.dart';
+import '../../services/restoration_trace.dart';
 import '../../services/session_resume_service.dart';
 import '../../services/navigation_trace.dart';
 import '../../core/push_intent_bus.dart';
@@ -13554,6 +13555,7 @@ class CalendarPageState extends State<CalendarPage>
   static const String _kCalendarAnchorTargetDayChip = 'dayChip';
   static const String _kCalendarAnchorTargetMonthHeader = 'monthHeader';
   static const String _kCalendarAnchorTargetMonthBody = 'monthBody';
+  static const Duration _initialViewportRestoreDeadline = Duration(seconds: 5);
 
   bool _initialJumpScheduled = false;
   bool _initialViewportSettled = false;
@@ -17661,8 +17663,12 @@ class CalendarPageState extends State<CalendarPage>
     if (_initialJumpScheduled) return;
     _initialJumpScheduled = true;
     _initialViewportSettlementCompleter = Completer<void>();
+    final restoreIntentLease = RestorationCoordinator.instance
+        .captureUserIntentLease();
+    final restoreStopwatch = Stopwatch()..start();
 
     void finishRestore() {
+      restoreStopwatch.stop();
       final settlement = _initialViewportSettlementCompleter;
       if (settlement != null && !settlement.isCompleted) {
         settlement.complete();
@@ -17681,6 +17687,26 @@ class CalendarPageState extends State<CalendarPage>
     void attemptRestore(int tries) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) {
+          finishRestore();
+          return;
+        }
+        if (!restoreIntentLease.isCurrent) {
+          traceRestoration(
+            'calendar viewport restore skipped '
+            'reason=user_intent_during_viewport_restore tries=$tries',
+          );
+          _restoredCalendarAnchorTarget = null;
+          _restoredCalendarAnchorAlignment = null;
+          finishRestore();
+          return;
+        }
+        if (restoreStopwatch.elapsed >= _initialViewportRestoreDeadline) {
+          traceRestoration(
+            'calendar viewport restore skipped '
+            'reason=viewport_restore_deadline_elapsed tries=$tries',
+          );
+          _restoredCalendarAnchorTarget = null;
+          _restoredCalendarAnchorAlignment = null;
           finishRestore();
           return;
         }
@@ -31642,6 +31668,8 @@ class CalendarPageState extends State<CalendarPage>
       final preservedScrollOffset = preserveViewport
           ? _calendarScrollOffsetForPreservation()
           : null;
+      final preservedScrollIntentLease = RestorationCoordinator.instance
+          .captureUserIntentLease();
       await _ensureManualDeleteTombstonesLoaded();
       final focusedStartupMode = source.startsWith(
         'startup_focused_authoritative:',
@@ -31987,8 +32015,14 @@ class CalendarPageState extends State<CalendarPage>
         if (!committedVisibleCalendar &&
             preserveViewport &&
             preservedScrollOffset != null) {
-          _lastKnownCalendarScrollOffset = preservedScrollOffset;
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!preservedScrollIntentLease.isCurrent) {
+              traceRestoration(
+                'calendar hydration viewport replay skipped '
+                'reason=user_intent_during_hydration_replay source=$source',
+              );
+              return;
+            }
             final position = _singleCalendarScrollPosition();
             if (!mounted ||
                 position == null ||
@@ -35035,13 +35069,13 @@ class CalendarPageState extends State<CalendarPage>
     // ✅ FIX 4: Wrap with NotificationListener to capture scroll-end events
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
-        if (!_initialViewportSettled) return false;
         if (notification is ScrollStartNotification &&
             notification.dragDetails != null) {
           RestorationCoordinator.instance.noteCalendarViewportIntent(
             reason: 'calendar_scroll_started',
           );
         }
+        if (!_initialViewportSettled) return false;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _refreshCurrentDecanViewportAnchor();
         });
