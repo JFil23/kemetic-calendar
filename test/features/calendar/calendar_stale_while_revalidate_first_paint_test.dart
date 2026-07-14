@@ -13,6 +13,7 @@ import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/services/app_restoration_service.dart';
 import 'package:mobile/services/app_window_service.dart';
 import 'package:mobile/services/calendar_snapshot_repository.dart';
+import 'package:mobile/services/navigation_trace.dart';
 import 'package:mobile/services/restoration_coordinator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -527,6 +528,40 @@ void main() {
           reason:
               'Fresh row has the same client_event_id and should replace the '
               'warm copy without duplication. frames=$frames',
+        );
+      },
+    );
+
+    testWidgets(
+      'enabled trace records hydration model continuity through the next frame',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        await _seedWarmSnapshot(title: _cachedTitle);
+        _backend.blockRefresh = true;
+        _backend.freshStandaloneEvents = <Map<String, Object?>>[
+          _standaloneEventRow(title: _freshTitle),
+        ];
+        await NavigationTrace.instance.setEnabled(true);
+        addTearDown(() => NavigationTrace.instance.setEnabled(false));
+
+        await _pumpCalendar(tester);
+        await _releaseAndPumpUntilTextVisible(tester, _freshTitle, <String>[]);
+        await tester.pump();
+
+        final entries = NavigationTrace.instance.entries;
+        expect(
+          entries.any((entry) => entry.contains('calendar hydration commit')),
+          isTrue,
+          reason:
+              'The trace must capture model counts at the hydration commit.',
+        );
+        expect(
+          entries.any(
+            (entry) => entry.contains('calendar hydration post-frame'),
+          ),
+          isTrue,
+          reason:
+              'The trace must sample the same model again after Flutter paints.',
         );
       },
     );

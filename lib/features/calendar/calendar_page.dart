@@ -9022,6 +9022,23 @@ class CalendarPageState extends State<CalendarPage>
   bool get debugTodayAnchorVisibleForTesting =>
       _isTodayDayAnchorVisibleInCalendarViewport();
 
+  ({String view, int days, int events}) _calendarHydrationTraceSnapshot() {
+    final kYear = _lastViewKy ?? _today.kYear;
+    final kMonth = _lastViewKm ?? _today.kMonth;
+    final lastDay = kMonth == 13
+        ? (KemeticMath.isLeapKemeticYear(kYear) ? 6 : 5)
+        : 30;
+    var days = 0;
+    var events = 0;
+    for (var kDay = 1; kDay <= lastDay; kDay++) {
+      final visible = _getNotes(kYear, kMonth, kDay);
+      if (visible.isEmpty) continue;
+      days++;
+      events += visible.length;
+    }
+    return (view: '$kYear-$kMonth', days: days, events: events);
+  }
+
   void _bumpDataVersion() {
     // why: force landscape PageView child to reconstruct once when data hydrates
     if (!mounted) return;
@@ -31957,6 +31974,11 @@ class CalendarPageState extends State<CalendarPage>
           }
         });
 
+        final hydrationTraceEnabled = NavigationTrace.instance.enabled;
+        final hydrationTraceBefore = hydrationTraceEnabled
+            ? _calendarHydrationTraceSnapshot()
+            : null;
+
         _flows
           ..clear()
           ..addAll(newFlows);
@@ -32012,6 +32034,37 @@ class CalendarPageState extends State<CalendarPage>
           _warmStartSnapshotVisible = false;
         }
         _bumpDataVersion();
+        if (hydrationTraceBefore != null) {
+          final hydrationTraceAfter = _calendarHydrationTraceSnapshot();
+          final hydrationTraceGeneration = _dataVersion;
+          NavigationTrace.instance.record(
+            'calendar hydration commit',
+            state: <String, Object?>{
+              'src': source,
+              'phase': phase,
+              'view': hydrationTraceAfter.view,
+              'before':
+                  '${hydrationTraceBefore.days}/${hydrationTraceBefore.events}',
+              'after':
+                  '${hydrationTraceAfter.days}/${hydrationTraceAfter.events}',
+              'gen': hydrationTraceGeneration,
+            },
+          );
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            final postFrame = _calendarHydrationTraceSnapshot();
+            NavigationTrace.instance.record(
+              'calendar hydration post-frame',
+              state: <String, Object?>{
+                'src': source,
+                'view': postFrame.view,
+                'model': '${postFrame.days}/${postFrame.events}',
+                'commitGen': hydrationTraceGeneration,
+                'currentGen': _dataVersion,
+              },
+            );
+          });
+        }
         if (!committedVisibleCalendar &&
             preserveViewport &&
             preservedScrollOffset != null) {
