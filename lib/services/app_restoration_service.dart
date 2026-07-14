@@ -1235,6 +1235,14 @@ class AppRestorationService {
     if (raw == null) {
       return null;
     }
+    final provenanceTimestamp = _asInt(raw['updatedAtMs']);
+    if (provenanceTimestamp == null || provenanceTimestamp < 0) {
+      _log(
+        'candidate rejected source=$source expectedUser=$expectedUserId '
+        'reason=no_provenance_timestamp',
+      );
+      return null;
+    }
     final migrated = _migrateRawSnapshot(raw);
     if (migrated == null) {
       return null;
@@ -1824,10 +1832,17 @@ class AppRestorationService {
     String windowId,
   ) async {
     final raw = Map<String, dynamic>.from(candidate.raw);
+    final provenanceTimestamp = _asInt(raw['updatedAtMs']);
+    if (provenanceTimestamp == null || provenanceTimestamp < 0) {
+      _log(
+        'adoption rejected source=${candidate.source} user=$userId '
+        'window=$windowId reason=no_provenance_timestamp',
+      );
+      return null;
+    }
     raw['schemaVersion'] = schemaVersion;
     raw['userId'] = userId;
     raw['windowId'] = windowId;
-    raw['updatedAtMs'] = DateTime.now().millisecondsSinceEpoch;
     final snapshot = AppRestorationSnapshot.fromJson(raw);
     if (snapshot == null) {
       return null;

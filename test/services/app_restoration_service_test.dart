@@ -942,6 +942,60 @@ void main() {
     },
   );
 
+  test('remote adoption preserves provenance across local stores', () async {
+    const provenanceTime = 9000;
+    _debugRemoteLatestSnapshots['user-1'] = {
+      'schemaVersion': AppRestorationService.schemaVersion,
+      'userId': 'user-1',
+      'windowId': 'remote-window',
+      'updatedAtMs': provenanceTime,
+      ..._durableRouteFields('/nodes'),
+    };
+
+    final result = await AppRestorationService.instance.readBestSnapshot(
+      includeRemote: true,
+    );
+
+    expect(result.snapshot?.updatedAtMs, provenanceTime);
+    final prefs = await SharedPreferences.getInstance();
+    final persisted = <String?>[
+      prefs.getString(_snapshotKey()),
+      prefs.getString('app_restoration_latest_v2:user-1'),
+      _debugCriticalSnapshots['window-1'],
+      _debugLatestCriticalSnapshots['user-1'],
+    ];
+    expect(persisted, everyElement(isNotNull));
+    for (final encoded in persisted) {
+      final raw = jsonDecode(encoded!) as Map<String, dynamic>;
+      expect(raw['updatedAtMs'], provenanceTime);
+      expect(raw['windowId'], 'window-1');
+    }
+    expect(prefs.getString('app_restoration_last_user_v2'), 'user-1');
+    expect(_debugPlatformLastActiveUserId, 'user-1');
+  });
+
+  test('remote adoption rejects a missing provenance timestamp', () async {
+    _debugRemoteLatestSnapshots['user-1'] = {
+      'schemaVersion': AppRestorationService.schemaVersion,
+      'userId': 'user-1',
+      'windowId': 'remote-window',
+      ..._durableRouteFields('/nodes'),
+    };
+
+    final result = await AppRestorationService.instance.readBestSnapshot(
+      includeRemote: true,
+    );
+
+    expect(result.status, AppRestorationReadStatus.noSnapshot);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString(_snapshotKey()), isNull);
+    expect(prefs.getString('app_restoration_latest_v2:user-1'), isNull);
+    expect(_debugCriticalSnapshots, isEmpty);
+    expect(_debugLatestCriticalSnapshots, isEmpty);
+    expect(prefs.getString('app_restoration_last_user_v2'), isNull);
+    expect(_debugPlatformLastActiveUserId, isNull);
+  });
+
   test(
     'does not prefer a route-only backend latest snapshot over current root',
     () async {
