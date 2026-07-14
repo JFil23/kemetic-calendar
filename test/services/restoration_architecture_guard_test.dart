@@ -192,7 +192,7 @@ void main() {
 
         expect(
           nullBranch,
-          contains('final trimmedCurrent = currentRoute.trim();'),
+          contains('final trimmedCurrent = _routerLocationForTrace().trim();'),
         );
         expect(
           nullBranch,
@@ -218,6 +218,33 @@ void main() {
           nullBranch.indexOf('restoreLaunchDestination'),
           lessThan(nullBranch.lastIndexOf('return;')),
         );
+      },
+    );
+
+    test(
+      'deferred auth restore cannot overwrite newer route or viewport intent',
+      () async {
+        final main = await File('lib/main.dart').readAsString();
+        final replay = _sourceBetween(
+          main,
+          'Future<void> _replayDeferredBootRestoreAfterAuth',
+          'Map<String, dynamic>? _pushIntentDataFromQuery',
+        );
+        final calendar = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+
+        expect(replay, contains('captureUserIntentLease()'));
+        expect(replay, contains("stage: 'deferred_destination'"));
+        expect(replay, contains("stage: 'authenticated_fallback'"));
+        expect(replay, contains('reason=user_intent_during_restore'));
+        expect(replay, contains('reason=route_changed_during_restore'));
+        expect(
+          replay.indexOf("stage: 'authenticated_fallback'"),
+          lessThan(replay.indexOf('_router.go(fallbackRoute)')),
+        );
+        expect(calendar, contains("reason: 'calendar_scroll_started'"));
+        expect(calendar, contains("reason: 'calendar_pinch_started'"));
       },
     );
 

@@ -1212,6 +1212,8 @@ void _prepareDeferredBootRestoreForAuth(AuthChangeEvent event) {
 
 Future<void> _replayDeferredBootRestoreAfterAuth(AuthChangeEvent event) async {
   final currentRoute = _routerLocationForTrace();
+  final userIntentLease = RestorationCoordinator.instance
+      .captureUserIntentLease();
   traceRestoration(
     'auth deferred restore replay start event=${event.name} '
     'current=$currentRoute deferred=$_bootRestoreDeferredForAuth '
@@ -1224,20 +1226,31 @@ Future<void> _replayDeferredBootRestoreAfterAuth(AuthChangeEvent event) async {
         hasExplicitBootIntent: _hasExplicitBootIntent(),
         includeRemote: true,
       );
+  if (!_canApplyDeferredBootRestore(
+    userIntentLease,
+    stage: 'deferred_destination',
+  )) {
+    _clearDeferredBootRestoreState();
+    return;
+  }
   if (destination == null) {
-    _bootRestoreDeferredForAuth = false;
-    _bootAuthDeferredRestoredLocation = null;
-    _bootDeferredRestorePreparedForAuth = false;
+    _clearDeferredBootRestoreState();
 
     // Timing safety net: on hot restart or fast-auth, initialSession can
     // fire before _bootRestoreDeferredForAuth is set. If auth confirms while
     // the app is still at '/', run a fresh authenticated restore before
     // leaving the user on the boot default.
-    final trimmedCurrent = currentRoute.trim();
+    final trimmedCurrent = _routerLocationForTrace().trim();
     final isAtRoot = trimmedCurrent.isEmpty || trimmedCurrent == '/';
     if (isAtRoot) {
       final fallback = await AppNavigationRestorationController.instance
           .restoreLaunchDestination(isAuthenticated: true, includeRemote: true);
+      if (!_canApplyDeferredBootRestore(
+        userIntentLease,
+        stage: 'authenticated_fallback',
+      )) {
+        return;
+      }
       final fallbackRoute = fallback.route.trim();
       final fallbackIsRoot = fallbackRoute.isEmpty || fallbackRoute == '/';
       if (!fallbackIsRoot) {
@@ -1264,14 +1277,47 @@ Future<void> _replayDeferredBootRestoreAfterAuth(AuthChangeEvent event) async {
     'decisionSource=${destination.decisionSource} '
     'reason=${destination.reason}',
   );
-  _bootRestoreDeferredForAuth = false;
-  _bootAuthDeferredRestoredLocation = null;
-  _bootDeferredRestorePreparedForAuth = false;
+  _clearDeferredBootRestoreState();
   _router.go(destination.route);
   traceRestoration(
     'auth deferred restore replay completed route=${destination.route}',
   );
   _traceRouterLocationAfterFrame('after_auth_deferred_restore');
+}
+
+bool _canApplyDeferredBootRestore(
+  RestorationUserIntentLease userIntentLease, {
+  required String stage,
+}) {
+  final currentRoute = _routerLocationForTrace().trim();
+  if (!userIntentLease.isCurrent) {
+    traceRestoration(
+      'auth deferred restore aborted stage=$stage current=$currentRoute '
+      'reason=user_intent_during_restore',
+    );
+    return false;
+  }
+  if (_hasExplicitBootIntent()) {
+    traceRestoration(
+      'auth deferred restore aborted stage=$stage current=$currentRoute '
+      'reason=explicit_intent_during_restore',
+    );
+    return false;
+  }
+  if (currentRoute.isNotEmpty && currentRoute != '/') {
+    traceRestoration(
+      'auth deferred restore aborted stage=$stage current=$currentRoute '
+      'reason=route_changed_during_restore',
+    );
+    return false;
+  }
+  return true;
+}
+
+void _clearDeferredBootRestoreState() {
+  _bootRestoreDeferredForAuth = false;
+  _bootAuthDeferredRestoredLocation = null;
+  _bootDeferredRestorePreparedForAuth = false;
 }
 
 Map<String, dynamic>? _pushIntentDataFromQuery(Map<String, String> params) {

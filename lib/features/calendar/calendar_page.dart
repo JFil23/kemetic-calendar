@@ -23846,6 +23846,9 @@ class CalendarPageState extends State<CalendarPage>
 
   void _onScaleStart(ScaleStartDetails details) {
     if (details.pointerCount < 2) return;
+    RestorationCoordinator.instance.noteCalendarViewportIntent(
+      reason: 'calendar_pinch_started',
+    );
     _monthExpansionRestorationTarget = null;
     _scaleGestureAnchor = 1.0;
     _isPinching = true;
@@ -35033,6 +35036,12 @@ class CalendarPageState extends State<CalendarPage>
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
         if (!_initialViewportSettled) return false;
+        if (notification is ScrollStartNotification &&
+            notification.dragDetails != null) {
+          RestorationCoordinator.instance.noteCalendarViewportIntent(
+            reason: 'calendar_scroll_started',
+          );
+        }
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _refreshCurrentDecanViewportAnchor();
         });
