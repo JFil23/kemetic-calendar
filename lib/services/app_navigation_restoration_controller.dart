@@ -75,7 +75,7 @@ class AppNavigationRestorationController {
   Future<void> _recordPrimaryRouteFromUserCommand(
     AppSection section, {
     required String route,
-  }) async {
+  }) {
     final classification = _policy.classifyRoute(
       route,
       NavigationSource.userPrimaryTab,
@@ -85,12 +85,19 @@ class AppNavigationRestorationController {
         !classification.canRecordPrimarySelection ||
         classification.canonicalRoute == null ||
         classification.section != section) {
-      return;
+      return Future<void>.value();
     }
-    await AppRestorationService.instance.saveDurableLaunchRoute(
+    final restoration = AppRestorationService.instance;
+    restoration.recordPrimaryTabSelectionCriticalSnapshot(
       classification.canonicalRoute!,
       metadata: classification.metadata,
     );
+    return restoration
+        .saveDurableLaunchRoute(
+          classification.canonicalRoute!,
+          metadata: classification.metadata,
+        )
+        .then<void>((_) {});
   }
 
   Future<void> recordNavigationAttempt({

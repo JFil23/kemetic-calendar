@@ -852,7 +852,7 @@ class AppRestorationService {
     traceRestoration(message);
   }
 
-  Future<String?> _currentUserId() async {
+  String? _currentUserIdNow() {
     final debugResolver = debugUserIdResolver;
     if (debugResolver != null) {
       final resolved = debugResolver()?.trim();
@@ -865,6 +865,8 @@ class AppRestorationService {
       return null;
     }
   }
+
+  Future<String?> _currentUserId() async => _currentUserIdNow();
 
   Future<String> _currentWindowId() =>
       AppWindowService.instance.ensureInitialized();
@@ -2639,6 +2641,95 @@ class AppRestorationService {
     final prefs = await _prefs();
     await prefs.remove(_prefsKey(userId, windowId));
     _writeCriticalSnapshot(windowId, null);
+  }
+
+  void recordPrimaryTabSelectionCriticalSnapshot(
+    String location, {
+    required NavigationLaunchRouteMetadata metadata,
+  }) {
+    final normalized = stableRouteLocationForContinuity(location);
+    final policy = const NavigationPersistencePolicy();
+    if (normalized == null ||
+        normalized.isEmpty ||
+        metadata.source != NavigationSource.userPrimaryTab ||
+        !metadata.isCurrentUserPrimaryDurable ||
+        !policy.isValidDurableLaunchRoute(normalized, metadata)) {
+      _log(
+        'critical primary route rejected input=$location '
+        'section=${metadata.section?.wireName ?? '<none>'} '
+        'reason=policy_rejected',
+      );
+      return;
+    }
+
+    final userId = _currentUserIdNow();
+    final windowId = AppWindowService.instance.currentWindowId;
+    if (userId == null || windowId == null || windowId.isEmpty) {
+      _log(
+        'critical primary route rejected input=$location '
+        'section=${metadata.section?.wireName ?? '<none>'} '
+        'reason=identity_not_initialized',
+      );
+      return;
+    }
+
+    Map<String, dynamic>? decodeCritical(
+      String? serialized, {
+      required bool requireCurrentWindow,
+    }) {
+      if (serialized == null || serialized.trim().isEmpty) return null;
+      try {
+        final raw = _asJsonMap(jsonDecode(serialized));
+        if (raw == null) return null;
+        final snapshot = AppRestorationSnapshot.fromJson(raw);
+        if (snapshot == null || snapshot.userId != userId) return null;
+        if (requireCurrentWindow && snapshot.windowId != windowId) return null;
+        return Map<String, dynamic>.from(raw);
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final currentCritical = decodeCritical(
+      _readCriticalSnapshot(windowId),
+      requireCurrentWindow: true,
+    );
+    final latestCritical = decodeCritical(
+      _readLatestCriticalSnapshot(userId),
+      requireCurrentWindow: false,
+    );
+    final currentUpdatedAtMs = _asInt(currentCritical?['updatedAtMs']) ?? -1;
+    final latestUpdatedAtMs = _asInt(latestCritical?['updatedAtMs']) ?? -1;
+    final baseline = latestUpdatedAtMs > currentUpdatedAtMs
+        ? latestCritical
+        : currentCritical;
+    final next = baseline == null
+        ? <String, dynamic>{}
+        : Map<String, dynamic>.from(baseline);
+    final durableUpdatedAtMs = currentUpdatedAtMs > latestUpdatedAtMs
+        ? currentUpdatedAtMs
+        : latestUpdatedAtMs;
+    final now = DateTime.now().millisecondsSinceEpoch;
+    final updatedAtMs = now > durableUpdatedAtMs ? now : durableUpdatedAtMs + 1;
+
+    next['schemaVersion'] = schemaVersion;
+    next['userId'] = userId;
+    next['windowId'] = windowId;
+    next['updatedAtMs'] = updatedAtMs;
+    next['routeLocation'] = normalized;
+    next[navigationLaunchRouteMetadataKey] = metadata.toJson();
+    next[navigationPrimarySelectionMetadataKey] = metadata.toJson();
+    final encoded = jsonEncode(next);
+
+    app_window_platform.registerCriticalSnapshotWindow(windowId);
+    _writeCriticalSnapshot(windowId, encoded);
+    _writeLatestCriticalSnapshot(userId, encoded);
+    _writePlatformLastActiveUserId(userId);
+    _log(
+      'critical primary route committed route=$normalized '
+      'section=${metadata.section?.wireName ?? '<none>'} '
+      'user=$userId window=$windowId updatedAtMs=$updatedAtMs',
+    );
   }
 
   Future<AppRestorationMutationResult> saveDurableLaunchRoute(
