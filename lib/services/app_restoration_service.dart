@@ -666,6 +666,21 @@ enum OverlayStackMutationReason {
 
 enum AppRestorationReadStatus { restored, tentative, noSnapshot, awaitingAuth }
 
+enum AppRestorationMutationStatus {
+  persisted,
+  deferred,
+  notReady,
+  invalid,
+  superseded,
+  droppedUserMismatch,
+}
+
+class AppRestorationMutationResult {
+  const AppRestorationMutationResult(this.status);
+
+  final AppRestorationMutationStatus status;
+}
+
 class AppRestorationReadResult {
   const AppRestorationReadResult({
     required this.status,
@@ -698,6 +713,32 @@ class _SnapshotCandidate {
   final AppRestorationSnapshot snapshot;
   final Map<String, dynamic> raw;
   final String source;
+}
+
+class _PendingCalendarRestorationIntent {
+  const _PendingCalendarRestorationIntent({
+    required this.userId,
+    required this.windowId,
+    required this.state,
+  });
+
+  final String userId;
+  final String windowId;
+  final CalendarRestorationState state;
+}
+
+class _PendingLaunchRouteRestorationIntent {
+  const _PendingLaunchRouteRestorationIntent({
+    required this.userId,
+    required this.windowId,
+    required this.location,
+    required this.metadata,
+  });
+
+  final String userId;
+  final String windowId;
+  final String location;
+  final NavigationLaunchRouteMetadata metadata;
 }
 
 String _snapshotTrace(AppRestorationSnapshot? snapshot) {
@@ -765,11 +806,24 @@ class AppRestorationService {
   debugLatestCriticalSnapshotWriter;
   static String? Function()? debugPlatformLastActiveUserIdReader;
   static void Function(String? userId)? debugPlatformLastActiveUserIdWriter;
+  static void Function(String message)? debugLogWriter;
 
   String? _deviceId;
   Future<String>? _deviceIdFuture;
   Future<void> _mutationQueue = Future<void>.value();
   Future<void> _remoteWriteQueue = Future<void>.value();
+  _PendingCalendarRestorationIntent? _pendingCalendarIntent;
+  _PendingLaunchRouteRestorationIntent? _pendingLaunchRouteIntent;
+
+  void resetForTesting() {
+    _deviceId = null;
+    _deviceIdFuture = null;
+    _mutationQueue = Future<void>.value();
+    _remoteWriteQueue = Future<void>.value();
+    _pendingCalendarIntent = null;
+    _pendingLaunchRouteIntent = null;
+    debugLogWriter = null;
+  }
 
   Future<void> initialize() async {
     final windowId = await AppWindowService.instance.ensureInitialized();
@@ -777,6 +831,7 @@ class AppRestorationService {
   }
 
   void _log(String message) {
+    debugLogWriter?.call(message);
     traceRestoration(message);
   }
 
@@ -2294,20 +2349,42 @@ class AppRestorationService {
     return readSnapshotForUser(userId, includeRemote: includeRemote);
   }
 
-  Future<void> _mutate(
-    void Function(Map<String, dynamic> current) update,
-  ) async {
-    return _enqueueMutationOperation(() => _mutateNow(update));
+  Future<AppRestorationMutationResult> _mutate(
+    void Function(Map<String, dynamic> current) update, {
+    String? expectedUserId,
+    String? expectedWindowId,
+  }) async {
+    return _enqueueMutationOperation(
+      () => _mutateNow(
+        update,
+        expectedUserId: expectedUserId,
+        expectedWindowId: expectedWindowId,
+      ),
+    );
   }
 
-  Future<void> _mutateNow(
-    void Function(Map<String, dynamic> current) update,
-  ) async {
+  Future<AppRestorationMutationResult> _mutateNow(
+    void Function(Map<String, dynamic> current) update, {
+    String? expectedUserId,
+    String? expectedWindowId,
+  }) async {
     final userId = await _currentUserId();
     if (userId == null) {
-      return;
+      _log('mutation rejected reason=auth_not_ready');
+      return const AppRestorationMutationResult(
+        AppRestorationMutationStatus.notReady,
+      );
     }
-    final windowId = await _currentWindowId();
+    if (expectedUserId != null && userId != expectedUserId) {
+      _log(
+        'mutation dropped expected=$expectedUserId actual=$userId '
+        'reason=user_mismatch',
+      );
+      return const AppRestorationMutationResult(
+        AppRestorationMutationStatus.droppedUserMismatch,
+      );
+    }
+    final windowId = expectedWindowId ?? await _currentWindowId();
     app_window_platform.registerCriticalSnapshotWindow(windowId);
     final snapshotCandidate = await _readStableSnapshotCandidateForUser(
       userId,
@@ -2338,7 +2415,13 @@ class AppRestorationService {
     );
     if (persisted) {
       _scheduleRemoteSnapshotWrite(current);
+      return const AppRestorationMutationResult(
+        AppRestorationMutationStatus.persisted,
+      );
     }
+    return const AppRestorationMutationResult(
+      AppRestorationMutationStatus.superseded,
+    );
   }
 
   void _scheduleRemoteSnapshotWrite(Map<String, dynamic> raw) {
@@ -2410,7 +2493,85 @@ class AppRestorationService {
     }
   }
 
+  void _deferCalendarIntent(_PendingCalendarRestorationIntent intent) {
+    _pendingCalendarIntent = intent;
+    _log(
+      'calendar mutation deferred user=${intent.userId} '
+      'window=${intent.windowId} reason=auth_not_ready',
+    );
+  }
+
+  Future<AppRestorationMutationResult> _persistCalendarIntent(
+    _PendingCalendarRestorationIntent intent,
+  ) async {
+    final result = await _mutate(
+      (current) {
+        current['calendar'] = intent.state.toJson();
+      },
+      expectedUserId: intent.userId,
+      expectedWindowId: intent.windowId,
+    );
+    if (result.status == AppRestorationMutationStatus.notReady) {
+      if (_pendingCalendarIntent == null) {
+        _deferCalendarIntent(intent);
+      }
+      return const AppRestorationMutationResult(
+        AppRestorationMutationStatus.deferred,
+      );
+    }
+    if (result.status == AppRestorationMutationStatus.droppedUserMismatch) {
+      _log(
+        'calendar mutation dropped expected=${intent.userId} '
+        'reason=user_mismatch',
+      );
+    }
+    return result;
+  }
+
+  Future<AppRestorationMutationResult?> handleSessionReady(
+    String? userId,
+  ) async {
+    final normalizedUserId = userId?.trim();
+    if (normalizedUserId == null || normalizedUserId.isEmpty) {
+      return const AppRestorationMutationResult(
+        AppRestorationMutationStatus.notReady,
+      );
+    }
+    AppRestorationMutationResult? routeResult;
+    final routeIntent = _pendingLaunchRouteIntent;
+    _pendingLaunchRouteIntent = null;
+    if (routeIntent != null && routeIntent.userId != normalizedUserId) {
+      _log(
+        'launch route mutation dropped expected=${routeIntent.userId} '
+        'actual=$normalizedUserId reason=user_mismatch',
+      );
+      routeResult = const AppRestorationMutationResult(
+        AppRestorationMutationStatus.droppedUserMismatch,
+      );
+    } else if (routeIntent != null) {
+      routeResult = await _persistLaunchRouteIntent(routeIntent);
+    }
+
+    final calendarIntent = _pendingCalendarIntent;
+    _pendingCalendarIntent = null;
+    if (calendarIntent == null) return routeResult;
+    if (calendarIntent.userId != normalizedUserId) {
+      _log(
+        'calendar mutation dropped expected=${calendarIntent.userId} '
+        'actual=$normalizedUserId reason=user_mismatch',
+      );
+      return const AppRestorationMutationResult(
+        AppRestorationMutationStatus.droppedUserMismatch,
+      );
+    }
+    return _persistCalendarIntent(calendarIntent);
+  }
+
   Future<void> flushPendingWrites() async {
+    final userId = await _currentUserId();
+    if (userId != null) {
+      await handleSessionReady(userId);
+    }
     await _mutationQueue;
     await _remoteWriteQueue;
   }
@@ -2426,7 +2587,7 @@ class AppRestorationService {
     _writeCriticalSnapshot(windowId, null);
   }
 
-  Future<void> saveDurableLaunchRoute(
+  Future<AppRestorationMutationResult> saveDurableLaunchRoute(
     String location, {
     required NavigationLaunchRouteMetadata metadata,
   }) async {
@@ -2443,7 +2604,9 @@ class AppRestorationService {
         'canonical=${metadata.canonicalRoute ?? '<none>'} '
         'reason=policy_rejected',
       );
-      return;
+      return const AppRestorationMutationResult(
+        AppRestorationMutationStatus.invalid,
+      );
     }
     if (!_sourceCanPersistDurableSurface(metadata.source)) {
       _log(
@@ -2455,7 +2618,9 @@ class AppRestorationService {
         'canonical=${metadata.canonicalRoute ?? '<none>'} '
         'reason=passive_source_cannot_persist',
       );
-      return;
+      return const AppRestorationMutationResult(
+        AppRestorationMutationStatus.invalid,
+      );
     }
     _log(
       'save launch route input=$location sanitized=$normalized '
@@ -2465,105 +2630,184 @@ class AppRestorationService {
       'section=${metadata.section?.wireName ?? '<none>'} '
       'canonical=${metadata.canonicalRoute ?? '<none>'} accepted=true',
     );
-    await _mutate((current) {
-      if (_isRootRouteLocation(normalized) &&
-          !_sourceCanEvictDurableSurface(metadata.source)) {
-        final existingMetadata = NavigationLaunchRouteMetadata.fromJson(
-          current[navigationLaunchRouteMetadataKey],
-        );
-        final existingRoute = (current['routeLocation'] as String?)?.trim();
-        if (existingMetadata?.source == NavigationSource.userPrimaryTab &&
-            !_isRootRouteLocation(existingRoute)) {
-          _log(
-            'save launch route rejected input=$location '
-            'source=${metadata.source.wireName} '
-            'classification=${metadata.routeClass.wireName} '
-            'schemaVersion=${metadata.schemaVersion} '
-            'section=${metadata.section?.wireName ?? '<none>'} '
-            'canonical=${metadata.canonicalRoute ?? '<none>'} '
-            'existingRoute=${existingRoute ?? '<none>'} '
-            'existingSource=${existingMetadata!.source.wireName} '
-            'reason=programmatic_root_cannot_evict_user_primary',
-          );
-          return;
-        }
-        final primaryMetadata = NavigationLaunchRouteMetadata.fromJson(
-          current[navigationPrimarySelectionMetadataKey],
-        );
-        final primaryRoute = primaryMetadata?.canonicalRoute?.trim();
-        if (primaryMetadata?.source == NavigationSource.userPrimaryTab &&
-            primaryRoute != null &&
-            primaryRoute.isNotEmpty &&
-            !_isRootRouteLocation(primaryRoute) &&
-            const NavigationPersistencePolicy().isValidPrimarySelection(
-              primaryMetadata,
-            )) {
-          _log(
-            'save launch route rejected input=$location '
-            'source=${metadata.source.wireName} '
-            'classification=${metadata.routeClass.wireName} '
-            'schemaVersion=${metadata.schemaVersion} '
-            'section=${metadata.section?.wireName ?? '<none>'} '
-            'canonical=${metadata.canonicalRoute ?? '<none>'} '
-            'primaryRoute=$primaryRoute '
-            'primarySource=${primaryMetadata!.source.wireName} '
-            'reason=programmatic_root_cannot_evict_primary_selection',
-          );
-          return;
-        }
-        if (existingRoute != null && !_isRootRouteLocation(existingRoute)) {
-          _log(
-            'save launch route rejected input=$location '
-            'source=${metadata.source.wireName} '
-            'classification=${metadata.routeClass.wireName} '
-            'schemaVersion=${metadata.schemaVersion} '
-            'section=${metadata.section?.wireName ?? '<none>'} '
-            'canonical=${metadata.canonicalRoute ?? '<none>'} '
-            'existingRoute=$existingRoute '
-            'reason=programmatic_root_cannot_evict_durable_surface',
-          );
-          return;
-        }
-      }
-      final previous = (current['routeLocation'] as String?)?.trim();
-      current['routeLocation'] = normalized;
-      current[navigationLaunchRouteMetadataKey] = metadata.toJson();
-      if (metadata.isCurrentUserPrimaryDurable) {
-        current[navigationPrimarySelectionMetadataKey] = metadata.toJson();
-      } else if (_isRootRouteLocation(normalized) &&
-          _sourceClearsPrimarySelectionOnRoot(metadata.source)) {
-        current.remove(navigationPrimarySelectionMetadataKey);
-      }
-      _log(
-        'save launch route committed before='
-        '${previous == null || previous.isEmpty ? '<none>' : previous} '
-        'after=$normalized source=${metadata.source.wireName} '
-        'classification=${metadata.routeClass.wireName} '
-        'section=${metadata.section?.wireName ?? '<none>'}',
+    final activeUserId = await _currentUserId();
+    final boundUserId = activeUserId ?? await _readBootFallbackUserId();
+    if (boundUserId == null) {
+      _log('launch route mutation rejected reason=no_bound_user');
+      return const AppRestorationMutationResult(
+        AppRestorationMutationStatus.notReady,
       );
-    });
+    }
+    final intent = _PendingLaunchRouteRestorationIntent(
+      userId: boundUserId,
+      windowId: await _currentWindowId(),
+      location: normalized,
+      metadata: metadata,
+    );
+    if (activeUserId == null) {
+      _deferLaunchRouteIntent(intent);
+      return const AppRestorationMutationResult(
+        AppRestorationMutationStatus.deferred,
+      );
+    }
+    return _persistLaunchRouteIntent(intent);
+  }
+
+  void _deferLaunchRouteIntent(_PendingLaunchRouteRestorationIntent intent) {
+    _pendingLaunchRouteIntent = intent;
+    _log(
+      'launch route mutation deferred user=${intent.userId} '
+      'window=${intent.windowId} route=${intent.location} '
+      'reason=auth_not_ready',
+    );
+  }
+
+  Future<AppRestorationMutationResult> _persistLaunchRouteIntent(
+    _PendingLaunchRouteRestorationIntent intent,
+  ) async {
+    final location = intent.location;
+    final metadata = intent.metadata;
+    final result = await _mutate(
+      (current) {
+        if (_isRootRouteLocation(location) &&
+            !_sourceCanEvictDurableSurface(metadata.source)) {
+          final existingMetadata = NavigationLaunchRouteMetadata.fromJson(
+            current[navigationLaunchRouteMetadataKey],
+          );
+          final existingRoute = (current['routeLocation'] as String?)?.trim();
+          if (existingMetadata?.source == NavigationSource.userPrimaryTab &&
+              !_isRootRouteLocation(existingRoute)) {
+            _log(
+              'save launch route rejected input=$location '
+              'source=${metadata.source.wireName} '
+              'classification=${metadata.routeClass.wireName} '
+              'schemaVersion=${metadata.schemaVersion} '
+              'section=${metadata.section?.wireName ?? '<none>'} '
+              'canonical=${metadata.canonicalRoute ?? '<none>'} '
+              'existingRoute=${existingRoute ?? '<none>'} '
+              'existingSource=${existingMetadata!.source.wireName} '
+              'reason=programmatic_root_cannot_evict_user_primary',
+            );
+            return;
+          }
+          final primaryMetadata = NavigationLaunchRouteMetadata.fromJson(
+            current[navigationPrimarySelectionMetadataKey],
+          );
+          final primaryRoute = primaryMetadata?.canonicalRoute?.trim();
+          if (primaryMetadata?.source == NavigationSource.userPrimaryTab &&
+              primaryRoute != null &&
+              primaryRoute.isNotEmpty &&
+              !_isRootRouteLocation(primaryRoute) &&
+              const NavigationPersistencePolicy().isValidPrimarySelection(
+                primaryMetadata,
+              )) {
+            _log(
+              'save launch route rejected input=$location '
+              'source=${metadata.source.wireName} '
+              'classification=${metadata.routeClass.wireName} '
+              'schemaVersion=${metadata.schemaVersion} '
+              'section=${metadata.section?.wireName ?? '<none>'} '
+              'canonical=${metadata.canonicalRoute ?? '<none>'} '
+              'primaryRoute=$primaryRoute '
+              'primarySource=${primaryMetadata!.source.wireName} '
+              'reason=programmatic_root_cannot_evict_primary_selection',
+            );
+            return;
+          }
+          if (existingRoute != null && !_isRootRouteLocation(existingRoute)) {
+            _log(
+              'save launch route rejected input=$location '
+              'source=${metadata.source.wireName} '
+              'classification=${metadata.routeClass.wireName} '
+              'schemaVersion=${metadata.schemaVersion} '
+              'section=${metadata.section?.wireName ?? '<none>'} '
+              'canonical=${metadata.canonicalRoute ?? '<none>'} '
+              'existingRoute=$existingRoute '
+              'reason=programmatic_root_cannot_evict_durable_surface',
+            );
+            return;
+          }
+        }
+        final previous = (current['routeLocation'] as String?)?.trim();
+        current['routeLocation'] = location;
+        current[navigationLaunchRouteMetadataKey] = metadata.toJson();
+        if (metadata.isCurrentUserPrimaryDurable) {
+          current[navigationPrimarySelectionMetadataKey] = metadata.toJson();
+        } else if (_isRootRouteLocation(location) &&
+            _sourceClearsPrimarySelectionOnRoot(metadata.source)) {
+          current.remove(navigationPrimarySelectionMetadataKey);
+        }
+        _log(
+          'save launch route committed before='
+          '${previous == null || previous.isEmpty ? '<none>' : previous} '
+          'after=$location source=${metadata.source.wireName} '
+          'classification=${metadata.routeClass.wireName} '
+          'section=${metadata.section?.wireName ?? '<none>'}',
+        );
+      },
+      expectedUserId: intent.userId,
+      expectedWindowId: intent.windowId,
+    );
+    if (result.status == AppRestorationMutationStatus.notReady) {
+      if (_pendingLaunchRouteIntent == null) {
+        _deferLaunchRouteIntent(intent);
+      }
+      return const AppRestorationMutationResult(
+        AppRestorationMutationStatus.deferred,
+      );
+    }
+    if (result.status == AppRestorationMutationStatus.droppedUserMismatch) {
+      _log(
+        'launch route mutation dropped expected=${intent.userId} '
+        'route=$location reason=user_mismatch',
+      );
+    }
+    return result;
   }
 
   Future<CalendarRestorationState?> readCalendarState() async {
     return (await readSnapshot())?.calendar;
   }
 
-  Future<void> saveCalendarState(CalendarRestorationState state) async {
+  Future<AppRestorationMutationResult> saveCalendarState(
+    CalendarRestorationState state,
+  ) async {
     final validated = CalendarRestorationState.fromJson(state.toJson());
     if (validated == null) {
-      return;
+      return const AppRestorationMutationResult(
+        AppRestorationMutationStatus.invalid,
+      );
     }
-    await _mutate((current) {
-      current['calendar'] = validated.toJson();
-    });
+    final activeUserId = await _currentUserId();
+    final boundUserId = activeUserId ?? await _readBootFallbackUserId();
+    if (boundUserId == null) {
+      _log('calendar mutation rejected reason=no_bound_user');
+      return const AppRestorationMutationResult(
+        AppRestorationMutationStatus.notReady,
+      );
+    }
+    final intent = _PendingCalendarRestorationIntent(
+      userId: boundUserId,
+      windowId: await _currentWindowId(),
+      state: validated,
+    );
+    if (activeUserId == null) {
+      _deferCalendarIntent(intent);
+      return const AppRestorationMutationResult(
+        AppRestorationMutationStatus.deferred,
+      );
+    }
+    return _persistCalendarIntent(intent);
   }
 
   Future<DayViewRestorationState?> readDayViewState() async {
     return (await readSnapshot())?.dayView;
   }
 
-  Future<void> saveDayViewState(DayViewRestorationState? state) async {
-    await _mutate((current) {
+  Future<AppRestorationMutationResult> saveDayViewState(
+    DayViewRestorationState? state,
+  ) async {
+    return _mutate((current) {
       if (state == null) {
         current.remove('dayView');
         return;
@@ -2585,8 +2829,10 @@ class AppRestorationService {
     return Map<String, dynamic>.from(raw);
   }
 
-  Future<void> saveDaySheetState(Map<String, dynamic>? state) async {
-    await _mutate((current) {
+  Future<AppRestorationMutationResult> saveDaySheetState(
+    Map<String, dynamic>? state,
+  ) async {
+    return _mutate((current) {
       if (state == null || state.isEmpty) {
         current.remove('daySheet');
       } else {
@@ -2605,12 +2851,17 @@ class AppRestorationService {
     return state == null ? null : Map<String, dynamic>.from(state);
   }
 
-  Future<void> saveSurfaceState(String key, Map<String, dynamic>? state) async {
+  Future<AppRestorationMutationResult> saveSurfaceState(
+    String key,
+    Map<String, dynamic>? state,
+  ) async {
     final normalizedKey = key.trim();
     if (normalizedKey.isEmpty) {
-      return;
+      return const AppRestorationMutationResult(
+        AppRestorationMutationStatus.invalid,
+      );
     }
-    await _mutate((current) {
+    return _mutate((current) {
       final surfaces = _asJsonMapByKey(current['surfaces']);
       final next = <String, Map<String, dynamic>>{...surfaces};
       if (state == null || state.isEmpty) {
@@ -2634,7 +2885,7 @@ class AppRestorationService {
         const <Map<String, dynamic>>[];
   }
 
-  Future<void> saveOverlayStack(
+  Future<AppRestorationMutationResult> saveOverlayStack(
     List<Map<String, dynamic>> overlayStack, {
     OverlayStackMutationReason reason = OverlayStackMutationReason.programmatic,
   }) async {
@@ -2656,7 +2907,7 @@ class AppRestorationService {
       'overlay=${_overlayStackTrace(next)}'
       '${dismissedAtMs == null ? '' : ' dismissedAtMs=$dismissedAtMs'}',
     );
-    await _mutate((current) {
+    return _mutate((current) {
       if (next.isEmpty) {
         current.remove('overlayStack');
         if (dismissedAtMs != null) {
@@ -2679,12 +2930,17 @@ class AppRestorationService {
     return state == null ? null : Map<String, dynamic>.from(state);
   }
 
-  Future<void> saveEditorState(String key, Map<String, dynamic>? state) async {
+  Future<AppRestorationMutationResult> saveEditorState(
+    String key,
+    Map<String, dynamic>? state,
+  ) async {
     final normalizedKey = key.trim();
     if (normalizedKey.isEmpty) {
-      return;
+      return const AppRestorationMutationResult(
+        AppRestorationMutationStatus.invalid,
+      );
     }
-    await _mutate((current) {
+    return _mutate((current) {
       final editors = _asJsonMapByKey(current['editors']);
       final next = <String, Map<String, dynamic>>{...editors};
       if (state == null || state.isEmpty) {
@@ -2706,8 +2962,10 @@ class AppRestorationService {
     return hints == null ? null : Map<String, dynamic>.from(hints);
   }
 
-  Future<void> saveCacheHints(Map<String, dynamic>? hints) async {
-    await _mutate((current) {
+  Future<AppRestorationMutationResult> saveCacheHints(
+    Map<String, dynamic>? hints,
+  ) async {
+    return _mutate((current) {
       if (hints == null || hints.isEmpty) {
         current.remove('cacheHints');
       } else {

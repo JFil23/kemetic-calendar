@@ -5288,6 +5288,9 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     final isSessionReadyEvent =
         ev == AuthChangeEvent.initialSession || ev == AuthChangeEvent.signedIn;
     if (isSessionReadyEvent) {
+      await AppRestorationService.instance.handleSessionReady(
+        data.session?.user.id,
+      );
       _prepareDeferredBootRestoreForAuth(ev);
     }
     if (!isSessionReadyEvent && mounted) setState(() {});

@@ -25,11 +25,11 @@ Map<String, dynamic> _durableRouteFields(String route) {
 Future<void> _saveDurableRoute(
   String route, {
   NavigationSource source = NavigationSource.userPrimaryTab,
-}) {
+}) async {
   final metadata = const NavigationPersistencePolicy()
       .classifyRoute(route, source)
       .metadata;
-  return AppRestorationService.instance.saveDurableLaunchRoute(
+  await AppRestorationService.instance.saveDurableLaunchRoute(
     route,
     metadata: metadata,
   );
@@ -47,6 +47,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
+    AppRestorationService.instance.resetForTesting();
     SharedPreferences.setMockInitialValues({});
     AppRestorationService.debugUserIdResolver = () => 'user-1';
     AppWindowService.debugWindowIdResolver = () async => 'window-1';
@@ -99,6 +100,7 @@ void main() {
   });
 
   tearDown(() {
+    AppRestorationService.instance.resetForTesting();
     AppRestorationService.debugUserIdResolver = null;
     AppRestorationService.debugRemoteWindowSnapshotReader = null;
     AppRestorationService.debugRemoteLatestSnapshotReader = null;
@@ -789,6 +791,146 @@ void main() {
       expect(result.snapshot?.routeLocation, '/inbox');
     },
   );
+
+  test('calendar save during auth gap flushes for the same user', () async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('app_restoration_last_user_v2', 'user-1');
+    _debugPlatformLastActiveUserId = 'user-1';
+    AppRestorationService.debugUserIdResolver = () => null;
+
+    await AppRestorationService.instance.saveCalendarState(
+      const CalendarRestorationState(
+        kYear: 6267,
+        kMonth: 7,
+        kDay: 13,
+        showGregorian: false,
+        expansion: 'labeled',
+      ),
+    );
+    expect(prefs.getString(_snapshotKey()), isNull);
+
+    AppRestorationService.debugUserIdResolver = () => 'user-1';
+    await AppRestorationService.instance.flushPendingWrites();
+
+    final snapshot = await AppRestorationService.instance.readSnapshot();
+    expect(snapshot?.calendar?.kMonth, 7);
+    expect(snapshot?.calendar?.kDay, 13);
+  });
+
+  test('calendar save during auth gap never retargets another user', () async {
+    final logs = <String>[];
+    AppRestorationService.debugLogWriter = logs.add;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('app_restoration_last_user_v2', 'user-1');
+    _debugPlatformLastActiveUserId = 'user-1';
+    AppRestorationService.debugUserIdResolver = () => null;
+
+    final deferred = await AppRestorationService.instance.saveCalendarState(
+      const CalendarRestorationState(
+        kYear: 6267,
+        kMonth: 7,
+        kDay: 13,
+        showGregorian: false,
+        expansion: 'labeled',
+      ),
+    );
+    expect(deferred.status, AppRestorationMutationStatus.deferred);
+
+    AppRestorationService.debugUserIdResolver = () => 'user-2';
+    final dropped = await AppRestorationService.instance.handleSessionReady(
+      'user-2',
+    );
+    expect(dropped?.status, AppRestorationMutationStatus.droppedUserMismatch);
+    await AppRestorationService.instance.flushPendingWrites();
+
+    expect(prefs.getString(_snapshotKey()), isNull);
+    expect(prefs.getString(_snapshotKey(userId: 'user-2')), isNull);
+    expect(
+      logs,
+      contains(
+        contains(
+          'calendar mutation dropped expected=user-1 actual=user-2 '
+          'reason=user_mismatch',
+        ),
+      ),
+    );
+  });
+
+  test('launch route save during auth gap flushes for the same user', () async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('app_restoration_last_user_v2', 'user-1');
+    _debugPlatformLastActiveUserId = 'user-1';
+    AppRestorationService.debugUserIdResolver = () => null;
+    final metadata = const NavigationPersistencePolicy()
+        .classifyRoute('/inbox', NavigationSource.userPrimaryTab)
+        .metadata;
+
+    final result = await AppRestorationService.instance.saveDurableLaunchRoute(
+      '/inbox',
+      metadata: metadata,
+    );
+    expect(result.status, AppRestorationMutationStatus.deferred);
+    expect(prefs.getString(_snapshotKey()), isNull);
+
+    AppRestorationService.debugUserIdResolver = () => 'user-1';
+    await AppRestorationService.instance.flushPendingWrites();
+
+    final snapshot = await AppRestorationService.instance.readSnapshot();
+    expect(snapshot?.routeLocation, '/inbox');
+  });
+
+  test(
+    'launch route save during auth gap never retargets another user',
+    () async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('app_restoration_last_user_v2', 'user-1');
+      _debugPlatformLastActiveUserId = 'user-1';
+      AppRestorationService.debugUserIdResolver = () => null;
+      final metadata = const NavigationPersistencePolicy()
+          .classifyRoute('/inbox', NavigationSource.userPrimaryTab)
+          .metadata;
+
+      final result = await AppRestorationService.instance
+          .saveDurableLaunchRoute('/inbox', metadata: metadata);
+      expect(result.status, AppRestorationMutationStatus.deferred);
+
+      AppRestorationService.debugUserIdResolver = () => 'user-2';
+      await AppRestorationService.instance.flushPendingWrites();
+
+      expect(prefs.getString(_snapshotKey()), isNull);
+      expect(prefs.getString(_snapshotKey(userId: 'user-2')), isNull);
+    },
+  );
+
+  test('launch route save reports not ready without a bound user', () async {
+    AppRestorationService.debugUserIdResolver = () => null;
+    final metadata = const NavigationPersistencePolicy()
+        .classifyRoute('/inbox', NavigationSource.userPrimaryTab)
+        .metadata;
+
+    final result = await AppRestorationService.instance.saveDurableLaunchRoute(
+      '/inbox',
+      metadata: metadata,
+    );
+
+    expect(result.status, AppRestorationMutationStatus.notReady);
+  });
+
+  test('untyped mutation reports auth not ready explicitly', () async {
+    AppRestorationService.debugUserIdResolver = () => null;
+
+    final result = await AppRestorationService.instance.saveDayViewState(
+      const DayViewRestorationState(
+        isOpen: false,
+        kYear: 6267,
+        kMonth: 7,
+        kDay: 13,
+        showGregorian: false,
+      ),
+    );
+
+    expect(result.status, AppRestorationMutationStatus.notReady);
+  });
 
   test(
     'restores from the latest critical snapshot when the window id changes',
