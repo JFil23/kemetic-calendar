@@ -37,6 +37,37 @@ const Set<String> _validEventDetailIdentityTypes = <String>{
   eventDetailIdentityReminderId,
 };
 
+Object? _canonicalJsonValue(Object? value) {
+  if (value is Map) {
+    final keys = value.keys.map((key) => key.toString()).toList()..sort();
+    return <String, Object?>{
+      for (final key in keys) key: _canonicalJsonValue(value[key]),
+    };
+  }
+  if (value is Iterable) {
+    return value.map<Object?>(_canonicalJsonValue).toList(growable: false);
+  }
+  return value;
+}
+
+String _restorationContentDigest(Object? value) {
+  return jsonEncode(_canonicalJsonValue(value));
+}
+
+String _storedRestorationContentDigest(String serialized) {
+  try {
+    return _restorationContentDigest(jsonDecode(serialized));
+  } catch (_) {
+    return _restorationContentDigest(serialized);
+  }
+}
+
+String _observedRestorationContentDigest(Object value) {
+  return value is String
+      ? _storedRestorationContentDigest(value)
+      : _restorationContentDigest(value);
+}
+
 Map<String, dynamic>? _asJsonMap(Object? raw) {
   if (raw is! Map) {
     return null;
@@ -768,6 +799,81 @@ class AppRestorationService {
 
   Future<SharedPreferences> _prefs() => SharedPreferences.getInstance();
 
+  Future<T> _enqueueMutationOperation<T>(Future<T> Function() operation) {
+    final next = _mutationQueue.then((_) => operation());
+    _mutationQueue = next.then<void>(
+      (_) {},
+      onError: (Object error, StackTrace stackTrace) {},
+    );
+    return next;
+  }
+
+  String? _readCriticalSnapshot(String windowId) {
+    final debugReader = debugCriticalSnapshotReader;
+    return debugReader != null
+        ? debugReader(windowId)
+        : app_window_platform.readCriticalSnapshot(windowId);
+  }
+
+  String? _readLatestCriticalSnapshot(String userId) {
+    final debugReader = debugLatestCriticalSnapshotReader;
+    return debugReader != null
+        ? debugReader(userId)
+        : app_window_platform.readLatestCriticalSnapshot(userId);
+  }
+
+  Future<void> _queuePrefsChangeIfUnchanged({
+    required String key,
+    required Object observedContent,
+    required String? replacement,
+    required String reason,
+  }) {
+    final expectedDigest = _observedRestorationContentDigest(observedContent);
+    return _enqueueMutationOperation(() async {
+      final prefs = await _prefs();
+      final current = prefs.getString(key);
+      if (current == null ||
+          _storedRestorationContentDigest(current) != expectedDigest) {
+        _log(
+          'conditional prefs change skipped key=$key reason=content_changed',
+        );
+        return;
+      }
+      if (replacement == null) {
+        await prefs.remove(key);
+      } else {
+        await prefs.setString(key, replacement);
+      }
+      _log('conditional prefs change committed key=$key reason=$reason');
+    });
+  }
+
+  Future<void> _queueCriticalChangeIfUnchanged({
+    required String storageKey,
+    required Object observedContent,
+    required String? replacement,
+    required String reason,
+    required String? Function() readCurrent,
+    required void Function(String? serialized) writeCurrent,
+  }) {
+    final expectedDigest = _observedRestorationContentDigest(observedContent);
+    return _enqueueMutationOperation(() async {
+      final current = readCurrent();
+      if (current == null ||
+          _storedRestorationContentDigest(current) != expectedDigest) {
+        _log(
+          'conditional critical change skipped key=$storageKey '
+          'reason=content_changed',
+        );
+        return;
+      }
+      writeCurrent(replacement);
+      _log(
+        'conditional critical change committed key=$storageKey reason=$reason',
+      );
+    });
+  }
+
   Future<String> _currentDeviceId() {
     final cached = _deviceId;
     if (cached != null && cached.isNotEmpty) {
@@ -804,16 +910,6 @@ class AppRestorationService {
       '$_keyPrefix:$userId:$windowId';
 
   String _latestPrefsKey(String userId) => '$_latestUserKeyPrefix:$userId';
-
-  Future<void> _clearSnapshotFor(String userId, String windowId) async {
-    final prefs = await _prefs();
-    await prefs.remove(_prefsKey(userId, windowId));
-  }
-
-  Future<void> _clearLatestSnapshotForUser(String userId) async {
-    final prefs = await _prefs();
-    await prefs.remove(_latestPrefsKey(userId));
-  }
 
   Future<String?> _readLastActiveUserId() async {
     final prefs = await _prefs();
@@ -953,14 +1049,24 @@ class AppRestorationService {
       final decoded = jsonDecode(rawString);
       if (decoded is! Map<String, dynamic>) {
         if (clearIfInvalid) {
-          await prefs.remove(key);
+          await _queuePrefsChangeIfUnchanged(
+            key: key,
+            observedContent: rawString,
+            replacement: null,
+            reason: 'invalid_json_shape',
+          );
         }
         return null;
       }
       return Map<String, dynamic>.from(decoded);
     } catch (_) {
       if (clearIfInvalid) {
-        await prefs.remove(key);
+        await _queuePrefsChangeIfUnchanged(
+          key: key,
+          observedContent: rawString,
+          replacement: null,
+          reason: 'invalid_json',
+        );
       }
       return null;
     }
@@ -981,14 +1087,24 @@ class AppRestorationService {
       final decoded = jsonDecode(rawString);
       if (decoded is! Map<String, dynamic>) {
         if (clearIfInvalid) {
-          await prefs.remove(key);
+          await _queuePrefsChangeIfUnchanged(
+            key: key,
+            observedContent: rawString,
+            replacement: null,
+            reason: 'invalid_json_shape',
+          );
         }
         return null;
       }
       return Map<String, dynamic>.from(decoded);
     } catch (_) {
       if (clearIfInvalid) {
-        await prefs.remove(key);
+        await _queuePrefsChangeIfUnchanged(
+          key: key,
+          observedContent: rawString,
+          replacement: null,
+          reason: 'invalid_json',
+        );
       }
       return null;
     }
@@ -998,10 +1114,7 @@ class AppRestorationService {
     String windowId, {
     required bool clearIfInvalid,
   }) async {
-    final debugReader = debugCriticalSnapshotReader;
-    final rawString = debugReader != null
-        ? debugReader(windowId)
-        : app_window_platform.readCriticalSnapshot(windowId);
+    final rawString = _readCriticalSnapshot(windowId);
     if (rawString == null || rawString.trim().isEmpty) {
       return null;
     }
@@ -1010,14 +1123,30 @@ class AppRestorationService {
       final decoded = jsonDecode(rawString);
       if (decoded is! Map<String, dynamic>) {
         if (clearIfInvalid) {
-          _writeCriticalSnapshot(windowId, null);
+          await _queueCriticalChangeIfUnchanged(
+            storageKey: 'critical:$windowId',
+            observedContent: rawString,
+            replacement: null,
+            reason: 'invalid_json_shape',
+            readCurrent: () => _readCriticalSnapshot(windowId),
+            writeCurrent: (serialized) =>
+                _writeCriticalSnapshot(windowId, serialized),
+          );
         }
         return null;
       }
       return Map<String, dynamic>.from(decoded);
     } catch (_) {
       if (clearIfInvalid) {
-        _writeCriticalSnapshot(windowId, null);
+        await _queueCriticalChangeIfUnchanged(
+          storageKey: 'critical:$windowId',
+          observedContent: rawString,
+          replacement: null,
+          reason: 'invalid_json',
+          readCurrent: () => _readCriticalSnapshot(windowId),
+          writeCurrent: (serialized) =>
+              _writeCriticalSnapshot(windowId, serialized),
+        );
       }
       return null;
     }
@@ -1027,10 +1156,7 @@ class AppRestorationService {
     String userId, {
     required bool clearIfInvalid,
   }) async {
-    final debugReader = debugLatestCriticalSnapshotReader;
-    final rawString = debugReader != null
-        ? debugReader(userId)
-        : app_window_platform.readLatestCriticalSnapshot(userId);
+    final rawString = _readLatestCriticalSnapshot(userId);
     if (rawString == null || rawString.trim().isEmpty) {
       return null;
     }
@@ -1039,14 +1165,30 @@ class AppRestorationService {
       final decoded = jsonDecode(rawString);
       if (decoded is! Map<String, dynamic>) {
         if (clearIfInvalid) {
-          _writeLatestCriticalSnapshot(userId, null);
+          await _queueCriticalChangeIfUnchanged(
+            storageKey: 'latest_critical:$userId',
+            observedContent: rawString,
+            replacement: null,
+            reason: 'invalid_json_shape',
+            readCurrent: () => _readLatestCriticalSnapshot(userId),
+            writeCurrent: (serialized) =>
+                _writeLatestCriticalSnapshot(userId, serialized),
+          );
         }
         return null;
       }
       return Map<String, dynamic>.from(decoded);
     } catch (_) {
       if (clearIfInvalid) {
-        _writeLatestCriticalSnapshot(userId, null);
+        await _queueCriticalChangeIfUnchanged(
+          storageKey: 'latest_critical:$userId',
+          observedContent: rawString,
+          replacement: null,
+          reason: 'invalid_json',
+          readCurrent: () => _readLatestCriticalSnapshot(userId),
+          writeCurrent: (serialized) =>
+              _writeLatestCriticalSnapshot(userId, serialized),
+        );
       }
       return null;
     }
@@ -1068,26 +1210,40 @@ class AppRestorationService {
     final migrated = _migrateRawSnapshot(raw);
     if (migrated == null) {
       if (clearIfInvalid) {
-        await _clearSnapshotFor(userId, windowId);
+        await _queuePrefsChangeIfUnchanged(
+          key: _prefsKey(userId, windowId),
+          observedContent: raw,
+          replacement: null,
+          reason: 'unsupported_snapshot',
+        );
       }
       return null;
-    }
-    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
-      final prefs = await _prefs();
-      await prefs.setString(_prefsKey(userId, windowId), jsonEncode(migrated));
     }
     final snapshot = AppRestorationSnapshot.fromJson(migrated);
     if (snapshot == null ||
         snapshot.userId != userId ||
         snapshot.windowId != windowId) {
       if (clearIfInvalid) {
-        await _clearSnapshotFor(userId, windowId);
+        await _queuePrefsChangeIfUnchanged(
+          key: _prefsKey(userId, windowId),
+          observedContent: raw,
+          replacement: null,
+          reason: 'snapshot_mismatch',
+        );
       }
       _log(
         'candidate rejected source=prefs user=$userId window=$windowId '
         'reason=snapshot_mismatch',
       );
       return null;
+    }
+    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
+      await _queuePrefsChangeIfUnchanged(
+        key: _prefsKey(userId, windowId),
+        observedContent: raw,
+        replacement: jsonEncode(migrated),
+        reason: 'snapshot_migration',
+      );
     }
     final candidate = _SnapshotCandidate(
       snapshot: snapshot,
@@ -1113,12 +1269,17 @@ class AppRestorationService {
     final migrated = _migrateRawSnapshot(raw);
     if (migrated == null) {
       if (clearIfInvalid) {
-        _writeCriticalSnapshot(windowId, null);
+        await _queueCriticalChangeIfUnchanged(
+          storageKey: 'critical:$windowId',
+          observedContent: raw,
+          replacement: null,
+          reason: 'unsupported_snapshot',
+          readCurrent: () => _readCriticalSnapshot(windowId),
+          writeCurrent: (serialized) =>
+              _writeCriticalSnapshot(windowId, serialized),
+        );
       }
       return null;
-    }
-    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
-      _writeCriticalSnapshot(windowId, jsonEncode(migrated));
     }
     final snapshot = AppRestorationSnapshot.fromJson(migrated);
     final userMismatch =
@@ -1127,13 +1288,32 @@ class AppRestorationService {
         snapshot.userId != expectedUserId;
     if (snapshot == null || snapshot.windowId != windowId || userMismatch) {
       if (clearIfInvalid) {
-        _writeCriticalSnapshot(windowId, null);
+        await _queueCriticalChangeIfUnchanged(
+          storageKey: 'critical:$windowId',
+          observedContent: raw,
+          replacement: null,
+          reason: 'snapshot_mismatch',
+          readCurrent: () => _readCriticalSnapshot(windowId),
+          writeCurrent: (serialized) =>
+              _writeCriticalSnapshot(windowId, serialized),
+        );
       }
       _log(
         'candidate rejected source=critical window=$windowId '
         'expectedUser=${expectedUserId ?? '<any>'} reason=snapshot_mismatch',
       );
       return null;
+    }
+    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
+      await _queueCriticalChangeIfUnchanged(
+        storageKey: 'critical:$windowId',
+        observedContent: raw,
+        replacement: jsonEncode(migrated),
+        reason: 'snapshot_migration',
+        readCurrent: () => _readCriticalSnapshot(windowId),
+        writeCurrent: (serialized) =>
+            _writeCriticalSnapshot(windowId, serialized),
+      );
     }
     final candidate = _SnapshotCandidate(
       snapshot: snapshot,
@@ -1158,24 +1338,38 @@ class AppRestorationService {
     final migrated = _migrateRawSnapshot(raw);
     if (migrated == null) {
       if (clearIfInvalid) {
-        await _clearLatestSnapshotForUser(userId);
+        await _queuePrefsChangeIfUnchanged(
+          key: _latestPrefsKey(userId),
+          observedContent: raw,
+          replacement: null,
+          reason: 'unsupported_snapshot',
+        );
       }
       return null;
-    }
-    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
-      final prefs = await _prefs();
-      await prefs.setString(_latestPrefsKey(userId), jsonEncode(migrated));
     }
     final snapshot = AppRestorationSnapshot.fromJson(migrated);
     if (snapshot == null || snapshot.userId != userId) {
       if (clearIfInvalid) {
-        await _clearLatestSnapshotForUser(userId);
+        await _queuePrefsChangeIfUnchanged(
+          key: _latestPrefsKey(userId),
+          observedContent: raw,
+          replacement: null,
+          reason: 'snapshot_mismatch',
+        );
       }
       _log(
         'candidate rejected source=latest_prefs user=$userId '
         'reason=snapshot_mismatch',
       );
       return null;
+    }
+    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
+      await _queuePrefsChangeIfUnchanged(
+        key: _latestPrefsKey(userId),
+        observedContent: raw,
+        replacement: jsonEncode(migrated),
+        reason: 'snapshot_migration',
+      );
     }
     final candidate = _SnapshotCandidate(
       snapshot: snapshot,
@@ -1200,23 +1394,47 @@ class AppRestorationService {
     final migrated = _migrateRawSnapshot(raw);
     if (migrated == null) {
       if (clearIfInvalid) {
-        _writeLatestCriticalSnapshot(userId, null);
+        await _queueCriticalChangeIfUnchanged(
+          storageKey: 'latest_critical:$userId',
+          observedContent: raw,
+          replacement: null,
+          reason: 'unsupported_snapshot',
+          readCurrent: () => _readLatestCriticalSnapshot(userId),
+          writeCurrent: (serialized) =>
+              _writeLatestCriticalSnapshot(userId, serialized),
+        );
       }
       return null;
-    }
-    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
-      _writeLatestCriticalSnapshot(userId, jsonEncode(migrated));
     }
     final snapshot = AppRestorationSnapshot.fromJson(migrated);
     if (snapshot == null || snapshot.userId != userId) {
       if (clearIfInvalid) {
-        _writeLatestCriticalSnapshot(userId, null);
+        await _queueCriticalChangeIfUnchanged(
+          storageKey: 'latest_critical:$userId',
+          observedContent: raw,
+          replacement: null,
+          reason: 'snapshot_mismatch',
+          readCurrent: () => _readLatestCriticalSnapshot(userId),
+          writeCurrent: (serialized) =>
+              _writeLatestCriticalSnapshot(userId, serialized),
+        );
       }
       _log(
         'candidate rejected source=latest_critical user=$userId '
         'reason=snapshot_mismatch',
       );
       return null;
+    }
+    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
+      await _queueCriticalChangeIfUnchanged(
+        storageKey: 'latest_critical:$userId',
+        observedContent: raw,
+        replacement: jsonEncode(migrated),
+        reason: 'snapshot_migration',
+        readCurrent: () => _readLatestCriticalSnapshot(userId),
+        writeCurrent: (serialized) =>
+            _writeLatestCriticalSnapshot(userId, serialized),
+      );
     }
     final candidate = _SnapshotCandidate(
       snapshot: snapshot,
@@ -1345,7 +1563,15 @@ class AppRestorationService {
       final windowId = key.substring(prefix.length).trim();
       if (windowId.isEmpty) {
         if (clearIfInvalid) {
-          await prefs.remove(key);
+          final observed = prefs.getString(key);
+          if (observed != null) {
+            await _queuePrefsChangeIfUnchanged(
+              key: key,
+              observedContent: observed,
+              replacement: null,
+              reason: 'invalid_window_key',
+            );
+          }
         }
         continue;
       }
@@ -1796,11 +2022,69 @@ class AppRestorationService {
         currentWindowCandidate.snapshot.updatedAtMs;
   }
 
-  Future<void> _persistRawSnapshotLocally(
+  Future<int?> _newestDurableUpdatedAtMs(String userId, String windowId) async {
+    int? newest;
+    void consider(
+      Map<String, dynamic>? raw, {
+      required bool requireCurrentWindow,
+    }) {
+      if (raw == null) return;
+      final migrated = _migrateRawSnapshot(raw);
+      final snapshot = migrated == null
+          ? null
+          : AppRestorationSnapshot.fromJson(migrated);
+      if (snapshot == null || snapshot.userId != userId) return;
+      if (requireCurrentWindow && snapshot.windowId != windowId) return;
+      if (newest == null || snapshot.updatedAtMs > newest!) {
+        newest = snapshot.updatedAtMs;
+      }
+    }
+
+    consider(
+      await _loadRawFor(userId, windowId, clearIfInvalid: false),
+      requireCurrentWindow: true,
+    );
+    consider(
+      await _loadCriticalRawFor(windowId, clearIfInvalid: false),
+      requireCurrentWindow: true,
+    );
+    consider(
+      await _loadLatestRawForUser(userId, clearIfInvalid: false),
+      requireCurrentWindow: false,
+    );
+    consider(
+      await _loadLatestCriticalRawForUser(userId, clearIfInvalid: false),
+      requireCurrentWindow: false,
+    );
+    return newest;
+  }
+
+  Future<bool> _persistRawSnapshotLocally(
     String userId,
     String windowId,
     Map<String, dynamic> raw,
   ) async {
+    final incomingUpdatedAtMs = _asInt(raw['updatedAtMs']);
+    if (incomingUpdatedAtMs == null || incomingUpdatedAtMs < 0) {
+      _log(
+        'write local rejected user=$userId window=$windowId '
+        'reason=no_provenance_timestamp',
+      );
+      return false;
+    }
+    final durableUpdatedAtMs = await _newestDurableUpdatedAtMs(
+      userId,
+      windowId,
+    );
+    if (durableUpdatedAtMs != null &&
+        incomingUpdatedAtMs <= durableUpdatedAtMs) {
+      _log(
+        'write local rejected user=$userId window=$windowId '
+        'incoming=$incomingUpdatedAtMs durable=$durableUpdatedAtMs '
+        'reason=non_monotonic_timestamp',
+      );
+      return false;
+    }
     _log(
       'write local start user=$userId window=$windowId '
       'route=${raw['routeLocation'] ?? '<none>'} '
@@ -1824,6 +2108,7 @@ class AppRestorationService {
       'route=${raw['routeLocation'] ?? '<none>'} '
       'updatedAtMs=${raw['updatedAtMs'] ?? '<none>'}',
     );
+    return true;
   }
 
   Future<AppRestorationSnapshot?> _adoptRemoteSnapshot(
@@ -1847,9 +2132,22 @@ class AppRestorationService {
     if (snapshot == null) {
       return null;
     }
-    await _persistRawSnapshotLocally(userId, windowId, raw);
-    _log('adopted ${candidate.source} snapshot user=$userId window=$windowId');
-    return snapshot;
+    return _enqueueMutationOperation(() async {
+      final persisted = await _persistRawSnapshotLocally(userId, windowId, raw);
+      if (persisted) {
+        _log(
+          'adopted ${candidate.source} snapshot '
+          'user=$userId window=$windowId',
+        );
+        return snapshot;
+      }
+      final current = await _readStableSnapshotCandidateForUser(
+        userId,
+        windowId,
+        clearIfInvalid: false,
+      );
+      return current?.snapshot;
+    });
   }
 
   Future<AppRestorationSnapshot?> readSnapshotForUser(
@@ -1999,9 +2297,7 @@ class AppRestorationService {
   Future<void> _mutate(
     void Function(Map<String, dynamic> current) update,
   ) async {
-    final next = _mutationQueue.then((_) => _mutateNow(update));
-    _mutationQueue = next.catchError((_) {});
-    return next;
+    return _enqueueMutationOperation(() => _mutateNow(update));
   }
 
   Future<void> _mutateNow(
@@ -2027,9 +2323,22 @@ class AppRestorationService {
     current['schemaVersion'] = schemaVersion;
     current['userId'] = userId;
     current['windowId'] = windowId;
-    current['updatedAtMs'] = DateTime.now().millisecondsSinceEpoch;
-    await _persistRawSnapshotLocally(userId, windowId, current);
-    _scheduleRemoteSnapshotWrite(current);
+    final durableUpdatedAtMs = await _newestDurableUpdatedAtMs(
+      userId,
+      windowId,
+    );
+    final now = DateTime.now().millisecondsSinceEpoch;
+    current['updatedAtMs'] = durableUpdatedAtMs == null
+        ? now
+        : (now > durableUpdatedAtMs ? now : durableUpdatedAtMs + 1);
+    final persisted = await _persistRawSnapshotLocally(
+      userId,
+      windowId,
+      current,
+    );
+    if (persisted) {
+      _scheduleRemoteSnapshotWrite(current);
+    }
   }
 
   void _scheduleRemoteSnapshotWrite(Map<String, dynamic> raw) {

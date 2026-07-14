@@ -996,6 +996,130 @@ void main() {
     expect(_debugPlatformLastActiveUserId, isNull);
   });
 
+  test('late remote adoption cannot overwrite a newer calendar save', () async {
+    final remoteReadStarted = Completer<void>();
+    final remoteSnapshot = Completer<Map<String, dynamic>?>();
+    AppRestorationService.debugRemoteLatestSnapshotReader = (userId) {
+      remoteReadStarted.complete();
+      return remoteSnapshot.future;
+    };
+
+    final pendingRead = AppRestorationService.instance.readBestSnapshot(
+      includeRemote: true,
+    );
+    await remoteReadStarted.future;
+
+    const newestCalendar = CalendarRestorationState(
+      kYear: 6267,
+      kMonth: 8,
+      kDay: 19,
+      showGregorian: false,
+      expansion: 'labeled',
+    );
+    await AppRestorationService.instance.saveCalendarState(newestCalendar);
+    final savedTimestamp =
+        (await AppRestorationService.instance.readSnapshot())!.updatedAtMs;
+
+    remoteSnapshot.complete({
+      'schemaVersion': AppRestorationService.schemaVersion,
+      'userId': 'user-1',
+      'windowId': 'remote-window',
+      'updatedAtMs': savedTimestamp - 1,
+      'calendar': const CalendarRestorationState(
+        kYear: 6267,
+        kMonth: 1,
+        kDay: 1,
+        showGregorian: false,
+        expansion: 'compact',
+      ).toJson(),
+    });
+    await pendingRead;
+    await AppRestorationService.instance.flushPendingWrites();
+
+    final snapshot = await AppRestorationService.instance.readSnapshot();
+    expect(snapshot?.calendar?.kMonth, newestCalendar.kMonth);
+    expect(snapshot?.calendar?.kDay, newestCalendar.kDay);
+    expect(snapshot?.updatedAtMs, savedTimestamp);
+  });
+
+  test('user mutations advance beyond the durable timestamp', () async {
+    final futureTimestamp =
+        DateTime.now().millisecondsSinceEpoch +
+        const Duration(days: 1).inMilliseconds;
+    final baseline = {
+      'schemaVersion': AppRestorationService.schemaVersion,
+      'userId': 'user-1',
+      'windowId': 'window-1',
+      'updatedAtMs': futureTimestamp,
+      'calendar': const CalendarRestorationState(
+        kYear: 6267,
+        kMonth: 2,
+        kDay: 2,
+        showGregorian: false,
+        expansion: 'compact',
+      ).toJson(),
+    };
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_snapshotKey(), jsonEncode(baseline));
+    _debugCriticalSnapshots['window-1'] = jsonEncode(baseline);
+
+    await AppRestorationService.instance.saveCalendarState(
+      const CalendarRestorationState(
+        kYear: 6267,
+        kMonth: 3,
+        kDay: 3,
+        showGregorian: false,
+        expansion: 'stacked',
+      ),
+    );
+    final firstTimestamp =
+        (await AppRestorationService.instance.readSnapshot())!.updatedAtMs;
+    await AppRestorationService.instance.saveCalendarState(
+      const CalendarRestorationState(
+        kYear: 6267,
+        kMonth: 4,
+        kDay: 4,
+        showGregorian: false,
+        expansion: 'details',
+      ),
+    );
+    final secondTimestamp =
+        (await AppRestorationService.instance.readSnapshot())!.updatedAtMs;
+
+    expect(firstTimestamp, greaterThan(futureTimestamp));
+    expect(secondTimestamp, greaterThan(firstTimestamp));
+  });
+
+  test('stale invalid cleanup cannot delete replacement content', () async {
+    final invalid = jsonEncode({
+      'schemaVersion': AppRestorationService.schemaVersion + 1,
+      'userId': 'user-1',
+      'windowId': 'window-1',
+      'updatedAtMs': 1000,
+    });
+    final replacement = jsonEncode({
+      'schemaVersion': AppRestorationService.schemaVersion,
+      'userId': 'user-1',
+      'windowId': 'window-1',
+      'updatedAtMs': 2000,
+    });
+    var reads = 0;
+    var clearWrites = 0;
+    AppRestorationService.debugCriticalSnapshotReader = (windowId) {
+      reads += 1;
+      return reads == 1 ? invalid : replacement;
+    };
+    AppRestorationService.debugCriticalSnapshotWriter = (windowId, serialized) {
+      if (serialized == null) clearWrites += 1;
+    };
+
+    await AppRestorationService.instance.readBestSnapshot();
+    await AppRestorationService.instance.flushPendingWrites();
+
+    expect(reads, greaterThanOrEqualTo(2));
+    expect(clearWrites, 0);
+  });
+
   test(
     'does not prefer a route-only backend latest snapshot over current root',
     () async {
