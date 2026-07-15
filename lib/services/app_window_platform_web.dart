@@ -5,6 +5,8 @@ import 'dart:js_interop';
 import 'package:uuid/uuid.dart';
 import 'package:web/web.dart' as web;
 
+const bool supportsSynchronousCriticalSnapshotStorage = true;
+
 typedef WebLifecycleLogger =
     void Function(String event, Map<String, Object?> detail);
 

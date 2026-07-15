@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -203,6 +204,80 @@ void main() {
     );
   }
 
+  Future<AppRestorationSnapshot> raceOlderMutationAgainstPlanner(
+    Future<AppRestorationMutationResult> Function() startMutation,
+  ) async {
+    await AppNavigationRestorationController.instance.recordPrimaryTabSelection(
+      AppSection.calendar,
+    );
+    final mutationReachedCommit = Completer<void>();
+    final releaseMutation = Completer<void>();
+    AppRestorationService.debugBeforeMutationProvenanceRead = () async {
+      if (!mutationReachedCommit.isCompleted) {
+        mutationReachedCommit.complete();
+      }
+      await releaseMutation.future;
+    };
+
+    final pending = startMutation();
+    await mutationReachedCommit.future.timeout(const Duration(seconds: 2));
+    final planner = const NavigationPersistencePolicy().classifyRoute(
+      '/rhythm/today',
+      NavigationSource.userPrimaryTab,
+    );
+    // NAVIGATION.md UX-RESTORE-002/003: the primary command advances durable
+    // route authority while the older non-route full-snapshot write is held.
+    AppRestorationService.instance.recordPrimaryTabSelectionCriticalSnapshot(
+      planner.canonicalRoute!,
+      metadata: planner.metadata,
+    );
+    AppRestorationService.debugBeforeMutationProvenanceRead = null;
+    releaseMutation.complete();
+
+    final result = await pending.timeout(const Duration(seconds: 2));
+    expect(result.status, AppRestorationMutationStatus.persisted);
+    final read = await AppRestorationService.instance.readBestSnapshot();
+    expect(read.snapshot?.routeLocation, '/rhythm/today');
+    return read.snapshot!;
+  }
+
+  test(
+    'UX-RESTORE-001 does not report a critical route committed when durable storage rejects it',
+    () async {
+      await AppWindowService.instance.ensureInitialized();
+      final logs = <String>[];
+      AppRestorationService.debugLogWriter = logs.add;
+      AppRestorationService.debugCriticalSnapshotWriter =
+          (windowId, serialized) {};
+      AppRestorationService.debugLatestCriticalSnapshotWriter =
+          (userId, serialized) {};
+
+      final planner = const NavigationPersistencePolicy().classifyRoute(
+        '/rhythm/today',
+        NavigationSource.userPrimaryTab,
+      );
+      final committed = AppRestorationService.instance
+          .recordPrimaryTabSelectionCriticalSnapshot(
+            planner.canonicalRoute!,
+            metadata: planner.metadata,
+          );
+
+      expect(committed, isFalse);
+      expect(
+        logs,
+        contains(
+          contains('critical primary route failed reason=durable_readback'),
+        ),
+      );
+      expect(
+        logs.where(
+          (message) => message.contains('critical primary route committed'),
+        ),
+        isEmpty,
+      );
+    },
+  );
+
   testWidgets(
     'UX-RESTORE-001/003 Planner is critical before the shared queue settles',
     (tester) async {
@@ -271,6 +346,134 @@ void main() {
       expect(restored.route, '/nodes');
       expect(blocked.store.isReleased, isFalse);
       expect(blocked.queueSettled(), isFalse);
+    },
+  );
+
+  test(
+    'UX-RESTORE-002/003 stale full snapshot cannot overwrite a newer primary route',
+    () async {
+      await AppWindowService.instance.ensureInitialized();
+      await AppNavigationRestorationController.instance
+          .recordPrimaryTabSelection(AppSection.calendar);
+
+      final planner = const NavigationPersistencePolicy().classifyRoute(
+        '/rhythm/today',
+        NavigationSource.userPrimaryTab,
+      );
+      expect(planner.canonicalRoute, '/rhythm/today');
+
+      var latestCriticalReads = 0;
+      var plannerSelected = false;
+      AppRestorationService.debugLatestCriticalSnapshotReader = (userId) {
+        latestCriticalReads += 1;
+        if (!plannerSelected && latestCriticalReads == 2) {
+          plannerSelected = true;
+          // NAVIGATION.md UX-RESTORE-002/003: interleave the synchronous
+          // primary-route authority after the older mutation captured its
+          // Calendar baseline, without enqueueing or awaiting a newer write.
+          AppRestorationService.instance
+              .recordPrimaryTabSelectionCriticalSnapshot(
+                planner.canonicalRoute!,
+                metadata: planner.metadata,
+              );
+        }
+        return latestCriticalSnapshots[userId];
+      };
+
+      await AppRestorationService.instance.saveCacheHints(
+        const <String, dynamic>{'race': 'older-calendar-full-snapshot'},
+      );
+
+      expect(plannerSelected, isTrue);
+      final durable = jsonDecode(latestCriticalSnapshots['user-1']!);
+      expect(durable['routeLocation'], '/rhythm/today');
+    },
+  );
+
+  test(
+    'UX-RESTORE-002 route protection preserves concurrent Calendar and day-view state',
+    () async {
+      final calendarSnapshot = await raceOlderMutationAgainstPlanner(
+        () => AppRestorationService.instance.saveCalendarState(
+          const CalendarRestorationState(
+            kYear: 6267,
+            kMonth: 4,
+            kDay: 12,
+            showGregorian: true,
+            expansion: 'details',
+            anchorTarget: 'monthHeader',
+            anchorAlignment: 0.32,
+            viewportHeight: 812,
+            layoutRevision: 3,
+            scrollOffset: 14320.5,
+          ),
+        ),
+      );
+      expect(calendarSnapshot.calendar?.kMonth, 4);
+      expect(calendarSnapshot.calendar?.kDay, 12);
+      expect(calendarSnapshot.calendar?.anchorTarget, 'monthHeader');
+      expect(calendarSnapshot.calendar?.scrollOffset, 14320.5);
+
+      final dayViewSnapshot = await raceOlderMutationAgainstPlanner(
+        () => AppRestorationService.instance.saveDayViewState(
+          const DayViewRestorationState(
+            isOpen: true,
+            kYear: 6267,
+            kMonth: 4,
+            kDay: 12,
+            showGregorian: false,
+            firstVisibleMinute: 680,
+            scrollOffset: 680,
+          ),
+        ),
+      );
+      expect(dayViewSnapshot.dayView?.isOpen, isTrue);
+      expect(dayViewSnapshot.dayView?.firstVisibleMinute, 680);
+      expect(dayViewSnapshot.dayView?.scrollOffset, 680);
+    },
+  );
+
+  test(
+    'UX-RESTORE-002 route protection preserves concurrent overlay editor and cache state',
+    () async {
+      final overlaySnapshot = await raceOlderMutationAgainstPlanner(
+        () => AppRestorationService.instance.saveOverlayStack(
+          const <Map<String, dynamic>>[
+            <String, dynamic>{
+              'kind': 'comment_sheet',
+              'postId': 'race-post',
+              'parentRoute': '/',
+            },
+          ],
+        ),
+      );
+      expect(overlaySnapshot.overlayStack, hasLength(1));
+      expect(overlaySnapshot.overlayStack.single['postId'], 'race-post');
+
+      final editorSnapshot = await raceOlderMutationAgainstPlanner(
+        () => AppRestorationService.instance.saveEditorState(
+          'planner:race-draft',
+          const <String, dynamic>{
+            'text': 'newer draft state',
+            'selectionBase': 7,
+          },
+        ),
+      );
+      expect(
+        editorSnapshot.editors['planner:race-draft']?['text'],
+        'newer draft state',
+      );
+
+      final cacheSnapshot = await raceOlderMutationAgainstPlanner(
+        () => AppRestorationService.instance.saveCacheHints(
+          const <String, dynamic>{
+            'calendarHydrationGeneration': 17,
+            'ready': true,
+          },
+        ),
+      );
+      expect(cacheSnapshot.cacheHints?['calendarHydrationGeneration'], 17);
+      expect(cacheSnapshot.cacheHints?['ready'], isTrue);
     },
   );
 }

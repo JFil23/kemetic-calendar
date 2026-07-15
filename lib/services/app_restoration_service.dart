@@ -811,6 +811,7 @@ class AppRestorationService {
   static String? Function()? debugPlatformLastActiveUserIdReader;
   static void Function(String? userId)? debugPlatformLastActiveUserIdWriter;
   static void Function(String message)? debugLogWriter;
+  static Future<void> Function()? debugBeforeMutationProvenanceRead;
 
   /// Tie-break order for divergent snapshots with the same provenance time.
   ///
@@ -840,6 +841,7 @@ class AppRestorationService {
     _pendingCalendarIntent = null;
     _pendingLaunchRouteIntent = null;
     debugLogWriter = null;
+    debugBeforeMutationProvenanceRead = null;
   }
 
   Future<void> initialize() async {
@@ -2170,6 +2172,84 @@ class AppRestorationService {
     return newest;
   }
 
+  void _preserveNewerPrimaryRouteAuthority(
+    Map<String, dynamic> pending, {
+    required String userId,
+    required String windowId,
+    required int observedUpdatedAtMs,
+  }) {
+    Map<String, dynamic>? decodePrimaryAuthority(
+      String? serialized, {
+      required bool requireCurrentWindow,
+    }) {
+      if (serialized == null || serialized.trim().isEmpty) return null;
+      try {
+        final raw = _asJsonMap(jsonDecode(serialized));
+        if (raw == null) return null;
+        final snapshot = AppRestorationSnapshot.fromJson(raw);
+        if (snapshot == null || snapshot.userId != userId) return null;
+        if (requireCurrentWindow && snapshot.windowId != windowId) return null;
+        final metadata = NavigationLaunchRouteMetadata.fromJson(
+          raw[navigationPrimarySelectionMetadataKey],
+        );
+        final route = stableRouteLocationForContinuity(
+          raw['routeLocation'] as String?,
+        );
+        if (metadata?.source != NavigationSource.userPrimaryTab ||
+            route == null ||
+            !const NavigationPersistencePolicy().isValidDurableLaunchRoute(
+              route,
+              metadata!,
+            )) {
+          return null;
+        }
+        return raw;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    final current = decodePrimaryAuthority(
+      _readCriticalSnapshot(windowId),
+      requireCurrentWindow: true,
+    );
+    final latest = decodePrimaryAuthority(
+      _readLatestCriticalSnapshot(userId),
+      requireCurrentWindow: false,
+    );
+    final currentUpdatedAtMs = _asInt(current?['updatedAtMs']) ?? -1;
+    final latestUpdatedAtMs = _asInt(latest?['updatedAtMs']) ?? -1;
+    final authoritative = latestUpdatedAtMs > currentUpdatedAtMs
+        ? latest
+        : current;
+    final authoritativeUpdatedAtMs = currentUpdatedAtMs > latestUpdatedAtMs
+        ? currentUpdatedAtMs
+        : latestUpdatedAtMs;
+    if (authoritative == null ||
+        authoritativeUpdatedAtMs <= observedUpdatedAtMs) {
+      return;
+    }
+
+    final authoritativeRoute = authoritative['routeLocation'] as String;
+    final pendingRoute = pending['routeLocation'];
+    pending['routeLocation'] = authoritativeRoute;
+    pending[navigationLaunchRouteMetadataKey] = Map<String, dynamic>.from(
+      _asJsonMap(authoritative[navigationLaunchRouteMetadataKey]) ??
+          const <String, dynamic>{},
+    );
+    pending[navigationPrimarySelectionMetadataKey] = Map<String, dynamic>.from(
+      _asJsonMap(authoritative[navigationPrimarySelectionMetadataKey]) ??
+          const <String, dynamic>{},
+    );
+    _log(
+      'mutation preserved newer primary authority user=$userId '
+      'window=$windowId pendingRoute=${pendingRoute ?? '<none>'} '
+      'authoritativeRoute=$authoritativeRoute '
+      'observedAtMs=$observedUpdatedAtMs '
+      'authorityAtMs=$authoritativeUpdatedAtMs',
+    );
+  }
+
   Future<bool> _persistRawSnapshotLocally(
     String userId,
     String windowId,
@@ -2451,14 +2531,22 @@ class AppRestorationService {
         snapshotCandidate?.raw ??
         await _loadRawFor(userId, windowId, clearIfInvalid: false) ??
         <String, dynamic>{};
+    final observedUpdatedAtMs = _asInt(baseline['updatedAtMs']) ?? -1;
     final current = Map<String, dynamic>.from(baseline);
     update(current);
     current['schemaVersion'] = schemaVersion;
     current['userId'] = userId;
     current['windowId'] = windowId;
+    await debugBeforeMutationProvenanceRead?.call();
     final durableUpdatedAtMs = await _newestDurableUpdatedAtMs(
       userId,
       windowId,
+    );
+    _preserveNewerPrimaryRouteAuthority(
+      current,
+      userId: userId,
+      windowId: windowId,
+      observedUpdatedAtMs: observedUpdatedAtMs,
     );
     final now = DateTime.now().millisecondsSinceEpoch;
     current['updatedAtMs'] = durableUpdatedAtMs == null
@@ -2643,7 +2731,7 @@ class AppRestorationService {
     _writeCriticalSnapshot(windowId, null);
   }
 
-  void recordPrimaryTabSelectionCriticalSnapshot(
+  bool recordPrimaryTabSelectionCriticalSnapshot(
     String location, {
     required NavigationLaunchRouteMetadata metadata,
   }) {
@@ -2659,7 +2747,7 @@ class AppRestorationService {
         'section=${metadata.section?.wireName ?? '<none>'} '
         'reason=policy_rejected',
       );
-      return;
+      return false;
     }
 
     final userId = _currentUserIdNow();
@@ -2670,7 +2758,7 @@ class AppRestorationService {
         'section=${metadata.section?.wireName ?? '<none>'} '
         'reason=identity_not_initialized',
       );
-      return;
+      return false;
     }
 
     Map<String, dynamic>? decodeCritical(
@@ -2724,12 +2812,41 @@ class AppRestorationService {
     app_window_platform.registerCriticalSnapshotWindow(windowId);
     _writeCriticalSnapshot(windowId, encoded);
     _writeLatestCriticalSnapshot(userId, encoded);
+    final verifyCurrent =
+        debugCriticalSnapshotReader != null ||
+        app_window_platform.supportsSynchronousCriticalSnapshotStorage;
+    final verifyLatest =
+        debugLatestCriticalSnapshotReader != null ||
+        app_window_platform.supportsSynchronousCriticalSnapshotStorage;
+    final currentReadback = verifyCurrent
+        ? _readCriticalSnapshot(windowId)
+        : encoded;
+    final latestReadback = verifyLatest
+        ? _readLatestCriticalSnapshot(userId)
+        : encoded;
+    final expectedDigest = _storedRestorationContentDigest(encoded);
+    final currentCommitted =
+        currentReadback != null &&
+        _storedRestorationContentDigest(currentReadback) == expectedDigest;
+    final latestCommitted =
+        latestReadback != null &&
+        _storedRestorationContentDigest(latestReadback) == expectedDigest;
+    if (!currentCommitted || !latestCommitted) {
+      _log(
+        'critical primary route failed reason=durable_readback '
+        'route=$normalized section=${metadata.section?.wireName ?? '<none>'} '
+        'user=$userId window=$windowId current=$currentCommitted '
+        'latest=$latestCommitted updatedAtMs=$updatedAtMs',
+      );
+      return false;
+    }
     _writePlatformLastActiveUserId(userId);
     _log(
       'critical primary route committed route=$normalized '
       'section=${metadata.section?.wireName ?? '<none>'} '
       'user=$userId window=$windowId updatedAtMs=$updatedAtMs',
     );
+    return true;
   }
 
   Future<AppRestorationMutationResult> saveDurableLaunchRoute(
