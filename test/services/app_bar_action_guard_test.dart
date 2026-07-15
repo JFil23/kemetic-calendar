@@ -1192,31 +1192,39 @@ void main() {
       expect(shell, isNot(contains("segments.first == 'profile'")));
     });
 
-    test('global drawer uses foreground tap dismiss layer', () async {
-      final source = await File('lib/main.dart').readAsString();
-      final shell = _sourceBetween(
-        source,
-        'class _GlobalFloatingMenuShellState',
-        'class PushIntentBridge',
-      );
-      final drawer = await File(
-        'lib/widgets/global_side_drawer.dart',
-      ).readAsString();
+    test(
+      'global drawer overlays a stationary foreground with a dismiss layer',
+      () async {
+        final source = await File('lib/main.dart').readAsString();
+        final shell = _sourceBetween(
+          source,
+          'class _GlobalFloatingMenuShellState',
+          'class PushIntentBridge',
+        );
+        final drawer = await File(
+          'lib/widgets/global_side_drawer.dart',
+        ).readAsString();
 
-      expect(shell, contains('globalSideDrawerScrimKey'));
-      expect(shell, contains('HitTestBehavior.opaque'));
-      expect(shell, contains('onTap: () => unawaited(_closeFloatingMenu())'));
-      expect(
-        shell.indexOf('GlobalSideDrawer('),
-        lessThan(shell.indexOf('GlobalSideDrawerForeground(')),
-      );
-      expect(drawer, contains('globalSideDrawerScrimKey'));
-      expect(drawer, contains('globalSideDrawerForegroundKey'));
-      expect(drawer, contains('class GlobalSideDrawerForeground'));
-      expect(drawer, contains('TweenAnimationBuilder<double>'));
-      expect(drawer, contains('Transform.translate'));
-      expect(drawer, isNot(contains('AnimatedSlide')));
-    });
+        expect(shell, contains('globalSideDrawerScrimKey'));
+        expect(shell, contains('HitTestBehavior.opaque'));
+        expect(shell, contains('onTap: () => unawaited(_closeFloatingMenu())'));
+        expect(
+          shell.indexOf('GlobalSideDrawerForeground('),
+          lessThan(shell.indexOf('GlobalSideDrawer(')),
+        );
+        expect(drawer, contains('globalSideDrawerScrimKey'));
+        expect(drawer, contains('globalSideDrawerForegroundKey'));
+        expect(drawer, contains('class GlobalSideDrawerForeground'));
+        final foreground = _sourceBetween(
+          drawer,
+          'class GlobalSideDrawerForeground extends StatelessWidget',
+          'class _GlobalSideDrawerRow extends StatelessWidget',
+        );
+        expect(foreground, isNot(contains('TweenAnimationBuilder')));
+        expect(foreground, isNot(contains('Transform.translate')));
+        expect(drawer, contains('AnimatedSlide'));
+      },
+    );
 
     test('global bubble hit area matches the visible circle', () async {
       final drawer = await File(

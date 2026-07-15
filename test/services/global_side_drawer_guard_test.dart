@@ -51,40 +51,42 @@ void main() {
     expect(bubble, isNot(contains('Color(0xF6000000)')));
   });
 
-  test(
-    'global side drawer is an underlay behind the foreground shell',
-    () async {
-      final main = await File('lib/main.dart').readAsString();
-      final shell = _sourceBetween(
-        main,
-        'class _GlobalFloatingMenuShellState',
-        'class PushIntentBridge',
-      );
-      final drawer = await File(
-        'lib/widgets/global_side_drawer.dart',
-      ).readAsString();
-      final drawerWidget = _sourceBetween(
-        drawer,
-        'class GlobalSideDrawer extends StatelessWidget',
-        'class GlobalSideDrawerForeground extends StatelessWidget',
-      );
+  test('global side drawer overlays a stationary foreground shell', () async {
+    final main = await File('lib/main.dart').readAsString();
+    final shell = _sourceBetween(
+      main,
+      'class _GlobalFloatingMenuShellState',
+      'class PushIntentBridge',
+    );
+    final drawer = await File(
+      'lib/widgets/global_side_drawer.dart',
+    ).readAsString();
+    final drawerWidget = _sourceBetween(
+      drawer,
+      'class GlobalSideDrawer extends StatelessWidget',
+      'class GlobalSideDrawerForeground extends StatelessWidget',
+    );
 
-      expect(shell, contains('GlobalSideDrawer('));
-      expect(shell, contains('GlobalSideDrawerForeground('));
-      expect(
-        shell.indexOf('GlobalSideDrawer('),
-        lessThan(shell.indexOf('GlobalSideDrawerForeground(')),
-      );
-      expect(shell, contains('globalSideDrawerScrimKey'));
-      expect(shell, contains('onTap: () => unawaited(_closeFloatingMenu())'));
-      expect(drawer, contains('globalSideDrawerForegroundKey'));
-      expect(drawer, contains('TweenAnimationBuilder<double>'));
-      expect(drawer, contains('Transform.translate'));
-      expect(drawer, isNot(contains('AnimatedSlide')));
-      expect(drawerWidget, isNot(contains('globalSideDrawerScrimKey')));
-      expect(drawerWidget, isNot(contains('GestureDetector')));
-    },
-  );
+    expect(shell, contains('GlobalSideDrawer('));
+    expect(shell, contains('GlobalSideDrawerForeground('));
+    expect(
+      shell.indexOf('GlobalSideDrawerForeground('),
+      lessThan(shell.indexOf('GlobalSideDrawer(')),
+    );
+    expect(shell, contains('globalSideDrawerScrimKey'));
+    expect(shell, contains('onTap: () => unawaited(_closeFloatingMenu())'));
+    expect(drawer, contains('globalSideDrawerForegroundKey'));
+    expect(drawerWidget, contains('AnimatedSlide'));
+    final foregroundWidget = _sourceBetween(
+      drawer,
+      'class GlobalSideDrawerForeground extends StatelessWidget',
+      'class _GlobalSideDrawerRow extends StatelessWidget',
+    );
+    expect(foregroundWidget, isNot(contains('TweenAnimationBuilder')));
+    expect(foregroundWidget, isNot(contains('Transform.translate')));
+    expect(drawerWidget, isNot(contains('globalSideDrawerScrimKey')));
+    expect(drawerWidget, isNot(contains('GestureDetector')));
+  });
 
   test('drawer rows use final labels and include Profile', () async {
     final main = await File('lib/main.dart').readAsString();

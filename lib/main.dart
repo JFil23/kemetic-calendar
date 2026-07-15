@@ -3369,39 +3369,11 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (shouldMountFloatingMenu && _menuMounted)
-            Positioned.fill(
-              child: GlobalSideDrawer(
-                open: menuOpenForInteraction,
-                items: _buildGlobalSideDrawerItems(),
-              ),
-            ),
           GlobalSideDrawerForeground(
-            open: menuOpenForInteraction,
             child: Stack(
               fit: StackFit.expand,
               children: [
                 widget.child,
-                if (shouldMountFloatingMenu && _menuMounted)
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      ignoring: !menuOpenForInteraction,
-                      child: ExcludeSemantics(
-                        excluding: !menuOpenForInteraction,
-                        child: AnimatedOpacity(
-                          opacity: menuOpenForInteraction ? 1 : 0,
-                          duration: globalSideDrawerTransitionDuration,
-                          curve: globalSideDrawerTransitionCurve,
-                          child: GestureDetector(
-                            key: globalSideDrawerScrimKey,
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () => unawaited(_closeFloatingMenu()),
-                            child: const ColoredBox(color: Colors.transparent),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
                 if (shouldActivateFloatingMenu || _menuMounted)
                   GlobalMenuBubble(
                     key: globalMenuButtonKey,
@@ -3422,6 +3394,33 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
               ],
             ),
           ),
+          if (shouldMountFloatingMenu && _menuMounted)
+            Positioned.fill(
+              child: IgnorePointer(
+                ignoring: !menuOpenForInteraction,
+                child: ExcludeSemantics(
+                  excluding: !menuOpenForInteraction,
+                  child: AnimatedOpacity(
+                    opacity: menuOpenForInteraction ? 1 : 0,
+                    duration: globalSideDrawerTransitionDuration,
+                    curve: globalSideDrawerTransitionCurve,
+                    child: GestureDetector(
+                      key: globalSideDrawerScrimKey,
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => unawaited(_closeFloatingMenu()),
+                      child: const ColoredBox(color: Colors.transparent),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (shouldMountFloatingMenu && _menuMounted)
+            Positioned.fill(
+              child: GlobalSideDrawer(
+                open: menuOpenForInteraction,
+                items: _buildGlobalSideDrawerItems(),
+              ),
+            ),
         ],
       ),
     );

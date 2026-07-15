@@ -183,9 +183,7 @@ void main() {
     expect(find.byKey(globalSideDrawerKey), findsOneWidget);
   });
 
-  testWidgets('drawer is an underlay beneath the translated foreground', (
-    tester,
-  ) async {
+  testWidgets('drawer overlays a stationary foreground', (tester) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -218,24 +216,12 @@ void main() {
     );
 
     expect(drawerRect.left, closeTo(0, 0.1));
-    expect(openForegroundRect.left, closeTo(drawerRect.width, 0.5));
-    expect(
-      openForegroundRect.left,
-      greaterThanOrEqualTo(drawerRect.right - 0.5),
-    );
-    expect(
-      openPageRect.left - closedPageRect.left,
-      closeTo(drawerRect.width, 0.5),
-    );
-    expect(
-      openBubbleRect.left - closedBubbleRect.left,
-      closeTo(drawerRect.width, 0.5),
-    );
+    expect(openForegroundRect, closedForegroundRect);
+    expect(openPageRect.left - closedPageRect.left, closeTo(0, 0.1));
+    expect(openBubbleRect.left - closedBubbleRect.left, closeTo(0, 0.1));
   });
 
-  testWidgets('outside foreground tap closes the underlay drawer', (
-    tester,
-  ) async {
+  testWidgets('outside tap closes the overlay drawer', (tester) async {
     final router = _testRouter();
 
     await _pumpShell(tester, router);
@@ -258,7 +244,7 @@ void main() {
     Size(1180, 820),
   ]) {
     testWidgets(
-      'drawer foreground structural smoke ${viewport.width.toInt()}x${viewport.height.toInt()}',
+      'drawer overlay structural smoke ${viewport.width.toInt()}x${viewport.height.toInt()}',
       (tester) async {
         tester.view.physicalSize = viewport;
         tester.view.devicePixelRatio = 1;
@@ -284,12 +270,8 @@ void main() {
 
         expect(drawerRect.left, closeTo(0, 0.1));
         expect(drawerRect.width, lessThan(viewport.width));
-        expect(foregroundRect.left, closeTo(drawerRect.width, 0.6));
-        expect(drawerRect.right, lessThanOrEqualTo(foregroundRect.left + 0.6));
-        expect(
-          openBubbleRect.left - closedBubbleRect.left,
-          closeTo(drawerRect.width, 0.6),
-        );
+        expect(foregroundRect.left, closeTo(0, 0.1));
+        expect(openBubbleRect.left - closedBubbleRect.left, closeTo(0, 0.1));
       },
     );
   }
