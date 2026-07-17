@@ -69,6 +69,11 @@ Drawer composition is a reveal/push interaction, not an overlay interaction:
   paint gap, or restoration replay.
 - `UX-DRAWER-005`: Drawer composition must not delay or reorder the existing
   destination dispatch and primary-route persistence contracts.
+- `UX-DRAWER-006`: The single `GlobalMenuBubble` remains mounted inside the
+  translated foreground throughout drawer open, close, and destination
+  replacement. A drawer-row tap records its critical route state and requests
+  the destination before it starts the independent close animation; the old
+  page must not be visible again after the drawer has closed.
 
 Deterministic drawer coverage must prove closed, midpoint, open, and reclosed
 geometry; fully opaque drawer material; shared translation of the header and

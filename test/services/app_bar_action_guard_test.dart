@@ -956,20 +956,23 @@ void main() {
       );
       final flowStudioCallback = _sourceBetween(
         source,
-        'Future<void> _openFlowsFromDrawer()',
-        'Future<void> _openCalendarsFromDrawer()',
+        'void _openFlowsFromDrawer()',
+        'void _openCalendarsFromDrawer()',
       );
       final calendarsCallback = _sourceBetween(
         source,
-        'Future<void> _openCalendarsFromDrawer()',
+        'void _openCalendarsFromDrawer()',
         'void _openMaatGuidance(MaatGuidanceDelivery delivery)',
       );
 
       expect(items, contains("label: 'Flows'"));
-      expect(items, contains('_openFlowsFromDrawer()'));
+      expect(items, contains('onSelected: _openFlowsFromDrawer'));
       expect(items, contains("label: 'Calendars'"));
-      expect(items, contains('_openCalendarsFromDrawer()'));
-      expect(flowStudioCallback, contains('unawaited(_closeFloatingMenu())'));
+      expect(items, contains('onSelected: _openCalendarsFromDrawer'));
+      expect(
+        flowStudioCallback,
+        contains('_requestDrawerDestinationThenClose'),
+      );
       expect(flowStudioCallback, isNot(contains('await _closeFloatingMenu()')));
       expect(
         flowStudioCallback,
@@ -985,10 +988,12 @@ void main() {
       expect(flowStudioCallback, isNot(contains("widget.router.go('/flows')")));
       expect(flowStudioCallback, isNot(contains(".go('/flows')")));
       expect(
-        flowStudioCallback.indexOf('unawaited(_closeFloatingMenu())'),
-        lessThan(flowStudioCallback.indexOf('openUtilityRoute<void>(')),
+        source,
+        contains(
+          'void _requestDrawerDestinationThenClose(VoidCallback request)',
+        ),
       );
-      expect(calendarsCallback, contains('unawaited(_closeFloatingMenu())'));
+      expect(calendarsCallback, contains('_requestDrawerDestinationThenClose'));
       expect(calendarsCallback, isNot(contains('await _closeFloatingMenu()')));
       expect(
         calendarsCallback,
@@ -1006,10 +1011,6 @@ void main() {
         isNot(contains("widget.router.go('/calendars')")),
       );
       expect(calendarsCallback, isNot(contains(".go('/calendars')")));
-      expect(
-        calendarsCallback.indexOf('unawaited(_closeFloatingMenu())'),
-        lessThan(calendarsCallback.indexOf('openUtilityRoute<void>(')),
-      );
       expect(source, contains("path: '/flows'"));
       expect(
         source,

@@ -129,13 +129,21 @@ void main() {
         );
         expect(
           find.bySemanticsLabel('Close navigation menu'),
-          findsOneWidget,
+          findsNWidgets(2),
           reason: route.value,
         );
         expect(
           find.byType(GlobalMenuBubble),
-          findsNothing,
-          reason: '${route.value}: the open drawer replaces its trigger',
+          findsOneWidget,
+          reason: '${route.value}: the menu bubble stays on the foreground',
+        );
+        expect(
+          find.descendant(
+            of: find.byKey(app.globalMenuButtonKey),
+            matching: find.bySemanticsLabel('Close navigation menu'),
+          ),
+          findsOneWidget,
+          reason: '${route.value}: the persistent bubble closes the drawer',
         );
 
         await tester.pumpWidget(const SizedBox.shrink());
@@ -211,6 +219,12 @@ void main() {
       final closedHeaderRect = tester.getRect(find.byType(AppBar));
       final closedCalendarRect = tester.getRect(find.byType(ListView));
       final routedElement = tester.element(find.byType(_ScrollableTestPage));
+      final menuBubbleElement = tester.element(
+        find.byKey(app.globalMenuButtonKey),
+      );
+      final closedBubbleRect = tester.getRect(
+        find.byKey(app.globalMenuButtonKey),
+      );
       expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
       expect(closedForegroundRect.left, closeTo(0, 0.1));
 
@@ -242,7 +256,15 @@ void main() {
         tester.element(find.byType(_ScrollableTestPage)),
         same(routedElement),
       );
-      expect(find.byKey(app.globalMenuButtonKey), findsNothing);
+      expect(
+        tester.element(find.byKey(app.globalMenuButtonKey)),
+        same(menuBubbleElement),
+      );
+      expect(
+        tester.getRect(find.byKey(app.globalMenuButtonKey)).left -
+            closedBubbleRect.left,
+        closeTo(drawerRect.width, 0.5),
+      );
     },
   );
 
@@ -343,10 +365,9 @@ void main() {
 
       expect(
         find.byKey(app.globalMenuButtonKey),
-        findsNothing,
+        findsOneWidget,
         reason:
-            'The floating bubble sits beneath the drawer rows and must not '
-            'publish an overlapping close hit target while the drawer is open.',
+            'The floating bubble stays attached to the translated foreground.',
       );
       expect(
         find.descendant(
@@ -389,7 +410,7 @@ void main() {
         expect(drawerRect.width, lessThan(viewport.width));
         expect(foregroundRect.left, closeTo(drawerRect.width, 0.6));
         expect(drawerRect.right, lessThanOrEqualTo(foregroundRect.left + 0.6));
-        expect(find.byKey(app.globalMenuButtonKey), findsNothing);
+        expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
       },
     );
   }
@@ -411,32 +432,84 @@ void main() {
     expect(find.text('Planner'), findsNothing);
   });
 
-  testWidgets('drawer-only animation completes before primary route dispatch', (
-    tester,
-  ) async {
-    final router = _testRouter();
+  testWidgets(
+    'UX-DRAWER-006 route dispatches during close without rebuilding foreground state',
+    (tester) async {
+      var calendarMounts = 0;
+      var calendarDisposals = 0;
+      var plannerMounts = 0;
+      var plannerDisposals = 0;
+      final router = _testRouter(
+        initialLocation: '/',
+        calendarBuilder: (context) => _RetainedCalendarTestPage(
+          onMounted: () => calendarMounts += 1,
+          onDisposed: () => calendarDisposals += 1,
+          onOffsetChanged: (_) {},
+        ),
+        plannerBuilder: (context) => _LifecycleTestPage(
+          label: 'Planner route',
+          onMounted: () => plannerMounts += 1,
+          onDisposed: () => plannerDisposals += 1,
+        ),
+      );
 
-    await _pumpShell(tester, router);
-    await _openDrawer(tester);
+      await _pumpShell(tester, router);
+      final menuBubbleElement = tester.element(
+        find.byKey(app.globalMenuButtonKey),
+      );
+      final calendarElement = tester.element(
+        find.byType(_RetainedCalendarTestPage),
+      );
+      await _openDrawer(tester);
 
-    await tester.tap(find.text('Planner'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 16));
+      expect(
+        tester.element(find.byKey(app.globalMenuButtonKey)),
+        same(menuBubbleElement),
+      );
 
-    expect(router.routerDelegate.currentConfiguration.uri.path, '/nodes');
-    expect(find.text('Nodes'), findsOneWidget);
-    expect(find.byKey(globalSideDrawerKey), findsOneWidget);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('global-side-drawer-item-Planner')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
 
-    await tester.pump(globalSideDrawerTransitionDuration);
-    await tester.pump();
+      expect(_visibleRouterPath(router), '/rhythm/today');
+      expect(find.text('Planner route'), findsOneWidget);
+      expect(find.byKey(globalSideDrawerKey), findsOneWidget);
+      final drawerWidth = tester.getSize(find.byKey(globalSideDrawerKey)).width;
+      final closingForegroundLeft = tester
+          .getRect(find.byKey(globalSideDrawerForegroundKey))
+          .left;
+      expect(closingForegroundLeft, greaterThan(0));
+      expect(closingForegroundLeft, lessThan(drawerWidth));
+      expect(
+        tester.element(find.byKey(app.globalMenuButtonKey)),
+        same(menuBubbleElement),
+      );
+      expect(
+        tester.element(find.byType(_RetainedCalendarTestPage)),
+        same(calendarElement),
+      );
+      expect(calendarMounts, 1);
+      expect(calendarDisposals, 0);
+      expect(plannerMounts, 1);
+      expect(plannerDisposals, 0);
 
-    expect(
-      router.routerDelegate.currentConfiguration.uri.path,
-      '/rhythm/today',
-    );
-    expect(find.text('Planner route'), findsOneWidget);
-    expect(find.byKey(globalSideDrawerKey), findsNothing);
-  });
+      await tester.pump(globalSideDrawerTransitionDuration);
+      await tester.pump();
+
+      expect(_visibleRouterPath(router), '/rhythm/today');
+      expect(find.byKey(globalSideDrawerKey), findsNothing);
+      expect(
+        tester.element(find.byKey(app.globalMenuButtonKey)),
+        same(menuBubbleElement),
+      );
+      expect(calendarMounts, 1);
+      expect(calendarDisposals, 0);
+      expect(plannerMounts, 1);
+      expect(plannerDisposals, 0);
+    },
+  );
 
   testWidgets('drawer close and current selection retain foreground state', (
     tester,
@@ -955,6 +1028,7 @@ Future<bool> _sendShellBack(WidgetTester tester) async {
 GoRouter _testRouter({
   String initialLocation = '/nodes',
   WidgetBuilder? calendarBuilder,
+  WidgetBuilder? plannerBuilder,
   WidgetBuilder? nodesBuilder,
 }) {
   return GoRouter(
@@ -970,7 +1044,8 @@ GoRouter _testRouter({
       ),
       GoRoute(
         path: '/rhythm/today',
-        builder: (context, state) => const _Page('Planner route'),
+        builder: (context, state) =>
+            plannerBuilder?.call(context) ?? const _Page('Planner route'),
       ),
       GoRoute(
         path: '/nodes',
@@ -1050,6 +1125,38 @@ class _Page extends StatelessWidget {
       ),
     );
   }
+}
+
+class _LifecycleTestPage extends StatefulWidget {
+  const _LifecycleTestPage({
+    required this.label,
+    required this.onMounted,
+    required this.onDisposed,
+  });
+
+  final String label;
+  final VoidCallback onMounted;
+  final VoidCallback onDisposed;
+
+  @override
+  State<_LifecycleTestPage> createState() => _LifecycleTestPageState();
+}
+
+class _LifecycleTestPageState extends State<_LifecycleTestPage> {
+  @override
+  void initState() {
+    super.initState();
+    widget.onMounted();
+  }
+
+  @override
+  void dispose() {
+    widget.onDisposed();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _Page(widget.label);
 }
 
 class _ScrollableTestPage extends StatelessWidget {

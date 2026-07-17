@@ -2571,6 +2571,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   StreamSubscription<AuthState>? _authSub;
   bool _menuMounted = false;
   bool _menuOpen = false;
+  bool _drawerDestinationDispatchInProgress = false;
   bool _calendarRouteRetainedUnderDrawerDestination = false;
   bool _drawerBackGestureActive = false;
   bool _drawerBackPopRouteConsumePending = false;
@@ -2734,7 +2735,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     unawaited(
       CalendarPage.dismissAppOwnedTransientOverlaysForRouteChange(navContext),
     );
-    if (!_menuMounted || _menuOpen) {
+    if (!_drawerDestinationDispatchInProgress && (!_menuMounted || _menuOpen)) {
       _resetFloatingMenuState();
     }
     _scheduleMaatGuidanceGateEvaluation();
@@ -3118,11 +3119,23 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     _traceNavigation('menu close completed', mediaContext: context);
   }
 
-  Future<void> _openPrimarySectionFromDrawer(AppSection section) async {
+  /// Dispatches the destination synchronously, then lets the drawer close in
+  /// parallel. Route listeners can run synchronously inside [request], so keep
+  /// the drawer mounted until its close animation owns the teardown.
+  void _requestDrawerDestinationThenClose(VoidCallback request) {
+    _drawerDestinationDispatchInProgress = true;
+    try {
+      request();
+    } finally {
+      _drawerDestinationDispatchInProgress = false;
+    }
+    unawaited(_closeFloatingMenu());
+  }
+
+  void _openPrimarySectionFromDrawer(AppSection section) {
     final location = const NavigationPersistencePolicy().routeForSection(
       section,
     );
-    await _closeFloatingMenu();
     if (!mounted || !context.mounted) return;
     if (_currentUri.path == location && !_currentUri.hasQuery) {
       _traceNavigation(
@@ -3130,18 +3143,21 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
         mediaContext: context,
         state: <String, Object?>{'route': location},
       );
+      unawaited(_closeFloatingMenu());
       return;
     }
     if (section == AppSection.calendar) {
       if (_calendarRouteRetainedUnderDrawerDestination &&
           widget.router.canPop()) {
-        recordPrimarySectionSelection(section);
-        _traceNavigation(
-          'global drawer retained Calendar route revealed',
-          mediaContext: context,
-          state: <String, Object?>{'route': location},
-        );
-        widget.router.pop();
+        _requestDrawerDestinationThenClose(() {
+          recordPrimarySectionSelection(section);
+          _traceNavigation(
+            'global drawer retained Calendar route revealed',
+            mediaContext: context,
+            state: <String, Object?>{'route': location},
+          );
+          widget.router.pop();
+        });
         return;
       }
       final navigationContext = _rootNavigatorKey.currentContext ?? context;
@@ -3152,28 +3168,34 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       navigator?.popUntil((route) => route.isFirst);
     }
     if (_currentUri.path == '/' && !_currentUri.hasQuery) {
-      recordPrimarySectionSelection(section);
       _calendarRouteRetainedUnderDrawerDestination = true;
-      _traceNavigation(
-        'global drawer destination pushed over retained Calendar',
-        mediaContext: context,
-        state: <String, Object?>{'route': location},
-      );
-      unawaited(widget.router.push<void>(location));
+      _requestDrawerDestinationThenClose(() {
+        recordPrimarySectionSelection(section);
+        _traceNavigation(
+          'global drawer destination pushed over retained Calendar',
+          mediaContext: context,
+          state: <String, Object?>{'route': location},
+        );
+        unawaited(widget.router.push<void>(location));
+      });
       return;
     }
     if (_calendarRouteRetainedUnderDrawerDestination &&
         widget.router.canPop()) {
-      recordPrimarySectionSelection(section);
-      _traceNavigation(
-        'global drawer destination replaced above retained Calendar',
-        mediaContext: context,
-        state: <String, Object?>{'route': location},
-      );
-      unawaited(widget.router.pushReplacement<void>(location));
+      _requestDrawerDestinationThenClose(() {
+        recordPrimarySectionSelection(section);
+        _traceNavigation(
+          'global drawer destination replaced above retained Calendar',
+          mediaContext: context,
+          state: <String, Object?>{'route': location},
+        );
+        unawaited(widget.router.pushReplacement<void>(location));
+      });
       return;
     }
-    openPrimarySection(context, section, router: widget.router);
+    _requestDrawerDestinationThenClose(
+      () => openPrimarySection(context, section, router: widget.router),
+    );
   }
 
   void _retainCalendarUnderDrawerPushIfVisible() {
@@ -3182,77 +3204,80 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     }
   }
 
-  Future<void> _openProfileFromDrawer() async {
+  void _openProfileFromDrawer() {
     _traceNavigation(
       '_openProfileFromDrawer entered',
       mediaContext: context,
       state: const <String, Object?>{'route': '/profile/me'},
     );
-    await _closeFloatingMenu();
     if (!mounted || !context.mounted) return;
     final navigationContext = _rootNavigatorKey.currentContext ?? context;
     if (!navigationContext.mounted) return;
     _retainCalendarUnderDrawerPushIfVisible();
-    _traceNavigation(
-      "global drawer detail route push('/profile/me') requested",
-      mediaContext: context,
-      state: const <String, Object?>{'route': '/profile/me'},
-    );
-    unawaited(
-      openDetailRoute<void>(
-        navigationContext,
-        '/profile/me',
-        router: widget.router,
-      ),
-    );
+    _requestDrawerDestinationThenClose(() {
+      _traceNavigation(
+        "global drawer detail route push('/profile/me') requested",
+        mediaContext: context,
+        state: const <String, Object?>{'route': '/profile/me'},
+      );
+      unawaited(
+        openDetailRoute<void>(
+          navigationContext,
+          '/profile/me',
+          router: widget.router,
+        ),
+      );
+    });
   }
 
-  Future<void> _openFlowsFromDrawer() async {
+  void _openFlowsFromDrawer() {
     _traceNavigation(
       '_openFlowsFromDrawer entered',
       mediaContext: context,
       state: const <String, Object?>{'route': '/flows'},
     );
-    await _closeFloatingMenu();
     if (!mounted || !context.mounted) return;
     _retainCalendarUnderDrawerPushIfVisible();
-    _traceNavigation(
-      "global drawer utility route push('/flows') requested",
-      mediaContext: context,
-      state: const <String, Object?>{'route': '/flows'},
-    );
-    unawaited(
-      openUtilityRoute<void>(
-        context,
-        '/flows',
-        navigationContext: _rootNavigatorKey.currentContext,
-        router: widget.router,
-      ),
-    );
+    _requestDrawerDestinationThenClose(() {
+      _traceNavigation(
+        "global drawer utility route push('/flows') requested",
+        mediaContext: context,
+        state: const <String, Object?>{'route': '/flows'},
+      );
+      unawaited(
+        openUtilityRoute<void>(
+          context,
+          '/flows',
+          navigationContext: _rootNavigatorKey.currentContext,
+          router: widget.router,
+        ),
+      );
+    });
   }
 
-  Future<void> _openCalendarsFromDrawer() async {
+  void _openCalendarsFromDrawer() {
     _traceNavigation(
       '_openCalendarsFromDrawer entered',
       mediaContext: context,
       state: const <String, Object?>{'route': '/calendars'},
     );
-    await _closeFloatingMenu();
     if (!mounted || !context.mounted) return;
     _retainCalendarUnderDrawerPushIfVisible();
-    _traceNavigation(
-      "global drawer utility route push('/calendars') requested",
-      mediaContext: context,
-      state: const <String, Object?>{'route': '/calendars'},
-    );
-    unawaited(
-      openUtilityRoute<void>(
-        context,
-        '/calendars',
-        navigationContext: _rootNavigatorKey.currentContext,
-        router: widget.router,
-      ),
-    );
+    _requestDrawerDestinationThenClose(() {
+      _traceNavigation(
+        "global drawer utility route push('/calendars') requested",
+        mediaContext: context,
+        state: const <String, Object?>{'route': '/calendars'},
+      );
+      unawaited(
+        openUtilityRoute<void>(
+          context,
+          '/calendars',
+          navigationContext: _rootNavigatorKey.currentContext,
+          router: widget.router,
+        ),
+      );
+    });
   }
 
   bool _isDrawerDestinationSelected(String destination) {
@@ -3279,72 +3304,65 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
         label: 'Calendar',
         glyph: MeduNeterGlyphs.home,
         selected: _isDrawerDestinationSelected('/'),
-        onSelected: () =>
-            unawaited(_openPrimarySectionFromDrawer(AppSection.calendar)),
+        onSelected: () => _openPrimarySectionFromDrawer(AppSection.calendar),
       ),
       GlobalSideDrawerItem(
         label: 'Planner',
         glyph: MeduNeterGlyphs.planner,
         selected: _isDrawerDestinationSelected('/rhythm/today'),
-        onSelected: () =>
-            unawaited(_openPrimarySectionFromDrawer(AppSection.planner)),
+        onSelected: () => _openPrimarySectionFromDrawer(AppSection.planner),
       ),
       GlobalSideDrawerItem(
         label: 'Library',
         glyph: MeduNeterGlyphs.library,
         glyphSize: 20,
         selected: _isDrawerDestinationSelected('/nodes'),
-        onSelected: () =>
-            unawaited(_openPrimarySectionFromDrawer(AppSection.library)),
+        onSelected: () => _openPrimarySectionFromDrawer(AppSection.library),
       ),
       GlobalSideDrawerItem(
         label: 'Journal',
         glyph: MeduNeterGlyphs.journal,
         selected: _isDrawerDestinationSelected('/journal'),
-        onSelected: () =>
-            unawaited(_openPrimarySectionFromDrawer(AppSection.journal)),
+        onSelected: () => _openPrimarySectionFromDrawer(AppSection.journal),
       ),
       GlobalSideDrawerItem(
         label: 'Inbox',
         glyph: MeduNeterGlyphs.inbox,
         showNotificationDot: true,
         selected: _isDrawerDestinationSelected('/inbox'),
-        onSelected: () =>
-            unawaited(_openPrimarySectionFromDrawer(AppSection.inbox)),
+        onSelected: () => _openPrimarySectionFromDrawer(AppSection.inbox),
       ),
       GlobalSideDrawerItem(
         label: 'Calendars',
         glyph: MeduNeterGlyphs.calendars,
         selected: _isDrawerDestinationSelected('/calendars'),
-        onSelected: () => unawaited(_openCalendarsFromDrawer()),
+        onSelected: _openCalendarsFromDrawer,
       ),
       GlobalSideDrawerItem(
         label: 'Flows',
         glyph: MeduNeterGlyphs.flowStudio,
         glyphSize: 20,
         selected: _isDrawerDestinationSelected('/flows'),
-        onSelected: () => unawaited(_openFlowsFromDrawer()),
+        onSelected: _openFlowsFromDrawer,
       ),
       GlobalSideDrawerItem(
         label: 'Reflections',
         glyph: MeduNeterGlyphs.reflections,
         glyphSize: 18,
         selected: _isDrawerDestinationSelected('/reflections'),
-        onSelected: () =>
-            unawaited(_openPrimarySectionFromDrawer(AppSection.reflections)),
+        onSelected: () => _openPrimarySectionFromDrawer(AppSection.reflections),
       ),
       GlobalSideDrawerItem(
         label: 'Profile',
         glyph: MeduNeterGlyphs.profile,
         selected: _isDrawerDestinationSelected('/profile/me'),
-        onSelected: () => unawaited(_openProfileFromDrawer()),
+        onSelected: _openProfileFromDrawer,
       ),
       GlobalSideDrawerItem(
         label: 'Settings',
         glyph: MeduNeterGlyphs.settings,
         selected: _isDrawerDestinationSelected('/settings'),
-        onSelected: () =>
-            unawaited(_openPrimarySectionFromDrawer(AppSection.settings)),
+        onSelected: () => _openPrimarySectionFromDrawer(AppSection.settings),
       ),
     ];
   }
@@ -3471,11 +3489,11 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
                       ),
                     ),
                   ),
-                if (shouldActivateFloatingMenu && !_menuMounted)
+                if (shouldActivateFloatingMenu)
                   GlobalMenuBubble(
                     key: globalMenuButtonKey,
                     visible: true,
-                    open: false,
+                    open: menuOpenForInteraction,
                     onPressed: _handleFloatingMenuPressed,
                   ),
                 DailyCosmicContextOverlayHost(

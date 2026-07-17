@@ -126,22 +126,22 @@ void main() {
       final main = await File('lib/main.dart').readAsString();
       final primary = _sourceBetween(
         main,
-        'Future<void> _openPrimarySectionFromDrawer',
-        'Future<void> _openProfileFromDrawer',
+        'void _openPrimarySectionFromDrawer',
+        'void _openProfileFromDrawer',
       );
       final profile = _sourceBetween(
         main,
-        'Future<void> _openProfileFromDrawer',
-        'Future<void> _openFlowsFromDrawer',
+        'void _openProfileFromDrawer',
+        'void _openFlowsFromDrawer',
       );
       final flows = _sourceBetween(
         main,
-        'Future<void> _openFlowsFromDrawer',
-        'Future<void> _openCalendarsFromDrawer',
+        'void _openFlowsFromDrawer',
+        'void _openCalendarsFromDrawer',
       );
       final calendars = _sourceBetween(
         main,
-        'Future<void> _openCalendarsFromDrawer',
+        'void _openCalendarsFromDrawer',
         'bool _isDrawerDestinationSelected',
       );
       final items = _sourceBetween(
@@ -151,29 +151,27 @@ void main() {
       );
 
       expect(primary, contains('openPrimarySection(context, section'));
-      expect(primary, contains('await _closeFloatingMenu();'));
+      expect(primary, contains('_requestDrawerDestinationThenClose'));
+      expect(primary, isNot(contains('await _closeFloatingMenu();')));
       expect(primary, contains('_currentUri.path == location'));
       expect(primary, contains('if (section == AppSection.calendar)'));
       expect(primary, contains('Navigator.maybeOf('));
       expect(primary, contains('rootNavigator: true'));
       expect(primary, contains('popUntil((route) => route.isFirst)'));
-      expect(
-        primary.indexOf('await _closeFloatingMenu();'),
-        lessThan(primary.indexOf('openPrimarySection(context, section')),
-      );
       expect(profile, contains('openDetailRoute<void>'));
       expect(profile, contains("'/profile/me'"));
-      expect(profile, contains('await _closeFloatingMenu();'));
+      expect(profile, contains('_requestDrawerDestinationThenClose'));
+      expect(profile, isNot(contains('await _closeFloatingMenu();')));
       expect(profile, isNot(contains('openPrimarySection')));
       expect(profile, isNot(contains('recordPrimaryTabSelection')));
       expect(
         main,
         isNot(contains('openPrimarySection(context, AppSection.profile')),
       );
-      expect(flows, contains('await _closeFloatingMenu();'));
-      expect(calendars, contains('await _closeFloatingMenu();'));
-      expect(items, contains('_openCalendarsFromDrawer()'));
-      expect(items, contains('_openFlowsFromDrawer()'));
+      expect(flows, contains('_requestDrawerDestinationThenClose'));
+      expect(calendars, contains('_requestDrawerDestinationThenClose'));
+      expect(items, contains('onSelected: _openCalendarsFromDrawer'));
+      expect(items, contains('onSelected: _openFlowsFromDrawer'));
       expect(main, contains('openUtilityRoute<void>'));
       expect(main, contains("'/flows'"));
       expect(main, contains("'/calendars'"));
@@ -274,12 +272,15 @@ void main() {
         'UX-DRAWER-003',
         'UX-DRAWER-004',
         'UX-DRAWER-005',
+        'UX-DRAWER-006',
       ]) {
         expect(navigation, contains(contract));
       }
       expect(navigation, contains('opaque surface behind the application'));
       expect(navigation, contains('translates the entire foreground'));
       expect(navigation, contains('exact pre-open Calendar offset'));
+      expect(navigation, contains('single `GlobalMenuBubble` remains mounted'));
+      expect(navigation, contains('before it starts the independent close'));
       expect(navigation, contains('must not reconstruct the routed page'));
     },
   );
