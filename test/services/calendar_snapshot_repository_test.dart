@@ -120,6 +120,52 @@ void main() {
   );
 
   test(
+    'older same-generation confirmation cannot replace a newer process mutation',
+    () async {
+      final store = _BlockingCalendarSnapshotStore();
+      final repository = CalendarSnapshotRepository(store: store);
+
+      final olderPromotion = repository.promote(
+        _candidate(
+          events: const ['old-event'],
+          extraPayload: const <String, dynamic>{
+            'calendarView': 'month',
+            'activeOverlay': 'old-overlay',
+            'editorDraft': 'old-draft',
+            'cacheEpoch': 1,
+            'dayViewMinute': 120,
+          },
+        ),
+      );
+      await store.writeStarted.future;
+
+      repository.retainForProcessRemount(
+        _candidate(
+          events: const ['new-event'],
+          extraPayload: const <String, dynamic>{
+            'calendarView': 'day',
+            'activeOverlay': 'new-overlay',
+            'editorDraft': 'new-draft',
+            'cacheEpoch': 2,
+            'dayViewMinute': 780,
+          },
+        ),
+      );
+
+      store.releaseWrites();
+      await olderPromotion;
+
+      final remounted = await repository.restore(_identity);
+      expect(remounted?.json, containsPair('calendarView', 'day'));
+      expect(remounted?.json, containsPair('activeOverlay', 'new-overlay'));
+      expect(remounted?.json, containsPair('editorDraft', 'new-draft'));
+      expect(remounted?.json, containsPair('cacheEpoch', 2));
+      expect(remounted?.json, containsPair('dayViewMinute', 780));
+      expect(remounted?.eventCount, 1);
+    },
+  );
+
+  test(
     'empty delayed disk restore yields a complete candidate retained during the read',
     () async {
       final store = _FirstReadBlockingCalendarSnapshotStore();

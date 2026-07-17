@@ -204,6 +204,21 @@ void main() {
         await _pumpWarmRestoreWindow(tester);
         expect(find.text(_cachedTitle), findsOneWidget);
 
+        final calendarScrollView = find
+            .byWidgetPredicate(
+              (widget) =>
+                  widget is CustomScrollView && widget.controller != null,
+            )
+            .first;
+        expect(calendarScrollView, findsOneWidget);
+        await tester.drag(calendarScrollView, const Offset(0, -600));
+        await tester.pump(const Duration(milliseconds: 500));
+        final departingOffset = tester
+            .widget<CustomScrollView>(calendarScrollView)
+            .controller!
+            .offset;
+        expect(departingOffset, greaterThan(0));
+
         await tester.pumpWidget(
           const MaterialApp(home: Scaffold(body: Text('Journal'))),
         );
@@ -221,6 +236,31 @@ void main() {
           MaterialApp(home: CalendarPage(key: UniqueKey())),
         );
         frames.add(_visibleFrame(tester));
+        expect(
+          find.byType(CircularProgressIndicator),
+          findsNothing,
+          reason:
+              'A populated same-process Calendar remount must paint directly; '
+              'viewport settlement cannot replace it with a loading wheel.',
+        );
+        final returnedScrollView = find
+            .byWidgetPredicate(
+              (widget) =>
+                  widget is CustomScrollView && widget.controller != null,
+            )
+            .first;
+        expect(returnedScrollView, findsOneWidget);
+        final returnedOffset = tester
+            .widget<CustomScrollView>(returnedScrollView)
+            .controller!
+            .offset;
+        expect(
+          returnedOffset,
+          closeTo(departingOffset, 1),
+          reason:
+              'Drawer route navigation must retain the exact Calendar offset '
+              'rather than replaying a logical approximation later.',
+        );
         for (var i = 0; i < 8; i++) {
           await tester.pump(const Duration(milliseconds: 25));
           frames.add(_visibleFrame(tester));
@@ -249,6 +289,69 @@ void main() {
               'After the route transition frame, populated process state must '
               'remain continuously visible. frames=$frames',
         );
+      },
+    );
+
+    testWidgets(
+      'leaving without a new scroll still hands the exact Calendar viewport to the next route instance',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        await _seedWarmSnapshot(title: _cachedTitle);
+        _backend.blockRefresh = true;
+        addTearDown(() async {
+          _backend.release();
+          await tester.pumpWidget(const SizedBox.shrink());
+          for (var i = 0; i < 8; i++) {
+            await tester.pump(const Duration(milliseconds: 250));
+          }
+        });
+
+        await tester.pumpWidget(
+          MaterialApp(home: CalendarPage(key: UniqueKey())),
+        );
+        await tester.pump();
+        await _pumpWarmRestoreWindow(tester);
+        expect(find.text(_cachedTitle), findsOneWidget);
+
+        final calendarScrollView = find
+            .byWidgetPredicate(
+              (widget) =>
+                  widget is CustomScrollView && widget.controller != null,
+            )
+            .first;
+        final departingOffset = tester
+            .widget<CustomScrollView>(calendarScrollView)
+            .controller!
+            .offset;
+
+        await tester.pumpWidget(
+          const MaterialApp(home: Scaffold(body: Text('Settings'))),
+        );
+        await tester.pump();
+        await _seedWarmSnapshot(
+          includeEvent: false,
+          replaceRetainedMemory: false,
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(home: CalendarPage(key: UniqueKey())),
+        );
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+        expect(find.text(_cachedTitle), findsOneWidget);
+        final returnedScrollView = find
+            .byWidgetPredicate(
+              (widget) =>
+                  widget is CustomScrollView && widget.controller != null,
+            )
+            .first;
+        final returnedOffset = tester
+            .widget<CustomScrollView>(returnedScrollView)
+            .controller!
+            .offset;
+        expect(returnedOffset, closeTo(departingOffset, 1));
+        for (var i = 0; i < 8; i++) {
+          await tester.pump(const Duration(milliseconds: 25));
+        }
       },
     );
 

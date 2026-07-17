@@ -3891,6 +3891,36 @@ class _CalendarModelCopy {
   }
 }
 
+class _CalendarProcessRouteHandoff {
+  const _CalendarProcessRouteHandoff({
+    required this.identityKey,
+    required this.layoutRevision,
+    required this.physicalWidth,
+    required this.physicalHeight,
+    required this.devicePixelRatio,
+    required this.kYear,
+    required this.kMonth,
+    required this.kDay,
+    required this.scrollBaseYear,
+    required this.scrollOffset,
+    required this.showGregorian,
+    required this.expansion,
+  });
+
+  final String identityKey;
+  final int layoutRevision;
+  final double physicalWidth;
+  final double physicalHeight;
+  final double devicePixelRatio;
+  final int kYear;
+  final int kMonth;
+  final int kDay;
+  final int scrollBaseYear;
+  final double scrollOffset;
+  final bool showGregorian;
+  final MonthExpansionLevel expansion;
+}
+
 class CalendarPage extends StatefulWidget {
   final int? initialFlowIdToEdit;
   final bool openMyFlowsOnLaunch;
@@ -3931,6 +3961,7 @@ class CalendarPage extends StatefulWidget {
   static _SharedCalendarRealDayViewIntent?
   _pendingSharedCalendarRealDayViewIntent;
   static bool _pendingTodayNavigationCommand = false;
+  static _CalendarProcessRouteHandoff? _processRouteHandoff;
   @visibleForTesting
   static bool debugDisableTodayNavigationRetry = false;
   @visibleForTesting
@@ -3940,6 +3971,7 @@ class CalendarPage extends StatefulWidget {
   @visibleForTesting
   static void debugResetWarmStateStoreForTesting() {
     CalendarSnapshotRepository.instance.clearRetainedSnapshotMemory();
+    _processRouteHandoff = null;
   }
 
   @visibleForTesting
@@ -9280,9 +9312,8 @@ class CalendarPageState extends State<CalendarPage>
   Future<_MyFlowsFilingSnapshot>? _myFlowsFilingSnapshotLoadInFlight;
   int _nextFlowId = 1;
   // Removed _nextAlarmId; notifications are persisted via Notify.scheduleAlertWithPersistence
-  final ScrollController _scrollCtrl = ScrollController(
-    keepScrollOffset: false,
-  );
+  late final ScrollController _scrollCtrl;
+  bool _restoredFromProcessRouteHandoff = false;
   MonthExpansionLevel _monthExpansion = MonthExpansionLevel.compact;
   MonthExpansionLevel? _monthExpansionRestorationTarget;
   bool _currentDecanVisibleInViewport = true;
@@ -9433,6 +9464,141 @@ class CalendarPageState extends State<CalendarPage>
       projectRef: projectRef,
       userId: resolvedUserId,
     );
+  }
+
+  ({double width, double height, double devicePixelRatio})?
+  _currentProcessViewportSignature() {
+    final views = WidgetsBinding.instance.platformDispatcher.views;
+    if (views.isEmpty) return null;
+    final view = views.first;
+    return (
+      width: view.physicalSize.width,
+      height: view.physicalSize.height,
+      devicePixelRatio: view.devicePixelRatio,
+    );
+  }
+
+  bool _initializeScrollControllerFromProcessRouteHandoff() {
+    void initializeAt(double offset) {
+      _scrollCtrl = ScrollController(
+        initialScrollOffset: offset,
+        keepScrollOffset: false,
+      );
+    }
+
+    if (_debugDaySheetSmokeEnabled || _onboardingReviewMode) {
+      initializeAt(0);
+      return false;
+    }
+
+    final handoff = CalendarPage._processRouteHandoff;
+    final identity = _activeCalendarSnapshotIdentity();
+    final viewport = _currentProcessViewportSignature();
+    if (handoff == null || identity == null || viewport == null) {
+      initializeAt(0);
+      return false;
+    }
+
+    final sameViewport =
+        (handoff.physicalWidth - viewport.width).abs() < 0.5 &&
+        (handoff.physicalHeight - viewport.height).abs() < 0.5 &&
+        (handoff.devicePixelRatio - viewport.devicePixelRatio).abs() < 0.001;
+    if (handoff.identityKey != identity.storageKey ||
+        handoff.layoutRevision != _kCalendarRestorationLayoutRevision ||
+        !sameViewport) {
+      CalendarPage._processRouteHandoff = null;
+      initializeAt(0);
+      return false;
+    }
+
+    final document = CalendarSnapshotRepository.instance.peekForProcessRemount(
+      identity,
+    );
+    if (document == null) {
+      CalendarPage._processRouteHandoff = null;
+      initializeAt(0);
+      return false;
+    }
+
+    CalendarPage._processRouteHandoff = null;
+    _lastViewKy = handoff.kYear;
+    _lastViewKm = handoff.kMonth;
+    _lastViewKd = handoff.kDay;
+    _calendarScrollBaseYear = handoff.scrollBaseYear;
+    _lastKnownCalendarScrollOffset = handoff.scrollOffset;
+    _showGregorian = handoff.showGregorian;
+    _monthExpansion = handoff.expansion;
+    _restoredCalendarAnchorTarget = null;
+    _restoredCalendarAnchorAlignment = null;
+    _pendingAuthResolutionForRestore = false;
+    _tentativeRestorationUserId = null;
+    _restorationInteractedSinceBoot = true;
+    _restored = true;
+    _initialViewportSettled = true;
+    _restoredFromProcessRouteHandoff = true;
+    _applyWarmStartDocument(document);
+    initializeAt(handoff.scrollOffset);
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[calendar] restored process route handoff '
+        'view=${handoff.kYear}-${handoff.kMonth}-${handoff.kDay} '
+        'offset=${handoff.scrollOffset.toStringAsFixed(1)}',
+      );
+    }
+    return true;
+  }
+
+  void _retainProcessRouteHandoff({required String source}) {
+    if (_debugDaySheetSmokeEnabled ||
+        _onboardingReviewMode ||
+        !_initialViewportSettled ||
+        !_scrollCtrl.hasClients ||
+        !_scrollCtrl.position.hasContentDimensions) {
+      return;
+    }
+    final identity = _activeCalendarSnapshotIdentity();
+    final viewport = _currentProcessViewportSignature();
+    final kYear = _lastViewKy;
+    final kMonth = _lastViewKm;
+    final kDay = _lastViewKd;
+    if (identity == null ||
+        viewport == null ||
+        kYear == null ||
+        kMonth == null ||
+        kDay == null) {
+      return;
+    }
+
+    _retainCompleteCalendarSnapshotForRouteRemount(source: source);
+    final document = CalendarSnapshotRepository.instance.peekForProcessRemount(
+      identity,
+    );
+    if (document == null) {
+      return;
+    }
+
+    final offset = _scrollCtrl.position.pixels;
+    if (!offset.isFinite) return;
+    CalendarPage._processRouteHandoff = _CalendarProcessRouteHandoff(
+      identityKey: identity.storageKey,
+      layoutRevision: _kCalendarRestorationLayoutRevision,
+      physicalWidth: viewport.width,
+      physicalHeight: viewport.height,
+      devicePixelRatio: viewport.devicePixelRatio,
+      kYear: kYear,
+      kMonth: kMonth,
+      kDay: kDay,
+      scrollBaseYear: _calendarScrollBaseYear ?? kYear,
+      scrollOffset: offset,
+      showGregorian: _showGregorian,
+      expansion: _monthExpansion,
+    );
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[calendar] retained process route handoff source=$source '
+        'view=$kYear-$kMonth-$kDay offset=${offset.toStringAsFixed(1)}',
+      );
+    }
   }
 
   bool _hasWarmStartSnapshotVisibleForCurrentUser() {
@@ -10043,6 +10209,93 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
+  void _applyWarmStartDocument(CalendarSnapshotDocument document) {
+    final json = document.json;
+
+    final flows = ((json['flows'] as List?) ?? const [])
+        .map(_deserializeWarmStartFlow)
+        .whereType<_Flow>()
+        .toList(growable: false);
+    final restoredTrackSkyFlowIds = flows
+        .where((flow) => _isTrackSkyFlowName(flow.name))
+        .map((flow) => flow.id)
+        .where((flowId) => flowId > 0)
+        .toSet();
+    final notesByDay = <String, List<_Note>>{};
+    final notesRaw = json['notes'];
+    if (notesRaw is Map) {
+      notesRaw.forEach((key, value) {
+        if (value is! List) return;
+        final notes = _dedupeVisibleDayNotes(
+          value
+              .map(_deserializeWarmStartNote)
+              .whereType<_Note>()
+              .toList(growable: false),
+          trackSkyFlowIds: restoredTrackSkyFlowIds,
+        );
+        if (notes.isNotEmpty) {
+          notesByDay[key.toString()] = notes;
+        }
+      });
+    }
+
+    final nextFlowId =
+        (json['nextFlowId'] as num?)?.toInt() ??
+        ((flows.isEmpty
+                ? 0
+                : flows
+                      .map((flow) => flow.id)
+                      .reduce((a, b) => a > b ? a : b)) +
+            1);
+    final totalCounts = _decodeWarmStartIntMap(json['flowTotalEventCounts']);
+    final remainingCounts = _decodeWarmStartIntMap(
+      json['flowRemainingEventCounts'],
+    );
+    final calendarSummaries = <String, SharedCalendarSummary>{};
+    for (final raw in (json['calendarSummaries'] as List?) ?? const []) {
+      if (raw is! Map) continue;
+      final summary = SharedCalendarSummary.fromRow(
+        Map<String, dynamic>.from(raw),
+      );
+      if (summary.id.trim().isNotEmpty) {
+        calendarSummaries[summary.id] = summary;
+      }
+    }
+    final hiddenCalendarIds = ((json['hiddenCalendarIds'] as List?) ?? const [])
+        .whereType<String>()
+        .where((id) => id.trim().isNotEmpty)
+        .toSet();
+    final personalCalendarId = (json['personalCalendarId'] as String?)?.trim();
+
+    _flows
+      ..clear()
+      ..addAll(flows);
+    _notes
+      ..clear()
+      ..addAll(notesByDay);
+    _flowTotalEventCounts
+      ..clear()
+      ..addAll(totalCounts);
+    _flowRemainingEventCounts
+      ..clear()
+      ..addAll(remainingCounts);
+    _calendarSummariesById = calendarSummaries;
+    _hiddenCalendarIds = hiddenCalendarIds;
+    _personalCalendarId = personalCalendarId?.isEmpty == true
+        ? null
+        : personalCalendarId;
+    _calendarStateLoaded = calendarSummaries.isNotEmpty;
+    _initialCalendarLoadFinished = true;
+    _nextFlowId = nextFlowId > 0 ? nextFlowId : _nextFlowId;
+    _warmStartCacheRestoredForUserId = document.userId;
+    _warmStartCacheRestoredForProjectRef = document.projectRef;
+    _authoritativeSnapshotCoverage = document.coverage;
+    _authoritativeSnapshotLanes = document.completedLanes;
+    _authoritativeSnapshotGeneration = document.generation;
+    _warmStartSnapshotVisible = true;
+    _lastSuccessfulHydrationAt ??= DateTime.now();
+  }
+
   Future<void> _restoreWarmStartCacheIfAvailable({
     String reason = 'startup',
   }) async {
@@ -10079,94 +10332,9 @@ class CalendarPageState extends State<CalendarPage>
         return;
       }
 
-      final json = document.json;
-
-      final flows = ((json['flows'] as List?) ?? const [])
-          .map(_deserializeWarmStartFlow)
-          .whereType<_Flow>()
-          .toList(growable: false);
-      final restoredTrackSkyFlowIds = flows
-          .where((flow) => _isTrackSkyFlowName(flow.name))
-          .map((flow) => flow.id)
-          .where((flowId) => flowId > 0)
-          .toSet();
-      final notesByDay = <String, List<_Note>>{};
-      final notesRaw = json['notes'];
-      if (notesRaw is Map) {
-        notesRaw.forEach((key, value) {
-          if (value is! List) return;
-          final notes = _dedupeVisibleDayNotes(
-            value
-                .map(_deserializeWarmStartNote)
-                .whereType<_Note>()
-                .toList(growable: false),
-            trackSkyFlowIds: restoredTrackSkyFlowIds,
-          );
-          if (notes.isNotEmpty) {
-            notesByDay[key.toString()] = notes;
-          }
-        });
-      }
-
-      final nextFlowId =
-          (json['nextFlowId'] as num?)?.toInt() ??
-          ((flows.isEmpty
-                  ? 0
-                  : flows
-                        .map((flow) => flow.id)
-                        .reduce((a, b) => a > b ? a : b)) +
-              1);
-      final totalCounts = _decodeWarmStartIntMap(json['flowTotalEventCounts']);
-      final remainingCounts = _decodeWarmStartIntMap(
-        json['flowRemainingEventCounts'],
-      );
-      final calendarSummaries = <String, SharedCalendarSummary>{};
-      for (final raw in (json['calendarSummaries'] as List?) ?? const []) {
-        if (raw is! Map) continue;
-        final summary = SharedCalendarSummary.fromRow(
-          Map<String, dynamic>.from(raw),
-        );
-        if (summary.id.trim().isNotEmpty) {
-          calendarSummaries[summary.id] = summary;
-        }
-      }
-      final hiddenCalendarIds =
-          ((json['hiddenCalendarIds'] as List?) ?? const [])
-              .whereType<String>()
-              .where((id) => id.trim().isNotEmpty)
-              .toSet();
-      final personalCalendarId = (json['personalCalendarId'] as String?)
-          ?.trim();
-
       if (!mounted) return;
-      setState(() {
-        _flows
-          ..clear()
-          ..addAll(flows);
-        _notes
-          ..clear()
-          ..addAll(notesByDay);
-        _flowTotalEventCounts
-          ..clear()
-          ..addAll(totalCounts);
-        _flowRemainingEventCounts
-          ..clear()
-          ..addAll(remainingCounts);
-        _calendarSummariesById = calendarSummaries;
-        _hiddenCalendarIds = hiddenCalendarIds;
-        _personalCalendarId = personalCalendarId?.isEmpty == true
-            ? null
-            : personalCalendarId;
-        _calendarStateLoaded = calendarSummaries.isNotEmpty;
-        _initialCalendarLoadFinished = true;
-        _nextFlowId = nextFlowId > 0 ? nextFlowId : _nextFlowId;
-      });
+      setState(() => _applyWarmStartDocument(document));
       _rebuildReminderRulesFromFlowsIfMissing();
-      _authoritativeSnapshotCoverage = document.coverage;
-      _authoritativeSnapshotLanes = document.completedLanes;
-      _authoritativeSnapshotGeneration = document.generation;
-      _warmStartSnapshotVisible = true;
-      _lastSuccessfulHydrationAt ??= DateTime.now();
       if (kDebugMode) {
         _calendarDebugPrint(
           '[warmStart] restored last-good reason=$reason '
@@ -14370,6 +14538,7 @@ class CalendarPageState extends State<CalendarPage>
     super.initState();
     _calendarDebugPrint('[calendar] initState');
     WidgetsBinding.instance.addObserver(this);
+    _initializeScrollControllerFromProcessRouteHandoff();
     _onboardingDayRhythmController.addListener(
       _handleOnboardingDayRhythmChanged,
     );
@@ -14403,7 +14572,9 @@ class CalendarPageState extends State<CalendarPage>
     // We no longer listen to every change to avoid UI loops; checks happen on load/resume/refresh.
 
     // ✅ Load persisted state first, fallback to today
-    _initialPersistedViewStateLoad = _loadPersistedViewState();
+    _initialPersistedViewStateLoad = _restoredFromProcessRouteHandoff
+        ? SynchronousFuture<void>(null)
+        : _loadPersistedViewState();
     _restoreWarmStartCacheForFirstPaint(reason: 'initState');
     _restoreMyFlowsFilingSnapshotCacheAfterFirstFrame(reason: 'initState');
     calendarPushOpenIntent.addListener(_handleCalendarPushOpenIntent);
@@ -14487,6 +14658,7 @@ class CalendarPageState extends State<CalendarPage>
         return;
       }
       if (event == AuthChangeEvent.signedOut) {
+        CalendarPage._processRouteHandoff = null;
         _initialStartupUserId = null;
         _warmStartSnapshotVisible = false;
         _warmStartCacheRestoredForUserId = null;
@@ -18210,7 +18382,14 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   @override
+  void deactivate() {
+    _retainProcessRouteHandoff(source: 'deactivate');
+    super.deactivate();
+  }
+
+  @override
   void dispose() {
+    _retainProcessRouteHandoff(source: 'dispose');
     // ✅ Unsubscribe from RouteObserver
     if (_isSubscribed) {
       routeObserver.unsubscribe(this);
@@ -18258,6 +18437,7 @@ class CalendarPageState extends State<CalendarPage>
 
   @override
   void didPushNext() {
+    _retainProcessRouteHandoff(source: 'did_push_next');
     unawaited(_flushPendingWarmStartCacheSave(reason: 'did_push_next'));
     unawaited(_flushPendingCalendarRestorationSave(reason: 'did_push_next'));
     if (!_canShowCalendarToggleCoachmarkOnReturn) return;
@@ -35075,6 +35255,7 @@ class CalendarPageState extends State<CalendarPage>
         if (notification is ScrollEndNotification) {
           if (_scrollCtrl.hasClients) {
             _lastKnownCalendarScrollOffset = _scrollCtrl.position.pixels;
+            _retainProcessRouteHandoff(source: 'calendar_scroll_end');
           }
           // ✅ Only update centered month when scrolling STOPS
           WidgetsBinding.instance.addPostFrameCallback((_) {

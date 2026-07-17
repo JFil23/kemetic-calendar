@@ -189,6 +189,10 @@ class CalendarSnapshotRepository {
   CalendarSnapshotDocument? peek(CalendarSnapshotIdentity identity) =>
       _lastGoodByKey[identity.storageKey];
 
+  CalendarSnapshotDocument? peekForProcessRemount(
+    CalendarSnapshotIdentity identity,
+  ) => _processRemountByKey[identity.storageKey];
+
   Future<CalendarSnapshotDocument?> restore(CalendarSnapshotIdentity identity) {
     final processRemount = _processRemountByKey[identity.storageKey];
     if (processRemount != null) return SynchronousFuture(processRemount);
@@ -296,7 +300,8 @@ class CalendarSnapshotRepository {
     _lastGoodByKey[key] = confirmed;
     final processRemount = _processRemountByKey[key];
     if (processRemount == null ||
-        processRemount.generation <= confirmed.generation) {
+        processRemount.generation < confirmed.generation ||
+        processRemount.digest == confirmed.digest) {
       _processRemountByKey[key] = confirmed;
     }
     return confirmed;
