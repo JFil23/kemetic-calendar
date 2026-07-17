@@ -34,6 +34,111 @@ void main() {
     expect(restored?.eventCount, 1);
   });
 
+  test(
+    'complete candidate survives same-process remount while durable write is blocked',
+    () async {
+      final store = _BlockingCalendarSnapshotStore();
+      final repository = CalendarSnapshotRepository(store: store);
+
+      final promotion = repository.promote(
+        _candidate(events: const ['event-1']),
+      );
+      await store.writeStarted.future;
+
+      final remounted = await repository.restore(_identity);
+      expect(
+        remounted?.eventCount,
+        1,
+        reason:
+            'A complete authoritative Calendar already on screen must remain '
+            'available to a new route instance without waiting for IndexedDB.',
+      );
+      expect(
+        repository.peek(_identity),
+        isNull,
+        reason:
+            'The unconfirmed process handoff must not masquerade as durable '
+            'last-good authority.',
+      );
+
+      store.releaseWrites();
+      final confirmed = await promotion;
+      expect(repository.peek(_identity)?.digest, confirmed.digest);
+    },
+  );
+
+  test(
+    'latest complete candidate keeps every visible field while an older write is blocked',
+    () async {
+      final store = _BlockingCalendarSnapshotStore();
+      final repository = CalendarSnapshotRepository(store: store);
+
+      final firstPromotion = repository.promote(
+        _candidate(
+          events: const ['old-event'],
+          extraPayload: const <String, dynamic>{
+            'calendarView': 'month',
+            'activeOverlay': 'old-overlay',
+            'editorDraft': 'old-draft',
+            'cacheEpoch': 1,
+            'dayViewMinute': 120,
+          },
+        ),
+      );
+      await store.writeStarted.future;
+
+      final secondPromotion = repository.promote(
+        _candidate(
+          events: const ['new-event-1', 'new-event-2'],
+          generation: 2,
+          extraPayload: const <String, dynamic>{
+            'calendarView': 'day',
+            'activeOverlay': 'new-overlay',
+            'editorDraft': 'new-draft',
+            'cacheEpoch': 2,
+            'dayViewMinute': 780,
+          },
+        ),
+      );
+
+      final remounted = await repository.restore(_identity);
+      expect(remounted?.generation, 2);
+      expect(remounted?.eventCount, 2);
+      expect(remounted?.json, containsPair('calendarView', 'day'));
+      expect(remounted?.json, containsPair('activeOverlay', 'new-overlay'));
+      expect(remounted?.json, containsPair('editorDraft', 'new-draft'));
+      expect(remounted?.json, containsPair('cacheEpoch', 2));
+      expect(remounted?.json, containsPair('dayViewMinute', 780));
+
+      store.releaseWrites();
+      await Future.wait(<Future<CalendarSnapshotDocument>>[
+        firstPromotion,
+        secondPromotion,
+      ]);
+      expect(repository.peek(_identity)?.generation, 2);
+    },
+  );
+
+  test(
+    'empty delayed disk restore yields a complete candidate retained during the read',
+    () async {
+      final store = _FirstReadBlockingCalendarSnapshotStore();
+      final repository = CalendarSnapshotRepository(store: store);
+
+      final restore = repository.restore(_identity);
+      await store.firstReadStarted.future;
+      final promotion = repository.promote(
+        _candidate(events: const ['new-event']),
+      );
+      store.releaseFirstRead();
+
+      final restored = await restore;
+      expect(restored?.eventCount, 1);
+      expect(restored?.generation, 1);
+      await promotion;
+    },
+  );
+
   test('flows-only candidate without complete event lanes is rejected', () {
     final repository = CalendarSnapshotRepository(
       store: MemoryCalendarSnapshotStore(),
@@ -231,6 +336,7 @@ CalendarSnapshotCandidate _candidate({
   int generation = 1,
   String source = 'test',
   CalendarSnapshotCoverage? coverage,
+  Map<String, dynamic> extraPayload = const <String, dynamic>{},
 }) {
   return CalendarSnapshotCandidate(
     identity: _identity,
@@ -255,6 +361,7 @@ CalendarSnapshotCandidate _candidate({
       'personalCalendarId': null,
       'flowTotalEventCounts': const <String, int>{},
       'flowRemainingEventCounts': const <String, int>{},
+      ...extraPayload,
     },
   );
 }
@@ -265,6 +372,22 @@ class _FailingCalendarSnapshotStore extends MemoryCalendarSnapshotStore {
   @override
   Future<void> write(String key, String value) async {
     if (failWrites) throw StateError('quota exceeded');
+    await super.write(key, value);
+  }
+}
+
+class _BlockingCalendarSnapshotStore extends MemoryCalendarSnapshotStore {
+  final Completer<void> writeStarted = Completer<void>();
+  final Completer<void> _release = Completer<void>();
+
+  void releaseWrites() {
+    if (!_release.isCompleted) _release.complete();
+  }
+
+  @override
+  Future<void> write(String key, String value) async {
+    if (!writeStarted.isCompleted) writeStarted.complete();
+    await _release.future;
     await super.write(key, value);
   }
 }

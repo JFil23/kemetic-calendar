@@ -9934,6 +9934,56 @@ class CalendarPageState extends State<CalendarPage>
     });
   }
 
+  CalendarSnapshotCandidate? _completeCalendarSnapshotCandidate({
+    String? userId,
+    required String source,
+  }) {
+    final resolvedUserId = userId ?? _activeWarmStartUserId();
+    if (resolvedUserId == null) return null;
+    final identity = _activeCalendarSnapshotIdentity(userId: resolvedUserId);
+    final coverage = _authoritativeSnapshotCoverage;
+    if (identity == null ||
+        !_hasUsableCalendarSnapshotForPaint() ||
+        coverage == null ||
+        !_authoritativeSnapshotLanes.containsAll(
+          calendarSnapshotRequiredLanes,
+        )) {
+      return null;
+    }
+    return CalendarSnapshotCandidate(
+      identity: identity,
+      coverage: coverage,
+      completedLanes: _authoritativeSnapshotLanes,
+      generation: math.max(1, _authoritativeSnapshotGeneration),
+      payload: _buildWarmStartPayload(trimmed: false),
+      source: source,
+    );
+  }
+
+  void _retainCompleteCalendarSnapshotForRouteRemount({
+    required String source,
+  }) {
+    final candidate = _completeCalendarSnapshotCandidate(source: source);
+    if (candidate == null) return;
+    try {
+      final document = CalendarSnapshotRepository.instance
+          .retainForProcessRemount(candidate);
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[warmStart] retained process remount source=$source '
+          'generation=${document.generation} events=${document.eventCount}',
+        );
+      }
+    } catch (error) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[warmStart] process remount retention failed source=$source '
+          'type=${error.runtimeType}',
+        );
+      }
+    }
+  }
+
   Future<void> _flushPendingWarmStartCacheSave({
     String reason = 'manual',
   }) async {
@@ -9950,17 +10000,11 @@ class CalendarPageState extends State<CalendarPage>
     String? userId,
     String debugReason = 'debounced',
   }) async {
-    final resolvedUserId = userId ?? _activeWarmStartUserId();
-    if (resolvedUserId == null) return false;
-    final identity = _activeCalendarSnapshotIdentity(userId: resolvedUserId);
-    if (identity == null) return false;
-
-    final coverage = _authoritativeSnapshotCoverage;
-    if (!_hasUsableCalendarSnapshotForPaint() ||
-        coverage == null ||
-        !_authoritativeSnapshotLanes.containsAll(
-          calendarSnapshotRequiredLanes,
-        )) {
+    final candidate = _completeCalendarSnapshotCandidate(
+      userId: userId,
+      source: debugReason,
+    );
+    if (candidate == null) {
       if (kDebugMode) {
         _calendarDebugPrint(
           '[warmStart] skip non-authoritative cache save '
@@ -9972,14 +10016,7 @@ class CalendarPageState extends State<CalendarPage>
 
     try {
       final document = await CalendarSnapshotRepository.instance.promote(
-        CalendarSnapshotCandidate(
-          identity: identity,
-          coverage: coverage,
-          completedLanes: _authoritativeSnapshotLanes,
-          generation: math.max(1, _authoritativeSnapshotGeneration),
-          payload: _buildWarmStartPayload(trimmed: false),
-          source: debugReason,
-        ),
+        candidate,
       );
       if (kDebugMode) {
         _calendarDebugPrint(
@@ -32038,6 +32075,9 @@ class CalendarPageState extends State<CalendarPage>
           _publishedCalendarSnapshotUserId = _activeWarmStartUserId();
           _publishedCalendarSnapshotProjectRef = _activeWarmStartProjectRef();
           _initialCalendarLoadFinished = true;
+          _retainCompleteCalendarSnapshotForRouteRemount(
+            source: 'hydration-$phase',
+          );
         }
         if (loadComplete || !hasPaintedEventSnapshotAtLoadStart) {
           _warmStartSnapshotVisible = false;
@@ -32595,6 +32635,9 @@ class CalendarPageState extends State<CalendarPage>
         _publishedCalendarSnapshotProjectRef = _activeWarmStartProjectRef();
         _initialCalendarLoadFinished = true;
         _warmStartSnapshotVisible = false;
+        _retainCompleteCalendarSnapshotForRouteRemount(
+          source: 'hydration-deferred-complete',
+        );
         _bumpDataVersion();
       }
 

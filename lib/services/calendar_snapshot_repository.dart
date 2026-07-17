@@ -179,6 +179,8 @@ class CalendarSnapshotRepository {
   CalendarSnapshotStore _store;
   final Map<String, CalendarSnapshotDocument> _lastGoodByKey =
       <String, CalendarSnapshotDocument>{};
+  final Map<String, CalendarSnapshotDocument> _processRemountByKey =
+      <String, CalendarSnapshotDocument>{};
   final Map<String, Future<CalendarSnapshotDocument?>> _restoreFlights =
       <String, Future<CalendarSnapshotDocument?>>{};
   final Map<String, Future<CalendarSnapshotDocument>> _writeFlights =
@@ -188,6 +190,8 @@ class CalendarSnapshotRepository {
       _lastGoodByKey[identity.storageKey];
 
   Future<CalendarSnapshotDocument?> restore(CalendarSnapshotIdentity identity) {
+    final processRemount = _processRemountByKey[identity.storageKey];
+    if (processRemount != null) return SynchronousFuture(processRemount);
     final memory = peek(identity);
     if (memory != null) return SynchronousFuture(memory);
     final key = identity.storageKey;
@@ -205,6 +209,8 @@ class CalendarSnapshotRepository {
   ) async {
     final key = identity.storageKey;
     final raw = await _store.read(key);
+    final retainedWhileReading = _processRemountByKey[key];
+    if (retainedWhileReading != null) return retainedWhileReading;
     if (raw == null || raw.trim().isEmpty) return null;
     final document = decodeAndValidate(raw, expectedIdentity: identity);
     if (document == null) return null;
@@ -217,6 +223,16 @@ class CalendarSnapshotRepository {
   Future<CalendarSnapshotDocument> promote(
     CalendarSnapshotCandidate candidate,
   ) {
+    late String encoded;
+    late CalendarSnapshotDocument document;
+    try {
+      encoded = encodeCandidate(candidate);
+      document = _decodeCompleteCandidate(candidate, encoded);
+      _retainProcessRemountDocument(candidate.identity, document);
+    } catch (error, stackTrace) {
+      return Future<CalendarSnapshotDocument>.error(error, stackTrace);
+    }
+
     final key = candidate.identity.storageKey;
     final priorWrite = _writeFlights[key];
     final next = (() async {
@@ -227,7 +243,7 @@ class CalendarSnapshotRepository {
           // A failed prior candidate must not block a later valid promotion.
         }
       }
-      return _promote(candidate);
+      return _promote(candidate, encoded: encoded, document: document);
     })();
     _writeFlights[key] = next;
     unawaited(
@@ -247,17 +263,10 @@ class CalendarSnapshotRepository {
   }
 
   Future<CalendarSnapshotDocument> _promote(
-    CalendarSnapshotCandidate candidate,
-  ) async {
-    final encoded = encodeCandidate(candidate);
-    final document = decodeAndValidate(
-      encoded,
-      expectedIdentity: candidate.identity,
-    );
-    if (document == null) {
-      throw StateError('Refusing to promote an incomplete calendar snapshot.');
-    }
-
+    CalendarSnapshotCandidate candidate, {
+    required String encoded,
+    required CalendarSnapshotDocument document,
+  }) async {
     final key = candidate.identity.storageKey;
     var current = _lastGoodByKey[key];
     if (current == null) {
@@ -285,7 +294,49 @@ class CalendarSnapshotRepository {
     }
 
     _lastGoodByKey[key] = confirmed;
+    final processRemount = _processRemountByKey[key];
+    if (processRemount == null ||
+        processRemount.generation <= confirmed.generation) {
+      _processRemountByKey[key] = confirmed;
+    }
     return confirmed;
+  }
+
+  CalendarSnapshotDocument retainForProcessRemount(
+    CalendarSnapshotCandidate candidate,
+  ) {
+    final encoded = encodeCandidate(candidate);
+    final document = _decodeCompleteCandidate(candidate, encoded);
+    _retainProcessRemountDocument(candidate.identity, document);
+    return document;
+  }
+
+  CalendarSnapshotDocument _decodeCompleteCandidate(
+    CalendarSnapshotCandidate candidate,
+    String encoded,
+  ) {
+    final document = decodeAndValidate(
+      encoded,
+      expectedIdentity: candidate.identity,
+    );
+    if (document == null) {
+      throw StateError('Refusing to retain an incomplete calendar snapshot.');
+    }
+    return document;
+  }
+
+  void _retainProcessRemountDocument(
+    CalendarSnapshotIdentity identity,
+    CalendarSnapshotDocument document,
+  ) {
+    final key = identity.storageKey;
+    final current = _processRemountByKey[key] ?? _lastGoodByKey[key];
+    if (current != null && current.generation > document.generation) {
+      throw StateError(
+        'Refusing to replace a newer calendar snapshot generation.',
+      );
+    }
+    _processRemountByKey[key] = document;
   }
 
   String encodeCandidate(CalendarSnapshotCandidate candidate) {
@@ -393,18 +444,21 @@ class CalendarSnapshotRepository {
   ) async {
     await _store.write(identity.storageKey, raw);
     _lastGoodByKey.remove(identity.storageKey);
+    _processRemountByKey.remove(identity.storageKey);
   }
 
   @visibleForTesting
   void debugReplaceStore(CalendarSnapshotStore store) {
     _store = store;
     _lastGoodByKey.clear();
+    _processRemountByKey.clear();
     _restoreFlights.clear();
     _writeFlights.clear();
   }
 
   void clearRetainedSnapshotMemory() {
     _lastGoodByKey.clear();
+    _processRemountByKey.clear();
     _restoreFlights.clear();
   }
 }
