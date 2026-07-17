@@ -360,7 +360,7 @@ void main() {
       expect(launchedSheets, <String>['Calendars']);
     });
 
-    testWidgets('global drawer canonically replaces with /flows', (
+    testWidgets('global drawer pushes /flows above its current route', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(1170, 2532);
@@ -444,14 +444,14 @@ void main() {
 
       expect(
         router.routerDelegate.currentConfiguration.uri.path,
-        '/',
-        reason: 'A canonical drawer replacement has no stale prior route.',
+        '/profile/me',
+        reason: 'Utility-route close should reveal the preserved prior route.',
       );
       expect(find.text('Flow Studio route'), findsNothing);
-      expect(find.text('Calendar route'), findsOneWidget);
+      expect(find.text('Profile route'), findsOneWidget);
     });
 
-    testWidgets('global drawer canonically replaces with /calendars', (
+    testWidgets('global drawer pushes /calendars above its current route', (
       tester,
     ) async {
       tester.view.physicalSize = const Size(1170, 2532);
@@ -535,11 +535,11 @@ void main() {
 
       expect(
         router.routerDelegate.currentConfiguration.uri.path,
-        '/',
-        reason: 'A canonical drawer replacement has no stale prior route.',
+        '/nodes',
+        reason: 'Utility-route close should reveal the preserved prior route.',
       );
       expect(find.text('Calendars route'), findsNothing);
-      expect(find.text('Calendar route'), findsOneWidget);
+      expect(find.text('Nodes route'), findsOneWidget);
     });
 
     testWidgets('detached Today app bar action routes home', (tester) async {
@@ -981,9 +981,10 @@ void main() {
           contains('DrawerNavigationGeneration _drawerNavigationGeneration'),
         );
         expect(dispatcher, contains('widget.router.go(destination.location)'));
+        expect(dispatcher, contains('openUtilityRoute<void>('));
+        expect(dispatcher, contains('openDetailRoute<void>('));
         expect(dispatcher, contains('unawaited(_closeFloatingMenu'));
         expect(dispatcher, isNot(contains('await _closeFloatingMenu()')));
-        expect(dispatcher, isNot(contains('openUtilityRoute<void>(')));
         expect(dispatcher, isNot(contains('Navigator.maybeOf(')));
         expect(source, contains("path: '/flows'"));
         expect(

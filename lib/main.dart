@@ -46,6 +46,7 @@ import 'utils/hive_local_storage_web.dart';
 import 'core/async_guard.dart';
 import 'core/app_link_intent.dart';
 import 'core/drawer_navigation_generation.dart';
+import 'core/drawer_route_history.dart';
 import 'core/global_menu_routes.dart';
 import 'core/navigation_fallback.dart';
 import 'core/navigation_persistence_policy.dart';
@@ -392,6 +393,7 @@ final ValueNotifier<bool> _webAuthExchangeInProgress = ValueNotifier<bool>(
 );
 String? _bootRestoredLocation;
 String? _bootExplicitIntentLocation;
+DrawerRouteHistory? _bootDrawerRouteHistory;
 String? _bootAuthDeferredRestoredLocation;
 bool _bootRestoreDeferredForAuth = false;
 bool _bootDeferredRestorePreparedForAuth = false;
@@ -1150,6 +1152,16 @@ void _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded() {
   );
 }
 
+const _drawerRouteHistorySurfaceKey = 'drawer.routeHistory';
+
+DrawerRouteHistory? _drawerRouteHistoryFromSnapshot(
+  AppRestorationSnapshot? snapshot,
+) {
+  final raw = snapshot?.surfaces[_drawerRouteHistorySurfaceKey];
+  if (raw == null) return null;
+  return DrawerRouteHistory.fromJson(Map<String, dynamic>.from(raw));
+}
+
 Future<String?> _readBootRestoredLocation() async {
   final hasSession = Supabase.instance.client.auth.currentSession != null;
   traceRestoration('boot restore read start hasSession=$hasSession');
@@ -1186,6 +1198,25 @@ Future<String?> _readBootRestoredLocation() async {
     'boot restore selected=${destination.route} '
     'decisionSource=${destination.decisionSource} reason=${destination.reason}',
   );
+  final drawerHistory = _drawerRouteHistoryFromSnapshot(result.snapshot);
+  if (!_hasExplicitBootIntent() &&
+      drawerHistory != null &&
+      drawerHistory.matchesVisibleRoute(destination.route)) {
+    _bootDrawerRouteHistory = drawerHistory;
+    traceRestoration(
+      'boot drawer history accepted base=${drawerHistory.baseRoute} '
+      'overlayCount=${drawerHistory.overlayRoutes.length} '
+      'visible=${drawerHistory.visibleRoute}',
+    );
+    return drawerHistory.baseRoute;
+  }
+  _bootDrawerRouteHistory = null;
+  if (drawerHistory != null) {
+    traceRestoration(
+      'boot drawer history ignored visible=${drawerHistory.visibleRoute} '
+      'durable=${destination.route} reason=visible_route_mismatch',
+    );
+  }
   return destination.route;
 }
 
@@ -2540,27 +2571,46 @@ void resetGlobalFloatingMenuShellForTesting() {
   _floatingMenuModalDepth.value = 0;
 }
 
+enum _DrawerNavigationOperation { primaryReplacement, historyPush }
+
 enum _DrawerDestination {
   calendar('Calendar', '/', primarySection: AppSection.calendar),
   planner('Planner', '/rhythm/today', primarySection: AppSection.planner),
   library('Library', '/nodes', primarySection: AppSection.library),
   journal('Journal', '/journal', primarySection: AppSection.journal),
   inbox('Inbox', '/inbox', primarySection: AppSection.inbox),
-  calendars('Calendars', '/calendars'),
-  flows('Flows', '/flows'),
+  calendars(
+    'Calendars',
+    '/calendars',
+    operation: _DrawerNavigationOperation.historyPush,
+  ),
+  flows('Flows', '/flows', operation: _DrawerNavigationOperation.historyPush),
   reflections(
     'Reflections',
     '/reflections',
     primarySection: AppSection.reflections,
   ),
-  profile('Profile', '/profile/me'),
+  profile(
+    'Profile',
+    '/profile/me',
+    operation: _DrawerNavigationOperation.historyPush,
+  ),
   settings('Settings', '/settings', primarySection: AppSection.settings);
 
-  const _DrawerDestination(this.label, this.location, {this.primarySection});
+  const _DrawerDestination(
+    this.label,
+    this.location, {
+    this.primarySection,
+    this.operation = _DrawerNavigationOperation.primaryReplacement,
+  });
 
   final String label;
   final String location;
   final AppSection? primarySection;
+  final _DrawerNavigationOperation operation;
+
+  bool get isPrimaryReplacement =>
+      operation == _DrawerNavigationOperation.primaryReplacement;
 }
 
 class _GlobalFloatingMenuShell extends StatefulWidget {
@@ -2601,6 +2651,8 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   int? _drawerPendingRouteGeneration;
   String? _drawerPendingTarget;
   String? _drawerPendingRoute;
+  DrawerRouteHistory? _drawerRouteHistory;
+  bool _drawerRouteHistoryRestoreScheduled = false;
   bool _drawerBackGestureActive = false;
   bool _drawerBackPopRouteConsumePending = false;
   Timer? _drawerBackPopRouteConsumeTimer;
@@ -2616,6 +2668,8 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _currentUri = _readRouterUri();
+    _drawerRouteHistory = _bootDrawerRouteHistory;
+    _bootDrawerRouteHistory = null;
     widget.router.routerDelegate.addListener(_handleRouteChanged);
     widget.router.routeInformationProvider.addListener(_handleRouteChanged);
     _floatingMenuModalDepth.addListener(_handleMenuVisibilityChanged);
@@ -2650,6 +2704,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scheduleMaatGuidanceGateEvaluation();
       _scheduleDailyCosmicContextEvaluation();
+      _scheduleDrawerRouteHistoryRestore();
     });
   }
 
@@ -2755,8 +2810,10 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   void _handleRouteChanged() {
     final nextUri = _readRouterUri();
     if (nextUri == _currentUri) return;
+    final previousUri = _currentUri;
     _currentUri = nextUri;
     _recordDrawerRouteCommit(nextUri);
+    _observeDrawerRouteHistoryChange(previousUri, nextUri);
     final navContext = _rootNavigatorKey.currentContext ?? context;
     unawaited(
       CalendarPage.dismissAppOwnedTransientOverlaysForRouteChange(navContext),
@@ -2798,6 +2855,134 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     _drawerPendingRouteGeneration = null;
     _drawerPendingTarget = null;
     _drawerPendingRoute = null;
+  }
+
+  void _scheduleDrawerRouteHistoryRestore() {
+    final history = _drawerRouteHistory;
+    if (_drawerRouteHistoryRestoreScheduled ||
+        history == null ||
+        !history.hasOverlays ||
+        !_drawerLocationMatches(_currentUri.toString(), history.baseRoute)) {
+      return;
+    }
+    _drawerRouteHistoryRestoreScheduled = true;
+    unawaited(_restoreDrawerRouteHistory(history));
+  }
+
+  Future<void> _restoreDrawerRouteHistory(DrawerRouteHistory history) async {
+    final generation = _drawerNavigationGeneration.current;
+    var expectedVisibleRoute = history.baseRoute;
+    for (final route in history.overlayRoutes) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted ||
+          !_drawerNavigationGeneration.isCurrent(generation) ||
+          !_drawerLocationMatches(
+            _currentUri.toString(),
+            expectedVisibleRoute,
+          )) {
+        _traceDrawerNavigation(
+          'drawer history restore ignored',
+          target: 'history',
+          generation: generation,
+          route: route,
+        );
+        return;
+      }
+      _traceDrawerNavigation(
+        'drawer history restore requested',
+        target: 'history',
+        generation: generation,
+        route: route,
+      );
+      unawaited(widget.router.push<void>(route));
+      expectedVisibleRoute = route;
+    }
+  }
+
+  void _observeDrawerRouteHistoryChange(Uri previousUri, Uri nextUri) {
+    final history = _drawerRouteHistory;
+    if (history == null) return;
+    final previous = previousUri.toString();
+    final next = nextUri.toString();
+    if (history.hasOverlays &&
+        history.matchesVisibleRoute(previous) &&
+        history.matchesRouteBelowVisible(next)) {
+      _drawerRouteHistory = history.popOverlay();
+      _persistDrawerRouteHistory(reason: 'utility_pop');
+      return;
+    }
+
+    final primary = _drawerPrimaryDestinationForExactLocation(next);
+    if (primary != null && !history.matchesVisibleRoute(next)) {
+      _drawerRouteHistory = history.replacePrimary(primary.location);
+      _persistDrawerRouteHistory(reason: 'observed_primary_replacement');
+    }
+  }
+
+  _DrawerDestination? _drawerPrimaryDestinationForExactLocation(
+    String location,
+  ) {
+    for (final destination in _DrawerDestination.values) {
+      if (destination.isPrimaryReplacement &&
+          _drawerLocationMatches(destination.location, location)) {
+        return destination;
+      }
+    }
+    return null;
+  }
+
+  bool _drawerLocationMatches(String left, String right) {
+    final leftUri = Uri.tryParse(left);
+    final rightUri = Uri.tryParse(right);
+    return leftUri != null &&
+        rightUri != null &&
+        leftUri.path == rightUri.path &&
+        leftUri.query == rightUri.query;
+  }
+
+  DrawerRouteHistory _drawerHistoryForCurrentRoute() {
+    final current = _currentUri.toString();
+    final history = _drawerRouteHistory;
+    if (history != null && history.matchesVisibleRoute(current)) return history;
+    return DrawerRouteHistory(baseRoute: current);
+  }
+
+  void _replaceDrawerHistoryPrimary(_DrawerDestination destination) {
+    _drawerRouteHistory = _drawerHistoryForCurrentRoute().replacePrimary(
+      destination.location,
+    );
+    _persistDrawerRouteHistory(reason: 'primary_replacement');
+  }
+
+  void _pushDrawerHistoryUtility(_DrawerDestination destination) {
+    _drawerRouteHistory = _drawerHistoryForCurrentRoute().pushOverlay(
+      destination.location,
+    );
+    _persistDrawerRouteHistory(reason: 'utility_push');
+  }
+
+  void _persistDrawerRouteHistory({required String reason}) {
+    final history = _drawerRouteHistory;
+    if (history == null) return;
+    traceRestoration(
+      'drawer route history save reason=$reason base=${history.baseRoute} '
+      'overlayCount=${history.overlayRoutes.length} '
+      'visible=${history.visibleRoute}',
+    );
+    unawaited(
+      runGuardedAsync(
+        'drawer route history save',
+        () async {
+          await AppRestorationService.instance.saveSurfaceState(
+            _drawerRouteHistorySurfaceKey,
+            history.toJson(),
+          );
+        },
+        onError: (scope, error, stackTrace) {
+          traceRestoration('$scope failed error=$error');
+        },
+      ),
+    );
   }
 
   void _handleMenuVisibilityChanged() {
@@ -3223,12 +3408,14 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     }
 
     final primarySection = destination.primarySection;
-    if (primarySection != null) {
+    if (destination.isPrimaryReplacement && primarySection != null) {
       recordPrimarySectionSelection(primarySection);
+      _replaceDrawerHistoryPrimary(destination);
     } else {
       RestorationCoordinator.instance.suppressRestoreForUserNavigation(
         reason: 'drawer_destination_selection',
       );
+      _pushDrawerHistoryUtility(destination);
     }
 
     _drawerDestinationDispatchInProgress = true;
@@ -3245,7 +3432,28 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
             generation: generation,
             route: destination.location,
           );
-          widget.router.go(destination.location);
+          if (destination.isPrimaryReplacement) {
+            widget.router.go(destination.location);
+          } else if (destination == _DrawerDestination.profile) {
+            unawaited(
+              openDetailRoute<void>(
+                context,
+                destination.location,
+                router: widget.router,
+                source: NavigationSource.userDrawerSelection,
+              ),
+            );
+          } else {
+            unawaited(
+              openUtilityRoute<void>(
+                context,
+                destination.location,
+                navigationContext: _rootNavigatorKey.currentContext,
+                router: widget.router,
+                source: NavigationSource.userDrawerSelection,
+              ),
+            );
+          }
         },
       );
       if (!dispatched) {

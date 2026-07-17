@@ -120,62 +120,72 @@ void main() {
     expect(items, contains('MeduNeterGlyphs.profile'));
   });
 
-  test('drawer dispatch has one generation-guarded router authority', () async {
-    final main = await File('lib/main.dart').readAsString();
-    final dispatcher = _sourceBetween(
-      main,
-      'void _dispatchDrawerDestination',
-      'bool _isDrawerDestinationSelected',
-    );
-    final items = _sourceBetween(
-      main,
-      'List<GlobalSideDrawerItem> _buildGlobalSideDrawerItems()',
-      'void _openMaatGuidance',
-    );
+  test(
+    'drawer dispatch generation-guards primary replacement and utility pushes',
+    () async {
+      final main = await File('lib/main.dart').readAsString();
+      final dispatcher = _sourceBetween(
+        main,
+        'void _dispatchDrawerDestination',
+        'bool _isDrawerDestinationSelected',
+      );
+      final items = _sourceBetween(
+        main,
+        'List<GlobalSideDrawerItem> _buildGlobalSideDrawerItems()',
+        'void _openMaatGuidance',
+      );
 
-    expect(main, contains('DrawerNavigationGeneration'));
-    expect(dispatcher, contains('_drawerNavigationGeneration.runIfCurrent'));
-    expect(dispatcher, contains('drawer navigation tap target'));
-    expect(dispatcher, contains('drawer navigation route requested'));
-    expect(dispatcher, contains('widget.router.go(destination.location)'));
-    expect(
-      'widget.router.go(destination.location)'.allMatches(dispatcher).length,
-      1,
-    );
-    expect(
-      dispatcher,
-      contains('recordPrimarySectionSelection(primarySection)'),
-    );
-    expect(dispatcher, contains('suppressRestoreForUserNavigation'));
-    expect(dispatcher, contains('drawer current selection closed in place'));
-    expect(dispatcher, isNot(contains('Navigator.maybeOf(')));
-    expect(dispatcher, isNot(contains('popUntil(')));
-    expect(dispatcher, isNot(contains('.push(')));
-    expect(dispatcher, isNot(contains('pushReplacement')));
-    expect(dispatcher, isNot(contains('openPrimarySection(')));
-    expect(dispatcher, isNot(contains('openDetailRoute(')));
-    expect(dispatcher, isNot(contains('openUtilityRoute(')));
-    expect(
-      items,
-      contains('_dispatchDrawerDestination(_DrawerDestination.calendar)'),
-    );
-    expect(
-      items,
-      contains('_dispatchDrawerDestination(_DrawerDestination.calendars)'),
-    );
-    expect(
-      items,
-      contains('_dispatchDrawerDestination(_DrawerDestination.profile)'),
-    );
-    expect(
-      main,
-      isNot(contains('_calendarRouteRetainedUnderDrawerDestination')),
-    );
-    expect(
-      main,
-      isNot(contains('Navigator.maybeOf(\n        navigationContext')),
-    );
-  });
+      expect(main, contains('DrawerNavigationGeneration'));
+      expect(dispatcher, contains('_drawerNavigationGeneration.runIfCurrent'));
+      expect(dispatcher, contains('drawer navigation tap target'));
+      expect(dispatcher, contains('drawer navigation route requested'));
+      expect(dispatcher, contains('widget.router.go(destination.location)'));
+      expect(
+        'widget.router.go(destination.location)'.allMatches(dispatcher).length,
+        1,
+      );
+      expect(
+        dispatcher,
+        contains('recordPrimarySectionSelection(primarySection)'),
+      );
+      expect(dispatcher, contains('suppressRestoreForUserNavigation'));
+      expect(dispatcher, contains('drawer current selection closed in place'));
+      expect(dispatcher, contains('destination.isPrimaryReplacement'));
+      expect(dispatcher, contains('openUtilityRoute<void>('));
+      expect(dispatcher, contains('openDetailRoute<void>('));
+      expect(dispatcher, isNot(contains('Navigator.maybeOf(')));
+      expect(dispatcher, isNot(contains('popUntil(')));
+      expect(dispatcher, isNot(contains('.push(')));
+      expect(dispatcher, isNot(contains('pushReplacement')));
+      expect(dispatcher, isNot(contains('openPrimarySection(')));
+      expect(main, contains('_DrawerNavigationOperation.historyPush'));
+      expect(main, contains('_pushDrawerHistoryUtility(destination)'));
+      expect(main, contains('_replaceDrawerHistoryPrimary(destination)'));
+      expect(main, contains('DrawerRouteHistory'));
+      expect(main, contains('_drawerRouteHistorySurfaceKey'));
+      expect(main, contains('boot drawer history accepted'));
+      expect(
+        items,
+        contains('_dispatchDrawerDestination(_DrawerDestination.calendar)'),
+      );
+      expect(
+        items,
+        contains('_dispatchDrawerDestination(_DrawerDestination.calendars)'),
+      );
+      expect(
+        items,
+        contains('_dispatchDrawerDestination(_DrawerDestination.profile)'),
+      );
+      expect(
+        main,
+        isNot(contains('_calendarRouteRetainedUnderDrawerDestination')),
+      );
+      expect(
+        main,
+        isNot(contains('Navigator.maybeOf(\n        navigationContext')),
+      );
+    },
+  );
 
   test('drawer back handling toggles only on durable primary routes', () async {
     final main = await File('lib/main.dart').readAsString();
@@ -273,6 +283,7 @@ void main() {
         'UX-DRAWER-005',
         'UX-DRAWER-006',
         'UX-DRAWER-007',
+        'UX-DRAWER-008',
       ]) {
         expect(navigation, contains(contract));
       }
@@ -282,6 +293,8 @@ void main() {
       expect(navigation, contains('single `GlobalMenuBubble` remains mounted'));
       expect(navigation, contains('before it starts the independent close'));
       expect(navigation, contains('one centralized, generation-'));
+      expect(navigation, contains('history-preserving pushes'));
+      expect(navigation, contains('valid base route plus its utility'));
       expect(navigation, contains('must not reconstruct the routed page'));
     },
   );

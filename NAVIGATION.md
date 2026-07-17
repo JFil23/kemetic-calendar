@@ -72,13 +72,20 @@ Drawer composition is a reveal/push interaction, not an overlay interaction:
 - `UX-DRAWER-006`: The single `GlobalMenuBubble` remains mounted inside the
   translated foreground throughout drawer open, close, and destination
   replacement. A drawer-row tap records its critical route state and requests
-  the destination before it starts the independent close animation; the old
-  page must not be visible again after the drawer has closed.
-- `UX-DRAWER-007`: Every drawer row uses the one centralized, generation-
-  guarded `GoRouter.go` dispatcher as a canonical replacement. Never mix root
-  `Navigator` stack operations with router commands. Only the latest explicit
-  drawer selection may request or commit a route; closing the drawer never
-  navigates. Selecting the already-visible Calendar only closes the drawer.
+  the destination before it starts the independent close animation. Primary
+  replacement must not leave an obsolete page visible after close.
+- `UX-DRAWER-007`: Every drawer row uses one centralized, generation-guarded
+  dispatcher. Calendar, Planner, Library, Journal, Inbox, Reflections, and
+  Settings are canonical primary replacements; Calendars, Flows, and Profile
+  are history-preserving pushes. Never mix root `Navigator` stack operations
+  with router commands. Only the latest competing selection may request or
+  commit a route; closing the drawer never navigates. Selecting the
+  already-visible Calendar only closes the drawer.
+- `UX-DRAWER-008`: Drawer history persists a valid base route plus its utility
+  and detail stack. Closing an X pops exactly the top stacked surface and
+  reveals the same mounted base state. A cold launch restores the base before
+  replaying valid stacked utilities; it must not reset to Calendar while valid
+  history exists.
 
 Deterministic drawer coverage must prove closed, midpoint, open, and reclosed
 geometry; fully opaque drawer material; shared translation of the header and

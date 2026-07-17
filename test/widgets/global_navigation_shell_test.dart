@@ -569,6 +569,96 @@ void main() {
   });
 
   testWidgets(
+    'Journal Inbox Calendars X restores the same mounted Inbox after resume',
+    (tester) async {
+      var inboxMounts = 0;
+      var inboxDisposals = 0;
+      final inboxKey = GlobalKey<_LifecycleTestPageState>();
+      final router = _testRouter(
+        initialLocation: '/journal',
+        inboxBuilder: (context) => _LifecycleTestPage(
+          key: inboxKey,
+          label: 'Inbox route',
+          onMounted: () => inboxMounts += 1,
+          onDisposed: () => inboxDisposals += 1,
+        ),
+      );
+
+      await _pumpShell(tester, router);
+      await _openDrawer(tester);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('global-side-drawer-item-Inbox')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(_visibleRouterPath(router), '/inbox');
+      final inboxState = inboxKey.currentState;
+      expect(inboxState, isNotNull);
+      expect(inboxMounts, 1);
+      expect(inboxDisposals, 0);
+
+      await _openDrawer(tester);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('global-side-drawer-item-Calendars')),
+      );
+      await tester.pump();
+
+      expect(_visibleRouterPath(router), '/calendars');
+      expect(router.canPop(), isTrue);
+      expect(inboxKey.currentState, same(inboxState));
+      expect(inboxMounts, 1);
+      expect(inboxDisposals, 0);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      Supabase.instance.client.auth.stopAutoRefresh();
+
+      expect(_visibleRouterPath(router), '/calendars');
+      await tester.tap(find.text('close calendars'));
+      await tester.pumpAndSettle();
+
+      expect(_visibleRouterPath(router), '/inbox');
+      expect(inboxKey.currentState, same(inboxState));
+      expect(inboxMounts, 1);
+      expect(inboxDisposals, 0);
+    },
+  );
+
+  testWidgets('nested drawer utilities pop in order back to their base', (
+    tester,
+  ) async {
+    final router = _testRouter(initialLocation: '/inbox');
+
+    await _pumpShell(tester, router);
+    await _openDrawer(tester);
+    final drawer = tester.widget<GlobalSideDrawer>(
+      find.byType(GlobalSideDrawer),
+    );
+    final openFlows = drawer.items
+        .singleWhere((item) => item.label == 'Flows')
+        .onSelected;
+    await tester.tap(
+      find.byKey(const ValueKey<String>('global-side-drawer-item-Calendars')),
+    );
+    await tester.pumpAndSettle();
+    expect(_visibleRouterPath(router), '/calendars');
+
+    openFlows();
+    await tester.pumpAndSettle();
+    expect(_visibleRouterPath(router), '/flows');
+
+    await tester.tap(find.text('close flows'));
+    await tester.pumpAndSettle();
+    expect(_visibleRouterPath(router), '/calendars');
+
+    await tester.tap(find.text('close calendars'));
+    await tester.pumpAndSettle();
+    expect(_visibleRouterPath(router), '/inbox');
+  });
+
+  testWidgets(
     'rapid Inbox Calendars Calendar drawer selections leave only Calendar visible',
     (tester) async {
       final router = _testRouter(initialLocation: '/nodes');
@@ -832,9 +922,16 @@ void main() {
 
     expect(_visibleRouterPath(router), '/profile/me');
     expect(find.text('Profile route'), findsOneWidget);
+    expect(router.canPop(), isTrue);
+
+    router.pop();
+    await tester.pumpAndSettle();
+
+    expect(_visibleRouterPath(router), '/nodes');
+    expect(find.text('Nodes'), findsOneWidget);
   });
 
-  testWidgets('flows and calendars are canonical drawer replacements', (
+  testWidgets('flows and calendars preserve the route beneath their sheets', (
     tester,
   ) async {
     final router = _testRouter(initialLocation: '/nodes');
@@ -851,7 +948,7 @@ void main() {
     expect(_visibleRouterPath(router), '/flows');
     await tester.tap(find.text('close flows'));
     await tester.pumpAndSettle();
-    expect(router.routerDelegate.currentConfiguration.uri.path, '/');
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/nodes');
 
     await _openDrawer(tester);
     await tester.tap(
@@ -864,7 +961,7 @@ void main() {
     expect(_visibleRouterPath(router), '/calendars');
     await tester.tap(find.text('close calendars'));
     await tester.pumpAndSettle();
-    expect(router.routerDelegate.currentConfiguration.uri.path, '/');
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/nodes');
   });
 }
 
@@ -996,6 +1093,8 @@ GoRouter _testRouter({
   WidgetBuilder? calendarBuilder,
   WidgetBuilder? plannerBuilder,
   WidgetBuilder? nodesBuilder,
+  WidgetBuilder? journalBuilder,
+  WidgetBuilder? inboxBuilder,
 }) {
   return GoRouter(
     initialLocation: initialLocation,
@@ -1024,11 +1123,13 @@ GoRouter _testRouter({
       ),
       GoRoute(
         path: '/journal',
-        builder: (context, state) => const _Page('Journal route'),
+        builder: (context, state) =>
+            journalBuilder?.call(context) ?? const _Page('Journal route'),
       ),
       GoRoute(
         path: '/inbox',
-        builder: (context, state) => const _Page('Inbox'),
+        builder: (context, state) =>
+            inboxBuilder?.call(context) ?? const _Page('Inbox'),
       ),
       GoRoute(
         path: '/settings',
@@ -1095,6 +1196,7 @@ class _Page extends StatelessWidget {
 
 class _LifecycleTestPage extends StatefulWidget {
   const _LifecycleTestPage({
+    super.key,
     required this.label,
     required this.onMounted,
     required this.onDisposed,
