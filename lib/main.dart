@@ -3109,8 +3109,20 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     _traceNavigation('menu close completed', mediaContext: context);
   }
 
-  Future<void> _openPrimarySectionFromDrawer(AppSection section) {
-    unawaited(_closeFloatingMenu());
+  Future<void> _openPrimarySectionFromDrawer(AppSection section) async {
+    final location = const NavigationPersistencePolicy().routeForSection(
+      section,
+    );
+    await _closeFloatingMenu();
+    if (!mounted || !context.mounted) return;
+    if (_currentUri.path == location && !_currentUri.hasQuery) {
+      _traceNavigation(
+        'global drawer current primary selection closed in place',
+        mediaContext: context,
+        state: <String, Object?>{'route': location},
+      );
+      return;
+    }
     if (section == AppSection.calendar) {
       final navigationContext = _rootNavigatorKey.currentContext ?? context;
       final navigator = Navigator.maybeOf(
@@ -3120,19 +3132,18 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       navigator?.popUntil((route) => route.isFirst);
     }
     openPrimarySection(context, section, router: widget.router);
-    return Future<void>.value();
   }
 
-  Future<void> _openProfileFromDrawer() {
+  Future<void> _openProfileFromDrawer() async {
     _traceNavigation(
       '_openProfileFromDrawer entered',
       mediaContext: context,
       state: const <String, Object?>{'route': '/profile/me'},
     );
-    unawaited(_closeFloatingMenu());
-    if (!mounted) return Future<void>.value();
+    await _closeFloatingMenu();
+    if (!mounted || !context.mounted) return;
     final navigationContext = _rootNavigatorKey.currentContext ?? context;
-    if (!navigationContext.mounted) return Future<void>.value();
+    if (!navigationContext.mounted) return;
     _traceNavigation(
       "global drawer detail route push('/profile/me') requested",
       mediaContext: context,
@@ -3145,17 +3156,16 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
         router: widget.router,
       ),
     );
-    return Future<void>.value();
   }
 
-  Future<void> _openFlowsFromDrawer() {
+  Future<void> _openFlowsFromDrawer() async {
     _traceNavigation(
       '_openFlowsFromDrawer entered',
       mediaContext: context,
       state: const <String, Object?>{'route': '/flows'},
     );
-    unawaited(_closeFloatingMenu());
-    if (!mounted) return Future<void>.value();
+    await _closeFloatingMenu();
+    if (!mounted || !context.mounted) return;
     _traceNavigation(
       "global drawer utility route push('/flows') requested",
       mediaContext: context,
@@ -3169,17 +3179,16 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
         router: widget.router,
       ),
     );
-    return Future<void>.value();
   }
 
-  Future<void> _openCalendarsFromDrawer() {
+  Future<void> _openCalendarsFromDrawer() async {
     _traceNavigation(
       '_openCalendarsFromDrawer entered',
       mediaContext: context,
       state: const <String, Object?>{'route': '/calendars'},
     );
-    unawaited(_closeFloatingMenu());
-    if (!mounted) return Future<void>.value();
+    await _closeFloatingMenu();
+    if (!mounted || !context.mounted) return;
     _traceNavigation(
       "global drawer utility route push('/calendars') requested",
       mediaContext: context,
@@ -3193,7 +3202,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
         router: widget.router,
       ),
     );
-    return Future<void>.value();
   }
 
   bool _isDrawerDestinationSelected(String destination) {

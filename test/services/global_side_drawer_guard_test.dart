@@ -146,26 +146,27 @@ void main() {
       );
 
       expect(primary, contains('openPrimarySection(context, section'));
-      expect(primary, contains('unawaited(_closeFloatingMenu())'));
+      expect(primary, contains('await _closeFloatingMenu();'));
+      expect(primary, contains('_currentUri.path == location'));
       expect(primary, contains('if (section == AppSection.calendar)'));
       expect(primary, contains('Navigator.maybeOf('));
       expect(primary, contains('rootNavigator: true'));
       expect(primary, contains('popUntil((route) => route.isFirst)'));
-      expect(primary, isNot(contains('await _closeFloatingMenu();')));
+      expect(
+        primary.indexOf('await _closeFloatingMenu();'),
+        lessThan(primary.indexOf('openPrimarySection(context, section')),
+      );
       expect(profile, contains('openDetailRoute<void>'));
       expect(profile, contains("'/profile/me'"));
-      expect(profile, contains('unawaited(_closeFloatingMenu())'));
-      expect(profile, isNot(contains('await _closeFloatingMenu();')));
+      expect(profile, contains('await _closeFloatingMenu();'));
       expect(profile, isNot(contains('openPrimarySection')));
       expect(profile, isNot(contains('recordPrimaryTabSelection')));
       expect(
         main,
         isNot(contains('openPrimarySection(context, AppSection.profile')),
       );
-      expect(flows, contains('unawaited(_closeFloatingMenu())'));
-      expect(flows, isNot(contains('await _closeFloatingMenu();')));
-      expect(calendars, contains('unawaited(_closeFloatingMenu())'));
-      expect(calendars, isNot(contains('await _closeFloatingMenu();')));
+      expect(flows, contains('await _closeFloatingMenu();'));
+      expect(calendars, contains('await _closeFloatingMenu();'));
       expect(items, contains('_openCalendarsFromDrawer()'));
       expect(items, contains('_openFlowsFromDrawer()'));
       expect(main, contains('openUtilityRoute<void>'));

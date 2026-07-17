@@ -293,7 +293,7 @@ void main() {
     expect(find.text('Planner'), findsNothing);
   });
 
-  testWidgets('drawer route dispatch does not wait for close animation', (
+  testWidgets('drawer-only animation completes before primary route dispatch', (
     tester,
   ) async {
     final router = _testRouter();
@@ -305,15 +305,47 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 16));
 
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/nodes');
+    expect(find.text('Nodes'), findsOneWidget);
+    expect(find.byKey(globalSideDrawerKey), findsOneWidget);
+
+    await tester.pump(globalSideDrawerTransitionDuration);
+    await tester.pump();
+
     expect(
       router.routerDelegate.currentConfiguration.uri.path,
       '/rhythm/today',
     );
     expect(find.text('Planner route'), findsOneWidget);
-    expect(find.byKey(globalSideDrawerKey), findsOneWidget);
+    expect(find.byKey(globalSideDrawerKey), findsNothing);
+  });
 
+  testWidgets('drawer close and current selection retain foreground state', (
+    tester,
+  ) async {
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    final router = _testRouter(
+      nodesBuilder: (context) => _ScrollableTestPage(controller: controller),
+    );
+
+    await _pumpShell(tester, router);
+    controller.jumpTo(480);
+    await tester.pump();
+    final beforeOpen = controller.offset;
+
+    await _openDrawer(tester);
+    expect(controller.offset, beforeOpen);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('global-side-drawer-item-Library')),
+    );
     await tester.pump(globalSideDrawerTransitionDuration);
     await tester.pump();
+
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/nodes');
+    expect(controller.offset, beforeOpen);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.byKey(globalSideDrawerKey), findsNothing);
   });
 
@@ -767,6 +799,24 @@ class _Page extends StatelessWidget {
               TextButton(onPressed: onClose, child: Text(closeLabel!)),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _ScrollableTestPage extends StatelessWidget {
+  const _ScrollableTestPage({required this.controller});
+
+  final ScrollController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: ListView.builder(
+        controller: controller,
+        itemExtent: 80,
+        itemCount: 30,
+        itemBuilder: (context, index) => Text('row $index'),
       ),
     );
   }
