@@ -132,7 +132,11 @@ void main() {
           findsOneWidget,
           reason: route.value,
         );
-        _expectSharedTransparentMenuBubble(tester, route.value);
+        expect(
+          find.byType(GlobalMenuBubble),
+          findsNothing,
+          reason: '${route.value}: the open drawer replaces its trigger',
+        );
 
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pump();
@@ -196,9 +200,7 @@ void main() {
     final closedForegroundRect = tester.getRect(
       find.byKey(globalSideDrawerForegroundKey),
     );
-    final closedBubbleRect = tester.getRect(
-      find.byKey(app.globalMenuButtonKey),
-    );
+    expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
     final closedPageRect = tester.getRect(
       find.byKey(const ValueKey<String>('page-Nodes')),
     );
@@ -210,7 +212,6 @@ void main() {
     final openForegroundRect = tester.getRect(
       find.byKey(globalSideDrawerForegroundKey),
     );
-    final openBubbleRect = tester.getRect(find.byKey(app.globalMenuButtonKey));
     final openPageRect = tester.getRect(
       find.byKey(const ValueKey<String>('page-Nodes')),
     );
@@ -218,7 +219,7 @@ void main() {
     expect(drawerRect.left, closeTo(0, 0.1));
     expect(openForegroundRect, closedForegroundRect);
     expect(openPageRect.left - closedPageRect.left, closeTo(0, 0.1));
-    expect(openBubbleRect.left - closedBubbleRect.left, closeTo(0, 0.1));
+    expect(find.byKey(app.globalMenuButtonKey), findsNothing);
   });
 
   testWidgets('outside tap closes the overlay drawer', (tester) async {
@@ -237,6 +238,33 @@ void main() {
     expect(find.byKey(globalSideDrawerKey), findsNothing);
   });
 
+  testWidgets(
+    'open drawer exposes one non-overlapping close action on the scrim',
+    (tester) async {
+      final router = _testRouter();
+
+      await _pumpShell(tester, router);
+      await _openDrawer(tester);
+
+      expect(
+        find.byKey(app.globalMenuButtonKey),
+        findsNothing,
+        reason:
+            'The floating bubble sits beneath the drawer rows and must not '
+            'publish an overlapping close hit target while the drawer is open.',
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(globalSideDrawerScrimKey),
+          matching: find.bySemanticsLabel('Close navigation menu'),
+        ),
+        findsOneWidget,
+        reason:
+            'The unobscured outside scrim owns the accessible close action.',
+      );
+    },
+  );
+
   for (final viewport in <Size>[
     Size(390, 844),
     Size(844, 390),
@@ -254,9 +282,7 @@ void main() {
         final router = _testRouter();
 
         await _pumpShell(tester, router);
-        final closedBubbleRect = tester.getRect(
-          find.byKey(app.globalMenuButtonKey),
-        );
+        expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
 
         await _openDrawer(tester);
 
@@ -264,14 +290,10 @@ void main() {
         final foregroundRect = tester.getRect(
           find.byKey(globalSideDrawerForegroundKey),
         );
-        final openBubbleRect = tester.getRect(
-          find.byKey(app.globalMenuButtonKey),
-        );
-
         expect(drawerRect.left, closeTo(0, 0.1));
         expect(drawerRect.width, lessThan(viewport.width));
         expect(foregroundRect.left, closeTo(0, 0.1));
-        expect(openBubbleRect.left - closedBubbleRect.left, closeTo(0, 0.1));
+        expect(find.byKey(app.globalMenuButtonKey), findsNothing);
       },
     );
   }

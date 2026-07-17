@@ -45,6 +45,7 @@ import 'root_boot.dart';
 import 'utils/hive_local_storage_web.dart';
 import 'core/async_guard.dart';
 import 'core/app_link_intent.dart';
+import 'core/global_side_drawer_metrics.dart' show globalSideDrawerWidth;
 import 'core/global_menu_routes.dart';
 import 'core/navigation_fallback.dart';
 import 'core/navigation_persistence_policy.dart';
@@ -3382,11 +3383,11 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
               fit: StackFit.expand,
               children: [
                 widget.child,
-                if (shouldActivateFloatingMenu || _menuMounted)
+                if (shouldActivateFloatingMenu && !_menuMounted)
                   GlobalMenuBubble(
                     key: globalMenuButtonKey,
-                    visible: shouldActivateFloatingMenu,
-                    open: menuOpenForInteraction,
+                    visible: true,
+                    open: false,
                     onPressed: _handleFloatingMenuPressed,
                   ),
                 DailyCosmicContextOverlayHost(
@@ -3403,7 +3404,11 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
             ),
           ),
           if (shouldMountFloatingMenu && _menuMounted)
-            Positioned.fill(
+            Positioned(
+              top: 0,
+              right: 0,
+              bottom: 0,
+              left: globalSideDrawerWidth(context),
               child: IgnorePointer(
                 ignoring: !menuOpenForInteraction,
                 child: ExcludeSemantics(
@@ -3415,8 +3420,15 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
                     child: GestureDetector(
                       key: globalSideDrawerScrimKey,
                       behavior: HitTestBehavior.opaque,
+                      excludeFromSemantics: true,
                       onTap: () => unawaited(_closeFloatingMenu()),
-                      child: const ColoredBox(color: Colors.transparent),
+                      child: Semantics(
+                        container: true,
+                        label: 'Close navigation menu',
+                        button: true,
+                        onTap: () => unawaited(_closeFloatingMenu()),
+                        child: const ColoredBox(color: Colors.transparent),
+                      ),
                     ),
                   ),
                 ),
