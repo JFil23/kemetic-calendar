@@ -35002,122 +35002,10 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
-  int _centerYearMonthForScroll(int baseYear) {
-    final restoredMonth = _lastViewKy == baseYear ? _lastViewKm : null;
-    final fallbackMonth = baseYear == _today.kYear ? _today.kMonth : 1;
-    return (restoredMonth ?? fallbackMonth).clamp(1, 13).toInt();
-  }
-
-  String? _centerYearSeasonHeaderForMonth(int kMonth) {
-    switch (kMonth) {
-      case 1:
-        return 'Flood season (Akhet)';
-      case 5:
-        return 'Emergence season (Peret)';
-      case 9:
-        return 'Harvest season (Shemu)';
-      default:
-        return null;
-    }
-  }
-
-  String _seasonShortForMonth(int kMonth) {
-    if (kMonth >= 1 && kMonth <= 4) return 'Akhet';
-    if (kMonth >= 5 && kMonth <= 8) return 'Peret';
-    return 'Shemu';
-  }
-
-  Widget _buildCenterYearMonthSliver({
-    required int kYear,
-    required int kMonth,
-    required int centerMonth,
-    required bool isTodayYear,
-  }) {
-    final sectionHeader = _centerYearSeasonHeaderForMonth(kMonth);
-    final child = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (sectionHeader != null) _SeasonHeader(title: sectionHeader),
-        if (kMonth <= 12)
-          _MonthCard(
-            anchorKey: keyForMonth(kYear, kMonth),
-            monthHeaderKey: keyForMonthHeader(kYear, kMonth),
-            dayAnchorKeyProvider: (m, d) =>
-                _calendarDayAnchorKeyFor(kYear, m, d),
-            kYear: kYear,
-            kMonth: kMonth,
-            temporalAnchorVisible:
-                isTodayYear && _currentDecanVisibleInViewport,
-            seasonShort: _seasonShortForMonth(kMonth),
-            todayMonth: isTodayYear ? _today.kMonth : null,
-            todayDay: isTodayYear ? _today.kDay : null,
-            todayDayKey: isTodayYear ? _todayDayKey : null,
-            notesGetter: (m, d) => _getNotes(kYear, m, d),
-            flowColorsGetter: (ky, km, kd) => getFlowColorsForDay(ky, km, kd),
-            onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
-            showGregorian: _showGregorian,
-            expansionLevel: _monthExpansion,
-            noteColorResolver: _noteColor,
-            flowNameGetter: _flowName,
-            onManageFlows: _getMyFlowsCallback(),
-            onEditNote: (ky, km, kd, evt) async =>
-                _editNoteByEvent(ky, km, kd, evt),
-            onDeleteNote: (ky, km, kd, evt) async =>
-                _deleteNoteByEvent(ky, km, kd, evt),
-            onShareNote: (evt) async => _shareNoteSimple(evt),
-            onEditReminder: (id) async => _editReminderById(id),
-            onEndReminder: (id) async => _endReminderRule(id),
-            onShareReminder: (evt) async => _shareNoteSimple(evt),
-            onEndFlow: (id) => _endFlow(id),
-            onAppendToJournal: _appendToJournalAndRefresh,
-            onMonthHeaderTap: (context) =>
-                _handleMonthHeaderTapped(context, kYear, kMonth),
-            onDecanTap: (context, decanIndex) =>
-                _handleDecanHeaderTapped(context, kYear, kMonth, decanIndex),
-          )
-        else
-          KeyedSubtree(
-            key: keyForMonth(kYear, 13),
-            child: _EpagomenalCard(
-              kYear: kYear,
-              todayMonth: isTodayYear ? _today.kMonth : null,
-              todayDay: isTodayYear ? _today.kDay : null,
-              todayDayKey: isTodayYear ? _todayDayKey : null,
-              notesGetter: (m, d) => _getNotes(kYear, 13, d),
-              flowColorsGetter: (ky, km, kd) => getFlowColorsForDay(ky, km, kd),
-              onDayTap: (c, m, d) => _openDayView(c, kYear, 13, d),
-              showGregorian: _showGregorian,
-              expansionLevel: _monthExpansion,
-              noteColorResolver: _noteColor,
-              flowNameGetter: _flowName,
-              onManageFlows: _getMyFlowsCallback(),
-              onEditNote: (ky, km, kd, evt) async =>
-                  _editNoteByEvent(ky, km, kd, evt),
-              onDeleteNote: (ky, km, kd, evt) async =>
-                  _deleteNoteByEvent(ky, km, kd, evt),
-              onShareNote: (evt) async => _shareNoteSimple(evt),
-              onEditReminder: (id) async => _editReminderById(id),
-              onEndReminder: (id) async => _endReminderRule(id),
-              onShareReminder: (evt) async => _shareNoteSimple(evt),
-              onEndFlow: (id) => _endFlow(id),
-              onAppendToJournal: _appendToJournalAndRefresh,
-            ),
-          ),
-        const _GoldDivider(),
-      ],
-    );
-
-    return SliverToBoxAdapter(
-      key: kMonth == centerMonth ? _centerKey : null,
-      child: child,
-    );
-  }
-
   Widget _buildCalendarScrollView() {
     final kToday = _today;
     final baseYear = _calendarScrollBaseYear ?? _lastViewKy ?? kToday.kYear;
     final centerIsTodayYear = baseYear == kToday.kYear;
-    final centerMonth = _centerYearMonthForScroll(baseYear);
 
     // ✅ FIX 4: Wrap with NotificationListener to capture scroll-end events
     return NotificationListener<ScrollNotification>(
@@ -35204,14 +35092,50 @@ class CalendarPageState extends State<CalendarPage>
             ),
           ),
 
-          // CENTER: one persistent tree, lazily split by month.
-          for (var month = 1; month <= 13; month++)
-            _buildCenterYearMonthSliver(
+          // CENTER: one persistent July 10 year tree. This controlled paint
+          // A/B changes only the center-year sliver topology.
+          SliverToBoxAdapter(
+            key: _centerKey,
+            child: _YearSection(
               kYear: baseYear,
-              kMonth: month,
-              centerMonth: centerMonth,
-              isTodayYear: centerIsTodayYear,
+              todayMonth: centerIsTodayYear ? kToday.kMonth : null,
+              todayDay: centerIsTodayYear ? kToday.kDay : null,
+              todayDayKey: centerIsTodayYear ? _todayDayKey : null,
+              temporalAnchorVisible:
+                  centerIsTodayYear && _currentDecanVisibleInViewport,
+              monthAnchorKeyProvider: (m) => keyForMonth(baseYear, m),
+              monthHeaderKeyProvider: (m) => keyForMonthHeader(baseYear, m),
+              dayAnchorKeyProvider: (m, d) =>
+                  _calendarDayAnchorKeyFor(baseYear, m, d),
+              onMonthHeaderTap: (context, kMonth) =>
+                  _handleMonthHeaderTapped(context, baseYear, kMonth),
+              onDecanTap: (context, kMonth, decanIndex) =>
+                  _handleDecanHeaderTapped(
+                    context,
+                    baseYear,
+                    kMonth,
+                    decanIndex,
+                  ),
+              onDayTap: (c, m, d) => _openDayView(c, baseYear, m, d),
+              notesGetter: (m, d) => _getNotes(baseYear, m, d),
+              flowColorsGetter: (ky, km, kd) => getFlowColorsForDay(ky, km, kd),
+              showGregorian: _showGregorian,
+              expansionLevel: _monthExpansion,
+              noteColorResolver: _noteColor,
+              flowNameGetter: _flowName,
+              onManageFlows: _getMyFlowsCallback(),
+              onEditNote: (ky, km, kd, evt) async =>
+                  _editNoteByEvent(ky, km, kd, evt),
+              onDeleteNote: (ky, km, kd, evt) async =>
+                  _deleteNoteByEvent(ky, km, kd, evt),
+              onShareNote: (evt) async => _shareNoteSimple(evt),
+              onEditReminder: (id) async => _editReminderById(id),
+              onEndReminder: (id) async => _endReminderRule(id),
+              onShareReminder: (evt) async => _shareNoteSimple(evt),
+              onEndFlow: (id) => _endFlow(id),
+              onAppendToJournal: _appendToJournalAndRefresh,
             ),
+          ),
 
           // FUTURE years
           SliverList(

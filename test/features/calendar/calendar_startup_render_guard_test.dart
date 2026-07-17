@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('startup calendar keeps one lazy authoritative portrait tree', () {
+  test('center year keeps the July 10 single YearSection topology', () {
     final source = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
@@ -19,11 +19,18 @@ void main() {
 
     expect(
       scrollViewSource,
-      contains('_buildCenterYearMonthSliver('),
+      contains(
+        'SliverToBoxAdapter(\n            key: _centerKey,\n            child: _YearSection(',
+      ),
       reason:
-          'The restored center year must remain split into lazy month slivers.',
+          'The controlled paint A/B keeps the center year in one persistent '
+          'YearSection instead of thirteen independently mounted slivers.',
     );
-    expect(scrollViewSource, isNot(contains('child: _YearSection(')));
+    expect(scrollViewSource, isNot(contains('_buildCenterYearMonthSliver(')));
+    expect(
+      scrollViewSource,
+      isNot(contains('for (var month = 1; month <= 13; month++)')),
+    );
     expect(
       scrollViewSource,
       isNot(contains('_shouldUseStartupSingleMonthCalendar')),
@@ -35,6 +42,13 @@ void main() {
       reason:
           'Startup must not replace a temporary tree with a second calendar.',
     );
-    expect(source, contains('int _centerYearMonthForScroll(int baseYear)'));
+    expect(
+      scrollViewSource,
+      contains(
+        'final baseYear = _calendarScrollBaseYear ?? _lastViewKy ?? '
+        'kToday.kYear;',
+      ),
+      reason: 'The topology A/B must preserve the restored center-year base.',
+    );
   });
 }
