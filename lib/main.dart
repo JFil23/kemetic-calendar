@@ -3099,9 +3099,14 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     }
     setState(() {
       _menuMounted = true;
-      _menuOpen = true;
+      _menuOpen = false;
     });
-    _traceNavigation('global drawer mounted/opened', mediaContext: context);
+    _traceNavigation('global drawer mounted closed', mediaContext: context);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_menuMounted || _menuOpen) return;
+      setState(() => _menuOpen = true);
+      _traceNavigation('global drawer opened', mediaContext: context);
+    });
   }
 
   Future<void> _closeFloatingMenu() async {

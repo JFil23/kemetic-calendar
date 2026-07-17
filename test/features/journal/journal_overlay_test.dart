@@ -416,6 +416,7 @@ void main() {
 
       await tester.tap(find.byKey(app.globalMenuButtonKey));
       await tester.pump();
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 250));
 
       bottomInset = 320;

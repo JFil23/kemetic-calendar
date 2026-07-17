@@ -34490,12 +34490,6 @@ class CalendarPageState extends State<CalendarPage>
   @override
   Widget build(BuildContext context) {
     final routeIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;
-    final routeShouldRemainRendered =
-        routeIsCurrent ||
-        CalendarPage._hasCalendarOwnedTransientOverlayOpenOrOpening;
-    if (!routeShouldRemainRendered) {
-      return const Scaffold(backgroundColor: _bg, body: SizedBox.shrink());
-    }
 
     if (!_hasUsableCalendarSnapshotForPaint() &&
         !_initialCalendarLoadFinished) {

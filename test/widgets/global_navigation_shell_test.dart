@@ -222,6 +222,51 @@ void main() {
     expect(find.byKey(app.globalMenuButtonKey), findsNothing);
   });
 
+  testWidgets('drawer animates on mount while foreground stays stationary', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final router = _testRouter();
+    await _pumpShell(tester, router);
+    final foregroundBefore = tester.getRect(
+      find.byKey(globalSideDrawerForegroundKey),
+    );
+
+    await tester.tap(find.byKey(app.globalMenuButtonKey));
+    await tester.pump();
+
+    final drawer = find.byKey(globalSideDrawerKey);
+    expect(drawer, findsOneWidget);
+    final drawerWidth = tester.getSize(drawer).width;
+    final mountedLeft = tester.getTopLeft(drawer).dx;
+    expect(
+      mountedLeft,
+      lessThan(-drawerWidth * 0.9),
+      reason: 'The first mounted frame must begin offscreen.',
+    );
+    expect(
+      tester.getRect(find.byKey(globalSideDrawerForegroundKey)),
+      foregroundBefore,
+    );
+
+    await tester.pump();
+    await tester.pump(globalSideDrawerTransitionDuration * 0.5);
+    final midpointLeft = tester.getTopLeft(drawer).dx;
+    expect(midpointLeft, greaterThan(mountedLeft));
+    expect(midpointLeft, lessThan(0));
+    expect(
+      tester.getRect(find.byKey(globalSideDrawerForegroundKey)),
+      foregroundBefore,
+    );
+
+    await tester.pump(globalSideDrawerTransitionDuration * 0.5);
+    expect(tester.getTopLeft(drawer).dx, closeTo(0, 0.1));
+  });
+
   testWidgets('outside tap closes the overlay drawer', (tester) async {
     final router = _testRouter();
 
@@ -739,6 +784,7 @@ Future<void> _pumpShell(WidgetTester tester, GoRouter router) async {
 
 Future<void> _openDrawer(WidgetTester tester) async {
   await tester.tap(find.byKey(app.globalMenuButtonKey));
+  await tester.pump();
   await tester.pump();
   await tester.pump(globalSideDrawerTransitionDuration);
 }

@@ -138,24 +138,9 @@ void main() {
 
       expect(
         calendarRootDecision,
-        contains(
-          'final routeShouldRemainRendered =\n'
-          '        routeIsCurrent ||\n'
-          '        CalendarPage._hasCalendarOwnedTransientOverlayOpenOrOpening;',
-        ),
+        isNot(contains('routeShouldRemainRendered')),
       );
-      expect(
-        calendarRootDecision,
-        contains('if (!routeShouldRemainRendered) {'),
-        reason:
-            'Calendar-owned sheets keep the route painted behind them; unrelated covered routes still shrink below.',
-      );
-      expect(
-        calendarRootDecision,
-        contains(
-          'return const Scaffold(backgroundColor: _bg, body: SizedBox.shrink())',
-        ),
-      );
+      expect(calendarRootDecision, isNot(contains('SizedBox.shrink()')));
       expect(
         calendarRootDecision,
         contains('_buildInitialCalendarLoadingScaffold()'),
@@ -169,17 +154,28 @@ void main() {
       );
     });
 
-    test('covered Calendar route skips heavy calendar body builds', () {
-      final coveredRouteBranch = _sourceBetween(
+    test('covered Calendar route retains the painted calendar body', () {
+      final calendarState = _sourceBetween(
         calendarSource,
-        'if (!routeShouldRemainRendered) {',
+        'class CalendarPageState extends State<CalendarPage>',
+        'Widget _buildInitialCalendarLoadingScaffold()',
+      );
+      final calendarRootDecision = _sourceBetween(
+        calendarState,
+        '@override\n  Widget build(BuildContext context) {',
         'final scaffold = Scaffold(',
       );
 
-      expect(coveredRouteBranch, contains('Scaffold('));
-      expect(coveredRouteBranch, contains('SizedBox.shrink()'));
-      expect(coveredRouteBranch, isNot(contains('_buildBodyWithJournal')));
-      expect(coveredRouteBranch, isNot(contains('LandscapeMonthView(')));
+      expect(
+        calendarRootDecision,
+        isNot(contains('routeShouldRemainRendered')),
+      );
+      expect(calendarRootDecision, isNot(contains('SizedBox.shrink()')));
+      expect(
+        calendarRootDecision,
+        contains('_buildInitialCalendarLoadingScaffold()'),
+      );
+      expect(calendarSource, contains('_buildBodyWithJournal()'));
     });
 
     test('portrait recenter keeps Calendar body painted', () {

@@ -428,6 +428,7 @@ void main() {
 
       await tester.tap(find.byKey(app.globalMenuButtonKey));
       await tester.pump();
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 260));
       await tester.tap(find.text('Flows'));
       await tester.pump();
@@ -515,6 +516,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 260));
 
       await tester.tap(find.byKey(app.globalMenuButtonKey));
+      await tester.pump();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 260));
       await tester.tap(find.text('Calendars'));
