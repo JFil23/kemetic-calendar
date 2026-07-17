@@ -632,38 +632,69 @@ void main() {
       expect(find.text('Profile me'), findsOneWidget);
     });
 
-    test('shared Today helper records today before routing home', () async {
-      final source = await File(
-        'lib/features/calendar/calendar_page.dart',
-      ).readAsString();
-      final openToday = _sourceBetween(
-        source,
-        'static void openMainCalendarAtToday(',
-        '  // Static method for parsing rules from JSON',
-      );
-      final recordToday = _sourceBetween(
-        source,
-        'static Future<void> _recordCalendarTodayCommandState(',
-        'static void openMainCalendarAtToday(',
-      );
-      final loadPersisted = _sourceBetween(
-        source,
-        'Future<void> _loadPersistedViewState({String trigger = \'startup\'})',
-        '  /// ✅ Helper: Calculate max days in a Kemetic month',
-      );
+    test(
+      'shared Today helper records today before in-place or routed use',
+      () async {
+        final source = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+        final openToday = _sourceBetween(
+          source,
+          'static void openMainCalendarAtToday(',
+          '  // Static method for parsing rules from JSON',
+        );
+        final recordToday = _sourceBetween(
+          source,
+          'static Future<void> _recordCalendarTodayCommandState(',
+          'static void openMainCalendarAtToday(',
+        );
+        final loadPersisted = _sourceBetween(
+          source,
+          'Future<void> _loadPersistedViewState({',
+          '  /// ✅ Helper: Calculate max days in a Kemetic month',
+        );
 
-      expect(openToday, contains('_pendingTodayNavigationCommand = true'));
-      expect(openToday, contains('_recordCalendarTodayCommandState'));
-      expect(openToday, contains("router.go('/')"));
-      expect(
-        openToday.indexOf('_recordCalendarTodayCommandState'),
-        lessThan(openToday.indexOf("router.go('/')")),
-      );
-      expect(recordToday, contains('saveCalendarState'));
-      expect(recordToday, contains('_calendarRestorationStateForToday'));
-      expect(loadPersisted, contains('_consumePendingTodayNavigationCommand'));
-      expect(loadPersisted, contains('return;'));
-    });
+        expect(openToday, contains('_recordCalendarTodayCommandState'));
+        expect(
+          openToday,
+          contains(
+            'mountedState != null && '
+            'mountedState._isPrimaryCalendarRouteCurrent',
+          ),
+        );
+        final mountedBranchStart = openToday.indexOf(
+          'if (mountedState != null && '
+          'mountedState._isPrimaryCalendarRouteCurrent)',
+        );
+        final routerStart = openToday.indexOf(
+          'final router = GoRouter.of(context);',
+        );
+        expect(mountedBranchStart, isNonNegative);
+        expect(routerStart, greaterThan(mountedBranchStart));
+        final mountedBranch = openToday.substring(
+          mountedBranchStart,
+          routerStart,
+        );
+        expect(mountedBranch, contains('_applyTodayNavigationCommand('));
+        expect(mountedBranch, contains('animate: true'));
+        expect(mountedBranch, contains('return;'));
+        expect(mountedBranch, isNot(contains("router.go('/')")));
+
+        expect(openToday, contains('_pendingTodayNavigationCommand = true'));
+        expect(openToday, contains("router.go('/')"));
+        expect(
+          openToday.indexOf('_recordCalendarTodayCommandState'),
+          lessThan(openToday.indexOf("router.go('/')")),
+        );
+        expect(recordToday, contains('saveCalendarState'));
+        expect(recordToday, contains('_calendarRestorationStateForToday'));
+        expect(
+          loadPersisted,
+          contains('_consumePendingTodayNavigationCommand'),
+        );
+        expect(loadPersisted, contains('return;'));
+      },
+    );
 
     test('calendar-host menu buttons keep expected handlers', () async {
       final source = await File(

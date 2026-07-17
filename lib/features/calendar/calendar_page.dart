@@ -8072,7 +8072,7 @@ class CalendarPage extends StatefulWidget {
 
   static void openMainCalendarAtToday(
     BuildContext context, {
-    bool animate = false,
+    bool animate = true,
   }) {
     NavigationTrace.instance.record('openMainCalendarAtToday entered');
     RestorationCoordinator.instance.suppressRestoreForUserNavigation(
@@ -8087,7 +8087,6 @@ class CalendarPage extends StatefulWidget {
     CalendarPage._pendingDetachedSearchResult = null;
     CalendarPage._pendingDetachedSearchDay = null;
     CalendarPage._pendingSharedCalendarRealDayViewIntent = null;
-    CalendarPage._pendingTodayNavigationCommand = true;
     final mountedState = _mountedState;
     mountedState?._suppressPendingRestoresForUserNavigation();
     unawaited(
@@ -8097,6 +8096,17 @@ class CalendarPage extends StatefulWidget {
     );
     unawaited(_recordCalendarTodayCommandState(mountedState));
 
+    if (mountedState != null && mountedState._isPrimaryCalendarRouteCurrent) {
+      CalendarPage._pendingTodayNavigationCommand = false;
+      mountedState._applyTodayNavigationCommand(
+        animate: true,
+        reason: 'today_command:mounted_calendar_in_place',
+      );
+      return;
+    }
+
+    CalendarPage._pendingTodayNavigationCommand = true;
+
     final router = GoRouter.of(context);
     final rootNavigator = Navigator.of(context, rootNavigator: true);
     if (rootNavigator.canPop()) {
@@ -8104,16 +8114,6 @@ class CalendarPage extends StatefulWidget {
     }
     NavigationTrace.instance.record("go('/') issued");
     router.go('/');
-    if (mountedState != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mountedState.mounted) return;
-        CalendarPage._pendingTodayNavigationCommand = false;
-        mountedState._applyTodayNavigationCommand(
-          animate: animate,
-          reason: 'today_command:mounted_calendar',
-        );
-      });
-    }
     _scheduleTodayJumpAfterNavigation(animate: animate);
   }
 
@@ -17393,10 +17393,19 @@ class CalendarPageState extends State<CalendarPage>
     required String reason,
   }) {
     _suppressPendingRestoresForUserNavigation();
-    _applyTodayFallbackAfterRestore(reason: reason);
     _restorationInteractedSinceBoot = true;
+    _restoredCalendarAnchorTarget = null;
+    _restoredCalendarAnchorAlignment = null;
+    _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
+    NavigationTrace.instance.record(
+      'Calendar Today viewport command',
+      state: <String, Object?>{'reason': reason, 'animate': animate},
+    );
     _scrollToToday(animate: animate);
   }
+
+  bool get _isPrimaryCalendarRouteCurrent =>
+      ModalRoute.of(context)?.isCurrent ?? true;
 
   bool _consumePendingTodayNavigationCommand({required String trigger}) {
     if (!CalendarPage._pendingTodayNavigationCommand) return false;
