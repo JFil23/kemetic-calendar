@@ -53,6 +53,30 @@ Drawer destinations follow the route categories above:
 Drawer state is local app chrome state. It is not restoration-backed and should
 not be persisted.
 
+Drawer composition is a reveal/push interaction, not an overlay interaction:
+
+- `UX-DRAWER-001`: The drawer is an opaque surface behind the application
+  foreground. It must not be translucent and must not be painted over a
+  stationary Calendar.
+- `UX-DRAWER-002`: Opening the drawer translates the entire foreground,
+  including its header, routed surface, overlays, and menu chrome, to the right
+  as one intact panel by exactly the drawer width.
+- `UX-DRAWER-003`: Opening and closing use the shared drawer transition of
+  approximately 250 ms. The foreground must remain continuously mounted for the
+  full transition; drawer state changes must not reconstruct the routed page.
+- `UX-DRAWER-004`: Closing the drawer returns the foreground to its original
+  geometry and the exact pre-open Calendar offset, without a loading surface,
+  paint gap, or restoration replay.
+- `UX-DRAWER-005`: Drawer composition must not delay or reorder the existing
+  destination dispatch and primary-route persistence contracts.
+
+Deterministic drawer coverage must prove closed, midpoint, open, and reclosed
+geometry; fully opaque drawer material; shared translation of the header and
+Calendar; preservation of the routed element identity; and exact scroll-offset
+return. The Calendar scroll, stationary, background/resume, and drawer-stress
+matrix must be replayed after any drawer-composition change because translating
+the foreground can change compositor behavior without changing route state.
+
 Back behavior:
 
 - Primary route + drawer open: close the drawer.
