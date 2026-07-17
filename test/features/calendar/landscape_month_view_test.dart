@@ -992,6 +992,19 @@ void main() {
       expect(dayChipBlock, isNot(contains('ThemeData(')));
     });
 
+    test('portrait day tiles do not create one raster layer per tile', () {
+      final source = File(
+        'lib/features/calendar/calendar_grid_widgets.dart',
+      ).readAsStringSync();
+      final dayChipBlock = _sourceBetween(
+        source,
+        'class _DayChip extends StatelessWidget',
+        'class _MiniEventBlock extends StatelessWidget',
+      );
+
+      expect(dayChipBlock, isNot(contains('child: RepaintBoundary(')));
+    });
+
     test('month layout constants use warm rectangular mockup grid colors', () {
       final source = File(
         'lib/features/calendar/calendar_grid_widgets.dart',

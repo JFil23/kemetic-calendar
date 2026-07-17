@@ -1861,7 +1861,7 @@ class _DayChip extends StatelessWidget {
           key: anchorKey,
           width: double.infinity,
           height: chipHeight,
-          child: RepaintBoundary(
+          child: KeyedSubtree(
             child: ClipRRect(
               borderRadius: tileRadius,
               child: DecoratedBox(
