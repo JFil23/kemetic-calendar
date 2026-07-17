@@ -35,7 +35,12 @@ String? calendarWarmStartProjectRefFromUrl(String? rawUrl) {
     return _safeCacheIdentity('local_${host}_$port');
   }
 
-  return null;
+  // Supabase supports custom domains, and isolated release validation uses a
+  // short-lived HTTPS proxy in front of the same API. The browser origin is a
+  // stable, non-secret namespace for that backend; refusing it disables the
+  // same-process and durable Calendar snapshot authorities entirely.
+  final port = uri.hasPort ? uri.port : (scheme == 'https' ? 443 : 80);
+  return _safeCacheIdentity('custom_${scheme}_${host}_$port');
 }
 
 String? calendarWarmStartCacheKey({
