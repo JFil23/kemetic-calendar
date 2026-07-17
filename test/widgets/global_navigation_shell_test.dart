@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/navigation_fallback.dart';
 import 'package:mobile/main.dart' as app;
+import 'package:mobile/services/navigation_trace.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/widgets/global_side_drawer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -433,19 +434,12 @@ void main() {
   });
 
   testWidgets(
-    'UX-DRAWER-006 route dispatches during close without rebuilding foreground state',
+    'UX-DRAWER-006 route dispatches during close without rebuilding the destination',
     (tester) async {
-      var calendarMounts = 0;
-      var calendarDisposals = 0;
       var plannerMounts = 0;
       var plannerDisposals = 0;
       final router = _testRouter(
         initialLocation: '/',
-        calendarBuilder: (context) => _RetainedCalendarTestPage(
-          onMounted: () => calendarMounts += 1,
-          onDisposed: () => calendarDisposals += 1,
-          onOffsetChanged: (_) {},
-        ),
         plannerBuilder: (context) => _LifecycleTestPage(
           label: 'Planner route',
           onMounted: () => plannerMounts += 1,
@@ -456,9 +450,6 @@ void main() {
       await _pumpShell(tester, router);
       final menuBubbleElement = tester.element(
         find.byKey(app.globalMenuButtonKey),
-      );
-      final calendarElement = tester.element(
-        find.byType(_RetainedCalendarTestPage),
       );
       await _openDrawer(tester);
 
@@ -486,12 +477,6 @@ void main() {
         tester.element(find.byKey(app.globalMenuButtonKey)),
         same(menuBubbleElement),
       );
-      expect(
-        tester.element(find.byType(_RetainedCalendarTestPage)),
-        same(calendarElement),
-      );
-      expect(calendarMounts, 1);
-      expect(calendarDisposals, 0);
       expect(plannerMounts, 1);
       expect(plannerDisposals, 0);
 
@@ -504,8 +489,6 @@ void main() {
         tester.element(find.byKey(app.globalMenuButtonKey)),
         same(menuBubbleElement),
       );
-      expect(calendarMounts, 1);
-      expect(calendarDisposals, 0);
       expect(plannerMounts, 1);
       expect(plannerDisposals, 0);
     },
@@ -549,118 +532,101 @@ void main() {
     expect(find.byKey(globalSideDrawerKey), findsNothing);
   });
 
+  testWidgets('selected Calendar only closes the drawer', (tester) async {
+    var calendarMounts = 0;
+    var calendarDisposals = 0;
+    final router = _testRouter(
+      initialLocation: '/',
+      calendarBuilder: (context) => _RetainedCalendarTestPage(
+        onMounted: () => calendarMounts += 1,
+        onDisposed: () => calendarDisposals += 1,
+        onOffsetChanged: (_) {},
+      ),
+    );
+    await NavigationTrace.instance.setEnabled(true);
+    addTearDown(NavigationTrace.instance.resetForTesting);
+
+    await _pumpShell(tester, router);
+    await _openDrawer(tester);
+    expect(router.canPop(), isFalse);
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('global-side-drawer-item-Calendar')),
+    );
+    await tester.pump(globalSideDrawerTransitionDuration);
+    await tester.pump();
+
+    expect(_visibleRouterPath(router), '/');
+    expect(router.canPop(), isFalse);
+    expect(calendarMounts, 1);
+    expect(calendarDisposals, 0);
+    expect(find.byKey(globalSideDrawerKey), findsNothing);
+    final trace = NavigationTrace.instance.entries.join('\n');
+    expect(trace, contains('drawer navigation tap target'));
+    expect(trace, contains('target=Calendar'));
+    expect(trace, contains('drawer current selection closed in place'));
+    expect(trace, isNot(contains('drawer navigation route requested')));
+  });
+
   testWidgets(
-    'drawer round-trip keeps the mounted Calendar surface and exact offset',
+    'rapid Inbox Calendars Calendar drawer selections leave only Calendar visible',
     (tester) async {
-      var calendarMounts = 0;
-      var calendarDisposals = 0;
-      double? calendarOffset;
-      final router = _testRouter(
-        initialLocation: '/',
-        calendarBuilder: (context) => _RetainedCalendarTestPage(
-          onMounted: () => calendarMounts += 1,
-          onDisposed: () => calendarDisposals += 1,
-          onOffsetChanged: (offset) => calendarOffset = offset,
-        ),
-      );
+      final router = _testRouter(initialLocation: '/nodes');
+      await NavigationTrace.instance.setEnabled(true);
+      addTearDown(NavigationTrace.instance.resetForTesting);
 
       await _pumpShell(tester, router);
-      await tester.drag(find.byType(ListView), const Offset(0, -480));
-      await tester.pumpAndSettle();
-      final beforeRouteChange = calendarOffset;
-      expect(beforeRouteChange, isNotNull);
-      expect(beforeRouteChange, greaterThan(0));
-      expect(calendarMounts, 1);
-
       await _openDrawer(tester);
-      await tester.tap(
-        find.byKey(const ValueKey<String>('global-side-drawer-item-Settings')),
+      final drawer = tester.widget<GlobalSideDrawer>(
+        find.byType(GlobalSideDrawer),
       );
-      await tester.pump(globalSideDrawerTransitionDuration);
-      await tester.pumpAndSettle();
+      void select(String label) {
+        drawer.items.singleWhere((item) => item.label == label).onSelected();
+      }
 
-      expect(_visibleRouterPath(router), '/settings');
-      expect(calendarDisposals, 0);
-
-      await _openDrawer(tester);
-      await tester.tap(
-        find.byKey(const ValueKey<String>('global-side-drawer-item-Calendar')),
-      );
+      select('Inbox');
+      select('Calendars');
+      select('Calendar');
+      await tester.pump();
       await tester.pump(globalSideDrawerTransitionDuration);
       await tester.pumpAndSettle();
 
       expect(_visibleRouterPath(router), '/');
-      expect(calendarMounts, 1);
-      expect(calendarDisposals, 0);
-      expect(calendarOffset, beforeRouteChange);
-      expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(
-        find.byType(BackButton),
-        findsNothing,
-        reason:
-            'The primary Calendar surface must not expose an automatic route '
-            'back affordance after a drawer round-trip.',
-      );
-    },
-  );
+      expect(find.text('Calendar'), findsOneWidget);
+      expect(find.text('Inbox'), findsNothing);
+      expect(find.text('Calendars route'), findsNothing);
+      expect(find.byKey(globalSideDrawerKey), findsNothing);
 
-  testWidgets(
-    'drawer destination switches retain one Calendar beneath the top route',
-    (tester) async {
-      var calendarMounts = 0;
-      var calendarDisposals = 0;
-      double? calendarOffset;
-      final router = _testRouter(
-        initialLocation: '/',
-        calendarBuilder: (context) => _RetainedCalendarTestPage(
-          onMounted: () => calendarMounts += 1,
-          onDisposed: () => calendarDisposals += 1,
-          onOffsetChanged: (offset) => calendarOffset = offset,
+      await tester.pump(const Duration(seconds: 1));
+      expect(_visibleRouterPath(router), '/');
+      expect(find.text('Inbox'), findsNothing);
+      expect(find.text('Calendars route'), findsNothing);
+
+      final entries = NavigationTrace.instance.entries;
+      final trace = entries.join('\n');
+      expect(trace, contains('drawer navigation tap target'));
+      final inboxTap = entries.indexWhere(
+        (entry) => entry.contains(
+          'drawer navigation tap target target=Inbox generation=1',
         ),
       );
-
-      await _pumpShell(tester, router);
-      await tester.drag(find.byType(ListView), const Offset(0, -480));
-      await tester.pumpAndSettle();
-      final beforeRouteChanges = calendarOffset;
-
-      await _openDrawer(tester);
-      await tester.tap(
-        find.byKey(const ValueKey<String>('global-side-drawer-item-Settings')),
+      final calendarsTap = entries.indexWhere(
+        (entry) => entry.contains(
+          'drawer navigation tap target target=Calendars generation=2',
+        ),
       );
-      await tester.pump(globalSideDrawerTransitionDuration);
-      await tester.pumpAndSettle();
-      expect(_visibleRouterPath(router), '/settings');
-      expect(calendarMounts, 1, reason: 'Settings must retain Calendar.');
-      expect(calendarDisposals, 0, reason: 'Settings must retain Calendar.');
-
-      await _openDrawer(tester);
-      await tester.tap(
-        find.byKey(const ValueKey<String>('global-side-drawer-item-Planner')),
+      final calendarTap = entries.indexWhere(
+        (entry) => entry.contains(
+          'drawer navigation tap target target=Calendar generation=3',
+        ),
       );
-      await tester.pump(globalSideDrawerTransitionDuration);
-      await tester.pumpAndSettle();
-      expect(_visibleRouterPath(router), '/rhythm/today');
-      expect(calendarMounts, 1, reason: 'Planner must replace only Settings.');
-      expect(
-        calendarDisposals,
-        0,
-        reason: 'Planner must not dispose the retained Calendar.',
-      );
-
-      await _openDrawer(tester);
-      await tester.tap(
-        find.byKey(const ValueKey<String>('global-side-drawer-item-Calendar')),
-      );
-      await tester.pump(globalSideDrawerTransitionDuration);
-      await tester.pumpAndSettle();
-
-      expect(_visibleRouterPath(router), '/');
-      expect(calendarMounts, 1);
-      expect(calendarDisposals, 0);
-      expect(calendarOffset, beforeRouteChanges);
-      expect(find.byType(CircularProgressIndicator), findsNothing);
-      expect(find.byType(BackButton), findsNothing);
+      expect(inboxTap, greaterThanOrEqualTo(0));
+      expect(calendarsTap, greaterThanOrEqualTo(0));
+      expect(calendarTap, greaterThanOrEqualTo(0));
+      expect(inboxTap, lessThan(calendarsTap));
+      expect(calendarsTap, lessThan(calendarTap));
+      expect(trace, contains('drawer navigation route requested'));
+      expect(trace, contains('drawer route committed'));
     },
   );
 
@@ -868,7 +834,7 @@ void main() {
     expect(find.text('Profile route'), findsOneWidget);
   });
 
-  testWidgets('flows and calendars remain pushed utility routes', (
+  testWidgets('flows and calendars are canonical drawer replacements', (
     tester,
   ) async {
     final router = _testRouter(initialLocation: '/nodes');
@@ -885,7 +851,7 @@ void main() {
     expect(_visibleRouterPath(router), '/flows');
     await tester.tap(find.text('close flows'));
     await tester.pumpAndSettle();
-    expect(router.routerDelegate.currentConfiguration.uri.path, '/nodes');
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/');
 
     await _openDrawer(tester);
     await tester.tap(
@@ -898,7 +864,7 @@ void main() {
     expect(_visibleRouterPath(router), '/calendars');
     await tester.tap(find.text('close calendars'));
     await tester.pumpAndSettle();
-    expect(router.routerDelegate.currentConfiguration.uri.path, '/nodes');
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/');
   });
 }
 

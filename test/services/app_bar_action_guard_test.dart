@@ -360,7 +360,9 @@ void main() {
       expect(launchedSheets, <String>['Calendars']);
     });
 
-    testWidgets('global drawer routes Flows to /flows', (tester) async {
+    testWidgets('global drawer canonically replaces with /flows', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1170, 2532);
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.resetPhysicalSize);
@@ -442,14 +444,16 @@ void main() {
 
       expect(
         router.routerDelegate.currentConfiguration.uri.path,
-        '/profile/me',
-        reason: 'Utility route close should return to the previous route.',
+        '/',
+        reason: 'A canonical drawer replacement has no stale prior route.',
       );
       expect(find.text('Flow Studio route'), findsNothing);
-      expect(find.text('Profile route'), findsOneWidget);
+      expect(find.text('Calendar route'), findsOneWidget);
     });
 
-    testWidgets('global drawer routes Calendars to /calendars', (tester) async {
+    testWidgets('global drawer canonically replaces with /calendars', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1170, 2532);
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.resetPhysicalSize);
@@ -531,11 +535,11 @@ void main() {
 
       expect(
         router.routerDelegate.currentConfiguration.uri.path,
-        '/nodes',
-        reason: 'Utility route close should return to the previous route.',
+        '/',
+        reason: 'A canonical drawer replacement has no stale prior route.',
       );
       expect(find.text('Calendars route'), findsNothing);
-      expect(find.text('Nodes route'), findsOneWidget);
+      expect(find.text('Calendar route'), findsOneWidget);
     });
 
     testWidgets('detached Today app bar action routes home', (tester) async {
@@ -947,105 +951,81 @@ void main() {
       },
     );
 
-    test('global drawer utility rows use route-backed callbacks', () async {
-      final source = await File('lib/main.dart').readAsString();
-      final items = _sourceBetween(
-        source,
-        'List<GlobalSideDrawerItem> _buildGlobalSideDrawerItems()',
-        'void _openMaatGuidance(MaatGuidanceDelivery delivery)',
-      );
-      final flowStudioCallback = _sourceBetween(
-        source,
-        'void _openFlowsFromDrawer()',
-        'void _openCalendarsFromDrawer()',
-      );
-      final calendarsCallback = _sourceBetween(
-        source,
-        'void _openCalendarsFromDrawer()',
-        'void _openMaatGuidance(MaatGuidanceDelivery delivery)',
-      );
+    test(
+      'global drawer utility rows use the centralized route dispatcher',
+      () async {
+        final source = await File('lib/main.dart').readAsString();
+        final items = _sourceBetween(
+          source,
+          'List<GlobalSideDrawerItem> _buildGlobalSideDrawerItems()',
+          'void _openMaatGuidance(MaatGuidanceDelivery delivery)',
+        );
+        final dispatcher = _sourceBetween(
+          source,
+          'void _dispatchDrawerDestination',
+          'bool _isDrawerDestinationSelected',
+        );
 
-      expect(items, contains("label: 'Flows'"));
-      expect(items, contains('onSelected: _openFlowsFromDrawer'));
-      expect(items, contains("label: 'Calendars'"));
-      expect(items, contains('onSelected: _openCalendarsFromDrawer'));
-      expect(
-        flowStudioCallback,
-        contains('_requestDrawerDestinationThenClose'),
-      );
-      expect(flowStudioCallback, isNot(contains('await _closeFloatingMenu()')));
-      expect(
-        flowStudioCallback,
-        contains("global drawer utility route push('/flows') requested"),
-      );
-      expect(flowStudioCallback, contains('openUtilityRoute<void>('));
-      expect(flowStudioCallback, contains("'/flows'"));
-      expect(
-        flowStudioCallback,
-        contains('navigationContext: _rootNavigatorKey.currentContext'),
-      );
-      expect(flowStudioCallback, contains('router: widget.router'));
-      expect(flowStudioCallback, isNot(contains("widget.router.go('/flows')")));
-      expect(flowStudioCallback, isNot(contains(".go('/flows')")));
-      expect(
-        source,
-        contains(
-          'void _requestDrawerDestinationThenClose(VoidCallback request)',
-        ),
-      );
-      expect(calendarsCallback, contains('_requestDrawerDestinationThenClose'));
-      expect(calendarsCallback, isNot(contains('await _closeFloatingMenu()')));
-      expect(
-        calendarsCallback,
-        contains("global drawer utility route push('/calendars') requested"),
-      );
-      expect(calendarsCallback, contains('openUtilityRoute<void>('));
-      expect(calendarsCallback, contains("'/calendars'"));
-      expect(
-        calendarsCallback,
-        contains('navigationContext: _rootNavigatorKey.currentContext'),
-      );
-      expect(calendarsCallback, contains('router: widget.router'));
-      expect(
-        calendarsCallback,
-        isNot(contains("widget.router.go('/calendars')")),
-      );
-      expect(calendarsCallback, isNot(contains(".go('/calendars')")));
-      expect(source, contains("path: '/flows'"));
-      expect(
-        source,
-        contains('CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri)'),
-      );
-      expect(source, contains("path: '/calendars'"));
-      expect(source, contains('CalendarPage.buildSharedCalendarsRoutePage()'));
-      expect(
-        source,
-        isNot(contains('CalendarPage.openDetachedFlowStudioFromGlobalMenu')),
-      );
-      expect(
-        source,
-        isNot(
-          contains('CalendarPage.openDetachedSharedCalendarsFromGlobalMenu'),
-        ),
-      );
-      expect(source, isNot(contains("context.go('/flows')")));
-      expect(source, isNot(contains("context.go('/calendars')")));
-      expect(
-        flowStudioCallback,
-        isNot(contains('CalendarPage.enqueueOpenFlowStudioFromGlobalMenu')),
-      );
-      expect(
-        calendarsCallback,
-        isNot(contains('CalendarPage.enqueueOpenCalendarsFromGlobalMenu')),
-      );
-      expect(
-        source,
-        isNot(contains('_routeToCalendarForGlobalMenuSheetCommand')),
-      );
-      expect(source, isNot(contains('_buildFloatingActionsPanel')));
-      expect(source, isNot(contains('_navigateFromMenu')));
-      expect(source, isNot(contains('global menu detached sheet open')));
-    });
+        expect(items, contains("label: 'Flows'"));
+        expect(
+          items,
+          contains('_dispatchDrawerDestination(_DrawerDestination.flows)'),
+        );
+        expect(items, contains("label: 'Calendars'"));
+        expect(
+          items,
+          contains('_dispatchDrawerDestination(_DrawerDestination.calendars)'),
+        );
+        expect(
+          source,
+          contains('DrawerNavigationGeneration _drawerNavigationGeneration'),
+        );
+        expect(dispatcher, contains('widget.router.go(destination.location)'));
+        expect(dispatcher, contains('unawaited(_closeFloatingMenu'));
+        expect(dispatcher, isNot(contains('await _closeFloatingMenu()')));
+        expect(dispatcher, isNot(contains('openUtilityRoute<void>(')));
+        expect(dispatcher, isNot(contains('Navigator.maybeOf(')));
+        expect(source, contains("path: '/flows'"));
+        expect(
+          source,
+          contains(
+            'CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri)',
+          ),
+        );
+        expect(source, contains("path: '/calendars'"));
+        expect(
+          source,
+          contains('CalendarPage.buildSharedCalendarsRoutePage()'),
+        );
+        expect(
+          source,
+          isNot(contains('CalendarPage.openDetachedFlowStudioFromGlobalMenu')),
+        );
+        expect(
+          source,
+          isNot(
+            contains('CalendarPage.openDetachedSharedCalendarsFromGlobalMenu'),
+          ),
+        );
+        expect(source, isNot(contains("context.go('/flows')")));
+        expect(source, isNot(contains("context.go('/calendars')")));
+        expect(
+          dispatcher,
+          isNot(contains('CalendarPage.enqueueOpenFlowStudioFromGlobalMenu')),
+        );
+        expect(
+          dispatcher,
+          isNot(contains('CalendarPage.enqueueOpenCalendarsFromGlobalMenu')),
+        );
+        expect(
+          source,
+          isNot(contains('_routeToCalendarForGlobalMenuSheetCommand')),
+        );
+        expect(source, isNot(contains('_buildFloatingActionsPanel')));
+        expect(source, isNot(contains('_navigateFromMenu')));
+        expect(source, isNot(contains('global menu detached sheet open')));
+      },
+    );
 
     test('CalendarPage legacy global sheet commands stay removed', () async {
       final source = await File(

@@ -120,63 +120,62 @@ void main() {
     expect(items, contains('MeduNeterGlyphs.profile'));
   });
 
-  test(
-    'drawer dispatch keeps primary utility and profile route contracts',
-    () async {
-      final main = await File('lib/main.dart').readAsString();
-      final primary = _sourceBetween(
-        main,
-        'void _openPrimarySectionFromDrawer',
-        'void _openProfileFromDrawer',
-      );
-      final profile = _sourceBetween(
-        main,
-        'void _openProfileFromDrawer',
-        'void _openFlowsFromDrawer',
-      );
-      final flows = _sourceBetween(
-        main,
-        'void _openFlowsFromDrawer',
-        'void _openCalendarsFromDrawer',
-      );
-      final calendars = _sourceBetween(
-        main,
-        'void _openCalendarsFromDrawer',
-        'bool _isDrawerDestinationSelected',
-      );
-      final items = _sourceBetween(
-        main,
-        'List<GlobalSideDrawerItem> _buildGlobalSideDrawerItems()',
-        'void _openMaatGuidance',
-      );
+  test('drawer dispatch has one generation-guarded router authority', () async {
+    final main = await File('lib/main.dart').readAsString();
+    final dispatcher = _sourceBetween(
+      main,
+      'void _dispatchDrawerDestination',
+      'bool _isDrawerDestinationSelected',
+    );
+    final items = _sourceBetween(
+      main,
+      'List<GlobalSideDrawerItem> _buildGlobalSideDrawerItems()',
+      'void _openMaatGuidance',
+    );
 
-      expect(primary, contains('openPrimarySection(context, section'));
-      expect(primary, contains('_requestDrawerDestinationThenClose'));
-      expect(primary, isNot(contains('await _closeFloatingMenu();')));
-      expect(primary, contains('_currentUri.path == location'));
-      expect(primary, contains('if (section == AppSection.calendar)'));
-      expect(primary, contains('Navigator.maybeOf('));
-      expect(primary, contains('rootNavigator: true'));
-      expect(primary, contains('popUntil((route) => route.isFirst)'));
-      expect(profile, contains('openDetailRoute<void>'));
-      expect(profile, contains("'/profile/me'"));
-      expect(profile, contains('_requestDrawerDestinationThenClose'));
-      expect(profile, isNot(contains('await _closeFloatingMenu();')));
-      expect(profile, isNot(contains('openPrimarySection')));
-      expect(profile, isNot(contains('recordPrimaryTabSelection')));
-      expect(
-        main,
-        isNot(contains('openPrimarySection(context, AppSection.profile')),
-      );
-      expect(flows, contains('_requestDrawerDestinationThenClose'));
-      expect(calendars, contains('_requestDrawerDestinationThenClose'));
-      expect(items, contains('onSelected: _openCalendarsFromDrawer'));
-      expect(items, contains('onSelected: _openFlowsFromDrawer'));
-      expect(main, contains('openUtilityRoute<void>'));
-      expect(main, contains("'/flows'"));
-      expect(main, contains("'/calendars'"));
-    },
-  );
+    expect(main, contains('DrawerNavigationGeneration'));
+    expect(dispatcher, contains('_drawerNavigationGeneration.runIfCurrent'));
+    expect(dispatcher, contains('drawer navigation tap target'));
+    expect(dispatcher, contains('drawer navigation route requested'));
+    expect(dispatcher, contains('widget.router.go(destination.location)'));
+    expect(
+      'widget.router.go(destination.location)'.allMatches(dispatcher).length,
+      1,
+    );
+    expect(
+      dispatcher,
+      contains('recordPrimarySectionSelection(primarySection)'),
+    );
+    expect(dispatcher, contains('suppressRestoreForUserNavigation'));
+    expect(dispatcher, contains('drawer current selection closed in place'));
+    expect(dispatcher, isNot(contains('Navigator.maybeOf(')));
+    expect(dispatcher, isNot(contains('popUntil(')));
+    expect(dispatcher, isNot(contains('.push(')));
+    expect(dispatcher, isNot(contains('pushReplacement')));
+    expect(dispatcher, isNot(contains('openPrimarySection(')));
+    expect(dispatcher, isNot(contains('openDetailRoute(')));
+    expect(dispatcher, isNot(contains('openUtilityRoute(')));
+    expect(
+      items,
+      contains('_dispatchDrawerDestination(_DrawerDestination.calendar)'),
+    );
+    expect(
+      items,
+      contains('_dispatchDrawerDestination(_DrawerDestination.calendars)'),
+    );
+    expect(
+      items,
+      contains('_dispatchDrawerDestination(_DrawerDestination.profile)'),
+    );
+    expect(
+      main,
+      isNot(contains('_calendarRouteRetainedUnderDrawerDestination')),
+    );
+    expect(
+      main,
+      isNot(contains('Navigator.maybeOf(\n        navigationContext')),
+    );
+  });
 
   test('drawer back handling toggles only on durable primary routes', () async {
     final main = await File('lib/main.dart').readAsString();
@@ -273,6 +272,7 @@ void main() {
         'UX-DRAWER-004',
         'UX-DRAWER-005',
         'UX-DRAWER-006',
+        'UX-DRAWER-007',
       ]) {
         expect(navigation, contains(contract));
       }
@@ -281,6 +281,7 @@ void main() {
       expect(navigation, contains('exact pre-open Calendar offset'));
       expect(navigation, contains('single `GlobalMenuBubble` remains mounted'));
       expect(navigation, contains('before it starts the independent close'));
+      expect(navigation, contains('one centralized, generation-'));
       expect(navigation, contains('must not reconstruct the routed page'));
     },
   );

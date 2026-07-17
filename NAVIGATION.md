@@ -74,6 +74,11 @@ Drawer composition is a reveal/push interaction, not an overlay interaction:
   replacement. A drawer-row tap records its critical route state and requests
   the destination before it starts the independent close animation; the old
   page must not be visible again after the drawer has closed.
+- `UX-DRAWER-007`: Every drawer row uses the one centralized, generation-
+  guarded `GoRouter.go` dispatcher as a canonical replacement. Never mix root
+  `Navigator` stack operations with router commands. Only the latest explicit
+  drawer selection may request or commit a route; closing the drawer never
+  navigates. Selecting the already-visible Calendar only closes the drawer.
 
 Deterministic drawer coverage must prove closed, midpoint, open, and reclosed
 geometry; fully opaque drawer material; shared translation of the header and
