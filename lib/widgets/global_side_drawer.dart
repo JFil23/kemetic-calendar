@@ -271,30 +271,25 @@ class GlobalSideDrawer extends StatelessWidget {
           ignoring: !open,
           child: ExcludeSemantics(
             excluding: !open,
-            child: AnimatedSlide(
-              offset: open ? Offset.zero : const Offset(-1, 0),
+            child: AnimatedOpacity(
+              opacity: open ? 1 : 0,
               duration: globalSideDrawerTransitionDuration,
               curve: globalSideDrawerTransitionCurve,
-              child: AnimatedOpacity(
-                opacity: open ? 1 : 0,
-                duration: globalSideDrawerTransitionDuration,
-                curve: globalSideDrawerTransitionCurve,
-                child: Material(
-                  key: globalSideDrawerKey,
-                  color: const Color(0xF2000000),
-                  elevation: 14,
-                  shadowColor: const Color(0xB3000000),
-                  child: SafeArea(
-                    right: false,
-                    bottom: false,
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        return _GlobalSideDrawerBody(
-                          items: items,
-                          availableHeight: constraints.maxHeight,
-                        );
-                      },
-                    ),
+              child: Material(
+                key: globalSideDrawerKey,
+                color: const Color(0xFF000000),
+                elevation: 14,
+                shadowColor: const Color(0xB3000000),
+                child: SafeArea(
+                  right: false,
+                  bottom: false,
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      return _GlobalSideDrawerBody(
+                        items: items,
+                        availableHeight: constraints.maxHeight,
+                      );
+                    },
                   ),
                 ),
               ),
@@ -648,13 +643,27 @@ class _GlobalSideDrawerRows extends StatelessWidget {
 }
 
 class GlobalSideDrawerForeground extends StatelessWidget {
-  const GlobalSideDrawerForeground({super.key, required this.child});
+  const GlobalSideDrawerForeground({
+    super.key,
+    required this.open,
+    required this.child,
+  });
 
+  final bool open;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox.expand(key: globalSideDrawerForegroundKey, child: child);
+    final drawerOffset = open ? globalSideDrawerWidth(context) : 0.0;
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: drawerOffset, end: drawerOffset),
+      duration: globalSideDrawerTransitionDuration,
+      curve: globalSideDrawerTransitionCurve,
+      builder: (context, offset, child) {
+        return Transform.translate(offset: Offset(offset, 0), child: child);
+      },
+      child: SizedBox.expand(key: globalSideDrawerForegroundKey, child: child),
+    );
   }
 }
 

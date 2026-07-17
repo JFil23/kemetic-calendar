@@ -51,42 +51,47 @@ void main() {
     expect(bubble, isNot(contains('Color(0xF6000000)')));
   });
 
-  test('global side drawer overlays a stationary foreground shell', () async {
-    final main = await File('lib/main.dart').readAsString();
-    final shell = _sourceBetween(
-      main,
-      'class _GlobalFloatingMenuShellState',
-      'class PushIntentBridge',
-    );
-    final drawer = await File(
-      'lib/widgets/global_side_drawer.dart',
-    ).readAsString();
-    final drawerWidget = _sourceBetween(
-      drawer,
-      'class GlobalSideDrawer extends StatelessWidget',
-      'class GlobalSideDrawerForeground extends StatelessWidget',
-    );
+  test(
+    'UX-DRAWER contract keeps an opaque underlay and translated shell',
+    () async {
+      final main = await File('lib/main.dart').readAsString();
+      final shell = _sourceBetween(
+        main,
+        'class _GlobalFloatingMenuShellState',
+        'class PushIntentBridge',
+      );
+      final drawer = await File(
+        'lib/widgets/global_side_drawer.dart',
+      ).readAsString();
+      final drawerWidget = _sourceBetween(
+        drawer,
+        'class GlobalSideDrawer extends StatelessWidget',
+        'class GlobalSideDrawerForeground extends StatelessWidget',
+      );
 
-    expect(shell, contains('GlobalSideDrawer('));
-    expect(shell, contains('GlobalSideDrawerForeground('));
-    expect(
-      shell.indexOf('GlobalSideDrawerForeground('),
-      lessThan(shell.indexOf('GlobalSideDrawer(')),
-    );
-    expect(shell, contains('globalSideDrawerScrimKey'));
-    expect(shell, contains('onTap: () => unawaited(_closeFloatingMenu())'));
-    expect(drawer, contains('globalSideDrawerForegroundKey'));
-    expect(drawerWidget, contains('AnimatedSlide'));
-    final foregroundWidget = _sourceBetween(
-      drawer,
-      'class GlobalSideDrawerForeground extends StatelessWidget',
-      'class _GlobalSideDrawerRow extends StatelessWidget',
-    );
-    expect(foregroundWidget, isNot(contains('TweenAnimationBuilder')));
-    expect(foregroundWidget, isNot(contains('Transform.translate')));
-    expect(drawerWidget, isNot(contains('globalSideDrawerScrimKey')));
-    expect(drawerWidget, isNot(contains('GestureDetector')));
-  });
+      expect(shell, contains('GlobalSideDrawer('));
+      expect(shell, contains('GlobalSideDrawerForeground('));
+      expect(
+        shell.indexOf('GlobalSideDrawer('),
+        lessThan(shell.indexOf('GlobalSideDrawerForeground(')),
+      );
+      expect(shell, contains('globalSideDrawerScrimKey'));
+      expect(shell, contains('onTap: () => unawaited(_closeFloatingMenu())'));
+      expect(drawer, contains('globalSideDrawerForegroundKey'));
+      expect(drawerWidget, contains('Color(0xFF000000)'));
+      expect(drawerWidget, isNot(contains('AnimatedSlide')));
+      final foregroundWidget = _sourceBetween(
+        drawer,
+        'class GlobalSideDrawerForeground extends StatelessWidget',
+        'class _GlobalSideDrawerRow extends StatelessWidget',
+      );
+      expect(foregroundWidget, contains('TweenAnimationBuilder<double>'));
+      expect(foregroundWidget, contains('Transform.translate'));
+      expect(foregroundWidget, contains('globalSideDrawerWidth(context)'));
+      expect(drawerWidget, isNot(contains('globalSideDrawerScrimKey')));
+      expect(drawerWidget, isNot(contains('GestureDetector')));
+    },
+  );
 
   test('drawer rows use final labels and include Profile', () async {
     final main = await File('lib/main.dart').readAsString();
@@ -257,6 +262,27 @@ void main() {
     expect(shell, isNot(contains('RestorableBool')));
     expect(shell, isNot(contains('restorationId')));
   });
+
+  test(
+    'NAVIGATION locks the reveal-push drawer interaction contract',
+    () async {
+      final navigation = await File('NAVIGATION.md').readAsString();
+
+      for (final contract in <String>[
+        'UX-DRAWER-001',
+        'UX-DRAWER-002',
+        'UX-DRAWER-003',
+        'UX-DRAWER-004',
+        'UX-DRAWER-005',
+      ]) {
+        expect(navigation, contains(contract));
+      }
+      expect(navigation, contains('opaque surface behind the application'));
+      expect(navigation, contains('translates the entire foreground'));
+      expect(navigation, contains('exact pre-open Calendar offset'));
+      expect(navigation, contains('must not reconstruct the routed page'));
+    },
+  );
 
   test('global drawer shell does not add route swipe systems', () async {
     final main = await File('lib/main.dart').readAsString();

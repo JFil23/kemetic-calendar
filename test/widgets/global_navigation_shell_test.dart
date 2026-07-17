@@ -187,42 +187,66 @@ void main() {
     expect(find.byKey(globalSideDrawerKey), findsOneWidget);
   });
 
-  testWidgets('drawer overlays a stationary foreground', (tester) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets(
+    'UX-DRAWER-001/002 reveal opaque drawer behind one translated foreground',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    final router = _testRouter();
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+      final router = _testRouter(
+        initialLocation: '/',
+        calendarBuilder: (context) =>
+            _ScrollableTestPage(controller: controller),
+      );
 
-    await _pumpShell(tester, router);
+      await _pumpShell(tester, router);
 
-    final closedForegroundRect = tester.getRect(
-      find.byKey(globalSideDrawerForegroundKey),
-    );
-    expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
-    final closedPageRect = tester.getRect(
-      find.byKey(const ValueKey<String>('page-Nodes')),
-    );
-    expect(closedForegroundRect.left, closeTo(0, 0.1));
+      final closedForegroundRect = tester.getRect(
+        find.byKey(globalSideDrawerForegroundKey),
+      );
+      final closedHeaderRect = tester.getRect(find.byType(AppBar));
+      final closedCalendarRect = tester.getRect(find.byType(ListView));
+      final routedElement = tester.element(find.byType(_ScrollableTestPage));
+      expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
+      expect(closedForegroundRect.left, closeTo(0, 0.1));
 
-    await _openDrawer(tester);
+      await _openDrawer(tester);
 
-    final drawerRect = tester.getRect(find.byKey(globalSideDrawerKey));
-    final openForegroundRect = tester.getRect(
-      find.byKey(globalSideDrawerForegroundKey),
-    );
-    final openPageRect = tester.getRect(
-      find.byKey(const ValueKey<String>('page-Nodes')),
-    );
+      final drawerRect = tester.getRect(find.byKey(globalSideDrawerKey));
+      final openForegroundRect = tester.getRect(
+        find.byKey(globalSideDrawerForegroundKey),
+      );
+      final openHeaderRect = tester.getRect(find.byType(AppBar));
+      final openCalendarRect = tester.getRect(find.byType(ListView));
+      final drawerMaterial = tester.widget<Material>(
+        find.byKey(globalSideDrawerKey),
+      );
 
-    expect(drawerRect.left, closeTo(0, 0.1));
-    expect(openForegroundRect, closedForegroundRect);
-    expect(openPageRect.left - closedPageRect.left, closeTo(0, 0.1));
-    expect(find.byKey(app.globalMenuButtonKey), findsNothing);
-  });
+      expect(drawerRect.left, closeTo(0, 0.1));
+      expect(drawerMaterial.color, const Color(0xFF000000));
+      expect(openForegroundRect.left, closeTo(drawerRect.width, 0.5));
+      expect(openForegroundRect.left, closeTo(drawerRect.right, 0.5));
+      expect(
+        openHeaderRect.left - closedHeaderRect.left,
+        closeTo(drawerRect.width, 0.5),
+      );
+      expect(
+        openCalendarRect.left - closedCalendarRect.left,
+        closeTo(drawerRect.width, 0.5),
+      );
+      expect(
+        tester.element(find.byType(_ScrollableTestPage)),
+        same(routedElement),
+      );
+      expect(find.byKey(app.globalMenuButtonKey), findsNothing);
+    },
+  );
 
-  testWidgets('drawer animates on mount while foreground stays stationary', (
+  testWidgets('UX-DRAWER-003 foreground animates out and back intact', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -235,6 +259,9 @@ void main() {
     final foregroundBefore = tester.getRect(
       find.byKey(globalSideDrawerForegroundKey),
     );
+    final routedElement = tester.element(
+      find.byKey(const ValueKey<String>('page-Nodes')),
+    );
 
     await tester.tap(find.byKey(app.globalMenuButtonKey));
     await tester.pump();
@@ -242,12 +269,7 @@ void main() {
     final drawer = find.byKey(globalSideDrawerKey);
     expect(drawer, findsOneWidget);
     final drawerWidth = tester.getSize(drawer).width;
-    final mountedLeft = tester.getTopLeft(drawer).dx;
-    expect(
-      mountedLeft,
-      lessThan(-drawerWidth * 0.9),
-      reason: 'The first mounted frame must begin offscreen.',
-    );
+    expect(tester.getTopLeft(drawer).dx, closeTo(0, 0.1));
     expect(
       tester.getRect(find.byKey(globalSideDrawerForegroundKey)),
       foregroundBefore,
@@ -255,19 +277,47 @@ void main() {
 
     await tester.pump();
     await tester.pump(globalSideDrawerTransitionDuration * 0.5);
-    final midpointLeft = tester.getTopLeft(drawer).dx;
-    expect(midpointLeft, greaterThan(mountedLeft));
-    expect(midpointLeft, lessThan(0));
+    final openingMidpoint = tester
+        .getRect(find.byKey(globalSideDrawerForegroundKey))
+        .left;
+    expect(openingMidpoint, greaterThan(0));
+    expect(openingMidpoint, lessThan(drawerWidth));
+
+    await tester.pump(globalSideDrawerTransitionDuration * 0.5);
+    expect(
+      tester.getRect(find.byKey(globalSideDrawerForegroundKey)).left,
+      closeTo(drawerWidth, 0.5),
+    );
+    expect(
+      tester.element(find.byKey(const ValueKey<String>('page-Nodes'))),
+      same(routedElement),
+    );
+
+    await tester.tapAt(Offset(drawerWidth + 24, 120));
+    await tester.pump();
+    await tester.pump(globalSideDrawerTransitionDuration * 0.5);
+    final closingMidpoint = tester
+        .getRect(find.byKey(globalSideDrawerForegroundKey))
+        .left;
+    expect(closingMidpoint, greaterThan(0));
+    expect(closingMidpoint, lessThan(drawerWidth));
+
+    await tester.pump(globalSideDrawerTransitionDuration * 0.5);
+    await tester.pump();
+    expect(find.byKey(globalSideDrawerKey), findsNothing);
     expect(
       tester.getRect(find.byKey(globalSideDrawerForegroundKey)),
       foregroundBefore,
     );
-
-    await tester.pump(globalSideDrawerTransitionDuration * 0.5);
-    expect(tester.getTopLeft(drawer).dx, closeTo(0, 0.1));
+    expect(
+      tester.element(find.byKey(const ValueKey<String>('page-Nodes'))),
+      same(routedElement),
+    );
   });
 
-  testWidgets('outside tap closes the overlay drawer', (tester) async {
+  testWidgets('outside foreground tap closes the revealed drawer', (
+    tester,
+  ) async {
     final router = _testRouter();
 
     await _pumpShell(tester, router);
@@ -317,7 +367,7 @@ void main() {
     Size(1180, 820),
   ]) {
     testWidgets(
-      'drawer overlay structural smoke ${viewport.width.toInt()}x${viewport.height.toInt()}',
+      'drawer reveal structural smoke ${viewport.width.toInt()}x${viewport.height.toInt()}',
       (tester) async {
         tester.view.physicalSize = viewport;
         tester.view.devicePixelRatio = 1;
@@ -337,7 +387,8 @@ void main() {
         );
         expect(drawerRect.left, closeTo(0, 0.1));
         expect(drawerRect.width, lessThan(viewport.width));
-        expect(foregroundRect.left, closeTo(0, 0.1));
+        expect(foregroundRect.left, closeTo(drawerRect.width, 0.6));
+        expect(drawerRect.right, lessThanOrEqualTo(foregroundRect.left + 0.6));
         expect(find.byKey(app.globalMenuButtonKey), findsNothing);
       },
     );
@@ -400,9 +451,14 @@ void main() {
     controller.jumpTo(480);
     await tester.pump();
     final beforeOpen = controller.offset;
+    final routedElement = tester.element(find.byType(_ScrollableTestPage));
 
     await _openDrawer(tester);
     expect(controller.offset, beforeOpen);
+    expect(
+      tester.element(find.byType(_ScrollableTestPage)),
+      same(routedElement),
+    );
 
     await tester.tap(
       find.byKey(const ValueKey<String>('global-side-drawer-item-Library')),
@@ -412,6 +468,10 @@ void main() {
 
     expect(router.routerDelegate.currentConfiguration.uri.path, '/nodes');
     expect(controller.offset, beforeOpen);
+    expect(
+      tester.element(find.byType(_ScrollableTestPage)),
+      same(routedElement),
+    );
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.byKey(globalSideDrawerKey), findsNothing);
   });

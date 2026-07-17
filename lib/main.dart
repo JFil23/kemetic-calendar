@@ -45,7 +45,6 @@ import 'root_boot.dart';
 import 'utils/hive_local_storage_web.dart';
 import 'core/async_guard.dart';
 import 'core/app_link_intent.dart';
-import 'core/global_side_drawer_metrics.dart' show globalSideDrawerWidth;
 import 'core/global_menu_routes.dart';
 import 'core/navigation_fallback.dart';
 import 'core/navigation_persistence_policy.dart';
@@ -3429,11 +3428,49 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       child: Stack(
         fit: StackFit.expand,
         children: [
+          Positioned.fill(
+            child: shouldMountFloatingMenu && _menuMounted
+                ? GlobalSideDrawer(
+                    open: menuOpenForInteraction,
+                    items: _buildGlobalSideDrawerItems(),
+                  )
+                : const SizedBox.shrink(),
+          ),
           GlobalSideDrawerForeground(
+            open: menuOpenForInteraction,
             child: Stack(
               fit: StackFit.expand,
               children: [
                 widget.child,
+                if (shouldMountFloatingMenu && _menuMounted)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      ignoring: !menuOpenForInteraction,
+                      child: ExcludeSemantics(
+                        excluding: !menuOpenForInteraction,
+                        child: AnimatedOpacity(
+                          opacity: menuOpenForInteraction ? 1 : 0,
+                          duration: globalSideDrawerTransitionDuration,
+                          curve: globalSideDrawerTransitionCurve,
+                          child: GestureDetector(
+                            key: globalSideDrawerScrimKey,
+                            behavior: HitTestBehavior.opaque,
+                            excludeFromSemantics: true,
+                            onTap: () => unawaited(_closeFloatingMenu()),
+                            child: Semantics(
+                              container: true,
+                              label: 'Close navigation menu',
+                              button: true,
+                              onTap: () => unawaited(_closeFloatingMenu()),
+                              child: const ColoredBox(
+                                color: Colors.transparent,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 if (shouldActivateFloatingMenu && !_menuMounted)
                   GlobalMenuBubble(
                     key: globalMenuButtonKey,
@@ -3454,44 +3491,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
               ],
             ),
           ),
-          if (shouldMountFloatingMenu && _menuMounted)
-            Positioned(
-              top: 0,
-              right: 0,
-              bottom: 0,
-              left: globalSideDrawerWidth(context),
-              child: IgnorePointer(
-                ignoring: !menuOpenForInteraction,
-                child: ExcludeSemantics(
-                  excluding: !menuOpenForInteraction,
-                  child: AnimatedOpacity(
-                    opacity: menuOpenForInteraction ? 1 : 0,
-                    duration: globalSideDrawerTransitionDuration,
-                    curve: globalSideDrawerTransitionCurve,
-                    child: GestureDetector(
-                      key: globalSideDrawerScrimKey,
-                      behavior: HitTestBehavior.opaque,
-                      excludeFromSemantics: true,
-                      onTap: () => unawaited(_closeFloatingMenu()),
-                      child: Semantics(
-                        container: true,
-                        label: 'Close navigation menu',
-                        button: true,
-                        onTap: () => unawaited(_closeFloatingMenu()),
-                        child: const ColoredBox(color: Colors.transparent),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          if (shouldMountFloatingMenu && _menuMounted)
-            Positioned.fill(
-              child: GlobalSideDrawer(
-                open: menuOpenForInteraction,
-                items: _buildGlobalSideDrawerItems(),
-              ),
-            ),
         ],
       ),
     );

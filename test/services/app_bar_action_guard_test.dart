@@ -1234,7 +1234,7 @@ void main() {
     });
 
     test(
-      'global drawer overlays a stationary foreground with a dismiss layer',
+      'global drawer reveals an opaque underlay behind one foreground panel',
       () async {
         final source = await File('lib/main.dart').readAsString();
         final shell = _sourceBetween(
@@ -1250,20 +1250,22 @@ void main() {
         expect(shell, contains('HitTestBehavior.opaque'));
         expect(shell, contains('onTap: () => unawaited(_closeFloatingMenu())'));
         expect(
-          shell.indexOf('GlobalSideDrawerForeground('),
-          lessThan(shell.indexOf('GlobalSideDrawer(')),
+          shell.indexOf('GlobalSideDrawer('),
+          lessThan(shell.indexOf('GlobalSideDrawerForeground(')),
         );
         expect(drawer, contains('globalSideDrawerScrimKey'));
         expect(drawer, contains('globalSideDrawerForegroundKey'));
         expect(drawer, contains('class GlobalSideDrawerForeground'));
+        expect(drawer, contains('Color(0xFF000000)'));
         final foreground = _sourceBetween(
           drawer,
           'class GlobalSideDrawerForeground extends StatelessWidget',
           'class _GlobalSideDrawerRow extends StatelessWidget',
         );
-        expect(foreground, isNot(contains('TweenAnimationBuilder')));
-        expect(foreground, isNot(contains('Transform.translate')));
-        expect(drawer, contains('AnimatedSlide'));
+        expect(foreground, contains('TweenAnimationBuilder<double>'));
+        expect(foreground, contains('Transform.translate'));
+        expect(foreground, contains('globalSideDrawerWidth(context)'));
+        expect(drawer, isNot(contains('AnimatedSlide')));
       },
     );
 
