@@ -35950,18 +35950,20 @@ class _GoldDivider extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Center(
-        child: RepaintBoundary(
-          child: Opacity(
-            opacity: 0.42,
-            child: ShaderMask(
-              shaderCallback: (Rect r) => goldGloss.createShader(r),
-              blendMode: BlendMode.srcIn,
-              child: SizedBox(
-                width: w,
-                height: 0.65,
-                child: const DecoratedBox(
-                  decoration: BoxDecoration(color: Color(0xFFFFFFFF)),
-                ),
+        child: SizedBox(
+          width: w,
+          height: 0.65,
+          child: const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0x6BFFE8A3),
+                  Color(0x6BD4AF37),
+                  Color(0x6B8A6B16),
+                ],
+                stops: [0.0, 0.55, 1.0],
               ),
             ),
           ),

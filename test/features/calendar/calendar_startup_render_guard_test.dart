@@ -51,4 +51,27 @@ void main() {
       reason: 'The topology A/B must preserve the restored center-year base.',
     );
   });
+
+  test('portrait year dividers do not retain compositor-only layers', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final dividerStart = source.indexOf('class _GoldDivider');
+    expect(dividerStart, isNot(-1));
+    final dividerEnd = source.indexOf(
+      'String _reminderRepeatLabelForPicker',
+      dividerStart,
+    );
+    expect(dividerEnd, isNot(-1));
+    final dividerSource = source.substring(dividerStart, dividerEnd);
+
+    expect(dividerSource, isNot(contains('RepaintBoundary(')));
+    expect(dividerSource, isNot(contains('Opacity(')));
+    expect(dividerSource, isNot(contains('ShaderMask(')));
+    expect(
+      dividerSource,
+      contains('gradient: LinearGradient('),
+      reason: 'The divider should keep its gold treatment without save layers.',
+    );
+  });
 }
