@@ -141,11 +141,7 @@ Future<T?> openUtilityRoute<T>(
   return pushContext.push<T>(location, extra: extra);
 }
 
-void openPrimarySection(
-  BuildContext context,
-  AppSection section, {
-  GoRouter? router,
-}) {
+void recordPrimarySectionSelection(AppSection section) {
   RestorationCoordinator.instance.suppressRestoreForUserNavigation(
     reason: 'open_primary_section',
   );
@@ -154,6 +150,14 @@ void openPrimarySection(
       section,
     ),
   );
+}
+
+void openPrimarySection(
+  BuildContext context,
+  AppSection section, {
+  GoRouter? router,
+}) {
+  recordPrimarySectionSelection(section);
   final location = const NavigationPersistencePolicy().routeForSection(section);
   if (router != null) {
     router.go(location);

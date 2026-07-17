@@ -371,6 +371,121 @@ void main() {
     expect(find.byKey(globalSideDrawerKey), findsNothing);
   });
 
+  testWidgets(
+    'drawer round-trip keeps the mounted Calendar surface and exact offset',
+    (tester) async {
+      var calendarMounts = 0;
+      var calendarDisposals = 0;
+      double? calendarOffset;
+      final router = _testRouter(
+        initialLocation: '/',
+        calendarBuilder: (context) => _RetainedCalendarTestPage(
+          onMounted: () => calendarMounts += 1,
+          onDisposed: () => calendarDisposals += 1,
+          onOffsetChanged: (offset) => calendarOffset = offset,
+        ),
+      );
+
+      await _pumpShell(tester, router);
+      await tester.drag(find.byType(ListView), const Offset(0, -480));
+      await tester.pumpAndSettle();
+      final beforeRouteChange = calendarOffset;
+      expect(beforeRouteChange, isNotNull);
+      expect(beforeRouteChange, greaterThan(0));
+      expect(calendarMounts, 1);
+
+      await _openDrawer(tester);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('global-side-drawer-item-Settings')),
+      );
+      await tester.pump(globalSideDrawerTransitionDuration);
+      await tester.pumpAndSettle();
+
+      expect(_visibleRouterPath(router), '/settings');
+      expect(calendarDisposals, 0);
+
+      await _openDrawer(tester);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('global-side-drawer-item-Calendar')),
+      );
+      await tester.pump(globalSideDrawerTransitionDuration);
+      await tester.pumpAndSettle();
+
+      expect(_visibleRouterPath(router), '/');
+      expect(calendarMounts, 1);
+      expect(calendarDisposals, 0);
+      expect(calendarOffset, beforeRouteChange);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(
+        find.byType(BackButton),
+        findsNothing,
+        reason:
+            'The primary Calendar surface must not expose an automatic route '
+            'back affordance after a drawer round-trip.',
+      );
+    },
+  );
+
+  testWidgets(
+    'drawer destination switches retain one Calendar beneath the top route',
+    (tester) async {
+      var calendarMounts = 0;
+      var calendarDisposals = 0;
+      double? calendarOffset;
+      final router = _testRouter(
+        initialLocation: '/',
+        calendarBuilder: (context) => _RetainedCalendarTestPage(
+          onMounted: () => calendarMounts += 1,
+          onDisposed: () => calendarDisposals += 1,
+          onOffsetChanged: (offset) => calendarOffset = offset,
+        ),
+      );
+
+      await _pumpShell(tester, router);
+      await tester.drag(find.byType(ListView), const Offset(0, -480));
+      await tester.pumpAndSettle();
+      final beforeRouteChanges = calendarOffset;
+
+      await _openDrawer(tester);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('global-side-drawer-item-Settings')),
+      );
+      await tester.pump(globalSideDrawerTransitionDuration);
+      await tester.pumpAndSettle();
+      expect(_visibleRouterPath(router), '/settings');
+      expect(calendarMounts, 1, reason: 'Settings must retain Calendar.');
+      expect(calendarDisposals, 0, reason: 'Settings must retain Calendar.');
+
+      await _openDrawer(tester);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('global-side-drawer-item-Planner')),
+      );
+      await tester.pump(globalSideDrawerTransitionDuration);
+      await tester.pumpAndSettle();
+      expect(_visibleRouterPath(router), '/rhythm/today');
+      expect(calendarMounts, 1, reason: 'Planner must replace only Settings.');
+      expect(
+        calendarDisposals,
+        0,
+        reason: 'Planner must not dispose the retained Calendar.',
+      );
+
+      await _openDrawer(tester);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('global-side-drawer-item-Calendar')),
+      );
+      await tester.pump(globalSideDrawerTransitionDuration);
+      await tester.pumpAndSettle();
+
+      expect(_visibleRouterPath(router), '/');
+      expect(calendarMounts, 1);
+      expect(calendarDisposals, 0);
+      expect(calendarOffset, beforeRouteChanges);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      expect(find.byType(BackButton), findsNothing);
+    },
+  );
+
   testWidgets('back with closed drawer opens drawer on primary route', (
     tester,
   ) async {
@@ -733,6 +848,7 @@ Future<bool> _sendShellBack(WidgetTester tester) async {
 
 GoRouter _testRouter({
   String initialLocation = '/nodes',
+  WidgetBuilder? calendarBuilder,
   WidgetBuilder? nodesBuilder,
 }) {
   return GoRouter(
@@ -741,7 +857,11 @@ GoRouter _testRouter({
       app.globalFloatingMenuRouteObserverForTesting,
     ],
     routes: [
-      GoRoute(path: '/', builder: (context, state) => const _Page('Calendar')),
+      GoRoute(
+        path: '/',
+        builder: (context, state) =>
+            calendarBuilder?.call(context) ?? const _Page('Calendar'),
+      ),
       GoRoute(
         path: '/rhythm/today',
         builder: (context, state) => const _Page('Planner route'),
@@ -834,11 +954,64 @@ class _ScrollableTestPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      appBar: AppBar(title: const Text('Calendar')),
       body: ListView.builder(
         controller: controller,
         itemExtent: 80,
         itemCount: 30,
         itemBuilder: (context, index) => Text('row $index'),
+      ),
+    );
+  }
+}
+
+class _RetainedCalendarTestPage extends StatefulWidget {
+  const _RetainedCalendarTestPage({
+    required this.onMounted,
+    required this.onDisposed,
+    required this.onOffsetChanged,
+  });
+
+  final VoidCallback onMounted;
+  final VoidCallback onDisposed;
+  final ValueChanged<double> onOffsetChanged;
+
+  @override
+  State<_RetainedCalendarTestPage> createState() =>
+      _RetainedCalendarTestPageState();
+}
+
+class _RetainedCalendarTestPageState extends State<_RetainedCalendarTestPage> {
+  late final ScrollController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.onMounted();
+    _controller = ScrollController()..addListener(_reportOffset);
+  }
+
+  void _reportOffset() {
+    widget.onOffsetChanged(_controller.offset);
+  }
+
+  @override
+  void dispose() {
+    widget.onDisposed();
+    _controller
+      ..removeListener(_reportOffset)
+      ..dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: ListView.builder(
+        controller: _controller,
+        itemExtent: 80,
+        itemCount: 30,
+        itemBuilder: (context, index) => Text('calendar row $index'),
       ),
     );
   }

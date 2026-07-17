@@ -744,6 +744,14 @@ void main() {
         'Future<void> _openProfile(',
       );
 
+      expect(
+        appBar,
+        contains('automaticallyImplyLeading: false'),
+        reason:
+            'The root Calendar app bar must not synthesize a back button when '
+            'a retained Calendar is revealed after drawer navigation.',
+      );
+
       _expectTooltipAction(appBar, 'New note', <String>[
         'onPressed: _openQuickAddSheet',
       ]);

@@ -24349,6 +24349,7 @@ class CalendarPageState extends State<CalendarPage>
       backgroundColor: Colors.black,
       elevation: 0.5,
       centerTitle: false,
+      automaticallyImplyLeading: false,
       titleSpacing: 12,
       iconTheme: const IconThemeData(color: _gold),
       title:

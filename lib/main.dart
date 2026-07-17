@@ -2572,6 +2572,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   StreamSubscription<AuthState>? _authSub;
   bool _menuMounted = false;
   bool _menuOpen = false;
+  bool _calendarRouteRetainedUnderDrawerDestination = false;
   bool _drawerBackGestureActive = false;
   bool _drawerBackPopRouteConsumePending = false;
   Timer? _drawerBackPopRouteConsumeTimer;
@@ -2727,6 +2728,9 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     final nextUri = _readRouterUri();
     if (nextUri == _currentUri) return;
     _currentUri = nextUri;
+    if (nextUri.path == '/') {
+      _calendarRouteRetainedUnderDrawerDestination = false;
+    }
     final navContext = _rootNavigatorKey.currentContext ?? context;
     unawaited(
       CalendarPage.dismissAppOwnedTransientOverlaysForRouteChange(navContext),
@@ -3125,6 +3129,17 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       return;
     }
     if (section == AppSection.calendar) {
+      if (_calendarRouteRetainedUnderDrawerDestination &&
+          widget.router.canPop()) {
+        recordPrimarySectionSelection(section);
+        _traceNavigation(
+          'global drawer retained Calendar route revealed',
+          mediaContext: context,
+          state: <String, Object?>{'route': location},
+        );
+        widget.router.pop();
+        return;
+      }
       final navigationContext = _rootNavigatorKey.currentContext ?? context;
       final navigator = Navigator.maybeOf(
         navigationContext,
@@ -3132,7 +3147,35 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       );
       navigator?.popUntil((route) => route.isFirst);
     }
+    if (_currentUri.path == '/' && !_currentUri.hasQuery) {
+      recordPrimarySectionSelection(section);
+      _calendarRouteRetainedUnderDrawerDestination = true;
+      _traceNavigation(
+        'global drawer destination pushed over retained Calendar',
+        mediaContext: context,
+        state: <String, Object?>{'route': location},
+      );
+      unawaited(widget.router.push<void>(location));
+      return;
+    }
+    if (_calendarRouteRetainedUnderDrawerDestination &&
+        widget.router.canPop()) {
+      recordPrimarySectionSelection(section);
+      _traceNavigation(
+        'global drawer destination replaced above retained Calendar',
+        mediaContext: context,
+        state: <String, Object?>{'route': location},
+      );
+      unawaited(widget.router.pushReplacement<void>(location));
+      return;
+    }
     openPrimarySection(context, section, router: widget.router);
+  }
+
+  void _retainCalendarUnderDrawerPushIfVisible() {
+    if (_currentUri.path == '/' && !_currentUri.hasQuery) {
+      _calendarRouteRetainedUnderDrawerDestination = true;
+    }
   }
 
   Future<void> _openProfileFromDrawer() async {
@@ -3145,6 +3188,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     if (!mounted || !context.mounted) return;
     final navigationContext = _rootNavigatorKey.currentContext ?? context;
     if (!navigationContext.mounted) return;
+    _retainCalendarUnderDrawerPushIfVisible();
     _traceNavigation(
       "global drawer detail route push('/profile/me') requested",
       mediaContext: context,
@@ -3167,6 +3211,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     );
     await _closeFloatingMenu();
     if (!mounted || !context.mounted) return;
+    _retainCalendarUnderDrawerPushIfVisible();
     _traceNavigation(
       "global drawer utility route push('/flows') requested",
       mediaContext: context,
@@ -3190,6 +3235,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     );
     await _closeFloatingMenu();
     if (!mounted || !context.mounted) return;
+    _retainCalendarUnderDrawerPushIfVisible();
     _traceNavigation(
       "global drawer utility route push('/calendars') requested",
       mediaContext: context,
