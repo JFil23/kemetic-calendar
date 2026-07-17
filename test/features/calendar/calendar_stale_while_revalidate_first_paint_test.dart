@@ -356,6 +356,96 @@ void main() {
     );
 
     testWidgets(
+      'scroll end updates viewport handoff without rebuilding unchanged snapshot payload',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        await _seedWarmSnapshot(title: _cachedTitle);
+        _backend.blockRefresh = true;
+        final messages = <String>[];
+        final originalDebugPrint = debugPrint;
+        debugPrint = (message, {wrapWidth}) {
+          if (message != null) messages.add(message);
+        };
+        addTearDown(() async {
+          debugPrint = originalDebugPrint;
+          _backend.release();
+          await tester.pumpWidget(const SizedBox.shrink());
+        });
+
+        await tester.pumpWidget(
+          MaterialApp(home: CalendarPage(key: UniqueKey())),
+        );
+        await tester.pump();
+        await _pumpWarmRestoreWindow(tester);
+        expect(find.text(_cachedTitle), findsOneWidget);
+
+        final identity = _currentSnapshotIdentity();
+        final kToday = KemeticMath.fromGregorian(DateTime.now());
+        final today = DateUtils.dateOnly(DateTime.now());
+        CalendarSnapshotRepository.instance.retainForProcessRemount(
+          CalendarSnapshotCandidate(
+            identity: identity,
+            coverage: CalendarSnapshotCoverage(
+              startUtc: today.subtract(const Duration(days: 120)).toUtc(),
+              endUtc: today.add(const Duration(days: 120)).toUtc(),
+            ),
+            completedLanes: calendarSnapshotRequiredLanes,
+            generation: 1,
+            payload: Map<String, dynamic>.from(
+              _warmSnapshot(
+                title: _cachedTitle,
+                includeEvent: true,
+                target: kToday,
+              ),
+            ),
+            source: 'pre_scroll_authoritative_snapshot',
+          ),
+        );
+
+        final calendarScrollView = find
+            .byWidgetPredicate(
+              (widget) =>
+                  widget is CustomScrollView && widget.controller != null,
+            )
+            .first;
+        await tester.drag(calendarScrollView, const Offset(0, -600));
+        await tester.pump(const Duration(milliseconds: 500));
+        expect(
+          tester
+              .widget<CustomScrollView>(calendarScrollView)
+              .controller!
+              .offset,
+          greaterThan(0),
+        );
+
+        debugPrint = originalDebugPrint;
+        expect(
+          messages.where(
+            (message) => message.contains(
+              '[calendar] retained process route handoff '
+              'source=calendar_scroll_end',
+            ),
+          ),
+          isNotEmpty,
+          reason: 'ScrollEnd must still retain the latest viewport handoff.',
+        );
+        expect(
+          messages.where(
+            (message) => message.contains(
+              '[warmStart] retained process remount '
+              'source=calendar_scroll_end',
+            ),
+          ),
+          isEmpty,
+          reason:
+              'Scrolling changes only viewport authority. Re-encoding the '
+              'complete event payload synchronously at every ScrollEnd '
+              'introduces avoidable gesture-end jank.',
+        );
+      },
+    );
+
+    testWidgets(
       'returning from journal keeps saved month authoritative over warm first paint',
       (tester) async {
         await _setPhoneViewport(tester);

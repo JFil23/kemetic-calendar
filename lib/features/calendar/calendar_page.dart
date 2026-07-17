@@ -9548,7 +9548,10 @@ class CalendarPageState extends State<CalendarPage>
     return true;
   }
 
-  void _retainProcessRouteHandoff({required String source}) {
+  void _retainProcessRouteHandoff({
+    required String source,
+    bool refreshSnapshot = true,
+  }) {
     if (_debugDaySheetSmokeEnabled ||
         _onboardingReviewMode ||
         !_initialViewportSettled ||
@@ -9569,7 +9572,9 @@ class CalendarPageState extends State<CalendarPage>
       return;
     }
 
-    _retainCompleteCalendarSnapshotForRouteRemount(source: source);
+    if (refreshSnapshot) {
+      _retainCompleteCalendarSnapshotForRouteRemount(source: source);
+    }
     final document = CalendarSnapshotRepository.instance.peekForProcessRemount(
       identity,
     );
@@ -35255,7 +35260,10 @@ class CalendarPageState extends State<CalendarPage>
         if (notification is ScrollEndNotification) {
           if (_scrollCtrl.hasClients) {
             _lastKnownCalendarScrollOffset = _scrollCtrl.position.pixels;
-            _retainProcessRouteHandoff(source: 'calendar_scroll_end');
+            _retainProcessRouteHandoff(
+              source: 'calendar_scroll_end',
+              refreshSnapshot: false,
+            );
           }
           // ✅ Only update centered month when scrolling STOPS
           WidgetsBinding.instance.addPostFrameCallback((_) {
