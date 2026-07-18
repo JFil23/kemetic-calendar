@@ -119,6 +119,13 @@ canonical root.
      detail finishes building, it becomes durable through the normal policy and
      a subsequent refresh restores that detail normally. The address URI alone
      does not identify an imperative detail when it shares the primary URI.
+     The last valid visible surface is authoritative: Library may remain the
+     durable primary selection while a valid Library detail such as Cosmic
+     Order is the durable visible surface. Relaunch restores Cosmic Order when
+     it was last visible, and restores Library when the user returns to and
+     leaves from Library. Never automatically reset a valid durable detail to
+     its primary root or to Calendar during relaunch. This restoration rule is
+     locked for later navigation and restoration tickets.
    - **Deferred strict erasure.** Erasing browser history requires separate
      product and systems authority. `BROWSER-HISTORY-AUTH-001` is deferred and
      not funded; it is outside NAV-IMPL-001 and must not be implemented
@@ -297,6 +304,11 @@ separate layers:
 - `SessionTrackedRoute` records real visible routes as durable surfaces after
   routing has built the page.
 - Utility routes and detail routes must not overwrite primary selection.
+- The last valid visible surface controls relaunch independently of primary
+  selection. A valid detail above Library may restore while Library remains the
+  selected primary; returning to Library makes Library the durable surface.
+  Restoration must not automatically replace either valid surface with
+  Calendar.
 - Query/action parameters are stripped or rejected before durability unless a
   parameter is explicitly approved as stable route state.
 - Generic navigation attempts are logged for diagnosis but do not write durable
