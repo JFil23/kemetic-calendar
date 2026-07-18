@@ -50,6 +50,53 @@ Drawer destinations follow the route categories above:
   is not a durable primary section and must not record primary selection.
 - Flows and Calendars use `/flows` and `/calendars` with `openUtilityRoute`.
 
+### Approved Drawer Resolution Rules
+
+The following rules were approved on 2026-07-17. Visual section selection and
+navigation dispatch are separate decisions: prefix/section matching may style a
+row as selected, but it must not make a detail route behave like an exact
+canonical root.
+
+1. **Exact primary root.** Selecting the same drawer row while its exact
+   canonical primary root is visible closes the drawer in place. It issues no
+   route request, mutates no router, browser, drawer, or durable history, and
+   preserves the mounted element and viewport. This applies to every primary
+   root, not only Calendar.
+2. **Matching primary detail.** Selecting the matching primary row from a
+   same-section detail or subroute resolves in one of two ways:
+   - When the matching canonical primary base is already mounted beneath the
+     detail, pop every detail/overlay above that base and expose that same
+     element with its scroll position and mounted state intact. Do not rebuild
+     it merely to obtain the canonical URL.
+   - When no matching base exists, including a genuine deep link or a detail
+     pushed over a foreign primary, use the centralized primary-replacement
+     authority, resolve to the selected canonical root, and record the explicit
+     primary selection durably. A foreign base is never a matching base.
+3. **Different primary.** Selecting another primary row replaces the primary
+   base through the centralized authority, records the explicit primary
+   selection durably, and discards obsolete detail or utility state from the
+   previous primary.
+4. **X and back.** X/back preserves history, removes only the top applicable
+   surface, and exposes the mounted route beneath it. It never automatically
+   resets to Calendar while valid history exists.
+5. **Utility child.** Flows, Calendars, and Profile are history-preserving
+   utilities, not primary replacements. Selecting a matching utility row from
+   one of its children canonicalizes only the top overlay, preserves the
+   mounted primary base, and does not duplicate the utility. Canonical utility
+   locations are `/flows`, `/calendars`, and `/profile/me`. Profile remains
+   technically a detail route opened through `openDetailRoute`, but the Profile
+   drawer row follows Rule 5's history-preserving utility-overlay resolution
+   semantics.
+6. **Utility without a local stack.** A utility with no valid local stack
+   returns to the last identity-matching durable primary. Reject foreign-
+   identity state and never adopt a detail or utility as the primary fallback.
+   Calendar is the fallback only when no valid identity-matching primary
+   exists. This rule does not change broad restoration precedence.
+7. **Post-resolution history.** After Rule 2 removes detail overlays, browser
+   back must not resurrect them. The canonical primary remains current, durable
+   primary state reflects the explicit drawer selection, and discarded details
+   remain discarded until the user explicitly opens them again.
+
 Drawer state is local app chrome state. It is not restoration-backed and should
 not be persisted.
 
@@ -79,8 +126,9 @@ Drawer composition is a reveal/push interaction, not an overlay interaction:
   Settings are canonical primary replacements; Calendars, Flows, and Profile
   are history-preserving pushes. Never mix root `Navigator` stack operations
   with router commands. Only the latest competing selection may request or
-  commit a route; closing the drawer never navigates. Selecting the
-  already-visible Calendar only closes the drawer.
+  commit a route; closing the drawer never navigates. Selecting any exact,
+  already-visible canonical primary root only closes the drawer. A visually
+  selected detail still resolves through Rule 2.
 - `UX-DRAWER-008`: Drawer history persists a valid base route plus its utility
   and detail stack. Closing an X pops exactly the top stacked surface and
   reveals the same mounted base state. A cold launch restores the base before
@@ -103,8 +151,9 @@ Back behavior:
 ### Utility Routes
 
 Utility routes are real app surfaces that should feel temporary. They use
-`openUtilityRoute(context, location)` and close with `closeOrReturn(context, '/')`
-unless a more specific fallback is required.
+`openUtilityRoute(context, location)` and close by preserving a valid local
+stack first. Without one, Rule 6 selects the identity-matching durable primary;
+`/` is only the final fallback when no valid primary is available.
 
 Locked utility routes:
 
@@ -113,7 +162,7 @@ Locked utility routes:
 
 Utility routes are not primary selection state. They are durable surfaces while
 they are real routes. From inside the app they should be pushed so back/close
-returns to the previous real surface. Direct loads fall back cleanly to `/`.
+returns to the previous real surface. Direct loads follow Rule 6.
 
 Flow Studio and Calendars currently use route-backed sheet presentation: `/flows`
 and `/calendars` remain real durable utility routes, but the route page renders
