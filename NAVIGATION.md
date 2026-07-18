@@ -92,10 +92,35 @@ canonical root.
    identity state and never adopt a detail or utility as the primary fallback.
    Calendar is the fallback only when no valid identity-matching primary
    exists. This rule does not change broad restoration precedence.
-7. **Post-resolution history.** After Rule 2 removes detail overlays, browser
-   back must not resurrect them. The canonical primary remains current, durable
-   primary state reflects the explicit drawer selection, and discarded details
-   remain discarded until the user explicitly opens them again.
+7. **Post-resolution app-stack, durable, and browser history.** Jarale's
+   2026-07-18 product decision makes browser history authoritative when the user
+   explicitly traverses it. The following platform-scoped semantics apply:
+   - **App-stack back.** Native platform back, a visible X, and
+     `routerDelegate.popRoute()` operate on the current app stack. When Rule 2
+     finds the matching mounted primary base, it removes every app detail or
+     overlay above that base while preserving that base's `State`, `Element`,
+     scroll offset, page, and other mounted state. A later app-stack pop cannot
+     return a detail that Rule 2 removed from the current app stack.
+   - **Durable restoration.** Rule 2 records the explicit primary selection and
+     canonical durable surface. Refresh or relaunch immediately after Rule 2
+     restores the canonical primary root; a removed detail is not an automatic
+     launch destination.
+   - **Browser Back and Forward on web.** These controls explicitly navigate
+     historical browser entries and may restore a detail that Rule 2 removed
+     from the current app stack. `RouteInformation.state` can differ even when
+     the address URI is the same, and not every browser entry must have a
+     distinct URL. NAV-IMPL-001 does not erase browser entries. This deliberate
+     platform asymmetry is not a Rule 2 defect.
+   - **Browser-restored detail.** A detail restored by browser history must be a
+     coherent, valid routed surface: never blank, mixed, duplicated, partial, or
+     paired with an invalid underlying primary selection. After the restored
+     detail finishes building, it becomes durable through the normal policy and
+     a subsequent refresh restores that detail normally. The address URI alone
+     does not identify an imperative detail when it shares the primary URI.
+   - **Deferred strict erasure.** Erasing browser history requires separate
+     product and systems authority. `BROWSER-HISTORY-AUTH-001` is deferred and
+     not funded; it is outside NAV-IMPL-001 and must not be implemented
+     incidentally by another ticket.
 
 Drawer state is local app chrome state. It is not restoration-backed and should
 not be persisted.

@@ -221,7 +221,8 @@ void main() {
         expect(key.currentState!.offset, offset);
         // No imperative overlay remains above the matching canonical base.
         expect(router.canPop(), isFalse);
-        // Browser/system back cannot resurrect the discarded detail.
+        // System/app-stack back cannot return the removed detail. This widget
+        // call does not simulate browser Back or Forward history traversal.
         expect(await router.routerDelegate.popRoute(), isFalse);
         expect(_visibleRouterPath(router), spec.root);
         // An explicit matching-primary drawer selection is still durable.
@@ -318,7 +319,7 @@ void main() {
   });
 
   testWidgets(
-    'Rule 2 multi-detail stack is fully discarded above the mounted base',
+    'Rule 2 multi-detail app stack is fully removed above the mounted base',
     (tester) async {
       final key = GlobalKey<_PrimaryViewportPageState>();
       final router = _contractRouter(
@@ -354,7 +355,9 @@ void main() {
         same(element),
       );
       expect(key.currentState!.offset, offset);
-      // Both detail overlays are gone; no discarded detail can be popped back.
+      // Both app-stack detail overlays are gone; another system/app-stack pop
+      // cannot return either. This widget call does not simulate browser
+      // history traversal.
       expect(router.canPop(), isFalse);
       expect(await router.routerDelegate.popRoute(), isFalse);
       expect(_visibleRouterPath(router), '/nodes');
