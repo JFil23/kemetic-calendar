@@ -434,6 +434,29 @@ void main() {
   });
 
   testWidgets(
+    'production shell deep-linked Library detail resolves through production drawer routing',
+    (tester) async {
+      final router = app.createProductionRouterForTesting(
+        initialLocation: '/nodes/maat',
+      );
+      addTearDown(router.dispose);
+
+      await _pumpShell(tester, router);
+      expect(_visibleRouterPath(router), '/nodes/maat');
+
+      await _openDrawer(tester);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('global-side-drawer-item-Library')),
+      );
+      await tester.pump(globalSideDrawerTransitionDuration);
+      await tester.pumpAndSettle();
+
+      expect(_visibleRouterPath(router), '/nodes');
+      expect(find.byKey(globalSideDrawerKey), findsNothing);
+    },
+  );
+
+  testWidgets(
     'UX-DRAWER-006 route dispatches during close without rebuilding the destination',
     (tester) async {
       var plannerMounts = 0;

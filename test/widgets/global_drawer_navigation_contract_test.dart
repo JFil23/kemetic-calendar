@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/navigation_persistence_policy.dart';
 import 'package:mobile/main.dart' as app;
+import 'package:mobile/services/app_navigation_restoration_controller.dart';
 import 'package:mobile/services/app_restoration_service.dart';
 import 'package:mobile/services/app_window_service.dart';
 import 'package:mobile/services/navigation_trace.dart';
@@ -46,6 +48,7 @@ void main() {
     _latestCriticalSnapshots.clear();
     _remoteWriteCount = 0;
     AppRestorationService.instance.resetForTesting();
+    AppNavigationRestorationController.instance.resetForTesting();
     AppWindowService.instance.resetForTesting();
     AppRestorationService.debugUserIdResolver = () => 'contract-user';
     AppWindowService.debugWindowIdResolver = () async => 'window-contract';
@@ -83,6 +86,7 @@ void main() {
     app.resetGlobalFloatingMenuShellForTesting();
     NavigationTrace.instance.resetForTesting();
     AppRestorationService.instance.resetForTesting();
+    AppNavigationRestorationController.instance.resetForTesting();
     AppRestorationService.debugUserIdResolver = null;
     AppRestorationService.debugCriticalSnapshotReader = null;
     AppRestorationService.debugCriticalSnapshotWriter = null;
@@ -362,6 +366,35 @@ void main() {
       expect(await router.routerDelegate.popRoute(), isFalse);
       expect(_visibleRouterPath(router), '/nodes');
       expect(_durablePrimaryRoute(), '/nodes');
+    },
+  );
+
+  testWidgets(
+    'Rule 2 durable surface restoration partial in-process proof rejects the discarded detail',
+    (tester) async {
+      final router = _contractRouter(initialLocation: '/nodes');
+      await _pumpShell(tester, router);
+      unawaited(router.push<void>('/nodes/maat'));
+      await tester.pumpAndSettle();
+      expect(_visibleRouterPath(router), '/nodes/maat');
+
+      await _selectDrawerRow(tester, 'Library');
+      expect(_visibleRouterPath(router), '/nodes');
+
+      final serialized = _criticalSnapshots['window-contract'];
+      expect(serialized, isNotNull);
+      final durable = jsonDecode(serialized!) as Map<String, dynamic>;
+      expect(durable['routeLocation'], '/nodes');
+      final primary =
+          durable[navigationPrimarySelectionMetadataKey]
+              as Map<String, dynamic>?;
+      expect(primary?['canonicalRoute'], '/nodes');
+
+      AppNavigationRestorationController.instance.resetForTesting();
+      final restored = await AppNavigationRestorationController.instance
+          .restoreLaunchDestination(isAuthenticated: true);
+      expect(restored.route, '/nodes');
+      expect(restored.route, isNot('/nodes/maat'));
     },
   );
 

@@ -2240,6 +2240,10 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
   ],
 );
 
+@visibleForTesting
+GoRouter createProductionRouterForTesting({required String initialLocation}) =>
+    _createRouter(initialLocation: initialLocation);
+
 /* ───────────────────────── App Widgets ───────────────────────── */
 
 class MyApp extends StatefulWidget {
@@ -3393,7 +3397,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       generation: generation,
       route: destination.location,
     );
-    if (_isDrawerDestinationSelected(destination)) {
+    if (_isDrawerDestinationExactlyVisible(destination)) {
       RestorationCoordinator.instance.suppressRestoreForUserNavigation(
         reason: 'drawer_current_selection',
       );
@@ -3408,6 +3412,10 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     }
 
     final primarySection = destination.primarySection;
+    final matchingPrimaryBasePopCount =
+        destination.isPrimaryReplacement && primarySection != null
+        ? _drawerOverlayCountAboveMatchingPrimaryBase(destination)
+        : null;
     if (destination.isPrimaryReplacement && primarySection != null) {
       recordPrimarySectionSelection(primarySection);
       _replaceDrawerHistoryPrimary(destination);
@@ -3423,6 +3431,28 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       final dispatched = _drawerNavigationGeneration.runIfCurrent(
         generation,
         () {
+          if (matchingPrimaryBasePopCount != null) {
+            _traceDrawerNavigation(
+              'drawer matching primary base resolution started',
+              target: destination.label,
+              generation: generation,
+              route: destination.location,
+            );
+            for (var index = 0; index < matchingPrimaryBasePopCount; index++) {
+              if (!_drawerNavigationGeneration.isCurrent(generation) ||
+                  !widget.router.canPop()) {
+                break;
+              }
+              widget.router.pop();
+            }
+            _traceDrawerNavigation(
+              'drawer matching primary base exposed',
+              target: destination.label,
+              generation: generation,
+              route: destination.location,
+            );
+            return;
+          }
           _drawerPendingRouteGeneration = generation;
           _drawerPendingTarget = destination.label;
           _drawerPendingRoute = destination.location;
@@ -3491,6 +3521,29 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
         path == '/profile/me' || path.startsWith('/profile/'),
       _DrawerDestination.settings => path == '/settings',
     };
+  }
+
+  bool _isDrawerDestinationExactlyVisible(_DrawerDestination destination) {
+    return _drawerLocationMatches(_currentUri.toString(), destination.location);
+  }
+
+  int? _drawerOverlayCountAboveMatchingPrimaryBase(
+    _DrawerDestination destination,
+  ) {
+    final configuration = widget.router.routerDelegate.currentConfiguration;
+    final mountedLocations = <String>[configuration.uri.toString()];
+    mountedLocations.addAll(
+      configuration.matches.whereType<ImperativeRouteMatch>().map(
+        (match) => match.matches.uri.toString(),
+      ),
+    );
+    final baseIndex = mountedLocations.lastIndexWhere(
+      (location) => _drawerLocationMatches(location, destination.location),
+    );
+    if (baseIndex < 0 || baseIndex == mountedLocations.length - 1) {
+      return null;
+    }
+    return mountedLocations.length - baseIndex - 1;
   }
 
   List<GlobalSideDrawerItem> _buildGlobalSideDrawerItems() {

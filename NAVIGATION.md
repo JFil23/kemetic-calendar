@@ -68,6 +68,8 @@ canonical root.
      detail, pop every detail/overlay above that base and expose that same
      element with its scroll position and mounted state intact. Do not rebuild
      it merely to obtain the canonical URL.
+     Matching-base resolution records the explicit primary selection and
+     canonical durable surface.
    - When no matching base exists, including a genuine deep link or a detail
      pushed over a foreign primary, use the centralized primary-replacement
      authority, resolve to the selected canonical root, and record the explicit
