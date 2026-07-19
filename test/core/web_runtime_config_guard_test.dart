@@ -5,12 +5,16 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   group('web runtime config guard', () {
     late String mainSource;
+    late String runtimeGuardSource;
     late String webIndexSource;
     late String buildScriptSource;
     late String deployScriptSource;
 
     setUpAll(() async {
       mainSource = await File('lib/main.dart').readAsString();
+      runtimeGuardSource = await File(
+        'lib/core/supabase_runtime_config_guard.dart',
+      ).readAsString();
       webIndexSource = await File('web/index.html').readAsString();
       buildScriptSource = await File(
         'scripts/build_web_release.sh',
@@ -21,7 +25,8 @@ void main() {
     });
 
     test('web startup can read env.json without bypassing validation', () {
-      expect(mainSource, contains("Uri.base.resolve('env.json')"));
+      expect(mainSource, contains("Uri.base.resolve('/env.json')"));
+      expect(mainSource, isNot(contains("Uri.base.resolve('env.json')")));
       expect(mainSource, contains('http.get'));
       expect(mainSource, contains("webEnv['SUPABASE_URL']"));
       expect(mainSource, contains("webEnv['SUPABASE_ANON_KEY']"));
@@ -59,16 +64,69 @@ void main() {
       expect(defaultIndex, greaterThan(webEnvIndex));
     });
 
-    test('release defaults still depend on strict Supabase validation', () {
-      expect(mainSource, contains('_hasValidSupabaseUrl(url)'));
-      expect(mainSource, contains('_hasValidSupabaseAnonKey(anonKey)'));
-      expect(mainSource, contains("parsed.host.endsWith('.supabase.co')"));
-      expect(mainSource, contains("!lower.contains('service_role')"));
-      expect(mainSource, contains("!lower.contains('service-role')"));
+    test('web direct routes win over passive restoration on boot', () {
       expect(
         mainSource,
+        contains(
+          '_bootExplicitIntentLocation ??= '
+          '_initialLocationFromWebBrowserLocation();',
+        ),
+      );
+      expect(
+        mainSource,
+        contains('String? _initialLocationFromWebBrowserLocation()'),
+      );
+      expect(mainSource, contains('if (!kIsWeb) return null;'));
+      expect(mainSource, contains('final uri = Uri.base;'));
+      expect(mainSource, contains("if (path.isEmpty || path == '/')"));
+      expect(mainSource, contains("query: uri.query.trim().isEmpty"));
+
+      final webRouteIndex = mainSource.indexOf(
+        '_bootExplicitIntentLocation ??= '
+        '_initialLocationFromWebBrowserLocation();',
+      );
+      final restoreIndex = mainSource.indexOf(
+        '_bootRestoredLocation = await _readBootRestoredLocation();',
+      );
+      expect(webRouteIndex, greaterThanOrEqualTo(0));
+      expect(restoreIndex, greaterThan(webRouteIndex));
+    });
+
+    test('release defaults still depend on strict Supabase validation', () {
+      final combinedSource = '$mainSource\n$runtimeGuardSource';
+      expect(
+        runtimeGuardSource,
+        contains('bool hasValidSupabaseUrl(String url)'),
+      );
+      expect(
+        runtimeGuardSource,
+        contains('bool hasValidSupabaseAnonKey(String anonKey)'),
+      );
+      expect(combinedSource, contains("parsed.host.endsWith('.supabase.co')"));
+      expect(combinedSource, contains("!lower.contains('service_role')"));
+      expect(combinedSource, contains("!lower.contains('service-role')"));
+      expect(
+        combinedSource,
         contains('SUPABASE_ANON_KEY still looks like a placeholder.'),
       );
+    });
+
+    test('local Supabase override remains explicit and debug only', () {
+      expect(
+        mainSource,
+        contains("bool.fromEnvironment('ALLOW_LOCAL_SUPABASE')"),
+      );
+      expect(runtimeGuardSource, contains('allowLocalSupabase'));
+      expect(runtimeGuardSource, contains('debugMode'));
+      expect(runtimeGuardSource, contains('releaseMode'));
+      expect(
+        runtimeGuardSource,
+        contains('ALLOW_LOCAL_SUPABASE is only available in debug builds.'),
+      );
+      expect(runtimeGuardSource, contains("'10.0.2.2'"));
+      expect(runtimeGuardSource, contains("'127.0.0.1'"));
+      expect(runtimeGuardSource, contains("'localhost'"));
+      expect(runtimeGuardSource, contains('localSupabasePort = 54321'));
     });
 
     test('web release build still emits env.json and dart defines', () {

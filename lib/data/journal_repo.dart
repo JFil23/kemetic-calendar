@@ -31,6 +31,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../telemetry/telemetry.dart';
+
 class JournalEntry {
   final String id;
   final String userId;
@@ -91,7 +93,7 @@ class JournalRepo {
   void _log(String msg) {
     if (kDebugMode) {
       final timestamp = DateTime.now().toIso8601String();
-      debugPrint('[JournalRepo $timestamp] $msg');
+      debugPrint('[JournalRepo $timestamp] ${redactLogText(msg)}');
     }
   }
 
@@ -114,7 +116,9 @@ class JournalRepo {
     }
 
     final dateStr = JournalEntry._formatDate(localDate);
-    _log('getByDateStrict: fetching $dateStr for user $userId');
+    _log(
+      'getByDateStrict: fetching $dateStr for user=${safeLogIdentifier(userId)}',
+    );
 
     final response = await _client
         .from('journal_entries')

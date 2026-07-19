@@ -27,4 +27,23 @@ class KemeticNode {
     this.linkMap = const [],
     this.isSystemOwned = true,
   });
+
+  List<String> get displayAliases {
+    final titleKey = title.trim().toLowerCase();
+    final display = <String>[];
+    final seen = <String>{};
+
+    for (final alias in aliases) {
+      final trimmed = alias.trim();
+      if (trimmed.isEmpty) continue;
+
+      final key = trimmed.toLowerCase();
+      if (key == titleKey) continue;
+      if (!seen.add(key)) continue;
+
+      display.add(trimmed);
+    }
+
+    return display;
+  }
 }

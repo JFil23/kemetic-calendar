@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../core/completion_status.dart';
 import 'shared_calendar_models.dart';
 
-enum SharedPracticeVisibility { private, sharedWithCalendar }
+enum SharedPracticeVisibility { private, sharedWithCalendar, public }
 
 extension SharedPracticeVisibilityX on SharedPracticeVisibility {
   String get wireName {
@@ -12,6 +12,8 @@ extension SharedPracticeVisibilityX on SharedPracticeVisibility {
         return 'private';
       case SharedPracticeVisibility.sharedWithCalendar:
         return 'shared_with_calendar';
+      case SharedPracticeVisibility.public:
+        return 'public';
     }
   }
 
@@ -22,6 +24,8 @@ extension SharedPracticeVisibilityX on SharedPracticeVisibility {
       case SharedPracticeVisibility.sharedWithCalendar:
         final name = calendarName.trim();
         return name.isEmpty ? 'Shared with calendar' : 'Shared with $name';
+      case SharedPracticeVisibility.public:
+        return 'Public';
     }
   }
 
@@ -30,6 +34,8 @@ extension SharedPracticeVisibilityX on SharedPracticeVisibility {
       case 'shared_with_calendar':
       case 'shared':
         return SharedPracticeVisibility.sharedWithCalendar;
+      case 'public':
+        return SharedPracticeVisibility.public;
       case 'private':
       default:
         return SharedPracticeVisibility.private;
@@ -60,6 +66,85 @@ extension SharedPracticePresenceStatusX on SharedPracticePresenceStatus {
   }
 }
 
+enum SharedPracticeRoomVisibility { private, unlisted, public }
+
+extension SharedPracticeRoomVisibilityX on SharedPracticeRoomVisibility {
+  String get wireName {
+    switch (this) {
+      case SharedPracticeRoomVisibility.private:
+        return 'private';
+      case SharedPracticeRoomVisibility.unlisted:
+        return 'unlisted';
+      case SharedPracticeRoomVisibility.public:
+        return 'public';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case SharedPracticeRoomVisibility.private:
+        return 'Private';
+      case SharedPracticeRoomVisibility.unlisted:
+        return 'Invite-only';
+      case SharedPracticeRoomVisibility.public:
+        return 'Public';
+    }
+  }
+
+  static SharedPracticeRoomVisibility fromWireName(String? raw) {
+    switch (raw?.trim().toLowerCase()) {
+      case 'public':
+        return SharedPracticeRoomVisibility.public;
+      case 'unlisted':
+      case 'invite_only':
+      case 'invite-only':
+        return SharedPracticeRoomVisibility.unlisted;
+      case 'private':
+      default:
+        return SharedPracticeRoomVisibility.private;
+    }
+  }
+}
+
+enum SharedPracticeJoinPolicy { ownerApproval, open, closed }
+
+extension SharedPracticeJoinPolicyX on SharedPracticeJoinPolicy {
+  String get wireName {
+    switch (this) {
+      case SharedPracticeJoinPolicy.ownerApproval:
+        return 'owner_approval';
+      case SharedPracticeJoinPolicy.open:
+        return 'open';
+      case SharedPracticeJoinPolicy.closed:
+        return 'closed';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case SharedPracticeJoinPolicy.ownerApproval:
+        return 'Ask to join';
+      case SharedPracticeJoinPolicy.open:
+        return 'Open join';
+      case SharedPracticeJoinPolicy.closed:
+        return 'Closed';
+    }
+  }
+
+  static SharedPracticeJoinPolicy fromWireName(String? raw) {
+    switch (raw?.trim().toLowerCase()) {
+      case 'open':
+        return SharedPracticeJoinPolicy.open;
+      case 'closed':
+        return SharedPracticeJoinPolicy.closed;
+      case 'owner_approval':
+      case 'approval':
+      default:
+        return SharedPracticeJoinPolicy.ownerApproval;
+    }
+  }
+}
+
 class SharedCalendarOption {
   const SharedCalendarOption({
     required this.calendar,
@@ -80,10 +165,18 @@ class SharedPracticeRoom {
     this.sharedFlowId,
     required this.createdBy,
     required this.title,
+    this.description,
     this.flowKey,
     this.startDate,
     this.endDate,
     required this.status,
+    this.visibility = SharedPracticeRoomVisibility.private,
+    this.joinPolicy = SharedPracticeJoinPolicy.ownerApproval,
+    this.memberCount = 0,
+    this.pendingJoinRequestCount = 0,
+    this.viewerIsMember = false,
+    this.viewerCanManage = false,
+    this.viewerRequestStatus,
     this.createdAt,
     this.updatedAt,
   });
@@ -94,10 +187,18 @@ class SharedPracticeRoom {
   final int? sharedFlowId;
   final String createdBy;
   final String title;
+  final String? description;
   final String? flowKey;
   final DateTime? startDate;
   final DateTime? endDate;
   final String status;
+  final SharedPracticeRoomVisibility visibility;
+  final SharedPracticeJoinPolicy joinPolicy;
+  final int memberCount;
+  final int pendingJoinRequestCount;
+  final bool viewerIsMember;
+  final bool viewerCanManage;
+  final String? viewerRequestStatus;
   final DateTime? createdAt;
   final DateTime? updatedAt;
 
@@ -109,10 +210,25 @@ class SharedPracticeRoom {
       sharedFlowId: _parseInt(json['shared_flow_id']),
       createdBy: _cleanString(json['created_by']) ?? '',
       title: _cleanString(json['title']) ?? 'Shared Practice',
+      description: _cleanString(json['description']),
       flowKey: _cleanString(json['flow_key']),
       startDate: _parseDate(json['start_date']),
       endDate: _parseDate(json['end_date']),
       status: _cleanString(json['status']) ?? 'active',
+      visibility: SharedPracticeRoomVisibilityX.fromWireName(
+        _cleanString(json['visibility']),
+      ),
+      joinPolicy: SharedPracticeJoinPolicyX.fromWireName(
+        _cleanString(json['join_policy']),
+      ),
+      memberCount: _parseInt(json['member_count']) ?? 0,
+      pendingJoinRequestCount:
+          _parseInt(json['pending_request_count']) ??
+          _parseInt(json['pending_join_request_count']) ??
+          0,
+      viewerIsMember: json['viewer_is_member'] == true,
+      viewerCanManage: json['viewer_can_manage'] == true,
+      viewerRequestStatus: _cleanString(json['viewer_request_status']),
       createdAt: _parseDateTime(json['created_at']),
       updatedAt: _parseDateTime(json['updated_at']),
     );
@@ -344,6 +460,61 @@ class SharedPracticeEntry {
   }
 }
 
+class SharedPracticeJoinRequest {
+  const SharedPracticeJoinRequest({
+    required this.id,
+    required this.roomId,
+    required this.requesterId,
+    this.message,
+    required this.status,
+    this.createdAt,
+    this.updatedAt,
+    this.respondedAt,
+    this.requesterHandle,
+    this.requesterDisplayName,
+    this.requesterAvatarUrl,
+  });
+
+  final String id;
+  final String roomId;
+  final String requesterId;
+  final String? message;
+  final String status;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  final DateTime? respondedAt;
+  final String? requesterHandle;
+  final String? requesterDisplayName;
+  final String? requesterAvatarUrl;
+
+  String get requesterLabel {
+    final display = requesterDisplayName?.trim();
+    if (display != null && display.isNotEmpty) return display;
+    final cleanHandle = requesterHandle?.trim();
+    if (cleanHandle != null && cleanHandle.isNotEmpty) return '@$cleanHandle';
+    return 'Practitioner';
+  }
+
+  factory SharedPracticeJoinRequest.fromJson(Map<String, dynamic> json) {
+    return SharedPracticeJoinRequest(
+      id: _cleanString(json['id']) ?? '',
+      roomId: _cleanString(json['room_id']) ?? '',
+      requesterId:
+          _cleanString(json['requester_id']) ??
+          _cleanString(json['user_id']) ??
+          '',
+      message: _cleanString(json['message']),
+      status: _cleanString(json['status']) ?? 'pending',
+      createdAt: _parseDateTime(json['created_at']),
+      updatedAt: _parseDateTime(json['updated_at']),
+      respondedAt: _parseDateTime(json['responded_at']),
+      requesterHandle: _cleanString(json['requester_handle']),
+      requesterDisplayName: _cleanString(json['requester_display_name']),
+      requesterAvatarUrl: _cleanString(json['requester_avatar_url']),
+    );
+  }
+}
+
 class SharedPracticeRoomSnapshot {
   const SharedPracticeRoomSnapshot({
     required this.room,
@@ -351,6 +522,9 @@ class SharedPracticeRoomSnapshot {
     required this.localDate,
     required this.members,
     required this.entries,
+    this.joinRequests = const <SharedPracticeJoinRequest>[],
+    this.viewerCanManage = false,
+    this.viewerIsMember = false,
     this.todayStep,
   });
 
@@ -360,6 +534,42 @@ class SharedPracticeRoomSnapshot {
   final SharedPracticeStep? todayStep;
   final List<SharedPracticeMemberStatus> members;
   final List<SharedPracticeEntry> entries;
+  final List<SharedPracticeJoinRequest> joinRequests;
+  final bool viewerCanManage;
+  final bool viewerIsMember;
+
+  bool get isSharedCalendarPractice {
+    return calendar.id.trim().isNotEmpty && !calendar.isPersonal;
+  }
+
+  int get visibleMemberCount {
+    if (members.isNotEmpty) return members.length;
+    if (room.memberCount > 0) return room.memberCount;
+    return 0;
+  }
+
+  String get memberCountLabel {
+    final count = visibleMemberCount;
+    return count == 1 ? '1 member' : '$count members';
+  }
+
+  String get sharedThroughLabel {
+    final name = calendar.name.trim();
+    return name.isEmpty
+        ? 'Shared through shared calendar'
+        : 'Shared through $name';
+  }
+
+  List<String> get accessPillLabels {
+    if (isSharedCalendarPractice) {
+      return <String>[
+        'Shared calendar practice',
+        sharedThroughLabel,
+        memberCountLabel,
+      ];
+    }
+    return <String>[room.visibility.label, room.joinPolicy.label];
+  }
 
   factory SharedPracticeRoomSnapshot.fromJson(Map<String, dynamic> json) {
     final room = Map<String, dynamic>.from(json['room'] as Map? ?? const {});
@@ -369,6 +579,7 @@ class SharedPracticeRoomSnapshot {
     final stepRaw = json['today_step'];
     final membersRaw = json['members'];
     final entriesRaw = json['entries'];
+    final joinRequestsRaw = json['join_requests'];
     return SharedPracticeRoomSnapshot(
       room: SharedPracticeRoom.fromJson(room),
       calendar: SharedPracticeCalendar.fromJson(calendar),
@@ -398,6 +609,19 @@ class SharedPracticeRoomSnapshot {
                 .where((entry) => entry.id.isNotEmpty && entry.hasBody)
                 .toList(growable: false)
           : const <SharedPracticeEntry>[],
+      joinRequests: joinRequestsRaw is List
+          ? joinRequestsRaw
+                .whereType<Map>()
+                .map(
+                  (row) => SharedPracticeJoinRequest.fromJson(
+                    Map<String, dynamic>.from(row),
+                  ),
+                )
+                .where((request) => request.id.isNotEmpty)
+                .toList(growable: false)
+          : const <SharedPracticeJoinRequest>[],
+      viewerCanManage: json['viewer_can_manage'] == true,
+      viewerIsMember: json['viewer_is_member'] == true,
     );
   }
 
@@ -441,6 +665,44 @@ class SharedPracticeRoomSnapshot {
       skipped: skipped,
       carrying: carrying,
       notYet: notYet,
+    );
+  }
+}
+
+class JointFlowExperienceResult {
+  const JointFlowExperienceResult({
+    required this.calendarId,
+    required this.flowId,
+    required this.sharedPracticeRoomId,
+    this.createdCalendar = false,
+    this.reusedCalendar = false,
+    this.createdFlow = false,
+    this.participantUserIds = const <String>[],
+  });
+
+  final String calendarId;
+  final int flowId;
+  final String sharedPracticeRoomId;
+  final bool createdCalendar;
+  final bool reusedCalendar;
+  final bool createdFlow;
+  final List<String> participantUserIds;
+
+  factory JointFlowExperienceResult.fromJson(Map<String, dynamic> json) {
+    final participantsRaw = json['participant_user_ids'];
+    return JointFlowExperienceResult(
+      calendarId: _cleanString(json['calendar_id']) ?? '',
+      flowId: _parseInt(json['flow_id']) ?? 0,
+      sharedPracticeRoomId: _cleanString(json['shared_practice_room_id']) ?? '',
+      createdCalendar: json['created_calendar'] == true,
+      reusedCalendar: json['reused_calendar'] == true,
+      createdFlow: json['created_flow'] == true,
+      participantUserIds: participantsRaw is List
+          ? participantsRaw
+                .map(_cleanString)
+                .whereType<String>()
+                .toList(growable: false)
+          : const <String>[],
     );
   }
 }

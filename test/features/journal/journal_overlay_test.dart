@@ -9,6 +9,8 @@ import 'package:mobile/features/calendar/calendar_reflection_context.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_controller.dart';
+import 'package:mobile/features/journal/journal_empty_badge_glyph.dart';
+import 'package:mobile/features/journal/journal_event_badge.dart';
 import 'package:mobile/features/journal/journal_overlay.dart';
 import 'package:mobile/features/journal/journal_skin_tokens.dart';
 import 'package:mobile/features/journal/journal_v2_document_model.dart';
@@ -106,6 +108,115 @@ void main() {
     expect(find.text('Badges'), findsOneWidget);
     expect(find.byType(JournalV2Toolbar), findsOneWidget);
     expect(find.byIcon(Icons.keyboard_hide), findsNothing);
+  });
+
+  testWidgets(
+    'empty badge field shows receiving-hand glyph without helper copy',
+    (tester) async {
+      tester.view.devicePixelRatio = 1.0;
+      tester.view.physicalSize = const Size(390, 844);
+      addTearDown(() async {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final controller = JournalController.withRepo(
+        _NoopJournalRepo(),
+        currentUserId: () => 'user-a',
+      );
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        _JournalHarness(controller: controller, bottomInset: 0),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Badges'), findsOneWidget);
+      expect(find.byType(JournalEmptyBadgeGlyph), findsOneWidget);
+      expect(find.text(kJournalEmptyBadgeGlyph), findsOneWidget);
+      expect(find.text('No badges yet'), findsOneWidget);
+      expect(
+        find.text('Event badges you add from day view will appear here.'),
+        findsNothing,
+      );
+      final glyph = tester.widget<JournalEmptyBadgeGlyph>(
+        find.byType(JournalEmptyBadgeGlyph),
+      );
+      expect(glyph.width, 156);
+      expect(glyph.height, 52);
+      expect(glyph.fontSize, 52);
+      expect(
+        find.descendant(
+          of: find.byType(JournalEmptyBadgeGlyph),
+          matching: find.text(kJournalEmptyBadgeGlyph),
+        ),
+        findsOneWidget,
+      );
+
+      await tester.pumpWidget(
+        _JournalHarness(controller: controller, bottomInset: 320),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Badges'), findsOneWidget);
+      expect(find.byType(JournalEmptyBadgeGlyph), findsOneWidget);
+      expect(find.text(kJournalEmptyBadgeGlyph), findsOneWidget);
+      expect(find.text('No badges yet'), findsOneWidget);
+      expect(
+        find.text('Event badges you add from day view will appear here.'),
+        findsNothing,
+      );
+    },
+  );
+
+  testWidgets('badge field keeps rendering existing badges', (tester) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(() async {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final controller = JournalController.withRepo(
+      _NoopJournalRepo(),
+      currentUserId: () => 'user-a',
+    );
+    addTearDown(controller.dispose);
+
+    final token = EventBadgeToken.buildToken(
+      id: 'badge-existing',
+      title: 'Existing badge',
+      color: Colors.amber,
+    );
+    await controller.updateDocument(
+      JournalDocument(
+        version: kJournalDocVersion,
+        blocks: const <JournalBlock>[
+          ParagraphBlock(
+            id: 'body',
+            ops: <TextOp>[TextOp(insert: 'Body')],
+          ),
+        ],
+        meta: <String, dynamic>{
+          'badges': <String>[token],
+        },
+      ),
+    );
+
+    await tester.pumpWidget(
+      _JournalHarness(controller: controller, bottomInset: 0),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.text(kJournalEmptyBadgeGlyph), findsNothing);
+    expect(find.byType(JournalEmptyBadgeGlyph), findsNothing);
+    expect(find.text('1 badge'), findsOneWidget);
+    expect(find.text('Existing badge'), findsOneWidget);
+
+    await controller.forceSave();
   });
 
   testWidgets('typing does not show sync pending banner', (tester) async {
@@ -305,6 +416,7 @@ void main() {
 
       await tester.tap(find.byKey(app.globalMenuButtonKey));
       await tester.pump();
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 250));
 
       bottomInset = 320;
@@ -433,7 +545,13 @@ void main() {
       expect(repo.upsertCalls, 0);
       expect(controller.loadedDate, DateTime(2026, 6, 9));
       expect(controller.currentDraft, isEmpty);
+      expect(find.byType(JournalEmptyBadgeGlyph), findsOneWidget);
+      expect(find.text(kJournalEmptyBadgeGlyph), findsOneWidget);
       expect(find.text('No badges yet'), findsOneWidget);
+      expect(
+        find.text('Event badges you add from day view will appear here.'),
+        findsNothing,
+      );
 
       final field = tester.widget<TextField>(find.byType(TextField));
       expect(field.controller?.text, isEmpty);

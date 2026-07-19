@@ -129,4 +129,52 @@ void main() {
     expect(metadata.selectedTier, 'observed');
     expect(metadata.selectedSeed, 'The record was brought to the scale.');
   });
+
+  test('generation metadata preserves compositional claim provenance', () {
+    final metadata = DecanReflectionRenderMetadata.maybeFromGenerationJson({
+      'metadata': {
+        'renderer': 'compositional_v1',
+        'used_llm': false,
+        'llm_cost': 0,
+        'engine_version': 'composition_engine_v2',
+        'phrase_bank_version': 'decan_reflection_phrase_bank_v2',
+        'claim_deriver_version': 'decan_claim_deriver_v1',
+        'claimDeriverVersion': 'decan_claim_deriver_v1',
+        'claim_fingerprint': 'abc123',
+        'claimFingerprint': 'abc123',
+        'claim_ids': <String>['steady_presence', 'flow_ready'],
+        'claimIds': <String>['steady_presence', 'flow_ready'],
+        'reflection_shape': 'steady_continuation',
+        'reflectionShape': 'steady_continuation',
+        'recommendation_policy_version': 'decan_recommendation_policy_v1',
+        'recommendationPolicyVersion': 'decan_recommendation_policy_v1',
+      },
+      'source_snapshot': {
+        'decan_reflection_id': 'reflection-1',
+        'claim_fingerprint': 'abc123',
+      },
+    });
+
+    expect(metadata, isNotNull);
+    expect(metadata!.renderer, 'compositional_v1');
+    final rawMetadata = Map<String, dynamic>.from(
+      metadata.raw['metadata'] as Map,
+    );
+    expect(rawMetadata['claim_deriver_version'], 'decan_claim_deriver_v1');
+    expect(rawMetadata['claimDeriverVersion'], 'decan_claim_deriver_v1');
+    expect(rawMetadata['claim_fingerprint'], 'abc123');
+    expect(rawMetadata['claimFingerprint'], 'abc123');
+    expect(rawMetadata['claim_ids'], <String>['steady_presence', 'flow_ready']);
+    expect(rawMetadata['claimIds'], <String>['steady_presence', 'flow_ready']);
+    expect(rawMetadata['reflection_shape'], 'steady_continuation');
+    expect(rawMetadata['reflectionShape'], 'steady_continuation');
+    expect(
+      rawMetadata['recommendation_policy_version'],
+      'decan_recommendation_policy_v1',
+    );
+    expect(
+      rawMetadata['recommendationPolicyVersion'],
+      'decan_recommendation_policy_v1',
+    );
+  });
 }

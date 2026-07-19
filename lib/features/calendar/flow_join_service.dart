@@ -1588,6 +1588,7 @@ class FlowJoinService {
     int materializedDays = kEveningThresholdMaterializedDays,
     int alertOffsetMinutes = kEventFilingNoAlertMinutes,
     String? initialCarryText,
+    bool deferRemainingEvents = false,
   }) async {
     if (kEveningThresholdEvents.isEmpty || materializedDays <= 0) {
       return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
@@ -1709,10 +1710,9 @@ class FlowJoinService {
       );
     }
 
-    final clientEventIds = <String>[];
-    for (var i = 0; i < schedules.length; i++) {
-      final entry = schedules[i];
-      final occurrence = occurrences[i];
+    Future<String> upsertOccurrence(int index, {required String caller}) async {
+      final entry = schedules[index];
+      final occurrence = occurrences[index];
       final k = KemeticMath.fromGregorian(
         DateUtils.dateOnly(occurrence.startLocal),
       );
@@ -1744,9 +1744,8 @@ class FlowJoinService {
           event: entry.event,
           schedule: occurrence,
         ),
-        caller: 'evening_threshold_join_headless',
+        caller: caller,
       );
-      clientEventIds.add(clientEventId);
 
       if (alertOffsetMinutes != kEventFilingNoAlertMinutes &&
           entry.event.kind == EveningThresholdEventKind.theReturn) {
@@ -1759,6 +1758,59 @@ class FlowJoinService {
           body: detail,
         );
       }
+      return clientEventId;
+    }
+
+    final clientEventIds = <String>[];
+    final firstReturnIndex = schedules.indexWhere(
+      (entry) => entry.event.kind == EveningThresholdEventKind.theReturn,
+    );
+    final synchronousIndexes = deferRemainingEvents
+        ? <int>{firstReturnIndex >= 0 ? firstReturnIndex : 0}
+        : {for (var i = 0; i < schedules.length; i++) i};
+    for (final index in synchronousIndexes) {
+      clientEventIds.add(
+        await upsertOccurrence(
+          index,
+          caller: 'evening_threshold_join_headless',
+        ),
+      );
+    }
+
+    if (deferRemainingEvents && schedules.length > synchronousIndexes.length) {
+      final deferredIndexes = <int>[
+        for (var i = 0; i < schedules.length; i++)
+          if (!synchronousIndexes.contains(i)) i,
+      ];
+      unawaited(
+        Future<void>(() async {
+          final deferredClientEventIds = <String>[];
+          for (final index in deferredIndexes) {
+            try {
+              deferredClientEventIds.add(
+                await upsertOccurrence(
+                  index,
+                  caller: 'evening_threshold_join_headless_deferred',
+                ),
+              );
+            } catch (error, stackTrace) {
+              if (kDebugMode) {
+                _calendarDebugPrint(
+                  '[eveningThresholdHeadless] deferred event creation failed: $error',
+                );
+                _calendarDebugPrint('$stackTrace');
+              }
+            }
+          }
+          if (deferredClientEventIds.isNotEmpty) {
+            _publishHeadlessCalendarInvalidation(
+              reason: CalendarInvalidationReason.flowJoined,
+              flowId: flowId,
+              clientEventIds: deferredClientEventIds,
+            );
+          }
+        }),
+      );
     }
 
     return _completeHeadlessJoin(
@@ -2134,6 +2186,130 @@ class FlowJoinService {
       if (alertOffsetMinutes != kEventFilingNoAlertMinutes) {
         await _fileHeadlessJoinDelivery(
           debugLabel: 'theTendingHeadless',
+          clientEventId: clientEventId,
+          startsAtLocal: occurrence.startLocal,
+          alertOffsetMinutes: alertOffsetMinutes,
+          title: title,
+          body: detail,
+        );
+      }
+    }
+
+    return _completeHeadlessJoin(
+      flowId: flowId,
+      clientEventIds: clientEventIds,
+    );
+  }
+
+  Future<FlowJoinResult> joinReadingHouseHeadless({
+    required String templateKey,
+    required String templateTitle,
+    required String templateOverview,
+    required Color templateColor,
+    required String? personalCalendarId,
+    required TrackSkyTimeZone timezone,
+    DateTime? startDate,
+    ReadingHousePlan plan = const ReadingHousePlan(),
+    List<ReadingHouseSitting>? readingHouseSittings,
+    int alertOffsetMinutes = kEventFilingNoAlertMinutes,
+  }) async {
+    final sittings = normalizeReadingHouseSittingOrder(
+      readingHouseSittings ?? kReadingHouseSittings,
+    );
+    if (sittings.isEmpty) {
+      return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
+    }
+
+    final firstGregorian = DateUtils.dateOnly(
+      startDate ?? defaultReadingHouseStartDate(timezone),
+    );
+    final occurrences = <ReadingHouseOccurrenceSchedule>[
+      for (final sitting in sittings)
+        readingHouseScheduleForSitting(sitting, firstGregorian, timezone),
+    ];
+    if (occurrences.isEmpty) {
+      return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
+    }
+
+    final dates = <DateTime>{
+      for (final occurrence in occurrences)
+        DateUtils.dateOnly(occurrence.startLocal),
+    };
+    if (dates.isEmpty) {
+      return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
+    }
+
+    final orderedDates = dates.toList()..sort();
+    final notes = [
+      'mode=gregorian',
+      'split=1',
+      if (templateOverview.trim().isNotEmpty)
+        'ov=${Uri.encodeComponent(templateOverview.trim())}',
+      'maat=$templateKey',
+      'reading_house_tz=${timezone.key}',
+      ...readingHouseFlowNoteTokens(plan),
+      'reading_house_hour=$kReadingHouseDefaultHour',
+      'reading_house_minute=$kReadingHouseDefaultMinute',
+    ].join(';');
+
+    final flowId = await _upsertFlowRow(
+      id: null,
+      name: templateTitle,
+      color: templateColor.toARGB32(),
+      active: true,
+      calendarId: personalCalendarId,
+      startDate: orderedDates.first,
+      endDate: orderedDates.last,
+      notes: notes,
+      rules: jsonEncode(
+        <FlowRule>[
+          _RuleDates(dates: dates),
+        ].map(CalendarPageState.ruleToJson).toList(),
+      ),
+      originType: 'template',
+    );
+
+    final clientEventIds = <String>[];
+    for (var i = 0; i < sittings.length; i++) {
+      final sitting = sittings[i];
+      final occurrence = occurrences[i];
+      final k = KemeticMath.fromGregorian(
+        DateUtils.dateOnly(occurrence.startLocal),
+      );
+      final title = readingHouseSittingTitle(sitting);
+      final clientEventId = EventCidUtil.buildClientEventId(
+        ky: k.kYear,
+        km: k.kMonth,
+        kd: k.kDay,
+        title: title,
+        startHour: occurrence.startLocal.hour,
+        startMinute: occurrence.startLocal.minute,
+        allDay: false,
+        flowId: flowId,
+      );
+      final detail = readingHouseDetailText(sitting, plan: plan);
+      await _upsertEventRow(
+        clientEventId: clientEventId,
+        title: title,
+        startsAtUtc: occurrence.startUtc,
+        detail: detail,
+        allDay: false,
+        endsAtUtc: occurrence.endUtc,
+        calendarId: personalCalendarId,
+        flowLocalId: flowId,
+        category: 'Study',
+        actionId: readingHouseActionId(sitting),
+        behaviorPayload: readingHouseBehaviorPayload(
+          sitting: sitting,
+          schedule: occurrence,
+          plan: plan,
+        ),
+        caller: 'reading_house_join_headless',
+      );
+      clientEventIds.add(clientEventId);
+      if (alertOffsetMinutes != kEventFilingNoAlertMinutes) {
+        await _fileHeadlessJoinDelivery(
+          debugLabel: 'readingHouseHeadless',
           clientEventId: clientEventId,
           startsAtLocal: occurrence.startLocal,
           alertOffsetMinutes: alertOffsetMinutes,

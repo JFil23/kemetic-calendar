@@ -111,6 +111,109 @@ void main() {
     },
   );
 
+  test('Course copy keeps orientation, season, and closing lines explicit', () {
+    final event1 = kTheCourseEvents[0];
+    final event4 = kTheCourseEvents[3];
+    final event7 = kTheCourseEvents[6];
+    final event9 = kTheCourseEvents[8];
+
+    expect(
+      event1.spokenLine,
+      'Riser, Riser! Beetle, Beetle! Your life is related to mine; my life is related to yours. Sustenance is for my morning, Abundance is for my evening. Famine will not have control of this life.',
+    );
+    expect(event1.steps, <String>[
+      'Face east, or face the window.',
+      'Open the ḥꜣw day card. Read the Kemetic date, decan name, and Ma\'at principle before you close it.',
+      'Name one thing appropriate for the morning part of this particular day.',
+      'Do one opening act that matches the day instead of only the task list.',
+    ]);
+    expect(event1.optionalSteps, isEmpty);
+    expect(_coursePurpose(event1), contains('Facing east or the window'));
+
+    expect(event4.steps, <String>[
+      'Open the ḥꜣw day card before anything else.',
+      'Read the current decan name, ten-day theme, and Ma\'at principle.',
+      'Name what this ten-day decan calls for in your life right now.',
+    ]);
+
+    expect(
+      event7.spokenLine,
+      'I ordered everything in its proper place. Hapy gave me honor on every field, so that none hungered during my years, none thirsted therein.',
+    );
+    expect(event7.steps, <String>[
+      'Open the ḥꜣw day card and locate the current season before speaking.',
+      'Read the season branch shown here and name what this season asks in your life.',
+      'Write one active sentence: This is [season]. It asks me to ___.',
+    ]);
+    expect(event7.seasonAware, isTrue);
+
+    expect(event9.steps, <String>[
+      'Open the ḥꜣw day card. Let it be the first thing you read.',
+      'Speak only the closing truth lines that are true.',
+      'Say, if true: I know the decan.',
+      'Say, if true: I know the season.',
+      'Say, if true: I greeted dawn.',
+      'Say, if true: I did a decan act.',
+      'Say, if true: I did a seasonal act.',
+      'Name one practice from these thirty days that you will continue past the flow.',
+      'Speak the final line: The course is continuous. I am in it.',
+    ]);
+    expect(event9.sharePromptOnComplete, isTrue);
+  });
+
+  test('Course words fields do not contain stage-direction wrappers', () {
+    final issues = <String>[];
+
+    for (final event in kTheCourseEvents) {
+      for (final pattern in _courseWordsStageDirectionPatterns) {
+        if (pattern.hasMatch(event.spokenLine)) {
+          issues.add(
+            'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+          );
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('Course steps keep source-note phrases out of actions', () {
+    final issues = <String>[];
+
+    for (final event in kTheCourseEvents) {
+      for (final step in event.steps) {
+        if (_courseSourceNotePhrasePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('Course optional steps do not duplicate required steps', () {
+    final issues = <String>[];
+
+    for (final event in kTheCourseEvents) {
+      final requiredSteps = event.steps.toSet();
+      for (final optionalStep in event.optionalSteps) {
+        if (requiredSteps.contains(optionalStep)) {
+          issues.add('Event ${event.eventNumber}: $optionalStep');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('Course timing labels preserve day anchors and solar meanings', () {
+    expect(courseTimingLabel(kTheCourseEvents[0]), 'Day 1 · dawn');
+    expect(courseTimingLabel(kTheCourseEvents[1]), 'Day 5 · dusk');
+    expect(courseTimingLabel(kTheCourseEvents[4]), 'Day 15 · 11:00 local');
+    expect(courseTimingLabel(kTheCourseEvents[5]), 'Day 19 · sunset + 30 min');
+    expect(courseTimingLabel(kTheCourseEvents[8]), 'Day 29 · dawn');
+  });
+
   test('canonical detail rebuilds a stored Course event', () {
     final context = courseContextForKemeticDate(kYear: 2, kMonth: 9, kDay: 2);
     final detail = canonicalCourseDetailTextForEvent(
@@ -155,3 +258,20 @@ void main() {
     expect(branch, isNot(contains('kDawnHouseRiteDays')));
   });
 }
+
+String _coursePurpose(CourseEvent event) {
+  return courseDetailText(event, lens: CourseLens.neutral).split('\n\n').first;
+}
+
+final _courseWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*face east\b', caseSensitive: false),
+  RegExp(r'^\s*locate\b', caseSensitive: false),
+  RegExp(r'\bthen speak\b', caseSensitive: false),
+  RegExp(r'\bbefore speaking\b', caseSensitive: false),
+  RegExp(r'\bspeak only\b', caseSensitive: false),
+];
+
+final _courseSourceNotePhrasePattern = RegExp(
+  r'\b(Pyramid Texts|Utterance 388|source note|astronomer-priest|Kemetic clock|not metaphorical|not finished|not from the completion)\b',
+  caseSensitive: false,
+);

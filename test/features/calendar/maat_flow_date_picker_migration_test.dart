@@ -27,6 +27,15 @@ void main() {
       expect(picker, isNot(contains('showModalBottomSheet')));
       expect(picker, isNot(contains('Use this date')));
       expect(_occurrences(source, 'MaatFlowDatePicker.show'), 1);
+
+      final wrapper = await File(
+        'lib/widgets/maat_flow_date_picker.dart',
+      ).readAsString();
+      expect(
+        wrapper,
+        contains('CalendarPage.runWithCalendarOwnedTransientRoute'),
+      );
+      expect(wrapper, contains('StoneRegisterDatePicker.show'));
     },
   );
 

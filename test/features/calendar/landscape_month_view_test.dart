@@ -378,6 +378,84 @@ void main() {
       );
     });
 
+    testWidgets('compact day cells get taller only on tablet and desktop', (
+      tester,
+    ) async {
+      const dayCellKey = ValueKey<String>('k:6267-1-4|K');
+
+      await _setViewport(tester, const Size(390, 844));
+      await _pumpMonthCard(
+        tester,
+        expansionLevel: MonthExpansionLevel.compact,
+        mediaSize: const Size(390, 844),
+      );
+      expect(tester.getSize(find.byKey(dayCellKey)).height, closeTo(32.0, 0.1));
+
+      await _setViewport(tester, const Size(834, 1194));
+      await _pumpMonthCard(
+        tester,
+        expansionLevel: MonthExpansionLevel.compact,
+        mediaSize: const Size(834, 1194),
+      );
+      expect(tester.getSize(find.byKey(dayCellKey)).height, closeTo(48.0, 0.1));
+
+      await _setViewport(tester, const Size(1440, 900));
+      await _pumpMonthCard(
+        tester,
+        expansionLevel: MonthExpansionLevel.compact,
+        mediaSize: const Size(1440, 900),
+      );
+      expect(tester.getSize(find.byKey(dayCellKey)).height, closeTo(48.0, 0.1));
+    });
+
+    testWidgets(
+      'decan labels get taller line boxes only on tablet and desktop',
+      (tester) async {
+        final label = find.text('ḥry-ib knmw');
+
+        await _setViewport(tester, const Size(390, 844));
+        await _pumpMonthCard(
+          tester,
+          kMonth: 6,
+          expansionLevel: MonthExpansionLevel.compact,
+          mediaSize: const Size(390, 844),
+        );
+        final phoneLabel = tester.widget<Text>(label);
+        final phoneLabelHeight = tester.getSize(label).height;
+        expect(phoneLabel.style?.height, closeTo(1.0, 0.001));
+        expect(phoneLabel.strutStyle?.height, closeTo(1.0, 0.001));
+        expect(
+          phoneLabel.textHeightBehavior?.applyHeightToFirstAscent,
+          isFalse,
+        );
+        expect(
+          phoneLabel.textHeightBehavior?.applyHeightToLastDescent,
+          isFalse,
+        );
+
+        await _setViewport(tester, const Size(834, 1194));
+        await _pumpMonthCard(
+          tester,
+          kMonth: 6,
+          expansionLevel: MonthExpansionLevel.compact,
+          mediaSize: const Size(834, 1194),
+        );
+        final tabletLabel = tester.widget<Text>(label);
+        final tabletLabelHeight = tester.getSize(label).height;
+        expect(tabletLabel.style?.height, closeTo(1.22, 0.001));
+        expect(tabletLabel.strutStyle?.height, closeTo(1.22, 0.001));
+        expect(
+          tabletLabel.textHeightBehavior?.applyHeightToFirstAscent,
+          isTrue,
+        );
+        expect(
+          tabletLabel.textHeightBehavior?.applyHeightToLastDescent,
+          isTrue,
+        );
+        expect(tabletLabelHeight, greaterThan(phoneLabelHeight));
+      },
+    );
+
     testWidgets('non-compact event pills match mockup sizing steps', (
       tester,
     ) async {
@@ -795,7 +873,6 @@ void main() {
       ).readAsStringSync();
 
       for (final styleDefinition in const [
-        'const TextStyle _monthTitleGold = TextStyle(',
         'const TextStyle _seasonStyle = TextStyle(',
         'const TextStyle _decanStyle = TextStyle(',
         'const TextStyle _weekdayLabelStyle = TextStyle(',
@@ -913,6 +990,19 @@ void main() {
       expect(dayChipBlock, contains('style: labelStyle'));
       expect(dayChipBlock, isNot(contains('DefaultTextStyle(')));
       expect(dayChipBlock, isNot(contains('ThemeData(')));
+    });
+
+    test('portrait day tiles do not create one raster layer per tile', () {
+      final source = File(
+        'lib/features/calendar/calendar_grid_widgets.dart',
+      ).readAsStringSync();
+      final dayChipBlock = _sourceBetween(
+        source,
+        'class _DayChip extends StatelessWidget',
+        'class _MiniEventBlock extends StatelessWidget',
+      );
+
+      expect(dayChipBlock, isNot(contains('child: RepaintBoundary(')));
     });
 
     test('month layout constants use warm rectangular mockup grid colors', () {
@@ -1054,20 +1144,29 @@ void main() {
 
 Future<void> _pumpMonthCard(
   WidgetTester tester, {
+  int kMonth = 1,
   required MonthExpansionLevel expansionLevel,
   List<NoteData> Function(int day)? notesForDay,
+  Size? mediaSize,
 }) async {
+  final monthCard = SingleChildScrollView(
+    child: buildCalendarMonthCardLayoutForTesting(
+      kYear: 6267,
+      kMonth: kMonth,
+      expansionLevel: expansionLevel,
+      notesForDay: notesForDay ?? ((_) => const <NoteData>[]),
+    ),
+  );
+
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
-        body: SingleChildScrollView(
-          child: buildCalendarMonthCardLayoutForTesting(
-            kYear: 6267,
-            kMonth: 1,
-            expansionLevel: expansionLevel,
-            notesForDay: notesForDay ?? ((_) => const <NoteData>[]),
-          ),
-        ),
+        body: mediaSize == null
+            ? monthCard
+            : MediaQuery(
+                data: MediaQueryData(size: mediaSize),
+                child: monthCard,
+              ),
       ),
     ),
   );

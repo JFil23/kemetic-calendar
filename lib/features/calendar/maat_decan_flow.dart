@@ -386,13 +386,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'The hearing begins before you think it does. The view formed before the full account is heard is already shaping what you will hear. This sitting names that view.',
+            'The hearing begins before you think it does. The view formed before the full account is heard is already shaping what you will hear. This sitting names that view. The strongest preference marks where the fair hearing is most needed.',
         spokenLine:
             'Be patient, so that you may learn Ma\'at. Control your own preference, so that the humble petitioner may gain.',
         steps: <String>[
           'List the work, family, friendship, community, or self-judgment situations where your view affects an outcome.',
           'For each, mark whether you have already formed a view before fully hearing all sides.',
-          'Circle the situation where your preference is strongest. This is where the fair hearing is most needed.',
+          'Circle the situation where your preference is strongest.',
         ],
         sourceNote:
             'Khunanup appealed nine times because the first hearing produced no decision. The petitioner must persist; the judge must eventually decide. This sitting names who is waiting for a real hearing.',
@@ -406,12 +406,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Name the preference that will tilt the balance if you pretend you do not have one.',
+            'A named preference can be held lightly. An unnamed preference tilts the balance while pretending not to exist.',
         spokenLine:
             'Control your own preference, so that the humble petitioner may gain.',
         steps: <String>[
           'Return to the most charged situation from Day 1 and name what you prefer to be true.',
-          'Ask who has more power and who has less. Does your preference align with the more powerful party?',
+          'Name who has more power and who has less.',
+          'Name whether your preference aligns with the more powerful party.',
           'Write: My preference in [situation] is [specific view]. I will hold this preference lightly until I have heard fully.',
         ],
       ),
@@ -424,13 +425,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Choose the one live judgment that will receive the Decan 2 fair-hearing practice.',
+            'One live judgment receives the second ten-day section of fair-hearing practice.',
         spokenLine:
             'Do not be partial, and do not give in to a whim. Let your decision be pronounced.',
         steps: <String>[
-          'Choose one situation for Decan 2 - the one where fairness will require the most from you.',
+          'Choose one situation for the second ten-day section - the one where fairness will require the most from you.',
           'Name who has not yet been fully heard.',
-          'Write: In Decan 2, I will give the full fair hearing to [situation]. I will hear [person or side] before I decide.',
+          'Write: In the second ten-day section, I will give the full fair hearing to [situation]. I will hear [person or side] before I decide.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -442,12 +443,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Ptahhotep said the wronged person needs to unburden the heart even when not every request can be granted. The full hearing is itself a form of justice, before the decision.',
+            'Ptahhotep said the wronged person needs to unburden the heart even when not every request can be granted. The full hearing is itself a form of justice, before the decision. A conclusion formed while the person is still speaking is premature.',
         spokenLine:
             'Be patient when listening to the words of a petitioner. Do not dismiss him until he has completely unburdened himself.',
         steps: <String>[
           'Before the hearing, write one sentence about what you expect to hear.',
-          'Give the actual hearing. Do not interrupt. Do not signal your conclusion. The conclusion that forms while the person is still speaking is premature.',
+          'Give the actual hearing.',
+          'Do not interrupt.',
+          'Do not signal or state your conclusion while the person is still speaking.',
           'Afterward, write one thing you heard that complicated or expanded your view.',
         ],
         requiresRealWorldAction: true,
@@ -463,11 +466,11 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Test whether the balance changes when a different person is standing on it.',
+            'The same measure must hold when a different person is standing on it.',
         spokenLine:
             'Do not cover your face against one whom you know; do not blind your sight against one whom you have seen.',
         steps: <String>[
-          'If the parties were reversed, would you hear the claim the same way?',
+          'Test whether you would hear the claim the same way if the parties were reversed.',
           'Name one piece of evidence you have minimized because of who offered it.',
           'Write: I have been minimizing [account] because [reason]. I will hear it again with the same attention.',
         ],
@@ -505,11 +508,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Review the process: not whether the outcome favored everyone, but whether the hearing was fair.',
+            'The process is reviewed by whether the hearing was fair, not by whether the outcome favored everyone.',
         spokenLine:
             'Do not utter falsehood, for you are a balance. If it wavers, then you will waver.',
         steps: <String>[
-          'Ask whether the hearing was full, the measure was consistent, and the decision was based on what was heard.',
+          'Ask whether the hearing was full.',
+          'Ask whether the measure was consistent.',
+          'Ask whether the decision was based on what was heard.',
           'For any no or partial answer, name exactly what was missing.',
           'If something was not fully heard, name whether an acknowledgment is owed.',
         ],
@@ -523,13 +528,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Look beyond the main case and name the person whose appeal has simply not been heard.',
+            'The practice looks beyond the main case to the person whose appeal has simply not been heard.',
         spokenLine:
             'Do not be a hawk to the commoners. One who is deaf to Ma\'at has no friend.',
         steps: <String>[
           'Name someone who has appealed to you and genuinely has not been heard.',
           'Name what they are asking and why they have not been heard.',
-          'Name what a fair hearing would require before this flow closes.',
+          'Name what a fair hearing would require before the closing sitting.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -547,7 +552,10 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Name the situation where the fair hearing was most complete.',
           'Name the situation where partiality or incompleteness still entered.',
-          'Speak only the truth-check lines that apply: I heard fully; I applied the same measure; I pronounced a decision clearly.',
+          'Speak only the lines that are true.',
+          'Say, if true: I heard fully.',
+          'Say, if true: I applied the same measure.',
+          'Say, if true: I pronounced a decision clearly.',
           'Write one continuing practice: When I am called to judge, I will [practice] before I decide.',
         ],
         sourceNote:
@@ -631,11 +639,12 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 30,
         durationMinutesMax: 60,
         purpose:
-            'Removal is the active half of ordering. The object in the wrong space does the same damage to the room\'s function as the boundary stone in the wrong field.',
+            'Removal is the active half of ordering. The object in the wrong space does the same damage to the room\'s function as the boundary stone in the wrong field. A hallway pile or same-room corner keeps the false relation in place.',
         spokenLine: 'What does not belong here is set in its true place.',
         steps: <String>[
-          'Physically remove every item marked "does not belong here." Each item goes where it truly belongs — not to the hallway, not to a corner of the same room. If it belongs nowhere you inhabit, release it.',
-          'Put each item where it truly belongs, discard it, or release it.',
+          'Physically remove every item marked "does not belong here."',
+          'Put each item where it truly belongs, not in the hallway or a corner of the same room.',
+          'If it belongs nowhere you inhabit, discard it or release it.',
           'Record what remains.',
         ],
         requiresRealWorldAction: true,
@@ -691,7 +700,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Open air into the space.',
           'Wipe surfaces with water.',
-          'Add one intentional scent and record the state of the space after purification.',
+          'Add one intentional scent.',
+          'Record the state of the space after purification.',
         ],
         requiresRealWorldAction: true,
       ),
@@ -708,7 +718,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Use the space for its main purpose.',
           'Do not adjust while using it.',
-          'Afterward, write what was easier, what remains misaligned, and what the space communicated.',
+          'Afterward, write what was easier.',
+          'Write what remains misaligned and what the space communicated.',
         ],
         requiresRealWorldAction: true,
       ),
@@ -721,11 +732,12 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 10,
         purpose:
-            'The ordering established in Decan 2 returns to disorder without maintenance. The five-minute daily practice is what makes the ordering permanent rather than a one-time reset.',
+            'The ordering established in the second ten-day section returns to disorder without maintenance. The five-minute daily practice is what makes the ordering permanent rather than a one-time reset. The instruction must be specific enough to follow without thinking about it.',
         spokenLine: 'What is arranged must be returned to arrangement.',
         steps: <String>[
-          'Write the maintenance practice as a specific instruction: When I [enter/leave] this space each [morning/evening], I will [specific acts]. Specific enough to follow on Day 31 without thinking about it.',
-          'It must return objects, clear surfaces, and include one sensory act of purification.',
+          'Write the maintenance practice as a specific instruction: When I [enter/leave] this space each [morning/evening], I will [specific acts].',
+          'Include how the practice returns objects.',
+          'Include how the practice clears surfaces and performs one sensory act of purification.',
           'Share only the one-sentence statement of what the space now communicates.',
         ],
         sourceNote:
@@ -847,9 +859,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'The principle must come from the observed behavior — not from what the subject is supposed to represent, but from what the specific observed pattern actually demonstrates.',
         spokenLine: 'The principle must come from observed behavior.',
         steps: <String>[
-          'Write one sentence beginning with "[Subject] demonstrates: [principle]." Reject any principle not directly traceable to a specific behavior you observed and recorded.',
           'Write one sentence: [Subject] demonstrates: [principle].',
-          'Reject any principle that did not come from observed behavior.',
+          'Reject any principle not directly traceable to a specific behavior you observed and recorded.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -878,13 +889,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMax: 15,
         purpose:
             'The lesson is the observation\'s product — one actionable principle derived from patient watching over thirty days.',
-        spokenLine:
-            'Speak the lesson before writing it: Watching [subject] for thirty days taught me [lesson]. Say it aloud once. Then write it.',
+        spokenLine: 'Watching [subject] for thirty days taught me [lesson].',
         steps: <String>[
+          'Speak the lesson aloud once before writing it.',
           'Write one actionable lesson: Watching ___ taught me ___.',
           'Keep it tied to the observed pattern.',
-          'Optionally share the lesson to the feed.',
         ],
+        optionalSteps: <String>['Share the lesson to the feed.'],
         sharePromptOnComplete: true,
         sourceNote:
             'The Anubis theology did not remain an observation — it became the threshold guardian, the weigher of hearts, the guide of the dead. The lesson extracted from the natural world becomes a principle of conduct. This sitting names that principle and commits it to the record.',
@@ -900,7 +911,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 10,
         durationMinutesMax: 15,
-        purpose: 'Take one action based on the lesson before logging.',
+        purpose:
+            'The lesson enters the record only when it produces one action before logging.',
         spokenLine: 'The lesson enters the record through action.',
         steps: <String>[
           'Take one specific action based on the lesson before logging.',
@@ -935,13 +947,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'The Per Ankh was a working scriptorium — not a library where the learned went to read, but a workshop where texts were produced, tested, and transmitted. This sitting enters it as a practitioner, not a browser.',
+            'The Per Ankh was a working scriptorium — not a library where the learned went to read, but a workshop where texts were produced, tested, and transmitted. This sitting enters it as a practitioner, not a browser. The weakest discipline is where the practice begins.',
         spokenLine:
             'Come to me, Djehuty, that you may give advice and make me skillful in your office.',
         steps: <String>[
           'Name what you are currently learning - a skill, craft, practice, tradition, or body of knowledge.',
           'Check the three disciplines: writing it down, speaking or reciting it, and seeking those who know more.',
-          'Name the weakest of the three. This is where the practice begins.',
+          'Name the weakest of the three.',
         ],
         sourceNote:
             'The Per Ankh\'s priests were not passive custodians — they copied, produced, interpreted, and applied what they held. Knowledge that sits in the archive without being used is not living knowledge. This sitting names what you are actively working with, and where the work is weakest.',
@@ -955,7 +967,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Check whether you are receiving the subject as it is or bending it toward what you already believe.',
+            'Accuracy begins by seeing whether the subject is being received as it is or bent toward what you already believe.',
         spokenLine: 'Say what he said. Neither take away nor add to it.',
         steps: <String>[
           'Name where you are adding: interpreting early, filling gaps, or importing your own agenda.',
@@ -972,11 +984,11 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Commit the next decan to writing, reciting, and seeking on the subject you named.',
+            'The next ten-day section is committed to writing, reciting, and seeking on the subject you named.',
         spokenLine:
             'See, it is good if you write frequently. Understanding transforms an eager person.',
         steps: <String>[
-          'Write: In the second decan, I will practice writing, reciting, and seeking on [subject].',
+          'Write: In the second ten-day section, I will practice writing, reciting, and seeking on [subject].',
           'Name one person, text, teacher, or practitioner who knows more than you.',
           'Name one thing you will write down this week with enough clarity for another reader.',
         ],
@@ -990,13 +1002,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'What you can write precisely has been learned. What you can only gesture at is still loose in the understanding. Writing is the test.',
+            'What you can write precisely has been learned. What you can only gesture at is still loose in the understanding. Writing is the test. A specific gap is the Per Ankh\'s next assignment, not a failure.',
         spokenLine:
             'Write with your hand, recite with your mouth, and converse with those more knowledgeable than you.',
         steps: <String>[
           'Write one complete account of something you have learned, as if the reader cannot ask you to clarify.',
           'Read it back and correct anything that depends on you standing beside the text.',
-          'Name what the writing revealed about the gaps in your understanding. The gaps are not failures — they are the Per Ankh\'s next assignment.',
+          'Name the specific gap the writing revealed in your understanding.',
         ],
         sourceNote:
             'The Kemetic scribe was valued for the accuracy of the hand — the transmission that neither added nor removed. Writing what you know precisely enough for a future reader who cannot ask you to clarify is the scribal standard. Where the writing breaks down is where the learning is still incomplete.',
@@ -1010,12 +1022,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'The scribe who could recite what they copied had internalized it. The scribe who could only locate it in the text had stored it, not learned it.',
+            'The scribe who could recite what they copied had internalized it. The scribe who could only locate it in the text had stored it, not learned it. Collapse is useful data because it shows where understanding still depends on the text rather than on itself.',
         spokenLine:
             'Write with your hand, recite with your mouth, and converse with those more knowledgeable than you.',
         steps: <String>[
           'Speak one concept or principle from memory, accurately and in order.',
-          'Notice what is fluent and what collapses when spoken. Collapse is useful data — it shows where the understanding depends on the text rather than on itself.',
+          'Mark what stays fluent when spoken.',
+          'Mark what collapses when spoken.',
+          'If something collapses, write the exact sentence, term, or sequence that needs repair.',
           'If someone asks a question you cannot answer accurately, write it as the next thing to learn.',
         ],
       ),
@@ -1049,7 +1063,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Choose what is accurate enough to pass forward and who could receive it.',
+            'Transmission requires knowing what is accurate enough to pass forward and who could receive it.',
         spokenLine:
             'Writing was their memory-priest. The pen was their child, the papyrus surface their wife.',
         steps: <String>[
@@ -1068,13 +1082,15 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 5,
         durationMinutesMax: 5,
-        purpose: 'Do or record the transmission promised on Day 21.',
+        purpose:
+            'The transmission promised on Day 21 becomes living knowledge only when it is given, received, and recorded honestly.',
         spokenLine:
             'Neither take away nor add to it. Give what was learned to those who will receive it.',
         steps: <String>[
           'If the transmission happened, write what you gave and to whom.',
-          'If not, do it today or name exactly when before the close.',
           'Ask what the recipient understood and what confused them.',
+          'If the transmission has not happened, do it today.',
+          'If it cannot happen today, name exactly when before the closing sitting.',
         ],
         requiresRealWorldAction: true,
       ),
@@ -1093,7 +1109,12 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Name what you can now say with precision on the subject you studied.',
           'Name what remains beyond this 30-day cycle and how you will keep learning it.',
-          'Speak only the true lines: I wrote; I recited; I sought; I transmitted; what I know is more accurate.',
+          'Speak only the lines that are true.',
+          'Say, if true: I wrote.',
+          'Say, if true: I recited.',
+          'Say, if true: I sought.',
+          'Say, if true: I transmitted.',
+          'Say, if true: What I know is more accurate.',
           'Open one ḥꜣw node entry and read slowly, as the scribe reads.',
         ],
         sharePromptOnComplete: true,
@@ -1128,7 +1149,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'After the Nile flood, the boundaries were resurveyed because the water had moved them. The stone was replaced not according to memory but according to the original measurement. Map the four fields from the same starting question: what is actually mine?',
+            'After the Nile flood, the boundaries were resurveyed because the water had moved them. The stone was replaced not according to memory but according to the original measurement. The four fields are mapped from the same starting question: what is actually mine?',
         spokenLine:
             'Do not move the markers on the boundaries of the fields, nor alter the measuring line.',
         steps: <String>[
@@ -1148,11 +1169,12 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Name what enough means in each domain - not the maximum you can take.',
+            'Enough is the measure in each domain - not the maximum that can be taken.',
         spokenLine:
             'Do not be covetous for a single cubit. The measure is exact.',
         steps: <String>[
-          'Return to resources, labor, credit, and force. For each, write what enough looks like.',
+          'Return to resources, labor, credit, and force.',
+          'For each domain, write what enough looks like.',
           'Mark any domain where the measure is genuinely unclear.',
           'Name where you may be taking from not knowing the line rather than from actual entitlement.',
         ],
@@ -1166,13 +1188,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Read the map and choose one domain for honest survey in Decan 2.',
+            'The first map points to one domain for honest survey in the second ten-day section.',
         spokenLine:
             'The boundary of the fields is set. What is mine is named. What is not mine is also named.',
         steps: <String>[
-          'Look at the map. What field is larger, smaller, or more contested than you thought?',
+          'Look at the map.',
+          'Name which field is larger, smaller, or more contested than you thought.',
           'Name one domain where you suspect the stone has moved.',
-          'Write: In Decan 2, I will look honestly at [domain].',
+          'Write: In the second ten-day section, I will look honestly at [domain].',
         ],
       ),
       MaatDecanFlowEvent(
@@ -1224,13 +1247,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Record what was taken beyond measure and what restoration would require.',
+            'The survey findings name what was taken beyond measure and what restoration would require.',
         spokenLine:
             'I have not taken more than my share. I have not used force beyond necessity.',
         steps: <String>[
           'For each moved stone, name what was taken beyond the measure and by how much.',
           'For each, name what restoration would look like in exact words.',
-          'Carry these restorations into Decan 3 as commitments.',
+          'Carry these restorations into the third ten-day section as commitments.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -1242,13 +1265,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Choose the moved stone that most strained relationship or trust and begin placing it back.',
+            'Restoration begins with the moved stone that most strained relationship or trust.',
         spokenLine:
             'Guard yourself against the blemish of greediness. He who forsakes his relatives is truly poor.',
         steps: <String>[
           'Choose the moved stone that caused the most relational damage.',
           'Write: To restore [domain], I will [specific act] by [date].',
-          'Name the actual proportionate measure. This is where the stone belongs.',
+          'Name the actual proportionate measure.',
+          'Write where the stone belongs.',
         ],
         requiresRealWorldAction: true,
         sourceNote:
@@ -1263,13 +1287,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 3,
         durationMinutesMax: 5,
         purpose:
-            'Record whether the Day 21 restoration happened and choose one simpler restoration before the close.',
+            'The first restoration check names whether the Day 21 act happened and locates one simpler restoration before the closing sitting.',
         spokenLine:
             'Do not be selfish in the division. Greater is the claim of the good-natured person than the assertive.',
         steps: <String>[
           'If the restoration happened, write what changed.',
           'If not, name exactly what is between you and the restoration.',
-          'Choose a second, simpler stone that can be restored before Day 29.',
+          'Choose a second, simpler stone that can be restored before the closing sitting.',
         ],
         requiresRealWorldAction: true,
       ),
@@ -1321,13 +1345,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 3,
         durationMinutesMax: 5,
         purpose:
-            'The offering is complete when it meets the measure of what was owed — not when the giver has given everything possible. This distinction is the practice.',
+            'The offering is complete when it meets the measure of what was owed — not when the giver has given everything possible. Hotep does not happen from a working position; the body must be allowed to sit where the offering can close. This distinction is the practice.',
         spokenLine:
             'I have come having gotten Horus\'s eye, that your heart may become cool with it.',
         steps: <String>[
-          'Place water on your surface and sit somewhere you actually rest. Not a working position — a resting one. Hotep does not happen at the desk.',
+          'Place water on your surface.',
+          'Sit somewhere you actually rest, not in a working position.',
           'Write what you are currently offering: time, labor, care, attention, skill.',
-          'Write what is owed. The offering is complete when it meets the measure, not when you can give no more.',
+          'Write what is owed.',
           'Drink the water.',
         ],
         sourceNote:
@@ -1366,7 +1391,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Name what is producing the inability to rest or fear of tomorrow.',
           'Ask whether it is real incompleteness or the distortion that more is always owed.',
-          'Carry that distinction into Decan 2.',
+          'Carry that distinction into the next ten-day section.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -1380,8 +1405,9 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         purpose:
             'The central question of Hotep is not "have I done enough" — it is "have I done what was owed." These produce different answers.',
         spokenLine:
-            'Speak this before the question: Do not go to bed fearing tomorrow. God is success; man is failure. Then sit with the question for at least two minutes: Has the offering of this period been made?',
+            'Do not go to bed fearing tomorrow. God is success; man is failure.',
         steps: <String>[
+          'Speak the line before the question.',
           'Sit with the question for at least two minutes: Has the offering of this period been made?',
           'Answer with the Day 1 measure, not with a vague feeling of enough.',
           'Write: The offering is complete, or The offering is incomplete in [specific way].',
@@ -1398,13 +1424,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 3,
         durationMinutesMax: 5,
         purpose:
-            'Name what you are carrying to bed that your anxiety cannot actually change.',
+            'Name what you are carrying to bed that your anxiety cannot actually change. What remains after that sorting is the real offering.',
         spokenLine:
             'Man knows not what tomorrow will be. What I cannot control, I set down here.',
         steps: <String>[
           'Write the outcomes, choices, or circumstances you are carrying to bed but cannot control.',
-          'Draw a line through each one and place them outside the bed.',
-          'Name what remains that is genuinely yours. That is the real offering.',
+          'Draw a line through each one.',
+          'Place the page away from the bed.',
+          'Name what remains that is genuinely yours.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -1439,7 +1466,9 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'She will cool the heart with them on the day of awaking. Hotep. The heart begins to be cooled.',
         steps: <String>[
           'Before sleep, put work down thirty minutes earlier than usual.',
-          'Place water, sit, and speak the line.',
+          'Place water beside you.',
+          'Sit.',
+          'Speak the line.',
           'Write one sentence about the real obstacle to resting in what has been given.',
         ],
         requiresRealWorldAction: true,
@@ -1470,16 +1499,18 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'The cool heart is the product of the completed offering, not its prerequisite. This sitting produces the cool heart by closing the offering record and placing what cannot be controlled outside the sleeping space.',
+            'The cool heart is the product of the completed offering, not its prerequisite. This sitting produces the cool heart by closing the offering record and placing what cannot be controlled outside the sleeping space. The act is physical because the cool heart is physical.',
         spokenLine:
             'These your cool waters have come from your son. Your heart will not become weary with it. Hotep.',
         steps: <String>[
-          'Place water and sit where you will be before sleep.',
+          'Place water where you will be before sleep.',
+          'Sit where you will be before sleep.',
           'Name aloud what you offered across this flow: time, labor, care, presence, skill.',
           'Speak: What was owed has been given.',
-          'Write anything left in the bed that is not yours to control and place the paper away from where you sleep. The act is physical because the cool heart is physical.',
-          'Drink the water. Lie down.',
-          'sleep',
+          'Write anything left in the bed that is not yours to control.',
+          'Place the paper away from where you sleep.',
+          'Drink the water.',
+          'Lie down to sleep.',
         ],
         extraCompletionStatusLabels: <String, String>{'cooled': 'Cooled'},
         sourceNote:
@@ -1535,9 +1566,11 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         spokenLine:
             'My speech has not been heated. My heart has not been hasty.',
         steps: <String>[
-          'Choose one piece of speech from the last five days and write what it created.',
-          'Choose one thing not said and write what its absence created.',
-          'Name the speech pattern from Day 1 that Decan 2 should govern.',
+          'Choose one piece of speech from the last five days.',
+          'Write what it created.',
+          'Choose one thing not said.',
+          'Write what its absence created.',
+          'Name the speech pattern from Day 1 that the next ten-day section should govern.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -1555,7 +1588,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Name the speech pattern that would most improve what your mouth creates if governed.',
           'Name the one thing not said that needs to be said before this flow closes.',
-          'Write: In Decan 2, I will practice [discipline]. I will say [needed thing].',
+          'Write: In the next ten-day section, I will practice [discipline]. I will say [needed thing].',
         ],
       ),
       MaatDecanFlowEvent(
@@ -1572,7 +1605,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Review the five disciplines: pause, accuracy, relevance, timing, witness before speaking.',
           'For each, write whether it is currently operating in your speech.',
-          'Choose one discipline for this decan and define the specific practice.',
+          'Choose one discipline for this ten-day section.',
+          'Define the specific practice.',
         ],
         sourceNote:
             'Amenemope\'s image of the tongue as a steering oar places the problem clearly: an oar not controlled by the navigator creates the illusion of movement while taking the vessel in the wrong direction. Choose the discipline most absent.',
@@ -1591,7 +1625,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'Do not pour out your words to others. Be strong in your heart.',
         steps: <String>[
           'Name one thing you did not say this decan that was better kept back.',
-          'Check the thing that needs to be said: has it been said? If not, when before the decan ends?',
+          'Check whether the thing that needs to be said has been said.',
+          'If it has not been said, name the time before this ten-day section ends when you will say it.',
           'Practice one deliberate pause in a conversation today.',
         ],
         requiresRealWorldAction: true,
@@ -1610,8 +1645,9 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'Your ears have been unplugged, your mouth has been opened, the bonds have been loosened.',
         steps: <String>[
           'For your chosen discipline, write one honest sentence about how it operated.',
-          'Record whether the important thing has been said; if not, name what remains in the way.',
-          'Name one conversation that went differently because the mouth was governed.',
+          'Record whether the important thing has been said.',
+          'If it has not been said, name what remains in the way.',
+          'Name one conversation that changed when the mouth was governed.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -1623,13 +1659,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'The heart conceives before the tongue declares. Writing the true thing first is the heart\'s work — making it real through speech is the tongue\'s work. This sitting completes the first half.',
+            'The heart conceives before the tongue declares. Writing the true thing first is the heart\'s work — making it real through speech is the tongue\'s work. What is not fully conceived is not ready to be declared. This sitting completes the first half.',
         spokenLine:
             'Your tongue is the plummet. Your heart is the weight. I open my mouth with care.',
         steps: <String>[
           'Ask what your mouth has been creating across this flow.',
           'Name one specific, true, currently unspoken thing you will bring into the world by saying it.',
-          'Write it first. What is not fully conceived is not ready to be declared.',
+          'Write it first.',
         ],
         sourceNote:
             'The Memphite Theology describes creation as: heart conceives, tongue declares, world forms. The mouth that speaks before the heart has finished conceiving is interrupting the process. Writing the sentence first is the heart\'s work completed before the tongue takes over.',
@@ -1647,7 +1683,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'Open your mouth, for you have been tended. The bonds are loosened. You are sound.',
         steps: <String>[
           'If the thing written on Day 21 has been said, write what happened when it entered the world.',
-          'If not, today is the day. Say it before Event 9.',
+          'If it has not been said, say it before the closing sitting.',
           'Write the most accurate thing you learned about your own speech.',
         ],
         requiresRealWorldAction: true,
@@ -1663,12 +1699,16 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         purpose:
             'The flow closes with what was spoken that needed to be spoken, and with one minute of intentional silence. The silence is not the absence of speech — it is the space the governed mouth creates.',
         spokenLine:
-            'Speak only what is true: My mouth is open. My speech is governed. What I command, I create with care. Then sit in intentional silence for one full minute.',
+            'My mouth is open. My speech is governed. What I command, I create with care.',
         steps: <String>[
           'Name the most significant speech pattern the inventory revealed.',
           'Name what the governance practice produced.',
           'Name what was spoken that needed to be spoken: I said [thing] on [day]. It is now in the world.',
-          'Speak only the true lines: my speech was not heated; my heart was not hasty; I said what needed to be said.',
+          'Check whether the line is true before speaking it.',
+          'Speak only the parts of the line that are true.',
+          'Say, if true: My speech was not heated.',
+          'Say, if true: My heart was not hasty.',
+          'Say, if true: I said what needed to be said.',
           'Sit in intentional silence for one full minute.',
         ],
         extraCompletionStatusLabels: <String, String>{'spoken': 'Spoken'},
@@ -1706,7 +1746,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Open today\'s day card in ḥꜣw and read the Kemetic date, decan name, Ma\'at principle, and cosmic context.',
           'Write the date down outside the app: Kemetic date, season, and decan name.',
-          'Speak the line. The record has been opened.',
+          'Speak the line.',
         ],
         requiresRealWorldAction: true,
         sourceNote:
@@ -1721,7 +1761,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Ground the decan record in one node that explains what this period is asking.',
+            'One node grounds the decan record by explaining what this period is asking.',
         spokenLine:
             'Better is the profession of the scribe than all professions. The one skilled in it is fit for office.',
         steps: <String>[
@@ -1741,7 +1781,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Turn the decan quality from insight into one scheduled act with a date.',
+            'A scheduled act gives the decan quality a date and turns insight into work placed in time.',
         spokenLine:
             'I have hoed emmer for you, I have plowed barley for you: the work of the season is placed in time.',
         steps: <String>[
@@ -1760,13 +1800,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'The journal is the papyrus — the private record from which the guidance system builds its account. What is written with honesty and specificity produces more accurate guidance than what is performed there with care for appearance.',
+            'The journal is the papyrus — the private record from which the guidance system builds its account. What is written with honesty and specificity produces more accurate guidance than what is performed there with care for appearance. A specific record is more useful than a comprehensive one. Badges are signals that the entry has been recognized.',
         spokenLine:
             'Their writing was their memory-priest. The pen was their child. Their names endured.',
         steps: <String>[
-          'Open the journal and write at least three substantive sentences.',
-          'Write at least three substantive sentences about what this decan has meant, what you actually did in Ma\'at, what resisted the period, and one unanswered question. Specific is more useful than comprehensive.',
-          'Notice any badges generated from the entry. They are signals that the record is being read.',
+          'Open the journal.',
+          'Write at least three substantive sentences about what this decan has meant, what you actually did in Ma\'at, what resisted the period, and one unanswered question.',
+          'Notice any badges generated from the entry.',
         ],
         requiresRealWorldAction: true,
         sourceNote:
@@ -1781,7 +1821,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Let the record become communal: read what others have placed on the wall, then add one small true thing.',
+            'The record becomes communal when what others have placed on the wall is read and one small true thing is added.',
         spokenLine:
             'O living ones who pass by: read what was done, speak the name, and let the record continue.',
         steps: <String>[
@@ -1803,7 +1843,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'Use the alignment grid as a provisioning ledger: what was consumed, aligned, disrupted, and owed.',
+            'The alignment grid functions as a provisioning ledger: what was consumed, aligned, disrupted, and owed.',
         spokenLine:
             'What occurred must be dated. What is dated must be placed. What is placed shows what was given and what is owed.',
         steps: <String>[
@@ -1822,7 +1862,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'Use Flow Studio as the Per Ankh workshop: intention becomes a structured path on the calendar.',
+            'Flow Studio functions as the Per Ankh workshop: intention becomes a structured path on the calendar.',
         spokenLine:
             'What the heart thinks, the tongue commands. The intention spoken becomes the flow that structures the work.',
         steps: <String>[
@@ -1849,7 +1889,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Open the Ma\'at guidance card, a recent guidance delivery, or the decan opening.',
           'Name the pattern it identified and the one act it recommends.',
-          'If possible, complete the act today. If not, write what the right response is.',
+          'If possible, complete the act today.',
+          'If not, write what the right response is.',
           'Write: Ma\'at guidance, Day 25: [what it said]. My response: [what I did or decided].',
         ],
         sourceNote:
@@ -1865,7 +1906,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 8,
         durationMinutesMax: 10,
         purpose:
-            'Close the decan account by writing the final journal entry and physical closing line.',
+            'The final journal entry and physical closing line bound the decan account so it can be returned to as a measured record.',
         spokenLine:
             'I will put my annals among people and love of me among the gods. The record is real. The record persists.',
         steps: <String>[
@@ -1913,7 +1954,9 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
           'Read the core story: Ra sent the Eye as Sekhmet, she kept destroying after he called her back, and the gods flooded the field with red beer.',
           'Name your Sekhmet: resentment, ambition, grief, perfectionism, anger, or another force with its own momentum.',
           'Write: My Sekhmet is [specific thing]. It was sent out for [wound or purpose]. It is still going because [what sustains it].',
-          'Optional: name the beautiful thing this force used to make before it went too far.',
+        ],
+        optionalSteps: <String>[
+          'Name the beautiful thing this force used to make before it went too far.',
         ],
         sourceNote:
             'In the Book of the Heavenly Cow, Sekhmet\'s origin is Ra\'s wound and his legitimate anger. The force was right at the beginning. The problem arrived when it could not be recalled. This sitting names the force and its original purpose before deciding what the beer should be.',
@@ -2011,7 +2054,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Return to the Sekhmet from Day 1. Has it become less self-perpetuating?',
           'Write what actually happened, not what you hoped would happen.',
-          'If it is still active, name what more beer would look like. If something shifted, name the first sign of Het-Heru.',
+          'If it is still active, name what more beer would look like.',
+          'If something shifted, name the first sign of Het-Heru.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -2069,7 +2113,12 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Return to Day 1 and write what changed in how that force is operating.',
           'Name the beer you poured and the Het-Heru quality that emerged from the same source as the Sekhmet.',
-          'Speak only the true lines: I named the Sekhmet; I found what it sought; I poured the beer; I let music reach me; I shared a feast.',
+          'Speak only the lines that are true.',
+          'Say, if true: I named the Sekhmet.',
+          'Say, if true: I found what it sought.',
+          'Say, if true: I poured the beer.',
+          'Say, if true: I let music reach me.',
+          'Say, if true: I shared a feast.',
           'Do one beautiful thing now: look, listen, smell, touch, or move with deliberate delight.',
         ],
         requiresRealWorldAction: true,
@@ -2124,7 +2173,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 5,
         durationMinutesMax: 5,
-        purpose: 'Weigh the exchange value without inflation or deflation.',
+        purpose:
+            'Honest measure requires exchange value without inflation or deflation.',
         spokenLine: 'The measure is the eye of Re.',
         steps: <String>[
           'Choose two or three items from your inventory.',
@@ -2140,11 +2190,11 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 5,
         durationMinutesMax: 5,
-        purpose: 'Choose one offering whose real value can increase.',
+        purpose: 'One offering can be cultivated so its real value increases.',
         spokenLine: 'Fortunate is a scribe skilled in his office.',
         steps: <String>[
           'Name one offering that could become more valuable with focused development.',
-          'Write the specific act that would increase its real value before the next decan.',
+          'Write the specific act that would increase its real value before the next ten-day section.',
           'Name how the offering would be measured more honestly after that cultivation.',
         ],
       ),
@@ -2156,7 +2206,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 8,
         durationMinutesMax: 8,
-        purpose: 'Prepare one specific exchange at honest measure.',
+        purpose:
+            'One specific exchange must be prepared at honest measure before it is offered.',
         spokenLine: 'Do not tilt the scale nor falsify the weights.',
         steps: <String>[
           'Name one specific exchange you intend to make: what you will offer, to whom, and what return you seek.',
@@ -2173,13 +2224,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 5,
         purpose:
-            'The shore is a physical place. The exchange must actually happen before this event is logged.',
+            'The shore is a physical place. The exchange must actually happen before this event is logged. A planned exchange is not the same as a completed one.',
         spokenLine:
             'The Ape sits by the balance, while his heart is the plummet.',
         steps: <String>[
-          'Make one real exchange before logging this event. The act is the event. Logging a planned exchange is not the same as recording a completed one.',
+          'Make one real exchange before logging this event.',
           'Record what was offered, what was received, and whether both sides received honest value.',
-          'If it has not happened, name the blocker and the next concrete opening.',
+          'If it has not happened, name the blocker.',
+          'Name the next concrete opening.',
         ],
         requiresRealWorldAction: true,
         extraCompletionStatusLabels: <String, String>{'exchanged': 'Exchanged'},
@@ -2192,12 +2244,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.evening,
         durationMinutesMin: 5,
         durationMinutesMax: 5,
-        purpose: 'Review whether the exchange was delivered at honest measure.',
+        purpose:
+            'Honest measure is confirmed by whether each side delivered what was promised.',
         spokenLine:
             'When jewels are heaped upon gold, at daybreak they turn to lead.',
         steps: <String>[
           'Review the exchange.',
-          'Ask whether you delivered what you promised and whether the other side did too.',
+          'Ask whether you delivered what you promised.',
+          'Ask whether the other side delivered what they promised.',
           'Name any correction, return, or completion still owed.',
         ],
       ),
@@ -2209,7 +2263,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 8,
         durationMinutesMax: 8,
-        purpose: 'Account for direct, indirect, and reputational return.',
+        purpose:
+            'Direct, indirect, and reputational return each belong in the account.',
         spokenLine: 'Make a good reputation for me in your city.',
         steps: <String>[
           'Account for the return: direct material return, indirect opportunity, and reputational return.',
@@ -2230,7 +2285,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         spokenLine:
             'Better is bread when the mind is at ease than riches with anxiety.',
         steps: <String>[
-          'Eat something while doing this event. The bread test is practical: can this bread be eaten without planning how to protect what you have, or how to get more before it runs out?',
+          'Eat something while doing this event.',
+          'Ask whether you can eat without planning how to protect what you have or how to get more before it runs out.',
           'Ask whether this gain feels easy or anxious.',
           'Name what made it peaceful, or what made it uneasy.',
         ],
@@ -2245,12 +2301,15 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.evening,
         durationMinutesMin: 8,
         durationMinutesMax: 8,
-        purpose: 'Close the account and pass the story forward.',
+        purpose:
+            'The account closes when what came to shore is weighed, told, and kept private where privacy is owed.',
         spokenLine: 'What came to the shore has been weighed and told.',
         steps: <String>[
-          'Close the account: what you brought, what you exchanged, what returned, and what you will pass forward.',
+          'Write what you brought, what you exchanged, what returned, and what you will pass forward.',
           'Write the final line of the exchange story.',
-          'Optionally share the closing record, without exposing private details.',
+        ],
+        optionalSteps: <String>[
+          'Share the closing record only if it does not expose private details.',
         ],
         sharePromptOnComplete: true,
       ),
@@ -2299,7 +2358,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 15,
         durationMinutesMax: 15,
-        purpose: 'List the works of your life in sequence.',
+        purpose:
+            'The works of your life belong in sequence so the record can count what was actually done.',
         spokenLine: 'What was done is counted.',
         steps: <String>[
           'List the works of your life: completed, in progress, attempted but unfinished, and prevented by circumstance.',
@@ -2315,7 +2375,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 10,
         durationMinutesMax: 10,
-        purpose: 'Name what was given beyond obligation.',
+        purpose: 'What was given beyond obligation belongs in the account.',
         spokenLine: 'I gave bread to the hungry and clothed the naked.',
         steps: <String>[
           'Name what you gave beyond obligation: time, skill, provision, protection, knowledge, or care.',
@@ -2332,7 +2392,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 15,
         durationMinutesMax: 15,
         purpose:
-            'Find the consistent pattern across capacities, works, and gifts.',
+            'The capacities, works, and gifts can reveal the consistent pattern that has actually held.',
         spokenLine: 'The account has a thread.',
         steps: <String>[
           'Read the capacities, works, and gifts.',
@@ -2348,7 +2408,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 10,
         durationMinutesMax: 10,
-        purpose: 'Name what continued despite disruption.',
+        purpose: 'What continued despite disruption is part of the account.',
         spokenLine: 'What persisted is part of the account.',
         steps: <String>[
           'Name the disruptions that interrupted your path.',
@@ -2364,7 +2424,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.evening,
         durationMinutesMin: 10,
         durationMinutesMax: 10,
-        purpose: 'State the principle that actually shaped the record.',
+        purpose:
+            'The governing principle must come from the record, not from the claim you wish were true.',
         spokenLine: 'The record shows the governing principle.',
         steps: <String>[
           'Based on the record, write the governing principle that has actually shaped your choices.',
@@ -2381,12 +2442,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 30,
         durationMinutesMax: 45,
         purpose:
-            'The four-section document is a fact-check on the life so far. Allow the full thirty to forty-five minutes. This is not a note — it is a document.',
+            'The four-section document is a fact-check on the life so far. The full thirty to forty-five minutes belong to the work because this is not a note — it is a document.',
         spokenLine: 'I will put my annals among people.',
         steps: <String>[
           'Write the four-section document: Capacities, Works, Gifts, Claim.',
-          'Allow 30-45 minutes; this is a document, not a short note.',
-          'Read the document back once and correct anything inflated or deflated. Not improved — corrected. The autobiography must be accurate.',
+          'Give the document 30-45 minutes.',
+          'Read the document back once.',
+          'Correct anything inflated or deflated until the autobiography is accurate, not improved to sound better.',
         ],
         extraCompletionStatusLabels: <String, String>{
           'autobiography_written': 'Autobiography written',
@@ -2400,12 +2462,17 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 5,
         durationMinutesMax: 10,
-        purpose: 'Let one witnessed line meet another person.',
+        purpose:
+            'A witnessed line tests the account against someone who belongs to that part of the record.',
         spokenLine: 'Let me be tended and do not report me wrongly.',
         steps: <String>[
-          'Share one line from the autobiography with someone who witnessed, shaped, or belongs to that part of the account.',
-          'Record what they confirmed or corrected.',
-          'Use the feed only if there is no clear person to receive the line.',
+          'Choose one line that can be shared without exposing names, private details, or sensitive content.',
+          'Share the line only with someone who witnessed, shaped, or belongs to that part of the account.',
+          'If no safe person can receive it, keep the line private and record why it is not shared.',
+          'Record what they confirmed or corrected, or record the privacy reason if the line stayed private.',
+        ],
+        optionalSteps: <String>[
+          'Use the feed only for a generic line with names and private details removed.',
         ],
         requiresRealWorldAction: true,
         sharePromptOnComplete: true,
@@ -2561,11 +2628,11 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 8,
         durationMinutesMax: 10,
         purpose:
-            'The Memphite Theology places conception before declaration: the heart must know the form before the tongue can command it into existence. This sitting lets the heart conceive the accurate account in a specific current situation before the tongue is asked to declare it.',
+            'The Memphite Theology places conception before declaration: the heart must know the form before the tongue can command it into existence. This sitting lets the heart conceive the accurate account in a specific current situation before the tongue is asked to declare it. The imagination must be specific to do its work.',
         spokenLine:
             'The heart conceives; the tongue releases the word into form.',
         steps: <String>[
-          'Choose one specific current situation where the false account operates. Not in general — one situation. The imagination must be specific to do its work.',
+          'Choose one specific current situation where the false account operates, not a general pattern.',
           'Imagine acting from the accurate account in specific detail.',
           'Write what that looks like before you attempt it.',
         ],
@@ -2582,12 +2649,12 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMax: 8,
         purpose:
             'The Declaration of Innocence was spoken standing, before the divine court, aloud. Not written. Not thought. Spoken. This sitting follows the same form.',
-        spokenLine:
-            'Stand. Speak the accurate account, then speak the evidence. Then: I am pure, I am pure, I am pure, I am pure. Standing, four times.',
+        spokenLine: 'I am pure. I am pure. I am pure. I am pure.',
         steps: <String>[
           'Stand before speaking. The declaration is not made while seated.',
           'Speak the accurate account aloud, then speak the evidence.',
-          'Close with: I am pure, I am pure, I am pure, I am pure. Then record what it felt like.',
+          'Say the closing declaration.',
+          'Record what it felt like.',
         ],
         sourceNote:
             'The Declaration was spoken in a hall, before 42 Assessors, standing. The posture was not ceremonial — it was the form in which the declaration carried weight. This sitting follows it.',
@@ -2662,8 +2729,9 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Choose the Library entry you keep circling or dismissing.',
           'Read it fully.',
-          'Write what the avoidance was about. Optionally add a question.',
+          'Write what the avoidance was about.',
         ],
+        optionalSteps: <String>['Add one question the avoidance raises.'],
       ),
       MaatDecanFlowEvent(
         eventNumber: 3,
@@ -2673,12 +2741,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 8,
         durationMinutesMax: 8,
-        purpose: 'Record confusion in Your Insights.',
+        purpose:
+            'Confusion belongs in Your Insights. The unanswered question is as useful to the living record as what you can already answer.',
         spokenLine: 'No one is born wise.',
         steps: <String>[
           'Choose an important entry you do not fully understand.',
-          'Name the exact passage or concept that is unclear.',
-          'Open the node and tap Your Insights. Write the question exactly as it sits — what you cannot yet answer is as useful to the record as what you can.',
+          'Open the node and tap Your Insights.',
+          'Write the exact unclear passage or concept as a question.',
           'Save it to the node so the gap remains visible in your own record.',
         ],
         requiresRealWorldAction: true,
@@ -2697,7 +2766,10 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Return to the node you chose on Day 1 and tap Your Insights.',
           'Add a reflection from your lived experience — what the entry opened in you that the entry itself could not say.',
-          'Save it to the node. If it belongs to others, use Post to share it on your profile.',
+          'Save it to the node.',
+        ],
+        optionalSteps: <String>[
+          'If it belongs to others, use Post to share it on your profile.',
         ],
         sourceNote:
             'Scribal annotations in Kemetic manuscripts were often incorporated into subsequent copies — the reader\'s gloss became part of the text. What your experience adds to the entry belongs in the record alongside the original.',
@@ -2714,13 +2786,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 5,
         durationMinutesMax: 8,
-        purpose: 'Add a short connection between two Library entries.',
+        purpose:
+            'A short connection between two Library entries makes the relationship tappable in the living text.',
         spokenLine: 'A living text shows relation.',
         steps: <String>[
           'Find two Library entries that connect in a way the app does not already show.',
-          'Open one of the two nodes. In Your Insights, write the connection in one or two sentences.',
-          'After saving, use Link Insight to highlight the phrase that points toward the second node, then select the target node.',
-          'This makes your connection tappable for anyone who reads your insight.',
+          'Open Your Insights on one of the two nodes.',
+          'Write and save the connection in one or two sentences.',
+          'Use Link Insight to highlight the phrase that points toward the second node and select the target node.',
         ],
         requiresRealWorldAction: true,
       ),
@@ -2737,8 +2810,12 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'The living text receives what the older text could not know.',
         steps: <String>[
           'Choose an entry that feels incomplete.',
-          'Open the node and tap Your Insights. Name the missing question or modern situation the entry does not yet address.',
-          'Save it to the node. Shared, it becomes available to the next person who finds the same gap.',
+          'Open the node and tap Your Insights.',
+          'Name the missing question or modern situation the entry does not yet address.',
+          'Save it to the node.',
+        ],
+        optionalSteps: <String>[
+          'Share it if it should be available to the next person who finds the same gap.',
         ],
         requiresRealWorldAction: true,
       ),
@@ -2750,12 +2827,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 8,
         durationMinutesMax: 8,
-        purpose: 'Re-read the first entry after the decan has turned.',
+        purpose:
+            'The first entry reads differently after the decan has turned. What you see now that you did not see three decans ago is the decan doing its work, and that change is worth leaving in the record.',
         spokenLine: 'The reader returns changed.',
         steps: <String>[
-          'Open the node you chose on Day 1. Return to Your Insights and add or revise your entry.',
-          'What you see now that you did not see three decans ago is the decan doing its work.',
-          'That change is worth leaving in the record.',
+          'Open the node you chose on Day 1.',
+          'Return to Your Insights.',
+          'Add or revise your entry.',
         ],
         requiresRealWorldAction: true,
         libraryCta: kMaatLibraryCtaAddInsight,
@@ -2770,13 +2848,14 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.anyTime,
         durationMinutesMin: 10,
         durationMinutesMax: 10,
-        purpose: 'Write one application from a real situation.',
+        purpose:
+            'A real situation gives the living text one application that can be tested outside the page.',
         spokenLine: 'The principle becomes readable through life.',
         steps: <String>[
           'Write 150-250 words on how one Library principle operated in a real situation.',
           'Remove identifying details if needed.',
-          'Optionally share the useful part.',
         ],
+        optionalSteps: <String>['Share the useful part.'],
         sharePromptOnComplete: true,
       ),
       MaatDecanFlowEvent(
@@ -2789,13 +2868,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMax: 10,
         purpose:
             'The colophon closed with the scribe\'s mark: who was here, what was completed. Not a flourish — a record. This sitting produces the same mark on the living text.',
-        spokenLine:
-            'Write the closing mark and then speak: Completed correctly; the living text includes this mark.',
+        spokenLine: 'Completed correctly; the living text includes this mark.',
         steps: <String>[
           'Write your closing mark: what you read, what you added, and how the Library is richer because of it.',
+          'Speak the closing line.',
           'Name reflections, questions, and connections without calling them comments.',
-          'Share the final line if desired.',
         ],
+        optionalSteps: <String>['Share the final line if desired.'],
         sharePromptOnComplete: true,
         sourceNote:
             'The Kemetic colophon was a formal record, not a signature of pride. The scribe\'s name claimed engagement, not authorship. Your colophon does the same: not "I wrote this" but "I was here, I engaged with this, what I added belongs to it now."',
@@ -2885,8 +2964,9 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'The act of setting yourself apart is physical and procedural, not just intentional. The clearing is found by getting out of the enclosure, not by deciding the enclosure is no longer one.',
         spokenLine: 'Set yourself apart before the response forms.',
         steps: <String>[
-          'Choose one physical or procedural act that creates space before response. Specific enough to follow without deciding in the moment. "Try to be calmer" is not the act. "Before responding to [situation], I will [specific act]" is.',
-          'Use a concrete practice: wait one hour, walk outside, write before sending, sleep on it, or consult the day card first.',
+          'Choose one concrete physical or procedural act that creates space before response: wait one hour, walk outside, write before sending, sleep on it, or consult the day card first.',
+          'Do not use "try to be calmer" as the act.',
+          'Write it as: Before responding to [situation], I will [specific act].',
           'Write when you will use it and what heat situation it interrupts.',
         ],
       ),
@@ -2898,7 +2978,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         timing: MaatDecanFlowTiming.morning,
         durationMinutesMin: 5,
         durationMinutesMax: 8,
-        purpose: 'Take one real action from the cleared state before logging.',
+        purpose:
+            'The cleared state becomes part of the record only when one real action happens before logging.',
         spokenLine: 'The clearing acts without heat.',
         steps: <String>[
           'Take one real action from the cleared state before logging.',
@@ -2972,8 +3053,9 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Name one person or situation that benefits from your shade.',
           'Write the heat situation where you will continue setting yourself apart.',
-          'Record the shade you intend to provide. Optionally share only the one-line commitment.',
+          'Record the shade you intend to provide.',
         ],
+        optionalSteps: <String>['Share only the one-line commitment.'],
         sourceNote:
             'Amenemope says the temperate person reaches their end in a grove — surrounded by other trees, part of an ecosystem. The shade is not a side effect of the clearing. It is the clearing\'s gift to the people around it.',
         sharePromptOnComplete: true,
@@ -3006,12 +3088,13 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'The loss named specifically is the loss that can be searched for. Aset did not search for "what was gone" — she searched for Ausar. The name begins the search.',
+            'The loss named specifically is the loss that can be searched for. Aset did not search for "what was gone" — she searched for Ausar. The name begins the search. The water is provision for the body while it does this work.',
         spokenLine: 'My brother, for I have searched for you.',
         steps: <String>[
           'Write the name of what was lost. If it is not a person, name it as specifically as one.',
           'Write one sentence about what it gave you that you cannot get elsewhere right now.',
-          'Place water nearby and drink it slowly after writing the name. The provision the body needs when it is doing this work.',
+          'Place water nearby.',
+          'Drink it slowly after writing the name.',
         ],
         sourceNote:
             'Aset\'s search began with Ausar\'s specific identity — not with the category of loss but with the specific person. The specific name makes the search possible.',
@@ -3142,11 +3225,11 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMax: 8,
         purpose:
             'The Pyramid Texts command to stand is not a demand to stop grieving — it is the voice of love that has searched, found, and now asks the found one to rise. The physical act is the event.',
-        spokenLine:
-            'Before standing: Stand up for me. Then stand. Then choose one act.',
+        spokenLine: 'Stand up for me.',
         steps: <String>[
+          'Speak the line before standing.',
           'Stand physically before logging.',
-          'Choose one small act using a restored capacity: eat something wanted, listen to music, see something beautiful, or speak the name of what was lost to someone safe.',
+          'Do one small act using a restored capacity: eat something wanted, listen to music, see something beautiful, or speak the name of what was lost to someone safe.',
           'Record the act.',
         ],
         sourceNote:
@@ -3181,10 +3264,10 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 8,
         durationMinutesMax: 8,
         purpose:
-            'The body is reporting something right now — not what you think it should be feeling, but what it is actually communicating in this moment.',
+            'The body is reporting something right now — not what you think it should be feeling, but what it is actually communicating in this moment. The inventory is not an assessment; it is the act of listening to a report the body has been trying to give.',
         spokenLine: 'Teti is sound because of his body.',
         steps: <String>[
-          'Sit or lie down. Move attention from feet upward to face. The inventory is not an assessment — it is the act of listening to a report the body has been trying to give.',
+          'Sit or lie down.',
           'Move attention from feet to face.',
           'Write three things the body is communicating right now, without judging or correcting them.',
         ],
@@ -3221,7 +3304,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Name one specific thing the body has been asking for and not receiving.',
           'Choose from sleep, water, food timing, movement, rest, touch, or less of something excessive.',
-          'Write the smallest honest way to provide it this decan.',
+          'Write the smallest honest way to provide it in this ten-day section.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -3250,10 +3333,11 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 5,
         durationMinutesMax: 8,
         purpose:
-            'The anointing was not comfort — it was the mechanism of bodily agency: "you shall make him have control of his body." The body that receives deliberate care is the body the person can actually inhabit.',
+            'The anointing was not comfort — it was the mechanism of bodily agency: "you shall make him have control of his body." The Pyramid Texts anointed the forehead first because the forehead is the face the person presents to the world. The body that receives deliberate care is the body the person can actually inhabit.',
         spokenLine: 'Ointment returns attention to the body.',
         steps: <String>[
-          'After washing, apply oil, lotion, cream, or water to some part of the body with deliberate attention — not as grooming but as care. The Pyramid Texts anointed the forehead first because the forehead is the face the person presents to the world.',
+          'After washing, apply oil, lotion, cream, or water to some part of the body with deliberate attention.',
+          'Begin with the forehead if that is available to you.',
           'Record what the act returned to your relationship with the body.',
           'Keep body details private by default.',
         ],
@@ -3287,11 +3371,12 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         durationMinutesMin: 20,
         durationMinutesMax: 20,
         purpose:
-            'The Pyramid Texts repeated this command because the rising is the primary physical act of restoration. Not the most dramatic, not the most strenuous — the most fundamental. Move before logging.',
+            'The Pyramid Texts repeated this command because the rising is the primary physical act of restoration. Not the most dramatic, not the most strenuous — the most fundamental. The record follows the movement.',
         spokenLine:
-            'Speak this before beginning to move: Stand up, repel your earth, clear away your dust, raise yourself. Then begin.',
+            'Stand up, repel your earth, clear away your dust, raise yourself.',
         steps: <String>[
-          'Move deliberately for at least 20 minutes before logging.',
+          'Speak the line before beginning to move.',
+          'Begin moving deliberately for at least 20 minutes before logging.',
           'Walking, stretching, dancing, swimming, lifting, gardening, or physical cleaning all count if sustained and attended to.',
           'Record what the movement returned to the body.',
         ],
@@ -3330,7 +3415,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Return to the three body reports from Event 1.',
           'Write what shifted.',
-          'Stand fully at the end and record the khat’s current state compared to Day 1.',
+          'Stand fully at the end.',
+          'Record the khat’s current state compared to Day 1.',
         ],
         requiresRealWorldAction: true,
       ),
@@ -3367,7 +3453,8 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         steps: <String>[
           'Before sleep, clear the space near your head.',
           'Place one small object there.',
-          'Write your oracle question on paper and set it under or beside the object.',
+          'Write your oracle question on paper.',
+          'Set the paper under or beside the object.',
         ],
         sourceNote:
             'The Dream Stela records that Thutmose rested in the shadow of the Great God — a deliberate spatial act before the dream. The incubation at Kemetic temples followed the same logic: you position yourself within the field of divine presence and wait. The reception chamber is that positioning, made domestic.',
@@ -3402,9 +3489,10 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'The oracle consultation was formal — a specific address to a specific presence, with a specific question, in a specific posture of receiving. This invocation follows that form.',
         spokenLine: 'The question is spoken once, then silence receives.',
         steps: <String>[
-          'Speak the invocation before lying down. Address who you are asking by name. Speak the question once, clearly, completely. Do not speak again before sleep.',
-          'Address the deity, principle, Ba, Ka, Ma’at, or divine presence you are asking.',
-          'Speak the question clearly once. Do not speak again before sleep.',
+          'Before lying down, address the deity, principle, Ba, Ka, Ma’at, or divine presence you are asking.',
+          'Speak the question once, clearly and completely.',
+          'Lie down.',
+          'Do not speak again before sleep.',
         ],
         sourceNote:
             'Temple dream incubation was a formal consultation — not a vague hope for inspiration but a specific request made in a specific place with specific preparation. The invocation formalizes the request so that what the night sends can be understood as responsive to it.',
@@ -3422,7 +3510,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'The dream disperses immediately. Record before anything else — before the phone, before speaking, before the day\'s logic takes over.',
         spokenLine: 'The night record is written before interpretation.',
         steps: <String>[
-          'Immediately upon waking — before the phone, before speaking to anyone, before anything — reach for the notebook and write. What images. What words. What feelings. What atmosphere. Do not interpret yet.',
+          'Immediately upon waking, reach for the notebook before the phone or speaking to anyone.',
           'Record images, words, feelings, colors, sequence, and atmosphere.',
           'Do not interpret yet.',
         ],
@@ -3457,7 +3545,7 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
         purpose: 'Name what appeared more than once.',
         spokenLine: 'What returns asks to be examined.',
         steps: <String>[
-          'Review all recorded dreams from the first two decans.',
+          'Review all recorded dreams from the first two ten-day sections.',
           'Name what appeared more than once: figure, color, place, action, sound, feeling, or symbol.',
           'Keep the recurring element tied to the record.',
         ],
@@ -3474,9 +3562,10 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'Interpret the recurring element through four grounded questions.',
         spokenLine: 'Interpretation serves action.',
         steps: <String>[
-          'Interpret the recurring element with four questions.',
-          'Ask what it does, what principle it carries, how it relates to the oracle question, and what action it indicates.',
-          'Do not treat disturbing dream content as definitive truth.',
+          'Ask what the recurring element does.',
+          'Ask what principle it carries.',
+          'Ask how it relates to the oracle question.',
+          'Ask what action it indicates without treating disturbing dream content as definitive truth.',
         ],
       ),
       MaatDecanFlowEvent(
@@ -3508,9 +3597,9 @@ kMaatDecanFlowDefinitions = <MaatDecanFlowDefinition>[
             'The oracle completes when the action is taken. Thutmose cleared the sand from around the Sphinx. The dream that produces no action was not a consultation — it was a night\'s sleep.',
         spokenLine: 'He awoke and acted.',
         steps: <String>[
-          'Take the specific action indicated before logging this event.',
-          'Write the complete oracle record: question, what the night sent, what it indicated, and what action was taken.',
-          'If the oracle stayed unclear, record that honestly and do only the grounded action you can justify.',
+          'If the oracle indicated a specific action, take that action before logging this event.',
+          'If the oracle stayed unclear, do only the grounded action you can justify before logging this event.',
+          'Write the complete oracle record: question, what the night sent, what it indicated or left unclear, and what action was taken.',
         ],
         sourceNote:
             'Thutmose\'s stela records the dream and then records that he commanded the sand to be cleared. The action is what closes the Stela\'s account — not the dream, not the interpretation, but the act taken in response.',

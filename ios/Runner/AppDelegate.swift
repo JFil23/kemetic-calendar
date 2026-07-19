@@ -30,6 +30,8 @@ import WidgetKit
       switch call.method {
       case "requestPermissions":
         self.handleRequestPermissions(result: result)
+      case "hasPermissions":
+        result(self.hasCalendarPermission())
       case "getStableDeviceId":
         result(self.stableDeviceId())
       case "fetchEvents":
@@ -38,20 +40,6 @@ import WidgetKit
         } else {
           result(FlutterError(code: "bad_args", message: "Missing arguments", details: nil))
         }
-      case "upsertEvent":
-        if let args = call.arguments as? [String: Any] {
-          self.handleUpsertEvent(args: args, result: result)
-        } else {
-          result(FlutterError(code: "bad_args", message: "Missing arguments", details: nil))
-        }
-      case "deleteEvent":
-        if let args = call.arguments as? [String: Any], let eventId = args["eventId"] as? String {
-          self.handleDelete(eventId: eventId, result: result)
-        } else {
-          result(FlutterError(code: "bad_args", message: "Missing eventId", details: nil))
-        }
-      case "purgeKemeticEvents":
-        self.handlePurgeKemeticEvents(result: result)
       default:
         result(FlutterMethodNotImplemented)
       }
@@ -69,7 +57,7 @@ import WidgetKit
   }
 
   private func handleRequestPermissions(result: @escaping FlutterResult) {
-    eventStore.requestAccess(to: .event) { granted, error in
+    let complete: (Bool, Error?) -> Void = { granted, error in
       DispatchQueue.main.async {
         if let error = error {
           result(FlutterError(code: "permission_error", message: error.localizedDescription, details: nil))
@@ -78,6 +66,20 @@ import WidgetKit
         }
       }
     }
+
+    if #available(iOS 17.0, *) {
+      eventStore.requestFullAccessToEvents(completion: complete)
+    } else {
+      eventStore.requestAccess(to: .event, completion: complete)
+    }
+  }
+
+  private func hasCalendarPermission() -> Bool {
+    let status = EKEventStore.authorizationStatus(for: .event)
+    if #available(iOS 17.0, *) {
+      return status == .fullAccess
+    }
+    return status == .authorized
   }
 
   private func stableDeviceId() -> String? {
@@ -120,93 +122,6 @@ import WidgetKit
     result(events)
   }
 
-  private func handleUpsertEvent(args: [String: Any], result: @escaping FlutterResult) {
-    guard let startMs = args["start"] as? Int64 else {
-      result(FlutterError(code: "bad_args", message: "Missing start", details: nil))
-      return
-    }
-
-    let endMs = args["end"] as? Int64
-    let allDay = args["allDay"] as? Bool ?? false
-    let title = (args["title"] as? String) ?? "Untitled event"
-    let description = args["description"] as? String
-    let location = args["location"] as? String
-    let calendarId = args["calendarId"] as? String
-    let clientEventId = args["clientEventId"] as? String
-    let eventId = args["eventId"] as? String
-    let tzId = args["timeZone"] as? String
-
-    let start = Date(timeIntervalSince1970: TimeInterval(Double(startMs) / 1000.0))
-    let end = endMs != nil
-      ? Date(timeIntervalSince1970: TimeInterval(Double(endMs!) / 1000.0))
-      : start.addingTimeInterval(3600)
-
-    var event: EKEvent
-    if let eventId = eventId, let existing = eventStore.event(withIdentifier: eventId) {
-      event = existing
-    } else {
-      event = EKEvent(eventStore: eventStore)
-      if let calId = calendarId, let cal = eventStore.calendar(withIdentifier: calId) {
-        event.calendar = cal
-      } else if let defaultCal = eventStore.defaultCalendarForNewEvents {
-        event.calendar = defaultCal
-      } else if let firstCal = eventStore.calendars(for: .event).first {
-        event.calendar = firstCal
-      }
-    }
-
-    event.title = title
-    event.location = location
-    event.isAllDay = allDay
-    event.startDate = start
-    event.endDate = end
-    if let tzId = tzId, let tz = TimeZone(identifier: tzId) {
-      event.timeZone = tz
-    }
-    event.alarms = []
-    event.notes = mergeNotes(description, cid: clientEventId)
-
-    do {
-      try eventStore.save(event, span: .thisEvent)
-      result(event.eventIdentifier)
-    } catch {
-      result(FlutterError(code: "save_failed", message: error.localizedDescription, details: nil))
-    }
-  }
-
-  private func handleDelete(eventId: String, result: FlutterResult) {
-    if let event = eventStore.event(withIdentifier: eventId) {
-      do {
-        try eventStore.remove(event, span: .thisEvent)
-        result(true)
-      } catch {
-        result(FlutterError(code: "delete_failed", message: error.localizedDescription, details: nil))
-      }
-    } else {
-      result(false)
-    }
-  }
-
-  private func handlePurgeKemeticEvents(result: FlutterResult) {
-    let startDate = Date(timeIntervalSince1970: 0)
-    let endDate = Date(timeIntervalSinceNow: 60 * 60 * 24 * 365 * 25)
-    let predicate = eventStore.predicateForEvents(withStart: startDate, end: endDate, calendars: nil)
-    let events = eventStore.events(matching: predicate)
-    var deleted = 0
-
-    for event in events {
-      guard extractCid(from: event.notes) != nil else { continue }
-      do {
-        try eventStore.remove(event, span: .thisEvent)
-        deleted += 1
-      } catch {
-        // Keep going so one failure does not block the rest.
-      }
-    }
-
-    result(deleted)
-  }
-
   private func extractCid(from notes: String?) -> String? {
     guard let notes = notes else { return nil }
     let regex = try? NSRegularExpression(pattern: "kemet_cid:([^\\s]+)", options: .caseInsensitive)
@@ -216,18 +131,5 @@ import WidgetKit
       return String(notes[cidRange])
     }
     return nil
-  }
-
-  private func mergeNotes(_ notes: String?, cid: String?) -> String? {
-    guard let cid = cid, !cid.isEmpty else { return notes }
-    let base = notes ?? ""
-    let cleaned = base.replacingOccurrences(of: "kemet_cid:[^\\s]+", with: "", options: .regularExpression, range: nil).trimmingCharacters(in: .whitespacesAndNewlines)
-    if cleaned.contains("kemet_cid:\(cid)") {
-      return cleaned
-    }
-    if cleaned.isEmpty {
-      return "kemet_cid:\(cid)"
-    }
-    return "\(cleaned)\n\nkemet_cid:\(cid)"
   }
 }

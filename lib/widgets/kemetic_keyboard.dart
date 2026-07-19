@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:mobile/core/touch_targets.dart';
+import 'package:mobile/shared/kemetic_text.dart';
 
 import 'kemetic_web_keyboard_input.dart'
     if (dart.library.js_interop) 'kemetic_web_keyboard_input_web.dart';
@@ -57,6 +59,29 @@ class KemeticKeyboardRevealScope extends InheritedWidget {
   }
 }
 
+T? _tryActiveContextLookup<T>(T Function() lookup) {
+  try {
+    return lookup();
+  } on FlutterError catch (error) {
+    if (error.toString().contains('deactivated widget')) {
+      return null;
+    }
+    rethrow;
+  }
+}
+
+EditableTextState? _editableFromFocusNode(FocusNode? focus) {
+  final focusContext = focus?.context;
+  if (focusContext == null || !focusContext.mounted) return null;
+  final editable = _tryActiveContextLookup(
+    () => focusContext.findAncestorStateOfType<EditableTextState>(),
+  );
+  if (editable == null || !editable.mounted || !editable.context.mounted) {
+    return null;
+  }
+  return editable;
+}
+
 /// ChangeNotifier that tracks the currently focused editable field and whether
 /// the Medu Neter keyboard is open.
 class KemeticKeyboardController extends ChangeNotifier {
@@ -64,6 +89,8 @@ class KemeticKeyboardController extends ChangeNotifier {
   EditableTextState? _lastEditable;
   KeyboardMode _mode = KeyboardMode.system;
   bool _opening = false;
+  bool _customEditInteractionActive = false;
+  int _customEditInteractionEpoch = 0;
 
   bool get hasTarget => hasFocusedEditable || isOpen || isOpening;
   bool get hasFocusedEditable =>
@@ -79,9 +106,7 @@ class KemeticKeyboardController extends ChangeNotifier {
   EditableTextState? get lastEditable => _lastEditable;
 
   EditableTextState? _findEditableFromFocus() {
-    final focus = FocusManager.instance.primaryFocus;
-    if (focus?.context == null) return null;
-    return focus!.context!.findAncestorStateOfType<EditableTextState>();
+    return _editableFromFocusNode(FocusManager.instance.primaryFocus);
   }
 
   void ensureEditableFromFocus() {
@@ -158,6 +183,7 @@ class KemeticKeyboardController extends ChangeNotifier {
   void _insert(String value, _OutputMode mode) {
     final target = _selectUsableEditable();
     if (target == null) return;
+    _markCustomEditInteraction();
 
     final newValue = _buildInsertedValue(
       target.widget.controller.value,
@@ -171,6 +197,7 @@ class KemeticKeyboardController extends ChangeNotifier {
   void moveCaretHorizontally(int delta) {
     final target = _selectUsableEditable();
     if (target == null || delta == 0) return;
+    _markCustomEditInteraction();
 
     final currentValue = target.widget.controller.value;
     final selection = currentValue.selection;
@@ -201,6 +228,7 @@ class KemeticKeyboardController extends ChangeNotifier {
   void moveCaretToBoundary({required bool toStart}) {
     final target = _selectUsableEditable();
     if (target == null) return;
+    _markCustomEditInteraction();
 
     final currentValue = target.widget.controller.value;
     final targetOffset = toStart ? 0 : currentValue.text.length;
@@ -216,6 +244,7 @@ class KemeticKeyboardController extends ChangeNotifier {
   void deleteBackward() {
     final target = _selectUsableEditable();
     if (target == null) return;
+    _markCustomEditInteraction();
 
     final newValue = _buildDeletedValue(target.widget.controller.value);
     if (newValue == target.widget.controller.value) {
@@ -227,6 +256,7 @@ class KemeticKeyboardController extends ChangeNotifier {
   }
 
   void _applyEditingValue(EditableTextState target, TextEditingValue newValue) {
+    _markCustomEditInteraction();
     // Route edits through EditableText so input formatters, listeners, and
     // selection handling behave like real keyboard input.
     if (!kIsWeb && !target.widget.focusNode.hasFocus) {
@@ -234,6 +264,39 @@ class KemeticKeyboardController extends ChangeNotifier {
     }
     target.userUpdateTextEditingValue(newValue, SelectionChangedCause.keyboard);
     attachEditable(target);
+    if (_mode == KeyboardMode.custom) {
+      target.widget.focusNode.requestFocus();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!_isUsable(target) || _mode != KeyboardMode.custom) return;
+        target.widget.focusNode.requestFocus();
+        attachEditable(target);
+        if (kIsWeb) {
+          syncWebCustomKeyboardInputTarget();
+        } else {
+          try {
+            SystemChannels.textInput.invokeMethod('TextInput.hide');
+          } catch (_) {}
+        }
+      });
+    }
+  }
+
+  void _markCustomEditInteraction() {
+    if (_mode != KeyboardMode.custom) return;
+    _customEditInteractionActive = true;
+    final epoch = ++_customEditInteractionEpoch;
+    void clearAfterFrames(int remainingFrames) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (epoch != _customEditInteractionEpoch) return;
+        if (remainingFrames <= 0) {
+          _customEditInteractionActive = false;
+          return;
+        }
+        clearAfterFrames(remainingFrames - 1);
+      });
+    }
+
+    clearAfterFrames(12);
   }
 
   TextEditingValue _buildInsertedValue(
@@ -359,6 +422,10 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
   bool _restoreSystemKeyboardScheduled = false;
   bool _revealScheduled = false;
   bool _revealNeedsDelayedPass = false;
+  bool _lastPointerDownInsideKeyboardChrome = false;
+  bool _deactivating = false;
+  Timer? _revealDelayedTimer;
+  int _keyboardChromePointerEpoch = 0;
 
   @override
   void initState() {
@@ -371,13 +438,33 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
 
   @override
   void dispose() {
+    _deactivating = true;
+    _revealDelayedTimer?.cancel();
+    _revealDelayedTimer = null;
     deactivateWebCustomKeyboardInput();
     WidgetsBinding.instance.removeObserver(this);
     _revealedController?.removeListener(_handleEditableValueChanged);
+    _revealedController = null;
     _controller.removeListener(_handleControllerChanged);
     FocusManager.instance.removeListener(_handleFocusChange);
     _controller.dispose();
     super.dispose();
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    _deactivating = false;
+  }
+
+  @override
+  void deactivate() {
+    _deactivating = true;
+    _revealDelayedTimer?.cancel();
+    _revealDelayedTimer = null;
+    _revealedController?.removeListener(_handleEditableValueChanged);
+    _revealedController = null;
+    super.deactivate();
   }
 
   @override
@@ -430,22 +517,27 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
       _revealScheduled = false;
       final includeDelayedPass = _revealNeedsDelayedPass;
       _revealNeedsDelayedPass = false;
-      if (!mounted) return;
+      if (!mounted || _deactivating) return;
       _revealFocusedEditableNow();
       if (!includeDelayedPass) return;
-      Future<void>.delayed(const Duration(milliseconds: 140), () {
-        if (mounted) _revealFocusedEditableNow();
+      _revealDelayedTimer?.cancel();
+      _revealDelayedTimer = Timer(const Duration(milliseconds: 140), () {
+        _revealDelayedTimer = null;
+        if (mounted && !_deactivating) _revealFocusedEditableNow();
       });
     });
   }
 
   void _revealFocusedEditableNow() {
-    if (!mounted) return;
+    if (!mounted || _deactivating) return;
     final target = _controller.editable ?? _controller.lastEditable;
     if (!_controller._isUsable(target)) return;
     final editable = target;
     if (editable == null) return;
-    if (!KemeticKeyboardRevealScope.isEnabledFor(editable.context)) return;
+    final revealEnabled = _tryActiveContextLookup(
+      () => KemeticKeyboardRevealScope.isEnabledFor(editable.context),
+    );
+    if (revealEnabled != true) return;
 
     final media = MediaQuery.maybeOf(context);
     if (media == null) return;
@@ -476,7 +568,9 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
       scrollPosition: _scrollPositionFor(editable.widget.scrollController),
     );
 
-    final scrollable = Scrollable.maybeOf(editable.context);
+    final scrollable = _tryActiveContextLookup(
+      () => Scrollable.maybeOf(editable.context),
+    );
     if (scrollable == null) return;
 
     if (!scrolledTextContent) {
@@ -570,13 +664,9 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
 
   void _handleFocusChange() {
     // Ignore transient focus churn while swapping keyboards.
-    if (_opening) return;
+    if (_opening || _deactivating) return;
 
-    final focus = FocusManager.instance.primaryFocus;
-    EditableTextState? editable;
-    if (focus?.context != null) {
-      editable = focus!.context!.findAncestorStateOfType<EditableTextState>();
-    }
+    final editable = _editableFromFocusNode(FocusManager.instance.primaryFocus);
 
     // Custom mode: keep last target, prevent system keyboard from re-opening.
     if (_controller.isCustomMode) {
@@ -592,8 +682,22 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
           } catch (_) {}
         }
       } else {
-        _controller.attachEditable(null);
-        _dismissCustomKeyboard(unfocusTarget: false);
+        final target = _controller.editable ?? _controller.lastEditable;
+        if (_controller._isUsable(target)) {
+          target!.widget.focusNode.requestFocus();
+          _controller.attachEditable(target);
+          if (kIsWeb) {
+            syncWebCustomKeyboardInputTarget();
+          } else {
+            try {
+              SystemChannels.textInput.invokeMethod('TextInput.hide');
+              _systemKeyboardHidden = true;
+            } catch (_) {}
+          }
+        } else {
+          _controller.attachEditable(null);
+          _controller.closeAndClearTargets();
+        }
       }
       _syncEditableValueListener(
         _controller.editable ?? _controller.lastEditable,
@@ -629,19 +733,47 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
 
   void _handlePointerDown(PointerDownEvent event) {
     if (!_controller.isCustomMode || _opening) return;
-    if (_containsGlobalPosition(_panelRegionKey, event.position)) return;
-    if (_containsGlobalPosition(_toggleRegionKey, event.position)) return;
-    if (_containsActiveEditable(event.position)) return;
+    final insideKeyboardChrome =
+        _containsGlobalPosition(_panelRegionKey, event.position) ||
+        _containsGlobalPosition(_toggleRegionKey, event.position) ||
+        _containsActiveEditable(event.position);
+    if (insideKeyboardChrome) {
+      _markKeyboardChromePointer();
+    } else {
+      _lastPointerDownInsideKeyboardChrome = false;
+    }
+    if (insideKeyboardChrome) return;
     _dismissCustomKeyboard();
+  }
+
+  void _markKeyboardChromePointer() {
+    _lastPointerDownInsideKeyboardChrome = true;
+    _clearKeyboardChromePointerAfterGrace();
+  }
+
+  void _clearKeyboardChromePointerAfterGrace() {
+    final epoch = ++_keyboardChromePointerEpoch;
+    void clearAfterFrames(int remainingFrames) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || epoch != _keyboardChromePointerEpoch) return;
+        if (remainingFrames <= 0) {
+          _lastPointerDownInsideKeyboardChrome = false;
+          return;
+        }
+        clearAfterFrames(remainingFrames - 1);
+      });
+    }
+
+    clearAfterFrames(12);
   }
 
   bool _containsActiveEditable(Offset globalPosition) {
     final editable = _controller.editable ?? _controller.lastEditable;
     if (!_controller._isUsable(editable)) return false;
-    return _containsRenderObject(
-      editable!.context.findRenderObject(),
-      globalPosition,
+    final renderObject = _tryActiveContextLookup(
+      () => editable!.context.findRenderObject(),
     );
+    return _containsRenderObject(renderObject, globalPosition);
   }
 
   bool _containsGlobalPosition(GlobalKey key, Offset globalPosition) {
@@ -667,6 +799,10 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
     Future<void>.microtask(() {
       _dismissScheduled = false;
       if (!mounted) return;
+      if (_lastPointerDownInsideKeyboardChrome ||
+          _controller._customEditInteractionActive) {
+        return;
+      }
       deactivateWebCustomKeyboardInput();
       _controller.closeAndClearTargets();
       if (!unfocusTarget) return;
@@ -720,6 +856,7 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
             controller: _controller,
             regionKey: _panelRegionKey,
             keyboardHeight: _lastKeyboardHeight,
+            onPanelInteraction: _markKeyboardChromePointer,
             onSystemKeyboard: _closeCustomAndRestoreSystem,
           ),
         ],
@@ -944,11 +1081,13 @@ class _KeyboardPanel extends StatefulWidget {
   final KemeticKeyboardController controller;
   final GlobalKey regionKey;
   final double keyboardHeight;
+  final VoidCallback onPanelInteraction;
   final VoidCallback onSystemKeyboard;
   const _KeyboardPanel({
     required this.controller,
     required this.regionKey,
     required this.keyboardHeight,
+    required this.onPanelInteraction,
     required this.onSystemKeyboard,
   });
 
@@ -985,7 +1124,10 @@ class _KeyboardPanelState extends State<_KeyboardPanel> {
         tapTargetSize: expandedTapTargetSize(context),
       ),
       segments: const [
-        ButtonSegment(value: _OutputMode.scholarly, label: Text('ꜣ')),
+        ButtonSegment(
+          value: _OutputMode.scholarly,
+          label: KemeticText('ꜣ', style: TextStyle()),
+        ),
         ButtonSegment(value: _OutputMode.ascii, label: Text('ASCII')),
       ],
       selected: {_mode},
@@ -1048,79 +1190,90 @@ class _KeyboardPanelState extends State<_KeyboardPanel> {
           child: Padding(
             padding: EdgeInsets.fromLTRB(12, 0, 12, 12 + bottomPadding),
             child: TextFieldTapRegion(
-              child: ExcludeFocus(
-                child: SizedBox(
-                  key: widget.regionKey,
-                  child: Material(
-                    key: const ValueKey('kemetic-keyboard-panel'),
-                    elevation: 14,
-                    color: colorScheme.surface.withValues(alpha: 0.98),
-                    borderRadius: BorderRadius.circular(18),
-                    child: SizedBox(
-                      height: targetHeight,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                        child: Column(
-                          children: [
-                            _buildPanelHeader(context, colorScheme),
-                            const SizedBox(height: 8),
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              physics: const ClampingScrollPhysics(),
-                              child: Row(
-                                children: [
-                                  _KeyboardActionButton(
-                                    key: const ValueKey(
-                                      'kemetic-action-backspace',
+              child: Listener(
+                behavior: HitTestBehavior.translucent,
+                onPointerDown: (_) => widget.onPanelInteraction(),
+                child: ExcludeFocus(
+                  child: SizedBox(
+                    key: widget.regionKey,
+                    child: Material(
+                      key: const ValueKey('kemetic-keyboard-panel'),
+                      elevation: 14,
+                      color: colorScheme.surface.withValues(alpha: 0.98),
+                      borderRadius: BorderRadius.circular(18),
+                      child: SizedBox(
+                        height: targetHeight,
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                          child: Column(
+                            children: [
+                              _buildPanelHeader(context, colorScheme),
+                              const SizedBox(height: 8),
+                              SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                physics: const ClampingScrollPhysics(),
+                                child: Row(
+                                  children: [
+                                    _KeyboardActionButton(
+                                      key: const ValueKey(
+                                        'kemetic-action-backspace',
+                                      ),
+                                      icon: Icons.backspace_outlined,
+                                      tooltip: 'Backspace',
+                                      onPressed:
+                                          widget.controller.deleteBackward,
                                     ),
-                                    icon: Icons.backspace_outlined,
-                                    tooltip: 'Backspace',
-                                    onPressed: widget.controller.deleteBackward,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _KeyboardActionButton(
-                                    key: const ValueKey('kemetic-action-start'),
-                                    icon: Icons.first_page_rounded,
-                                    tooltip: 'Move cursor to start',
-                                    onPressed: () => widget.controller
-                                        .moveCaretToBoundary(toStart: true),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _KeyboardActionButton(
-                                    key: const ValueKey('kemetic-action-left'),
-                                    icon: Icons.arrow_left_rounded,
-                                    tooltip: 'Move cursor left',
-                                    onPressed: () => widget.controller
-                                        .moveCaretHorizontally(-1),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _KeyboardActionButton(
-                                    key: const ValueKey('kemetic-action-right'),
-                                    icon: Icons.arrow_right_rounded,
-                                    tooltip: 'Move cursor right',
-                                    onPressed: () => widget.controller
-                                        .moveCaretHorizontally(1),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  _KeyboardActionButton(
-                                    key: const ValueKey('kemetic-action-end'),
-                                    icon: Icons.last_page_rounded,
-                                    tooltip: 'Move cursor to end',
-                                    onPressed: () => widget.controller
-                                        .moveCaretToBoundary(toStart: false),
-                                  ),
-                                ],
+                                    const SizedBox(width: 8),
+                                    _KeyboardActionButton(
+                                      key: const ValueKey(
+                                        'kemetic-action-start',
+                                      ),
+                                      icon: Icons.first_page_rounded,
+                                      tooltip: 'Move cursor to start',
+                                      onPressed: () => widget.controller
+                                          .moveCaretToBoundary(toStart: true),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    _KeyboardActionButton(
+                                      key: const ValueKey(
+                                        'kemetic-action-left',
+                                      ),
+                                      icon: Icons.arrow_left_rounded,
+                                      tooltip: 'Move cursor left',
+                                      onPressed: () => widget.controller
+                                          .moveCaretHorizontally(-1),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    _KeyboardActionButton(
+                                      key: const ValueKey(
+                                        'kemetic-action-right',
+                                      ),
+                                      icon: Icons.arrow_right_rounded,
+                                      tooltip: 'Move cursor right',
+                                      onPressed: () => widget.controller
+                                          .moveCaretHorizontally(1),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    _KeyboardActionButton(
+                                      key: const ValueKey('kemetic-action-end'),
+                                      icon: Icons.last_page_rounded,
+                                      tooltip: 'Move cursor to end',
+                                      onPressed: () => widget.controller
+                                          .moveCaretToBoundary(toStart: false),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            Expanded(
-                              child: _UniliteralLayout(
-                                key: const ValueKey('uniliteral'),
-                                controller: widget.controller,
-                                outputMode: _mode,
+                              const SizedBox(height: 8),
+                              Expanded(
+                                child: _UniliteralLayout(
+                                  key: const ValueKey('uniliteral'),
+                                  controller: widget.controller,
+                                  outputMode: _mode,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),

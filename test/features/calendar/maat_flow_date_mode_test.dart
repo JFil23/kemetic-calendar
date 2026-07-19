@@ -606,7 +606,7 @@ void main() {
     final djedHeadless = _sourceBetween(
       source,
       'if (template.kind == _MaatFlowTemplateKind.theDjed)',
-      'if (template.kind == _MaatFlowTemplateKind.maatDecan)',
+      'if (template.kind == _MaatFlowTemplateKind.readingHouse)',
     );
 
     expect(djedHeadless, contains('FlowJoinService'));
@@ -631,6 +631,46 @@ void main() {
     expect(djedService, contains('_fileHeadlessJoinDelivery'));
     expect(djedService, contains('alertOffsetMinutes: alertOffsetMinutes'));
     expect(_countOccurrences(djedService, '_completeHeadlessJoin'), 1);
+  });
+
+  test('headless Reading House delegates to FlowJoinService', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final readingHouseHeadless = _sourceBetween(
+      source,
+      'if (template.kind == _MaatFlowTemplateKind.readingHouse)',
+      'if (template.kind == _MaatFlowTemplateKind.maatDecan)',
+    );
+
+    expect(readingHouseHeadless, contains('FlowJoinService'));
+    expect(readingHouseHeadless, contains('joinReadingHouseHeadless'));
+    expect(readingHouseHeadless, contains('templateKey: template.key'));
+    expect(readingHouseHeadless, contains('templateTitle: template.title'));
+    expect(
+      readingHouseHeadless,
+      contains('alertOffsetMinutes: kEventFilingNoAlertMinutes'),
+    );
+    expect(readingHouseHeadless, contains('flowIdOrNegativeOne'));
+  });
+
+  test('FlowJoinService Reading House files delivery and invalidates once', () {
+    final source = File(
+      'lib/features/calendar/flow_join_service.dart',
+    ).readAsStringSync();
+    final readingHouseService = _sourceBetween(
+      source,
+      'Future<FlowJoinResult> joinReadingHouseHeadless',
+      'Future<FlowJoinResult> joinKeptWordHeadless',
+    );
+
+    expect(readingHouseService, contains('reading_house_join_headless'));
+    expect(readingHouseService, contains('_fileHeadlessJoinDelivery'));
+    expect(
+      readingHouseService,
+      contains('alertOffsetMinutes: alertOffsetMinutes'),
+    );
+    expect(_countOccurrences(readingHouseService, '_completeHeadlessJoin'), 1);
   });
 
   test('headless Dawn House Rite delegates to FlowJoinService', () {
@@ -893,7 +933,7 @@ void main() {
     final theTendingService = _sourceBetween(
       source,
       'Future<FlowJoinResult> joinTheTendingHeadless',
-      'Future<FlowJoinResult> joinKeptWordHeadless',
+      'Future<FlowJoinResult> joinReadingHouseHeadless',
     );
 
     expect(theTendingService, contains('the_tending_join_headless'));
@@ -1009,7 +1049,66 @@ void main() {
   });
 
   test(
-    'mounted Track Sky, Moon Return, Wag, Days Outside, Decan Watch, Open Hand, Djed, Offering Table, Tending, Kept Word, and Course persist events before filing alerts',
+    'onboarding first-flow target survives transient hydration refresh gaps',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final stage = _sourceBetween(
+        source,
+        'void _stageEveningThresholdOnboardingTarget({',
+        'Widget _buildHawRecommendedFlow',
+      );
+      final merge = _sourceBetween(
+        source,
+        'int _mergePendingOnboardingTargetInto(',
+        'TimeOfDay? _timeOfDayFromMinutes',
+      );
+      final loadCommit = _sourceBetween(
+        source,
+        'void commitVisibleCalendarState(',
+        'committedVisibleCalendar = true;',
+      );
+
+      expect(source, contains('_pendingOnboardingTargetClientEventId'));
+      expect(source, contains('_pendingOnboardingTargetNote'));
+      expect(source, contains("'onboarding_pending_target': true"));
+      expect(stage, contains('_rememberPendingOnboardingTargetEvent'));
+      expect(
+        stage.indexOf('_addNote('),
+        lessThan(stage.indexOf('_rememberPendingOnboardingTargetEvent')),
+        reason:
+            'The optimistic first-flow note must exist before it is remembered.',
+      );
+
+      expect(merge, contains('reconcilePendingOnboardingTarget<_Note>'));
+      expect(merge, contains('reconciliation.authoritativeTargetFound'));
+      expect(merge, contains('reconciliation.shouldPreservePending'));
+      expect(merge, contains('_noteIsPendingOnboardingTargetCopy'));
+      expect(
+        merge,
+        contains('removeWhere(_noteIsPendingOnboardingTargetCopy)'),
+      );
+      expect(merge, contains('_clearPendingOnboardingTargetEvent'));
+      expect(
+        merge,
+        contains('bucket.add(_CalendarModelCopy._copyNote(pendingNote))'),
+      );
+      expect(merge, contains('_noteMatchesPendingOnboardingTarget'));
+
+      expect(loadCommit, contains('_mergePendingOnboardingTargetInto'));
+      expect(
+        loadCommit.indexOf('_mergePendingOnboardingTargetInto'),
+        lessThan(loadCommit.indexOf('_notes\n          ..clear()')),
+        reason:
+            'The pending onboarding target must be merged before reload commits replace _notes.',
+      );
+      expect(loadCommit, contains('preservedOnboardingTargetCount'));
+    },
+  );
+
+  test(
+    'mounted Track Sky, Moon Return, Wag, Days Outside, Decan Watch, Open Hand, Djed, Reading House, Offering Table, Tending, Kept Word, and Course persist events before filing alerts',
     () {
       final source = File(
         'lib/features/calendar/calendar_page.dart',
@@ -1089,12 +1188,23 @@ void main() {
       final djedBranch = _sourceBetween(
         mountedJoin,
         'if (template.kind == _MaatFlowTemplateKind.theDjed)',
-        'if (template.kind == _MaatFlowTemplateKind.decanWatch)',
+        'if (template.kind == _MaatFlowTemplateKind.readingHouse)',
       );
       _expectPersistsBeforeAlertFiling(
         djedBranch,
         caller: "caller: 'djed_join'",
         branchName: 'mounted Djed',
+      );
+
+      final readingHouseBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.readingHouse)',
+        'if (template.kind == _MaatFlowTemplateKind.decanWatch)',
+      );
+      _expectPersistsBeforeAlertFiling(
+        readingHouseBranch,
+        caller: "caller: 'reading_house_join'",
+        branchName: 'mounted Reading House',
       );
 
       final offeringTableBranch = _sourceBetween(
@@ -1312,7 +1422,7 @@ void main() {
       'if (template.kind == _MaatFlowTemplateKind.trackSky)',
       "// Current Ma'at templates must use explicit branches above;",
     );
-    const explicitTemplateCount = 32;
+    const explicitTemplateCount = 33;
     const explicitKinds = [
       'trackSky',
       'dawnHouseRite',
@@ -1329,6 +1439,7 @@ void main() {
       'daysOutsideTheYear',
       'theOpenHand',
       'theDjed',
+      'readingHouse',
       'maatDecan',
     ];
 
@@ -1811,7 +1922,7 @@ void main() {
     final djedBranch = _sourceBetween(
       mountedJoin,
       'if (template.kind == _MaatFlowTemplateKind.theDjed)',
-      'if (template.kind == _MaatFlowTemplateKind.decanWatch)',
+      'if (template.kind == _MaatFlowTemplateKind.readingHouse)',
     );
 
     expect(resolver, contains('resolveDjedEnrollmentWindowSafely'));
@@ -1838,7 +1949,7 @@ void main() {
     final djedBranch = _sourceBetween(
       mountedJoin,
       'if (template.kind == _MaatFlowTemplateKind.theDjed)',
-      'if (template.kind == _MaatFlowTemplateKind.decanWatch)',
+      'if (template.kind == _MaatFlowTemplateKind.readingHouse)',
     );
 
     expect(djedBranch, contains('mode=gregorian'));
@@ -1874,6 +1985,59 @@ void main() {
     expect(djedBranch, contains('_addNote('));
     expect(djedBranch, contains('await _scheduleAlertForEvent('));
   });
+
+  test(
+    'mounted Reading House join preserves event identity and payload contract',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final mountedJoin = _sourceBetween(
+        source,
+        'Future<int> _addMaatFlowInstance({',
+        'Future<EndFlowActionResult> _endFlowFromEventTarget',
+      );
+      final readingHouseBranch = _sourceBetween(
+        mountedJoin,
+        'if (template.kind == _MaatFlowTemplateKind.readingHouse)',
+        'if (template.kind == _MaatFlowTemplateKind.decanWatch)',
+      );
+
+      expect(readingHouseBranch, contains('mode=gregorian'));
+      expect(readingHouseBranch, contains('maat=\${template.key}'));
+      expect(readingHouseBranch, contains('reading_house_tz=\${timezone.key}'));
+      expect(
+        readingHouseBranch,
+        contains('...readingHouseFlowNoteTokens(plan)'),
+      );
+      expect(
+        readingHouseBranch,
+        contains('reading_house_hour=\$kReadingHouseDefaultHour'),
+      );
+      expect(
+        readingHouseBranch,
+        contains('reading_house_minute=\$kReadingHouseDefaultMinute'),
+      );
+      expect(readingHouseBranch, contains('readingHouseSittingTitle(sitting)'));
+      expect(
+        readingHouseBranch,
+        contains('readingHouseDetailText(sitting, plan: plan)'),
+      );
+      expect(readingHouseBranch, contains('readingHouseBehaviorPayload('));
+      expect(readingHouseBranch, contains('_buildCid('));
+      expect(readingHouseBranch, contains('readingHouseActionId(sitting)'));
+      expect(readingHouseBranch, contains('startsAtUtc: occurrence.startUtc'));
+      expect(readingHouseBranch, contains('endsAtUtc: occurrence.endUtc'));
+      expect(readingHouseBranch, contains('category: \'Study\''));
+      expect(
+        readingHouseBranch,
+        contains('alertOffsetMinutes: _alertNoneMinutes'),
+      );
+      expect(readingHouseBranch, contains('caller: \'reading_house_join\''));
+      expect(readingHouseBranch, contains('_addNote('));
+      expect(readingHouseBranch, contains('await _scheduleAlertForEvent('));
+    },
+  );
 
   test(
     'mounted Offering Table join preserves event identity and payload contract',
@@ -2365,8 +2529,14 @@ const _serviceBackedHeadlessMaatEnrollmentBranches = [
   (
     name: 'Djed',
     start: 'if (template.kind == _MaatFlowTemplateKind.theDjed)',
-    end: 'if (template.kind == _MaatFlowTemplateKind.maatDecan)',
+    end: 'if (template.kind == _MaatFlowTemplateKind.readingHouse)',
     method: 'joinDjedHeadless',
+  ),
+  (
+    name: 'Reading House',
+    start: 'if (template.kind == _MaatFlowTemplateKind.readingHouse)',
+    end: 'if (template.kind == _MaatFlowTemplateKind.maatDecan)',
+    method: 'joinReadingHouseHeadless',
   ),
   (
     name: 'Ma’at Decan',
@@ -2506,6 +2676,7 @@ const _maatEventDetailSourceFiles = [
   'lib/features/calendar/the_days_outside_year_flow.dart',
   'lib/features/calendar/the_open_hand_flow.dart',
   'lib/features/calendar/the_djed_flow.dart',
+  'lib/features/calendar/the_reading_house_flow.dart',
   'lib/features/calendar/maat_decan_flow.dart',
 ];
 
@@ -2517,6 +2688,7 @@ const _sensitiveMaatEventDetailSourceFiles = [
   'lib/features/calendar/the_days_outside_year_flow.dart',
   'lib/features/calendar/the_open_hand_flow.dart',
   'lib/features/calendar/the_djed_flow.dart',
+  'lib/features/calendar/the_reading_house_flow.dart',
 ];
 
 const _previewInlineDetailBranches = [
@@ -2553,9 +2725,14 @@ const _previewInlineDetailBranches = [
   (
     name: 'Djed',
     start: 'Widget _buildDjedEventTile',
-    end:
-        'DaysOutsideYearEnrollmentWindow? _resolveDaysOutsideYearPreviewWindow',
+    end: 'Widget _buildDjedScaffold',
     detailFunction: 'djedDetailText',
+  ),
+  (
+    name: 'Reading House',
+    start: 'Widget _buildReadingHouseSittingTile',
+    end: 'Widget _buildReadingHouseScaffold',
+    detailFunction: 'readingHouseDetailText',
   ),
   (
     name: 'Days Outside the Year',
@@ -2625,7 +2802,7 @@ const _mountedSafeEnrollmentBranches = [
     name: 'Djed',
     resolverStart: 'DjedEnrollmentWindow? _resolveMountedDjedJoinWindow',
     branchStart: 'if (template.kind == _MaatFlowTemplateKind.theDjed)',
-    branchEnd: 'if (template.kind == _MaatFlowTemplateKind.decanWatch)',
+    branchEnd: 'if (template.kind == _MaatFlowTemplateKind.readingHouse)',
     mountedResolver: '_resolveMountedDjedJoinWindow',
     safeResolver: 'resolveDjedEnrollmentWindowSafely',
     throwingNextApi: 'djedNextEnrollmentWindow(',

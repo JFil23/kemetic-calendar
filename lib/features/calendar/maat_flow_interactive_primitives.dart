@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:mobile/core/completion_status.dart';
+import 'package:mobile/utils/text_editing_controller_sync.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 
 import 'calendar_completion.dart';
 import 'maat_flow_response_models.dart';
@@ -12,10 +14,6 @@ const int kFlowEnrollmentInputMaxCharacters = 280;
 const Key kMaatFlowResponseSectionKey = ValueKey<String>(
   'maat-flow-response-section',
 );
-const Key kMaatFlowResponseJournalPreviewKey = ValueKey<String>(
-  'maat-flow-response-journal-preview',
-);
-
 Key maatFlowResponseFieldKey(String specId) {
   return ValueKey<String>('maat-flow-response-field:${specId.trim()}');
 }
@@ -162,19 +160,21 @@ class MaatFlowResponseSection extends StatefulWidget {
     super.key,
     required this.specs,
     this.values = const <String, MaatFlowResponseValue>{},
-    this.journalPreviews = const <MaatFlowResponseJournalPreview>[],
-    this.isJournalPreviewIncluded,
-    this.onJournalPreviewInclusionChanged,
+    this.title,
+    this.subtitle,
+    this.saveLabel = 'Save',
+    this.saving = false,
+    this.onSave,
     this.onChanged,
   });
 
   final List<MaatFlowResponseSpec> specs;
   final Map<String, MaatFlowResponseValue> values;
-  final List<MaatFlowResponseJournalPreview> journalPreviews;
-  final bool Function(MaatFlowResponseJournalPreview preview)?
-  isJournalPreviewIncluded;
-  final void Function(MaatFlowResponseJournalPreview preview, bool included)?
-  onJournalPreviewInclusionChanged;
+  final String? title;
+  final String? subtitle;
+  final String saveLabel;
+  final bool saving;
+  final VoidCallback? onSave;
   final ValueChanged<MaatFlowResponseValue>? onChanged;
 
   @override
@@ -223,6 +223,31 @@ class _MaatFlowResponseSectionState extends State<MaatFlowResponseSection> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
+          if (widget.title?.trim().isNotEmpty == true) ...[
+            Text(
+              widget.title!.trim(),
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.9),
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0,
+              ),
+            ),
+            if (widget.subtitle?.trim().isNotEmpty == true) ...[
+              const SizedBox(height: 3),
+              Text(
+                widget.subtitle!.trim(),
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.58),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  height: 1.25,
+                  letterSpacing: 0,
+                ),
+              ),
+            ],
+            const SizedBox(height: 10),
+          ],
           for (final spec in widget.specs) ...[
             _MaatFlowResponseField(
               spec: spec,
@@ -231,120 +256,23 @@ class _MaatFlowResponseSectionState extends State<MaatFlowResponseSection> {
             ),
             if (spec != widget.specs.last) const SizedBox(height: 10),
           ],
-          if (widget.journalPreviews.isNotEmpty) ...[
+          if (widget.onSave != null) ...[
             const SizedBox(height: 12),
-            _MaatFlowResponseJournalPreviewList(
-              previews: widget.journalPreviews,
-              isPreviewIncluded: widget.isJournalPreviewIncluded,
-              onPreviewInclusionChanged:
-                  widget.onJournalPreviewInclusionChanged,
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-class _MaatFlowResponseJournalPreviewList extends StatelessWidget {
-  const _MaatFlowResponseJournalPreviewList({
-    required this.previews,
-    this.isPreviewIncluded,
-    this.onPreviewInclusionChanged,
-  });
-
-  final List<MaatFlowResponseJournalPreview> previews;
-  final bool Function(MaatFlowResponseJournalPreview preview)?
-  isPreviewIncluded;
-  final void Function(MaatFlowResponseJournalPreview preview, bool included)?
-  onPreviewInclusionChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      key: kMaatFlowResponseJournalPreviewKey,
-      width: double.infinity,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            'Journal preview',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.52),
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0,
-            ),
-          ),
-          const SizedBox(height: 5),
-          for (final preview in previews) ...[
-            Text(
-              preview.text,
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.82),
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                height: 1.25,
-                letterSpacing: 0,
+            Align(
+              alignment: Alignment.centerRight,
+              child: OutlinedButton.icon(
+                onPressed: widget.saving ? null : widget.onSave,
+                icon: widget.saving
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.save_outlined, size: 16),
+                label: Text(widget.saving ? 'Saving...' : widget.saveLabel),
               ),
             ),
-            if (preview.requiresUserChoice &&
-                onPreviewInclusionChanged != null) ...[
-              const SizedBox(height: 8),
-              _MaatFlowResponseJournalOfferToggle(
-                included: isPreviewIncluded?.call(preview) ?? false,
-                onChanged: (included) =>
-                    onPreviewInclusionChanged?.call(preview, included),
-              ),
-            ],
-            if (preview != previews.last) const SizedBox(height: 4),
           ],
-        ],
-      ),
-    );
-  }
-}
-
-class _MaatFlowResponseJournalOfferToggle extends StatelessWidget {
-  const _MaatFlowResponseJournalOfferToggle({
-    required this.included,
-    required this.onChanged,
-  });
-
-  final bool included;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(8),
-      onTap: () => onChanged(!included),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Checkbox(
-            value: included,
-            onChanged: (value) => onChanged(value == true),
-            visualDensity: VisualDensity.compact,
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            'Add to journal',
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.72),
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0,
-            ),
-          ),
         ],
       ),
     );
@@ -400,12 +328,7 @@ class _MaatFlowResponseFieldState extends State<_MaatFlowResponseField> {
     }
     final controller = _textController ??= TextEditingController();
     final nextText = widget.value?.text ?? '';
-    if (controller.text != nextText) {
-      controller.value = TextEditingValue(
-        text: nextText,
-        selection: TextSelection.collapsed(offset: nextText.length),
-      );
-    }
+    syncTextEditingControllerText(controller, nextText);
   }
 
   @override
@@ -461,6 +384,7 @@ class _MaatFlowResponseFieldState extends State<_MaatFlowResponseField> {
           controller: _textController,
           minLines: spec.kind == MaatFlowResponseKind.text ? 1 : 2,
           maxLines: spec.kind == MaatFlowResponseKind.text ? 1 : 5,
+          scrollPadding: keyboardManagedTextFieldScrollPadding,
           style: const TextStyle(color: Colors.white, fontSize: 13),
           textCapitalization: TextCapitalization.sentences,
           decoration: InputDecoration(

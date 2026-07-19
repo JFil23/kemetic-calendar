@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/onboarding/onboarding_progress.dart';
 
 void main() {
-  test('Flow Studio Add Flow helper uses a stable ID and dismiss gate', () {
+  test("Flow Studio Ma'at helper uses a stable ID and dismiss gate", () {
     final fullSource = _read('lib/features/calendar/calendar_flow_pages.dart');
     final stateSource = _between(
       fullSource,
@@ -14,20 +14,20 @@ void main() {
     final initStateSource = _between(
       stateSource,
       '  void initState()',
-      '  void _scheduleFlowStudioAddFlowHelper()',
+      '  void _scheduleFlowStudioMaatFlowsHelper()',
     );
     final scheduleSource = _between(
       stateSource,
-      '  void _scheduleFlowStudioAddFlowHelper()',
-      '  Future<void> _maybeShowFlowStudioAddFlowHelper()',
+      '  void _scheduleFlowStudioMaatFlowsHelper()',
+      '  Future<void> _maybeShowFlowStudioMaatFlowsHelper()',
     );
     final source = _between(
       fullSource,
-      'Future<void> _maybeShowFlowStudioAddFlowHelper',
+      'Future<void> _maybeShowFlowStudioMaatFlowsHelper',
       '  Future<void> _markFlowStudioHelperCompleted',
     );
     final registryIndex = source.indexOf(
-      'const helper = OnboardingHelperRegistry.flowStudioAddFlow',
+      'const helper = OnboardingHelperRegistry.flowStudioMaatFlows',
     );
     final helperIdIndex = source.indexOf('helperId: helper.id');
     final completeIndex = source.indexOf(
@@ -45,10 +45,10 @@ void main() {
     expect(completeIndex, greaterThan(helperIdIndex));
     expect(completionIdIndex, greaterThan(completeIndex));
     expect(clearIndex, greaterThan(completeIndex));
-    expect(initStateSource, contains('_scheduleFlowStudioAddFlowHelper();'));
+    expect(initStateSource, contains('_scheduleFlowStudioMaatFlowsHelper();'));
     expect(
       initStateSource,
-      isNot(contains('unawaited(_maybeShowFlowStudioAddFlowHelper())')),
+      isNot(contains('unawaited(_maybeShowFlowStudioMaatFlowsHelper())')),
     );
     expect(stateSource, contains('bool _helperPromptScheduled = false;'));
     expect(scheduleSource, contains('if (_helperPromptScheduled) return;'));
@@ -60,55 +60,38 @@ void main() {
     expect(scheduleSource, contains('if (!mounted) return;'));
     expect(
       scheduleSource,
-      contains('unawaited(_maybeShowFlowStudioAddFlowHelper());'),
+      contains('unawaited(_maybeShowFlowStudioMaatFlowsHelper());'),
     );
     expect(source, isNot(contains('OnboardingHelperIds.flowBuilder')));
+    expect(source, isNot(contains('flowStudioAddFlow')));
     expect(source, contains('helper.analyticsEvent'));
     expect(
       source,
       contains(
-        'sourceWidget: OnboardingHelperRegistry.flowHubPageAddFlowSourceWidget',
+        'sourceWidget: OnboardingHelperRegistry.flowHubPageMaatFlowsSourceWidget',
       ),
     );
+    expect(fullSource, contains('key: _maatFlowsHelperKey'));
+    expect(fullSource, isNot(contains('key: _addFlowHelperKey')));
   });
 
-  test("Ma'at flow list helper uses the Flow Studio Add Flow ID", () {
+  test("Ma'at flow list does not show an Add Flow first-run helper", () {
     final source = _between(
       _read('lib/features/calendar/calendar_maat_flows.dart'),
-      'Future<void> _maybeShowFlowStudioAddFlowHelper',
+      'class _MaatFlowsListPageState extends State<_MaatFlowsListPage>',
       '  Future<void> _markFlowStudioHelperCompleted',
     );
-    final registryIndex = source.indexOf(
-      'const helper = OnboardingHelperRegistry.flowStudioAddFlow',
-    );
-    final helperIdIndex = source.indexOf('helperId: helper.id');
-    final completeIndex = source.indexOf(
-      'helperService.markHelperCompleted(',
-      helperIdIndex,
-    );
-    final completionIdIndex = source.indexOf('helper.id', completeIndex);
-    final clearIndex = source.indexOf(
-      'GuidedOnboardingController.instance.clear();',
-      completeIndex,
-    );
 
-    expect(registryIndex, isNonNegative);
-    expect(helperIdIndex, isNonNegative);
-    expect(completeIndex, greaterThan(helperIdIndex));
-    expect(completionIdIndex, greaterThan(completeIndex));
-    expect(clearIndex, greaterThan(completeIndex));
-    expect(source, isNot(contains('OnboardingHelperIds.flowBuilder')));
-    expect(source, contains('helper.analyticsEvent'));
+    expect(source, isNot(contains('GuidedOnboardingController.instance.show')));
     expect(
       source,
-      contains(
-        'sourceWidget: OnboardingHelperRegistry.maatFlowListAddFlowSourceWidget',
-      ),
+      isNot(contains('OnboardingHelperRegistry.flowStudioAddFlow')),
     );
+    expect(source, isNot(contains('Build your own rhythm')));
   });
 
   test(
-    'Journal record helper uses one registered ID for display and Got it',
+    'Journal observed-events helper uses accepted copy and completion gate',
     () {
       final source = _between(
         _read('lib/features/journal/journal_page.dart'),
@@ -145,8 +128,53 @@ void main() {
       expect(source, contains('sourceWidget: helper.sourceWidget'));
       expect(source, contains('helper.analyticsEvent'));
       expect(source, isNot(contains('OnboardingHelperIds.journalBadges')));
+      expect(
+        OnboardingHelperRegistry.journalBadges.title,
+        'Observed events will appear here',
+      );
+      expect(
+        OnboardingHelperRegistry.journalBadges.body,
+        'Observed events are added to your ledger.',
+      );
     },
   );
+
+  test('calendar menuExplore helper targets the visible menu bubble', () {
+    final calendarSource = _between(
+      _read('lib/features/calendar/calendar_page.dart'),
+      '  void _showMenuExploreCoachmark()',
+      '  Future<void> _completeTrueOnboarding()',
+    );
+    final mainSource = _read('lib/main.dart');
+
+    expect(
+      calendarSource,
+      contains('const helper = OnboardingHelperRegistry.calendarMenuExplore'),
+    );
+    expect(calendarSource, contains('key: globalMenuButtonKey'));
+    expect(calendarSource, contains('_waitForCoachmarkTargetReady'));
+    expect(calendarSource, contains('variant: CoachmarkVariant.helperBubble'));
+    expect(calendarSource, contains('allowBackgroundInteraction: true'));
+    expect(calendarSource, contains('externalOverlaySuppressed: false'));
+    expect(calendarSource, contains('helperId: helper.id'));
+    expect(calendarSource, contains('sourceWidget: helper.sourceWidget'));
+    expect(calendarSource, contains('showWhenHelperCompleted: true'));
+    expect(
+      mainSource,
+      contains(
+        'activeHelper?.helperId == OnboardingHelperIds.calendarMenuExplore',
+      ),
+    );
+    expect(mainSource, contains('showingMenuExploreHelper'));
+    expect(
+      OnboardingHelperRegistry.calendarMenuExplore.title,
+      'Tap to explore',
+    );
+    expect(
+      OnboardingHelperRegistry.calendarMenuExplore.body,
+      'Create with flows, journal, planner, and tools.',
+    );
+  });
 
   test(
     'calendar helper waits for service hydration and dismiss advances chain',
@@ -230,6 +258,29 @@ void main() {
     expect(shouldShowIndex, isNonNegative);
     expect(completeIndex, greaterThan(shouldShowIndex));
     expect(trackIndex, greaterThan(completeIndex));
+    expect(
+      OnboardingHelperRegistry.profileCommunityFeed.body,
+      'Scroll down for shared flows and confirmations.',
+    );
+  });
+
+  test('PWA review profile route can show the community helper signed out', () {
+    final mainSource = _read('lib/main.dart');
+    final profileSource = _read('lib/features/profile/profile_page.dart');
+
+    expect(mainSource, contains('final useReviewProfile ='));
+    expect(mainSource, contains('onboardingReviewSessionRequested'));
+    expect(mainSource, contains('kOnboardingReviewHelperUserId'));
+    expect(mainSource, contains('isMyProfile:'));
+    expect(mainSource, contains('useReviewProfile ||'));
+
+    expect(
+      profileSource,
+      contains('widget.userId == kOnboardingReviewHelperUserId'),
+    );
+    expect(profileSource, contains("handle: 'review'"));
+    expect(profileSource, contains("displayName: 'Review Profile'"));
+    expect(profileSource, contains('_maybeShowProfileCommunityHelper();'));
   });
 
   test('all visible helper bubbles provide registered helper IDs', () {
@@ -268,8 +319,9 @@ void main() {
     expect(
       helperTitles,
       containsAll([
-        'Build your own rhythm',
-        'Your record gathers here',
+        'Tap to explore',
+        'Start with Ma’at',
+        'Observed events will appear here',
         'Switch calendar views',
         'Month details',
         'Reveal the day card',
@@ -280,15 +332,49 @@ void main() {
     expect(
       helperBodies,
       containsAll([
-        'Create personal flows for study, health, family, writing, business, or spiritual practice.',
-        'Reflections, observed events, and journal badges will appear here over time.',
+        'Create with flows, journal, planner, and tools.',
+        'Choose a guided rhythm, ḥꜣw carries it into your calendar.',
+        'Observed events are added to your ledger.',
         'Tap ḥꜣw to toggle between the Kemetic calendar and the Gregorian calendar at any time.',
         'Tap the month or decan name for lore, structure, and meaning.',
         'Long press a day to reveal its card.',
         'Manage notifications, calendar preferences, profile settings, and privacy here.',
-        'Scroll down to reveal the community feed, where shared flows and confirmations begin to gather.',
+        'Scroll down for shared flows and confirmations.',
       ]),
     );
+    expect(helperTitles, isNot(contains('Build your own rhythm')));
+    expect(
+      helperBodies,
+      isNot(
+        contains(
+          'Create personal flows for study, health, family, writing, business, or spiritual practice.',
+        ),
+      ),
+    );
+  });
+
+  test('quiet first-run sections do not define helper bubbles', () {
+    final quietSources = <String, String>{
+      'planner': _read('lib/features/rhythm/pages/todays_alignment_page.dart'),
+      'library': _read('lib/features/nodes/kemetic_node_list_page.dart'),
+      'inbox': _read('lib/features/inbox/inbox_page.dart'),
+      'reflections': _read(
+        'lib/features/reflections/decan_reflection_archive_page.dart',
+      ),
+    };
+
+    for (final entry in quietSources.entries) {
+      expect(
+        entry.value,
+        isNot(contains('CoachmarkVariant.helperBubble')),
+        reason: '${entry.key} should remain quiet during first-run helpers.',
+      );
+      expect(
+        entry.value,
+        isNot(contains('OnboardingHelperRegistry.')),
+        reason: '${entry.key} should not register a first-run helper.',
+      );
+    }
   });
 
   test('helper render path asserts registered IDs and debug source', () {

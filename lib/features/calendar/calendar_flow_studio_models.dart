@@ -162,6 +162,133 @@ Future<int?> _pickAlertMinutes(BuildContext context, int? current) {
   );
 }
 
+Future<String?> _showCalendarChoiceSheet({
+  required BuildContext context,
+  required List<SharedCalendarSummary> calendars,
+  required String? selectedCalendarId,
+  String title = 'Calendar',
+}) {
+  final selectedId = selectedCalendarId?.trim();
+  return showModalBottomSheet<String>(
+    context: context,
+    backgroundColor: const Color(0xFF050403),
+    barrierColor: Colors.black.withValues(alpha: 0.72),
+    isScrollControlled: true,
+    builder: (sheetContext) {
+      final maxHeight = MediaQuery.sizeOf(sheetContext).height * 0.72;
+      return SafeArea(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxHeight),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 48,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF6F604A),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                GlossyText(
+                  text: title,
+                  gradient: goldGloss,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.w600,
+                    fontFamily: 'Cinzel',
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: calendars.length,
+                    separatorBuilder: (_, _) =>
+                        const Divider(color: Color(0x1FFFFFFF), height: 1),
+                    itemBuilder: (context, index) {
+                      final calendar = calendars[index];
+                      final name = calendar.isPersonal
+                          ? 'My Calendar'
+                          : calendar.name.trim().isEmpty
+                          ? 'Calendar'
+                          : calendar.name.trim();
+                      final selected = calendar.id.trim() == selectedId;
+                      final labelColor = _calendarChoiceLabelColor(
+                        calendar.color,
+                      );
+                      return ListTile(
+                        key: ValueKey<String>('calendar-choice-${calendar.id}'),
+                        contentPadding: EdgeInsets.zero,
+                        leading: Container(
+                          width: 14,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            color: calendar.color,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: calendar.color.withValues(alpha: 0.34),
+                                blurRadius: 10,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                        ),
+                        title: Text(
+                          name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: labelColor,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'GentiumPlus',
+                          ),
+                        ),
+                        subtitle: calendar.isPersonal
+                            ? null
+                            : Text(
+                                calendar.roleLabel,
+                                style: const TextStyle(
+                                  color: Color(0xFFB7AAA0),
+                                  fontSize: 13,
+                                ),
+                              ),
+                        trailing: selected
+                            ? const Icon(Icons.check, color: _gold)
+                            : null,
+                        onTap: () =>
+                            Navigator.of(sheetContext).pop(calendar.id),
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 10),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () => Navigator.of(sheetContext).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    },
+  );
+}
+
+Color _calendarChoiceLabelColor(Color color) {
+  if (color.computeLuminance() >= 0.22) return color;
+  return Color.lerp(color, Colors.white, 0.62) ?? Colors.white;
+}
+
 /// Lightweight inputs holder for one planned note.
 class _NoteDraft {
   _NoteDraft({VoidCallback? onChanged}) {

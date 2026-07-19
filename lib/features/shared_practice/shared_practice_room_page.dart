@@ -16,9 +16,14 @@ const Color _muted = Color(0xFF9E9A94);
 const String _serif = 'CormorantGaramond';
 
 class SharedPracticeRoomPage extends StatefulWidget {
-  const SharedPracticeRoomPage({super.key, required this.roomId});
+  const SharedPracticeRoomPage({
+    super.key,
+    required this.roomId,
+    this.initialLocalDate,
+  });
 
   final String roomId;
+  final DateTime? initialLocalDate;
 
   @override
   State<SharedPracticeRoomPage> createState() => _SharedPracticeRoomPageState();
@@ -29,8 +34,13 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
     Supabase.instance.client,
   );
   late Future<SharedPracticeRoomSnapshot> _future;
+  late final DateTime _localDate = DateUtils.dateOnly(
+    widget.initialLocalDate ?? DateTime.now(),
+  );
   SharedPracticeRoomSnapshot? _snapshot;
   String? _presenceMarkedForClientEventId;
+  bool _visibilityUpdating = false;
+  final Set<String> _requestDecisionIds = <String>{};
 
   @override
   void initState() {
@@ -41,7 +51,7 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
   Future<SharedPracticeRoomSnapshot> _load() async {
     final snapshot = await _repo.getSharedPracticeRoom(
       roomId: widget.roomId,
-      localDate: DateTime.now(),
+      localDate: _localDate,
     );
     if (mounted) {
       setState(() {
@@ -77,6 +87,55 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
     setState(() {
       _future = _load();
     });
+  }
+
+  Future<void> _setVisibility(SharedPracticeRoomVisibility visibility) async {
+    final snapshot = _snapshot;
+    if (snapshot == null || _visibilityUpdating) return;
+    setState(() => _visibilityUpdating = true);
+    try {
+      await _repo.setSharedPracticeVisibility(
+        roomId: snapshot.room.id,
+        visibility: visibility,
+        joinPolicy: visibility == SharedPracticeRoomVisibility.public
+            ? SharedPracticeJoinPolicy.ownerApproval
+            : SharedPracticeJoinPolicy.closed,
+      );
+      if (!mounted) return;
+      _refresh();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update visibility.')),
+      );
+    } finally {
+      if (mounted) setState(() => _visibilityUpdating = false);
+    }
+  }
+
+  Future<void> _respondToJoinRequest(
+    SharedPracticeJoinRequest request, {
+    required bool approve,
+  }) async {
+    if (_requestDecisionIds.contains(request.id)) return;
+    setState(() => _requestDecisionIds.add(request.id));
+    try {
+      await _repo.respondToJoinRequest(requestId: request.id, approve: approve);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(approve ? 'Request approved.' : 'Request denied.'),
+        ),
+      );
+      _refresh();
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not update that request.')),
+      );
+    } finally {
+      if (mounted) setState(() => _requestDecisionIds.remove(request.id));
+    }
   }
 
   Future<void> _openCompletionSheet(
@@ -150,6 +209,22 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
               padding: const EdgeInsets.fromLTRB(18, 8, 18, 110),
               children: [
                 _RoomHeader(snapshot: data),
+                if (data.viewerCanManage) ...[
+                  const SizedBox(height: 18),
+                  _RoomManagementSection(
+                    snapshot: data,
+                    visibilityUpdating: _visibilityUpdating,
+                    updatingRequestIds: _requestDecisionIds,
+                    onVisibilitySelected: (visibility) {
+                      unawaited(_setVisibility(visibility));
+                    },
+                    onRespondToRequest: (request, approve) {
+                      unawaited(
+                        _respondToJoinRequest(request, approve: approve),
+                      );
+                    },
+                  ),
+                ],
                 const SizedBox(height: 18),
                 _MemberSection(
                   snapshot: data,
@@ -250,9 +325,18 @@ class _RoomHeader extends StatelessWidget {
         const SizedBox(height: 8),
         if (step != null)
           Text(
-            _stepLine(step),
+            _stepLine(step, snapshot.localDate),
             style: const TextStyle(color: _muted, fontSize: 13, height: 1.35),
           ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final label in snapshot.accessPillLabels)
+              _RoomPill(label: label),
+          ],
+        ),
         const SizedBox(height: 16),
         Container(
           width: double.infinity,
@@ -278,6 +362,212 @@ class _RoomHeader extends StatelessWidget {
   }
 }
 
+class _RoomManagementSection extends StatelessWidget {
+  const _RoomManagementSection({
+    required this.snapshot,
+    required this.visibilityUpdating,
+    required this.updatingRequestIds,
+    required this.onVisibilitySelected,
+    required this.onRespondToRequest,
+  });
+
+  final SharedPracticeRoomSnapshot snapshot;
+  final bool visibilityUpdating;
+  final Set<String> updatingRequestIds;
+  final ValueChanged<SharedPracticeRoomVisibility> onVisibilitySelected;
+  final void Function(SharedPracticeJoinRequest request, bool approve)
+  onRespondToRequest;
+
+  @override
+  Widget build(BuildContext context) {
+    return _Panel(
+      title: snapshot.isSharedCalendarPractice
+          ? 'Shared Calendar Access'
+          : 'Room Access',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (snapshot.isSharedCalendarPractice)
+            _SharedCalendarAccessSummary(snapshot: snapshot)
+          else
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final visibility in SharedPracticeRoomVisibility.values)
+                  ChoiceChip(
+                    selected: snapshot.room.visibility == visibility,
+                    onSelected: visibilityUpdating
+                        ? null
+                        : (_) => onVisibilitySelected(visibility),
+                    label: Text(visibility.label),
+                    selectedColor: _gold.withValues(alpha: 0.22),
+                    backgroundColor: Colors.black.withValues(alpha: 0.20),
+                    labelStyle: TextStyle(
+                      color: snapshot.room.visibility == visibility
+                          ? _gold
+                          : Colors.white.withValues(alpha: 0.68),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    side: BorderSide(
+                      color: snapshot.room.visibility == visibility
+                          ? _gold.withValues(alpha: 0.58)
+                          : Colors.white.withValues(alpha: 0.12),
+                    ),
+                  ),
+              ],
+            ),
+          if (!snapshot.isSharedCalendarPractice &&
+              snapshot.joinRequests.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Text(
+              'JOIN REQUESTS',
+              style: TextStyle(
+                color: _gold.withValues(alpha: 0.82),
+                fontSize: 10.5,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.4,
+              ),
+            ),
+            const SizedBox(height: 8),
+            for (final request in snapshot.joinRequests) ...[
+              _JoinRequestRow(
+                request: request,
+                updating: updatingRequestIds.contains(request.id),
+                onApprove: () => onRespondToRequest(request, true),
+                onDeny: () => onRespondToRequest(request, false),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ] else if (!snapshot.isSharedCalendarPractice) ...[
+            const SizedBox(height: 12),
+            Text(
+              'No pending join requests.',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.50),
+                fontFamily: _serif,
+                fontStyle: FontStyle.italic,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SharedCalendarAccessSummary extends StatelessWidget {
+  const _SharedCalendarAccessSummary({required this.snapshot});
+
+  final SharedPracticeRoomSnapshot snapshot;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        _RoomPill(label: snapshot.sharedThroughLabel),
+        _RoomPill(label: snapshot.memberCountLabel),
+      ],
+    );
+  }
+}
+
+class _JoinRequestRow extends StatelessWidget {
+  const _JoinRequestRow({
+    required this.request,
+    required this.updating,
+    required this.onApprove,
+    required this.onDeny,
+  });
+
+  final SharedPracticeJoinRequest request;
+  final bool updating;
+  final VoidCallback onApprove;
+  final VoidCallback onDeny;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.09)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              _Avatar(label: request.requesterLabel, size: 30),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  request.requesterLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: _serif,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (request.message?.trim().isNotEmpty == true) ...[
+            const SizedBox(height: 8),
+            Text(
+              request.message!,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.72),
+                fontFamily: _serif,
+                fontSize: 16,
+                height: 1.28,
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: updating ? null : onDeny,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white.withValues(alpha: 0.72),
+                    side: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.18),
+                    ),
+                  ),
+                  child: const Text('Deny'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton(
+                  onPressed: updating ? null : onApprove,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _gold,
+                    foregroundColor: const Color(0xFF181106),
+                  ),
+                  child: Text(updating ? 'Saving...' : 'Approve'),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _MemberSection extends StatelessWidget {
   const _MemberSection({required this.snapshot, required this.onOpenEntry});
 
@@ -287,7 +577,9 @@ class _MemberSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _Panel(
-      title: 'Today\'s Circle',
+      title: DateUtils.isSameDay(snapshot.localDate, DateTime.now())
+          ? 'Today\'s Circle'
+          : 'Practice Circle',
       child: Column(
         children: [
           for (var i = 0; i < snapshot.members.length; i++) ...[
@@ -393,7 +685,7 @@ class _EntriesSection extends StatelessWidget {
       title: 'Shared Entries',
       child: entries.isEmpty
           ? Text(
-              'No shared entries today.',
+              'No shared entries for this day.',
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.5),
                 fontFamily: _serif,
@@ -622,6 +914,32 @@ class _StatusPill extends StatelessWidget {
   }
 }
 
+class _RoomPill extends StatelessWidget {
+  const _RoomPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: _gold.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: _gold.withValues(alpha: 0.35)),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: _gold,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
 class _Avatar extends StatelessWidget {
   const _Avatar({required this.label, this.size = 40});
 
@@ -692,13 +1010,16 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
-String _stepLine(SharedPracticeStep step) {
+String _stepLine(SharedPracticeStep step, DateTime localDate) {
   final index = step.stepIndex;
   final total = step.totalSteps;
+  final prefix = DateUtils.isSameDay(localDate, DateTime.now())
+      ? 'Today'
+      : _dateOnly(localDate);
   if (index != null && total != null && total > 0) {
-    return 'Today: ${step.title} · Step $index of $total';
+    return '$prefix: ${step.title} · Step $index of $total';
   }
-  return 'Today: ${step.title}';
+  return '$prefix: ${step.title}';
 }
 
 String _statusLabel(SharedPracticeMemberStatus member) {

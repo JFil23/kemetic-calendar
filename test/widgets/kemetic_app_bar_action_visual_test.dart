@@ -185,4 +185,44 @@ void main() {
     expect(searchCount, 1);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('day view header uses taller row only on wide screens', (
+    tester,
+  ) async {
+    Future<double> pumpHeader(Size size) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            backgroundColor: Colors.black,
+            body: KemeticDayViewHeader(
+              currentKy: 2,
+              currentKm: 4,
+              currentKd: 17,
+              showGregorian: false,
+              getMonthName: (_) => 'Ka-her-Ka (Kꜣ-hr-Kꜣ)',
+              dateButtonBuilder: (_, _) => const SizedBox.shrink(),
+              onClose: () {},
+              onJumpToToday: () {},
+              onOpenQuickAdd: (_) async {},
+              onOpenSearch: (_) async {},
+              onOpenProfile: (_) async {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      return tester
+          .getRect(find.byKey(const ValueKey('day_view_mini_calendar')))
+          .top;
+    }
+
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    expect(await pumpHeader(const Size(1024, 768)), 56);
+    expect(await pumpHeader(const Size(390, 844)), 48);
+    expect(tester.takeException(), isNull);
+  });
 }

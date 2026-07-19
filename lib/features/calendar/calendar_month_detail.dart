@@ -755,10 +755,11 @@ class _InfoTabState extends State<_InfoTab> {
       final paragraph = raw.trimRight();
       if (paragraph.isEmpty) continue;
       final style = paragraphIndex == 0 ? _metaStyle : _bodyStyle;
-      final spans = _linkifyParagraph(paragraph, linkMap, used, style);
+      final protectedStyle = KemeticTypography.protect(style, paragraph);
+      final spans = _linkifyParagraph(paragraph, linkMap, used, protectedStyle);
       widgets.add(
         RichText(
-          text: TextSpan(style: style, children: spans),
+          text: TextSpan(style: protectedStyle, children: spans),
           textHeightBehavior: const TextHeightBehavior(
             applyHeightToFirstAscent: false,
             applyHeightToLastDescent: false,
@@ -830,7 +831,7 @@ class _InfoTabState extends State<_InfoTab> {
             shaderCallback: (Rect bounds) =>
                 _CalendarTone.mutedGoldGloss.createShader(bounds),
             blendMode: BlendMode.srcIn,
-            child: Text(
+            child: KemeticText(
               link.phrase,
               style: baseStyle.copyWith(
                 color: Colors.white,

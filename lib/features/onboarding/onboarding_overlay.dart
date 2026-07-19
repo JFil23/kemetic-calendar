@@ -68,6 +68,7 @@ class OnboardingOverlay extends StatefulWidget {
     required this.onEntryStateSelected,
     required this.onSkip,
     required this.onComplete,
+    this.initialSlide = HawOnboardingSlide.exhale,
     this.onSlideChanged,
   });
 
@@ -78,6 +79,7 @@ class OnboardingOverlay extends StatefulWidget {
   final Future<void> Function(String entryState) onEntryStateSelected;
   final VoidCallback onSkip;
   final VoidCallback onComplete;
+  final HawOnboardingSlide initialSlide;
   final ValueChanged<HawOnboardingSlide>? onSlideChanged;
 
   @override
@@ -85,7 +87,7 @@ class OnboardingOverlay extends StatefulWidget {
 }
 
 class _OnboardingOverlayState extends State<OnboardingOverlay> {
-  HawOnboardingSlide _slide = HawOnboardingSlide.exhale;
+  late HawOnboardingSlide _slide = widget.initialSlide;
   final List<Timer> _timers = <Timer>[];
 
   bool _s1Line1 = false;
@@ -498,35 +500,38 @@ class _HawOnboardingClosingBannerState
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: _HawColors.border, width: 0.5),
           ),
-          child: Stack(
-            children: [
-              Positioned(
-                top: 0,
-                right: 0,
-                child: AnimatedOpacity(
-                  duration: _reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 300),
-                  opacity: _phase == HawClosingPhase.copyVisible ? 1 : 0,
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: _beginClose,
-                    child: Semantics(
-                      button: true,
-                      label: 'Close closing message',
+          child: SizedBox(
+            height: 184,
+            child: Stack(
+              children: [
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: AnimatedOpacity(
+                    duration: _reduceMotion
+                        ? Duration.zero
+                        : const Duration(milliseconds: 300),
+                    opacity: _phase == HawClosingPhase.copyVisible ? 1 : 0,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
                       onTap: _beginClose,
-                      child: const SizedBox(
-                        width: 44,
-                        height: 44,
-                        child: Center(
-                          child: Text(
-                            '×',
-                            style: TextStyle(
-                              color: _HawColors.goldGhost,
-                              fontFamily: _HawType.displayFamily,
-                              fontFamilyFallback: _HawType.displayFallback,
-                              fontSize: 20,
-                              height: 1,
+                      child: Semantics(
+                        button: true,
+                        label: 'Close closing message',
+                        onTap: _beginClose,
+                        child: const SizedBox(
+                          width: 44,
+                          height: 44,
+                          child: Center(
+                            child: Text(
+                              '×',
+                              style: TextStyle(
+                                color: _HawColors.goldGhost,
+                                fontFamily: _HawType.displayFamily,
+                                fontFamilyFallback: _HawType.displayFallback,
+                                fontSize: 20,
+                                height: 1,
+                              ),
                             ),
                           ),
                         ),
@@ -534,58 +539,58 @@ class _HawOnboardingClosingBannerState
                     ),
                   ),
                 ),
-              ),
-              if (showCopy)
-                AnimatedOpacity(
-                  duration: _reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 500),
-                  curve: Curves.easeOut,
-                  opacity: copyVisible ? 1 : 0,
-                  child: const Padding(
-                    padding: EdgeInsets.only(top: 34),
-                    child: Text(
-                      'At the end of the day,\nmark your truth.\n\n'
-                      'The next morning\nwill carry you forward.',
-                      style: TextStyle(
-                        color: _HawColors.goldMuted,
-                        fontFamily: _HawType.bodyFamily,
-                        fontFamilyFallback: _HawType.bodyFallback,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w300,
-                        height: 1.7,
+                if (showCopy)
+                  AnimatedOpacity(
+                    duration: _reduceMotion
+                        ? Duration.zero
+                        : const Duration(milliseconds: 500),
+                    curve: Curves.easeOut,
+                    opacity: copyVisible ? 1 : 0,
+                    child: const Padding(
+                      padding: EdgeInsets.only(top: 34),
+                      child: Text(
+                        'At the end of the day,\nmark your truth.\n\n'
+                        'The next morning\nwill carry you forward.',
+                        style: TextStyle(
+                          color: _HawColors.goldMuted,
+                          fontFamily: _HawType.bodyFamily,
+                          fontFamilyFallback: _HawType.bodyFallback,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w300,
+                          height: 1.7,
+                        ),
                       ),
                     ),
                   ),
-                ),
-              if (showSeal)
-                AnimatedOpacity(
-                  duration: _reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 600),
-                  curve: Curves.easeOut,
-                  opacity:
-                      _phase == HawClosingPhase.sealFadingIn ||
-                          _phase == HawClosingPhase.sealHolding
-                      ? 1
-                      : 0,
-                  child: const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'this is ḥꜣw',
-                      style: TextStyle(
-                        color: _HawColors.goldPrimary,
-                        fontFamily: _HawType.bodyFamily,
-                        fontFamilyFallback: _HawType.bodyFallback,
-                        fontStyle: FontStyle.italic,
-                        fontSize: 17,
-                        fontWeight: FontWeight.w300,
-                        height: 1.2,
+                if (showSeal)
+                  AnimatedOpacity(
+                    duration: _reduceMotion
+                        ? Duration.zero
+                        : const Duration(milliseconds: 600),
+                    curve: Curves.easeOut,
+                    opacity:
+                        _phase == HawClosingPhase.sealFadingIn ||
+                            _phase == HawClosingPhase.sealHolding
+                        ? 1
+                        : 0,
+                    child: const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'this is ḥꜣw',
+                        style: TextStyle(
+                          color: _HawColors.goldPrimary,
+                          fontFamily: _HawType.bodyFamily,
+                          fontFamilyFallback: _HawType.bodyFallback,
+                          fontStyle: FontStyle.italic,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w300,
+                          height: 1.2,
+                        ),
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -644,16 +649,27 @@ class _ExhaleSlide extends StatelessWidget {
                 : const Duration(milliseconds: 1400),
             curve: Curves.easeOut,
             opacity: wordmarkVisible ? 1 : 0,
-            child: const Text(
-              'this is ḥꜣw',
-              style: TextStyle(
-                color: _HawColors.goldGhost,
-                fontFamily: _HawType.bodyFamily,
-                fontFamilyFallback: _HawType.bodyFallback,
-                fontStyle: FontStyle.italic,
-                fontSize: 17,
-                fontWeight: FontWeight.w300,
-                height: 1.2,
+            child: RichText(
+              text: const TextSpan(
+                text: 'this is ',
+                children: [
+                  TextSpan(
+                    text: 'ḥꜣw',
+                    style: TextStyle(
+                      color: _HawColors.wordmarkEmphasis,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+                style: TextStyle(
+                  color: _HawColors.wordmarkLead,
+                  fontFamily: _HawType.bodyFamily,
+                  fontFamilyFallback: _HawType.bodyFallback,
+                  fontStyle: FontStyle.italic,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w300,
+                  height: 1.2,
+                ),
               ),
             ),
           ),
@@ -707,7 +723,7 @@ class _SegmentationSlide extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(44, 96, 44, 80),
+        padding: const EdgeInsets.fromLTRB(44, 78, 44, 54),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -730,12 +746,12 @@ class _SegmentationSlide extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 42),
+            const SizedBox(height: 34),
             Expanded(
               child: ListView.separated(
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: _entryOptions.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 18),
+                separatorBuilder: (_, _) => const SizedBox(height: 14),
                 itemBuilder: (context, index) {
                   final option = _entryOptions[index];
                   final selected = selectedValue == option.value;
@@ -760,7 +776,7 @@ class _SegmentationSlide extends StatelessWidget {
                               : const Duration(milliseconds: 250),
                           curve: Curves.easeOut,
                           width: double.infinity,
-                          constraints: const BoxConstraints(minHeight: 76),
+                          constraints: const BoxConstraints(minHeight: 72),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 24,
                             vertical: 14,
@@ -1155,7 +1171,7 @@ class _TypographicCue extends StatelessWidget {
             child: Text(
               label,
               style: const TextStyle(
-                color: _HawColors.ghostDeep,
+                color: _HawColors.actionCue,
                 fontFamily: _HawType.bodyFamily,
                 fontFamilyFallback: _HawType.bodyFallback,
                 fontStyle: FontStyle.italic,
@@ -1244,7 +1260,9 @@ class _HawColors {
   static const Color goldStrong = Color(0xFFB8A06A);
   static const Color goldDim = Color(0xFF5A4E30);
   static const Color goldGhost = Color(0xFF3A3220);
-  static const Color ghostDeep = Color(0xFF2A2518);
+  static const Color actionCue = Color(0xFFA89560);
+  static const Color wordmarkLead = Color(0xFFB09C68);
+  static const Color wordmarkEmphasis = Color(0xFFE0C465);
   static const Color border = Color(0xFF2A2416);
   static const Color cardBg = Color(0xFF0D0B07);
 }

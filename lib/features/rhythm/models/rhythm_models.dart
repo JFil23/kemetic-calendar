@@ -100,6 +100,28 @@ class RhythmTodo {
   final bool isChecklist;
   final bool isCalendar;
   final RhythmItemState state;
+
+  RhythmTodo copyWith({
+    String? id,
+    String? title,
+    String? notes,
+    DateTime? dueDate,
+    TimeOfDay? dueTime,
+    bool? isChecklist,
+    bool? isCalendar,
+    RhythmItemState? state,
+  }) {
+    return RhythmTodo(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      notes: notes ?? this.notes,
+      dueDate: dueDate ?? this.dueDate,
+      dueTime: dueTime ?? this.dueTime,
+      isChecklist: isChecklist ?? this.isChecklist,
+      isCalendar: isCalendar ?? this.isCalendar,
+      state: state ?? this.state,
+    );
+  }
 }
 
 class RhythmTodoDraft {

@@ -34,7 +34,8 @@ void main() {
 
       for (final label in <String>[
         'global drawer bubble tapped',
-        'global drawer mounted/opened',
+        'global drawer mounted closed',
+        'global drawer opened',
         'Flow Studio tile tapped',
         'Calendars tile tapped',
         '_openFlowsFromDrawer entered',

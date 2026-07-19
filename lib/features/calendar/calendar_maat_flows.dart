@@ -251,6 +251,7 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
           DecanWatchLens? decanWatchLens,
           OpenHandLens? openHandLens,
           DjedLens? djedLens,
+          List<ReadingHouseSitting>? readingHouseSittings,
           String? eveningThresholdInitialCarry,
         }) async => 1,
   );
@@ -289,66 +290,8 @@ bool maatFlowTemplateMatchesActiveFlowForTesting({
 }
 
 class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
-  final GlobalKey _addFlowHelperKey = GlobalKey(
-    debugLabel: 'flow_studio_maat_add_flow_helper',
-  );
   final Set<String> _locallyJoinedTemplateKeys = <String>{};
   _MaatFlowLibraryCategory? _selectedWaitingCategory;
-  bool _helperPrompted = false;
-
-  @override
-  void initState() {
-    super.initState();
-    unawaited(_maybeShowFlowStudioAddFlowHelper());
-  }
-
-  Future<void> _maybeShowFlowStudioAddFlowHelper() async {
-    if (_helperPrompted) return;
-    final String? userId;
-    try {
-      userId = Supabase.instance.client.auth.currentUser?.id;
-    } catch (_) {
-      return;
-    }
-    if (userId == null || userId.isEmpty) return;
-    final helperUserId = userId;
-    const helper = OnboardingHelperRegistry.flowStudioAddFlow;
-    final helperService = OnboardingHelperCompletionService.instance;
-    if (!await helperService.shouldShowHelper(helperUserId, helper.id)) return;
-    _helperPrompted = true;
-    await Future<void>.delayed(const Duration(milliseconds: 450));
-    if (!mounted) return;
-    await helperService.hydrateUser(helperUserId);
-    if (!mounted ||
-        !helperService.shouldShowHelperSync(helperUserId, helper.id)) {
-      return;
-    }
-    GuidedOnboardingController.instance.show(
-      CoachmarkTarget(
-        key: _addFlowHelperKey,
-        title: helper.title,
-        body: helper.body,
-        placement: CoachmarkPlacement.below,
-        variant: CoachmarkVariant.helperBubble,
-        showDismissButton: true,
-        dismissLabel: 'Got it',
-        helperId: helper.id,
-        helperUserId: helperUserId,
-        sourceWidget: OnboardingHelperRegistry.maatFlowListAddFlowSourceWidget,
-        onDismiss: () async {
-          final completion = helperService.markHelperCompleted(
-            helperUserId,
-            helper.id,
-          );
-          GuidedOnboardingController.instance.clear();
-          await completion;
-        },
-      ),
-    );
-    unawaited(
-      Events.trackIfAuthed(helper.analyticsEvent, const <String, dynamic>{}),
-    );
-  }
 
   Future<void> _markFlowStudioHelperCompleted(String helperId) async {
     final String? userId;
@@ -497,7 +440,6 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
           Padding(
             padding: const EdgeInsets.only(right: 7),
             child: IconButton(
-              key: _addFlowHelperKey,
               tooltip: 'New flow',
               icon: const Icon(
                 Icons.add,
@@ -2042,6 +1984,7 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
     DecanWatchLens? decanWatchLens,
     OpenHandLens? openHandLens,
     DjedLens? djedLens,
+    List<ReadingHouseSitting>? readingHouseSittings,
     String? eveningThresholdInitialCarry,
   })
   addInstance;
@@ -2161,6 +2104,9 @@ class _MaatFlowArcChevron extends StatelessWidget {
 
 class _MaatFlowTemplateDetailPageState
     extends State<_MaatFlowTemplateDetailPage> {
+  late final ScrollController _detailScrollController = ScrollController(
+    keepScrollOffset: !widget.embeddedInOnboarding,
+  );
   late TrackSkyTimeZone _previewTrackSkyTimeZone;
   Future<TrackSkyFlowData>? _trackSkyFuture;
   bool _dawnDiscreetMode = false;
@@ -2169,6 +2115,11 @@ class _MaatFlowTemplateDetailPageState
   bool _dawnJoinInFlight = false;
   bool _eveningThresholdStartDateTouched = false;
   bool _eveningThresholdJoinInFlight = false;
+  final FocusNode _eveningThresholdCarryFocusNode = FocusNode();
+  final GlobalKey _eveningThresholdCarryPromptKey = GlobalKey();
+  final GlobalKey _eveningThresholdCarryFieldKey = GlobalKey();
+  bool _eveningThresholdCarryPrompted = false;
+  bool _eveningThresholdCarryHintVisible = false;
   final TextEditingController _eveningThresholdInitialCarryController =
       TextEditingController();
   bool _eveningDiscreetMode = false;
@@ -2209,6 +2160,10 @@ class _MaatFlowTemplateDetailPageState
   DjedLens _djedLens = DjedLens.neutral;
   bool _djedStartDateTouched = false;
   bool _djedJoinInFlight = false;
+  bool _readingHouseStartDateTouched = false;
+  bool _readingHouseJoinInFlight = false;
+  List<ReadingHouseSitting> _readingHouseSittings =
+      readingHouseStarterSittingsForAuthoring();
   bool _maatDecanStartDateTouched = false;
   bool _maatDecanJoinInFlight = false;
   bool _descriptionExpanded = false;
@@ -2232,6 +2187,9 @@ class _MaatFlowTemplateDetailPageState
   void initState() {
     super.initState();
     _previewTrackSkyTimeZone = detectTrackSkyTimeZone();
+    _eveningThresholdCarryFocusNode.addListener(
+      _handleEveningThresholdCarryFocusChange,
+    );
     if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
       _trackSkyFuture = loadTrackSkyFlowData(_previewTrackSkyTimeZone);
     } else if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
@@ -2267,6 +2225,9 @@ class _MaatFlowTemplateDetailPageState
       _picked = defaultTheOpenHandStartDate(_previewTrackSkyTimeZone);
     } else if (widget.template.kind == _MaatFlowTemplateKind.theDjed) {
       _picked = defaultTheDjedStartDate(_previewTrackSkyTimeZone);
+    } else if (widget.template.kind == _MaatFlowTemplateKind.readingHouse) {
+      _picked = defaultReadingHouseStartDate(_previewTrackSkyTimeZone);
+      _readingHouseSittings = readingHouseStarterSittingsForAuthoring();
     } else if (widget.template.kind == _MaatFlowTemplateKind.maatDecan) {
       _picked = defaultTheDecanWatchStartDate(_previewTrackSkyTimeZone);
     }
@@ -2274,8 +2235,35 @@ class _MaatFlowTemplateDetailPageState
 
   @override
   void dispose() {
+    _eveningThresholdCarryFocusNode.removeListener(
+      _handleEveningThresholdCarryFocusChange,
+    );
+    _detailScrollController.dispose();
+    _eveningThresholdCarryFocusNode.dispose();
     _eveningThresholdInitialCarryController.dispose();
     super.dispose();
+  }
+
+  void _handleEveningThresholdCarryFocusChange() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  Future<void> _ensureEveningThresholdCarryPromptVisible({
+    required double alignment,
+    required Duration duration,
+  }) async {
+    final promptContext =
+        _eveningThresholdCarryPromptKey.currentContext ??
+        _eveningThresholdCarryFieldKey.currentContext;
+    if (promptContext == null || !promptContext.mounted) return;
+    await Scrollable.ensureVisible(
+      promptContext,
+      duration: duration,
+      curve: Curves.easeInOutCubic,
+      alignment: alignment,
+      alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+    );
   }
 
   String _kemeticLabelFor(DateTime g) {
@@ -2452,6 +2440,9 @@ class _MaatFlowTemplateDetailPageState
       initialMode: _useKemetic
           ? MaatFlowDatePickerMode.kemetic
           : MaatFlowDatePickerMode.gregorian,
+      barrierColor: widget.embeddedInOnboarding
+          ? Colors.black.withValues(alpha: 0.28)
+          : null,
     );
     if (picked == null || !mounted) return;
     setState(() {
@@ -2479,6 +2470,8 @@ class _MaatFlowTemplateDetailPageState
       _keptWordStartDateTouched = true;
     } else if (widget.template.kind == _MaatFlowTemplateKind.theCourse) {
       _courseStartDateTouched = true;
+    } else if (widget.template.kind == _MaatFlowTemplateKind.readingHouse) {
+      _readingHouseStartDateTouched = true;
     }
   }
 
@@ -3333,6 +3326,9 @@ class _MaatFlowTemplateDetailPageState
       } else if (widget.template.kind == _MaatFlowTemplateKind.theDjed &&
           !_djedStartDateTouched) {
         _picked = defaultTheDjedStartDate(timezone);
+      } else if (widget.template.kind == _MaatFlowTemplateKind.readingHouse &&
+          !_readingHouseStartDateTouched) {
+        _picked = defaultReadingHouseStartDate(timezone);
       } else if (widget.template.kind == _MaatFlowTemplateKind.maatDecan &&
           !_maatDecanStartDateTouched) {
         _picked = defaultTheDecanWatchStartDate(timezone);
@@ -3546,8 +3542,24 @@ class _MaatFlowTemplateDetailPageState
     if (_eveningThresholdJoinInFlight) return;
     final initialCarry = _eveningThresholdInitialCarryController.text.trim();
     if (initialCarry.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Name what you carry today first.')),
+      setState(() {
+        _eveningThresholdCarryPrompted = true;
+        _eveningThresholdCarryHintVisible = true;
+      });
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      await _ensureEveningThresholdCarryPromptVisible(
+        alignment: 0.28,
+        duration: const Duration(milliseconds: 620),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      if (!mounted) return;
+      _eveningThresholdCarryFocusNode.requestFocus();
+      await Future<void>.delayed(const Duration(milliseconds: 320));
+      if (!mounted) return;
+      await _ensureEveningThresholdCarryPromptVisible(
+        alignment: 0.20,
+        duration: const Duration(milliseconds: 260),
       );
       return;
     }
@@ -4037,6 +4049,47 @@ class _MaatFlowTemplateDetailPageState
     }
     setState(() {
       _djedJoinInFlight = false;
+    });
+  }
+
+  Future<void> _joinReadingHouseFlow(DateTime selectedStart) async {
+    if (_readingHouseJoinInFlight) return;
+    setState(() {
+      _readingHouseJoinInFlight = true;
+    });
+
+    final int id;
+    try {
+      id = await widget.addInstance(
+        template: widget.template,
+        startDate: selectedStart,
+        trackSkyTimeZone: _previewTrackSkyTimeZone,
+        readingHouseSittings: _readingHouseSittings,
+      );
+    } catch (e, st) {
+      if (kDebugMode) {
+        _calendarDebugPrint('[readingHouse] join failed: $e');
+        _calendarDebugPrint('$st');
+      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not join The Reading House. Please retry.'),
+        ),
+      );
+      setState(() {
+        _readingHouseJoinInFlight = false;
+      });
+      return;
+    }
+
+    if (!mounted) return;
+    if (id > 0) {
+      await _completeJoin(id);
+      return;
+    }
+    setState(() {
+      _readingHouseJoinInFlight = false;
     });
   }
 
@@ -4590,23 +4643,26 @@ class _MaatFlowTemplateDetailPageState
     final media = MediaQuery.of(context);
     const ctaHeight = 52.0;
     final embedded = widget.embeddedInOnboarding;
+    final keyboardInset = media.viewInsets.bottom;
     final scrollBottomPadding =
         ctaHeight +
-        (embedded ? 0 : media.padding.bottom) +
-        (embedded ? 18 : 24);
+        (embedded ? keyboardInset : media.padding.bottom) +
+        (embedded ? 96 : 24);
     final bodyPadding = embedded
         ? EdgeInsets.fromLTRB(16, 18, 16, scrollBottomPadding)
         : EdgeInsets.fromLTRB(14, 16, 14, scrollBottomPadding);
     final ctaPadding = embedded
-        ? const EdgeInsets.fromLTRB(14, 10, 14, 14)
+        ? EdgeInsets.fromLTRB(14, 10, 14, 14 + keyboardInset)
         : const EdgeInsets.fromLTRB(18, 14, 18, 22);
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: MaatFlowListTokens.pageBg,
       appBar: embedded ? null : _buildMaatFlowDetailAppBar(context),
       body: SafeArea(
         top: !embedded,
         bottom: false,
         child: ListView(
+          controller: _detailScrollController,
           padding: bodyPadding,
           children: [
             Center(
@@ -4633,7 +4689,9 @@ class _MaatFlowTemplateDetailPageState
               stops: [0.0, 0.45],
             ),
           ),
-          child: Padding(
+          child: AnimatedPadding(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
             padding: ctaPadding,
             child: Align(
               alignment: Alignment.center,
@@ -4734,6 +4792,7 @@ class _MaatFlowTemplateDetailPageState
     Widget? initialPromptSlot,
   }) {
     final palette = _palette;
+    final historicalBadgeText = widget.template.historicalBadgeText.trim();
     return [
       _buildMaatFlowDetailHero(tagline: tagline),
       const SizedBox(height: 16),
@@ -4751,6 +4810,10 @@ class _MaatFlowTemplateDetailPageState
       if (initialPromptSlot != null) ...[
         const SizedBox(height: 16),
         initialPromptSlot,
+      ],
+      if (historicalBadgeText.isNotEmpty) ...[
+        const SizedBox(height: 12),
+        _buildMaatFlowHistoricalBadge(historicalBadgeText),
       ],
       if (extraOverviewNote != null) ...[
         const SizedBox(height: 12),
@@ -4904,7 +4967,9 @@ class _MaatFlowTemplateDetailPageState
     return LayoutBuilder(
       builder: (context, constraints) {
         final textScale = MediaQuery.textScalerOf(context).scale(1);
-        final useVertical = constraints.maxWidth < 330 || textScale > 1.3;
+        final useVertical =
+            !widget.embeddedInOnboarding &&
+            (constraints.maxWidth < 330 || textScale > 1.3);
         if (useVertical) {
           return Column(
             children: [
@@ -5716,6 +5781,29 @@ class _MaatFlowTemplateDetailPageState
             ),
           ],
         );
+      case _MaatFlowTemplateKind.readingHouse:
+        return const _MaatFlowDetailContent(
+          orientingSentence:
+              'Private-study foundation. Set one book and three starter sittings; company surfaces are saved as intent, not live discussion.',
+          chips: ['Phase 1A', 'Private-first', '3 generated sittings'],
+          arcBlocks: [
+            _MaatFlowArcBlock(
+              range: 'Plan',
+              title: 'Set the Reading',
+              act: 'Name the book, edition, and question',
+            ),
+            _MaatFlowArcBlock(
+              range: 'Sittings',
+              title: 'Read in Measure',
+              act: 'Use generated portions; authoring tools come later',
+            ),
+            _MaatFlowArcBlock(
+              range: 'House',
+              title: 'Hold for Later',
+              act: 'Keep fragments private until sharing exists',
+            ),
+          ],
+        );
       case _MaatFlowTemplateKind.maatDecan:
         final definition = maatDecanFlowDefinitionForKey(widget.template.key);
         return _MaatFlowDetailContent(
@@ -6004,6 +6092,15 @@ class _MaatFlowTemplateDetailPageState
           height: 1.38,
         ),
       ),
+    );
+  }
+
+  Widget _buildMaatFlowHistoricalBadge(String text) {
+    return _buildMaatFlowNotice(
+      text,
+      borderColor: _palette.accent.withValues(alpha: 0.30),
+      textColor: MaatFlowPalette.silverHi,
+      fontWeight: FontWeight.w500,
     );
   }
 
@@ -6560,9 +6657,6 @@ class _MaatFlowTemplateDetailPageState
     final l10n = MaterialLocalizations.of(context);
     final selectedStart =
         _picked ?? defaultEveningThresholdStartDate(_previewTrackSkyTimeZone);
-    final initialCarryReady = _eveningThresholdInitialCarryController.text
-        .trim()
-        .isNotEmpty;
     final firstEvent = kEveningThresholdEvents.first;
     final firstSchedule = dailyEveningThresholdScheduleForDate(
       localDate: selectedStart,
@@ -6588,12 +6682,18 @@ class _MaatFlowTemplateDetailPageState
         minute: finalSchedule.endLocal.minute,
       ),
     );
+    final carryFieldActive =
+        _eveningThresholdCarryPrompted ||
+        _eveningThresholdCarryFocusNode.hasFocus;
+    final carryBorderColor = carryFieldActive
+        ? MaatFlowPalette.gold.withValues(alpha: 0.78)
+        : MaatFlowPalette.gold.withValues(alpha: 0.30);
 
     return _buildMaatFlowDetailScaffold(
       context,
       joinButton: _buildTemplateStickyJoinButton(
         text: _eveningThresholdJoinInFlight ? 'Joining…' : 'Join Flow',
-        onPressed: _eveningThresholdJoinInFlight || !initialCarryReady
+        onPressed: _eveningThresholdJoinInFlight
             ? null
             : () => _joinEveningThresholdFlow(selectedStart),
       ),
@@ -6608,41 +6708,111 @@ class _MaatFlowTemplateDetailPageState
           ),
           tagline: widget.template.subtitle,
           configurationControls: [
-            const _MaatFlowDetailSectionLabel('WHAT DO YOU CARRY TODAY?'),
-            TextField(
-              controller: _eveningThresholdInitialCarryController,
-              maxLines: 3,
-              minLines: 2,
-              textInputAction: TextInputAction.newline,
-              onChanged: (_) => setState(() {}),
-              style: const TextStyle(
-                color: Colors.white,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 15,
-                height: 1.35,
-              ),
-              decoration: InputDecoration(
-                hintText: 'What do you carry today?',
-                hintStyle: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.36),
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                ),
-                filled: true,
-                fillColor: Colors.black.withValues(alpha: 0.28),
-                contentPadding: const EdgeInsets.all(14),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(
-                    color: _palette.accent.withValues(alpha: 0.28),
+            Column(
+              key: _eveningThresholdCarryPromptKey,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const _MaatFlowDetailSectionLabel('WHAT DO YOU CARRY TODAY?'),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: carryFieldActive
+                        ? [
+                            BoxShadow(
+                              color: MaatFlowPalette.gold.withValues(
+                                alpha: 0.14,
+                              ),
+                              blurRadius: 18,
+                              spreadRadius: 1,
+                            ),
+                          ]
+                        : const [],
+                  ),
+                  child: TextSelectionTheme(
+                    data: TextSelectionTheme.of(context).copyWith(
+                      cursorColor: MaatFlowPalette.gold,
+                      selectionColor: MaatFlowPalette.gold.withValues(
+                        alpha: 0.26,
+                      ),
+                      selectionHandleColor: MaatFlowPalette.gold,
+                    ),
+                    child: TextField(
+                      key: _eveningThresholdCarryFieldKey,
+                      focusNode: _eveningThresholdCarryFocusNode,
+                      controller: _eveningThresholdInitialCarryController,
+                      cursorColor: MaatFlowPalette.gold,
+                      maxLines: 3,
+                      minLines: 2,
+                      textInputAction: TextInputAction.newline,
+                      onChanged: (value) {
+                        if (value.trim().isEmpty ||
+                            (!_eveningThresholdCarryPrompted &&
+                                !_eveningThresholdCarryHintVisible)) {
+                          return;
+                        }
+                        setState(() {
+                          _eveningThresholdCarryPrompted = false;
+                          _eveningThresholdCarryHintVisible = false;
+                        });
+                      },
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontFamily: MaatFlowListTokens.fontFamily,
+                        fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                        fontSize: 15,
+                        height: 1.35,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'What do you carry today?',
+                        hintStyle: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.36),
+                          fontFamily: MaatFlowListTokens.fontFamily,
+                          fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                        ),
+                        filled: true,
+                        fillColor: Colors.black.withValues(alpha: 0.28),
+                        contentPadding: const EdgeInsets.all(14),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(color: carryBorderColor),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                            color: carryBorderColor,
+                            width: 1.4,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                  borderSide: BorderSide(color: _palette.accent),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 42,
+                  child: AnimatedOpacity(
+                    duration: const Duration(milliseconds: 420),
+                    curve: Curves.easeOut,
+                    opacity: _eveningThresholdCarryHintVisible ? 1 : 0,
+                    child: Align(
+                      alignment: Alignment.topLeft,
+                      child: Text(
+                        'Name what you carry today before this flow begins.',
+                        style: TextStyle(
+                          color: MaatFlowPalette.gold.withValues(alpha: 0.72),
+                          fontFamily: MaatFlowListTokens.fontFamily,
+                          fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                          fontSize: 13.5,
+                          fontStyle: FontStyle.italic,
+                          height: 1.25,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-              ),
+              ],
             ),
             const SizedBox(height: 18),
             const _MaatFlowDetailSectionLabel('TIMEZONE'),
@@ -7841,6 +8011,247 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
+  DateTime _readingHouseDateForSitting(
+    ReadingHouseSitting sitting,
+    DateTime firstStart,
+  ) {
+    final schedule = readingHouseScheduleForSitting(
+      sitting,
+      firstStart,
+      _previewTrackSkyTimeZone,
+    );
+    return DateTime(
+      schedule.startLocal.year,
+      schedule.startLocal.month,
+      schedule.startLocal.day,
+    );
+  }
+
+  int _readingHouseFlowDayForDate(DateTime firstStart, DateTime sittingDate) {
+    final first = DateTime(firstStart.year, firstStart.month, firstStart.day);
+    final selected = DateTime(
+      sittingDate.year,
+      sittingDate.month,
+      sittingDate.day,
+    );
+    return math.max(1, selected.difference(first).inDays + 1);
+  }
+
+  Future<void> _editReadingHouseSitting(
+    BuildContext context,
+    ReadingHouseSitting sitting,
+    DateTime firstStart,
+  ) async {
+    final scheduledDate = _readingHouseDateForSitting(sitting, firstStart);
+    final edited = await showModalBottomSheet<ReadingHouseSitting>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ReadingHouseSittingDraftSheet(
+        sitting: sitting,
+        initialDate: scheduledDate,
+        initialTime: TimeOfDay(hour: sitting.hour, minute: sitting.minute),
+        flowDayForDate: (date) => _readingHouseFlowDayForDate(firstStart, date),
+        accentColor: _palette.accent,
+        borderColor: _palette.accent.withValues(alpha: 0.35),
+      ),
+    );
+
+    if (edited == null || !mounted) return;
+    setState(() {
+      _readingHouseSittings = editReadingHouseSitting(
+        _readingHouseSittings,
+        sitting.eventNumber,
+        edited,
+      );
+    });
+  }
+
+  void _addReadingHouseSitting() {
+    setState(() {
+      _readingHouseSittings = addReadingHouseSitting(_readingHouseSittings);
+    });
+  }
+
+  void _deleteReadingHouseSitting(ReadingHouseSitting sitting) {
+    if (_readingHouseSittings.length <= 1) return;
+    setState(() {
+      _readingHouseSittings = deleteReadingHouseSitting(
+        _readingHouseSittings,
+        sitting.eventNumber,
+      );
+    });
+  }
+
+  void _moveReadingHouseSitting(int oldIndex, int newIndex) {
+    setState(() {
+      _readingHouseSittings = reorderReadingHouseSitting(
+        _readingHouseSittings,
+        oldIndex,
+        newIndex,
+      );
+    });
+  }
+
+  Widget _buildReadingHouseSittingTile(
+    BuildContext context,
+    ReadingHouseSitting sitting,
+    DateTime firstStart,
+    int index,
+  ) {
+    final schedule = readingHouseScheduleForSitting(
+      sitting,
+      firstStart,
+      _previewTrackSkyTimeZone,
+    );
+    final l10n = MaterialLocalizations.of(context);
+    final time = l10n.formatTimeOfDay(
+      TimeOfDay(
+        hour: schedule.startLocal.hour,
+        minute: schedule.startLocal.minute,
+      ),
+    );
+    final plan = readingHousePlanFromDraftValues(
+      kMaatFlowResponseDraftStore.valuesForFlow(kReadingHouseFlowKey),
+    );
+    final metadata =
+        sitting.sittingSource == kReadingHouseSittingSourceHostAuthored
+        ? 'Host authored'
+        : 'Starter default';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildExpandableFlowEventTile(
+          title: readingHouseSittingTitle(sitting),
+          subtitle:
+              '$metadata · ${readingHouseTimingLabel(sitting)} · ${_dateLabel(context, schedule.startLocal)} at $time',
+          detailText: readingHouseDetailText(sitting, plan: plan),
+          borderColor: sitting.isHostAuthored
+              ? _palette.accent.withValues(alpha: 0.46)
+              : sitting.sharePromptOnComplete
+              ? _palette.accent.withValues(alpha: 0.42)
+              : Colors.white12,
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Tooltip(
+                message: 'Move up',
+                child: IconButton(
+                  onPressed: index == 0
+                      ? null
+                      : () => _moveReadingHouseSitting(index, index - 1),
+                  icon: const Icon(Icons.keyboard_arrow_up),
+                  color: _palette.accent,
+                ),
+              ),
+              Tooltip(
+                message: 'Move down',
+                child: IconButton(
+                  onPressed: index >= _readingHouseSittings.length - 1
+                      ? null
+                      : () => _moveReadingHouseSitting(index, index + 1),
+                  icon: const Icon(Icons.keyboard_arrow_down),
+                  color: _palette.accent,
+                ),
+              ),
+              Tooltip(
+                message: 'Edit sitting',
+                child: IconButton(
+                  onPressed: () =>
+                      _editReadingHouseSitting(context, sitting, firstStart),
+                  icon: const Icon(Icons.edit_outlined),
+                  color: _palette.accent,
+                ),
+              ),
+              Tooltip(
+                message: 'Delete sitting',
+                child: IconButton(
+                  onPressed: _readingHouseSittings.length <= 1
+                      ? null
+                      : () => _deleteReadingHouseSitting(sitting),
+                  icon: const Icon(Icons.delete_outline),
+                  color: const Color(0xFFD98E73),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReadingHouseScaffold(BuildContext context) {
+    final l10n = MaterialLocalizations.of(context);
+    final selectedStart =
+        _picked ?? defaultReadingHouseStartDate(_previewTrackSkyTimeZone);
+    final firstSchedule = readingHouseScheduleForDate(
+      _readingHouseSittings.first,
+      selectedStart,
+      _previewTrackSkyTimeZone,
+    );
+    final firstTime = l10n.formatTimeOfDay(
+      TimeOfDay(
+        hour: firstSchedule.startLocal.hour,
+        minute: firstSchedule.startLocal.minute,
+      ),
+    );
+    final initialPromptSlot = _buildCurrentInitialPromptSlot(
+      includeLeadingSeparator: false,
+    );
+
+    return _buildMaatFlowDetailScaffold(
+      context,
+      appendInitialPrompt: false,
+      joinButton: _buildTemplateStickyJoinButton(
+        text: _readingHouseJoinInFlight ? 'Joining…' : 'Add Flow',
+        onPressed: _readingHouseJoinInFlight
+            ? null
+            : () => _joinReadingHouseFlow(selectedStart),
+      ),
+      children: [
+        ..._buildMaatFlowOverviewZones(
+          content: _detailContentForTemplate(overrideChips: null),
+          tagline: kReadingHouseTagline,
+          initialPromptSlot: initialPromptSlot,
+          configurationControls: [
+            _buildStartDateRow(
+              context,
+              selectedStart,
+              label:
+                  'First sitting: ${_dateLabel(context, selectedStart)} at $firstTime',
+            ),
+          ],
+        ),
+        const _MaatFlowDetailSeparator(),
+        const _MaatFlowDetailSectionLabel('HOST SITTINGS'),
+        for (var index = 0; index < _readingHouseSittings.length; index++)
+          _buildReadingHouseSittingTile(
+            context,
+            _readingHouseSittings[index],
+            selectedStart,
+            index,
+          ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: OutlinedButton.icon(
+            onPressed: _addReadingHouseSitting,
+            icon: const Icon(Icons.add),
+            label: const Text('Add Sitting'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _palette.accent,
+              side: BorderSide(color: _palette.accent.withValues(alpha: 0.45)),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        const _MaatFlowPrivacyFooter(),
+      ],
+    );
+  }
+
   DaysOutsideYearEnrollmentWindow? _resolveDaysOutsideYearPreviewWindow() {
     return _tryEnrollmentWindow('daysOutsideYear', () {
       final picked = _picked;
@@ -8441,6 +8852,9 @@ class _MaatFlowTemplateDetailPageState
     }
     if (widget.template.kind == _MaatFlowTemplateKind.theDjed) {
       return _buildDjedScaffold(context);
+    }
+    if (widget.template.kind == _MaatFlowTemplateKind.readingHouse) {
+      return _buildReadingHouseScaffold(context);
     }
     if (widget.template.kind == _MaatFlowTemplateKind.maatDecan) {
       return _buildMaatDecanFlowScaffold(context);

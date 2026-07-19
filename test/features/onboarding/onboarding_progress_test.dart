@@ -25,6 +25,353 @@ void main() {
     expect(progress.currentStep, TrueOnboardingStep.complete);
   });
 
+  test('reflection decan onboarding gate fields persist locally', () {
+    final progress = const OnboardingProgress().copyWith(
+      reflectionSignupDecanIdentity: '2026:4:2',
+      hasCrossedFirstDecanBoundary: true,
+      firstReflectionEligibleDecanIdentity: '2026:4:3',
+    );
+    final restored = OnboardingProgress.fromJson(progress.toJson());
+
+    expect(restored.reflectionSignupDecanIdentity, '2026:4:2');
+    expect(restored.hasCrossedFirstDecanBoundary, isTrue);
+    expect(restored.firstReflectionEligibleDecanIdentity, '2026:4:3');
+  });
+
+  test('onboarding Day Rhythm handoff state persists locally', () {
+    final progress = const OnboardingProgress().copyWith(
+      onboardingDayRhythmState: OnboardingDayRhythmState.visible,
+      onboardingDayRhythmDateIdentity: '2026-07-10',
+      lastSatisfiedDayRhythmIdentity: '2026-07-10',
+    );
+    final restored = OnboardingProgress.fromJson(progress.toJson());
+
+    expect(restored.onboardingDayRhythmState, OnboardingDayRhythmState.visible);
+    expect(restored.onboardingDayRhythmDateIdentity, '2026-07-10');
+    expect(restored.lastSatisfiedDayRhythmIdentity, '2026-07-10');
+    expect(
+      OnboardingDayRhythmStateWire.fromWire('completed'),
+      OnboardingDayRhythmState.completed,
+    );
+  });
+
+  test(
+    'daily context gate blocks satisfied current and future onboarding identity',
+    () {
+      final completed = const OnboardingProgress().copyWith(
+        currentStep: TrueOnboardingStep.complete,
+        completedOnboarding: true,
+        hasSeenMenuPrompt: true,
+        onboardingDayRhythmState: OnboardingDayRhythmState.completed,
+      );
+
+      expect(
+        shouldAllowDailyCosmicContextAfterOnboardingHandoff(
+          progress: completed.copyWith(
+            lastSatisfiedDayRhythmIdentity: '2026-07-10',
+          ),
+          todayIdentity: '2026-07-10',
+        ),
+        isFalse,
+      );
+      expect(
+        shouldAllowDailyCosmicContextAfterOnboardingHandoff(
+          progress: completed.copyWith(
+            lastSatisfiedDayRhythmIdentity: '2026-07-11',
+          ),
+          todayIdentity: '2026-07-10',
+        ),
+        isFalse,
+        reason:
+            'A future event-derived handoff identity must not allow '
+            'an immediate adjacent-day replay.',
+      );
+      expect(
+        shouldAllowDailyCosmicContextAfterOnboardingHandoff(
+          progress: completed.copyWith(
+            lastSatisfiedDayRhythmIdentity: '2026-07-10',
+          ),
+          todayIdentity: '2026-07-11',
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test('daily context gate denies incomplete onboarding and menu handoff', () {
+    final base = const OnboardingProgress().copyWith(
+      completedOnboarding: true,
+      onboardingDayRhythmState: OnboardingDayRhythmState.completed,
+    );
+
+    expect(
+      shouldAllowDailyCosmicContextAfterOnboardingHandoff(
+        progress: base.copyWith(
+          currentStep: TrueOnboardingStep.menuExplore,
+          hasSeenMenuPrompt: false,
+        ),
+        todayIdentity: '2026-07-10',
+      ),
+      isFalse,
+    );
+    expect(
+      shouldAllowDailyCosmicContextAfterOnboardingHandoff(
+        progress: base.copyWith(
+          currentStep: TrueOnboardingStep.complete,
+          hasSeenMenuPrompt: true,
+          onboardingDayRhythmState: OnboardingDayRhythmState.visible,
+        ),
+        todayIdentity: '2026-07-10',
+      ),
+      isFalse,
+    );
+  });
+
+  test(
+    'completed persisted onboarding records normalize menu handoff seen',
+    () {
+      final restored = OnboardingProgress.fromJson(_poisonedCompletedJson());
+
+      expect(restored.completedOnboarding, isTrue);
+      expect(restored.currentStep, TrueOnboardingStep.complete);
+      expect(restored.hasSeenMenuPrompt, isTrue);
+      expect(shouldPresentFinalOnboardingMenuHandoff(restored), isFalse);
+      expect(
+        shouldAllowDailyCosmicContextAfterOnboardingHandoff(
+          progress: restored,
+          todayIdentity: '2026-07-10',
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test(
+    'completed onboarding normalization preserves fields and is idempotent',
+    () {
+      final raw = _poisonedCompletedJson()
+        ..addAll(<String, dynamic>{
+          'hasSeenWelcome': true,
+          'hasSeenCurrentDecanIntro': true,
+          'hasCompletedProfileBasics': true,
+          'hasChosenFirstMaatFlow': true,
+          'firstMaatFlowId': '42',
+          'firstMaatFlowTemplateId': 'oracle',
+          'firstMaatFlowEventDate': '2026-07-10T12:00:00.000Z',
+          'firstMaatFlowEventClientEventId': 'client-42',
+          'hasTappedFirstFlowDay': true,
+          'hasOpenedFirstFlowEvent': true,
+          'hasSeenObservedJournalPrompt': true,
+          'skippedOnboarding': true,
+          'reflectionSignupDecanIdentity': '2026:4:2',
+          'firstReflectionEligibleDecanIdentity': '2026:4:3',
+          'hasCrossedFirstDecanBoundary': true,
+          'onboardingDayRhythmState':
+              OnboardingDayRhythmState.completed.wireName,
+          'onboardingDayRhythmDateIdentity': '2026-07-10',
+          'lastSatisfiedDayRhythmIdentity': '2026-07-10',
+          'seenHelpers': <String>[OnboardingHelperIds.calendarToggle],
+        });
+
+      final restored = OnboardingProgress.fromJson(raw);
+      final normalizedAgain = OnboardingProgress.fromJson(restored.toJson());
+
+      expect(restored.hasSeenMenuPrompt, isTrue);
+      expect(restored.hasSeenWelcome, isTrue);
+      expect(restored.hasSeenCurrentDecanIntro, isTrue);
+      expect(restored.hasCompletedProfileBasics, isTrue);
+      expect(restored.hasChosenFirstMaatFlow, isTrue);
+      expect(restored.firstMaatFlowId, '42');
+      expect(restored.firstMaatFlowTemplateId, 'oracle');
+      expect(
+        restored.firstMaatFlowEventDate?.toUtc().toIso8601String(),
+        '2026-07-10T12:00:00.000Z',
+      );
+      expect(restored.firstMaatFlowEventClientEventId, 'client-42');
+      expect(restored.hasTappedFirstFlowDay, isTrue);
+      expect(restored.hasOpenedFirstFlowEvent, isTrue);
+      expect(restored.hasSeenObservedJournalPrompt, isTrue);
+      expect(restored.skippedOnboarding, isTrue);
+      expect(restored.reflectionSignupDecanIdentity, '2026:4:2');
+      expect(restored.firstReflectionEligibleDecanIdentity, '2026:4:3');
+      expect(restored.hasCrossedFirstDecanBoundary, isTrue);
+      expect(
+        restored.onboardingDayRhythmState,
+        OnboardingDayRhythmState.completed,
+      );
+      expect(restored.onboardingDayRhythmDateIdentity, '2026-07-10');
+      expect(restored.lastSatisfiedDayRhythmIdentity, '2026-07-10');
+      expect(
+        restored.seenHelpers,
+        contains(OnboardingHelperIds.calendarToggle),
+      );
+      expect(normalizedAgain.toJson(), restored.toJson());
+    },
+  );
+
+  test('storage repairs poisoned completed records on load and save', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'onboarding_v2_progress:user-a': jsonEncode(_poisonedCompletedJson()),
+    });
+    OnboardingHelperCompletionService.resetForTesting(
+      remoteStore: _FakeRemoteStore(),
+    );
+    final storage = OnboardingProgressStorage();
+
+    final loaded = await storage.load('user-a');
+    expect(loaded.hasSeenMenuPrompt, isTrue);
+
+    await storage.save(
+      'user-b',
+      const OnboardingProgress().copyWith(
+        currentStep: TrueOnboardingStep.complete,
+        completedOnboarding: true,
+        hasSeenMenuPrompt: false,
+      ),
+    );
+    final prefs = await SharedPreferences.getInstance();
+    final saved =
+        jsonDecode(prefs.getString('onboarding_v2_progress:user-b')!)
+            as Map<String, dynamic>;
+
+    expect(saved['currentStep'], TrueOnboardingStep.complete.wireName);
+    expect(saved['completedOnboarding'], isTrue);
+    expect(saved['hasSeenMenuPrompt'], isTrue);
+  });
+
+  test(
+    'storage distinguishes absent v2 progress from incomplete v2 progress',
+    () async {
+      final menuExploreProgress = <String, dynamic>{
+        'currentStep': TrueOnboardingStep.menuExplore.wireName,
+        'completedOnboarding': false,
+        'hasSeenMenuPrompt': false,
+      };
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'onboarding_v2_progress:user-a': jsonEncode(menuExploreProgress),
+      });
+      OnboardingHelperCompletionService.resetForTesting(
+        remoteStore: _FakeRemoteStore(),
+      );
+      final storage = OnboardingProgressStorage();
+
+      expect(await storage.loadLocalIfPresent('missing-user'), isNull);
+      final loaded = await storage.loadLocalIfPresent('user-a');
+
+      expect(loaded, isNotNull);
+      expect(loaded!.currentStep, TrueOnboardingStep.menuExplore);
+      expect(loaded.completedOnboarding, isFalse);
+      expect(loaded.hasSeenMenuPrompt, isFalse);
+    },
+  );
+
+  test('incomplete onboarding keeps the final menu handoff unchanged', () {
+    final freshHandoff = OnboardingProgress.fromJson(<String, dynamic>{
+      'currentStep': TrueOnboardingStep.menuExplore.wireName,
+      'completedOnboarding': false,
+      'hasSeenMenuPrompt': false,
+    });
+
+    expect(freshHandoff.completedOnboarding, isFalse);
+    expect(freshHandoff.hasSeenMenuPrompt, isFalse);
+    expect(shouldPresentFinalOnboardingMenuHandoff(freshHandoff), isTrue);
+    expect(
+      shouldAllowDailyCosmicContextAfterOnboardingHandoff(
+        progress: freshHandoff,
+        todayIdentity: '2026-07-10',
+      ),
+      isFalse,
+    );
+  });
+
+  test(
+    'legacy completion reconciles incomplete menu handoff v2 once',
+    () async {
+      final menuExploreProgress = <String, dynamic>{
+        'currentStep': TrueOnboardingStep.menuExplore.wireName,
+        'completedOnboarding': false,
+        'hasSeenMenuPrompt': false,
+      };
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'onboarding_v2_progress:user-a': jsonEncode(menuExploreProgress),
+      });
+      OnboardingHelperCompletionService.resetForTesting(
+        remoteStore: _FakeRemoteStore(),
+      );
+      final storage = OnboardingProgressStorage();
+      var legacyReadCount = 0;
+
+      final reconciled = await storage.loadLocalReconciledWithLegacyCompletion(
+        'user-a',
+        legacyCompleted: () async {
+          legacyReadCount += 1;
+          return true;
+        },
+      );
+
+      expect(legacyReadCount, 1);
+      expect(reconciled.currentStep, TrueOnboardingStep.complete);
+      expect(reconciled.completedOnboarding, isTrue);
+      expect(reconciled.hasSeenMenuPrompt, isTrue);
+      expect(shouldPresentFinalOnboardingMenuHandoff(reconciled), isFalse);
+      expect(
+        shouldAllowDailyCosmicContextAfterOnboardingHandoff(
+          progress: reconciled,
+          todayIdentity: '2026-07-10',
+        ),
+        isTrue,
+      );
+
+      final persisted = await storage.loadLocalIfPresent('user-a');
+      expect(persisted?.currentStep, TrueOnboardingStep.complete);
+      expect(persisted?.completedOnboarding, isTrue);
+      expect(persisted?.hasSeenMenuPrompt, isTrue);
+
+      final second = await storage.loadLocalReconciledWithLegacyCompletion(
+        'user-a',
+        legacyCompleted: () async {
+          fail('Already reconciled v2 progress should not reread legacy');
+        },
+      );
+      expect(second.toJson(), reconciled.toJson());
+    },
+  );
+
+  test(
+    'legacy completion only creates completed v2 when no v2 record exists',
+    () async {
+      final storage = OnboardingProgressStorage();
+      var legacyReadCount = 0;
+
+      final reconciled = await storage.loadLocalReconciledWithLegacyCompletion(
+        'user-a',
+        legacyCompleted: () async {
+          legacyReadCount += 1;
+          return true;
+        },
+      );
+
+      expect(legacyReadCount, 1);
+      expect(reconciled.currentStep, TrueOnboardingStep.complete);
+      expect(reconciled.completedOnboarding, isTrue);
+      expect(reconciled.hasSeenMenuPrompt, isTrue);
+      expect(
+        (await storage.loadLocalIfPresent('user-a'))?.completedOnboarding,
+        isTrue,
+      );
+    },
+  );
+
+  test('terminal completion helper cannot create a poisoned record', () {
+    final completed = markOnboardingProgressComplete(
+      const OnboardingProgress().copyWith(hasSeenMenuPrompt: false),
+    );
+
+    expect(completed.currentStep, TrueOnboardingStep.complete);
+    expect(completed.completedOnboarding, isTrue);
+    expect(completed.hasSeenMenuPrompt, isTrue);
+  });
+
   test('profile basics require a glyph avatar and display name or handle', () {
     expect(
       hasCompletedProfileBasics(
@@ -922,6 +1269,13 @@ void main() {
     },
   );
 }
+
+Map<String, dynamic> _poisonedCompletedJson() => <String, dynamic>{
+  'onboardingVersion': kTrueOnboardingVersion,
+  'currentStep': TrueOnboardingStep.complete.wireName,
+  'completedOnboarding': true,
+  'hasSeenMenuPrompt': false,
+};
 
 class _HydrateDuringBuildHarness extends StatefulWidget {
   const _HydrateDuringBuildHarness({required this.service});

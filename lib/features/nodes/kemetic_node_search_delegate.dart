@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/insight_entry_model.dart';
 import '../../data/insight_entry_repo.dart';
 import '../../shared/glossy_text.dart';
+import '../../shared/kemetic_text.dart';
 import '../../utils/kemetic_date_format.dart';
 import '../../widgets/insight_link_text.dart';
 import 'kemetic_node_library.dart';
@@ -165,7 +166,7 @@ class KemeticNodeSearchDelegate extends SearchDelegate<String?> {
             return ListTile(
               onTap: () => close(ctx, result.nodeId),
               leading: _ResultGlyph(glyph: result.glyph),
-              title: Text(
+              title: KemeticText(
                 result.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -177,7 +178,7 @@ class KemeticNodeSearchDelegate extends SearchDelegate<String?> {
                   const SizedBox(height: 4),
                   _SearchSnippetText(snippet: result.snippet, terms: terms),
                   const SizedBox(height: 4),
-                  Text(
+                  KemeticText(
                     result.subtitle,
                     style: const TextStyle(color: Colors.white70, fontSize: 12),
                     maxLines: 1,
@@ -203,7 +204,10 @@ class KemeticNodeSearchDelegate extends SearchDelegate<String?> {
     final results = <_NodeSearchResult>[];
     for (final node in nodes) {
       final title = node.title.trim();
-      final aliases = node.aliases.where((alias) => alias.trim().isNotEmpty);
+      final aliases = node.aliases
+          .where((alias) => alias.trim().isNotEmpty)
+          .toList(growable: false);
+      final displayAliases = node.displayAliases;
       final searchable = <String>[
         node.id,
         title,
@@ -218,9 +222,9 @@ class KemeticNodeSearchDelegate extends SearchDelegate<String?> {
           nodeId: node.id,
           title: title,
           glyph: node.glyph,
-          subtitle: aliases.isEmpty
+          subtitle: displayAliases.isEmpty
               ? 'Library entry'
-              : 'Library entry • ${aliases.join(', ')}',
+              : 'Library entry • ${displayAliases.join(', ')}',
           snippet: _snippetFor(
             [node.body, title, ...aliases],
             rawQuery,
@@ -419,7 +423,7 @@ class _SearchSnippetText extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (terms.isEmpty) {
-      return Text(
+      return KemeticText(
         snippet,
         style: _baseStyle,
         maxLines: 2,
@@ -429,7 +433,7 @@ class _SearchSnippetText extends StatelessWidget {
 
     final matches = _searchHighlightRanges(snippet, terms);
     if (matches.isEmpty) {
-      return Text(
+      return KemeticText(
         snippet,
         style: _baseStyle,
         maxLines: 2,
@@ -439,16 +443,20 @@ class _SearchSnippetText extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
+        final baseStyle = KemeticTypography.protect(_baseStyle, snippet);
         final boxes = _computeHighlightBoxes(
           snippet,
           matches,
           constraints.maxWidth,
           Directionality.of(context),
+          baseStyle,
         );
         return RichText(
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
-          text: TextSpan(children: _buildSnippetSpans(snippet, matches, boxes)),
+          text: TextSpan(
+            children: _buildSnippetSpans(snippet, matches, boxes, baseStyle),
+          ),
         );
       },
     );
@@ -458,6 +466,7 @@ class _SearchSnippetText extends StatelessWidget {
     String snippet,
     List<_SearchHighlightRange> matches,
     Map<String, Rect> boxes,
+    TextStyle baseStyle,
   ) {
     final spans = <InlineSpan>[];
     var cursor = 0;
@@ -467,14 +476,14 @@ class _SearchSnippetText extends StatelessWidget {
         spans.add(
           TextSpan(
             text: snippet.substring(cursor, match.start),
-            style: _baseStyle,
+            style: baseStyle,
           ),
         );
       }
 
       final phrase = snippet.substring(match.start, match.end);
       final box = boxes[_rangeKey(match)];
-      final fontSize = _baseStyle.fontSize ?? 13.0;
+      final fontSize = baseStyle.fontSize ?? 13.0;
       final shaderRect = box == null
           ? null
           : Rect.fromLTWH(
@@ -487,7 +496,7 @@ class _SearchSnippetText extends StatelessWidget {
         TextSpan(
           text: phrase,
           style: InsightLinkTextStyle.textSpanStyle(
-            _baseStyle.copyWith(
+            baseStyle.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.w700,
             ),
@@ -500,7 +509,7 @@ class _SearchSnippetText extends StatelessWidget {
     }
 
     if (cursor < snippet.length) {
-      spans.add(TextSpan(text: snippet.substring(cursor), style: _baseStyle));
+      spans.add(TextSpan(text: snippet.substring(cursor), style: baseStyle));
     }
 
     return spans;
@@ -511,6 +520,7 @@ class _SearchSnippetText extends StatelessWidget {
     List<_SearchHighlightRange> matches,
     double maxWidth,
     TextDirection textDirection,
+    TextStyle baseStyle,
   ) {
     if (!maxWidth.isFinite ||
         maxWidth <= 0 ||
@@ -520,7 +530,7 @@ class _SearchSnippetText extends StatelessWidget {
     }
 
     final painter = TextPainter(
-      text: TextSpan(text: text, style: _baseStyle),
+      text: TextSpan(text: text, style: baseStyle),
       textDirection: textDirection,
       maxLines: 2,
       ellipsis: '…',

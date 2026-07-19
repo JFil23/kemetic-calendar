@@ -14,6 +14,7 @@ import 'package:flutter/gestures.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:mobile/shared/kemetic_text.dart';
 import 'package:mobile/core/app_bottom_insets.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/core/touch_targets.dart';
@@ -27,9 +28,11 @@ import 'landscape_month_view.dart';
 import 'maat_flow_identity.dart';
 import 'maat_flow_interactive_primitives.dart';
 import 'maat_flow_palette.dart';
+import 'maat_flow_completion_response_persistence.dart';
 import 'maat_flow_response_draft_store.dart';
 import 'maat_flow_response_journal_blocks.dart';
 import 'maat_flow_response_models.dart';
+import 'maat_flow_response_projection.dart';
 import 'maat_flow_response_resolver.dart';
 import 'maat_flow_visual_tokens.dart';
 import 'track_sky_flow.dart';
@@ -55,6 +58,9 @@ import 'the_open_hand_flow.dart';
 import 'the_open_hand_local_store.dart';
 import 'the_djed_flow.dart';
 import 'the_djed_local_store.dart';
+import 'the_reading_house_flow.dart';
+import 'reading_house_private_margin_store.dart';
+import 'reading_house_shared_fragments_repo.dart';
 import 'maat_decan_flow.dart';
 import 'living_text_day_one_node_store.dart';
 import 'decan_id.dart';
@@ -62,6 +68,7 @@ import '../nodes/kemetic_node_search_delegate.dart';
 import '../onboarding/day_view_date_coachmark.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import '../../widgets/kemetic_day_info.dart';
+import '../../widgets/keyboard_aware.dart';
 import 'package:mobile/core/day_key.dart';
 import 'package:mobile/telemetry/telemetry.dart';
 import '../../data/user_events_repo.dart';
@@ -70,9 +77,14 @@ import '../../services/app_haptics.dart';
 import '../../services/app_restoration_service.dart';
 import '../../utils/external_link_utils.dart';
 import '../../utils/flow_filter_engine.dart';
+import '../../utils/text_editing_controller_sync.dart';
 import '../shared_practice/shared_practice_completion_sheet.dart';
 
+typedef MaatCompletionMetadataLoader =
+    Future<Map<String, dynamic>?> Function({required String clientEventId});
+
 const double _kMinEventBlockHeight = 56.0;
+const double _kWideMinEventBlockHeight = 68.0;
 const double _kTimelineLabelWidth = 60.0;
 const double _kTimelineRightPadding = 16.0;
 const double _kEventColumnGap = 4.0;
@@ -929,6 +941,10 @@ bool _isDjedFlowName(String? name) {
   return name?.trim().toLowerCase() == kTheDjedTitle.toLowerCase();
 }
 
+bool _isReadingHouseFlowName(String? name) {
+  return name?.trim().toLowerCase() == kReadingHouseTitle.toLowerCase();
+}
+
 class _MaatFlowCompletionContext {
   const _MaatFlowCompletionContext({
     required this.flowKey,
@@ -1164,6 +1180,8 @@ List<String> _maatGraphNodeSlugsForFlow({
       return const <String>['maat', 'hapy', 'nile'];
     case kTheDjedFlowKey:
       return const <String>['maat', 'djed', 'ausar', 'ptah'];
+    case kReadingHouseFlowKey:
+      return const <String>['maat', 'djehuty', 'house_of_life', 'ren'];
     case kFairHearingFlowKey:
       return const <String>['maat', 'djehuty', 'anpu', 'heru'];
     case kHouseOfLifeFlowKey:
@@ -1410,6 +1428,28 @@ _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
     );
   }
 
+  if (_isReadingHouseFlowName(flowName)) {
+    final readingSitting = readingHouseSittingForEvent(
+      title: event.title,
+      behaviorPayload: event.behaviorPayload,
+    );
+    if (readingSitting == null) return null;
+    return _MaatFlowCompletionContext(
+      flowKey: kReadingHouseFlowKey,
+      flowTitle: kReadingHouseTitle,
+      eventTitle: event.title,
+      eventCategory: event.category,
+      eventNumber: readingSitting.eventNumber,
+      flowDay: readingSitting.flowDay,
+      sharePromptOnComplete: false,
+      shareButtonLabel: 'Shared fragments later',
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: kReadingHouseFlowKey,
+        eventCategory: event.category,
+      ),
+    );
+  }
+
   final maatDecanDefinition =
       maatDecanFlowDefinitionFromNotes(flow?.notes) ??
       maatDecanFlowDefinitionForTitle(flowName);
@@ -1572,6 +1612,7 @@ Widget? buildDayViewMaatFlowCompletionPanel({
   onRecordCompletion,
   Future<void> Function(String clientEventId)? onUnrecordCompletion,
   Future<void> Function(String badgeId)? onRemoveCompletionBadge,
+  MaatCompletionMetadataLoader? loadCompletionMetadata,
   MaatJournalResponseBlockWriter? onWriteJournalResponse,
   Future<void> Function(CompletionStatus status)? onCompletionContinuity,
   ValueChanged<CompletionStatus>? onUserCompletionFeedback,
@@ -1601,6 +1642,7 @@ Widget? buildDayViewMaatFlowCompletionPanel({
     onRecordCompletion: onRecordCompletion,
     onUnrecordCompletion: onUnrecordCompletion,
     onRemoveCompletionBadge: onRemoveCompletionBadge,
+    loadCompletionMetadata: loadCompletionMetadata,
     onWriteJournalResponse: onWriteJournalResponse,
     onCompletionContinuity: onCompletionContinuity,
     onUserCompletionFeedback: onUserCompletionFeedback,
@@ -2056,6 +2098,7 @@ class EventLayoutEngine {
     required double textScale,
     required int day, // For debug logging
     double singleEventWidthFactor = _kSingleEventWidthFactor,
+    double minEventBlockHeight = _kMinEventBlockHeight,
   }) {
     if (kDebugMode) {
       debugPrint(
@@ -2072,6 +2115,7 @@ class EventLayoutEngine {
       textScale: textScale,
       day: day,
       singleEventWidthFactor: singleEventWidthFactor,
+      minEventBlockHeight: minEventBlockHeight,
     );
   }
 
@@ -2082,6 +2126,7 @@ class EventLayoutEngine {
     required double textScale,
     required int day,
     double singleEventWidthFactor = _kSingleEventWidthFactor,
+    double minEventBlockHeight = _kMinEventBlockHeight,
   }) {
     if (events.isEmpty) return [];
 
@@ -2089,11 +2134,16 @@ class EventLayoutEngine {
     final overlapGroups = _buildOverlapGroups(
       sortedEvents,
       textScale: textScale,
+      minEventBlockHeight: minEventBlockHeight,
     );
     final blocks = <PositionedEventBlock>[];
 
     for (final group in overlapGroups) {
-      final columnAssignments = _assignColumns(group, textScale: textScale);
+      final columnAssignments = _assignColumns(
+        group,
+        textScale: textScale,
+        minEventBlockHeight: minEventBlockHeight,
+      );
       final highestColumn = columnAssignments.values.fold<int>(0, math.max);
       final totalColumns = highestColumn + 1;
       final columnWidth = _columnWidthForGroup(
@@ -2138,6 +2188,7 @@ class EventLayoutEngine {
   static List<List<EventItem>> _buildOverlapGroups(
     List<EventItem> events, {
     required double textScale,
+    required double minEventBlockHeight,
   }) {
     final groups = <List<EventItem>>[];
     var currentGroup = <EventItem>[];
@@ -2146,7 +2197,11 @@ class EventLayoutEngine {
     for (final event in events) {
       if (currentGroup.isEmpty) {
         currentGroup = [event];
-        currentGroupMaxBottom = _eventVisualEndMin(event, textScale: textScale);
+        currentGroupMaxBottom = _eventVisualEndMin(
+          event,
+          textScale: textScale,
+          minEventBlockHeight: minEventBlockHeight,
+        );
         continue;
       }
 
@@ -2154,14 +2209,22 @@ class EventLayoutEngine {
         currentGroup.add(event);
         currentGroupMaxBottom = math.max(
           currentGroupMaxBottom,
-          _eventVisualEndMin(event, textScale: textScale),
+          _eventVisualEndMin(
+            event,
+            textScale: textScale,
+            minEventBlockHeight: minEventBlockHeight,
+          ),
         );
         continue;
       }
 
       groups.add(currentGroup);
       currentGroup = [event];
-      currentGroupMaxBottom = _eventVisualEndMin(event, textScale: textScale);
+      currentGroupMaxBottom = _eventVisualEndMin(
+        event,
+        textScale: textScale,
+        minEventBlockHeight: minEventBlockHeight,
+      );
     }
 
     if (currentGroup.isNotEmpty) {
@@ -2187,6 +2250,7 @@ class EventLayoutEngine {
   static Map<EventItem, int> _assignColumns(
     List<EventItem> events, {
     required double textScale,
+    required double minEventBlockHeight,
   }) {
     final assignments = <EventItem, int>{};
     final columnBottoms = <int, double>{}; // column -> rendered visual bottom
@@ -2200,7 +2264,11 @@ class EventLayoutEngine {
       }
 
       assignments[event] = column;
-      columnBottoms[column] = _eventVisualEndMin(event, textScale: textScale);
+      columnBottoms[column] = _eventVisualEndMin(
+        event,
+        textScale: textScale,
+        minEventBlockHeight: minEventBlockHeight,
+      );
     }
 
     return assignments;
@@ -2274,15 +2342,24 @@ class _SharedPracticeDetailModule extends StatelessWidget {
     required this.roomId,
     required this.calendarName,
     required this.flowTitle,
+    required this.localDate,
+    required this.onOpenRoute,
   });
 
   final String roomId;
   final String? calendarName;
   final String flowTitle;
+  final DateTime localDate;
+  final ValueChanged<String> onOpenRoute;
 
   @override
   Widget build(BuildContext context) {
     final calendar = calendarName?.trim();
+    final routePath = Uri(
+      pathSegments: <String>['shared-practice', roomId],
+      queryParameters: <String, String>{'date': _sharedPracticeDate(localDate)},
+    ).toString();
+    final route = routePath.startsWith('/') ? routePath : '/$routePath';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -2309,11 +2386,7 @@ class _SharedPracticeDetailModule extends StatelessWidget {
               ),
               const Spacer(),
               TextButton(
-                onPressed: () {
-                  context.push(
-                    '/shared-practice/${Uri.encodeComponent(roomId)}',
-                  );
-                },
+                onPressed: () => onOpenRoute(route),
                 style: TextButton.styleFrom(
                   foregroundColor: _dayGold,
                   padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -2346,6 +2419,15 @@ class _SharedPracticeDetailModule extends StatelessWidget {
       ),
     );
   }
+}
+
+String _sharedPracticeDate(DateTime value) {
+  final local = DateTime(value.year, value.month, value.day);
+  return [
+    local.year.toString().padLeft(4, '0'),
+    local.month.toString().padLeft(2, '0'),
+    local.day.toString().padLeft(2, '0'),
+  ].join('-');
 }
 
 class EventItem {
@@ -2430,6 +2512,57 @@ class CalendarEventDetailSheetCoordinator {
   }
 }
 
+@visibleForTesting
+const ValueKey<String> dayViewBottomSheetBackplateKey = ValueKey<String>(
+  'day-view-bottom-sheet-backplate',
+);
+
+class DayViewBottomSheetFrame extends StatelessWidget {
+  const DayViewBottomSheetFrame({
+    super.key,
+    required this.child,
+    this.borderRadius = 20,
+  });
+
+  final Widget child;
+  final double borderRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    final radius = BorderRadius.vertical(top: Radius.circular(borderRadius));
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(
+          child: IgnorePointer(
+            child: DecoratedBox(
+              key: dayViewBottomSheetBackplateKey,
+              decoration: BoxDecoration(
+                borderRadius: radius,
+                gradient: const LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Color(0xF7070605), Color(0xFA050403)],
+                ),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0xCC000000),
+                    blurRadius: 28,
+                    spreadRadius: 6,
+                    offset: Offset(0, -8),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        child,
+      ],
+    );
+  }
+}
+
 class CalendarEventDetailSheet extends StatefulWidget {
   const CalendarEventDetailSheet({
     super.key,
@@ -2456,6 +2589,7 @@ class CalendarEventDetailSheet extends StatefulWidget {
     this.onRecordCompletion,
     this.onUnrecordCompletion,
     this.onRemoveCompletionBadge,
+    this.loadCompletionMetadata,
     this.onboardingEventClientEventId,
     this.onboardingObservedKey,
     this.onboardingJournalKey,
@@ -2502,6 +2636,7 @@ class CalendarEventDetailSheet extends StatefulWidget {
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
+  final MaatCompletionMetadataLoader? loadCompletionMetadata;
   final String? onboardingEventClientEventId;
   final GlobalKey? onboardingObservedKey;
   final GlobalKey? onboardingJournalKey;
@@ -3157,12 +3292,10 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       completionStatus: completionStatus,
       sourceType: sourceType,
     );
-    try {
-      await cb('$token ');
-      if (triggerHaptic) {
-        unawaited(AppHaptics.productiveAction());
-      }
-    } catch (_) {}
+    await cb('$token ');
+    if (triggerHaptic) {
+      unawaited(AppHaptics.productiveAction());
+    }
   }
 
   Future<void> _appendCompletionContinuity(
@@ -3536,6 +3669,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           onRecordCompletion: widget.onRecordCompletion,
           onUnrecordCompletion: widget.onUnrecordCompletion,
           onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
+          loadCompletionMetadata: widget.loadCompletionMetadata,
           onWriteJournalResponse: widget.onWriteJournalResponse,
           onCompletionContinuity: (status) => _appendCompletionContinuity(
             target,
@@ -3720,9 +3854,13 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                   visual: visual,
                 );
               } else {
+                final detailStyle = KemeticTypography.protect(
+                  _detailBodyStyle(visual: visual),
+                  displayDetail,
+                );
                 detailContent = RichText(
                   text: TextSpan(
-                    style: _detailBodyStyle(visual: visual),
+                    style: detailStyle,
                     children: _buildTextSpans(displayDetail),
                   ),
                 );
@@ -3758,6 +3896,10 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             roomId: sharedPracticeRoomId,
             calendarName: currentEvent.calendarName,
             flowTitle: flow?.name ?? currentEvent.title,
+            localDate: DateUtils.dateOnly(
+              KemeticMath.toGregorian(target.ky, target.km, target.kd),
+            ),
+            onOpenRoute: (route) => _openSharedPracticeRoute(route, context),
           ),
         ],
         if (hasMaatCompletionPanel && responseSpecs.isNotEmpty) ...[
@@ -3848,6 +3990,15 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       ],
     );
 
+    final keyboardBottomPadding =
+        math.max(
+              MediaQuery.viewInsetsOf(context).bottom,
+              keyboardInsetOf(context),
+            ) >
+            0
+        ? 120.0
+        : 0.0;
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: DayViewRitualCompletionFeedbackCard._withVisual(
@@ -3856,6 +4007,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         child: scrollable
             ? SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                padding: EdgeInsets.only(bottom: keyboardBottomPadding),
                 child: body,
               )
             : body,
@@ -4204,46 +4358,62 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       target.event,
     );
 
+    final calendarTextStyle = _goldHeaderStyle.copyWith(
+      fontSize: 15,
+      color: calendarEnabled ? _dayGold : Colors.white24,
+    );
+
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _buildEventDetailPrimaryAction(
           rootContext: rootContext,
           sheetContext: sheetContext,
           target: target,
         ),
-        TextButton(
-          onPressed: calendarEnabled
-              ? () async {
-                  final updatedTarget =
-                      await CalendarPage.showDetailSheetCalendarPicker(
-                        context: sheetContext,
-                        target: target,
-                        onOptimisticTargetChanged: (optimisticTarget) {
-                          if (sheetContext.mounted) {
-                            _moveToTarget(optimisticTarget);
-                          }
-                        },
-                      );
-                  if (!sheetContext.mounted || updatedTarget == null) return;
-                  _moveToTarget(updatedTarget);
-                }
-              : null,
-          child: calendarEnabled
-              ? KemeticGold.text(
-                  calendarLabel,
-                  style: _goldHeaderStyle.copyWith(fontSize: 15),
-                )
-              : Text(
-                  calendarLabel,
-                  style: _goldHeaderStyle.copyWith(
-                    fontSize: 15,
-                    color: Colors.white24,
-                  ),
-                ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: calendarEnabled
+                  ? () async {
+                      final updatedTarget =
+                          await CalendarPage.showDetailSheetCalendarPicker(
+                            context: sheetContext,
+                            target: target,
+                            onOptimisticTargetChanged: (optimisticTarget) {
+                              if (sheetContext.mounted) {
+                                _moveToTarget(optimisticTarget);
+                              }
+                            },
+                          );
+                      if (!sheetContext.mounted || updatedTarget == null) {
+                        return;
+                      }
+                      _moveToTarget(updatedTarget);
+                    }
+                  : null,
+              child: Text(
+                calendarLabel,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: calendarTextStyle,
+              ),
+            ),
+          ),
         ),
       ],
     );
+  }
+
+  void _openSharedPracticeRoute(String route, BuildContext sheetContext) {
+    final hostContext = widget.hostContext;
+    Navigator.of(sheetContext).maybePop();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!hostContext.mounted) return;
+      hostContext.push(route);
+    });
   }
 
   @override
@@ -4304,10 +4474,18 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final hasOnboardingClosingBanner =
         _isOnboardingTargetEvent(target.event) &&
         widget.onboardingClosingBannerBuilder != null;
-    final maxSheetHeight = math.min(
-      MediaQuery.sizeOf(context).height * 0.68,
-      520.0,
+    final media = MediaQuery.of(context);
+    final keyboardInset = math.max(
+      MediaQuery.viewInsetsOf(context).bottom,
+      keyboardInsetOf(context),
     );
+    final availableSheetHeight = math.max(
+      260.0,
+      media.size.height - keyboardInset - media.padding.top - 12,
+    );
+    final maxSheetHeight = keyboardInset > 0
+        ? availableSheetHeight
+        : math.min(media.size.height * 0.68, 520.0);
     final reservedChromeHeight = hasOnboardingClosingBanner ? 250.0 : 120.0;
     final sheetHeight = (_measuredHeights[currentKey] ?? 200.0)
         .clamp(0.0, math.max(180.0, maxSheetHeight - reservedChromeHeight))
@@ -4347,78 +4525,85 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _buildEventDetailTopActionRow(
-                rootContext: widget.hostContext,
-                sheetContext: context,
-                target: target,
-              ),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOutCubic,
-                alignment: Alignment.topCenter,
-                child: _endFlowError == null
-                    ? const SizedBox.shrink()
-                    : Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                        child: _buildEventDetailInlineError(_endFlowError!),
-                      ),
-              ),
-              const SizedBox(height: 8),
-              AnimatedSize(
-                duration: const Duration(milliseconds: 180),
-                curve: Curves.easeOutCubic,
-                alignment: Alignment.bottomCenter,
-                child: SizedBox(
-                  height: sheetHeight,
-                  child: PageView.builder(
-                    key: pageViewKey,
-                    controller: _pageController,
-                    physics: const BouncingScrollPhysics(),
-                    itemCount: pages.pages.length,
-                    onPageChanged: (index) {
-                      if (index == pages.currentIndex) return;
-                      final nextTarget = pages.pages[index];
-                      final nextPages = _detailSheetPagesForTarget(nextTarget);
-                      _resetPageController(nextPages.currentIndex);
-                      _moveToTarget(nextTarget);
-                    },
-                    itemBuilder: (context, index) {
-                      return _buildEventDetailSheetPage(
-                        target: pages.pages[index],
-                        completionReloadSignal: completionReloadSignal,
-                      );
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              SizedBox(
-                height: 46,
-                child: _buildEventDetailBottomActionRow(
+          child: DayViewBottomSheetFrame(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildEventDetailTopActionRow(
                   rootContext: widget.hostContext,
                   sheetContext: context,
                   target: target,
                 ),
-              ),
-            ],
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: _endFlowError == null
+                      ? const SizedBox.shrink()
+                      : Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                          child: _buildEventDetailInlineError(_endFlowError!),
+                        ),
+                ),
+                const SizedBox(height: 8),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.bottomCenter,
+                  child: SizedBox(
+                    height: sheetHeight,
+                    child: PageView.builder(
+                      key: pageViewKey,
+                      controller: _pageController,
+                      physics: const BouncingScrollPhysics(),
+                      itemCount: pages.pages.length,
+                      onPageChanged: (index) {
+                        if (index == pages.currentIndex) return;
+                        final nextTarget = pages.pages[index];
+                        final nextPages = _detailSheetPagesForTarget(
+                          nextTarget,
+                        );
+                        _resetPageController(nextPages.currentIndex);
+                        _moveToTarget(nextTarget);
+                      },
+                      itemBuilder: (context, index) {
+                        return _buildEventDetailSheetPage(
+                          target: pages.pages[index],
+                          completionReloadSignal: completionReloadSignal,
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 46,
+                  child: _buildEventDetailBottomActionRow(
+                    rootContext: widget.hostContext,
+                    sheetContext: context,
+                    target: target,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
     );
 
-    return SafeArea(
-      top: false,
-      child: hasOnboardingClosingBanner
-          ? ConstrainedBox(
-              constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(context).height * 0.94,
-              ),
-              child: SingleChildScrollView(child: content),
-            )
-          : content,
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      padding: EdgeInsets.only(bottom: keyboardInset),
+      child: SafeArea(
+        top: false,
+        child: hasOnboardingClosingBanner
+            ? ConstrainedBox(
+                constraints: BoxConstraints(maxHeight: availableSheetHeight),
+                child: SingleChildScrollView(child: content),
+              )
+            : content,
+      ),
     );
   }
 
@@ -4718,14 +4903,33 @@ bool _eventsShareStableIdentity(EventItem a, EventItem b) {
   return _eventIdentityKey(a) == _eventIdentityKey(b);
 }
 
-bool _eventsOverlap(EventItem a, EventItem b, {double textScale = 1.0}) {
-  return _eventVisualTop(a) < _eventVisualEndMin(b, textScale: textScale) &&
-      _eventVisualTop(b) < _eventVisualEndMin(a, textScale: textScale);
+bool _eventsOverlap(
+  EventItem a,
+  EventItem b, {
+  double textScale = 1.0,
+  double minEventBlockHeight = _kMinEventBlockHeight,
+}) {
+  return _eventVisualTop(a) <
+          _eventVisualEndMin(
+            b,
+            textScale: textScale,
+            minEventBlockHeight: minEventBlockHeight,
+          ) &&
+      _eventVisualTop(b) <
+          _eventVisualEndMin(
+            a,
+            textScale: textScale,
+            minEventBlockHeight: minEventBlockHeight,
+          );
 }
 
 double _eventVisualTop(EventItem event) => event.startMin.toDouble();
 
-double _eventVisualHeightForLayout(EventItem event, {double textScale = 1.0}) {
+double _eventVisualHeightForLayout(
+  EventItem event, {
+  double textScale = 1.0,
+  double minEventBlockHeight = _kMinEventBlockHeight,
+}) {
   int durationMinutes = event.endMin - event.startMin;
   if (durationMinutes <= 0) {
     durationMinutes = 15;
@@ -4741,16 +4945,27 @@ double _eventVisualHeightForLayout(EventItem event, {double textScale = 1.0}) {
         .toDouble()
         .clamp(42.0, 90.0)
         .toDouble();
-    return math.max(compactPreviewHeight, durationHeight);
+    return math.max(
+      minEventBlockHeight,
+      math.max(compactPreviewHeight, durationHeight),
+    );
   }
 
   final double rawHeight = durationMinutes.toDouble();
-  return rawHeight < _kMinEventBlockHeight ? _kMinEventBlockHeight : rawHeight;
+  return rawHeight < minEventBlockHeight ? minEventBlockHeight : rawHeight;
 }
 
-double _eventVisualEndMin(EventItem event, {double textScale = 1.0}) {
+double _eventVisualEndMin(
+  EventItem event, {
+  double textScale = 1.0,
+  double minEventBlockHeight = _kMinEventBlockHeight,
+}) {
   return _eventVisualTop(event) +
-      _eventVisualHeightForLayout(event, textScale: textScale);
+      _eventVisualHeightForLayout(
+        event,
+        textScale: textScale,
+        minEventBlockHeight: minEventBlockHeight,
+      );
 }
 
 int _compareEventItemsBySchedule(EventItem a, EventItem b) {
@@ -4898,6 +5113,7 @@ class DayViewPage extends StatefulWidget {
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
+  final MaatCompletionMetadataLoader? loadCompletionMetadata;
   final String? onboardingEventClientEventId;
   final GlobalKey? onboardingEventTargetKey;
   final GlobalKey? onboardingObservedKey;
@@ -4955,6 +5171,7 @@ class DayViewPage extends StatefulWidget {
     this.onRecordCompletion,
     this.onUnrecordCompletion,
     this.onRemoveCompletionBadge,
+    this.loadCompletionMetadata,
     this.onboardingEventClientEventId,
     this.onboardingEventTargetKey,
     this.onboardingObservedKey,
@@ -5796,6 +6013,8 @@ class _DayViewPageState extends State<DayViewPage> {
                             onUnrecordCompletion: widget.onUnrecordCompletion,
                             onRemoveCompletionBadge:
                                 widget.onRemoveCompletionBadge,
+                            loadCompletionMetadata:
+                                widget.loadCompletionMetadata,
                             onboardingEventClientEventId:
                                 widget.onboardingEventClientEventId,
                             onboardingEventTargetKey:
@@ -5918,6 +6137,7 @@ class DayViewGrid extends StatefulWidget {
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
+  final MaatCompletionMetadataLoader? loadCompletionMetadata;
   final String? onboardingEventClientEventId;
   final GlobalKey? onboardingEventTargetKey;
   final GlobalKey? onboardingObservedKey;
@@ -5976,6 +6196,7 @@ class DayViewGrid extends StatefulWidget {
     this.onRecordCompletion,
     this.onUnrecordCompletion,
     this.onRemoveCompletionBadge,
+    this.loadCompletionMetadata,
     this.onboardingEventClientEventId,
     this.onboardingEventTargetKey,
     this.onboardingObservedKey,
@@ -6007,6 +6228,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   double? _cachedAvailableWidth;
   double? _cachedTextScale;
   double? _cachedSingleEventWidthFactor;
+  double? _cachedMinEventBlockHeight;
   List<PositionedEventBlock> _displayBlocks = const [];
   final Map<TrackSkyTimeZone, TrackSkyFlowData> _trackSkyDataByTimeZone =
       <TrackSkyTimeZone, TrackSkyFlowData>{};
@@ -6164,7 +6386,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     if (kDebugMode) {
       debugPrint(
         '[DayView] detail sheet requested from initial restoration '
-        'key=$key title="${target.event.title}"',
+        'key=$key title=<redacted chars=${target.event.title.length}>',
       );
     }
     _showEventDetail(target.event, initialTarget: target);
@@ -6712,6 +6934,12 @@ class _DayViewGridState extends State<DayViewGrid> {
     return _usesTabletLandscapeLayout(context) ? 1.0 : _kSingleEventWidthFactor;
   }
 
+  double _minEventBlockHeight(BuildContext context) {
+    return _usesTabletLandscapeLayout(context)
+        ? _kWideMinEventBlockHeight
+        : _kMinEventBlockHeight;
+  }
+
   double _layoutTextScale(BuildContext context) {
     final textScaler = MediaQuery.maybeTextScalerOf(context);
     if (textScaler == null) return 1.0;
@@ -6727,6 +6955,7 @@ class _DayViewGridState extends State<DayViewGrid> {
             candidate.event,
             block.event,
             textScale: textScale,
+            minEventBlockHeight: _minEventBlockHeight(context),
           ),
         )
         .map((candidate) => _eventHitHeight(candidate.event))
@@ -6743,6 +6972,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         final availableWidth = _timelineAvailableWidthFor(layoutWidth);
         final textScale = _layoutTextScale(context);
         final singleEventWidthFactor = _singleEventWidthFactor(context);
+        final minEventBlockHeight = _minEventBlockHeight(context);
 
         // ✅ NEW: Dedupe notes before rendering to handle legacy duplicates
         final dedupedNotes = _dedupeNotesForUI(widget.notes);
@@ -6755,7 +6985,8 @@ class _DayViewGridState extends State<DayViewGrid> {
             _cachedFlowHash != flowHash ||
             _cachedAvailableWidth != availableWidth ||
             _cachedTextScale != textScale ||
-            _cachedSingleEventWidthFactor != singleEventWidthFactor) {
+            _cachedSingleEventWidthFactor != singleEventWidthFactor ||
+            _cachedMinEventBlockHeight != minEventBlockHeight) {
           if (kDebugMode) {
             final originalCount = widget.notes.length;
             final dedupedCount = dedupedNotes.length;
@@ -6774,12 +7005,14 @@ class _DayViewGridState extends State<DayViewGrid> {
             textScale: textScale,
             day: widget.kd,
             singleEventWidthFactor: singleEventWidthFactor,
+            minEventBlockHeight: minEventBlockHeight,
           );
           _cachedNotesHash = notesHash;
           _cachedFlowHash = flowHash;
           _cachedAvailableWidth = availableWidth;
           _cachedTextScale = textScale;
           _cachedSingleEventWidthFactor = singleEventWidthFactor;
+          _cachedMinEventBlockHeight = minEventBlockHeight;
         }
 
         _displayBlocks = _buildDisplayBlocks(
@@ -6917,7 +7150,11 @@ class _DayViewGridState extends State<DayViewGrid> {
                   }
                   if (kDebugMode) {
                     debugPrint(
-                      '[DayView] drop commit minute=$committedMinute id=${event.id} cid=${event.clientEventId} title="${event.title}" start=${event.startMin} end=${event.endMin}',
+                      '[DayView] drop commit minute=$committedMinute '
+                      'id=${safeLogIdentifier(event.id)} '
+                      'cid=${safeLogIdentifier(event.clientEventId)} '
+                      'title=<redacted chars=${event.title.length}> '
+                      'start=${event.startMin} end=${event.endMin}',
                     );
                   }
 
@@ -7214,7 +7451,9 @@ class _DayViewGridState extends State<DayViewGrid> {
     final draggable = !event.isReminder && !event.allDay;
     if (!draggable && kDebugMode) {
       debugPrint(
-        '[DayView] not draggable title="${event.title}" flowId=${event.flowId} isReminder=${event.isReminder} allDay=${event.allDay}',
+        '[DayView] not draggable title=<redacted chars=${event.title.length}> '
+        'flowId=${event.flowId} isReminder=${event.isReminder} '
+        'allDay=${event.allDay}',
       );
     }
     return draggable;
@@ -7303,7 +7542,10 @@ class _DayViewGridState extends State<DayViewGrid> {
         _lastDragSnappedMinute = event.startMin;
         unawaited(AppHaptics.selection());
         if (kDebugMode) {
-          debugPrint('[DayView] onDragStarted title="${event.title}"');
+          debugPrint(
+            '[DayView] onDragStarted '
+            'title=<redacted chars=${event.title.length}>',
+          );
         }
         setState(() {});
       },
@@ -7333,6 +7575,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     return _eventVisualHeightForLayout(
       event,
       textScale: _layoutTextScale(context),
+      minEventBlockHeight: _minEventBlockHeight(context),
     );
   }
 
@@ -7363,6 +7606,8 @@ class _DayViewGridState extends State<DayViewGrid> {
 
     final int durationMinutes = (event.endMin - event.startMin).clamp(15, 180);
     final double height = _eventVisualHeight(event);
+    final useCompactEventPreview =
+        _usesTabletLandscapeLayout(context) && durationMinutes < 45;
 
     final borderRadius = BorderRadius.circular(graphic != null ? 7 : 6);
 
@@ -7456,6 +7701,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                 event,
                 durationMinutes,
                 isPreview: isPreview,
+                compact: useCompactEventPreview,
               ),
             ),
           ],
@@ -7547,6 +7793,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                 event,
                 durationMinutes,
                 isPreview: isPreview,
+                compact: useCompactEventPreview,
               ),
             ),
           ],
@@ -7659,6 +7906,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                 event,
                 durationMinutes,
                 isPreview: isPreview,
+                compact: useCompactEventPreview,
               ),
             ),
           ],
@@ -7698,6 +7946,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           event,
           durationMinutes,
           isPreview: isPreview,
+          compact: useCompactEventPreview,
         ),
       );
     }
@@ -7772,6 +8021,7 @@ class _DayViewGridState extends State<DayViewGrid> {
               event,
               durationMinutes,
               isPreview: isPreview,
+              compact: useCompactEventPreview,
             ),
           ),
         ],
@@ -7784,6 +8034,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     EventItem event,
     int durationMinutes, {
     bool isPreview = false,
+    bool compact = false,
   }) {
     final flow = _chromeFlowForId(event.flowId);
     final bool hasFlow = flow != null;
@@ -7809,7 +8060,8 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
 
     final showTitle = event.title.trim().isNotEmpty;
-    final showPreviewLabel = !isGraphicFlow || (hasFlow && !event.isReminder);
+    final showPreviewLabel =
+        !compact && (!isGraphicFlow || (hasFlow && !event.isReminder));
     final graphicFlowNameColor = (graphic?.labelColor ?? _dayGold).withValues(
       alpha: isPreview ? 0.92 : 1.0,
     );
@@ -7823,7 +8075,8 @@ class _DayViewGridState extends State<DayViewGrid> {
     final flowColor = !isGraphicFlow
         ? visual.category.withValues(alpha: isPreview ? 0.52 : 0.68)
         : null;
-    final titleMaxLines = (event.isReminder || hasFlow || durationMinutes < 90)
+    final titleMaxLines =
+        (compact || event.isReminder || hasFlow || durationMinutes < 90)
         ? 1
         : 2;
     final trackSkyTeaser = isTrackSky
@@ -8011,7 +8264,8 @@ class _DayViewGridState extends State<DayViewGrid> {
                   overflow: TextOverflow.ellipsis,
                 ),
 
-        if (isTrackSky &&
+        if (!compact &&
+            isTrackSky &&
             trackSkyTeaser.isNotEmpty &&
             durationMinutes >= 45) ...[
           const SizedBox(height: 0),
@@ -8079,7 +8333,9 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
 
     if (kDebugMode) {
-      debugPrint('[_showEventDetail] Event: "${event.title}"');
+      debugPrint(
+        '[_showEventDetail] Event title=<redacted chars=${event.title.length}>',
+      );
       debugPrint(
         '[_showEventDetail] Event flowId: ${event.flowId} (${event.flowId.runtimeType})',
       );
@@ -8121,6 +8377,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           onRecordCompletion: widget.onRecordCompletion,
           onUnrecordCompletion: widget.onUnrecordCompletion,
           onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
+          loadCompletionMetadata: widget.loadCompletionMetadata,
           onboardingEventClientEventId: widget.onboardingEventClientEventId,
           onboardingObservedKey: widget.onboardingObservedKey,
           onboardingJournalKey: widget.onboardingJournalKey,
@@ -8131,7 +8388,10 @@ class _DayViewGridState extends State<DayViewGrid> {
       ).whenComplete(releaseSheet);
       if (kDebugMode) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          debugPrint('[DayView] detail sheet opened title="${event.title}"');
+          debugPrint(
+            '[DayView] detail sheet opened '
+            'title=<redacted chars=${event.title.length}>',
+          );
         });
       }
     } catch (_) {
@@ -8510,8 +8770,11 @@ class _DecanWatchLocalNotesPanelState
       globalDecanId: _globalDecanId,
     );
     if (!mounted) return;
-    _skyController.text = record.skyNote ?? '';
-    _intentionController.text = record.decanIntention ?? '';
+    syncTextEditingControllerText(_skyController, record.skyNote ?? '');
+    syncTextEditingControllerText(
+      _intentionController,
+      record.decanIntention ?? '',
+    );
     setState(() {
       _observedFromInside =
           record.observedFromInside ||
@@ -8833,6 +9096,7 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
     required this.onRecordCompletion,
     this.onUnrecordCompletion,
     this.onRemoveCompletionBadge,
+    this.loadCompletionMetadata,
     this.onWriteJournalResponse,
     this.onCompletionContinuity,
     this.onUserCompletionFeedback,
@@ -8858,6 +9122,7 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
+  final MaatCompletionMetadataLoader? loadCompletionMetadata;
   final MaatJournalResponseBlockWriter? onWriteJournalResponse;
   final Future<void> Function(CompletionStatus status)? onCompletionContinuity;
   final ValueChanged<CompletionStatus>? onUserCompletionFeedback;
@@ -8876,7 +9141,25 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       const LivingTextDayOneNodeStore();
   final DecanWatchLocalStore _decanWatchLocalStore =
       const DecanWatchLocalStore();
+  final ReadingHousePrivateMarginStore _readingHousePrivateMarginStore =
+      const ReadingHousePrivateMarginStore();
+  final ReadingHouseSharedFragmentsRepo _readingHouseFragmentsRepo =
+      ReadingHouseSharedFragmentsRepo(Supabase.instance.client);
   final TextEditingController _eveningThresholdReleaseCarryController =
+      TextEditingController();
+  final TextEditingController _readingHouseFragmentBodyController =
+      TextEditingController();
+  final TextEditingController _readingHouseFragmentReferenceController =
+      TextEditingController();
+  final TextEditingController _readingHouseReplyController =
+      TextEditingController();
+  final TextEditingController _readingHouseMarginBodyController =
+      TextEditingController();
+  final TextEditingController _readingHouseMarginReferenceController =
+      TextEditingController();
+  final TextEditingController _readingHouseAnnouncementBodyController =
+      TextEditingController();
+  final TextEditingController _readingHouseChatController =
       TextEditingController();
   OverlayEntry? _sheetFeedbackOverlay;
   Timer? _sheetFeedbackTimer;
@@ -8890,11 +9173,39 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   DailyOrientationEntry? _eveningThresholdOrientation;
   DailyOrientationEntry? _eveningThresholdPreviousOrientation;
   bool _eveningThresholdReleasePending = false;
+  bool _readingHousePrivateMarginSaving = false;
+  bool _readingHouseFragmentsLoading = false;
+  bool _readingHouseFragmentSaving = false;
+  bool _readingHouseReplySaving = false;
+  bool _readingHouseMarginSaving = false;
+  bool _readingHouseAnnouncementSaving = false;
+  bool _readingHouseChatSending = false;
+  bool _readingHouseFragmentComposerOpen = false;
+  bool _readingHouseMarginComposerOpen = false;
+  bool _readingHouseAnnouncementComposerOpen = false;
+  bool _readingHouseMarginSpoiler = false;
+  bool _readingHouseCanModerateFragments = false;
+  String _readingHouseAnnouncementType = 'note';
+  String? _readingHouseReplyComposerFragmentId;
+  Object? _readingHouseFragmentsError;
+  int _readingHouseFragmentsLoadGeneration = 0;
+  List<ReadingHouseSharedFragment> _readingHouseFragments =
+      const <ReadingHouseSharedFragment>[];
+  List<ReadingHouseMarginItem> _readingHouseMarginItems =
+      const <ReadingHouseMarginItem>[];
+  List<ReadingHouseAnnouncement> _readingHouseAnnouncements =
+      const <ReadingHouseAnnouncement>[];
+  List<ReadingHouseChatMessage> _readingHouseChatMessages =
+      const <ReadingHouseChatMessage>[];
+  Map<String, List<ReadingHouseFragmentReply>>
+  _readingHouseRepliesByFragmentId =
+      const <String, List<ReadingHouseFragmentReply>>{};
+  int _readingHouseActiveMemberCount = 0;
   int _decanWatchResponseLoadGeneration = 0;
   Map<String, MaatFlowResponseValue> _responseValues =
       const <String, MaatFlowResponseValue>{};
-  final Set<String> _suppressedOfferResponseSourceIds = <String>{};
-  final Set<String> _includedOfferResponseSourceIds = <String>{};
+  Map<String, dynamic> _loadedCompletionMetadata = const <String, dynamic>{};
+  Set<String> _dirtyResponseSpecIds = const <String>{};
   bool _responseDirty = false;
 
   @override
@@ -8908,6 +9219,13 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     _clearSheetFeedback();
     _completionFeedbackScheduler.dispose();
     _eveningThresholdReleaseCarryController.dispose();
+    _readingHouseFragmentBodyController.dispose();
+    _readingHouseFragmentReferenceController.dispose();
+    _readingHouseReplyController.dispose();
+    _readingHouseMarginBodyController.dispose();
+    _readingHouseMarginReferenceController.dispose();
+    _readingHouseAnnouncementBodyController.dispose();
+    _readingHouseChatController.dispose();
     super.dispose();
   }
 
@@ -9004,36 +9322,84 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     });
   }
 
+  void _showCompletionResultMessage(String message) {
+    if (_isEveningThresholdCompletion) {
+      _showSheetFeedback(message);
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
+  void _resetReadingHouseFragmentState() {
+    _readingHouseFragmentsLoadGeneration++;
+    _readingHouseFragments = const <ReadingHouseSharedFragment>[];
+    _readingHouseMarginItems = const <ReadingHouseMarginItem>[];
+    _readingHouseAnnouncements = const <ReadingHouseAnnouncement>[];
+    _readingHouseChatMessages = const <ReadingHouseChatMessage>[];
+    _readingHouseActiveMemberCount = 0;
+    _readingHouseFragmentsLoading = false;
+    _readingHouseFragmentSaving = false;
+    _readingHouseMarginSaving = false;
+    _readingHouseAnnouncementSaving = false;
+    _readingHouseChatSending = false;
+    _readingHouseFragmentsError = null;
+    _readingHouseCanModerateFragments = false;
+    _readingHouseRepliesByFragmentId =
+        const <String, List<ReadingHouseFragmentReply>>{};
+    _readingHouseReplySaving = false;
+    _readingHouseReplyComposerFragmentId = null;
+    _readingHouseFragmentComposerOpen = false;
+    _readingHouseMarginComposerOpen = false;
+    _readingHouseAnnouncementComposerOpen = false;
+    _readingHouseMarginSpoiler = false;
+    _readingHouseAnnouncementType = 'note';
+    _readingHouseFragmentBodyController.clear();
+    _readingHouseFragmentReferenceController.clear();
+    _readingHouseReplyController.clear();
+    _readingHouseMarginBodyController.clear();
+    _readingHouseMarginReferenceController.clear();
+    _readingHouseAnnouncementBodyController.clear();
+    _readingHouseChatController.clear();
+  }
+
   @override
   void didUpdateWidget(covariant _MaatFlowCompletionPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.event.clientEventId != widget.event.clientEventId) {
       _cancelCompletionFeedback();
       _responseValues = const <String, MaatFlowResponseValue>{};
-      _suppressedOfferResponseSourceIds.clear();
-      _includedOfferResponseSourceIds.clear();
+      _loadedCompletionMetadata = const <String, dynamic>{};
+      _dirtyResponseSpecIds = const <String>{};
       _responseDirty = false;
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
+      _readingHousePrivateMarginSaving = false;
+      _resetReadingHouseFragmentState();
       unawaited(_load());
     } else if (oldWidget.reloadSignal != widget.reloadSignal) {
       _responseValues = const <String, MaatFlowResponseValue>{};
-      _suppressedOfferResponseSourceIds.clear();
-      _includedOfferResponseSourceIds.clear();
+      _loadedCompletionMetadata = const <String, dynamic>{};
+      _dirtyResponseSpecIds = const <String>{};
       _responseDirty = false;
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
+      _readingHousePrivateMarginSaving = false;
+      _resetReadingHouseFragmentState();
       unawaited(_load());
     } else if (!_sameResponseSpecs(
       oldWidget.responseSpecs,
       widget.responseSpecs,
     )) {
       _responseValues = const <String, MaatFlowResponseValue>{};
-      _suppressedOfferResponseSourceIds.clear();
-      _includedOfferResponseSourceIds.clear();
+      _loadedCompletionMetadata = const <String, dynamic>{};
+      _dirtyResponseSpecIds = const <String>{};
       _responseDirty = false;
       if (_usesDecanWatchResponseBridge) {
         unawaited(_loadDecanWatchResponseValuesIfNeeded());
+      } else if (_usesReadingHousePrivateMargin) {
+        unawaited(_loadReadingHousePrivateMarginValuesIfNeeded());
       } else {
         _hydrateInitialPromptDraftValuesIfNeeded();
       }
@@ -9058,6 +9424,59 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
 
   bool get _isEveningThresholdCompletion {
     return widget.completion.flowKey == kEveningThresholdFlowKey;
+  }
+
+  bool get _isReadingHouseCompletion {
+    return widget.completion.flowKey == kReadingHouseFlowKey;
+  }
+
+  bool get _usesReadingHousePrivateMargin {
+    return _isReadingHouseCompletion &&
+        widget.responseSpecs.any(
+          (spec) => spec.flowKey == kReadingHouseFlowKey,
+        );
+  }
+
+  String? get _readingHouseCalendarId {
+    final calendarId = widget.event.calendarId?.trim();
+    return calendarId == null || calendarId.isEmpty ? null : calendarId;
+  }
+
+  String? get _readingHouseClientEventId {
+    final clientEventId = widget.event.clientEventId?.trim();
+    return clientEventId == null || clientEventId.isEmpty
+        ? null
+        : clientEventId;
+  }
+
+  int? get _readingHouseFlowId => widget.event.flowId;
+
+  bool get _hasReadingHouseFragmentContext {
+    return _isReadingHouseCompletion &&
+        _readingHouseCalendarId != null &&
+        _readingHouseFlowId != null &&
+        _readingHouseClientEventId != null;
+  }
+
+  String? get _readingHouseSelectedPosition {
+    return readingHousePositionFromResponseValues(_responseValues);
+  }
+
+  bool get _readingHouseFragmentsUnlocked {
+    return readingHouseSharedFragmentUnlockPosition(
+          _readingHouseSelectedPosition,
+        ) !=
+        null;
+  }
+
+  bool get _isReadingHouseSoloStudySitting {
+    return widget.event.behaviorPayload?['house_mode']?.toString().trim() ==
+        kReadingHouseSoloMode;
+  }
+
+  bool get _readingHouseCompanyChatActive {
+    return !_isReadingHouseSoloStudySitting &&
+        _readingHouseActiveMemberCount >= kReadingHouseCompanyMemberThreshold;
   }
 
   DateTime get _eventGregorianDate {
@@ -9096,11 +9515,13 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     if (nextValues.isEmpty || nextValues == _responseValues) return;
     setState(() {
       _responseValues = nextValues;
+      _dirtyResponseSpecIds = const <String>{};
       _responseDirty = false;
     });
   }
 
   void _rememberInitialPromptDraftValue(MaatFlowResponseValue value) {
+    if (_isReadingHouseCompletion) return;
     if (!_usesSharedInitialPromptDrafts) return;
     kMaatFlowResponseDraftStore.rememberValue(
       flowKey: widget.completion.flowKey,
@@ -9214,8 +9635,543 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     }
     setState(() {
       _responseValues = nextValues;
+      _dirtyResponseSpecIds = const <String>{};
       _responseDirty = false;
     });
+  }
+
+  Future<void> _loadReadingHousePrivateMarginValuesIfNeeded() async {
+    if (!_usesReadingHousePrivateMargin) return;
+    final flowId = widget.event.flowId;
+    if (flowId == null) return;
+    final values = await _readingHousePrivateMarginStore.loadValues(
+      flowId: flowId,
+      eventNumber: widget.completion.eventNumber,
+    );
+    if (!mounted) return;
+    setState(() {
+      _responseValues = values;
+      _dirtyResponseSpecIds = const <String>{};
+      _responseDirty = false;
+    });
+  }
+
+  Future<bool> _saveReadingHousePrivateMargin({
+    bool showFeedback = true,
+  }) async {
+    if (!_usesReadingHousePrivateMargin) return true;
+    final flowId = widget.event.flowId;
+    if (flowId == null) return true;
+    if (showFeedback && mounted) {
+      setState(() {
+        _readingHousePrivateMarginSaving = true;
+      });
+    }
+    try {
+      await _readingHousePrivateMarginStore.saveValues(
+        flowId: flowId,
+        eventNumber: widget.completion.eventNumber,
+        values: _responseValues,
+      );
+      if (!mounted) return true;
+      setState(() {
+        _responseDirty = false;
+        _dirtyResponseSpecIds = const <String>{};
+        _readingHousePrivateMarginSaving = false;
+      });
+      if (showFeedback) {
+        final hasValues = readingHousePrivateMarginValuesToJson(
+          _responseValues,
+        ).isNotEmpty;
+        _showSheetFeedback(
+          hasValues
+              ? 'Private margin saved on this device.'
+              : 'Private margin cleared on this device.',
+        );
+      }
+      return true;
+    } catch (_) {
+      if (!mounted) return false;
+      setState(() {
+        _readingHousePrivateMarginSaving = false;
+      });
+      if (showFeedback) {
+        _showSheetFeedback('Could not save the private margin.');
+      }
+      return false;
+    }
+  }
+
+  Future<void> _syncReadingHouseFragmentPositionIfNeeded() async {
+    if (!_hasReadingHouseFragmentContext || _isReadingHouseSoloStudySitting) {
+      return;
+    }
+    final position = _readingHouseSelectedPosition;
+    if (position == null) return;
+    try {
+      await _readingHouseFragmentsRepo.markReadingPosition(
+        calendarId: _readingHouseCalendarId!,
+        flowId: _readingHouseFlowId!,
+        clientEventId: _readingHouseClientEventId!,
+        eventNumber: widget.completion.eventNumber,
+        readingPosition: position,
+      );
+    } catch (_) {
+      // Fragment sharing will surface the error if the reader tries to share.
+    }
+  }
+
+  Future<void> _loadReadingHouseSharedFragmentsIfNeeded() async {
+    if (!_hasReadingHouseFragmentContext || _isReadingHouseSoloStudySitting) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseFragments = const <ReadingHouseSharedFragment>[];
+        _readingHouseMarginItems = const <ReadingHouseMarginItem>[];
+        _readingHouseAnnouncements = const <ReadingHouseAnnouncement>[];
+        _readingHouseChatMessages = const <ReadingHouseChatMessage>[];
+        _readingHouseActiveMemberCount = 0;
+        _readingHouseRepliesByFragmentId =
+            const <String, List<ReadingHouseFragmentReply>>{};
+        _readingHouseFragmentsLoading = false;
+        _readingHouseFragmentsError = null;
+        _readingHouseCanModerateFragments = false;
+      });
+      return;
+    }
+
+    final generation = ++_readingHouseFragmentsLoadGeneration;
+    if (mounted) {
+      setState(() {
+        _readingHouseFragmentsLoading = true;
+        _readingHouseFragmentsError = null;
+      });
+    }
+    try {
+      final calendarId = _readingHouseCalendarId!;
+      final flowId = _readingHouseFlowId!;
+      final clientEventId = _readingHouseClientEventId!;
+      final results = await Future.wait<Object>(<Future<Object>>[
+        _readingHouseFragmentsRepo.listFragments(
+          calendarId: calendarId,
+          flowId: flowId,
+          clientEventId: clientEventId,
+        ),
+        _readingHouseFragmentsRepo.listReplies(
+          calendarId: calendarId,
+          flowId: flowId,
+          clientEventId: clientEventId,
+        ),
+        _readingHouseFragmentsRepo.canModerateHouse(calendarId: calendarId),
+        _readingHouseFragmentsRepo.listMarginItems(
+          calendarId: calendarId,
+          flowId: flowId,
+        ),
+        _readingHouseFragmentsRepo.listAnnouncements(
+          calendarId: calendarId,
+          flowId: flowId,
+        ),
+        _readingHouseFragmentsRepo.activeJoinedMemberCount(
+          calendarId: calendarId,
+        ),
+        _readingHouseFragmentsRepo.listChatMessages(
+          calendarId: calendarId,
+          flowId: flowId,
+        ),
+      ]);
+      if (!mounted || generation != _readingHouseFragmentsLoadGeneration) {
+        return;
+      }
+      setState(() {
+        _readingHouseFragments = results[0] as List<ReadingHouseSharedFragment>;
+        _readingHouseRepliesByFragmentId = _repliesByFragmentId(
+          results[1] as List<ReadingHouseFragmentReply>,
+        );
+        _readingHouseCanModerateFragments = results[2] == true;
+        _readingHouseMarginItems = results[3] as List<ReadingHouseMarginItem>;
+        _readingHouseAnnouncements =
+            results[4] as List<ReadingHouseAnnouncement>;
+        _readingHouseActiveMemberCount = results[5] as int;
+        _readingHouseChatMessages = results[6] as List<ReadingHouseChatMessage>;
+        _readingHouseFragmentsLoading = false;
+      });
+    } catch (error) {
+      if (!mounted || generation != _readingHouseFragmentsLoadGeneration) {
+        return;
+      }
+      setState(() {
+        _readingHouseFragmentsError = error;
+        _readingHouseFragmentsLoading = false;
+      });
+    }
+  }
+
+  Map<String, List<ReadingHouseFragmentReply>> _repliesByFragmentId(
+    List<ReadingHouseFragmentReply> replies,
+  ) {
+    final grouped = <String, List<ReadingHouseFragmentReply>>{};
+    for (final reply in replies) {
+      final fragmentId = reply.fragmentId.trim();
+      if (fragmentId.isEmpty) continue;
+      grouped.putIfAbsent(fragmentId, () => <ReadingHouseFragmentReply>[]);
+      grouped[fragmentId]!.add(reply);
+    }
+    return Map<String, List<ReadingHouseFragmentReply>>.unmodifiable(
+      grouped.map(
+        (fragmentId, values) =>
+            MapEntry<String, List<ReadingHouseFragmentReply>>(
+              fragmentId,
+              List<ReadingHouseFragmentReply>.unmodifiable(values),
+            ),
+      ),
+    );
+  }
+
+  Future<void> _syncAndLoadReadingHouseSharedFragments() async {
+    await _syncReadingHouseFragmentPositionIfNeeded();
+    await _loadReadingHouseSharedFragmentsIfNeeded();
+  }
+
+  Future<void> _shareReadingHouseFragment() async {
+    if (!_hasReadingHouseFragmentContext || _readingHouseFragmentSaving) {
+      return;
+    }
+    final position = _readingHouseSelectedPosition;
+    if (readingHouseSharedFragmentUnlockPosition(position) == null) {
+      _showSheetFeedback('Choose Carrying before bringing a fragment.');
+      return;
+    }
+    final body = _readingHouseFragmentBodyController.text.trim();
+    if (body.isEmpty) {
+      _showSheetFeedback('Add the fragment first.');
+      return;
+    }
+    setState(() {
+      _readingHouseFragmentSaving = true;
+      _readingHouseFragmentsError = null;
+    });
+    try {
+      await _readingHouseFragmentsRepo.shareFragment(
+        calendarId: _readingHouseCalendarId!,
+        flowId: _readingHouseFlowId!,
+        clientEventId: _readingHouseClientEventId!,
+        eventNumber: widget.completion.eventNumber,
+        readingPosition: position!,
+        passageReference: _readingHouseFragmentReferenceController.text,
+        body: body,
+      );
+      _readingHouseFragmentBodyController.clear();
+      _readingHouseFragmentReferenceController.clear();
+      if (!mounted) return;
+      setState(() {
+        _readingHouseFragmentComposerOpen = false;
+        _readingHouseFragmentSaving = false;
+      });
+      await _loadReadingHouseSharedFragmentsIfNeeded();
+      if (mounted) {
+        _showSheetFeedback('Fragment brought to the house.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseFragmentSaving = false;
+      });
+      _showSheetFeedback('Could not share this fragment.');
+    }
+  }
+
+  Future<void> _deleteReadingHouseFragment(
+    ReadingHouseSharedFragment fragment,
+  ) async {
+    if (_readingHouseFragmentSaving) return;
+    setState(() => _readingHouseFragmentSaving = true);
+    try {
+      await _readingHouseFragmentsRepo.deleteFragment(fragment.id);
+      if (!mounted) return;
+      setState(() {
+        _readingHouseFragmentSaving = false;
+      });
+      await _loadReadingHouseSharedFragmentsIfNeeded();
+      if (mounted) {
+        _showSheetFeedback('Fragment removed.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseFragmentSaving = false;
+      });
+      _showSheetFeedback('Could not remove this fragment.');
+    }
+  }
+
+  Future<void> _createReadingHouseReply(
+    ReadingHouseSharedFragment fragment,
+  ) async {
+    if (_readingHouseReplySaving) return;
+    final body = _readingHouseReplyController.text.trim();
+    if (body.isEmpty) {
+      _showSheetFeedback('Add a reply first.');
+      return;
+    }
+    setState(() {
+      _readingHouseReplySaving = true;
+      _readingHouseFragmentsError = null;
+    });
+    try {
+      await _readingHouseFragmentsRepo.createReply(
+        fragmentId: fragment.id,
+        body: body,
+        isHostAck: _readingHouseCanModerateFragments,
+      );
+      _readingHouseReplyController.clear();
+      if (!mounted) return;
+      setState(() {
+        _readingHouseReplyComposerFragmentId = null;
+        _readingHouseReplySaving = false;
+      });
+      await _loadReadingHouseSharedFragmentsIfNeeded();
+      if (mounted) {
+        _showSheetFeedback(
+          _readingHouseCanModerateFragments
+              ? 'Acknowledgment added.'
+              : 'Reply added.',
+        );
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseReplySaving = false;
+      });
+      _showSheetFeedback('Could not add this reply.');
+    }
+  }
+
+  Future<void> _deleteReadingHouseReply(ReadingHouseFragmentReply reply) async {
+    if (_readingHouseReplySaving) return;
+    setState(() => _readingHouseReplySaving = true);
+    try {
+      await _readingHouseFragmentsRepo.deleteReply(reply.id);
+      if (!mounted) return;
+      setState(() {
+        _readingHouseReplySaving = false;
+      });
+      await _loadReadingHouseSharedFragmentsIfNeeded();
+      if (mounted) {
+        _showSheetFeedback('Reply removed.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseReplySaving = false;
+      });
+      _showSheetFeedback('Could not remove this reply.');
+    }
+  }
+
+  Future<void> _createReadingHouseMarginItem() async {
+    if (!_hasReadingHouseFragmentContext || _readingHouseMarginSaving) {
+      return;
+    }
+    final body = _readingHouseMarginBodyController.text.trim();
+    if (body.isEmpty) {
+      _showSheetFeedback('Add a margin note first.');
+      return;
+    }
+    setState(() {
+      _readingHouseMarginSaving = true;
+      _readingHouseFragmentsError = null;
+    });
+    try {
+      await _readingHouseFragmentsRepo.createMarginItem(
+        calendarId: _readingHouseCalendarId!,
+        flowId: _readingHouseFlowId!,
+        clientEventId: _readingHouseClientEventId,
+        eventNumber: widget.completion.eventNumber,
+        body: body,
+        passageReference: _readingHouseMarginReferenceController.text,
+        spoiler: _readingHouseMarginSpoiler,
+      );
+      _readingHouseMarginBodyController.clear();
+      _readingHouseMarginReferenceController.clear();
+      if (!mounted) return;
+      setState(() {
+        _readingHouseMarginComposerOpen = false;
+        _readingHouseMarginSpoiler = false;
+        _readingHouseMarginSaving = false;
+      });
+      await _loadReadingHouseSharedFragmentsIfNeeded();
+      if (mounted) {
+        _showSheetFeedback('Margin item added to this house.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseMarginSaving = false;
+      });
+      _showSheetFeedback('Could not add this margin item.');
+    }
+  }
+
+  Future<void> _deleteReadingHouseMarginItem(
+    ReadingHouseMarginItem item,
+  ) async {
+    if (_readingHouseMarginSaving) return;
+    _readingHouseMarginSaving = true;
+    try {
+      await _readingHouseFragmentsRepo.deleteMarginItem(item.id);
+      if (!mounted) return;
+      setState(() {
+        _readingHouseMarginItems = _readingHouseMarginItems
+            .where((candidate) => candidate.id != item.id)
+            .toList(growable: false);
+        _readingHouseMarginSaving = false;
+      });
+      if (mounted) {
+        _showSheetFeedback('Margin item removed.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseMarginSaving = false;
+      });
+      _showSheetFeedback('Could not remove this margin item.');
+    }
+  }
+
+  Future<void> _createReadingHouseAnnouncement() async {
+    if (!_hasReadingHouseFragmentContext ||
+        !_readingHouseCanModerateFragments ||
+        _readingHouseAnnouncementSaving) {
+      return;
+    }
+    final body = _readingHouseAnnouncementBodyController.text.trim();
+    if (body.isEmpty) {
+      _showSheetFeedback('Add an announcement first.');
+      return;
+    }
+    setState(() {
+      _readingHouseAnnouncementSaving = true;
+      _readingHouseFragmentsError = null;
+    });
+    try {
+      await _readingHouseFragmentsRepo.createAnnouncement(
+        calendarId: _readingHouseCalendarId!,
+        flowId: _readingHouseFlowId!,
+        clientEventId: _readingHouseClientEventId,
+        eventNumber: widget.completion.eventNumber,
+        body: body,
+        announcementType: _readingHouseAnnouncementType,
+      );
+      _readingHouseAnnouncementBodyController.clear();
+      if (!mounted) return;
+      setState(() {
+        _readingHouseAnnouncementComposerOpen = false;
+        _readingHouseAnnouncementType = 'note';
+        _readingHouseAnnouncementSaving = false;
+      });
+      await _loadReadingHouseSharedFragmentsIfNeeded();
+      if (mounted) {
+        _showSheetFeedback('Host announcement added.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseAnnouncementSaving = false;
+      });
+      _showSheetFeedback('Could not add this announcement.');
+    }
+  }
+
+  Future<void> _deleteReadingHouseAnnouncement(
+    ReadingHouseAnnouncement announcement,
+  ) async {
+    if (_readingHouseAnnouncementSaving) return;
+    _readingHouseAnnouncementSaving = true;
+    try {
+      await _readingHouseFragmentsRepo.deleteAnnouncement(announcement.id);
+      if (!mounted) return;
+      setState(() {
+        _readingHouseAnnouncements = _readingHouseAnnouncements
+            .where((candidate) => candidate.id != announcement.id)
+            .toList(growable: false);
+        _readingHouseAnnouncementSaving = false;
+      });
+      if (mounted) {
+        _showSheetFeedback('Announcement removed.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseAnnouncementSaving = false;
+      });
+      _showSheetFeedback('Could not remove this announcement.');
+    }
+  }
+
+  Future<void> _sendReadingHouseChatMessage() async {
+    if (!_hasReadingHouseFragmentContext || _readingHouseChatSending) {
+      return;
+    }
+    if (!_readingHouseCompanyChatActive) {
+      _showSheetFeedback('House Chat opens when readers join.');
+      return;
+    }
+    final body = _readingHouseChatController.text.trim();
+    if (body.isEmpty) {
+      _showSheetFeedback('Add a chat message first.');
+      return;
+    }
+    setState(() {
+      _readingHouseChatSending = true;
+      _readingHouseFragmentsError = null;
+    });
+    try {
+      await _readingHouseFragmentsRepo.createChatMessage(
+        calendarId: _readingHouseCalendarId!,
+        flowId: _readingHouseFlowId!,
+        body: body,
+      );
+      _readingHouseChatController.clear();
+      if (!mounted) return;
+      setState(() {
+        _readingHouseChatSending = false;
+      });
+      await _loadReadingHouseSharedFragmentsIfNeeded();
+      if (mounted) {
+        _showSheetFeedback('Chat message sent.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseChatSending = false;
+      });
+      _showSheetFeedback('Could not send this chat message.');
+    }
+  }
+
+  Future<void> _deleteReadingHouseChatMessage(
+    ReadingHouseChatMessage message,
+  ) async {
+    if (_readingHouseChatSending) return;
+    setState(() => _readingHouseChatSending = true);
+    try {
+      await _readingHouseFragmentsRepo.deleteChatMessage(message.id);
+      if (!mounted) return;
+      setState(() {
+        _readingHouseChatMessages = _readingHouseChatMessages
+            .where((candidate) => candidate.id != message.id)
+            .toList(growable: false);
+        _readingHouseChatSending = false;
+      });
+      if (mounted) {
+        _showSheetFeedback('Chat message removed.');
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _readingHouseChatSending = false;
+      });
+      _showSheetFeedback('Could not remove this chat message.');
+    }
   }
 
   Future<void> _persistDecanWatchResponseValues(
@@ -9249,6 +10205,19 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
             : null);
   }
 
+  bool get _isOnboardingReviewEvent {
+    final raw = widget.event.behaviorPayload?['review_mode'];
+    if (raw is bool) return raw;
+    return raw?.toString().trim().toLowerCase() == 'true';
+  }
+
+  String? get _onboardingReviewCarryText {
+    final raw = widget.event.behaviorPayload?['review_initial_carry']
+        ?.toString()
+        .trim();
+    return raw == null || raw.isEmpty ? null : raw;
+  }
+
   static DateTime? _parseDateOnly(String? raw) {
     if (raw == null || raw.isEmpty) return null;
     final parsed = DateTime.tryParse(raw);
@@ -9258,6 +10227,24 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
 
   Future<void> _loadEveningThresholdOrientationState(String userId) async {
     if (!_isEveningThresholdCompletion) return;
+    if (_isOnboardingReviewEvent) {
+      final orientationDate = _eveningThresholdOrientationDate();
+      final carryText = _onboardingReviewCarryText;
+      final orientation = DailyOrientationEntry(
+        userId: userId,
+        localDate: orientationDate,
+        chosenReturn: carryText,
+        source: 'onboarding_review',
+        status: 'started',
+      );
+      if (!mounted) return;
+      setState(() {
+        _eveningThresholdOrientation = orientation;
+        _eveningThresholdPreviousOrientation =
+            widget.completion.eventNumber == 2 ? orientation : null;
+      });
+      return;
+    }
     final repo = DailyOrientationRepo(Supabase.instance.client);
     final orientationDate = _eveningThresholdOrientationDate();
     final previousDate = _eveningThresholdPreviousOrientationDate();
@@ -9280,14 +10267,28 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
 
   Future<void> _load() async {
     await _loadDecanWatchResponseValuesIfNeeded();
+    await _loadReadingHousePrivateMarginValuesIfNeeded();
     if (!mounted) return;
-    if (!_usesDecanWatchResponseBridge) {
+    if (!_usesDecanWatchResponseBridge && !_usesReadingHousePrivateMargin) {
       _hydrateInitialPromptDraftValuesIfNeeded();
     }
 
     final clientEventId = widget.event.clientEventId?.trim();
+    if (_isOnboardingReviewEvent) {
+      await _loadEveningThresholdOrientationState('onboarding_review');
+      if (!mounted) return;
+      setState(() {
+        _status = null;
+        _loading = false;
+      });
+      return;
+    }
+
+    final metadataLoader = widget.loadCompletionMetadata;
     final user = Supabase.instance.client.auth.currentUser;
-    if (clientEventId == null || clientEventId.isEmpty || user == null) {
+    if (clientEventId == null ||
+        clientEventId.isEmpty ||
+        (metadataLoader == null && user == null)) {
       if (mounted) {
         setState(() {
           _status = null;
@@ -9300,35 +10301,72 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       return;
     }
 
-    await _loadEveningThresholdOrientationState(user.id);
+    if (user != null) {
+      await _loadEveningThresholdOrientationState(user.id);
+    }
 
     try {
-      final row = await Supabase.instance.client
-          .from('user_event_completions')
-          .select('metadata')
-          .eq('user_id', user.id)
-          .eq('client_event_id', clientEventId)
-          .maybeSingle();
-      final metadata = row?['metadata'];
-      final rawStatus = metadata is Map
-          ? metadata['status']?.toString().trim().toLowerCase()
-          : null;
+      Map<String, dynamic>? loadedMetadata;
+      var hasCompletionRow = false;
+      if (metadataLoader != null) {
+        loadedMetadata = await metadataLoader(clientEventId: clientEventId);
+        hasCompletionRow = loadedMetadata != null;
+      } else {
+        final row = await Supabase.instance.client
+            .from('user_event_completions')
+            .select('metadata')
+            .eq('user_id', user!.id)
+            .eq('client_event_id', clientEventId)
+            .maybeSingle();
+        final metadata = row?['metadata'];
+        loadedMetadata = metadata is Map
+            ? Map<String, dynamic>.from(metadata)
+            : null;
+        hasCompletionRow = row != null;
+      }
+      final metadataMap = loadedMetadata ?? const <String, dynamic>{};
+      final canonicalResponses = extractMaatCompletionResponseValues(
+        metadataMap,
+        specs: widget.responseSpecs,
+      ).values;
+      final hydratedResponseValues = canonicalResponses.isEmpty
+          ? _responseValues
+          : _mergeInitialPromptDraftValues(canonicalResponses);
+      if (canonicalResponses.isNotEmpty) {
+        kMaatFlowResponseDraftStore.rememberValues(
+          flowKey: widget.completion.flowKey,
+          values: canonicalResponses,
+        );
+      }
+      final rawStatus = metadataMap['status']?.toString().trim().toLowerCase();
       final nextStatus =
           _normalizeStatus(rawStatus) ??
           (widget.completion.customStatusLabels.containsKey(rawStatus)
               ? rawStatus
               : null);
-      final hasCompletionRow = row != null;
       if (!mounted) return;
       setState(() {
         _status = nextStatus ?? (hasCompletionRow ? 'observed' : null);
+        _loadedCompletionMetadata = metadataMap;
+        if (user == null) {
+          _eveningThresholdOrientation = null;
+          _eveningThresholdPreviousOrientation = null;
+          _eveningThresholdReleasePending = false;
+        }
+        if (canonicalResponses.isNotEmpty) {
+          _responseValues = hydratedResponseValues;
+        }
+        _dirtyResponseSpecIds = const <String>{};
+        _responseDirty = false;
         _loading = false;
       });
+      unawaited(_syncAndLoadReadingHouseSharedFragments());
     } catch (_) {
       if (!mounted) return;
       setState(() {
         _loading = false;
       });
+      unawaited(_loadReadingHouseSharedFragmentsIfNeeded());
     }
   }
 
@@ -9412,6 +10450,23 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       );
       return false;
     }
+    if (_isReadingHouseCompletion) {
+      final position = readingHousePositionFromResponseValues(_responseValues);
+      if (position == null) {
+        if (!mounted) return false;
+        _showSheetFeedback(
+          'Choose Carrying or Not yet before marking this sitting. Writing stays optional.',
+        );
+        return false;
+      }
+      if (position == kReadingHousePositionNotYet && status != 'skipped') {
+        if (!mounted) return false;
+        _showSheetFeedback(
+          'Not yet can only be saved locally or closed as Skipped. Choose Carrying before Observed or Partly.',
+        );
+        return false;
+      }
+    }
     return true;
   }
 
@@ -9474,6 +10529,28 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     String? releaseCarryText,
   }) async {
     if (!_isEveningThresholdCompletion) return true;
+    if (_isOnboardingReviewEvent) {
+      final orientationDate = _eveningThresholdOrientationDate();
+      final carryText = releaseCarryText?.trim().isNotEmpty == true
+          ? releaseCarryText!.trim()
+          : _onboardingReviewCarryText;
+      final orientation = DailyOrientationEntry(
+        userId: 'onboarding_review',
+        localDate: orientationDate,
+        chosenReturn: carryText,
+        source: 'onboarding_review',
+        landingStatus: widget.completion.eventNumber == 1 ? status : null,
+        status: 'started',
+      );
+      if (mounted) {
+        setState(() {
+          _eveningThresholdOrientation = orientation;
+          _eveningThresholdPreviousOrientation =
+              widget.completion.eventNumber == 2 ? orientation : null;
+        });
+      }
+      return true;
+    }
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null || userId.trim().isEmpty) return true;
     if (!await _ensureEveningThresholdCanChoose()) return false;
@@ -9544,6 +10621,9 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     final completedOnDate = DateUtils.dateOnly(
       KemeticMath.toGregorian(widget.ky, widget.km, widget.kd),
     );
+    var completionRecorded = false;
+    var journalContinuityRecorded = !completionStatus.createsJournalContinuity;
+    Map<String, dynamic>? persistedMetadata;
     try {
       final thresholdApplied = await _applyEveningThresholdCompletion(
         status,
@@ -9555,7 +10635,21 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         setState(() => _saving = false);
         return;
       }
-      final metadata = <String, dynamic>{
+      if (_isOnboardingReviewEvent) {
+        if (!mounted) return;
+        setState(() {
+          _status = status;
+          _saving = false;
+          _responseDirty = false;
+          _eveningThresholdReleasePending = false;
+        });
+        if (status == 'release') {
+          _eveningThresholdReleaseCarryController.clear();
+        }
+        return;
+      }
+      var metadata = <String, dynamic>{
+        ..._loadedCompletionMetadata,
         ...widget.completion.metadataFor(
           status: status,
           completedOnDate: completedOnDate,
@@ -9589,7 +10683,35 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           'completion': 'raised',
           'raising_seconds': kDjedRaisingSeconds,
         });
+      } else if (_isReadingHouseCompletion) {
+        final savedMargin = await _saveReadingHousePrivateMargin(
+          showFeedback: false,
+        );
+        if (!savedMargin) {
+          _cancelCompletionFeedback();
+          if (!mounted) return;
+          setState(() => _saving = false);
+          _showSheetFeedback('Could not save the private margin.');
+          return;
+        }
+        metadata.addAll(
+          readingHousePrivateMarginCompletionMetadata(_responseValues),
+        );
       }
+      metadata = buildMaatCompletionResponseMetadata(
+        existingMetadata: metadata,
+        specs: widget.responseSpecs,
+        currentValues: _responseValues,
+        dirtySpecIds: _dirtyResponseSpecIds,
+        clientEventId: clientEventId,
+        flowId: flowId,
+        localDate: completedOnDate,
+        eventKey: _maatFlowResponseEventKey(widget.completion),
+        completedAt: DateTime.now().toUtc(),
+        sourceIdForSpec: (spec) => _responseSourceId(spec, completedOnDate),
+        sourceIdForGroup: (spec, groupId) =>
+            _responseGroupSourceId(spec, groupId, completedOnDate),
+      );
       final completionIdentity = widget.identity;
       final completionContinuity = widget.onCompletionContinuity;
       final callback = widget.onRecordCompletion;
@@ -9634,39 +10756,80 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         identity: completionIdentity,
         status: completionStatus,
       );
+      completionRecorded = true;
+      persistedMetadata = metadata;
       if (completionStatus.createsJournalContinuity) {
-        try {
-          await _syncResponseBlocks(completionStatus);
-        } on Object {
-          // Keep completion persistence independent from journal response sync.
+        await _syncResponseBlocks(completionStatus);
+        if (completionContinuity != null) {
+          await completionContinuity(completionStatus);
         }
-      }
-      if (completionStatus.createsJournalContinuity &&
-          completionContinuity != null) {
-        await completionContinuity(completionStatus);
+        journalContinuityRecorded = true;
       }
       if (!mounted) return;
       setState(() {
         _status = status;
         _saving = false;
+        _loadedCompletionMetadata = metadata;
+        _dirtyResponseSpecIds = const <String>{};
         _responseDirty = false;
         _eveningThresholdReleasePending = false;
       });
       if (status == 'release') {
         _eveningThresholdReleaseCarryController.clear();
       }
-      unawaited(_maybeCaptureLivingTextDayOneNode(status));
-    } catch (_) {
-      _cancelCompletionFeedback();
-      if (!mounted) return;
-      setState(() => _saving = false);
-      if (_isEveningThresholdCompletion) {
-        _showSheetFeedback('Could not record this sitting.');
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not record this sitting.')),
-        );
+      if (_isReadingHouseCompletion) {
+        unawaited(_syncAndLoadReadingHouseSharedFragments());
       }
+      unawaited(_maybeCaptureLivingTextDayOneNode(status));
+    } on CalendarCompletionPostCommitException {
+      if (!mounted) return;
+      if (!completionRecorded) {
+        _cancelCompletionFeedback();
+        setState(() => _saving = false);
+        _showCompletionResultMessage('Could not record this sitting.');
+        return;
+      }
+      setState(() {
+        _status = status;
+        _saving = false;
+        _loadedCompletionMetadata =
+            persistedMetadata ?? _loadedCompletionMetadata;
+        _dirtyResponseSpecIds = const <String>{};
+        _responseDirty = false;
+        _eveningThresholdReleasePending = false;
+      });
+      if (status == 'release') {
+        _eveningThresholdReleaseCarryController.clear();
+      }
+      _showCompletionResultMessage(kCalendarCompletionPostCommitFailureMessage);
+    } catch (_) {
+      if (!mounted) return;
+      if (!journalContinuityRecorded) {
+        _cancelCompletionFeedback();
+      }
+      setState(() {
+        if (completionRecorded) {
+          _status = status;
+          _loadedCompletionMetadata =
+              persistedMetadata ?? _loadedCompletionMetadata;
+          if (journalContinuityRecorded) {
+            _dirtyResponseSpecIds = const <String>{};
+            _responseDirty = false;
+            _eveningThresholdReleasePending = false;
+          }
+        }
+        _saving = false;
+      });
+      if (journalContinuityRecorded && status == 'release') {
+        _eveningThresholdReleaseCarryController.clear();
+      }
+      _showCompletionResultMessage(
+        completionRecorded
+            ? journalContinuityRecorded
+                  ? kCalendarCompletionPostCommitFailureMessage
+                  : kCalendarCompletionContinuityFailureMessage
+            : 'Could not record this sitting.',
+      );
     }
   }
 
@@ -9677,6 +10840,17 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     if (clientEventId == null || clientEventId.isEmpty) return;
     setState(() => _saving = true);
     try {
+      if (_isOnboardingReviewEvent) {
+        if (!mounted) return;
+        setState(() {
+          _status = null;
+          _saving = false;
+          _responseDirty = false;
+          _eveningThresholdReleasePending = false;
+        });
+        _eveningThresholdReleaseCarryController.clear();
+        return;
+      }
       final callback = widget.onUnrecordCompletion;
       if (callback != null) {
         await callback(clientEventId);
@@ -9698,15 +10872,13 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           ),
         );
       }
-      try {
-        await _syncResponseBlocks(CompletionStatus.skipped);
-      } on Object {
-        // Keep clear persistence independent from journal response sync.
-      }
+      await _syncResponseBlocks(CompletionStatus.skipped);
       if (!mounted) return;
       setState(() {
         _status = null;
         _saving = false;
+        _loadedCompletionMetadata = const <String, dynamic>{};
+        _dirtyResponseSpecIds = const <String>{};
         _responseDirty = false;
         _eveningThresholdReleasePending = false;
       });
@@ -10053,37 +11225,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     );
   }
 
-  List<String> _responseBlockSourceIds(DateTime localDate) {
-    final sourceIds = <String>[];
-    final seenGroups = <String>{};
-    for (final spec in widget.responseSpecs) {
-      final groupId = spec.normalizedJournalGroupId;
-      if (groupId == null) {
-        sourceIds.add(_responseSourceId(spec, localDate));
-        continue;
-      }
-      if (seenGroups.add(groupId)) {
-        sourceIds.add(_responseGroupSourceId(spec, groupId, localDate));
-      }
-    }
-    return sourceIds;
-  }
-
-  List<MaatFlowResponseJournalPreview> _responseJournalPreviews({
-    CompletionStatus completionStatus = CompletionStatus.none,
-  }) {
-    final localDate = _eventGregorianDate;
-    return buildMaatFlowResponseJournalPreviews(
-      specs: widget.responseSpecs,
-      values: _responseValues,
-      completionStatus: completionStatus,
-      eventKey: _maatFlowResponseEventKey(widget.completion),
-      sourceIdForSpec: (spec) => _responseSourceId(spec, localDate),
-      sourceIdForGroup: (spec, groupId) =>
-          _responseGroupSourceId(spec, groupId, localDate),
-    );
-  }
-
   void _handleResponseChanged(MaatFlowResponseValue value) {
     final nextValues = <String, MaatFlowResponseValue>{
       ..._responseValues,
@@ -10091,10 +11232,15 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     };
     setState(() {
       _responseValues = nextValues;
+      _dirtyResponseSpecIds = <String>{..._dirtyResponseSpecIds, value.specId};
       _responseDirty = true;
     });
     _rememberInitialPromptDraftValue(value);
     unawaited(_persistDecanWatchResponseValues(nextValues));
+    if (_isReadingHouseCompletion &&
+        value.specId == kReadingHousePositionSpecId) {
+      unawaited(_syncAndLoadReadingHouseSharedFragments());
+    }
   }
 
   Future<void> _syncResponseBlocks(CompletionStatus completionStatus) async {
@@ -10102,56 +11248,18 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     if (writer == null || widget.responseSpecs.isEmpty) return;
 
     final localDate = _eventGregorianDate;
-    final previews = _responseJournalPreviews(
+    final projections = buildMaatJournalResponseProjections(
+      specs: widget.responseSpecs,
+      values: _responseValues,
       completionStatus: completionStatus,
-    );
-    final blocks = buildMaatJournalResponseBlocksForPolicy(
-      sourceIds: _responseBlockSourceIds(localDate),
-      previews: previews,
       localDate: localDate,
-      includedOfferSourceIds: _journalIncludedOfferSourceIds(previews),
+      sourceIdForSpec: (spec) => _responseSourceId(spec, localDate),
+      sourceIdForGroup: (spec, groupId) =>
+          _responseGroupSourceId(spec, groupId, localDate),
     );
-    for (final block in blocks) {
-      await writer(block);
+    for (final projection in projections) {
+      await writer(projection.block);
     }
-  }
-
-  Set<String> _journalIncludedOfferSourceIds(
-    List<MaatFlowResponseJournalPreview> previews,
-  ) {
-    return previews
-        .where(
-          (preview) =>
-              preview.policy == MaatFlowJournalPolicy.offer &&
-              _isJournalPreviewIncluded(preview),
-        )
-        .map((preview) => preview.sourceId)
-        .toSet();
-  }
-
-  bool _isJournalPreviewIncluded(MaatFlowResponseJournalPreview preview) {
-    if (preview.policy != MaatFlowJournalPolicy.offer) return true;
-    if (preview.includeInJournalByDefault) {
-      return !_suppressedOfferResponseSourceIds.contains(preview.sourceId);
-    }
-    return _includedOfferResponseSourceIds.contains(preview.sourceId);
-  }
-
-  void _setJournalPreviewIncluded(
-    MaatFlowResponseJournalPreview preview,
-    bool included,
-  ) {
-    if (preview.policy != MaatFlowJournalPolicy.offer) return;
-    setState(() {
-      if (included) {
-        _suppressedOfferResponseSourceIds.remove(preview.sourceId);
-        _includedOfferResponseSourceIds.add(preview.sourceId);
-      } else {
-        _suppressedOfferResponseSourceIds.add(preview.sourceId);
-        _includedOfferResponseSourceIds.remove(preview.sourceId);
-      }
-      _responseDirty = true;
-    });
   }
 
   Widget? _buildResponseSection() {
@@ -10162,12 +11270,1368 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       ),
       specs: widget.responseSpecs,
       values: _responseValues,
-      journalPreviews: _responseJournalPreviews(
-        completionStatus: CompletionStatusX.fromWireName(_status),
-      ),
-      isJournalPreviewIncluded: _isJournalPreviewIncluded,
-      onJournalPreviewInclusionChanged: _setJournalPreviewIncluded,
+      title: _isReadingHouseCompletion ? 'Private margin' : null,
+      subtitle: _isReadingHouseCompletion
+          ? 'Local notes stay on this device. Writing is optional; Carrying or Not yet is required.'
+          : null,
+      saveLabel: _isReadingHouseCompletion ? 'Save private margin' : 'Save',
+      saving: _readingHousePrivateMarginSaving,
+      onSave: _isReadingHouseCompletion
+          ? () => unawaited(_saveReadingHousePrivateMargin())
+          : null,
       onChanged: _handleResponseChanged,
+    );
+  }
+
+  String _readingHouseFragmentAuthorLabel(ReadingHouseSharedFragment fragment) {
+    return fragment.isAuthoredBy(_readingHouseFragmentsRepo.currentUserId)
+        ? 'You'
+        : 'House member';
+  }
+
+  String _readingHouseReplyAuthorLabel(ReadingHouseFragmentReply reply) {
+    if (reply.isHostAck) return 'Host acknowledgment';
+    return reply.isAuthoredBy(_readingHouseFragmentsRepo.currentUserId)
+        ? 'You'
+        : 'House member';
+  }
+
+  String _readingHouseMarginAuthorLabel(ReadingHouseMarginItem item) {
+    return item.isAuthoredBy(_readingHouseFragmentsRepo.currentUserId)
+        ? 'You'
+        : 'House member';
+  }
+
+  String _readingHouseChatAuthorLabel(ReadingHouseChatMessage message) {
+    return message.isAuthoredBy(_readingHouseFragmentsRepo.currentUserId)
+        ? 'You'
+        : 'House member';
+  }
+
+  String _readingHouseAnnouncementTypeLabel(String type) {
+    switch (type.trim().toLowerCase()) {
+      case 'schedule':
+        return 'Schedule';
+      case 'pace':
+        return 'Pace';
+      case 'recap':
+        return 'Recap';
+      case 'note':
+      default:
+        return 'Note';
+    }
+  }
+
+  String? _readingHouseSittingTagLabel({
+    required String? clientEventId,
+    required int? eventNumber,
+  }) {
+    final hasSitting =
+        clientEventId?.trim().isNotEmpty == true || eventNumber != null;
+    if (!hasSitting) return null;
+    final number = eventNumber;
+    return number == null ? 'Sitting' : 'Sitting $number';
+  }
+
+  Widget _buildReadingHouseFragmentComposer(
+    CalendarCompletionPickerStyle style,
+  ) {
+    if (!_readingHouseFragmentComposerOpen) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: _readingHouseFragmentSaving
+              ? null
+              : () => setState(() {
+                  _readingHouseFragmentComposerOpen = true;
+                }),
+          icon: const Icon(Icons.format_quote),
+          label: const Text('Bring a fragment to the house'),
+        ),
+      );
+    }
+
+    InputDecoration decoration(String label) {
+      return InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: style.labelColor),
+        filled: true,
+        fillColor: style.unselectedBackgroundColor,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.unselectedBorderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.selectedBorderColor),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _readingHouseFragmentReferenceController,
+          textCapitalization: TextCapitalization.sentences,
+          textInputAction: TextInputAction.next,
+          scrollPadding: keyboardManagedTextFieldScrollPadding,
+          style: TextStyle(color: style.selectedForegroundColor),
+          decoration: decoration('Passage or page (optional)'),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _readingHouseFragmentBodyController,
+          minLines: 2,
+          maxLines: 5,
+          textCapitalization: TextCapitalization.sentences,
+          textInputAction: TextInputAction.newline,
+          scrollPadding: keyboardManagedTextFieldScrollPadding,
+          style: TextStyle(color: style.selectedForegroundColor),
+          decoration: decoration('Fragment'),
+        ),
+        const SizedBox(height: 7),
+        Text(
+          'Your private reflection stays private.',
+          style: TextStyle(
+            color: style.labelColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            height: 1.25,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: _readingHouseFragmentSaving
+                  ? null
+                  : () => setState(() {
+                      _readingHouseFragmentComposerOpen = false;
+                      _readingHouseFragmentBodyController.clear();
+                      _readingHouseFragmentReferenceController.clear();
+                    }),
+              child: const Text('Cancel'),
+            ),
+            const SizedBox(width: 8),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _readingHouseFragmentBodyController,
+              builder: (context, value, _) {
+                final canShare = value.text.trim().isNotEmpty;
+                return FilledButton.icon(
+                  onPressed: _readingHouseFragmentSaving || !canShare
+                      ? null
+                      : () => unawaited(_shareReadingHouseFragment()),
+                  icon: _readingHouseFragmentSaving
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.add_comment_outlined, size: 17),
+                  label: const Text('Share fragment'),
+                );
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReadingHouseFragmentList(CalendarCompletionPickerStyle style) {
+    if (_readingHouseFragmentsLoading) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: style.selectedBorderColor,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Loading fragments',
+            style: TextStyle(color: style.labelColor, fontSize: 13),
+          ),
+        ],
+      );
+    }
+    if (_readingHouseFragmentsError != null) {
+      return Text(
+        'House fragments unavailable.',
+        style: TextStyle(color: style.labelColor, fontSize: 13, height: 1.25),
+      );
+    }
+    if (_readingHouseFragments.isEmpty) {
+      return Text(
+        _readingHouseFragmentsUnlocked
+            ? 'No fragments shared for this sitting yet.'
+            : 'Choose Carrying to read or bring house fragments for this sitting.',
+        style: TextStyle(color: style.labelColor, fontSize: 13, height: 1.25),
+      );
+    }
+
+    final userId = _readingHouseFragmentsRepo.currentUserId;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final fragment in _readingHouseFragments)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: style.containerColor.withValues(alpha: 0.32),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: style.unselectedBorderColor),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _readingHouseFragmentAuthorLabel(fragment),
+                        style: TextStyle(
+                          color: style.selectedForegroundColor,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                    if (fragment.isAuthoredBy(userId) ||
+                        _readingHouseCanModerateFragments)
+                      IconButton(
+                        tooltip: 'Delete fragment',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: _readingHouseFragmentSaving
+                            ? null
+                            : () => unawaited(
+                                _deleteReadingHouseFragment(fragment),
+                              ),
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        color: style.labelColor,
+                      ),
+                  ],
+                ),
+                if (fragment.passageReference != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    fragment.passageReference!,
+                    style: TextStyle(
+                      color: style.labelColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 5),
+                Text(
+                  fragment.body,
+                  style: TextStyle(
+                    color: style.unselectedForegroundColor,
+                    fontSize: 14,
+                    height: 1.32,
+                  ),
+                ),
+                _buildReadingHouseReplies(fragment, style),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildReadingHouseReplies(
+    ReadingHouseSharedFragment fragment,
+    CalendarCompletionPickerStyle style,
+  ) {
+    final replies =
+        _readingHouseRepliesByFragmentId[fragment.id] ??
+        const <ReadingHouseFragmentReply>[];
+    final userId = _readingHouseFragmentsRepo.currentUserId;
+    final composerOpen = _readingHouseReplyComposerFragmentId == fragment.id;
+
+    InputDecoration decoration() {
+      return InputDecoration(
+        labelText: _readingHouseCanModerateFragments
+            ? 'Host acknowledgment'
+            : 'Reply',
+        labelStyle: TextStyle(color: style.labelColor),
+        filled: true,
+        fillColor: style.unselectedBackgroundColor,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.unselectedBorderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.selectedBorderColor),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (replies.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          for (final reply in replies)
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 7),
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: style.unselectedBackgroundColor.withValues(alpha: 0.44),
+                borderRadius: BorderRadius.circular(7),
+                border: Border.all(
+                  color: style.unselectedBorderColor.withValues(alpha: 0.76),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _readingHouseReplyAuthorLabel(reply),
+                          style: TextStyle(
+                            color: reply.isHostAck
+                                ? style.selectedBorderColor
+                                : style.labelColor,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                      if (reply.isAuthoredBy(userId) ||
+                          _readingHouseCanModerateFragments)
+                        IconButton(
+                          tooltip: 'Delete reply',
+                          visualDensity: VisualDensity.compact,
+                          onPressed: _readingHouseReplySaving
+                              ? null
+                              : () =>
+                                    unawaited(_deleteReadingHouseReply(reply)),
+                          icon: const Icon(Icons.delete_outline, size: 17),
+                          color: style.labelColor,
+                        ),
+                    ],
+                  ),
+                  Text(
+                    reply.body,
+                    style: TextStyle(
+                      color: style.unselectedForegroundColor,
+                      fontSize: 13,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+        const SizedBox(height: 8),
+        if (!composerOpen)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _readingHouseReplySaving
+                  ? null
+                  : () => setState(() {
+                      _readingHouseReplyComposerFragmentId = fragment.id;
+                      _readingHouseReplyController.clear();
+                    }),
+              icon: Icon(
+                _readingHouseCanModerateFragments
+                    ? Icons.task_alt_outlined
+                    : Icons.reply_outlined,
+                size: 17,
+              ),
+              label: Text(
+                _readingHouseCanModerateFragments
+                    ? 'Acknowledge fragment'
+                    : 'Reply to fragment',
+              ),
+            ),
+          )
+        else ...[
+          TextField(
+            controller: _readingHouseReplyController,
+            minLines: 1,
+            maxLines: 4,
+            textCapitalization: TextCapitalization.sentences,
+            textInputAction: TextInputAction.newline,
+            scrollPadding: keyboardManagedTextFieldScrollPadding,
+            style: TextStyle(color: style.selectedForegroundColor),
+            decoration: decoration(),
+          ),
+          const SizedBox(height: 7),
+          Text(
+            'Replies stay inside this house fragment.',
+            style: TextStyle(
+              color: style.labelColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              height: 1.25,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              TextButton(
+                onPressed: _readingHouseReplySaving
+                    ? null
+                    : () => setState(() {
+                        _readingHouseReplyComposerFragmentId = null;
+                        _readingHouseReplyController.clear();
+                      }),
+                child: const Text('Cancel'),
+              ),
+              const SizedBox(width: 8),
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: _readingHouseReplyController,
+                builder: (context, value, _) {
+                  final canReply = value.text.trim().isNotEmpty;
+                  return FilledButton.icon(
+                    onPressed: _readingHouseReplySaving || !canReply
+                        ? null
+                        : () => unawaited(_createReadingHouseReply(fragment)),
+                    icon: _readingHouseReplySaving
+                        ? const SizedBox(
+                            width: 14,
+                            height: 14,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            _readingHouseCanModerateFragments
+                                ? Icons.task_alt_outlined
+                                : Icons.reply_outlined,
+                            size: 17,
+                          ),
+                    label: Text(
+                      _readingHouseCanModerateFragments
+                          ? 'Add acknowledgment'
+                          : 'Add reply',
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildReadingHouseMarginComposer(CalendarCompletionPickerStyle style) {
+    if (!_readingHouseMarginComposerOpen) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: _readingHouseMarginSaving
+              ? null
+              : () => setState(() {
+                  _readingHouseMarginComposerOpen = true;
+                }),
+          icon: const Icon(Icons.edit_note_outlined),
+          label: const Text('Add margin item'),
+        ),
+      );
+    }
+
+    InputDecoration decoration(String label) {
+      return InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: style.labelColor),
+        filled: true,
+        fillColor: style.unselectedBackgroundColor,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.unselectedBorderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.selectedBorderColor),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _readingHouseMarginReferenceController,
+          textCapitalization: TextCapitalization.sentences,
+          textInputAction: TextInputAction.next,
+          scrollPadding: keyboardManagedTextFieldScrollPadding,
+          style: TextStyle(color: style.selectedForegroundColor),
+          decoration: decoration('Passage, page, or link (optional)'),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _readingHouseMarginBodyController,
+          minLines: 2,
+          maxLines: 5,
+          textCapitalization: TextCapitalization.sentences,
+          textInputAction: TextInputAction.newline,
+          scrollPadding: keyboardManagedTextFieldScrollPadding,
+          style: TextStyle(color: style.selectedForegroundColor),
+          decoration: decoration('House margin note'),
+        ),
+        const SizedBox(height: 5),
+        CheckboxListTile(
+          value: _readingHouseMarginSpoiler,
+          onChanged: _readingHouseMarginSaving
+              ? null
+              : (value) => setState(() {
+                  _readingHouseMarginSpoiler = value == true;
+                }),
+          dense: true,
+          contentPadding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+          controlAffinity: ListTileControlAffinity.leading,
+          title: Text(
+            'Spoiler marker',
+            style: TextStyle(
+              color: style.labelColor,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          checkColor: style.selectedForegroundColor,
+          activeColor: style.selectedBorderColor,
+        ),
+        Text(
+          'Private notes stay private.',
+          style: TextStyle(
+            color: style.labelColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            height: 1.25,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: _readingHouseMarginSaving
+                  ? null
+                  : () => setState(() {
+                      _readingHouseMarginComposerOpen = false;
+                      _readingHouseMarginSpoiler = false;
+                      _readingHouseMarginBodyController.clear();
+                      _readingHouseMarginReferenceController.clear();
+                    }),
+              child: const Text('Cancel'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: _readingHouseMarginSaving
+                  ? null
+                  : () => unawaited(_createReadingHouseMarginItem()),
+              icon: _readingHouseMarginSaving
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.add, size: 17),
+              label: const Text('Add to margin'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReadingHouseMarginList(CalendarCompletionPickerStyle style) {
+    if (_readingHouseFragmentsLoading) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: style.selectedBorderColor,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Loading house margin',
+            style: TextStyle(color: style.labelColor, fontSize: 13),
+          ),
+        ],
+      );
+    }
+    if (_readingHouseFragmentsError != null) {
+      return Text(
+        'House margin unavailable.',
+        style: TextStyle(color: style.labelColor, fontSize: 13, height: 1.25),
+      );
+    }
+    if (_readingHouseMarginItems.isEmpty) {
+      return Text(
+        'The margin is quiet. Add a quote, question, or note for the house.',
+        style: TextStyle(color: style.labelColor, fontSize: 13, height: 1.25),
+      );
+    }
+
+    final userId = _readingHouseFragmentsRepo.currentUserId;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final item in _readingHouseMarginItems)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: style.containerColor.withValues(alpha: 0.28),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: style.unselectedBorderColor),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            _readingHouseMarginAuthorLabel(item),
+                            style: TextStyle(
+                              color: style.selectedForegroundColor,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          if (_readingHouseSittingTagLabel(
+                                clientEventId: item.clientEventId,
+                                eventNumber: item.eventNumber,
+                              ) !=
+                              null)
+                            Text(
+                              _readingHouseSittingTagLabel(
+                                clientEventId: item.clientEventId,
+                                eventNumber: item.eventNumber,
+                              )!,
+                              style: TextStyle(
+                                color: style.labelColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          if (item.spoiler)
+                            Text(
+                              'Spoiler',
+                              style: TextStyle(
+                                color: style.selectedBorderColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (item.isAuthoredBy(userId) ||
+                        _readingHouseCanModerateFragments)
+                      IconButton(
+                        tooltip: 'Delete margin item',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: _readingHouseMarginSaving
+                            ? null
+                            : () => unawaited(
+                                _deleteReadingHouseMarginItem(item),
+                              ),
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        color: style.labelColor,
+                      ),
+                  ],
+                ),
+                if (item.passageReference != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    item.passageReference!,
+                    style: TextStyle(
+                      color: style.labelColor,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 5),
+                Text(
+                  item.body,
+                  style: TextStyle(
+                    color: style.unselectedForegroundColor,
+                    fontSize: 14,
+                    height: 1.32,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget? _buildReadingHouseHouseMarginSection() {
+    if (!_isReadingHouseCompletion ||
+        !_hasReadingHouseFragmentContext ||
+        _isReadingHouseSoloStudySitting) {
+      return null;
+    }
+    final style = widget.pickerStyle ?? const CalendarCompletionPickerStyle();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: style.unselectedBackgroundColor.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: style.unselectedBorderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.notes_outlined,
+                size: 18,
+                color: style.selectedBorderColor,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'House Margin',
+                  style: TextStyle(
+                    color: style.selectedForegroundColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _buildReadingHouseMarginList(style),
+          const SizedBox(height: 10),
+          _buildReadingHouseMarginComposer(style),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReadingHouseAnnouncementComposer(
+    CalendarCompletionPickerStyle style,
+  ) {
+    if (!_readingHouseAnnouncementComposerOpen) {
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: _readingHouseAnnouncementSaving
+              ? null
+              : () => setState(() {
+                  _readingHouseAnnouncementComposerOpen = true;
+                }),
+          icon: const Icon(Icons.campaign_outlined),
+          label: const Text('Add host announcement'),
+        ),
+      );
+    }
+
+    InputDecoration decoration(String label) {
+      return InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: style.labelColor),
+        filled: true,
+        fillColor: style.unselectedBackgroundColor,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.unselectedBorderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.selectedBorderColor),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DropdownButtonFormField<String>(
+          initialValue: _readingHouseAnnouncementType,
+          decoration: decoration('Announcement type'),
+          dropdownColor: style.unselectedBackgroundColor,
+          style: TextStyle(color: style.selectedForegroundColor),
+          items: const <DropdownMenuItem<String>>[
+            DropdownMenuItem<String>(value: 'note', child: Text('Note')),
+            DropdownMenuItem<String>(
+              value: 'schedule',
+              child: Text('Schedule'),
+            ),
+            DropdownMenuItem<String>(value: 'pace', child: Text('Pace')),
+            DropdownMenuItem<String>(value: 'recap', child: Text('Recap')),
+          ],
+          onChanged: _readingHouseAnnouncementSaving
+              ? null
+              : (value) => setState(() {
+                  _readingHouseAnnouncementType = value ?? 'note';
+                }),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _readingHouseAnnouncementBodyController,
+          minLines: 2,
+          maxLines: 5,
+          textCapitalization: TextCapitalization.sentences,
+          textInputAction: TextInputAction.newline,
+          scrollPadding: keyboardManagedTextFieldScrollPadding,
+          style: TextStyle(color: style.selectedForegroundColor),
+          decoration: decoration('Host announcement'),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            TextButton(
+              onPressed: _readingHouseAnnouncementSaving
+                  ? null
+                  : () => setState(() {
+                      _readingHouseAnnouncementComposerOpen = false;
+                      _readingHouseAnnouncementType = 'note';
+                      _readingHouseAnnouncementBodyController.clear();
+                    }),
+              child: const Text('Cancel'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              onPressed: _readingHouseAnnouncementSaving
+                  ? null
+                  : () => unawaited(_createReadingHouseAnnouncement()),
+              icon: _readingHouseAnnouncementSaving
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.campaign_outlined, size: 17),
+              label: const Text('Add announcement'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildReadingHouseAnnouncementList(
+    CalendarCompletionPickerStyle style,
+  ) {
+    if (_readingHouseFragmentsLoading) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: style.selectedBorderColor,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Loading host announcements',
+            style: TextStyle(color: style.labelColor, fontSize: 13),
+          ),
+        ],
+      );
+    }
+    if (_readingHouseFragmentsError != null) {
+      return Text(
+        'Host announcements unavailable.',
+        style: TextStyle(color: style.labelColor, fontSize: 13, height: 1.25),
+      );
+    }
+    if (_readingHouseAnnouncements.isEmpty) {
+      return Text(
+        'No host announcements yet.',
+        style: TextStyle(color: style.labelColor, fontSize: 13, height: 1.25),
+      );
+    }
+
+    final userId = _readingHouseFragmentsRepo.currentUserId;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final announcement in _readingHouseAnnouncements)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: style.containerColor.withValues(alpha: 0.28),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: style.unselectedBorderColor),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
+                        crossAxisAlignment: WrapCrossAlignment.center,
+                        children: [
+                          Text(
+                            'Host announcement',
+                            style: TextStyle(
+                              color: style.selectedForegroundColor,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          Text(
+                            _readingHouseAnnouncementTypeLabel(
+                              announcement.announcementType,
+                            ),
+                            style: TextStyle(
+                              color: style.labelColor,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          if (_readingHouseSittingTagLabel(
+                                clientEventId: announcement.clientEventId,
+                                eventNumber: announcement.eventNumber,
+                              ) !=
+                              null)
+                            Text(
+                              _readingHouseSittingTagLabel(
+                                clientEventId: announcement.clientEventId,
+                                eventNumber: announcement.eventNumber,
+                              )!,
+                              style: TextStyle(
+                                color: style.labelColor,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    if (announcement.isAuthoredBy(userId) ||
+                        _readingHouseCanModerateFragments)
+                      IconButton(
+                        tooltip: 'Delete announcement',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: _readingHouseAnnouncementSaving
+                            ? null
+                            : () => unawaited(
+                                _deleteReadingHouseAnnouncement(announcement),
+                              ),
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        color: style.labelColor,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  announcement.body,
+                  style: TextStyle(
+                    color: style.unselectedForegroundColor,
+                    fontSize: 14,
+                    height: 1.32,
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget? _buildReadingHouseHostAnnouncementsSection() {
+    if (!_isReadingHouseCompletion ||
+        !_hasReadingHouseFragmentContext ||
+        _isReadingHouseSoloStudySitting) {
+      return null;
+    }
+    final style = widget.pickerStyle ?? const CalendarCompletionPickerStyle();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: style.unselectedBackgroundColor.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: style.unselectedBorderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.campaign_outlined,
+                size: 18,
+                color: style.selectedBorderColor,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Host Announcements',
+                  style: TextStyle(
+                    color: style.selectedForegroundColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _buildReadingHouseAnnouncementList(style),
+          if (_readingHouseCanModerateFragments) ...[
+            const SizedBox(height: 10),
+            _buildReadingHouseAnnouncementComposer(style),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget? _buildReadingHouseSharedFragmentsSection() {
+    if (!_isReadingHouseCompletion ||
+        !_hasReadingHouseFragmentContext ||
+        _isReadingHouseSoloStudySitting) {
+      return null;
+    }
+    final style = widget.pickerStyle ?? const CalendarCompletionPickerStyle();
+    final canCompose = _readingHouseFragmentsUnlocked;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: style.unselectedBackgroundColor.withValues(alpha: 0.62),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: style.unselectedBorderColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.format_quote,
+                size: 18,
+                color: style.selectedBorderColor,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  readingHouseSharedFragmentCountSummary(
+                    _readingHouseFragments.length,
+                  ),
+                  style: TextStyle(
+                    color: style.selectedForegroundColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _buildReadingHouseFragmentList(style),
+          if (canCompose) ...[
+            const SizedBox(height: 10),
+            _buildReadingHouseFragmentComposer(style),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReadingHouseChatList(CalendarCompletionPickerStyle style) {
+    if (_readingHouseFragmentsLoading) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: style.selectedBorderColor,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Loading house chat',
+            style: TextStyle(color: style.labelColor, fontSize: 13),
+          ),
+        ],
+      );
+    }
+    if (_readingHouseFragmentsError != null) {
+      return Text(
+        'House Chat unavailable.',
+        style: TextStyle(color: style.labelColor, fontSize: 13, height: 1.25),
+      );
+    }
+    if (!_readingHouseCompanyChatActive) {
+      return Text(
+        'House Chat opens when readers join. For logistics and quick notes; the reading stays in the sittings.',
+        style: TextStyle(color: style.labelColor, fontSize: 13, height: 1.25),
+      );
+    }
+    if (_readingHouseChatMessages.isEmpty) {
+      return Text(
+        'No chat messages yet. Use this for logistics and quick notes; use fragments and margin for the text itself.',
+        style: TextStyle(color: style.labelColor, fontSize: 13, height: 1.25),
+      );
+    }
+
+    final userId = _readingHouseFragmentsRepo.currentUserId;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final message in _readingHouseChatMessages)
+          Container(
+            width: double.infinity,
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: style.containerColor.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: style.unselectedBorderColor.withValues(alpha: 0.72),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _readingHouseChatAuthorLabel(message),
+                        style: TextStyle(
+                          color: style.labelColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        message.body,
+                        style: TextStyle(
+                          color: style.unselectedForegroundColor,
+                          fontSize: 14,
+                          height: 1.32,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (message.isAuthoredBy(userId) ||
+                    _readingHouseCanModerateFragments)
+                  IconButton(
+                    tooltip: 'Delete chat message',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: _readingHouseChatSending
+                        ? null
+                        : () => unawaited(
+                            _deleteReadingHouseChatMessage(message),
+                          ),
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    color: style.labelColor,
+                  ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildReadingHouseChatComposer(CalendarCompletionPickerStyle style) {
+    if (!_readingHouseCompanyChatActive) {
+      return const SizedBox.shrink();
+    }
+
+    InputDecoration decoration() {
+      return InputDecoration(
+        labelText: 'Logistics or quick note',
+        labelStyle: TextStyle(color: style.labelColor),
+        filled: true,
+        fillColor: style.unselectedBackgroundColor,
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.unselectedBorderColor),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: BorderSide(color: style.selectedBorderColor),
+        ),
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _readingHouseChatController,
+          minLines: 1,
+          maxLines: 4,
+          textCapitalization: TextCapitalization.sentences,
+          textInputAction: TextInputAction.newline,
+          scrollPadding: keyboardManagedTextFieldScrollPadding,
+          style: TextStyle(color: style.selectedForegroundColor),
+          decoration: decoration(),
+        ),
+        const SizedBox(height: 7),
+        Text(
+          'House Chat is for logistics and quick notes. The reading stays in sittings, fragments, and the house margin.',
+          style: TextStyle(
+            color: style.labelColor,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            height: 1.25,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: Alignment.centerRight,
+          child: ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _readingHouseChatController,
+            builder: (context, value, _) {
+              final canSend = value.text.trim().isNotEmpty;
+              return FilledButton.icon(
+                onPressed: _readingHouseChatSending || !canSend
+                    ? null
+                    : () => unawaited(_sendReadingHouseChatMessage()),
+                icon: _readingHouseChatSending
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.send_outlined, size: 17),
+                label: const Text('Send'),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget? _buildReadingHouseChatSection() {
+    if (!_isReadingHouseCompletion ||
+        !_hasReadingHouseFragmentContext ||
+        _isReadingHouseSoloStudySitting) {
+      return null;
+    }
+    final style = widget.pickerStyle ?? const CalendarCompletionPickerStyle();
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: style.unselectedBackgroundColor.withValues(alpha: 0.42),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: style.unselectedBorderColor.withValues(alpha: 0.72),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.forum_outlined, size: 18, color: style.labelColor),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'House Chat',
+                  style: TextStyle(
+                    color: style.selectedForegroundColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    height: 1.25,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'For logistics and quick notes.',
+            style: TextStyle(
+              color: style.labelColor,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              height: 1.25,
+            ),
+          ),
+          const SizedBox(height: 10),
+          _buildReadingHouseChatList(style),
+          if (_readingHouseCompanyChatActive) ...[
+            const SizedBox(height: 10),
+            _buildReadingHouseChatComposer(style),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget? _buildCompletionLeadingContent(Widget? responseSection) {
+    final announcementsSection = _buildReadingHouseHostAnnouncementsSection();
+    final fragmentsSection = _buildReadingHouseSharedFragmentsSection();
+    final marginSection = _buildReadingHouseHouseMarginSection();
+    final chatSection = _buildReadingHouseChatSection();
+    final sections = <Widget>[
+      if (responseSection != null) responseSection,
+      if (announcementsSection != null) announcementsSection,
+      if (fragmentsSection != null) fragmentsSection,
+      if (marginSection != null) marginSection,
+      if (chatSection != null) chatSection,
+    ];
+    if (sections.isEmpty) return null;
+    if (sections.length == 1) return sections.single;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var index = 0; index < sections.length; index++) ...[
+          if (index > 0) const SizedBox(height: 12),
+          sections[index],
+        ],
+      ],
     );
   }
 
@@ -10182,6 +12646,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     final style = widget.pickerStyle ?? const CalendarCompletionPickerStyle();
     final eveningThresholdContext = _buildEveningThresholdContextWidgets();
     final responseSection = _buildResponseSection();
+    final leadingContent = _buildCompletionLeadingContent(responseSection);
 
     if (widget.completion.customStatusesOnly) {
       final customButtons = widget.completion.customStatusLabels.entries
@@ -10210,8 +12675,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             ...eveningThresholdContext,
-            if (responseSection != null) ...[
-              responseSection,
+            if (leadingContent != null) ...[
+              leadingContent,
               SizedBox(height: style.labelGap),
             ],
             Text(
@@ -10240,7 +12705,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           loading: _loading,
           showPartial: widget.completion.showPartly,
           observedButtonKey: widget.observedButtonKey,
-          leadingContent: responseSection,
+          leadingContent: leadingContent,
           onReflect: widget.onAddReflection,
           style: widget.pickerStyle,
           onChanged: (status) {
@@ -10498,7 +12963,7 @@ class _TheTendingLocalNotesPanelState
     );
     final careList = await _store.loadCareList(widget.flowId);
     if (!mounted) return;
-    _controller.text = text;
+    syncTextEditingControllerText(_controller, text);
     setState(() {
       _careListCount = careList.length;
       _loading = false;
@@ -10747,7 +13212,7 @@ class _KeptWordLocalNotesPanelState extends State<_KeptWordLocalNotesPanel> {
     final completed = await _store.loadConversationCompleted(widget.flowId);
     final paused = await _store.loadConversationPaused(widget.flowId);
     if (!mounted) return;
-    _controller.text = text;
+    syncTextEditingControllerText(_controller, text);
     setState(() {
       _agreementCount = agreements.length;
       _conversationCompleted = completed;
@@ -11060,7 +13525,7 @@ class _TheWagLocalNotesPanelState extends State<_TheWagLocalNotesPanel> {
     );
     final ancestors = await _store.loadAncestorNames(widget.flowId);
     if (!mounted) return;
-    _controller.text = text;
+    syncTextEditingControllerText(_controller, text);
     setState(() {
       _ancestorCount = ancestors.length;
       _loading = false;
@@ -11307,7 +13772,7 @@ class _DaysOutsideYearLocalNotesPanelState
       widget.event.localPrompt,
     );
     if (!mounted) return;
-    _controller.text = text;
+    syncTextEditingControllerText(_controller, text);
     setState(() => _loading = false);
   }
 
@@ -11524,8 +13989,8 @@ class _OpenHandLocalNotesPanelState extends State<_OpenHandLocalNotesPanel> {
         ? await _store.loadDeferredStrangerActDate(widget.flowId)
         : '';
     if (!mounted) return;
-    _controller.text = text;
-    _deferredController.text = deferred;
+    syncTextEditingControllerText(_controller, text);
+    syncTextEditingControllerText(_deferredController, deferred);
     setState(() {
       _actCompleted = completed;
       _loading = false;
@@ -11793,7 +14258,7 @@ class _DjedLocalNotesPanelState extends State<_DjedLocalNotesPanel> {
     );
     final raisingCompleted = await _store.loadRaisingCompleted(widget.flowId);
     if (!mounted) return;
-    _controller.text = text;
+    syncTextEditingControllerText(_controller, text);
     setState(() {
       _directEngagementCompleted = directCompleted;
       _raisingCompleted = raisingCompleted;

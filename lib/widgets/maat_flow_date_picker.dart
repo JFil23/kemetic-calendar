@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
+import 'package:mobile/features/calendar/calendar_page.dart'
+    show CalendarPage, KemeticMath;
 import 'package:mobile/shared/date_picker/kemetic_picker_labels.dart';
 import 'package:mobile/shared/date_picker/stone_register_date_picker.dart';
 import 'package:mobile/shared/date_picker/stone_register_date_picker_theme.dart';
@@ -20,19 +21,25 @@ class MaatFlowDatePicker {
     required BuildContext context,
     DateTime? initialDate,
     required MaatFlowDatePickerMode initialMode,
+    Color? barrierColor,
+    bool useRootNavigator = false,
   }) async {
     final today = DateUtils.dateOnly(DateTime.now());
     final seed = DateUtils.dateOnly(initialDate ?? _defaultTomorrow(today));
     final kemeticSeed = KemeticMath.fromGregorian(seed);
-    final picked = await StoneRegisterDatePicker.show<MaatFlowDatePickerValue>(
-      context,
-      initialValue: MaatFlowDatePickerValue(date: seed, mode: initialMode),
-      adapter: MaatFlowDatePickerAdapter(
-        today: today,
-        kemeticYearStart: kemeticSeed.kYear,
+    final picked = await CalendarPage.runWithCalendarOwnedTransientRoute(
+      () => StoneRegisterDatePicker.show<MaatFlowDatePickerValue>(
+        context,
+        initialValue: MaatFlowDatePickerValue(date: seed, mode: initialMode),
+        adapter: MaatFlowDatePickerAdapter(
+          today: today,
+          kemeticYearStart: kemeticSeed.kYear,
+        ),
+        initialMode: initialMode._stoneMode,
+        title: 'Start date',
+        barrierColor: barrierColor,
+        useRootNavigator: useRootNavigator,
       ),
-      initialMode: initialMode._stoneMode,
-      title: 'Start date',
     );
     if (picked == null) return null;
     return MaatFlowDatePickerResult(

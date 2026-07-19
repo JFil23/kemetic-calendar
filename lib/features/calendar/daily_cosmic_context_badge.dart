@@ -93,7 +93,9 @@ class DailyCosmicContextController extends ChangeNotifier {
 
   DailyCosmicContextBadge? _current;
   String? _activeUserId;
+  VoidCallback? _onboardingDismissed;
   int _evaluationSerial = 0;
+  bool _currentMarkedShown = false;
   bool _disposed = false;
 
   DailyCosmicContextBadge? get current => _current;
@@ -135,6 +137,10 @@ class DailyCosmicContextController extends ChangeNotifier {
       _clearCurrent();
       return;
     }
+    if (_activeUserId == normalizedUserId &&
+        _current?.gregorianDateKey == gregorianDateKey) {
+      return;
+    }
 
     final badge = _badgeForDate(now);
     if (!_isCurrentEvaluation(serial)) return;
@@ -145,15 +151,49 @@ class DailyCosmicContextController extends ChangeNotifier {
 
     _activeUserId = normalizedUserId;
     _setCurrent(badge);
-    await _prefs.markShown(normalizedUserId, badge.gregorianDateKey);
+  }
+
+  bool showOnboardingBadge(
+    DailyCosmicContextBadge badge, {
+    VoidCallback? onDismissed,
+  }) {
+    if (_onboardingDismissed != null &&
+        _current?.gregorianDateKey == badge.gregorianDateKey) {
+      return false;
+    }
+    _evaluationSerial += 1;
+    _activeUserId = null;
+    _onboardingDismissed = onDismissed;
+    _setCurrent(badge);
+    return true;
   }
 
   Future<void> dismiss() async {
     _evaluationSerial += 1;
     final badge = _current;
     final userId = _activeUserId;
+    final alreadyMarkedShown = _currentMarkedShown;
+    final onboardingDismissed = _onboardingDismissed;
+    _onboardingDismissed = null;
     _clearCurrent();
+    if (onboardingDismissed != null) {
+      onboardingDismissed();
+      return;
+    }
     if (badge == null || userId == null || userId.trim().isEmpty) return;
+    if (alreadyMarkedShown) return;
+    await _prefs.markShown(userId, badge.gregorianDateKey);
+  }
+
+  Future<void> recordVisiblePresentation(DailyCosmicContextBadge badge) async {
+    final userId = _activeUserId?.trim();
+    if (_current != badge ||
+        userId == null ||
+        userId.isEmpty ||
+        _currentMarkedShown) {
+      return;
+    }
+    _currentMarkedShown = true;
     await _prefs.markShown(userId, badge.gregorianDateKey);
   }
 
@@ -164,6 +204,7 @@ class DailyCosmicContextController extends ChangeNotifier {
   void _setCurrent(DailyCosmicContextBadge badge) {
     if (_current == badge) return;
     _current = badge;
+    _currentMarkedShown = false;
     _notifySafely();
   }
 
@@ -171,6 +212,7 @@ class DailyCosmicContextController extends ChangeNotifier {
     if (_current == null && _activeUserId == null) return;
     _current = null;
     _activeUserId = null;
+    _currentMarkedShown = false;
     _notifySafely();
   }
 
@@ -180,6 +222,7 @@ class DailyCosmicContextController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _onboardingDismissed = null;
     _disposed = true;
     super.dispose();
   }
@@ -284,6 +327,10 @@ class _DailyCosmicContextOverlayHostState
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || widget.controller.current != next) return;
       setState(() => _visible = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_visible || widget.controller.current != next) return;
+        unawaited(widget.controller.recordVisiblePresentation(next));
+      });
     });
   }
 

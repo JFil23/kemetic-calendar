@@ -360,7 +360,9 @@ void main() {
       expect(launchedSheets, <String>['Calendars']);
     });
 
-    testWidgets('global drawer routes Flows to /flows', (tester) async {
+    testWidgets('global drawer pushes /flows above its current route', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1170, 2532);
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.resetPhysicalSize);
@@ -428,6 +430,7 @@ void main() {
 
       await tester.tap(find.byKey(app.globalMenuButtonKey));
       await tester.pump();
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 260));
       await tester.tap(find.text('Flows'));
       await tester.pump();
@@ -442,13 +445,15 @@ void main() {
       expect(
         router.routerDelegate.currentConfiguration.uri.path,
         '/profile/me',
-        reason: 'Utility route close should return to the previous route.',
+        reason: 'Utility-route close should reveal the preserved prior route.',
       );
       expect(find.text('Flow Studio route'), findsNothing);
       expect(find.text('Profile route'), findsOneWidget);
     });
 
-    testWidgets('global drawer routes Calendars to /calendars', (tester) async {
+    testWidgets('global drawer pushes /calendars above its current route', (
+      tester,
+    ) async {
       tester.view.physicalSize = const Size(1170, 2532);
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.resetPhysicalSize);
@@ -516,6 +521,7 @@ void main() {
 
       await tester.tap(find.byKey(app.globalMenuButtonKey));
       await tester.pump();
+      await tester.pump();
       await tester.pump(const Duration(milliseconds: 260));
       await tester.tap(find.text('Calendars'));
       await tester.pump();
@@ -530,7 +536,7 @@ void main() {
       expect(
         router.routerDelegate.currentConfiguration.uri.path,
         '/nodes',
-        reason: 'Utility route close should return to the previous route.',
+        reason: 'Utility-route close should reveal the preserved prior route.',
       );
       expect(find.text('Calendars route'), findsNothing);
       expect(find.text('Nodes route'), findsOneWidget);
@@ -632,38 +638,69 @@ void main() {
       expect(find.text('Profile me'), findsOneWidget);
     });
 
-    test('shared Today helper records today before routing home', () async {
-      final source = await File(
-        'lib/features/calendar/calendar_page.dart',
-      ).readAsString();
-      final openToday = _sourceBetween(
-        source,
-        'static void openMainCalendarAtToday(',
-        '  // Static method for parsing rules from JSON',
-      );
-      final recordToday = _sourceBetween(
-        source,
-        'static Future<void> _recordCalendarTodayCommandState(',
-        'static void openMainCalendarAtToday(',
-      );
-      final loadPersisted = _sourceBetween(
-        source,
-        'Future<void> _loadPersistedViewState({String trigger = \'startup\'})',
-        '  /// ✅ Helper: Calculate max days in a Kemetic month',
-      );
+    test(
+      'shared Today helper records today before in-place or routed use',
+      () async {
+        final source = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+        final openToday = _sourceBetween(
+          source,
+          'static void openMainCalendarAtToday(',
+          '  // Static method for parsing rules from JSON',
+        );
+        final recordToday = _sourceBetween(
+          source,
+          'static Future<void> _recordCalendarTodayCommandState(',
+          'static void openMainCalendarAtToday(',
+        );
+        final loadPersisted = _sourceBetween(
+          source,
+          'Future<void> _loadPersistedViewState({',
+          '  /// ✅ Helper: Calculate max days in a Kemetic month',
+        );
 
-      expect(openToday, contains('_pendingTodayNavigationCommand = true'));
-      expect(openToday, contains('_recordCalendarTodayCommandState'));
-      expect(openToday, contains("router.go('/')"));
-      expect(
-        openToday.indexOf('_recordCalendarTodayCommandState'),
-        lessThan(openToday.indexOf("router.go('/')")),
-      );
-      expect(recordToday, contains('saveCalendarState'));
-      expect(recordToday, contains('_calendarRestorationStateForToday'));
-      expect(loadPersisted, contains('_consumePendingTodayNavigationCommand'));
-      expect(loadPersisted, contains('return;'));
-    });
+        expect(openToday, contains('_recordCalendarTodayCommandState'));
+        expect(
+          openToday,
+          contains(
+            'mountedState != null && '
+            'mountedState._isPrimaryCalendarRouteCurrent',
+          ),
+        );
+        final mountedBranchStart = openToday.indexOf(
+          'if (mountedState != null && '
+          'mountedState._isPrimaryCalendarRouteCurrent)',
+        );
+        final routerStart = openToday.indexOf(
+          'final router = GoRouter.of(context);',
+        );
+        expect(mountedBranchStart, isNonNegative);
+        expect(routerStart, greaterThan(mountedBranchStart));
+        final mountedBranch = openToday.substring(
+          mountedBranchStart,
+          routerStart,
+        );
+        expect(mountedBranch, contains('_applyTodayNavigationCommand('));
+        expect(mountedBranch, contains('animate: true'));
+        expect(mountedBranch, contains('return;'));
+        expect(mountedBranch, isNot(contains("router.go('/')")));
+
+        expect(openToday, contains('_pendingTodayNavigationCommand = true'));
+        expect(openToday, contains("router.go('/')"));
+        expect(
+          openToday.indexOf('_recordCalendarTodayCommandState'),
+          lessThan(openToday.indexOf("router.go('/')")),
+        );
+        expect(recordToday, contains('saveCalendarState'));
+        expect(recordToday, contains('_calendarRestorationStateForToday'));
+        expect(
+          loadPersisted,
+          contains('_consumePendingTodayNavigationCommand'),
+        );
+        expect(loadPersisted, contains('return;'));
+      },
+    );
 
     test('calendar-host menu buttons keep expected handlers', () async {
       final source = await File(
@@ -711,6 +748,14 @@ void main() {
         source,
         'return AppBar(\n      backgroundColor: Colors.black,\n      elevation: 0.5,\n      centerTitle: false,',
         'Future<void> _openProfile(',
+      );
+
+      expect(
+        appBar,
+        contains('automaticallyImplyLeading: false'),
+        reason:
+            'The root Calendar app bar must not synthesize a back button when '
+            'a retained Calendar is revealed after drawer navigation.',
       );
 
       _expectTooltipAction(appBar, 'New note', <String>[
@@ -906,104 +951,82 @@ void main() {
       },
     );
 
-    test('global drawer utility rows use route-backed callbacks', () async {
-      final source = await File('lib/main.dart').readAsString();
-      final items = _sourceBetween(
-        source,
-        'List<GlobalSideDrawerItem> _buildGlobalSideDrawerItems()',
-        'void _openMaatGuidance(MaatGuidanceDelivery delivery)',
-      );
-      final flowStudioCallback = _sourceBetween(
-        source,
-        'Future<void> _openFlowsFromDrawer()',
-        'Future<void> _openCalendarsFromDrawer()',
-      );
-      final calendarsCallback = _sourceBetween(
-        source,
-        'Future<void> _openCalendarsFromDrawer()',
-        'void _openMaatGuidance(MaatGuidanceDelivery delivery)',
-      );
+    test(
+      'global drawer utility rows use the centralized route dispatcher',
+      () async {
+        final source = await File('lib/main.dart').readAsString();
+        final items = _sourceBetween(
+          source,
+          'List<GlobalSideDrawerItem> _buildGlobalSideDrawerItems()',
+          'void _openMaatGuidance(MaatGuidanceDelivery delivery)',
+        );
+        final dispatcher = _sourceBetween(
+          source,
+          'void _dispatchDrawerDestination',
+          'bool _isDrawerDestinationSelected',
+        );
 
-      expect(items, contains("label: 'Flows'"));
-      expect(items, contains('_openFlowsFromDrawer()'));
-      expect(items, contains("label: 'Calendars'"));
-      expect(items, contains('_openCalendarsFromDrawer()'));
-      expect(flowStudioCallback, contains('unawaited(_closeFloatingMenu())'));
-      expect(flowStudioCallback, isNot(contains('await _closeFloatingMenu()')));
-      expect(
-        flowStudioCallback,
-        contains("global drawer utility route push('/flows') requested"),
-      );
-      expect(flowStudioCallback, contains('openUtilityRoute<void>('));
-      expect(flowStudioCallback, contains("'/flows'"));
-      expect(
-        flowStudioCallback,
-        contains('navigationContext: _rootNavigatorKey.currentContext'),
-      );
-      expect(flowStudioCallback, contains('router: widget.router'));
-      expect(flowStudioCallback, isNot(contains("widget.router.go('/flows')")));
-      expect(flowStudioCallback, isNot(contains(".go('/flows')")));
-      expect(
-        flowStudioCallback.indexOf('unawaited(_closeFloatingMenu())'),
-        lessThan(flowStudioCallback.indexOf('openUtilityRoute<void>(')),
-      );
-      expect(calendarsCallback, contains('unawaited(_closeFloatingMenu())'));
-      expect(calendarsCallback, isNot(contains('await _closeFloatingMenu()')));
-      expect(
-        calendarsCallback,
-        contains("global drawer utility route push('/calendars') requested"),
-      );
-      expect(calendarsCallback, contains('openUtilityRoute<void>('));
-      expect(calendarsCallback, contains("'/calendars'"));
-      expect(
-        calendarsCallback,
-        contains('navigationContext: _rootNavigatorKey.currentContext'),
-      );
-      expect(calendarsCallback, contains('router: widget.router'));
-      expect(
-        calendarsCallback,
-        isNot(contains("widget.router.go('/calendars')")),
-      );
-      expect(calendarsCallback, isNot(contains(".go('/calendars')")));
-      expect(
-        calendarsCallback.indexOf('unawaited(_closeFloatingMenu())'),
-        lessThan(calendarsCallback.indexOf('openUtilityRoute<void>(')),
-      );
-      expect(source, contains("path: '/flows'"));
-      expect(
-        source,
-        contains('CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri)'),
-      );
-      expect(source, contains("path: '/calendars'"));
-      expect(source, contains('CalendarPage.buildSharedCalendarsRoutePage()'));
-      expect(
-        source,
-        isNot(contains('CalendarPage.openDetachedFlowStudioFromGlobalMenu')),
-      );
-      expect(
-        source,
-        isNot(
-          contains('CalendarPage.openDetachedSharedCalendarsFromGlobalMenu'),
-        ),
-      );
-      expect(source, isNot(contains("context.go('/flows')")));
-      expect(source, isNot(contains("context.go('/calendars')")));
-      expect(
-        flowStudioCallback,
-        isNot(contains('CalendarPage.enqueueOpenFlowStudioFromGlobalMenu')),
-      );
-      expect(
-        calendarsCallback,
-        isNot(contains('CalendarPage.enqueueOpenCalendarsFromGlobalMenu')),
-      );
-      expect(
-        source,
-        isNot(contains('_routeToCalendarForGlobalMenuSheetCommand')),
-      );
-      expect(source, isNot(contains('_buildFloatingActionsPanel')));
-      expect(source, isNot(contains('_navigateFromMenu')));
-      expect(source, isNot(contains('global menu detached sheet open')));
-    });
+        expect(items, contains("label: 'Flows'"));
+        expect(
+          items,
+          contains('_dispatchDrawerDestination(_DrawerDestination.flows)'),
+        );
+        expect(items, contains("label: 'Calendars'"));
+        expect(
+          items,
+          contains('_dispatchDrawerDestination(_DrawerDestination.calendars)'),
+        );
+        expect(
+          source,
+          contains('DrawerNavigationGeneration _drawerNavigationGeneration'),
+        );
+        expect(dispatcher, contains('widget.router.go(destination.location)'));
+        expect(dispatcher, contains('openUtilityRoute<void>('));
+        expect(dispatcher, contains('openDetailRoute<void>('));
+        expect(dispatcher, contains('unawaited(_closeFloatingMenu'));
+        expect(dispatcher, isNot(contains('await _closeFloatingMenu()')));
+        expect(dispatcher, isNot(contains('Navigator.maybeOf(')));
+        expect(source, contains("path: '/flows'"));
+        expect(
+          source,
+          contains(
+            'CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri)',
+          ),
+        );
+        expect(source, contains("path: '/calendars'"));
+        expect(
+          source,
+          contains('CalendarPage.buildSharedCalendarsRoutePage()'),
+        );
+        expect(
+          source,
+          isNot(contains('CalendarPage.openDetachedFlowStudioFromGlobalMenu')),
+        );
+        expect(
+          source,
+          isNot(
+            contains('CalendarPage.openDetachedSharedCalendarsFromGlobalMenu'),
+          ),
+        );
+        expect(source, isNot(contains("context.go('/flows')")));
+        expect(source, isNot(contains("context.go('/calendars')")));
+        expect(
+          dispatcher,
+          isNot(contains('CalendarPage.enqueueOpenFlowStudioFromGlobalMenu')),
+        );
+        expect(
+          dispatcher,
+          isNot(contains('CalendarPage.enqueueOpenCalendarsFromGlobalMenu')),
+        );
+        expect(
+          source,
+          isNot(contains('_routeToCalendarForGlobalMenuSheetCommand')),
+        );
+        expect(source, isNot(contains('_buildFloatingActionsPanel')));
+        expect(source, isNot(contains('_navigateFromMenu')));
+        expect(source, isNot(contains('global menu detached sheet open')));
+      },
+    );
 
     test('CalendarPage legacy global sheet commands stay removed', () async {
       final source = await File(
@@ -1192,29 +1215,41 @@ void main() {
       expect(shell, isNot(contains("segments.first == 'profile'")));
     });
 
-    test('global drawer uses foreground tap dismiss layer', () async {
-      final source = await File('lib/main.dart').readAsString();
-      final shell = _sourceBetween(
-        source,
-        'class _GlobalFloatingMenuShellState',
-        'class PushIntentBridge',
-      );
-      final drawer = await File(
-        'lib/widgets/global_side_drawer.dart',
-      ).readAsString();
+    test(
+      'global drawer reveals an opaque underlay behind one foreground panel',
+      () async {
+        final source = await File('lib/main.dart').readAsString();
+        final shell = _sourceBetween(
+          source,
+          'class _GlobalFloatingMenuShellState',
+          'class PushIntentBridge',
+        );
+        final drawer = await File(
+          'lib/widgets/global_side_drawer.dart',
+        ).readAsString();
 
-      expect(shell, contains('globalSideDrawerScrimKey'));
-      expect(shell, contains('HitTestBehavior.opaque'));
-      expect(shell, contains('onTap: () => unawaited(_closeFloatingMenu())'));
-      expect(
-        shell.indexOf('GlobalSideDrawer('),
-        lessThan(shell.indexOf('GlobalSideDrawerForeground(')),
-      );
-      expect(drawer, contains('globalSideDrawerScrimKey'));
-      expect(drawer, contains('globalSideDrawerForegroundKey'));
-      expect(drawer, contains('class GlobalSideDrawerForeground'));
-      expect(drawer, contains('AnimatedSlide'));
-    });
+        expect(shell, contains('globalSideDrawerScrimKey'));
+        expect(shell, contains('HitTestBehavior.opaque'));
+        expect(shell, contains('onTap: () => unawaited(_closeFloatingMenu())'));
+        expect(
+          shell.indexOf('GlobalSideDrawer('),
+          lessThan(shell.indexOf('GlobalSideDrawerForeground(')),
+        );
+        expect(drawer, contains('globalSideDrawerScrimKey'));
+        expect(drawer, contains('globalSideDrawerForegroundKey'));
+        expect(drawer, contains('class GlobalSideDrawerForeground'));
+        expect(drawer, contains('Color(0xFF000000)'));
+        final foreground = _sourceBetween(
+          drawer,
+          'class GlobalSideDrawerForeground extends StatelessWidget',
+          'class _GlobalSideDrawerRow extends StatelessWidget',
+        );
+        expect(foreground, contains('TweenAnimationBuilder<double>'));
+        expect(foreground, contains('Transform.translate'));
+        expect(foreground, contains('globalSideDrawerWidth(context)'));
+        expect(drawer, isNot(contains('AnimatedSlide')));
+      },
+    );
 
     test('global bubble hit area matches the visible circle', () async {
       final drawer = await File(

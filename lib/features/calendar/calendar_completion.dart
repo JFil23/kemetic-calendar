@@ -9,6 +9,22 @@ import 'package:mobile/features/journal/journal_event_badge.dart';
 
 const Duration kCalendarCompletionFeedbackDelay = Duration(milliseconds: 500);
 
+const String kCalendarCompletionRecordFailureMessage =
+    'Could not record completion.';
+const String kCalendarCompletionContinuityFailureMessage =
+    'Completion recorded, but journal continuity could not be saved.';
+const String kCalendarCompletionPostCommitFailureMessage =
+    'Completion and journal continuity were saved, but refresh did not finish.';
+
+class CalendarCompletionPostCommitException implements Exception {
+  const CalendarCompletionPostCommitException([this.message]);
+
+  final String? message;
+
+  @override
+  String toString() => message ?? kCalendarCompletionPostCommitFailureMessage;
+}
+
 bool calendarCompletionStatusTriggersFeedback(CompletionStatus status) {
   return status == CompletionStatus.observed ||
       status == CompletionStatus.partial ||
@@ -452,6 +468,7 @@ class _CalendarEventCompletionPanelState
     if (_saving) return;
     setState(() => _saving = true);
     _scheduleCompletionFeedback(status);
+    var completionRecorded = false;
     try {
       if (status == CompletionStatus.none) {
         if (widget.onClearStatus != null) {
@@ -463,6 +480,7 @@ class _CalendarEventCompletionPanelState
         await widget.onRecordStatus?.call(status);
       }
       await widget.localStore.save(identity: widget.identity, status: status);
+      completionRecorded = true;
       if (status.createsJournalContinuity) {
         await widget.onCreateContinuity?.call(status);
       }
@@ -471,12 +489,44 @@ class _CalendarEventCompletionPanelState
         _status = status;
         _saving = false;
       });
+    } on CalendarCompletionPostCommitException {
+      if (!mounted) return;
+      if (!completionRecorded) {
+        _cancelCompletionFeedback();
+        setState(() => _saving = false);
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+          const SnackBar(
+            content: Text(kCalendarCompletionRecordFailureMessage),
+          ),
+        );
+        return;
+      }
+      setState(() {
+        _status = status;
+        _saving = false;
+      });
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(
+          content: Text(kCalendarCompletionPostCommitFailureMessage),
+        ),
+      );
     } catch (_) {
       _cancelCompletionFeedback();
       if (!mounted) return;
-      setState(() => _saving = false);
+      setState(() {
+        if (completionRecorded) {
+          _status = status;
+        }
+        _saving = false;
+      });
       ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        const SnackBar(content: Text('Could not record completion.')),
+        SnackBar(
+          content: Text(
+            completionRecorded
+                ? kCalendarCompletionContinuityFailureMessage
+                : kCalendarCompletionRecordFailureMessage,
+          ),
+        ),
       );
     }
   }

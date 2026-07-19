@@ -22,6 +22,7 @@ import '../reflections/decan_reflection_skin.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'journal_badge_utils.dart';
 import 'journal_controller.dart';
+import 'journal_empty_badge_glyph.dart';
 import 'journal_event_badge.dart';
 import 'journal_v2_document_model.dart';
 import 'journal_v2_rich_text.dart';
@@ -676,10 +677,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
 
     Widget badgeBody;
     if (badges.isEmpty) {
-      badgeBody = const Text(
-        'No badges for this entry',
-        style: DecanReflectionTokens.emptyBodyStyle,
-      );
+      badgeBody = const JournalEmptyBadgeGlyph();
     } else {
       if (maxHeight != null) {
         badgeBody = ConstrainedBox(

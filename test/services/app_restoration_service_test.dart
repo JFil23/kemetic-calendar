@@ -25,11 +25,11 @@ Map<String, dynamic> _durableRouteFields(String route) {
 Future<void> _saveDurableRoute(
   String route, {
   NavigationSource source = NavigationSource.userPrimaryTab,
-}) {
+}) async {
   final metadata = const NavigationPersistencePolicy()
       .classifyRoute(route, source)
       .metadata;
-  return AppRestorationService.instance.saveDurableLaunchRoute(
+  await AppRestorationService.instance.saveDurableLaunchRoute(
     route,
     metadata: metadata,
   );
@@ -47,6 +47,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
+    AppRestorationService.instance.resetForTesting();
     SharedPreferences.setMockInitialValues({});
     AppRestorationService.debugUserIdResolver = () => 'user-1';
     AppWindowService.debugWindowIdResolver = () async => 'window-1';
@@ -99,6 +100,7 @@ void main() {
   });
 
   tearDown(() {
+    AppRestorationService.instance.resetForTesting();
     AppRestorationService.debugUserIdResolver = null;
     AppRestorationService.debugRemoteWindowSnapshotReader = null;
     AppRestorationService.debugRemoteLatestSnapshotReader = null;
@@ -525,6 +527,40 @@ void main() {
   });
 
   test(
+    'keeps logical calendar position when a legacy centered offset is negative',
+    () async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _snapshotKey(),
+        jsonEncode({
+          'schemaVersion': AppRestorationService.schemaVersion,
+          'userId': 'user-1',
+          'windowId': 'window-1',
+          'updatedAtMs': 1234,
+          'calendar': {
+            'kYear': 6267,
+            'kMonth': 4,
+            'kDay': 12,
+            'showGregorian': false,
+            'expansion': 'details',
+            'anchorTarget': 'dayChip',
+            'anchorAlignment': 0.5,
+            'scrollOffset': -163.0,
+          },
+        }),
+      );
+
+      final snapshot = await AppRestorationService.instance.readSnapshot();
+
+      expect(snapshot?.calendar, isNotNull);
+      expect(snapshot?.calendar?.kYear, 6267);
+      expect(snapshot?.calendar?.kMonth, 4);
+      expect(snapshot?.calendar?.kDay, 12);
+      expect(snapshot?.calendar?.scrollOffset, isNull);
+    },
+  );
+
+  test(
     'drops invalid nested restoration payloads without losing route',
     () async {
       final prefs = await SharedPreferences.getInstance();
@@ -692,6 +728,60 @@ void main() {
     );
   });
 
+  test('equal timestamp and content keeps current-window prefs', () async {
+    final raw = <String, dynamic>{
+      'schemaVersion': AppRestorationService.schemaVersion,
+      'userId': 'user-1',
+      'windowId': 'window-1',
+      'updatedAtMs': 2000,
+      ..._durableRouteFields('/inbox'),
+    };
+    final serialized = jsonEncode(raw);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_snapshotKey(), serialized);
+    _debugCriticalSnapshots['window-1'] = serialized;
+
+    final result = await AppRestorationService.instance.readBestSnapshot();
+
+    expect(result.source, 'prefs');
+    expect(result.snapshot?.routeLocation, '/inbox');
+  });
+
+  test(
+    'equal timestamp divergence traces collision and uses source precedence',
+    () async {
+      final logs = <String>[];
+      AppRestorationService.debugLogWriter = logs.add;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _snapshotKey(),
+        jsonEncode({
+          'schemaVersion': AppRestorationService.schemaVersion,
+          'userId': 'user-1',
+          'windowId': 'window-1',
+          'updatedAtMs': 2000,
+          ..._durableRouteFields('/inbox'),
+        }),
+      );
+      _debugCriticalSnapshots['window-1'] = jsonEncode({
+        'schemaVersion': AppRestorationService.schemaVersion,
+        'userId': 'user-1',
+        'windowId': 'window-1',
+        'updatedAtMs': 2000,
+        ..._durableRouteFields('/journal'),
+      });
+
+      final result = await AppRestorationService.instance.readBestSnapshot();
+
+      expect(result.source, 'prefs');
+      expect(result.snapshot?.routeLocation, '/inbox');
+      expect(
+        logs,
+        contains(contains('reason=timestamp_collision_content_divergence')),
+      );
+    },
+  );
+
   test('restores the latest snapshot when the window id changes', () async {
     await _saveDurableRoute('/settings');
     await AppRestorationService.instance.saveCalendarState(
@@ -755,6 +845,146 @@ void main() {
       expect(result.snapshot?.routeLocation, '/inbox');
     },
   );
+
+  test('calendar save during auth gap flushes for the same user', () async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('app_restoration_last_user_v2', 'user-1');
+    _debugPlatformLastActiveUserId = 'user-1';
+    AppRestorationService.debugUserIdResolver = () => null;
+
+    await AppRestorationService.instance.saveCalendarState(
+      const CalendarRestorationState(
+        kYear: 6267,
+        kMonth: 7,
+        kDay: 13,
+        showGregorian: false,
+        expansion: 'labeled',
+      ),
+    );
+    expect(prefs.getString(_snapshotKey()), isNull);
+
+    AppRestorationService.debugUserIdResolver = () => 'user-1';
+    await AppRestorationService.instance.flushPendingWrites();
+
+    final snapshot = await AppRestorationService.instance.readSnapshot();
+    expect(snapshot?.calendar?.kMonth, 7);
+    expect(snapshot?.calendar?.kDay, 13);
+  });
+
+  test('calendar save during auth gap never retargets another user', () async {
+    final logs = <String>[];
+    AppRestorationService.debugLogWriter = logs.add;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('app_restoration_last_user_v2', 'user-1');
+    _debugPlatformLastActiveUserId = 'user-1';
+    AppRestorationService.debugUserIdResolver = () => null;
+
+    final deferred = await AppRestorationService.instance.saveCalendarState(
+      const CalendarRestorationState(
+        kYear: 6267,
+        kMonth: 7,
+        kDay: 13,
+        showGregorian: false,
+        expansion: 'labeled',
+      ),
+    );
+    expect(deferred.status, AppRestorationMutationStatus.deferred);
+
+    AppRestorationService.debugUserIdResolver = () => 'user-2';
+    final dropped = await AppRestorationService.instance.handleSessionReady(
+      'user-2',
+    );
+    expect(dropped?.status, AppRestorationMutationStatus.droppedUserMismatch);
+    await AppRestorationService.instance.flushPendingWrites();
+
+    expect(prefs.getString(_snapshotKey()), isNull);
+    expect(prefs.getString(_snapshotKey(userId: 'user-2')), isNull);
+    expect(
+      logs,
+      contains(
+        contains(
+          'calendar mutation dropped expected=user-1 actual=user-2 '
+          'reason=user_mismatch',
+        ),
+      ),
+    );
+  });
+
+  test('launch route save during auth gap flushes for the same user', () async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('app_restoration_last_user_v2', 'user-1');
+    _debugPlatformLastActiveUserId = 'user-1';
+    AppRestorationService.debugUserIdResolver = () => null;
+    final metadata = const NavigationPersistencePolicy()
+        .classifyRoute('/inbox', NavigationSource.userPrimaryTab)
+        .metadata;
+
+    final result = await AppRestorationService.instance.saveDurableLaunchRoute(
+      '/inbox',
+      metadata: metadata,
+    );
+    expect(result.status, AppRestorationMutationStatus.deferred);
+    expect(prefs.getString(_snapshotKey()), isNull);
+
+    AppRestorationService.debugUserIdResolver = () => 'user-1';
+    await AppRestorationService.instance.flushPendingWrites();
+
+    final snapshot = await AppRestorationService.instance.readSnapshot();
+    expect(snapshot?.routeLocation, '/inbox');
+  });
+
+  test(
+    'launch route save during auth gap never retargets another user',
+    () async {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('app_restoration_last_user_v2', 'user-1');
+      _debugPlatformLastActiveUserId = 'user-1';
+      AppRestorationService.debugUserIdResolver = () => null;
+      final metadata = const NavigationPersistencePolicy()
+          .classifyRoute('/inbox', NavigationSource.userPrimaryTab)
+          .metadata;
+
+      final result = await AppRestorationService.instance
+          .saveDurableLaunchRoute('/inbox', metadata: metadata);
+      expect(result.status, AppRestorationMutationStatus.deferred);
+
+      AppRestorationService.debugUserIdResolver = () => 'user-2';
+      await AppRestorationService.instance.flushPendingWrites();
+
+      expect(prefs.getString(_snapshotKey()), isNull);
+      expect(prefs.getString(_snapshotKey(userId: 'user-2')), isNull);
+    },
+  );
+
+  test('launch route save reports not ready without a bound user', () async {
+    AppRestorationService.debugUserIdResolver = () => null;
+    final metadata = const NavigationPersistencePolicy()
+        .classifyRoute('/inbox', NavigationSource.userPrimaryTab)
+        .metadata;
+
+    final result = await AppRestorationService.instance.saveDurableLaunchRoute(
+      '/inbox',
+      metadata: metadata,
+    );
+
+    expect(result.status, AppRestorationMutationStatus.notReady);
+  });
+
+  test('untyped mutation reports auth not ready explicitly', () async {
+    AppRestorationService.debugUserIdResolver = () => null;
+
+    final result = await AppRestorationService.instance.saveDayViewState(
+      const DayViewRestorationState(
+        isOpen: false,
+        kYear: 6267,
+        kMonth: 7,
+        kDay: 13,
+        showGregorian: false,
+      ),
+    );
+
+    expect(result.status, AppRestorationMutationStatus.notReady);
+  });
 
   test(
     'restores from the latest critical snapshot when the window id changes',
@@ -907,6 +1137,184 @@ void main() {
       expect(jsonDecode(raw!)['windowId'], 'window-1');
     },
   );
+
+  test('remote adoption preserves provenance across local stores', () async {
+    const provenanceTime = 9000;
+    _debugRemoteLatestSnapshots['user-1'] = {
+      'schemaVersion': AppRestorationService.schemaVersion,
+      'userId': 'user-1',
+      'windowId': 'remote-window',
+      'updatedAtMs': provenanceTime,
+      ..._durableRouteFields('/nodes'),
+    };
+
+    final result = await AppRestorationService.instance.readBestSnapshot(
+      includeRemote: true,
+    );
+
+    expect(result.snapshot?.updatedAtMs, provenanceTime);
+    final prefs = await SharedPreferences.getInstance();
+    final persisted = <String?>[
+      prefs.getString(_snapshotKey()),
+      prefs.getString('app_restoration_latest_v2:user-1'),
+      _debugCriticalSnapshots['window-1'],
+      _debugLatestCriticalSnapshots['user-1'],
+    ];
+    expect(persisted, everyElement(isNotNull));
+    for (final encoded in persisted) {
+      final raw = jsonDecode(encoded!) as Map<String, dynamic>;
+      expect(raw['updatedAtMs'], provenanceTime);
+      expect(raw['windowId'], 'window-1');
+    }
+    expect(prefs.getString('app_restoration_last_user_v2'), 'user-1');
+    expect(_debugPlatformLastActiveUserId, 'user-1');
+  });
+
+  test('remote adoption rejects a missing provenance timestamp', () async {
+    _debugRemoteLatestSnapshots['user-1'] = {
+      'schemaVersion': AppRestorationService.schemaVersion,
+      'userId': 'user-1',
+      'windowId': 'remote-window',
+      ..._durableRouteFields('/nodes'),
+    };
+
+    final result = await AppRestorationService.instance.readBestSnapshot(
+      includeRemote: true,
+    );
+
+    expect(result.status, AppRestorationReadStatus.noSnapshot);
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString(_snapshotKey()), isNull);
+    expect(prefs.getString('app_restoration_latest_v2:user-1'), isNull);
+    expect(_debugCriticalSnapshots, isEmpty);
+    expect(_debugLatestCriticalSnapshots, isEmpty);
+    expect(prefs.getString('app_restoration_last_user_v2'), isNull);
+    expect(_debugPlatformLastActiveUserId, isNull);
+  });
+
+  test('late remote adoption cannot overwrite a newer calendar save', () async {
+    final remoteReadStarted = Completer<void>();
+    final remoteSnapshot = Completer<Map<String, dynamic>?>();
+    AppRestorationService.debugRemoteLatestSnapshotReader = (userId) {
+      remoteReadStarted.complete();
+      return remoteSnapshot.future;
+    };
+
+    final pendingRead = AppRestorationService.instance.readBestSnapshot(
+      includeRemote: true,
+    );
+    await remoteReadStarted.future;
+
+    const newestCalendar = CalendarRestorationState(
+      kYear: 6267,
+      kMonth: 8,
+      kDay: 19,
+      showGregorian: false,
+      expansion: 'labeled',
+    );
+    await AppRestorationService.instance.saveCalendarState(newestCalendar);
+    final savedTimestamp =
+        (await AppRestorationService.instance.readSnapshot())!.updatedAtMs;
+
+    remoteSnapshot.complete({
+      'schemaVersion': AppRestorationService.schemaVersion,
+      'userId': 'user-1',
+      'windowId': 'remote-window',
+      'updatedAtMs': savedTimestamp - 1,
+      'calendar': const CalendarRestorationState(
+        kYear: 6267,
+        kMonth: 1,
+        kDay: 1,
+        showGregorian: false,
+        expansion: 'compact',
+      ).toJson(),
+    });
+    await pendingRead;
+    await AppRestorationService.instance.flushPendingWrites();
+
+    final snapshot = await AppRestorationService.instance.readSnapshot();
+    expect(snapshot?.calendar?.kMonth, newestCalendar.kMonth);
+    expect(snapshot?.calendar?.kDay, newestCalendar.kDay);
+    expect(snapshot?.updatedAtMs, savedTimestamp);
+  });
+
+  test('user mutations advance beyond the durable timestamp', () async {
+    final futureTimestamp =
+        DateTime.now().millisecondsSinceEpoch +
+        const Duration(days: 1).inMilliseconds;
+    final baseline = {
+      'schemaVersion': AppRestorationService.schemaVersion,
+      'userId': 'user-1',
+      'windowId': 'window-1',
+      'updatedAtMs': futureTimestamp,
+      'calendar': const CalendarRestorationState(
+        kYear: 6267,
+        kMonth: 2,
+        kDay: 2,
+        showGregorian: false,
+        expansion: 'compact',
+      ).toJson(),
+    };
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_snapshotKey(), jsonEncode(baseline));
+    _debugCriticalSnapshots['window-1'] = jsonEncode(baseline);
+
+    await AppRestorationService.instance.saveCalendarState(
+      const CalendarRestorationState(
+        kYear: 6267,
+        kMonth: 3,
+        kDay: 3,
+        showGregorian: false,
+        expansion: 'stacked',
+      ),
+    );
+    final firstTimestamp =
+        (await AppRestorationService.instance.readSnapshot())!.updatedAtMs;
+    await AppRestorationService.instance.saveCalendarState(
+      const CalendarRestorationState(
+        kYear: 6267,
+        kMonth: 4,
+        kDay: 4,
+        showGregorian: false,
+        expansion: 'details',
+      ),
+    );
+    final secondTimestamp =
+        (await AppRestorationService.instance.readSnapshot())!.updatedAtMs;
+
+    expect(firstTimestamp, greaterThan(futureTimestamp));
+    expect(secondTimestamp, greaterThan(firstTimestamp));
+  });
+
+  test('stale invalid cleanup cannot delete replacement content', () async {
+    final invalid = jsonEncode({
+      'schemaVersion': AppRestorationService.schemaVersion + 1,
+      'userId': 'user-1',
+      'windowId': 'window-1',
+      'updatedAtMs': 1000,
+    });
+    final replacement = jsonEncode({
+      'schemaVersion': AppRestorationService.schemaVersion,
+      'userId': 'user-1',
+      'windowId': 'window-1',
+      'updatedAtMs': 2000,
+    });
+    var reads = 0;
+    var clearWrites = 0;
+    AppRestorationService.debugCriticalSnapshotReader = (windowId) {
+      reads += 1;
+      return reads == 1 ? invalid : replacement;
+    };
+    AppRestorationService.debugCriticalSnapshotWriter = (windowId, serialized) {
+      if (serialized == null) clearWrites += 1;
+    };
+
+    await AppRestorationService.instance.readBestSnapshot();
+    await AppRestorationService.instance.flushPendingWrites();
+
+    expect(reads, greaterThanOrEqualTo(2));
+    expect(clearWrites, 0);
+  });
 
   test(
     'does not prefer a route-only backend latest snapshot over current root',

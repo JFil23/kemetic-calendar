@@ -158,7 +158,7 @@ extension OpenHandLocalPromptKindX on OpenHandLocalPromptKind {
       case OpenHandLocalPromptKind.carriedNeed:
         return 'Need carried forward';
       case OpenHandLocalPromptKind.threeActs:
-        return 'Three acts for this decan';
+        return 'Three acts for this ten-day section';
       case OpenHandLocalPromptKind.strangerAct:
         return 'Stranger act record';
       case OpenHandLocalPromptKind.commitmentStatuses:
@@ -175,7 +175,7 @@ extension OpenHandLocalPromptKindX on OpenHandLocalPromptKind {
   String get placeholder {
     switch (this) {
       case OpenHandLocalPromptKind.needInventory:
-        return 'Three specific needs, then: This decan, I will give ___ to ___.';
+        return 'Three specific needs, then: This ten-day section, I will give ___ to ___.';
       case OpenHandLocalPromptKind.firstActRecord:
         return 'I gave ___ to ___. It was received / not received / changed in this way...';
       case OpenHandLocalPromptKind.carriedNeed:
@@ -272,7 +272,8 @@ const List<OpenHandEvent> kOpenHandEvents = <OpenHandEvent>[
     steps: <String>[
       'Write three names or descriptions of people or situations in your immediate environment where a specific need is present.',
       'For each, name the specific need: food, transport, shelter, attention, connection, skill, or another concrete provision.',
-      'Choose one as the first act of this flow: This decan, I will give ___ to ___.',
+      'Choose one as the first act of this flow.',
+      'Write: This ten-day section, I will give ___ to ___.',
     ],
     localPrompt: OpenHandLocalPromptKind.needInventory,
     sourceNote:
@@ -288,7 +289,7 @@ const List<OpenHandEvent> kOpenHandEvents = <OpenHandEvent>[
     durationMinutesMax: 5,
     spokenLine: 'The righteous individual is he by whom others are sustained.',
     steps: <String>[
-      'Complete the act of provision identified on Day 1 before marking this event observed. The act is the event. The logging follows the act, not the intention.',
+      'Complete the act of provision identified on Day 1 before marking this event observed.',
       'Record what was given and what changed for the other person, even if the change was small.',
       'Name whether any further provision is genuinely yours to continue.',
     ],
@@ -309,8 +310,9 @@ const List<OpenHandEvent> kOpenHandEvents = <OpenHandEvent>[
         'He who fosters goodness is a destroyer of evil — as when satisfaction comes and ends hunger, as when clothing ends nakedness, as when water quenches thirst.',
     steps: <String>[
       'Name one local need you had been moving past without seeing.',
-      'Name one act of giving in this decan that surprised you.',
-      'Name one need you saw but did not act on. It carries into Decan 2 without excuse or editing.',
+      'Name one act of giving in this ten-day section that surprised you.',
+      'Name one need you saw but did not act on.',
+      'Carry it into the second ten-day section without excuse or editing.',
     ],
     localPrompt: OpenHandLocalPromptKind.carriedNeed,
     sourceNote:
@@ -327,8 +329,9 @@ const List<OpenHandEvent> kOpenHandEvents = <OpenHandEvent>[
     spokenLine:
         'I gave bread to the hungry and I clothed the naked. I brought to land the one who had no rowboat. I measured out grain from my own estate for the hungry I found.',
     steps: <String>[
-      'Write three named acts of outward provision for this decan. Named acts become commitments. The commitment becomes the record at the seal.',
-      'For each act, name the recipient or category of recipient.',
+      'Write three named acts of outward provision for this ten-day section.',
+      'For each act, write what will be given and who or what receives it.',
+      'Write when each act will happen before Day 19.',
       'Mark which act is easiest, which is most needed, and which one resists you.',
     ],
     localPrompt: OpenHandLocalPromptKind.threeActs,
@@ -347,8 +350,9 @@ const List<OpenHandEvent> kOpenHandEvents = <OpenHandEvent>[
         'The provisions of all mankind flow from the flood. You are Hapy who makes verdant the fields and revives the desert. To do Ma’at is the breath of the nostrils.',
     steps: <String>[
       'Choose one act from the Day 11 list that benefits someone outside your circle of obligation.',
-      'Notice any resistance. The resistance to giving without a relational claim is exactly what this act is designed to address.',
-      'Complete the act before marking this event observed, or choose the exact date it will be completed.',
+      'Name any resistance to giving without a relational claim.',
+      'Complete the act before marking this event observed.',
+      'If it cannot be completed today, write the exact date it will be completed instead of claiming it as done.',
     ],
     localPrompt: OpenHandLocalPromptKind.strangerAct,
     requiresOutwardAct: true,
@@ -369,7 +373,7 @@ const List<OpenHandEvent> kOpenHandEvents = <OpenHandEvent>[
     steps: <String>[
       'Return to the three commitments from Day 11.',
       'For each, record: given as committed, modified, or not given, with the honest reason.',
-      'Name one thing the giving of this decan taught you about capacity, resistance, or need.',
+      'Name one thing the giving of this ten-day section taught you about capacity, resistance, or need.',
     ],
     localPrompt: OpenHandLocalPromptKind.commitmentStatuses,
     sourceNote:
@@ -387,8 +391,8 @@ const List<OpenHandEvent> kOpenHandEvents = <OpenHandEvent>[
         'You are Hapy who makes verdant the fields and revives the desert. The provisions of all mankind flow from you as from the flood. To do Ma’at is the breath of the nostrils.',
     steps: <String>[
       'Map one kind of provision that entered your life this month: money, food, attention, skill, help, access, or time.',
-      'Name the threshold where provision tends to stop with you — not as self-criticism but as a material observation. The threshold is where the flood is pooling rather than flowing. Naming it is the first step in moving it.',
-      'Choose one way that provision can move beyond you in the final decan.',
+      'Name the threshold where provision tends to stop with you as a material observation, not self-criticism.',
+      'Choose one specific act that moves provision beyond you in the final ten-day section.',
     ],
     localPrompt: OpenHandLocalPromptKind.flowThreshold,
     sourceNote:
@@ -424,9 +428,13 @@ const List<OpenHandEvent> kOpenHandEvents = <OpenHandEvent>[
         'I have given bread to the hungry, water to the thirsty, clothing to the naked, and a boat to the boatless. I am the righteous individual by whom others are sustained.',
     steps: <String>[
       'Name three acts from the flow: the one that cost the most, the one that surprised you, and the one you will remember.',
-      'Speak only the truth-check lines that apply: I saw need; I gave outside obligation; I gave to someone I do not know; provision is less blocked.',
+      'Speak only the truth-check lines that are true.',
+      'Say, if true: I saw need.',
+      'Say, if true: I gave outside obligation.',
+      'Say, if true: I gave to someone I do not know.',
+      'Say, if true: Provision is less blocked.',
       'Name one specific recurring practice of outward provision that will continue past the flow.',
-      'Speak the final line: To do Ma’at is the breath of the nostrils. The flow continues.',
+      'Say the final line: To do Ma’at is the breath of the nostrils. The flow continues.',
     ],
     localPrompt: OpenHandLocalPromptKind.closingPractice,
     sharePromptOnComplete: true,
@@ -767,17 +775,17 @@ String _openHandPurpose(OpenHandEvent event) {
     case 2:
       return 'The act must be completed before this event is logged. Ptahhotep\'s standard was whether others were actually sustained through you — not whether you intended to sustain them.';
     case 3:
-      return 'The first decan closes with what was seen and given — and with one need that was seen but not acted on. That unacted-on need carries forward explicitly, not as guilt but as the next commitment.';
+      return 'The first ten-day section closes with what was seen and given — and with one need that was seen but not acted on. That unacted-on need carries forward explicitly, not as guilt but as the next commitment.';
     case 4:
       return 'Three acts, named before they happen. Not aspirations — commitments. The virtue autobiographies recorded what was done; this sitting names what will be done so the record can close honestly.';
     case 5:
-      return 'The flood did not stop at the nearest field. This act belongs to someone outside the circle of obligation — someone with no claim on you.';
+      return 'The flood did not stop at the nearest field. This act belongs to someone outside the circle of obligation — someone with no claim on you. Resistance marks where obligation has been mistaken for the edge of provision.';
     case 6:
       return 'The seal closes with what was actually done: given as committed, modified, or not given. The scribe\'s record does not editorialize.';
     case 7:
       return 'Hapy was celebrated because the flood moved — not because it collected. A flood that stops at one field is not generous; it is stuck.';
     case 8:
-      return 'Check what has changed because provision moved.';
+      return 'The midpoint keeps attention on what changed because provision moved.';
     case 9:
       return 'The flow closes with the record of what was actually done, and the one practice that continues. The continuing practice is more important than the thirty-day record.';
   }

@@ -144,12 +144,95 @@ void main() {
 
     expect(occurrence.variant, MoonReturnCopyVariant.solarEclipseNew);
     expect(payload['flow_key'], 'the-moon-return');
+    expect(payload['variant'], MoonReturnCopyVariant.solarEclipseNew.key);
+    expect(payload['outdoor_required'], isTrue);
+    expect(payload['missed_event_rule'], 'expire_quietly');
     expect(payload['completion_options'], <String>['observed', 'skipped']);
     expect(payload.toString(), isNot(contains('observed_partly')));
     expect(jsonDecode(jsonEncode(payload)), isA<Map<String, dynamic>>());
     final detail = moonReturnDetailText(occurrence, lens: MoonReturnLens.heru);
     expect(detail, contains('Purpose\n'));
     expect(detail, isNot(contains('Confidence\n')));
+  });
+
+  test('Empty Eye detail keeps purpose, words, steps, and outdoor guidance pure', () {
+    final detail = moonReturnDetailText(
+      _moonReturnTestOccurrence(MoonReturnEventKind.emptyEye),
+      lens: MoonReturnLens.neutral,
+    );
+
+    expect(
+      detail,
+      contains(
+        'Purpose\n'
+        'The new moon opens an empty-sky threshold: one thing from the last cycle can be set down without needing the moon to be visible.',
+      ),
+    );
+    expect(detail, isNot(contains('Purpose\nStand under')));
+    expect(detail, isNot(contains('Purpose\nStep outside')));
+    expect(
+      detail,
+      contains(
+        'Words\n'
+        '"The eye has gone. The sky is cleared. I set down what the last cycle carried and let the dark receive it."',
+      ),
+    );
+    expect(detail, isNot(contains('Words\n"Stand under')));
+    expect(detail, isNot(contains('Words\n"Step outside')));
+    expect(
+      detail,
+      contains(
+        'Steps\n'
+        '1. Step outside at dusk.\n'
+        '2. Stand with the empty sky.\n'
+        '3. Name one thing from the last lunar cycle that you are setting down.\n'
+        '4. Speak the line.\n'
+        '5. Return inside.',
+      ),
+    );
+    expect(detail, isNot(contains('Speak the line, then return inside.')));
+    expect(detail, contains('does not require seeing the moon'));
+    expect(detail, contains('safety, access, or weather'));
+  });
+
+  test('Whole Eye detail preserves moonrise, clouds, naming, and closing steps', () {
+    final detail = moonReturnDetailText(
+      _moonReturnTestOccurrence(MoonReturnEventKind.wholeEye),
+      lens: MoonReturnLens.neutral,
+    );
+
+    expect(
+      detail,
+      contains(
+        'Purpose\n'
+        'The full moon marks the Eye restored to wholeness; what has filled in this cycle is named under its returning light.',
+      ),
+    );
+    expect(detail, isNot(contains('Purpose\nStand under')));
+    expect(detail, isNot(contains('Purpose\nStep outside')));
+    expect(
+      detail,
+      contains(
+        'Words\n'
+        '"Horus has filled you complete with his eye. The Eye of Heru is whole. I receive what has been given."',
+      ),
+    );
+    expect(
+      detail,
+      contains(
+        'Steps\n'
+        '1. Go outside at moonrise.\n'
+        '2. If clouds block the moon, face its direction and stand under the sky anyway.\n'
+        '3. Stand for one minute in the full moon sky.\n'
+        '4. Name one thing that has filled since the new moon: In this cycle, ___ filled.\n'
+        '5. Speak the line.\n'
+        '6. Return inside.',
+      ),
+    );
+    expect(detail, isNot(contains('Speak the line, then return inside.')));
+    expect(detail, contains('Clouds are acceptable'));
+    expect(detail, contains('presence under the sky is the act'));
+    expect(detail, contains('unless safety, access, or weather prevents it'));
   });
 
   test('calendar UI and join branch enforce designated windows', () {
@@ -170,4 +253,23 @@ void main() {
     expect(pageSource, contains('moonReturnClientEventId'));
     expect(pageSource, isNot(contains('kMoonReturnDays')));
   });
+}
+
+MoonReturnOccurrence _moonReturnTestOccurrence(MoonReturnEventKind kind) {
+  return MoonReturnOccurrence(
+    kind: kind,
+    startLocal: DateTime(2026, 6, 14, 20),
+    endLocal: DateTime(2026, 6, 14, 20, 5),
+    startUtc: DateTime.utc(2026, 6, 15, 3),
+    endUtc: DateTime.utc(2026, 6, 15, 3, 5),
+    phaseDateIso: '2026-06-14',
+    variant: MoonReturnCopyVariant.standard,
+    isBonusBlueMoon: false,
+    timezone: TrackSkyTimeZone.pacific,
+    scheduleType: kind == MoonReturnEventKind.emptyEye
+        ? 'local_dusk'
+        : 'local_moonrise',
+    referenceLocationName: 'Los Angeles',
+    usedFallback: false,
+  );
 }

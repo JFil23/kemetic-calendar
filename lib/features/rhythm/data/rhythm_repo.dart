@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile/core/supabase_auth_retry.dart';
+import 'package:mobile/telemetry/telemetry.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/rhythm_models.dart';
@@ -34,8 +36,6 @@ class RhythmRepo {
   }
 
   String? get _userId => _client.auth.currentUser?.id;
-  String get _projectRef =>
-      Uri.tryParse(_supabaseUrl)?.host.split('.').first ?? '';
 
   void _logNoteAction(
     String action, {
@@ -44,10 +44,11 @@ class RhythmRepo {
     Object? error,
     String? detail,
   }) {
-    final uid = _userId ?? '<null>';
-    final url = _supabaseUrl;
+    if (!kDebugMode) return;
+    final uid = safeLogIdentifier(_userId);
     final buf = StringBuffer(
-      '[planner-notes] $action uid=$uid url=$url ref=$_projectRef',
+      '[planner-notes] $action user=$uid '
+      'supabaseConfigured=${_supabaseUrl.isNotEmpty}',
     );
     if (missingTables != null) buf.write(' missingTables=$missingTables');
     if (friendlyError != null) buf.write(' friendlyError="$friendlyError"');
@@ -370,6 +371,45 @@ class RhythmRepo {
         return const RhythmRepoResult(data: false, missingTables: true);
       }
       return RhythmRepoResult(data: false, friendlyError: _friendlyMessage(e));
+    }
+  }
+
+  Future<RhythmRepoResult<RhythmTodo?>> updateTodoDueDate(
+    String todoId,
+    DateTime dueDate,
+  ) async {
+    final uid = _userId;
+    if (uid == null) {
+      return const RhythmRepoResult(data: null, friendlyError: 'Not signed in');
+    }
+    final target = DateUtils.dateOnly(dueDate);
+    final dueDateIso = DateFormat('yyyy-MM-dd').format(target);
+    try {
+      final row = await withSupabaseAuthRetry(
+        _client,
+        () => _client
+            .from('todos')
+            .update({
+              'due_date': dueDateIso,
+              'status': 'pending',
+              'completed_at': null,
+            })
+            .eq('id', todoId)
+            .eq('user_id', uid)
+            .select(
+              'id, title, notes, due_date, due_time, show_on_checklist, show_on_calendar, status',
+            )
+            .maybeSingle(),
+      );
+      if (row == null) return const RhythmRepoResult(data: null);
+      return RhythmRepoResult(
+        data: _todoFromRow(Map<String, dynamic>.from(row)),
+      );
+    } catch (e) {
+      if (_isMissingTable(e)) {
+        return const RhythmRepoResult(data: null, missingTables: true);
+      }
+      return RhythmRepoResult(data: null, friendlyError: _friendlyMessage(e));
     }
   }
 

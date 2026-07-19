@@ -370,7 +370,7 @@ kEveningThresholdRiteDays = <EveningThresholdRiteDay>[
     words:
         'Light has done its work. Shadow now teaches rest, protection, and renewal.',
     eveningAct:
-        'Let one thing be unfinished without anxiety, if it can safely wait.',
+        'If it can safely wait, let one thing remain unfinished without anxiety.',
   ),
   EveningThresholdRiteDay(
     dayNumber: 19,

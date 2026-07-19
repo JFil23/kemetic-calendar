@@ -1,6 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/calendar/maat_flow_response_models.dart';
+import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
+import 'package:mobile/features/calendar/the_course_context.dart';
 import 'package:mobile/features/calendar/the_decan_watch_enrollment.dart';
 import 'package:mobile/features/calendar/the_decan_watch_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_scheduler.dart';
@@ -36,9 +39,18 @@ void main() {
     );
     expect(payload['kind'], 'maat_decan_watch');
     expect(payload['flow_key'], kDecanWatchFlowKey);
-    expect(payload['completion_options'], contains('observed_from_inside'));
+    expect(payload['outdoor_required'], isTrue);
+    expect(payload['completion_options'], <String>[
+      'observed',
+      'observed_from_inside',
+      'skipped',
+    ]);
     expect(payload.toString(), isNot(contains('sky_note')));
     expect(payload.toString(), isNot(contains('decan_intention')));
+    final schedule = payload['schedule'] as Map<String, dynamic>;
+    expect(schedule['type'], 'local_time');
+    expect(schedule['editable_from_hour'], kDecanWatchEditableFromHour);
+    expect(schedule['editable_to_hour'], kDecanWatchEditableToHour);
   });
 
   test('schedule clamps to 6 PM through 11:59 PM local', () {
@@ -99,7 +111,7 @@ void main() {
     },
   );
 
-  test('detail text carries six steps without confidence copy', () {
+  test('detail text keeps Decan Watch generated sections field-pure', () {
     final occurrence = decanWatchOccurrenceFor(
       kYear: 1,
       kMonth: 1,
@@ -109,10 +121,116 @@ void main() {
     final detail = decanWatchDetailText(occurrence, lens: DecanWatchLens.nut);
 
     expect(detail, isNot(contains('Confidence\n')));
+    expect(
+      detail,
+      contains(
+        'Purpose\n'
+        'The opening of ${occurrence.decanName} is a night-sky boundary: the sky has been counting, and one bearing can be taken for the next ten days.',
+      ),
+    );
+    expect(detail, isNot(contains('Purpose\nStand under')));
+    expect(
+      detail,
+      contains(
+        'Outdoor\n'
+        'Go outside if you can. If safety, access, or weather prevents that, stand at a window or threshold. Inside observation still counts; mark the completion as observed from inside. A clouded sky is still a valid record.',
+      ),
+    );
+    expect(detail, contains('safety, access, or weather'));
+    expect(detail, contains('observed from inside'));
+    expect(detail, contains('A clouded sky is still a valid record.'));
     expect(detail, contains(kDecanWatchRequiredLine));
+    expect(detail, contains('Words\n"$kDecanWatchRequiredLine"'));
+    expect(detail, isNot(contains('Words\n"Go outside')));
     expect(detail, contains('1. Go outside.'));
-    expect(detail, contains('6. Reset intention.'));
+    expect(detail, contains('2. Put the phone down.'));
+    expect(
+      detail,
+      contains('3. Stand under open sky for at least one minute.'),
+    );
+    expect(detail, contains('7. Speak the line.'));
+    expect(detail, isNot(contains('Speak the required line.')));
+    expect(detail, contains('8. Note the sky in one line.'));
+    expect(detail, contains('9. Open the ḥꜣw day card.'));
+    expect(
+      detail,
+      contains('10. Read the decan name, quality, and Ma’at principle.'),
+    );
+    expect(detail, contains('12. Name one bearing for the coming ten days.'));
+    expect(
+      detail,
+      contains(
+        'Day Card\n'
+        'The ḥꜣw day card is the calendar card for this decan opening. Open it. Read the decan name, quality, and Ma’at principle.',
+      ),
+    );
   });
+
+  test('contextual day card copy defines ḥꜣw and preserves decan reading', () {
+    final occurrence = decanWatchOccurrenceFor(
+      kYear: 1,
+      kMonth: 1,
+      decanStartDay: 1,
+      timezone: TrackSkyTimeZone.eastern,
+    );
+    final context = courseContextForKemeticDate(
+      kYear: occurrence.kYear,
+      kMonth: occurrence.kMonth,
+      kDay: occurrence.decanStartDay,
+    );
+
+    final detail = decanWatchDetailText(
+      occurrence,
+      lens: DecanWatchLens.neutral,
+      context: context,
+    );
+
+    expect(
+      detail,
+      contains(
+        'Day Card\n'
+        'The ḥꜣw day card is the calendar card for ${context.kemeticDateLabel}. Open it. Read the decan name and quality shown there, including ${context.decanName}, and the Ma’at principle: ${context.maatPrinciple}',
+      ),
+    );
+  });
+
+  test(
+    'response specs preserve visibility, sky note, and bearing contract',
+    () {
+      final specs = resolveMaatFlowResponseSpecs(
+        flowKey: kDecanWatchFlowKey,
+        surface: MaatFlowResponseSurface.calendarSheet,
+      );
+
+      expect(specs.map((spec) => spec.id), <String>[
+        kDecanWatchResponseVisibilitySpecId,
+        kDecanWatchResponseSkyNoteSpecId,
+        kDecanWatchResponseBearingSpecId,
+      ]);
+      final visibility = specs.firstWhere(
+        (spec) => spec.id == kDecanWatchResponseVisibilitySpecId,
+      );
+      expect(visibility.label, 'Visibility');
+      expect(visibility.options.map((option) => option.id), <String>[
+        kDecanWatchVisibilityOutside,
+        kDecanWatchVisibilityInside,
+        kDecanWatchVisibilityClouded,
+        kDecanWatchVisibilityNotVisible,
+      ]);
+      expect(
+        specs
+            .firstWhere((spec) => spec.id == kDecanWatchResponseSkyNoteSpecId)
+            .label,
+        'What did the sky show?',
+      );
+      expect(
+        specs
+            .firstWhere((spec) => spec.id == kDecanWatchResponseBearingSpecId)
+            .label,
+        'What bearing do you carry into the next ten days?',
+      );
+    },
+  );
 
   test('source wires template, window-only picker, and rolling ids', () {
     final calendarPage = File(
@@ -142,6 +260,8 @@ void main() {
     expect(detailPage, contains('designated decan-opening enrollment windows'));
     expect(detailPage, contains('Add Flow'));
     expect(detailPage, isNot(contains("'KYear ")));
+    expect(dayView, contains('DecanWatchLocalStore'));
+    expect(dayView, contains('_persistDecanWatchResponseValues'));
     expect(dayView, isNot(contains('Kemetic Year')));
   });
 }

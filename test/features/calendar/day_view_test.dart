@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
@@ -7,7 +9,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/calendar_completion.dart';
-import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
+import 'package:mobile/features/calendar/calendar_page.dart'
+    show CalendarPage, KemeticMath;
+import 'package:mobile/features/calendar/calendar_warm_start_cache_identity.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/landscape_month_view.dart';
 import 'package:mobile/features/calendar/living_text_day_one_node_store.dart';
@@ -18,9 +22,15 @@ import 'package:mobile/features/calendar/the_weighing_flow.dart';
 import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
 import 'package:mobile/services/app_restoration_service.dart';
+import 'package:mobile/services/calendar_snapshot_repository.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+const String _responsiveRouteUserId = '6c1681cf-09da-4e4e-9af7-72ec7e4d2f01';
+const String _responsiveRouteSupabaseUrl = 'https://example.supabase.co';
+const String _responsiveRouteCachedTitle = 'Responsive Route Cached Event';
+late MemoryCalendarSnapshotStore _responsiveSnapshotStore;
 
 Future<void> _ensureSupabaseInitialized() async {
   try {
@@ -44,12 +54,95 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
+    _responsiveSnapshotStore = MemoryCalendarSnapshotStore();
+    CalendarSnapshotRepository.instance.debugReplaceStore(
+      _responsiveSnapshotStore,
+    );
+    CalendarPage.debugResetWarmStateStoreForTesting();
     kMaatFlowResponseDraftStore.clearForTesting();
     CalendarEventDetailSheetCoordinator.debugResetForTests();
   });
   tearDown(() {
     kMaatFlowResponseDraftStore.clearForTesting();
     CalendarEventDetailSheetCoordinator.debugResetForTests();
+  });
+
+  test(
+    'Day View timeline does not render a false empty state while hydrating',
+    () async {
+      final source = await File(
+        'lib/features/calendar/day_view.dart',
+      ).readAsString();
+      final timelineSource = _sourceBetween(
+        source,
+        'Widget _buildTimelineEventLayer({',
+        'Widget _buildTimelineOverlayLayer() {',
+      );
+
+      expect(timelineSource, isNot(contains('No events')));
+      expect(timelineSource, isNot(contains('Nothing scheduled')));
+      expect(timelineSource, isNot(contains('empty')));
+    },
+  );
+
+  group('CalendarPage responsive route split', () {
+    setUp(() {
+      AppRestorationService.debugUserIdResolver = () => _responsiveRouteUserId;
+      CalendarPage.debugSuppressPendingEventInviteOverlay = true;
+      CalendarPage.debugSuppressCalendarOnboardingHelpers = true;
+    });
+
+    tearDown(() async {
+      try {
+        await Supabase.instance.client.auth.signOut(scope: SignOutScope.local);
+      } catch (_) {
+        // The local session is cleared before Supabase attempts remote sign-out.
+      }
+      AppRestorationService.debugUserIdResolver = null;
+      CalendarPage.debugSuppressPendingEventInviteOverlay = false;
+      CalendarPage.debugSuppressCalendarOnboardingHelpers = false;
+    });
+
+    testWidgets(
+      'tablet landscape CalendarPage opens on the main calendar surface',
+      (tester) async {
+        await _setCalendarTabletLandscapeViewport(tester);
+
+        await _prepareResponsiveCalendarStartupState();
+        await _pumpCalendarPageUntilReady(tester);
+
+        expect(tester.takeException(), isNull);
+        expect(find.byType(CalendarPage), findsOneWidget);
+        expect(find.byType(DayViewPage), findsNothing);
+        expect(find.byType(DayViewGrid), findsNothing);
+        expect(find.byType(LandscapeMonthView), findsNothing);
+        expect(_portraitCalendarScrollFinder(), findsOneWidget);
+
+        await _disposeCalendarPageAndDrainTimers(tester);
+      },
+    );
+
+    testWidgets(
+      'phone portrait CalendarPage keeps the portrait calendar path',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        await _prepareResponsiveCalendarStartupState();
+        await _pumpCalendarPageUntilReady(tester);
+
+        final exception = tester.takeException();
+        if (exception != null) {
+          expect(exception.toString(), contains('RenderFlex overflowed'));
+        }
+        expect(find.byType(CalendarPage), findsOneWidget);
+        expect(find.byType(DayViewPage), findsNothing);
+        expect(find.byType(DayViewGrid), findsNothing);
+        expect(find.byType(LandscapeMonthView), findsNothing);
+        expect(_portraitCalendarScrollFinder(), findsOneWidget);
+
+        await _disposeCalendarPageAndDrainTimers(tester);
+      },
+    );
   });
 
   group('DayViewGrid overlapping event gestures', () {
@@ -175,6 +268,44 @@ void main() {
       },
     );
 
+    testWidgets('tablet landscape short event cards reserve compact height', (
+      tester,
+    ) async {
+      await _setTabletLandscapeViewport(tester);
+
+      await tester.pumpWidget(
+        _DayViewHarness(
+          notes: [
+            _timedNote(
+              title: 'Noon check-in',
+              startHour: 12,
+              startMinute: 0,
+              endHour: 12,
+              endMinute: 30,
+              flowId: 1,
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Noon check-in'), findsWidgets);
+
+      final eventSizedBoxes = tester.widgetList<SizedBox>(
+        find.ancestor(
+          of: find.text('Noon check-in'),
+          matching: find.byType(SizedBox),
+        ),
+      );
+
+      expect(
+        eventSizedBoxes.any((box) => box.height == 70),
+        isTrue,
+        reason: '68px wide card plus 2px hit padding avoids clipped text.',
+      );
+    });
+
     testWidgets('Track Sky event cards fit long moon copy without overflow', (
       tester,
     ) async {
@@ -234,6 +365,31 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(LandscapeMonthView), findsOneWidget);
       expect(find.byType(DayViewGrid), findsNothing);
+    });
+
+    testWidgets('tablet landscape Day View keeps the schedule grid surface', (
+      tester,
+    ) async {
+      await _setTabletLandscapeViewport(tester);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: DayViewPage(
+            initialKy: 1,
+            initialKm: 2,
+            initialKd: 5,
+            showGregorian: false,
+            notesForDay: (_, _, _) => const [],
+            flowIndex: const {},
+            getMonthName: (month) => 'Month $month',
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(LandscapeMonthView), findsNothing);
+      expect(find.byType(DayViewGrid), findsOneWidget);
     });
 
     test(
@@ -652,7 +808,7 @@ void main() {
         expect(find.text('Purpose'), findsNothing);
 
         final bodyFinder = find.textContaining(
-          'These lines are not aspirational',
+          'Speak only the truth-check lines you can speak honestly.',
         );
         expect(bodyFinder, findsOneWidget);
         final bodyText = tester.widget<Text>(bodyFinder);
@@ -668,6 +824,179 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
+      },
+    );
+
+    testWidgets(
+      'Ma_at completion record failure does not write journal continuity',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        var recordAttempts = 0;
+        var appendAttempts = 0;
+
+        await _openTheWeighingDetail(
+          tester,
+          clientEventId: 'cid-maat-record-fails',
+          onAppendToJournal: (text) async {
+            appendAttempts += 1;
+          },
+          onRecordCompletion:
+              ({
+                required String clientEventId,
+                required int flowId,
+                required DateTime completedOnDate,
+                Map<String, dynamic>? metadata,
+              }) async {
+                recordAttempts += 1;
+                throw StateError('completion write failed');
+              },
+        );
+
+        await tester.ensureVisible(find.text('Observed').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+
+        final local = await const CalendarCompletionLocalStore().load(
+          'cid:cid-maat-record-fails',
+        );
+        expect(recordAttempts, 1);
+        expect(appendAttempts, 0);
+        expect(local.completionStatus, CompletionStatus.none);
+        expect(find.text('Could not record this sitting.'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'Ma_at journal append failure reports partial success after completion persists',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        var appendAttempts = 0;
+        final recordedStatuses = <CompletionStatus>[];
+        final unrecordedClientEventIds = <String>[];
+        final removedBadgeIds = <String>[];
+
+        await _openTheWeighingDetail(
+          tester,
+          clientEventId: 'cid-maat-continuity-fails',
+          onAppendToJournal: (text) async {
+            appendAttempts += 1;
+            throw StateError('journal unavailable');
+          },
+          onRecordCompletion:
+              ({
+                required String clientEventId,
+                required int flowId,
+                required DateTime completedOnDate,
+                Map<String, dynamic>? metadata,
+              }) async {
+                recordedStatuses.add(
+                  CompletionStatusX.fromWireName(
+                    metadata?['completion_status']?.toString(),
+                  ),
+                );
+              },
+          onUnrecordCompletion: (clientEventId) async {
+            unrecordedClientEventIds.add(clientEventId);
+          },
+          onRemoveCompletionBadge: (badgeId) async {
+            removedBadgeIds.add(badgeId);
+          },
+        );
+
+        await tester.ensureVisible(find.text('Observed').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+
+        var local = await const CalendarCompletionLocalStore().load(
+          'cid:cid-maat-continuity-fails',
+        );
+        expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
+        expect(appendAttempts, 1);
+        expect(local.completionStatus, CompletionStatus.observed);
+        expect(
+          find.text(kCalendarCompletionContinuityFailureMessage),
+          findsOneWidget,
+        );
+
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+
+        local = await const CalendarCompletionLocalStore().load(
+          'cid:cid-maat-continuity-fails',
+        );
+        expect(appendAttempts, 1);
+        expect(unrecordedClientEventIds, <String>['cid-maat-continuity-fails']);
+        expect(removedBadgeIds, hasLength(1));
+        expect(removedBadgeIds.single, startsWith('calendar:maat_flow:'));
+        expect(local.completionStatus, CompletionStatus.none);
+      },
+    );
+
+    testWidgets(
+      'Ma_at post-commit failure does not invite a duplicate journal append',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        var appendAttempts = 0;
+        final appendedTexts = <String>[];
+        final recordedStatuses = <CompletionStatus>[];
+        final unrecordedClientEventIds = <String>[];
+
+        await _openTheWeighingDetail(
+          tester,
+          clientEventId: 'cid-maat-post-commit-fails',
+          onAppendToJournal: (text) async {
+            appendAttempts += 1;
+            appendedTexts.add(text);
+            throw const CalendarCompletionPostCommitException();
+          },
+          onRecordCompletion:
+              ({
+                required String clientEventId,
+                required int flowId,
+                required DateTime completedOnDate,
+                Map<String, dynamic>? metadata,
+              }) async {
+                recordedStatuses.add(
+                  CompletionStatusX.fromWireName(
+                    metadata?['completion_status']?.toString(),
+                  ),
+                );
+              },
+          onUnrecordCompletion: (clientEventId) async {
+            unrecordedClientEventIds.add(clientEventId);
+          },
+        );
+
+        await tester.ensureVisible(find.text('Observed').last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+
+        var local = await const CalendarCompletionLocalStore().load(
+          'cid:cid-maat-post-commit-fails',
+        );
+        expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
+        expect(appendAttempts, 1);
+        expect(appendedTexts, hasLength(1));
+        expect(local.completionStatus, CompletionStatus.observed);
+        expect(
+          find.text(kCalendarCompletionPostCommitFailureMessage),
+          findsOneWidget,
+        );
+
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+
+        local = await const CalendarCompletionLocalStore().load(
+          'cid:cid-maat-post-commit-fails',
+        );
+        expect(appendAttempts, 1);
+        expect(unrecordedClientEventIds, <String>[
+          'cid-maat-post-commit-fails',
+        ]);
+        expect(local.completionStatus, CompletionStatus.none);
       },
     );
 
@@ -798,6 +1127,88 @@ void main() {
             .toList();
         expect(tokens.map((token) => token.id).toSet(), hasLength(1));
         expect(tokens.last.completionStatus, CompletionStatus.skipped);
+      },
+    );
+
+    testWidgets(
+      'completion journal append failure reports partial success after completion persists',
+      (tester) async {
+        await _setPhoneViewport(tester);
+
+        var appendAttempts = 0;
+        final recordedStatuses = <CompletionStatus>[];
+        final unrecordedClientEventIds = <String>[];
+        final removedBadgeIds = <String>[];
+
+        await tester.pumpWidget(
+          _DayViewHarness(
+            notes: [
+              _timedNote(
+                clientEventId: 'cid-journal-append-fails',
+                title: 'Journal Append Fails',
+                startHour: 10,
+                startMinute: 0,
+                endHour: 11,
+                endMinute: 0,
+                flowId: 1,
+              ),
+            ],
+            onAppendToJournal: (text) async {
+              appendAttempts += 1;
+              throw StateError('journal unavailable');
+            },
+            onRecordCompletion:
+                ({
+                  required String clientEventId,
+                  required int flowId,
+                  required DateTime completedOnDate,
+                  Map<String, dynamic>? metadata,
+                }) async {
+                  recordedStatuses.add(
+                    CompletionStatusX.fromWireName(
+                      metadata?['completion_status']?.toString() ??
+                          metadata?['status']?.toString(),
+                    ),
+                  );
+                },
+            onUnrecordCompletion: (clientEventId) async {
+              unrecordedClientEventIds.add(clientEventId);
+            },
+            onRemoveCompletionBadge: (badgeId) async {
+              removedBadgeIds.add(badgeId);
+            },
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Journal Append Fails'));
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+
+        expect(recordedStatuses, <CompletionStatus>[CompletionStatus.observed]);
+        expect(appendAttempts, 1);
+        expect(
+          find.text(kCalendarCompletionContinuityFailureMessage),
+          findsOneWidget,
+        );
+        var local = await const CalendarCompletionLocalStore().load(
+          'cid:cid-journal-append-fails',
+        );
+        expect(local.completionStatus, CompletionStatus.observed);
+
+        await tester.tap(find.text('Observed').last);
+        await tester.pumpAndSettle();
+
+        local = await const CalendarCompletionLocalStore().load(
+          'cid:cid-journal-append-fails',
+        );
+        expect(appendAttempts, 1);
+        expect(unrecordedClientEventIds, <String>['cid-journal-append-fails']);
+        expect(removedBadgeIds, hasLength(1));
+        expect(removedBadgeIds.single, startsWith('calendar:user_flow:'));
+        expect(local.completionStatus, CompletionStatus.none);
       },
     );
 
@@ -2419,6 +2830,15 @@ Future<void> _setPhoneLandscapeViewport(WidgetTester tester) async {
   });
 }
 
+Future<void> _setCalendarTabletLandscapeViewport(WidgetTester tester) async {
+  tester.view.devicePixelRatio = 1.0;
+  tester.view.physicalSize = const Size(1024, 768);
+  addTearDown(() async {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+}
+
 Future<void> _setTabletLandscapeViewport(WidgetTester tester) async {
   tester.view.devicePixelRatio = 1.0;
   tester.view.physicalSize = const Size(1194, 834);
@@ -2426,6 +2846,136 @@ Future<void> _setTabletLandscapeViewport(WidgetTester tester) async {
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();
   });
+}
+
+Future<void> _pumpCalendarPageUntilReady(WidgetTester tester) async {
+  await tester.pumpWidget(MaterialApp(home: CalendarPage(key: UniqueKey())));
+  for (var attempt = 0; attempt < 30; attempt++) {
+    await tester.pump(const Duration(milliseconds: 50));
+    if (_portraitCalendarScrollFinder().evaluate().isNotEmpty) {
+      return;
+    }
+  }
+}
+
+Future<void> _disposeCalendarPageAndDrainTimers(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump(const Duration(milliseconds: 500));
+}
+
+Finder _portraitCalendarScrollFinder() {
+  return find.byWidgetPredicate((widget) {
+    final key = widget.key;
+    return key is PageStorageKey && key.value == 'calendar_portrait_scroll';
+  });
+}
+
+Future<void> _prepareResponsiveCalendarStartupState() async {
+  if (Supabase.instance.client.auth.currentUser?.id != _responsiveRouteUserId) {
+    await _recoverResponsiveRouteTestSession();
+  }
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool('onboarding_v1_completed:$_responsiveRouteUserId', true);
+  await prefs.setBool('calendar:cid_migration_done', true);
+  final identity = _responsiveRouteSnapshotIdentity();
+  final now = DateTime.now().toUtc();
+  await CalendarSnapshotRepository.instance.promote(
+    CalendarSnapshotCandidate(
+      identity: identity,
+      coverage: CalendarSnapshotCoverage(
+        startUtc: now.subtract(const Duration(days: 365)),
+        endUtc: now.add(const Duration(days: 365)),
+      ),
+      completedLanes: calendarSnapshotRequiredLanes,
+      generation: 1,
+      payload: Map<String, dynamic>.from(_responsiveRouteWarmSnapshot()),
+      source: 'responsive_route_test',
+    ),
+  );
+}
+
+CalendarSnapshotIdentity _responsiveRouteSnapshotIdentity() {
+  final projectRef = calendarWarmStartProjectRefFromUrl(
+    _responsiveRouteSupabaseUrl,
+  );
+  if (projectRef == null) {
+    throw StateError(
+      'Responsive route test Supabase URL must produce a project ref.',
+    );
+  }
+  return CalendarSnapshotIdentity(
+    projectRef: projectRef,
+    userId: _responsiveRouteUserId,
+  );
+}
+
+Map<String, Object?> _responsiveRouteWarmSnapshot() {
+  final today = KemeticMath.fromGregorian(DateTime.now());
+  final projectRef = calendarWarmStartProjectRefFromUrl(
+    _responsiveRouteSupabaseUrl,
+  );
+  if (projectRef == null) {
+    throw StateError(
+      'Responsive route test Supabase URL must produce a project ref.',
+    );
+  }
+
+  return <String, Object?>{
+    'schemaVersion': calendarWarmStartCacheSchemaVersion,
+    'projectRef': projectRef,
+    'userId': _responsiveRouteUserId,
+    'savedAt': DateTime.now().toUtc().toIso8601String(),
+    'loadCompleted': true,
+    'nextFlowId': 1,
+    'flows': const <Object?>[],
+    'notes': <String, Object?>{
+      '${today.kYear}-${today.kMonth}-${today.kDay}': <Object?>[
+        <String, Object?>{
+          'id': 'responsive-route-warm-event',
+          'clientEventId': 'cid-responsive-route-warm-event',
+          'title': _responsiveRouteCachedTitle,
+          'detail': 'Warm cached event for responsive route tests',
+          'allDay': true,
+          'flowId': -1,
+          'resolvedColor': 0xFFB0B6C3,
+          'category': 'note',
+          'isReminder': false,
+        },
+      ],
+    },
+    'flowTotalEventCounts': const <String, Object?>{},
+    'flowRemainingEventCounts': const <String, Object?>{},
+  };
+}
+
+Future<void> _recoverResponsiveRouteTestSession() async {
+  final expiresAt =
+      DateTime.now().add(const Duration(days: 365)).millisecondsSinceEpoch ~/
+      1000;
+  await Supabase.instance.client.auth.recoverSession(
+    jsonEncode(<String, Object?>{
+      'access_token': 'responsive-route-test-access-token-$expiresAt',
+      'expires_in': 31536000,
+      'refresh_token': 'responsive-route-test-refresh-token',
+      'token_type': 'bearer',
+      'user': <String, Object?>{
+        'id': _responsiveRouteUserId,
+        'app_metadata': <String, Object?>{
+          'provider': 'email',
+          'providers': <String>['email'],
+        },
+        'user_metadata': <String, Object?>{},
+        'aud': 'authenticated',
+        'email': 'calendar-route-test@example.com',
+        'phone': '',
+        'created_at': '2026-01-01T00:00:00.000000Z',
+        'email_confirmed_at': '2026-01-01T00:00:00.000000Z',
+        'role': 'authenticated',
+        'updated_at': '2026-01-01T00:00:00.000000Z',
+      },
+      'expiresAt': expiresAt,
+    }),
+  );
 }
 
 NoteData _timedNote({
@@ -2449,6 +2999,71 @@ NoteData _timedNote({
     flowId: flowId,
     behaviorPayload: behaviorPayload,
   );
+}
+
+typedef _RecordCompletionCallback =
+    Future<void> Function({
+      required String clientEventId,
+      required int flowId,
+      required DateTime completedOnDate,
+      Map<String, dynamic>? metadata,
+    });
+
+Future<String> _openTheWeighingDetail(
+  WidgetTester tester, {
+  required String clientEventId,
+  Future<void> Function(String text)? onAppendToJournal,
+  _RecordCompletionCallback? onRecordCompletion,
+  Future<void> Function(String clientEventId)? onUnrecordCompletion,
+  Future<void> Function(String badgeId)? onRemoveCompletionBadge,
+}) async {
+  final event = kTheWeighingEvents.singleWhere(
+    (event) => event.eventNumber == 9,
+  );
+  final title = theWeighingEventTitle(event);
+
+  await tester.pumpWidget(
+    _DayViewHarness(
+      initialScrollOffset: 9 * 60,
+      flowIndex: const <int, FlowData>{
+        90: FlowData(
+          id: 90,
+          name: kTheWeighingTitle,
+          color: Colors.amber,
+          active: true,
+          notes: 'weighing_lens=neutral',
+        ),
+      },
+      notes: [
+        NoteData(
+          clientEventId: clientEventId,
+          title: title,
+          detail: theWeighingDetailText(event, lens: TheWeighingLens.neutral),
+          category: event.decanSection,
+          allDay: false,
+          start: const TimeOfDay(hour: 10, minute: 0),
+          end: const TimeOfDay(hour: 10, minute: 10),
+          flowId: 90,
+        ),
+      ],
+      onAppendToJournal: onAppendToJournal,
+      onRecordCompletion: onRecordCompletion,
+      onUnrecordCompletion: onUnrecordCompletion,
+      onRemoveCompletionBadge: onRemoveCompletionBadge,
+    ),
+  );
+  await tester.pumpAndSettle();
+
+  final eventSurface = find
+      .ancestor(
+        of: find.text(title).first,
+        matching: find.byType(GestureDetector),
+      )
+      .last;
+  await tester.tap(eventSurface);
+  await tester.pumpAndSettle();
+
+  return title;
 }
 
 NoteData _livingTextNote({
@@ -2941,4 +3556,12 @@ EventItem _eventFromNote(NoteData note) {
     reminderId: note.reminderId,
     behaviorPayload: note.behaviorPayload,
   );
+}
+
+String _sourceBetween(String source, String start, String end) {
+  final startIndex = source.indexOf(start);
+  expect(startIndex, isNonNegative, reason: 'Missing source start: $start');
+  final endIndex = source.indexOf(end, startIndex + start.length);
+  expect(endIndex, isNonNegative, reason: 'Missing source end: $end');
+  return source.substring(startIndex, endIndex);
 }

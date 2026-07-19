@@ -12,6 +12,15 @@ enum RestorationRestoreReason {
   userNavigation,
 }
 
+class RestorationUserIntentLease {
+  const RestorationUserIntentLease._(this._owner, this.generation);
+
+  final RestorationCoordinator _owner;
+  final int generation;
+
+  bool get isCurrent => _owner._userIntentGeneration == generation;
+}
+
 class RestorationCoordinator {
   RestorationCoordinator._();
 
@@ -27,8 +36,36 @@ class RestorationCoordinator {
   String? _restoreTargetLocation = '/';
   final Set<String> _consumedRestoreSurfaces = <String>{};
   final Set<String> _suppressedRestoreSurfaces = <String>{};
+  int _userIntentGeneration = 0;
 
   RestorationRestoreReason get restoreReason => _restoreReason;
+
+  RestorationUserIntentLease captureUserIntentLease() {
+    return RestorationUserIntentLease._(this, _userIntentGeneration);
+  }
+
+  void _advanceUserIntent({required String reason, required String source}) {
+    assert(reason.trim().isNotEmpty);
+    _userIntentGeneration += 1;
+    traceRestoration(
+      'user intent advanced generation=$_userIntentGeneration '
+      'source=$source reason=$reason',
+    );
+  }
+
+  void noteCalendarViewportIntent({required String reason}) {
+    _advanceUserIntent(reason: reason, source: 'calendar_viewport');
+  }
+
+  void resetForTesting() {
+    _lastLifecycleState = AppLifecycleState.resumed;
+    _lastExitLifecycleAt = null;
+    _restoreReason = RestorationRestoreReason.coldLaunch;
+    _restoreTargetLocation = '/';
+    _consumedRestoreSurfaces.clear();
+    _suppressedRestoreSurfaces.clear();
+    _userIntentGeneration = 0;
+  }
 
   bool get shouldDeferRootRoutePersistenceForLaunch {
     final defer =
@@ -70,6 +107,7 @@ class RestorationCoordinator {
     Iterable<String> surfaces = const <String>[],
   }) {
     assert(reason.trim().isNotEmpty);
+    _advanceUserIntent(reason: reason, source: 'navigation');
     _restoreReason = RestorationRestoreReason.userNavigation;
     _restoreTargetLocation = null;
     _suppressedRestoreSurfaces.addAll(

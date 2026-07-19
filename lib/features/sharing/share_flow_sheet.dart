@@ -11,6 +11,7 @@ import '../../data/share_repo.dart';
 import '../../data/profile_repo.dart';
 import '../inbox/conversation_user.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:mobile/shared/kemetic_text.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../../widgets/profile_avatar.dart';
 
@@ -840,7 +841,10 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
         );
         return;
       }
-      await Share.share(text);
+      final externalText = KemeticExternalText.asciiSafe(text);
+      await Share.share(
+        externalText.isEmpty ? 'Kemetic Calendar' : externalText,
+      );
       if (mounted) Navigator.pop(context, true);
       return;
     }

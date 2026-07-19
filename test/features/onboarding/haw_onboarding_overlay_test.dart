@@ -3,6 +3,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/onboarding/decan_compass_copy_repo.dart';
 import 'package:mobile/features/onboarding/onboarding_overlay.dart';
 
+const Color _oldDimSecondaryText = Color(0xFF746440);
+const Color _onboardingActionCue = Color(0xFFA89560);
+const Color _wordmarkLead = Color(0xFFB09C68);
+const Color _wordmarkEmphasis = Color(0xFFE0C465);
+
 void main() {
   HawCompassCopy compassCopy() {
     return const HawCompassCopy(
@@ -66,6 +71,32 @@ void main() {
 
     await tester.pump(const Duration(seconds: 6));
     expect(find.text('tap to begin'), findsOneWidget);
+    expect(_textColor(tester, 'skip'), _onboardingActionCue);
+    expect(_textColor(tester, 'tap to begin'), _onboardingActionCue);
+    expect(
+      _onboardingActionCue.computeLuminance(),
+      greaterThan(_oldDimSecondaryText.computeLuminance()),
+    );
+    final openingWordmark = _textSpanForPlainText(tester, 'this is ḥꜣw');
+    expect(openingWordmark.text, 'this is ');
+    expect(openingWordmark.style?.color, _wordmarkLead);
+    expect(openingWordmark.style?.fontWeight, FontWeight.w300);
+    final hawSpan = openingWordmark.children?.single as TextSpan;
+    expect(hawSpan.text, 'ḥꜣw');
+    expect(hawSpan.style?.color, _wordmarkEmphasis);
+    expect(hawSpan.style?.fontWeight, FontWeight.w400);
+    expect(
+      _wordmarkLead.computeLuminance(),
+      greaterThan(_oldDimSecondaryText.computeLuminance()),
+    );
+    expect(
+      _wordmarkEmphasis.computeLuminance(),
+      greaterThan(_wordmarkLead.computeLuminance()),
+    );
+    expect(
+      _wordmarkEmphasis.computeLuminance(),
+      greaterThan(_onboardingActionCue.computeLuminance()),
+    );
     await tester.tap(find.text('tap to begin'));
     await tester.pumpAndSettle();
 
@@ -85,6 +116,7 @@ void main() {
         HawOnboardingSlide.orientation,
       ]),
     );
+    expect(_textColor(tester, 'next'), _onboardingActionCue);
     await tester.tap(find.text('next'));
     await tester.pumpAndSettle();
 
@@ -140,6 +172,39 @@ void main() {
 
     expect(skipped, isTrue);
     expect(joinedFlow, isFalse);
+  });
+
+  testWidgets('can restore directly to Recommended First Flow after remount', (
+    tester,
+  ) async {
+    final eventKey = GlobalKey();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: OnboardingOverlay(
+          initialSlide: HawOnboardingSlide.recommendedFlow,
+          compassCopy: compassCopy(),
+          dayViewEventTargetKey: eventKey,
+          onEntryStateSelected: (_) async {},
+          onSkip: () {},
+          onComplete: () {},
+          recommendedFlowBuilder: (context, onJoined) {
+            return const Center(child: Text('Join Flow'));
+          },
+          dayViewBuilder: (context, onEventOpened, onClosingComplete) {
+            return SizedBox(key: eventKey);
+          },
+        ),
+      ),
+    );
+
+    await tester.pump();
+    expect(find.text('tap to begin'), findsNothing);
+    expect(find.text('Recommended First Flow'), findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 260));
+    expect(find.text('Join Flow'), findsOneWidget);
+    expect(find.text('tap to begin'), findsNothing);
   });
 
   testWidgets('closing copy is removed before seal appears', (tester) async {
@@ -203,6 +268,15 @@ void main() {
     expect(copy.dayAlignedReturnKey, 'settle_after_flood');
   });
 
+  test('Ka-her-Ka fallback keeps the accepted onboarding spelling', () {
+    final copy = DecanCompassCopyRepo.fallbackForDay(kMonth: 4, kDay: 22);
+
+    expect(copy.dateLabel, contains('Ka-her-Ka'));
+    expect(copy.monthName, 'Ka-her-Ka');
+    expect(copy.dateLabel, isNot(contains('Ka-ḥer-Ka')));
+    expect(copy.dateLabel, isNot(contains('Khoiak')));
+  });
+
   test('compass fallback covers all 365 Kemetic days', () {
     final decanKeys = <String>{};
 
@@ -237,4 +311,17 @@ Finder _richTextContaining(String text) {
   return find.byWidgetPredicate((widget) {
     return widget is RichText && widget.text.toPlainText().contains(text);
   });
+}
+
+TextSpan _textSpanForPlainText(WidgetTester tester, String text) {
+  final richText = tester.widget<RichText>(
+    find.byWidgetPredicate((widget) {
+      return widget is RichText && widget.text.toPlainText() == text;
+    }),
+  );
+  return richText.text as TextSpan;
+}
+
+Color? _textColor(WidgetTester tester, String text) {
+  return tester.widget<Text>(find.text(text)).style?.color;
 }

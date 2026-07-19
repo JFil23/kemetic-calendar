@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:mobile/shared/kemetic_text.dart';
 
 class CalendarToggleCoachmark extends StatefulWidget {
   const CalendarToggleCoachmark({
@@ -248,7 +249,7 @@ class _CalendarToggleCoachmarkState extends State<CalendarToggleCoachmark>
                                       ),
                                     ),
                                     const SizedBox(height: 8),
-                                    Text(
+                                    KemeticText(
                                       'Tap ḥꜣw to toggle between the Kemetic calendar and the Gregorian calendar at any time.',
                                       style: TextStyle(
                                         color: Colors.white.withValues(

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/maat_guidance_model.dart';
@@ -11,6 +13,53 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues(const <String, Object>{});
+  });
+
+  test('global lower-third presenter uses shared decan onboarding gate', () {
+    final source = File('lib/main.dart').readAsStringSync();
+    final suppression = _sourceBetween(
+      source,
+      'bool _shouldSuppressMaatGuidance(BuildContext context) {',
+      'String _traceRouteLabel()',
+    );
+    final gateEvaluation = _sourceBetween(
+      source,
+      'Future<void> _evaluateMaatGuidanceGate(int serial) async {',
+      'void _resetFloatingMenuStateAfterFrame()',
+    );
+    final pushGate = _sourceBetween(
+      source,
+      'Future<bool> _canOpenMaatGuidancePush(',
+      'void _openSharedFlow(String shareId) {',
+    );
+
+    expect(suppression, contains('_maatGuidanceProactiveUiAllowed'));
+    expect(suppression, contains('_maatGuidancePromptDecanIdentity()'));
+    expect(suppression, contains('DecanReflectionOnboardingGate.shouldBlock'));
+    expect(
+      gateEvaluation,
+      contains('DecanReflectionOnboardingGate.shouldBlock'),
+    );
+    expect(
+      gateEvaluation,
+      contains('_maatGuidanceController.dismissCurrent()'),
+    );
+    expect(
+      gateEvaluation,
+      contains('loadLocalReconciledWithLegacyCompletion('),
+    );
+    expect(
+      gateEvaluation.indexOf('loadLocalReconciledWithLegacyCompletion('),
+      lessThan(gateEvaluation.indexOf('isCompletedLocally(userId)')),
+      reason:
+          'Proactive guidance must consume legacy completion through the v2 '
+          'reconciliation boundary.',
+    );
+    expect(gateEvaluation, isNot(contains('loadLocalIfPresent(')));
+    expect(pushGate, contains('DecanReflectionOnboardingGate.shouldBlock'));
+    expect(pushGate, contains('_maatGuidanceDecanIdentityFromPeriodKey'));
+    expect(pushGate, contains('loadLocalReconciledWithLegacyCompletion('));
+    expect(pushGate, isNot(contains('loadLocalIfPresent(')));
   });
 
   testWidgets('floating card dismiss button does not require an Overlay', (
@@ -198,6 +247,14 @@ void main() {
     expect(find.byType(MaatGuidanceFloatingCard), findsOneWidget);
     expect(find.text('Read guidance'), findsOneWidget);
   });
+}
+
+String _sourceBetween(String source, String start, String end) {
+  final startIndex = source.indexOf(start);
+  expect(startIndex, isNonNegative, reason: 'Missing source start: $start');
+  final endIndex = source.indexOf(end, startIndex + start.length);
+  expect(endIndex, isNonNegative, reason: 'Missing source end: $end');
+  return source.substring(startIndex, endIndex);
 }
 
 MaatGuidanceDelivery _delivery() {

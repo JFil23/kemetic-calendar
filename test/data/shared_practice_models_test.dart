@@ -14,6 +14,11 @@ void main() {
           'created_by': 'user-1',
           'title': 'The Closing',
           'status': 'active',
+          'visibility': 'public',
+          'join_policy': 'owner_approval',
+          'member_count': 2,
+          'pending_request_count': 1,
+          'viewer_can_manage': true,
         },
         'calendar': {'id': 'cal-1', 'name': 'Family', 'color': 0xD4AE43},
         'local_date': '2026-06-24',
@@ -58,10 +63,36 @@ void main() {
             'moderation_status': 'visible',
           },
         ],
+        'join_requests': [
+          {
+            'id': 'request-1',
+            'room_id': 'room-1',
+            'requester_id': 'user-3',
+            'requester_display_name': 'Aset',
+            'message': 'I can keep this with care.',
+            'status': 'pending',
+          },
+        ],
+        'viewer_can_manage': true,
+        'viewer_is_member': true,
       });
 
       expect(snapshot.room.id, 'room-1');
+      expect(snapshot.room.visibility, SharedPracticeRoomVisibility.public);
+      expect(snapshot.room.joinPolicy, SharedPracticeJoinPolicy.ownerApproval);
+      expect(snapshot.room.pendingJoinRequestCount, 1);
+      expect(snapshot.viewerCanManage, isTrue);
       expect(snapshot.todayStep?.flowId, 84);
+      expect(snapshot.isSharedCalendarPractice, isTrue);
+      expect(snapshot.memberCountLabel, '2 members');
+      expect(snapshot.sharedThroughLabel, 'Shared through Family');
+      expect(snapshot.accessPillLabels, [
+        'Shared calendar practice',
+        'Shared through Family',
+        '2 members',
+      ]);
+      expect(snapshot.accessPillLabels, isNot(contains('Public')));
+      expect(snapshot.accessPillLabels, isNot(contains('Ask to join')));
       expect(
         snapshot.members.first.completionStatus,
         CompletionStatus.observed,
@@ -74,6 +105,41 @@ void main() {
         snapshot.entries.single.visibility,
         SharedPracticeVisibility.private,
       );
+      expect(snapshot.joinRequests.single.requesterLabel, 'Aset');
+    });
+
+    test('personal rooms keep explicit visibility and join labels', () {
+      final snapshot = SharedPracticeRoomSnapshot.fromJson({
+        'room': {
+          'id': 'room-1',
+          'calendar_id': 'cal-1',
+          'source_flow_id': 42,
+          'created_by': 'user-1',
+          'title': 'The Closing',
+          'status': 'active',
+          'visibility': 'private',
+          'join_policy': 'owner_approval',
+          'member_count': 1,
+        },
+        'calendar': {
+          'id': 'cal-1',
+          'name': 'My Calendar',
+          'color': 0xD4AE43,
+          'is_personal': true,
+        },
+        'local_date': '2026-06-24',
+        'members': [
+          {
+            'user_id': 'user-1',
+            'completion_status': 'observed',
+            'completed_count': 1,
+            'total_count': 1,
+          },
+        ],
+      });
+
+      expect(snapshot.isSharedCalendarPractice, isFalse);
+      expect(snapshot.accessPillLabels, ['Private', 'Ask to join']);
     });
 
     test('builds factual summary without interpretive language', () {

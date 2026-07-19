@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../shared/kemetic_text.dart';
+
 class LibraryVisualTokens {
   const LibraryVisualTokens._();
 
@@ -22,14 +24,8 @@ class LibraryVisualTokens {
 
   static const String serifFont = 'CormorantGaramond';
   static const String glyphFont = 'Noto Sans Egyptian Hieroglyphs';
-  static const List<String> glyphFontFallback = [
-    'NotoSansEgyptianHieroglyphs',
-    'GentiumPlus',
-    'NotoSans',
-    'Roboto',
-    'Arial',
-    'sans-serif',
-  ];
+  static const List<String> glyphFontFallback =
+      KemeticTypography.meduNeterFallback;
   static const List<String> sansFontFallback = [
     'NotoSans',
     'Roboto',
@@ -78,6 +74,7 @@ class LibraryVisualTokens {
   static TextStyle chromeTitleStyle() => const TextStyle(
     color: gold,
     fontFamily: serifFont,
+    fontFamilyFallback: KemeticTypography.kemeticLatinFallback,
     fontWeight: FontWeight.w600,
     fontSize: 34,
     height: 1,
@@ -106,6 +103,7 @@ class LibraryVisualTokens {
   static TextStyle canonSubtitleStyle() => const TextStyle(
     color: midText,
     fontFamily: serifFont,
+    fontFamilyFallback: KemeticTypography.kemeticLatinFallback,
     fontStyle: FontStyle.italic,
     fontSize: 20,
     height: 1.35,
@@ -115,6 +113,7 @@ class LibraryVisualTokens {
   static TextStyle cardTitleStyle() => const TextStyle(
     color: gold,
     fontFamily: serifFont,
+    fontFamilyFallback: KemeticTypography.kemeticLatinFallback,
     fontWeight: FontWeight.w600,
     fontSize: 24,
     height: 1.05,
@@ -124,6 +123,7 @@ class LibraryVisualTokens {
   static TextStyle themeStyle() => const TextStyle(
     color: midText,
     fontFamily: serifFont,
+    fontFamilyFallback: KemeticTypography.kemeticLatinFallback,
     fontStyle: FontStyle.italic,
     fontWeight: FontWeight.w400,
     fontSize: 14,
@@ -134,6 +134,7 @@ class LibraryVisualTokens {
   static TextStyle openingStyle() => const TextStyle(
     color: highlightText,
     fontFamily: serifFont,
+    fontFamilyFallback: KemeticTypography.kemeticLatinFallback,
     fontWeight: FontWeight.w400,
     fontSize: 18.5,
     height: 1.48,

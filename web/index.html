@@ -21,6 +21,12 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
   <link rel="icon" type="image/png" href="favicon.png"/>
+  <link
+    rel="preload"
+    href="assets/ios/Runner/Fonts/GentiumPlus-Regular.ttf"
+    as="font"
+    type="font/ttf"
+    crossorigin>
 
   <title>Kemetic Calendar</title>
 
@@ -91,13 +97,64 @@
   </script>
 
   <style>
+    @font-face {
+      font-family: 'KemeticBootGentium';
+      src: url('assets/ios/Runner/Fonts/GentiumPlus-Regular.ttf') format('truetype');
+      font-style: normal;
+      font-weight: 400;
+      font-display: block;
+    }
+
+    @keyframes pwaBootShimmer {
+      from { background-position: 130% 50%; }
+      to { background-position: -130% 50%; }
+    }
+
     /* Keep it minimal and safe */
     html, body {
       margin: 0;
       height: 100%;
-      background-color: #000000;
+      background-color: #171518;
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
+    }
+
+    #pwa-boot-splash {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      z-index: 2147483647;
+      background: #171518;
+      pointer-events: none;
+      transition: opacity 120ms ease;
+    }
+
+    #pwa-boot-splash [data-launch-word] {
+      color: transparent;
+      font-family: 'KemeticBootGentium';
+      font-size: 42px;
+      font-weight: 400;
+      line-height: 1;
+      background: linear-gradient(
+        90deg,
+        #8A6B16 0%,
+        #D4AF37 20%,
+        #FFE8A3 38%,
+        #FFF8DD 50%,
+        #FFE8A3 62%,
+        #D4AF37 80%,
+        #8A6B16 100%
+      );
+      background-size: 260% 100%;
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: pwaBootShimmer 2600ms linear infinite;
+    }
+
+    #pwa-boot-splash.pwa-boot-splash--dismissed {
+      opacity: 0;
     }
 
     /*
@@ -324,6 +381,27 @@
   </script>
 </head>
 <body>
+<div id="pwa-boot-splash" aria-hidden="true">
+  <span data-launch-word>ḥꜣw</span>
+</div>
+<script>
+  (function () {
+    const splash = document.getElementById('pwa-boot-splash');
+    if (!splash) return;
+
+    let removed = false;
+    function removeBootSplash() {
+      if (removed) return;
+      removed = true;
+      splash.classList.add('pwa-boot-splash--dismissed');
+      window.requestAnimationFrame(function () {
+        splash.remove();
+      });
+    }
+
+    window.addEventListener('flutter-first-frame', removeBootSplash, { once: true });
+  })();
+</script>
 <script>
   // 👇 request persistent storage on Safari
   if (navigator.storage && navigator.storage.persist) {

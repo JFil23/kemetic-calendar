@@ -350,10 +350,12 @@ void main() {
     final failureStart = record.indexOf('    } catch (_) {');
     expect(failureStart, isNonNegative);
     final failureBlock = record.substring(failureStart);
-    expect(failureBlock, contains('setState(() => _saving = false)'));
+    expect(failureBlock, contains('_saving = false'));
+    expect(failureBlock, contains('if (completionRecorded)'));
+    expect(failureBlock, contains('if (journalContinuityRecorded)'));
     expect(
-      failureBlock,
-      isNot(contains('_eveningThresholdReleasePending = false')),
+      failureBlock.indexOf('_eveningThresholdReleasePending = false'),
+      greaterThan(failureBlock.indexOf('if (journalContinuityRecorded)')),
     );
 
     final setCarry = _sourceBetween(
@@ -968,6 +970,152 @@ void main() {
         CompletionStatus.partial,
         CompletionStatus.skipped,
       ]);
+    },
+  );
+
+  testWidgets(
+    'completion panel reports record failure before local completion commit',
+    (tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      const identity = 'cid:record-fails';
+      var recordAttempts = 0;
+      var continuityAttempts = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CalendarEventCompletionPanel(
+              identity: identity,
+              sourceType: CompletionSourceType.userFlow,
+              loadStatus: () async => CompletionStatus.none,
+              onRecordStatus: (status) async {
+                recordAttempts += 1;
+                throw StateError('completion write failed');
+              },
+              onCreateContinuity: (status) async {
+                continuityAttempts += 1;
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Observed'));
+      await tester.pumpAndSettle();
+
+      final local = await const CalendarCompletionLocalStore().load(identity);
+      expect(recordAttempts, 1);
+      expect(continuityAttempts, 0);
+      expect(local.completionStatus, CompletionStatus.none);
+      expect(
+        find.text(kCalendarCompletionRecordFailureMessage),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets(
+    'completion panel reports continuity failure after completion commit',
+    (tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      const identity = 'cid:continuity-fails';
+      final recorded = <CompletionStatus>[];
+      var continuityAttempts = 0;
+      var clearCount = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CalendarEventCompletionPanel(
+              identity: identity,
+              sourceType: CompletionSourceType.userFlow,
+              loadStatus: () async => CompletionStatus.none,
+              onRecordStatus: (status) async => recorded.add(status),
+              onClearStatus: () async {
+                clearCount += 1;
+              },
+              onCreateContinuity: (status) async {
+                continuityAttempts += 1;
+                throw StateError('journal append failed');
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Observed'));
+      await tester.pumpAndSettle();
+
+      var local = await const CalendarCompletionLocalStore().load(identity);
+      expect(recorded, <CompletionStatus>[CompletionStatus.observed]);
+      expect(continuityAttempts, 1);
+      expect(local.completionStatus, CompletionStatus.observed);
+      expect(
+        find.text(kCalendarCompletionContinuityFailureMessage),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Observed'));
+      await tester.pumpAndSettle();
+
+      local = await const CalendarCompletionLocalStore().load(identity);
+      expect(clearCount, 1);
+      expect(continuityAttempts, 1);
+      expect(local.completionStatus, CompletionStatus.none);
+    },
+  );
+
+  testWidgets(
+    'completion panel treats post-commit failure as saved journal continuity',
+    (tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      const identity = 'cid:post-commit-fails';
+      final recorded = <CompletionStatus>[];
+      var continuityAttempts = 0;
+      var clearCount = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: CalendarEventCompletionPanel(
+              identity: identity,
+              sourceType: CompletionSourceType.userFlow,
+              loadStatus: () async => CompletionStatus.none,
+              onRecordStatus: (status) async => recorded.add(status),
+              onClearStatus: () async {
+                clearCount += 1;
+              },
+              onCreateContinuity: (status) async {
+                continuityAttempts += 1;
+                throw const CalendarCompletionPostCommitException();
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Observed'));
+      await tester.pumpAndSettle();
+
+      var local = await const CalendarCompletionLocalStore().load(identity);
+      expect(recorded, <CompletionStatus>[CompletionStatus.observed]);
+      expect(continuityAttempts, 1);
+      expect(local.completionStatus, CompletionStatus.observed);
+      expect(
+        find.text(kCalendarCompletionPostCommitFailureMessage),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.text('Observed'));
+      await tester.pumpAndSettle();
+
+      local = await const CalendarCompletionLocalStore().load(identity);
+      expect(clearCount, 1);
+      expect(continuityAttempts, 1);
+      expect(local.completionStatus, CompletionStatus.none);
     },
   );
 

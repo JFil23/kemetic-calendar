@@ -336,9 +336,9 @@ _TrackSkyNarrative? _trackSkyNarrativeForMetadata({
   if (titleKey.contains('total lunar eclipse')) {
     return const _TrackSkyNarrative(
       trackingGuidance:
-          'Begin before the deepest hour of the eclipse, while the Moon is still bright enough to compare against its own shadow. Keep your attention on the edge of the disk. The change will come slowly: first a dimming, then a darkening, then the copper-red color of Earth\'s shadow crossing the Moon. This is not a glance-and-go event. Its meaning is in the transformation.',
+          'Begin before the deepest hour of the eclipse, while the Moon is still bright enough to compare against its own shadow. Keep your attention on the edge of the disk. The change will come slowly: first a dimming, then a darkening, then the copper-red color of Earth\'s shadow crossing the Moon. Stay through the change rather than treating it as a glance-and-go event.',
       maatReflection:
-          'The Moon does not lose itself in shadow. It passes through, keeps its form, and returns with its measure intact.',
+          'The Moon does not lose itself in shadow. It passes through, keeps its form, and returns with its measure intact. Its meaning is in the transformation.',
     );
   }
 
@@ -372,9 +372,9 @@ _TrackSkyNarrative? _trackSkyNarrativeForMetadata({
   if (titleKey.contains('6-planet parade')) {
     return const _TrackSkyNarrative(
       trackingGuidance:
-          'Step out in evening twilight while the western horizon is still carrying the last light. Begin low in the west and let your gaze travel along the line of the ecliptic from one world to the next. Some planets will announce themselves at once; the faintest will ask for binoculars and patience. The meaning is not a single burst of spectacle, but several wanderers briefly sharing one visible path.',
+          'Step out in evening twilight while the western horizon is still carrying the last light. Begin low in the west and let your gaze travel along the line of the ecliptic from one world to the next. Some planets will announce themselves at once; use binoculars and patience for the faintest.',
       maatReflection:
-          'When many wanderers gather along one line, the sky shows agreement without stillness.',
+          'When many wanderers briefly share one visible path, the sky shows agreement without stillness.',
     );
   }
 
@@ -390,24 +390,25 @@ _TrackSkyNarrative? _trackSkyNarrativeForMetadata({
   if (titleKey.contains('venus at greatest eastern elongation')) {
     return const _TrackSkyNarrative(
       trackingGuidance:
-          'Look low toward the bright edge of dusk after sunset. Venus will stand there as a steady, brilliant light, brighter than the surrounding stars and carried well away from the Sun. Watch it across several evenings. Its lesson is not only brightness, but position: how confidently it holds the western sky before drawing back in the weeks ahead.',
+          'Look low toward the bright edge of dusk after sunset. Venus will stand there as a steady, brilliant light, brighter than the surrounding stars and carried well away from the Sun. Watch it across several evenings, noting how confidently it holds the western sky before drawing back in the weeks ahead.',
       maatReflection:
-          'Venus marks the threshold: the flame that remains after day has passed.',
+          'Venus marks the threshold: the flame that remains after day has passed. Its lesson is position as well as brightness.',
     );
   }
 
   if (titleKey.contains('venus at greatest western elongation')) {
     return const _TrackSkyNarrative(
       trackingGuidance:
-          'Look low toward the bright edge of dawn before sunrise. Venus will appear there as a steady, brilliant light, stronger than the nearby stars and clear of the Sun\'s glare. Watch it across several mornings. Its lesson is not only brightness, but movement: how it leads the day for a time before closing the distance again.',
-      maatReflection: 'Venus marks the threshold: the light before light.',
+          'Look low toward the bright edge of dawn before sunrise. Venus will appear there as a steady, brilliant light, stronger than the nearby stars and clear of the Sun\'s glare. Watch it across several mornings, noting how it leads the day for a time before closing the distance again.',
+      maatReflection:
+          'Venus marks the threshold: the light before light. Its lesson is movement as well as brightness.',
     );
   }
 
   if (titleKey.contains('jupiter at opposition')) {
     return const _TrackSkyNarrative(
       trackingGuidance:
-          'Begin after sunset by looking east for the bright, steady planet rising into the night. Near midnight, it will stand higher toward the south; before dawn, it will move westward. Opposition is best understood through the whole arc, not one moment. Watch its path and notice how it holds steady against the turning sky.',
+          'Begin after sunset by looking east for the bright, steady planet rising into the night. Near midnight, it will stand higher toward the south; before dawn, it will move westward. Watch the whole arc rather than one moment, and notice how it holds steady against the turning sky.',
       maatReflection:
           'A planet at opposition teaches presence. It stands fully revealed because it has come into right alignment.',
     );
@@ -416,9 +417,9 @@ _TrackSkyNarrative? _trackSkyNarrativeForMetadata({
   if (titleKey.contains('saturn at opposition')) {
     return const _TrackSkyNarrative(
       trackingGuidance:
-          'Begin after sunset by looking east for Saturn\'s steady golden light. Near midnight it will stand highest toward the south; before dawn it will move westward with the turning sky. Opposition is best understood through the whole arc, and Saturn rewards the longer watch. If you have a telescope, this is the season to give the rings your attention.',
+          'Begin after sunset by looking east for Saturn\'s steady golden light. Near midnight it will stand highest toward the south; before dawn it will move westward with the turning sky. Watch the whole arc rather than one moment. If you have a telescope, give the rings your attention in this season.',
       maatReflection:
-          'Saturn teaches structure through duration. What endures does not hurry to be seen.',
+          'Saturn teaches structure through duration. What endures does not hurry to be seen, and Saturn rewards the longer watch.',
     );
   }
 
@@ -1096,6 +1097,10 @@ DateTime _nowInZone(TrackSkyTimeZone timezone, {DateTime? now}) {
   final utcNow = (now ?? DateTime.now()).toUtc();
   final zoned = tz.TZDateTime.from(utcNow, tz.getLocation(timezone.ianaName));
   return _fromZonedDateTime(zoned);
+}
+
+DateTime trackSkyNowInZone(TrackSkyTimeZone timezone, {DateTime? now}) {
+  return _nowInZone(timezone, now: now);
 }
 
 tz.TZDateTime _zonedDateTimeInZone(

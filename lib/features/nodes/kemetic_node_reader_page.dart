@@ -9,6 +9,7 @@ import '../../core/navigation_fallback.dart';
 import '../../core/touch_targets.dart';
 import '../../shared/candlelit_mahogany_background.dart';
 import '../../shared/glossy_text.dart';
+import '../../shared/kemetic_text.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
 import '../../widgets/insight_link_text.dart';
 import 'kemetic_node_library.dart';
@@ -436,19 +437,9 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
                 shaderCallback: (Rect bounds) =>
                     KemeticGold.gloss.createShader(bounds),
                 blendMode: BlendMode.srcIn,
-                child: const Text(
+                child: const MeduGlyphText(
                   '𓋴 𓄿 𓏏 𓂋',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.white,
-                    fontFamily: 'GentiumPlus',
-                    fontFamilyFallback: [
-                      'NotoSans',
-                      'Roboto',
-                      'Arial',
-                      'sans-serif',
-                    ],
-                  ),
+                  style: TextStyle(fontSize: 13, color: Colors.white),
                 ),
               ),
             ],
@@ -529,7 +520,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
   }
 
   Widget _buildHeader() {
-    final aliasChips = _node.aliases.where((a) => a.isNotEmpty).toList();
+    final aliasChips = _node.displayAliases;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -567,7 +558,7 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: Colors.white12),
                     ),
-                    child: Text(
+                    child: KemeticText(
                       alias,
                       style: const TextStyle(
                         color: Colors.white70,
@@ -640,9 +631,10 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
     List<KemeticNodeLink> linkMap,
     Set<String> used,
   ) {
-    final spans = _linkifyParagraph(paragraph, linkMap, used, _bodyStyle);
+    final protectedStyle = KemeticTypography.protect(_bodyStyle, paragraph);
+    final spans = _linkifyParagraph(paragraph, linkMap, used, protectedStyle);
     return RichText(
-      text: TextSpan(style: _bodyStyle, children: spans),
+      text: TextSpan(style: protectedStyle, children: spans),
       textHeightBehavior: const TextHeightBehavior(
         applyHeightToFirstAscent: false,
         applyHeightToLastDescent: false,
@@ -736,19 +728,17 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
     required List<KemeticNodeLink> linkMap,
     required Set<String> used,
   }) {
+    final cellStyle = isHeader
+        ? KemeticTypography.protect(_tableHeaderStyle, text)
+        : KemeticTypography.protect(_tableCellStyle, text);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
       child: isHeader
-          ? Text(text, style: _tableHeaderStyle)
+          ? KemeticText(text, style: cellStyle)
           : RichText(
               text: TextSpan(
-                style: _tableCellStyle,
-                children: _linkifyParagraph(
-                  text,
-                  linkMap,
-                  used,
-                  _tableCellStyle,
-                ),
+                style: cellStyle,
+                children: _linkifyParagraph(text, linkMap, used, cellStyle),
               ),
             ),
     );
@@ -902,9 +892,12 @@ class _KemeticNodeReaderPageState extends State<KemeticNodeReaderPage> {
             shaderCallback: (Rect bounds) =>
                 KemeticGold.gloss.createShader(bounds),
             blendMode: BlendMode.srcIn,
-            child: Text(
+            child: KemeticText(
               link.phrase,
-              style: InsightLinkTextStyle.widgetStyle(baseStyle),
+              style: KemeticTypography.protect(
+                InsightLinkTextStyle.widgetStyle(baseStyle),
+                link.phrase,
+              ),
             ),
           ),
         ),

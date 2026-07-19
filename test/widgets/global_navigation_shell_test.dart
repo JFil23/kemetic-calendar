@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/navigation_fallback.dart';
 import 'package:mobile/main.dart' as app;
+import 'package:mobile/services/navigation_trace.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/widgets/global_side_drawer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -129,10 +130,22 @@ void main() {
         );
         expect(
           find.bySemanticsLabel('Close navigation menu'),
-          findsOneWidget,
+          findsNWidgets(2),
           reason: route.value,
         );
-        _expectSharedTransparentMenuBubble(tester, route.value);
+        expect(
+          find.byType(GlobalMenuBubble),
+          findsOneWidget,
+          reason: '${route.value}: the menu bubble stays on the foreground',
+        );
+        expect(
+          find.descendant(
+            of: find.byKey(app.globalMenuButtonKey),
+            matching: find.bySemanticsLabel('Close navigation menu'),
+          ),
+          findsOneWidget,
+          reason: '${route.value}: the persistent bubble closes the drawer',
+        );
 
         await tester.pumpWidget(const SizedBox.shrink());
         await tester.pump();
@@ -183,7 +196,80 @@ void main() {
     expect(find.byKey(globalSideDrawerKey), findsOneWidget);
   });
 
-  testWidgets('drawer is an underlay beneath the translated foreground', (
+  testWidgets(
+    'UX-DRAWER-001/002 reveal opaque drawer behind one translated foreground',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+      final router = _testRouter(
+        initialLocation: '/',
+        calendarBuilder: (context) =>
+            _ScrollableTestPage(controller: controller),
+      );
+
+      await _pumpShell(tester, router);
+
+      final closedForegroundRect = tester.getRect(
+        find.byKey(globalSideDrawerForegroundKey),
+      );
+      final closedHeaderRect = tester.getRect(find.byType(AppBar));
+      final closedCalendarRect = tester.getRect(find.byType(ListView));
+      final routedElement = tester.element(find.byType(_ScrollableTestPage));
+      final menuBubbleElement = tester.element(
+        find.byKey(app.globalMenuButtonKey),
+      );
+      final closedBubbleRect = tester.getRect(
+        find.byKey(app.globalMenuButtonKey),
+      );
+      expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
+      expect(closedForegroundRect.left, closeTo(0, 0.1));
+
+      await _openDrawer(tester);
+
+      final drawerRect = tester.getRect(find.byKey(globalSideDrawerKey));
+      final openForegroundRect = tester.getRect(
+        find.byKey(globalSideDrawerForegroundKey),
+      );
+      final openHeaderRect = tester.getRect(find.byType(AppBar));
+      final openCalendarRect = tester.getRect(find.byType(ListView));
+      final drawerMaterial = tester.widget<Material>(
+        find.byKey(globalSideDrawerKey),
+      );
+
+      expect(drawerRect.left, closeTo(0, 0.1));
+      expect(drawerMaterial.color, const Color(0xFF000000));
+      expect(openForegroundRect.left, closeTo(drawerRect.width, 0.5));
+      expect(openForegroundRect.left, closeTo(drawerRect.right, 0.5));
+      expect(
+        openHeaderRect.left - closedHeaderRect.left,
+        closeTo(drawerRect.width, 0.5),
+      );
+      expect(
+        openCalendarRect.left - closedCalendarRect.left,
+        closeTo(drawerRect.width, 0.5),
+      );
+      expect(
+        tester.element(find.byType(_ScrollableTestPage)),
+        same(routedElement),
+      );
+      expect(
+        tester.element(find.byKey(app.globalMenuButtonKey)),
+        same(menuBubbleElement),
+      );
+      expect(
+        tester.getRect(find.byKey(app.globalMenuButtonKey)).left -
+            closedBubbleRect.left,
+        closeTo(drawerRect.width, 0.5),
+      );
+    },
+  );
+
+  testWidgets('UX-DRAWER-003 foreground animates out and back intact', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -192,48 +278,67 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final router = _testRouter();
-
     await _pumpShell(tester, router);
-
-    final closedForegroundRect = tester.getRect(
+    final foregroundBefore = tester.getRect(
       find.byKey(globalSideDrawerForegroundKey),
     );
-    final closedBubbleRect = tester.getRect(
-      find.byKey(app.globalMenuButtonKey),
-    );
-    final closedPageRect = tester.getRect(
-      find.byKey(const ValueKey<String>('page-Nodes')),
-    );
-    expect(closedForegroundRect.left, closeTo(0, 0.1));
-
-    await _openDrawer(tester);
-
-    final drawerRect = tester.getRect(find.byKey(globalSideDrawerKey));
-    final openForegroundRect = tester.getRect(
-      find.byKey(globalSideDrawerForegroundKey),
-    );
-    final openBubbleRect = tester.getRect(find.byKey(app.globalMenuButtonKey));
-    final openPageRect = tester.getRect(
+    final routedElement = tester.element(
       find.byKey(const ValueKey<String>('page-Nodes')),
     );
 
-    expect(drawerRect.left, closeTo(0, 0.1));
-    expect(openForegroundRect.left, closeTo(drawerRect.width, 0.5));
+    await tester.tap(find.byKey(app.globalMenuButtonKey));
+    await tester.pump();
+
+    final drawer = find.byKey(globalSideDrawerKey);
+    expect(drawer, findsOneWidget);
+    final drawerWidth = tester.getSize(drawer).width;
+    expect(tester.getTopLeft(drawer).dx, closeTo(0, 0.1));
     expect(
-      openForegroundRect.left,
-      greaterThanOrEqualTo(drawerRect.right - 0.5),
+      tester.getRect(find.byKey(globalSideDrawerForegroundKey)),
+      foregroundBefore,
+    );
+
+    await tester.pump();
+    await tester.pump(globalSideDrawerTransitionDuration * 0.5);
+    final openingMidpoint = tester
+        .getRect(find.byKey(globalSideDrawerForegroundKey))
+        .left;
+    expect(openingMidpoint, greaterThan(0));
+    expect(openingMidpoint, lessThan(drawerWidth));
+
+    await tester.pump(globalSideDrawerTransitionDuration * 0.5);
+    expect(
+      tester.getRect(find.byKey(globalSideDrawerForegroundKey)).left,
+      closeTo(drawerWidth, 0.5),
     );
     expect(
-      openPageRect.left - closedPageRect.left,
-      closeTo(drawerRect.width, 0.5),
+      tester.element(find.byKey(const ValueKey<String>('page-Nodes'))),
+      same(routedElement),
+    );
+
+    await tester.tapAt(Offset(drawerWidth + 24, 120));
+    await tester.pump();
+    await tester.pump(globalSideDrawerTransitionDuration * 0.5);
+    final closingMidpoint = tester
+        .getRect(find.byKey(globalSideDrawerForegroundKey))
+        .left;
+    expect(closingMidpoint, greaterThan(0));
+    expect(closingMidpoint, lessThan(drawerWidth));
+
+    await tester.pump(globalSideDrawerTransitionDuration * 0.5);
+    await tester.pump();
+    expect(find.byKey(globalSideDrawerKey), findsNothing);
+    expect(
+      tester.getRect(find.byKey(globalSideDrawerForegroundKey)),
+      foregroundBefore,
     );
     expect(
-      openBubbleRect.left - closedBubbleRect.left,
-      closeTo(drawerRect.width, 0.5),
+      tester.element(find.byKey(const ValueKey<String>('page-Nodes'))),
+      same(routedElement),
     );
   });
 
-  testWidgets('outside foreground tap closes the underlay drawer', (
+  testWidgets('outside foreground tap closes the revealed drawer', (
     tester,
   ) async {
     final router = _testRouter();
@@ -251,6 +356,32 @@ void main() {
     expect(find.byKey(globalSideDrawerKey), findsNothing);
   });
 
+  testWidgets(
+    'open drawer exposes one non-overlapping close action on the scrim',
+    (tester) async {
+      final router = _testRouter();
+
+      await _pumpShell(tester, router);
+      await _openDrawer(tester);
+
+      expect(
+        find.byKey(app.globalMenuButtonKey),
+        findsOneWidget,
+        reason:
+            'The floating bubble stays attached to the translated foreground.',
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(globalSideDrawerScrimKey),
+          matching: find.bySemanticsLabel('Close navigation menu'),
+        ),
+        findsOneWidget,
+        reason:
+            'The unobscured outside scrim owns the accessible close action.',
+      );
+    },
+  );
+
   for (final viewport in <Size>[
     Size(390, 844),
     Size(844, 390),
@@ -258,7 +389,7 @@ void main() {
     Size(1180, 820),
   ]) {
     testWidgets(
-      'drawer foreground structural smoke ${viewport.width.toInt()}x${viewport.height.toInt()}',
+      'drawer reveal structural smoke ${viewport.width.toInt()}x${viewport.height.toInt()}',
       (tester) async {
         tester.view.physicalSize = viewport;
         tester.view.devicePixelRatio = 1;
@@ -268,9 +399,7 @@ void main() {
         final router = _testRouter();
 
         await _pumpShell(tester, router);
-        final closedBubbleRect = tester.getRect(
-          find.byKey(app.globalMenuButtonKey),
-        );
+        expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
 
         await _openDrawer(tester);
 
@@ -278,18 +407,11 @@ void main() {
         final foregroundRect = tester.getRect(
           find.byKey(globalSideDrawerForegroundKey),
         );
-        final openBubbleRect = tester.getRect(
-          find.byKey(app.globalMenuButtonKey),
-        );
-
         expect(drawerRect.left, closeTo(0, 0.1));
         expect(drawerRect.width, lessThan(viewport.width));
         expect(foregroundRect.left, closeTo(drawerRect.width, 0.6));
         expect(drawerRect.right, lessThanOrEqualTo(foregroundRect.left + 0.6));
-        expect(
-          openBubbleRect.left - closedBubbleRect.left,
-          closeTo(drawerRect.width, 0.6),
-        );
+        expect(find.byKey(app.globalMenuButtonKey), findsOneWidget);
       },
     );
   }
@@ -311,29 +433,315 @@ void main() {
     expect(find.text('Planner'), findsNothing);
   });
 
-  testWidgets('drawer route dispatch does not wait for close animation', (
+  testWidgets(
+    'production shell deep-linked Library detail resolves through production drawer routing',
+    (tester) async {
+      final router = app.createProductionRouterForTesting(
+        initialLocation: '/nodes/maat',
+      );
+      addTearDown(router.dispose);
+
+      await _pumpShell(tester, router);
+      expect(_visibleRouterPath(router), '/nodes/maat');
+
+      await _openDrawer(tester);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('global-side-drawer-item-Library')),
+      );
+      await tester.pump(globalSideDrawerTransitionDuration);
+      await tester.pumpAndSettle();
+
+      expect(_visibleRouterPath(router), '/nodes');
+      expect(find.byKey(globalSideDrawerKey), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'UX-DRAWER-006 route dispatches during close without rebuilding the destination',
+    (tester) async {
+      var plannerMounts = 0;
+      var plannerDisposals = 0;
+      final router = _testRouter(
+        initialLocation: '/',
+        plannerBuilder: (context) => _LifecycleTestPage(
+          label: 'Planner route',
+          onMounted: () => plannerMounts += 1,
+          onDisposed: () => plannerDisposals += 1,
+        ),
+      );
+
+      await _pumpShell(tester, router);
+      final menuBubbleElement = tester.element(
+        find.byKey(app.globalMenuButtonKey),
+      );
+      await _openDrawer(tester);
+
+      expect(
+        tester.element(find.byKey(app.globalMenuButtonKey)),
+        same(menuBubbleElement),
+      );
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('global-side-drawer-item-Planner')),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
+
+      expect(_visibleRouterPath(router), '/rhythm/today');
+      expect(find.text('Planner route'), findsOneWidget);
+      expect(find.byKey(globalSideDrawerKey), findsOneWidget);
+      final drawerWidth = tester.getSize(find.byKey(globalSideDrawerKey)).width;
+      final closingForegroundLeft = tester
+          .getRect(find.byKey(globalSideDrawerForegroundKey))
+          .left;
+      expect(closingForegroundLeft, greaterThan(0));
+      expect(closingForegroundLeft, lessThan(drawerWidth));
+      expect(
+        tester.element(find.byKey(app.globalMenuButtonKey)),
+        same(menuBubbleElement),
+      );
+      expect(plannerMounts, 1);
+      expect(plannerDisposals, 0);
+
+      await tester.pump(globalSideDrawerTransitionDuration);
+      await tester.pump();
+
+      expect(_visibleRouterPath(router), '/rhythm/today');
+      expect(find.byKey(globalSideDrawerKey), findsNothing);
+      expect(
+        tester.element(find.byKey(app.globalMenuButtonKey)),
+        same(menuBubbleElement),
+      );
+      expect(plannerMounts, 1);
+      expect(plannerDisposals, 0);
+    },
+  );
+
+  testWidgets('drawer close and current selection retain foreground state', (
     tester,
   ) async {
-    final router = _testRouter();
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    final router = _testRouter(
+      nodesBuilder: (context) => _ScrollableTestPage(controller: controller),
+    );
+
+    await _pumpShell(tester, router);
+    controller.jumpTo(480);
+    await tester.pump();
+    final beforeOpen = controller.offset;
+    final routedElement = tester.element(find.byType(_ScrollableTestPage));
+
+    await _openDrawer(tester);
+    expect(controller.offset, beforeOpen);
+    expect(
+      tester.element(find.byType(_ScrollableTestPage)),
+      same(routedElement),
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('global-side-drawer-item-Library')),
+    );
+    await tester.pump(globalSideDrawerTransitionDuration);
+    await tester.pump();
+
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/nodes');
+    expect(controller.offset, beforeOpen);
+    expect(
+      tester.element(find.byType(_ScrollableTestPage)),
+      same(routedElement),
+    );
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byKey(globalSideDrawerKey), findsNothing);
+  });
+
+  testWidgets('selected Calendar only closes the drawer', (tester) async {
+    var calendarMounts = 0;
+    var calendarDisposals = 0;
+    final router = _testRouter(
+      initialLocation: '/',
+      calendarBuilder: (context) => _RetainedCalendarTestPage(
+        onMounted: () => calendarMounts += 1,
+        onDisposed: () => calendarDisposals += 1,
+        onOffsetChanged: (_) {},
+      ),
+    );
+    await NavigationTrace.instance.setEnabled(true);
+    addTearDown(NavigationTrace.instance.resetForTesting);
 
     await _pumpShell(tester, router);
     await _openDrawer(tester);
+    expect(router.canPop(), isFalse);
 
-    await tester.tap(find.text('Planner'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 16));
-
-    expect(
-      router.routerDelegate.currentConfiguration.uri.path,
-      '/rhythm/today',
+    await tester.tap(
+      find.byKey(const ValueKey<String>('global-side-drawer-item-Calendar')),
     );
-    expect(find.text('Planner route'), findsOneWidget);
-    expect(find.byKey(globalSideDrawerKey), findsOneWidget);
-
     await tester.pump(globalSideDrawerTransitionDuration);
     await tester.pump();
+
+    expect(_visibleRouterPath(router), '/');
+    expect(router.canPop(), isFalse);
+    expect(calendarMounts, 1);
+    expect(calendarDisposals, 0);
     expect(find.byKey(globalSideDrawerKey), findsNothing);
+    final trace = NavigationTrace.instance.entries.join('\n');
+    expect(trace, contains('drawer navigation tap target'));
+    expect(trace, contains('target=Calendar'));
+    expect(trace, contains('drawer current selection closed in place'));
+    expect(trace, isNot(contains('drawer navigation route requested')));
   });
+
+  testWidgets(
+    'Journal Inbox Calendars X restores the same mounted Inbox after resume',
+    (tester) async {
+      var inboxMounts = 0;
+      var inboxDisposals = 0;
+      final inboxKey = GlobalKey<_LifecycleTestPageState>();
+      final router = _testRouter(
+        initialLocation: '/journal',
+        inboxBuilder: (context) => _LifecycleTestPage(
+          key: inboxKey,
+          label: 'Inbox route',
+          onMounted: () => inboxMounts += 1,
+          onDisposed: () => inboxDisposals += 1,
+        ),
+      );
+
+      await _pumpShell(tester, router);
+      await _openDrawer(tester);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('global-side-drawer-item-Inbox')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(_visibleRouterPath(router), '/inbox');
+      final inboxState = inboxKey.currentState;
+      expect(inboxState, isNotNull);
+      expect(inboxMounts, 1);
+      expect(inboxDisposals, 0);
+
+      await _openDrawer(tester);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('global-side-drawer-item-Calendars')),
+      );
+      await tester.pump();
+
+      expect(_visibleRouterPath(router), '/calendars');
+      expect(router.canPop(), isTrue);
+      expect(inboxKey.currentState, same(inboxState));
+      expect(inboxMounts, 1);
+      expect(inboxDisposals, 0);
+
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump();
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+      Supabase.instance.client.auth.stopAutoRefresh();
+
+      expect(_visibleRouterPath(router), '/calendars');
+      await tester.tap(find.text('close calendars'));
+      await tester.pumpAndSettle();
+
+      expect(_visibleRouterPath(router), '/inbox');
+      expect(inboxKey.currentState, same(inboxState));
+      expect(inboxMounts, 1);
+      expect(inboxDisposals, 0);
+    },
+  );
+
+  testWidgets('nested drawer utilities pop in order back to their base', (
+    tester,
+  ) async {
+    final router = _testRouter(initialLocation: '/inbox');
+
+    await _pumpShell(tester, router);
+    await _openDrawer(tester);
+    final drawer = tester.widget<GlobalSideDrawer>(
+      find.byType(GlobalSideDrawer),
+    );
+    final openFlows = drawer.items
+        .singleWhere((item) => item.label == 'Flows')
+        .onSelected;
+    await tester.tap(
+      find.byKey(const ValueKey<String>('global-side-drawer-item-Calendars')),
+    );
+    await tester.pumpAndSettle();
+    expect(_visibleRouterPath(router), '/calendars');
+
+    openFlows();
+    await tester.pumpAndSettle();
+    expect(_visibleRouterPath(router), '/flows');
+
+    await tester.tap(find.text('close flows'));
+    await tester.pumpAndSettle();
+    expect(_visibleRouterPath(router), '/calendars');
+
+    await tester.tap(find.text('close calendars'));
+    await tester.pumpAndSettle();
+    expect(_visibleRouterPath(router), '/inbox');
+  });
+
+  testWidgets(
+    'rapid Inbox Calendars Calendar drawer selections leave only Calendar visible',
+    (tester) async {
+      final router = _testRouter(initialLocation: '/nodes');
+      await NavigationTrace.instance.setEnabled(true);
+      addTearDown(NavigationTrace.instance.resetForTesting);
+
+      await _pumpShell(tester, router);
+      await _openDrawer(tester);
+      final drawer = tester.widget<GlobalSideDrawer>(
+        find.byType(GlobalSideDrawer),
+      );
+      void select(String label) {
+        drawer.items.singleWhere((item) => item.label == label).onSelected();
+      }
+
+      select('Inbox');
+      select('Calendars');
+      select('Calendar');
+      await tester.pump();
+      await tester.pump(globalSideDrawerTransitionDuration);
+      await tester.pumpAndSettle();
+
+      expect(_visibleRouterPath(router), '/');
+      expect(find.text('Calendar'), findsOneWidget);
+      expect(find.text('Inbox'), findsNothing);
+      expect(find.text('Calendars route'), findsNothing);
+      expect(find.byKey(globalSideDrawerKey), findsNothing);
+
+      await tester.pump(const Duration(seconds: 1));
+      expect(_visibleRouterPath(router), '/');
+      expect(find.text('Inbox'), findsNothing);
+      expect(find.text('Calendars route'), findsNothing);
+
+      final entries = NavigationTrace.instance.entries;
+      final trace = entries.join('\n');
+      expect(trace, contains('drawer navigation tap target'));
+      final inboxTap = entries.indexWhere(
+        (entry) => entry.contains(
+          'drawer navigation tap target target=Inbox generation=1',
+        ),
+      );
+      final calendarsTap = entries.indexWhere(
+        (entry) => entry.contains(
+          'drawer navigation tap target target=Calendars generation=2',
+        ),
+      );
+      final calendarTap = entries.indexWhere(
+        (entry) => entry.contains(
+          'drawer navigation tap target target=Calendar generation=3',
+        ),
+      );
+      expect(inboxTap, greaterThanOrEqualTo(0));
+      expect(calendarsTap, greaterThanOrEqualTo(0));
+      expect(calendarTap, greaterThanOrEqualTo(0));
+      expect(inboxTap, lessThan(calendarsTap));
+      expect(calendarsTap, lessThan(calendarTap));
+      expect(trace, contains('drawer navigation route requested'));
+      expect(trace, contains('drawer route committed'));
+    },
+  );
 
   testWidgets('back with closed drawer opens drawer on primary route', (
     tester,
@@ -537,9 +945,16 @@ void main() {
 
     expect(_visibleRouterPath(router), '/profile/me');
     expect(find.text('Profile route'), findsOneWidget);
+    expect(router.canPop(), isTrue);
+
+    router.pop();
+    await tester.pumpAndSettle();
+
+    expect(_visibleRouterPath(router), '/nodes');
+    expect(find.text('Nodes'), findsOneWidget);
   });
 
-  testWidgets('flows and calendars remain pushed utility routes', (
+  testWidgets('flows and calendars preserve the route beneath their sheets', (
     tester,
   ) async {
     final router = _testRouter(initialLocation: '/nodes');
@@ -588,6 +1003,7 @@ Future<void> _pumpShell(WidgetTester tester, GoRouter router) async {
 
 Future<void> _openDrawer(WidgetTester tester) async {
   await tester.tap(find.byKey(app.globalMenuButtonKey));
+  await tester.pump();
   await tester.pump();
   await tester.pump(globalSideDrawerTransitionDuration);
 }
@@ -697,7 +1113,11 @@ Future<bool> _sendShellBack(WidgetTester tester) async {
 
 GoRouter _testRouter({
   String initialLocation = '/nodes',
+  WidgetBuilder? calendarBuilder,
+  WidgetBuilder? plannerBuilder,
   WidgetBuilder? nodesBuilder,
+  WidgetBuilder? journalBuilder,
+  WidgetBuilder? inboxBuilder,
 }) {
   return GoRouter(
     initialLocation: initialLocation,
@@ -705,10 +1125,15 @@ GoRouter _testRouter({
       app.globalFloatingMenuRouteObserverForTesting,
     ],
     routes: [
-      GoRoute(path: '/', builder: (context, state) => const _Page('Calendar')),
+      GoRoute(
+        path: '/',
+        builder: (context, state) =>
+            calendarBuilder?.call(context) ?? const _Page('Calendar'),
+      ),
       GoRoute(
         path: '/rhythm/today',
-        builder: (context, state) => const _Page('Planner route'),
+        builder: (context, state) =>
+            plannerBuilder?.call(context) ?? const _Page('Planner route'),
       ),
       GoRoute(
         path: '/nodes',
@@ -721,11 +1146,13 @@ GoRouter _testRouter({
       ),
       GoRoute(
         path: '/journal',
-        builder: (context, state) => const _Page('Journal route'),
+        builder: (context, state) =>
+            journalBuilder?.call(context) ?? const _Page('Journal route'),
       ),
       GoRoute(
         path: '/inbox',
-        builder: (context, state) => const _Page('Inbox'),
+        builder: (context, state) =>
+            inboxBuilder?.call(context) ?? const _Page('Inbox'),
       ),
       GoRoute(
         path: '/settings',
@@ -785,6 +1212,110 @@ class _Page extends StatelessWidget {
               TextButton(onPressed: onClose, child: Text(closeLabel!)),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _LifecycleTestPage extends StatefulWidget {
+  const _LifecycleTestPage({
+    super.key,
+    required this.label,
+    required this.onMounted,
+    required this.onDisposed,
+  });
+
+  final String label;
+  final VoidCallback onMounted;
+  final VoidCallback onDisposed;
+
+  @override
+  State<_LifecycleTestPage> createState() => _LifecycleTestPageState();
+}
+
+class _LifecycleTestPageState extends State<_LifecycleTestPage> {
+  @override
+  void initState() {
+    super.initState();
+    widget.onMounted();
+  }
+
+  @override
+  void dispose() {
+    widget.onDisposed();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => _Page(widget.label);
+}
+
+class _ScrollableTestPage extends StatelessWidget {
+  const _ScrollableTestPage({required this.controller});
+
+  final ScrollController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Calendar')),
+      body: ListView.builder(
+        controller: controller,
+        itemExtent: 80,
+        itemCount: 30,
+        itemBuilder: (context, index) => Text('row $index'),
+      ),
+    );
+  }
+}
+
+class _RetainedCalendarTestPage extends StatefulWidget {
+  const _RetainedCalendarTestPage({
+    required this.onMounted,
+    required this.onDisposed,
+    required this.onOffsetChanged,
+  });
+
+  final VoidCallback onMounted;
+  final VoidCallback onDisposed;
+  final ValueChanged<double> onOffsetChanged;
+
+  @override
+  State<_RetainedCalendarTestPage> createState() =>
+      _RetainedCalendarTestPageState();
+}
+
+class _RetainedCalendarTestPageState extends State<_RetainedCalendarTestPage> {
+  late final ScrollController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.onMounted();
+    _controller = ScrollController()..addListener(_reportOffset);
+  }
+
+  void _reportOffset() {
+    widget.onOffsetChanged(_controller.offset);
+  }
+
+  @override
+  void dispose() {
+    widget.onDisposed();
+    _controller
+      ..removeListener(_reportOffset)
+      ..dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: ListView.builder(
+        controller: _controller,
+        itemExtent: 80,
+        itemCount: 30,
+        itemBuilder: (context, index) => Text('calendar row $index'),
       ),
     );
   }

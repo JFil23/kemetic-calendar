@@ -107,6 +107,34 @@ void main() {
       expect(calendarContent, contains('_setDailyCosmicContextBadgeEnabled'));
     });
 
+    test('calendar import settings support web read-only import', () {
+      final calendarImport = _sourceBetween(
+        source,
+        "_sectionCard(\n              title: 'Calendar Import'",
+        "_sectionCard(\n              title: 'Calendar Content'",
+      );
+
+      expect(calendarImport, contains('One-way import only'));
+      expect(
+        calendarImport,
+        contains('does not export, create, update, or delete'),
+      );
+      expect(calendarImport, contains('Google Calendar read-only access'));
+      expect(source, contains("'Import from Google'"));
+      expect(calendarImport, contains('_syncButtonLabel()'));
+      expect(calendarImport, isNot(contains('Import unavailable on web')));
+      expect(
+        calendarImport,
+        isNot(
+          contains('Native calendar import is not available in web builds'),
+        ),
+      );
+      expect(
+        calendarImport,
+        isNot(contains('Web builds cannot access the native device calendar')),
+      );
+    });
+
     test('build marker renders public version metadata only', () {
       final readBuildInfo = _sourceBetween(
         source,

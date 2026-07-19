@@ -91,6 +91,7 @@ void main() {
       'Future<DayViewSheetEventTarget?> _moveFlowEventToCalendar',
       'Future<DayViewSheetEventTarget?> _moveReminderEventToCalendar',
     );
+    expect(flowMove, contains('_ensureSharedExperienceForFlow'));
     expect(flowMove, contains('_notifySharedCalendarItemAdded'));
     expect(flowMove, contains("itemType: 'flow'"));
 
@@ -101,6 +102,69 @@ void main() {
     );
     expect(reminderMove, contains('_notifySharedCalendarItemAdded'));
     expect(reminderMove, contains("itemType: 'reminder'"));
+  });
+
+  test('shared calendar flow paths ensure shared experience state', () async {
+    final calendarSource = await File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsString();
+    final sharedPracticeRepoSource = await File(
+      'lib/data/shared_practice_repo.dart',
+    ).readAsString();
+    final migrationSource = await File(
+      '../supabase/migrations/20260627120000_shared_calendar_flow_experience.sql',
+    ).readAsString();
+
+    expect(migrationSource, contains('ensure_shared_experience_for_flow'));
+    expect(
+      migrationSource,
+      contains('trg_user_events_stamp_shared_practice_room'),
+    );
+    expect(migrationSource, contains("- 'shared_practice_room_id'"));
+    expect(migrationSource, contains("- 'shared_practice_entry_id'"));
+    expect(
+      migrationSource,
+      contains('v_existing_room_id is distinct from v_room_id'),
+    );
+    expect(
+      migrationSource,
+      contains("old.behavior_payload->>'shared_practice_room_id'"),
+    );
+    expect(
+      migrationSource,
+      contains('create_joint_flow_experience_from_commons'),
+    );
+    expect(migrationSource, contains('shared experience backfill candidates'));
+    expect(
+      migrationSource,
+      contains('shared experience stale payload cleanup candidates'),
+    );
+    expect(sharedPracticeRepoSource, contains('ensureSharedExperienceForFlow'));
+    expect(
+      sharedPracticeRepoSource,
+      contains('createJointFlowExperienceFromCommons'),
+    );
+
+    final persistBody = _sourceBetween(
+      calendarSource,
+      'Future<int?> _persistFlowStudioResult(_FlowStudioResult r) async',
+      '/// Schedules all note occurrences for a flow to the calendar',
+    );
+    expect(persistBody, contains('ensureSharedExperienceIfNeeded'));
+
+    final saveNewFlowBody = _sourceBetween(
+      calendarSource,
+      'Future<int?> _saveNewFlow(_Flow flow) async',
+      'void _deleteFlow(int flowId)',
+    );
+    expect(saveNewFlowBody, contains('_ensureSharedExperienceForFlow'));
+
+    final flowMove = _sourceBetween(
+      calendarSource,
+      'Future<DayViewSheetEventTarget?> _moveFlowEventToCalendar',
+      'Future<DayViewSheetEventTarget?> _moveReminderEventToCalendar',
+    );
+    expect(flowMove, contains('_ensureSharedExperienceForFlow'));
   });
 
   test(

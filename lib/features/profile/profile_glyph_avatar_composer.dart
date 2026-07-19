@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/profile_avatar_glyphs.dart';
 import '../../widgets/profile_avatar.dart';
 import '../../shared/glossy_text.dart';
+import '../../shared/kemetic_text.dart';
 
 Future<List<String>?> showProfileGlyphAvatarComposer(
   BuildContext context, {
@@ -257,27 +258,30 @@ class _ProfileGlyphAvatarComposerSheetState
             borderWidth: 1.6,
           ),
           const SizedBox(height: 12),
-          Text(
-            phraseGlyphs.isEmpty
-                ? 'Tap tiles to add them in phrase order.'
-                : phraseGlyphs,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: KemeticGold.base,
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-              fontFamily: 'GentiumPlus',
-              fontFamilyFallback: [
-                'Noto Sans Egyptian Hieroglyphs',
-                'Apple Symbols',
-                'Segoe UI Symbol',
-                'Arial Unicode MS',
-                'NotoSans',
-              ],
+          if (phraseGlyphs.isEmpty)
+            const Text(
+              'Tap tiles to add them in phrase order.',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: KemeticGold.base,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            )
+          else
+            MeduGlyphText(
+              phraseGlyphs,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: KemeticGold.base,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-          ),
           if (phraseMeaning.isNotEmpty) ...[
             const SizedBox(height: 8),
             Text(
@@ -339,12 +343,12 @@ class _ProfileGlyphAvatarComposerSheetState
               : [
                   for (var index = 0; index < _selectedGlyphIds.length; index++)
                     InputChip(
-                      label: Text(
+                      label: KemeticText(
                         '${kProfileGlyphTileById[_selectedGlyphIds[index]]?.glyph ?? _selectedGlyphIds[index]}  ${kProfileGlyphTileById[_selectedGlyphIds[index]]?.display ?? _selectedGlyphIds[index]}',
-                      ),
-                      labelStyle: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       backgroundColor: const Color(0xFF0D0D0F),
                       side: BorderSide(
@@ -463,7 +467,7 @@ class _ProfileGlyphAvatarComposerSheetState
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
+                          MeduGlyphText(
                             tile.glyph,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -471,14 +475,6 @@ class _ProfileGlyphAvatarComposerSheetState
                               color: KemeticGold.base,
                               fontSize: 20,
                               fontWeight: FontWeight.w700,
-                              fontFamily: 'GentiumPlus',
-                              fontFamilyFallback: [
-                                'Noto Sans Egyptian Hieroglyphs',
-                                'Apple Symbols',
-                                'Segoe UI Symbol',
-                                'Arial Unicode MS',
-                                'NotoSans',
-                              ],
                             ),
                           ),
                           const SizedBox(height: 6),

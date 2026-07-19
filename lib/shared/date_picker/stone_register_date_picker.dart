@@ -24,11 +24,15 @@ class StoneRegisterDatePicker {
     String? subtitle,
     String confirmLabel = 'Done',
     String cancelLabel = 'Cancel',
+    Color? barrierColor,
+    bool useRootNavigator = false,
   }) {
     return showModalBottomSheet<T>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      barrierColor: barrierColor,
+      useRootNavigator: useRootNavigator,
       useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),

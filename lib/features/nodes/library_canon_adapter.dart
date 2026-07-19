@@ -72,6 +72,7 @@ List<String> themesForNode(KemeticNode node, {int maxThemes = 2}) {
 
 const Map<String, List<String>> _preferredThemeAliasesByNodeId = {
   'human_emergence': ['Hominid Lineage', 'Sapiens Awakening'],
+  'haw': ['Haw', 'Increase'],
 };
 
 String extractOpeningLine(String body) {

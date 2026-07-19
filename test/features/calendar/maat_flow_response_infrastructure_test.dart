@@ -8,6 +8,7 @@ import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/maat_flow_response_models.dart';
+import 'package:mobile/features/calendar/maat_flow_response_projection.dart';
 import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
 import 'package:mobile/features/calendar/the_days_outside_year_flow.dart';
 import 'package:mobile/features/calendar/the_decan_watch_flow.dart';
@@ -15,6 +16,7 @@ import 'package:mobile/features/calendar/the_djed_flow.dart';
 import 'package:mobile/features/calendar/the_kept_word_flow.dart';
 import 'package:mobile/features/calendar/the_open_hand_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
+import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:mobile/features/calendar/the_tending_flow.dart';
 import 'package:mobile/features/calendar/the_wag_flow.dart';
 import 'package:mobile/features/calendar/the_weighing_flow.dart';
@@ -56,6 +58,12 @@ void main() {
     expect(
       MaatFlowJournalPolicyX.fromWireName('local-only'),
       MaatFlowJournalPolicy.localOnly,
+    );
+    expect(MaatFlowJournalCarryMode.none.wireName, 'none');
+    expect(MaatFlowJournalCarryMode.userReflection.wireName, 'user_reflection');
+    expect(
+      MaatFlowJournalCarryModeX.fromWireName('reflection'),
+      MaatFlowJournalCarryMode.userReflection,
     );
 
     expect(MaatFlowResponseJournalFormatter.standard.wireName, 'standard');
@@ -268,7 +276,7 @@ void main() {
   });
 
   test('default resolver exposes all 31 Ma_at response sheet specs', () {
-    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(66));
+    expect(kDefaultMaatFlowResponseResolver.specs, hasLength(70));
 
     expect(
       resolveMaatFlowResponseSpecs(
@@ -524,6 +532,33 @@ void main() {
     }
   });
 
+  test('journal carry mode is explicit and reflection-aware', () {
+    final eveningThreshold = resolveMaatFlowResponseSpecs(
+      flowKey: kEveningThresholdRiteFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    ).single;
+    final boundaryStoneSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kBoundaryStoneFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    final boundaryMarker = boundaryStoneSpecs.singleWhere(
+      (spec) => spec.id == 'boundary-stone-marker-restored',
+    );
+    final boundaryReflection = boundaryStoneSpecs.singleWhere(
+      (spec) => spec.id == 'boundary-stone-restored',
+    );
+
+    expect(
+      eveningThreshold.journalCarryMode,
+      MaatFlowJournalCarryMode.userReflection,
+    );
+    expect(boundaryMarker.journalCarryMode, MaatFlowJournalCarryMode.none);
+    expect(
+      boundaryReflection.journalCarryMode,
+      MaatFlowJournalCarryMode.userReflection,
+    );
+  });
+
   test(
     'fixture resolver filters by flow, surface, event, and sitting keys',
     () {
@@ -536,6 +571,7 @@ void main() {
         kind: MaatFlowResponseKind.multiline,
         label: 'Sky note',
         journalPolicy: MaatFlowJournalPolicy.offer,
+        journalBehavior: MaatFlowJournalBehavior.formatted,
       );
       const bothSpec = MaatFlowResponseSpec(
         id: 'intention',
@@ -543,6 +579,7 @@ void main() {
         surface: MaatFlowResponseSurface.both,
         kind: MaatFlowResponseKind.text,
         label: 'Intention',
+        journalBehavior: MaatFlowJournalBehavior.none,
       );
       const resolver = MaatFlowResponseResolver(
         specs: <MaatFlowResponseSpec>[spec, bothSpec],
@@ -587,6 +624,7 @@ void main() {
       label: 'Visibility',
       journalLabel: 'The Decan Watch',
       journalPolicy: MaatFlowJournalPolicy.mirror,
+      journalBehavior: MaatFlowJournalBehavior.formatted,
       options: <MaatFlowResponseOption>[
         MaatFlowResponseOption(id: 'outside', label: 'Outside'),
         MaatFlowResponseOption(id: 'inside', label: 'Inside'),
@@ -614,6 +652,7 @@ void main() {
       kind: MaatFlowResponseKind.text,
       label: 'One act',
       journalPolicy: MaatFlowJournalPolicy.offer,
+      journalBehavior: MaatFlowJournalBehavior.formatted,
     );
     final offer = buildMaatFlowResponseJournalPreview(
       spec: offerSpec,
@@ -633,6 +672,7 @@ void main() {
       kind: MaatFlowResponseKind.multiline,
       label: 'Private accounting',
       journalPolicy: MaatFlowJournalPolicy.redactedSummary,
+      journalBehavior: MaatFlowJournalBehavior.formatted,
       redactedSummary: 'Private response recorded.',
     );
     final redacted = buildMaatFlowResponseJournalPreview(
@@ -703,6 +743,30 @@ void main() {
   });
 
   test('sensitive action flows use offer policy and privacy classes', () {
+    final readingHouseSpecs = resolveMaatFlowResponseSpecs(
+      flowKey: kReadingHouseFlowKey,
+      surface: MaatFlowResponseSurface.calendarSheet,
+    );
+    expect(readingHouseSpecs.map((spec) => spec.id), <String>[
+      kReadingHousePrivateReflectionSpecId,
+      kReadingHouseShortNoteSpecId,
+      kReadingHouseSitWithoutWritingSpecId,
+      kReadingHousePositionSpecId,
+    ]);
+    expect(
+      readingHouseSpecs.map((spec) => spec.journalPolicy).toSet(),
+      <MaatFlowJournalPolicy>{MaatFlowJournalPolicy.localOnly},
+    );
+    expect(readingHouseSpecs.map((spec) => spec.privacyClass).toSet(), <String>{
+      'app_record_private',
+    });
+    expect(
+      readingHouseSpecs
+          .singleWhere((spec) => spec.id == kReadingHousePositionSpecId)
+          .requiredForObserved,
+      isTrue,
+    );
+
     final openHandSpecs = resolveMaatFlowResponseSpecs(
       flowKey: kTheOpenHandFlowKey,
       surface: MaatFlowResponseSurface.calendarSheet,
@@ -873,7 +937,7 @@ void main() {
     );
   });
 
-  test('Dawn House and Closing journal formatters read naturally', () {
+  test('Dawn House formatter and Closing raw projection read naturally', () {
     final dawnSpec = resolveMaatFlowResponseSpecs(
       flowKey: kDawnHouseRiteFlowKey,
       surface: MaatFlowResponseSurface.calendarSheet,
@@ -895,19 +959,34 @@ void main() {
       flowKey: kEveningThresholdRiteFlowKey,
       surface: MaatFlowResponseSurface.calendarSheet,
     ).single;
-    final closing = buildMaatFlowResponseJournalPreview(
-      spec: closingSpec,
-      value: MaatFlowResponseValue.text(
-        specId: closingSpec.id,
-        text: 'the unfinished worry and leave it for tomorrow\'s light.',
-        multiline: true,
-      ),
+    const closingText = 'Tonight I release the need to be perfect.';
+    final localDate = DateTime(2026, 7, 11);
+    final sourceId = closingSpec.sourceId(
+      clientEventId: 'evt-hidden-practice',
+      localDate: localDate,
+    );
+    final closing = buildMaatJournalResponseProjections(
+      specs: <MaatFlowResponseSpec>[closingSpec],
+      values: <String, MaatFlowResponseValue>{
+        closingSpec.id: MaatFlowResponseValue.text(
+          specId: closingSpec.id,
+          text: closingText,
+          multiline: true,
+        ),
+      },
+      completionStatus: CompletionStatus.observed,
+      localDate: localDate,
+      sourceIdForSpec: (_) => sourceId,
+      sourceIdForGroup: (_, _) => sourceId,
     );
 
+    expect(closing, hasLength(1));
     expect(
-      closing!.text,
-      'The Closing: I release the unfinished worry and leave it for tomorrow\'s light.',
+      closing.single.block.projectionKind,
+      MaatJournalResponseProjectionKind.plainUserText,
     );
+    expect(closing.single.block.text, closingText);
+    expect(closing.single.block.text, isNot(contains('The Closing:')));
   });
 
   test('Offering Table and Days Outside formatters read naturally', () {
@@ -1777,6 +1856,7 @@ void main() {
         kind: MaatFlowResponseKind.text,
         label: 'Local only',
         journalPolicy: MaatFlowJournalPolicy.localOnly,
+        journalBehavior: MaatFlowJournalBehavior.none,
       );
       expect(
         buildMaatFlowResponseJournalPreview(
@@ -1793,6 +1873,7 @@ void main() {
         kind: MaatFlowResponseKind.text,
         label: 'Mirror',
         journalPolicy: MaatFlowJournalPolicy.mirror,
+        journalBehavior: MaatFlowJournalBehavior.formatted,
       );
       expect(
         buildMaatFlowResponseJournalPreview(
@@ -1892,6 +1973,7 @@ void main() {
         kDaysOutsideTheYearFlowKey,
         kTheOpenHandFlowKey,
         kTheDjedFlowKey,
+        kReadingHouseFlowKey,
         kTheTendingFlowKey,
         kKeptWordFlowKey,
         kTheWagFlowKey,
@@ -1923,7 +2005,11 @@ void main() {
     expect(dayView, contains('resolveMaatFlowResponseSpecs('));
     expect(dayView, contains('MaatFlowResponseSurface.calendarSheet'));
     expect(dayView, contains('MaatFlowResponseSection('));
-    expect(dayView, contains('journalPreviews: _responseJournalPreviews('));
+    expect(dayView, contains('buildMaatJournalResponseProjections('));
+    expect(dayView, isNot(contains('journalPreviews:')));
+    expect(dayView, isNot(contains('_responseJournalPreviews')));
+    expect(dayView, isNot(contains('Journal preview')));
+    expect(dayView, isNot(contains('Add to journal')));
     expect(dayView, contains('responseSpecs: responseSpecs'));
     expect(dayView, contains('class _CalendarEventDetailSheetState'));
     expect(dayView, contains('_MaatFlowCompletionPanel('));
@@ -1932,6 +2018,13 @@ void main() {
       'lib/features/calendar/calendar_completion.dart',
     ).readAsStringSync();
     expect(completion, contains('final Widget? leadingContent;'));
+
+    final projection = File(
+      'lib/features/calendar/maat_flow_response_projection.dart',
+    ).readAsStringSync();
+    expect(projection, contains('buildMaatJournalResponseBlocksForPolicy('));
+    expect(projection, contains('buildMaatJournalPlainUserTextBlocks('));
+    expect(projection, contains('switch (spec.journalBehavior)'));
 
     final portraitGrid = File(
       'lib/features/calendar/calendar_grid_widgets.dart',

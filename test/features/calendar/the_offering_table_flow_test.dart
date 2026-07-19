@@ -91,6 +91,15 @@ void main() {
       expect(payload['kind'], 'maat_offering_table_day');
       expect(payload['flow_key'], 'the-offering-table');
       expect(payload['missed_event_rule'], 'expire_quietly');
+      expect(payload['completion_options'], <String>[
+        'observed',
+        'observed_partly',
+        'skipped',
+      ]);
+      expect(payload['share_prompt_on_complete'], day.sharePromptOnComplete);
+      final props = payload['props_profile'] as Map<String, dynamic>;
+      expect(props['required'], i.isEven ? isEmpty : <String>['water_cup']);
+      expect(props['alternative'], i.isEven ? 'hold_existing_cup' : isNull);
       ids.add(offeringTableActionId(day));
     }
 
@@ -111,8 +120,87 @@ void main() {
     expect(detail, contains('Lens\nLet Hapy'));
     expect(detail, contains('Provision\nBefore food'));
     expect(detail, contains('Drink\nDrink the water'));
+    expect(
+      detail,
+      contains(
+        'Drink\nDrink the water. This is reversion: provision returns through the living body, not left on the table.',
+      ),
+    );
     expect(detail, isNot(contains('Privacy\n')));
     expect(detail, isNot(contains('Source\n')));
+  });
+
+  test('generated Words stay speakable across decan sections', () {
+    for (final day in <int>[1, 11, 21, 30]) {
+      final words = offeringTableDecanLine(day);
+
+      expect(words, isNot(contains('Speak')));
+      expect(words, isNot(contains('Before')));
+      expect(words, isNot(contains('Then')));
+      expect(words, isNot(contains('Optional')));
+      expect(words, isNot(contains('\n')));
+    }
+  });
+
+  test('required provision guardrails do not live in Optional', () {
+    final requiredGuardrailDays = <int, String>{
+      8: 'schedule the first honest opening',
+      9: 'body has actually received it',
+      17: 'Do not turn it into apology theater',
+      23: 'tell the affected person what is true',
+      26: 'Do not leave provision as a symbol',
+      28: 'concrete provision the other person can receive',
+    };
+
+    for (final entry in requiredGuardrailDays.entries) {
+      final day = offeringTableDayByNumber(entry.key)!;
+
+      expect(day.provisionAct, contains(entry.value));
+      expect(day.optionalSteps, isEmpty);
+      expect(day.optionalSteps.join('\n'), isNot(contains(entry.value)));
+    }
+  });
+
+  test('completion day truth check and closing names stay discrete', () {
+    final day = offeringTableDayByNumber(30)!;
+    final detail = offeringTableDetailText(
+      day,
+      lens: OfferingTableLens.neutral,
+      noCupMode: false,
+    );
+
+    expect(
+      day.purpose,
+      'The table was never about perfection — it was about the record being honest. The cycle closes with accuracy, not with achievement.',
+    );
+    expect(detail, contains('Provision\nSpeak only the lines that are true.'));
+    expect(detail, isNot(contains('Speak only the lines that are true:')));
+    expect(
+      detail,
+      contains('Say, if true: My water was placed with attention.'),
+    );
+    expect(
+      detail,
+      contains(
+        'Say, if true: Food, rest, or care was not treated as imaginary.',
+      ),
+    );
+    expect(
+      detail,
+      contains('Say, if true: I fed one need before it became collapse.'),
+    );
+    expect(
+      detail,
+      contains('Say, if true: I noticed who else depends on the table.'),
+    );
+    expect(
+      detail,
+      contains('Say, if true: What flowed to me was allowed to return.'),
+    );
+    expect(detail, contains('Name one shortfall.'));
+    expect(detail, contains('Name one provision that surprised you.'));
+    expect(detail, isNot(contains('- My water was placed with attention.')));
+    expect(detail, isNot(contains('Then name one shortfall')));
   });
 
   test('purpose copy checkpoints match the upgraded offering table', () {
@@ -130,7 +218,7 @@ void main() {
     );
     expect(
       offeringTableDayByNumber(30)?.purpose,
-      'The table was never about perfection — it was about the record being honest. Speak what is true. The cycle closes with accuracy, not with achievement.',
+      'The table was never about perfection — it was about the record being honest. The cycle closes with accuracy, not with achievement.',
     );
   });
 

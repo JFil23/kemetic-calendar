@@ -1,5 +1,42 @@
 # P0 Launch Verification Notes
 
+## PWA RC Readiness
+
+- Smoke date: 2026-07-01 PDT / 2026-07-02 UTC
+- Build path: `scripts/build_web_release.sh env/prod.json`
+- Runtime config blocker fixed: `b8658b8` (`/env.json` is loaded from the site root)
+- Direct-route blocker fixed: `02f2491` (authenticated PWA deep links win over passive restoration)
+- Authenticated PWA smoke result: passed for login, auth restore after reload, auth restore after tab close/reopen, direct nested routes, Day View visible event-block continuity, Planner, Journal, Flows/My Flows, Profile, Inbox, Calendars, invalid shared-flow links, and invalid event-invite links.
+- Browser log/privacy result: no warn/error logs after the fixed build and no observed email, UUID, JWT/bearer token, auth token, or journal text leaks in browser logs.
+
+### PWA RC Risks To Watch
+
+1. Real OS-level PWA install prompt and standalone app-switch resume were not fully testable in the in-app browser; watch closely during week one.
+2. Browser Back from hash-normalized route-backed surfaces did not reliably return to Day View in the browser harness; app close/back affordances preserved visible calendar content.
+3. Shared calendar selection UI was verified, but the smoke account's expanded member calendar had no upcoming events to display.
+4. Push notification permission, subscription, and notification click-through were not fully exercised; manifest, messaging worker reference, and deep-link routes were checked.
+
+### Screenshot Smoke Discipline
+
+Before screenshot QA, verify the local app state is the intended test subject:
+
+1. Confirm the branch.
+2. Confirm `HEAD`.
+3. Run with `--dart-define-from-file=env/dev.json`.
+4. Reinstall the app on the target device or emulator.
+5. Confirm the installed app timestamp changed.
+6. Confirm the signed-in account and data set.
+
+For Commons-specific QA, either sign the emulator into the same account as the PWA baseline or seed the smoke account with equivalent Commons data, including a visible shared practice room. Otherwise data differences such as missing shared rooms or different Discover posts should not be treated as UI regressions.
+
+## Calendar Import Privacy Boundary
+
+- Calendar Import is one-way: external calendar -> HAw.
+- HAw does not create, update, delete, or export events to outside calendars.
+- Android requests `READ_CALENDAR` only.
+- PWA email-only accounts need Supabase manual identity linking enabled, or users must use the Google sign-in / already-Google-linked path for Calendar Import.
+- Destructive clear/disconnect was not manually smoked on the dev account.
+
 ## Account Deletion
 
 - Repo verification date: 2026-06-01 PDT

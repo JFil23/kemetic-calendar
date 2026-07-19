@@ -45,6 +45,22 @@ void main() {
     expect(second.previousOrientationLocalDate, DateTime(2026, 6, 1));
   });
 
+  test('return event keeps spoken line speakable and reading in delivery', () {
+    final event = kEveningThresholdEvents.first;
+    final detail = eveningThresholdDetailText(event);
+
+    expect(event.spokenLine, 'This was what I named. This is what I met.');
+    expect(
+      event.deliveryBeat,
+      startsWith('Read your morning return aloud or silently.'),
+    );
+    expect(
+      detail,
+      contains('Spoken line\n"This was what I named. This is what I met."'),
+    );
+    expect(detail, isNot(contains('Spoken line\n"Read your morning return')));
+  });
+
   test('return and carry payloads preserve exact threshold choices', () {
     final schedule = dailyEveningThresholdScheduleForDate(
       localDate: DateTime(2026, 6, 1),

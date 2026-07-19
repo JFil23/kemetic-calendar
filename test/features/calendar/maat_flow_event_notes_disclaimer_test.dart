@@ -20,7 +20,8 @@ import 'package:mobile/features/calendar/track_sky_flow.dart';
 void main() {
   test('predefined Ma’at Flow event notes contain no disclaimer copy', () {
     final banned = RegExp(
-      r'(modern reconstruction|not medical|not legal|privacy|notification|'
+      r'(modern reconstruction|not medical|not legal|privacy notification|'
+      r'notifications carry only|push notifications|notification preview|'
       r'historically attested|directly attested|not 1:1|interpretive|'
       r'educational purposes|terms and conditions)',
       caseSensitive: false,
@@ -167,6 +168,29 @@ void main() {
             detail: maatDecanFlowDetailText(definition, event),
           ),
     ];
+
+    final autobiographyEvent8 = details.singleWhere(
+      (entry) =>
+          entry.flow == kTheAutobiographyFlowKey && entry.event == 'event-8',
+    );
+    expect(
+      autobiographyEvent8.detail,
+      allOf(
+        contains(
+          'Choose one line that can be shared without exposing names, private details, or sensitive content.',
+        ),
+        contains(
+          'Share the line only with someone who witnessed, shaped, or belongs to that part of the account.',
+        ),
+        contains(
+          'If no safe person can receive it, keep the line private and record why it is not shared.',
+        ),
+        contains(
+          'Use the feed only for a generic line with names and private details removed.',
+        ),
+      ),
+      reason: 'Autobiography event 8 should keep privacy-safe sharing gates.',
+    );
 
     for (final entry in details) {
       expect(

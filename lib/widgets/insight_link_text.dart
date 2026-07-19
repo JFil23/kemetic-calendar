@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import '../data/insight_link_model.dart';
 import '../shared/glossy_text.dart';
+import '../shared/kemetic_text.dart';
 
 typedef InsightLinkTap = void Function(InsightLink link);
 
@@ -29,7 +30,7 @@ class InsightLinkTextStyle {
     String phrase, {
     Rect? shaderRect,
   }) {
-    return widgetStyle(baseStyle).copyWith(
+    return KemeticTypography.protect(widgetStyle(baseStyle), phrase).copyWith(
       color: null,
       foreground: _glossPaint(baseStyle, phrase, shaderRect: shaderRect),
     );
@@ -117,7 +118,7 @@ class InsightLinkSpanBuilder {
           shaderCallback: (Rect bounds) =>
               KemeticGold.gloss.createShader(bounds),
           blendMode: BlendMode.srcIn,
-          child: Text(phrase, style: linkStyle),
+          child: KemeticText(phrase, style: linkStyle),
         ),
       ),
     );

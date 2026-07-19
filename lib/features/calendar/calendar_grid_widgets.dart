@@ -644,6 +644,7 @@ const double _kDayTileCompactPadding = 4.0;
 const double _kDayTileExpandedHorizontalPadding = 1.5;
 const double _kDayTileExpandedVerticalPadding = 4.0;
 const double _kCompactMarkerGap = 1.0;
+const double _kWideDecanLabelLineHeight = 1.22;
 const double _kTextlessPillGap = 3.0;
 const double _kLabeledPillGap = 4.0;
 const double _kDetailsPillGap = 6.0;
@@ -655,6 +656,30 @@ const double _kLabeledPillRadius = 6.0;
 const double _kDetailsPillRadius = 7.0;
 const int _kTextlessPillVisibleCap = 2;
 const int _kLabeledPillVisibleCap = 2;
+
+bool _usesTallerCompactMonthCells(BuildContext context) {
+  return MediaQuery.sizeOf(context).shortestSide >= 600;
+}
+
+double _decanLabelLineHeightForContext(BuildContext context) {
+  return _usesTallerCompactMonthCells(context)
+      ? _kWideDecanLabelLineHeight
+      : 1.0;
+}
+
+double _decanLabelRowHeightForContext(BuildContext context, double fontSize) {
+  final baseHeight = fontSize + 3.0;
+  if (!_usesTallerCompactMonthCells(context)) return baseHeight;
+  return math.max(baseHeight, fontSize * _kWideDecanLabelLineHeight + 10.0);
+}
+
+double _chipHeightForContext(BuildContext context, MonthExpansionLevel level) {
+  if (level == MonthExpansionLevel.compact &&
+      _usesTallerCompactMonthCells(context)) {
+    return 48.0;
+  }
+  return _chipHeightFor(level);
+}
 
 bool _usesTabletLandscapeMonthGrid(BuildContext context) {
   final media = MediaQuery.of(context);
@@ -1041,7 +1066,7 @@ class _MonthCard extends StatelessWidget {
     double decanHeightFor(int decanIndex) {
       // Only adjust in details mode; otherwise use the global sizing.
       if (expansionLevel != MonthExpansionLevel.details) {
-        return _chipHeightFor(expansionLevel);
+        return _chipHeightForContext(context, expansionLevel);
       }
       // Estimate visible pills for this decan and derive a height.
       // Header + tile padding + safe slack; each pill uses the details
@@ -1115,23 +1140,32 @@ class _MonthCard extends StatelessWidget {
     final decanLabelFontSize = framedSurface
         ? _CalendarScale.decanLabelFramed
         : _CalendarScale.decanLabelMain;
-    final decanLabelRowHeight = decanLabelFontSize + 3.0;
+    final decanLabelLineHeight = _decanLabelLineHeightForContext(context);
+    final decanLabelRowHeight = _decanLabelRowHeightForContext(
+      context,
+      decanLabelFontSize,
+    );
     final decanLabelStrut = StrutStyle(
       fontFamily: 'GentiumPlus',
       fontSize: decanLabelFontSize,
-      height: 1.0,
+      height: decanLabelLineHeight,
       forceStrutHeight: true,
     );
-    const decanTextHeightBehavior = TextHeightBehavior(
-      applyHeightToFirstAscent: false,
-      applyHeightToLastDescent: false,
-    );
+    final decanTextHeightBehavior = _usesTallerCompactMonthCells(context)
+        ? const TextHeightBehavior(
+            applyHeightToFirstAscent: true,
+            applyHeightToLastDescent: true,
+          )
+        : const TextHeightBehavior(
+            applyHeightToFirstAscent: false,
+            applyHeightToLastDescent: false,
+          );
     final decanLabelStyle = TextStyle(
       color: _CalendarTone.decanLabel.withValues(
         alpha: framedSurface ? 0.98 : 0.94,
       ),
       fontSize: decanLabelFontSize,
-      height: 1.0,
+      height: decanLabelLineHeight,
       fontWeight: FontWeight.w500,
       fontFamily: 'GentiumPlus',
       fontFamilyFallback: const ['NotoSans', 'Roboto'],
@@ -1644,7 +1678,8 @@ class _DayChip extends StatelessWidget {
     final isTextlessPill = expansionLevel == MonthExpansionLevel.stacked;
     final isLabeledPill = expansionLevel == MonthExpansionLevel.labeled;
     final isDetailsPill = expansionLevel == MonthExpansionLevel.details;
-    final chipHeight = decanHeight ?? _chipHeightFor(expansionLevel);
+    final chipHeight =
+        decanHeight ?? _chipHeightForContext(context, expansionLevel);
     final nonCompactHeaderHeight = 24.0;
     final tileRadius = BorderRadius.circular(_kDayTileRadius);
     final tileFill = toneSpec.fill;
@@ -1826,7 +1861,7 @@ class _DayChip extends StatelessWidget {
           key: anchorKey,
           width: double.infinity,
           height: chipHeight,
-          child: RepaintBoundary(
+          child: KeyedSubtree(
             child: ClipRRect(
               borderRadius: tileRadius,
               child: DecoratedBox(
@@ -2986,7 +3021,7 @@ class _EpagomenalCard extends StatelessWidget {
     // Dynamic height for epagomenal days (parallels regular decan sizing).
     double epagomenalHeightForLayout() {
       if (expansionLevel != MonthExpansionLevel.details) {
-        return _chipHeightFor(expansionLevel);
+        return _chipHeightForContext(context, expansionLevel);
       }
       const double labelAreaHeight = 50.0;
       const double firstPillHeight = _kDetailsPillHeight;

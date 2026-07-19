@@ -1,5 +1,6 @@
 import 'dart:js_interop';
 
+import '../shared/kemetic_text.dart';
 import 'package:web/web.dart' as web;
 
 Future<void> showForegroundPushAlert({
@@ -8,10 +9,12 @@ Future<void> showForegroundPushAlert({
 }) async {
   try {
     if (web.Notification.permission != 'granted') return;
+    final safeTitle = KemeticExternalText.asciiSafe(title);
+    final safeBody = body == null ? null : KemeticExternalText.asciiSafe(body);
     final notification = web.Notification(
-      title,
+      safeTitle.isEmpty ? 'Kemetic Calendar' : safeTitle,
       web.NotificationOptions(
-        body: body ?? '',
+        body: safeBody ?? '',
         icon: 'icons/Icon-192.png',
         badge: 'icons/Icon-maskable-192.png',
         tag: 'kemetic-calendar-foreground',

@@ -41,13 +41,20 @@ void main() {
     });
 
     test('shared note render adapter does not mutate reminders', () {
+      final getNotes = _sourceBetween(
+        calendarSource,
+        'List<_Note> _getNotes(int kYear, int kMonth, int kDay)',
+        'DaySheetDayWindow _calendarSheetDayWindow',
+      );
       final helper = _sourceBetween(
         calendarSource,
         'List<NoteData> _noteDataForDay(int y, int m, int d)',
         '// Build a reminder id',
       );
 
-      expect(helper, contains('_dedupeVisibleDayNotes'));
+      expect(getNotes, contains('_isCalendarVisible(note.calendarId)'));
+      expect(getNotes, contains('_dedupeVisibleDayNotes'));
+      expect(helper, contains('_getNotes(y, m, d)'));
       expect(helper, contains('_noteDataFromNote(note)'));
       expect(helper, isNot(contains('_reminderService')));
       expect(helper, isNot(contains('addOrUpdate')));
@@ -70,6 +77,11 @@ void main() {
     });
 
     test('reminder sync pauses and coalesces during orientation changes', () {
+      final calendarState = _sourceBetween(
+        calendarSource,
+        'class CalendarPageState extends State<CalendarPage>',
+        'Widget _buildInitialCalendarLoadingScaffold()',
+      );
       final syncEntry = _sourceBetween(
         calendarSource,
         'Future<void> _syncReminderEvents({',
@@ -86,9 +98,9 @@ void main() {
         '/* ───── helpers ───── */',
       );
       final orientationBuild = _sourceBetween(
-        calendarSource,
+        calendarState,
         'final previousOrientation = _lastOrientation;',
-        'if (shouldBuildLandscapeGrid) {',
+        'final scaffold = Scaffold(',
       );
 
       expect(syncEntry, contains('_reminderSyncGate.runCoalesced'));
@@ -112,50 +124,58 @@ void main() {
       );
     });
 
-    test('covered Calendar route does not build hidden landscape grid', () {
-      final landscapeBranch = _sourceBetween(
+    test('wide Calendar route keeps the main calendar surface', () {
+      final calendarState = _sourceBetween(
         calendarSource,
-        'final routeIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;',
-        'if (shouldBuildLandscapeGrid) {',
+        'class CalendarPageState extends State<CalendarPage>',
+        'Widget _buildInitialCalendarLoadingScaffold()',
       );
-      final gridBranch = _sourceBetween(
+      final calendarRootDecision = _sourceBetween(
+        calendarState,
+        '@override\n  Widget build(BuildContext context) {',
+        'final media = MediaQuery.of(context);',
+      );
+
+      expect(
+        calendarRootDecision,
+        isNot(contains('routeShouldRemainRendered')),
+      );
+      expect(calendarRootDecision, isNot(contains('SizedBox.shrink()')));
+      expect(
+        calendarRootDecision,
+        contains('_buildInitialCalendarLoadingScaffold()'),
+      );
+      expect(calendarRootDecision, isNot(contains('shouldBuildWideDayView')));
+      expect(calendarRootDecision, isNot(contains('DayViewPage(')));
+      expect(calendarRootDecision, isNot(contains('LandscapeMonthView(')));
+      expect(
         calendarSource,
-        'if (shouldBuildLandscapeGrid) {',
+        isNot(contains('Widget _buildWideCalendarDayView({')),
+      );
+    });
+
+    test('covered Calendar route retains the painted calendar body', () {
+      final calendarState = _sourceBetween(
+        calendarSource,
+        'class CalendarPageState extends State<CalendarPage>',
+        'Widget _buildInitialCalendarLoadingScaffold()',
+      );
+      final calendarRootDecision = _sourceBetween(
+        calendarState,
+        '@override\n  Widget build(BuildContext context) {',
         'final scaffold = Scaffold(',
       );
 
-      expect(landscapeBranch, contains('final useGrid ='));
       expect(
-        landscapeBranch,
-        contains(
-          'final routeShouldRemainRendered =\n'
-          '        routeIsCurrent ||\n'
-          '        CalendarPage._hasCalendarOwnedTransientOverlayOpenOrOpening;',
-        ),
+        calendarRootDecision,
+        isNot(contains('routeShouldRemainRendered')),
       );
+      expect(calendarRootDecision, isNot(contains('SizedBox.shrink()')));
       expect(
-        landscapeBranch,
-        contains(
-          'final shouldBuildLandscapeGrid = useGrid && routeShouldRemainRendered;',
-        ),
-        reason:
-            'Calendar-owned sheets keep the route painted behind them; unrelated covered routes still shrink below.',
+        calendarRootDecision,
+        contains('_buildInitialCalendarLoadingScaffold()'),
       );
-      expect(gridBranch, contains('LandscapeMonthView('));
-      expect(gridBranch, isNot(contains('if (useGrid) {')));
-    });
-
-    test('covered Calendar route skips heavy calendar body builds', () {
-      final coveredRouteBranch = _sourceBetween(
-        calendarSource,
-        'if (!routeShouldRemainRendered) {',
-        'if (shouldBuildLandscapeGrid) {',
-      );
-
-      expect(coveredRouteBranch, contains('Scaffold('));
-      expect(coveredRouteBranch, contains('SizedBox.shrink()'));
-      expect(coveredRouteBranch, isNot(contains('_buildBodyWithJournal')));
-      expect(coveredRouteBranch, isNot(contains('LandscapeMonthView(')));
+      expect(calendarSource, contains('_buildBodyWithJournal()'));
     });
 
     test('portrait recenter keeps Calendar body painted', () {

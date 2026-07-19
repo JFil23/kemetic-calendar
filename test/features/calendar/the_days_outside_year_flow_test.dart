@@ -183,6 +183,154 @@ void main() {
     },
   );
 
+  test('copy keeps fixed dates and no-replay timing anchors explicit', () {
+    final yearClose = kDaysOutsideEvents.first;
+    final outsideDays = kDaysOutsideEvents.skip(1).take(5).toList();
+    final wepRonpet = kDaysOutsideEvents.last;
+
+    expect((yearClose.kMonth, yearClose.kDay), (12, 30));
+    expect(
+      outsideDays.map((event) => (event.kMonth, event.kDay)).toList(),
+      <(int, int)>[(13, 1), (13, 2), (13, 3), (13, 4), (13, 5)],
+    );
+    expect((wepRonpet.kMonth, wepRonpet.kDay), (1, 1));
+    expect(wepRonpet.title, contains('Wep Ronpet'));
+
+    final yearCloseDetail = daysOutsideDetailText(
+      yearClose,
+      closingKYear: 2,
+      variant: DaysOutsideCopyVariant.standard,
+    );
+    final firstOutsideDetail = daysOutsideDetailText(
+      outsideDays.first,
+      closingKYear: 2,
+      variant: DaysOutsideCopyVariant.standard,
+    );
+    final wepRonpetDetail = daysOutsideDetailText(
+      wepRonpet,
+      closingKYear: 2,
+      variant: DaysOutsideCopyVariant.standard,
+    );
+
+    expect(yearCloseDetail, contains('Year 2 · Month 12 · Day 30'));
+    expect(firstOutsideDetail, contains('Year 2 · Month 13 · Day 1'));
+    expect(wepRonpetDetail, contains('Year 3 · Month 1 · Day 1'));
+    expect(
+      yearCloseDetail,
+      contains(
+        'This event belongs to this Kemetic calendar day only; missed days are not replayed later in the year.',
+      ),
+    );
+  });
+
+  test('copy keeps water, birth-day, and Wep Ronpet actions clean', () {
+    final event0 = kDaysOutsideEvents[0];
+    final event1 = kDaysOutsideEvents[1];
+    final event2 = kDaysOutsideEvents[2];
+    final event3 = kDaysOutsideEvents[3];
+    final event4 = kDaysOutsideEvents[4];
+    final event5 = kDaysOutsideEvents[5];
+    final event6 = kDaysOutsideEvents[6];
+
+    expect(event0.steps, <String>[
+      'Place water on the surface as you begin naming.',
+      'Name one thing the year gave you that you did not expect.',
+      'Name one thing the year asked of you that you did not fully give.',
+      'Name one thing that carries across the threshold into the five days.',
+    ]);
+    expect(
+      daysOutsideDetailText(
+        event0,
+        closingKYear: 2,
+        variant: DaysOutsideCopyVariant.standard,
+      ),
+      contains('The water witnesses the closing while it is happening.'),
+    );
+
+    expect(event1.steps.first, 'Pause at dawn before ordinary work begins.');
+    expect(event2.steps.take(3).toList(), <String>[
+      'Go outside at dawn.',
+      'Face east.',
+      'Look at the horizon before looking at anything else.',
+    ]);
+    expect(
+      event3.steps,
+      contains('Ask where force in you or around you has been misdirected.'),
+    );
+    expect(
+      event4.steps,
+      contains('Name the preparation your unspoken truth requires.'),
+    );
+    expect(
+      event5.steps,
+      contains('Name the threshold you have avoided looking at directly.'),
+    );
+
+    expect(event6.steps, <String>[
+      'At dawn, wash your hands and face before anything else.',
+      'Set fresh water on the surface.',
+      'Say: This water is for the year that opens.',
+      'Speak each of the five names.',
+      'Speak one word for the specific quality you received as it applies to your life entering this year.',
+      'Name one orienting intention for the new year.',
+      'Drink the water.',
+    ]);
+    expect(
+      daysOutsideDetailText(
+        event6,
+        closingKYear: 2,
+        variant: DaysOutsideCopyVariant.standard,
+      ),
+      contains('ordinary time restarts clean'),
+    );
+  });
+
+  test('words fields do not contain stage-direction wrappers', () {
+    final issues = <String>[];
+
+    for (final event in kDaysOutsideEvents) {
+      for (final pattern in _daysOutsideWordsStageDirectionPatterns) {
+        if (pattern.hasMatch(event.spokenLine)) {
+          issues.add('Event ${event.eventNumber}: ${event.spokenLine}');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('steps keep source-note and rationale phrases out of actions', () {
+    final issues = <String>[];
+
+    for (final event in kDaysOutsideEvents) {
+      for (final step in event.steps) {
+        if (_daysOutsideRationalePhrasePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('optional detail copy does not duplicate required steps', () {
+    for (final event in <DaysOutsideEvent>[
+      kDaysOutsideEvents.first,
+      kDaysOutsideEvents.last,
+    ]) {
+      final detail = daysOutsideDetailText(
+        event,
+        closingKYear: 2,
+        variant: DaysOutsideCopyVariant.standard,
+      );
+
+      for (final step in event.steps) {
+        final occurrences = RegExp(RegExp.escape(step)).allMatches(detail);
+        expect(occurrences, hasLength(1), reason: step);
+      }
+    }
+  });
+
   test('calendar UI and join branch use designated year-closing windows', () {
     final detailSource = File(
       'lib/features/calendar/calendar_maat_flows.dart',
@@ -217,3 +365,16 @@ void main() {
     );
   });
 }
+
+final _daysOutsideWordsStageDirectionPatterns = <RegExp>[
+  RegExp(
+    r'^\s*(name one|place|wash|set fresh|speak each|drink)\b',
+    caseSensitive: false,
+  ),
+  RegExp(r'\bbefore anything else\b', caseSensitive: false),
+];
+
+final _daysOutsideRationalePhrasePattern = RegExp(
+  r'\b(The first day of the five|ordinary logic|This is not symbolic|directional and physical|Undirected force does not disappear|Aset did not|prepared the conditions|Nebet-Het.s role|Opening of the Year begins|ordinary time restarts|source|because)\b',
+  caseSensitive: false,
+);

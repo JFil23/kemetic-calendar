@@ -14,6 +14,7 @@ import 'package:mobile/features/calendar/the_djed_flow.dart';
 import 'package:mobile/features/calendar/the_kept_word_flow.dart';
 import 'package:mobile/features/calendar/the_open_hand_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
+import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:mobile/features/calendar/the_tending_flow.dart';
 import 'package:mobile/features/calendar/the_wag_flow.dart';
 import 'package:mobile/features/calendar/the_weighing_flow.dart';
@@ -36,7 +37,7 @@ class _InventoryFlow {
 }
 
 // Phase 3H inventory lock:
-// Response-enabled core/seasonal/ritual flows: 14
+// Response-enabled core/seasonal/ritual flows: 15
 // Response-enabled decan flows: 17
 // Remaining queued decan flows: 0
 // Legacy custom flow excluded from response rollout: evening_threshold
@@ -124,6 +125,12 @@ const List<_InventoryFlow> _responseEnabledCoreFlows = <_InventoryFlow>[
     title: kTheDjedTitle,
     category: 'response-enabled core',
     phase: 'Phase 3B',
+  ),
+  _InventoryFlow(
+    key: kReadingHouseFlowKey,
+    title: kReadingHouseTitle,
+    category: 'response-enabled core',
+    phase: 'Reading House Phase 4A',
   ),
 ];
 
@@ -247,16 +254,16 @@ void main() {
 
       final inventoryKeys = _allInventoryFlows.map((flow) => flow.key).toSet();
 
-      expect(registeredTemplateKeys, hasLength(31));
+      expect(registeredTemplateKeys, hasLength(32));
       expect(inventoryKeys, registeredTemplateKeys);
-      expect(_allInventoryFlows, hasLength(31));
-      expect(_responseEnabledCoreFlows, hasLength(14));
+      expect(_allInventoryFlows, hasLength(32));
+      expect(_responseEnabledCoreFlows, hasLength(15));
       expect(_responseEnabledDecanFlows, hasLength(17));
       expect(_remainingDecanFlows, isEmpty);
       expect(_remainingPrivacySensitiveDecanFlows, isEmpty);
       expect(_remainingLowerRiskDecanFlows, isEmpty);
       expect(_categoryCounts, <String, int>{
-        'response-enabled core': 14,
+        'response-enabled core': 15,
         'response-enabled decan': 17,
       });
       expect(registeredTemplateKeys, isNot(contains(kEveningThresholdFlowKey)));
@@ -271,7 +278,7 @@ void main() {
           .toSet();
 
       expect(resolverEnabledKeys, enabledInventoryKeys);
-      expect(resolverEnabledKeys, hasLength(31));
+      expect(resolverEnabledKeys, hasLength(32));
 
       for (final flow in _remainingDecanFlows) {
         expect(

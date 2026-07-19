@@ -6,6 +6,7 @@ import 'package:mobile/features/invites/event_invite_action_row.dart';
 import 'package:mobile/features/nodes/widgets.dart';
 import 'package:mobile/features/rhythm/models/rhythm_models.dart';
 import 'package:mobile/features/rhythm/widgets/rhythm_state_button.dart';
+import 'package:mobile/features/rhythm/widgets/rhythm_todo_row.dart';
 
 Future<void> _pumpTouchWidget(WidgetTester tester, Widget child) async {
   await _pumpTouchWidgetWithSize(tester, child, const Size(390, 844));
@@ -93,6 +94,60 @@ void main() {
     await tester.tap(find.byIcon(Icons.adjust_rounded));
     await tester.pumpAndSettle();
     expect(latest, RhythmItemState.partial);
+  });
+
+  testWidgets('Rhythm state button group replaces partial with move action', (
+    tester,
+  ) async {
+    var moved = false;
+
+    await _pumpTouchWidget(
+      tester,
+      RhythmStateButtonGroup(
+        current: RhythmItemState.pending,
+        onChanged: (_) {},
+        onMoveToTomorrow: () {
+          moved = true;
+        },
+      ),
+    );
+
+    expect(find.byIcon(Icons.arrow_forward_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.adjust_rounded), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.arrow_forward_rounded));
+    await tester.pumpAndSettle();
+    expect(moved, isTrue);
+  });
+
+  testWidgets('Legacy partial planner todos render with move action', (
+    tester,
+  ) async {
+    var moved = false;
+
+    await _pumpTouchWidget(
+      tester,
+      RhythmTodoRow(
+        todo: const RhythmTodo(
+          id: 'todo-partial',
+          title: 'Half finished task',
+          state: RhythmItemState.partial,
+        ),
+        onStateChanged: (_) {},
+        onMoveToTomorrow: () {
+          moved = true;
+        },
+        onDelete: () {},
+      ),
+    );
+
+    expect(find.text('Half finished task'), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_forward_rounded), findsOneWidget);
+    expect(find.byIcon(Icons.adjust_rounded), findsNothing);
+
+    await tester.tap(find.byIcon(Icons.arrow_forward_rounded));
+    await tester.pumpAndSettle();
+    expect(moved, isTrue);
   });
 
   testWidgets('Glyph back button keeps a full touch target on phones', (

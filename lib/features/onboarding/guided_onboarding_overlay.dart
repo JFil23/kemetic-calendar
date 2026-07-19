@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:mobile/features/onboarding/onboarding_progress.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:mobile/shared/kemetic_text.dart';
 
 enum CoachmarkVariant { onboarding, helperBubble }
 
@@ -38,6 +39,7 @@ class CoachmarkTarget {
     this.helperId,
     this.helperUserId,
     this.sourceWidget,
+    this.showWhenHelperCompleted = false,
   });
 
   final GlobalKey? key;
@@ -59,6 +61,7 @@ class CoachmarkTarget {
   final String? helperId;
   final String? helperUserId;
   final String? sourceWidget;
+  final bool showWhenHelperCompleted;
 }
 
 class GuidedOnboardingController extends ChangeNotifier {
@@ -74,7 +77,7 @@ class GuidedOnboardingController extends ChangeNotifier {
   bool get suppressExternalOverlays =>
       _suppressExternalOverlays || _target != null;
 
-  void show(CoachmarkTarget target) {
+  void show(CoachmarkTarget target, {bool? externalOverlaySuppressed}) {
     assert(() {
       if (target.variant != CoachmarkVariant.helperBubble) return true;
       final helperId = target.helperId;
@@ -107,6 +110,9 @@ class GuidedOnboardingController extends ChangeNotifier {
       return true;
     }());
     _target = target;
+    if (externalOverlaySuppressed != null) {
+      _suppressExternalOverlays = externalOverlaySuppressed;
+    }
     notifyListeners();
   }
 
@@ -152,6 +158,7 @@ class GuidedOnboardingOverlayHost extends StatelessWidget {
         final helperId = target?.helperId;
         final helperUserId = target?.helperUserId;
         final isCompletedHelper =
+            target?.showWhenHelperCompleted != true &&
             helperId != null &&
             helperUserId != null &&
             service.isHelperCompletedSync(helperUserId, helperId);
@@ -424,6 +431,9 @@ class _GuidedOnboardingOverlayState extends State<GuidedOnboardingOverlay>
         final size = Size(constraints.maxWidth, constraints.maxHeight);
         final target = widget.target;
         final isHelper = target.variant == CoachmarkVariant.helperBubble;
+        if (isHelper && target.key != null && _primaryRect == null) {
+          return const SizedBox.shrink();
+        }
         final cardWidth = isHelper
             ? math.min(size.width - 28, 320.0).clamp(220.0, 320.0).toDouble()
             : math.min(size.width - 32, 360.0);
@@ -583,7 +593,7 @@ class CoachmarkCard extends StatelessWidget {
                   ),
                 ),
               SizedBox(height: _isHelper ? 6 : 8),
-              Text(
+              KemeticText(
                 target.body,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.84),
@@ -593,7 +603,7 @@ class CoachmarkCard extends StatelessWidget {
               ),
               if (target.instruction != null) ...[
                 SizedBox(height: _isHelper ? 8 : 12),
-                Text(
+                KemeticText(
                   target.instruction!,
                   style: const TextStyle(
                     color: Color(0xFFFFE7A3),

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/navigation_fallback.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -11,6 +12,7 @@ import '../../data/user_events_repo.dart';
 import '../../data/flows_repo.dart';
 import '../../data/shared_calendar_models.dart';
 import '../../data/shared_calendars_repo.dart';
+import '../../data/shared_practice_repo.dart';
 import 'package:mobile/features/calendar/notify.dart';
 import 'package:flutter/rendering.dart';
 import '../../data/note_category.dart';
@@ -19,9 +21,9 @@ import 'package:mobile/utils/calendar_event_markers.dart';
 import 'package:mobile/utils/flow_filter_engine.dart';
 import 'package:mobile/utils/flow_visibility.dart';
 import 'package:flutter/foundation.dart';
-import 'landscape_month_view.dart';
 import 'dart:convert';
 import 'day_view.dart';
+import '../../core/feature_flags.dart';
 import '../../data/profile_model.dart';
 import '../../data/profile_repo.dart';
 import '../journal/journal_controller.dart';
@@ -44,11 +46,9 @@ import '../ai_generation/flow_prompt_classifier.dart';
 import '../ai_generation/itinerary_prompt_parser.dart';
 import '../../models/ai_flow_generation_response.dart';
 import '../../services/ai_flow_generation_service.dart';
-import '../../services/ai_reflection_service.dart';
 import '../../data/decan_reflection_repo.dart';
 import '../../data/decan_reflection_model.dart';
 import '../../data/decan_reflection_prompt_state.dart';
-import '../../data/journal_repo.dart';
 import '../../widgets/kemetic_day_info.dart';
 import '../../widgets/insight_link_text.dart';
 import '../../widgets/keyboard_aware.dart';
@@ -58,6 +58,7 @@ import '../../widgets/utility_sheet_route_scaffold.dart';
 import '../../services/speech/speech_service.dart';
 import 'speech_resolver.dart';
 import 'decan_id.dart';
+import 'daily_cosmic_context_badge.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'package:mobile/features/calendar/decan_metadata.dart';
@@ -68,6 +69,9 @@ import 'package:mobile/core/day_key.dart';
 import 'package:mobile/core/app_bottom_insets.dart';
 import 'package:mobile/core/global_menu_routes.dart';
 import 'package:mobile/core/navigation_persistence_policy.dart';
+import 'package:mobile/core/composition/composition_engine.dart';
+import 'package:mobile/core/composition/composition_models.dart';
+import 'package:mobile/core/composition/composition_usage_store.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:flutter/gestures.dart';
 import 'package:mobile/core/completion_status.dart';
@@ -81,15 +85,18 @@ import '../../utils/event_cid_util.dart';
 import '../../utils/detail_sanitizer.dart';
 import 'package:mobile/core/pinch_gesture_surface.dart';
 import 'package:mobile/core/touch_targets.dart';
+import 'package:mobile/shared/kemetic_text.dart';
 import '../journal/journal_event_badge.dart';
-import '../journal/journal_badge_utils.dart';
 import '../journal/journal_v2_document_model.dart';
 import 'package:mobile/telemetry/telemetry.dart';
 import '../../services/calendar_sync_service.dart';
+import '../../services/calendar_snapshot_repository.dart';
 import '../../services/push_notifications.dart';
 import '../../services/app_restoration_service.dart';
 import '../../services/app_navigation_restoration_controller.dart';
+import '../../services/day_view_restoration_write_gate.dart';
 import '../../services/restoration_coordinator.dart';
+import '../../services/restoration_trace.dart';
 import '../../services/session_resume_service.dart';
 import '../../services/navigation_trace.dart';
 import '../../core/push_intent_bus.dart';
@@ -105,7 +112,9 @@ import '../../widgets/kemetic_date_picker.dart' show showKemeticDatePicker;
 import '../../widgets/recurrence_until_date_picker.dart';
 import '../../utils/external_link_utils.dart';
 import 'calendar_invalidation.dart';
+import 'onboarding_target_reconciliation.dart';
 import 'calendar_visible_state_policy.dart';
+import 'calendar_warm_start_cache_identity.dart';
 import 'calendar_completion.dart';
 import 'reminder_sync_idempotence.dart';
 import 'reminder_sync_gate.dart';
@@ -113,6 +122,7 @@ import 'decan_reflection_badge.dart';
 import 'event_filing_service.dart';
 import 'maat_flow_palette.dart';
 import 'maat_flow_visual_tokens.dart';
+import '../onboarding/decan_reflection_onboarding_gate.dart';
 import 'maat_flow_interactive_primitives.dart';
 import 'maat_flow_response_journal_blocks.dart';
 import 'maat_flow_response_models.dart';
@@ -143,6 +153,7 @@ import 'the_open_hand_flow.dart';
 import 'the_open_hand_enrollment.dart';
 import 'the_djed_flow.dart';
 import 'the_djed_enrollment.dart';
+import 'the_reading_house_flow.dart';
 import 'maat_decan_flow.dart';
 import '../settings/settings_prefs.dart';
 import '../calendars/shared_calendars_sheet.dart';
@@ -157,15 +168,17 @@ import '../onboarding/daily_orientation_repo.dart';
 import '../onboarding/decan_compass_copy_repo.dart';
 import '../onboarding/onboarding_overlay.dart';
 import '../onboarding/onboarding_progress.dart';
+import '../onboarding/onboarding_review_config.dart';
 import '../onboarding/onboarding_storage.dart';
 import '../onboarding/starter_maat_flow_recommendation.dart';
 import '../rhythm/data/rhythm_repo.dart';
 import '../rhythm/event_todo_action.dart';
 import '../rhythm/event_todo_builder.dart';
-import '../rhythm/data/planner_badge_repo.dart';
 import '../rhythm/pages/todays_alignment_page.dart';
 import 'calendar_recurring_scope.dart';
 import 'day_sheet_scope.dart';
+import 'decan_reflection_composition/decan_reflection_composer.dart';
+import 'decan_reflection_composition/maat_flow_decan_fact_collector.dart';
 
 part 'calendar_flow_models.dart';
 part 'calendar_flow_studio_models.dart';
@@ -174,6 +187,7 @@ part 'calendar_month_detail.dart';
 part 'calendar_flow_studio_page.dart';
 part 'calendar_flow_pages.dart';
 part 'calendar_maat_flows.dart';
+part 'reading_house_authoring_page.dart';
 part 'my_flow_card_spec.dart';
 part 'my_flow_maat_badge.dart';
 part 'my_flow_card.dart';
@@ -187,6 +201,32 @@ enum EndFlowActionResult { success, failed, notHandled }
 void _calendarDebugPrint(String? message, {int? wrapWidth}) {
   if (kDebugMode) {
     debugPrint(message, wrapWidth: wrapWidth);
+  }
+}
+
+Future<void> _ensureSharedExperienceForFlow({
+  required int flowId,
+  required String? calendarId,
+  required String source,
+}) async {
+  final trimmedCalendarId = calendarId?.trim();
+  if (flowId <= 0 || trimmedCalendarId == null || trimmedCalendarId.isEmpty) {
+    return;
+  }
+  try {
+    await SharedPracticeRepo(
+      Supabase.instance.client,
+    ).ensureSharedExperienceForFlow(
+      flowId: flowId,
+      calendarId: trimmedCalendarId,
+    );
+  } catch (e) {
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[$source] shared experience ensure failed for flow=$flowId '
+        'calendar=$trimmedCalendarId: $e',
+      );
+    }
   }
 }
 
@@ -431,11 +471,6 @@ const Gradient _maatBadgeGoldGloss = LinearGradient(
 // Base text styles (color overridden to white inside gloss wrappers)
 const TextStyle _titleGold = TextStyle(
   fontSize: 22,
-  fontWeight: FontWeight.w500,
-  color: Colors.white,
-);
-const TextStyle _monthTitleGold = TextStyle(
-  fontSize: 20,
   fontWeight: FontWeight.w500,
   color: Colors.white,
 );
@@ -1348,9 +1383,9 @@ Akhet · The Measuring of the World as It Returns to Water
 
 The Nile has risen past its banks. Field lines vanish beneath the flood. Roads dissolve into channels. The boundaries that governed labor, taxation, inheritance, and memory disappear under water — and what had been precisely measured returns to uncertainty.
 
-This was not treated as disaster.
+This was treated as return, not disaster.
 
-Ḏḥwty carries more than a name. As ibis, he walks the edge between water and land, probing where what is hidden must be found. As baboon, he belongs to dawn — the one who cries out when light returns and the cycle has completed its passage through darkness. As lunar power, he counts change without losing continuity: the moon fills and empties without losing its course. As scribe of the netjeru, he preserves what would otherwise vanish into speech, flood, and forgetting. These are not separate roles. They are one function — the function of making return legible.
+Ḏḥwty carries more than a name. As ibis, he walks the edge between water and land, probing where what is hidden must be found. As baboon, he belongs to dawn — the one who cries out when light returns and the cycle has completed its passage through darkness. As lunar power, he counts change without losing continuity: the moon fills and empties without losing its course. As scribe of the netjeru, he preserves what would otherwise vanish into speech, flood, and forgetting. These roles belong to one function: making return legible.
 
 The flood returns the land to a condition before distinction. Field and river, road and channel, owned and unowned — all held temporarily in suspension. The Coffin Texts remember this as the beginning: solitude in the waters, before a place to stand had been established.
 
@@ -1358,7 +1393,7 @@ The flood returns the land to a condition before distinction. Field and river, r
 
 That image belongs to the first month because the Nile restores it annually. What the world holds most precisely — its measures, its divisions, its records — is returned to formlessness. Nothing can be planted. Nothing can be taxed. Nothing can be crossed by memory alone.
 
-The first duty is not labor. It is attention.
+The first duty is attention, before labor.
 
 The Hymn to Hapy praises the inundation because it makes grain possible, fills storehouses, and renews the offerings on which temple, household, and ka all depend. But the flood gives only condition. Too little water brings hunger. Too much brings destruction. Water without measure becomes danger. This is why the first duty of Akhet is not sowing but reckoning — watching sky, watching water, marking the return of Sopdet before dawn, holding what the heavens and the river reveal together before any hand reaches for a tool.
 
@@ -1368,7 +1403,7 @@ Papyrus Chester Beatty IV preserves the scribal principle: writings keep names a
 
 — Papyrus Chester Beatty IV
 
-What dissolves must be observed before it is acted upon. What is observed must be measured. What is measured can return to order.
+Dissolution must be observed before it is acted upon, then measured carefully enough to return to order.
 ''',
   2: '''
 Month 2 — Paopi / Mnḫt
@@ -1384,7 +1419,7 @@ The Nile has become the year's primary road.
 
 When land routes dissolve, water routes open. Boats cross where feet cannot. Food moves between settlements. Papyrus, fish, beer, grain reserves, tools, and offerings travel the current. Priests carry offerings into temples. Scribes carry records from one season into the next. The flood has made the land unreliable and turned the river into the great corridor of Akhet.
 
-The Pyramid Texts place the deceased in the solar bark, rowing with the imperishable ones and joining the ordered movement of Ra across the sky. Movement here is not wandering. It is passage within a known course, sustained through each of its stages.
+The Pyramid Texts place the deceased in the solar bark, rowing with the imperishable ones and joining the ordered movement of Ra across the sky. Movement here follows a known course, sustained through each of its stages.
 
 — Pyramid Texts
 
@@ -1394,7 +1429,7 @@ The Wadi el-Jarf Papyri preserve the practical face of this truth: crews, boats,
 
 — Wadi el-Jarf Papyri
 
-What has been measured must now travel. What travels must remain aligned. What remains aligned can sustain the next stage of the year.
+What has been measured must now travel, remain aligned, and sustain the next stage of the year without spilling its purpose.
 ''',
   3: '''
 Month 3 — Hathor / Ḥwt-Ḥr
@@ -1402,7 +1437,7 @@ Akhet · Joy Held in Right Measure
 
 The flood season has not ended, but it has softened. The Nile settles into its banks. Routes are trusted where they were uncertain. Water finds its pattern. What had been suspended beneath the flood — paths, fields, the geometry of daily movement — begins to show its edges.
 
-This is not yet the full return of the land. It is the first moment where the world becomes livable.
+The land has not fully returned yet, but this is the first moment where the world becomes livable.
 
 Ḥwt-Ḥr carries a name that is already strange: House of Heru. She is a dwelling for the falcon of kingship — a sky mother who contains the solar heir, an enclosure for royal power built into the body of a netjeret. She is also the great celestial cow who bears the solar disk between her horns and carries Ra across the heavens each day. She is the golden one of music, desire, intoxication, and festival. She is the Lady of the West, who receives the dead and welcomes the ba into the ordered passage beyond the horizon.
 
@@ -1412,13 +1447,13 @@ That last nature must not be passed over quickly. The Eye of Ra is solar force t
 
 — Book of the Heavenly Cow
 
-These are not separate Hathors. They are one function appearing wherever power must be held without being harmed — wherever delight must return without becoming excess, wherever the dangerous heat of the Eye must be soothed back into radiance. Her name says it plainly: she is the house that contains the force that would otherwise escape its source.
+They are one function appearing wherever power must be held without being harmed — wherever delight must return without becoming excess, wherever the dangerous heat of the Eye must be soothed back into radiance. Her name says it plainly: she is the house that contains the force that would otherwise escape its source.
 
-This is why joy belongs to her month, and why it is not what it appears on the surface.
+This is why joy belongs to her month, and why surface pleasure is too small a name for it.
 
-In Kemet, beauty is not decoration. It is right relation made visible. Music, garlands, mirrors, beer, dance, and festival do not stand outside Ma'at — they restore the body to the order it serves. The stability established in Thoth and carried in Paopi now becomes something that can be felt. That knowing is what Hathor governs.
+In Kemet, beauty is right relation made visible. Music, garlands, mirrors, beer, dance, and festival do not stand outside Ma'at — they restore the body to the order it serves. The stability established in Thoth and carried in Paopi now becomes something that can be felt. That knowing is what Hathor governs.
 
-The Book of Coming Forth by Day places her with Ra as a destination of the freed ba — not as ornament at the end of the journey, but as welcome within the ordered path of return. Joy is not the reward that follows alignment. It is the sign of it.
+The Book of Coming Forth by Day places her with Ra as a destination of the freed ba — not as ornament at the end of the journey, but as welcome within the ordered path of return. Joy marks alignment rather than rewarding it after the fact.
 
 — Book of Coming Forth by Day
 
@@ -1426,21 +1461,21 @@ At Dendera, the great rites traced the goddess ascending toward the solar disk i
 
 — Dendera Temple traditions
 
-What has stabilized may rejoice. What rejoices must remain in proportion. What remains in proportion strengthens the order that made joy possible.
+What has stabilized may rejoice, and joy kept in proportion strengthens the order that made it possible.
 ''',
   4: '''
 Month 4 — Ka-ḥer-Ka / Kȝ-ḥr-Kȝ
 Akhet closing · Life Upon Life — Vitality Placed Into the Earth
 
-The floodwaters are withdrawing. The land returns from beneath the surface in slow revelation — first the higher ground, then the lower, then the black silt deposited at the field's edge. That darkness is not absence. It is the most fertile substance the year produces. The flood has made its deposit. Now the earth is ready to receive.
+The floodwaters are withdrawing. The land returns from beneath the surface in slow revelation — first the higher ground, then the lower, then the black silt deposited at the field's edge. That darkness is fertility itself, the richest substance the year produces. The flood has made its deposit. Now the earth is ready to receive.
 
 Kȝ-ḥr-Kȝ names life layered upon life.
 
-The ka is not a vague spiritual presence. It is vital force — the sustaining power that receives, endures, and must be fed. Gods carry kas. Kings carry the royal ka, the divine current that passes through rulers as living inheritance. The dead return to their kas; the offering formula addresses them directly because the ka requires provision to remain present. The living are upheld by the ka while breath remains in the body. Its sign is two arms raised: the posture of receiving and embracing.
+The ka is vital force — the sustaining power that receives, endures, and must be fed. Gods carry kas. Kings carry the royal ka, the divine current that passes through rulers as living inheritance. The dead return to their kas; the offering formula addresses them directly because the ka requires provision to remain present. The living are upheld by the ka while breath remains in the body. Its sign is two arms raised: the posture of receiving and embracing.
 
-Ka upon Ka is not simply more life. It is life entrusted to life — the ka of the previous harvest becoming the seed of the next, the ka of the ancestor sustaining the ka of the descendant, vital force meeting vital force in the act of continuation. That meeting takes place here, in the field.
+Ka upon Ka means life entrusted to life — the ka of the previous harvest becoming the seed of the next, the ka of the ancestor sustaining the ka of the descendant, vital force meeting vital force in the act of continuation. That meeting takes place here, in the field.
 
-The seed entering the dark earth is not discarded. It is placed — in the way an offering is placed, with attention to direction, name, and purpose. What has been measured in Thoth, carried in Paopi, and made livable in Hathor now enters the ground. Planting is not the beginning of labor. It is the year's first act of trust.
+The seed entering the dark earth is placed, not discarded — set down in the way an offering is placed, with attention to direction, name, and purpose. What has been measured in Thoth, carried in Paopi, and made livable in Hathor now enters the ground. Planting becomes the year's first act of trust.
 
 The Pyramid Texts present this grammar through Ausar. His body is the field. His breaking is the preparation of soil. His gathering by Heru is the gathering of grain. His restoration is the return of what was entrusted to darkness. What enters below in the correct manner can emerge above in a form that sustains the living.
 
@@ -1452,7 +1487,7 @@ The Pyramid Texts preserve the repeated offering of bread and beer to the ka so 
 
 — Pyramid Texts
 
-What receives life must be prepared. What is prepared must be entrusted. What is entrusted must be allowed to transform in darkness before it can rise.
+Life must be prepared for, entrusted, and then left in the dark long enough to transform before it can rise.
 ''',
   5: '''
 Month 5 — Šef-Bedet / Šf-bdt
@@ -1464,13 +1499,13 @@ The dramatic work is finished. Flood has come and gone. Boundaries have been res
 
 Šf-bdt names the work of this month twice.
 
-Šf is the act: to feed, to provide, to nourish — the verb of active giving. Bdt is the substance: emmer wheat, bread, offering — the grain that fills the granary and the altar alike. Together they name right provision not once but in doubled form, as if the name itself insists that the act and the substance cannot be separated. To feed is not simply to distribute. It is to place the right thing where the right need exists, in the right measure, at the right time.
+Šf is the act: to feed, to provide, to nourish — the verb of active giving. Bdt is the substance: emmer wheat, bread, offering — the grain that fills the granary and the altar alike. Together they name right provision not once but in doubled form, as if the name itself insists that the act and the substance cannot be separated. To feed means placing the right thing where the right need exists, in the right measure, at the right time.
 
 Bdt is also what the offering table receives. The same grain that sustains the living sustains the ka of the dead, appears before the netjeru, and moves from field to storehouse to altar to mouth. The name of this month holds all of those passages in one word.
 
 Renenutet stands close to the month.
 
-She is the nourishing cobra — serpent of nursing, harvest, granary, birth, and destiny. Her form matters. She does not only feed. She watches over what has been given. At the granary she guards with her gaze. Her cobra hood is not threat but encirclement: the posture of protecting what must not be wasted. Nourishment separated from guardianship becomes generosity that exhausts itself. What she gives, she also protects.
+She is the nourishing cobra — serpent of nursing, harvest, granary, birth, and destiny. Her form matters. She feeds and watches over what has been given. At the granary she guards with her gaze. Her cobra hood encircles rather than threatens: the posture of protecting what must not be wasted. Nourishment separated from guardianship becomes generosity that exhausts itself. What she gives, she also protects.
 
 Renenutet is also bound to Shai — the force of what each life grows into through what it receives. A child fed in right measure becomes what it was meant to become. One fed without care, or fed past proportion, meets a different fate. The field follows the same law. What is nourished grows into its portion; what is neglected meets a different harvest.
 
@@ -1478,13 +1513,13 @@ The Hymn to Hapy praises the inundation because it makes grain possible and fill
 
 — Hymn to Hapy
 
-The Pyramid Texts present bread and beer, water and oils to the ka so that provision may continue without interruption. Not once. Repeatedly. The offering is not a single generous act. It is sustained relation.
+The Pyramid Texts present bread and beer, water and oils to the ka so that provision may continue without interruption. Not once. Repeatedly. The offering is sustained relation, not a single generous act.
 
 — Pyramid Texts
 
 Too little water weakens the root. Too much floods and rots it. Too little food starves the household. Too much empties the storehouse before the lean season arrives. Nourishment belongs to Ma'at only when it holds its proportion through time.
 
-What has begun must be nourished. What is nourished must be measured. What is measured without interruption can endure.
+What has begun must be nourished in measure, without interruption, so it can endure.
 ''',
   6: '''
 Month 6 — Rekh-Wer / Rḫ-wr
@@ -1494,7 +1529,7 @@ Peret has found its rhythm. The seedlings that needed urgent care in Šef-Bedet 
 
 This is where Rekh-Wer opens.
 
-Rḫ carries the sense of knowing, but also of being able — the competence that lives inside knowledge, not separate from it. A rekh is one who knows the right word, the right measure, the right formula. Wr means great, but it is greatness as load-bearing, not greatness as prominence: the elder who holds the weight, the chief who carries the measure, the greatest in the sense that more depends on this knowing than on any other. Great Knowing is not a privilege. It is a burden the year places on those who carry it.
+Rḫ carries the sense of knowing, but also of being able — the competence that lives inside knowledge, not separate from it. A rekh is one who knows the right word, the right measure, the right formula. Wr means great, but it is greatness as load-bearing, not greatness as prominence: the elder who holds the weight, the chief who carries the measure, the greatest in the sense that more depends on this knowing than on any other. Great Knowing becomes the burden the year places on those who carry it.
 
 This burden belongs to two forces simultaneously.
 
@@ -1502,9 +1537,9 @@ Djehuty stands at one side of the month: scribe, counter, mediator, preserver of
 
 Sekhmet stands at the other side: the Eye of Ra as heat and executing force, the netjeret who acts when imbalance reaches the threshold of requiring power rather than correction. Her presence means knowledge must be prepared to act — not as display, not as aggression, but as the capacity to move when stillness would allow disorder to spread unchallenged.
 
-These are not opposing forces.
+These forces are not opposed.
 
-They are one demand appearing in two forms: knowing what is true, and possessing the force to act only on that truth. Knowledge without power remains inert when Isfet requires answer. Power without knowledge becomes destruction dressed as remedy.
+They meet as one demand appearing in two forms: knowing what is true, and possessing the force to act only on that truth. Knowledge without power remains inert when Isfet requires answer. Power without knowledge becomes destruction dressed as remedy.
 
 The House of Life belongs to this month. Sacred texts, medical writings, astronomical tables, ritual instructions, and funerary compositions had to be copied with an exactness that left no room for approximation. A copied error became ritual failure. A misread astronomical calculation disturbed sacred timing. A false medical record brought harm where healing was owed. The scribe who copies carelessly does not merely produce an inaccurate text. He produces Isfet with an educated hand behind it.
 
@@ -1512,11 +1547,11 @@ Papyrus Chester Beatty IV preserves the scribal principle: writings keep names a
 
 — Papyrus Chester Beatty IV
 
-The Book of Coming Forth by Day carries the same truth into the deepest stakes. Its chapters protect the heart, preserve the name, free the ba, and open the path through the hidden region. Knowledge there is not ornament or achievement. It is survival.
+The Book of Coming Forth by Day carries the same truth into the deepest stakes. Its chapters protect the heart, preserve the name, free the ba, and open the path through the hidden region. Knowledge there becomes survival, not ornament or achievement.
 
 — Book of Coming Forth by Day
 
-What is known must be measured truthfully. What is measured truthfully must be recorded accurately. What is recorded accurately must guide action. When knowledge serves Ma'at, the world becomes maintainable. When knowledge serves appetite, Isfet gains an educated hand.
+Known truth must be measured honestly, recorded accurately, and allowed to guide action. When knowledge serves Ma'at, the world becomes maintainable. When knowledge serves appetite, Isfet gains an educated hand.
 ''',
   7: '''
 Month 7 — Rekh-Nedjes / Rḫ-nḏs
@@ -1524,9 +1559,9 @@ Peret · Knowing Tested Under Pressure
 
 The fields of Peret are no longer young. What was planted in Ka-ḥer-Ka has grown into established presence. The systems of care set in motion through Šef-Bedet and refined through Rekh-Wer now carry the weight of daily use. Tools have been worked. Methods have been applied. Labor has found its rhythm. What was learned in the protected time of formation must now demonstrate what it actually is.
 
-Rekh-Nedjes does not name lesser knowing in the sense of inferior knowing. It names knowing that has become small, close, and exposed — knowing pressed against reality rather than held safely within it.
+Rekh-Nedjes names lesser knowing, but not inferior knowing. It names knowing made small, close, and exposed — pressed against reality rather than held safely within it.
 
-Nḏs carries social weight as well. The nedjes person is not the elite, the officially protected, the one whose errors are absorbed by rank and institution. The nedjes is ordinary — exposed to consequence in a way that privilege is not. Rekh-Nedjes is what knowing looks like when the protection of the House of Life, the shelter of the master teacher, and the controlled conditions of instruction are removed. What remains is the knowledge itself, meeting the world directly.
+Nḏs carries social weight as well. The nedjes person stands outside elite protection — outside the rank and institution that can absorb another person's errors. The nedjes is ordinary, exposed to consequence in a way privilege is not. Rekh-Nedjes is what knowing looks like when the protection of the House of Life, the shelter of the master teacher, and the controlled conditions of instruction are removed. What remains is the knowledge itself, meeting the world directly.
 
 The contrast with Rekh-Wer is the heart of the month.
 
@@ -1546,9 +1581,9 @@ The Instruction of Amenemope warns against the heated person — against speech 
 
 — Instruction of Amenemope
 
-That warning belongs here. Tested knowing is not loud. It does not need to announce itself by force or prove its validity through intensity. It holds its form when disturbed — adjusting method without losing direction, enduring pressure without becoming what it was meant to resist.
+That warning belongs here. Tested knowing is quiet. It does not need to announce itself by force or prove its validity through intensity. It holds its form when disturbed — adjusting method without losing direction, enduring pressure without becoming what it was meant to resist.
 
-What was learned must now endure. What endures must adapt without losing its measure. What keeps its measure under pressure becomes wisdom that can be trusted.
+What was learned must now endure, adapt without losing measure, and become wisdom that can be trusted under pressure.
 ''',
   8: '''
 Month 8 — Renwet / Rnnwt
@@ -1564,11 +1599,11 @@ Rnn is the verb of nursing — the bringing up of what is young, fragile, and de
 
 This is why she is bound to Shai.
 
-Shai is not fate as external decree delivered from outside the life. Shai is what accumulates from within it — the destiny that grows from what was given and what was done with the giving. A child fed in right measure develops into its portion. A field tended with care produces its portion. A household that received and circulated correctly meets a different fate than one that hoarded, wasted, or consumed beyond its measure. Renenutet and Shai together name the law: what is nourished grows into what it was always capable of becoming, for better or worse, depending on how the nourishment moved.
+Shai works from within the life rather than arriving as an external decree. It is the destiny that grows from what was given and what was done with the giving. A child fed in right measure develops into its portion. A field tended with care produces its portion. A household that received and circulated correctly meets a different fate than one that hoarded, wasted, or consumed beyond its measure. Renenutet and Shai together name the law: what is nourished grows into what it was always capable of becoming, for better or worse, depending on how the nourishment moved.
 
 At the granary, her cobra form matters.
 
-She does not only give. She watches what has arrived. Her gaze encircles the stored grain the way the uraeus encircles the royal brow — protecting what must not be damaged, warning what must not approach carelessly. The serpent does not threaten the grain. She guards the conditions under which the grain can remain what it is: provision, offering, seed, inheritance.
+She gives, and she watches what has arrived. Her gaze encircles the stored grain the way the uraeus encircles the royal brow — protecting what must not be damaged, warning what must not approach carelessly. The serpent guards the conditions under which the grain can remain what it is: provision, offering, seed, inheritance.
 
 The Hymn to Hapy praises the inundation because it makes barley, creates emmer, fills storehouses, and brings offerings into being.
 
@@ -1584,7 +1619,7 @@ The offering formula names bread, beer, oxen, fowl, linen, and every good and pu
 
 That formula rests on harvest. What the field has returned must reach further than the hand that gathered it: to the netjeru, to the ancestors, to the household, to those who labored, to the vulnerable, and to the seed that will carry the cycle forward.
 
-Receiving is a test of Ma'at. What has returned must circulate. What circulates must be measured. What is measured must preserve life beyond the moment of plenty.
+Receiving is a test of Ma'at. The harvest must circulate in measure, preserving life beyond the moment of plenty.
 ''',
   9: '''
 Month 9 — Hnsw / Ḫnsw
@@ -1608,11 +1643,11 @@ The Book of Coming Forth by Day places Ma'at at the head of the great bark — n
 
 — Book of Coming Forth by Day
 
-That image governs the month. When Ma'at leads, movement becomes passage: purposeful, directed, accountable at its end. When appetite leads instead, the same road becomes exploitation — heat used as aggression, trade as extraction, travel as the scattering of what should have been carried intact. The journey does not make itself right by the fact of moving. It is made right by what stands at its front.
+That image governs the month. When Ma'at leads, movement becomes passage: purposeful, directed, accountable at its end. When appetite leads instead, the same road becomes exploitation — heat used as aggression, trade as extraction, travel as the scattering of what should have been carried intact. The journey is made right by what stands at its front, not by movement alone.
 
 Khonsu's healing nature belongs here as well. He was called upon for those who needed restoration across distance — the oracle whose answer traveled beyond the immediate moment to reach what required remedy. Movement under Ma'at does not only carry goods. It carries the conditions of return.
 
-What moves must keep direction. What carries under heat must not burn what it passes. What travels under night must not lose the measure that guides return.
+What moves must keep direction; what carries under heat or travels under night must not lose the measure that guides return.
 ''',
   10: '''
 Month 10 — Ḥenti-ḥet / Ḥnt-ḥtj
@@ -1620,11 +1655,11 @@ Shemu · Foremost of Offerings — Power Returned to Measure
 
 The storehouses are full. The harvest has been gathered and measured. The year has produced what it can produce. The Nile is at its lowest course — pulled back to its channel, giving what remains in the irrigation basins but offering nothing new. The land is at its hottest. The fields are dry and silent. The productive force of the year has reached its limit.
 
-What happens at the limit is the question this month asks.
+At the limit, the month asks a different question.
 
 Ḥnt-ḥtj places offering at the front.
 
-Ḥnt means foremost — the first, the one who goes before. The root of ḥtj carries hotep: offering, satisfaction, rest, and the settled condition of a relationship where all dues have been placed. Peace in this sense is not emptiness or stillness for its own sake. It is the active condition that arrives when what is owed has been paid and what is due has reached its recipient. The god receives. The ka receives. The ancestor receives. The household receives. The worker receives. The vulnerable receive. The seed for the next cycle is set aside. Nothing is left waiting while another consumes past its measure.
+Ḥnt means foremost — the first, the one who goes before. The root of ḥtj carries hotep: offering, satisfaction, rest, and the settled condition of a relationship where all dues have been placed. Peace in this sense is the active condition that arrives when what is owed has been paid and what is due has reached its recipient. The god receives. The ka receives. The ancestor receives. The household receives. The worker receives. The vulnerable receive. The seed for the next cycle is set aside. Nothing is left waiting while another consumes past its measure.
 
 Foremost of Offerings names a month in which offering must lead — placed at the front of every decision about what has been accumulated.
 
@@ -1644,9 +1679,9 @@ The Pyramid Texts give the royal form of the remedy: Ma'at is established in the
 
 — Pyramid Texts
 
-That establishment happens through offering. Not through taking more, not through greater effort, not through the force that filled the storehouse. Ma'at enters through the open hand — what has been gathered placed where it belongs.
+That establishment happens through offering: not through taking more, not through greater effort, not through the force that filled the storehouse. Ma'at enters through the open hand — what has been gathered placed where it belongs.
 
-What has been gathered must be offered. What is offered restores relation. What restores relation brings rest that does not neglect. Where offering is made in measure, peace becomes active.
+What has been gathered must be offered back into relation; in that measured return, peace becomes active without becoming neglect.
 ''',
   11: '''
 Month 11 — Pa-Ipi / ỉpt-ḥmt
@@ -1662,7 +1697,7 @@ The month turns toward the dead.
 
 Aset and Nebet-Het give the month its governing image. They stand on either side of the body of Ausar — Aset at the head, her wings extended in the gesture of protection and restoration, her knowledge and speech working to gather what had been scattered; Nebet-Het at the feet, mourning netjeret, guardian of the threshold, the one who keeps the passage from death from becoming abandonment. They do not mourn as spectators. Their presence is the act. Attendance is what prevents the dead from being abandoned to silence.
 
-In Kemetic understanding, the dead are not safe by being buried. They require maintenance: the name spoken, the offering placed, the false door addressed, the tomb kept as a site of living relation. To forget is not merely to lose memory — it is to withdraw the provision that sustains the ka. The dead who receive no offering, whose name no mouth speaks, gradually cease to be present. Remembrance is not sentiment. It is maintenance of a sacred dependency.
+In Kemetic understanding, burial alone does not make the dead safe. They require maintenance: the name spoken, the offering placed, the false door addressed, the tomb kept as a site of living relation. To forget is not merely to lose memory — it is to withdraw the provision that sustains the ka. The dead who receive no offering, whose name no mouth speaks, gradually cease to be present. Remembrance maintains a sacred dependency; it is not sentiment.
 
 The annual procession at Abdju belongs here.
 
@@ -1670,7 +1705,7 @@ The raised earth at Abdju marked the place of Ausar's restoration — not as met
 
 — Book of Coming Forth by Day
 
-That line names what Pa-Ipi asks. The raised earth is not only soil. It is the reappearance of what had gone below — the proof that burial correctly enacted becomes return.
+That line names what Pa-Ipi asks. The raised earth is more than soil: the reappearance of what had gone below, the proof that burial correctly enacted becomes return.
 
 The ka also depends on transmission between the living.
 
@@ -1678,9 +1713,9 @@ Papyrus Chester Beatty IV preserves the scribal principle: writings keep names a
 
 — Papyrus Chester Beatty IV
 
-Memory that is not enacted — not spoken, not placed, not transmitted — breaks the chain between ancestor, living, and those still to come. Each life is carried by those before it and becomes ground for those after it. This is not sentiment. It is the structure of continuity.
+Memory that is not enacted — not spoken, not placed, not transmitted — breaks the chain between ancestor, living, and those still to come. Each life is carried by those before it and becomes ground for those after it. This is the structure of continuity, not sentiment.
 
-What is remembered can remain present. What is honored can continue. What is returned to the ka strengthens the living current between dead, living, and those still to come.
+What is remembered, honored, and returned to the ka strengthens the living current between dead, living, and those still to come.
 ''',
   12: '''
 Month 12 — Mesut-Ra / Mswt-Rꜥ
@@ -1688,7 +1723,7 @@ Shemu into threshold · The Birth of Ra and the Stillness Before Emergence
 
 The year approaches its edge.
 
-The flood has not returned. The heat of Shemu continues, pressing down on land that has nothing more to give. The storehouses hold their contents. The fields are silent. Pa-Ipi has gathered what must be remembered and passed what must continue. The year has done its work. What remains is not more work but something different — the discipline of allowing completion to be complete.
+The flood has not returned. The heat of Shemu continues, pressing down on land that has nothing more to give. The storehouses hold their contents. The fields are silent. Pa-Ipi has gathered what must be remembered and passed what must continue. The year has done its work. What remains is the discipline of allowing completion to be complete.
 
 Mswt-Rꜥ means the Birth of Ra.
 
@@ -1696,11 +1731,11 @@ The name is strange when it appears at the end of the year rather than the begin
 
 Mesut-Ra is the Duat of the year.
 
-Nut gives the month its body. As sky, mother, vault, and womb, she contains what has not yet emerged. Each evening she swallows the sun and each morning she gives birth to him — not as recovery from loss but as the completion of a passage that disappearance makes possible. In her body, what ends is not destroyed. It is held. What is held undergoes transformation that cannot be forced or witnessed from outside. What emerges has become, inside the darkness, what the new day requires.
+Nut gives the month its body. As sky, mother, vault, and womb, she contains what has not yet emerged. Each evening she swallows the sun and each morning she gives birth to him — not as recovery from loss but as the completion of a passage that disappearance makes possible. In her body, ending is held rather than destroyed. What is held undergoes transformation that cannot be forced or witnessed from outside. What emerges has become, inside the darkness, what the new day requires.
 
 Khepri waits inside this same truth.
 
-The scarab does not appear before the night has done its work. His name means the becoming one — kheper: transformation still in process, still hidden, not yet released into the world where it can be named and seen. To call Khepri forth before the darkness has completed its passage is to receive something that is not yet what it needs to be. The becoming cannot be hurried into being.
+The scarab waits until the night has done its work. His name means the becoming one — kheper: transformation still in process, still hidden, not yet released into the world where it can be named and seen. To call Khepri forth before the darkness has completed its passage is to receive something that is not yet what it needs to be. The becoming cannot be hurried into being.
 
 The Amduat traces the nightly form of this law. Ra passes through twelve ordered hours in the Duat, each with its own sequence of transformation, each dependent on the one before it. The sixth hour holds the deepest renewal — the hidden center where power is most fully restored before the return toward dawn begins. None of the hours can be omitted. None can be exchanged. Renewal depends on the full ordered passage through what cannot yet be seen.
 
@@ -1716,7 +1751,7 @@ The month therefore asks for clearing, not accumulation. Altars are addressed an
 
 No more is demanded from the old year.
 
-What has ended must be allowed to end. What is forming must not be pulled into visibility before the passage is complete. What will be born must be held until the moment of birth arrives under Ma'at.
+What has ended must be allowed to end, and what is forming must stay held until the moment of birth arrives under Ma'at.
 ''',
   13: '''
 Month 13 – Heriu Renpet (ḥr.w rnpt)
@@ -1724,7 +1759,7 @@ Days Upon the Year — The Threshold Where the Gods Are Born
 
 Heriu Renpet means the Days Upon the Year.
 
-They are not an ordinary month. They stand outside the counted cycle, after the twelve months have completed their work and before Wp Rnpt opens the year again. They are days of suspension: not harvest, not flood, not planting, not travel, not offering, but the pause in which time loosens its ordinary form so the powers of the next cycle can enter.
+They stand outside the counted cycle, after the twelve months have completed their work and before Wp Rnpt opens the year again. They are days of suspension: not harvest, not flood, not planting, not travel, not offering, but the pause in which time loosens its ordinary form so the powers of the next cycle can enter.
 
 The year has exhaled.
 
@@ -1754,11 +1789,9 @@ Purification belongs to these days.
 
 Natron, water, silence, cleared altars, completed offerings, and closed records all serve the same purpose: nothing disordered should cross into the opening of the year. What has ended must be released. What must continue must be made clean enough to pass.
 
-Heriu Renpet teaches that renewal does not begin with motion.
+Heriu Renpet teaches that renewal begins with readiness, not motion.
 
-It begins with readiness.
-
-What has completed must be sealed. What is disordered must be left behind. What is necessary must be born in its proper place. Only then can the year open without carrying Isfet across the threshold.
+What has completed must be sealed, what is disordered left behind, and what is necessary born in its proper place. Only then can the year open without carrying Isfet across the threshold.
 ''',
 };
 
@@ -1770,13 +1803,13 @@ The first decanal star to rise does not rule the night. It gives bearing. Its ap
 
 The flood is still high. No field boundary is visible. No road holds its former course. The world has returned to a condition where first sight matters more than it will at any other point in the cycle.
 
-Attention is not intervention. The ibis probes the waterline before moving. Djehuty's first form belongs here — beak at the water's edge, searching where the hidden will later be found. The Coffin Texts remember the beginning as solitude in the waters, before a place to stand had been established.
+Attention comes before intervention. The ibis probes the waterline before moving. Djehuty's first form belongs here — beak at the water's edge, searching where the hidden will later be found. The Coffin Texts remember the beginning as solitude in the waters, before a place to stand had been established.
 
 — Coffin Texts, Spell 76
 
 A misplaced beginning carries its error forward through every correction that follows.
 
-Where attention is placed correctly, the year can be measured. Where it is scattered, every later reckoning begins from distortion.
+Attention placed correctly lets the year be measured. Scattered attention distorts every later reckoning.
 ''',
   '''
 Integration — Bringing Observation into Coherence
@@ -1785,13 +1818,13 @@ A single star does not guide. Stars guide by their relation to one another — t
 
 The flood still covers much of the land, but it is no longer unreadable. Currents reveal hidden edges. Birds return to particular places. Pattern begins to surface inside uncertainty. The work now moves inward.
 
-In Kemetic thought, the heart is not emotion alone. It is the chamber where what has been perceived is ordered before it is spoken or acted upon. The Memphite Theology describes creation through heart and tongue: the heart conceives, the tongue releases the word into form.
+Here the heart gathers perception into order before it is spoken or acted upon. The Memphite Theology describes creation through heart and tongue: the heart conceives, the tongue releases the word into form.
 
 — Memphite Theology
 
 But speech cannot come first. Before the year can be named, counted, or acted upon, what has been seen must hold together in the ib.
 
-Where observation is brought into the heart, judgment becomes possible. Where it is released too early, action speaks before truth has formed.
+Observation brought into the heart makes judgment possible. Released too early, action speaks before truth has formed.
 ''',
   '''
 Expression — Releasing Understanding into Shared Order
@@ -1806,7 +1839,7 @@ Papyrus Chester Beatty IV preserves the principle plainly: writings keep names a
 
 What remains in one mind can be lost with that mind. Record completes observation.
 
-Where understanding is released into shared form, Ma'at can be carried forward. Where it is held without expression, the pattern fragments and Isfet enters through forgetting.
+Understanding released into shared form lets Ma'at be carried forward. Held without expression, the pattern fragments and Isfet enters through forgetting.
 ''',
   '''
 Initiation of Motion — What Was Set Begins to Move
@@ -1815,18 +1848,18 @@ A decanal star becomes useful when it rises into view. Its appearance does not c
 
 The flood still covers much of the land, but the people are no longer held in pure waiting. Boats are loaded. Channels are trusted. Goods begin to cross between settlements. What Thoth measured is placed into motion.
 
-This is not haste. A thing that rises too quickly can fall. A boat pushed into the wrong current loses its course. A burden lifted before it is balanced spills what it was meant to preserve. The Pyramid Texts place ordered movement in the solar bark — the deceased joins the rowing of the imperishable powers not through urgency but through aligned purpose.
+This movement has no place for haste. A thing that rises too quickly can fall. A boat pushed into the wrong current loses its course. A burden lifted before it is balanced spills what it was meant to preserve. The Pyramid Texts place ordered movement in the solar bark — the deceased joins the rowing of the imperishable powers not through urgency but through aligned purpose.
 
 — Pyramid Texts
 
-Where motion begins in measure, the path can open and sustain itself. Where motion begins without measure, the burden becomes disorder before the journey has truly started.
+Motion that begins in measure opens a path that can sustain itself. Motion without measure turns the burden into disorder before the journey has truly started.
 ''',
   '''
 Sustained Effort — Motion That Remains Aligned
 
 The star has risen. Movement has begun. The question changes — no longer whether the path can open, but whether it can be maintained without distortion.
 
-The heart governs this phase. In Kemetic thought, the ib is the chamber of discernment. It holds direction while the body, the boat, the hand, and the record carry it forward. Movement without the heart becomes strain. Effort without inner regulation becomes force that forgets its own form.
+The heart governs this phase. The ib holds direction while the body, the boat, the hand, and the record carry it forward. Movement without the heart becomes strain. Effort without inner regulation becomes force that forgets its own form.
 
 The Memphite Theology describes creation through heart and tongue: the heart conceives, the tongue releases the word into form.
 
@@ -1834,12 +1867,12 @@ The Memphite Theology describes creation through heart and tongue: the heart con
 
 Paopi applies this to motion. The route must remain correctly conceived while cargo crosses water and messages travel distance. A load must be adjusted while moving. A crew must keep pace without breaking. What carried a correct beginning must carry it through to arrival.
 
-Where the heart governs motion, the burden reaches its place. Where motion outruns discernment, Ma'at is lost in the carrying.
+When the heart governs motion, the burden reaches its place. When motion outruns discernment, Ma'at is lost in the carrying.
 ''',
   '''
 Stability — Movement That No Longer Falters
 
-nfr is not surface beauty. It is rightness made visible — a star beautiful because it holds its place in relation, returns as expected, and can be trusted by those who know how to watch.
+nfr means rightness made visible — a star beautiful because it holds its place in relation, returns as expected, and can be trusted by those who know how to watch.
 
 Routes are no longer experimental. Boats know the channels. Carried goods reach their destinations. Offerings arrive without confusion. Records travel with the things they name. The motion begun in ꜥḥꜣy and regulated in ḥry-ib ꜥḥꜣy has become dependable.
 
@@ -1849,7 +1882,7 @@ The Wadi el-Jarf Papyri show this order in practical form: dated movements, work
 
 A carried order is beautiful when it reaches without spilling, speaks without distortion, and continues without strain.
 
-Where movement becomes stable, Ma'at travels through the world. Where it remains unstable, even right intention fails to arrive whole.
+Stable movement lets Ma'at travel through the world. Unstable movement keeps even right intention from arriving whole.
 ''',
   '''
 Stability Regained — What Endures Becomes Visible
@@ -1858,13 +1891,13 @@ Sah moves through the night sky carrying the memory of restoration. In Kemetic s
 
 The flood has withdrawn enough that the world shows its shape again. Paths hold underfoot. The field's edge is visible. What had been form has returned as form — not assumed, but confirmed by the foot that tests it.
 
-This first stability is not the full breath of harvest or festival. It is the release of tension when the ground proves reliable. The Pyramid Texts describe Heru gathering the limbs of Ausar and joining what had been separated so that nothing of him can be disturbed.
+This first stability comes before the full breath of harvest or festival. It is the release of tension when the ground proves reliable. The Pyramid Texts describe Heru gathering the limbs of Ausar and joining what had been separated so that nothing of him can be disturbed.
 
 — Pyramid Texts
 
-Stability is not the denial of disruption. It is form that has endured through it.
+Stability does not deny disruption. It is form that has endured through it.
 
-Where stability is recognized correctly, joy can begin to rise. Where it is assumed too early, celebration rests on what has not yet been confirmed.
+Stability recognized correctly lets joy begin to rise. Assumed too early, celebration rests on what has not yet been confirmed.
 ''',
   '''
 Harmonization — Stability Shared and Lived
@@ -1873,13 +1906,13 @@ A star's usefulness is not only that it appears. It appears in relation — belo
 
 So too with the land. The field holds. Movement is possible. But stability that remains isolated has not yet become harmony. Work must enter rhythm between people: boats timed, labor coordinated, offerings prepared, households returning to shared measure.
 
-The heart governs this phase. In Kemetic thought, the ib is what weighs relation before action becomes disorder. A community out of rhythm can damage a stable field. Hathor's music belongs here — not as entertainment but as the practice of relation held through timing. Hands, voices, and breath enter one pattern without losing their distinct parts.
+The heart governs this phase. Here the ib weighs relation before action becomes disorder. A community out of rhythm can damage a stable field. Hathor's music belongs here — not as entertainment but as the practice of relation held through timing. Hands, voices, and breath enter one pattern without losing their distinct parts.
 
 The Book of Coming Forth by Day places Hathor with Ra as a destination of the freed ba — welcome within the ordered path, not decoration at its edge.
 
 — Book of Coming Forth by Day
 
-Where the heart keeps rhythm, community strengthens Ma'at. Where rhythm breaks, even restored ground begins to strain.
+When the heart keeps rhythm, community strengthens Ma'at. When rhythm breaks, even restored ground begins to strain.
 ''',
   '''
 Expression — Order Made Visible Through Beauty
@@ -1892,29 +1925,29 @@ But Hathor is also the Eye of Ra. The same power that delights can become destru
 
 — Dendera Temple traditions
 
-What is stable can become graceful. What is graceful can be remembered. What is remembered strengthens the pattern that produced it.
+Stable order can become graceful. Remembered grace strengthens the pattern that produced it.
 
-Where beauty expresses Ma'at, joy preserves order. Where expression escapes measure, delight moves toward the consuming heat of the Eye.
+Beauty that expresses Ma'at lets joy preserve order. Expression that escapes measure moves delight toward the consuming heat of the Eye.
 ''',
   '''
 Renewed Strength — Power Returning to the Body
 
-The Foreleg turns through the northern sky without setting. Unlike stars that rise and fall with the seasons, it holds its circuit above the horizon through the full year — one of the imperishable ones, fixed in the dark above the place where Kemet sleeps. Its strength is not in brightness. It is in constancy.
+The Foreleg turns through the northern sky without setting. Unlike stars that rise and fall with the seasons, it holds its circuit above the horizon through the full year — one of the imperishable ones, fixed in the dark above the place where Kemet sleeps. Its strength rests in constancy, not brightness.
 
 The floodwaters have withdrawn. The black silt is visible at the field's edge. Strength has returned to the land, but it has not yet been spent. Seed waits. Tools have been lifted but not yet driven. The body of the year braces before committing its full weight.
 
-The Pyramid Texts describe Heru gathering the limbs of Ausar — joining what had been separated, making the restored body secure before power can act through it again. Restoration is not sudden display.
+The Pyramid Texts describe Heru gathering the limbs of Ausar — joining what had been separated, making the restored body secure before power can act through it again. Restoration gathers itself before display.
 
 — Pyramid Texts
 
-Where returned strength is recognized before it is spent, the next movement can hold its form. Where force is released before it is stable, renewal is weakened at its root.
+Returned strength, recognized before it is spent, lets the next movement hold its form. Force released before it is stable weakens renewal at the root.
 ''',
   '''
 Control — Strength Brought Under Awareness
 
-The foreleg can brace, push, lift, or strike. Its value depends entirely on what governs it. Force by itself is not Ma'at. Force held in right relation becomes support.
+The foreleg can brace, push, lift, or strike. Its value depends entirely on what governs it. Force enters Ma'at only when held in right relation; then it becomes support.
 
-The heart is the regulator. Labor has returned to the field. Bodies regain rhythm after the long season of flood and waiting. The risk now is not weakness — it is the opposite. Overworking the soil, spending strength before the seedling is secure, forcing growth before its time: all of these turn vitality into damage.
+The heart is the regulator. Labor has returned to the field. Bodies regain rhythm after the long season of flood and waiting. Weakness is no longer the main risk; excess is. Overworking the soil, spending strength before the seedling is secure, forcing growth before its time: all of these turn vitality into damage.
 
 The Book of Coming Forth by Day preserves the concern that the heart not stand against the person in the hall of judgment. The heart knows what was done with strength.
 
@@ -1922,22 +1955,22 @@ The Book of Coming Forth by Day preserves the concern that the heart not stand a
 
 Ka upon Ka requires governance. The first ka is life received. The second is life preserved through measure.
 
-Where strength is governed by the ib, force becomes useful. Where strength acts without discernment, Isfet begins as excess inside renewal.
+Strength governed by the ib becomes useful force. Strength acting without discernment lets Isfet begin as excess inside renewal.
 ''',
   '''
 Application — Strength Put Into Right Use
 
-A star becomes a guide when its appearance can be trusted. The foreleg becomes useful when its force can be placed without breaking what it supports. This decan is not about raw vitality. It is about strength made reliable enough to direct action.
+A star becomes a guide when its appearance can be trusted. The foreleg becomes useful when its force can be placed without breaking what it supports. This decan moves past raw vitality toward strength reliable enough to direct action.
 
 The seed is in the earth. The field has received its charge. Tools are at work. Canals are checked. Soil is turned where needed. Labor has found its steady rhythm — not dramatic, not urgent, but continuous.
 
-The work is not to prove strength. The work is to place it where continuity needs it. The Pyramid Texts present offerings to the ka so life may be sustained without interruption. That same logic governs the field — energy must feed the cycle, not consume it.
+The work is to place strength where continuity needs it. The Pyramid Texts present offerings to the ka so life may be sustained without interruption. That same logic governs the field — energy must feed the cycle, not consume it.
 
 — Pyramid Texts
 
 Ka-ḥer-Ka reaches its proper form when vitality becomes contribution.
 
-Where strength serves continuity, Ma'at takes root in the field. Where strength seeks display, the planted future is placed at risk.
+Strength that serves continuity roots Ma'at in the field. Strength that seeks display puts the planted future at risk.
 ''',
   '''
 Attention — Seeing What Must Be Tended First
@@ -1946,7 +1979,7 @@ The star that rises foremost in a watch does not complete the night. It directs 
 
 Peret has opened. The green growth is present in the field but not yet secure. A small imbalance at this stage — water pooling unevenly, a root weakening beneath a surface that still looks sound — becomes a larger loss later. The field can fail quietly, without drama, before any visible sign appears.
 
-The work is therefore not intervention first. It is seeing first.
+The work begins with seeing before intervention.
 
 Renenutet's cobra form belongs here. The cobra watches before it acts. It knows the full situation before it moves. Her guardianship of the granary begins with attention — the eye that recognizes threat before the threat becomes loss.
 
@@ -1954,14 +1987,14 @@ The Hymn to Hapy praises the flood for making nourishment possible. But what the
 
 — Hymn to Hapy
 
-Where fragile growth is seen early, care can arrive in measure. Where need is noticed only after damage appears, nourishment becomes repair instead of preservation.
+Fragile growth seen early can receive care in measure. Need noticed only after damage appears turns nourishment into repair instead of preservation.
 ''',
   '''
 Sustained Nurturing — Care Directed with Understanding
 
 Attention has found what needs tending. Now response must be measured. The heart decides how nourishment moves — where water is needed, where labor should be placed, where restraint matters more than addition.
 
-In Kemetic thought, the ib is the chamber of proportion. It does not only feel need. It weighs response against what the whole system can bear.
+Here the ib is the chamber of proportion. It does more than feel need; it weighs response against what the whole system can bear.
 
 Too little care abandons life. Too much smothers it. Giving without measure can exhaust the giver, damage the root, or empty what must be preserved for later. The Pyramid Texts show this through offering — bread and beer are not vague abundance. They are named, directed, and placed so the ka receives without being overwhelmed and without being starved.
 
@@ -1969,7 +2002,7 @@ Too little care abandons life. Too much smothers it. Giving without measure can 
 
 Renenutet nourishes, but she also guards what is stored. She does not give from an inexhaustible source. She gives from a measured one.
 
-Where care is directed by the heart, life is sustained without depletion. Where care loses proportion, even nourishment becomes disorder.
+Care directed by the heart sustains life without depletion. Care that loses proportion turns even nourishment into disorder.
 ''',
   '''
 Trust — Allowing Growth to Continue
@@ -1978,11 +2011,11 @@ A star guides by consistency — not by constant adjustment, but by holding its 
 
 The early weakness has been seen. Water has been balanced. Labor has been placed where it was needed. The seedling no longer requires constant correction. Growth has found its own rhythm.
 
-This is not neglect. It is the final form of proper nourishment.
+This is the final form of proper nourishment.
 
 A field interfered with too heavily can be damaged by the hand that meant to help it. A child overguarded can be kept from developing the strength it will need. Renenutet's work is visible here as guarded confidence — she does not leave the granary, but she no longer needs to intervene in every movement of the grain.
 
-Where care has been measured correctly, growth proceeds without strain. Where control continues past its proper time, care becomes interference and Ma'at is weakened by excess.
+Measured care lets growth proceed without strain. Control continued past its proper time becomes interference, and Ma'at is weakened by excess.
 ''',
   '''
 Formation — Shaping Through Understanding
@@ -1993,7 +2026,7 @@ The fields of Peret are growing steadily. The early crisis has passed. What rema
 
 Water softens clay. The wheel turns. Pressure applied too quickly collapses the wall. Pressure withheld too long leaves formlessness where structure was needed. Khnum's craft requires knowledge held in the hand — knowing where resistance is, where softness is, and what the vessel needs to become before the hands release it.
 
-Where knowledge gives form to effort, the work can hold. Where force shapes without understanding, what is made carries failure inside it.
+Knowledge that gives form to effort lets the work hold. Force that shapes without understanding leaves failure inside what is made.
 ''',
   '''
 Discernment — Guiding Knowledge with Judgment
@@ -2002,13 +2035,13 @@ The first form has appeared on the wheel. It is not finished. This is the stage 
 
 The heart governs the craft.
 
-In Kemetic thought, the ib is the chamber where what has been seen is weighed before the hand moves again. Technique without discernment becomes strain. The Memphite Theology describes creation through heart and tongue: the heart conceives before the tongue releases the word into form.
+The ib weighs what has been seen before the hand moves again. Technique without discernment becomes strain. The Memphite Theology describes creation through heart and tongue: the heart conceives before the tongue releases the word into form.
 
 — Memphite Theology
 
 Khnum gives the same principle a material body. A vessel is shaped before it can hold. A body is formed before it can breathe. The apprentice who begins to see the error before it hardens has entered the heart of the craft.
 
-Where knowledge is governed by the ib, skill becomes trustworthy. Where knowledge moves without judgment, it creates disorder with precision.
+Knowledge governed by the ib becomes trustworthy skill. Knowledge moving without judgment creates disorder with precision.
 ''',
   '''
 Competence — Knowledge That Can Be Trusted
@@ -2023,14 +2056,14 @@ Papyrus Chester Beatty IV praises writings because they keep names alive in the 
 
 — Papyrus Chester Beatty IV
 
-Competence is not display. It is repeatable right action.
+Competence is repeatable right action, not display.
 
-Where knowledge can be trusted, it becomes inheritance. Where skill cannot be repeated, the next cycle must begin from uncertainty.
+Knowledge that can be trusted becomes inheritance. Skill that cannot be repeated leaves the next cycle to begin from uncertainty.
 ''',
   '''
 Trial — Knowledge Entering the Field
 
-A star earns the designation noble by returning to its place. Its nobility is not rank conferred from outside — it is reliability demonstrated through time. The stars named špsswt are the ones who have held their position long enough to be trusted by those who watch.
+A star earns the designation noble by returning to its place. Its nobility comes from reliability demonstrated through time, not rank conferred from outside. The stars named špsswt are the ones who have held their position long enough to be trusted by those who watch.
 
 The late fields of Peret test the same question. The crop faces increasing heat. The tool meets harder ground. The body carries fatigue into work that has lost its newness. Method must now hold under the conditions that were absent when it was first formed.
 
@@ -2038,14 +2071,14 @@ Knowledge that has not been tested can still be imagination. The Contendings of 
 
 — Contendings of Heru and Set
 
-Where knowledge remains aligned under first strain, it can mature into what the noble ones name. Where difficulty causes immediate abandonment, the earlier formation was not yet stable.
+Knowledge that remains aligned under first strain can mature into what the noble ones name. Difficulty that causes immediate abandonment shows the earlier formation was not yet stable.
 ''',
   '''
 Adaptation — Refining Without Breaking
 
 The trial has revealed the limits of the method. The question is no longer whether difficulty exists. It does. The question is whether the heart can correct the course without collapsing what it was holding.
 
-Adaptation is not surrender. It is Ma'at preserved through recalibration.
+Adaptation preserves Ma'at through recalibration; it does not surrender.
 
 In the Contendings, Heru does not win by force alone. The dispute continues through argument, humiliation, renewed counsel, and repeated judgment. Aset's protection keeps the claim from becoming reckless appetite. Djehuty's measure keeps the tribunal from dissolving into chaos. The claim endures because what governs it remains aligned even when method requires adjustment.
 
@@ -2053,7 +2086,7 @@ In the Contendings, Heru does not win by force alone. The dispute continues thro
 
 A pace may need to slow. A tool may need reshaping. A judgment may need more evidence before it can stand. The heart holds direction while method changes.
 
-Where adjustment preserves measure, pressure becomes instruction. Where adjustment is refused, strain becomes fracture.
+Adjustment that preserves measure turns pressure into instruction. Refused adjustment lets strain become fracture.
 ''',
   '''
 Quiet Competence — Mastery Without Display
@@ -2068,12 +2101,12 @@ The Instruction of Amenemope values the quiet person over the heated one — not
 
 This is what knowledge looks like after it has earned its designation.
 
-Where competence remains steady, Ma'at is preserved without noise. Where skill still needs display, it has not yet become fully stable.
+Steady competence preserves Ma'at without noise. Skill that still needs display has not yet become fully stable.
 ''',
   '''
 Return — The First Signs of Answer
 
-Birds gather where food appears. Their movement is not random to the careful watcher — it reveals where grain, water, and life have begun to concentrate. When the birds return in numbers, the land is answering.
+Birds gather where food appears. Their movement reveals, to the careful watcher, where grain, water, and life have begun to concentrate. When the birds return in numbers, the land is answering.
 
 The early harvest has begun. First grain is cut. First yields are carried in from the outer fields. The cycle has entered its returning phase, but the return is not yet settled. What has arrived represents the beginning of abundance, not its full measure.
 
@@ -2083,7 +2116,7 @@ Renenutet is present as promise held under attention. Her nourishment has begun 
 
 — Hymn to Hapy
 
-Where return is observed with clarity, distribution can be measured. Where first gain becomes excitement without measure, disorder enters before the storehouse is full.
+Return observed with clarity allows distribution to be measured. First gain received with unmeasured excitement lets disorder enter before the storehouse is full.
 ''',
   '''
 Distribution — Receiving in Right Measure
@@ -2100,7 +2133,7 @@ The offering formula gives the proper pattern: provision named, directed, and pl
 
 The first share belongs to relation: netjeru, ancestors, household, those who labored, the vulnerable, and the seed that must carry the next cycle forward.
 
-Where receiving is governed by the heart, plenty becomes continuity. Where receiving loses measure, harvest becomes appetite.
+Receiving governed by the heart turns plenty into continuity. Receiving without measure turns harvest into appetite.
 ''',
   '''
 Stability — Reward That Can Be Sustained
@@ -2117,14 +2150,14 @@ The offering formula prays for provision named and directed for the ka — not a
 
 — Offering Formula
 
-Where reward is held in balance, abundance becomes peace. Where it is grasped without measure, plenty becomes the beginning of future lack.
+Reward held in balance becomes peace. Grasped without measure, plenty becomes the beginning of future lack.
 ''',
   '''
 Departure — Entering the Path Under Constraint
 
 This star rises below the ascending one — positioned beneath what is moving upward, carrying the weight of the journey before the road has opened into ease.
 
-Shemu is not a gentle season for travel. The sun presses down. The road is exposed. Loads are already waiting at the dock and the granary door. The journey does not begin when conditions are favorable. It begins because what must move cannot wait for comfort.
+Shemu is no gentle season for travel. The sun presses down. The road is exposed. Loads are already waiting at the dock and the granary door. The journey begins because what must move cannot wait for favorable conditions.
 
 Khonsu crosses the night not by removing the darkness but by moving through it with measure. The bark carries Ma'at at its prow not to smooth the water but to ensure the direction is right before the first stroke.
 
@@ -2132,7 +2165,7 @@ The Book of Coming Forth by Day places Ma'at at the head of the great bark — l
 
 — Book of Coming Forth by Day
 
-Where Ma'at leads the path, constraint becomes discipline. Where movement begins without her, the journey carries disorder from its first step.
+When Ma'at leads the path, constraint becomes discipline. Movement begun without her carries disorder from its first step.
 ''',
   '''
 Endurance — Carrying with Discipline
@@ -2141,22 +2174,22 @@ The shoulder above Sah is the bearing point held high — weight taken on and ca
 
 The departure has been made. Now the question is whether the load can be carried without distortion across the full distance.
 
-Heat remains. The route does not shorten because the body tires. A load carried with improper distribution injures the carrier and damages what was meant to arrive whole. Endurance here is not stubbornness — it is proportion held over time. Ra completes his course because the bark maintains direction through each hour. Khonsu crosses the full arc of the night because the lunar measure keeps its rhythm.
+Heat remains. The route does not shorten because the body tires. A load carried with improper distribution injures the carrier and damages what was meant to arrive whole. Endurance here is proportion held over time, not stubbornness. Ra completes his course because the bark maintains direction through each hour. Khonsu crosses the full arc of the night because the lunar measure keeps its rhythm.
 
 The Wadi el-Jarf Papyri show this in the practical record: crews, routes, deliveries, and counted days — great work sustained because each stage arrived where it was sent.
 
 — Wadi el-Jarf Papyri
 
-Where endurance is measured, movement remains sustainable. Where endurance becomes blind force, the path damages what it was meant to carry.
+Measured endurance keeps movement sustainable. Blind endurance damages what the path was meant to carry.
 ''',
   '''
 Recovery — Right Measure in Descent
 
-What is lifted must be set down. What has traveled must be secured. What has endured must recover before endurance becomes collapse.
+Lifted weight must be set down, what has traveled must be secured, and what has endured must recover before endurance becomes collapse.
 
 The shoulder beneath Sah is the bearing point released — weight lowered in order, the load placed correctly rather than dropped from exhaustion.
 
-This is not the end of movement. It is the completion of one movement so that the next can begin without carrying the damage of the last.
+This completes one movement so the next can begin without carrying the damage of the last.
 
 Ra enters the west without ceasing to be Ra. The descent is not defeat — it is the next required phase of the cycle. Khonsu wanes without losing his course. Lessening that happens in right time belongs to Ma'at as fully as the full phase does.
 
@@ -2164,12 +2197,12 @@ The Instruction of Amenemope warns against the heated person — against force t
 
 — Instruction of Amenemope
 
-Where recovery is honored, endurance can continue in the next stage. Where reduction is refused, strength breaks and the journey turns against what it was carrying.
+Honored recovery lets endurance continue into the next stage. When reduction is refused, strength breaks and the journey turns against what it was carrying.
 ''',
   '''
 Vigilance — Authority Held Under Pressure
 
-Heru stands upon Sah. His authority is not the authority of unchallenged force — it is authority recognized after contest, after the restoration of Ausar, after the claim was tested before the full assembly and found to be what it said it was. Sah carries the stellar form of that restoration: endurance proven, the disrupted body gathered and made whole.
+Heru stands upon Sah. His authority is recognized after contest, after the restoration of Ausar, after the claim was tested before the full assembly and found to be what it said it was. Sah carries the stellar form of that restoration: endurance proven, the disrupted body gathered and made whole.
 
 Authority standing on a proven foundation is watchful, not aggressive.
 
@@ -2179,7 +2212,7 @@ The Contendings of Heru and Set preserve the question beneath the decan: whether
 
 — Contendings of Heru and Set
 
-Where Heru stands upon Sah, power watches in service to continuity. Where authority forgets its foundation, protection becomes domination.
+When Heru stands upon Sah, power watches in service to continuity. Authority that forgets its foundation turns protection into domination.
 ''',
   '''
 Restraint — Power Drawn Back Into the Heart
@@ -2188,7 +2221,7 @@ The heart now asks what force is actually required — and answers: less than wh
 
 This is the decan of cooling.
 
-In Kemetic thought, the ib is the chamber of discernment. It receives the pressure of heat, desire, and the momentum of sustained effort, then determines whether continued action would preserve Ma'at or begin to consume what it built. The harvest has been secured. The stores are counted. What served the year's work cannot simply continue as if the work were not done.
+The ib receives the pressure of heat, desire, and the momentum of sustained effort, then determines whether continued action would preserve Ma'at or begin to consume what it built. The harvest has been secured. The stores are counted. What served the year's work cannot simply continue as if the work were not done.
 
 The Instruction of Amenemope warns against the heated person — against speech and action that continue past the measure of what the moment actually requires.
 
@@ -2196,14 +2229,14 @@ The Instruction of Amenemope warns against the heated person — against speech 
 
 Heru's authority is strongest when it does not become Set's appetite. The throne is kept by judgment, not by constant exertion. Power that knows how to refrain has reached a higher order than power that only acts.
 
-Where restraint governs strength, what has been preserved remains available. Where action continues past measure, the hand damages what it meant to protect.
+Strength governed by restraint keeps what has been preserved available. Action continued past measure damages what the hand meant to protect.
 ''',
   '''
 Release — Offering That Restores the Whole
 
 A star guides by appearing in its proper place. Heru guides when rightful power becomes recognizable through action that restores relation. The star of Heru upon Sah is that recognition made visible — authority completing itself through release.
 
-What has been held must not be kept past its time.
+What has been held must be released in its time.
 
 Water is given. Food is shared. Offerings are placed before the netjeru and the ka. Grain reaches those who labored for it. The excess that would otherwise harden inside the storehouse is returned to circulation before it becomes weight.
 
@@ -2213,7 +2246,7 @@ The hand opens not because value has disappeared, but because value becomes Ma'a
 
 Heru's victory does not end in hoarding the throne. It restores the order through which life can continue.
 
-Where release is measured, offering restores the whole. Where what should be returned is kept, abundance begins to decay inside the hand that holds it.
+Measured release lets offering restore the whole. What should be returned begins to decay inside the closed hand.
 ''',
   '''
 Remembrance — What Endures Is Recognized
@@ -2222,13 +2255,13 @@ nfr is rightness that holds through time. A star is beautiful because it returns
 
 The year has nearly completed its arc. Before anything is transmitted, it must be recognized. What proved true under use? What held its form through the long heat of Shemu? What name deserves to be spoken because the life behind it served what it was meant to serve?
 
-This is not the decan of correction. It is the decan of clear seeing — before the hand reaches to transmit, the eye must confirm what actually endured.
+This decan belongs to clear seeing rather than correction — before the hand reaches to transmit, the eye must confirm what actually endured.
 
 The Book of Coming Forth by Day names the sacred work at Abdju as the raising of the earth — not the building of something new, but the reappearance of what had gone below and proven it could return.
 
 — Book of Coming Forth by Day
 
-Where endurance is recognized correctly, the future receives a trustworthy guide. Where memory is neglected, the next cycle approaches renewal without its foundation.
+Endurance recognized correctly gives the future a trustworthy guide. Neglected memory leaves the next cycle approaching renewal without its foundation.
 ''',
   '''
 Integration — Memory Brought Into the Heart
@@ -2243,14 +2276,14 @@ Papyrus Chester Beatty IV teaches that writings preserve names in the mouth of t
 
 — Papyrus Chester Beatty IV
 
-Where memory is brought into the heart and weighed, inheritance becomes clear. Where memory is carried without discernment, the past becomes weight instead of guidance.
+Memory brought into the heart and weighed becomes clear inheritance. Carried without discernment, the past becomes weight instead of guidance.
 ''',
   '''
 Continuity — What Is Carried Forward
 
 The star of the beautiful star is the most stable point of what has already proven itself — the concentrated form of endurance made ready to travel forward.
 
-What has been recognized has entered the heart. What the heart has weighed has been selected. Now it must pass.
+Recognized memory has entered the heart. What the heart has weighed has been selected. Now it must pass.
 
 Names must be spoken so the ka can receive. Measures must be handed to the next hand that will need them. Methods must be demonstrated so the apprentice can carry them into seasons that have not yet arrived. Obligations must be named so the household knows what it owes and what it holds in trust.
 
@@ -2258,14 +2291,14 @@ The offering formula gives the ritual structure: provision named, directed, and 
 
 — Offering Formula
 
-Continuity is not clinging. It is correct passage. What has served Ma'at is carried forward. What would disorder the next cycle is not enthroned as inheritance.
+Continuity is correct passage, not clinging. What has served Ma'at is carried forward. What would disorder the next cycle is not enthroned as inheritance.
 
-Where continuity is maintained, the chain remains alive. Where transmission breaks, names fade, offerings lose direction, and the year approaches renewal without its memory.
+Maintained continuity keeps the chain alive. Broken transmission lets names fade, offerings lose direction, and leaves the year approaching renewal without its memory.
 ''',
   '''
 Emergence — Strength Gathering in Stillness
 
-The crocodile belongs to both water and land. It moves between surface and depth without announcement. Its power is present long before it is displayed — the stillness above water is not absence of force but force concentrated in waiting.
+The crocodile belongs to both water and land. It moves between surface and depth without announcement. Its power is present long before it is displayed — the stillness above water is force concentrated in waiting, not an absence.
 
 The year is almost complete. The next cycle has not yet opened. What is forming belongs to the hidden place and must not be drawn out before it is ready.
 
@@ -2273,7 +2306,7 @@ Mesut-Ra carries the birth of Ra, but birth begins before appearance. The Book o
 
 — Book of Coming Forth by Day
 
-Where hidden strength is allowed to gather without interference, emergence can come whole. Where emergence is forced before the passage has completed, what is born carries the incompleteness inside it.
+Hidden strength allowed to gather without interference can emerge whole. Emergence forced before the passage has completed carries incompleteness inside what is born.
 ''',
   '''
 Attentive Stillness — The Heart Awake in Silence
@@ -2288,14 +2321,14 @@ The Amduat shows that Ra's nightly passage through the Duat is not empty darknes
 
 Mesut-Ra requires the same from the year's final watch. Purification performed. Records closed. Offerings completed. What is disordered must be addressed before the threshold opens.
 
-Where stillness remains awake, order is preserved between cycles. Where the heart loses attention, the threshold becomes vulnerable to what should have been released.
+Stillness kept awake preserves order between cycles. A heart that loses attention leaves the threshold vulnerable to what should have been released.
 ''',
   '''
 Threshold — Readiness Before Rebirth
 
 A star before dawn does not create the sun. It announces that the night has reached its final measure — that the passage has completed enough that emergence is near, though not yet present.
 
-This is the last decan of the year. Not the last action — the last readiness.
+This is the last decan of the year: the last readiness, not the last action.
 
 The old year has nothing more to prove. The records are closed. The offerings have been placed. The altars have been cleared. The lamps are low. What remained unresolved has either been addressed or must be acknowledged as carried forward as debt rather than inheritance.
 
@@ -2307,7 +2340,7 @@ The Book of Coming Forth by Day names him as the one who comes forth from dusk a
 
 Readiness is complete when nothing more needs to be added.
 
-Where the threshold is kept intact, rebirth can arrive under Ma'at. Where it is disturbed, the new cycle begins before the old one has truly finished.
+An intact threshold lets rebirth arrive under Ma'at. A disturbed threshold lets the new cycle begin before the old one has truly finished.
 ''',
 ];
 
@@ -3067,6 +3100,7 @@ enum _MaatFlowTemplateKind {
   daysOutsideTheYear,
   theOpenHand,
   theDjed,
+  readingHouse,
   maatDecan,
 }
 
@@ -3087,11 +3121,77 @@ const List<_MaatFlowLibraryCategory> _kMaatFlowLibraryCategories =
       _MaatFlowLibraryCategory.livingInMaat,
     ];
 
+const String _kTrackSkyBadgeText =
+    'In Kemet, the priests watched the sky to keep the calendar true, to read the coming of the flood, and to set the festivals in their seasons. The sky was the first clock and the first scripture - order written overhead for anyone who learned to read it.';
+const String _kDawnHouseRiteBadgeText =
+    "In Kemet, the priest entered the temple before sunrise, broke the seal on the shrine, and washed the god's image as the first light arrived. Dawn was not the start of work - it was the daily remaking of the world, and someone had to be awake to meet it.";
+const String _kEveningThresholdBadgeText =
+    'In Kemet, every temple gate had a keeper, and nothing crossed without being named. The threshold was a real boundary, not a doorway - what passed through it passed by choice. What was left at the gate stayed at the gate.';
+const String _kClosingBadgeText =
+    'In Kemet, sunset was not an ending but a departure. Ra boarded the night barque and began the dangerous passage through the twelve hours of darkness. The living closed their work, cooled the day, and let it go - because what is not set down cannot rest.';
+const String _kWeighingBadgeText =
+    "In Kemet, the heart was set on a scale against the feather of Ma'at, and Djehuty recorded what the balance showed. The scale did not condemn - it measured. A heart heavy with falsehood was simply a heart that did not match the truth.";
+const String _kOfferingTableBadgeText =
+    'In Kemet, the offering table was laid with water before bread, every single day, whether or not anyone felt moved to lay it. Provision was not gratitude - it was maintenance. What sustains life is fed first, and fed always.';
+const String _kTendingBadgeText =
+    'In Kemet, Aset gathered the scattered pieces of Ausar and Heru stood to restore the order that had collapsed. Care was never a warm feeling - it was specific labor, done for the vulnerable, whether or not it was easy. The gathering came before the standing.';
+const String _kKeptWordBadgeText =
+    'In Kemet, order in the kingdom began inside the palace walls. "The front of the house determines the back" - what was spoken truly in the closest relationships held everything further out together. You cannot keep order in the world while breaking it at home.';
+const String _kCourseBadgeText =
+    "In Kemet, a person stood inside three clocks at once: the sun's daily arc, the ten-day decan, and the turning season. To know the hour was not enough - you had to know what kind of time it was, and what that time was asking of you.";
+const String _kMoonReturnBadgeText =
+    'In Kemet, the moon was the Eye of Heru - wounded by Set, torn into pieces, and restored to wholeness by Djehuty across the month. The dark moon was not absence. It was the eye mid-healing, on its way back to full.';
+const String _kWagBadgeText =
+    'In Kemet, the Wag festival set water and bread before the blessed dead and spoke their names aloud. A name unspoken was a death deeper than the first. The living kept the dead alive by remembering them out loud - and trusted to be remembered in turn.';
+const String _kDecanWatchBadgeText =
+    'In Kemet, thirty-six star groups rose in turn through the night, each marking the passage of ten days. And above them stood the Imperishable Stars, which never set - the fixed point against which all time was measured. To watch them was to add your own count to a count older than memory.';
+const String _kDaysOutsideYearBadgeText =
+    'In Kemet, five days belonged to no month and no season - the births of Ausar, Heru, Set, Aset, and Nebet-Het, when ordinary time was suspended. You crossed the gap carrying nothing finished, and stepped into the new year remade.';
+const String _kOpenHandBadgeText =
+    'In Kemet, the just person recorded specific gifts on the tomb wall as proof of a life in Ma\'at: bread to the hungry, water to the thirsty, clothing to the naked, a boat to the one stranded on the shore. Generosity was not a sentiment. It was a list of things actually given.';
+const String _kDjedBadgeText =
+    'In Kemet, the Djed pillar - the backbone of Ausar - was hauled upright by ropes each year in a great ceremony. What had been scattered was gathered; what had fallen was made to stand. The spine holds not because it was never tested, but because it was raised again after the contest.';
+const String _kFairHearingBadgeText =
+    'In Kemet, the just official heard the petitioner out completely before judging - even when he could not grant every request. The Eloquent Peasant pleaded his case nine times, and the listening itself was part of the justice. A decision made before the hearing is finished is not a decision. It is a preference.';
+const String _kHouseOfLifeBadgeText =
+    'In Kemet, the Per-Ankh was a working scriptorium where texts were copied by hand, recited aloud, and corrected against the elders. Knowledge was not stored - it was kept alive by use, and what you learned accurately you owed to those who came after.';
+const String _kBoundaryStoneBadgeText =
+    "In Kemet, when the flood receded each year, the fields were re-surveyed and the boundary stones set back in their true places. To move a stone was to steal the land itself - Ma'at made visible in the earth. Knowing where what is yours ends is the beginning of order.";
+const String _kHotepBadgeText =
+    'In Kemet, htp named both the offering laid down and the peace received in return. The cool water was poured, the heart was cooled, and the day was complete. The work was finished not when you could give no more, but when what was owed had been given.';
+const String _kOpenMouthBadgeText =
+    'In Kemet, the heart conceived a thing and the tongue spoke it into being - this was how Ptah made the world. Speech was not description; it was creation. The Opening of the Mouth gave a statue the power to breathe and eat. What leaves your mouth is already shaping the world.';
+const String _kLivingRecordBadgeText =
+    "In Kemet, every event was dated and set in its place - Merer's logbook of the days, the year-by-year compartments of the Palermo Stone. Work outside of time was only an anecdote. What was dated, placed, and written down became record, and record endured.";
+const String _kHetHeruBadgeText =
+    'In Kemet, the Eye of Ra went out as Sekhmet and would not stop killing, even when called back. The gods did not fight her - they flooded the field with seven thousand jars of beer dyed red as blood. She drank, slept, and woke as Het-Heru, the Golden One. The fierce force was not defeated. It was filled.';
+const String _kShoreBadgeText =
+    'In Kemet, honest trade was weighed on a true scale, and Djehuty\'s ape sat beside the balance as its heart. "The measure is the eye of Ra." Goods gained by a tilted scale turned to lead by morning - what is taken dishonestly never truly stays.';
+const String _kAutobiographyBadgeText =
+    'In Kemet, a life was carved on the tomb wall for the living who passed by to read - not boasts, but a reckoning: what I built, what I gave, what I stood for. The account had to be honest, because the same deeds would be weighed on the scale. A life set down plainly is a life that endures.';
+const String _kFirstArrangementBadgeText =
+    'In Kemet, creation itself was Zep Tepi - the First Occasion, when the gods set each thing in its proper place and order rose out of the waters. To order a space is to repeat that first act in miniature: not to add, but to put what exists where it belongs.';
+const String _kLivingPatternBadgeText =
+    'In Kemet, the deepest principles were read from the natural world - the flood that gave and withdrew, the jackal at the desert\'s edge, the star that vanished and returned. Nature was a text written by the gods, and patient watching, not invention, was how you read it.';
+const String _kTrueNameBadgeText =
+    "In Kemet, the ren - the true name - was one of the real parts of a person, as real as the body. To know a thing's accurate name was to know its nature; Aset gained power over Ra by learning the name he had hidden. The account others gave you is not always the name the scale shows.";
+const String _kLivingTextBadgeText =
+    "In Kemet, a scribe's note in the margin could be carried into the next copy, and the next - a reader's insight becoming part of the text itself. The writing was never finished. Each careful reader added to a thing that had been growing for generations.";
+const String _kClearingBadgeText =
+    'In Kemet, the temperate person was likened to a tree grown in open sun - fruitful, shading others, ending its days in a grove. The hot-headed person was a tree in an enclosure, stripped of its leaves in a single moment. The difference was not temperament. It was where the heat could reach.';
+const String _kWanderingBadgeText =
+    'In Kemet, when Ausar was lost, Aset and Nebet-Het searched the length of the land, lamenting as they went, until they found him. Grief was given a shape and a journey. The searching was not weakness - it was the work, and "I found" was the cry at the end of it.';
+const String _kKhatBadgeText =
+    'In Kemet, the body was one of the five parts of a person, and the gods themselves tended it - Horus washing the flesh, Thoth washing the feet. The body was not a vessel to escape but a thing to restore. "Teti is sound because of his body."';
+const String _kOracleBadgeText =
+    'In Kemet, those seeking an answer slept in the shadow of the god and waited for the night to send a dream. The young Thutmose did this at the foot of the Sphinx, received his answer, woke, and acted - and became king. The dream was not idle. It was a message, if you prepared to receive it.';
+
 class _MaatFlowTemplate {
   final String key; // stable identifier (e.g., "wealth-economy")
   final String title; // flow title
   final String overview; // overview / description
   final String subtitle; // category and short list description
+  final String historicalBadgeText; // contextual source badge
   final _MaatFlowLibraryCategory libraryCategory;
   final String glyph;
   final String glyphMeaning;
@@ -3105,6 +3205,7 @@ class _MaatFlowTemplate {
     required this.title,
     required this.overview,
     required this.subtitle,
+    this.historicalBadgeText = '',
     required this.libraryCategory,
     required this.glyph,
     required this.glyphMeaning,
@@ -3139,6 +3240,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     overview:
         'Follow the Sky places major visible sky events on the calendar with simple witness prompts. Step outside when you can, notice what changed above you, and keep one clear line of observation in Kemetic time.',
     subtitle: 'Sky · Track the year\'s astronomical events in Kemetic time',
+    historicalBadgeText: _kTrackSkyBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: '𓇯',
     glyphMeaning: 'Sky and heavens',
@@ -3152,6 +3254,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kDawnHouseRiteTitle,
     overview: kDawnHouseRiteOverview,
     subtitle: 'Daily · Water, light, and one right act at dawn',
+    historicalBadgeText: _kDawnHouseRiteBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: '𓉐',
     glyphMeaning: 'House',
@@ -3165,6 +3268,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kEveningThresholdTitle,
     overview: kEveningThresholdOverview,
     subtitle: kEveningThresholdSubtitle,
+    historicalBadgeText: _kEveningThresholdBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kEveningThresholdGlyph,
     glyphMeaning: 'Sun at the threshold with the heart weighed',
@@ -3178,6 +3282,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kEveningThresholdRiteTitle,
     overview: kEveningThresholdRiteOverview,
     subtitle: 'Daily · Close the visible day before the night begins',
+    historicalBadgeText: _kClosingBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: '𓊌',
     glyphMeaning: 'Boundary or threshold',
@@ -3191,6 +3296,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheWeighingTitle,
     overview: kTheWeighingOverview,
     subtitle: 'Reckoning · Put material and spoken records on the scale',
+    historicalBadgeText: _kWeighingBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kTheWeighingGlyph,
     glyphMeaning: 'Balance and weighing',
@@ -3204,6 +3310,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kOfferingTableTitle,
     overview: kOfferingTableOverview,
     subtitle: 'Provision · Water first, then food, rest, and care',
+    historicalBadgeText: _kOfferingTableBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kOfferingTableGlyph,
     glyphMeaning: 'Offering table',
@@ -3217,6 +3324,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheTendingTitle,
     overview: kTheTendingOverview,
     subtitle: 'Care · Find who needs you and do the labor',
+    historicalBadgeText: _kTendingBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kTheTendingGlyph,
     glyphMeaning: 'Field and tending',
@@ -3230,6 +3338,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kKeptWordTitle,
     overview: kKeptWordOverview,
     subtitle: 'Speech · Name broken agreements and restore right order',
+    historicalBadgeText: _kKeptWordBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kKeptWordGlyph,
     glyphMeaning: 'Mouth and speech',
@@ -3243,6 +3352,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheCourseTitle,
     overview: kTheCourseOverview,
     subtitle: 'Time · Locate yourself in the day, decan, and season',
+    historicalBadgeText: _kCourseBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kTheCourseGlyph,
     glyphMeaning: 'Road, path, and course',
@@ -3256,6 +3366,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kMoonReturnTitle,
     overview: kMoonReturnOverview,
     subtitle: 'Sky · The Eye empties at the new moon and fills at the full',
+    historicalBadgeText: _kMoonReturnBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kMoonReturnGlyph,
     glyphMeaning: 'Moon',
@@ -3269,6 +3380,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheWagTitle,
     overview: kTheWagOverview,
     subtitle: 'Ancestors · Name the dead, set the table, hold the feast',
+    historicalBadgeText: _kWagBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kTheWagGlyph,
     glyphMeaning: 'Bark and procession',
@@ -3282,6 +3394,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kDecanWatchTitle,
     overview: kDecanWatchOverview,
     subtitle: 'Sky · Stand under the sky at each ten-day boundary',
+    historicalBadgeText: _kDecanWatchBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kDecanWatchGlyph,
     glyphMeaning: 'Star',
@@ -3295,6 +3408,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kDaysOutsideTheYearTitle,
     overview: kDaysOutsideTheYearOverview,
     subtitle: 'Threshold · Five births before the year opens',
+    historicalBadgeText: _kDaysOutsideYearBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: kDaysOutsideTheYearGlyph,
     glyphMeaning: 'Year',
@@ -3308,6 +3422,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheOpenHandTitle,
     overview: kOpenHandOverview,
     subtitle: 'Giving · See need and give beyond the circle of obligation',
+    historicalBadgeText: _kOpenHandBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kTheOpenHandGlyph,
     glyphMeaning: 'Hand',
@@ -3321,6 +3436,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheDjedTitle,
     overview: kDjedOverview,
     subtitle: 'Stability · Name the spine and raise the Djed',
+    historicalBadgeText: _kDjedBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kTheDjedGlyph,
     glyphMeaning: 'Djed pillar',
@@ -3330,10 +3446,25 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     kind: _MaatFlowTemplateKind.theDjed,
   ),
   _MaatFlowTemplate(
+    key: kReadingHouseFlowKey,
+    title: kReadingHouseTitle,
+    overview: kReadingHouseOverview,
+    subtitle: 'Private study · Book-club foundation',
+    historicalBadgeText: kReadingHouseHistoricalBadgeText,
+    libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
+    glyph: kReadingHouseGlyph,
+    glyphMeaning: 'House',
+    glyphSourceWord: 'pr',
+    glyphType: 'ideogram',
+    color: const Color(0xFF4FA58D),
+    kind: _MaatFlowTemplateKind.readingHouse,
+  ),
+  _MaatFlowTemplate(
     key: kFairHearingFlowKey,
     title: kFairHearingTitle,
     overview: kFairHearingOverview,
     subtitle: 'Judgment · Hear fully before deciding, pronounce clearly',
+    historicalBadgeText: _kFairHearingBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kFairHearingGlyph,
     glyphMeaning: 'Ear and hearing',
@@ -3347,6 +3478,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kHouseOfLifeTitle,
     overview: kHouseOfLifeOverview,
     subtitle: 'Knowledge · Write, recite, seek those who know more, transmit',
+    historicalBadgeText: _kHouseOfLifeBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kHouseOfLifeGlyph,
     glyphMeaning: 'House and life',
@@ -3360,6 +3492,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kBoundaryStoneTitle,
     overview: kBoundaryStoneOverview,
     subtitle: 'Restraint · Map what is yours and restore the stones that moved',
+    historicalBadgeText: _kBoundaryStoneBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kBoundaryStoneGlyph,
     glyphMeaning: 'Boundary-stone and landmark',
@@ -3373,6 +3506,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kHotepTitle,
     overview: kHotepOverview,
     subtitle: 'Rest · The offering was given. Cool the heart before sleep.',
+    historicalBadgeText: _kHotepBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kHotepGlyph,
     glyphMeaning: 'Offering table',
@@ -3386,6 +3520,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kOpenMouthTitle,
     overview: kOpenMouthOverview,
     subtitle: 'Speech · Govern what the mouth creates before it leaves',
+    historicalBadgeText: _kOpenMouthBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kOpenMouthGlyph,
     glyphMeaning: 'Mouth and speech',
@@ -3399,6 +3534,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kLivingRecordTitle,
     overview: kLivingRecordOverview,
     subtitle: 'Practice · Build the full decan record across ḥꜣw',
+    historicalBadgeText: _kLivingRecordBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kLivingRecordGlyph,
     glyphMeaning: 'Scribe palette and record',
@@ -3413,6 +3549,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     overview: kHetHeruOverview,
     subtitle:
         'Joy · Name the Sekhmet. Find the red beer. Wake as the golden one.',
+    historicalBadgeText: _kHetHeruBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kHetHeruGlyph,
     glyphMeaning: 'Het-Heru enclosure',
@@ -3426,6 +3563,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheShoreTitle,
     overview: kTheShoreOverview,
     subtitle: 'Exchange · Bring what you have and weigh it honestly',
+    historicalBadgeText: _kShoreBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kTheShoreGlyph,
     glyphMeaning: 'Shore and water edge',
@@ -3439,6 +3577,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kTheAutobiographyTitle,
     overview: kTheAutobiographyOverview,
     subtitle: 'Legacy · Survey the years and write the honest account',
+    historicalBadgeText: _kAutobiographyBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kTheAutobiographyGlyph,
     glyphMeaning: 'Record and person',
@@ -3452,6 +3591,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kFirstArrangementTitle,
     overview: kFirstArrangementOverview,
     subtitle: 'Space · See what is there and order it from the first occasion',
+    historicalBadgeText: _kFirstArrangementBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kFirstArrangementGlyph,
     glyphMeaning: 'Ordered land or ground',
@@ -3465,6 +3605,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kLivingPatternTitle,
     overview: kLivingPatternOverview,
     subtitle: 'Nature · Observe one subject until a real pattern appears',
+    historicalBadgeText: _kLivingPatternBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kLivingPatternGlyph,
     glyphMeaning: 'Patterned natural form',
@@ -3479,6 +3620,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     overview: kTrueNameOverview,
     subtitle:
         'Identity · Find the false account and speak what the scale shows',
+    historicalBadgeText: _kTrueNameBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kTrueNameGlyph,
     glyphMeaning: 'Spoken name',
@@ -3492,6 +3634,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kLivingTextTitle,
     overview: kLivingTextOverview,
     subtitle: 'Library · Read carefully, add your insights, leave a mark',
+    historicalBadgeText: _kLivingTextBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.livingInMaat,
     glyph: kLivingTextGlyph,
     glyphMeaning: 'Text and life',
@@ -3506,6 +3649,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     overview: kClearingOverview,
     subtitle:
         'Stillness · Find the heat-driven pattern. Create space before response.',
+    historicalBadgeText: _kClearingBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kClearingGlyph,
     glyphMeaning: 'Water and cleansing',
@@ -3520,6 +3664,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     overview: kWanderingOverview,
     subtitle:
         'Grief · Name the loss, search for what remains, stand when ready',
+    historicalBadgeText: _kWanderingBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kWanderingGlyph,
     glyphMeaning: 'Walking legs and movement',
@@ -3533,6 +3678,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: kKhatTitle,
     overview: kKhatOverview,
     subtitle: 'Body · Listen to the body, provide what it needs, raise it',
+    historicalBadgeText: _kKhatBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kKhatGlyph,
     glyphMeaning: 'Corpse or mummy-form body',
@@ -3547,6 +3693,7 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     overview: kOracleOverview,
     subtitle:
         'Dreams · Prepare the question, receive what the night sends, act',
+    historicalBadgeText: _kOracleBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.innerWork,
     glyph: kOracleGlyph,
     glyphMeaning: 'Hearing and receiving an answer',
@@ -3640,8 +3787,11 @@ class _SharedCalendarEventDetailSnapshot {
   final Map<String, dynamic>? behaviorPayload;
 
   String get debugIdentity =>
-      'calendarId=$calendarId eventId=$eventId clientEventId=$clientEventId '
-      'title="$title" start=${startsAtLocal.toIso8601String()}';
+      'calendarId=${safeLogIdentifier(calendarId)} '
+      'eventId=${safeLogIdentifier(eventId)} '
+      'clientEventId=${safeLogIdentifier(clientEventId)} '
+      'title=<redacted chars=${title.length}> '
+      'start=${startsAtLocal.toIso8601String()}';
 }
 
 class _SharedCalendarRealDayViewIntent {
@@ -3658,6 +3808,7 @@ class _SharedCalendarRealDayViewIntent {
     required this.warmHiddenCalendarIds,
     required this.warmPersonalCalendarId,
     required this.sameCalendarEvents,
+    required this.sharedCalendarFlows,
   });
 
   final int kYear;
@@ -3672,92 +3823,28 @@ class _SharedCalendarRealDayViewIntent {
   final Set<String> warmHiddenCalendarIds;
   final String? warmPersonalCalendarId;
   final List<FiledEvent> sameCalendarEvents;
+  final List<_Flow> sharedCalendarFlows;
 }
 
-class _CalendarWarmStateSnapshot {
-  const _CalendarWarmStateSnapshot({
+class _CalendarDetachedStateSnapshot {
+  const _CalendarDetachedStateSnapshot({
     required this.notes,
     required this.flows,
     required this.calendarSummariesById,
     required this.hiddenCalendarIds,
     required this.personalCalendarId,
+    required this.hasSnapshot,
   });
-
-  static const empty = _CalendarWarmStateSnapshot(
-    notes: <String, List<_Note>>{},
-    flows: <_Flow>[],
-    calendarSummariesById: <String, SharedCalendarSummary>{},
-    hiddenCalendarIds: <String>{},
-    personalCalendarId: null,
-  );
 
   final Map<String, List<_Note>> notes;
   final List<_Flow> flows;
   final Map<String, SharedCalendarSummary> calendarSummariesById;
   final Set<String> hiddenCalendarIds;
   final String? personalCalendarId;
-
-  bool get hasCalendarData => notes.isNotEmpty || flows.isNotEmpty;
-  bool hasDay(int kYear, int kMonth, int kDay) =>
-      notes['$kYear-$kMonth-$kDay']?.isNotEmpty == true;
+  final bool hasSnapshot;
 }
 
-class _CalendarWarmStateStore {
-  static String? _userId;
-  static Map<String, List<_Note>> _notes = <String, List<_Note>>{};
-  static List<_Flow> _flows = <_Flow>[];
-  static Map<String, SharedCalendarSummary> _calendarSummariesById =
-      <String, SharedCalendarSummary>{};
-  static Set<String> _hiddenCalendarIds = <String>{};
-  static String? _personalCalendarId;
-
-  static void save({
-    required String? userId,
-    required Map<String, List<_Note>> notes,
-    required List<_Flow> flows,
-    required Map<String, SharedCalendarSummary> calendarSummariesById,
-    required Set<String> hiddenCalendarIds,
-    required String? personalCalendarId,
-  }) {
-    final trimmedUserId = userId?.trim();
-    if (trimmedUserId == null || trimmedUserId.isEmpty) return;
-    _userId = trimmedUserId;
-    _notes = _copyNotesByDay(notes);
-    _flows = flows.map(_copyFlow).toList(growable: false);
-    _calendarSummariesById = Map<String, SharedCalendarSummary>.from(
-      calendarSummariesById,
-    );
-    _hiddenCalendarIds = Set<String>.from(hiddenCalendarIds);
-    _personalCalendarId = personalCalendarId;
-  }
-
-  static _CalendarWarmStateSnapshot snapshotForUser(String? userId) {
-    final trimmedUserId = userId?.trim();
-    if (trimmedUserId == null ||
-        trimmedUserId.isEmpty ||
-        trimmedUserId != _userId) {
-      return _CalendarWarmStateSnapshot.empty;
-    }
-    return _CalendarWarmStateSnapshot(
-      notes: _copyNotesByDay(_notes),
-      flows: _flows.map(_copyFlow).toList(growable: false),
-      calendarSummariesById: Map<String, SharedCalendarSummary>.from(
-        _calendarSummariesById,
-      ),
-      hiddenCalendarIds: Set<String>.from(_hiddenCalendarIds),
-      personalCalendarId: _personalCalendarId,
-    );
-  }
-
-  static Map<String, List<_Note>> _copyNotesByDay(
-    Map<String, List<_Note>> source,
-  ) {
-    return <String, List<_Note>>{
-      for (final entry in source.entries)
-        entry.key: entry.value.map(_copyNote).toList(growable: true),
-    };
-  }
-
+class _CalendarModelCopy {
   static _Note _copyNote(_Note note) {
     return _Note(
       id: note.id,
@@ -3804,16 +3891,50 @@ class _CalendarWarmStateStore {
   }
 }
 
+class _CalendarProcessRouteHandoff {
+  const _CalendarProcessRouteHandoff({
+    required this.identityKey,
+    required this.layoutRevision,
+    required this.physicalWidth,
+    required this.physicalHeight,
+    required this.devicePixelRatio,
+    required this.kYear,
+    required this.kMonth,
+    required this.kDay,
+    required this.scrollBaseYear,
+    required this.scrollOffset,
+    required this.showGregorian,
+    required this.expansion,
+  });
+
+  final String identityKey;
+  final int layoutRevision;
+  final double physicalWidth;
+  final double physicalHeight;
+  final double devicePixelRatio;
+  final int kYear;
+  final int kMonth;
+  final int kDay;
+  final int scrollBaseYear;
+  final double scrollOffset;
+  final bool showGregorian;
+  final MonthExpansionLevel expansion;
+}
+
+typedef _CalendarPrincipalLease = ({String userId, int generation});
+
 class CalendarPage extends StatefulWidget {
   final int? initialFlowIdToEdit;
   final bool openMyFlowsOnLaunch;
   final bool debugDaySheetSmokeOnLaunch;
+  final bool onboardingReviewMode;
 
   CalendarPage({
     Key? key,
     this.initialFlowIdToEdit,
     this.openMyFlowsOnLaunch = false,
     this.debugDaySheetSmokeOnLaunch = false,
+    this.onboardingReviewMode = false,
   }) : super(key: key ?? CalendarPage.globalKey);
 
   // Global key for accessing calendar state from other pages
@@ -3828,6 +3949,13 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
+  static Widget buildOnboardingReviewRoute() {
+    return CalendarPage(
+      key: const ValueKey<String>('debug_onboarding_review_calendar'),
+      onboardingReviewMode: true,
+    );
+  }
+
   static _CalendarDetachedLaunchAction? _pendingDetachedLaunchAction;
   static ({int ky, int km, int kd, EventDetailRestorationState? eventDetail})?
   _pendingDetachedSearchResult;
@@ -3835,8 +3963,19 @@ class CalendarPage extends StatefulWidget {
   static _SharedCalendarRealDayViewIntent?
   _pendingSharedCalendarRealDayViewIntent;
   static bool _pendingTodayNavigationCommand = false;
+  static _CalendarProcessRouteHandoff? _processRouteHandoff;
   @visibleForTesting
   static bool debugDisableTodayNavigationRetry = false;
+  @visibleForTesting
+  static bool debugSuppressPendingEventInviteOverlay = false;
+  @visibleForTesting
+  static bool debugSuppressCalendarOnboardingHelpers = false;
+  @visibleForTesting
+  static void debugResetWarmStateStoreForTesting() {
+    CalendarSnapshotRepository.instance.clearRetainedSnapshotMemory();
+    _processRouteHandoff = null;
+  }
+
   @visibleForTesting
   static Future<void> Function(BuildContext context)?
   debugOpenSharedCalendarsFromAnyContext;
@@ -3847,6 +3986,7 @@ class CalendarPage extends StatefulWidget {
   static bool _detachedSharedCalendarsSheetOpenOrOpening = false;
   static bool _detachedFlowStudioSheetOpenOrOpening = false;
   static bool _detachedQuickAddSheetOpenOrOpening = false;
+  static int _calendarOwnedTransientRouteDepth = 0;
   static String? _lastDetachedCalendarOverlayRestoreKey;
   static final Map<String, int> _rememberedJoinedMaatFlowIdsByTemplateKey =
       <String, int>{};
@@ -4297,6 +4437,7 @@ class CalendarPage extends StatefulWidget {
   static bool get _hasCalendarOwnedTransientOverlayOpenOrOpening {
     final mountedState = _mountedState;
     return CalendarEventDetailSheetCoordinator.isOpenOrOpening ||
+        _calendarOwnedTransientRouteDepth > 0 ||
         _detachedSharedCalendarsSheetOpenOrOpening ||
         _detachedFlowStudioSheetOpenOrOpening ||
         _detachedQuickAddSheetOpenOrOpening ||
@@ -4304,6 +4445,30 @@ class CalendarPage extends StatefulWidget {
         (mountedState?._flowStudioSheetOpenOrOpening ?? false) ||
         (mountedState?._daySheetOpenOrOpening ?? false) ||
         (mountedState?._quickAddSheetOpenOrOpening ?? false);
+  }
+
+  static Future<T> runWithCalendarOwnedTransientRoute<T>(
+    Future<T> Function() action,
+  ) async {
+    _calendarOwnedTransientRouteDepth += 1;
+    _mountedState?._markCalendarOwnedTransientRouteChanged();
+    try {
+      return await action();
+    } finally {
+      await WidgetsBinding.instance.endOfFrame;
+      final mountedState = _mountedState;
+      final routeIsCurrent = mountedState == null
+          ? true
+          : mountedState._calendarRouteIsCurrent;
+      if (!routeIsCurrent) {
+        await Future<void>.delayed(Duration.zero);
+        await WidgetsBinding.instance.endOfFrame;
+      }
+      if (_calendarOwnedTransientRouteDepth > 0) {
+        _calendarOwnedTransientRouteDepth -= 1;
+      }
+      _mountedState?._markCalendarOwnedTransientRouteChanged();
+    }
   }
 
   static Future<void> dismissAppOwnedTransientOverlaysForRouteChange(
@@ -4981,37 +5146,34 @@ class CalendarPage extends StatefulWidget {
     return null;
   }
 
-  static Future<({Map<String, List<_Note>> notes, List<_Flow> flows})>
+  static Future<
+    ({Map<String, List<_Note>> notes, List<_Flow> flows, bool hasSnapshot})
+  >
   _loadWarmStartSearchSnapshot() async {
     final userId = Supabase.instance.client.auth.currentUser?.id.trim();
-    if (userId == null || userId.isEmpty) {
-      return (notes: <String, List<_Note>>{}, flows: <_Flow>[]);
-    }
-    final memorySnapshot = _CalendarWarmStateStore.snapshotForUser(userId);
-    if (memorySnapshot.hasCalendarData) {
-      return (notes: memorySnapshot.notes, flows: memorySnapshot.flows);
+    final projectRef = calendarWarmStartProjectRefFromClient(
+      Supabase.instance.client,
+    );
+    if (userId == null || userId.isEmpty || projectRef == null) {
+      return (
+        notes: <String, List<_Note>>{},
+        flows: <_Flow>[],
+        hasSnapshot: false,
+      );
     }
 
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(
-        '${CalendarPageState._kWarmStartCacheKeyPrefix}:$userId',
+      final document = await CalendarSnapshotRepository.instance.restore(
+        CalendarSnapshotIdentity(projectRef: projectRef, userId: userId),
       );
-      if (raw == null || raw.trim().isEmpty) {
-        return (notes: <String, List<_Note>>{}, flows: <_Flow>[]);
+      if (document == null) {
+        return (
+          notes: <String, List<_Note>>{},
+          flows: <_Flow>[],
+          hasSnapshot: false,
+        );
       }
-
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map) {
-        return (notes: <String, List<_Note>>{}, flows: <_Flow>[]);
-      }
-      final json = Map<String, dynamic>.from(decoded);
-      final snapshotUserId = (json['userId'] as String?)?.trim();
-      if (snapshotUserId != null &&
-          snapshotUserId.isNotEmpty &&
-          snapshotUserId != userId) {
-        return (notes: <String, List<_Note>>{}, flows: <_Flow>[]);
-      }
+      final json = document.json;
 
       final flows = ((json['flows'] as List?) ?? const [])
           .map(_deserializeWarmStartSearchFlow)
@@ -5032,28 +5194,49 @@ class CalendarPage extends StatefulWidget {
         });
       }
 
-      return (notes: notesByDay, flows: flows);
+      return (notes: notesByDay, flows: flows, hasSnapshot: true);
     } catch (e) {
       if (kDebugMode) {
         _calendarDebugPrint('[search] warm-start cache unavailable: $e');
       }
-      return (notes: <String, List<_Note>>{}, flows: <_Flow>[]);
+      return (
+        notes: <String, List<_Note>>{},
+        flows: <_Flow>[],
+        hasSnapshot: false,
+      );
     }
   }
 
-  static Future<_CalendarWarmStateSnapshot>
+  static Future<_CalendarDetachedStateSnapshot>
   _loadWarmCalendarStateSnapshot() async {
     final userId = Supabase.instance.client.auth.currentUser?.id.trim();
-    final memorySnapshot = _CalendarWarmStateStore.snapshotForUser(userId);
-    final warmStart = memorySnapshot.hasCalendarData
-        ? (notes: memorySnapshot.notes, flows: memorySnapshot.flows)
-        : await _loadWarmStartSearchSnapshot();
+    final projectRef = calendarWarmStartProjectRefFromClient(
+      Supabase.instance.client,
+    );
+    final warmStart = await _loadWarmStartSearchSnapshot();
+    final document = userId == null || userId.isEmpty || projectRef == null
+        ? null
+        : await CalendarSnapshotRepository.instance.restore(
+            CalendarSnapshotIdentity(projectRef: projectRef, userId: userId),
+          );
 
-    final calendarSummariesById = <String, SharedCalendarSummary>{
-      ...memorySnapshot.calendarSummariesById,
-    };
-    var hiddenCalendarIds = Set<String>.from(memorySnapshot.hiddenCalendarIds);
-    var personalCalendarId = memorySnapshot.personalCalendarId;
+    final calendarSummariesById = <String, SharedCalendarSummary>{};
+    for (final raw
+        in (document?.json['calendarSummaries'] as List?) ?? const []) {
+      if (raw is! Map) continue;
+      final summary = SharedCalendarSummary.fromRow(
+        Map<String, dynamic>.from(raw),
+      );
+      if (summary.id.trim().isNotEmpty) {
+        calendarSummariesById[summary.id] = summary;
+      }
+    }
+    var hiddenCalendarIds =
+        ((document?.json['hiddenCalendarIds'] as List?) ?? const [])
+            .whereType<String>()
+            .toSet();
+    var personalCalendarId = (document?.json['personalCalendarId'] as String?)
+        ?.trim();
 
     try {
       final cachedSharedCalendars = await SharedCalendarsRepo(
@@ -5076,12 +5259,13 @@ class CalendarPage extends StatefulWidget {
       }
     }
 
-    return _CalendarWarmStateSnapshot(
+    return _CalendarDetachedStateSnapshot(
       notes: warmStart.notes,
       flows: warmStart.flows,
       calendarSummariesById: calendarSummariesById,
       hiddenCalendarIds: hiddenCalendarIds,
       personalCalendarId: personalCalendarId,
+      hasSnapshot: document != null || warmStart.hasSnapshot,
     );
   }
 
@@ -5312,6 +5496,36 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
+  static Future<List<_Flow>> _loadSharedCalendarFlowsForFiledEvents(
+    Iterable<FiledEvent> filedEvents,
+  ) async {
+    final flowIds = <int>{
+      for (final filedEvent in filedEvents)
+        if (_positiveFiledFlowId(filedEvent) case final flowId?) flowId,
+    }.toList()..sort();
+    if (flowIds.isEmpty) return const <_Flow>[];
+
+    final repo = FlowsRepo(Supabase.instance.client);
+    final flows = <_Flow>[];
+    for (final flowId in flowIds) {
+      try {
+        final row = await repo.getFlowById(flowId);
+        if (row != null) {
+          flows.add(_flowFromFiledRowDetached(row));
+        }
+      } catch (error, stackTrace) {
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[SharedCalendarEventTap] shared flow hydrate failed '
+            'flowId=$flowId: $error',
+          );
+          _calendarDebugPrint('$stackTrace');
+        }
+      }
+    }
+    return List<_Flow>.unmodifiable(flows);
+  }
+
   static int? _firstVisibleMinuteFromSharedCalendarSnapshot(
     _SharedCalendarEventDetailSnapshot snapshot,
   ) {
@@ -5384,12 +5598,17 @@ class CalendarPage extends StatefulWidget {
       kMonth: kDate.kMonth,
       kDay: kDate.kDay,
     );
+    final sharedCalendarFlows = await _loadSharedCalendarFlowsForFiledEvents(
+      <FiledEvent>{filedEvent, ...sameDayEvents},
+    );
+    if (!context.mounted) return;
 
     final mountedHost = _shouldUseMountedCalendarHost(context)
         ? _mountedCalendarHostForContext(context)
         : null;
     if (mountedHost != null) {
       mountedHost._rememberSharedCalendarSnapshot(calendar);
+      mountedHost._seedSharedCalendarFlows(sharedCalendarFlows);
       mountedHost._seedSameDaySharedCalendarFiledEvents(
         calendar: calendar,
         filedEvents: sameDayEvents,
@@ -5442,6 +5661,7 @@ class CalendarPage extends StatefulWidget {
       warmHiddenCalendarIds: warmCalendarSnapshot.hiddenCalendarIds,
       warmPersonalCalendarId: warmCalendarSnapshot.personalCalendarId,
       sameCalendarEvents: sameDayEvents,
+      sharedCalendarFlows: sharedCalendarFlows,
     );
     try {
       GoRouter.of(context).go('/');
@@ -6301,6 +6521,37 @@ class CalendarPage extends StatefulWidget {
     }
   }
 
+  static Future<
+    ({List<SharedCalendarSummary> calendars, String? personalCalendarId})
+  >
+  _loadHeadlessEditableCalendarsForFlow(String? currentCalendarId) async {
+    final repo = SharedCalendarsRepo(Supabase.instance.client);
+    SharedCalendarsSnapshot? snapshot;
+    try {
+      snapshot = await repo.loadSnapshot();
+    } catch (_) {
+      snapshot = await repo.restoreCachedSnapshot();
+    }
+    final current = currentCalendarId?.trim();
+    final calendars = (snapshot?.calendars ?? const <SharedCalendarSummary>[])
+        .where(
+          (calendar) =>
+              calendar.canEdit ||
+              (current != null && current.isNotEmpty && calendar.id == current),
+        )
+        .toList(growable: false);
+    calendars.sort((a, b) {
+      if (a.isPersonal != b.isPersonal) {
+        return a.isPersonal ? -1 : 1;
+      }
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+    return (
+      calendars: calendars,
+      personalCalendarId: snapshot?.personalCalendarId,
+    );
+  }
+
   static Future<void> _fileHeadlessEventDelivery({
     required EventFilingService eventFiling,
     required String debugLabel,
@@ -6421,6 +6672,7 @@ class CalendarPage extends StatefulWidget {
     DecanWatchLens? decanWatchLens,
     OpenHandLens? openHandLens,
     DjedLens? djedLens,
+    List<ReadingHouseSitting>? readingHouseSittings,
     String? eveningThresholdInitialCarry,
   }) async {
     final personalCalendarId = await _loadHeadlessPersonalCalendarId();
@@ -6560,6 +6812,24 @@ class CalendarPage extends StatefulWidget {
         startDate: startDate,
         lens: djedLens ?? DjedLens.neutral,
         alertOffsetMinutes: 0,
+      );
+      return result.flowIdOrNegativeOne;
+    }
+
+    if (template.kind == _MaatFlowTemplateKind.readingHouse) {
+      final result = await FlowJoinService().joinReadingHouseHeadless(
+        templateKey: template.key,
+        templateTitle: template.title,
+        templateOverview: template.overview,
+        templateColor: template.color,
+        personalCalendarId: personalCalendarId,
+        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+        startDate: startDate,
+        plan: readingHousePlanFromDraftValues(
+          kMaatFlowResponseDraftStore.valuesForFlow(template.key),
+        ),
+        readingHouseSittings: readingHouseSittings,
+        alertOffsetMinutes: kEventFilingNoAlertMinutes,
       );
       return result.flowIdOrNegativeOne;
     }
@@ -6822,7 +7092,7 @@ class CalendarPage extends StatefulWidget {
         final current = router.routerDelegate.currentConfiguration.uri
             .toString();
         if (!_sameRouteLocation(current, route)) {
-          router.go(route);
+          router.replace(route);
         }
       }
     } catch (_) {
@@ -6893,13 +7163,65 @@ class CalendarPage extends StatefulWidget {
       }
     }
 
+    final cachedFlows =
+        _cachedDetachedMyFlowsFilingSnapshot(flowsRepo)?.flows ??
+        const <_Flow>[];
+    _Flow? readingHouseFlow;
+    if (editFlowId != null && importData == null) {
+      for (final flow in cachedFlows) {
+        if (flow.id == editFlowId &&
+            (resolveMaatFlowKind(flowNotes: flow.notes) ==
+                    MaatFlowKind.readingHouse ||
+                isReadingHouseFlowReference(
+                  flowName: flow.name,
+                  flowNotes: flow.notes,
+                ))) {
+          readingHouseFlow = flow;
+          break;
+        }
+      }
+    }
+    if (readingHouseFlow != null) {
+      final mountedHost = CalendarPage._mountedState;
+      final sharedCalendarsRepo =
+          mountedHost?._sharedCalendarsRepo ??
+          SharedCalendarsRepo(Supabase.instance.client);
+      final onCalendarChanged =
+          mountedHost?._moveReadingHouseFlowToCalendar ??
+          (flow, calendar) => _moveReadingHouseFlowToCalendarHeadless(
+            flow,
+            calendar,
+            flowsRepo,
+          );
+      return _pushDetachedFlowStudioRoute<_FlowStudioResult>(
+        navigator,
+        MaterialPageRoute<_FlowStudioResult>(
+          builder: (_) => _ReadingHouseAuthoringPage(
+            flow: readingHouseFlow!,
+            calendar: mountedHost?._calendarSummary(
+              readingHouseFlow.calendarId,
+            ),
+            personalCalendarId: mountedHost?._personalCalendarId,
+            sharedCalendarsRepo: sharedCalendarsRepo,
+            onCalendarChanged: onCalendarChanged,
+            onSave: handleResult,
+          ),
+        ),
+        parentRoute: parentRoute,
+        visibleState: <String, dynamic>{
+          'mode': _kFlowStudioModeEditor,
+          'editFlowId': editFlowId,
+          'templateKey': kReadingHouseFlowKey,
+        },
+        returnState: returnState,
+      );
+    }
+
     return _pushDetachedFlowStudioRoute<_FlowStudioResult>(
       navigator,
       MaterialPageRoute<_FlowStudioResult>(
         builder: (_) => _FlowStudioPage(
-          existingFlows:
-              _cachedDetachedMyFlowsFilingSnapshot(flowsRepo)?.flows ??
-              const <_Flow>[],
+          existingFlows: cachedFlows,
           editFlowId: editFlowId,
           importData: importData,
           onRouteResult: handleResult,
@@ -6920,6 +7242,65 @@ class CalendarPage extends StatefulWidget {
         if (editFlowId != null) 'editFlowId': editFlowId,
       },
       returnState: returnState,
+    );
+  }
+
+  static Future<_Flow> _moveFlowToCalendarHeadless(
+    _Flow flow,
+    SharedCalendarSummary calendar,
+    FlowsRepo flowsRepo, {
+    String source = 'flow_detail_calendar_move_headless',
+  }) async {
+    final calendarId = calendar.id.trim();
+    if (calendarId.isEmpty) {
+      throw ArgumentError.value(
+        calendar.id,
+        'calendar.id',
+        'Must not be empty.',
+      );
+    }
+    await flowsRepo.updateCalendar(id: flow.id, calendarId: calendarId);
+    await UserEventsRepo(
+      Supabase.instance.client,
+    ).updateCalendarForFlowEvents(flowId: flow.id, calendarId: calendarId);
+    await _ensureSharedExperienceForFlow(
+      flowId: flow.id,
+      calendarId: calendarId,
+      source: source,
+    );
+    final startDate = flow.start == null
+        ? null
+        : DateUtils.dateOnly(flow.start!);
+    final k = startDate == null ? null : KemeticMath.fromGregorian(startDate);
+    await SharedCalendarsRepo(
+      Supabase.instance.client,
+    ).notifySharedCalendarItemAdded(
+      calendarId: calendarId,
+      itemType: 'flow',
+      itemId: flow.id.toString(),
+      itemTitle: flow.name,
+      flowId: flow.id,
+      startDate: startDate,
+      kYear: k?.kYear,
+      kMonth: k?.kMonth,
+      kDay: k?.kDay,
+    );
+    await flowsRepo.clearMyFiledFlowsCache();
+    unawaited(flowsRepo.refreshMyFiledFlows());
+    flow.calendarId = calendarId;
+    return flow;
+  }
+
+  static Future<_Flow> _moveReadingHouseFlowToCalendarHeadless(
+    _Flow flow,
+    SharedCalendarSummary calendar,
+    FlowsRepo flowsRepo,
+  ) {
+    return _moveFlowToCalendarHeadless(
+      flow,
+      calendar,
+      flowsRepo,
+      source: 'reading_house_shared_calendar_move_headless',
     );
   }
 
@@ -6952,6 +7333,7 @@ class CalendarPage extends StatefulWidget {
     required FlowsRepo flowsRepo,
     int? initialFlowId,
   }) {
+    final mountedHost = CalendarPage._mountedState;
     if (initialFlowId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!navigator.mounted) return;
@@ -7010,6 +7392,10 @@ class CalendarPage extends StatefulWidget {
       onImportFlow: (_) async {
         await flowsRepo.refreshMyFiledFlows();
       },
+      onCalendarChanged:
+          mountedHost?._moveFlowToCalendar ??
+          (flow, calendar) =>
+              _moveFlowToCalendarHeadless(flow, calendar, flowsRepo),
     );
   }
 
@@ -7720,7 +8106,7 @@ class CalendarPage extends StatefulWidget {
 
   static void openMainCalendarAtToday(
     BuildContext context, {
-    bool animate = false,
+    bool animate = true,
   }) {
     NavigationTrace.instance.record('openMainCalendarAtToday entered');
     RestorationCoordinator.instance.suppressRestoreForUserNavigation(
@@ -7735,7 +8121,6 @@ class CalendarPage extends StatefulWidget {
     CalendarPage._pendingDetachedSearchResult = null;
     CalendarPage._pendingDetachedSearchDay = null;
     CalendarPage._pendingSharedCalendarRealDayViewIntent = null;
-    CalendarPage._pendingTodayNavigationCommand = true;
     final mountedState = _mountedState;
     mountedState?._suppressPendingRestoresForUserNavigation();
     unawaited(
@@ -7745,6 +8130,17 @@ class CalendarPage extends StatefulWidget {
     );
     unawaited(_recordCalendarTodayCommandState(mountedState));
 
+    if (mountedState != null && mountedState._isPrimaryCalendarRouteCurrent) {
+      CalendarPage._pendingTodayNavigationCommand = false;
+      mountedState._applyTodayNavigationCommand(
+        animate: true,
+        reason: 'today_command:mounted_calendar_in_place',
+      );
+      return;
+    }
+
+    CalendarPage._pendingTodayNavigationCommand = true;
+
     final router = GoRouter.of(context);
     final rootNavigator = Navigator.of(context, rootNavigator: true);
     if (rootNavigator.canPop()) {
@@ -7752,16 +8148,6 @@ class CalendarPage extends StatefulWidget {
     }
     NavigationTrace.instance.record("go('/') issued");
     router.go('/');
-    if (mountedState != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mountedState.mounted) return;
-        CalendarPage._pendingTodayNavigationCommand = false;
-        mountedState._applyTodayNavigationCommand(
-          animate: animate,
-          reason: 'today_command:mounted_calendar',
-        );
-      });
-    }
     _scheduleTodayJumpAfterNavigation(animate: animate);
   }
 
@@ -7817,6 +8203,45 @@ class CalendarPage extends StatefulWidget {
         );
     }
     throw ArgumentError('Unknown rule type ${j['type']}');
+  }
+
+  static ({
+    String? detail,
+    String? location,
+    String? category,
+    int? alertMinutes,
+  })
+  _decodeHeadlessFlowNotes(String? rawNotes) {
+    if (rawNotes == null || rawNotes.isEmpty) {
+      return (detail: null, location: null, category: null, alertMinutes: null);
+    }
+
+    try {
+      final meta = jsonDecode(rawNotes) as Map<String, dynamic>;
+      if (meta['kind'] == 'repeating_note') {
+        return (
+          detail: (meta['detail'] as String?)?.trim(),
+          location: (meta['location'] as String?)?.trim(),
+          category: (meta['category'] as String?)?.trim(),
+          alertMinutes: (meta['alertMinutes'] as num?)?.toInt(),
+        );
+      }
+    } catch (_) {
+      // Fall through to legacy Flow Studio note decoding.
+    }
+
+    try {
+      final decoded = notesDecode(rawNotes);
+      final overview = decoded.overview.trim();
+      return (
+        detail: overview.isEmpty ? null : overview,
+        location: null,
+        category: null,
+        alertMinutes: null,
+      );
+    } catch (_) {
+      return (detail: null, location: null, category: null, alertMinutes: null);
+    }
   }
 
   // Headless persistence helper: save/delete flows + planned notes without calendar state.
@@ -8005,7 +8430,151 @@ class CalendarPage extends StatefulWidget {
       }
     }
 
+    Future<int> materializeRuleEventsIfNeeded() async {
+      if (!f.active || f.rules.isEmpty || r.plannedNotes.isNotEmpty) return 0;
+
+      final scheduleStart = DateUtils.dateOnly(f.start ?? DateTime.now());
+      final scheduleEnd = DateUtils.dateOnly(
+        f.end ?? scheduleStart.add(const Duration(days: 90)),
+      );
+      final noteTitle = f.name.trim().isEmpty ? 'Flow Event' : f.name.trim();
+      final noteMeta = _decodeHeadlessFlowNotes(f.notes);
+      final eventFiling = EventFilingService();
+      final candidateDates = <DateTime>[];
+
+      for (
+        var date = scheduleStart;
+        !date.isAfter(scheduleEnd);
+        date = date.add(const Duration(days: 1))
+      ) {
+        final kDate = KemeticMath.fromGregorian(date);
+        for (final rule in f.rules) {
+          if (rule.matches(
+            ky: kDate.kYear,
+            km: kDate.kMonth,
+            kd: kDate.kDay,
+            g: date,
+          )) {
+            candidateDates.add(date);
+            break;
+          }
+        }
+      }
+
+      if (candidateDates.isEmpty) return 0;
+
+      await userEventsRepo.deleteByFlowId(
+        savedId,
+        fromDate: scheduleStart.toUtc(),
+        semantic: 'flow_reschedule',
+        suppressesClient: false,
+        sourceFeature: 'CalendarPage._persistFlowStudioResultHeadless',
+        deleteScope: 'flow_reschedule',
+      );
+
+      var savedCount = 0;
+      for (final date in candidateDates) {
+        final kDate = KemeticMath.fromGregorian(date);
+        for (final rule in f.rules) {
+          if (!rule.matches(
+            ky: kDate.kYear,
+            km: kDate.kMonth,
+            kd: kDate.kDay,
+            g: date,
+          )) {
+            continue;
+          }
+
+          final startHour = rule.allDay ? 9 : (rule.start?.hour ?? 9);
+          final startMinute = rule.allDay ? 0 : (rule.start?.minute ?? 0);
+          final startsAt = DateTime(
+            date.year,
+            date.month,
+            date.day,
+            startHour,
+            startMinute,
+          );
+
+          DateTime? endsAt;
+          if (!rule.allDay) {
+            endsAt = rule.end == null
+                ? startsAt.add(const Duration(hours: 1))
+                : DateTime(
+                    date.year,
+                    date.month,
+                    date.day,
+                    rule.end!.hour,
+                    rule.end!.minute,
+                  );
+          }
+
+          final cid = EventCidUtil.buildClientEventId(
+            ky: kDate.kYear,
+            km: kDate.kMonth,
+            kd: kDate.kDay,
+            title: noteTitle,
+            startHour: startHour,
+            startMinute: startMinute,
+            allDay: rule.allDay,
+            flowId: savedId,
+          );
+          clientEventIds.add(cid);
+
+          final savedEvent = await userEventsRepo.upsertByClientId(
+            clientEventId: cid,
+            title: noteTitle,
+            startsAtUtc: startsAt.toUtc(),
+            detail: noteMeta.detail,
+            location: noteMeta.location,
+            allDay: rule.allDay,
+            endsAtUtc: endsAt?.toUtc(),
+            calendarId: f.calendarId,
+            flowLocalId: savedId,
+            category: noteMeta.category,
+            caller: 'flow_save_rules_headless',
+          );
+          firstClientEventId ??= savedEvent.clientEventId ?? cid;
+          savedCount++;
+
+          final bodyLines = <String>[
+            if ((noteMeta.location ?? '').trim().isNotEmpty)
+              noteMeta.location!.trim(),
+            if ((noteMeta.detail ?? '').trim().isNotEmpty)
+              noteMeta.detail!.trim(),
+          ];
+          await _fileHeadlessEventDelivery(
+            eventFiling: eventFiling,
+            debugLabel: 'flowStudioHeadlessRules',
+            clientEventId: cid,
+            startsAtLocal: startsAt,
+            alertOffsetMinutes: noteMeta.alertMinutes ?? _alertNoneMinutes,
+            title: noteTitle,
+            body: bodyLines.isEmpty ? null : bodyLines.join('\n'),
+            kYear: kDate.kYear,
+            kMonth: kDate.kMonth,
+            kDay: kDate.kDay,
+            eventId: savedEvent.id,
+            flowId: savedId,
+          );
+        }
+      }
+
+      return savedCount;
+    }
+
+    try {
+      await materializeRuleEventsIfNeeded();
+    } catch (error, stackTrace) {
+      await rollbackNewFlowSave(error, stackTrace);
+      rethrow;
+    }
+
     await commitGenerationIfNeeded();
+    await _ensureSharedExperienceForFlow(
+      flowId: savedId,
+      calendarId: f.calendarId,
+      source: 'CalendarPage._persistFlowStudioResultHeadless',
+    );
 
     if (isNewFlowSave) {
       await SharedCalendarsRepo(
@@ -8275,6 +8844,7 @@ class _FlowEditorRoutePage extends StatefulWidget {
 }
 
 class _FlowEditorRoutePageState extends State<_FlowEditorRoutePage> {
+  late final Future<_Flow?> _readingHouseRouteFlowFuture;
   bool _persisting = false;
 
   String get _fallbackLocation =>
@@ -8284,11 +8854,47 @@ class _FlowEditorRoutePageState extends State<_FlowEditorRoutePage> {
   @override
   void initState() {
     super.initState();
+    _readingHouseRouteFlowFuture = _loadReadingHouseRouteFlow();
     if (kDebugMode) {
       debugPrint(
         '[EditFlow] open studio source=route flowId=${widget.flowId} calendarId=${widget.calendarId}',
       );
     }
+  }
+
+  Future<_Flow?> _loadReadingHouseRouteFlow() async {
+    final mountedHost = CalendarPage._mountedState;
+    _Flow? mountedFlow;
+    for (final flow in mountedHost?._flows ?? const <_Flow>[]) {
+      if (flow.id == widget.flowId) {
+        mountedFlow = flow;
+        break;
+      }
+    }
+    final flow =
+        mountedFlow ??
+        CalendarPage._flowFromFiledRowDetached(
+          await FlowsRepo(
+            Supabase.instance.client,
+          ).getFlowById(widget.flowId).then((row) {
+            if (row == null) {
+              throw StateError('Flow ${widget.flowId} was not found.');
+            }
+            return row;
+          }),
+        );
+    if (widget.calendarId != null && widget.calendarId!.trim().isNotEmpty) {
+      flow.calendarId = widget.calendarId!.trim();
+    }
+    if (resolveMaatFlowKind(flowNotes: flow.notes) ==
+            MaatFlowKind.readingHouse ||
+        isReadingHouseFlowReference(
+          flowName: flow.name,
+          flowNotes: flow.notes,
+        )) {
+      return flow;
+    }
+    return null;
   }
 
   Future<void> _handleResult(_FlowStudioResult result) async {
@@ -8322,16 +8928,60 @@ class _FlowEditorRoutePageState extends State<_FlowEditorRoutePage> {
     popOrGo(context, _fallbackLocation);
   }
 
+  Widget _buildGenericFlowEditor() {
+    return _FlowStudioPage(
+      existingFlows: const <_Flow>[],
+      editFlowId: widget.flowId,
+      initialCalendarId: widget.calendarId,
+      onRouteResult: _handleResult,
+      onRouteClose: _handleClose,
+    );
+  }
+
+  Widget _buildReadingHouseAuthoringPage(_Flow flow) {
+    final mountedHost = CalendarPage._mountedState;
+    final sharedCalendarsRepo =
+        mountedHost?._sharedCalendarsRepo ??
+        SharedCalendarsRepo(Supabase.instance.client);
+    return _ReadingHouseAuthoringPage(
+      flow: flow,
+      calendar: mountedHost?._calendarSummary(flow.calendarId),
+      personalCalendarId: mountedHost?._personalCalendarId,
+      sharedCalendarsRepo: sharedCalendarsRepo,
+      onCalendarChanged: mountedHost?._moveReadingHouseFlowToCalendar,
+      onSave: _handleResult,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        _FlowStudioPage(
-          existingFlows: const <_Flow>[],
-          editFlowId: widget.flowId,
-          initialCalendarId: widget.calendarId,
-          onRouteResult: _handleResult,
-          onRouteClose: _handleClose,
+        FutureBuilder<_Flow?>(
+          future: _readingHouseRouteFlowFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState != ConnectionState.done) {
+              return const Scaffold(
+                backgroundColor: Color(0xFF161310),
+                body: Center(
+                  child: CircularProgressIndicator(color: Color(0xFFE0B95A)),
+                ),
+              );
+            }
+            if (snapshot.hasError) {
+              if (kDebugMode) {
+                debugPrint(
+                  '[EditFlow] Reading House route detection failed; falling back to generic editor: ${snapshot.error}',
+                );
+              }
+              return _buildGenericFlowEditor();
+            }
+            final readingHouseFlow = snapshot.data;
+            if (readingHouseFlow != null) {
+              return _buildReadingHouseAuthoringPage(readingHouseFlow);
+            }
+            return _buildGenericFlowEditor();
+          },
         ),
         if (_persisting)
           const Positioned.fill(
@@ -8353,12 +9003,18 @@ class CalendarPageState extends State<CalendarPage>
   static const Duration _restorationWriteDebounce = Duration(milliseconds: 150);
   static const int _calendarProgressSaveIntervalMs = 300;
   bool _isLoadingFromDisk = false;
+  bool _calendarHydrationRerunRequested = false;
+  String _calendarHydrationRerunSource = 'principal_superseded';
+  bool _calendarHydrationRerunPreserveViewport = false;
+  String? _calendarPrincipalId;
+  int _calendarPrincipalGeneration = 0;
   // Startup coordinator: single-flight gate for auth-triggered startup work.
   Completer<void>? _startupFlight;
   bool _startupRerunRequested = false;
   String? _startupLastReason;
   bool _pendingInitialHydration = false;
   String? _initialStartupUserId;
+  Future<void>? _initialPersistedViewStateLoad;
   // Track whether the clientEventId migration has been executed.
   // This ensures the migration runs at most once per app session to avoid
   // concurrent modification errors and repeated work.
@@ -8367,20 +9023,62 @@ class CalendarPageState extends State<CalendarPage>
   // Narrower initial window for faster startup; flows can still widen it.
   static const int _standaloneHydrationWindowYears = 1;
   static const Duration _standaloneHydrationPadding = Duration(days: 30);
-  static const String _kWarmStartCacheKeyPrefix = 'calendar:warm_start:v1';
   static const Duration _warmStartCacheDebounce = Duration(milliseconds: 600);
-  static const int _warmStartCacheMaxChars = 850000;
   static const Duration _warmStartTrimPast = Duration(days: 120);
   static const Duration _warmStartTrimFuture = Duration(days: 365);
+  static const Duration _startupVisibleHydrationLead = Duration(days: 45);
+  static const Duration _startupVisibleHydrationTrail = Duration(days: 60);
 
   int _dataVersion = 0;
   final ValueNotifier<int> _dayViewDataVersion = ValueNotifier<int>(0);
   final ValueNotifier<DayViewSheetEventTarget?> _dayViewEventDetailRequest =
       ValueNotifier<DayViewSheetEventTarget?>(null);
   Timer? _warmStartCacheDebounceTimer;
+  _CalendarPrincipalLease? _warmStartCacheDebounceLease;
+  Future<void>? _warmStartRestoreFlight;
   String? _warmStartCacheRestoredForUserId;
+  String? _warmStartCacheRestoredForProjectRef;
   bool _warmStartSnapshotVisible = false;
+  bool _hasPublishedCalendarSnapshot = false;
+  String? _publishedCalendarSnapshotUserId;
+  String? _publishedCalendarSnapshotProjectRef;
+  CalendarSnapshotCoverage? _authoritativeSnapshotCoverage;
+  Set<String> _authoritativeSnapshotLanes = const <String>{};
+  int _authoritativeSnapshotGeneration = 0;
+  bool _initialCalendarLoadFinished = false;
   bool _sharedCalendarRealDayViewOpening = false;
+
+  @visibleForTesting
+  Set<String> get debugLoadedEventTitlesForTesting => <String>{
+    for (final notes in _notes.values)
+      for (final note in notes) note.title,
+  };
+
+  @visibleForTesting
+  ({int? kYear, int? kMonth, int? kDay}) get debugCurrentViewForTesting =>
+      (kYear: _lastViewKy, kMonth: _lastViewKm, kDay: _lastViewKd);
+
+  @visibleForTesting
+  bool get debugTodayAnchorVisibleForTesting =>
+      _isTodayDayAnchorVisibleInCalendarViewport();
+
+  ({String view, int days, int events}) _calendarHydrationTraceSnapshot() {
+    final kYear = _lastViewKy ?? _today.kYear;
+    final kMonth = _lastViewKm ?? _today.kMonth;
+    final lastDay = kMonth == 13
+        ? (KemeticMath.isLeapKemeticYear(kYear) ? 6 : 5)
+        : 30;
+    var days = 0;
+    var events = 0;
+    for (var kDay = 1; kDay <= lastDay; kDay++) {
+      final visible = _getNotes(kYear, kMonth, kDay);
+      if (visible.isEmpty) continue;
+      days++;
+      events += visible.length;
+    }
+    return (view: '$kYear-$kMonth', days: days, events: events);
+  }
+
   void _bumpDataVersion() {
     // why: force landscape PageView child to reconstruct once when data hydrates
     if (!mounted) return;
@@ -8388,11 +9086,12 @@ class CalendarPageState extends State<CalendarPage>
     _notifyDayViewDataChanged();
   }
 
-  void _notifyDayViewDataChanged() {
+  void _notifyDayViewDataChanged({bool persistWarmStartCache = true}) {
     if (!mounted) return;
     _dayViewDataVersion.value++;
-    _publishWarmStateSnapshot();
-    _scheduleWarmStartCacheSave();
+    if (persistWarmStartCache) {
+      _publishWarmStateSnapshot();
+    }
   }
 
   Future<bool> _ensureJournalControllerReady() async {
@@ -8415,14 +9114,22 @@ class CalendarPageState extends State<CalendarPage>
 
   Future<void> _appendToJournalAndRefresh(String text) async {
     if (text.trim().isEmpty) return;
-    if (!await _ensureJournalControllerReady()) return;
+    if (!await _ensureJournalControllerReady()) {
+      throw StateError('Journal controller is not ready for append.');
+    }
     await _journalController.appendToToday(text);
-    _notifyDayViewDataChanged();
+    try {
+      _notifyDayViewDataChanged();
+    } catch (_) {
+      throw const CalendarCompletionPostCommitException();
+    }
   }
 
   Future<void> _removeCompletionBadgeAndRefresh(String badgeId) async {
     if (badgeId.trim().isEmpty) return;
-    if (!await _ensureJournalControllerReady()) return;
+    if (!await _ensureJournalControllerReady()) {
+      throw StateError('Journal controller is not ready for badge removal.');
+    }
     await _journalController.removeBadge(badgeId);
     _notifyDayViewDataChanged();
   }
@@ -8431,7 +9138,9 @@ class CalendarPageState extends State<CalendarPage>
     MaatJournalResponseBlock block,
   ) async {
     if (block.sourceId.trim().isEmpty) return;
-    if (!await _ensureJournalControllerReady()) return;
+    if (!await _ensureJournalControllerReady()) {
+      throw StateError('Journal controller is not ready for response sync.');
+    }
     final localDate = block.localDate;
     if (localDate != null) {
       await _journalController.loadDate(DateUtils.dateOnly(localDate));
@@ -8439,23 +9148,23 @@ class CalendarPageState extends State<CalendarPage>
     final currentDocument =
         _journalController.currentDocument ??
         JournalDocument.fromPlainText(_journalController.currentDraft);
-    final nextDocument = MaatJournalResponseBlockUtils.upsert(
-      currentDocument,
-      block,
-    );
+    final nextDocument = switch (block.projectionKind) {
+      MaatJournalResponseProjectionKind.formatted =>
+        MaatJournalResponseBlockUtils.upsert(currentDocument, block),
+      MaatJournalResponseProjectionKind.plainUserText =>
+        MaatJournalResponseBlockUtils.upsertPlainUserText(
+          currentDocument,
+          block,
+        ),
+    };
     await _journalController.updateDocument(nextDocument);
     _notifyDayViewDataChanged();
   }
 
   void _publishWarmStateSnapshot() {
-    _CalendarWarmStateStore.save(
-      userId: _activeWarmStartUserId(),
-      notes: _notes,
-      flows: _flows,
-      calendarSummariesById: _calendarSummariesById,
-      hiddenCalendarIds: _hiddenCalendarIds,
-      personalCalendarId: _personalCalendarId,
-    );
+    if (_hasUsableCalendarSnapshotForPaint()) {
+      _scheduleWarmStartCacheSave();
+    }
   }
 
   NoteData _noteDataFromNote(_Note n) {
@@ -8480,7 +9189,7 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   List<NoteData> _noteDataForDay(int y, int m, int d) {
-    final notes = _dedupeVisibleDayNotes(_notes['$y-$m-$d'] ?? const <_Note>[]);
+    final notes = _getNotes(y, m, d);
     return [for (final note in notes) _noteDataFromNote(note)];
   }
 
@@ -8571,11 +9280,12 @@ class CalendarPageState extends State<CalendarPage>
   double? _lastKnownCalendarScrollOffset;
   String? _restoredCalendarAnchorTarget;
   double? _restoredCalendarAnchorAlignment;
-  double? _restoredCalendarScrollOffset;
   int _lastCalendarProgressSaveAtMs = 0;
   bool _calendarProgressSaveInFlight = false;
   DayViewRestorationState? _activeDayViewRestorationState;
   DayViewRestorationState? _pendingPersistentDayViewState;
+  final DayViewRestorationWriteGate _dayViewRestorationWriteGate =
+      DayViewRestorationWriteGate();
   bool _persistentDayViewRestoreAttempted = false;
   bool _pendingAuthResolutionForRestore = false;
   String? _tentativeRestorationUserId;
@@ -8607,9 +9317,11 @@ class CalendarPageState extends State<CalendarPage>
   final Map<int, int> _flowTotalEventCounts = <int, int>{};
   final Map<int, int> _flowRemainingEventCounts = <int, int>{};
   _MyFlowsFilingSnapshot? _myFlowsFilingSnapshotCache;
+  Future<_MyFlowsFilingSnapshot>? _myFlowsFilingSnapshotLoadInFlight;
   int _nextFlowId = 1;
   // Removed _nextAlarmId; notifications are persisted via Notify.scheduleAlertWithPersistence
-  final ScrollController _scrollCtrl = ScrollController();
+  late final ScrollController _scrollCtrl;
+  bool _restoredFromProcessRouteHandoff = false;
   MonthExpansionLevel _monthExpansion = MonthExpansionLevel.compact;
   MonthExpansionLevel? _monthExpansionRestorationTarget;
   bool _currentDecanVisibleInViewport = true;
@@ -8630,11 +9342,7 @@ class CalendarPageState extends State<CalendarPage>
 
   // Repository instances
   late final FlowsRepo _flowsRepo = FlowsRepo(Supabase.instance.client);
-  late final JournalRepo _journalRepo = JournalRepo(Supabase.instance.client);
   late final RhythmRepo _rhythmRepo = RhythmRepo(Supabase.instance.client);
-  late final PlannerBadgeRepo _plannerBadgeRepo = PlannerBadgeRepo(
-    Supabase.instance.client,
-  );
   late final OnboardingStorage _onboardingStorage = OnboardingStorage(
     Supabase.instance.client,
   );
@@ -8643,9 +9351,12 @@ class CalendarPageState extends State<CalendarPage>
   );
   late final DecanReflectionPromptState _decanReflectionPromptState =
       DecanReflectionPromptState(Supabase.instance.client);
-  late final AIReflectionService _aiReflectionService = AIReflectionService(
-    Supabase.instance.client,
-  );
+  late final MaatFlowDecanFactCollector _maatFlowDecanFactCollector =
+      MaatFlowDecanFactCollector(Supabase.instance.client);
+  final DecanReflectionComposer _decanReflectionComposer =
+      const DecanReflectionComposer();
+  final CompositionUsageStore _compositionUsageStore =
+      const SharedPreferencesCompositionUsageStore();
   // Reminders (Flutter-only layer)
   late final ReminderService _reminderService = ReminderService();
   StreamSubscription<List<Reminder>>? _reminderSub; // unused now (safety)
@@ -8742,19 +9453,269 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   String? _activeWarmStartUserId() {
+    if (_onboardingReviewMode) return null;
     final userId = Supabase.instance.client.auth.currentUser?.id.trim();
     if (userId == null || userId.isEmpty) return null;
     return userId;
   }
 
-  String _warmStartCacheKey(String userId) =>
-      '$_kWarmStartCacheKeyPrefix:$userId';
+  void _initializeCalendarPrincipalOwnership() {
+    final userId = _activeWarmStartUserId();
+    _calendarPrincipalId = userId;
+    if (userId != null) {
+      _calendarPrincipalGeneration = 1;
+    }
+  }
+
+  _CalendarPrincipalLease? _captureCalendarPrincipalLease() {
+    final userId = _activeWarmStartUserId();
+    if (userId == null || userId != _calendarPrincipalId) return null;
+    return (userId: userId, generation: _calendarPrincipalGeneration);
+  }
+
+  bool _isCalendarPrincipalLeaseCurrent(_CalendarPrincipalLease lease) {
+    return mounted &&
+        _activeWarmStartUserId() == lease.userId &&
+        _calendarPrincipalId == lease.userId &&
+        _calendarPrincipalGeneration == lease.generation;
+  }
+
+  bool _observeCalendarPrincipal({required String reason}) {
+    final nextUserId = _activeWarmStartUserId();
+    if (nextUserId == _calendarPrincipalId) return false;
+
+    final previousUserId = _calendarPrincipalId;
+    _calendarPrincipalId = nextUserId;
+    _calendarPrincipalGeneration++;
+    _initialStartupUserId = null;
+    _warmStartCacheDebounceTimer?.cancel();
+    _warmStartCacheDebounceTimer = null;
+    _warmStartCacheDebounceLease = null;
+    _warmStartRestoreFlight = null;
+    if (_isLoadingFromDisk && nextUserId != null) {
+      _calendarHydrationRerunRequested = true;
+      _calendarHydrationRerunSource = 'principal_changed:$reason';
+      _calendarHydrationRerunPreserveViewport = false;
+    }
+    _clearPrincipalOwnedCalendarState();
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[calendar] principal generation advanced reason=$reason '
+        'from=$previousUserId to=$nextUserId '
+        'generation=$_calendarPrincipalGeneration',
+      );
+    }
+    return true;
+  }
+
+  void _clearPrincipalOwnedCalendarState() {
+    CalendarPage._processRouteHandoff = null;
+    _flows.clear();
+    _notes.clear();
+    _flowTotalEventCounts.clear();
+    _flowRemainingEventCounts.clear();
+    _calendarSummariesById = <String, SharedCalendarSummary>{};
+    _hiddenCalendarIds = <String>{};
+    _personalCalendarId = null;
+    _calendarStateLoaded = false;
+    _reminderRules.clear();
+    _reminderRulesLoaded = false;
+    _endedReminderIds.clear();
+    _nextFlowId = 1;
+    _warmStartSnapshotVisible = false;
+    _warmStartCacheRestoredForUserId = null;
+    _warmStartCacheRestoredForProjectRef = null;
+    _hasPublishedCalendarSnapshot = false;
+    _publishedCalendarSnapshotUserId = null;
+    _publishedCalendarSnapshotProjectRef = null;
+    _authoritativeSnapshotCoverage = null;
+    _authoritativeSnapshotLanes = const <String>{};
+    _authoritativeSnapshotGeneration = 0;
+    _initialCalendarLoadFinished = false;
+    _myFlowsFilingSnapshotCache = null;
+    _lastSuccessfulHydrationAt = null;
+    if (!mounted) return;
+    setState(() => _dataVersion++);
+    _dayViewDataVersion.value++;
+  }
+
+  String? _activeWarmStartProjectRef() {
+    if (_onboardingReviewMode) return null;
+    return calendarWarmStartProjectRefFromClient(Supabase.instance.client);
+  }
+
+  CalendarSnapshotIdentity? _activeCalendarSnapshotIdentity({String? userId}) {
+    final resolvedUserId = userId ?? _activeWarmStartUserId();
+    final projectRef = _activeWarmStartProjectRef();
+    if (resolvedUserId == null || projectRef == null) return null;
+    return CalendarSnapshotIdentity(
+      projectRef: projectRef,
+      userId: resolvedUserId,
+    );
+  }
+
+  ({double width, double height, double devicePixelRatio})?
+  _currentProcessViewportSignature() {
+    final views = WidgetsBinding.instance.platformDispatcher.views;
+    if (views.isEmpty) return null;
+    final view = views.first;
+    return (
+      width: view.physicalSize.width,
+      height: view.physicalSize.height,
+      devicePixelRatio: view.devicePixelRatio,
+    );
+  }
+
+  bool _initializeScrollControllerFromProcessRouteHandoff() {
+    void initializeAt(double offset) {
+      _scrollCtrl = ScrollController(
+        initialScrollOffset: offset,
+        keepScrollOffset: false,
+      );
+    }
+
+    if (_debugDaySheetSmokeEnabled || _onboardingReviewMode) {
+      initializeAt(0);
+      return false;
+    }
+
+    final handoff = CalendarPage._processRouteHandoff;
+    final identity = _activeCalendarSnapshotIdentity();
+    final viewport = _currentProcessViewportSignature();
+    if (handoff == null || identity == null || viewport == null) {
+      initializeAt(0);
+      return false;
+    }
+
+    final sameViewport =
+        (handoff.physicalWidth - viewport.width).abs() < 0.5 &&
+        (handoff.physicalHeight - viewport.height).abs() < 0.5 &&
+        (handoff.devicePixelRatio - viewport.devicePixelRatio).abs() < 0.001;
+    if (handoff.identityKey != identity.storageKey ||
+        handoff.layoutRevision != _kCalendarRestorationLayoutRevision ||
+        !sameViewport) {
+      CalendarPage._processRouteHandoff = null;
+      initializeAt(0);
+      return false;
+    }
+
+    final document = CalendarSnapshotRepository.instance.peekForProcessRemount(
+      identity,
+    );
+    if (document == null) {
+      CalendarPage._processRouteHandoff = null;
+      initializeAt(0);
+      return false;
+    }
+
+    CalendarPage._processRouteHandoff = null;
+    _lastViewKy = handoff.kYear;
+    _lastViewKm = handoff.kMonth;
+    _lastViewKd = handoff.kDay;
+    _calendarScrollBaseYear = handoff.scrollBaseYear;
+    _lastKnownCalendarScrollOffset = handoff.scrollOffset;
+    _showGregorian = handoff.showGregorian;
+    _monthExpansion = handoff.expansion;
+    _restoredCalendarAnchorTarget = null;
+    _restoredCalendarAnchorAlignment = null;
+    _pendingAuthResolutionForRestore = false;
+    _tentativeRestorationUserId = null;
+    _restorationInteractedSinceBoot = true;
+    _restored = true;
+    _initialViewportSettled = true;
+    _restoredFromProcessRouteHandoff = true;
+    _applyWarmStartDocument(document);
+    initializeAt(handoff.scrollOffset);
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[calendar] restored process route handoff '
+        'view=${handoff.kYear}-${handoff.kMonth}-${handoff.kDay} '
+        'offset=${handoff.scrollOffset.toStringAsFixed(1)}',
+      );
+    }
+    return true;
+  }
+
+  void _retainProcessRouteHandoff({
+    required String source,
+    bool refreshSnapshot = true,
+  }) {
+    if (_debugDaySheetSmokeEnabled ||
+        _onboardingReviewMode ||
+        !_initialViewportSettled ||
+        !_scrollCtrl.hasClients ||
+        !_scrollCtrl.position.hasContentDimensions) {
+      return;
+    }
+    final identity = _activeCalendarSnapshotIdentity();
+    final viewport = _currentProcessViewportSignature();
+    final kYear = _lastViewKy;
+    final kMonth = _lastViewKm;
+    final kDay = _lastViewKd;
+    if (identity == null ||
+        viewport == null ||
+        kYear == null ||
+        kMonth == null ||
+        kDay == null) {
+      return;
+    }
+
+    if (refreshSnapshot) {
+      _retainCompleteCalendarSnapshotForRouteRemount(source: source);
+    }
+    final document = CalendarSnapshotRepository.instance.peekForProcessRemount(
+      identity,
+    );
+    if (document == null) {
+      return;
+    }
+
+    final offset = _scrollCtrl.position.pixels;
+    if (!offset.isFinite) return;
+    CalendarPage._processRouteHandoff = _CalendarProcessRouteHandoff(
+      identityKey: identity.storageKey,
+      layoutRevision: _kCalendarRestorationLayoutRevision,
+      physicalWidth: viewport.width,
+      physicalHeight: viewport.height,
+      devicePixelRatio: viewport.devicePixelRatio,
+      kYear: kYear,
+      kMonth: kMonth,
+      kDay: kDay,
+      scrollBaseYear: _calendarScrollBaseYear ?? kYear,
+      scrollOffset: offset,
+      showGregorian: _showGregorian,
+      expansion: _monthExpansion,
+    );
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[calendar] retained process route handoff source=$source '
+        'view=$kYear-$kMonth-$kDay offset=${offset.toStringAsFixed(1)}',
+      );
+    }
+  }
 
   bool _hasWarmStartSnapshotVisibleForCurrentUser() {
     final userId = _activeWarmStartUserId();
+    final projectRef = _activeWarmStartProjectRef();
     if (userId == null) return false;
+    if (projectRef == null) return false;
     return _warmStartSnapshotVisible &&
-        _warmStartCacheRestoredForUserId == userId;
+        _warmStartCacheRestoredForUserId == userId &&
+        _warmStartCacheRestoredForProjectRef == projectRef;
+  }
+
+  bool _hasPublishedCalendarSnapshotForCurrentUser() {
+    final userId = _activeWarmStartUserId();
+    final projectRef = _activeWarmStartProjectRef();
+    if (userId == null || projectRef == null) return false;
+    return _hasPublishedCalendarSnapshot &&
+        _publishedCalendarSnapshotUserId == userId &&
+        _publishedCalendarSnapshotProjectRef == projectRef;
+  }
+
+  bool _hasUsableCalendarSnapshotForPaint() {
+    return _hasWarmStartSnapshotVisibleForCurrentUser() ||
+        _hasPublishedCalendarSnapshotForCurrentUser();
   }
 
   bool _noteBelongsToStandaloneLane(_Note note) {
@@ -8765,6 +9726,10 @@ class CalendarPageState extends State<CalendarPage>
     return notesByDay.values.any(
       (notes) => notes.any(_noteBelongsToStandaloneLane),
     );
+  }
+
+  bool _hasPaintedEventSnapshot(Map<String, List<_Note>> notesByDay) {
+    return notesByDay.values.any((notes) => notes.isNotEmpty);
   }
 
   bool _sameStandaloneLaneNote(_Note a, _Note b) {
@@ -8798,12 +9763,53 @@ class CalendarPageState extends State<CalendarPage>
     return _standaloneDedupeKey(a) == _standaloneDedupeKey(b);
   }
 
+  bool _sameStableStandaloneLaneNote(_Note a, _Note b) {
+    final aClientEventId = a.clientEventId?.trim();
+    final bClientEventId = b.clientEventId?.trim();
+    if (aClientEventId != null &&
+        aClientEventId.isNotEmpty &&
+        bClientEventId != null &&
+        bClientEventId.isNotEmpty) {
+      return aClientEventId == bClientEventId;
+    }
+
+    final aId = a.id?.trim();
+    final bId = b.id?.trim();
+    if (aId != null && aId.isNotEmpty && bId != null && bId.isNotEmpty) {
+      return aId == bId;
+    }
+
+    if (a.isReminder && b.isReminder) {
+      final aReminderId = a.reminderId?.trim();
+      final bReminderId = b.reminderId?.trim();
+      return aReminderId != null &&
+          aReminderId.isNotEmpty &&
+          bReminderId != null &&
+          bReminderId.isNotEmpty &&
+          aReminderId == bReminderId &&
+          a.allDay == b.allDay &&
+          a.start?.hour == b.start?.hour &&
+          a.start?.minute == b.start?.minute;
+    }
+
+    return false;
+  }
+
   int _mergePaintedStandaloneLaneInto(Map<String, List<_Note>> notesByDay) {
     var preserved = 0;
     for (final entry in _notes.entries) {
       final bucket = notesByDay.putIfAbsent(entry.key, () => <_Note>[]);
       for (final note in entry.value) {
         if (!_noteBelongsToStandaloneLane(note)) continue;
+        if (notesByDay.values.any(
+          (incomingBucket) => incomingBucket.any(
+            (incoming) =>
+                _noteBelongsToStandaloneLane(incoming) &&
+                _sameStableStandaloneLaneNote(incoming, note),
+          ),
+        )) {
+          continue;
+        }
         if (bucket.any(
           (incoming) =>
               _noteBelongsToStandaloneLane(incoming) &&
@@ -8816,6 +9822,149 @@ class CalendarPageState extends State<CalendarPage>
       }
     }
     return preserved;
+  }
+
+  void _rememberPendingOnboardingTargetEvent({
+    required String dayKey,
+    required int flowId,
+    required String clientEventId,
+  }) {
+    final trimmedClientEventId = clientEventId.trim();
+    if (flowId <= 0 || trimmedClientEventId.isEmpty) return;
+
+    final bucket = _notes[dayKey];
+    _Note? stagedNote;
+    if (bucket != null) {
+      for (final note in bucket) {
+        if (note.clientEventId?.trim() == trimmedClientEventId) {
+          stagedNote = note;
+          break;
+        }
+      }
+    }
+    if (stagedNote == null) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[onboardingTarget] no staged note found to remember '
+          'flow=$flowId cid=${safeLogIdentifier(trimmedClientEventId)} '
+          'day=$dayKey',
+        );
+      }
+      return;
+    }
+
+    _pendingOnboardingTargetDayKey = dayKey;
+    _pendingOnboardingTargetClientEventId = trimmedClientEventId;
+    _pendingOnboardingTargetFlowId = flowId;
+    _pendingOnboardingTargetNote = _CalendarModelCopy._copyNote(stagedNote)
+        .copyWith(
+          behaviorPayload: <String, dynamic>{
+            if (stagedNote.behaviorPayload != null)
+              ...stagedNote.behaviorPayload!,
+            'onboarding_pending_target': true,
+          },
+        );
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[onboardingTarget] remembered pending first-flow target '
+        'flow=$flowId cid=${safeLogIdentifier(trimmedClientEventId)} '
+        'day=$dayKey',
+      );
+    }
+  }
+
+  void _clearPendingOnboardingTargetEvent(String reason) {
+    if (_pendingOnboardingTargetNote == null &&
+        _pendingOnboardingTargetClientEventId == null) {
+      return;
+    }
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[onboardingTarget] cleared pending first-flow target reason=$reason '
+        'flow=$_pendingOnboardingTargetFlowId '
+        'cid=${safeLogIdentifier(_pendingOnboardingTargetClientEventId)}',
+      );
+    }
+    _pendingOnboardingTargetDayKey = null;
+    _pendingOnboardingTargetClientEventId = null;
+    _pendingOnboardingTargetFlowId = null;
+    _pendingOnboardingTargetNote = null;
+  }
+
+  bool _noteMatchesPendingOnboardingTarget(_Note note) {
+    final pendingClientEventId = _pendingOnboardingTargetClientEventId?.trim();
+    final noteClientEventId = note.clientEventId?.trim();
+    if (pendingClientEventId != null &&
+        pendingClientEventId.isNotEmpty &&
+        noteClientEventId != null &&
+        noteClientEventId.isNotEmpty &&
+        pendingClientEventId == noteClientEventId) {
+      return true;
+    }
+
+    final pendingNote = _pendingOnboardingTargetNote;
+    final pendingFlowId = _pendingOnboardingTargetFlowId;
+    if (pendingNote == null || pendingFlowId == null || pendingFlowId <= 0) {
+      return false;
+    }
+    return note.flowId == pendingFlowId &&
+        note.title == pendingNote.title &&
+        note.allDay == pendingNote.allDay &&
+        note.start?.hour == pendingNote.start?.hour &&
+        note.start?.minute == pendingNote.start?.minute &&
+        note.end?.hour == pendingNote.end?.hour &&
+        note.end?.minute == pendingNote.end?.minute;
+  }
+
+  bool _noteIsPendingOnboardingTargetCopy(_Note note) {
+    return note.behaviorPayload?['onboarding_pending_target'] == true &&
+        _noteMatchesPendingOnboardingTarget(note);
+  }
+
+  int _mergePendingOnboardingTargetInto(
+    Map<String, List<_Note>> notesByDay, {
+    required String source,
+    required String phase,
+  }) {
+    final pendingDayKey = _pendingOnboardingTargetDayKey;
+    final pendingNote = _pendingOnboardingTargetNote;
+    if (pendingDayKey == null || pendingDayKey.isEmpty || pendingNote == null) {
+      return 0;
+    }
+
+    final reconciliation = reconcilePendingOnboardingTarget<_Note>(
+      refreshedItems: notesByDay.values.expand((bucket) => bucket),
+      matchesTarget: _noteMatchesPendingOnboardingTarget,
+      isPendingCopy: _noteIsPendingOnboardingTargetCopy,
+    );
+
+    for (final entry in notesByDay.entries) {
+      entry.value.removeWhere(_noteIsPendingOnboardingTargetCopy);
+    }
+    notesByDay.removeWhere((_, bucket) => bucket.isEmpty);
+
+    if (reconciliation.authoritativeTargetFound) {
+      _clearPendingOnboardingTargetEvent(
+        'authoritative_refresh:$source:$phase',
+      );
+      return 0;
+    }
+    if (!reconciliation.shouldPreservePending) return 0;
+
+    final bucket = notesByDay.putIfAbsent(pendingDayKey, () => <_Note>[]);
+    if (bucket.any(_noteMatchesPendingOnboardingTarget)) {
+      return 0;
+    }
+    bucket.add(_CalendarModelCopy._copyNote(pendingNote));
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[onboardingTarget] preserved pending first-flow target during '
+        'refresh source=$source phase=$phase '
+        'flow=$_pendingOnboardingTargetFlowId '
+        'cid=${safeLogIdentifier(_pendingOnboardingTargetClientEventId)}',
+      );
+    }
+    return 1;
   }
 
   TimeOfDay? _timeOfDayFromMinutes(dynamic raw) {
@@ -8995,10 +10144,7 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
-  Map<String, dynamic> _buildWarmStartSnapshot({
-    required String userId,
-    required bool trimmed,
-  }) {
+  Map<String, dynamic> _buildWarmStartPayload({required bool trimmed}) {
     final centerDay =
         (_lastViewKy != null && _lastViewKm != null && _lastViewKd != null)
         ? DateUtils.dateOnly(
@@ -9022,11 +10168,14 @@ class CalendarPageState extends State<CalendarPage>
     });
 
     return <String, dynamic>{
-      'userId': userId,
-      'savedAt': DateTime.now().toUtc().toIso8601String(),
       'nextFlowId': _nextFlowId,
       'flows': _flows.map(_serializeWarmStartFlow).toList(growable: false),
       'notes': notesJson,
+      'calendarSummaries': _calendarSummariesById.values
+          .map((calendar) => calendar.toCacheJson())
+          .toList(growable: false),
+      'hiddenCalendarIds': _hiddenCalendarIds.toList(growable: false),
+      'personalCalendarId': _personalCalendarId,
       'flowTotalEventCounts': _encodeWarmStartIntMap(_flowTotalEventCounts),
       'flowRemainingEventCounts': _encodeWarmStartIntMap(
         _flowRemainingEventCounts,
@@ -9034,14 +10183,67 @@ class CalendarPageState extends State<CalendarPage>
     };
   }
 
-  void _scheduleWarmStartCacheSave() {
-    final userId = _activeWarmStartUserId();
-    if (userId == null) return;
+  void _scheduleWarmStartCacheSave({_CalendarPrincipalLease? principalLease}) {
+    final lease = principalLease ?? _captureCalendarPrincipalLease();
+    if (lease == null || !_isCalendarPrincipalLeaseCurrent(lease)) return;
     _warmStartCacheDebounceTimer?.cancel();
+    _warmStartCacheDebounceLease = lease;
     _warmStartCacheDebounceTimer = Timer(_warmStartCacheDebounce, () {
       _warmStartCacheDebounceTimer = null;
-      unawaited(_persistWarmStartCacheNow(userId: userId));
+      _warmStartCacheDebounceLease = null;
+      if (!_isCalendarPrincipalLeaseCurrent(lease)) return;
+      unawaited(_persistWarmStartCacheNow(principalLease: lease));
     });
+  }
+
+  CalendarSnapshotCandidate? _completeCalendarSnapshotCandidate({
+    String? userId,
+    required String source,
+  }) {
+    final resolvedUserId = userId ?? _activeWarmStartUserId();
+    if (resolvedUserId == null) return null;
+    final identity = _activeCalendarSnapshotIdentity(userId: resolvedUserId);
+    final coverage = _authoritativeSnapshotCoverage;
+    if (identity == null ||
+        !_hasUsableCalendarSnapshotForPaint() ||
+        coverage == null ||
+        !_authoritativeSnapshotLanes.containsAll(
+          calendarSnapshotRequiredLanes,
+        )) {
+      return null;
+    }
+    return CalendarSnapshotCandidate(
+      identity: identity,
+      coverage: coverage,
+      completedLanes: _authoritativeSnapshotLanes,
+      generation: math.max(1, _authoritativeSnapshotGeneration),
+      payload: _buildWarmStartPayload(trimmed: false),
+      source: source,
+    );
+  }
+
+  void _retainCompleteCalendarSnapshotForRouteRemount({
+    required String source,
+  }) {
+    final candidate = _completeCalendarSnapshotCandidate(source: source);
+    if (candidate == null) return;
+    try {
+      final document = CalendarSnapshotRepository.instance
+          .retainForProcessRemount(candidate);
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[warmStart] retained process remount source=$source '
+          'generation=${document.generation} events=${document.eventCount}',
+        );
+      }
+    } catch (error) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[warmStart] process remount retention failed source=$source '
+          'type=${error.runtimeType}',
+        );
+      }
+    }
   }
 
   Future<void> _flushPendingWarmStartCacheSave({
@@ -9049,152 +10251,207 @@ class CalendarPageState extends State<CalendarPage>
   }) async {
     final timer = _warmStartCacheDebounceTimer;
     if (timer == null) return;
+    final lease = _warmStartCacheDebounceLease;
     _warmStartCacheDebounceTimer = null;
+    _warmStartCacheDebounceLease = null;
     if (timer.isActive) {
       timer.cancel();
     }
-    await _persistWarmStartCacheNow(debugReason: reason);
+    if (lease == null || !_isCalendarPrincipalLeaseCurrent(lease)) return;
+    await _persistWarmStartCacheNow(principalLease: lease, debugReason: reason);
   }
 
-  Future<void> _persistWarmStartCacheNow({
-    String? userId,
+  Future<bool> _persistWarmStartCacheNow({
+    _CalendarPrincipalLease? principalLease,
     String debugReason = 'debounced',
   }) async {
-    final resolvedUserId = userId ?? _activeWarmStartUserId();
-    if (resolvedUserId == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    final key = _warmStartCacheKey(resolvedUserId);
-
-    if (_flows.isEmpty && _notes.isEmpty) {
-      await prefs.remove(key);
-      return;
+    final lease = principalLease ?? _captureCalendarPrincipalLease();
+    if (lease == null || !_isCalendarPrincipalLeaseCurrent(lease)) {
+      return false;
+    }
+    final candidate = _completeCalendarSnapshotCandidate(
+      userId: lease.userId,
+      source: debugReason,
+    );
+    if (candidate == null || !_isCalendarPrincipalLeaseCurrent(lease)) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[warmStart] skip non-authoritative cache save '
+          'reason=$debugReason',
+        );
+      }
+      return false;
     }
 
-    var encoded = jsonEncode(
-      _buildWarmStartSnapshot(userId: resolvedUserId, trimmed: false),
-    );
-    if (encoded.length > _warmStartCacheMaxChars) {
-      encoded = jsonEncode(
-        _buildWarmStartSnapshot(userId: resolvedUserId, trimmed: true),
+    try {
+      final document = await CalendarSnapshotRepository.instance.promote(
+        candidate,
       );
-      if (encoded.length > _warmStartCacheMaxChars) {
-        if (kDebugMode) {
-          _calendarDebugPrint(
-            '[warmStart] skip cache save reason=$debugReason size=${encoded.length}',
-          );
+      if (!_isCalendarPrincipalLeaseCurrent(lease)) return false;
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[warmStart] promoted last-good reason=$debugReason '
+          'generation=${document.generation} events=${document.eventCount} '
+          'flows=${document.flowCount}',
+        );
+      }
+      return true;
+    } catch (error) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[warmStart] persistence failed reason=$debugReason '
+          'type=${error.runtimeType}',
+        );
+      }
+      unawaited(
+        Events.trackIfAuthed('calendar_snapshot_persist_failed', {
+          'reason': debugReason,
+          'error_type': error.runtimeType.toString(),
+        }),
+      );
+      return false;
+    }
+  }
+
+  void _applyWarmStartDocument(CalendarSnapshotDocument document) {
+    final json = document.json;
+
+    final flows = ((json['flows'] as List?) ?? const [])
+        .map(_deserializeWarmStartFlow)
+        .whereType<_Flow>()
+        .toList(growable: false);
+    final restoredTrackSkyFlowIds = flows
+        .where((flow) => _isTrackSkyFlowName(flow.name))
+        .map((flow) => flow.id)
+        .where((flowId) => flowId > 0)
+        .toSet();
+    final notesByDay = <String, List<_Note>>{};
+    final notesRaw = json['notes'];
+    if (notesRaw is Map) {
+      notesRaw.forEach((key, value) {
+        if (value is! List) return;
+        final notes = _dedupeVisibleDayNotes(
+          value
+              .map(_deserializeWarmStartNote)
+              .whereType<_Note>()
+              .toList(growable: false),
+          trackSkyFlowIds: restoredTrackSkyFlowIds,
+        );
+        if (notes.isNotEmpty) {
+          notesByDay[key.toString()] = notes;
         }
-        return;
+      });
+    }
+
+    final nextFlowId =
+        (json['nextFlowId'] as num?)?.toInt() ??
+        ((flows.isEmpty
+                ? 0
+                : flows
+                      .map((flow) => flow.id)
+                      .reduce((a, b) => a > b ? a : b)) +
+            1);
+    final totalCounts = _decodeWarmStartIntMap(json['flowTotalEventCounts']);
+    final remainingCounts = _decodeWarmStartIntMap(
+      json['flowRemainingEventCounts'],
+    );
+    final calendarSummaries = <String, SharedCalendarSummary>{};
+    for (final raw in (json['calendarSummaries'] as List?) ?? const []) {
+      if (raw is! Map) continue;
+      final summary = SharedCalendarSummary.fromRow(
+        Map<String, dynamic>.from(raw),
+      );
+      if (summary.id.trim().isNotEmpty) {
+        calendarSummaries[summary.id] = summary;
       }
     }
+    final hiddenCalendarIds = ((json['hiddenCalendarIds'] as List?) ?? const [])
+        .whereType<String>()
+        .where((id) => id.trim().isNotEmpty)
+        .toSet();
+    final personalCalendarId = (json['personalCalendarId'] as String?)?.trim();
 
-    await prefs.setString(key, encoded);
-    if (kDebugMode) {
-      _calendarDebugPrint(
-        '[warmStart] saved cache reason=$debugReason size=${encoded.length}',
-      );
-    }
+    _flows
+      ..clear()
+      ..addAll(flows);
+    _notes
+      ..clear()
+      ..addAll(notesByDay);
+    _flowTotalEventCounts
+      ..clear()
+      ..addAll(totalCounts);
+    _flowRemainingEventCounts
+      ..clear()
+      ..addAll(remainingCounts);
+    _calendarSummariesById = calendarSummaries;
+    _hiddenCalendarIds = hiddenCalendarIds;
+    _personalCalendarId = personalCalendarId?.isEmpty == true
+        ? null
+        : personalCalendarId;
+    _calendarStateLoaded = calendarSummaries.isNotEmpty;
+    _initialCalendarLoadFinished = true;
+    _nextFlowId = nextFlowId > 0 ? nextFlowId : _nextFlowId;
+    _warmStartCacheRestoredForUserId = document.userId;
+    _warmStartCacheRestoredForProjectRef = document.projectRef;
+    _authoritativeSnapshotCoverage = document.coverage;
+    _authoritativeSnapshotLanes = document.completedLanes;
+    _authoritativeSnapshotGeneration = document.generation;
+    _warmStartSnapshotVisible = true;
+    _lastSuccessfulHydrationAt ??= DateTime.now();
   }
 
   Future<void> _restoreWarmStartCacheIfAvailable({
     String reason = 'startup',
+    _CalendarPrincipalLease? principalLease,
   }) async {
-    final userId = _activeWarmStartUserId();
-    if (userId == null) return;
-    if (_warmStartCacheRestoredForUserId == userId) return;
+    final lease = principalLease ?? _captureCalendarPrincipalLease();
+    if (lease == null || !_isCalendarPrincipalLeaseCurrent(lease)) return;
+    final identity = _activeCalendarSnapshotIdentity(userId: lease.userId);
+    if (identity == null) return;
+    final userId = identity.userId;
+    final projectRef = identity.projectRef;
+    if (_warmStartCacheRestoredForUserId == userId &&
+        _warmStartCacheRestoredForProjectRef == projectRef) {
+      return;
+    }
 
     try {
       await _loadEndedReminderIds();
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_warmStartCacheKey(userId));
-      if (raw == null || raw.trim().isEmpty) {
-        _warmStartCacheRestoredForUserId = userId;
-        return;
-      }
-
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map) {
-        _warmStartCacheRestoredForUserId = userId;
-        return;
-      }
-      final json = Map<String, dynamic>.from(decoded);
-      final snapshotUserId = (json['userId'] as String?)?.trim();
-      if (snapshotUserId != null &&
-          snapshotUserId.isNotEmpty &&
-          snapshotUserId != userId) {
-        _warmStartCacheRestoredForUserId = userId;
-        return;
-      }
-
-      final flows = ((json['flows'] as List?) ?? const [])
-          .map(_deserializeWarmStartFlow)
-          .whereType<_Flow>()
-          .toList(growable: false);
-      final restoredTrackSkyFlowIds = flows
-          .where((flow) => _isTrackSkyFlowName(flow.name))
-          .map((flow) => flow.id)
-          .where((flowId) => flowId > 0)
-          .toSet();
-      final notesByDay = <String, List<_Note>>{};
-      final notesRaw = json['notes'];
-      if (notesRaw is Map) {
-        notesRaw.forEach((key, value) {
-          if (value is! List) return;
-          final notes = _dedupeVisibleDayNotes(
-            value
-                .map(_deserializeWarmStartNote)
-                .whereType<_Note>()
-                .toList(growable: false),
-            trackSkyFlowIds: restoredTrackSkyFlowIds,
-          );
-          if (notes.isNotEmpty) {
-            notesByDay[key.toString()] = notes;
-          }
-        });
-      }
-
-      final nextFlowId =
-          (json['nextFlowId'] as num?)?.toInt() ??
-          ((flows.isEmpty
-                  ? 0
-                  : flows
-                        .map((flow) => flow.id)
-                        .reduce((a, b) => a > b ? a : b)) +
-              1);
-      final totalCounts = _decodeWarmStartIntMap(json['flowTotalEventCounts']);
-      final remainingCounts = _decodeWarmStartIntMap(
-        json['flowRemainingEventCounts'],
+      if (!_isCalendarPrincipalLeaseCurrent(lease)) return;
+      final document = await CalendarSnapshotRepository.instance.restore(
+        identity,
       );
-
-      if (!mounted) return;
-      setState(() {
-        _flows
-          ..clear()
-          ..addAll(flows);
-        _notes
-          ..clear()
-          ..addAll(notesByDay);
-        _flowTotalEventCounts
-          ..clear()
-          ..addAll(totalCounts);
-        _flowRemainingEventCounts
-          ..clear()
-          ..addAll(remainingCounts);
-        _nextFlowId = nextFlowId > 0 ? nextFlowId : _nextFlowId;
-      });
-      _rebuildReminderRulesFromFlowsIfMissing();
+      if (!_isCalendarPrincipalLeaseCurrent(lease)) return;
       _warmStartCacheRestoredForUserId = userId;
-      _warmStartSnapshotVisible = true;
-      _lastSuccessfulHydrationAt ??= DateTime.now();
+      _warmStartCacheRestoredForProjectRef = projectRef;
+      if (document == null) return;
+      final requiredCoverage = _computeStartupVisibleHydrationWindow();
+      if (!document.covers(
+        CalendarSnapshotCoverage(
+          startUtc: requiredCoverage.startUtc,
+          endUtc: requiredCoverage.endUtc,
+        ),
+      )) {
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[warmStart] retained snapshot does not cover restored viewport '
+            'reason=$reason',
+          );
+        }
+        return;
+      }
+
+      if (!_isCalendarPrincipalLeaseCurrent(lease)) return;
+      setState(() => _applyWarmStartDocument(document));
+      _rebuildReminderRulesFromFlowsIfMissing();
       if (kDebugMode) {
-        final totalNotes = notesByDay.values.fold<int>(
-          0,
-          (sum, list) => sum + list.length,
-        );
         _calendarDebugPrint(
-          '[warmStart] restored cache reason=$reason flows=${flows.length} notes=$totalNotes',
+          '[warmStart] restored last-good reason=$reason '
+          'generation=${document.generation} flows=${document.flowCount} '
+          'events=${document.eventCount}',
         );
       }
-      _notifyDayViewDataChanged();
+      _notifyDayViewDataChanged(persistWarmStartCache: false);
     } catch (e) {
       if (kDebugMode) {
         _calendarDebugPrint(
@@ -9204,9 +10461,42 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
+  void _restoreWarmStartCacheForFirstPaint({required String reason}) {
+    final lease = _captureCalendarPrincipalLease();
+    if (lease == null || !_isCalendarPrincipalLeaseCurrent(lease)) return;
+    final persistedViewLoad = _initialPersistedViewStateLoad;
+    final existing = _warmStartRestoreFlight;
+    if (existing != null) return;
+    late final Future<void> flight;
+    flight =
+        (() async {
+          if (persistedViewLoad != null) {
+            await persistedViewLoad;
+          }
+          if (!_isCalendarPrincipalLeaseCurrent(lease)) return;
+          if (_pendingAuthResolutionForRestore &&
+              Supabase.instance.client.auth.currentUser != null) {
+            await _loadPersistedViewState(trigger: 'warm_first_paint:$reason');
+          }
+          if (!_isCalendarPrincipalLeaseCurrent(lease)) return;
+          await _restoreWarmStartCacheIfAvailable(
+            reason: reason,
+            principalLease: lease,
+          );
+        })().whenComplete(() {
+          if (identical(_warmStartRestoreFlight, flight)) {
+            _warmStartRestoreFlight = null;
+          }
+        });
+    _warmStartRestoreFlight = flight;
+    unawaited(flight);
+  }
+
   Future<void> _loadCalendarState() async {
+    final lease = _captureCalendarPrincipalLease();
+    if (lease == null) return;
     final snapshot = await _sharedCalendarsRepo.loadSnapshot();
-    if (!mounted) return;
+    if (!_isCalendarPrincipalLeaseCurrent(lease)) return;
     setState(() {
       _calendarSummariesById = <String, SharedCalendarSummary>{
         for (final calendar in snapshot.calendars) calendar.id: calendar,
@@ -9227,6 +10517,36 @@ class CalendarPageState extends State<CalendarPage>
     _calendarSummariesById[calendarId] = calendar;
     if (publishWarmState) {
       _publishWarmStateSnapshot();
+    }
+  }
+
+  void _seedSharedCalendarFlows(
+    Iterable<_Flow> flows, {
+    bool publishWarmState = false,
+  }) {
+    var changed = false;
+    for (final flow in flows) {
+      if (flow.id <= 0) continue;
+      final existingIndex = _flows.indexWhere((existing) {
+        return existing.id == flow.id;
+      });
+      final nextFlow = _CalendarModelCopy._copyFlow(flow);
+      if (existingIndex >= 0) {
+        _flows[existingIndex] = nextFlow;
+      } else {
+        _flows.add(nextFlow);
+      }
+      if (flow.id >= _nextFlowId) {
+        _nextFlowId = flow.id + 1;
+      }
+      changed = true;
+    }
+    if (changed) {
+      _rebuildReminderRulesFromFlowsIfMissing();
+      _bumpDataVersion();
+      if (publishWarmState) {
+        _publishWarmStateSnapshot();
+      }
     }
   }
 
@@ -9412,6 +10732,7 @@ class CalendarPageState extends State<CalendarPage>
     _flows
       ..clear()
       ..addAll(intent.warmStartFlows);
+    _seedSharedCalendarFlows(intent.sharedCalendarFlows);
     _notes
       ..clear()
       ..addEntries(
@@ -9503,6 +10824,98 @@ class CalendarPageState extends State<CalendarPage>
     }
     _initialStartupUserId = userId;
     await _requestStartupRun(reason: reason);
+  }
+
+  void _scheduleInitialStartupRunAfterFirstFrame({
+    required String reason,
+    Future<void> Function()? onComplete,
+  }) {
+    unawaited(() async {
+      await _waitForFirstRasterizedFrameForDeferredStartup();
+      void runStartup() {
+        if (!mounted) return;
+        unawaited(
+          _requestInitialStartupRun(reason: reason).then((_) async {
+            if (!mounted) return;
+            await onComplete?.call();
+          }),
+        );
+      }
+
+      if (_isWidgetTestBindingForDeferredStartup()) {
+        runStartup();
+      } else {
+        Timer.run(runStartup);
+      }
+    }());
+  }
+
+  void _scheduleAfterFirstDrawableFrame(Future<void> Function() action) {
+    unawaited(() async {
+      await _waitForFirstRasterizedFrameForDeferredStartup();
+      void runAction() {
+        if (!mounted) return;
+        unawaited(
+          action().catchError((Object error, StackTrace stackTrace) {
+            if (!kDebugMode) return;
+            _calendarDebugPrint('[startup] post-frame task failed: $error');
+            _calendarDebugPrint('$stackTrace');
+          }),
+        );
+      }
+
+      if (_isWidgetTestBindingForDeferredStartup()) {
+        runAction();
+      } else {
+        Timer.run(runAction);
+      }
+    }());
+  }
+
+  bool _isWidgetTestBindingForDeferredStartup() {
+    return WidgetsBinding.instance.runtimeType.toString().contains('Test');
+  }
+
+  Future<void> _waitForFirstRasterizedFrameForDeferredStartup() async {
+    final binding = WidgetsBinding.instance;
+    final isTestBinding = _isWidgetTestBindingForDeferredStartup();
+    if (!binding.firstFrameRasterized) {
+      final timeout = isTestBinding
+          ? const Duration(milliseconds: 1)
+          : const Duration(seconds: 4);
+      try {
+        await binding.waitUntilFirstFrameRasterized.timeout(timeout);
+      } catch (_) {
+        // Widget tests do not always complete the rasterized-frame future.
+      }
+    }
+
+    if (isTestBinding) return;
+
+    try {
+      await binding.endOfFrame.timeout(const Duration(milliseconds: 500));
+    } catch (_) {
+      // Best effort: deferred startup work should never crash the route.
+    }
+    try {
+      await SchedulerBinding.instance
+          .scheduleTask<void>(
+            () {},
+            Priority.idle,
+            debugLabel: 'calendar deferred startup idle gate',
+          )
+          .timeout(const Duration(milliseconds: 250));
+    } catch (_) {
+      // Best effort: deferred startup work should never crash the route.
+    }
+  }
+
+  void _restoreMyFlowsFilingSnapshotCacheAfterFirstFrame({
+    required String reason,
+  }) {
+    _scheduleAfterFirstDrawableFrame(() {
+      return _restoreMyFlowsFilingSnapshotCache(reason: reason);
+    });
   }
 
   List<String> _stringListFromRestoration(Object? raw) {
@@ -9649,20 +11062,6 @@ class CalendarPageState extends State<CalendarPage>
       return;
     }
     await _saveCalendarEventDetailOverlayState(state);
-  }
-
-  void _handleCalendarEventDetailRestorationChanged(
-    EventDetailRestorationState? state,
-  ) {
-    if (state == null) {
-      if (!_preserveEventDetailOverlayForOrientationHandoff) {
-        _activeCalendarEventDetailRestoration = null;
-      }
-      unawaited(_clearCalendarEventDetailOverlayState());
-      return;
-    }
-    _activeCalendarEventDetailRestoration = state;
-    unawaited(_saveCalendarEventDetailOverlayState(state));
   }
 
   Future<void> _clearCalendarEventDetailOverlayState() {
@@ -10066,6 +11465,7 @@ class CalendarPageState extends State<CalendarPage>
                     DecanWatchLens? decanWatchLens,
                     OpenHandLens? openHandLens,
                     DjedLens? djedLens,
+                    List<ReadingHouseSitting>? readingHouseSittings,
                     String? eveningThresholdInitialCarry,
                   }) async {
                     final id = await _addMaatFlowInstance(
@@ -10096,6 +11496,7 @@ class CalendarPageState extends State<CalendarPage>
                       decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
                       openHandLens: openHandLens ?? OpenHandLens.neutral,
                       djedLens: djedLens ?? DjedLens.neutral,
+                      readingHouseSittings: readingHouseSittings,
                       eveningThresholdInitialCarry:
                           eveningThresholdInitialCarry,
                     );
@@ -10176,6 +11577,30 @@ class CalendarPageState extends State<CalendarPage>
     ImportFlowData? importData,
     required Map<String, dynamic> returnState,
   }) {
+    final readingHouseFlow = importData == null
+        ? _readingHouseFlowForEditor(editFlowId)
+        : null;
+    if (readingHouseFlow != null) {
+      return _pushFlowStudioRoute<_FlowStudioResult>(
+        navigator,
+        MaterialPageRoute<_FlowStudioResult>(
+          builder: (_) => _ReadingHouseAuthoringPage(
+            flow: readingHouseFlow,
+            calendar: _calendarSummary(readingHouseFlow.calendarId),
+            personalCalendarId: _personalCalendarId,
+            sharedCalendarsRepo: _sharedCalendarsRepo,
+            onCalendarChanged: _moveReadingHouseFlowToCalendar,
+          ),
+        ),
+        visibleState: <String, dynamic>{
+          'mode': _kFlowStudioModeEditor,
+          'editFlowId': editFlowId,
+          'templateKey': kReadingHouseFlowKey,
+        },
+        returnState: returnState,
+      );
+    }
+
     Future<void> handleResult(_FlowStudioResult result) async {
       await _persistFlowStudioResult(result);
       if (mounted) {
@@ -10202,6 +11627,22 @@ class CalendarPageState extends State<CalendarPage>
       },
       returnState: returnState,
     );
+  }
+
+  _Flow? _readingHouseFlowForEditor(int? flowId) {
+    if (flowId == null) return null;
+    final index = _flows.indexWhere((flow) => flow.id == flowId);
+    if (index < 0) return null;
+    final flow = _flows[index];
+    if (resolveMaatFlowKind(flowNotes: flow.notes) ==
+            MaatFlowKind.readingHouse ||
+        isReadingHouseFlowReference(
+          flowName: flow.name,
+          flowNotes: flow.notes,
+        )) {
+      return flow;
+    }
+    return null;
   }
 
   Future<int?> _pushMaatFlowTemplateDetail(
@@ -10237,6 +11678,7 @@ class CalendarPageState extends State<CalendarPage>
                 DecanWatchLens? decanWatchLens,
                 OpenHandLens? openHandLens,
                 DjedLens? djedLens,
+                List<ReadingHouseSitting>? readingHouseSittings,
                 String? eveningThresholdInitialCarry,
               }) async {
                 final id = await _addMaatFlowInstance(
@@ -10264,6 +11706,7 @@ class CalendarPageState extends State<CalendarPage>
                   decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
                   openHandLens: openHandLens ?? OpenHandLens.neutral,
                   djedLens: djedLens ?? DjedLens.neutral,
+                  readingHouseSittings: readingHouseSittings,
                   eveningThresholdInitialCarry: eveningThresholdInitialCarry,
                 );
                 return id;
@@ -11214,6 +12657,22 @@ class CalendarPageState extends State<CalendarPage>
     return calendars;
   }
 
+  List<SharedCalendarSummary> _editableCalendarsForFlow(
+    String? currentCalendarId,
+  ) {
+    final current = _normalizeCalendarId(currentCalendarId);
+    final calendars = _calendarSummariesById.values
+        .where((calendar) => calendar.canEdit || calendar.id == current)
+        .toList(growable: false);
+    calendars.sort((a, b) {
+      if (a.isPersonal != b.isPersonal) {
+        return a.isPersonal ? -1 : 1;
+      }
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+    return calendars;
+  }
+
   String _detailSheetCalendarActionLabel(SharedCalendarSummary calendar) {
     if (calendar.isPersonal) return 'Calendar';
     final name = calendar.name.trim();
@@ -11348,6 +12807,88 @@ class CalendarPageState extends State<CalendarPage>
     }
     if (changed) {
       _bumpDataVersion();
+    }
+  }
+
+  bool _noteMatchesFlowEvent(_Note note, FlowEventRow event) {
+    final eventId = event.id?.trim();
+    if (eventId != null && eventId.isNotEmpty) {
+      return note.id?.trim() == eventId;
+    }
+
+    final clientEventId = event.clientEventId?.trim();
+    if (clientEventId != null && clientEventId.isNotEmpty) {
+      return note.clientEventId?.trim() == clientEventId;
+    }
+
+    final localStart = event.startsAtUtc.toLocal();
+    final localEnd = event.endsAtUtc?.toLocal();
+    final eventStart = event.allDay ? null : TimeOfDay.fromDateTime(localStart);
+    final eventEnd = localEnd == null ? null : TimeOfDay.fromDateTime(localEnd);
+    return note.title.trim().toLowerCase() ==
+            event.title.trim().toLowerCase() &&
+        note.allDay == event.allDay &&
+        note.start == eventStart &&
+        note.end == eventEnd;
+  }
+
+  Future<void> _refreshMovedFlowEventsFromServer({
+    required int flowId,
+    required String calendarId,
+    required String source,
+  }) async {
+    final events = await UserEventsRepo(
+      Supabase.instance.client,
+    ).getEventsForFlow(flowId, flowEventsOnly: true);
+    if (events.isEmpty) return;
+
+    final fallbackCalendarName = _detailSheetCalendarEventName(calendarId);
+    var changed = false;
+    for (final bucket in _notes.values) {
+      for (var i = 0; i < bucket.length; i++) {
+        final note = bucket[i];
+        if (note.flowId != flowId) continue;
+        FlowEventRow? matchingEvent;
+        for (final event in events) {
+          if (_noteMatchesFlowEvent(note, event)) {
+            matchingEvent = event;
+            break;
+          }
+        }
+        if (matchingEvent == null) continue;
+
+        final behaviorPayload = matchingEvent.behaviorPayload == null
+            ? note.behaviorPayload
+            : Map<String, dynamic>.from(matchingEvent.behaviorPayload!);
+        final next = note.copyWith(
+          id: matchingEvent.id,
+          clientEventId: matchingEvent.clientEventId,
+          calendarId: matchingEvent.calendarId ?? calendarId,
+          calendarName: matchingEvent.calendarName ?? fallbackCalendarName,
+          category: matchingEvent.category,
+          actionId: matchingEvent.actionId,
+          behaviorPayload: behaviorPayload,
+        );
+        if (next.id != note.id ||
+            next.clientEventId != note.clientEventId ||
+            next.calendarId != note.calendarId ||
+            next.calendarName != note.calendarName ||
+            next.category != note.category ||
+            next.actionId != note.actionId ||
+            !mapEquals(next.behaviorPayload, note.behaviorPayload)) {
+          bucket[i] = next;
+          changed = true;
+        }
+      }
+    }
+
+    if (changed) {
+      _bumpDataVersion();
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[$source] refreshed moved flow event payloads for flow=$flowId',
+        );
+      }
     }
   }
 
@@ -11876,6 +13417,16 @@ class CalendarPageState extends State<CalendarPage>
     await UserEventsRepo(
       Supabase.instance.client,
     ).updateCalendarForFlowEvents(flowId: flowId, calendarId: calendarId);
+    await _ensureSharedExperienceForFlow(
+      flowId: flowId,
+      calendarId: calendarId,
+      source: 'detail_calendar_move_flow',
+    );
+    await _refreshMovedFlowEventsFromServer(
+      flowId: flowId,
+      calendarId: calendarId,
+      source: 'detail_calendar_move_flow',
+    );
 
     String flowName = target.event.title;
     for (final flow in _flows) {
@@ -11906,6 +13457,76 @@ class CalendarPageState extends State<CalendarPage>
     return _detailSheetTargetUsesCalendar(refreshed, calendarId)
         ? refreshed
         : optimisticTarget;
+  }
+
+  Future<_Flow> _moveFlowToCalendar(
+    _Flow flow,
+    SharedCalendarSummary calendar, {
+    String source = 'flow_detail_calendar_move',
+  }) async {
+    final calendarId = calendar.id.trim();
+    if (calendarId.isEmpty) {
+      throw ArgumentError.value(
+        calendar.id,
+        'calendar.id',
+        'Must not be empty.',
+      );
+    }
+    await _flowsRepo.updateCalendar(id: flow.id, calendarId: calendarId);
+    await UserEventsRepo(
+      Supabase.instance.client,
+    ).updateCalendarForFlowEvents(flowId: flow.id, calendarId: calendarId);
+    await _ensureSharedExperienceForFlow(
+      flowId: flow.id,
+      calendarId: calendarId,
+      source: source,
+    );
+    await _refreshMovedFlowEventsFromServer(
+      flowId: flow.id,
+      calendarId: calendarId,
+      source: source,
+    );
+
+    _Flow? updated;
+    for (var i = 0; i < _flows.length; i++) {
+      final existing = _flows[i];
+      if (existing.id != flow.id) continue;
+      existing.calendarId = calendarId;
+      updated = existing;
+      break;
+    }
+    updated ??= flow..calendarId = calendarId;
+
+    final startDate = updated.start == null
+        ? null
+        : DateUtils.dateOnly(updated.start!);
+    final k = startDate == null ? null : KemeticMath.fromGregorian(startDate);
+    await _notifySharedCalendarItemAdded(
+      calendarId: calendarId,
+      itemType: 'flow',
+      itemId: updated.id.toString(),
+      itemTitle: updated.name,
+      flowId: updated.id,
+      startDate: startDate,
+      kYear: k?.kYear,
+      kMonth: k?.kMonth,
+      kDay: k?.kDay,
+    );
+    if (mounted) {
+      await _loadFromDisk(source: source);
+    }
+    return updated;
+  }
+
+  Future<_Flow> _moveReadingHouseFlowToCalendar(
+    _Flow flow,
+    SharedCalendarSummary calendar,
+  ) {
+    return _moveFlowToCalendar(
+      flow,
+      calendar,
+      source: 'reading_house_shared_calendar_move',
+    );
   }
 
   Future<DayViewSheetEventTarget?> _moveReminderEventToCalendar(
@@ -12273,25 +13894,32 @@ class CalendarPageState extends State<CalendarPage>
   static const String _kSessionScopeCalendarView = 'calendar_view';
   static const String _kSessionResumeKindDaySheet = 'calendar_day_sheet';
   static const String _kSessionResumeKindPushEvent = 'calendar_push_event';
+  static const Duration _calendarResumeRetryDelay = Duration(milliseconds: 120);
+  static const int _calendarResumeRetryLimit = 20;
   static const int _kCalendarViewStateSchemaVersion = 2;
   static const int _kCalendarRestorationLayoutRevision = 1;
   static const String _kCalendarAnchorTargetDayChip = 'dayChip';
   static const String _kCalendarAnchorTargetMonthHeader = 'monthHeader';
   static const String _kCalendarAnchorTargetMonthBody = 'monthBody';
+  static const Duration _initialViewportRestoreDeadline = Duration(seconds: 5);
 
   bool _initialJumpScheduled = false;
   bool _initialViewportSettled = false;
+  Completer<void>? _initialViewportSettlementCompleter;
+  int? _calendarScrollBaseYear;
   bool _orientationJumpScheduled = false;
   bool _portraitRecenterPending = false;
 
   // ✅ ADD: Feedback loop prevention flag
-  bool _isUpdatingFromLandscape = false;
   bool _isUpdatingFromPortrait = false;
 
   // ✅ ADD: First-build gating flag to prevent race condition
   bool _restored = false;
   bool _daySheetResumeAttempted = false;
   bool _pushEventResumeAttempted = false;
+  Timer? _daySheetResumeRetryTimer;
+  Timer? _pushEventResumeRetryTimer;
+  int _calendarResumeLifecycleGeneration = 0;
   int? _lastHandledCalendarPushIntentNonce;
   bool _isTablet(BuildContext context) =>
       MediaQuery.of(context).size.shortestSide >= 600;
@@ -12382,118 +14010,12 @@ class CalendarPageState extends State<CalendarPage>
 
     // ✅ ONLY UPDATE IF CHANGED AND NOT UPDATING FROM LANDSCAPE OR PORTRAIT
     if ((_lastViewKy != newKy || _lastViewKm != newKm) &&
-        !_isUpdatingFromLandscape &&
         !_isUpdatingFromPortrait) {
       // ✅ HARDENING 1: Clamp day when month changes
       final maxDay = _maxDayForMonth(newKy, newKm);
       final clampedKd = (_lastViewKd ?? 1).clamp(1, maxDay);
 
       _setView(newKy, newKm, kd: clampedKd);
-    }
-  }
-
-  void _updateCenteredMonthWide() {
-    // ✅ ONLY update if we don't already have a valid state
-    // ✅ FIX 2: Removed _lastViewKy! >= 1 check - accept historical years
-    if (_lastViewKy != null &&
-        _lastViewKm != null &&
-        _lastViewKm! >= 1 &&
-        _lastViewKm! <= 13) {
-      if (kDebugMode) {
-        _calendarDebugPrint(
-          '✓ [CALENDAR] Skipping _updateCenteredMonthWide - using existing state: $_lastViewKy-$_lastViewKm',
-        );
-      }
-      return;
-    }
-
-    final candidates = <(int ky, int km, double dist)>[];
-
-    // ✅ OPTIMIZED: Try saved/today month first (most likely mounted)
-    final base = _lastViewKy ?? _today.kYear;
-    final baseMonth = _lastViewKm ?? _today.kMonth;
-
-    ScrollableState? scrollableState;
-    RenderBox? viewportBox;
-
-    // Try saved/today month first
-    var ctx = keyForMonth(base, baseMonth).currentContext;
-    if (ctx != null) {
-      scrollableState = Scrollable.maybeOf(ctx); // ✅ Use CHILD context!
-      if (scrollableState != null) {
-        final vpBox = scrollableState.context.findRenderObject() as RenderBox?;
-        if (vpBox != null && vpBox.hasSize) {
-          viewportBox = vpBox;
-        }
-      }
-    }
-
-    // Fallback: search nearby months if first attempt failed
-    if (viewportBox == null) {
-      for (var dy = -220; dy <= 220; dy++) {
-        final ky = base + dy;
-        for (var km = 1; km <= 13; km++) {
-          ctx = keyForMonth(ky, km).currentContext;
-          if (ctx != null) {
-            scrollableState = Scrollable.maybeOf(ctx);
-            if (scrollableState != null) {
-              final vpBox =
-                  scrollableState.context.findRenderObject() as RenderBox?;
-              if (vpBox != null && vpBox.hasSize) {
-                viewportBox = vpBox;
-                break;
-              }
-            }
-          }
-        }
-        if (viewportBox != null) break;
-      }
-    }
-
-    if (scrollableState == null || viewportBox == null) return;
-
-    // ✅ Calculate viewport center in global coordinates (SAME as _updateCenteredMonth)
-    final viewportTopGlobal = viewportBox.localToGlobal(Offset.zero).dy;
-    final viewportCenterY = viewportTopGlobal + (viewportBox.size.height / 2);
-
-    bool addIfMounted(int ky, int km) {
-      final ctx = keyForMonth(ky, km).currentContext;
-      if (ctx == null) return false;
-      final rb = ctx.findRenderObject() as RenderBox?;
-      if (rb == null || !rb.hasSize) return false;
-
-      // ✅ CORRECT: Use same calculation as _centerMonth() and _updateCenteredMonth()
-      final monthCenterGlobal = rb
-          .localToGlobal(rb.size.center(Offset.zero))
-          .dy;
-      final dist = (monthCenterGlobal - viewportCenterY).abs();
-      candidates.add((ky, km, dist));
-      return true;
-    }
-
-    // Wider search for landscape (±220 years)
-    for (var dy = -220; dy <= 220; dy++) {
-      final ky = base + dy;
-      var foundAny = false;
-      for (var km = 1; km <= 13; km++) {
-        foundAny = addIfMounted(ky, km) || foundAny;
-      }
-      if (foundAny && candidates.length >= 6) break;
-    }
-
-    if (candidates.isEmpty) return;
-    candidates.sort((a, b) => a.$3.compareTo(b.$3));
-
-    // ✅ Only update if not already set
-    if (_lastViewKy == null || _lastViewKm == null) {
-      final newKy = candidates.first.$1;
-      final newKm = candidates.first.$2;
-      final maxDay = _maxDayForMonth(newKy, newKm);
-      final clampedKd = (_lastViewKd ?? 1).clamp(1, maxDay);
-
-      _lastViewKy = newKy;
-      _lastViewKm = newKm;
-      _lastViewKd = clampedKd;
     }
   }
 
@@ -12573,7 +14095,7 @@ class CalendarPageState extends State<CalendarPage>
 
   /// ✅ FIX 4: Handle month change from portrait scroll (with feedback loop guard)
   void _handlePortraitMonthChanged(int ky, int km) {
-    if (_isUpdatingFromLandscape || _isUpdatingFromPortrait) return;
+    if (_isUpdatingFromPortrait) return;
 
     _isUpdatingFromPortrait = true;
     try {
@@ -12601,8 +14123,11 @@ class CalendarPageState extends State<CalendarPage>
   bool _onboardingPresentationScheduled = false;
   final OnboardingProgressStorage _onboardingProgressStorage =
       OnboardingProgressStorage();
+  late final DailyCosmicContextController _onboardingDayRhythmController =
+      DailyCosmicContextController();
   OnboardingProgress _onboardingProgress = const OnboardingProgress();
   HawCompassCopy? _onboardingCompassCopy;
+  HawOnboardingSlide _activeHawOnboardingSlide = HawOnboardingSlide.exhale;
   bool _firstMaatFlowSheetOpenOrOpening = false;
   bool _showingCurrentDecanIntroCoachmark = false;
   bool _showingFirstFlowDayCoachmark = false;
@@ -12611,6 +14136,11 @@ class CalendarPageState extends State<CalendarPage>
   ({int ky, int km, int kd})? _firstMaatFlowEventKDate;
   int? _firstMaatFlowId;
   String? _firstMaatFlowEventClientEventId;
+  String? _firstMaatFlowOnboardingDayRhythmIdentity;
+  String? _pendingOnboardingTargetDayKey;
+  String? _pendingOnboardingTargetClientEventId;
+  int? _pendingOnboardingTargetFlowId;
+  _Note? _pendingOnboardingTargetNote;
   final GlobalKey _firstFlowDayKey = GlobalKey(
     debugLabel: 'onboarding_first_flow_day',
   );
@@ -12630,8 +14160,14 @@ class CalendarPageState extends State<CalendarPage>
   // Leave false for normal onboarding behavior. Flip to true only for local iteration.
   static final bool _replayOnboardingOnEveryLaunch = false;
   static bool _hasPresentedOnboardingThisLaunch = false;
+  static OnboardingProgress? _onboardingReviewSessionProgress;
+  static HawOnboardingSlide? _onboardingReviewSessionSlide;
   static const String _onboardingContinuationStageKeyPrefix =
       'onboarding_v1_continuation_stage';
+  static const int _onboardingReviewFirstFlowId = 990001;
+
+  bool get _onboardingReviewMode =>
+      widget.onboardingReviewMode && onboardingReviewRuntimeEnabled;
   static const List<int> _onboardingAnchorDays = [
     1,
     2,
@@ -12724,6 +14260,77 @@ class CalendarPageState extends State<CalendarPage>
 
   bool get _debugDaySheetSmokeEnabled =>
       kDebugMode && widget.debugDaySheetSmokeOnLaunch;
+
+  bool get _calendarRouteIsCurrent => ModalRoute.of(context)?.isCurrent ?? true;
+
+  void _markCalendarOwnedTransientRouteChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _resetOnboardingReviewSessionForRoute() {
+    assert(_onboardingReviewMode);
+    _hasPresentedOnboardingThisLaunch = false;
+    _onboardingReviewSessionProgress = const OnboardingProgress();
+    _onboardingReviewSessionSlide = HawOnboardingSlide.exhale;
+    _onboardingProgress = const OnboardingProgress();
+    _activeHawOnboardingSlide = HawOnboardingSlide.exhale;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_onboardingReviewMode) return;
+      GuidedOnboardingController.instance.clear();
+      GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
+    });
+  }
+
+  void _configureOnboardingReviewState() {
+    assert(_onboardingReviewMode);
+
+    const personalCalendarId = 'onboarding-review-personal';
+    const ownerId = 'onboarding-review-owner';
+    final calendar = SharedCalendarSummary(
+      id: personalCalendarId,
+      ownerId: ownerId,
+      name: 'Review Calendar',
+      colorValue: DaySheetTokens.gold.toARGB32(),
+      icon: 'calendar',
+      isPersonal: true,
+      role: SharedCalendarRole.owner,
+      status: SharedCalendarInviteStatus.accepted,
+      memberCount: 1,
+      pendingInviteCount: 0,
+      liveEventCount: 0,
+      liveFlowCount: 0,
+    );
+
+    _calendarSummariesById = <String, SharedCalendarSummary>{
+      personalCalendarId: calendar,
+    };
+    _personalCalendarId = personalCalendarId;
+    _calendarStateLoaded = true;
+    _hiddenCalendarIds = <String>{};
+    _manualTombstonesLoaded = true;
+    _pendingInitialHydration = false;
+    _reminderRulesLoaded = true;
+    _remindersLoaded = true;
+    _floatingReminders = <Reminder>[];
+    _reminderRules.clear();
+    _notes.clear();
+    _flows.clear();
+    _flowTotalEventCounts.clear();
+    _flowRemainingEventCounts.clear();
+    _lastViewKy = _today.kYear;
+    _lastViewKm = _today.kMonth;
+    _lastViewKd = _today.kDay;
+    _pendingPersistentDayViewState = null;
+    _persistentDayViewRestoreAttempted = true;
+    _calendarOverlayRestoreAttempted = true;
+    _restoredCalendarAnchorTarget = null;
+    _restoredCalendarAnchorAlignment = null;
+    _restorationInteractedSinceBoot = true;
+    _restored = true;
+    _initialViewportSettled = true;
+    _dataVersion++;
+    _dayViewDataVersion.value++;
+  }
 
   void _configureDebugDaySheetSmokeState() {
     assert(_debugDaySheetSmokeEnabled);
@@ -13018,7 +14625,6 @@ class CalendarPageState extends State<CalendarPage>
     _calendarOverlayRestoreAttempted = true;
     _restoredCalendarAnchorTarget = null;
     _restoredCalendarAnchorAlignment = null;
-    _restoredCalendarScrollOffset = null;
     _restorationInteractedSinceBoot = true;
     _restored = true;
     _initialViewportSettled = true;
@@ -13058,9 +14664,12 @@ class CalendarPageState extends State<CalendarPage>
   void initState() {
     super.initState();
     _calendarDebugPrint('[calendar] initState');
-    final hasSharedCalendarRealDayViewIntent =
-        CalendarPage._pendingSharedCalendarRealDayViewIntent != null;
     WidgetsBinding.instance.addObserver(this);
+    _initializeCalendarPrincipalOwnership();
+    _initializeScrollControllerFromProcessRouteHandoff();
+    _onboardingDayRhythmController.addListener(
+      _handleOnboardingDayRhythmChanged,
+    );
 
     if (_debugDaySheetSmokeEnabled) {
       _journalController = JournalController(Supabase.instance.client);
@@ -13072,6 +14681,17 @@ class CalendarPageState extends State<CalendarPage>
       return;
     }
 
+    if (_onboardingReviewMode) {
+      _journalController = JournalController(Supabase.instance.client);
+      _journalController.onCompletionBadgesRemoved =
+          _handleJournalCompletionBadgesRemoved;
+      _scrollCtrl.addListener(_onVerticalScroll);
+      _resetOnboardingReviewSessionForRoute();
+      _configureOnboardingReviewState();
+      _scheduleOnboardingPresentation();
+      return;
+    }
+
     // Load local reminders cache and check any due on startup.
     _reminderService.load().then((_) {
       _remindersLoaded = true;
@@ -13080,11 +14700,11 @@ class CalendarPageState extends State<CalendarPage>
     // We no longer listen to every change to avoid UI loops; checks happen on load/resume/refresh.
 
     // ✅ Load persisted state first, fallback to today
-    _loadPersistedViewState();
-    if (!hasSharedCalendarRealDayViewIntent) {
-      unawaited(_restoreWarmStartCacheIfAvailable(reason: 'initState'));
-    }
-    unawaited(_restoreMyFlowsFilingSnapshotCache(reason: 'initState'));
+    _initialPersistedViewStateLoad = _restoredFromProcessRouteHandoff
+        ? SynchronousFuture<void>(null)
+        : _loadPersistedViewState();
+    _restoreWarmStartCacheForFirstPaint(reason: 'initState');
+    _restoreMyFlowsFilingSnapshotCacheAfterFirstFrame(reason: 'initState');
     calendarPushOpenIntent.addListener(_handleCalendarPushOpenIntent);
     _calendarInvalidationSub = CalendarInvalidationBus.instance.stream.listen(
       _handleCalendarInvalidated,
@@ -13118,6 +14738,13 @@ class CalendarPageState extends State<CalendarPage>
       if (kDebugMode) {
         _calendarDebugPrint('[calendar] auth state change event=${event.name}');
       }
+      if (!mounted) return;
+      if (event == AuthChangeEvent.initialSession ||
+          event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.tokenRefreshed ||
+          event == AuthChangeEvent.signedOut) {
+        _observeCalendarPrincipal(reason: 'auth:${event.name}');
+      }
       if (event == AuthChangeEvent.initialSession ||
           event == AuthChangeEvent.signedIn ||
           event == AuthChangeEvent.tokenRefreshed ||
@@ -13129,11 +14756,10 @@ class CalendarPageState extends State<CalendarPage>
           event == AuthChangeEvent.signedIn) {
         if (!mounted) return;
         unawaited(_loadCalendarState());
-        unawaited(
-          _restoreWarmStartCacheIfAvailable(reason: 'auth:${event.name}'),
-        );
-        unawaited(
-          _restoreMyFlowsFilingSnapshotCache(reason: 'auth:${event.name}'),
+        _scheduleOnboardingPresentation();
+        _restoreWarmStartCacheForFirstPaint(reason: 'auth:${event.name}');
+        _restoreMyFlowsFilingSnapshotCacheAfterFirstFrame(
+          reason: 'auth:${event.name}',
         );
         if (widget.initialFlowIdToEdit == null &&
             !widget.openMyFlowsOnLaunch &&
@@ -13146,8 +14772,9 @@ class CalendarPageState extends State<CalendarPage>
         if (_sharedCalendarRealDayViewOpening) {
           return;
         }
-        unawaited(
-          _requestInitialStartupRun(reason: 'auth:${event.name}').then((_) {
+        _scheduleInitialStartupRunAfterFirstFrame(
+          reason: 'auth:${event.name}',
+          onComplete: () async {
             if (!mounted ||
                 widget.initialFlowIdToEdit != null ||
                 widget.openMyFlowsOnLaunch) {
@@ -13156,7 +14783,7 @@ class CalendarPageState extends State<CalendarPage>
             if (!_schedulePendingDetachedLaunchActionIfAny()) {
               _schedulePersistentOverlayRestore(reason: 'auth:${event.name}');
             }
-          }),
+          },
         );
         return;
       }
@@ -13166,9 +14793,17 @@ class CalendarPageState extends State<CalendarPage>
         return;
       }
       if (event == AuthChangeEvent.signedOut) {
+        CalendarPage._processRouteHandoff = null;
         _initialStartupUserId = null;
         _warmStartSnapshotVisible = false;
         _warmStartCacheRestoredForUserId = null;
+        _warmStartCacheRestoredForProjectRef = null;
+        _hasPublishedCalendarSnapshot = false;
+        _publishedCalendarSnapshotUserId = null;
+        _publishedCalendarSnapshotProjectRef = null;
+        _authoritativeSnapshotCoverage = null;
+        _authoritativeSnapshotLanes = const <String>{};
+        _authoritativeSnapshotGeneration = 0;
         _myFlowsFilingSnapshotCache = null;
         _lastSuccessfulHydrationAt = null;
       }
@@ -13280,16 +14915,34 @@ class CalendarPageState extends State<CalendarPage>
 
   void _scheduleDaySheetResumeRestore() {
     if (_daySheetResumeAttempted) return;
+    final lifecycleGeneration = _calendarResumeLifecycleGeneration;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_restoreDaySheetIfNeeded());
+      if (!_ownsCalendarResumeLifecycle(lifecycleGeneration)) return;
+      unawaited(
+        _restoreDaySheetIfNeeded(lifecycleGeneration: lifecycleGeneration),
+      );
     });
   }
 
   void _schedulePushEventResumeRestore() {
     if (_pushEventResumeAttempted) return;
+    final lifecycleGeneration = _calendarResumeLifecycleGeneration;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_restorePushEventIfNeeded());
+      if (!_ownsCalendarResumeLifecycle(lifecycleGeneration)) return;
+      unawaited(
+        _restorePushEventIfNeeded(lifecycleGeneration: lifecycleGeneration),
+      );
     });
+  }
+
+  bool _ownsCalendarResumeLifecycle(int lifecycleGeneration) =>
+      mounted && lifecycleGeneration == _calendarResumeLifecycleGeneration;
+
+  void _cancelCalendarResumeRetryTimers() {
+    _daySheetResumeRetryTimer?.cancel();
+    _daySheetResumeRetryTimer = null;
+    _pushEventResumeRetryTimer?.cancel();
+    _pushEventResumeRetryTimer = null;
   }
 
   void _handleCalendarPushOpenIntent() {
@@ -13300,20 +14953,38 @@ class CalendarPageState extends State<CalendarPage>
     unawaited(_openCalendarEventFromPush(intent));
   }
 
-  Future<void> _restoreDaySheetIfNeeded([int attempt = 0]) async {
-    if (!mounted || _daySheetResumeAttempted) return;
+  Future<void> _restoreDaySheetIfNeeded({
+    int attempt = 0,
+    required int lifecycleGeneration,
+  }) async {
+    if (!_ownsCalendarResumeLifecycle(lifecycleGeneration) ||
+        _daySheetResumeAttempted) {
+      return;
+    }
     if (!_restored) {
-      if (attempt >= 20) return;
-      await Future<void>.delayed(const Duration(milliseconds: 120));
-      if (!mounted) return;
-      return _restoreDaySheetIfNeeded(attempt + 1);
+      if (attempt >= _calendarResumeRetryLimit) return;
+      _daySheetResumeRetryTimer?.cancel();
+      _daySheetResumeRetryTimer = Timer(_calendarResumeRetryDelay, () {
+        _daySheetResumeRetryTimer = null;
+        if (!_ownsCalendarResumeLifecycle(lifecycleGeneration)) return;
+        unawaited(
+          _restoreDaySheetIfNeeded(
+            attempt: attempt + 1,
+            lifecycleGeneration: lifecycleGeneration,
+          ),
+        );
+      });
+      return;
     }
 
+    _daySheetResumeRetryTimer?.cancel();
+    _daySheetResumeRetryTimer = null;
     _daySheetResumeAttempted = true;
     final pendingPushEvent = await SessionResumeService.readResumeEntry(
       kind: _kSessionResumeKindPushEvent,
       baseRoute: '/',
     );
+    if (!_ownsCalendarResumeLifecycle(lifecycleGeneration)) return;
     if (pendingPushEvent != null) {
       await SessionResumeService.clearResumeEntry(
         kind: _kSessionResumeKindDaySheet,
@@ -13328,7 +14999,9 @@ class CalendarPageState extends State<CalendarPage>
     final payload =
         entry?.payload ??
         await AppRestorationService.instance.readDaySheetState();
-    if (!mounted || payload == null) return;
+    if (!_ownsCalendarResumeLifecycle(lifecycleGeneration) || payload == null) {
+      return;
+    }
     final kYear = (payload['kYear'] as num?)?.toInt();
     final kMonth = (payload['kMonth'] as num?)?.toInt();
     final kDay = (payload['kDay'] as num?)?.toInt();
@@ -13337,7 +15010,7 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+      if (!_ownsCalendarResumeLifecycle(lifecycleGeneration)) return;
       _openDaySheet(
         kYear,
         kMonth,
@@ -13364,21 +15037,40 @@ class CalendarPageState extends State<CalendarPage>
     });
   }
 
-  Future<void> _restorePushEventIfNeeded([int attempt = 0]) async {
-    if (!mounted || _pushEventResumeAttempted) return;
+  Future<void> _restorePushEventIfNeeded({
+    int attempt = 0,
+    required int lifecycleGeneration,
+  }) async {
+    if (!_ownsCalendarResumeLifecycle(lifecycleGeneration) ||
+        _pushEventResumeAttempted) {
+      return;
+    }
     if (!_restored) {
-      if (attempt >= 20) return;
-      await Future<void>.delayed(const Duration(milliseconds: 120));
-      if (!mounted) return;
-      return _restorePushEventIfNeeded(attempt + 1);
+      if (attempt >= _calendarResumeRetryLimit) return;
+      _pushEventResumeRetryTimer?.cancel();
+      _pushEventResumeRetryTimer = Timer(_calendarResumeRetryDelay, () {
+        _pushEventResumeRetryTimer = null;
+        if (!_ownsCalendarResumeLifecycle(lifecycleGeneration)) return;
+        unawaited(
+          _restorePushEventIfNeeded(
+            attempt: attempt + 1,
+            lifecycleGeneration: lifecycleGeneration,
+          ),
+        );
+      });
+      return;
     }
 
+    _pushEventResumeRetryTimer?.cancel();
+    _pushEventResumeRetryTimer = null;
     _pushEventResumeAttempted = true;
     final entry = await SessionResumeService.consumeResumeEntry(
       kind: _kSessionResumeKindPushEvent,
       baseRoute: '/',
     );
-    if (!mounted || entry == null) return;
+    if (!_ownsCalendarResumeLifecycle(lifecycleGeneration) || entry == null) {
+      return;
+    }
 
     final intent = CalendarPushOpenIntent.fromNotificationData(entry.payload);
     if (intent == null) {
@@ -13644,10 +15336,15 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _saveOnboardingProgress(OnboardingProgress progress) async {
-    _onboardingProgress = progress;
+    final normalized = _withReflectionDecanBaseline(progress);
+    _onboardingProgress = normalized;
+    if (_onboardingReviewMode) {
+      _onboardingReviewSessionProgress = normalized;
+      return;
+    }
     final userId = _currentUserId;
     if (userId == null || userId.isEmpty) return;
-    await _onboardingProgressStorage.save(userId, progress);
+    await _onboardingProgressStorage.save(userId, normalized);
   }
 
   Future<void> _updateOnboardingProgress(
@@ -13656,10 +15353,76 @@ class CalendarPageState extends State<CalendarPage>
     await _saveOnboardingProgress(update(_onboardingProgress));
   }
 
+  HawOnboardingSlide _hawSlideForProgress(OnboardingProgress progress) {
+    switch (progress.currentStep) {
+      case TrueOnboardingStep.welcome:
+        return HawOnboardingSlide.exhale;
+      case TrueOnboardingStep.currentDecanIntro:
+        return HawOnboardingSlide.orientation;
+      case TrueOnboardingStep.firstMaatFlow:
+        return HawOnboardingSlide.recommendedFlow;
+      case TrueOnboardingStep.firstFlowCalendarDay:
+      case TrueOnboardingStep.firstFlowDayEvent:
+      case TrueOnboardingStep.eventDetailObservedJournal:
+      case TrueOnboardingStep.menuExplore:
+        return HawOnboardingSlide.dayView;
+      case TrueOnboardingStep.profileBasics:
+      case TrueOnboardingStep.complete:
+        return HawOnboardingSlide.exhale;
+    }
+  }
+
+  TrueOnboardingStep _onboardingStepForHawSlide(HawOnboardingSlide slide) {
+    switch (slide) {
+      case HawOnboardingSlide.exhale:
+      case HawOnboardingSlide.segmentation:
+        return TrueOnboardingStep.welcome;
+      case HawOnboardingSlide.orientation:
+        return TrueOnboardingStep.currentDecanIntro;
+      case HawOnboardingSlide.recommendedFlow:
+        return TrueOnboardingStep.firstMaatFlow;
+      case HawOnboardingSlide.dayView:
+        return TrueOnboardingStep.firstFlowDayEvent;
+      case HawOnboardingSlide.closing:
+        return TrueOnboardingStep.eventDetailObservedJournal;
+    }
+  }
+
+  void _handleHawSlideChanged(HawOnboardingSlide slide) {
+    _activeHawOnboardingSlide = slide;
+    if (_onboardingReviewMode) {
+      _onboardingReviewSessionSlide = slide;
+    }
+    final step = _onboardingStepForHawSlide(slide);
+    if (_onboardingProgress.currentStep == step &&
+        (slide.index < HawOnboardingSlide.orientation.index ||
+            _onboardingProgress.hasSeenCurrentDecanIntro)) {
+      return;
+    }
+    unawaited(
+      _updateOnboardingProgress(
+        (progress) => progress.copyWith(
+          currentStep: step,
+          hasSeenWelcome: slide != HawOnboardingSlide.exhale,
+          hasSeenCurrentDecanIntro:
+              slide.index >= HawOnboardingSlide.orientation.index,
+        ),
+      ),
+    );
+  }
+
   Future<OnboardingProgress?> _markOnboardingHelperCompleted(
     String helperId, {
     bool clearActiveHelper = true,
   }) async {
+    if (_onboardingReviewMode) {
+      if (clearActiveHelper &&
+          GuidedOnboardingController.instance.target?.variant ==
+              CoachmarkVariant.helperBubble) {
+        GuidedOnboardingController.instance.clear();
+      }
+      return _onboardingProgress;
+    }
     final userId = _currentUserId;
     if (userId == null || userId.isEmpty) return null;
     final completion = OnboardingHelperCompletionService.instance
@@ -13716,7 +15479,7 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> _persistOnboardingContinuationStage(
     _OnboardingContinuationStage stage,
   ) async {
-    if (_replayOnboardingOnEveryLaunch) return;
+    if (_onboardingReviewMode || _replayOnboardingOnEveryLaunch) return;
 
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null) return;
@@ -13734,41 +15497,83 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> _maybePresentOnboarding() async {
     if (!mounted || _showOnboarding) return;
 
+    if (_onboardingReviewMode) {
+      if (!_hasPresentedOnboardingThisLaunch) {
+        _hasPresentedOnboardingThisLaunch = true;
+        _onboardingReviewSessionProgress = const OnboardingProgress();
+        _onboardingReviewSessionSlide = HawOnboardingSlide.exhale;
+      }
+      _onboardingProgress =
+          _onboardingReviewSessionProgress ?? const OnboardingProgress();
+      if (_onboardingProgress.currentStep == TrueOnboardingStep.complete) {
+        return;
+      }
+      _activeHawOnboardingSlide =
+          _onboardingReviewSessionSlide ??
+          _hawSlideForProgress(_onboardingProgress);
+      _hydrateFirstFlowTargetFromProgress(_onboardingProgress);
+      await _waitForOnboardingCalendarReady();
+      if (!mounted) return;
+      await _loadOnboardingCompassCopy();
+      if (!mounted) return;
+      GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
+      setState(() => _showOnboarding = true);
+      return;
+    }
+
     final userId = _currentUserId;
-    if (userId == null) return;
+    if (userId == null) {
+      _onboardingPresentationScheduled = false;
+      return;
+    }
 
     if (_replayOnboardingOnEveryLaunch) {
       if (_hasPresentedOnboardingThisLaunch) return;
       _hasPresentedOnboardingThisLaunch = true;
       await _saveOnboardingProgress(const OnboardingProgress());
+      _activeHawOnboardingSlide = HawOnboardingSlide.exhale;
       await _loadOnboardingCompassCopy();
       GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
       setState(() => _showOnboarding = true);
       return;
     }
 
-    final progress = await _onboardingProgressStorage.load(userId);
+    final progress = _withReflectionDecanBaseline(
+      await _onboardingProgressStorage.loadLocalReconciledWithLegacyCompletion(
+        userId,
+        legacyCompleted: () => _onboardingStorage.hasCompleted(userId),
+      ),
+    );
     _onboardingProgress = progress;
+    _activeHawOnboardingSlide = _hawSlideForProgress(progress);
     _hydrateFirstFlowTargetFromProgress(progress);
 
-    final hasCompleted = await _onboardingStorage.hasCompleted(userId);
-    if (!mounted) return;
-    if (hasCompleted || progress.completedOnboarding) {
-      final effectiveProgress = progress.completedOnboarding
-          ? progress
-          : progress.copyWith(
-              currentStep: TrueOnboardingStep.complete,
-              completedOnboarding: true,
-            );
-      if (!progress.completedOnboarding) {
-        await _saveOnboardingProgress(effectiveProgress);
+    if (shouldPresentFinalOnboardingMenuHandoff(progress)) {
+      await _waitForOnboardingCalendarReady();
+      if (!mounted) return;
+      GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
+      _showMenuExploreCoachmark();
+      return;
+    }
+
+    if (progress.currentStep == TrueOnboardingStep.eventDetailObservedJournal) {
+      await _waitForOnboardingCalendarReady();
+      if (!mounted) return;
+      if (progress.onboardingDayRhythmState == OnboardingDayRhythmState.idle) {
+        unawaited(_showOnboardingDayRhythm());
+      } else {
+        unawaited(_handleObservedJournalPromptNext());
       }
+      return;
+    }
+
+    if (progress.completedOnboarding) {
       _onboardingContinuationStage = _OnboardingContinuationStage.none;
       _canShowCalendarToggleCoachmarkOnReturn = false;
       await _persistOnboardingContinuationStage(
         _OnboardingContinuationStage.none,
       );
-      unawaited(_maybeShowCalendarHelperAfterOnboarding(effectiveProgress));
+      unawaited(_maybeShowCalendarHelperAfterOnboarding(progress));
       return;
     }
 
@@ -13784,7 +15589,10 @@ class CalendarPageState extends State<CalendarPage>
     if (!mounted) return;
 
     GuidedOnboardingController.instance.setExternalOverlaySuppressed(false);
-    setState(() => _showOnboarding = false);
+    setState(() {
+      _showOnboarding = false;
+      _activeHawOnboardingSlide = HawOnboardingSlide.exhale;
+    });
   }
 
   void _handleOnboardingSkip() {
@@ -13806,28 +15614,22 @@ class CalendarPageState extends State<CalendarPage>
             progress.hasChosenFirstMaatFlow || _firstMaatFlowId != null,
         hasTappedFirstFlowDay: true,
         hasOpenedFirstFlowEvent: true,
-        hasSeenObservedJournalPrompt: true,
-        hasSeenMenuPrompt: true,
-        currentStep: TrueOnboardingStep.complete,
-        completedOnboarding: true,
+        hasSeenObservedJournalPrompt: false,
+        hasSeenMenuPrompt: false,
+        currentStep: TrueOnboardingStep.eventDetailObservedJournal,
+        completedOnboarding: false,
       ),
     );
-    final userId = _currentUserId;
-    if (userId != null && userId.isNotEmpty) {
-      await DailyOrientationRepo(Supabase.instance.client).complete(
-        userId: userId,
-        localDate: DateTime.now(),
-        chosenReturn: _onboardingCompassCopy?.dayAlignedReturnKey,
-        badgeLabel: 'this is ḥꜣw',
-      );
+    if (_onboardingReviewMode) {
+      if (mounted) {
+        setState(() {
+          _reflectionPrompt = null;
+          _showCalendarToggleCoachmark = false;
+          _calendarAfterOnboardingHelperPrompted = false;
+        });
+      }
     }
-    await _markOnboardingCompletedIfNeeded();
-    unawaited(
-      Events.trackIfAuthed('onboarding_completed', const <String, dynamic>{}),
-    );
-    if (mounted) {
-      context.go('/');
-    }
+    await _showOnboardingDayRhythm();
   }
 
   Future<void> _handleHawEntryStateSelected(String entryState) async {
@@ -13838,7 +15640,7 @@ class CalendarPageState extends State<CalendarPage>
       ),
     );
     final userId = _currentUserId;
-    if (userId != null && userId.isNotEmpty) {
+    if (!_onboardingReviewMode && userId != null && userId.isNotEmpty) {
       await DailyOrientationRepo(Supabase.instance.client).start(
         userId: userId,
         localDate: DateTime.now(),
@@ -13847,25 +15649,44 @@ class CalendarPageState extends State<CalendarPage>
         chosenReturn: _onboardingCompassCopy?.dayAlignedReturnKey,
       );
     }
-    unawaited(
-      Events.trackIfAuthed('onboarding_entry_state_selected', <String, dynamic>{
-        'entry_state': entryState,
-      }),
-    );
+    if (!_onboardingReviewMode) {
+      unawaited(
+        Events.trackIfAuthed(
+          'onboarding_entry_state_selected',
+          <String, dynamic>{'entry_state': entryState},
+        ),
+      );
+    }
   }
 
   Future<void> _handleHawRecommendedFlowJoined(int flowId) async {
     final template = _maatTemplateForKey(kEveningThresholdFlowKey);
-    if (template != null) {
+    if (!_onboardingReviewMode && template != null) {
       CalendarPage._rememberJoinedMaatFlowTemplate(
         templateKey: template.key,
         flowId: flowId,
       );
+      _myFlowsFilingSnapshotCache = null;
+      await _flowsRepo.clearMyFiledFlowsCache();
     }
-    _myFlowsFilingSnapshotCache = null;
-    await _flowsRepo.clearMyFiledFlowsCache();
-    await _loadFromDisk(source: 'onboarding_evening_threshold_join');
-    final firstEvent = _firstUpcomingNoteForFlow(flowId);
+    final stagedTarget = _firstMaatFlowId == flowId
+        ? _firstMaatFlowEventKDate
+        : null;
+    final stagedEvent = stagedTarget == null
+        ? null
+        : _firstFlowTargetNoteForDay(
+            stagedTarget.ky,
+            stagedTarget.km,
+            stagedTarget.kd,
+          );
+    final firstEvent = stagedEvent != null && stagedTarget != null
+        ? (
+            ky: stagedTarget.ky,
+            km: stagedTarget.km,
+            kd: stagedTarget.kd,
+            note: stagedEvent,
+          )
+        : _firstUpcomingNoteForFlow(flowId);
     final eventDate = firstEvent == null
         ? DateUtils.dateOnly(DateTime.now())
         : DateUtils.dateOnly(
@@ -13880,12 +15701,16 @@ class CalendarPageState extends State<CalendarPage>
         : (kYear: firstEvent.ky, kMonth: firstEvent.km, kDay: firstEvent.kd);
 
     _firstMaatFlowId = flowId;
-    _firstMaatFlowEventClientEventId = firstEvent?.note.clientEventId;
+    _firstMaatFlowEventClientEventId =
+        firstEvent?.note.clientEventId ?? _firstMaatFlowEventClientEventId;
     _firstMaatFlowEventKDate = (
       ky: kDate.kYear,
       km: kDate.kMonth,
       kd: kDate.kDay,
     );
+    final canonicalDayRhythmIdentity =
+        _firstMaatFlowOnboardingDayRhythmIdentity ??
+        _onboardingDayRhythmIdentity();
 
     await _updateOnboardingProgress(
       (progress) => progress.copyWith(
@@ -13893,19 +15718,244 @@ class CalendarPageState extends State<CalendarPage>
         firstMaatFlowId: flowId.toString(),
         firstMaatFlowTemplateId: kEveningThresholdFlowKey,
         firstMaatFlowEventDate: eventDate,
-        firstMaatFlowEventClientEventId: firstEvent?.note.clientEventId,
+        firstMaatFlowEventClientEventId: _firstMaatFlowEventClientEventId,
+        onboardingDayRhythmDateIdentity:
+            progress.onboardingDayRhythmDateIdentity ??
+            canonicalDayRhythmIdentity,
         currentStep: TrueOnboardingStep.firstFlowDayEvent,
       ),
     );
     if (mounted) {
       setState(() {});
     }
-    unawaited(
-      Events.trackIfAuthed(
-        'onboarding_evening_threshold_joined',
-        <String, dynamic>{'flow_id': flowId},
+    if (!_onboardingReviewMode) {
+      unawaited(
+        Events.trackIfAuthed(
+          'onboarding_evening_threshold_joined',
+          <String, dynamic>{'flow_id': flowId},
+        ),
+      );
+    }
+  }
+
+  Future<int> _addOnboardingReviewEveningThresholdInstance({
+    required _MaatFlowTemplate template,
+    DateTime? startDate,
+    TrackSkyTimeZone? trackSkyTimeZone,
+    String? eveningThresholdInitialCarry,
+  }) async {
+    final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+    final firstGregorian = DateUtils.dateOnly(
+      startDate ?? defaultEveningThresholdStartDate(timezone),
+    );
+    final event = kEveningThresholdEvents.firstWhere(
+      (candidate) => candidate.kind == EveningThresholdEventKind.theReturn,
+      orElse: () => kEveningThresholdEvents.first,
+    );
+    final schedule = dailyEveningThresholdScheduleForDate(
+      localDate: firstGregorian,
+      timezone: timezone,
+      event: event,
+    );
+    final eventDate = DateUtils.dateOnly(schedule.startLocal);
+    final kDate = KemeticMath.fromGregorian(eventDate);
+    final startTod = TimeOfDay(
+      hour: schedule.startLocal.hour,
+      minute: schedule.startLocal.minute,
+    );
+    final endTod = TimeOfDay(
+      hour: schedule.endLocal.hour,
+      minute: schedule.endLocal.minute,
+    );
+    final title = eveningThresholdEventTitle(event);
+    final detail = eveningThresholdDetailText(event);
+    final clientEventId = _buildCid(
+      ky: kDate.kYear,
+      km: kDate.kMonth,
+      kd: kDate.kDay,
+      title: title,
+      startHour: startTod.hour,
+      startMinute: startTod.minute,
+      allDay: false,
+      flowId: _onboardingReviewFirstFlowId,
+    );
+    final trimmedCarry = eveningThresholdInitialCarry?.trim();
+
+    _flows.removeWhere((flow) => flow.id == _onboardingReviewFirstFlowId);
+    _removeLocalNotesForFlowReplacement(_onboardingReviewFirstFlowId);
+    _flows.add(
+      _Flow(
+        id: _onboardingReviewFirstFlowId,
+        calendarId: _personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: <FlowRule>[
+          _RuleDates(
+            dates: <DateTime>{eventDate},
+            allDay: false,
+            start: startTod,
+            end: endTod,
+          ),
+        ],
+        start: eventDate,
+        end: eventDate,
+        notes: [
+          'mode=review',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'review_only=1',
+        ].join(';'),
       ),
     );
+    _flowTotalEventCounts[_onboardingReviewFirstFlowId] = 1;
+    _flowRemainingEventCounts[_onboardingReviewFirstFlowId] = 1;
+    _addNote(
+      kDate.kYear,
+      kDate.kMonth,
+      kDate.kDay,
+      title,
+      detail,
+      clientEventId: clientEventId,
+      calendarId: _personalCalendarId,
+      allDay: false,
+      start: startTod,
+      end: endTod,
+      flowId: _onboardingReviewFirstFlowId,
+      category: 'Ritual',
+      actionId: eveningThresholdActionId(event),
+      behaviorPayload: <String, dynamic>{
+        ...eveningThresholdBehaviorPayload(event: event, schedule: schedule),
+        'review_mode': true,
+        'review_source': 'onboarding_review',
+        if (trimmedCarry != null && trimmedCarry.isNotEmpty)
+          'review_initial_carry': trimmedCarry,
+      },
+      notify: false,
+    );
+    _firstMaatFlowOnboardingDayRhythmIdentity =
+        dailyCosmicContextGregorianDateKey(trackSkyNowInZone(timezone));
+    _notifyDayViewDataChanged();
+    if (mounted) setState(() {});
+    return _onboardingReviewFirstFlowId;
+  }
+
+  void _stageEveningThresholdOnboardingTarget({
+    required _MaatFlowTemplate template,
+    required int flowId,
+    DateTime? startDate,
+    TrackSkyTimeZone? trackSkyTimeZone,
+    String? eveningThresholdInitialCarry,
+  }) {
+    if (flowId <= 0) return;
+    final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+    final firstGregorian = DateUtils.dateOnly(
+      startDate ?? defaultEveningThresholdStartDate(timezone),
+    );
+    final event = kEveningThresholdEvents.firstWhere(
+      (candidate) => candidate.kind == EveningThresholdEventKind.theReturn,
+      orElse: () => kEveningThresholdEvents.first,
+    );
+    final schedule = dailyEveningThresholdScheduleForDate(
+      localDate: firstGregorian,
+      timezone: timezone,
+      event: event,
+    );
+    final eventDate = DateUtils.dateOnly(schedule.startLocal);
+    final kDate = KemeticMath.fromGregorian(eventDate);
+    final startTod = TimeOfDay(
+      hour: schedule.startLocal.hour,
+      minute: schedule.startLocal.minute,
+    );
+    final endTod = TimeOfDay(
+      hour: schedule.endLocal.hour,
+      minute: schedule.endLocal.minute,
+    );
+    final title = eveningThresholdEventTitle(event);
+    final detail = eveningThresholdDetailText(event);
+    final clientEventId = _buildCid(
+      ky: kDate.kYear,
+      km: kDate.kMonth,
+      kd: kDate.kDay,
+      title: title,
+      startHour: startTod.hour,
+      startMinute: startTod.minute,
+      allDay: false,
+      flowId: flowId,
+    );
+    final trimmedCarry = eveningThresholdInitialCarry?.trim();
+
+    _flows.removeWhere((flow) => flow.id == flowId);
+    _removeLocalNotesForFlowReplacement(flowId);
+    _flows.add(
+      _Flow(
+        id: flowId,
+        calendarId: _personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: <FlowRule>[
+          _RuleDates(
+            dates: <DateTime>{eventDate},
+            allDay: false,
+            start: startTod,
+            end: endTod,
+          ),
+        ],
+        start: eventDate,
+        end: eventDate,
+        notes: [
+          'mode=onboarding_preview',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'evening_threshold_tz=${timezone.key}',
+        ].join(';'),
+      ),
+    );
+    _flowTotalEventCounts[flowId] = 1;
+    _flowRemainingEventCounts[flowId] = 1;
+    _addNote(
+      kDate.kYear,
+      kDate.kMonth,
+      kDate.kDay,
+      title,
+      detail,
+      clientEventId: clientEventId,
+      calendarId: _personalCalendarId,
+      allDay: false,
+      start: startTod,
+      end: endTod,
+      flowId: flowId,
+      category: 'Ritual',
+      actionId: eveningThresholdActionId(event),
+      behaviorPayload: <String, dynamic>{
+        ...eveningThresholdBehaviorPayload(event: event, schedule: schedule),
+        if (trimmedCarry != null && trimmedCarry.isNotEmpty)
+          'onboarding_initial_carry': trimmedCarry,
+      },
+      notify: false,
+    );
+
+    _firstMaatFlowId = flowId;
+    _firstMaatFlowEventClientEventId = clientEventId;
+    _firstMaatFlowEventKDate = (
+      ky: kDate.kYear,
+      km: kDate.kMonth,
+      kd: kDate.kDay,
+    );
+    _firstMaatFlowOnboardingDayRhythmIdentity =
+        dailyCosmicContextGregorianDateKey(trackSkyNowInZone(timezone));
+    _rememberPendingOnboardingTargetEvent(
+      dayKey: _kKey(kDate.kYear, kDate.kMonth, kDate.kDay),
+      flowId: flowId,
+      clientEventId: clientEventId,
+    );
+    _notifyDayViewDataChanged();
+    if (mounted) setState(() {});
   }
 
   Widget _buildHawRecommendedFlow(
@@ -13948,13 +15998,23 @@ class CalendarPageState extends State<CalendarPage>
             DecanWatchLens? decanWatchLens,
             OpenHandLens? openHandLens,
             DjedLens? djedLens,
+            List<ReadingHouseSitting>? readingHouseSittings,
             String? eveningThresholdInitialCarry,
           }) {
+            if (_onboardingReviewMode) {
+              return _addOnboardingReviewEveningThresholdInstance(
+                template: template,
+                startDate: startDate,
+                trackSkyTimeZone: trackSkyTimeZone,
+                eveningThresholdInitialCarry: eveningThresholdInitialCarry,
+              );
+            }
+            final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
             return _addMaatFlowInstance(
               template: template,
               startDate: startDate,
               useKemetic: useKemetic ?? false,
-              trackSkyTimeZone: trackSkyTimeZone,
+              trackSkyTimeZone: timezone,
               alertMinutesBefore: alertMinutesBefore ?? _alertNoneMinutes,
               dawnDiscreetMode: dawnDiscreetMode ?? false,
               dawnLens: dawnLens ?? DawnHouseRiteLens.neutral,
@@ -13974,8 +16034,22 @@ class CalendarPageState extends State<CalendarPage>
               decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
               openHandLens: openHandLens ?? OpenHandLens.neutral,
               djedLens: djedLens ?? DjedLens.neutral,
+              readingHouseSittings: readingHouseSittings,
               eveningThresholdInitialCarry: eveningThresholdInitialCarry,
-            );
+              deferEveningThresholdRemainingEvents: true,
+              reloadAfterHeadlessJoin: false,
+            ).then((flowId) {
+              if (flowId > 0) {
+                _stageEveningThresholdOnboardingTarget(
+                  template: template,
+                  flowId: flowId,
+                  startDate: startDate,
+                  trackSkyTimeZone: timezone,
+                  eveningThresholdInitialCarry: eveningThresholdInitialCarry,
+                );
+              }
+              return flowId;
+            });
           },
       onJoined: (flowId) async {
         await _handleHawRecommendedFlowJoined(flowId);
@@ -13998,9 +16072,23 @@ class CalendarPageState extends State<CalendarPage>
       target.kd,
     );
     final focusEvent = targetNote == null ? null : _noteToEventItem(targetNote);
+    final isolateOnboardingTarget =
+        _showOnboarding &&
+        !_onboardingProgress.completedOnboarding &&
+        _activeHawOnboardingSlide.index >= HawOnboardingSlide.dayView.index;
 
-    List<NoteData> notesForDayFn(int y, int m, int d) =>
-        _noteDataForDay(y, m, d);
+    List<NoteData> notesForDayFn(int y, int m, int d) {
+      if (_onboardingReviewMode || isolateOnboardingTarget) {
+        if (targetNote == null ||
+            y != target.ky ||
+            m != target.km ||
+            d != target.kd) {
+          return const <NoteData>[];
+        }
+        return <NoteData>[_noteDataFromNote(targetNote)];
+      }
+      return _noteDataForDay(y, m, d);
+    }
 
     return DayViewPage(
       initialKy: target.ky,
@@ -14093,7 +16181,7 @@ class CalendarPageState extends State<CalendarPage>
           currentStep: TrueOnboardingStep.eventDetailObservedJournal,
         );
         final userId = _currentUserId;
-        if (userId != null) {
+        if (!_onboardingReviewMode && userId != null) {
           unawaited(
             _onboardingProgressStorage.save(userId, _onboardingProgress),
           );
@@ -14152,14 +16240,16 @@ class CalendarPageState extends State<CalendarPage>
       ),
     );
     final userId = _currentUserId;
-    if (userId != null && userId.isNotEmpty) {
+    if (!_onboardingReviewMode && userId != null && userId.isNotEmpty) {
       await DailyOrientationRepo(
         Supabase.instance.client,
       ).skip(userId: userId, localDate: DateTime.now());
     }
-    unawaited(
-      Events.trackIfAuthed('onboarding_skipped', const <String, dynamic>{}),
-    );
+    if (!_onboardingReviewMode) {
+      unawaited(
+        Events.trackIfAuthed('onboarding_skipped', const <String, dynamic>{}),
+      );
+    }
     await _markOnboardingCompletedIfNeeded();
     if (mounted) {
       context.go('/');
@@ -14167,6 +16257,7 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _markOnboardingCompletedIfNeeded() async {
+    if (_onboardingReviewMode) return;
     if (_replayOnboardingOnEveryLaunch) return;
 
     _onboardingContinuationStage = _OnboardingContinuationStage.none;
@@ -14176,10 +16267,19 @@ class CalendarPageState extends State<CalendarPage>
     await _persistOnboardingContinuationStage(
       _OnboardingContinuationStage.none,
     );
-    _onboardingProgress = _onboardingProgress.copyWith(
-      currentStep: TrueOnboardingStep.complete,
-      completedOnboarding: true,
+    final completeProgress = markOnboardingProgressComplete(
+      _onboardingProgress,
     );
+    final currentDecan = _currentOnboardingDecanIdentity();
+    _onboardingProgress =
+        completeProgress.reflectionSignupDecanIdentity?.trim().isNotEmpty ==
+            true
+        ? completeProgress
+        : (currentDecan == null
+              ? completeProgress
+              : completeProgress.copyWith(
+                  reflectionSignupDecanIdentity: currentDecan.wireName,
+                ));
     await _onboardingProgressStorage.save(userId, _onboardingProgress);
     await _onboardingStorage.markCompleted(userId);
   }
@@ -14187,6 +16287,8 @@ class CalendarPageState extends State<CalendarPage>
   void _hydrateFirstFlowTargetFromProgress(OnboardingProgress progress) {
     _firstMaatFlowId = int.tryParse(progress.firstMaatFlowId ?? '');
     _firstMaatFlowEventClientEventId = progress.firstMaatFlowEventClientEventId;
+    _firstMaatFlowOnboardingDayRhythmIdentity =
+        progress.onboardingDayRhythmDateIdentity;
     final eventDate = progress.firstMaatFlowEventDate;
     if (eventDate == null) {
       _firstMaatFlowEventKDate = null;
@@ -14285,11 +16387,13 @@ class CalendarPageState extends State<CalendarPage>
         onNext: () => unawaited(_handleCurrentDecanNext()),
       ),
     );
-    unawaited(
-      Events.trackIfAuthed('onboarding_current_decan_seen', <String, dynamic>{
-        'decan': _currentDecanName(expanded: false),
-      }),
-    );
+    if (!_onboardingReviewMode) {
+      unawaited(
+        Events.trackIfAuthed('onboarding_current_decan_seen', <String, dynamic>{
+          'decan': _currentDecanName(expanded: false),
+        }),
+      );
+    }
   }
 
   Future<void> _handleCurrentDecanNext() async {
@@ -14407,6 +16511,9 @@ class CalendarPageState extends State<CalendarPage>
       km: kDate.kMonth,
       kd: kDate.kDay,
     );
+    final canonicalDayRhythmIdentity =
+        _firstMaatFlowOnboardingDayRhythmIdentity ??
+        _onboardingDayRhythmIdentity();
 
     await _updateOnboardingProgress(
       (progress) => progress.copyWith(
@@ -14415,6 +16522,9 @@ class CalendarPageState extends State<CalendarPage>
         firstMaatFlowTemplateId: template.key,
         firstMaatFlowEventDate: eventDate,
         firstMaatFlowEventClientEventId: firstEvent?.note.clientEventId,
+        onboardingDayRhythmDateIdentity:
+            progress.onboardingDayRhythmDateIdentity ??
+            canonicalDayRhythmIdentity,
         currentStep: TrueOnboardingStep.firstFlowCalendarDay,
       ),
     );
@@ -14582,11 +16692,139 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
+  void _handleOnboardingDayRhythmChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  DateTime? _dateFromDayRhythmIdentity(String? identity) {
+    final trimmed = identity?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    final pieces = trimmed.split('-');
+    if (pieces.length != 3) return null;
+    final year = int.tryParse(pieces[0]);
+    final month = int.tryParse(pieces[1]);
+    final day = int.tryParse(pieces[2]);
+    if (year == null || month == null || day == null) return null;
+    return DateTime(year, month, day);
+  }
+
+  DateTime _onboardingDayRhythmDate() {
+    return DateUtils.dateOnly(
+      _dateFromDayRhythmIdentity(
+            _onboardingProgress.onboardingDayRhythmDateIdentity,
+          ) ??
+          trackSkyNowInZone(detectTrackSkyTimeZone()),
+    );
+  }
+
+  String _onboardingDayRhythmIdentity() {
+    return dailyCosmicContextGregorianDateKey(_onboardingDayRhythmDate());
+  }
+
+  Future<void> _showOnboardingDayRhythm() async {
+    if (!mounted) return;
+    final rhythmState = _onboardingProgress.onboardingDayRhythmState;
+    if (rhythmState == OnboardingDayRhythmState.completed) {
+      if (_onboardingProgress.lastSatisfiedDayRhythmIdentity == null) {
+        final identity =
+            _onboardingProgress.onboardingDayRhythmDateIdentity ??
+            _onboardingDayRhythmIdentity();
+        await _updateOnboardingProgress(
+          (progress) => progress.copyWith(
+            onboardingDayRhythmDateIdentity:
+                progress.onboardingDayRhythmDateIdentity ?? identity,
+            lastSatisfiedDayRhythmIdentity: identity,
+          ),
+        );
+        final userId = _currentUserId;
+        if (!_onboardingReviewMode &&
+            userId != null &&
+            userId.trim().isNotEmpty) {
+          await DailyCosmicContextPrefs().markShown(userId.trim(), identity);
+        }
+      }
+      await _handleObservedJournalPromptNext();
+      return;
+    }
+    if (rhythmState == OnboardingDayRhythmState.scheduled ||
+        rhythmState == OnboardingDayRhythmState.visible) {
+      return;
+    }
+
+    final rhythmDate = _onboardingDayRhythmDate();
+    final rhythmIdentity = dailyCosmicContextGregorianDateKey(rhythmDate);
+    await _updateOnboardingProgress(
+      (progress) => progress.copyWith(
+        currentStep: TrueOnboardingStep.eventDetailObservedJournal,
+        completedOnboarding: false,
+        hasSeenObservedJournalPrompt: false,
+        hasSeenMenuPrompt: false,
+        onboardingDayRhythmState: OnboardingDayRhythmState.scheduled,
+        onboardingDayRhythmDateIdentity: rhythmIdentity,
+      ),
+    );
+    if (!mounted) return;
+    GuidedOnboardingController.instance.clear();
+    GuidedOnboardingController.instance.setExternalOverlaySuppressed(true);
+
+    final badge = dailyCosmicContextBadgeForDate(rhythmDate);
+    if (badge == null) {
+      await _handleOnboardingDayRhythmDismissed();
+      return;
+    }
+
+    await _updateOnboardingProgress(
+      (progress) => progress.copyWith(
+        onboardingDayRhythmState: OnboardingDayRhythmState.visible,
+        onboardingDayRhythmDateIdentity: badge.gregorianDateKey,
+      ),
+    );
+    if (!mounted) return;
+    _onboardingDayRhythmController.showOnboardingBadge(
+      badge,
+      onDismissed: () => unawaited(_handleOnboardingDayRhythmDismissed()),
+    );
+  }
+
+  Future<void> _handleOnboardingDayRhythmDismissed() async {
+    final identity =
+        _onboardingProgress.onboardingDayRhythmDateIdentity ??
+        _onboardingDayRhythmIdentity();
+    if (_onboardingProgress.onboardingDayRhythmState !=
+            OnboardingDayRhythmState.completed ||
+        _onboardingProgress.lastSatisfiedDayRhythmIdentity != identity) {
+      await _updateOnboardingProgress(
+        (progress) => progress.copyWith(
+          onboardingDayRhythmState: OnboardingDayRhythmState.completed,
+          onboardingDayRhythmDateIdentity:
+              progress.onboardingDayRhythmDateIdentity ?? identity,
+          lastSatisfiedDayRhythmIdentity: identity,
+        ),
+      );
+    }
+    final userId = _currentUserId;
+    if (!_onboardingReviewMode && userId != null && userId.trim().isNotEmpty) {
+      await DailyCosmicContextPrefs().markShown(userId.trim(), identity);
+    }
+    await _handleObservedJournalPromptNext();
+  }
+
   Future<void> _handleObservedJournalPromptNext() async {
+    if (_onboardingProgress.currentStep == TrueOnboardingStep.complete) {
+      return;
+    }
+    if (_onboardingProgress.currentStep == TrueOnboardingStep.menuExplore ||
+        _onboardingProgress.hasSeenObservedJournalPrompt) {
+      _showMenuExploreCoachmark();
+      return;
+    }
     await _updateOnboardingProgress(
       (progress) => progress.copyWith(
         hasSeenObservedJournalPrompt: true,
+        hasSeenMenuPrompt: false,
         currentStep: TrueOnboardingStep.menuExplore,
+        completedOnboarding: false,
       ),
     );
     _showMenuExploreCoachmark();
@@ -14594,24 +16832,53 @@ class CalendarPageState extends State<CalendarPage>
 
   void _showMenuExploreCoachmark() {
     if (!mounted) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Future<void>.delayed(const Duration(milliseconds: 260), () {
-        if (!mounted) return;
-        GuidedOnboardingController.instance.show(
-          CoachmarkTarget(
-            key: globalMenuButtonKey,
-            title: 'Explore the rest of ḥꜣw.',
-            body:
-                'Your calendar, flows, journal, profile, library, and community all connect from here. Tap the menu anytime to move through the app.',
-            placement: CoachmarkPlacement.above,
-            showNextButton: true,
-            nextLabel: 'Enter ḥꜣw',
-            allowBackgroundInteraction: true,
-            onNext: () => unawaited(_completeTrueOnboarding()),
-          ),
-        );
-      });
-    });
+    unawaited(_showMenuExploreCoachmarkWhenReady());
+  }
+
+  Future<void> _showMenuExploreCoachmarkWhenReady() async {
+    await _waitForCoachmarkTargetReady(globalMenuButtonKey);
+    if (!mounted) return;
+    if (!shouldPresentFinalOnboardingMenuHandoff(_onboardingProgress)) {
+      return;
+    }
+    const helper = OnboardingHelperRegistry.calendarMenuExplore;
+    final helperUserId = (_currentUserId?.trim().isNotEmpty ?? false)
+        ? _currentUserId!.trim()
+        : 'onboarding-review';
+    GuidedOnboardingController.instance.show(
+      CoachmarkTarget(
+        key: globalMenuButtonKey,
+        title: helper.title,
+        body: helper.body,
+        placement: CoachmarkPlacement.above,
+        variant: CoachmarkVariant.helperBubble,
+        showDismissButton: true,
+        dismissLabel: 'Got it',
+        allowBackgroundInteraction: true,
+        helperId: helper.id,
+        helperUserId: helperUserId,
+        sourceWidget: helper.sourceWidget,
+        showWhenHelperCompleted: true,
+        onDismiss: () => unawaited(_completeTrueOnboarding()),
+      ),
+      externalOverlaySuppressed: false,
+    );
+  }
+
+  Future<void> _waitForCoachmarkTargetReady(
+    GlobalKey key, {
+    int maxFrames = 12,
+  }) async {
+    for (var frame = 0; frame < maxFrames; frame += 1) {
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted) return;
+      final renderObject = key.currentContext?.findRenderObject();
+      if (renderObject is RenderBox &&
+          renderObject.hasSize &&
+          !renderObject.size.isEmpty) {
+        return;
+      }
+    }
   }
 
   Future<void> _completeTrueOnboarding() async {
@@ -14624,15 +16891,30 @@ class CalendarPageState extends State<CalendarPage>
         completedOnboarding: true,
       ),
     );
+    final userId = _currentUserId;
+    if (!_onboardingReviewMode && userId != null && userId.isNotEmpty) {
+      await DailyOrientationRepo(Supabase.instance.client).complete(
+        userId: userId,
+        localDate: DateTime.now(),
+        chosenReturn: _onboardingCompassCopy?.dayAlignedReturnKey,
+        badgeLabel: 'this is ḥꜣw',
+      );
+    }
     await _markOnboardingCompletedIfNeeded();
-    unawaited(
-      Events.trackIfAuthed('onboarding_completed', const <String, dynamic>{}),
-    );
+    if (!_onboardingReviewMode) {
+      unawaited(
+        Events.trackIfAuthed('onboarding_completed', const <String, dynamic>{}),
+      );
+    }
   }
 
   Future<void> _maybeShowCalendarHelperAfterOnboarding(
     OnboardingProgress progress,
   ) async {
+    if (_onboardingReviewMode ||
+        CalendarPage.debugSuppressCalendarOnboardingHelpers) {
+      return;
+    }
     final userId = _currentUserId;
     if (!mounted ||
         _calendarAfterOnboardingHelperPrompted ||
@@ -15205,16 +17487,11 @@ class CalendarPageState extends State<CalendarPage>
     int? overrideKy,
     int? overrideKm,
     int? overrideKd,
-    double? overrideScrollOffset,
   }) {
     final ky = overrideKy ?? _lastViewKy ?? _today.kYear;
     final km = overrideKm ?? _lastViewKm ?? _today.kMonth;
     final maxDay = _maxDayForMonth(ky, km);
     final kd = (overrideKd ?? _lastViewKd ?? _today.kDay).clamp(1, maxDay);
-    final scrollOffset =
-        overrideScrollOffset ??
-        (_scrollCtrl.hasClients ? _scrollCtrl.position.pixels : null) ??
-        _lastKnownCalendarScrollOffset;
     final viewportAnchor = _currentViewportCalendarAnchor();
     return CalendarRestorationState(
       kYear: ky,
@@ -15226,7 +17503,6 @@ class CalendarPageState extends State<CalendarPage>
       anchorAlignment: viewportAnchor?.alignment,
       viewportHeight: _currentViewportHeight(),
       layoutRevision: _kCalendarRestorationLayoutRevision,
-      scrollOffset: scrollOffset,
     );
   }
 
@@ -15234,7 +17510,9 @@ class CalendarPageState extends State<CalendarPage>
     CalendarRestorationState state, {
     required String reason,
   }) async {
-    _lastKnownCalendarScrollOffset = state.scrollOffset;
+    if (state.scrollOffset != null) {
+      _lastKnownCalendarScrollOffset = state.scrollOffset;
+    }
     await AppRestorationService.instance.saveCalendarState(state);
     await SessionResumeService.saveScopedState(_kSessionScopeCalendarView, {
       'schemaVersion': _kCalendarViewStateSchemaVersion,
@@ -15315,7 +17593,20 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> _persistDayViewState(
     DayViewRestorationState state, {
     required String reason,
+    int? writeSessionId,
   }) async {
+    if (!_dayViewRestorationWriteGate.shouldPersist(
+      isOpen: state.isOpen,
+      sessionId: writeSessionId,
+    )) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[restoration] ignored stale day_view reason=$reason '
+          'open=${state.isOpen}',
+        );
+      }
+      return;
+    }
     _activeDayViewRestorationState = state;
     await AppRestorationService.instance.saveDayViewState(state);
     if (kDebugMode) {
@@ -15331,6 +17622,7 @@ class CalendarPageState extends State<CalendarPage>
     _pendingPersistentDayViewState = null;
     _persistentDayViewRestoreAttempted = true;
     _calendarOverlayRestoreAttempted = true;
+    _dayViewRestorationWriteGate.markActiveClosed();
     final dayViewState = _activeDayViewRestorationState;
     if (dayViewState != null && dayViewState.isOpen) {
       final closedState = dayViewState.copyWith(
@@ -15345,6 +17637,11 @@ class CalendarPageState extends State<CalendarPage>
   void _schedulePersistentDayViewRestore() {
     if (!_restoreDayViewRouteOnStartup) {
       _persistentDayViewRestoreAttempted = true;
+      return;
+    }
+    if (!_canRestorePersistentDayViewRouteForCurrentViewport()) {
+      _persistentDayViewRestoreAttempted = true;
+      _pendingPersistentDayViewState = null;
       return;
     }
     if (!RestorationCoordinator.instance.canRestoreSurface(
@@ -15368,6 +17665,11 @@ class CalendarPageState extends State<CalendarPage>
     if (!mounted || _persistentDayViewRestoreAttempted) return;
     if (!_restoreDayViewRouteOnStartup) {
       _persistentDayViewRestoreAttempted = true;
+      return;
+    }
+    if (!_canRestorePersistentDayViewRouteForCurrentViewport()) {
+      _persistentDayViewRestoreAttempted = true;
+      _pendingPersistentDayViewState = null;
       return;
     }
     if (!RestorationCoordinator.instance.canRestoreSurface(
@@ -15447,11 +17749,20 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
+  bool _canRestorePersistentDayViewRouteForCurrentViewport() {
+    final media = MediaQuery.maybeOf(context);
+    if (media == null) return true;
+    return media.size.shortestSide < 600;
+  }
+
   void _applyTodayFallbackAfterRestore({required String reason}) {
     if (kDebugMode) {
       _calendarDebugPrint(
         '[restoration] calendar fallback=today reason=$reason',
       );
+    }
+    if (!_initialViewportSettled) {
+      _calendarScrollBaseYear = _today.kYear;
     }
     _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
     _scheduleInitialViewportRestore();
@@ -15462,7 +17773,6 @@ class CalendarPageState extends State<CalendarPage>
       _persistentDayViewRestoreAttempted = false;
       _restoredCalendarAnchorTarget = null;
       _restoredCalendarAnchorAlignment = null;
-      _restoredCalendarScrollOffset = null;
       _restorationInteractedSinceBoot = false;
       _restored = true;
       return;
@@ -15474,7 +17784,6 @@ class CalendarPageState extends State<CalendarPage>
       _persistentDayViewRestoreAttempted = false;
       _restoredCalendarAnchorTarget = null;
       _restoredCalendarAnchorAlignment = null;
-      _restoredCalendarScrollOffset = null;
       _restorationInteractedSinceBoot = false;
       _restored = true;
     });
@@ -15485,9 +17794,19 @@ class CalendarPageState extends State<CalendarPage>
     required String reason,
   }) {
     _suppressPendingRestoresForUserNavigation();
-    _applyTodayFallbackAfterRestore(reason: reason);
+    _restorationInteractedSinceBoot = true;
+    _restoredCalendarAnchorTarget = null;
+    _restoredCalendarAnchorAlignment = null;
+    _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
+    NavigationTrace.instance.record(
+      'Calendar Today viewport command',
+      state: <String, Object?>{'reason': reason, 'animate': animate},
+    );
     _scrollToToday(animate: animate);
   }
+
+  bool get _isPrimaryCalendarRouteCurrent =>
+      ModalRoute.of(context)?.isCurrent ?? true;
 
   bool _consumePendingTodayNavigationCommand({required String trigger}) {
     if (!CalendarPage._pendingTodayNavigationCommand) return false;
@@ -15561,11 +17880,17 @@ class CalendarPageState extends State<CalendarPage>
         'event=${event.name} user=$authUserId mismatch=$userMismatch',
       );
     }
-    await _loadPersistedViewState(trigger: 'auth:${event.name}');
+    await _loadPersistedViewState(
+      trigger: 'auth:${event.name}',
+      allowUserInteractionOverride: userMismatch,
+    );
   }
 
   /// ✅ Load persisted view state from permanent per-window restoration first.
-  Future<void> _loadPersistedViewState({String trigger = 'startup'}) async {
+  Future<void> _loadPersistedViewState({
+    String trigger = 'startup',
+    bool allowUserInteractionOverride = false,
+  }) async {
     if (_consumePendingTodayNavigationCommand(trigger: trigger)) {
       return;
     }
@@ -15576,6 +17901,17 @@ class CalendarPageState extends State<CalendarPage>
     try {
       final readResult = await AppRestorationService.instance
           .readBestSnapshot();
+      if (_restorationInteractedSinceBoot && !allowUserInteractionOverride) {
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[restoration] ignored stale persisted view '
+            'trigger=$trigger after user navigation',
+          );
+        }
+        _pendingAuthResolutionForRestore = false;
+        _tentativeRestorationUserId = null;
+        return;
+      }
       if (readResult.isAwaitingAuth) {
         _pendingAuthResolutionForRestore = true;
         _tentativeRestorationUserId = null;
@@ -15616,6 +17952,18 @@ class CalendarPageState extends State<CalendarPage>
         );
       }
 
+      if (_restorationInteractedSinceBoot && !allowUserInteractionOverride) {
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[restoration] ignored stale persisted fallback '
+            'trigger=$trigger after user navigation',
+          );
+        }
+        _pendingAuthResolutionForRestore = false;
+        _tentativeRestorationUserId = null;
+        return;
+      }
+
       if (savedCalendar != null) {
         final today = KemeticMath.fromGregorian(DateTime.now());
 
@@ -15645,6 +17993,9 @@ class CalendarPageState extends State<CalendarPage>
         }
 
         setState(() {
+          if (!_initialViewportSettled) {
+            _calendarScrollBaseYear = savedCalendar!.kYear;
+          }
           _lastViewKy = savedCalendar!.kYear;
           _lastViewKm = savedCalendar.kMonth;
           _lastViewKd = clampedDay;
@@ -15652,7 +18003,6 @@ class CalendarPageState extends State<CalendarPage>
           _monthExpansion = _parseExpansion(savedCalendar.expansion);
           _restoredCalendarAnchorTarget = savedCalendar.anchorTarget;
           _restoredCalendarAnchorAlignment = savedCalendar.anchorAlignment;
-          _restoredCalendarScrollOffset = savedCalendar.scrollOffset;
           _pendingPersistentDayViewState =
               shouldRestoreDayViewRoute &&
                   savedDayView != null &&
@@ -15739,16 +18089,56 @@ class CalendarPageState extends State<CalendarPage>
   void _scheduleInitialViewportRestore() {
     if (_initialJumpScheduled) return;
     _initialJumpScheduled = true;
+    _initialViewportSettlementCompleter = Completer<void>();
+    final restoreIntentLease = RestorationCoordinator.instance
+        .captureUserIntentLease();
+    final restoreStopwatch = Stopwatch()..start();
 
     void finishRestore() {
-      _initialViewportSettled = true;
-      _initialJumpScheduled = false;
+      restoreStopwatch.stop();
+      final settlement = _initialViewportSettlementCompleter;
+      if (settlement != null && !settlement.isCompleted) {
+        settlement.complete();
+      }
+      if (!mounted) {
+        _initialViewportSettled = true;
+        _initialJumpScheduled = false;
+        return;
+      }
+      setState(() {
+        _initialViewportSettled = true;
+        _initialJumpScheduled = false;
+      });
     }
 
     void attemptRestore(int tries) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) {
           finishRestore();
+          return;
+        }
+        if (!restoreIntentLease.isCurrent) {
+          traceRestoration(
+            'calendar viewport restore skipped '
+            'reason=user_intent_during_viewport_restore tries=$tries',
+          );
+          _restoredCalendarAnchorTarget = null;
+          _restoredCalendarAnchorAlignment = null;
+          finishRestore();
+          return;
+        }
+        if (restoreStopwatch.elapsed >= _initialViewportRestoreDeadline) {
+          traceRestoration(
+            'calendar viewport restore skipped '
+            'reason=viewport_restore_deadline_elapsed tries=$tries',
+          );
+          _restoredCalendarAnchorTarget = null;
+          _restoredCalendarAnchorAlignment = null;
+          finishRestore();
+          return;
+        }
+        if (!_scrollCtrl.hasClients && !_initialCalendarLoadFinished) {
+          attemptRestore(tries);
           return;
         }
         bool ok = false;
@@ -15766,28 +18156,15 @@ class CalendarPageState extends State<CalendarPage>
             _restoredCalendarAnchorAlignment = null;
           }
         }
-        final restoredOffset = _restoredCalendarScrollOffset;
-        if (!ok &&
-            restoredOffset != null &&
-            _scrollCtrl.hasClients &&
-            _scrollCtrl.position.hasContentDimensions) {
-          final position = _scrollCtrl.position;
-          final clamped = restoredOffset.clamp(
-            position.minScrollExtent,
-            position.maxScrollExtent,
-          );
-          _scrollCtrl.jumpTo(clamped);
-          _lastKnownCalendarScrollOffset = clamped.toDouble();
-          _restoredCalendarAnchorTarget = null;
-          _restoredCalendarAnchorAlignment = null;
-          _restoredCalendarScrollOffset = null;
-          ok = true;
-        }
+        // Raw pixels belong to the previous sliver geometry. Cross-recreation
+        // restoration is anchored by the persisted Kemetic date instead.
         ok = ok || _jumpToCurrentViewNow(animate: false);
+        if (!ok) {
+          _materializeCurrentViewYearForRestore();
+        }
         if (ok || tries >= 20) {
           _restoredCalendarAnchorTarget = null;
           _restoredCalendarAnchorAlignment = null;
-          _restoredCalendarScrollOffset = null;
           finishRestore();
         } else {
           attemptRestore(tries + 1);
@@ -15796,6 +18173,43 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     attemptRestore(0);
+  }
+
+  Future<void> _awaitInitialViewportSettlementForFirstPaint() async {
+    if (_initialViewportSettled) return;
+    if (!_initialJumpScheduled) {
+      _scheduleInitialViewportRestore();
+    }
+    final settlement = _initialViewportSettlementCompleter;
+    if (settlement != null) {
+      await settlement.future;
+    }
+  }
+
+  void _materializeCurrentViewYearForRestore() {
+    if (!_scrollCtrl.hasClients || !_scrollCtrl.position.hasContentDimensions) {
+      return;
+    }
+    final targetYear = _lastViewKy;
+    final baseYear = _calendarScrollBaseYear ?? _today.kYear;
+    if (targetYear == null || targetYear == baseYear) return;
+
+    const bufferedYearsPerDirection = 200;
+    final yearDistance = (targetYear - baseYear).abs();
+    final yearCenterIndex = (yearDistance - 0.5).clamp(
+      0.0,
+      bufferedYearsPerDirection.toDouble(),
+    );
+    final fraction = yearCenterIndex / bufferedYearsPerDirection;
+    final position = _scrollCtrl.position;
+    final directionalExtent = targetYear < baseYear
+        ? position.minScrollExtent
+        : position.maxScrollExtent;
+    final targetPixels = (directionalExtent * fraction)
+        .clamp(position.minScrollExtent, position.maxScrollExtent)
+        .toDouble();
+    if ((position.pixels - targetPixels).abs() < 1) return;
+    position.jumpTo(targetPixels);
   }
 
   int _sessionDayForMonth(int ky, int km) {
@@ -15815,27 +18229,6 @@ class CalendarPageState extends State<CalendarPage>
     _lastViewKy = centered.$1;
     _lastViewKm = centered.$2;
     _lastViewKd = _sessionDayForMonth(centered.$1, centered.$2);
-  }
-
-  void _commitLandscapeVisibleMonthForRotation(int ky, int km) {
-    _restorationInteractedSinceBoot = true;
-    _lastViewKy = ky;
-    _lastViewKm = km;
-    _lastViewKd = _sessionDayForMonth(ky, km);
-    if (_rememberLastView) {
-      _scheduleCalendarRestorationSave(reason: 'landscape_rotation_commit');
-    }
-    final orientation = MediaQuery.maybeOf(context)?.orientation;
-    if (orientation == Orientation.portrait) {
-      _portraitRecenterPending = true;
-      if (mounted) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            setState(() {});
-          }
-        });
-      }
-    }
   }
 
   void _scheduleEventDetailOrientationHandoff() {
@@ -16180,59 +18573,17 @@ class CalendarPageState extends State<CalendarPage>
     return _scrollOffsetForContext(targetCtx, alignment: 0.5);
   }
 
-  /// ✅ Handle month change from landscape view (WITH CORRECT FEEDBACK LOOP GUARD TIMING)
-  void _handleLandscapeMonthChanged(int ky, int km) {
-    // ✅ PREVENT FEEDBACK LOOP: Don't update if we're already updating
-    if (_isUpdatingFromLandscape) {
-      if (kDebugMode) {
-        _calendarDebugPrint(
-          '🔄 [CALENDAR] Ignoring landscape update (already updating)',
-        );
-      }
-      return;
-    }
-
-    if (kDebugMode) {
-      _calendarDebugPrint(
-        '🔄 [CALENDAR] Landscape month changed: Year $ky, Month $km',
-      );
-    }
-
-    // ✅ SET FLAG: Prevent portrait from triggering landscape update
-    _isUpdatingFromLandscape = true;
-
-    // ✅ FIX 5: Exception-safe callback handling
-    try {
-      _restorationInteractedSinceBoot = true;
-      // ✅ HARDENING 1: Clamp day when month changes, or use today's day if month matches today
-      final maxDay = _maxDayForMonth(ky, km);
-      int clampedKd;
-
-      // If this is today's month, use today's day; otherwise clamp existing day
-      if (ky == _today.kYear && km == _today.kMonth) {
-        clampedKd = _today.kDay.clamp(1, maxDay);
-      } else {
-        clampedKd = (_lastViewKd ?? 1).clamp(1, maxDay);
-      }
-
-      _setView(ky, km, kd: clampedKd);
-    } catch (e) {
-      if (kDebugMode) {
-        _calendarDebugPrint(
-          '⚠️ [CALENDAR] Error in landscape month change: $e',
-        );
-      }
-    } finally {
-      // ✅ CLEAR FLAG AFTER FRAME: This ensures portrait's scroll listener can see the flag
-      // Using post-frame callback prevents the flag from clearing before portrait processes the update
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _isUpdatingFromLandscape = false;
-      });
-    }
+  @override
+  void deactivate() {
+    _retainProcessRouteHandoff(source: 'deactivate');
+    super.deactivate();
   }
 
   @override
   void dispose() {
+    _calendarResumeLifecycleGeneration++;
+    _cancelCalendarResumeRetryTimers();
+    _retainProcessRouteHandoff(source: 'dispose');
     // ✅ Unsubscribe from RouteObserver
     if (_isSubscribed) {
       routeObserver.unsubscribe(this);
@@ -16259,6 +18610,15 @@ class CalendarPageState extends State<CalendarPage>
     _scrollCtrl.dispose();
     _dayViewDataVersion.dispose();
     _dayViewEventDetailRequest.dispose();
+    _onboardingDayRhythmController.removeListener(
+      _handleOnboardingDayRhythmChanged,
+    );
+    _onboardingDayRhythmController.dispose();
+    if (_onboardingReviewMode) {
+      _hasPresentedOnboardingThisLaunch = false;
+      _onboardingReviewSessionProgress = null;
+      _onboardingReviewSessionSlide = null;
+    }
     GuidedOnboardingController.instance.setExternalOverlaySuppressed(false);
     super.dispose();
   }
@@ -16271,6 +18631,8 @@ class CalendarPageState extends State<CalendarPage>
 
   @override
   void didPushNext() {
+    _retainProcessRouteHandoff(source: 'did_push_next');
+    unawaited(_flushPendingWarmStartCacheSave(reason: 'did_push_next'));
     unawaited(_flushPendingCalendarRestorationSave(reason: 'did_push_next'));
     if (!_canShowCalendarToggleCoachmarkOnReturn) return;
     _calendarToggleCoachmarkArmedForReturn = true;
@@ -16368,7 +18730,8 @@ class CalendarPageState extends State<CalendarPage>
     String reason = 'resume',
     bool force = false,
   }) async {
-    if (!mounted) return;
+    final principalLease = _captureCalendarPrincipalLease();
+    if (principalLease == null) return;
     final refreshStartedAt = DateTime.now();
     if (!force && !_shouldRefreshAfterForegroundResume(refreshStartedAt)) {
       _lastRefreshTime = refreshStartedAt;
@@ -16382,15 +18745,17 @@ class CalendarPageState extends State<CalendarPage>
 
     // Small delay to make sure any DB writes (like imports) are done
     await Future.delayed(const Duration(milliseconds: 200));
-    if (!mounted) return;
+    if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
 
     try {
       await ShareRepo(
         Supabase.instance.client,
       ).syncAcceptedInviteCalendarImports();
+      if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
       await _loadFromDisk(source: 'foreground:$reason', preserveViewport: true);
+      if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
       _lastRefreshTime = DateTime.now();
-      if (mounted) setState(() {});
+      setState(() {});
       _checkDueReminders();
       await _maybeLoadDecanReflectionPrompt(force: true);
     } catch (e) {
@@ -16553,9 +18918,13 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
-  Future<void> _primeReminderRulesFromFlows(Iterable<_Flow> flows) async {
+  Future<void> _primeReminderRulesFromFlows(
+    Iterable<_Flow> flows, {
+    required _CalendarPrincipalLease principalLease,
+  }) async {
     try {
       await _loadEndedReminderIds();
+      if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
       var source = flows
           .where((flow) => flow.isReminder)
           .map(_reminderRuleFromFlow)
@@ -16564,6 +18933,7 @@ class CalendarPageState extends State<CalendarPage>
           .toList(growable: false);
       if (source.isEmpty) {
         source = await _reminderRuleStore.load();
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
       }
 
       final merged = _dedupeReminderRules(
@@ -16574,6 +18944,7 @@ class CalendarPageState extends State<CalendarPage>
         ..addAll(merged);
       _reminderRulesLoaded = true;
 
+      if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
       if (merged.isNotEmpty) {
         await _saveReminderRules();
       } else {
@@ -17396,7 +19767,9 @@ class CalendarPageState extends State<CalendarPage>
     required List<DateTime> occurrences,
     int? flowId,
     bool notify = true,
+    Map<String, List<_Note>>? notesTarget,
   }) {
+    final target = notesTarget ?? _notes;
     var changed = false;
     final calendarName = _calendarSummary(rule.calendarId)?.name;
     for (final day in occurrences) {
@@ -17416,7 +19789,7 @@ class CalendarPageState extends State<CalendarPage>
       // Skip if a canonical DB-backed note already exists for this flow/time/title.
       if (flowId != null && flowId > 0) {
         final key = _kKey(k.kYear, k.kMonth, k.kDay);
-        final bucket = _notes[key];
+        final bucket = target[key];
         if (bucket != null) {
           final targetTitle = rule.title.trim().toLowerCase();
           final hasCanonical = bucket.any((n) {
@@ -17457,6 +19830,7 @@ class CalendarPageState extends State<CalendarPage>
             flowId: flowId,
             alertOffsetMinutes: rule.alertOffsetMinutes,
             notify: false,
+            notesTarget: target,
           ) ||
           changed;
     }
@@ -17465,6 +19839,45 @@ class CalendarPageState extends State<CalendarPage>
       _refreshNoteCacheUi();
     }
     return changed;
+  }
+
+  int? _loadedFlowIdForReminderRule(ReminderRule rule, Iterable<_Flow> flows) {
+    final dbUuid = _dbReminderUuidFromRuleId(rule.id);
+    if (dbUuid == null) return null;
+    for (final flow in flows) {
+      if (flow.isReminder && flow.reminderUuid == dbUuid) {
+        return flow.id;
+      }
+    }
+    return null;
+  }
+
+  void _stageReminderOccurrencesForHydration({
+    required Map<String, List<_Note>> notesTarget,
+    required Iterable<_Flow> flows,
+  }) {
+    if (_reminderRules.isEmpty) return;
+    final today = DateUtils.dateOnly(DateTime.now());
+    final windowEnd = _reminderWindowEnd(today, _reminderRules);
+    for (final rule in _reminderRules) {
+      _materializeReminderLocally(
+        rule: rule,
+        occurrences: _generateReminderOccurrences(rule, today, windowEnd),
+        flowId: _loadedFlowIdForReminderRule(rule, flows),
+        notify: false,
+        notesTarget: notesTarget,
+      );
+    }
+    if (kDebugMode) {
+      final todayK = KemeticMath.fromGregorian(today);
+      final todayKey = _kKey(todayK.kYear, todayK.kMonth, todayK.kDay);
+      final todayReminderCount =
+          notesTarget[todayKey]?.where((note) => note.isReminder).length ?? 0;
+      _calendarDebugPrint(
+        '[reminders] staged hydration rules=${_reminderRules.length} '
+        'todayCount=$todayReminderCount',
+      );
+    }
   }
 
   Future<void> _syncReminderEvents({
@@ -17835,34 +20248,6 @@ class CalendarPageState extends State<CalendarPage>
     if (changed) {
       _refreshNoteCacheUi();
     }
-  }
-
-  Future<bool> _regenReminderNotes({bool notify = true}) async {
-    await _loadReminderRules();
-    if (_reminderRules.isEmpty) return false;
-    final today = DateUtils.dateOnly(DateTime.now());
-    final windowEnd = _reminderWindowEnd(today, _reminderRules);
-    var changed = false;
-    // Clear existing reminder notes
-    for (final r in _reminderRules) {
-      changed = _pruneReminderNotes(r.id, fromDate: null) || changed;
-    }
-    for (final r in _reminderRules) {
-      final occs = _generateReminderOccurrences(r, today, windowEnd);
-      final flowId = await _findFlowIdByReminderUuid(r.id);
-      changed =
-          _materializeReminderLocally(
-            rule: r,
-            occurrences: occs,
-            flowId: flowId,
-            notify: false,
-          ) ||
-          changed;
-    }
-    if (changed && notify) {
-      _refreshNoteCacheUi();
-    }
-    return changed;
   }
 
   void _rebuildReminderRulesFromFlowsIfMissing() {
@@ -19168,11 +21553,6 @@ class CalendarPageState extends State<CalendarPage>
         }
       }
     }
-    if (kDebugMode) {
-      _calendarDebugPrint(
-        '[calendarFlowChrome] referencedFlowIds=${ids.length} flows=${_flows.length}',
-      );
-    }
     return ids;
   }
 
@@ -19218,6 +21598,7 @@ class CalendarPageState extends State<CalendarPage>
     String? actionId,
     Map<String, dynamic>? behaviorPayload,
     bool notify = true,
+    Map<String, List<_Note>>? notesTarget,
   }) {
     final shouldSkip =
         _isPendingDelete(
@@ -19235,14 +21616,16 @@ class CalendarPageState extends State<CalendarPage>
     if (shouldSkip) {
       if (kDebugMode) {
         _calendarDebugPrint(
-          '[_addNote] skip add for title="$title" cid=${clientEventId ?? '<none>'} pending/tombstoned',
+          '[_addNote] skip add for title=<redacted chars=${title.length}> '
+          'cid=${safeLogIdentifier(clientEventId)} pending/tombstoned',
         );
       }
       return false;
     }
 
     final k = _kKey(kYear, kMonth, kDay);
-    final list = _notes.putIfAbsent(k, () => <_Note>[]);
+    final target = notesTarget ?? _notes;
+    final list = target.putIfAbsent(k, () => <_Note>[]);
     list.add(
       _Note(
         id: id,
@@ -19270,7 +21653,7 @@ class CalendarPageState extends State<CalendarPage>
       ),
     );
     // Do not schedule notifications here; scheduling is handled by the caller.
-    if (notify) {
+    if (notify && identical(target, _notes)) {
       _refreshNoteCacheUi();
     }
     return true;
@@ -21036,7 +23419,14 @@ class CalendarPageState extends State<CalendarPage>
         : '<none>';
     if (kDebugMode) {
       _calendarDebugPrint(
-        '[DayView] move start id=${evt.id} cid=${evt.clientEventId} rawId=$rawId rawCid=$rawClientId moveKey=$moveKeyForLog title="${evt.title}" flowId=${evt.flowId} startMin=${evt.startMin} endMin=${evt.endMin} proposedStart=$proposedStartMin',
+        '[DayView] move start id=${safeLogIdentifier(evt.id)} '
+        'cid=${safeLogIdentifier(evt.clientEventId)} '
+        'rawId=${safeLogIdentifier(rawId)} '
+        'rawCid=${safeLogIdentifier(rawClientId)} '
+        'moveKey=$moveKeyForLog '
+        'title=<redacted chars=${evt.title.length}> '
+        'flowId=${evt.flowId} startMin=${evt.startMin} '
+        'endMin=${evt.endMin} proposedStart=$proposedStartMin',
       );
     }
     if (evt.allDay) {
@@ -21559,6 +23949,11 @@ class CalendarPageState extends State<CalendarPage>
       );
 
       _flows.add(persisted);
+      await _ensureSharedExperienceForFlow(
+        flowId: savedId,
+        calendarId: flow.calendarId,
+        source: 'CalendarPage._saveNewFlow',
+      );
       if (mounted) setState(() {});
       _notifyDayViewDataChanged();
 
@@ -21752,16 +24147,6 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
-  /// Gregorian label for a Kemetic month/year (handles epagomenal spanning years).
-  String _gregYearLabelFor(int kYear, int kMonth) {
-    final lastDay = (kMonth == 13)
-        ? (KemeticMath.isLeapKemeticYear(kYear) ? 6 : 5)
-        : 30;
-    final yStart = KemeticMath.toGregorian(kYear, kMonth, 1).year;
-    final yEnd = KemeticMath.toGregorian(kYear, kMonth, lastDay).year;
-    return (yStart == yEnd) ? '$yStart' : '$yStart/$yEnd';
-  }
-
   String _monthLabel(int kMonth) => getMonthById(kMonth).displayFull;
 
   /* ───── TODAY snap/center ───── */
@@ -21933,6 +24318,9 @@ class CalendarPageState extends State<CalendarPage>
 
   void _onScaleStart(ScaleStartDetails details) {
     if (details.pointerCount < 2) return;
+    RestorationCoordinator.instance.noteCalendarViewportIntent(
+      reason: 'calendar_pinch_started',
+    );
     _monthExpansionRestorationTarget = null;
     _scaleGestureAnchor = 1.0;
     _isPinching = true;
@@ -22145,42 +24533,9 @@ class CalendarPageState extends State<CalendarPage>
         return;
       }
     }
-    _scrollToToday();
-  }
-
-  Widget _buildLandscapeCalendarTitle(int ky, int km) {
-    final titleGradient = _showGregorian ? whiteGloss : goldGloss;
-    return GestureDetector(
-      onTap: _handleCalendarToggleTapped,
-      child: RepaintBoundary(
-        key: _calendarToggleKey,
-        child: Padding(
-          padding: const EdgeInsets.only(left: 6.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _GlossyMonthNameText(
-                text: _monthLabel(km),
-                style: _monthTitleGold.copyWith(fontSize: 18),
-                gradient: titleGradient,
-              ),
-              GlossyText(
-                text: _gregYearLabelFor(ky, km),
-                gradient: titleGradient,
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white,
-                ),
-                maxLines: 1,
-                softWrap: false,
-                overflow: TextOverflow.fade,
-              ),
-            ],
-          ),
-        ),
-      ),
+    _applyTodayNavigationCommand(
+      animate: true,
+      reason: 'today_command:app_bar',
     );
   }
 
@@ -22192,6 +24547,7 @@ class CalendarPageState extends State<CalendarPage>
       backgroundColor: Colors.black,
       elevation: 0.5,
       centerTitle: false,
+      automaticallyImplyLeading: false,
       titleSpacing: 12,
       iconTheme: const IconThemeData(color: _gold),
       title:
@@ -22343,7 +24699,10 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> openQuickAddFromOutside() => _openQuickAddSheet();
 
   void jumpToTodayFromOutside({bool animate = true}) =>
-      _scrollToToday(animate: animate);
+      _applyTodayNavigationCommand(
+        animate: animate,
+        reason: 'today_command:outside',
+      );
 
   Future<void> _openJournalFromAppBar() async {
     if (!_journalInitialized) {
@@ -22631,6 +24990,14 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('persist planned notes (apply) failed: $e');
         }
       }
+    }
+
+    if (edited.savedFlow != null && finalFlowId != null) {
+      await _ensureSharedExperienceForFlow(
+        flowId: finalFlowId,
+        calendarId: flowCalendarId,
+        source: 'CalendarPage._applyFlowStudioResult',
+      );
     }
 
     if (!notesAlreadyPersisted &&
@@ -22999,6 +25366,7 @@ class CalendarPageState extends State<CalendarPage>
                               }
                             },
                             onAppendToJournal: _appendToJournalAndRefresh,
+                            onCalendarChanged: _moveFlowToCalendar,
                           );
                         },
                       ),
@@ -23141,6 +25509,7 @@ class CalendarPageState extends State<CalendarPage>
                   }
                 },
                 onAppendToJournal: _appendToJournalAndRefresh,
+                onCalendarChanged: _moveFlowToCalendar,
               ),
             ),
             visibleState: const <String, dynamic>{
@@ -23233,6 +25602,38 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   void _openFlowEditorDirectly(int flowId) {
+    final readingHouseFlow = _readingHouseFlowForEditor(flowId);
+    if (readingHouseFlow != null) {
+      _openFlowStudioSheet(
+        continuityState: <String, dynamic>{
+          'mode': _kFlowStudioModeEditor,
+          'editFlowId': flowId,
+          'templateKey': kReadingHouseFlowKey,
+        },
+        rootBuilder: (innerCtx) {
+          return _ReadingHouseAuthoringPage(
+            flow: readingHouseFlow,
+            calendar: _calendarSummary(readingHouseFlow.calendarId),
+            personalCalendarId: _personalCalendarId,
+            sharedCalendarsRepo: _sharedCalendarsRepo,
+            onCalendarChanged: _moveReadingHouseFlowToCalendar,
+            onSave: (result) async {
+              await _persistFlowStudioResult(result);
+              if (mounted) {
+                await _loadFromDisk(source: 'reading_house_authoring_save');
+              }
+              if (!innerCtx.mounted) return;
+              final rootNavigator = Navigator.of(innerCtx, rootNavigator: true);
+              if (rootNavigator.canPop()) {
+                rootNavigator.pop();
+              }
+            },
+          );
+        },
+      );
+      return;
+    }
+
     _openFlowStudioSheet(
       continuityState: <String, dynamic>{
         'mode': _kFlowStudioModeEditor,
@@ -23307,6 +25708,7 @@ class CalendarPageState extends State<CalendarPage>
             }
           },
           onAppendToJournal: _appendToJournalAndRefresh,
+          onCalendarChanged: _moveFlowToCalendar,
         );
       },
     );
@@ -23404,6 +25806,7 @@ class CalendarPageState extends State<CalendarPage>
             }());
           },
           onAppendToJournal: _appendToJournalAndRefresh,
+          onCalendarChanged: _moveFlowToCalendar,
           onEndMaatFlow: (flow) {
             unawaited(_endFlow(flow.id));
             Navigator.of(innerCtx).maybePop();
@@ -23753,7 +26156,10 @@ class CalendarPageState extends State<CalendarPage>
     DecanWatchLens decanWatchLens = DecanWatchLens.neutral,
     OpenHandLens openHandLens = OpenHandLens.neutral,
     DjedLens djedLens = DjedLens.neutral,
+    List<ReadingHouseSitting>? readingHouseSittings,
     String? eveningThresholdInitialCarry,
+    bool deferEveningThresholdRemainingEvents = false,
+    bool reloadAfterHeadlessJoin = true,
   }) async {
     if (template.kind == _MaatFlowTemplateKind.trackSky) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
@@ -24974,6 +27380,178 @@ class CalendarPageState extends State<CalendarPage>
       return serverFlowId;
     }
 
+    if (template.kind == _MaatFlowTemplateKind.readingHouse) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final plan = readingHousePlanFromDraftValues(
+        kMaatFlowResponseDraftStore.valuesForFlow(template.key),
+      );
+      final firstG = DateUtils.dateOnly(
+        startDate ?? defaultReadingHouseStartDate(timezone),
+      );
+      final sittings = normalizeReadingHouseSittingOrder(
+        readingHouseSittings ?? kReadingHouseSittings,
+      );
+      final occurrences = <ReadingHouseOccurrenceSchedule>[
+        for (final sitting in sittings)
+          readingHouseScheduleForSitting(sitting, firstG, timezone),
+      ];
+      final dates = <DateTime>{
+        for (final occurrence in occurrences)
+          DateUtils.dateOnly(occurrence.startLocal),
+      };
+      final orderedDates = dates.toList()..sort();
+
+      final flow = _Flow(
+        id: -1,
+        calendarId: _personalCalendarId,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: [_RuleDates(dates: dates)],
+        start: orderedDates.first,
+        end: orderedDates.last,
+        notes: [
+          'mode=gregorian',
+          'split=1',
+          if (template.overview.trim().isNotEmpty)
+            'ov=${Uri.encodeComponent(template.overview.trim())}',
+          'maat=${template.key}',
+          'reading_house_tz=${timezone.key}',
+          ...readingHouseFlowNoteTokens(plan),
+          'reading_house_hour=$kReadingHouseDefaultHour',
+          'reading_house_minute=$kReadingHouseDefaultMinute',
+        ].join(';'),
+      );
+
+      final serverFlowId = await _saveNewFlow(flow);
+      if (serverFlowId == null) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[readingHouse] Aborting - flow insert failed');
+        }
+        return -1;
+      }
+
+      final repo = UserEventsRepo(Supabase.instance.client);
+      try {
+        for (var i = 0; i < sittings.length; i++) {
+          final sitting = sittings[i];
+          final occurrence = occurrences[i];
+          final kyKmKd = KemeticMath.fromGregorian(
+            DateUtils.dateOnly(occurrence.startLocal),
+          );
+          final startTod = TimeOfDay(
+            hour: occurrence.startLocal.hour,
+            minute: occurrence.startLocal.minute,
+          );
+          final endTod = TimeOfDay(
+            hour: occurrence.endLocal.hour,
+            minute: occurrence.endLocal.minute,
+          );
+          final title = readingHouseSittingTitle(sitting);
+          final detail = readingHouseDetailText(sitting, plan: plan);
+          final behaviorPayload = readingHouseBehaviorPayload(
+            sitting: sitting,
+            schedule: occurrence,
+            plan: plan,
+          );
+          final clientEventId = _buildCid(
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            title: title,
+            startHour: startTod.hour,
+            startMinute: startTod.minute,
+            allDay: false,
+            flowId: serverFlowId,
+          );
+          final note = _Note(
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            title: title,
+            detail: detail,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Study',
+            alertOffsetMinutes: _alertNoneMinutes,
+            actionId: readingHouseActionId(sitting),
+            behaviorPayload: behaviorPayload,
+          );
+
+          _addNote(
+            kyKmKd.kYear,
+            kyKmKd.kMonth,
+            kyKmKd.kDay,
+            title,
+            detail,
+            clientEventId: clientEventId,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            start: startTod,
+            end: endTod,
+            flowId: serverFlowId,
+            category: 'Study',
+            alertOffsetMinutes: _alertNoneMinutes,
+            actionId: readingHouseActionId(sitting),
+            behaviorPayload: behaviorPayload,
+          );
+
+          await repo.upsertByClientId(
+            clientEventId: clientEventId,
+            title: title,
+            startsAtUtc: occurrence.startUtc,
+            detail: detail,
+            calendarId: _personalCalendarId,
+            allDay: false,
+            endsAtUtc: occurrence.endUtc,
+            category: 'Study',
+            flowLocalId: serverFlowId,
+            actionId: readingHouseActionId(sitting),
+            behaviorPayload: behaviorPayload,
+            caller: 'reading_house_join',
+          );
+
+          await _scheduleAlertForEvent(
+            note: note,
+            ky: kyKmKd.kYear,
+            km: kyKmKd.kMonth,
+            kd: kyKmKd.kDay,
+            clientEventId: clientEventId,
+          );
+        }
+      } catch (e, st) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[readingHouse] event creation failed: $e');
+          _calendarDebugPrint('$st');
+        }
+        _flows.removeWhere((flow) => flow.id == serverFlowId);
+        final emptyKeys = <String>[];
+        _notes.forEach((key, notes) {
+          notes.removeWhere((note) => note.flowId == serverFlowId);
+          if (notes.isEmpty) emptyKeys.add(key);
+        });
+        for (final key in emptyKeys) {
+          _notes.remove(key);
+        }
+        if (mounted) {
+          setState(() {});
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Could not create The Reading House.'),
+            ),
+          );
+        }
+        try {
+          await repo.deleteFlow(serverFlowId);
+        } catch (_) {}
+        return -1;
+      }
+
+      setState(() {});
+      return serverFlowId;
+    }
+
     if (template.kind == _MaatFlowTemplateKind.decanWatch) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
       final window = _resolveMountedDecanWatchJoinWindow(
@@ -25358,6 +27936,7 @@ class CalendarPageState extends State<CalendarPage>
         startDate: startDate,
         alertOffsetMinutes: 0,
         initialCarryText: eveningThresholdInitialCarry,
+        deferRemainingEvents: deferEveningThresholdRemainingEvents,
       );
       if (!result.succeeded) {
         if (mounted) {
@@ -25369,7 +27948,11 @@ class CalendarPageState extends State<CalendarPage>
         }
         return result.flowIdOrNegativeOne;
       }
-      await _loadFromDisk(source: 'evening_threshold_join');
+      if (reloadAfterHeadlessJoin) {
+        await _loadFromDisk(source: 'evening_threshold_join');
+      } else {
+        unawaited(_loadFromDisk(source: 'evening_threshold_join_background'));
+      }
       return result.flowIdOrNegativeOne;
     }
 
@@ -26423,7 +29006,8 @@ class CalendarPageState extends State<CalendarPage>
     if (kDebugMode) {
       _calendarDebugPrint(
         "[maatTemplate] Unsupported mounted Ma'at template "
-        'kind=${template.kind} key=${template.key} title="${template.title}"',
+        'kind=${template.kind} key=${template.key} '
+        'title=<redacted chars=${template.title.length}>',
       );
     }
     if (mounted) {
@@ -26609,7 +29193,7 @@ class CalendarPageState extends State<CalendarPage>
         currentStep: TrueOnboardingStep.firstFlowDayEvent,
       );
       final userId = _currentUserId;
-      if (userId != null) {
+      if (!_onboardingReviewMode && userId != null) {
         unawaited(_onboardingProgressStorage.save(userId, _onboardingProgress));
       }
       unawaited(
@@ -26635,14 +29219,20 @@ class CalendarPageState extends State<CalendarPage>
       scrollOffset: initialScrollOffset,
       eventDetail: initialEventDetailRestorationState,
     );
+    final dayViewWriteSession = _dayViewRestorationWriteGate.beginOpen();
     _activeDayViewRestorationState = initialDayViewState;
     unawaited(_saveCalendarRestorationNow(reason: 'before_day_view_open'));
     unawaited(
-      _persistDayViewState(initialDayViewState, reason: 'day_view_open'),
+      _persistDayViewState(
+        initialDayViewState,
+        reason: 'day_view_open',
+        writeSessionId: dayViewWriteSession,
+      ),
     );
     var dayViewUserCloseReported = false;
     Future<void> persistUserClosedDayView() async {
       dayViewUserCloseReported = true;
+      _dayViewRestorationWriteGate.markClosed(dayViewWriteSession);
       final closedState =
           (_activeDayViewRestorationState ?? initialDayViewState).copyWith(
             isOpen: false,
@@ -26808,6 +29398,11 @@ class CalendarPageState extends State<CalendarPage>
                 if (dayViewUserCloseReported) {
                   return;
                 }
+                if (!_dayViewRestorationWriteGate.canAcceptOpenWrite(
+                  dayViewWriteSession,
+                )) {
+                  return;
+                }
                 final state = DayViewRestorationState(
                   isOpen: true,
                   kYear: kYear,
@@ -26818,9 +29413,12 @@ class CalendarPageState extends State<CalendarPage>
                   scrollOffset: scrollOffset,
                   eventDetail: eventDetail,
                 );
-                _activeDayViewRestorationState = state;
                 unawaited(
-                  _persistDayViewState(state, reason: 'day_view_state_changed'),
+                  _persistDayViewState(
+                    state,
+                    reason: 'day_view_state_changed',
+                    writeSessionId: dayViewWriteSession,
+                  ),
                 );
               },
         ),
@@ -26833,6 +29431,7 @@ class CalendarPageState extends State<CalendarPage>
               .shouldPreserveOverlayForLifecycleClose;
       if (!preserveForLifecycle &&
           (_activeDayViewRestorationState?.isOpen ?? true)) {
+        _dayViewRestorationWriteGate.markClosed(dayViewWriteSession);
         final closedState =
             (_activeDayViewRestorationState ?? initialDayViewState).copyWith(
               isOpen: false,
@@ -26920,8 +29519,6 @@ class CalendarPageState extends State<CalendarPage>
   static const int _flowHydrationLookbackDays = 365; // 12 months back
   static const int _flowHydrationLookaheadDays = 540; // ~18 months ahead
   static const Duration _flowHydrationPadding = Duration(days: 14);
-  static const Duration _startupVisibleHydrationLead = Duration(days: 45);
-  static const Duration _startupVisibleHydrationTrail = Duration(days: 60);
 
   ({DateTime startUtc, DateTime endUtc}) _computeFlowHydrationWindow(
     Set<int> activeFlowIds,
@@ -27028,10 +29625,22 @@ class CalendarPageState extends State<CalendarPage>
     final endUtc = base.endUtc.isBefore(focus.endUtc)
         ? base.endUtc
         : focus.endUtc;
-    if (!endUtc.isAfter(startUtc)) {
-      return focus;
-    }
+    if (!endUtc.isAfter(startUtc)) return focus;
     return (startUtc: startUtc, endUtc: endUtc);
+  }
+
+  ({DateTime startUtc, DateTime endUtc}) _expandHydrationWindowToInclude(
+    ({DateTime startUtc, DateTime endUtc}) base,
+    ({DateTime startUtc, DateTime endUtc}) required,
+  ) {
+    return (
+      startUtc: base.startUtc.isBefore(required.startUtc)
+          ? base.startUtc
+          : required.startUtc,
+      endUtc: base.endUtc.isAfter(required.endUtc)
+          ? base.endUtc
+          : required.endUtc,
+    );
   }
 
   Future<void> _handleCreateTimedEvent(
@@ -29109,6 +31718,10 @@ class CalendarPageState extends State<CalendarPage>
       return;
     }
 
+    if (_onboardingReviewMode) {
+      return;
+    }
+
     // ✅ PRESERVE existing _initOnce logic
     if (!_initOnce) {
       _initOnce = true;
@@ -29116,6 +31729,7 @@ class CalendarPageState extends State<CalendarPage>
       // 1) Load reminder rules + schedule their instances, then load flows/events
       final user = Supabase.instance.client.auth.currentUser;
       if (user != null) {
+        _restoreWarmStartCacheForFirstPaint(reason: 'init');
         if (widget.initialFlowIdToEdit == null &&
             !widget.openMyFlowsOnLaunch &&
             !_sharedCalendarRealDayViewOpening &&
@@ -29127,17 +31741,20 @@ class CalendarPageState extends State<CalendarPage>
         if (_sharedCalendarRealDayViewOpening) {
           return;
         }
-        _requestInitialStartupRun(reason: 'init').then((_) {
-          final targetFlowId = widget.initialFlowIdToEdit;
-          if (!mounted) return;
-          if (targetFlowId != null) {
-            _openFlowEditorDirectly(targetFlowId);
-          } else if (widget.openMyFlowsOnLaunch) {
-            _openMyFlowsList();
-          } else if (!_schedulePendingDetachedLaunchActionIfAny()) {
-            _schedulePersistentOverlayRestore(reason: 'init');
-          }
-        });
+        _scheduleInitialStartupRunAfterFirstFrame(
+          reason: 'init',
+          onComplete: () async {
+            final targetFlowId = widget.initialFlowIdToEdit;
+            if (!mounted) return;
+            if (targetFlowId != null) {
+              _openFlowEditorDirectly(targetFlowId);
+            } else if (widget.openMyFlowsOnLaunch) {
+              _openMyFlowsList();
+            } else if (!_schedulePendingDetachedLaunchActionIfAny()) {
+              _schedulePersistentOverlayRestore(reason: 'init');
+            }
+          },
+        );
       } else {
         _pendingInitialHydration = true;
         if (kDebugMode) {
@@ -29165,22 +31782,25 @@ class CalendarPageState extends State<CalendarPage>
     if (!_sharedCalendarRealDayViewOpening &&
         _pendingInitialHydration &&
         Supabase.instance.client.auth.currentUser != null) {
-      _requestInitialStartupRun(reason: 'init-pending').then((_) {
-        if (!mounted ||
-            widget.initialFlowIdToEdit != null ||
-            widget.openMyFlowsOnLaunch) {
-          return;
-        }
-        if (!_schedulePendingDetachedLaunchActionIfAny()) {
-          _schedulePersistentOverlayRestore(reason: 'init-pending');
-        }
-      });
+      _scheduleInitialStartupRunAfterFirstFrame(
+        reason: 'init-pending',
+        onComplete: () async {
+          if (!mounted ||
+              widget.initialFlowIdToEdit != null ||
+              widget.openMyFlowsOnLaunch) {
+            return;
+          }
+          if (!_schedulePendingDetachedLaunchActionIfAny()) {
+            _schedulePersistentOverlayRestore(reason: 'init-pending');
+          }
+        },
+      );
     }
   }
 
   Future<void> _runStartupPipeline(String reason) async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) {
+    final principalLease = _captureCalendarPrincipalLease();
+    if (principalLease == null) {
       if (kDebugMode) {
         _calendarDebugPrint(
           '[startup] abort: no authenticated user reason=$reason',
@@ -29188,19 +31808,39 @@ class CalendarPageState extends State<CalendarPage>
       }
       return;
     }
+    await _initialPersistedViewStateLoad;
+    if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
+    if (_pendingAuthResolutionForRestore) {
+      await _loadPersistedViewState(trigger: 'startup_pipeline:$reason');
+    }
+    if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
     await _restoreWarmStartCacheIfAvailable(reason: 'startup_gate:$reason');
-    if (!mounted) return;
+    if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
     _syncAcceptedInviteCalendarImportsInBackground(reason);
     final keepWarmStartVisible = _hasWarmStartSnapshotVisibleForCurrentUser();
-    // If warm-start data is already on screen, keep it stable until the
-    // backfill finishes instead of doing an intermediate visible-window swap.
+    // A cold start establishes authoritative coverage for the restored
+    // viewport first. The broad history refresh is always an offscreen
+    // candidate and cannot clear the focused or retained last-good snapshot.
     if (!keepWarmStartVisible) {
-      await _loadFromDisk(source: 'startup:$reason');
+      await _loadFromDisk(source: 'startup_focused_authoritative:$reason');
+      if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
+    }
+    await _awaitInitialViewportSettlementForFirstPaint();
+    if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
+    if (!keepWarmStartVisible) {
+      unawaited(
+        _persistWarmStartCacheNow(
+          principalLease: principalLease,
+          debugReason: 'startup_focused_complete',
+        ),
+      );
     }
     await _restoreMyFlowsFilingSnapshotCache(reason: 'startup:$reason');
+    if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
     if (widget.openMyFlowsOnLaunch && _myFlowsFilingSnapshotCache == null) {
       try {
         await _loadMyFlowsFilingSnapshot();
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
       } catch (e, st) {
         if (kDebugMode) {
           _calendarDebugPrint('[MyFlowsFiling] launch prefetch failed: $e');
@@ -29211,19 +31851,32 @@ class CalendarPageState extends State<CalendarPage>
       _primeMyFlowsFilingSnapshotCache(reason: 'startup:$reason');
     }
     await _maybeLoadDecanReflectionPrompt();
+    if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
     unawaited(() async {
       try {
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
+        final generationBeforeBackfill = _authoritativeSnapshotGeneration;
         await _loadFromDisk(
           source: 'startup_backfill:$reason',
           preserveViewport: true,
         );
-        await _syncReminderEvents(
-          refreshUi: false,
-          updateLocalCache: !keepWarmStartVisible,
-        );
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
+        if (_authoritativeSnapshotGeneration == generationBeforeBackfill) {
+          if (kDebugMode) {
+            _calendarDebugPrint(
+              '[startup] backfill incomplete; retained last-good generation '
+              '$generationBeforeBackfill',
+            );
+          }
+          return;
+        }
+        await _syncReminderEvents(refreshUi: false, updateLocalCache: true);
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
         await _persistWarmStartCacheNow(
+          principalLease: principalLease,
           debugReason: 'startup_backfill_complete',
         );
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
         _primeMyFlowsFilingSnapshotCache(reason: 'startup_backfill:$reason');
       } catch (e, st) {
         if (kDebugMode) {
@@ -29237,14 +31890,17 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   void _syncAcceptedInviteCalendarImportsInBackground(String reason) {
+    final principalLease = _captureCalendarPrincipalLease();
+    if (principalLease == null) return;
     unawaited(() async {
       try {
-        await ShareRepo(
+        final changed = await ShareRepo(
           Supabase.instance.client,
         ).syncAcceptedInviteCalendarImports();
-        if (!mounted) return;
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
+        if (!changed) return;
         await _loadCalendarState();
-        if (!mounted) return;
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
         CalendarInvalidationBus.instance.publish(
           const CalendarInvalidated(
             reason: CalendarInvalidationReason.calendarImportSynced,
@@ -29390,6 +32046,19 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
+  String? _canonicalReadingHouseDetailForLoadedEvent({
+    required _Flow? flow,
+    required FlowEventRow event,
+  }) {
+    return canonicalReadingHouseDetailTextForEvent(
+      flowName: flow?.name,
+      flowNotes: flow?.notes,
+      title: event.title,
+      actionId: event.actionId,
+      behaviorPayload: event.behaviorPayload,
+    );
+  }
+
   void _repairDawnHouseRiteLoadedDetail({
     required UserEventsRepo repo,
     required FlowEventRow event,
@@ -29436,7 +32105,19 @@ class CalendarPageState extends State<CalendarPage>
     String source = 'manual',
     bool preserveViewport = false,
   }) async {
+    final principalLease = _captureCalendarPrincipalLease();
+    if (principalLease == null) return;
     if (_isLoadingFromDisk) {
+      _calendarHydrationRerunRequested = true;
+      _calendarHydrationRerunSource = source;
+      _calendarHydrationRerunPreserveViewport |= preserveViewport;
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[loadFromDisk] coalesced source=$source '
+          'principal=${principalLease.userId} '
+          'generation=${principalLease.generation}',
+        );
+      }
       return;
     }
     _isLoadingFromDisk = true;
@@ -29447,7 +32128,8 @@ class CalendarPageState extends State<CalendarPage>
       }
 
       final currentUser = Supabase.instance.client.auth.currentUser;
-      if (currentUser == null) {
+      if (currentUser == null ||
+          !_isCalendarPrincipalLeaseCurrent(principalLease)) {
         if (kDebugMode) {
           _calendarDebugPrint(
             '[loadFromDisk] Skipping load: no authenticated user',
@@ -29458,17 +32140,28 @@ class CalendarPageState extends State<CalendarPage>
       final preservedScrollOffset = preserveViewport
           ? _calendarScrollOffsetForPreservation()
           : null;
+      final preservedScrollIntentLease = RestorationCoordinator.instance
+          .captureUserIntentLease();
       await _ensureManualDeleteTombstonesLoaded();
-      final fastStartupMode = source.startsWith('startup:');
+      if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
+      final focusedStartupMode = source.startsWith(
+        'startup_focused_authoritative:',
+      );
       final warmStartBackfillMode = source.startsWith('startup_backfill:');
       final keepWarmStartSnapshotVisible =
           warmStartBackfillMode && _hasWarmStartSnapshotVisibleForCurrentUser();
       final hasPaintedStandaloneLaneAtLoadStart = _hasPaintedStandaloneLane(
         _notes,
       );
-      final focusWindow = fastStartupMode
+      final hasPaintedEventSnapshotAtLoadStart = _hasPaintedEventSnapshot(
+        _notes,
+      );
+      final deferColdSnapshotPublication =
+          focusedStartupMode && !_hasUsableCalendarSnapshotForPaint();
+      final startupViewportWindow = focusedStartupMode || warmStartBackfillMode
           ? _computeStartupVisibleHydrationWindow()
           : null;
+      final focusWindow = focusedStartupMode ? startupViewportWindow : null;
       final repo = UserEventsRepo(Supabase.instance.client);
 
       // Flow-first: load flows, then events; join only to known active flows
@@ -29478,6 +32171,7 @@ class CalendarPageState extends State<CalendarPage>
 
       // Load flows into _flows list
       final serverFlows = await repo.getAllFlows();
+      if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
       if (kDebugMode) {
         _calendarDebugPrint(
           '[loadFromDisk] getAllFlows count: ${serverFlows.length}',
@@ -29497,7 +32191,9 @@ class CalendarPageState extends State<CalendarPage>
               repMeta.location != null ||
               repMeta.category != null;
           _calendarDebugPrint(
-            '[loadFromDisk] hidden flow id=${f.id} name="${f.name}" fromDb=$fromDb fromRepMeta=$fromRepMeta',
+            '[loadFromDisk] hidden flow id=${f.id} '
+            'name=<redacted chars=${f.name.length}> '
+            'fromDb=$fromDb fromRepMeta=$fromRepMeta',
           );
         }
         final flow = _Flow(
@@ -29522,7 +32218,9 @@ class CalendarPageState extends State<CalendarPage>
         // Log flows with ID greater than 156 to catch all user-created flows
         if (kDebugMode && f.id > 156) {
           _calendarDebugPrint(
-            '[loadFlows] Flow ${f.id} "${f.name}" loaded with color=${f.color} (0x${f.color.toRadixString(16)})',
+            '[loadFlows] Flow ${f.id} loaded with '
+            'name=<redacted chars=${f.name.length}> '
+            'color=${f.color} (0x${f.color.toRadixString(16)})',
           );
         }
         if (flow.id >= nextFlowId) nextFlowId = flow.id + 1;
@@ -29547,7 +32245,11 @@ class CalendarPageState extends State<CalendarPage>
 
       // Reuse the just-loaded flow rows for reminder bootstrapping so startup
       // does not pay for a second full flow fetch before note hydration.
-      await _primeReminderRulesFromFlows(newFlows);
+      await _primeReminderRulesFromFlows(
+        newFlows,
+        principalLease: principalLease,
+      );
+      if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
 
       // Build index/maps for later use
       final Map<int, _Flow> flowIndex = {for (final f in newFlows) f.id: f};
@@ -29584,7 +32286,8 @@ class CalendarPageState extends State<CalendarPage>
             final looksLikeRepeatingNote =
                 rn.detail != null || rn.location != null || rn.category != null;
             _calendarDebugPrint(
-              '[loadFromDisk] flow id=$fid name="${flow.name}" '
+              '[loadFromDisk] flow id=$fid '
+              'name=<redacted chars=${flow.name.length}> '
               'isReminder=${flow.isReminder} hidden=${flow.isHidden} '
               'notesLikeRepeatingNote=$looksLikeRepeatingNote',
             );
@@ -29597,6 +32300,11 @@ class CalendarPageState extends State<CalendarPage>
         flowWindow = _computeFlowHydrationWindow(hydrationFlowIds, flowIndex);
         if (focusWindow != null) {
           flowWindow = _clampHydrationWindowToFocus(flowWindow, focusWindow);
+        } else if (warmStartBackfillMode && startupViewportWindow != null) {
+          flowWindow = _expandHydrationWindowToInclude(
+            flowWindow,
+            startupViewportWindow,
+          );
         }
         if (kDebugMode) {
           _calendarDebugPrint(
@@ -29605,6 +32313,9 @@ class CalendarPageState extends State<CalendarPage>
           );
         }
       }
+
+      var flowHydrationComplete = true;
+      var standaloneHydrationComplete = false;
 
       Future<Map<int, List<FlowEventRow>>> loadFlowEvents() async {
         final eventsByFlowId = <int, List<FlowEventRow>>{};
@@ -29629,47 +32340,14 @@ class CalendarPageState extends State<CalendarPage>
             );
           }
         } catch (err, st) {
+          flowHydrationComplete = false;
           if (kDebugMode) {
             _calendarDebugPrint(
               '[loadFromDisk] batched flow event fetch failed: $err',
             );
             _calendarDebugPrint('$st');
           }
-        }
-
-        if (eventsByFlowId.isNotEmpty) {
-          if (kDebugMode) {
-            eventsByFlowId.forEach((fid, events) {
-              _calendarDebugPrint(
-                '[loadFromDisk] flow $fid events (batched) count: ${events.length}',
-              );
-            });
-          }
           return eventsByFlowId;
-        }
-
-        for (final flowId in hydrationFlowIds) {
-          try {
-            final flowEvents = await repo.getEventsForFlow(
-              flowId,
-              startUtc: flowWindow?.startUtc,
-              endUtc: flowWindow?.endUtc,
-              flowEventsOnly: true,
-            );
-            eventsByFlowId[flowId] = flowEvents;
-            if (kDebugMode) {
-              _calendarDebugPrint(
-                '[loadFromDisk] getEventsForFlow($flowId) count: ${flowEvents.length} (fallback)',
-              );
-            }
-          } catch (err, st) {
-            if (kDebugMode) {
-              _calendarDebugPrint(
-                '[loadFromDisk] failed to hydrate events for flow $flowId: $err',
-              );
-              _calendarDebugPrint('$st');
-            }
-          }
         }
 
         return eventsByFlowId;
@@ -29681,6 +32359,11 @@ class CalendarPageState extends State<CalendarPage>
           standaloneWindow,
           focusWindow,
         );
+      } else if (warmStartBackfillMode && startupViewportWindow != null) {
+        standaloneWindow = _expandHydrationWindowToInclude(
+          standaloneWindow,
+          startupViewportWindow,
+        );
       }
       final flowEventsFuture = loadFlowEvents();
       final standaloneFuture = repo.getStandaloneEventsForDateRangeAll(
@@ -29688,22 +32371,50 @@ class CalendarPageState extends State<CalendarPage>
         endUtc: standaloneWindow.endUtc,
         pageSize: 1000,
         flowOwnersById: flowOwnersById,
+        throwOnError: true,
       );
       final flowEventCountsFuture = _flowsRepo.loadMyFlowEventCounts(
         flowIds: newFlows.map((flow) => flow.id),
       );
       final eventsByFlowId = await flowEventsFuture;
+      if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
 
       int flowAddedCount = 0;
       bool committedVisibleCalendar = false;
+      bool deferredColdSnapshotReady = false;
 
-      void commitVisibleCalendarState(String phase) {
-        if (!mounted) return;
+      void commitVisibleCalendarState(
+        String phase, {
+        bool loadComplete = false,
+      }) {
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
+        final preservedOnboardingTargetCount =
+            _mergePendingOnboardingTargetInto(
+              newNotes,
+              source: source,
+              phase: phase,
+            );
+        if (phase == 'complete' &&
+            !shouldPublishCompletedVisibleCalendarSnapshot(
+              loadComplete: loadComplete,
+            )) {
+          if (kDebugMode) {
+            _calendarDebugPrint(
+              '[loadFromDisk] skipped incomplete complete commit '
+              'source=$source '
+              'paintedEvents=$hasPaintedEventSnapshotAtLoadStart '
+              'flowComplete=$flowHydrationComplete '
+              'standaloneComplete=$standaloneHydrationComplete',
+            );
+          }
+          return;
+        }
         final preservePaintedStandaloneLane =
             shouldPreservePaintedStandaloneLaneForHydrationCommit(
               source: source,
               commitPhase: phase,
               hasPaintedStandaloneLane: hasPaintedStandaloneLaneAtLoadStart,
+              standaloneLaneAuthoritative: !keepWarmStartSnapshotVisible,
             );
         final preservedStandaloneCount = preservePaintedStandaloneLane
             ? _mergePaintedStandaloneLaneInto(newNotes)
@@ -29724,6 +32435,11 @@ class CalendarPageState extends State<CalendarPage>
           }
         });
 
+        final hydrationTraceEnabled = NavigationTrace.instance.enabled;
+        final hydrationTraceBefore = hydrationTraceEnabled
+            ? _calendarHydrationTraceSnapshot()
+            : null;
+
         _flows
           ..clear()
           ..addAll(newFlows);
@@ -29737,20 +32453,94 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint(
             '[loadFromDisk] committed phase=$phase '
             '_flows.length=${_flows.length} _notes keys=${_notes.length} '
-            'preservedStandalone=$preservedStandaloneCount',
+            'preservedStandalone=$preservedStandaloneCount '
+            'preservedOnboardingTarget=$preservedOnboardingTargetCount',
           );
         }
 
         _rebuildReminderRulesFromFlowsIfMissing();
-        _bumpDataVersion();
         _lastSuccessfulHydrationAt = DateTime.now();
-        _warmStartCacheRestoredForUserId = _activeWarmStartUserId();
-        _warmStartSnapshotVisible = false;
+        _warmStartCacheRestoredForUserId = principalLease.userId;
+        _warmStartCacheRestoredForProjectRef = _activeWarmStartProjectRef();
+        if (loadComplete) {
+          final coverageStart = flowWindow == null
+              ? standaloneWindow.startUtc
+              : (flowWindow.startUtc.isAfter(standaloneWindow.startUtc)
+                    ? flowWindow.startUtc
+                    : standaloneWindow.startUtc);
+          final coverageEnd = flowWindow == null
+              ? standaloneWindow.endUtc
+              : (flowWindow.endUtc.isBefore(standaloneWindow.endUtc)
+                    ? flowWindow.endUtc
+                    : standaloneWindow.endUtc);
+          _authoritativeSnapshotCoverage = CalendarSnapshotCoverage(
+            startUtc: coverageStart,
+            endUtc: coverageEnd,
+          );
+          _authoritativeSnapshotLanes = calendarSnapshotRequiredLanes;
+          _authoritativeSnapshotGeneration++;
+        }
+        if (deferColdSnapshotPublication && loadComplete) {
+          deferredColdSnapshotReady = true;
+          committedVisibleCalendar = true;
+          return;
+        }
+        if (loadComplete) {
+          _hasPublishedCalendarSnapshot = true;
+          _publishedCalendarSnapshotUserId = principalLease.userId;
+          _publishedCalendarSnapshotProjectRef = _activeWarmStartProjectRef();
+          _initialCalendarLoadFinished = true;
+          _retainCompleteCalendarSnapshotForRouteRemount(
+            source: 'hydration-$phase',
+          );
+        }
+        if (loadComplete || !hasPaintedEventSnapshotAtLoadStart) {
+          _warmStartSnapshotVisible = false;
+        }
+        _bumpDataVersion();
+        if (hydrationTraceBefore != null) {
+          final hydrationTraceAfter = _calendarHydrationTraceSnapshot();
+          final hydrationTraceGeneration = _dataVersion;
+          NavigationTrace.instance.record(
+            'calendar hydration commit',
+            state: <String, Object?>{
+              'src': source,
+              'phase': phase,
+              'view': hydrationTraceAfter.view,
+              'before':
+                  '${hydrationTraceBefore.days}/${hydrationTraceBefore.events}',
+              'after':
+                  '${hydrationTraceAfter.days}/${hydrationTraceAfter.events}',
+              'gen': hydrationTraceGeneration,
+            },
+          );
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
+            final postFrame = _calendarHydrationTraceSnapshot();
+            NavigationTrace.instance.record(
+              'calendar hydration post-frame',
+              state: <String, Object?>{
+                'src': source,
+                'view': postFrame.view,
+                'model': '${postFrame.days}/${postFrame.events}',
+                'commitGen': hydrationTraceGeneration,
+                'currentGen': _dataVersion,
+              },
+            );
+          });
+        }
         if (!committedVisibleCalendar &&
             preserveViewport &&
             preservedScrollOffset != null) {
-          _lastKnownCalendarScrollOffset = preservedScrollOffset;
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
+            if (!preservedScrollIntentLease.isCurrent) {
+              traceRestoration(
+                'calendar hydration viewport replay skipped '
+                'reason=user_intent_during_hydration_replay source=$source',
+              );
+              return;
+            }
             final position = _singleCalendarScrollPosition();
             if (!mounted ||
                 position == null ||
@@ -29862,6 +32652,11 @@ class CalendarPageState extends State<CalendarPage>
               flow: owningFlow,
               event: evt,
             );
+            final canonicalReadingHouseDetail =
+                _canonicalReadingHouseDetailForLoadedEvent(
+                  flow: owningFlow,
+                  event: evt,
+                );
             final canonicalDetail =
                 canonicalDawnDetail ??
                 canonicalTheWeighingDetail ??
@@ -29871,7 +32666,8 @@ class CalendarPageState extends State<CalendarPage>
                 canonicalCourseDetail ??
                 canonicalWagDetail ??
                 canonicalOpenHandDetail ??
-                canonicalDjedDetail;
+                canonicalDjedDetail ??
+                canonicalReadingHouseDetail;
             final cleanedDetail = canonicalDetail ?? storedCleanDetail;
             if (canonicalDetail != null &&
                 canonicalDetail != storedCleanDetail) {
@@ -29977,6 +32773,7 @@ class CalendarPageState extends State<CalendarPage>
             }
           }
         } catch (err, st) {
+          flowHydrationComplete = false;
           if (kDebugMode) {
             _calendarDebugPrint(
               '[loadFromDisk] failed to hydrate events for flow $flowId: $err',
@@ -29991,21 +32788,10 @@ class CalendarPageState extends State<CalendarPage>
           '[loadFromDisk] flow notes added to newNotes: $flowAddedCount',
         );
       }
-      final shouldCommitFlowOnly = shouldCommitFlowOnlyVisibleCalendarState(
-        flowAddedCount: flowAddedCount,
-        keepWarmStartSnapshotVisible: keepWarmStartSnapshotVisible,
-        hasPaintedStandaloneLane: hasPaintedStandaloneLaneAtLoadStart,
-      );
-      if (shouldCommitFlowOnly) {
-        // Standalone notes/reminders can be slower or time out. Flow-backed
-        // calendar events should still reach the first useful frame promptly,
-        // but never by replacing an already-painted standalone lane.
-        commitVisibleCalendarState('flow_events');
-      } else if (kDebugMode && flowAddedCount > 0) {
+      if (kDebugMode && flowAddedCount > 0) {
         _calendarDebugPrint(
-          '[loadFromDisk] skipped flow_events partial commit source=$source '
-          'keepWarmStart=$keepWarmStartSnapshotVisible '
-          'hasStandalone=$hasPaintedStandaloneLaneAtLoadStart',
+          '[loadFromDisk] staged flow events until all lanes complete '
+          'source=$source keepWarmStart=$keepWarmStartSnapshotVisible',
         );
       }
 
@@ -30013,12 +32799,14 @@ class CalendarPageState extends State<CalendarPage>
       // nutrition rows. Flow rows stay in the flow hydration path above.
       try {
         final standaloneResult = await standaloneFuture;
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
         final standaloneEvents = standaloneResult.events;
         final ghostStandaloneIds = standaloneResult.ghostEventIds;
 
         if (ghostStandaloneIds.isNotEmpty) {
           unawaited(() async {
             try {
+              if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
               await repo.deleteByIds(
                 ghostStandaloneIds,
                 semantic: 'calendar_hydration_ghost_cleanup',
@@ -30240,6 +33028,7 @@ class CalendarPageState extends State<CalendarPage>
             '(${standaloneWindow.startUtc.toIso8601String()} → ${standaloneWindow.endUtc.toIso8601String()})',
           );
         }
+        standaloneHydrationComplete = true;
       } catch (err, st) {
         if (kDebugMode) {
           _calendarDebugPrint(
@@ -30249,29 +33038,43 @@ class CalendarPageState extends State<CalendarPage>
         }
       }
 
-      commitVisibleCalendarState('complete');
+      _stageReminderOccurrencesForHydration(
+        notesTarget: newNotes,
+        flows: newFlows,
+      );
+
+      commitVisibleCalendarState(
+        'complete',
+        loadComplete: flowHydrationComplete && standaloneHydrationComplete,
+      );
+      if (deferredColdSnapshotReady &&
+          _isCalendarPrincipalLeaseCurrent(principalLease)) {
+        _hasPublishedCalendarSnapshot = true;
+        _publishedCalendarSnapshotUserId = principalLease.userId;
+        _publishedCalendarSnapshotProjectRef = _activeWarmStartProjectRef();
+        _initialCalendarLoadFinished = true;
+        _warmStartSnapshotVisible = false;
+        _retainCompleteCalendarSnapshotForRouteRemount(
+          source: 'hydration-deferred-complete',
+        );
+        _bumpDataVersion();
+      }
 
       Future<void> finishNonCriticalPostProcessing() async {
         try {
           final flowEventCounts = await flowEventCountsFuture;
-          if (mounted) {
-            setState(() {
-              _flowTotalEventCounts
-                ..clear()
-                ..addAll(flowEventCounts.total);
-              _flowRemainingEventCounts
-                ..clear()
-                ..addAll(flowEventCounts.remaining);
-            });
-          } else {
+          if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
+          setState(() {
             _flowTotalEventCounts
               ..clear()
               ..addAll(flowEventCounts.total);
             _flowRemainingEventCounts
               ..clear()
               ..addAll(flowEventCounts.remaining);
+          });
+          if (flowHydrationComplete && standaloneHydrationComplete) {
+            _scheduleWarmStartCacheSave(principalLease: principalLease);
           }
-          _scheduleWarmStartCacheSave();
         } catch (err, st) {
           if (kDebugMode) {
             _calendarDebugPrint(
@@ -30280,33 +33083,9 @@ class CalendarPageState extends State<CalendarPage>
             _calendarDebugPrint('$st');
           }
         }
-
-        try {
-          if (keepWarmStartSnapshotVisible) {
-            if (kDebugMode) {
-              _calendarDebugPrint(
-                '[loadFromDisk] skipped reminder regen after warm-start backfill',
-              );
-            }
-          } else {
-            final changed = await _regenReminderNotes(notify: false);
-            if (changed) {
-              _refreshNoteCacheUi();
-            }
-          }
-        } catch (err, st) {
-          if (kDebugMode) {
-            _calendarDebugPrint('[loadFromDisk] reminder regen failed: $err');
-            _calendarDebugPrint('$st');
-          }
-        }
       }
 
-      if (fastStartupMode) {
-        unawaited(finishNonCriticalPostProcessing());
-      } else {
-        await finishNonCriticalPostProcessing();
-      }
+      await finishNonCriticalPostProcessing();
     } catch (e, stackTrace) {
       if (kDebugMode) {
         _calendarDebugPrint('Supabase sync FAILED: $e');
@@ -30314,6 +33093,21 @@ class CalendarPageState extends State<CalendarPage>
       }
     } finally {
       _isLoadingFromDisk = false;
+      if (_calendarHydrationRerunRequested && mounted) {
+        final rerunSource = _calendarHydrationRerunSource;
+        final rerunPreserveViewport = _calendarHydrationRerunPreserveViewport;
+        _calendarHydrationRerunRequested = false;
+        _calendarHydrationRerunSource = 'principal_superseded';
+        _calendarHydrationRerunPreserveViewport = false;
+        if (_captureCalendarPrincipalLease() != null) {
+          unawaited(
+            _loadFromDisk(
+              source: 'coalesced:$rerunSource',
+              preserveViewport: rerunPreserveViewport,
+            ),
+          );
+        }
+      }
     }
 
     if (kDebugMode) {
@@ -30470,14 +33264,28 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<_MyFlowsFilingSnapshot> _loadMyFlowsFilingSnapshot() async {
-    final rows = await _flowsRepo.refreshMyFiledFlows();
-    final snapshot = _myFlowsFilingSnapshotFromRows(rows);
-    _myFlowsFilingSnapshotCache = snapshot;
-    CalendarPage._reconcileRememberedMaatJoinsFromLiveSnapshot(snapshot);
-    return snapshot;
+    final inFlight = _myFlowsFilingSnapshotLoadInFlight;
+    if (inFlight != null) return inFlight;
+
+    final load = () async {
+      final rows = await _flowsRepo.refreshMyFiledFlows();
+      final snapshot = _myFlowsFilingSnapshotFromRows(rows);
+      _myFlowsFilingSnapshotCache = snapshot;
+      CalendarPage._reconcileRememberedMaatJoinsFromLiveSnapshot(snapshot);
+      return snapshot;
+    }();
+    _myFlowsFilingSnapshotLoadInFlight = load;
+    try {
+      return await load;
+    } finally {
+      if (identical(_myFlowsFilingSnapshotLoadInFlight, load)) {
+        _myFlowsFilingSnapshotLoadInFlight = null;
+      }
+    }
   }
 
   void _primeMyFlowsFilingSnapshotCache({String reason = 'prime'}) {
+    if (_myFlowsFilingSnapshotLoadInFlight != null) return;
     unawaited(() async {
       try {
         await _restoreMyFlowsFilingSnapshotCache(reason: reason);
@@ -30832,6 +33640,16 @@ class CalendarPageState extends State<CalendarPage>
       );
     }
 
+    Future<void> ensureSharedExperienceIfNeeded() async {
+      final savedFlow = saved;
+      if (savedFlow == null) return;
+      await _ensureSharedExperienceForFlow(
+        flowId: savedFlow.id,
+        calendarId: savedFlow.calendarId,
+        source: 'CalendarPage._persistFlowStudioResult',
+      );
+    }
+
     if (r.plannedNotes.isNotEmpty) {
       final repo2 = UserEventsRepo(Supabase.instance.client);
 
@@ -30974,6 +33792,7 @@ class CalendarPageState extends State<CalendarPage>
           );
         }
         await commitGenerationIfNeeded();
+        await ensureSharedExperienceIfNeeded();
         await notifyFlowAdditionIfNeeded();
         setState(() {});
         _notifyDayViewDataChanged();
@@ -31068,6 +33887,7 @@ class CalendarPageState extends State<CalendarPage>
 
     if (saved != null) {
       await commitGenerationIfNeeded();
+      await ensureSharedExperienceIfNeeded();
     }
 
     if (saved != null && isNewFlowSave) {
@@ -31917,25 +34737,16 @@ class CalendarPageState extends State<CalendarPage>
 
   @override
   Widget build(BuildContext context) {
-    // ✅ HARDENING 2: Gate build until state is restored to prevent race condition
-    if (!_restored) {
-      return const SizedBox.shrink();
+    final routeIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;
+
+    if (!_hasUsableCalendarSnapshotForPaint() &&
+        !_initialCalendarLoadFinished) {
+      return _buildInitialCalendarLoadingScaffold();
     }
 
-    final kToday = _today;
-    final size = MediaQuery.sizeOf(context);
-    final orientation = MediaQuery.orientationOf(context);
-    final isLandscape = orientation == Orientation.landscape;
-    final routeIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;
-    final routeShouldRemainRendered =
-        routeIsCurrent ||
-        CalendarPage._hasCalendarOwnedTransientOverlayOpenOrOpening;
-    // Landscape grid only on phone-sized screens; tablets/desktop stay on portrait layout.
-    final useGrid = isLandscape && size.shortestSide < 600;
-    final shouldBuildLandscapeGrid = useGrid && routeShouldRemainRendered;
-    if (!shouldBuildLandscapeGrid) {
-      _landscapeTodayAction = null;
-    }
+    final media = MediaQuery.of(context);
+    final orientation = media.orientation;
+    _landscapeTodayAction = null;
 
     // ========================================
     // DEBUG: Log orientation changes
@@ -31969,132 +34780,21 @@ class CalendarPageState extends State<CalendarPage>
     }
     _lastOrientation = orientation;
 
-    if (!routeShouldRemainRendered) {
-      return const Scaffold(backgroundColor: _bg, body: SizedBox.shrink());
-    }
-
-    if (shouldBuildLandscapeGrid) {
-      // ✅ FIX 5: Only call if state is missing (optimization)
-      // The method already has a guard, but this prevents unnecessary function calls
-      // ✅ FIX 6: Also prevent during landscape updates to avoid side effects
-      if (!_isUpdatingFromLandscape &&
-          (_lastViewKy == null || _lastViewKm == null)) {
-        _updateCenteredMonthWide();
-      }
-
-      final ky = _lastViewKy ?? kToday.kYear;
-      final km = _lastViewKm ?? kToday.kMonth;
-
-      if (kDebugMode) {
-        _calendarDebugPrint('\n📱 [CALENDAR] Building LandscapeMonthView');
-        _calendarDebugPrint('   initialKy: $ky');
-        _calendarDebugPrint('   initialKm: $km');
-        _calendarDebugPrint('   initialKd: null');
-        _calendarDebugPrint('   onAddNote callback: PROVIDED');
-      }
-
-      return Scaffold(
-        backgroundColor: _bg,
-        appBar: _buildCalendarAppBar(
-          useLandscapeGrid: true,
-          titleOverride: _buildLandscapeCalendarTitle(ky, km),
-        ),
-        body: LandscapeMonthView(
-          embeddedInCalendarScaffold: true,
-          initialKy: ky,
-          initialKm: km,
-          initialKd: _lastViewKd ?? _today.kDay, // ✅ Highlight current day
-          showGregorian: _showGregorian,
-          dataVersion: _dayViewDataVersion,
-          notesForDay: (ky, km, kd) {
-            final notes = _getNotes(ky, km, kd);
-            return notes
-                .map(
-                  (n) => NoteData(
-                    id: n.id?.toString(),
-                    clientEventId: n.clientEventId,
-                    calendarId: n.calendarId,
-                    calendarName: n.calendarName,
-                    title: n.title,
-                    detail: n.detail,
-                    location: n.location,
-                    allDay: n.allDay,
-                    start: n.start,
-                    end: n.end,
-                    flowId: n.flowId,
-                    manualColor: n.manualColor,
-                    category: n.category,
-                    isReminder: n.isReminder,
-                    reminderId: n.reminderId,
-                    behaviorPayload: n.behaviorPayload,
-                  ),
-                )
-                .toList();
-          },
-          flowIndex: _buildCalendarFlowChromeIndex(),
-          activeLedgerFlowIds: _buildActiveLedgerFlowIds(),
-          getMonthName: (km) => getMonthById(km).displayFull,
-          onManageFlows: _getMyFlowsCallback(),
-          onAddNote: (ky, km, kd) {
-            if (kDebugMode) {
-              _calendarDebugPrint(
-                '\n🎯 [CALLBACK] onAddNote received from landscape',
-              );
-              _calendarDebugPrint('   Date: $ky-$km-$kd');
-            }
-            _openDaySheet(ky, km, kd, allowDateChange: true);
-          },
-          onMonthChanged: _handleLandscapeMonthChanged, // ✅ ADD CALLBACK
-          onVisibleMonthCommitted: _commitLandscapeVisibleMonthForRotation,
-          onTodayActionChanged: (action) {
-            _landscapeTodayAction = action;
-          },
-          onDeleteNote: (ky, km, kd, evt) async =>
-              _deleteNoteByEvent(ky, km, kd, evt),
-          onEditNote: (ky, km, kd, evt) async {
-            await _editNoteByEvent(ky, km, kd, evt);
-          },
-          onEditReminder: (id) async => _editReminderById(id),
-          onEndReminder: (id) async => _endReminderRule(id),
-          onShareReminder: (evt) async => _shareNoteSimple(evt),
-          onShareNote: (evt) async {
-            await _shareNoteSimple(evt);
-          },
-          onAppendToJournal: _appendToJournalAndRefresh,
-          onWriteJournalResponse: _writeMaatJournalResponseBlockAndRefresh,
-          onEndFlow: (id) => _endFlow(id),
-          onSaveFlow: _saveFlowById,
-          onRecordCompletion:
-              ({
-                required String clientEventId,
-                required int flowId,
-                required DateTime completedOnDate,
-                Map<String, dynamic>? metadata,
-              }) => _recordEventCompletion(
-                clientEventId: clientEventId,
-                flowId: flowId,
-                completedOnDate: completedOnDate,
-                metadata: metadata,
-              ),
-          onUnrecordCompletion: _unrecordEventCompletion,
-          onRemoveCompletionBadge: _removeCompletionBadgeAndRefresh,
-          initialEventDetailRestorationState:
-              _activeCalendarEventDetailRestoration,
-          onEventDetailRestorationChanged:
-              _handleCalendarEventDetailRestorationChanged,
-          shouldPreserveEventDetailRestorationOnClose: () =>
-              _preserveEventDetailOverlayForOrientationHandoff ||
-              RestorationCoordinator
-                  .instance
-                  .shouldPreserveOverlayForLifecycleClose,
-        ),
-      );
-    }
-
     final scaffold = Scaffold(
       backgroundColor: _bg,
       appBar: _buildCalendarAppBar(useLandscapeGrid: false),
-      body: _buildBodyWithJournal(),
+      body: Stack(
+        children: [
+          _buildBodyWithJournal(),
+          if (!_initialViewportSettled)
+            const Positioned.fill(
+              child: ColoredBox(
+                color: _bg,
+                child: Center(child: CircularProgressIndicator(color: _gold)),
+              ),
+            ),
+        ],
+      ),
     );
 
     Widget content = scaffold;
@@ -32144,6 +34844,8 @@ class CalendarPageState extends State<CalendarPage>
               recommendedFlowBuilder: _buildHawRecommendedFlow,
               dayViewBuilder: _buildHawDayView,
               dayViewEventTargetKey: _firstFlowEventBlockKey,
+              initialSlide: _activeHawOnboardingSlide,
+              onSlideChanged: _handleHawSlideChanged,
               onEntryStateSelected: _handleHawEntryStateSelected,
               onSkip: _handleOnboardingSkip,
               onComplete: _handleOnboardingComplete,
@@ -32153,7 +34855,26 @@ class CalendarPageState extends State<CalendarPage>
       );
     }
 
+    if (_onboardingDayRhythmController.hasVisibleBadge) {
+      content = Stack(
+        children: [
+          content,
+          DailyCosmicContextOverlayHost(
+            controller: _onboardingDayRhythmController,
+          ),
+        ],
+      );
+    }
+
     return content;
+  }
+
+  Widget _buildInitialCalendarLoadingScaffold() {
+    return Scaffold(
+      backgroundColor: _bg,
+      appBar: _buildCalendarAppBar(useLandscapeGrid: false),
+      body: const Center(child: CircularProgressIndicator(color: _gold)),
+    );
   }
 
   Widget _buildBodyWithJournal() {
@@ -32179,7 +34900,8 @@ class CalendarPageState extends State<CalendarPage>
     return Stack(
       children: [
         content,
-        const PendingEventInviteOverlay(),
+        if (!CalendarPage.debugSuppressPendingEventInviteOverlay)
+          const PendingEventInviteOverlay(),
         if (_reflectionPrompt != null) _buildReflectionBadge(),
       ],
     );
@@ -32255,7 +34977,17 @@ class CalendarPageState extends State<CalendarPage>
                       fontSize: 12.5,
                     ),
                   ),
-                  if (prompt.badgeCount > 0) ...[
+                  if (prompt.isCompositionalV1 &&
+                      prompt.compositionalInteractionCount > 0) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      '${prompt.compositionalInteractionCount} Ma’at interaction${prompt.compositionalInteractionCount == 1 ? '' : 's'} reflected',
+                      style: const TextStyle(
+                        color: Colors.white60,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ] else if (prompt.badgeCount > 0) ...[
                     const SizedBox(height: 4),
                     Text(
                       '${prompt.badgeCount} badge${prompt.badgeCount == 1 ? '' : 's'} captured',
@@ -32366,6 +35098,7 @@ class CalendarPageState extends State<CalendarPage>
     String decanContextKey,
     int kMonth,
     int kYear,
+    int decanIndex,
   })?
   _latestCompletedDecanWindow() {
     final now = DateTime.now();
@@ -32419,192 +35152,8 @@ class CalendarPageState extends State<CalendarPage>
       decanContextKey: '$kMonth-$completedDecan',
       kMonth: kMonth,
       kYear: kYear,
+      decanIndex: completedDecan,
     );
-  }
-
-  JournalDocument? _documentFromJournalEntry(JournalEntry entry) {
-    final body = entry.body.trim();
-    if (body.isEmpty) return JournalDocument.fromPlainText('');
-
-    if (body.startsWith('{') && body.contains('"version"')) {
-      try {
-        final map = jsonDecode(body) as Map<String, dynamic>;
-        return JournalDocument.fromJson(map);
-      } catch (e) {
-        if (kDebugMode) {
-          _calendarDebugPrint(
-            'Failed to parse journal document for ${entry.gregDate}: $e',
-          );
-        }
-      }
-    }
-
-    return JournalDocument.fromPlainText(body);
-  }
-
-  Future<
-    List<
-      ({
-        EventBadgeToken token,
-        DateTime occurredOn,
-        DateTime? occurredAt,
-        List<String> tags,
-      })
-    >
-  >
-  _collectDecanBadges(DateTime decanStart, DateTime decanEnd) async {
-    final entries = await _journalRepo.listRange(
-      start: decanStart,
-      end: decanEnd,
-    );
-    final badges =
-        <
-          ({
-            EventBadgeToken token,
-            DateTime occurredOn,
-            DateTime? occurredAt,
-            List<String> tags,
-          })
-        >[];
-    final seen = <String>{};
-
-    void addBadges(
-      List<EventBadgeToken> tokens,
-      DateTime fallbackDay, {
-      List<String> tags = const <String>[],
-    }) {
-      final day = _dateOnlyLocal(fallbackDay);
-      for (final token in tokens) {
-        if (!seen.add(token.id)) continue;
-        final occurred = token.start != null
-            ? _dateOnlyLocal(token.start!)
-            : day;
-        badges.add((
-          token: token,
-          occurredOn: occurred,
-          occurredAt: token.start,
-          tags: tags,
-        ));
-      }
-    }
-
-    for (final entry in entries) {
-      final doc = _documentFromJournalEntry(entry);
-      if (doc == null) continue;
-      addBadges(JournalBadgeUtils.tokensFromDocument(doc), entry.gregDate);
-    }
-
-    final currentDoc = _journalController.currentDocument;
-    final currentDate = _journalController.currentDate;
-    final withinWindow =
-        currentDate != null &&
-        !currentDate.isBefore(_dateOnlyLocal(decanStart)) &&
-        !currentDate.isAfter(_dateOnlyLocal(decanEnd));
-    if (currentDoc != null && currentDate != null && withinWindow) {
-      addBadges(JournalBadgeUtils.tokensFromDocument(currentDoc), currentDate);
-    }
-
-    final plannerBadges = await _plannerBadgeRepo.fetchPlannerBadges(
-      start: decanStart,
-      end: decanEnd,
-    );
-    for (final badge in plannerBadges) {
-      final token = badge.toEventBadgeToken();
-      if (!seen.add(token.id)) continue;
-      badges.add((
-        token: token,
-        occurredOn: _dateOnlyLocal(badge.occurredOn),
-        occurredAt: null,
-        tags: badge.tags,
-      ));
-    }
-
-    badges.sort((a, b) {
-      final cmp = a.occurredOn.compareTo(b.occurredOn);
-      if (cmp != 0) return cmp;
-      if (a.occurredAt == null && b.occurredAt == null) return 0;
-      if (a.occurredAt == null) return 1;
-      if (b.occurredAt == null) return -1;
-      return a.occurredAt!.compareTo(b.occurredAt!);
-    });
-
-    return badges;
-  }
-
-  String _buildReflectionFromBadges(List<EventBadgeToken> badges) {
-    if (badges.isEmpty) {
-      return 'Time moved quietly this decan. Silence is still a shape—space held open for whatever wants to speak next.';
-    }
-
-    final titleCounts = <String, int>{};
-    int morningCount = 0;
-    int eveningCount = 0;
-
-    for (final b in badges) {
-      final t = b.title.trim().toLowerCase();
-      if (t.isNotEmpty) {
-        titleCounts[t] = (titleCounts[t] ?? 0) + 1;
-      }
-      final start = b.start;
-      if (start != null) {
-        final h = start.toLocal().hour;
-        if (h < 12) morningCount++;
-        if (h >= 18) eveningCount++;
-      }
-    }
-
-    final sorted = titleCounts.entries.toList()
-      ..sort((a, b) => b.value.compareTo(a.value));
-    final dominant = sorted.isNotEmpty ? sorted.first.value : 0;
-    final total = badges.length;
-    final dominantRatio = total == 0 ? 0.0 : dominant / total;
-
-    final focused = dominantRatio >= 0.5;
-    final exploratory = sorted.length >= 3 && dominantRatio < 0.5;
-    final morningLean = morningCount > total / 2;
-    final eveningLean = eveningCount > total / 2;
-
-    final opening = focused
-        ? 'This decan moved in close circles—choosing depth over breadth.'
-        : exploratory
-        ? 'Your days touched many currents, yet an inner note stayed steady.'
-        : 'You moved with measured steps, neither rushing nor drifting.';
-
-    final pattern = focused
-        ? 'Returning to similar moments suggests you were seeking alignment more than variety—choosing what felt true over what was simply available.'
-        : exploratory
-        ? 'You let yourself explore without fixing on one shape. That kind of wandering is listening for what rings honest.'
-        : 'Your marks carried a quiet negotiation between stability and change, steadying yourself while testing new edges.';
-
-    final rhythm = morningLean
-        ? 'Mornings held more of your presence—as if first light gave the clearest signal.'
-        : eveningLean
-        ? 'Evenings gathered your energy—closing light became a place to settle what mattered.'
-        : 'Your hours spread across the day, a gentle pulse rather than a single surge.';
-
-    const silence =
-        'Some spaces stayed quiet—not as neglect, but as rest points waiting to receive you when you are ready.';
-
-    const invitation =
-        'As the next decan opens, carry forward the feeling that felt most like you, and let one quiet space be touched—only if it calls.';
-
-    const closing =
-        'Archive what mattered so you do not have to relearn it later. Endings are easier when you can see the shape you already made.';
-
-    final dominantTitle = sorted.isNotEmpty
-        ? 'Most frequent: “${sorted.first.key}”. '
-        : '';
-    final badgesLine = 'Badges logged: $total. ${dominantTitle.trim()}';
-
-    return [
-      opening,
-      pattern,
-      rhythm,
-      silence,
-      badgesLine,
-      invitation,
-      closing,
-    ].join('\n\n');
   }
 
   Future<bool> _hasInteractedWithReflectionPrompt(DateTime decanStart) async {
@@ -32624,6 +35173,7 @@ class CalendarPageState extends State<CalendarPage>
     CalendarDecanReflectionPrompt prompt, {
     required String interactionKind,
   }) async {
+    await _recordCompositionalReflectionUsage(prompt);
     await _decanReflectionPromptState.markInteracted(prompt.decanStart);
     await _decanReflectionRepo.markPromptInteracted(
       decanStart: prompt.decanStart,
@@ -32632,38 +35182,104 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
-  Map<String, dynamic>? _reflectionPayloadMetadataForBadge(
-    EventBadgeToken token, {
-    required DateTime occurredOn,
-  }) {
-    if (!token.isCompletionBadge) return null;
-    final completionStatus = token.completionStatus;
-    if (completionStatus == CompletionStatus.none) return null;
-    final clientEventId = token.completionClientEventId ?? token.eventId;
-    final flowKind = resolveMaatFlowKind(actionId: clientEventId);
-    final metadata = <String, dynamic>{
-      'status': completionStatus.maatStatusName,
-      'completion_status': completionStatus.wireName,
-      'reflection_status': token.reflectionStatus.wireName,
-      if (token.sourceType != null) 'source_type': token.sourceType!.wireName,
-      'completed_on': _formatDateOnlyLocal(occurredOn),
-      'event_title': token.title,
-      if (clientEventId != null && clientEventId.trim().isNotEmpty)
-        'client_event_id': clientEventId.trim(),
-    };
-    if (flowKind != null) {
-      metadata['flow_key'] = flowKind.flowKey;
-      if (flowKind == MaatFlowKind.theWeighing) {
-        metadata['flow_title'] = kTheWeighingTitle;
-      }
+  Future<void> _recordCompositionalReflectionUsage(
+    CalendarDecanReflectionPrompt prompt,
+  ) async {
+    final phraseIds = decanCompositionPhraseIdsFromMetadata(
+      prompt.renderMetadata,
+    );
+    if (phraseIds.isEmpty) return;
+    final now = DateTime.now();
+    await _compositionUsageStore.recordAll(
+      phraseIds
+          .map(
+            (phraseId) => CompositionUsageRecord(
+              phraseId: phraseId,
+              date: now,
+              surface: kDecanReflectionSurface,
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+
+  bool get _shouldSuppressDecanReflectionForOnboarding {
+    if (_onboardingReviewMode || _showOnboarding) return true;
+    final progress = _onboardingProgress;
+    if (!progress.completedOnboarding) return true;
+    if (!progress.hasSeenMenuPrompt) return true;
+    switch (progress.currentStep) {
+      case TrueOnboardingStep.welcome:
+      case TrueOnboardingStep.currentDecanIntro:
+      case TrueOnboardingStep.profileBasics:
+      case TrueOnboardingStep.firstMaatFlow:
+      case TrueOnboardingStep.firstFlowCalendarDay:
+      case TrueOnboardingStep.firstFlowDayEvent:
+      case TrueOnboardingStep.eventDetailObservedJournal:
+      case TrueOnboardingStep.menuExplore:
+        return true;
+      case TrueOnboardingStep.complete:
+        return false;
     }
-    return metadata;
+  }
+
+  OnboardingDecanIdentity? _currentOnboardingDecanIdentity() {
+    final kem = KemeticMath.fromGregorian(DateTime.now());
+    return OnboardingDecanIdentity.fromKemeticDay(
+      kYear: kem.kYear,
+      kMonth: kem.kMonth,
+      kDay: kem.kDay,
+    );
+  }
+
+  OnboardingProgress _withReflectionDecanBaseline(OnboardingProgress progress) {
+    if (progress.reflectionSignupDecanIdentity?.trim().isNotEmpty == true) {
+      return progress;
+    }
+    if (progress.completedOnboarding &&
+        progress.currentStep == TrueOnboardingStep.complete) {
+      return progress;
+    }
+    final currentDecan = _currentOnboardingDecanIdentity();
+    if (currentDecan == null) return progress;
+    return progress.copyWith(
+      reflectionSignupDecanIdentity: currentDecan.wireName,
+    );
+  }
+
+  Future<void> _refreshFirstDecanBoundaryCrossingIfNeeded(
+    OnboardingDecanIdentity? currentDecan,
+  ) async {
+    if (_onboardingReviewMode || currentDecan == null) return;
+    final progress = _onboardingProgress;
+    if (progress.hasCrossedFirstDecanBoundary) return;
+    if (!DecanReflectionOnboardingGate.hasCrossedBoundary(
+      signupDecanIdentity: progress.reflectionSignupDecanIdentity,
+      currentDecanIdentity: currentDecan,
+    )) {
+      return;
+    }
+    await _saveOnboardingProgress(
+      progress.copyWith(
+        hasCrossedFirstDecanBoundary: true,
+        firstReflectionEligibleDecanIdentity: currentDecan.wireName,
+      ),
+    );
   }
 
   Future<void> _maybeLoadDecanReflectionPrompt({bool force = false}) async {
     if (!mounted || _reflectionInFlight) return;
+    if (_shouldSuppressDecanReflectionForOnboarding) {
+      if (_reflectionPrompt != null) {
+        setState(() => _reflectionPrompt = null);
+      }
+      return;
+    }
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
+
+    final currentDecan = _currentOnboardingDecanIdentity();
+    await _refreshFirstDecanBoundaryCrossingIfNeeded(currentDecan);
 
     final today = DateUtils.dateOnly(DateTime.now());
     if (_lastReflectionCheckDay != null &&
@@ -32676,6 +35292,22 @@ class CalendarPageState extends State<CalendarPage>
 
     final window = _latestCompletedDecanWindow();
     if (window == null) {
+      if (_reflectionPrompt != null) {
+        setState(() => _reflectionPrompt = null);
+      }
+      return;
+    }
+
+    final promptDecan = OnboardingDecanIdentity(
+      kYear: window.kYear,
+      kMonth: window.kMonth,
+      decan: window.decanIndex,
+    );
+    if (DecanReflectionOnboardingGate.shouldBlock(
+      progress: _onboardingProgress,
+      currentDecanIdentity: currentDecan,
+      promptDecanIdentity: promptDecan,
+    )) {
       if (_reflectionPrompt != null) {
         setState(() => _reflectionPrompt = null);
       }
@@ -32728,90 +35360,53 @@ class CalendarPageState extends State<CalendarPage>
         return;
       }
 
-      final decanBadges = await _collectDecanBadges(window.start, window.end);
-      final payloadBadges = decanBadges.map((b) {
-        final clientEventId = b.token.completionClientEventId;
-        final metadata = _reflectionPayloadMetadataForBadge(
-          b.token,
-          occurredOn: b.occurredOn,
-        );
-        return <String, dynamic>{
-          'title': b.token.title,
-          'details': b.token.description ?? b.token.title,
-          'tags': b.tags,
-          'event_id': b.token.eventId,
-          if (clientEventId != null && clientEventId.trim().isNotEmpty)
-            'client_event_id': clientEventId.trim(),
-          'occurred_on': _formatDateOnlyLocal(b.occurredOn),
-          if (b.occurredAt != null)
-            'occurred_at': b.occurredAt!.toUtc().toIso8601String(),
-          if (metadata != null) 'metadata': metadata,
-        };
-      }).toList();
-
-      String reflectionText = '';
-      int badgeCount = decanBadges.length;
-      String? reflectionId;
-      DecanReflectionRenderMetadata? responseRenderMetadata;
-
-      try {
-        final response = await _aiReflectionService.generateReflection(
-          decanName: window.decanName,
-          decanTheme: window.decanTheme,
-          decanContextKey: window.decanContextKey,
-          decanStart: window.start,
-          decanEnd: window.end,
-          includeHistory: false, // prioritize current decan’s badges
-          persist: true,
-          useKnowledgeGraph: true,
-          useDecisionMatrix: true,
-          badges: payloadBadges,
-        );
-        if (response.success &&
-            (response.reflection?.trim().isNotEmpty ?? false)) {
-          reflectionText = response.reflection!.trim();
-          badgeCount = response.badgeCount ?? badgeCount;
-          reflectionId = response.reflectionId;
-          responseRenderMetadata = response.renderMetadata;
-          Events.trackIfAuthed('decan_reflection_generated', {
-            'kg': true,
-            'decision_matrix': true,
-            'badge_count': badgeCount,
-            'persisted': response.reflectionId != null,
-            'branch': response.branch ?? 'unknown',
-            'renderer': response.renderMetadata?.renderer ?? response.modelUsed,
-            'used_llm': response.renderMetadata?.usedLlm,
-            'llm_cost': response.renderMetadata?.llmCost,
-            'spectrum_flow_key': response.renderMetadata?.spectrumFlowKey,
-          });
+      if (!FeatureFlags.enableCompositionalDecanReflections) {
+        if (_reflectionPrompt != null) {
+          setState(() => _reflectionPrompt = null);
         }
-      } catch (_) {
-        // Ignore and fall back to local generation
+        return;
       }
 
-      if (reflectionText.trim().isEmpty) {
-        reflectionText = _buildReflectionFromBadges(
-          decanBadges.map((b) => b.token).toList(),
-        );
-      }
+      final facts = await _maatFlowDecanFactCollector.collect(
+        decanStart: window.start,
+        decanEnd: window.end,
+        surface: kDecanReflectionSurface,
+      );
+      final usageHistory = await _compositionUsageStore.load();
+      final composition = _decanReflectionComposer.compose(
+        facts: facts,
+        usageHistory: usageHistory,
+        generatedAt: DateTime.now(),
+      );
 
-      if (reflectionText.trim().isEmpty) {
+      if (composition == null) {
+        if (_reflectionPrompt != null) {
+          setState(() => _reflectionPrompt = null);
+        }
         return;
       }
 
       if (!mounted) return;
       setState(() {
         _reflectionPrompt = CalendarDecanReflectionPrompt(
-          id: reflectionId,
+          id: null,
           decanName: window.decanName,
           decanTheme: window.decanTheme,
           decanStart: window.start,
           decanEnd: window.end,
-          badgeCount: badgeCount,
-          reflectionText: reflectionText.trim(),
-          persisted: reflectionId != null,
-          renderMetadata: responseRenderMetadata,
+          badgeCount: 0,
+          reflectionText: composition.output.text,
+          persisted: false,
+          renderMetadata: composition.renderMetadata,
         );
+      });
+      Events.trackIfAuthed('decan_reflection_generated', {
+        'renderer': kDecanReflectionCompositionalRenderer,
+        'used_llm': false,
+        'total_interactions':
+            composition.output.factSummary['total_interactions'],
+        'intent_id': composition.output.intentId,
+        'fact_fingerprint': composition.output.factFingerprint,
       });
     } catch (e) {
       if (kDebugMode) {
@@ -32846,6 +35441,16 @@ class CalendarPageState extends State<CalendarPage>
       if (saved == null) {
         throw Exception('Unable to save reflection');
       }
+      final renderMetadata = prompt.renderMetadata;
+      if (renderMetadata?.renderer == kDecanReflectionCompositionalRenderer) {
+        await _decanReflectionRepo.saveCompositionalGeneration(
+          reflection: saved,
+          renderMetadata: renderMetadata!,
+          modelVersion:
+              renderMetadata.raw['engine_version']?.toString() ??
+              kCompositionEngineVersion,
+        );
+      }
 
       await _markReflectionPromptInteracted(
         prompt,
@@ -32879,10 +35484,24 @@ class CalendarPageState extends State<CalendarPage>
 
   Widget _buildCalendarScrollView() {
     final kToday = _today;
+    final baseYear = _calendarScrollBaseYear ?? _lastViewKy ?? kToday.kYear;
+    final centerIsTodayYear = baseYear == kToday.kYear;
 
     // ✅ FIX 4: Wrap with NotificationListener to capture scroll-end events
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
+        if (notification is ScrollStartNotification &&
+            notification.dragDetails != null) {
+          RestorationCoordinator.instance.noteCalendarViewportIntent(
+            reason: 'calendar_scroll_started',
+          );
+        }
+        if (notification is ScrollUpdateNotification &&
+            notification.dragDetails != null) {
+          RestorationCoordinator.instance.noteCalendarViewportIntent(
+            reason: 'calendar_scroll_updated',
+          );
+        }
         if (!_initialViewportSettled) return false;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _refreshCurrentDecanViewportAnchor();
@@ -32890,6 +35509,10 @@ class CalendarPageState extends State<CalendarPage>
         if (notification is ScrollEndNotification) {
           if (_scrollCtrl.hasClients) {
             _lastKnownCalendarScrollOffset = _scrollCtrl.position.pixels;
+            _retainProcessRouteHandoff(
+              source: 'calendar_scroll_end',
+              refreshSnapshot: false,
+            );
           }
           // ✅ Only update centered month when scrolling STOPS
           WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -32908,18 +35531,19 @@ class CalendarPageState extends State<CalendarPage>
         key: const PageStorageKey('calendar_portrait_scroll'),
         controller: _scrollCtrl,
         anchor: 0.0, // start the center sliver at the top on cold open
-        center: _centerKey, // current Kemetic year is the center
+        center: _centerKey,
         slivers: [
           // PAST years
           SliverList(
             delegate: SliverChildBuilderDelegate(
               (ctx, i) {
-                final kYear = kToday.kYear - (i + 1);
+                final kYear = baseYear - (i + 1);
+                final isTodayYear = kYear == kToday.kYear;
                 return _YearSection(
                   kYear: kYear,
-                  todayMonth: null,
-                  todayDay: null,
-                  todayDayKey: null, // no anchor in past/future lists
+                  todayMonth: isTodayYear ? kToday.kMonth : null,
+                  todayDay: isTodayYear ? kToday.kDay : null,
+                  todayDayKey: isTodayYear ? _todayDayKey : null,
                   monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
                   monthHeaderKeyProvider: (m) => keyForMonthHeader(kYear, m),
                   dayAnchorKeyProvider: (m, d) =>
@@ -32958,30 +35582,32 @@ class CalendarPageState extends State<CalendarPage>
             ),
           ),
 
-          // CENTER: current Kemetic year
+          // CENTER: one persistent July 10 year tree. This controlled paint
+          // A/B changes only the center-year sliver topology.
           SliverToBoxAdapter(
             key: _centerKey,
             child: _YearSection(
-              kYear: kToday.kYear,
-              todayMonth: kToday.kMonth,
-              todayDay: kToday.kDay,
-              temporalAnchorVisible: _currentDecanVisibleInViewport,
-              monthAnchorKeyProvider: (m) => keyForMonth(kToday.kYear, m),
-              monthHeaderKeyProvider: (m) => keyForMonthHeader(kToday.kYear, m),
+              kYear: baseYear,
+              todayMonth: centerIsTodayYear ? kToday.kMonth : null,
+              todayDay: centerIsTodayYear ? kToday.kDay : null,
+              todayDayKey: centerIsTodayYear ? _todayDayKey : null,
+              temporalAnchorVisible:
+                  centerIsTodayYear && _currentDecanVisibleInViewport,
+              monthAnchorKeyProvider: (m) => keyForMonth(baseYear, m),
+              monthHeaderKeyProvider: (m) => keyForMonthHeader(baseYear, m),
               dayAnchorKeyProvider: (m, d) =>
-                  _calendarDayAnchorKeyFor(kToday.kYear, m, d),
-              todayDayKey: _todayDayKey, // 🔑 pass day anchor
+                  _calendarDayAnchorKeyFor(baseYear, m, d),
               onMonthHeaderTap: (context, kMonth) =>
-                  _handleMonthHeaderTapped(context, kToday.kYear, kMonth),
+                  _handleMonthHeaderTapped(context, baseYear, kMonth),
               onDecanTap: (context, kMonth, decanIndex) =>
                   _handleDecanHeaderTapped(
                     context,
-                    kToday.kYear,
+                    baseYear,
                     kMonth,
                     decanIndex,
                   ),
-              onDayTap: (c, m, d) => _openDayView(c, kToday.kYear, m, d),
-              notesGetter: (m, d) => _getNotes(kToday.kYear, m, d),
+              onDayTap: (c, m, d) => _openDayView(c, baseYear, m, d),
+              notesGetter: (m, d) => _getNotes(baseYear, m, d),
               flowColorsGetter: (ky, km, kd) => getFlowColorsForDay(ky, km, kd),
               showGregorian: _showGregorian,
               expansionLevel: _monthExpansion,
@@ -33005,12 +35631,13 @@ class CalendarPageState extends State<CalendarPage>
           SliverList(
             delegate: SliverChildBuilderDelegate(
               (ctx, i) {
-                final kYear = kToday.kYear + (i + 1);
+                final kYear = baseYear + (i + 1);
+                final isTodayYear = kYear == kToday.kYear;
                 return _YearSection(
                   kYear: kYear,
-                  todayMonth: null,
-                  todayDay: null,
-                  todayDayKey: null,
+                  todayMonth: isTodayYear ? kToday.kMonth : null,
+                  todayDay: isTodayYear ? kToday.kDay : null,
+                  todayDayKey: isTodayYear ? _todayDayKey : null,
                   monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
                   monthHeaderKeyProvider: (m) => keyForMonthHeader(kYear, m),
                   dayAnchorKeyProvider: (m, d) =>
@@ -33580,18 +36207,20 @@ class _GoldDivider extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Center(
-        child: RepaintBoundary(
-          child: Opacity(
-            opacity: 0.42,
-            child: ShaderMask(
-              shaderCallback: (Rect r) => goldGloss.createShader(r),
-              blendMode: BlendMode.srcIn,
-              child: SizedBox(
-                width: w,
-                height: 0.65,
-                child: const DecoratedBox(
-                  decoration: BoxDecoration(color: Color(0xFFFFFFFF)),
-                ),
+        child: SizedBox(
+          width: w,
+          height: 0.65,
+          child: const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0x6BFFE8A3),
+                  Color(0x6BD4AF37),
+                  Color(0x6B8A6B16),
+                ],
+                stops: [0.0, 0.55, 1.0],
               ),
             ),
           ),

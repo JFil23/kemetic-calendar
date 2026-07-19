@@ -112,6 +112,7 @@ class PlannerNotesSection extends StatelessWidget {
                     scrollPadding: keyboardManagedTextFieldScrollPadding,
                     minLines: 1,
                     maxLines: 3,
+                    keyboardType: TextInputType.multiline,
                     style: PlannerVisualTokens.inputText,
                     decoration: _underlineInputDecoration(
                       hintText: 'Write a note, affirmation, or reminder',

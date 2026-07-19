@@ -74,6 +74,27 @@ void main() {
     expect(detail, contains("Ma'at act\nName one thing"));
   });
 
+  test('copy guards keep Dawn action fields required and clear', () {
+    final cleanPlace = dawnHouseRiteDayByNumber(14)!;
+    expect(
+      cleanPlace.action,
+      'Wash hands. Clean one small surface either before or after speaking.',
+    );
+    expect(cleanPlace.action, contains('before or after speaking'));
+    expect(cleanPlace.maatAct, contains('three minutes only'));
+    expect(cleanPlace.words, isNot(contains('before or after speaking')));
+
+    final feedingTheLiving = dawnHouseRiteDayByNumber(23)!;
+    expect(feedingTheLiving.action, 'Set water. Add food if available.');
+    expect(feedingTheLiving.action, startsWith('Set water.'));
+    expect(feedingTheLiving.action, contains('Add food if available.'));
+    expect(feedingTheLiving.action, isNot(contains('Set water and')));
+    expect(
+      feedingTheLiving.purpose,
+      'Provision is not optional in Ma\'at — it is among the few things the Declaration names specifically. This rite enacts it.',
+    );
+  });
+
   test('builds thirty JSON-safe dawn event payloads', () {
     final startDate = DateTime(2026, 6, 1);
     final starts = <DateTime>{};
@@ -100,6 +121,34 @@ void main() {
 
     expect(kDawnHouseRiteDays, hasLength(30));
     expect(starts, hasLength(30));
+  });
+
+  test('payload keeps dawn scheduler and transform keys stable', () {
+    final schedule = dawnHouseRiteScheduleForDate(
+      DateTime(2026, 6, 23),
+      TrackSkyTimeZone.central,
+    );
+    final payload = dawnHouseRiteBehaviorPayload(
+      day: dawnHouseRiteDayByNumber(23)!,
+      schedule: schedule,
+      discreet: true,
+      lens: DawnHouseRiteLens.household,
+    );
+
+    expect(payload['kind'], 'maat_dawn_house_rite_day');
+    expect(payload['flow_key'], kDawnHouseRiteFlowKey);
+    expect(payload['day'], 23);
+    expect(payload['duration_minutes'], kDawnHouseRiteDurationMinutes);
+    expect(payload['missed_event_rule'], 'expire_quietly');
+    expect(payload['discreet_mode'], isTrue);
+    expect(payload['lens'], DawnHouseRiteLens.household.key);
+    expect(payload.containsKey('completion_options'), isFalse);
+
+    final schedulePayload = payload['schedule'] as Map<String, dynamic>;
+    expect(schedulePayload['type'], 'local_astronomical_dawn');
+    expect(schedulePayload['fallback'], 'sunrise_minus_15_minutes');
+    expect(schedulePayload['timezone'], TrackSkyTimeZone.central.key);
+    expect(schedulePayload['iana_timezone'], TrackSkyTimeZone.central.ianaName);
   });
 
   test('canonical detail rebuilds stale dawn events without cycle status', () {

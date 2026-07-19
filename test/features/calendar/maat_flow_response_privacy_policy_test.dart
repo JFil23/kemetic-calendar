@@ -17,6 +17,7 @@ void main() {
       kind: MaatFlowResponseKind.text,
       label: 'Mirror Note',
       journalPolicy: MaatFlowJournalPolicy.mirror,
+      journalBehavior: MaatFlowJournalBehavior.formatted,
     );
     final preview = buildMaatFlowResponseJournalPreview(
       spec: spec,
@@ -46,6 +47,7 @@ void main() {
       kind: MaatFlowResponseKind.multiline,
       label: 'Offer Note',
       journalPolicy: MaatFlowJournalPolicy.offer,
+      journalBehavior: MaatFlowJournalBehavior.formatted,
     );
     final preview = buildMaatFlowResponseJournalPreview(
       spec: spec,
@@ -86,6 +88,7 @@ void main() {
       kind: MaatFlowResponseKind.multiline,
       label: 'Private Note',
       journalPolicy: MaatFlowJournalPolicy.redactedSummary,
+      journalBehavior: MaatFlowJournalBehavior.formatted,
       redactedSummary: 'Private response recorded.',
     );
     final preview = buildMaatFlowResponseJournalPreview(
@@ -121,6 +124,7 @@ void main() {
         journalGroupId: 'private-group',
         journalGroupLabel: 'Private Group',
         journalPolicy: MaatFlowJournalPolicy.redactedSummary,
+        journalBehavior: MaatFlowJournalBehavior.formatted,
         redactedSummary: 'Grouped private response recorded.',
       ),
       MaatFlowResponseSpec(
@@ -132,6 +136,7 @@ void main() {
         journalGroupId: 'private-group',
         journalGroupLabel: 'Private Group',
         journalPolicy: MaatFlowJournalPolicy.redactedSummary,
+        journalBehavior: MaatFlowJournalBehavior.formatted,
       ),
     ];
     final previews = buildMaatFlowResponseJournalPreviews(
@@ -167,6 +172,7 @@ void main() {
       kind: MaatFlowResponseKind.text,
       label: 'Local Note',
       journalPolicy: MaatFlowJournalPolicy.localOnly,
+      journalBehavior: MaatFlowJournalBehavior.none,
     );
     final sourceId = spec.sourceId(clientEventId: 'event-1');
     final preview = buildMaatFlowResponseJournalPreview(
@@ -191,6 +197,325 @@ void main() {
     expect(blocks.single.text, isEmpty);
     expect(MaatJournalResponseBlockUtils.extract(document), isEmpty);
     expect(document.toPlainText(), 'Manual body.');
+  });
+
+  test('plain user text blocks include only typed reflection text', () {
+    const specs = <MaatFlowResponseSpec>[
+      MaatFlowResponseSpec(
+        id: 'boundary-domain',
+        flowKey: 'boundary-stone',
+        surface: MaatFlowResponseSurface.calendarSheet,
+        kind: MaatFlowResponseKind.chips,
+        label: 'Domain',
+        journalGroupId: 'boundary-restoration',
+        journalGroupLabel: 'The Boundary Stone',
+        journalPolicy: MaatFlowJournalPolicy.offer,
+        journalBehavior: MaatFlowJournalBehavior.formatted,
+        options: <MaatFlowResponseOption>[
+          MaatFlowResponseOption(id: 'ownership', label: 'Ownership'),
+          MaatFlowResponseOption(id: 'returned', label: 'Returned'),
+        ],
+      ),
+      MaatFlowResponseSpec(
+        id: 'boundary-note',
+        flowKey: 'boundary-stone',
+        surface: MaatFlowResponseSurface.calendarSheet,
+        kind: MaatFlowResponseKind.multiline,
+        label: 'What moved, and what did you restore?',
+        journalGroupId: 'boundary-restoration',
+        journalGroupLabel: 'The Boundary Stone',
+        journalPolicy: MaatFlowJournalPolicy.offer,
+        journalBehavior: MaatFlowJournalBehavior.formatted,
+        journalCarryMode: MaatFlowJournalCarryMode.userReflection,
+        journalFormatter:
+            MaatFlowResponseJournalFormatter.boundaryStoneRestoration,
+      ),
+    ];
+    final groupSourceId = buildMaatFlowResponseSourceId(
+      flowKey: 'boundary-stone',
+      responseSpecId: 'boundary-restoration',
+      clientEventId: 'event-1',
+    );
+    final blocks = buildMaatJournalPlainUserTextBlocks(
+      sourceIds: <String>[groupSourceId],
+      specs: specs,
+      values: <String, MaatFlowResponseValue>{
+        'boundary-domain': MaatFlowResponseValue.chips(
+          specId: 'boundary-domain',
+          optionIds: <String>['ownership', 'returned'],
+        ),
+        'boundary-note': MaatFlowResponseValue.text(
+          specId: 'boundary-note',
+          text: 'Made major progress with the app. Just spot checking now.',
+          multiline: true,
+        ),
+      },
+      localDate: _date,
+      includeText: true,
+      sourceIdForSpec: (spec) => spec.sourceId(clientEventId: 'event-1'),
+      sourceIdForGroup: (spec, groupId) => groupSourceId,
+    );
+    final skippedBlocks = buildMaatJournalPlainUserTextBlocks(
+      sourceIds: <String>[groupSourceId],
+      specs: specs,
+      values: <String, MaatFlowResponseValue>{
+        'boundary-note': MaatFlowResponseValue.text(
+          specId: 'boundary-note',
+          text: 'This should not write while skipped.',
+          multiline: true,
+        ),
+      },
+      localDate: _date,
+      includeText: false,
+      sourceIdForSpec: (spec) => spec.sourceId(clientEventId: 'event-1'),
+      sourceIdForGroup: (spec, groupId) => groupSourceId,
+    );
+
+    expect(blocks, hasLength(1));
+    expect(blocks.single.sourceId, groupSourceId);
+    expect(
+      blocks.single.text,
+      'Made major progress with the app. Just spot checking now.',
+    );
+    expect(blocks.single.text, isNot(contains('The Boundary Stone')));
+    expect(blocks.single.text, isNot(contains('I restored')));
+    expect(blocks.single.text, isNot(contains('Ownership')));
+    expect(blocks.single.text, isNot(contains('Returned')));
+    expect(skippedBlocks.single.text, isEmpty);
+  });
+
+  test('plain user text blocks require explicit reflection carry mode', () {
+    const unmarkedSpec = MaatFlowResponseSpec(
+      id: 'unmarked-note',
+      flowKey: 'policy-fixture',
+      surface: MaatFlowResponseSurface.calendarSheet,
+      kind: MaatFlowResponseKind.multiline,
+      label: 'Repeated ritual note',
+      journalPolicy: MaatFlowJournalPolicy.mirror,
+      journalBehavior: MaatFlowJournalBehavior.formatted,
+    );
+    const reflectionSpec = MaatFlowResponseSpec(
+      id: 'reflection-note',
+      flowKey: 'policy-fixture',
+      surface: MaatFlowResponseSurface.calendarSheet,
+      kind: MaatFlowResponseKind.multiline,
+      label: 'Reflection note',
+      journalPolicy: MaatFlowJournalPolicy.mirror,
+      journalBehavior: MaatFlowJournalBehavior.formatted,
+      journalCarryMode: MaatFlowJournalCarryMode.userReflection,
+    );
+    final unmarkedSourceId = unmarkedSpec.sourceId(clientEventId: 'event-1');
+    final reflectionSourceId = reflectionSpec.sourceId(
+      clientEventId: 'event-1',
+    );
+    final blocks = buildMaatJournalPlainUserTextBlocks(
+      sourceIds: <String>[unmarkedSourceId, reflectionSourceId],
+      specs: const <MaatFlowResponseSpec>[unmarkedSpec, reflectionSpec],
+      values: <String, MaatFlowResponseValue>{
+        'unmarked-note': MaatFlowResponseValue.text(
+          specId: 'unmarked-note',
+          text: 'This repeated text should stay out of the journal.',
+          multiline: true,
+        ),
+        'reflection-note': MaatFlowResponseValue.text(
+          specId: 'reflection-note',
+          text: 'This reflection can become journal body.',
+          multiline: true,
+        ),
+      },
+      localDate: _date,
+      includeText: true,
+      sourceIdForSpec: (spec) => spec.sourceId(clientEventId: 'event-1'),
+      sourceIdForGroup: (spec, groupId) => groupId,
+    );
+
+    expect(blocks, hasLength(2));
+    expect(blocks.first.sourceId, unmarkedSourceId);
+    expect(blocks.first.text, isEmpty);
+    expect(blocks.last.sourceId, reflectionSourceId);
+    expect(blocks.last.text, 'This reflection can become journal body.');
+  });
+
+  test(
+    'plain user text writes into the editable paragraph and updates there',
+    () {
+      final sourceId = buildMaatFlowResponseSourceId(
+        flowKey: 'policy-fixture',
+        responseSpecId: 'plain-response',
+        clientEventId: 'event-1',
+      );
+      final first = MaatJournalResponseBlockUtils.upsertPlainUserText(
+        _document('Manual body.'),
+        MaatJournalResponseBlock(
+          sourceId: sourceId,
+          text: 'First real reflection.',
+          localDate: _date,
+        ),
+      );
+      final second = MaatJournalResponseBlockUtils.upsertPlainUserText(
+        first,
+        MaatJournalResponseBlock(
+          sourceId: sourceId,
+          text: 'Updated real reflection.',
+          localDate: _date,
+        ),
+      );
+      final removed = MaatJournalResponseBlockUtils.upsertPlainUserText(
+        second,
+        MaatJournalResponseBlock(
+          sourceId: sourceId,
+          text: '',
+          localDate: _date,
+        ),
+      );
+
+      expect(first.blocks, hasLength(1));
+      expect(first.toPlainText(), 'Manual body.\n\nFirst real reflection.');
+      expect(MaatJournalResponseBlockUtils.extract(first), isEmpty);
+      expect(
+        MaatJournalResponseBlockUtils.extractPlainUserTextSources(first),
+        <String, String>{sourceId: 'First real reflection.'},
+      );
+      expect(second.blocks, hasLength(1));
+      expect(second.toPlainText(), 'Manual body.\n\nUpdated real reflection.');
+      expect(second.toPlainText(), isNot(contains('First real reflection')));
+      expect(MaatJournalResponseBlockUtils.extract(second), isEmpty);
+      expect(removed.blocks, hasLength(1));
+      expect(removed.toPlainText(), 'Manual body.');
+      expect(
+        MaatJournalResponseBlockUtils.extractPlainUserTextSources(removed),
+        isEmpty,
+      );
+    },
+  );
+
+  test('plain user text does not overwrite or remove journal edits', () {
+    final sourceId = buildMaatFlowResponseSourceId(
+      flowKey: 'policy-fixture',
+      responseSpecId: 'edited-response',
+      clientEventId: 'event-1',
+    );
+    final inserted = MaatJournalResponseBlockUtils.upsertPlainUserText(
+      _document('Manual body.'),
+      MaatJournalResponseBlock(
+        sourceId: sourceId,
+        text: 'First real reflection.',
+        localDate: _date,
+      ),
+    );
+    final manuallyEdited = inserted.copyWith(
+      blocks: const <JournalBlock>[
+        ParagraphBlock(
+          id: 'manual-body',
+          ops: <TextOp>[
+            TextOp(
+              insert:
+                  'Manual body.\n\nFirst real reflection. '
+                  'Expanded by hand.',
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final resynced = MaatJournalResponseBlockUtils.upsertPlainUserText(
+      manuallyEdited,
+      MaatJournalResponseBlock(
+        sourceId: sourceId,
+        text: 'Updated real reflection.',
+        localDate: _date,
+      ),
+    );
+    final skipped = MaatJournalResponseBlockUtils.upsertPlainUserText(
+      resynced,
+      MaatJournalResponseBlock(sourceId: sourceId, text: '', localDate: _date),
+    );
+
+    expect(
+      resynced.toPlainText(),
+      'Manual body.\n\nFirst real reflection. Expanded by hand.',
+    );
+    expect(resynced.toPlainText(), isNot(contains('Updated real reflection')));
+    expect(
+      MaatJournalResponseBlockUtils.extractPlainUserTextSources(resynced),
+      <String, String>{sourceId: 'First real reflection.'},
+    );
+    expect(
+      skipped.toPlainText(),
+      'Manual body.\n\nFirst real reflection. Expanded by hand.',
+    );
+    expect(
+      MaatJournalResponseBlockUtils.extractPlainUserTextSources(skipped),
+      <String, String>{sourceId: 'First real reflection.'},
+    );
+  });
+
+  test('plain user text replaces legacy generated response blocks', () {
+    final sourceId = buildMaatFlowResponseSourceId(
+      flowKey: 'policy-fixture',
+      responseSpecId: 'legacy-response',
+      clientEventId: 'event-1',
+    );
+    final legacy = MaatJournalResponseBlockUtils.upsert(
+      _document('Manual body.'),
+      MaatJournalResponseBlock(
+        sourceId: sourceId,
+        text: 'The Boundary Stone: I restored generated prose.',
+        localDate: _date,
+      ),
+    );
+    final replaced = MaatJournalResponseBlockUtils.upsertPlainUserText(
+      legacy,
+      MaatJournalResponseBlock(
+        sourceId: sourceId,
+        text: 'Only the user typed this.',
+        localDate: _date,
+      ),
+    );
+
+    expect(MaatJournalResponseBlockUtils.extract(legacy), hasLength(1));
+    expect(MaatJournalResponseBlockUtils.extract(replaced), isEmpty);
+    expect(replaced.toPlainText(), 'Manual body.\n\nOnly the user typed this.');
+    expect(replaced.toPlainText(), isNot(contains('The Boundary Stone')));
+    expect(replaced.toPlainText(), isNot(contains('generated prose')));
+  });
+
+  test('legacy cleanup preserves non-generated response blocks', () {
+    final sourceId = buildMaatFlowResponseSourceId(
+      flowKey: 'policy-fixture',
+      responseSpecId: 'manual-legacy-response',
+      clientEventId: 'event-1',
+    );
+    final legacy = MaatJournalResponseBlockUtils.upsert(
+      _document('Manual body.'),
+      MaatJournalResponseBlock(
+        sourceId: sourceId,
+        text: 'Handwritten old response without generated heading.',
+        localDate: _date,
+      ),
+    );
+    final carried = MaatJournalResponseBlockUtils.upsertPlainUserText(
+      legacy,
+      MaatJournalResponseBlock(
+        sourceId: sourceId,
+        text: 'Only the user typed this.',
+        localDate: _date,
+      ),
+    );
+    final skipped = MaatJournalResponseBlockUtils.removePlainUserText(
+      legacy,
+      sourceId,
+    );
+
+    expect(
+      MaatJournalResponseBlockUtils.extract(carried).single.text,
+      'Handwritten old response without generated heading.',
+    );
+    expect(carried.toPlainText(), contains('Only the user typed this.'));
+    expect(
+      MaatJournalResponseBlockUtils.extract(skipped).single.text,
+      'Handwritten old response without generated heading.',
+    );
   });
 
   test(
@@ -234,6 +559,7 @@ void main() {
       kind: MaatFlowResponseKind.text,
       label: 'Empty Note',
       journalPolicy: MaatFlowJournalPolicy.mirror,
+      journalBehavior: MaatFlowJournalBehavior.formatted,
     );
     final sourceId = spec.sourceId(clientEventId: 'event-1');
     final preview = buildMaatFlowResponseJournalPreview(

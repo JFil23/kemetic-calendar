@@ -528,6 +528,17 @@ void main() {
     ]);
   });
 
+  test(
+    'haw card keeps lexical display themes separate from search aliases',
+    () {
+      final entries = buildLibraryCanonEntries(nodes: KemeticNodeLibrary.nodes);
+      final haw = entries.singleWhere((entry) => entry.node.id == 'haw');
+
+      expect(haw.title, 'ḥꜣw');
+      expect(haw.themes, ['Haw', 'Increase']);
+    },
+  );
+
   testWidgets('card tap opens the existing node route', (tester) async {
     tester.view.physicalSize = const Size(1170, 2532);
     tester.view.devicePixelRatio = 3.0;

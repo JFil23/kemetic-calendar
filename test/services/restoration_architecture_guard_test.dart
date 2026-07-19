@@ -192,7 +192,7 @@ void main() {
 
         expect(
           nullBranch,
-          contains('final trimmedCurrent = currentRoute.trim();'),
+          contains('final trimmedCurrent = _routerLocationForTrace().trim();'),
         );
         expect(
           nullBranch,
@@ -220,6 +220,163 @@ void main() {
         );
       },
     );
+
+    test(
+      'deferred auth restore cannot overwrite newer route or viewport intent',
+      () async {
+        final main = await File('lib/main.dart').readAsString();
+        final replay = _sourceBetween(
+          main,
+          'Future<void> _replayDeferredBootRestoreAfterAuth',
+          'Map<String, dynamic>? _pushIntentDataFromQuery',
+        );
+        final calendar = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+
+        expect(replay, contains('captureUserIntentLease()'));
+        expect(replay, contains("stage: 'deferred_destination'"));
+        expect(replay, contains("stage: 'authenticated_fallback'"));
+        expect(replay, contains('reason=user_intent_during_restore'));
+        expect(replay, contains('reason=route_changed_during_restore'));
+        expect(
+          replay.indexOf("stage: 'authenticated_fallback'"),
+          lessThan(replay.indexOf('_router.go(fallbackRoute)')),
+        );
+        expect(calendar, contains("reason: 'calendar_scroll_started'"));
+        expect(calendar, contains("reason: 'calendar_pinch_started'"));
+      },
+    );
+
+    test(
+      'calendar scroll intent is registered before initial settlement',
+      () async {
+        final calendar = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+        final scrollView = _sourceBetween(
+          calendar,
+          'Widget _buildCalendarScrollView() {',
+          'Map<int, FlowData> _buildCalendarFlowChromeIndex()',
+        );
+        final notificationHandler = _sourceBetween(
+          scrollView,
+          'onNotification: (notification) {',
+          'WidgetsBinding.instance.addPostFrameCallback((_) {',
+        );
+
+        final settlementGuard = notificationHandler.indexOf(
+          'if (!_initialViewportSettled) return false;',
+        );
+        final scrollIntent = notificationHandler.indexOf(
+          "reason: 'calendar_scroll_started'",
+        );
+
+        expect(settlementGuard, isNot(-1));
+        expect(scrollIntent, isNot(-1));
+        expect(
+          scrollIntent,
+          lessThan(settlementGuard),
+          reason:
+              'A user drag must invalidate stale viewport writers even while '
+              'initial settlement still suppresses persistence and centering.',
+        );
+      },
+    );
+
+    test(
+      'initial calendar viewport restore is lease-gated and deadline-bounded',
+      () async {
+        final calendar = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+        final restore = _sourceBetween(
+          calendar,
+          'void _scheduleInitialViewportRestore() {',
+          'Future<void> _awaitInitialViewportSettlementForFirstPaint()',
+        );
+
+        expect(restore, contains('captureUserIntentLease()'));
+        expect(restore, contains('_initialViewportRestoreDeadline'));
+        expect(restore, contains('reason=user_intent_during_viewport_restore'));
+        expect(restore, contains('reason=viewport_restore_deadline_elapsed'));
+
+        final leaseCheck = restore.indexOf(
+          'if (!restoreIntentLease.isCurrent)',
+        );
+        final deadlineCheck = restore.indexOf(
+          'if (restoreStopwatch.elapsed >= _initialViewportRestoreDeadline)',
+        );
+        final firstJump = restore.indexOf(
+          '_jumpToCalendarAnchorAtAlignmentNow(',
+        );
+        expect(leaseCheck, isNot(-1));
+        expect(deadlineCheck, isNot(-1));
+        expect(firstJump, isNot(-1));
+        expect(leaseCheck, lessThan(firstJump));
+        expect(deadlineCheck, lessThan(firstJump));
+      },
+    );
+
+    test(
+      'calendar hydration offset replay rejects intervening user intent',
+      () async {
+        final calendar = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+        final load = _sourceBetween(
+          calendar,
+          'Future<void> _loadFromDisk({',
+          '/// Allows other screens (e.g., Settings) to trigger a fresh sync',
+        );
+
+        expect(load, contains('final preservedScrollIntentLease ='));
+        expect(load, contains('captureUserIntentLease()'));
+        expect(load, contains('reason=user_intent_during_hydration_replay'));
+
+        final replayBlockStart = load.indexOf(
+          'if (!committedVisibleCalendar &&',
+        );
+        expect(replayBlockStart, isNot(-1));
+        final replay = _sourceBetween(
+          load.substring(replayBlockStart),
+          'WidgetsBinding.instance.addPostFrameCallback((_) {',
+          'committedVisibleCalendar = true;',
+        );
+        final leaseCheck = replay.indexOf(
+          'if (!preservedScrollIntentLease.isCurrent)',
+        );
+        final jump = replay.indexOf('position.jumpTo(clamped);');
+        expect(leaseCheck, isNot(-1));
+        expect(jump, isNot(-1));
+        expect(leaseCheck, lessThan(jump));
+      },
+    );
+
+    test('explicit Today navigation remains a current-intent jump', () async {
+      final calendar = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final todayCommand = _sourceBetween(
+        calendar,
+        'void _applyTodayNavigationCommand({',
+        'bool _consumePendingTodayNavigationCommand({required String trigger})',
+      );
+      final scrollToToday = _sourceBetween(
+        calendar,
+        'void _scrollToToday({bool animate = true})',
+        'void _centerMonth(int ky, int km)',
+      );
+
+      expect(
+        todayCommand,
+        contains('_suppressPendingRestoresForUserNavigation'),
+      );
+      expect(todayCommand, contains('_scrollToToday(animate: animate)'));
+      expect(todayCommand, isNot(contains('captureUserIntentLease()')));
+      expect(scrollToToday, contains('_jumpToTodayNow(animate: animate)'));
+      expect(scrollToToday, isNot(contains('captureUserIntentLease()')));
+    });
 
     test(
       'launch route storage keys stay inside restoration storage files',
@@ -678,7 +835,18 @@ void main() {
         main.indexOf(
           '_router = _createRouter(initialLocation: initialLocation);',
         ),
-        lessThan(main.indexOf('runApp(const MyApp())')),
+        lessThan(main.indexOf('return const MyApp();')),
+      );
+      expect(main, contains('RootBootApp('));
+      expect(
+        main,
+        contains('_rootBootCoordinator.start(_bootstrapApplication)'),
+      );
+      expect(
+        main.indexOf('runApp('),
+        lessThan(
+          main.indexOf('_rootBootCoordinator.start(_bootstrapApplication)'),
+        ),
       );
       expect(main, contains('late final GoRouter _router;'));
       expect(main, isNot(contains('final _router = GoRouter(')));
@@ -1289,9 +1457,10 @@ void main() {
         expect(main, contains('beginLaunchRestore'));
         expect(main, contains('RestorationRestoreReason.coldLaunch'));
         expect(main, isNot(contains('RestorationRestoreReason.authResume')));
+        expect(launchDismiss, contains('_waitForWebAuthExchangeToSettle'));
         expect(
           launchDismiss,
-          contains('waitForInitialCalendarRestorationToSettle'),
+          isNot(contains('waitForInitialCalendarRestorationToSettle')),
         );
 
         expect(todayCommand, contains('suppressRestoreForUserNavigation'));
@@ -1460,7 +1629,10 @@ void main() {
           '/// Public entrypoint so other screens',
         );
 
-        expect(main, contains('_dismissOverlay();'));
+        expect(
+          main,
+          contains('if (shouldShowOverlay) unawaited(_dismissOverlay())'),
+        );
         expect(
           main,
           isNot(contains('waitForInitialCalendarOverlayPresentation')),

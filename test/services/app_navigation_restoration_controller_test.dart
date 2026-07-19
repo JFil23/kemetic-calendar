@@ -715,6 +715,52 @@ void main() {
     },
   );
 
+  test(
+    'last visible Cosmic Order or Library surface restores without a Calendar reset',
+    () async {
+      await AppNavigationRestorationController.instance
+          .recordPrimaryTabSelection(AppSection.library);
+      await AppNavigationRestorationController.instance.recordVisibleSurface(
+        route: '/nodes/cosmic_order',
+      );
+
+      expect(await _durableRoute(), '/nodes/cosmic_order');
+      expect(
+        await _primarySelectionMetadataJson(),
+        containsPair('canonicalRoute', '/nodes'),
+      );
+      expect(
+        await _primarySelectionMetadataJson(),
+        containsPair('section', 'library'),
+      );
+
+      AppNavigationRestorationController.instance.resetForTesting();
+      final detailDestination = await AppNavigationRestorationController
+          .instance
+          .restoreLaunchDestination(isAuthenticated: true);
+      expect(detailDestination.route, '/nodes/cosmic_order');
+      expect(detailDestination.route, isNot('/'));
+
+      await AppNavigationRestorationController.instance
+          .recordPrimaryTabSelection(AppSection.library);
+      await AppNavigationRestorationController.instance.recordVisibleSurface(
+        route: '/nodes',
+      );
+
+      expect(await _durableRoute(), '/nodes');
+      expect(
+        await _primarySelectionMetadataJson(),
+        containsPair('canonicalRoute', '/nodes'),
+      );
+      AppNavigationRestorationController.instance.resetForTesting();
+      final libraryDestination = await AppNavigationRestorationController
+          .instance
+          .restoreLaunchDestination(isAuthenticated: true);
+      expect(libraryDestination.route, '/nodes');
+      expect(libraryDestination.route, isNot('/'));
+    },
+  );
+
   test('user back from detail persists the parent surface', () async {
     await AppNavigationRestorationController.instance.recordVisibleSurface(
       route: '/nodes/abydos',

@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/features/calendar/daily_cosmic_context_badge.dart';
+import 'package:mobile/features/calendar/track_sky_flow.dart';
 import 'package:mobile/features/settings/settings_prefs.dart';
 import 'package:mobile/widgets/kemetic_day_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 
 const _userId = 'daily-cosmic-user';
 final _firstDay = DateTime(2026, 6, 9);
@@ -33,12 +36,12 @@ void main() {
     expect(controller.current!.gregorianDateKey, '2026-06-09');
 
     final prefs = await SharedPreferences.getInstance();
-    expect(
-      prefs.getString(
-        DailyCosmicContextPrefs.lastShownGregorianDateKeyForUser(_userId),
-      ),
-      '2026-06-09',
+    final markerKey = DailyCosmicContextPrefs.lastShownGregorianDateKeyForUser(
+      _userId,
     );
+    expect(prefs.getString(markerKey), isNull);
+    await controller.recordVisiblePresentation(controller.current!);
+    expect(prefs.getString(markerKey), '2026-06-09');
     expect(
       DailyCosmicContextPrefs.lastShownGregorianDateKeyForUser(_userId),
       'daily_cosmic_context:last_shown_gregorian_date:$_userId',
@@ -77,6 +80,39 @@ void main() {
   });
 
   test(
+    'onboarding badge duplicate requests collapse to one presentation',
+    () async {
+      final controller = DailyCosmicContextController(now: () => _firstDay);
+      addTearDown(controller.dispose);
+      final badge = dailyCosmicContextBadgeForDate(_firstDay)!;
+      var dismissCount = 0;
+
+      expect(
+        controller.showOnboardingBadge(
+          badge,
+          onDismissed: () {
+            dismissCount += 1;
+          },
+        ),
+        isTrue,
+      );
+      expect(
+        controller.showOnboardingBadge(
+          badge,
+          onDismissed: () {
+            dismissCount += 1;
+          },
+        ),
+        isFalse,
+      );
+      expect(controller.current, same(badge));
+
+      await controller.dismiss();
+      expect(dismissCount, 1);
+    },
+  );
+
+  test(
     'shown marker stores only the date and never the context body',
     () async {
       const editedCopy = 'Edited live copy that should never be persisted.';
@@ -95,6 +131,8 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       final markerKey =
           DailyCosmicContextPrefs.lastShownGregorianDateKeyForUser(_userId);
+      expect(prefs.getString(markerKey), isNull);
+      await controller.recordVisiblePresentation(controller.current!);
       expect(prefs.getString(markerKey), '2026-06-09');
       expect(prefs.getString(markerKey), isNot(contains(editedCopy)));
       expect(
@@ -351,6 +389,101 @@ void main() {
   });
 
   testWidgets(
+    'pending daily rhythm is not consumed until visible presentation',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var resolveCount = 0;
+      final controller = DailyCosmicContextController(
+        now: () => _firstDay,
+        badgeForDate: (date) {
+          resolveCount += 1;
+          return _testBadge(
+            date,
+            cosmicContext: 'Today asks for visible rhythm.',
+          );
+        },
+      );
+      addTearDown(controller.dispose);
+
+      final prefs = await SharedPreferences.getInstance();
+      final markerKey =
+          DailyCosmicContextPrefs.lastShownGregorianDateKeyForUser(_userId);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Stack(
+              fit: StackFit.expand,
+              children: [
+                const Text('Restored page'),
+                DailyCosmicContextOverlayHost(controller: controller),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      await controller.evaluate(
+        userId: _userId,
+        isAuthenticated: true,
+        onboardingComplete: true,
+        suppressed: false,
+      );
+
+      expect(controller.current, isNotNull);
+      expect(prefs.getString(markerKey), isNull);
+
+      await controller.evaluate(
+        userId: _userId,
+        isAuthenticated: true,
+        onboardingComplete: true,
+        suppressed: true,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 260));
+
+      expect(controller.current, isNull);
+      expect(find.byKey(dailyCosmicContextOverlayKey), findsNothing);
+      expect(prefs.getString(markerKey), isNull);
+
+      await controller.evaluate(
+        userId: _userId,
+        isAuthenticated: true,
+        onboardingComplete: true,
+        suppressed: false,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 260));
+
+      expect(find.byKey(dailyCosmicContextOverlayKey), findsOneWidget);
+      expect(find.text('The Day’s Rhythm'), findsOneWidget);
+      expect(prefs.getString(markerKey), '2026-06-09');
+
+      await tester.tap(find.byKey(dailyCosmicContextDismissButtonKey));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 260));
+      expect(find.byKey(dailyCosmicContextOverlayKey), findsNothing);
+
+      await controller.evaluate(
+        userId: _userId,
+        isAuthenticated: true,
+        onboardingComplete: true,
+        suppressed: false,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 260));
+
+      expect(find.byKey(dailyCosmicContextOverlayKey), findsNothing);
+      expect(resolveCount, 2);
+      expect(prefs.getString(markerKey), '2026-06-09');
+    },
+  );
+
+  testWidgets(
     'overlay presents rhythm title kemetic-first metadata and hides deck label',
     (tester) async {
       tester.view.physicalSize = const Size(390, 844);
@@ -587,6 +720,149 @@ void main() {
       );
     },
   );
+
+  test('global daily context waits for completed onboarding handoff', () async {
+    final source = await File('lib/main.dart').readAsString();
+    final completionGate = _sourceBetween(
+      source,
+      'Future<bool> _dailyCosmicContextOnboardingComplete(String userId) async {',
+      'void _resetFloatingMenuStateAfterFrame()',
+    );
+    final progressSource = await File(
+      'lib/features/onboarding/onboarding_progress.dart',
+    ).readAsString();
+    final handoffGate = _sourceBetween(
+      progressSource,
+      'bool shouldAllowDailyCosmicContextAfterOnboardingHandoff({',
+      'class OnboardingProgressStorage',
+    );
+
+    expect(handoffGate, contains('progress.hasSeenMenuPrompt'));
+    expect(
+      handoffGate,
+      contains('progress.currentStep == TrueOnboardingStep.complete'),
+    );
+    expect(handoffGate, contains('onboardingSatisfiedDayRhythmIdentity'));
+    expect(handoffGate, contains('compareTo(normalizedToday) >= 0'));
+    expect(
+      handoffGate,
+      contains('shouldAllowDailyCosmicContextAfterOnboardingHandoff'),
+    );
+    expect(
+      completionGate,
+      contains('loadLocalReconciledWithLegacyCompletion('),
+    );
+    expect(
+      completionGate,
+      contains('shouldAllowDailyCosmicContextAfterOnboardingHandoff'),
+    );
+    expect(
+      completionGate.indexOf('loadLocalReconciledWithLegacyCompletion('),
+      lessThan(completionGate.indexOf('isCompletedLocally(userId)')),
+      reason:
+          'The global Rhythm gate must consume legacy completion through the '
+          'v2 reconciliation boundary before evaluating surfaces.',
+    );
+    expect(completionGate, isNot(contains('loadLocalIfPresent(')));
+    expect(completionGate, isNot(contains('progress.firstMaatFlowEventDate')));
+  });
+
+  test('onboarding Day Rhythm dismissal marks identity satisfied', () async {
+    final source = await File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsString();
+    final showMethod = _sourceBetween(
+      source,
+      'Future<void> _showOnboardingDayRhythm() async {',
+      'Future<void> _handleOnboardingDayRhythmDismissed() async {',
+    );
+    final dismissMethod = _sourceBetween(
+      source,
+      'Future<void> _handleOnboardingDayRhythmDismissed() async {',
+      'Future<void> _handleObservedJournalPromptNext() async {',
+    );
+    final observedNextMethod = _sourceBetween(
+      source,
+      'Future<void> _handleObservedJournalPromptNext() async {',
+      'void _showMenuExploreCoachmark()',
+    );
+
+    expect(showMethod, contains('onboardingDayRhythmDateIdentity'));
+    expect(showMethod, contains('lastSatisfiedDayRhythmIdentity'));
+    expect(dismissMethod, contains('lastSatisfiedDayRhythmIdentity: identity'));
+    expect(dismissMethod, contains('DailyCosmicContextPrefs().markShown'));
+    expect(
+      observedNextMethod,
+      contains(
+        '_onboardingProgress.currentStep == TrueOnboardingStep.complete',
+      ),
+    );
+    expect(
+      observedNextMethod.indexOf(
+        '_onboardingProgress.currentStep == TrueOnboardingStep.complete',
+      ),
+      lessThan(
+        observedNextMethod.indexOf(
+          '_onboardingProgress.currentStep == TrueOnboardingStep.menuExplore',
+        ),
+      ),
+      reason:
+          'Completed returning users must bail out before the observed-journal '
+          'path can rewrite progress back to menuExplore.',
+    );
+  });
+
+  test(
+    'onboarding Day Rhythm uses canonical identity, not first event date',
+    () async {
+      final source = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final dateMethod = _sourceBetween(
+        source,
+        'DateTime _onboardingDayRhythmDate() {',
+        'String _onboardingDayRhythmIdentity() {',
+      );
+      final joinedMethod = _sourceBetween(
+        source,
+        'Future<void> _handleHawRecommendedFlowJoined(int flowId) async {',
+        'Future<int> _addOnboardingReviewEveningThresholdInstance({',
+      );
+      final stagedMethod = _sourceBetween(
+        source,
+        'void _stageEveningThresholdOnboardingTarget({',
+        'Widget _buildHawRecommendedFlow(',
+      );
+
+      expect(
+        dateMethod,
+        contains('_onboardingProgress.onboardingDayRhythmDateIdentity'),
+      );
+      expect(
+        dateMethod,
+        contains('trackSkyNowInZone(detectTrackSkyTimeZone())'),
+      );
+      expect(dateMethod, isNot(contains('_firstMaatFlowEventKDate')));
+      expect(dateMethod, isNot(contains('KemeticMath.toGregorian')));
+      expect(joinedMethod, contains('canonicalDayRhythmIdentity'));
+      expect(joinedMethod, contains('onboardingDayRhythmDateIdentity'));
+      expect(stagedMethod, contains('trackSkyNowInZone(timezone)'));
+    },
+  );
+
+  test('timezone identity uses local day, not raw UTC day at boundary', () {
+    final utcBoundary = DateTime.utc(2026, 7, 11, 2, 30);
+    final pacificNow = trackSkyNowInZone(
+      TrackSkyTimeZone.pacific,
+      now: utcBoundary,
+    );
+    final utcNow = _instantInIanaZone(utcBoundary, 'UTC');
+    final aheadOfUtcNow = _instantInIanaZone(utcBoundary, 'Africa/Cairo');
+
+    expect(dailyCosmicContextGregorianDateKey(pacificNow), '2026-07-10');
+    expect(dailyCosmicContextGregorianDateKey(utcNow), '2026-07-11');
+    expect(dailyCosmicContextGregorianDateKey(aheadOfUtcNow), '2026-07-11');
+  });
 }
 
 String _sourceBetween(String source, String start, String end) {
@@ -630,4 +906,10 @@ KemeticDayInfo _testDayInfo({required String cosmicContext}) {
       mantra: 'test',
     ),
   );
+}
+
+DateTime _instantInIanaZone(DateTime instant, String ianaName) {
+  tzdata.initializeTimeZones();
+  final zoned = tz.TZDateTime.from(instant.toUtc(), tz.getLocation(ianaName));
+  return DateTime(zoned.year, zoned.month, zoned.day, zoned.hour, zoned.minute);
 }

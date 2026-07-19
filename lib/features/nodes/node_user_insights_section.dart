@@ -10,6 +10,7 @@ import '../../data/insight_link_repo.dart';
 import '../../data/insight_link_utils.dart';
 import '../../data/profile_repo.dart';
 import '../../shared/glossy_text.dart';
+import '../../shared/kemetic_text.dart';
 import '../../utils/kemetic_date_format.dart';
 import '../../widgets/kemetic_date_picker.dart';
 import '../../widgets/kemetic_keyboard.dart';
@@ -354,7 +355,7 @@ class _NodeUserInsightsSectionState extends State<NodeUserInsightsSection> {
           ),
         ),
         const SizedBox(height: 8),
-        Text(
+        KemeticText(
           entry.bodyText.trim(),
           style: const TextStyle(
             color: Colors.white,
@@ -666,7 +667,7 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
                           ),
                         ),
                       ),
-                      Text(
+                      KemeticText(
                         widget.initialEntry == null
                             ? 'New ${widget.node.title} Insight'
                             : 'Edit ${widget.node.title} Insight',
@@ -714,6 +715,10 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
                                     color: Colors.white,
                                     fontSize: 15,
                                     height: 1.4,
+                                    fontFamily: KemeticTypography
+                                        .kemeticLatinFontFamily,
+                                    fontFamilyFallback:
+                                        KemeticTypography.kemeticLatinFallback,
                                   ),
                                   decoration: const InputDecoration(
                                     border: InputBorder.none,
@@ -733,7 +738,7 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
                                     children: _links
                                         .map(
                                           (link) => InputChip(
-                                            label: Text(
+                                            label: KemeticText(
                                               link.selectedText.isNotEmpty
                                                   ? link.selectedText
                                                   : (link.targetType ==
@@ -741,6 +746,7 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
                                                                 .journalEntry
                                                         ? 'Journal link'
                                                         : 'Reflection link'),
+                                              style: const TextStyle(),
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                             deleteIcon: const Icon(

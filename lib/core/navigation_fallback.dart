@@ -51,6 +51,19 @@ void closeOrReturn(
     return;
   }
 
+  final dismissedClassification = AppNavigationRestorationController.instance
+      .classifyRoute(dismissedRoute, NavigationSource.userDismissal);
+  if (dismissedClassification.routeClass == NavigationRouteClass.utility) {
+    unawaited(
+      _closeUtilityWithoutLocalStack(
+        context,
+        router,
+        dismissedRoute: dismissedRoute,
+      ),
+    );
+    return;
+  }
+
   traceRestoration(
     'navigation close_or_return fallback route=$fallbackLocation',
   );
@@ -59,6 +72,39 @@ void closeOrReturn(
     AppNavigationRestorationController.instance.recordSurfaceDismissal(
       dismissedRoute: dismissedRoute,
       fallbackRoute: fallbackLocation,
+      source: NavigationSource.userDismissal,
+    ),
+  );
+}
+
+Future<void> _closeUtilityWithoutLocalStack(
+  BuildContext context,
+  GoRouter router, {
+  required String dismissedRoute,
+}) async {
+  final destination = await AppNavigationRestorationController.instance
+      .resolveUtilityFallbackDestination();
+  if (!context.mounted) return;
+
+  final currentRoute = router.routerDelegate.currentConfiguration.uri
+      .toString();
+  if (currentRoute != dismissedRoute) {
+    traceRestoration(
+      'navigation utility fallback dropped dismissed=$dismissedRoute '
+      'current=$currentRoute reason=route_changed',
+    );
+    return;
+  }
+
+  traceRestoration(
+    'navigation utility fallback route=${destination.route} '
+    'reason=${destination.reason}',
+  );
+  router.go(destination.route);
+  unawaited(
+    AppNavigationRestorationController.instance.recordSurfaceDismissal(
+      dismissedRoute: dismissedRoute,
+      fallbackRoute: destination.route,
       source: NavigationSource.userDismissal,
     ),
   );
@@ -141,11 +187,7 @@ Future<T?> openUtilityRoute<T>(
   return pushContext.push<T>(location, extra: extra);
 }
 
-void openPrimarySection(
-  BuildContext context,
-  AppSection section, {
-  GoRouter? router,
-}) {
+void recordPrimarySectionSelection(AppSection section) {
   RestorationCoordinator.instance.suppressRestoreForUserNavigation(
     reason: 'open_primary_section',
   );
@@ -154,6 +196,14 @@ void openPrimarySection(
       section,
     ),
   );
+}
+
+void openPrimarySection(
+  BuildContext context,
+  AppSection section, {
+  GoRouter? router,
+}) {
+  recordPrimarySectionSelection(section);
   final location = const NavigationPersistencePolicy().routeForSection(section);
   if (router != null) {
     router.go(location);

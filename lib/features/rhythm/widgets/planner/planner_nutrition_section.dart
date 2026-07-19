@@ -19,12 +19,14 @@ class PlannerNutritionSection extends StatelessWidget {
     required this.nutritionMissingTable,
     required this.nutritionLocalOnly,
     required this.nutritionError,
+    required this.nutritionEveryDay,
     required this.nutritionPageController,
     required this.nutritionSourceController,
     required this.nutritionNutrientController,
     required this.nutritionPurposeController,
     required this.nutritionPageBuilder,
     required this.onToggleFormOpen,
+    required this.onNutritionEveryDayChanged,
     required this.onAddNutritionItem,
     required this.onRetryNutrition,
     required this.onNutritionPageChanged,
@@ -38,12 +40,14 @@ class PlannerNutritionSection extends StatelessWidget {
   final bool nutritionMissingTable;
   final bool nutritionLocalOnly;
   final String? nutritionError;
+  final bool nutritionEveryDay;
   final PageController nutritionPageController;
   final TextEditingController nutritionSourceController;
   final TextEditingController nutritionNutrientController;
   final TextEditingController nutritionPurposeController;
   final IndexedWidgetBuilder nutritionPageBuilder;
   final VoidCallback onToggleFormOpen;
+  final ValueChanged<bool> onNutritionEveryDayChanged;
   final VoidCallback onAddNutritionItem;
   final VoidCallback onRetryNutrition;
   final ValueChanged<int> onNutritionPageChanged;
@@ -126,6 +130,31 @@ class PlannerNutritionSection extends StatelessWidget {
                           hintText: 'Purpose (optional)',
                           textInputAction: TextInputAction.done,
                           onSubmitted: (_) => onAddNutritionItem(),
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: nutritionEveryDay,
+                              onChanged: (value) =>
+                                  onNutritionEveryDayChanged(value ?? false),
+                              activeColor: PlannerVisualTokens.gold,
+                              checkColor: Colors.black,
+                              side: BorderSide(
+                                color: PlannerVisualTokens.gold.withValues(
+                                  alpha: PlannerVisualTokens.liftedAlpha(0.32),
+                                ),
+                                width: 0.8,
+                              ),
+                            ),
+                            Text(
+                              'Every day',
+                              style: PlannerVisualTokens.captionItalic.copyWith(
+                                color: const Color(0xFFDCBE82),
+                                fontStyle: FontStyle.normal,
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 14),
                         Align(
@@ -215,7 +244,7 @@ class PlannerNutritionSection extends StatelessWidget {
                     behavior: HitTestBehavior.opaque,
                     onTap: onOpenDecanInfo,
                     child: Text(
-                      'Viewing $decanName - decan day ${activeNutritionDayIndex + 1} of 10. Swipe or double-tap for detail.',
+                      'Viewing $decanName - decan day ${activeNutritionDayIndex + 1} of 10. Swipe days. Tap a source to view or edit.',
                       textAlign: TextAlign.center,
                       style: PlannerVisualTokens.captionItalic,
                     ),

@@ -75,7 +75,7 @@ class AppNavigationRestorationController {
   Future<void> _recordPrimaryRouteFromUserCommand(
     AppSection section, {
     required String route,
-  }) async {
+  }) {
     final classification = _policy.classifyRoute(
       route,
       NavigationSource.userPrimaryTab,
@@ -85,12 +85,19 @@ class AppNavigationRestorationController {
         !classification.canRecordPrimarySelection ||
         classification.canonicalRoute == null ||
         classification.section != section) {
-      return;
+      return Future<void>.value();
     }
-    await AppRestorationService.instance.saveDurableLaunchRoute(
+    final restoration = AppRestorationService.instance;
+    restoration.recordPrimaryTabSelectionCriticalSnapshot(
       classification.canonicalRoute!,
       metadata: classification.metadata,
     );
+    return restoration
+        .saveDurableLaunchRoute(
+          classification.canonicalRoute!,
+          metadata: classification.metadata,
+        )
+        .then<void>((_) {});
   }
 
   Future<void> recordNavigationAttempt({
@@ -149,6 +156,41 @@ class AppNavigationRestorationController {
     await AppRestorationService.instance.saveDurableLaunchRoute(
       classification.canonicalRoute!,
       metadata: classification.metadata,
+    );
+  }
+
+  Future<LaunchDestination> resolveUtilityFallbackDestination() async {
+    final result = await AppRestorationService.instance.readBestSnapshot();
+    final snapshot = result.snapshot;
+    final activeUserId = result.activeUserId?.trim();
+    if (result.status != AppRestorationReadStatus.restored ||
+        activeUserId == null ||
+        activeUserId.isEmpty ||
+        snapshot == null ||
+        snapshot.userId != activeUserId) {
+      return _decision(
+        route: '/',
+        source: 'utilityFallback',
+        reason: 'no_identity_matching_durable_primary',
+      );
+    }
+
+    final primarySelection = snapshot.primarySelectionMetadata;
+    final primaryRoute = primarySelection?.canonicalRoute?.trim();
+    if (primaryRoute == null ||
+        primaryRoute.isEmpty ||
+        !_policy.isValidPrimarySelection(primarySelection)) {
+      return _decision(
+        route: '/',
+        source: 'utilityFallback',
+        reason: 'no_valid_durable_primary',
+      );
+    }
+
+    return _decision(
+      route: primaryRoute,
+      source: 'utilityFallback',
+      reason: 'identity_matching_durable_primary',
     );
   }
 

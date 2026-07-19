@@ -10,6 +10,7 @@ import 'event_filing_repo.dart';
 import 'birthday_calendar.dart';
 import 'shared_calendar_models.dart';
 import 'user_events_repo.dart';
+import '../telemetry/telemetry.dart';
 
 class SharedCalendarsRepo {
   SharedCalendarsRepo(this._client);
@@ -41,7 +42,7 @@ class SharedCalendarsRepo {
 
   void _log(String message) {
     if (kDebugMode) {
-      debugPrint('[SharedCalendarsRepo] $message');
+      debugPrint('[SharedCalendarsRepo] ${redactLogText(message)}');
     }
   }
 
@@ -594,8 +595,10 @@ class SharedCalendarsRepo {
       )
       ..subscribe((status, [error]) {
         if (kDebugMode) {
+          final safeError = redactLogText(error?.toString() ?? 'null');
           debugPrint(
-            '[SharedCalendarsRepo] channel=$channelName status=$status error=$error',
+            '[SharedCalendarsRepo] channel=shared_calendar_sent_invites '
+            'user=${safeLogIdentifier(uid)} status=$status error=$safeError',
           );
         }
         switch (status) {
@@ -695,8 +698,10 @@ class SharedCalendarsRepo {
       )
       ..subscribe((status, [error]) {
         if (kDebugMode) {
+          final safeError = redactLogText(error?.toString() ?? 'null');
           debugPrint(
-            '[SharedCalendarsRepo] channel=$channelName status=$status error=$error',
+            '[SharedCalendarsRepo] channel=shared_calendar_pending_invites '
+            'user=${safeLogIdentifier(uid)} status=$status error=$safeError',
           );
         }
         switch (status) {

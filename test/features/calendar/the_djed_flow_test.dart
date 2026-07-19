@@ -81,11 +81,94 @@ void main() {
     expect(payload.toString(), isNot(contains('battle_commitment')));
   });
 
-  test('Event 5 spoken-line delivery beat is preserved', () {
+  test('Event 5 keeps invocation in words and commitment check in steps', () {
+    final event = kDjedEvents.singleWhere((event) => event.eventNumber == 5);
+
     expect(
-      kDjedEvents.singleWhere((event) => event.eventNumber == 5).spokenLine,
-      'Before checking the commitment, speak: Unis, raise yourself from your side! Do my command, you who hate sleep but were made slack. Then check: has the engagement happened?',
+      event.spokenLine,
+      'Unis, raise yourself from your side! Do my command, you who hate sleep but were made slack.',
     );
+    expect(event.steps, <String>[
+      'Speak the invocation before checking the commitment.',
+      'Check whether the direct engagement committed on Day 11 has happened.',
+      'Answer whether the engagement happened.',
+      'If yes, record what occurred in one honest sentence.',
+      'If no, name the obstacle and the next action that moves the engagement before Day 19.',
+      'Do that next action today if possible.',
+    ]);
+
+    final detail = djedDetailText(event, lens: DjedLens.neutral);
+    expect(detail, contains('Words\n"${event.spokenLine}"'));
+    expect(detail, contains('Steps\n1. Speak the invocation before checking'));
+    expect(detail, isNot(contains('Words\n"Before checking')));
+    expect(detail, isNot(contains('Then check: has the engagement happened?')));
+  });
+
+  test('Djed allows spoken Stand up invocation while banning wrappers', () {
+    final issues = <String>[];
+
+    expect(
+      kDjedEvents.singleWhere((event) => event.eventNumber == 6).spokenLine,
+      'Stand up! Raise yourself like Ausar (Osiris)!',
+    );
+    expect(
+      kDjedEvents.singleWhere((event) => event.eventNumber == 9).spokenLine,
+      contains('Stand up! Raise yourself like Ausar (Osiris)!'),
+    );
+
+    for (final event in kDjedEvents) {
+      for (final pattern in _djedWordsStageDirectionPatterns) {
+        if (pattern.hasMatch(event.spokenLine)) {
+          issues.add(
+            'Event ${event.eventNumber} ${event.title}: ${event.spokenLine}',
+          );
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
+  });
+
+  test('Djed steps keep optional and rationale text separated', () {
+    final issues = <String>[];
+    final event8 = kDjedEvents.singleWhere((event) => event.eventNumber == 8);
+    final event9 = kDjedEvents.singleWhere((event) => event.eventNumber == 9);
+
+    expect(event8.steps, <String>[
+      'Name one moment in the last 10 days when a load-bearing element was tested.',
+      'Name one way your relationship to what holds you upright has changed.',
+      'Prepare standing room: the next event requires standing and raising the arms for about 30 seconds.',
+    ]);
+    expect(event8.optionalSteps, <String>[
+      'Place a hand on the physical spine and notice what holds without announcement.',
+    ]);
+
+    expect(event9.steps, <String>[
+      'Name the spine elements that held across the full cycle.',
+      'Stand upright with your spine straight.',
+      'Raise your arms and hold for approximately thirty seconds.',
+      'Speak the closing line while standing.',
+      'Choose the maintenance practice that keeps the Djed upright.',
+    ]);
+
+    for (final event in kDjedEvents) {
+      final requiredSteps = event.steps.toSet();
+      for (final step in event.steps) {
+        if (_djedRequiredStepRationalePattern.hasMatch(step)) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+        if (step.startsWith('Optional:')) {
+          issues.add('Event ${event.eventNumber}: $step');
+        }
+      }
+      for (final optionalStep in event.optionalSteps) {
+        if (requiredSteps.contains(optionalStep)) {
+          issues.add('Event ${event.eventNumber}: $optionalStep');
+        }
+      }
+    }
+
+    expect(issues, isEmpty);
   });
 
   test('enrollment wrapper accepts picker rows and rejects ordinary dates', () {
@@ -186,3 +269,15 @@ void main() {
     expect(dayView, contains("'raised': 'Raised'"));
   });
 }
+
+final _djedWordsStageDirectionPatterns = <RegExp>[
+  RegExp(r'^\s*before checking\b', caseSensitive: false),
+  RegExp(r'\bspeak:\b', caseSensitive: false),
+  RegExp(r'\bthen check\b', caseSensitive: false),
+  RegExp(r'\bhas the engagement happened\b', caseSensitive: false),
+];
+
+final _djedRequiredStepRationalePattern = RegExp(
+  r'\b(Pyramid Texts|source note|The body declares|what the record produced|The battle must occur)\b',
+  caseSensitive: false,
+);

@@ -212,15 +212,23 @@ void main() {
         );
         expect(intent, contains('final EventDetailRestorationState detail'));
 
-        final warmStore = _sourceBetween(
+        final detachedSnapshot = _sourceBetween(
           calendar,
-          'class _CalendarWarmStateStore',
+          'class _CalendarDetachedStateSnapshot',
           'class CalendarPage extends StatefulWidget',
         );
-        expect(warmStore, contains('static void save({'));
-        expect(warmStore, contains('snapshotForUser'));
-        expect(warmStore, contains('_copyNotesByDay'));
-        expect(warmStore, contains('_copyFlow'));
+        expect(
+          detachedSnapshot,
+          contains('final Map<String, List<_Note>> notes'),
+        );
+        expect(detachedSnapshot, contains('class _CalendarModelCopy'));
+        expect(detachedSnapshot, contains('static _Note _copyNote'));
+        expect(detachedSnapshot, contains('static _Flow _copyFlow'));
+        expect(calendar, isNot(contains('class _CalendarWarmStateStore')));
+        expect(
+          calendar,
+          contains('CalendarSnapshotRepository.instance.restore'),
+        );
 
         final consumer = _sourceBetween(
           calendar,
@@ -369,7 +377,12 @@ void main() {
         expect(loadFromDisk, contains('hasPaintedStandaloneLaneAtLoadStart'));
         expect(
           loadFromDisk,
-          contains('commitVisibleCalendarState(String phase)'),
+          contains('void commitVisibleCalendarState(\n        String phase'),
+        );
+        expect(loadFromDisk, contains('hasPaintedEventSnapshotAtLoadStart'));
+        expect(
+          loadFromDisk,
+          contains('shouldPublishCompletedVisibleCalendarSnapshot'),
         );
         expect(loadFromDisk, contains('preservePaintedStandaloneLane'));
         expect(
@@ -387,6 +400,53 @@ void main() {
         );
       },
     );
+
+    test('normal Day View uses visible calendar filtered notes', () async {
+      final calendar = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+
+      final getNotes = _sourceBetween(
+        calendar,
+        'List<_Note> _getNotes(int kYear, int kMonth, int kDay) {',
+        'DaySheetDayWindow _calendarSheetDayWindow',
+      );
+      expect(getNotes, contains('_isCalendarVisible(note.calendarId)'));
+
+      final noteData = _sourceBetween(
+        calendar,
+        'List<NoteData> _noteDataForDay(int y, int m, int d) {',
+        '// Build a reminder id',
+      );
+      expect(
+        noteData,
+        contains('_getNotes(y, m, d)'),
+        reason:
+            'Normal Day View must use the same visible-calendar filtering '
+            'as the month grid so hidden shared calendars stay hidden.',
+      );
+      expect(
+        noteData,
+        isNot(contains("_notes['\$y-\$m-\$d']")),
+        reason:
+            'Reading raw _notes lets hidden shared-calendar events leak into '
+            'Day View and makes entry path change the visible event set.',
+      );
+
+      final openDayView = _sourceBetween(
+        calendar,
+        'void _openDayView(',
+        'void _openDaySheetEventDetailInHostDayView',
+      );
+      expect(openDayView, contains('notesForDay: notesForDayFn'));
+      expect(
+        openDayView,
+        contains('_noteDataForDay(y, m, d)'),
+        reason:
+            'Normal calendar date taps and shared-calendar event taps should '
+            'resolve Day View from the same visible-note source.',
+      );
+    });
 
     test(
       'CalendarPage and Inbox pass the event tap callback into the sheet',

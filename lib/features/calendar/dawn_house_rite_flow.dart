@@ -317,7 +317,8 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     title: 'Clean Place',
     purpose:
         'Order doesn\'t have to be total to be real. One clean surface is enough to begin.',
-    action: 'Wash hands. Clean one small surface before or after speaking.',
+    action:
+        'Wash hands. Clean one small surface either before or after speaking.',
     words:
         'A clean place welcomes clear action. May disorder be seen, named, and gently corrected.',
     maatAct:
@@ -427,7 +428,7 @@ const List<DawnHouseRiteDay> kDawnHouseRiteDays = <DawnHouseRiteDay>[
     title: 'Feeding the Living',
     purpose:
         'Provision is not optional in Ma\'at — it is among the few things the Declaration names specifically. This rite enacts it.',
-    action: 'Set water and, if possible, food.',
+    action: 'Set water. Add food if available.',
     words:
         'May the hungry be remembered. May life be sustained by more than words.',
     maatAct:

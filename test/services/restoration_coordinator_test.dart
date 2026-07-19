@@ -1,9 +1,48 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/services/restoration_coordinator.dart';
 
 void main() {
+  setUp(() {
+    RestorationCoordinator.instance.resetForTesting();
+  });
+
   group('RestorationCoordinator restore ownership', () {
+    test('slow restore cannot apply after calendar viewport intent', () async {
+      final coordinator = RestorationCoordinator.instance;
+      final lease = coordinator.captureUserIntentLease();
+      final restoreReady = Completer<void>();
+      var goCalls = 0;
+
+      final pendingRestore = () async {
+        await restoreReady.future;
+        if (lease.isCurrent) goCalls += 1;
+      }();
+      coordinator.noteCalendarViewportIntent(reason: 'user_scroll_settled');
+      restoreReady.complete();
+      await pendingRestore;
+
+      expect(goCalls, 0);
+    });
+
+    test('slow restore applies when user intent does not advance', () async {
+      final coordinator = RestorationCoordinator.instance;
+      final lease = coordinator.captureUserIntentLease();
+      final restoreReady = Completer<void>();
+      var goCalls = 0;
+
+      final pendingRestore = () async {
+        await restoreReady.future;
+        if (lease.isCurrent) goCalls += 1;
+      }();
+      restoreReady.complete();
+      await pendingRestore;
+
+      expect(goCalls, 1);
+    });
+
     test('launch surfaces are consumed once', () {
       final coordinator = RestorationCoordinator.instance
         ..beginLaunchRestore(
