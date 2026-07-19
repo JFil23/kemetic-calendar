@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/main.dart' as app;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -50,7 +50,9 @@ void main() {
           GoRoute(
             path: '/flows',
             builder: (context, state) =>
-                CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri),
+                app.buildFlowStudioUtilityCanonicalizationHostForTesting(
+                  routeUri: state.uri,
+                ),
           ),
         ],
       );
@@ -83,9 +85,10 @@ void main() {
       expect(primaryKey.currentState!.offset, primaryOffset);
       expect(router.canPop(), isTrue);
 
-      await tester.binding.handlePopRoute();
+      unawaited(router.replace<void>('/flows'));
       await _pumpUntilLocation(tester, router, '/flows');
       await tester.pump(const Duration(milliseconds: 400));
+      expect(find.text('Flow Studio'), findsOneWidget);
       expect(primaryKey.currentState, same(primaryState));
       expect(primaryKey.currentContext, same(primaryElement));
       expect(primaryKey.currentState!.offset, primaryOffset);

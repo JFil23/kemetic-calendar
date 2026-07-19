@@ -399,9 +399,24 @@ void main() {
   );
 
   const utilityCases = <_UtilityCase>[
-    _UtilityCase(drawerLabel: 'Flows', target: '/flows'),
-    _UtilityCase(drawerLabel: 'Calendars', target: '/calendars'),
-    _UtilityCase(drawerLabel: 'Profile', target: '/profile/me'),
+    _UtilityCase(
+      drawerLabel: 'Flows',
+      target: '/flows',
+      child: '/flows?mode=myFlows',
+      replaceTop: true,
+    ),
+    _UtilityCase(
+      drawerLabel: 'Calendars',
+      target: '/calendars',
+      child: '/calendar/day',
+      replaceTop: false,
+    ),
+    _UtilityCase(
+      drawerLabel: 'Profile',
+      target: '/profile/me',
+      child: '/profile/me/edit',
+      replaceTop: false,
+    ),
   ];
 
   for (final spec in utilityCases) {
@@ -441,6 +456,83 @@ void main() {
       },
     );
   }
+
+  for (final spec in utilityCases) {
+    testWidgets(
+      'Rule 5 matching ${spec.drawerLabel} child canonicalizes only the top utility overlay',
+      (tester) async {
+        final key = GlobalKey<_PrimaryViewportPageState>();
+        final router = _contractRouter(
+          initialLocation: '/nodes',
+          primaryBuilders: <String, WidgetBuilder>{
+            '/nodes': (context) => _PrimaryViewportPage(
+              key: key,
+              label: 'Library ${spec.drawerLabel} canonicalization base',
+            ),
+          },
+        );
+        await _pumpShell(tester, router);
+
+        unawaited(
+          AppNavigationRestorationController.instance.recordPrimaryTabSelection(
+            AppSection.library,
+          ),
+        );
+        expect(_durablePrimaryRoute(), '/nodes');
+        key.currentState!.jumpTo(480);
+        await tester.pump();
+        final state = key.currentState!;
+        final element = tester.element(
+          find.byKey(
+            ValueKey<String>(
+              'primary-Library ${spec.drawerLabel} canonicalization base',
+            ),
+            skipOffstage: false,
+          ),
+        );
+        final offset = state.offset;
+
+        await _selectDrawerRow(tester, spec.drawerLabel);
+        expect(_visibleRouterPath(router), spec.target);
+        expect(router.canPop(), isTrue);
+
+        if (spec.replaceTop) {
+          unawaited(router.replace<void>(spec.child));
+        } else {
+          unawaited(router.push<void>(spec.child));
+        }
+        await tester.pumpAndSettle();
+        expect(_visibleRouterPath(router), Uri.parse(spec.child).path);
+        expect(key.currentState, same(state));
+        expect(key.currentState!.offset, offset);
+
+        await _selectDrawerRow(tester, spec.drawerLabel);
+        expect(_visibleRouterPath(router), spec.target);
+        expect(_durablePrimaryRoute(), '/nodes');
+        expect(key.currentState, same(state));
+        expect(
+          tester.element(
+            find.byKey(
+              ValueKey<String>(
+                'primary-Library ${spec.drawerLabel} canonicalization base',
+              ),
+              skipOffstage: false,
+            ),
+          ),
+          same(element),
+        );
+        expect(key.currentState!.offset, offset);
+
+        router.pop();
+        await tester.pumpAndSettle();
+        expect(_visibleRouterPath(router), '/nodes');
+        expect(router.canPop(), isFalse);
+        expect(_durablePrimaryRoute(), '/nodes');
+        expect(key.currentState, same(state));
+        expect(key.currentState!.offset, offset);
+      },
+    );
+  }
 }
 
 class _PrimaryCase {
@@ -456,10 +548,17 @@ class _PrimaryCase {
 }
 
 class _UtilityCase {
-  const _UtilityCase({required this.drawerLabel, required this.target});
+  const _UtilityCase({
+    required this.drawerLabel,
+    required this.target,
+    required this.child,
+    required this.replaceTop,
+  });
 
   final String drawerLabel;
   final String target;
+  final String child;
+  final bool replaceTop;
 }
 
 GoRouter _contractRouter({
@@ -487,6 +586,11 @@ GoRouter _contractRouter({
       GoRoute(
         path: '/rhythm/decan/:dayKey',
         builder: (context, state) => const _SimplePage('Planner detail'),
+      ),
+      GoRoute(
+        path: '/calendar/day',
+        builder: (context, state) =>
+            const _SimplePage('Calendars utility child'),
       ),
       GoRoute(
         path: '/nodes',
@@ -536,8 +640,16 @@ GoRouter _contractRouter({
         builder: (context, state) => const _SimplePage('Flows utility'),
       ),
       GoRoute(
+        path: '/flows/:flowId/edit',
+        builder: (context, state) => const _SimplePage('Flows utility child'),
+      ),
+      GoRoute(
         path: '/calendars',
         builder: (context, state) => const _SimplePage('Calendars utility'),
+      ),
+      GoRoute(
+        path: '/profile/me/edit',
+        builder: (context, state) => const _SimplePage('Profile utility child'),
       ),
       GoRoute(
         path: '/profile/:userId',

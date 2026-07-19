@@ -1858,7 +1858,10 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
       path: '/flows',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
-        child: CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri),
+        child: _FlowStudioUtilityCanonicalizationHost(
+          routeUri: state.uri,
+          child: CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri),
+        ),
       ),
     ),
     _utilitySheetRoute(
@@ -2468,6 +2471,52 @@ class _MyAppState extends State<MyApp> {
   }
 }
 
+class _FlowStudioUtilityCanonicalizationHost extends StatefulWidget {
+  const _FlowStudioUtilityCanonicalizationHost({
+    required this.routeUri,
+    required this.child,
+  });
+
+  final Uri routeUri;
+  final Widget child;
+
+  @override
+  State<_FlowStudioUtilityCanonicalizationHost> createState() =>
+      _FlowStudioUtilityCanonicalizationHostState();
+}
+
+class _FlowStudioUtilityCanonicalizationHostState
+    extends State<_FlowStudioUtilityCanonicalizationHost> {
+  int _contentGeneration = 0;
+
+  @override
+  void didUpdateWidget(
+    covariant _FlowStudioUtilityCanonicalizationHost oldWidget,
+  ) {
+    super.didUpdateWidget(oldWidget);
+    final previousUri = oldWidget.routeUri;
+    final nextUri = widget.routeUri;
+    if (previousUri.path == '/flows' &&
+        previousUri.queryParameters.isNotEmpty &&
+        nextUri.path == '/flows' &&
+        nextUri.queryParameters.isEmpty) {
+      _contentGeneration += 1;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      KeyedSubtree(key: ValueKey<int>(_contentGeneration), child: widget.child);
+}
+
+@visibleForTesting
+Widget buildFlowStudioUtilityCanonicalizationHostForTesting({
+  required Uri routeUri,
+}) => _FlowStudioUtilityCanonicalizationHost(
+  routeUri: routeUri,
+  child: CalendarPage.buildFlowStudioRoutePage(routeUri: routeUri),
+);
+
 class _AppChrome extends StatefulWidget {
   const _AppChrome({required this.router, required this.child});
 
@@ -2576,6 +2625,8 @@ void resetGlobalFloatingMenuShellForTesting() {
 }
 
 enum _DrawerNavigationOperation { primaryReplacement, historyPush }
+
+enum _DrawerUtilityChildResolution { popTop, replaceTop }
 
 enum _DrawerDestination {
   calendar('Calendar', '/', primarySection: AppSection.calendar),
@@ -3416,9 +3467,16 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
         destination.isPrimaryReplacement && primarySection != null
         ? _drawerOverlayCountAboveMatchingPrimaryBase(destination)
         : null;
+    final matchingUtilityChildResolution = destination.isPrimaryReplacement
+        ? null
+        : _drawerUtilityChildResolution(destination);
     if (destination.isPrimaryReplacement && primarySection != null) {
       recordPrimarySectionSelection(primarySection);
       _replaceDrawerHistoryPrimary(destination);
+    } else if (matchingUtilityChildResolution != null) {
+      RestorationCoordinator.instance.suppressRestoreForUserNavigation(
+        reason: 'drawer_matching_utility_child',
+      );
     } else {
       RestorationCoordinator.instance.suppressRestoreForUserNavigation(
         reason: 'drawer_destination_selection',
@@ -3431,6 +3489,29 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       final dispatched = _drawerNavigationGeneration.runIfCurrent(
         generation,
         () {
+          if (matchingUtilityChildResolution != null) {
+            _traceDrawerNavigation(
+              'drawer matching utility child resolution started',
+              target: destination.label,
+              generation: generation,
+              route: destination.location,
+            );
+            switch (matchingUtilityChildResolution) {
+              case _DrawerUtilityChildResolution.popTop:
+                if (widget.router.canPop()) {
+                  widget.router.pop();
+                }
+              case _DrawerUtilityChildResolution.replaceTop:
+                unawaited(widget.router.replace<void>(destination.location));
+            }
+            _traceDrawerNavigation(
+              'drawer matching utility child canonicalized',
+              target: destination.label,
+              generation: generation,
+              route: destination.location,
+            );
+            return;
+          }
           if (matchingPrimaryBasePopCount != null) {
             _traceDrawerNavigation(
               'drawer matching primary base resolution started',
@@ -3530,13 +3611,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   int? _drawerOverlayCountAboveMatchingPrimaryBase(
     _DrawerDestination destination,
   ) {
-    final configuration = widget.router.routerDelegate.currentConfiguration;
-    final mountedLocations = <String>[configuration.uri.toString()];
-    mountedLocations.addAll(
-      configuration.matches.whereType<ImperativeRouteMatch>().map(
-        (match) => match.matches.uri.toString(),
-      ),
-    );
+    final mountedLocations = _drawerMountedLocations();
     final baseIndex = mountedLocations.lastIndexWhere(
       (location) => _drawerLocationMatches(location, destination.location),
     );
@@ -3544,6 +3619,34 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       return null;
     }
     return mountedLocations.length - baseIndex - 1;
+  }
+
+  _DrawerUtilityChildResolution? _drawerUtilityChildResolution(
+    _DrawerDestination destination,
+  ) {
+    final mountedLocations = _drawerMountedLocations();
+    if (mountedLocations.length < 2) return null;
+    final routeBelowTop = mountedLocations[mountedLocations.length - 2];
+    final topRoute = mountedLocations.last;
+    if (_drawerLocationMatches(routeBelowTop, destination.location) &&
+        !_drawerLocationMatches(topRoute, destination.location)) {
+      return _DrawerUtilityChildResolution.popTop;
+    }
+    if (_isDrawerDestinationSelected(destination) &&
+        !_drawerLocationMatches(topRoute, destination.location)) {
+      return _DrawerUtilityChildResolution.replaceTop;
+    }
+    return null;
+  }
+
+  List<String> _drawerMountedLocations() {
+    final configuration = widget.router.routerDelegate.currentConfiguration;
+    return <String>[
+      configuration.uri.toString(),
+      ...configuration.matches.whereType<ImperativeRouteMatch>().map(
+        (match) => match.matches.uri.toString(),
+      ),
+    ];
   }
 
   List<GlobalSideDrawerItem> _buildGlobalSideDrawerItems() {
