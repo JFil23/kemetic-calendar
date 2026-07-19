@@ -7092,7 +7092,7 @@ class CalendarPage extends StatefulWidget {
         final current = router.routerDelegate.currentConfiguration.uri
             .toString();
         if (!_sameRouteLocation(current, route)) {
-          router.go(route);
+          router.replace(route);
         }
       }
     } catch (_) {
