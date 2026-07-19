@@ -7,8 +7,12 @@ import 'package:mobile/features/calendar/the_days_outside_year_flow.dart';
 import 'package:mobile/features/calendar/the_days_outside_year_scheduler.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 
 void main() {
+  setUpAll(tzdata.initializeTimeZones);
+
   test('defines seven fixed Kemetic threshold events', () {
     expect(kDaysOutsideEvents, hasLength(7));
     expect(kDaysOutsideEvents.map((event) => event.eventNumber).toList(), <int>[
@@ -77,6 +81,14 @@ void main() {
       2,
       TrackSkyTimeZone.pacific,
     );
+    final opensAtInstant = _instantAtLocalDate(
+      window.opensAtLocal,
+      window.timezone,
+    );
+    final closesAtInstant = _instantAtLocalDate(
+      window.closesAtLocal,
+      window.timezone,
+    );
     final openK = KemeticMath.fromGregorian(window.opensAtLocal);
     final closeK = KemeticMath.fromGregorian(window.closesAtLocal);
 
@@ -86,7 +98,7 @@ void main() {
       daysOutsideYearEnrollmentWindowForStartDate(
         window.opensAtLocal,
         TrackSkyTimeZone.pacific,
-        now: window.opensAtLocal,
+        now: opensAtInstant,
       )?.closingKYear,
       2,
     );
@@ -94,22 +106,67 @@ void main() {
       daysOutsideYearEnrollmentWindowForStartDate(
         window.opensAtLocal.add(const Duration(days: 1)),
         TrackSkyTimeZone.pacific,
-        now: window.opensAtLocal,
+        now: opensAtInstant,
       ),
       isNull,
     );
     expect(
       daysOutsideYearEnrollmentIsOpen(
         window,
-        now: window.opensAtLocal.add(const Duration(hours: 1)),
+        now: opensAtInstant.add(const Duration(hours: 1)),
       ),
       isTrue,
     );
     expect(
-      daysOutsideYearEnrollmentIsOpen(window, now: window.closesAtLocal),
+      daysOutsideYearEnrollmentIsOpen(window, now: closesAtInstant),
       isFalse,
     );
   });
+
+  test(
+    'UTC instants preserve enrollment dates in every supported local zone',
+    () {
+      for (final timezone in TrackSkyTimeZone.values) {
+        final window = daysOutsideYearEnrollmentWindowForClosingYear(
+          2,
+          timezone,
+        );
+        final opensAtInstant = _instantAtLocalDate(
+          window.opensAtLocal,
+          timezone,
+        );
+        final closesAtInstant = _instantAtLocalDate(
+          window.closesAtLocal,
+          timezone,
+        );
+
+        expect(opensAtInstant.isUtc, isTrue, reason: timezone.ianaName);
+        expect(
+          daysOutsideNowInZone(timezone, now: opensAtInstant),
+          window.opensAtLocal,
+          reason: timezone.ianaName,
+        );
+        expect(
+          daysOutsideYearEnrollmentIsOpen(
+            window,
+            now: opensAtInstant.add(const Duration(hours: 1)),
+          ),
+          isTrue,
+          reason: timezone.ianaName,
+        );
+        expect(
+          daysOutsideNowInZone(timezone, now: closesAtInstant),
+          window.closesAtLocal,
+          reason: timezone.ianaName,
+        );
+        expect(
+          daysOutsideYearEnrollmentIsOpen(window, now: closesAtInstant),
+          isFalse,
+          reason: timezone.ianaName,
+        );
+      }
+    },
+  );
 
   test(
     'safe enrollment resolver returns null for unavailable selected dates',
@@ -364,6 +421,16 @@ void main() {
       isNot(contains('startDate.add(Duration(days: event.eventNumber')),
     );
   });
+}
+
+DateTime _instantAtLocalDate(DateTime calendarDate, TrackSkyTimeZone timezone) {
+  final location = tz.getLocation(timezone.ianaName);
+  return tz.TZDateTime(
+    location,
+    calendarDate.year,
+    calendarDate.month,
+    calendarDate.day,
+  ).toUtc();
 }
 
 final _daysOutsideWordsStageDirectionPatterns = <RegExp>[
