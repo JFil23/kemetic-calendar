@@ -3921,6 +3921,8 @@ class _CalendarProcessRouteHandoff {
   final MonthExpansionLevel expansion;
 }
 
+typedef _CalendarPrincipalLease = ({String userId, int generation});
+
 class CalendarPage extends StatefulWidget {
   final int? initialFlowIdToEdit;
   final bool openMyFlowsOnLaunch;
@@ -9001,6 +9003,11 @@ class CalendarPageState extends State<CalendarPage>
   static const Duration _restorationWriteDebounce = Duration(milliseconds: 150);
   static const int _calendarProgressSaveIntervalMs = 300;
   bool _isLoadingFromDisk = false;
+  bool _calendarHydrationRerunRequested = false;
+  String _calendarHydrationRerunSource = 'principal_superseded';
+  bool _calendarHydrationRerunPreserveViewport = false;
+  String? _calendarPrincipalId;
+  int _calendarPrincipalGeneration = 0;
   // Startup coordinator: single-flight gate for auth-triggered startup work.
   Completer<void>? _startupFlight;
   bool _startupRerunRequested = false;
@@ -9027,6 +9034,7 @@ class CalendarPageState extends State<CalendarPage>
   final ValueNotifier<DayViewSheetEventTarget?> _dayViewEventDetailRequest =
       ValueNotifier<DayViewSheetEventTarget?>(null);
   Timer? _warmStartCacheDebounceTimer;
+  _CalendarPrincipalLease? _warmStartCacheDebounceLease;
   Future<void>? _warmStartRestoreFlight;
   String? _warmStartCacheRestoredForUserId;
   String? _warmStartCacheRestoredForProjectRef;
@@ -9449,6 +9457,86 @@ class CalendarPageState extends State<CalendarPage>
     final userId = Supabase.instance.client.auth.currentUser?.id.trim();
     if (userId == null || userId.isEmpty) return null;
     return userId;
+  }
+
+  void _initializeCalendarPrincipalOwnership() {
+    final userId = _activeWarmStartUserId();
+    _calendarPrincipalId = userId;
+    if (userId != null) {
+      _calendarPrincipalGeneration = 1;
+    }
+  }
+
+  _CalendarPrincipalLease? _captureCalendarPrincipalLease() {
+    final userId = _activeWarmStartUserId();
+    if (userId == null || userId != _calendarPrincipalId) return null;
+    return (userId: userId, generation: _calendarPrincipalGeneration);
+  }
+
+  bool _isCalendarPrincipalLeaseCurrent(_CalendarPrincipalLease lease) {
+    return mounted &&
+        _activeWarmStartUserId() == lease.userId &&
+        _calendarPrincipalId == lease.userId &&
+        _calendarPrincipalGeneration == lease.generation;
+  }
+
+  bool _observeCalendarPrincipal({required String reason}) {
+    final nextUserId = _activeWarmStartUserId();
+    if (nextUserId == _calendarPrincipalId) return false;
+
+    final previousUserId = _calendarPrincipalId;
+    _calendarPrincipalId = nextUserId;
+    _calendarPrincipalGeneration++;
+    _initialStartupUserId = null;
+    _warmStartCacheDebounceTimer?.cancel();
+    _warmStartCacheDebounceTimer = null;
+    _warmStartCacheDebounceLease = null;
+    _warmStartRestoreFlight = null;
+    if (_isLoadingFromDisk && nextUserId != null) {
+      _calendarHydrationRerunRequested = true;
+      _calendarHydrationRerunSource = 'principal_changed:$reason';
+      _calendarHydrationRerunPreserveViewport = false;
+    }
+    _clearPrincipalOwnedCalendarState();
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[calendar] principal generation advanced reason=$reason '
+        'from=$previousUserId to=$nextUserId '
+        'generation=$_calendarPrincipalGeneration',
+      );
+    }
+    return true;
+  }
+
+  void _clearPrincipalOwnedCalendarState() {
+    CalendarPage._processRouteHandoff = null;
+    _flows.clear();
+    _notes.clear();
+    _flowTotalEventCounts.clear();
+    _flowRemainingEventCounts.clear();
+    _calendarSummariesById = <String, SharedCalendarSummary>{};
+    _hiddenCalendarIds = <String>{};
+    _personalCalendarId = null;
+    _calendarStateLoaded = false;
+    _reminderRules.clear();
+    _reminderRulesLoaded = false;
+    _endedReminderIds.clear();
+    _nextFlowId = 1;
+    _warmStartSnapshotVisible = false;
+    _warmStartCacheRestoredForUserId = null;
+    _warmStartCacheRestoredForProjectRef = null;
+    _hasPublishedCalendarSnapshot = false;
+    _publishedCalendarSnapshotUserId = null;
+    _publishedCalendarSnapshotProjectRef = null;
+    _authoritativeSnapshotCoverage = null;
+    _authoritativeSnapshotLanes = const <String>{};
+    _authoritativeSnapshotGeneration = 0;
+    _initialCalendarLoadFinished = false;
+    _myFlowsFilingSnapshotCache = null;
+    _lastSuccessfulHydrationAt = null;
+    if (!mounted) return;
+    setState(() => _dataVersion++);
+    _dayViewDataVersion.value++;
   }
 
   String? _activeWarmStartProjectRef() {
@@ -10095,13 +10183,16 @@ class CalendarPageState extends State<CalendarPage>
     };
   }
 
-  void _scheduleWarmStartCacheSave() {
-    final userId = _activeWarmStartUserId();
-    if (userId == null) return;
+  void _scheduleWarmStartCacheSave({_CalendarPrincipalLease? principalLease}) {
+    final lease = principalLease ?? _captureCalendarPrincipalLease();
+    if (lease == null || !_isCalendarPrincipalLeaseCurrent(lease)) return;
     _warmStartCacheDebounceTimer?.cancel();
+    _warmStartCacheDebounceLease = lease;
     _warmStartCacheDebounceTimer = Timer(_warmStartCacheDebounce, () {
       _warmStartCacheDebounceTimer = null;
-      unawaited(_persistWarmStartCacheNow(userId: userId));
+      _warmStartCacheDebounceLease = null;
+      if (!_isCalendarPrincipalLeaseCurrent(lease)) return;
+      unawaited(_persistWarmStartCacheNow(principalLease: lease));
     });
   }
 
@@ -10160,22 +10251,29 @@ class CalendarPageState extends State<CalendarPage>
   }) async {
     final timer = _warmStartCacheDebounceTimer;
     if (timer == null) return;
+    final lease = _warmStartCacheDebounceLease;
     _warmStartCacheDebounceTimer = null;
+    _warmStartCacheDebounceLease = null;
     if (timer.isActive) {
       timer.cancel();
     }
-    await _persistWarmStartCacheNow(debugReason: reason);
+    if (lease == null || !_isCalendarPrincipalLeaseCurrent(lease)) return;
+    await _persistWarmStartCacheNow(principalLease: lease, debugReason: reason);
   }
 
   Future<bool> _persistWarmStartCacheNow({
-    String? userId,
+    _CalendarPrincipalLease? principalLease,
     String debugReason = 'debounced',
   }) async {
+    final lease = principalLease ?? _captureCalendarPrincipalLease();
+    if (lease == null || !_isCalendarPrincipalLeaseCurrent(lease)) {
+      return false;
+    }
     final candidate = _completeCalendarSnapshotCandidate(
-      userId: userId,
+      userId: lease.userId,
       source: debugReason,
     );
-    if (candidate == null) {
+    if (candidate == null || !_isCalendarPrincipalLeaseCurrent(lease)) {
       if (kDebugMode) {
         _calendarDebugPrint(
           '[warmStart] skip non-authoritative cache save '
@@ -10189,6 +10287,7 @@ class CalendarPageState extends State<CalendarPage>
       final document = await CalendarSnapshotRepository.instance.promote(
         candidate,
       );
+      if (!_isCalendarPrincipalLeaseCurrent(lease)) return false;
       if (kDebugMode) {
         _calendarDebugPrint(
           '[warmStart] promoted last-good reason=$debugReason '
@@ -10303,8 +10402,11 @@ class CalendarPageState extends State<CalendarPage>
 
   Future<void> _restoreWarmStartCacheIfAvailable({
     String reason = 'startup',
+    _CalendarPrincipalLease? principalLease,
   }) async {
-    final identity = _activeCalendarSnapshotIdentity();
+    final lease = principalLease ?? _captureCalendarPrincipalLease();
+    if (lease == null || !_isCalendarPrincipalLeaseCurrent(lease)) return;
+    final identity = _activeCalendarSnapshotIdentity(userId: lease.userId);
     if (identity == null) return;
     final userId = identity.userId;
     final projectRef = identity.projectRef;
@@ -10315,9 +10417,11 @@ class CalendarPageState extends State<CalendarPage>
 
     try {
       await _loadEndedReminderIds();
+      if (!_isCalendarPrincipalLeaseCurrent(lease)) return;
       final document = await CalendarSnapshotRepository.instance.restore(
         identity,
       );
+      if (!_isCalendarPrincipalLeaseCurrent(lease)) return;
       _warmStartCacheRestoredForUserId = userId;
       _warmStartCacheRestoredForProjectRef = projectRef;
       if (document == null) return;
@@ -10337,7 +10441,7 @@ class CalendarPageState extends State<CalendarPage>
         return;
       }
 
-      if (!mounted) return;
+      if (!_isCalendarPrincipalLeaseCurrent(lease)) return;
       setState(() => _applyWarmStartDocument(document));
       _rebuildReminderRulesFromFlowsIfMissing();
       if (kDebugMode) {
@@ -10358,28 +10462,41 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   void _restoreWarmStartCacheForFirstPaint({required String reason}) {
+    final lease = _captureCalendarPrincipalLease();
+    if (lease == null || !_isCalendarPrincipalLeaseCurrent(lease)) return;
     final persistedViewLoad = _initialPersistedViewStateLoad;
-    final flight = _warmStartRestoreFlight ??=
+    final existing = _warmStartRestoreFlight;
+    if (existing != null) return;
+    late final Future<void> flight;
+    flight =
         (() async {
           if (persistedViewLoad != null) {
             await persistedViewLoad;
           }
-          if (!mounted) return;
+          if (!_isCalendarPrincipalLeaseCurrent(lease)) return;
           if (_pendingAuthResolutionForRestore &&
               Supabase.instance.client.auth.currentUser != null) {
             await _loadPersistedViewState(trigger: 'warm_first_paint:$reason');
           }
-          if (!mounted) return;
-          await _restoreWarmStartCacheIfAvailable(reason: reason);
+          if (!_isCalendarPrincipalLeaseCurrent(lease)) return;
+          await _restoreWarmStartCacheIfAvailable(
+            reason: reason,
+            principalLease: lease,
+          );
         })().whenComplete(() {
-          _warmStartRestoreFlight = null;
+          if (identical(_warmStartRestoreFlight, flight)) {
+            _warmStartRestoreFlight = null;
+          }
         });
+    _warmStartRestoreFlight = flight;
     unawaited(flight);
   }
 
   Future<void> _loadCalendarState() async {
+    final lease = _captureCalendarPrincipalLease();
+    if (lease == null) return;
     final snapshot = await _sharedCalendarsRepo.loadSnapshot();
-    if (!mounted) return;
+    if (!_isCalendarPrincipalLeaseCurrent(lease)) return;
     setState(() {
       _calendarSummariesById = <String, SharedCalendarSummary>{
         for (final calendar in snapshot.calendars) calendar.id: calendar,
@@ -14548,6 +14665,7 @@ class CalendarPageState extends State<CalendarPage>
     super.initState();
     _calendarDebugPrint('[calendar] initState');
     WidgetsBinding.instance.addObserver(this);
+    _initializeCalendarPrincipalOwnership();
     _initializeScrollControllerFromProcessRouteHandoff();
     _onboardingDayRhythmController.addListener(
       _handleOnboardingDayRhythmChanged,
@@ -14619,6 +14737,13 @@ class CalendarPageState extends State<CalendarPage>
       final event = data.event;
       if (kDebugMode) {
         _calendarDebugPrint('[calendar] auth state change event=${event.name}');
+      }
+      if (!mounted) return;
+      if (event == AuthChangeEvent.initialSession ||
+          event == AuthChangeEvent.signedIn ||
+          event == AuthChangeEvent.tokenRefreshed ||
+          event == AuthChangeEvent.signedOut) {
+        _observeCalendarPrincipal(reason: 'auth:${event.name}');
       }
       if (event == AuthChangeEvent.initialSession ||
           event == AuthChangeEvent.signedIn ||
@@ -18605,7 +18730,8 @@ class CalendarPageState extends State<CalendarPage>
     String reason = 'resume',
     bool force = false,
   }) async {
-    if (!mounted) return;
+    final principalLease = _captureCalendarPrincipalLease();
+    if (principalLease == null) return;
     final refreshStartedAt = DateTime.now();
     if (!force && !_shouldRefreshAfterForegroundResume(refreshStartedAt)) {
       _lastRefreshTime = refreshStartedAt;
@@ -18619,15 +18745,17 @@ class CalendarPageState extends State<CalendarPage>
 
     // Small delay to make sure any DB writes (like imports) are done
     await Future.delayed(const Duration(milliseconds: 200));
-    if (!mounted) return;
+    if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
 
     try {
       await ShareRepo(
         Supabase.instance.client,
       ).syncAcceptedInviteCalendarImports();
+      if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
       await _loadFromDisk(source: 'foreground:$reason', preserveViewport: true);
+      if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
       _lastRefreshTime = DateTime.now();
-      if (mounted) setState(() {});
+      setState(() {});
       _checkDueReminders();
       await _maybeLoadDecanReflectionPrompt(force: true);
     } catch (e) {
@@ -18790,9 +18918,13 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
-  Future<void> _primeReminderRulesFromFlows(Iterable<_Flow> flows) async {
+  Future<void> _primeReminderRulesFromFlows(
+    Iterable<_Flow> flows, {
+    required _CalendarPrincipalLease principalLease,
+  }) async {
     try {
       await _loadEndedReminderIds();
+      if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
       var source = flows
           .where((flow) => flow.isReminder)
           .map(_reminderRuleFromFlow)
@@ -18801,6 +18933,7 @@ class CalendarPageState extends State<CalendarPage>
           .toList(growable: false);
       if (source.isEmpty) {
         source = await _reminderRuleStore.load();
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
       }
 
       final merged = _dedupeReminderRules(
@@ -18811,6 +18944,7 @@ class CalendarPageState extends State<CalendarPage>
         ..addAll(merged);
       _reminderRulesLoaded = true;
 
+      if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
       if (merged.isNotEmpty) {
         await _saveReminderRules();
       } else {
@@ -31665,8 +31799,8 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _runStartupPipeline(String reason) async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) {
+    final principalLease = _captureCalendarPrincipalLease();
+    if (principalLease == null) {
       if (kDebugMode) {
         _calendarDebugPrint(
           '[startup] abort: no authenticated user reason=$reason',
@@ -31675,12 +31809,13 @@ class CalendarPageState extends State<CalendarPage>
       return;
     }
     await _initialPersistedViewStateLoad;
+    if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
     if (_pendingAuthResolutionForRestore) {
       await _loadPersistedViewState(trigger: 'startup_pipeline:$reason');
     }
-    if (!mounted) return;
+    if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
     await _restoreWarmStartCacheIfAvailable(reason: 'startup_gate:$reason');
-    if (!mounted) return;
+    if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
     _syncAcceptedInviteCalendarImportsInBackground(reason);
     final keepWarmStartVisible = _hasWarmStartSnapshotVisibleForCurrentUser();
     // A cold start establishes authoritative coverage for the restored
@@ -31688,19 +31823,24 @@ class CalendarPageState extends State<CalendarPage>
     // candidate and cannot clear the focused or retained last-good snapshot.
     if (!keepWarmStartVisible) {
       await _loadFromDisk(source: 'startup_focused_authoritative:$reason');
-      if (!mounted) return;
+      if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
     }
     await _awaitInitialViewportSettlementForFirstPaint();
-    if (!mounted) return;
+    if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
     if (!keepWarmStartVisible) {
       unawaited(
-        _persistWarmStartCacheNow(debugReason: 'startup_focused_complete'),
+        _persistWarmStartCacheNow(
+          principalLease: principalLease,
+          debugReason: 'startup_focused_complete',
+        ),
       );
     }
     await _restoreMyFlowsFilingSnapshotCache(reason: 'startup:$reason');
+    if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
     if (widget.openMyFlowsOnLaunch && _myFlowsFilingSnapshotCache == null) {
       try {
         await _loadMyFlowsFilingSnapshot();
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
       } catch (e, st) {
         if (kDebugMode) {
           _calendarDebugPrint('[MyFlowsFiling] launch prefetch failed: $e');
@@ -31711,14 +31851,16 @@ class CalendarPageState extends State<CalendarPage>
       _primeMyFlowsFilingSnapshotCache(reason: 'startup:$reason');
     }
     await _maybeLoadDecanReflectionPrompt();
+    if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
     unawaited(() async {
       try {
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
         final generationBeforeBackfill = _authoritativeSnapshotGeneration;
         await _loadFromDisk(
           source: 'startup_backfill:$reason',
           preserveViewport: true,
         );
-        if (!mounted) return;
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
         if (_authoritativeSnapshotGeneration == generationBeforeBackfill) {
           if (kDebugMode) {
             _calendarDebugPrint(
@@ -31729,10 +31871,12 @@ class CalendarPageState extends State<CalendarPage>
           return;
         }
         await _syncReminderEvents(refreshUi: false, updateLocalCache: true);
-        if (!mounted) return;
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
         await _persistWarmStartCacheNow(
+          principalLease: principalLease,
           debugReason: 'startup_backfill_complete',
         );
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
         _primeMyFlowsFilingSnapshotCache(reason: 'startup_backfill:$reason');
       } catch (e, st) {
         if (kDebugMode) {
@@ -31746,15 +31890,17 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   void _syncAcceptedInviteCalendarImportsInBackground(String reason) {
+    final principalLease = _captureCalendarPrincipalLease();
+    if (principalLease == null) return;
     unawaited(() async {
       try {
         final changed = await ShareRepo(
           Supabase.instance.client,
         ).syncAcceptedInviteCalendarImports();
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
         if (!changed) return;
-        if (!mounted) return;
         await _loadCalendarState();
-        if (!mounted) return;
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
         CalendarInvalidationBus.instance.publish(
           const CalendarInvalidated(
             reason: CalendarInvalidationReason.calendarImportSynced,
@@ -31959,7 +32105,19 @@ class CalendarPageState extends State<CalendarPage>
     String source = 'manual',
     bool preserveViewport = false,
   }) async {
+    final principalLease = _captureCalendarPrincipalLease();
+    if (principalLease == null) return;
     if (_isLoadingFromDisk) {
+      _calendarHydrationRerunRequested = true;
+      _calendarHydrationRerunSource = source;
+      _calendarHydrationRerunPreserveViewport |= preserveViewport;
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[loadFromDisk] coalesced source=$source '
+          'principal=${principalLease.userId} '
+          'generation=${principalLease.generation}',
+        );
+      }
       return;
     }
     _isLoadingFromDisk = true;
@@ -31970,7 +32128,8 @@ class CalendarPageState extends State<CalendarPage>
       }
 
       final currentUser = Supabase.instance.client.auth.currentUser;
-      if (currentUser == null) {
+      if (currentUser == null ||
+          !_isCalendarPrincipalLeaseCurrent(principalLease)) {
         if (kDebugMode) {
           _calendarDebugPrint(
             '[loadFromDisk] Skipping load: no authenticated user',
@@ -31984,6 +32143,7 @@ class CalendarPageState extends State<CalendarPage>
       final preservedScrollIntentLease = RestorationCoordinator.instance
           .captureUserIntentLease();
       await _ensureManualDeleteTombstonesLoaded();
+      if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
       final focusedStartupMode = source.startsWith(
         'startup_focused_authoritative:',
       );
@@ -32011,7 +32171,7 @@ class CalendarPageState extends State<CalendarPage>
 
       // Load flows into _flows list
       final serverFlows = await repo.getAllFlows();
-      if (!mounted) return;
+      if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
       if (kDebugMode) {
         _calendarDebugPrint(
           '[loadFromDisk] getAllFlows count: ${serverFlows.length}',
@@ -32085,7 +32245,11 @@ class CalendarPageState extends State<CalendarPage>
 
       // Reuse the just-loaded flow rows for reminder bootstrapping so startup
       // does not pay for a second full flow fetch before note hydration.
-      await _primeReminderRulesFromFlows(newFlows);
+      await _primeReminderRulesFromFlows(
+        newFlows,
+        principalLease: principalLease,
+      );
+      if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
 
       // Build index/maps for later use
       final Map<int, _Flow> flowIndex = {for (final f in newFlows) f.id: f};
@@ -32213,6 +32377,7 @@ class CalendarPageState extends State<CalendarPage>
         flowIds: newFlows.map((flow) => flow.id),
       );
       final eventsByFlowId = await flowEventsFuture;
+      if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
 
       int flowAddedCount = 0;
       bool committedVisibleCalendar = false;
@@ -32222,7 +32387,7 @@ class CalendarPageState extends State<CalendarPage>
         String phase, {
         bool loadComplete = false,
       }) {
-        if (!mounted) return;
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
         final preservedOnboardingTargetCount =
             _mergePendingOnboardingTargetInto(
               newNotes,
@@ -32295,7 +32460,7 @@ class CalendarPageState extends State<CalendarPage>
 
         _rebuildReminderRulesFromFlowsIfMissing();
         _lastSuccessfulHydrationAt = DateTime.now();
-        _warmStartCacheRestoredForUserId = _activeWarmStartUserId();
+        _warmStartCacheRestoredForUserId = principalLease.userId;
         _warmStartCacheRestoredForProjectRef = _activeWarmStartProjectRef();
         if (loadComplete) {
           final coverageStart = flowWindow == null
@@ -32322,7 +32487,7 @@ class CalendarPageState extends State<CalendarPage>
         }
         if (loadComplete) {
           _hasPublishedCalendarSnapshot = true;
-          _publishedCalendarSnapshotUserId = _activeWarmStartUserId();
+          _publishedCalendarSnapshotUserId = principalLease.userId;
           _publishedCalendarSnapshotProjectRef = _activeWarmStartProjectRef();
           _initialCalendarLoadFinished = true;
           _retainCompleteCalendarSnapshotForRouteRemount(
@@ -32350,7 +32515,7 @@ class CalendarPageState extends State<CalendarPage>
             },
           );
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
+            if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
             final postFrame = _calendarHydrationTraceSnapshot();
             NavigationTrace.instance.record(
               'calendar hydration post-frame',
@@ -32368,6 +32533,7 @@ class CalendarPageState extends State<CalendarPage>
             preserveViewport &&
             preservedScrollOffset != null) {
           WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
             if (!preservedScrollIntentLease.isCurrent) {
               traceRestoration(
                 'calendar hydration viewport replay skipped '
@@ -32633,12 +32799,14 @@ class CalendarPageState extends State<CalendarPage>
       // nutrition rows. Flow rows stay in the flow hydration path above.
       try {
         final standaloneResult = await standaloneFuture;
+        if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
         final standaloneEvents = standaloneResult.events;
         final ghostStandaloneIds = standaloneResult.ghostEventIds;
 
         if (ghostStandaloneIds.isNotEmpty) {
           unawaited(() async {
             try {
+              if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
               await repo.deleteByIds(
                 ghostStandaloneIds,
                 semantic: 'calendar_hydration_ghost_cleanup',
@@ -32879,9 +33047,10 @@ class CalendarPageState extends State<CalendarPage>
         'complete',
         loadComplete: flowHydrationComplete && standaloneHydrationComplete,
       );
-      if (deferredColdSnapshotReady && mounted) {
+      if (deferredColdSnapshotReady &&
+          _isCalendarPrincipalLeaseCurrent(principalLease)) {
         _hasPublishedCalendarSnapshot = true;
-        _publishedCalendarSnapshotUserId = _activeWarmStartUserId();
+        _publishedCalendarSnapshotUserId = principalLease.userId;
         _publishedCalendarSnapshotProjectRef = _activeWarmStartProjectRef();
         _initialCalendarLoadFinished = true;
         _warmStartSnapshotVisible = false;
@@ -32894,7 +33063,7 @@ class CalendarPageState extends State<CalendarPage>
       Future<void> finishNonCriticalPostProcessing() async {
         try {
           final flowEventCounts = await flowEventCountsFuture;
-          if (!mounted) return;
+          if (!_isCalendarPrincipalLeaseCurrent(principalLease)) return;
           setState(() {
             _flowTotalEventCounts
               ..clear()
@@ -32904,7 +33073,7 @@ class CalendarPageState extends State<CalendarPage>
               ..addAll(flowEventCounts.remaining);
           });
           if (flowHydrationComplete && standaloneHydrationComplete) {
-            _scheduleWarmStartCacheSave();
+            _scheduleWarmStartCacheSave(principalLease: principalLease);
           }
         } catch (err, st) {
           if (kDebugMode) {
@@ -32924,6 +33093,21 @@ class CalendarPageState extends State<CalendarPage>
       }
     } finally {
       _isLoadingFromDisk = false;
+      if (_calendarHydrationRerunRequested && mounted) {
+        final rerunSource = _calendarHydrationRerunSource;
+        final rerunPreserveViewport = _calendarHydrationRerunPreserveViewport;
+        _calendarHydrationRerunRequested = false;
+        _calendarHydrationRerunSource = 'principal_superseded';
+        _calendarHydrationRerunPreserveViewport = false;
+        if (_captureCalendarPrincipalLease() != null) {
+          unawaited(
+            _loadFromDisk(
+              source: 'coalesced:$rerunSource',
+              preserveViewport: rerunPreserveViewport,
+            ),
+          );
+        }
+      }
     }
 
     if (kDebugMode) {
