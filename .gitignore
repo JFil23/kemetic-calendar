@@ -10,6 +10,7 @@ build/
 *.log
 *.bak
 *.backup
+.flutter-plugins-dependencies
 __pycache__/
 
 # IntelliJ / Android Studio

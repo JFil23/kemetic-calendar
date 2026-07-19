@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mobile/core/navigation_fallback.dart';
@@ -174,60 +175,80 @@ class _HarnessRoutePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final windowId = AppWindowService.instance.currentWindowId ?? '<none>';
-    return Scaffold(
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: <Widget>[
-            Text(
-              '$label visible',
-              key: const ValueKey<String>('visible-route'),
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-            const SizedBox(height: 12),
-            Text('Route: $route'),
-            Text('Account: $account'),
-            Text('Window: $windowId'),
-            Text('Build: $_buildFingerprint'),
-            ValueListenableBuilder<String>(
-              valueListenable: _harnessState,
-              builder: (context, value, child) => Text('State: $value'),
-            ),
-            const SizedBox(height: 20),
-            FilledButton(
-              key: const ValueKey<String>('select-calendar'),
-              onPressed: () => openPrimarySection(context, AppSection.calendar),
-              child: const Text('Select Calendar'),
-            ),
-            FilledButton(
-              key: const ValueKey<String>('select-planner'),
-              onPressed: () => openPrimarySection(context, AppSection.planner),
-              child: const Text('Select Planner'),
-            ),
-            FilledButton(
-              key: const ValueKey<String>('select-library'),
-              onPressed: () => openPrimarySection(context, AppSection.library),
-              child: const Text('Select Library'),
-            ),
-            OutlinedButton(
-              key: const ValueKey<String>('start-older-mutation'),
-              onPressed: _startOlderCalendarMutation,
-              child: const Text('Start older Calendar mutation'),
-            ),
-            OutlinedButton(
-              key: const ValueKey<String>('release-older-mutation'),
-              onPressed: _releaseOlderCalendarMutation,
-              child: const Text('Release older Calendar mutation'),
-            ),
-            const Divider(height: 32),
-            ValueListenableBuilder<List<String>>(
-              valueListenable: _harnessLogs,
-              builder: (context, logs, child) => SelectableText(
-                logs.join('\n'),
-                key: const ValueKey<String>('restoration-logs'),
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        const SingleActivator(LogicalKeyboardKey.keyC): () =>
+            openPrimarySection(context, AppSection.calendar),
+        const SingleActivator(LogicalKeyboardKey.keyP): () =>
+            openPrimarySection(context, AppSection.planner),
+        const SingleActivator(LogicalKeyboardKey.keyL): () =>
+            openPrimarySection(context, AppSection.library),
+      },
+      child: Focus(
+        autofocus: true,
+        child: Title(
+          color: Colors.transparent,
+          title: 'LOCK_GATE|$_buildFingerprint|$label|$route',
+          child: Scaffold(
+            body: SafeArea(
+              child: ListView(
+                padding: const EdgeInsets.all(24),
+                children: <Widget>[
+                  Text(
+                    '$label visible',
+                    key: const ValueKey<String>('visible-route'),
+                    style: Theme.of(context).textTheme.headlineMedium,
+                  ),
+                  const SizedBox(height: 12),
+                  Text('Route: $route'),
+                  Text('Account: $account'),
+                  Text('Window: $windowId'),
+                  Text('Build: $_buildFingerprint'),
+                  ValueListenableBuilder<String>(
+                    valueListenable: _harnessState,
+                    builder: (context, value, child) => Text('State: $value'),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton(
+                    key: const ValueKey<String>('select-calendar'),
+                    onPressed: () =>
+                        openPrimarySection(context, AppSection.calendar),
+                    child: const Text('Select Calendar'),
+                  ),
+                  FilledButton(
+                    key: const ValueKey<String>('select-planner'),
+                    onPressed: () =>
+                        openPrimarySection(context, AppSection.planner),
+                    child: const Text('Select Planner'),
+                  ),
+                  FilledButton(
+                    key: const ValueKey<String>('select-library'),
+                    onPressed: () =>
+                        openPrimarySection(context, AppSection.library),
+                    child: const Text('Select Library'),
+                  ),
+                  OutlinedButton(
+                    key: const ValueKey<String>('start-older-mutation'),
+                    onPressed: _startOlderCalendarMutation,
+                    child: const Text('Start older Calendar mutation'),
+                  ),
+                  OutlinedButton(
+                    key: const ValueKey<String>('release-older-mutation'),
+                    onPressed: _releaseOlderCalendarMutation,
+                    child: const Text('Release older Calendar mutation'),
+                  ),
+                  const Divider(height: 32),
+                  ValueListenableBuilder<List<String>>(
+                    valueListenable: _harnessLogs,
+                    builder: (context, logs, child) => SelectableText(
+                      logs.join('\n'),
+                      key: const ValueKey<String>('restoration-logs'),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
