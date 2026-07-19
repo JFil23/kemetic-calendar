@@ -15,6 +15,7 @@ import 'package:mobile/services/app_window_service.dart';
 import 'package:mobile/services/calendar_snapshot_repository.dart';
 import 'package:mobile/services/navigation_trace.dart';
 import 'package:mobile/services/restoration_coordinator.dart';
+import 'package:mobile/services/session_resume_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -95,6 +96,7 @@ void main() {
     CalendarPage.debugResetWarmStateStoreForTesting();
     SharedPreferences.setMockInitialValues(<String, Object>{});
     AppWindowService.instance.resetForTesting();
+    SessionResumeService.debugUserIdResolver = () => _testUserId;
     CalendarPage.debugSuppressPendingEventInviteOverlay = true;
     CalendarPage.debugSuppressCalendarOnboardingHelpers = true;
     RestorationCoordinator.instance.suppressRestoreForExplicitIntent(
@@ -119,6 +121,7 @@ void main() {
 
   tearDown(() {
     _backend.release();
+    SessionResumeService.debugUserIdResolver = null;
   });
 
   group('CalendarPage startup stale-while-revalidate first paint', () {
@@ -681,6 +684,147 @@ void main() {
         kDay: today.kDay,
       ));
       expect(state.debugTodayAnchorVisibleForTesting, isTrue);
+    });
+
+    testWidgets(
+      'dispose cancels Calendar resume retries before they can publish or navigate',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        await _seedWarmSnapshot(title: _cachedTitle);
+        await _seedDaySheetResumeEntry(
+          title: 'Disposed lifecycle must not restore this draft',
+        );
+        _backend.blockRefresh = true;
+
+        final restorationReady = Completer<void>();
+        AppWindowService.debugWindowIdResolver = () async {
+          await restorationReady.future;
+          return _testWindowId;
+        };
+        AppWindowService.instance.resetForTesting();
+        addTearDown(() {
+          if (!restorationReady.isCompleted) restorationReady.complete();
+          AppWindowService.debugWindowIdResolver = () async => _testWindowId;
+          AppWindowService.instance.resetForTesting();
+        });
+
+        final retryTimers = _CalendarResumeRetryTimerTracker();
+        final navigator = _RecordingNavigatorObserver();
+        await runZoned(
+          () => _pumpCalendar(
+            tester,
+            navigatorObservers: <NavigatorObserver>[navigator],
+          ),
+          zoneSpecification: retryTimers.zoneSpecification,
+        );
+
+        expect(
+          retryTimers.activeCount,
+          greaterThan(0),
+          reason: 'The blocked startup must schedule the real 120 ms retry.',
+        );
+        final state = tester.state<CalendarPageState>(
+          find.byType(CalendarPage),
+        );
+        final viewBeforeDispose = state.debugCurrentViewForTesting;
+        final callbacksBeforeDispose = retryTimers.callbackCount;
+        final navigationBeforeDispose = navigator.navigationCount;
+
+        await tester.pumpWidget(
+          const MaterialApp(home: Scaffold(body: Text('Disposed'))),
+        );
+        await tester.pump();
+
+        expect(
+          retryTimers.activeCount,
+          0,
+          reason:
+              'CalendarPage.dispose must synchronously cancel every owned '
+              'resume-retry timer; waiting for it to expire is insufficient.',
+        );
+
+        // Twenty attempts at 120 ms is the complete production retry window.
+        await tester.pump(const Duration(milliseconds: 20 * 120 + 120));
+        await tester.pump();
+
+        expect(retryTimers.callbackCount, callbacksBeforeDispose);
+        expect(state.debugCurrentViewForTesting, viewBeforeDispose);
+        expect(navigator.navigationCount, navigationBeforeDispose);
+        expect(
+          find.text('Disposed lifecycle must not restore this draft'),
+          findsNothing,
+        );
+        expect(
+          await SessionResumeService.readResumeEntry(
+            kind: 'calendar_day_sheet',
+            baseRoute: '/',
+          ),
+          isNotNull,
+          reason:
+              'A disposed Calendar must not consume or publish pending '
+              'restoration state.',
+        );
+        expect(retryTimers.activeCount, 0);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets('Calendar resume retry still restores while mounted', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+      await _seedWarmSnapshot(title: _cachedTitle);
+      const resumedTitle = 'Mounted lifecycle restores this draft';
+      await _seedDaySheetResumeEntry(title: resumedTitle);
+      _backend.blockRefresh = true;
+
+      final restorationReady = Completer<void>();
+      AppWindowService.debugWindowIdResolver = () async {
+        await restorationReady.future;
+        return _testWindowId;
+      };
+      AppWindowService.instance.resetForTesting();
+      addTearDown(() {
+        if (!restorationReady.isCompleted) restorationReady.complete();
+        AppWindowService.debugWindowIdResolver = () async => _testWindowId;
+        AppWindowService.instance.resetForTesting();
+      });
+
+      final retryTimers = _CalendarResumeRetryTimerTracker();
+      await runZoned(
+        () => _pumpCalendar(tester),
+        zoneSpecification: retryTimers.zoneSpecification,
+      );
+      expect(retryTimers.activeCount, greaterThan(0));
+
+      restorationReady.complete();
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+        if (i % 4 == 0) {
+          await tester.runAsync<void>(() async {
+            await Future<void>.delayed(Duration.zero);
+          });
+        }
+      }
+
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is EditableText && widget.controller.text == resumedTitle,
+        ),
+        findsOneWidget,
+        reason:
+            'The same retry must consume and display the day-sheet resume '
+            'entry once persisted restoration completes while mounted.',
+      );
+      final activeResumeEntry = await SessionResumeService.readResumeEntry(
+        kind: 'calendar_day_sheet',
+        baseRoute: '/',
+      );
+      expect(activeResumeEntry?.payload['title'], resumedTitle);
+      expect(retryTimers.callbackCount, greaterThan(0));
+      expect(retryTimers.activeCount, 0);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets(
@@ -1558,7 +1702,11 @@ void main() {
   });
 }
 
-Future<void> _pumpCalendar(WidgetTester tester, {Key? key}) async {
+Future<void> _pumpCalendar(
+  WidgetTester tester, {
+  Key? key,
+  List<NavigatorObserver> navigatorObservers = const <NavigatorObserver>[],
+}) async {
   addTearDown(() async {
     _backend.release();
     await tester.pumpWidget(const SizedBox.shrink());
@@ -1568,10 +1716,86 @@ Future<void> _pumpCalendar(WidgetTester tester, {Key? key}) async {
     }
   });
   await tester.pumpWidget(
-    MaterialApp(home: CalendarPage(key: key ?? UniqueKey())),
+    MaterialApp(
+      navigatorObservers: navigatorObservers,
+      home: CalendarPage(key: key ?? UniqueKey()),
+    ),
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 150));
+}
+
+Future<void> _seedDaySheetResumeEntry({required String title}) async {
+  final day = KemeticMath.fromGregorian(DateTime.now());
+  await SessionResumeService.saveResumeEntry(
+    baseRoute: '/',
+    kind: 'calendar_day_sheet',
+    payload: <String, dynamic>{
+      'kYear': day.kYear,
+      'kMonth': day.kMonth,
+      'kDay': day.kDay,
+      'title': title,
+      'allowDateChange': true,
+      'allDay': true,
+    },
+  );
+}
+
+class _CalendarResumeRetryTimerTracker {
+  static const Duration _retryDelay = Duration(milliseconds: 120);
+
+  final List<Timer> _timers = <Timer>[];
+  int callbackCount = 0;
+
+  int get activeCount => _timers.where((timer) => timer.isActive).length;
+
+  late final ZoneSpecification zoneSpecification = ZoneSpecification(
+    createTimer: (self, parent, zone, duration, callback) {
+      final creationStack = StackTrace.current.toString();
+      final isCalendarResumeRetry =
+          duration == _retryDelay &&
+          (creationStack.contains('_restoreDaySheetIfNeeded') ||
+              creationStack.contains('_restorePushEventIfNeeded'));
+      if (!isCalendarResumeRetry) {
+        return parent.createTimer(zone, duration, callback);
+      }
+
+      final timer = parent.createTimer(zone, duration, () {
+        callbackCount++;
+        callback();
+      });
+      _timers.add(timer);
+      return timer;
+    },
+  );
+}
+
+class _RecordingNavigatorObserver extends NavigatorObserver {
+  int navigationCount = 0;
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    navigationCount++;
+    super.didPush(route, previousRoute);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    navigationCount++;
+    super.didPop(route, previousRoute);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    navigationCount++;
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    navigationCount++;
+    super.didRemove(route, previousRoute);
+  }
 }
 
 Future<void> _pumpWarmRestoreWindow(WidgetTester tester) async {

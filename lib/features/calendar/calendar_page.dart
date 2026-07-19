@@ -13777,6 +13777,8 @@ class CalendarPageState extends State<CalendarPage>
   static const String _kSessionScopeCalendarView = 'calendar_view';
   static const String _kSessionResumeKindDaySheet = 'calendar_day_sheet';
   static const String _kSessionResumeKindPushEvent = 'calendar_push_event';
+  static const Duration _calendarResumeRetryDelay = Duration(milliseconds: 120);
+  static const int _calendarResumeRetryLimit = 20;
   static const int _kCalendarViewStateSchemaVersion = 2;
   static const int _kCalendarRestorationLayoutRevision = 1;
   static const String _kCalendarAnchorTargetDayChip = 'dayChip';
@@ -13798,6 +13800,9 @@ class CalendarPageState extends State<CalendarPage>
   bool _restored = false;
   bool _daySheetResumeAttempted = false;
   bool _pushEventResumeAttempted = false;
+  Timer? _daySheetResumeRetryTimer;
+  Timer? _pushEventResumeRetryTimer;
+  int _calendarResumeLifecycleGeneration = 0;
   int? _lastHandledCalendarPushIntentNonce;
   bool _isTablet(BuildContext context) =>
       MediaQuery.of(context).size.shortestSide >= 600;
@@ -14785,16 +14790,34 @@ class CalendarPageState extends State<CalendarPage>
 
   void _scheduleDaySheetResumeRestore() {
     if (_daySheetResumeAttempted) return;
+    final lifecycleGeneration = _calendarResumeLifecycleGeneration;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_restoreDaySheetIfNeeded());
+      if (!_ownsCalendarResumeLifecycle(lifecycleGeneration)) return;
+      unawaited(
+        _restoreDaySheetIfNeeded(lifecycleGeneration: lifecycleGeneration),
+      );
     });
   }
 
   void _schedulePushEventResumeRestore() {
     if (_pushEventResumeAttempted) return;
+    final lifecycleGeneration = _calendarResumeLifecycleGeneration;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_restorePushEventIfNeeded());
+      if (!_ownsCalendarResumeLifecycle(lifecycleGeneration)) return;
+      unawaited(
+        _restorePushEventIfNeeded(lifecycleGeneration: lifecycleGeneration),
+      );
     });
+  }
+
+  bool _ownsCalendarResumeLifecycle(int lifecycleGeneration) =>
+      mounted && lifecycleGeneration == _calendarResumeLifecycleGeneration;
+
+  void _cancelCalendarResumeRetryTimers() {
+    _daySheetResumeRetryTimer?.cancel();
+    _daySheetResumeRetryTimer = null;
+    _pushEventResumeRetryTimer?.cancel();
+    _pushEventResumeRetryTimer = null;
   }
 
   void _handleCalendarPushOpenIntent() {
@@ -14805,20 +14828,38 @@ class CalendarPageState extends State<CalendarPage>
     unawaited(_openCalendarEventFromPush(intent));
   }
 
-  Future<void> _restoreDaySheetIfNeeded([int attempt = 0]) async {
-    if (!mounted || _daySheetResumeAttempted) return;
+  Future<void> _restoreDaySheetIfNeeded({
+    int attempt = 0,
+    required int lifecycleGeneration,
+  }) async {
+    if (!_ownsCalendarResumeLifecycle(lifecycleGeneration) ||
+        _daySheetResumeAttempted) {
+      return;
+    }
     if (!_restored) {
-      if (attempt >= 20) return;
-      await Future<void>.delayed(const Duration(milliseconds: 120));
-      if (!mounted) return;
-      return _restoreDaySheetIfNeeded(attempt + 1);
+      if (attempt >= _calendarResumeRetryLimit) return;
+      _daySheetResumeRetryTimer?.cancel();
+      _daySheetResumeRetryTimer = Timer(_calendarResumeRetryDelay, () {
+        _daySheetResumeRetryTimer = null;
+        if (!_ownsCalendarResumeLifecycle(lifecycleGeneration)) return;
+        unawaited(
+          _restoreDaySheetIfNeeded(
+            attempt: attempt + 1,
+            lifecycleGeneration: lifecycleGeneration,
+          ),
+        );
+      });
+      return;
     }
 
+    _daySheetResumeRetryTimer?.cancel();
+    _daySheetResumeRetryTimer = null;
     _daySheetResumeAttempted = true;
     final pendingPushEvent = await SessionResumeService.readResumeEntry(
       kind: _kSessionResumeKindPushEvent,
       baseRoute: '/',
     );
+    if (!_ownsCalendarResumeLifecycle(lifecycleGeneration)) return;
     if (pendingPushEvent != null) {
       await SessionResumeService.clearResumeEntry(
         kind: _kSessionResumeKindDaySheet,
@@ -14833,7 +14874,9 @@ class CalendarPageState extends State<CalendarPage>
     final payload =
         entry?.payload ??
         await AppRestorationService.instance.readDaySheetState();
-    if (!mounted || payload == null) return;
+    if (!_ownsCalendarResumeLifecycle(lifecycleGeneration) || payload == null) {
+      return;
+    }
     final kYear = (payload['kYear'] as num?)?.toInt();
     final kMonth = (payload['kMonth'] as num?)?.toInt();
     final kDay = (payload['kDay'] as num?)?.toInt();
@@ -14842,7 +14885,7 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+      if (!_ownsCalendarResumeLifecycle(lifecycleGeneration)) return;
       _openDaySheet(
         kYear,
         kMonth,
@@ -14869,21 +14912,40 @@ class CalendarPageState extends State<CalendarPage>
     });
   }
 
-  Future<void> _restorePushEventIfNeeded([int attempt = 0]) async {
-    if (!mounted || _pushEventResumeAttempted) return;
+  Future<void> _restorePushEventIfNeeded({
+    int attempt = 0,
+    required int lifecycleGeneration,
+  }) async {
+    if (!_ownsCalendarResumeLifecycle(lifecycleGeneration) ||
+        _pushEventResumeAttempted) {
+      return;
+    }
     if (!_restored) {
-      if (attempt >= 20) return;
-      await Future<void>.delayed(const Duration(milliseconds: 120));
-      if (!mounted) return;
-      return _restorePushEventIfNeeded(attempt + 1);
+      if (attempt >= _calendarResumeRetryLimit) return;
+      _pushEventResumeRetryTimer?.cancel();
+      _pushEventResumeRetryTimer = Timer(_calendarResumeRetryDelay, () {
+        _pushEventResumeRetryTimer = null;
+        if (!_ownsCalendarResumeLifecycle(lifecycleGeneration)) return;
+        unawaited(
+          _restorePushEventIfNeeded(
+            attempt: attempt + 1,
+            lifecycleGeneration: lifecycleGeneration,
+          ),
+        );
+      });
+      return;
     }
 
+    _pushEventResumeRetryTimer?.cancel();
+    _pushEventResumeRetryTimer = null;
     _pushEventResumeAttempted = true;
     final entry = await SessionResumeService.consumeResumeEntry(
       kind: _kSessionResumeKindPushEvent,
       baseRoute: '/',
     );
-    if (!mounted || entry == null) return;
+    if (!_ownsCalendarResumeLifecycle(lifecycleGeneration) || entry == null) {
+      return;
+    }
 
     final intent = CalendarPushOpenIntent.fromNotificationData(entry.payload);
     if (intent == null) {
@@ -18394,6 +18456,8 @@ class CalendarPageState extends State<CalendarPage>
 
   @override
   void dispose() {
+    _calendarResumeLifecycleGeneration++;
+    _cancelCalendarResumeRetryTimers();
     _retainProcessRouteHandoff(source: 'dispose');
     // ✅ Unsubscribe from RouteObserver
     if (_isSubscribed) {
