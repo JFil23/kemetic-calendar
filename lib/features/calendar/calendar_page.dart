@@ -35496,6 +35496,12 @@ class CalendarPageState extends State<CalendarPage>
             reason: 'calendar_scroll_started',
           );
         }
+        if (notification is ScrollUpdateNotification &&
+            notification.dragDetails != null) {
+          RestorationCoordinator.instance.noteCalendarViewportIntent(
+            reason: 'calendar_scroll_updated',
+          );
+        }
         if (!_initialViewportSettled) return false;
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _refreshCurrentDecanViewportAnchor();

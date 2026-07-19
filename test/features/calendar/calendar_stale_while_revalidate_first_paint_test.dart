@@ -24,6 +24,7 @@ const String _testWindowId = 'calendar-swr-first-paint-test-window';
 const String _supabaseUrl = 'https://example.supabase.co';
 const String _cachedTitle = 'Cached Akhet Anchor';
 const String _freshTitle = 'Fresh Akhet Anchor';
+const String _gestureHydratedTitle = 'Gesture-safe hydrated anchor';
 const String _rejectedTitle = 'Rejected Warm Anchor';
 const String _clientEventId = 'cid-stale-while-revalidate-anchor';
 const String _focusedColdTitle = 'Focused cold-start event';
@@ -685,6 +686,111 @@ void main() {
       ));
       expect(state.debugTodayAnchorVisibleForTesting, isTrue);
     });
+
+    testWidgets(
+      'pointer down before scroll start prevents same-gesture hydration viewport replay',
+      (tester) async {
+        final fixture = await _mountSettledGestureHydrationCalendar(tester);
+        final preservedOffset = fixture.controller.offset;
+        final gesture = await tester.startGesture(
+          tester.getCenter(fixture.scrollView),
+        );
+        var gestureReleased = false;
+        addTearDown(() async {
+          if (!gestureReleased) await gesture.up();
+        });
+        await tester.pump();
+
+        final hydration = fixture.state.reloadFromOutside();
+        await _pumpUntilRefreshBlocked(tester);
+        expect(fixture.controller.offset, preservedOffset);
+
+        await gesture.moveBy(const Offset(0, -140));
+        await tester.pump(const Duration(milliseconds: 120));
+        final userControlledOffset = fixture.controller.offset;
+        expect(userControlledOffset, greaterThan(preservedOffset + 80));
+
+        final replaySamples = await _releaseHydrationDuringGesture(
+          tester,
+          gesture: gesture,
+          state: fixture.state,
+          controller: fixture.controller,
+          hydration: hydration,
+        );
+        expect(
+          replaySamples,
+          everyElement(greaterThanOrEqualTo(userControlledOffset - 2)),
+          reason:
+              'Hydration must not snap the Calendar back to the offset captured '
+              'after pointer-down while the same gesture controls the viewport. '
+              'samples=$replaySamples preserved=$preservedOffset',
+        );
+
+        await gesture.up();
+        gestureReleased = true;
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(
+          fixture.controller.offset,
+          greaterThan(userControlledOffset - 2),
+          reason:
+              'Pointer release must not apply a delayed hydration snap-back.',
+        );
+      },
+    );
+
+    testWidgets(
+      'hydration begun after scroll start cannot replay during the continuing gesture',
+      (tester) async {
+        final fixture = await _mountSettledGestureHydrationCalendar(tester);
+        final initialOffset = fixture.controller.offset;
+        final gesture = await tester.startGesture(
+          tester.getCenter(fixture.scrollView),
+        );
+        var gestureReleased = false;
+        addTearDown(() async {
+          if (!gestureReleased) await gesture.up();
+        });
+
+        await gesture.moveBy(const Offset(0, -140));
+        await tester.pump(const Duration(milliseconds: 120));
+        final offsetAtHydrationStart = fixture.controller.offset;
+        expect(offsetAtHydrationStart, greaterThan(initialOffset + 80));
+
+        final hydration = fixture.state.reloadFromOutside();
+        await _pumpUntilRefreshBlocked(tester);
+
+        await gesture.moveBy(const Offset(0, -140));
+        await tester.pump(const Duration(milliseconds: 120));
+        final userControlledOffset = fixture.controller.offset;
+        expect(userControlledOffset, greaterThan(offsetAtHydrationStart + 80));
+
+        final replaySamples = await _releaseHydrationDuringGesture(
+          tester,
+          gesture: gesture,
+          state: fixture.state,
+          controller: fixture.controller,
+          hydration: hydration,
+        );
+        expect(
+          replaySamples,
+          everyElement(greaterThanOrEqualTo(userControlledOffset - 2)),
+          reason:
+              'A hydration that starts after ScrollStart must still yield to '
+              'later movement from the same held pointer. samples=$replaySamples '
+              'captured=$offsetAtHydrationStart',
+        );
+
+        await gesture.up();
+        gestureReleased = true;
+        await tester.pump(const Duration(milliseconds: 400));
+        expect(
+          fixture.controller.offset,
+          greaterThan(userControlledOffset - 2),
+          reason:
+              'Pointer release must not apply a delayed hydration snap-back.',
+        );
+      },
+    );
 
     testWidgets(
       'dispose cancels Calendar resume retries before they can publish or navigate',
@@ -1804,6 +1910,115 @@ Future<void> _pumpWarmRestoreWindow(WidgetTester tester) async {
   }
 }
 
+Future<
+  ({CalendarPageState state, ScrollController controller, Finder scrollView})
+>
+_mountSettledGestureHydrationCalendar(WidgetTester tester) async {
+  await _setPhoneViewport(tester);
+  await _seedWarmSnapshot(title: _cachedTitle);
+  _backend.freshStandaloneEvents = <Map<String, Object?>>[
+    _standaloneEventRow(title: _freshTitle),
+  ];
+  final key = GlobalKey<CalendarPageState>();
+  await _pumpCalendar(tester, key: key);
+  await _pumpUntilLoadedEventTitle(tester, key, _freshTitle);
+
+  final scrollView = find.byKey(
+    const PageStorageKey<String>('calendar_portrait_scroll'),
+  );
+  expect(scrollView, findsOneWidget);
+  final controller = tester.widget<CustomScrollView>(scrollView).controller!;
+  expect(controller.hasClients, isTrue);
+  expect(controller.position.maxScrollExtent, greaterThan(1000));
+  controller.jumpTo(600);
+  await tester.pump();
+
+  _backend
+    ..freshStandaloneEvents = <Map<String, Object?>>[
+      _standaloneEventRow(title: _gestureHydratedTitle),
+    ]
+    ..blockRefresh = true;
+
+  return (
+    state: key.currentState!,
+    controller: controller,
+    scrollView: scrollView,
+  );
+}
+
+Future<void> _pumpUntilLoadedEventTitle(
+  WidgetTester tester,
+  GlobalKey<CalendarPageState> key,
+  String title,
+) async {
+  for (var i = 0; i < 160; i++) {
+    await tester.pump(const Duration(milliseconds: 25));
+    if (i % 4 == 0) {
+      await tester.runAsync<void>(() async {
+        await Future<void>.delayed(Duration.zero);
+      });
+    }
+    if (key.currentState?.debugLoadedEventTitlesForTesting.contains(title) ==
+        true) {
+      return;
+    }
+  }
+  fail('Calendar never loaded the expected event title: $title');
+}
+
+Future<void> _pumpUntilRefreshBlocked(WidgetTester tester) async {
+  for (var i = 0; i < 120; i++) {
+    await tester.pump(const Duration(milliseconds: 25));
+    if (i % 4 == 0) {
+      await tester.runAsync<void>(() async {
+        await Future<void>.delayed(Duration.zero);
+      });
+    }
+    if (_backend.blockedRefreshRequests > 0) return;
+  }
+  fail('The real Calendar hydration never reached the blocked backend.');
+}
+
+Future<List<double>> _releaseHydrationDuringGesture(
+  WidgetTester tester, {
+  required TestGesture gesture,
+  required CalendarPageState state,
+  required ScrollController controller,
+  required Future<void> hydration,
+}) async {
+  final samples = <double>[];
+  _backend.release();
+  var hydrated = false;
+  for (var i = 0; i < 160; i++) {
+    if (i % 4 == 0) {
+      await gesture.moveBy(const Offset(0, -8));
+    }
+    await tester.pump(const Duration(milliseconds: 25));
+    if (i % 4 == 0) {
+      await tester.runAsync<void>(() async {
+        await Future<void>.delayed(Duration.zero);
+      });
+    }
+    samples.add(controller.offset);
+    hydrated = state.debugLoadedEventTitlesForTesting.contains(
+      _gestureHydratedTitle,
+    );
+    if (hydrated && i >= 8) break;
+  }
+  expect(
+    hydrated,
+    isTrue,
+    reason: 'The blocked hydration must commit in-test.',
+  );
+  await hydration;
+  for (var i = 0; i < 3; i++) {
+    await gesture.moveBy(const Offset(0, -8));
+    await tester.pump(const Duration(milliseconds: 25));
+    samples.add(controller.offset);
+  }
+  return samples;
+}
+
 Future<void> _releaseAndPumpUntilTextVisible(
   WidgetTester tester,
   String text,
@@ -2462,6 +2677,7 @@ class _CalendarSwrBackend extends http.BaseClient {
   bool failRefresh = false;
   bool failFlowEventRefresh = false;
   bool failStandaloneRefresh = false;
+  int blockedRefreshRequests = 0;
 
   void reset() {
     if (!_release.isCompleted) {
@@ -2494,6 +2710,7 @@ class _CalendarSwrBackend extends http.BaseClient {
     failRefresh = false;
     failFlowEventRefresh = false;
     failStandaloneRefresh = false;
+    blockedRefreshRequests = 0;
   }
 
   void release() {
@@ -2536,7 +2753,10 @@ class _CalendarSwrBackend extends http.BaseClient {
     }
 
     if (path.contains('/rest/v1/flows_with_calendars')) {
-      if (blockRefresh) await _release.future;
+      if (blockRefresh) {
+        blockedRefreshRequests++;
+        await _release.future;
+      }
       if (failRefresh) return _error(request);
       return _json(request, freshFlows);
     }
