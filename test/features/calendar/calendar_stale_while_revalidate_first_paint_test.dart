@@ -18,6 +18,7 @@ import 'package:mobile/services/app_navigation_restoration_controller.dart';
 import 'package:mobile/services/app_window_service.dart';
 import 'package:mobile/services/calendar_snapshot_repository.dart';
 import 'package:mobile/services/navigation_trace.dart';
+import 'package:mobile/core/navigation_persistence_policy.dart';
 import 'package:mobile/services/restoration_coordinator.dart';
 import 'package:mobile/services/session_resume_service.dart';
 import 'package:mobile/main.dart' as app;
@@ -2003,6 +2004,7 @@ class _TodaySequenceObservation {
       elementIdentityAfter == elementIdentity &&
       scrollControllerIdentityAfter == scrollControllerIdentity &&
       dispatchDisposition == 'accepted' &&
+      gestureIntentGenerationAfter > gestureIntentGenerationBefore &&
       animationStarted &&
       animationCompleted &&
       !laterReplayOverwroteToday;
@@ -2057,6 +2059,8 @@ Future<_TodaySequenceObservation> _runTodaySequenceMatrixCase(
   _TodaySequenceCase sequence,
 ) async {
   await _setPhoneViewport(tester);
+  tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+  await tester.pump();
   final today = KemeticMath.fromGregorian(DateTime.now());
   final target = _nonTodayRestorationTarget(today);
   final prefs = await SharedPreferences.getInstance();
@@ -2067,6 +2071,8 @@ Future<_TodaySequenceObservation> _runTodaySequenceMatrixCase(
   await _seedCalendarRestorationPrefs(prefs, target: target);
   await _seedWarmSnapshot(title: _cachedTitle, target: target);
   _backend.blockRefresh = false;
+  AppRestorationService.instance.resetForTesting();
+  AppNavigationRestorationController.instance.resetForTesting();
   RestorationCoordinator.instance.resetForTesting();
   RestorationCoordinator.instance.suppressRestoreForExplicitIntent(
     reason: 'today_sequence_matrix',
@@ -2082,6 +2088,7 @@ Future<_TodaySequenceObservation> _runTodaySequenceMatrixCase(
     _backend.release();
     await tester.pumpWidget(const SizedBox.shrink());
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    Supabase.instance.client.auth.stopAutoRefresh();
     await tester.pump();
     ShareRepo.debugDisableUnreadTrackingForTesting = false;
     for (final router in routers.reversed) {
@@ -2225,7 +2232,6 @@ Future<_TodaySequenceObservation> _runTodaySequenceMatrixCase(
     expect(controller.hasClients, isTrue);
     expect(controller.offset.abs(), greaterThan(500));
     await tester.pump(const Duration(milliseconds: 650));
-    await RestorationCoordinator.instance.flush();
   }
 
   var router = await mountRouter('/');
@@ -2252,9 +2258,10 @@ Future<_TodaySequenceObservation> _runTodaySequenceMatrixCase(
 
   if (usesPlanner) {
     await openDrawerDestination(router, 'Planner', '/rhythm/today');
-    await RestorationCoordinator.instance.flush();
 
     if (usesProcessRestore) {
+      await AppNavigationRestorationController.instance
+          .recordPrimaryTabSelection(AppSection.planner);
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
       CalendarPage.debugResetWarmStateStoreForTesting();
@@ -2360,6 +2367,10 @@ Future<_TodaySequenceObservation> _runTodaySequenceMatrixCase(
       finalTodayVisible;
   final laterReplayOverwroteToday =
       reachedTodayBeforeRelease && !finalTodayVisible;
+
+  // Widget tests execute on the host platform, where supabase_flutter does
+  // not stop its mobile auto-refresh ticker for lifecycle pauses.
+  Supabase.instance.client.auth.stopAutoRefresh();
 
   return _TodaySequenceObservation(
     sequence: sequence.name,

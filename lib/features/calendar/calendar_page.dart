@@ -17826,8 +17826,9 @@ class CalendarPageState extends State<CalendarPage>
     required bool animate,
     required String reason,
   }) {
-    final commandGeneration = ++_debugTodayCommandGeneration;
+    _debugTodayCommandGeneration++;
     _debugTodayCommandDisposition = 'scheduled';
+    RestorationCoordinator.instance.noteCalendarViewportIntent(reason: reason);
     _suppressPendingRestoresForUserNavigation();
     _restorationInteractedSinceBoot = true;
     _restoredCalendarAnchorTarget = null;
@@ -17837,7 +17838,7 @@ class CalendarPageState extends State<CalendarPage>
       'Calendar Today viewport command',
       state: <String, Object?>{'reason': reason, 'animate': animate},
     );
-    _scrollToToday(animate: animate, debugCommandGeneration: commandGeneration);
+    _scrollToToday(animate: animate);
   }
 
   bool get _isPrimaryCalendarRouteCurrent =>
@@ -24186,20 +24187,16 @@ class CalendarPageState extends State<CalendarPage>
 
   /* ───── TODAY snap/center ───── */
 
-  void _scrollToToday({bool animate = true, int? debugCommandGeneration}) {
+  void _scrollToToday({bool animate = true}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) {
-        if (debugCommandGeneration == _debugTodayCommandGeneration) {
-          _debugTodayCommandDisposition = 'ignored_unmounted';
-        }
+        _debugTodayCommandDisposition = 'ignored_unmounted';
         return;
       }
       final accepted = _jumpToTodayNow(animate: animate);
-      if (debugCommandGeneration == _debugTodayCommandGeneration) {
-        _debugTodayCommandDisposition = accepted
-            ? 'accepted'
-            : 'ignored_missing_target';
-      }
+      _debugTodayCommandDisposition = accepted
+          ? 'accepted'
+          : 'ignored_missing_target';
     });
   }
 
