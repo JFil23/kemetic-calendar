@@ -9,6 +9,7 @@ import 'package:mobile/core/navigation_persistence_policy.dart';
 import 'package:mobile/services/app_navigation_restoration_controller.dart';
 import 'package:mobile/services/app_restoration_service.dart';
 import 'package:mobile/services/app_window_service.dart';
+import 'package:mobile/widgets/kemetic_date_picker.dart';
 
 const String _buildFingerprint = String.fromEnvironment(
   'BUILD_VERSION',
@@ -20,6 +21,65 @@ final ValueNotifier<List<String>> _harnessLogs = ValueNotifier<List<String>>(
   <String>[],
 );
 Completer<void>? _releaseOlderMutation;
+final ValueNotifier<int> _calendarViewportRevision = ValueNotifier<int>(0);
+CalendarRestorationState? _savedCalendarViewport;
+CalendarRestorationState? _visibleCalendarViewport;
+String _calendarViewportDecision = 'none';
+bool _calendarViewportSeedRequired = false;
+
+bool get _calendarViewportMode =>
+    Uri.base.queryParameters['mode'] == 'calendar-viewport';
+
+String _calendarAnchorLabel(CalendarRestorationState? state) => state == null
+    ? 'none'
+    : '${state.kYear}-${state.kMonth}-${state.kDay}'
+          '@${state.anchorTarget ?? 'none'}:'
+          '${state.anchorAlignment?.toStringAsFixed(6) ?? 'none'}';
+
+CalendarRestorationState _futureCalendarViewportFor(
+  ({int kYear, int kMonth, int kDay}) today,
+) => CalendarRestorationState(
+  kYear: today.kYear + 3,
+  kMonth: 2,
+  kDay: 17,
+  showGregorian: false,
+  expansion: 'labeled',
+  anchorTarget: 'monthBody',
+  anchorAlignment: 0.4375,
+  viewportHeight: 844,
+  layoutRevision: 2,
+);
+
+Future<void> _selectFutureCalendarViewport() async {
+  final today = KemeticMath.fromGregorian(DateTime.now());
+  final selected = _futureCalendarViewportFor(today);
+  final result = await AppRestorationService.instance.saveCalendarState(
+    selected,
+  );
+  if (result.status != AppRestorationMutationStatus.persisted) {
+    _harnessState.value = 'calendar-viewport-${result.status.name}';
+    _appendLog('Calendar viewport save result=${result.status.name}');
+    return;
+  }
+  _savedCalendarViewport = selected;
+  _visibleCalendarViewport = selected;
+  _calendarViewportDecision = 'explicit_user_scroll';
+  _calendarViewportRevision.value++;
+  _harnessState.value = 'calendar-viewport-saved';
+  _appendLog(
+    'Calendar viewport saved anchor=${_calendarAnchorLabel(selected)}',
+  );
+}
+
+String _documentTitle(String label, String route) {
+  if (!_calendarViewportMode) {
+    return 'LOCK_GATE|$_buildFingerprint|$label|$route';
+  }
+  return 'CAL_VIEWPORT_GATE|$_buildFingerprint|$label|$route|'
+      'saved=${_calendarAnchorLabel(_savedCalendarViewport)}|'
+      'visible=${_calendarAnchorLabel(_visibleCalendarViewport)}|'
+      'decision=$_calendarViewportDecision';
+}
 
 String _accountFromUri() {
   final requested = Uri.base.queryParameters['account']?.trim();
@@ -45,6 +105,32 @@ Future<void> main() async {
 
   await AppWindowService.instance.ensureInitialized();
   await AppRestorationService.instance.initialize();
+  if (_calendarViewportMode) {
+    final today = KemeticMath.fromGregorian(DateTime.now());
+    _savedCalendarViewport = await AppRestorationService.instance
+        .readCalendarState();
+    final saved = _savedCalendarViewport;
+    if (saved == null) {
+      _visibleCalendarViewport = CalendarRestorationState(
+        kYear: today.kYear,
+        kMonth: today.kMonth,
+        kDay: today.kDay,
+        showGregorian: false,
+        expansion: 'labeled',
+        anchorTarget: 'dayChip',
+        anchorAlignment: 0.5,
+        viewportHeight: 844,
+        layoutRevision: 2,
+      );
+      _calendarViewportDecision = 'today_no_saved_anchor';
+      _calendarViewportSeedRequired = true;
+    } else {
+      _visibleCalendarViewport = resolveCalendarViewportRestoration(
+        saved: saved,
+      );
+      _calendarViewportDecision = 'restored_persisted_anchor';
+    }
+  }
   final restored = await AppNavigationRestorationController.instance
       .restoreLaunchDestination(isAuthenticated: true);
   _appendLog(
@@ -53,6 +139,9 @@ Future<void> main() async {
   );
   _harnessState.value = 'ready';
   runApp(_HarnessApp(initialLocation: restored.route, account: account));
+  if (_calendarViewportSeedRequired) {
+    unawaited(_selectFutureCalendarViewport());
+  }
 }
 
 class _HarnessApp extends StatefulWidget {
@@ -183,69 +272,102 @@ class _HarnessRoutePage extends StatelessWidget {
             openPrimarySection(context, AppSection.planner),
         const SingleActivator(LogicalKeyboardKey.keyL): () =>
             openPrimarySection(context, AppSection.library),
+        const SingleActivator(LogicalKeyboardKey.keyV): () =>
+            unawaited(_selectFutureCalendarViewport()),
       },
       child: Focus(
         autofocus: true,
-        child: Title(
-          color: Colors.transparent,
-          title: 'LOCK_GATE|$_buildFingerprint|$label|$route',
-          child: Scaffold(
-            body: SafeArea(
-              child: ListView(
-                padding: const EdgeInsets.all(24),
-                children: <Widget>[
-                  Text(
-                    '$label visible',
-                    key: const ValueKey<String>('visible-route'),
-                    style: Theme.of(context).textTheme.headlineMedium,
-                  ),
-                  const SizedBox(height: 12),
-                  Text('Route: $route'),
-                  Text('Account: $account'),
-                  Text('Window: $windowId'),
-                  Text('Build: $_buildFingerprint'),
-                  ValueListenableBuilder<String>(
-                    valueListenable: _harnessState,
-                    builder: (context, value, child) => Text('State: $value'),
-                  ),
-                  const SizedBox(height: 20),
-                  FilledButton(
-                    key: const ValueKey<String>('select-calendar'),
-                    onPressed: () =>
-                        openPrimarySection(context, AppSection.calendar),
-                    child: const Text('Select Calendar'),
-                  ),
-                  FilledButton(
-                    key: const ValueKey<String>('select-planner'),
-                    onPressed: () =>
-                        openPrimarySection(context, AppSection.planner),
-                    child: const Text('Select Planner'),
-                  ),
-                  FilledButton(
-                    key: const ValueKey<String>('select-library'),
-                    onPressed: () =>
-                        openPrimarySection(context, AppSection.library),
-                    child: const Text('Select Library'),
-                  ),
-                  OutlinedButton(
-                    key: const ValueKey<String>('start-older-mutation'),
-                    onPressed: _startOlderCalendarMutation,
-                    child: const Text('Start older Calendar mutation'),
-                  ),
-                  OutlinedButton(
-                    key: const ValueKey<String>('release-older-mutation'),
-                    onPressed: _releaseOlderCalendarMutation,
-                    child: const Text('Release older Calendar mutation'),
-                  ),
-                  const Divider(height: 32),
-                  ValueListenableBuilder<List<String>>(
-                    valueListenable: _harnessLogs,
-                    builder: (context, logs, child) => SelectableText(
-                      logs.join('\n'),
-                      key: const ValueKey<String>('restoration-logs'),
+        child: ValueListenableBuilder<int>(
+          valueListenable: _calendarViewportRevision,
+          builder: (context, revision, child) => Title(
+            color: Colors.transparent,
+            title: _documentTitle(label, route),
+            child: Scaffold(
+              body: SafeArea(
+                child: ListView(
+                  padding: const EdgeInsets.all(24),
+                  children: <Widget>[
+                    Text(
+                      '$label visible',
+                      key: const ValueKey<String>('visible-route'),
+                      style: Theme.of(context).textTheme.headlineMedium,
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    Text('Route: $route'),
+                    Text('Account: $account'),
+                    Text('Window: $windowId'),
+                    Text('Build: $_buildFingerprint'),
+                    if (_calendarViewportMode) ...<Widget>[
+                      Text(
+                        'Saved Calendar: '
+                        '${_calendarAnchorLabel(_savedCalendarViewport)}',
+                        key: const ValueKey<String>('saved-calendar-viewport'),
+                      ),
+                      Text(
+                        'Visible Calendar: '
+                        '${_calendarAnchorLabel(_visibleCalendarViewport)}',
+                        key: const ValueKey<String>(
+                          'visible-calendar-viewport',
+                        ),
+                      ),
+                      Text(
+                        'Viewport decision: $_calendarViewportDecision',
+                        key: const ValueKey<String>(
+                          'calendar-viewport-decision',
+                        ),
+                      ),
+                    ],
+                    ValueListenableBuilder<String>(
+                      valueListenable: _harnessState,
+                      builder: (context, value, child) => Text('State: $value'),
+                    ),
+                    const SizedBox(height: 20),
+                    FilledButton(
+                      key: const ValueKey<String>('select-calendar'),
+                      onPressed: () =>
+                          openPrimarySection(context, AppSection.calendar),
+                      child: const Text('Select Calendar'),
+                    ),
+                    FilledButton(
+                      key: const ValueKey<String>('select-planner'),
+                      onPressed: () =>
+                          openPrimarySection(context, AppSection.planner),
+                      child: const Text('Select Planner'),
+                    ),
+                    FilledButton(
+                      key: const ValueKey<String>('select-library'),
+                      onPressed: () =>
+                          openPrimarySection(context, AppSection.library),
+                      child: const Text('Select Library'),
+                    ),
+                    if (_calendarViewportMode)
+                      FilledButton(
+                        key: const ValueKey<String>(
+                          'select-future-calendar-viewport',
+                        ),
+                        onPressed: _selectFutureCalendarViewport,
+                        child: const Text('Select future Calendar viewport'),
+                      ),
+                    OutlinedButton(
+                      key: const ValueKey<String>('start-older-mutation'),
+                      onPressed: _startOlderCalendarMutation,
+                      child: const Text('Start older Calendar mutation'),
+                    ),
+                    OutlinedButton(
+                      key: const ValueKey<String>('release-older-mutation'),
+                      onPressed: _releaseOlderCalendarMutation,
+                      child: const Text('Release older Calendar mutation'),
+                    ),
+                    const Divider(height: 32),
+                    ValueListenableBuilder<List<String>>(
+                      valueListenable: _harnessLogs,
+                      builder: (context, logs, child) => SelectableText(
+                        logs.join('\n'),
+                        key: const ValueKey<String>('restoration-logs'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

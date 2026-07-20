@@ -10,7 +10,11 @@ import 'package:mobile/data/share_repo.dart';
 import 'package:mobile/features/calendar/calendar_invalidation.dart';
 import 'package:mobile/features/calendar/daily_cosmic_context_badge.dart';
 import 'package:mobile/features/calendar/calendar_page.dart'
-    show CalendarPage, CalendarPageState, KemeticMath;
+    show
+        CalendarPage,
+        CalendarPageState,
+        KemeticMath,
+        calendarDebugLogWriterForTesting;
 import 'package:mobile/features/calendar/calendar_warm_start_cache_identity.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/services/app_restoration_service.dart';
@@ -777,6 +781,18 @@ void main() {
           _expectTodaySequenceContract(result);
         },
       );
+    });
+
+    group('Calendar logical viewport process-restoration matrix', () {
+      for (final matrixCase in _ViewportProcessRestoreCase.values) {
+        testWidgets(matrixCase.testName, (tester) async {
+          final result = await _runViewportProcessRestoreMatrixCase(
+            tester,
+            matrixCase,
+          );
+          _expectViewportProcessRestoreContract(result);
+        });
+      }
     });
 
     testWidgets(
@@ -2408,6 +2424,688 @@ Future<_TodaySequenceObservation> _runTodaySequenceMatrixCase(
     todayAnchorMountedAtTap: todayAnchorMountedAtTap,
     trace: trace,
   );
+}
+
+typedef _LogicalCalendarAnchor = ({int kYear, int kMonth, int kDay});
+
+enum _ViewportProcessRestoreCase {
+  waitTenSeconds,
+  waitThirtySeconds,
+  terminateOnCalendar,
+  plannerRoundTrip,
+  backgroundResume,
+  threeDistinctYears,
+  todayThenLaterScroll,
+  hydrationAfterRestore;
+
+  String get testName => switch (this) {
+    waitTenSeconds =>
+      'A ten-second settled future anchor survives Planner process termination',
+    waitThirtySeconds =>
+      'B thirty-second settled future anchor survives Planner process termination',
+    terminateOnCalendar =>
+      'C terminating directly on Calendar restores the latest logical anchor',
+    plannerRoundTrip =>
+      'D Calendar Planner Calendar without termination preserves the logical anchor',
+    backgroundResume =>
+      'E background resume without termination preserves the logical anchor',
+    threeDistinctYears =>
+      'F three newer distinct years replace the older durable Calendar anchor',
+    todayThenLaterScroll =>
+      'G a later explicit scroll remains authoritative after Today and termination',
+    hydrationAfterRestore =>
+      'H hydration cannot replace the restored logical Calendar anchor',
+  };
+}
+
+class _ViewportProcessRestoreObservation {
+  const _ViewportProcessRestoreObservation({
+    required this.matrixCase,
+    required this.routerPath,
+    required this.selectedAnchors,
+    required this.durableAnchors,
+    required this.durableAnchorTargets,
+    required this.durableAnchorAlignments,
+    required this.restoredAnchors,
+    required this.anchorTargets,
+    required this.anchorAlignments,
+    required this.restoredAnchorTargets,
+    required this.restoredAnchorAlignments,
+    required this.stateIdentitiesBefore,
+    required this.stateIdentitiesAfter,
+    required this.elementIdentitiesBefore,
+    required this.elementIdentitiesAfter,
+    required this.scrollControllerIdentitiesBefore,
+    required this.scrollControllerIdentitiesAfter,
+    required this.viewportIntentGenerations,
+    required this.principalGenerations,
+    required this.lifecycleGenerations,
+    required this.storageKeys,
+    required this.calendarLogs,
+    required this.restorationLogs,
+  });
+
+  final String matrixCase;
+  final String routerPath;
+  final List<_LogicalCalendarAnchor> selectedAnchors;
+  final List<_LogicalCalendarAnchor?> durableAnchors;
+  final List<String?> durableAnchorTargets;
+  final List<double?> durableAnchorAlignments;
+  final List<_LogicalCalendarAnchor> restoredAnchors;
+  final List<String?> anchorTargets;
+  final List<double?> anchorAlignments;
+  final List<String?> restoredAnchorTargets;
+  final List<double?> restoredAnchorAlignments;
+  final List<int> stateIdentitiesBefore;
+  final List<int> stateIdentitiesAfter;
+  final List<int> elementIdentitiesBefore;
+  final List<int> elementIdentitiesAfter;
+  final List<int> scrollControllerIdentitiesBefore;
+  final List<int> scrollControllerIdentitiesAfter;
+  final List<int> viewportIntentGenerations;
+  final List<int> principalGenerations;
+  final List<int> lifecycleGenerations;
+  final List<String> storageKeys;
+  final List<String> calendarLogs;
+  final List<String> restorationLogs;
+
+  bool get contractSatisfied {
+    if (routerPath != '/' || selectedAnchors.isEmpty) return false;
+    if (selectedAnchors.length != durableAnchors.length ||
+        selectedAnchors.length != restoredAnchors.length ||
+        selectedAnchors.length != durableAnchorTargets.length ||
+        selectedAnchors.length != durableAnchorAlignments.length ||
+        selectedAnchors.length != anchorTargets.length ||
+        selectedAnchors.length != anchorAlignments.length ||
+        selectedAnchors.length != restoredAnchorTargets.length ||
+        selectedAnchors.length != restoredAnchorAlignments.length) {
+      return false;
+    }
+    for (var i = 0; i < selectedAnchors.length; i++) {
+      if (!_sameLogicalCalendarAnchor(selectedAnchors[i], durableAnchors[i]) ||
+          !_sameLogicalCalendarAnchor(selectedAnchors[i], restoredAnchors[i]) ||
+          anchorTargets[i] == null ||
+          anchorTargets[i] != durableAnchorTargets[i] ||
+          anchorTargets[i] != restoredAnchorTargets[i] ||
+          anchorAlignments[i] == null ||
+          durableAnchorAlignments[i] == null ||
+          restoredAnchorAlignments[i] == null ||
+          (anchorAlignments[i]! - durableAnchorAlignments[i]!).abs() > 0.02 ||
+          (anchorAlignments[i]! - restoredAnchorAlignments[i]!).abs() > 0.02) {
+        return false;
+      }
+    }
+    return principalGenerations.every((generation) => generation == 1) &&
+        !calendarLogs.any(
+          (message) =>
+              message.contains('fallback=today reason=future_persisted_date'),
+        );
+  }
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'matrixCase': matrixCase,
+    'routerPath': routerPath,
+    'selectedAnchors': selectedAnchors.map(_logicalAnchorJson).toList(),
+    'durableAnchors': durableAnchors
+        .map((anchor) => anchor == null ? null : _logicalAnchorJson(anchor))
+        .toList(),
+    'durableAnchorTargets': durableAnchorTargets,
+    'durableAnchorAlignments': durableAnchorAlignments,
+    'restoredAnchors': restoredAnchors.map(_logicalAnchorJson).toList(),
+    'anchorTargets': anchorTargets,
+    'anchorAlignments': anchorAlignments,
+    'restoredAnchorTargets': restoredAnchorTargets,
+    'restoredAnchorAlignments': restoredAnchorAlignments,
+    'stateIdentitiesBefore': stateIdentitiesBefore,
+    'stateIdentitiesAfter': stateIdentitiesAfter,
+    'elementIdentitiesBefore': elementIdentitiesBefore,
+    'elementIdentitiesAfter': elementIdentitiesAfter,
+    'scrollControllerIdentitiesBefore': scrollControllerIdentitiesBefore,
+    'scrollControllerIdentitiesAfter': scrollControllerIdentitiesAfter,
+    'viewportIntentGenerations': viewportIntentGenerations,
+    'principalGenerations': principalGenerations,
+    'lifecycleGenerations': lifecycleGenerations,
+    'storageKeys': storageKeys,
+    'calendarLogs': calendarLogs,
+    'restorationLogs': restorationLogs,
+  };
+}
+
+bool _sameLogicalCalendarAnchor(
+  _LogicalCalendarAnchor expected,
+  _LogicalCalendarAnchor? actual,
+) =>
+    actual != null &&
+    expected.kYear == actual.kYear &&
+    expected.kMonth == actual.kMonth &&
+    expected.kDay == actual.kDay;
+
+Map<String, int> _logicalAnchorJson(_LogicalCalendarAnchor anchor) =>
+    <String, int>{
+      'kYear': anchor.kYear,
+      'kMonth': anchor.kMonth,
+      'kDay': anchor.kDay,
+    };
+
+void _expectViewportProcessRestoreContract(
+  _ViewportProcessRestoreObservation result,
+) {
+  debugPrint('CAL_VIEWPORT_PROCESS_MATRIX ${jsonEncode(result.toJson())}');
+  expect(
+    result.contractSatisfied,
+    isTrue,
+    reason:
+        'The latest settled logical Calendar anchor must remain durable and '
+        'visible across route changes, lifecycle changes, hydration, and '
+        'fresh-process reconstruction. observation=${jsonEncode(result.toJson())}',
+  );
+}
+
+Future<_ViewportProcessRestoreObservation> _runViewportProcessRestoreMatrixCase(
+  WidgetTester tester,
+  _ViewportProcessRestoreCase matrixCase,
+) async {
+  await _setPhoneViewport(tester);
+  tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+  await tester.pump();
+  final today = KemeticMath.fromGregorian(DateTime.now());
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(
+    DailyCosmicContextPrefs.lastShownGregorianDateKeyForUser(_testUserId),
+    dailyCosmicContextGregorianDateKey(DateTime.now()),
+  );
+  await _seedWarmSnapshot(title: _cachedTitle, target: today);
+  _backend.blockRefresh = false;
+  AppRestorationService.instance.resetForTesting();
+  AppNavigationRestorationController.instance.resetForTesting();
+  RestorationCoordinator.instance.resetForTesting();
+  RestorationCoordinator.instance.suppressRestoreForExplicitIntent(
+    reason: 'calendar_viewport_process_matrix',
+    surfaces: const <String>[
+      RestorationCoordinator.calendarOverlayStackSurface,
+    ],
+  );
+  ShareRepo.debugDisableUnreadTrackingForTesting = true;
+
+  final calendarLogs = <String>[];
+  final restorationLogs = <String>[];
+  calendarDebugLogWriterForTesting = (message) {
+    if (message.contains('[calendar]') ||
+        message.contains('[restoration]') ||
+        message.contains('[CALENDAR]')) {
+      calendarLogs.add(message);
+    }
+  };
+  AppRestorationService.debugLogWriter = restorationLogs.add;
+
+  final routers = <GoRouter>[];
+  var cleanedUp = false;
+  Future<void> cleanUpHarness() async {
+    if (cleanedUp) return;
+    cleanedUp = true;
+    calendarDebugLogWriterForTesting = null;
+    AppRestorationService.debugLogWriter = null;
+    _backend.release();
+    await tester.pumpWidget(const SizedBox.shrink());
+    // The production shell schedules a two-second, mounted-guarded guidance
+    // refresh after auth. Let that unrelated shell callback observe disposal.
+    await tester.pump(const Duration(milliseconds: 2100));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    Supabase.instance.client.auth.stopAutoRefresh();
+    await tester.pump();
+    ShareRepo.debugDisableUnreadTrackingForTesting = false;
+    for (final router in routers.reversed) {
+      router.dispose();
+    }
+    app.resetGlobalFloatingMenuShellForTesting();
+  }
+
+  addTearDown(cleanUpHarness);
+
+  Future<GoRouter> mountRouter(String initialLocation) async {
+    RestorationCoordinator.instance.beginLaunchRestore(
+      reason: RestorationRestoreReason.coldLaunch,
+      targetLocation: initialLocation,
+    );
+    RestorationCoordinator.instance.suppressRestoreForExplicitIntent(
+      reason: 'calendar_viewport_process_matrix_no_overlay',
+      surfaces: const <String>[
+        RestorationCoordinator.calendarOverlayStackSurface,
+      ],
+    );
+    final router = app.createProductionRouterForTesting(
+      initialLocation: initialLocation,
+    );
+    routers.add(router);
+    await tester.pumpWidget(
+      MaterialApp.router(
+        routerConfig: router,
+        builder: (context, child) => app.buildGlobalFloatingMenuShellForTesting(
+          router: router,
+          child: child ?? const SizedBox.shrink(),
+        ),
+      ),
+    );
+    await tester.pump();
+    return router;
+  }
+
+  Future<CalendarPageState> waitForCalendar({
+    bool requireQuiescent = true,
+  }) async {
+    var stableFrames = 0;
+    for (var i = 0; i < 400; i++) {
+      await tester.pump(const Duration(milliseconds: 25));
+      if (i % 4 == 0) {
+        await tester.runAsync<void>(() async {
+          await Future<void>.delayed(Duration.zero);
+        });
+      }
+      if (find.byType(CalendarPage).evaluate().isEmpty ||
+          find
+              .byKey(const PageStorageKey<String>('calendar_portrait_scroll'))
+              .evaluate()
+              .isEmpty) {
+        stableFrames = 0;
+        continue;
+      }
+      final state = tester.state<CalendarPageState>(find.byType(CalendarPage));
+      final ready =
+          state.debugInitialViewportSettledForTesting &&
+          (!requireQuiescent || !state.debugHydrationInFlightForTesting);
+      stableFrames = ready ? stableFrames + 1 : 0;
+      if (stableFrames >= 8) return state;
+    }
+    fail('Production router never settled the Calendar viewport.');
+  }
+
+  Future<CalendarPageState> waitForMountedCalendar() async {
+    for (var i = 0; i < 200; i++) {
+      await tester.pump(const Duration(milliseconds: 25));
+      if (i % 4 == 0) {
+        await tester.runAsync<void>(() async {
+          await Future<void>.delayed(Duration.zero);
+        });
+      }
+      if (find.byType(CalendarPage).evaluate().isNotEmpty) {
+        final mountedState = tester.state<CalendarPageState>(
+          find.byType(CalendarPage),
+        );
+        final view = mountedState.debugCurrentViewForTesting;
+        if (view.kYear != null && view.kMonth != null && view.kDay != null) {
+          return mountedState;
+        }
+      }
+    }
+    fail('Production router never mounted a Calendar logical viewport.');
+  }
+
+  Future<void> openDrawerDestination(
+    GoRouter router,
+    String label,
+    String expectedPath,
+  ) async {
+    final menu = find.byKey(app.globalMenuButtonKey);
+    expect(menu, findsOneWidget);
+    await tester.tap(menu);
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 260));
+    final destination = find.byKey(
+      ValueKey<String>('global-side-drawer-item-$label'),
+    );
+    expect(destination, findsOneWidget);
+    await tester.tap(destination);
+    for (var i = 0; i < 160; i++) {
+      await tester.pump(const Duration(milliseconds: 25));
+      if (i % 4 == 0) {
+        await tester.runAsync<void>(() async {
+          await Future<void>.delayed(Duration.zero);
+        });
+      }
+      if (router.routerDelegate.currentConfiguration.uri.path == expectedPath &&
+          find.byKey(globalSideDrawerKey).evaluate().isEmpty) {
+        return;
+      }
+    }
+    fail('Drawer destination $label did not settle at $expectedPath.');
+  }
+
+  _LogicalCalendarAnchor currentLogicalAnchor(CalendarPageState state) {
+    final view = state.debugCurrentViewForTesting;
+    final kYear = view.kYear;
+    final kMonth = view.kMonth;
+    final kDay = view.kDay;
+    if (kYear == null || kMonth == null || kDay == null) {
+      fail('Calendar did not publish a complete logical viewport anchor.');
+    }
+    return (kYear: kYear, kMonth: kMonth, kDay: kDay);
+  }
+
+  Future<CalendarRestorationState> waitForDurableAnchor(
+    _LogicalCalendarAnchor expected,
+    Map<String, double> visibleAlignments,
+  ) async {
+    CalendarRestorationState? last;
+    for (var i = 0; i < 160; i++) {
+      await tester.pump(const Duration(milliseconds: 25));
+      if (i % 4 == 0) {
+        await tester.runAsync<void>(() async {
+          await Future<void>.delayed(Duration.zero);
+        });
+      }
+      last = (await AppRestorationService.instance.readBestSnapshot())
+          .snapshot
+          ?.calendar;
+      if (last != null &&
+          last.kYear == expected.kYear &&
+          last.kMonth == expected.kMonth &&
+          last.kDay == expected.kDay &&
+          last.anchorTarget != null &&
+          last.anchorAlignment != null &&
+          visibleAlignments[last.anchorTarget] != null &&
+          (last.anchorAlignment! - visibleAlignments[last.anchorTarget]!)
+                  .abs() <=
+              0.02) {
+        return last;
+      }
+    }
+    fail(
+      'Durable Calendar anchor never matched $expected; '
+      'last=${last?.toJson()}',
+    );
+  }
+
+  Future<_LogicalCalendarAnchor> scrollToFutureYear(
+    CalendarPageState state,
+    int minimumYear,
+  ) async {
+    final scrollView = find.byKey(
+      const PageStorageKey<String>('calendar_portrait_scroll'),
+    );
+    expect(scrollView, findsOneWidget);
+    for (var i = 0; i < 80; i++) {
+      final current = currentLogicalAnchor(state);
+      if (current.kYear >= minimumYear) break;
+      await tester.drag(scrollView, const Offset(0, -1800));
+      await tester.pump(const Duration(milliseconds: 220));
+      if (i % 2 == 0) {
+        await tester.runAsync<void>(() async {
+          await Future<void>.delayed(Duration.zero);
+        });
+      }
+    }
+    await tester.pump(const Duration(milliseconds: 650));
+    final selected = currentLogicalAnchor(state);
+    expect(
+      selected.kYear,
+      greaterThanOrEqualTo(minimumYear),
+      reason: 'A real pointer scroll must reach the requested future year.',
+    );
+    return selected;
+  }
+
+  final selectedAnchors = <_LogicalCalendarAnchor>[];
+  final durableAnchors = <_LogicalCalendarAnchor?>[];
+  final durableAnchorTargets = <String?>[];
+  final durableAnchorAlignments = <double?>[];
+  final restoredAnchors = <_LogicalCalendarAnchor>[];
+  final anchorTargets = <String?>[];
+  final anchorAlignments = <double?>[];
+  final restoredAnchorTargets = <String?>[];
+  final restoredAnchorAlignments = <double?>[];
+  final stateIdentitiesBefore = <int>[];
+  final stateIdentitiesAfter = <int>[];
+  final elementIdentitiesBefore = <int>[];
+  final elementIdentitiesAfter = <int>[];
+  final scrollControllerIdentitiesBefore = <int>[];
+  final scrollControllerIdentitiesAfter = <int>[];
+  final viewportIntentGenerations = <int>[];
+  final principalGenerations = <int>[];
+  final lifecycleGenerations = <int>[];
+  final preRouteVisibleAnchorAlignments = <Map<String, double>>[];
+
+  var router = await mountRouter('/');
+  var state = await waitForCalendar();
+
+  Future<_LogicalCalendarAnchor> selectAnchor(int minimumYear) async {
+    final selected = await scrollToFutureYear(state, minimumYear);
+    final visibleAlignments = <String, double>{};
+    for (final target in const <String>[
+      'dayChip',
+      'monthHeader',
+      'monthBody',
+    ]) {
+      final anchor = state.debugViewportAnchorForTargetForTesting(target);
+      if (anchor.alignment != null) {
+        visibleAlignments[target] = anchor.alignment!;
+      }
+    }
+    expect(
+      visibleAlignments,
+      isNotEmpty,
+      reason: 'At least one logical Calendar marker must be visible.',
+    );
+    selectedAnchors.add(selected);
+    preRouteVisibleAnchorAlignments.add(visibleAlignments);
+    stateIdentitiesBefore.add(identityHashCode(state));
+    elementIdentitiesBefore.add(
+      identityHashCode(tester.element(find.byType(CalendarPage))),
+    );
+    scrollControllerIdentitiesBefore.add(
+      identityHashCode(
+        tester
+            .widget<CustomScrollView>(
+              find.byKey(
+                const PageStorageKey<String>('calendar_portrait_scroll'),
+              ),
+            )
+            .controller,
+      ),
+    );
+    viewportIntentGenerations.add(
+      RestorationCoordinator.instance.debugUserIntentGenerationForTesting,
+    );
+    principalGenerations.add(state.debugPrincipalGenerationForTesting);
+    lifecycleGenerations.add(state.debugLifecycleGenerationForTesting);
+    return selected;
+  }
+
+  Future<void> recordLatestDurableAnchor() async {
+    final index = durableAnchors.length;
+    final selected = selectedAnchors[index];
+    final visibleAlignments = preRouteVisibleAnchorAlignments[index];
+    final durable = await waitForDurableAnchor(selected, visibleAlignments);
+    final durableTarget = durable.anchorTarget!;
+    durableAnchors.add((
+      kYear: durable.kYear,
+      kMonth: durable.kMonth,
+      kDay: durable.kDay,
+    ));
+    durableAnchorTargets.add(durableTarget);
+    durableAnchorAlignments.add(durable.anchorAlignment);
+    anchorTargets.add(durableTarget);
+    anchorAlignments.add(visibleAlignments[durableTarget]);
+  }
+
+  void recordRestored(CalendarPageState restoredState) {
+    restoredAnchors.add(currentLogicalAnchor(restoredState));
+    final selectedTarget = anchorTargets[restoredAnchors.length - 1];
+    final restoredViewportAnchor = restoredState
+        .debugViewportAnchorForTargetForTesting(selectedTarget);
+    restoredAnchorTargets.add(restoredViewportAnchor.target);
+    restoredAnchorAlignments.add(restoredViewportAnchor.alignment);
+    stateIdentitiesAfter.add(identityHashCode(restoredState));
+    elementIdentitiesAfter.add(
+      identityHashCode(tester.element(find.byType(CalendarPage))),
+    );
+    scrollControllerIdentitiesAfter.add(
+      identityHashCode(
+        tester
+            .widget<CustomScrollView>(
+              find.byKey(
+                const PageStorageKey<String>('calendar_portrait_scroll'),
+              ),
+            )
+            .controller,
+      ),
+    );
+  }
+
+  Future<void> resetProcessState() async {
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    await tester.runAsync<void>(() async {
+      await Future<void>.delayed(Duration.zero);
+    });
+    CalendarPage.debugResetWarmStateStoreForTesting();
+    app.resetGlobalFloatingMenuShellForTesting();
+    RestorationCoordinator.instance.resetForTesting();
+    AppNavigationRestorationController.instance.resetForTesting();
+    AppRestorationService.instance.resetForTesting();
+    AppRestorationService.debugLogWriter = restorationLogs.add;
+    AppWindowService.instance.resetForTesting();
+  }
+
+  Future<void> restoreThroughPlanner({bool blockHydration = false}) async {
+    await openDrawerDestination(router, 'Planner', '/rhythm/today');
+    await AppNavigationRestorationController.instance.recordPrimaryTabSelection(
+      AppSection.planner,
+    );
+    await recordLatestDurableAnchor();
+    if (blockHydration) _backend.blockRefresh = true;
+    await resetProcessState();
+    final launch = await AppNavigationRestorationController.instance
+        .restoreLaunchDestination(isAuthenticated: true);
+    expect(launch.route, '/rhythm/today');
+    router = await mountRouter(launch.route);
+    await openDrawerDestination(router, 'Calendar', '/');
+    if (blockHydration) {
+      state = await waitForMountedCalendar();
+      final restoredBeforeHydration = currentLogicalAnchor(state);
+      _backend.release();
+      state = await waitForCalendar();
+      final restoredAfterHydration = currentLogicalAnchor(state);
+      expect(
+        restoredAfterHydration,
+        restoredBeforeHydration,
+        reason: 'Hydration must not replace the restored logical anchor.',
+      );
+    } else {
+      state = await waitForCalendar();
+    }
+    recordRestored(state);
+  }
+
+  switch (matrixCase) {
+    case _ViewportProcessRestoreCase.waitTenSeconds:
+      await selectAnchor(today.kYear + 3);
+      await tester.pump(const Duration(seconds: 10));
+      await restoreThroughPlanner();
+    case _ViewportProcessRestoreCase.waitThirtySeconds:
+      await selectAnchor(today.kYear + 3);
+      await tester.pump(const Duration(seconds: 30));
+      await restoreThroughPlanner();
+    case _ViewportProcessRestoreCase.terminateOnCalendar:
+      await selectAnchor(today.kYear + 3);
+      await resetProcessState();
+      await recordLatestDurableAnchor();
+      router = await mountRouter('/');
+      state = await waitForCalendar();
+      recordRestored(state);
+    case _ViewportProcessRestoreCase.plannerRoundTrip:
+      await selectAnchor(today.kYear + 3);
+      await openDrawerDestination(router, 'Planner', '/rhythm/today');
+      await recordLatestDurableAnchor();
+      await openDrawerDestination(router, 'Calendar', '/');
+      state = await waitForCalendar();
+      recordRestored(state);
+    case _ViewportProcessRestoreCase.backgroundResume:
+      await selectAnchor(today.kYear + 3);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      await tester.pump(const Duration(milliseconds: 300));
+      await recordLatestDurableAnchor();
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      state = await waitForCalendar();
+      recordRestored(state);
+    case _ViewportProcessRestoreCase.threeDistinctYears:
+      for (var cycle = 0; cycle < 3; cycle++) {
+        await selectAnchor(today.kYear + 3 + cycle);
+        await restoreThroughPlanner();
+      }
+    case _ViewportProcessRestoreCase.todayThenLaterScroll:
+      expect(find.byTooltip('Today'), findsOneWidget);
+      await tester.tap(find.byTooltip('Today'));
+      await tester.pump(const Duration(milliseconds: 400));
+      await selectAnchor(today.kYear + 3);
+      await restoreThroughPlanner();
+    case _ViewportProcessRestoreCase.hydrationAfterRestore:
+      await selectAnchor(today.kYear + 3);
+      await restoreThroughPlanner(blockHydration: true);
+  }
+
+  final storageKeys =
+      prefs
+          .getKeys()
+          .where(
+            (key) =>
+                key.contains('app_restoration') || key.contains('restoration'),
+          )
+          .toList()
+        ..sort();
+  final relevantCalendarLogs = calendarLogs.where((message) {
+    return message.contains('persisting current restoration source=') ||
+        message.contains('retained process route handoff source=') ||
+        message.contains('lifecycle state=') ||
+        message.contains('saved restoration reason=') ||
+        message.contains('saved calendar reason=') ||
+        message.contains('scheduled calendar reason=') ||
+        message.contains('Restored ') ||
+        message.contains('Future persisted date') ||
+        message.contains('fallback=today') ||
+        message.contains('hydration');
+  }).toList();
+  final filteredRestorationLogs = restorationLogs.where((message) {
+    return message.contains('write local start') ||
+        message.contains('write local done') ||
+        message.contains('read status=') ||
+        message.contains('critical primary route committed');
+  }).toList();
+  final relevantRestorationLogs = filteredRestorationLogs.length <= 24
+      ? filteredRestorationLogs
+      : <String>[
+          filteredRestorationLogs.first,
+          ...filteredRestorationLogs.sublist(
+            filteredRestorationLogs.length - 23,
+          ),
+        ];
+  final observation = _ViewportProcessRestoreObservation(
+    matrixCase: matrixCase.name,
+    routerPath: router.routerDelegate.currentConfiguration.uri.path,
+    selectedAnchors: selectedAnchors,
+    durableAnchors: durableAnchors,
+    durableAnchorTargets: durableAnchorTargets,
+    durableAnchorAlignments: durableAnchorAlignments,
+    restoredAnchors: restoredAnchors,
+    anchorTargets: anchorTargets,
+    anchorAlignments: anchorAlignments,
+    restoredAnchorTargets: restoredAnchorTargets,
+    restoredAnchorAlignments: restoredAnchorAlignments,
+    stateIdentitiesBefore: stateIdentitiesBefore,
+    stateIdentitiesAfter: stateIdentitiesAfter,
+    elementIdentitiesBefore: elementIdentitiesBefore,
+    elementIdentitiesAfter: elementIdentitiesAfter,
+    scrollControllerIdentitiesBefore: scrollControllerIdentitiesBefore,
+    scrollControllerIdentitiesAfter: scrollControllerIdentitiesAfter,
+    viewportIntentGenerations: viewportIntentGenerations,
+    principalGenerations: principalGenerations,
+    lifecycleGenerations: lifecycleGenerations,
+    storageKeys: storageKeys,
+    calendarLogs: relevantCalendarLogs,
+    restorationLogs: relevantRestorationLogs,
+  );
+  await cleanUpHarness();
+  return observation;
 }
 
 Future<void> _seedDaySheetResumeEntry({required String title}) async {
