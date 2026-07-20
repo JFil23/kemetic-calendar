@@ -9008,6 +9008,8 @@ class CalendarPageState extends State<CalendarPage>
   bool _calendarHydrationRerunPreserveViewport = false;
   String? _calendarPrincipalId;
   int _calendarPrincipalGeneration = 0;
+  int _debugTodayCommandGeneration = 0;
+  String _debugTodayCommandDisposition = 'none';
   // Startup coordinator: single-flight gate for auth-triggered startup work.
   Completer<void>? _startupFlight;
   bool _startupRerunRequested = false;
@@ -9061,6 +9063,37 @@ class CalendarPageState extends State<CalendarPage>
   @visibleForTesting
   bool get debugTodayAnchorVisibleForTesting =>
       _isTodayDayAnchorVisibleInCalendarViewport();
+
+  @visibleForTesting
+  bool get debugTodayAnchorMountedForTesting =>
+      _todayDayKey.currentContext != null;
+
+  @visibleForTesting
+  int get debugHydrationGenerationForTesting => _dataVersion;
+
+  @visibleForTesting
+  int get debugAuthoritativeSnapshotGenerationForTesting =>
+      _authoritativeSnapshotGeneration;
+
+  @visibleForTesting
+  int get debugPrincipalGenerationForTesting => _calendarPrincipalGeneration;
+
+  @visibleForTesting
+  int get debugLifecycleGenerationForTesting =>
+      _calendarResumeLifecycleGeneration;
+
+  @visibleForTesting
+  bool get debugHydrationInFlightForTesting => _isLoadingFromDisk;
+
+  @visibleForTesting
+  bool get debugInitialViewportSettledForTesting => _initialViewportSettled;
+
+  @visibleForTesting
+  int get debugTodayCommandGenerationForTesting => _debugTodayCommandGeneration;
+
+  @visibleForTesting
+  String get debugTodayCommandDispositionForTesting =>
+      _debugTodayCommandDisposition;
 
   ({String view, int days, int events}) _calendarHydrationTraceSnapshot() {
     final kYear = _lastViewKy ?? _today.kYear;
@@ -17793,6 +17826,8 @@ class CalendarPageState extends State<CalendarPage>
     required bool animate,
     required String reason,
   }) {
+    final commandGeneration = ++_debugTodayCommandGeneration;
+    _debugTodayCommandDisposition = 'scheduled';
     _suppressPendingRestoresForUserNavigation();
     _restorationInteractedSinceBoot = true;
     _restoredCalendarAnchorTarget = null;
@@ -17802,7 +17837,7 @@ class CalendarPageState extends State<CalendarPage>
       'Calendar Today viewport command',
       state: <String, Object?>{'reason': reason, 'animate': animate},
     );
-    _scrollToToday(animate: animate);
+    _scrollToToday(animate: animate, debugCommandGeneration: commandGeneration);
   }
 
   bool get _isPrimaryCalendarRouteCurrent =>
@@ -24151,10 +24186,20 @@ class CalendarPageState extends State<CalendarPage>
 
   /* ───── TODAY snap/center ───── */
 
-  void _scrollToToday({bool animate = true}) {
+  void _scrollToToday({bool animate = true, int? debugCommandGeneration}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _jumpToTodayNow(animate: animate);
+      if (!mounted) {
+        if (debugCommandGeneration == _debugTodayCommandGeneration) {
+          _debugTodayCommandDisposition = 'ignored_unmounted';
+        }
+        return;
+      }
+      final accepted = _jumpToTodayNow(animate: animate);
+      if (debugCommandGeneration == _debugTodayCommandGeneration) {
+        _debugTodayCommandDisposition = accepted
+            ? 'accepted'
+            : 'ignored_missing_target';
+      }
     });
   }
 

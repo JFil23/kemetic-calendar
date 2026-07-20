@@ -131,6 +131,9 @@ class ShareRepo {
   static final Map<String, List<InboxShareItem>> _inboxItemsMemoryCache = {};
   static final Map<String, List<InboxActivityItem>> _activityMemoryCache = {};
 
+  @visibleForTesting
+  static bool debugDisableUnreadTrackingForTesting = false;
+
   final SupabaseClient _client;
 
   ShareRepo(this._client);
@@ -142,6 +145,7 @@ class ShareRepo {
   }
 
   _InboxUnreadTracker? _trackerForCurrentUser() {
+    if (debugDisableUnreadTrackingForTesting) return null;
     final uid = _client.auth.currentUser?.id;
     final staleTrackerIds = _unreadTrackers.keys
         .where((trackerUid) => trackerUid != uid)

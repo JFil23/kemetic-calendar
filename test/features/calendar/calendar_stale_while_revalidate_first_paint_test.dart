@@ -4,18 +4,24 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
+import 'package:mobile/data/share_repo.dart';
 import 'package:mobile/features/calendar/calendar_invalidation.dart';
+import 'package:mobile/features/calendar/daily_cosmic_context_badge.dart';
 import 'package:mobile/features/calendar/calendar_page.dart'
     show CalendarPage, CalendarPageState, KemeticMath;
 import 'package:mobile/features/calendar/calendar_warm_start_cache_identity.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/services/app_restoration_service.dart';
+import 'package:mobile/services/app_navigation_restoration_controller.dart';
 import 'package:mobile/services/app_window_service.dart';
 import 'package:mobile/services/calendar_snapshot_repository.dart';
 import 'package:mobile/services/navigation_trace.dart';
 import 'package:mobile/services/restoration_coordinator.dart';
 import 'package:mobile/services/session_resume_service.dart';
+import 'package:mobile/main.dart' as app;
+import 'package:mobile/widgets/global_side_drawer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -41,6 +47,8 @@ late MemoryCalendarSnapshotStore _snapshotStore;
 void _mockAppLinksChannels() {
   const messages = MethodChannel('com.llfbandit.app_links/messages');
   const events = MethodChannel('com.llfbandit.app_links/events');
+  const sharingMessages = MethodChannel('receive_sharing_intent/messages');
+  const sharingEvents = MethodChannel('receive_sharing_intent/events-media');
   final messenger =
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
 
@@ -55,6 +63,11 @@ void _mockAppLinksChannels() {
     }
     return null;
   });
+  messenger.setMockMethodCallHandler(sharingMessages, (methodCall) async {
+    if (methodCall.method == 'getInitialMedia') return '[]';
+    return null;
+  });
+  messenger.setMockMethodCallHandler(sharingEvents, (_) async => null);
 }
 
 Future<void> _ensureSupabaseInitialized() async {
@@ -685,6 +698,84 @@ void main() {
         kDay: today.kDay,
       ));
       expect(state.debugTodayAnchorVisibleForTesting, isTrue);
+    });
+
+    group('physical iPhone Today sequence matrix', () {
+      testWidgets(
+        'A fresh Calendar scroll away then Today completes in place',
+        (tester) async {
+          final result = await _runTodaySequenceMatrixCase(
+            tester,
+            _TodaySequenceCase.freshCalendar,
+          );
+          _expectTodaySequenceContract(result);
+        },
+      );
+
+      testWidgets('B background resume then Today completes in place', (
+        tester,
+      ) async {
+        final result = await _runTodaySequenceMatrixCase(
+          tester,
+          _TodaySequenceCase.backgroundResume,
+        );
+        _expectTodaySequenceContract(result);
+      });
+
+      testWidgets(
+        'C Calendar Planner Calendar without termination then Today completes in place',
+        (tester) async {
+          final result = await _runTodaySequenceMatrixCase(
+            tester,
+            _TodaySequenceCase.plannerRoundTrip,
+          );
+          _expectTodaySequenceContract(result);
+        },
+      );
+
+      testWidgets(
+        'D restored Planner Calendar Today complete physical sequence stays authoritative',
+        (tester) async {
+          final result = await _runTodaySequenceMatrixCase(
+            tester,
+            _TodaySequenceCase.restoredPlannerImmediate,
+          );
+          _expectTodaySequenceContract(result);
+        },
+      );
+
+      testWidgets(
+        'E restored Planner Calendar quiescent hydration then Today completes in place',
+        (tester) async {
+          final result = await _runTodaySequenceMatrixCase(
+            tester,
+            _TodaySequenceCase.restoredPlannerQuiescent,
+          );
+          _expectTodaySequenceContract(result);
+        },
+      );
+
+      testWidgets(
+        'F restored Planner Calendar Today during hydration cannot replay distant viewport',
+        (tester) async {
+          final result = await _runTodaySequenceMatrixCase(
+            tester,
+            _TodaySequenceCase.restoredPlannerDuringHydration,
+          );
+          _expectTodaySequenceContract(result);
+        },
+      );
+
+      testWidgets(
+        'G restored Planner Calendar extra drawer round trip then Today completes in place',
+        (tester) async {
+          final result = await _runTodaySequenceMatrixCase(
+            tester,
+            _TodaySequenceCase.restoredPlannerDrawerRoundTrip,
+          );
+          _expectTodaySequenceContract(result);
+        },
+      );
     });
 
     testWidgets(
@@ -1829,6 +1920,483 @@ Future<void> _pumpCalendar(
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 150));
+}
+
+enum _TodaySequenceCase {
+  freshCalendar,
+  backgroundResume,
+  plannerRoundTrip,
+  restoredPlannerImmediate,
+  restoredPlannerQuiescent,
+  restoredPlannerDuringHydration,
+  restoredPlannerDrawerRoundTrip,
+}
+
+class _TodaySequenceObservation {
+  const _TodaySequenceObservation({
+    required this.sequence,
+    required this.routerPath,
+    required this.stateIdentity,
+    required this.stateIdentityAfter,
+    required this.elementIdentity,
+    required this.elementIdentityAfter,
+    required this.scrollControllerIdentity,
+    required this.scrollControllerIdentityAfter,
+    required this.scrollAttached,
+    required this.scrollClientCount,
+    required this.offsetBeforeToday,
+    required this.targetOffset,
+    required this.offsetSamples,
+    required this.hydrationGenerationBefore,
+    required this.hydrationGenerationAfter,
+    required this.authoritativeGenerationBefore,
+    required this.authoritativeGenerationAfter,
+    required this.principalGeneration,
+    required this.lifecycleGeneration,
+    required this.gestureIntentGenerationBefore,
+    required this.gestureIntentGenerationAfter,
+    required this.todayCommandGeneration,
+    required this.dispatchDisposition,
+    required this.animationStarted,
+    required this.animationCompleted,
+    required this.laterReplayOverwroteToday,
+    required this.hydrationInFlightAtTap,
+    required this.viewportSettledAtTap,
+    required this.todayAnchorMountedAtTap,
+    required this.trace,
+  });
+
+  final String sequence;
+  final String routerPath;
+  final int stateIdentity;
+  final int stateIdentityAfter;
+  final int elementIdentity;
+  final int elementIdentityAfter;
+  final int scrollControllerIdentity;
+  final int scrollControllerIdentityAfter;
+  final bool scrollAttached;
+  final int scrollClientCount;
+  final double offsetBeforeToday;
+  final double? targetOffset;
+  final List<double> offsetSamples;
+  final int hydrationGenerationBefore;
+  final int hydrationGenerationAfter;
+  final int authoritativeGenerationBefore;
+  final int authoritativeGenerationAfter;
+  final int principalGeneration;
+  final int lifecycleGeneration;
+  final int gestureIntentGenerationBefore;
+  final int gestureIntentGenerationAfter;
+  final int todayCommandGeneration;
+  final String dispatchDisposition;
+  final bool animationStarted;
+  final bool animationCompleted;
+  final bool laterReplayOverwroteToday;
+  final bool hydrationInFlightAtTap;
+  final bool viewportSettledAtTap;
+  final bool todayAnchorMountedAtTap;
+  final List<String> trace;
+
+  bool get contractSatisfied =>
+      routerPath == '/' &&
+      stateIdentityAfter == stateIdentity &&
+      elementIdentityAfter == elementIdentity &&
+      scrollControllerIdentityAfter == scrollControllerIdentity &&
+      dispatchDisposition == 'accepted' &&
+      animationStarted &&
+      animationCompleted &&
+      !laterReplayOverwroteToday;
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    'sequence': sequence,
+    'routerPath': routerPath,
+    'stateIdentity': stateIdentity,
+    'stateIdentityAfter': stateIdentityAfter,
+    'elementIdentity': elementIdentity,
+    'elementIdentityAfter': elementIdentityAfter,
+    'scrollControllerIdentity': scrollControllerIdentity,
+    'scrollControllerIdentityAfter': scrollControllerIdentityAfter,
+    'scrollAttached': scrollAttached,
+    'scrollClientCount': scrollClientCount,
+    'offsetBeforeToday': offsetBeforeToday,
+    'targetOffset': targetOffset,
+    'offsetSamples': offsetSamples,
+    'hydrationGenerationBefore': hydrationGenerationBefore,
+    'hydrationGenerationAfter': hydrationGenerationAfter,
+    'authoritativeGenerationBefore': authoritativeGenerationBefore,
+    'authoritativeGenerationAfter': authoritativeGenerationAfter,
+    'principalGeneration': principalGeneration,
+    'lifecycleGeneration': lifecycleGeneration,
+    'gestureIntentGenerationBefore': gestureIntentGenerationBefore,
+    'gestureIntentGenerationAfter': gestureIntentGenerationAfter,
+    'todayCommandGeneration': todayCommandGeneration,
+    'dispatchDisposition': dispatchDisposition,
+    'animationStarted': animationStarted,
+    'animationCompleted': animationCompleted,
+    'laterReplayOverwroteToday': laterReplayOverwroteToday,
+    'hydrationInFlightAtTap': hydrationInFlightAtTap,
+    'viewportSettledAtTap': viewportSettledAtTap,
+    'todayAnchorMountedAtTap': todayAnchorMountedAtTap,
+    'trace': trace,
+  };
+}
+
+void _expectTodaySequenceContract(_TodaySequenceObservation result) {
+  debugPrint('TODAY_SEQUENCE_MATRIX ${jsonEncode(result.toJson())}');
+  expect(
+    result.contractSatisfied,
+    isTrue,
+    reason:
+        'One Today tap on the visible mounted Calendar must own one in-place '
+        'animated viewport command. observation=${jsonEncode(result.toJson())}',
+  );
+}
+
+Future<_TodaySequenceObservation> _runTodaySequenceMatrixCase(
+  WidgetTester tester,
+  _TodaySequenceCase sequence,
+) async {
+  await _setPhoneViewport(tester);
+  final today = KemeticMath.fromGregorian(DateTime.now());
+  final target = _nonTodayRestorationTarget(today);
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setString(
+    DailyCosmicContextPrefs.lastShownGregorianDateKeyForUser(_testUserId),
+    dailyCosmicContextGregorianDateKey(DateTime.now()),
+  );
+  await _seedCalendarRestorationPrefs(prefs, target: target);
+  await _seedWarmSnapshot(title: _cachedTitle, target: target);
+  _backend.blockRefresh = false;
+  RestorationCoordinator.instance.resetForTesting();
+  RestorationCoordinator.instance.suppressRestoreForExplicitIntent(
+    reason: 'today_sequence_matrix',
+    surfaces: const <String>[
+      RestorationCoordinator.calendarOverlayStackSurface,
+    ],
+  );
+  ShareRepo.debugDisableUnreadTrackingForTesting = true;
+  await NavigationTrace.instance.setEnabled(true);
+
+  final routers = <GoRouter>[];
+  addTearDown(() async {
+    _backend.release();
+    await tester.pumpWidget(const SizedBox.shrink());
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    ShareRepo.debugDisableUnreadTrackingForTesting = false;
+    for (final router in routers.reversed) {
+      router.dispose();
+    }
+    app.resetGlobalFloatingMenuShellForTesting();
+    await NavigationTrace.instance.setEnabled(false);
+  });
+
+  Future<GoRouter> mountRouter(String initialLocation) async {
+    RestorationCoordinator.instance.beginLaunchRestore(
+      reason: RestorationRestoreReason.coldLaunch,
+      targetLocation: initialLocation,
+    );
+    RestorationCoordinator.instance.suppressRestoreForExplicitIntent(
+      reason: 'today_sequence_matrix_no_overlay',
+      surfaces: const <String>[
+        RestorationCoordinator.calendarOverlayStackSurface,
+      ],
+    );
+    final router = app.createProductionRouterForTesting(
+      initialLocation: initialLocation,
+    );
+    routers.add(router);
+    await tester.pumpWidget(
+      MaterialApp.router(
+        routerConfig: router,
+        builder: (context, child) => app.buildGlobalFloatingMenuShellForTesting(
+          router: router,
+          child: child ?? const SizedBox.shrink(),
+        ),
+      ),
+    );
+    await tester.pump();
+    return router;
+  }
+
+  Future<void> waitForCalendar() async {
+    for (var i = 0; i < 240; i++) {
+      await tester.pump(const Duration(milliseconds: 25));
+      if (i % 4 == 0) {
+        await tester.runAsync<void>(() async {
+          await Future<void>.delayed(Duration.zero);
+        });
+      }
+      if (find.byType(CalendarPage).evaluate().isNotEmpty &&
+          find
+              .byKey(const PageStorageKey<String>('calendar_portrait_scroll'))
+              .evaluate()
+              .isNotEmpty) {
+        return;
+      }
+    }
+    fail('Production router never mounted the Calendar scroll surface.');
+  }
+
+  Future<void> waitForHydrationQuiescence(CalendarPageState state) async {
+    var stableFrames = 0;
+    for (var i = 0; i < 320; i++) {
+      await tester.pump(const Duration(milliseconds: 25));
+      if (i % 4 == 0) {
+        await tester.runAsync<void>(() async {
+          await Future<void>.delayed(Duration.zero);
+        });
+      }
+      if (!state.debugHydrationInFlightForTesting &&
+          state.debugInitialViewportSettledForTesting) {
+        stableFrames++;
+        if (stableFrames >= 12) return;
+      } else {
+        stableFrames = 0;
+      }
+    }
+    fail('Calendar hydration never became stably quiescent.');
+  }
+
+  Future<void> releaseControlledHydration(
+    CalendarPageState state,
+    Future<void> hydration,
+  ) async {
+    _backend.release();
+    for (var i = 0; i < 320; i++) {
+      await tester.pump(const Duration(milliseconds: 25));
+      if (i % 4 == 0) {
+        await tester.runAsync<void>(() async {
+          await Future<void>.delayed(Duration.zero);
+        });
+      }
+      if (!state.debugHydrationInFlightForTesting) {
+        await hydration;
+        return;
+      }
+    }
+    fail('The controlled Calendar hydration did not finish after release.');
+  }
+
+  Future<void> openDrawerDestination(
+    GoRouter router,
+    String label,
+    String expectedPath,
+  ) async {
+    final menu = find.byKey(app.globalMenuButtonKey);
+    expect(menu, findsOneWidget);
+    await tester.tap(menu);
+    await tester.pump();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 260));
+    final destination = find.byKey(
+      ValueKey<String>('global-side-drawer-item-$label'),
+    );
+    expect(destination, findsOneWidget);
+    await tester.tap(destination);
+    for (var i = 0; i < 120; i++) {
+      await tester.pump(const Duration(milliseconds: 25));
+      if (i % 4 == 0) {
+        await tester.runAsync<void>(() async {
+          await Future<void>.delayed(Duration.zero);
+        });
+      }
+      if (router.routerDelegate.currentConfiguration.uri.path == expectedPath &&
+          find.byKey(globalSideDrawerKey).evaluate().isEmpty) {
+        return;
+      }
+    }
+    fail(
+      'Drawer destination $label did not settle at $expectedPath; '
+      'actual=${router.routerDelegate.currentConfiguration.uri}',
+    );
+  }
+
+  Future<void> scrollCalendarAway() async {
+    final scrollView = find.byKey(
+      const PageStorageKey<String>('calendar_portrait_scroll'),
+    );
+    expect(scrollView, findsOneWidget);
+    final controller = tester.widget<CustomScrollView>(scrollView).controller!;
+    for (var i = 0; i < 3; i++) {
+      await tester.drag(scrollView, const Offset(0, -700));
+      await tester.pump(const Duration(milliseconds: 160));
+    }
+    expect(controller.hasClients, isTrue);
+    expect(controller.offset.abs(), greaterThan(500));
+    await tester.pump(const Duration(milliseconds: 650));
+    await RestorationCoordinator.instance.flush();
+  }
+
+  var router = await mountRouter('/');
+  await waitForCalendar();
+  var state = tester.state<CalendarPageState>(find.byType(CalendarPage));
+  await waitForHydrationQuiescence(state);
+  await scrollCalendarAway();
+
+  if (sequence == _TodaySequenceCase.backgroundResume) {
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump(const Duration(milliseconds: 300));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump(const Duration(milliseconds: 350));
+  }
+
+  final usesPlanner =
+      sequence != _TodaySequenceCase.freshCalendar &&
+      sequence != _TodaySequenceCase.backgroundResume;
+  final usesProcessRestore =
+      sequence == _TodaySequenceCase.restoredPlannerImmediate ||
+      sequence == _TodaySequenceCase.restoredPlannerQuiescent ||
+      sequence == _TodaySequenceCase.restoredPlannerDuringHydration ||
+      sequence == _TodaySequenceCase.restoredPlannerDrawerRoundTrip;
+
+  if (usesPlanner) {
+    await openDrawerDestination(router, 'Planner', '/rhythm/today');
+    await RestorationCoordinator.instance.flush();
+
+    if (usesProcessRestore) {
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+      CalendarPage.debugResetWarmStateStoreForTesting();
+      app.resetGlobalFloatingMenuShellForTesting();
+      RestorationCoordinator.instance.resetForTesting();
+      final restored = await AppNavigationRestorationController.instance
+          .restoreLaunchDestination(isAuthenticated: true);
+      expect(
+        restored.route,
+        '/rhythm/today',
+        reason: 'The reconstructed launch must restore Planner first.',
+      );
+      router = await mountRouter(restored.route);
+    }
+
+    await openDrawerDestination(router, 'Calendar', '/');
+    await waitForCalendar();
+    state = tester.state<CalendarPageState>(find.byType(CalendarPage));
+    await waitForHydrationQuiescence(state);
+    await scrollCalendarAway();
+  }
+
+  Future<void>? controlledHydration;
+  final controlsHydration =
+      sequence == _TodaySequenceCase.restoredPlannerImmediate ||
+      sequence == _TodaySequenceCase.restoredPlannerQuiescent ||
+      sequence == _TodaySequenceCase.restoredPlannerDuringHydration ||
+      sequence == _TodaySequenceCase.restoredPlannerDrawerRoundTrip;
+  if (controlsHydration) {
+    _backend
+      ..blockedRefreshRequests = 0
+      ..blockRefresh = true;
+    controlledHydration = state.reloadFromOutside();
+    await _pumpUntilRefreshBlocked(tester);
+
+    if (sequence == _TodaySequenceCase.restoredPlannerQuiescent) {
+      await releaseControlledHydration(state, controlledHydration);
+      await waitForHydrationQuiescence(state);
+      controlledHydration = null;
+    } else if (sequence == _TodaySequenceCase.restoredPlannerDrawerRoundTrip) {
+      await openDrawerDestination(router, 'Calendar', '/');
+    } else if (sequence == _TodaySequenceCase.restoredPlannerImmediate) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+  }
+
+  final calendarElement = tester.element(find.byType(CalendarPage));
+  final scrollView = find.byKey(
+    const PageStorageKey<String>('calendar_portrait_scroll'),
+  );
+  final controller = tester.widget<CustomScrollView>(scrollView).controller!;
+  final offsetBeforeToday = controller.offset;
+  final hydrationGenerationBefore = state.debugHydrationGenerationForTesting;
+  final authoritativeGenerationBefore =
+      state.debugAuthoritativeSnapshotGenerationForTesting;
+  final gestureGenerationBefore =
+      RestorationCoordinator.instance.debugUserIntentGenerationForTesting;
+  final hydrationInFlightAtTap = state.debugHydrationInFlightForTesting;
+  final viewportSettledAtTap = state.debugInitialViewportSettledForTesting;
+  final todayAnchorMountedAtTap = state.debugTodayAnchorMountedForTesting;
+  final traceStart = NavigationTrace.instance.entries.length;
+
+  expect(find.byTooltip('Today'), findsOneWidget);
+  await tester.tap(find.byTooltip('Today'));
+  final samples = <double>[];
+  var reachedTodayBeforeRelease = false;
+  for (var i = 0; i < 10; i++) {
+    await tester.pump(const Duration(milliseconds: 40));
+    samples.add(controller.offset);
+    reachedTodayBeforeRelease |= state.debugTodayAnchorVisibleForTesting;
+  }
+
+  if (controlledHydration != null) {
+    await releaseControlledHydration(state, controlledHydration);
+    await waitForHydrationQuiescence(state);
+  }
+  for (var i = 0; i < 16; i++) {
+    await tester.pump(const Duration(milliseconds: 40));
+    samples.add(controller.offset);
+  }
+
+  final finalState = tester.state<CalendarPageState>(find.byType(CalendarPage));
+  final finalElement = tester.element(find.byType(CalendarPage));
+  final finalScrollView = find.byKey(
+    const PageStorageKey<String>('calendar_portrait_scroll'),
+  );
+  final finalController = tester
+      .widget<CustomScrollView>(finalScrollView)
+      .controller!;
+  final finalView = finalState.debugCurrentViewForTesting;
+  final finalTodayVisible = finalState.debugTodayAnchorVisibleForTesting;
+  final trace = NavigationTrace.instance.entries.skip(traceStart).toList();
+  final dispatchAccepted = trace.any(
+    (entry) => entry.contains('Calendar Today viewport command'),
+  );
+  final animationStarted = samples.any(
+    (offset) => (offset - offsetBeforeToday).abs() > 1,
+  );
+  final animationCompleted =
+      finalView.kYear == today.kYear &&
+      finalView.kMonth == today.kMonth &&
+      finalView.kDay == today.kDay &&
+      finalTodayVisible;
+  final laterReplayOverwroteToday =
+      reachedTodayBeforeRelease && !finalTodayVisible;
+
+  return _TodaySequenceObservation(
+    sequence: sequence.name,
+    routerPath: router.routerDelegate.currentConfiguration.uri.path,
+    stateIdentity: identityHashCode(state),
+    stateIdentityAfter: identityHashCode(finalState),
+    elementIdentity: identityHashCode(calendarElement),
+    elementIdentityAfter: identityHashCode(finalElement),
+    scrollControllerIdentity: identityHashCode(controller),
+    scrollControllerIdentityAfter: identityHashCode(finalController),
+    scrollAttached: controller.hasClients,
+    scrollClientCount: controller.positions.length,
+    offsetBeforeToday: offsetBeforeToday,
+    targetOffset: samples.isEmpty ? null : samples.last,
+    offsetSamples: samples,
+    hydrationGenerationBefore: hydrationGenerationBefore,
+    hydrationGenerationAfter: finalState.debugHydrationGenerationForTesting,
+    authoritativeGenerationBefore: authoritativeGenerationBefore,
+    authoritativeGenerationAfter:
+        finalState.debugAuthoritativeSnapshotGenerationForTesting,
+    principalGeneration: finalState.debugPrincipalGenerationForTesting,
+    lifecycleGeneration: finalState.debugLifecycleGenerationForTesting,
+    gestureIntentGenerationBefore: gestureGenerationBefore,
+    gestureIntentGenerationAfter:
+        RestorationCoordinator.instance.debugUserIntentGenerationForTesting,
+    todayCommandGeneration: finalState.debugTodayCommandGenerationForTesting,
+    dispatchDisposition: dispatchAccepted
+        ? finalState.debugTodayCommandDispositionForTesting
+        : 'ignored',
+    animationStarted: animationStarted,
+    animationCompleted: animationCompleted,
+    laterReplayOverwroteToday: laterReplayOverwroteToday,
+    hydrationInFlightAtTap: hydrationInFlightAtTap,
+    viewportSettledAtTap: viewportSettledAtTap,
+    todayAnchorMountedAtTap: todayAnchorMountedAtTap,
+    trace: trace,
+  );
 }
 
 Future<void> _seedDaySheetResumeEntry({required String title}) async {
