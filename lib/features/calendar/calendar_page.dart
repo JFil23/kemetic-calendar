@@ -198,7 +198,13 @@ part 'flow_join_service.dart';
 
 enum EndFlowActionResult { success, failed, notHandled }
 
+@visibleForTesting
+void Function(String message)? calendarDebugLogWriterForTesting;
+
 void _calendarDebugPrint(String? message, {int? wrapWidth}) {
+  if (message != null) {
+    calendarDebugLogWriterForTesting?.call(message);
+  }
   if (kDebugMode) {
     debugPrint(message, wrapWidth: wrapWidth);
   }
@@ -8097,9 +8103,13 @@ class CalendarPage extends StatefulWidget {
     CalendarPageState? mountedState,
   ) async {
     await _clearCalendarContinuityForTodayCommand();
-    await AppRestorationService.instance.saveCalendarState(
-      _calendarRestorationStateForToday(mountedState),
+    final state = _calendarRestorationStateForToday(mountedState);
+    mountedState?._rememberCalendarViewportAnchor(
+      target: state.anchorTarget,
+      alignment: state.anchorAlignment,
+      viewportHeight: state.viewportHeight,
     );
+    await AppRestorationService.instance.saveCalendarState(state);
     await RestorationCoordinator.instance.flush();
     NavigationTrace.instance.record('Today restoration state saved');
   }
@@ -9008,6 +9018,8 @@ class CalendarPageState extends State<CalendarPage>
   bool _calendarHydrationRerunPreserveViewport = false;
   String? _calendarPrincipalId;
   int _calendarPrincipalGeneration = 0;
+  int _debugTodayCommandGeneration = 0;
+  String _debugTodayCommandDisposition = 'none';
   // Startup coordinator: single-flight gate for auth-triggered startup work.
   Completer<void>? _startupFlight;
   bool _startupRerunRequested = false;
@@ -9061,6 +9073,56 @@ class CalendarPageState extends State<CalendarPage>
   @visibleForTesting
   bool get debugTodayAnchorVisibleForTesting =>
       _isTodayDayAnchorVisibleInCalendarViewport();
+
+  @visibleForTesting
+  bool get debugTodayAnchorMountedForTesting =>
+      _todayDayKey.currentContext != null;
+
+  @visibleForTesting
+  int get debugHydrationGenerationForTesting => _dataVersion;
+
+  @visibleForTesting
+  int get debugAuthoritativeSnapshotGenerationForTesting =>
+      _authoritativeSnapshotGeneration;
+
+  @visibleForTesting
+  int get debugPrincipalGenerationForTesting => _calendarPrincipalGeneration;
+
+  @visibleForTesting
+  int get debugLifecycleGenerationForTesting =>
+      _calendarResumeLifecycleGeneration;
+
+  @visibleForTesting
+  bool get debugHydrationInFlightForTesting => _isLoadingFromDisk;
+
+  @visibleForTesting
+  bool get debugInitialViewportSettledForTesting => _initialViewportSettled;
+
+  @visibleForTesting
+  ({String? target, double? alignment})
+  get debugCurrentViewportAnchorForTesting {
+    final anchor = _currentViewportCalendarAnchor();
+    return (target: anchor?.target, alignment: anchor?.alignment);
+  }
+
+  @visibleForTesting
+  ({String? target, double? alignment}) debugViewportAnchorForTargetForTesting(
+    String? target,
+  ) {
+    if (target == null) return (target: null, alignment: null);
+    final anchor = _visibleCalendarAnchorCandidate(
+      target,
+      _calendarAnchorContextForTarget(target),
+    );
+    return (target: anchor?.target, alignment: anchor?.alignment);
+  }
+
+  @visibleForTesting
+  int get debugTodayCommandGenerationForTesting => _debugTodayCommandGeneration;
+
+  @visibleForTesting
+  String get debugTodayCommandDispositionForTesting =>
+      _debugTodayCommandDisposition;
 
   ({String view, int days, int events}) _calendarHydrationTraceSnapshot() {
     final kYear = _lastViewKy ?? _today.kYear;
@@ -9278,6 +9340,9 @@ class CalendarPageState extends State<CalendarPage>
   DateTime? _lastSuccessfulHydrationAt;
   Timer? _calendarRestorationDebounce;
   double? _lastKnownCalendarScrollOffset;
+  String? _lastKnownCalendarAnchorTarget;
+  double? _lastKnownCalendarAnchorAlignment;
+  double? _lastKnownCalendarViewportHeight;
   String? _restoredCalendarAnchorTarget;
   double? _restoredCalendarAnchorAlignment;
   int _lastCalendarProgressSaveAtMs = 0;
@@ -17493,17 +17558,38 @@ class CalendarPageState extends State<CalendarPage>
     final maxDay = _maxDayForMonth(ky, km);
     final kd = (overrideKd ?? _lastViewKd ?? _today.kDay).clamp(1, maxDay);
     final viewportAnchor = _currentViewportCalendarAnchor();
+    final viewportHeight = _currentViewportHeight();
+    _rememberCalendarViewportAnchor(
+      target: viewportAnchor?.target,
+      alignment: viewportAnchor?.alignment,
+      viewportHeight: viewportHeight,
+    );
     return CalendarRestorationState(
       kYear: ky,
       kMonth: km,
       kDay: kd,
       showGregorian: _showGregorian,
       expansion: _expansionToString(_monthExpansionLevelForRestoration()),
-      anchorTarget: viewportAnchor?.target,
-      anchorAlignment: viewportAnchor?.alignment,
-      viewportHeight: _currentViewportHeight(),
+      anchorTarget: viewportAnchor?.target ?? _lastKnownCalendarAnchorTarget,
+      anchorAlignment:
+          viewportAnchor?.alignment ?? _lastKnownCalendarAnchorAlignment,
+      viewportHeight: viewportHeight ?? _lastKnownCalendarViewportHeight,
       layoutRevision: _kCalendarRestorationLayoutRevision,
     );
+  }
+
+  void _rememberCalendarViewportAnchor({
+    required String? target,
+    required double? alignment,
+    required double? viewportHeight,
+  }) {
+    if (target != null && alignment != null) {
+      _lastKnownCalendarAnchorTarget = target;
+      _lastKnownCalendarAnchorAlignment = alignment;
+    }
+    if (viewportHeight != null) {
+      _lastKnownCalendarViewportHeight = viewportHeight;
+    }
   }
 
   Future<void> _persistCalendarRestorationState(
@@ -17525,6 +17611,8 @@ class CalendarPageState extends State<CalendarPage>
       _calendarDebugPrint(
         '[restoration] saved calendar reason=$reason '
         'ky=${state.kYear} km=${state.kMonth} kd=${state.kDay} '
+        'anchor=${state.anchorTarget ?? '<none>'}@'
+        '${state.anchorAlignment?.toStringAsFixed(6) ?? '<none>'} '
         'scroll=${state.scrollOffset?.toStringAsFixed(1)}',
       );
     }
@@ -17585,6 +17673,12 @@ class CalendarPageState extends State<CalendarPage>
   void _scheduleCalendarRestorationSave({String reason = 'debounced'}) {
     if (!_rememberLastView || !_restored) return;
     _calendarRestorationDebounce?.cancel();
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[restoration] scheduled calendar reason=$reason '
+        'delayMs=${_restorationWriteDebounce.inMilliseconds}',
+      );
+    }
     _calendarRestorationDebounce = Timer(_restorationWriteDebounce, () {
       unawaited(_saveCalendarRestorationNow(reason: reason));
     });
@@ -17793,14 +17887,25 @@ class CalendarPageState extends State<CalendarPage>
     required bool animate,
     required String reason,
   }) {
+    _debugTodayCommandGeneration++;
+    _debugTodayCommandDisposition = 'scheduled';
+    RestorationCoordinator.instance.noteCalendarViewportIntent(reason: reason);
     _suppressPendingRestoresForUserNavigation();
     _restorationInteractedSinceBoot = true;
     _restoredCalendarAnchorTarget = null;
     _restoredCalendarAnchorAlignment = null;
+    final materializedTodayBaseYear = _calendarScrollBaseYear != _today.kYear;
+    if (materializedTodayBaseYear) {
+      setState(() => _calendarScrollBaseYear = _today.kYear);
+    }
     _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
     NavigationTrace.instance.record(
       'Calendar Today viewport command',
-      state: <String, Object?>{'reason': reason, 'animate': animate},
+      state: <String, Object?>{
+        'reason': reason,
+        'animate': animate,
+        'materializedTodayBaseYear': materializedTodayBaseYear,
+      },
     );
     _scrollToToday(animate: animate);
   }
@@ -17965,19 +18070,9 @@ class CalendarPageState extends State<CalendarPage>
       }
 
       if (savedCalendar != null) {
-        final today = KemeticMath.fromGregorian(DateTime.now());
-
-        if (savedCalendar.kYear > today.kYear + 2) {
-          if (kDebugMode) {
-            _calendarDebugPrint(
-              '⚠️ [CALENDAR] Future persisted date '
-              '${savedCalendar.kYear}/${savedCalendar.kMonth} '
-              '— defaulting to today',
-            );
-          }
-          _applyTodayFallbackAfterRestore(reason: 'future_persisted_date');
-          return;
-        }
+        savedCalendar = resolveCalendarViewportRestoration(
+          saved: savedCalendar,
+        );
 
         final maxDay = _maxDayForMonth(
           savedCalendar.kYear,
@@ -18001,6 +18096,11 @@ class CalendarPageState extends State<CalendarPage>
           _lastViewKd = clampedDay;
           _showGregorian = savedCalendar.showGregorian;
           _monthExpansion = _parseExpansion(savedCalendar.expansion);
+          _rememberCalendarViewportAnchor(
+            target: savedCalendar.anchorTarget,
+            alignment: savedCalendar.anchorAlignment,
+            viewportHeight: savedCalendar.viewportHeight,
+          );
           _restoredCalendarAnchorTarget = savedCalendar.anchorTarget;
           _restoredCalendarAnchorAlignment = savedCalendar.anchorAlignment;
           _pendingPersistentDayViewState =
@@ -18149,6 +18249,7 @@ class CalendarPageState extends State<CalendarPage>
             restoredAnchorTarget,
             restoredAlignment,
             animate: false,
+            useTargetCenterAlignment: true,
           );
           if (ok && _scrollCtrl.hasClients) {
             _lastKnownCalendarScrollOffset = _scrollCtrl.position.pixels;
@@ -18513,7 +18614,14 @@ class CalendarPageState extends State<CalendarPage>
     String? anchorTarget,
     double alignment, {
     bool animate = true,
+    bool useTargetCenterAlignment = false,
   }) {
+    if (useTargetCenterAlignment) {
+      return _jumpToPersistedCalendarAnchorAtAlignmentNow(
+        anchorTarget,
+        alignment,
+      );
+    }
     final targetCtx =
         _calendarAnchorContextForTarget(anchorTarget) ??
         _currentViewTargetContext();
@@ -18534,6 +18642,53 @@ class CalendarPageState extends State<CalendarPage>
     } else {
       position.jumpTo(targetPixels);
     }
+    return true;
+  }
+
+  bool _jumpToPersistedCalendarAnchorAtAlignmentNow(
+    String? anchorTarget,
+    double alignment,
+  ) {
+    final targetCtx =
+        _calendarAnchorContextForTarget(anchorTarget) ??
+        _currentViewTargetContext();
+    if (targetCtx == null || !_scrollCtrl.hasClients) return false;
+
+    final scrollableState = Scrollable.maybeOf(targetCtx);
+    final viewportBox =
+        scrollableState?.context.findRenderObject() as RenderBox?;
+    final targetBox = targetCtx.findRenderObject() as RenderBox?;
+    if (viewportBox == null ||
+        targetBox == null ||
+        !viewportBox.hasSize ||
+        !targetBox.hasSize ||
+        viewportBox.size.height <= 0) {
+      return false;
+    }
+
+    final targetTopLeft = targetBox.localToGlobal(
+      Offset.zero,
+      ancestor: viewportBox,
+    );
+    final currentCenterY = targetTopLeft.dy + targetBox.size.height / 2;
+    final desiredCenterY = alignment.clamp(0.0, 1.0) * viewportBox.size.height;
+    final position = _scrollCtrl.position;
+    final targetPixels = (position.pixels + currentCenterY - desiredCenterY)
+        .clamp(position.minScrollExtent, position.maxScrollExtent)
+        .toDouble();
+    if (kDebugMode) {
+      _calendarDebugPrint(
+        '[restoration] applying calendar anchor target=$anchorTarget '
+        'alignment=${alignment.toStringAsFixed(6)} '
+        'currentCenterY=${currentCenterY.toStringAsFixed(1)} '
+        'viewportHeight=${viewportBox.size.height.toStringAsFixed(1)} '
+        'from=${position.pixels.toStringAsFixed(1)} '
+        'to=${targetPixels.toStringAsFixed(1)} '
+        'range=${position.minScrollExtent.toStringAsFixed(1)}..'
+        '${position.maxScrollExtent.toStringAsFixed(1)}',
+      );
+    }
+    position.jumpTo(targetPixels);
     return true;
   }
 
@@ -24153,8 +24308,14 @@ class CalendarPageState extends State<CalendarPage>
 
   void _scrollToToday({bool animate = true}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _jumpToTodayNow(animate: animate);
+      if (!mounted) {
+        _debugTodayCommandDisposition = 'ignored_unmounted';
+        return;
+      }
+      final accepted = _jumpToTodayNow(animate: animate);
+      _debugTodayCommandDisposition = accepted
+          ? 'accepted'
+          : 'ignored_missing_target';
     });
   }
 

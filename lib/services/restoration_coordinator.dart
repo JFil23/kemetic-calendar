@@ -40,6 +40,9 @@ class RestorationCoordinator {
 
   RestorationRestoreReason get restoreReason => _restoreReason;
 
+  @visibleForTesting
+  int get debugUserIntentGenerationForTesting => _userIntentGeneration;
+
   RestorationUserIntentLease captureUserIntentLease() {
     return RestorationUserIntentLease._(this, _userIntentGeneration);
   }

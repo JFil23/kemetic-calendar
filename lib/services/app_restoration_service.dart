@@ -367,6 +367,12 @@ class CalendarRestorationState {
   }
 }
 
+CalendarRestorationState resolveCalendarViewportRestoration({
+  required CalendarRestorationState saved,
+}) {
+  return saved;
+}
+
 class EventDetailRestorationState {
   const EventDetailRestorationState({
     required this.kYear,
