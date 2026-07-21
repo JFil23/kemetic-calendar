@@ -781,6 +781,52 @@ void main() {
           _expectTodaySequenceContract(result);
         },
       );
+
+      testWidgets(
+        'H1 far process-restored Planner Calendar immediate Today completes in place',
+        (tester) async {
+          final result = await _runTodaySequenceMatrixCase(
+            tester,
+            _TodaySequenceCase.restoredPlannerFarImmediate,
+          );
+          _expectTodaySequenceContract(result);
+        },
+      );
+
+      testWidgets(
+        'H2 far process-restored Planner Calendar painted hydration-active Today completes in place',
+        (tester) async {
+          final result = await _runTodaySequenceMatrixCase(
+            tester,
+            _TodaySequenceCase.restoredPlannerFarDuringHydration,
+          );
+          _expectTodaySequenceContract(result);
+          expect(result.hydrationInFlightAtTap, isTrue);
+        },
+      );
+
+      testWidgets(
+        'H3 far process-restored Planner Calendar quiescent Today completes in place',
+        (tester) async {
+          final result = await _runTodaySequenceMatrixCase(
+            tester,
+            _TodaySequenceCase.restoredPlannerFarQuiescent,
+          );
+          _expectTodaySequenceContract(result);
+          expect(result.hydrationInFlightAtTap, isFalse);
+        },
+      );
+
+      testWidgets(
+        'H4 far process-restored Planner Calendar completed manual scroll then Today completes in place',
+        (tester) async {
+          final result = await _runTodaySequenceMatrixCase(
+            tester,
+            _TodaySequenceCase.restoredPlannerFarManualScroll,
+          );
+          _expectTodaySequenceContract(result);
+        },
+      );
     });
 
     group('Calendar logical viewport process-restoration matrix', () {
@@ -1947,6 +1993,10 @@ enum _TodaySequenceCase {
   restoredPlannerQuiescent,
   restoredPlannerDuringHydration,
   restoredPlannerDrawerRoundTrip,
+  restoredPlannerFarImmediate,
+  restoredPlannerFarDuringHydration,
+  restoredPlannerFarQuiescent,
+  restoredPlannerFarManualScroll,
 }
 
 class _TodaySequenceObservation {
@@ -2078,7 +2128,14 @@ Future<_TodaySequenceObservation> _runTodaySequenceMatrixCase(
   tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
   await tester.pump();
   final today = KemeticMath.fromGregorian(DateTime.now());
-  final target = _nonTodayRestorationTarget(today);
+  final usesFarProcessViewport =
+      sequence == _TodaySequenceCase.restoredPlannerFarImmediate ||
+      sequence == _TodaySequenceCase.restoredPlannerFarDuringHydration ||
+      sequence == _TodaySequenceCase.restoredPlannerFarQuiescent ||
+      sequence == _TodaySequenceCase.restoredPlannerFarManualScroll;
+  final target = usesFarProcessViewport
+      ? (kYear: today.kYear + 3, kMonth: 2, kDay: 17)
+      : _nonTodayRestorationTarget(today);
   final prefs = await SharedPreferences.getInstance();
   await prefs.setString(
     DailyCosmicContextPrefs.lastShownGregorianDateKeyForUser(_testUserId),
@@ -2102,7 +2159,18 @@ Future<_TodaySequenceObservation> _runTodaySequenceMatrixCase(
   final routers = <GoRouter>[];
   addTearDown(() async {
     _backend.release();
+    await tester.runAsync<void>(() async {
+      await Future<void>.delayed(Duration.zero);
+    });
+    await tester.pump();
     await tester.pumpWidget(const SizedBox.shrink());
+    await tester.runAsync<void>(() async {
+      await Future<void>.delayed(Duration.zero);
+    });
+    await tester.pump();
+    // The production shell schedules a two-second, mounted-guarded guidance
+    // refresh after auth. Let that unrelated shell callback observe disposal.
+    await tester.pump(const Duration(milliseconds: 2100));
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
     Supabase.instance.client.auth.stopAutoRefresh();
     await tester.pump();
@@ -2270,7 +2338,11 @@ Future<_TodaySequenceObservation> _runTodaySequenceMatrixCase(
       sequence == _TodaySequenceCase.restoredPlannerImmediate ||
       sequence == _TodaySequenceCase.restoredPlannerQuiescent ||
       sequence == _TodaySequenceCase.restoredPlannerDuringHydration ||
-      sequence == _TodaySequenceCase.restoredPlannerDrawerRoundTrip;
+      sequence == _TodaySequenceCase.restoredPlannerDrawerRoundTrip ||
+      sequence == _TodaySequenceCase.restoredPlannerFarImmediate ||
+      sequence == _TodaySequenceCase.restoredPlannerFarDuringHydration ||
+      sequence == _TodaySequenceCase.restoredPlannerFarQuiescent ||
+      sequence == _TodaySequenceCase.restoredPlannerFarManualScroll;
 
   if (usesPlanner) {
     await openDrawerDestination(router, 'Planner', '/rhythm/today');
@@ -2296,8 +2368,13 @@ Future<_TodaySequenceObservation> _runTodaySequenceMatrixCase(
     await openDrawerDestination(router, 'Calendar', '/');
     await waitForCalendar();
     state = tester.state<CalendarPageState>(find.byType(CalendarPage));
-    await waitForHydrationQuiescence(state);
-    await scrollCalendarAway();
+    if (sequence != _TodaySequenceCase.restoredPlannerFarImmediate) {
+      await waitForHydrationQuiescence(state);
+    }
+    if (!usesFarProcessViewport ||
+        sequence == _TodaySequenceCase.restoredPlannerFarManualScroll) {
+      await scrollCalendarAway();
+    }
   }
 
   Future<void>? controlledHydration;
@@ -2305,7 +2382,8 @@ Future<_TodaySequenceObservation> _runTodaySequenceMatrixCase(
       sequence == _TodaySequenceCase.restoredPlannerImmediate ||
       sequence == _TodaySequenceCase.restoredPlannerQuiescent ||
       sequence == _TodaySequenceCase.restoredPlannerDuringHydration ||
-      sequence == _TodaySequenceCase.restoredPlannerDrawerRoundTrip;
+      sequence == _TodaySequenceCase.restoredPlannerDrawerRoundTrip ||
+      sequence == _TodaySequenceCase.restoredPlannerFarDuringHydration;
   if (controlsHydration) {
     _backend
       ..blockedRefreshRequests = 0
@@ -2354,7 +2432,7 @@ Future<_TodaySequenceObservation> _runTodaySequenceMatrixCase(
     await releaseControlledHydration(state, controlledHydration);
     await waitForHydrationQuiescence(state);
   }
-  for (var i = 0; i < 16; i++) {
+  for (var i = 0; i < 60; i++) {
     await tester.pump(const Duration(milliseconds: 40));
     samples.add(controller.offset);
   }
@@ -2436,7 +2514,9 @@ enum _ViewportProcessRestoreCase {
   backgroundResume,
   threeDistinctYears,
   todayThenLaterScroll,
-  hydrationAfterRestore;
+  hydrationAfterRestore,
+  threeRestoreScrollTodayCycles,
+  postRestoreTodayThenLaterScroll;
 
   String get testName => switch (this) {
     waitTenSeconds =>
@@ -2455,6 +2535,10 @@ enum _ViewportProcessRestoreCase {
       'G a later explicit scroll remains authoritative after Today and termination',
     hydrationAfterRestore =>
       'H hydration cannot replace the restored logical Calendar anchor',
+    threeRestoreScrollTodayCycles =>
+      'I three process restore manual scroll Today cycles complete in place',
+    postRestoreTodayThenLaterScroll =>
+      'J post-restore Today yields to a later scroll across termination',
   };
 }
 
@@ -2997,6 +3081,83 @@ Future<_ViewportProcessRestoreObservation> _runViewportProcessRestoreMatrixCase(
     recordRestored(state);
   }
 
+  Future<void> tapTodayAfterProcessRestore({
+    required String reason,
+    required bool requireMovement,
+  }) async {
+    final calendarElement = tester.element(find.byType(CalendarPage));
+    final scrollView = find.byKey(
+      const PageStorageKey<String>('calendar_portrait_scroll'),
+    );
+    final controller = tester.widget<CustomScrollView>(scrollView).controller!;
+    final stateBefore = state;
+    final controllerIdentity = identityHashCode(controller);
+    final offsetBefore = controller.offset;
+    final commandGeneration = state.debugTodayCommandGenerationForTesting;
+    final intentGeneration =
+        RestorationCoordinator.instance.debugUserIntentGenerationForTesting;
+
+    expect(find.byTooltip('Today'), findsOneWidget);
+    await tester.tap(find.byTooltip('Today'));
+    final offsets = <double>[];
+    for (var i = 0; i < 24; i++) {
+      await tester.pump(const Duration(milliseconds: 40));
+      offsets.add(controller.offset);
+    }
+
+    state = tester.state<CalendarPageState>(find.byType(CalendarPage));
+    final view = state.debugCurrentViewForTesting;
+    final movement = offsets.any((offset) => (offset - offsetBefore).abs() > 1);
+    final evidence = <String, Object?>{
+      'reason': reason,
+      'stateIdentityBefore': identityHashCode(stateBefore),
+      'stateIdentityAfter': identityHashCode(state),
+      'elementIdentityBefore': identityHashCode(calendarElement),
+      'elementIdentityAfter': identityHashCode(
+        tester.element(find.byType(CalendarPage)),
+      ),
+      'scrollControllerIdentityBefore': controllerIdentity,
+      'scrollControllerIdentityAfter': identityHashCode(
+        tester.widget<CustomScrollView>(scrollView).controller,
+      ),
+      'offsetBefore': offsetBefore,
+      'offsets': offsets,
+      'todayCommandGenerationBefore': commandGeneration,
+      'todayCommandGenerationAfter':
+          state.debugTodayCommandGenerationForTesting,
+      'dispatchDisposition': state.debugTodayCommandDispositionForTesting,
+      'intentGenerationBefore': intentGeneration,
+      'intentGenerationAfter':
+          RestorationCoordinator.instance.debugUserIntentGenerationForTesting,
+      'todayVisible': state.debugTodayAnchorVisibleForTesting,
+      'view': <String, int?>{
+        'kYear': view.kYear,
+        'kMonth': view.kMonth,
+        'kDay': view.kDay,
+      },
+    };
+    debugPrint('TODAY_POST_PROCESS_CYCLE ${jsonEncode(evidence)}');
+
+    expect(identityHashCode(state), identityHashCode(stateBefore));
+    expect(
+      identityHashCode(tester.element(find.byType(CalendarPage))),
+      identityHashCode(calendarElement),
+    );
+    expect(
+      identityHashCode(tester.widget<CustomScrollView>(scrollView).controller),
+      controllerIdentity,
+    );
+    expect(state.debugTodayCommandGenerationForTesting, commandGeneration + 1);
+    expect(state.debugTodayCommandDispositionForTesting, 'accepted');
+    expect(
+      RestorationCoordinator.instance.debugUserIntentGenerationForTesting,
+      greaterThan(intentGeneration),
+    );
+    if (requireMovement) expect(movement, isTrue);
+    expect(view, (kYear: today.kYear, kMonth: today.kMonth, kDay: today.kDay));
+    expect(state.debugTodayAnchorVisibleForTesting, isTrue);
+  }
+
   switch (matrixCase) {
     case _ViewportProcessRestoreCase.waitTenSeconds:
       await selectAnchor(today.kYear + 3);
@@ -3042,6 +3203,26 @@ Future<_ViewportProcessRestoreObservation> _runViewportProcessRestoreMatrixCase(
     case _ViewportProcessRestoreCase.hydrationAfterRestore:
       await selectAnchor(today.kYear + 3);
       await restoreThroughPlanner(blockHydration: true);
+    case _ViewportProcessRestoreCase.threeRestoreScrollTodayCycles:
+      for (var cycle = 0; cycle < 3; cycle++) {
+        await selectAnchor(today.kYear + 3 + cycle);
+        await restoreThroughPlanner();
+        final restored = currentLogicalAnchor(state);
+        await scrollToFutureYear(state, restored.kYear + 1);
+        await tapTodayAfterProcessRestore(
+          reason: 'cycle_${cycle + 1}',
+          requireMovement: true,
+        );
+      }
+    case _ViewportProcessRestoreCase.postRestoreTodayThenLaterScroll:
+      await selectAnchor(today.kYear + 3);
+      await restoreThroughPlanner();
+      await tapTodayAfterProcessRestore(
+        reason: 'today_before_later_manual_scroll',
+        requireMovement: true,
+      );
+      await selectAnchor(today.kYear + 4);
+      await restoreThroughPlanner();
   }
 
   final storageKeys =

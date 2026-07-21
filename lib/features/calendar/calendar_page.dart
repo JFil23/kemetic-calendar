@@ -17894,10 +17894,18 @@ class CalendarPageState extends State<CalendarPage>
     _restorationInteractedSinceBoot = true;
     _restoredCalendarAnchorTarget = null;
     _restoredCalendarAnchorAlignment = null;
+    final materializedTodayBaseYear = _calendarScrollBaseYear != _today.kYear;
+    if (materializedTodayBaseYear) {
+      setState(() => _calendarScrollBaseYear = _today.kYear);
+    }
     _setView(_today.kYear, _today.kMonth, kd: _today.kDay);
     NavigationTrace.instance.record(
       'Calendar Today viewport command',
-      state: <String, Object?>{'reason': reason, 'animate': animate},
+      state: <String, Object?>{
+        'reason': reason,
+        'animate': animate,
+        'materializedTodayBaseYear': materializedTodayBaseYear,
+      },
     );
     _scrollToToday(animate: animate);
   }
