@@ -6064,10 +6064,18 @@ class CalendarPage extends StatefulWidget {
     void navigate(String location, {AppSection? durableSection}) {
       if (durableSection != null) {
         unawaited(
-          AppNavigationRestorationController.instance.recordPrimaryTabSelection(
+          recordPrimaryTabSelectionAndOpen(
             durableSection,
+            navigate: (durableLocation) {
+              if (onNavigate != null) {
+                onNavigate(durableLocation);
+                return;
+              }
+              if (context.mounted) context.go(durableLocation);
+            },
           ),
         );
+        return;
       }
       if (onNavigate != null) {
         onNavigate(location);
@@ -14729,6 +14737,11 @@ class CalendarPageState extends State<CalendarPage>
   void initState() {
     super.initState();
     _calendarDebugPrint('[calendar] initState');
+    RestorationCoordinator.instance.registerCalendarDurabilityFlush(
+      owner: this,
+      flush: () =>
+          _flushPendingCalendarRestorationSave(reason: 'primary_navigation'),
+    );
     WidgetsBinding.instance.addObserver(this);
     _initializeCalendarPrincipalOwnership();
     _initializeScrollControllerFromProcessRouteHandoff();
@@ -18738,6 +18751,7 @@ class CalendarPageState extends State<CalendarPage>
   void dispose() {
     _calendarResumeLifecycleGeneration++;
     _cancelCalendarResumeRetryTimers();
+    RestorationCoordinator.instance.unregisterCalendarDurabilityFlush(this);
     _retainProcessRouteHandoff(source: 'dispose');
     // ✅ Unsubscribe from RouteObserver
     if (_isSubscribed) {
@@ -24891,32 +24905,32 @@ class CalendarPageState extends State<CalendarPage>
     _plannerNavigationInFlight = true;
     try {
       final navContext = navigationContext ?? context;
-      unawaited(
-        AppNavigationRestorationController.instance.recordPrimaryTabSelection(
-          AppSection.planner,
-        ),
-      );
-      NavigationTrace.instance.record(
-        'planner route go requested',
-        state: <String, Object?>{
-          'timestampMs': DateTime.now().millisecondsSinceEpoch,
-          'currentRoute': CalendarPage._routeLocationForNavigationTrace(
-            navContext,
-          ),
-          'rootRoute': rootRouterUriForNavigationTrace,
-          'contextMounted': navContext.mounted,
-        },
-      );
-      navContext.go('/rhythm/today');
-      NavigationTrace.instance.record(
-        'planner route go returned/current uri',
-        state: <String, Object?>{
-          'timestampMs': DateTime.now().millisecondsSinceEpoch,
-          'currentRoute': CalendarPage._routeLocationForNavigationTrace(
-            navContext,
-          ),
-          'rootRoute': rootRouterUriForNavigationTrace,
-          'contextMounted': navContext.mounted,
+      await recordPrimaryTabSelectionAndOpen(
+        AppSection.planner,
+        navigate: (_) {
+          NavigationTrace.instance.record(
+            'planner route go requested',
+            state: <String, Object?>{
+              'timestampMs': DateTime.now().millisecondsSinceEpoch,
+              'currentRoute': CalendarPage._routeLocationForNavigationTrace(
+                navContext,
+              ),
+              'rootRoute': rootRouterUriForNavigationTrace,
+              'contextMounted': navContext.mounted,
+            },
+          );
+          navContext.go('/rhythm/today');
+          NavigationTrace.instance.record(
+            'planner route go returned/current uri',
+            state: <String, Object?>{
+              'timestampMs': DateTime.now().millisecondsSinceEpoch,
+              'currentRoute': CalendarPage._routeLocationForNavigationTrace(
+                navContext,
+              ),
+              'rootRoute': rootRouterUriForNavigationTrace,
+              'contextMounted': navContext.mounted,
+            },
+          );
         },
       );
     } finally {

@@ -37,6 +37,8 @@ class RestorationCoordinator {
   final Set<String> _consumedRestoreSurfaces = <String>{};
   final Set<String> _suppressedRestoreSurfaces = <String>{};
   int _userIntentGeneration = 0;
+  Object? _calendarDurabilityFlushOwner;
+  Future<void> Function()? _calendarDurabilityFlush;
 
   RestorationRestoreReason get restoreReason => _restoreReason;
 
@@ -68,6 +70,32 @@ class RestorationCoordinator {
     _consumedRestoreSurfaces.clear();
     _suppressedRestoreSurfaces.clear();
     _userIntentGeneration = 0;
+    _calendarDurabilityFlushOwner = null;
+    _calendarDurabilityFlush = null;
+  }
+
+  void registerCalendarDurabilityFlush({
+    required Object owner,
+    required Future<void> Function() flush,
+  }) {
+    _calendarDurabilityFlushOwner = owner;
+    _calendarDurabilityFlush = flush;
+  }
+
+  void unregisterCalendarDurabilityFlush(Object owner) {
+    if (identical(_calendarDurabilityFlushOwner, owner)) {
+      _calendarDurabilityFlushOwner = null;
+      _calendarDurabilityFlush = null;
+    }
+  }
+
+  Future<void> flushCalendarForPrimaryNavigation() async {
+    final flush = _calendarDurabilityFlush;
+    if (flush == null) return;
+    await flush();
+    traceRestoration(
+      'calendar durability flush completed reason=primary_navigation',
+    );
   }
 
   bool get shouldDeferRootRoutePersistenceForLaunch {

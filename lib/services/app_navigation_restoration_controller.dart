@@ -65,14 +65,20 @@ class AppNavigationRestorationController {
     return _policy.classifyRoute(route, source);
   }
 
-  Future<void> recordPrimaryTabSelection(AppSection section) {
+  Future<void> recordPrimaryTabSelection(AppSection section) async {
+    await recordPrimaryTabSelectionWithResult(section);
+  }
+
+  Future<AppRestorationMutationResult> recordPrimaryTabSelectionWithResult(
+    AppSection section,
+  ) {
     return _recordPrimaryRouteFromUserCommand(
       section,
       route: _policy.routeForSection(section),
     );
   }
 
-  Future<void> _recordPrimaryRouteFromUserCommand(
+  Future<AppRestorationMutationResult> _recordPrimaryRouteFromUserCommand(
     AppSection section, {
     required String route,
   }) {
@@ -85,19 +91,29 @@ class AppNavigationRestorationController {
         !classification.canRecordPrimarySelection ||
         classification.canonicalRoute == null ||
         classification.section != section) {
-      return Future<void>.value();
+      return Future<AppRestorationMutationResult>.value(
+        const AppRestorationMutationResult(
+          AppRestorationMutationStatus.invalid,
+        ),
+      );
     }
     final restoration = AppRestorationService.instance;
-    restoration.recordPrimaryTabSelectionCriticalSnapshot(
+    if (!restoration.requiresAcknowledgedDurableWrites) {
+      restoration.recordPrimaryTabSelectionCriticalSnapshot(
+        classification.canonicalRoute!,
+        metadata: classification.metadata,
+      );
+    } else {
+      traceRestoration(
+        'critical primary route fast path skipped '
+        'route=${classification.canonicalRoute} '
+        'reason=acknowledged_transaction_required',
+      );
+    }
+    return restoration.saveDurableLaunchRoute(
       classification.canonicalRoute!,
       metadata: classification.metadata,
     );
-    return restoration
-        .saveDurableLaunchRoute(
-          classification.canonicalRoute!,
-          metadata: classification.metadata,
-        )
-        .then<void>((_) {});
   }
 
   Future<void> recordNavigationAttempt({

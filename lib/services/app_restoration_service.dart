@@ -9,6 +9,7 @@ import '../data/app_restoration_repo.dart';
 import '../core/navigation_persistence_policy.dart';
 import '../core/route_location_sanitizer.dart';
 import 'app_window_service.dart';
+import 'restoration_durable_store.dart';
 import 'app_window_platform_stub.dart'
     if (dart.library.html) 'app_window_platform_web.dart'
     as app_window_platform;
@@ -674,6 +675,7 @@ enum AppRestorationReadStatus { restored, tentative, noSnapshot, awaitingAuth }
 
 enum AppRestorationMutationStatus {
   persisted,
+  storageFailure,
   deferred,
   notReady,
   invalid,
@@ -724,6 +726,8 @@ class _SnapshotCandidate {
 
   String get sourceForPrecedence => precedenceSource ?? source;
 }
+
+enum _LocalPersistenceStatus { persisted, superseded, storageFailure }
 
 class _PendingCalendarRestorationIntent {
   const _PendingCalendarRestorationIntent({
@@ -818,12 +822,15 @@ class AppRestorationService {
   static void Function(String? userId)? debugPlatformLastActiveUserIdWriter;
   static void Function(String message)? debugLogWriter;
   static Future<void> Function()? debugBeforeMutationProvenanceRead;
+  static RestorationDurableStore? debugDurableSnapshotStore;
 
   /// Tie-break order for divergent snapshots with the same provenance time.
   ///
   /// Current-window stores outrank cross-window/latest stores, and every local
   /// store outranks remote state. Higher values are more authoritative.
   static const Map<String, int> _snapshotSourcePrecedence = <String, int>{
+    'acknowledged_window': 700,
+    'acknowledged_latest': 600,
     'prefs': 500,
     'critical': 400,
     'latest_prefs': 300,
@@ -839,6 +846,12 @@ class AppRestorationService {
   _PendingCalendarRestorationIntent? _pendingCalendarIntent;
   _PendingLaunchRouteRestorationIntent? _pendingLaunchRouteIntent;
 
+  RestorationDurableStore get _durableSnapshotStore =>
+      debugDurableSnapshotStore ?? const PlatformRestorationDurableStore();
+
+  bool get requiresAcknowledgedDurableWrites =>
+      _durableSnapshotStore.isSupported;
+
   void resetForTesting() {
     _deviceId = null;
     _deviceIdFuture = null;
@@ -848,6 +861,7 @@ class AppRestorationService {
     _pendingLaunchRouteIntent = null;
     debugLogWriter = null;
     debugBeforeMutationProvenanceRead = null;
+    debugDurableSnapshotStore = null;
   }
 
   Future<void> initialize() async {
@@ -1017,6 +1031,18 @@ class AppRestorationService {
   }
 
   Future<String?> _readBootFallbackUserId() async {
+    final durableStore = _durableSnapshotStore;
+    if (durableStore.isSupported) {
+      try {
+        final durableUserId = (await durableStore.readLastActiveUserId())
+            ?.trim();
+        if (durableUserId != null && durableUserId.isNotEmpty) {
+          return durableUserId;
+        }
+      } catch (error) {
+        _log('acknowledged last-user read failed error=$error');
+      }
+    }
     final fromPrefs = await _readLastActiveUserId();
     if (fromPrefs != null) {
       return fromPrefs;
@@ -1025,6 +1051,10 @@ class AppRestorationService {
   }
 
   Future<void> clearBootFallbackIdentity() async {
+    final durableStore = _durableSnapshotStore;
+    if (durableStore.isSupported) {
+      await durableStore.clearLastActiveUser();
+    }
     final prefs = await _prefs();
     await prefs.remove(_lastActiveUserKey);
     _writePlatformLastActiveUserId(null);
@@ -1765,21 +1795,118 @@ class AppRestorationService {
     ]);
   }
 
+  _SnapshotCandidate? _acknowledgedCandidateFromEnvelope(
+    String? encoded, {
+    required String expectedUserId,
+    String? expectedWindowId,
+    required String source,
+  }) {
+    final envelope = DurableRestorationEnvelope.tryDecode(
+      encoded,
+      expectedUserId: expectedUserId,
+      expectedWindowId: expectedWindowId,
+    );
+    if (envelope == null || envelope.snapshotSchemaVersion != schemaVersion) {
+      if (encoded != null && encoded.trim().isNotEmpty) {
+        _log(
+          'candidate rejected source=$source expectedUser=$expectedUserId '
+          'expectedWindow=${expectedWindowId ?? '<any>'} '
+          'reason=invalid_acknowledged_envelope',
+        );
+      }
+      return null;
+    }
+    try {
+      final decoded = jsonDecode(envelope.snapshotJson);
+      final raw = _asJsonMap(decoded);
+      final migrated = raw == null ? null : _migrateRawSnapshot(raw);
+      final snapshot = migrated == null
+          ? null
+          : AppRestorationSnapshot.fromJson(migrated);
+      if (snapshot == null ||
+          snapshot.userId != expectedUserId ||
+          snapshot.userId != envelope.userId ||
+          snapshot.windowId != envelope.windowId ||
+          snapshot.updatedAtMs != envelope.generation ||
+          (expectedWindowId != null && snapshot.windowId != expectedWindowId)) {
+        _log(
+          'candidate rejected source=$source expectedUser=$expectedUserId '
+          'expectedWindow=${expectedWindowId ?? '<any>'} '
+          'reason=acknowledged_snapshot_binding_mismatch',
+        );
+        return null;
+      }
+      final candidate = _SnapshotCandidate(
+        snapshot: snapshot,
+        raw: migrated!,
+        source: source,
+      );
+      _log('candidate loaded ${_candidateTrace(candidate)}');
+      return candidate;
+    } catch (error) {
+      _log(
+        'candidate rejected source=$source expectedUser=$expectedUserId '
+        'reason=acknowledged_snapshot_decode_failed error=$error',
+      );
+      return null;
+    }
+  }
+
+  Future<({_SnapshotCandidate? currentWindow, _SnapshotCandidate? latestUser})>
+  _readAcknowledgedCandidates(String userId, String windowId) async {
+    final store = _durableSnapshotStore;
+    if (!store.isSupported) {
+      return (currentWindow: null, latestUser: null);
+    }
+    try {
+      final values = await Future.wait<String?>(<Future<String?>>[
+        store.readWindowEnvelope(userId, windowId),
+        store.readLatestEnvelope(userId),
+      ]);
+      return (
+        currentWindow: _acknowledgedCandidateFromEnvelope(
+          values[0],
+          expectedUserId: userId,
+          expectedWindowId: windowId,
+          source: 'acknowledged_window',
+        ),
+        latestUser: _acknowledgedCandidateFromEnvelope(
+          values[1],
+          expectedUserId: userId,
+          source: 'acknowledged_latest',
+        ),
+      );
+    } catch (error) {
+      _log(
+        'acknowledged snapshot read failed user=$userId window=$windowId '
+        'error=$error',
+      );
+      return (currentWindow: null, latestUser: null);
+    }
+  }
+
   Future<_SnapshotCandidate?> _readStableSnapshotCandidateForUser(
     String userId,
     String windowId, {
     required bool clearIfInvalid,
     bool includeRemote = false,
   }) async {
-    final currentWindowCandidate = await _readSnapshotCandidateForUser(
-      userId,
-      windowId,
-      clearIfInvalid: clearIfInvalid,
-    );
-    final latestLocalCandidate = await _readLatestLocalSnapshotCandidateForUser(
-      userId,
-      clearIfInvalid: clearIfInvalid,
-    );
+    final acknowledged = await _readAcknowledgedCandidates(userId, windowId);
+    final hasAcknowledgedAuthority =
+        acknowledged.currentWindow != null || acknowledged.latestUser != null;
+    final currentWindowCandidate = hasAcknowledgedAuthority
+        ? acknowledged.currentWindow
+        : await _readSnapshotCandidateForUser(
+            userId,
+            windowId,
+            clearIfInvalid: clearIfInvalid,
+          );
+    final latestLocalCandidate = hasAcknowledgedAuthority
+        ? acknowledged.latestUser
+        : await _readLatestLocalSnapshotCandidateForUser(
+            userId,
+            clearIfInvalid: clearIfInvalid,
+          );
     if (!includeRemote) {
       return _selectStableCandidate(
         userId: userId,
@@ -2142,6 +2269,18 @@ class AppRestorationService {
   }
 
   Future<int?> _newestDurableUpdatedAtMs(String userId, String windowId) async {
+    final acknowledged = await _readAcknowledgedCandidates(userId, windowId);
+    final acknowledgedGenerations = <int>[
+      if (acknowledged.currentWindow != null)
+        acknowledged.currentWindow!.snapshot.updatedAtMs,
+      if (acknowledged.latestUser != null)
+        acknowledged.latestUser!.snapshot.updatedAtMs,
+    ];
+    if (acknowledgedGenerations.isNotEmpty) {
+      return acknowledgedGenerations.reduce(
+        (current, next) => next > current ? next : current,
+      );
+    }
     int? newest;
     void consider(
       Map<String, dynamic>? raw, {
@@ -2184,6 +2323,9 @@ class AppRestorationService {
     required String windowId,
     required int observedUpdatedAtMs,
   }) {
+    if (_durableSnapshotStore.isSupported) {
+      return;
+    }
     Map<String, dynamic>? decodePrimaryAuthority(
       String? serialized, {
       required bool requireCurrentWindow,
@@ -2256,7 +2398,7 @@ class AppRestorationService {
     );
   }
 
-  Future<bool> _persistRawSnapshotLocally(
+  Future<_LocalPersistenceStatus> _persistRawSnapshotLocally(
     String userId,
     String windowId,
     Map<String, dynamic> raw,
@@ -2267,7 +2409,7 @@ class AppRestorationService {
         'write local rejected user=$userId window=$windowId '
         'reason=no_provenance_timestamp',
       );
-      return false;
+      return _LocalPersistenceStatus.superseded;
     }
     final durableUpdatedAtMs = await _newestDurableUpdatedAtMs(
       userId,
@@ -2280,7 +2422,7 @@ class AppRestorationService {
         'incoming=$incomingUpdatedAtMs durable=$durableUpdatedAtMs '
         'reason=non_monotonic_timestamp',
       );
-      return false;
+      return _LocalPersistenceStatus.superseded;
     }
     _log(
       'write local start user=$userId window=$windowId '
@@ -2288,24 +2430,63 @@ class AppRestorationService {
       'overlayCount=${_asJsonMapList(raw['overlayStack']).length} '
       'overlay=${_overlayStackTrace(_asJsonMapList(raw['overlayStack']))} '
       'updatedAtMs=${raw['updatedAtMs'] ?? '<none>'} '
-      'targets=critical,latest_critical,prefs,latest_prefs,last_user',
+      'targets=acknowledged,critical,latest_critical,prefs,latest_prefs,last_user',
     );
     final encoded = jsonEncode(raw);
+    final durableStore = _durableSnapshotStore;
+    if (durableStore.isSupported) {
+      final envelope = DurableRestorationEnvelope.create(
+        snapshotSchemaVersion: schemaVersion,
+        userId: userId,
+        windowId: windowId,
+        generation: incomingUpdatedAtMs,
+        snapshotJson: encoded,
+      );
+      try {
+        final durableResult = await durableStore.writeEnvelope(envelope);
+        if (durableResult == DurableSnapshotWriteStatus.superseded) {
+          _log(
+            'write acknowledged superseded user=$userId window=$windowId '
+            'updatedAtMs=$incomingUpdatedAtMs',
+          );
+          return _LocalPersistenceStatus.superseded;
+        }
+        _log(
+          'write acknowledged committed user=$userId window=$windowId '
+          'updatedAtMs=$incomingUpdatedAtMs integrity=${envelope.integrity}',
+        );
+      } catch (error) {
+        _log(
+          'write acknowledged failed user=$userId window=$windowId '
+          'updatedAtMs=$incomingUpdatedAtMs error=$error',
+        );
+        return _LocalPersistenceStatus.storageFailure;
+      }
+    }
+
     _writeCriticalSnapshot(windowId, encoded);
     _writeLatestCriticalSnapshot(userId, encoded);
     _writePlatformLastActiveUserId(userId);
-    final prefs = await _prefs();
-    await Future.wait<bool>(<Future<bool>>[
-      prefs.setString(_prefsKey(userId, windowId), encoded),
-      prefs.setString(_latestPrefsKey(userId), encoded),
-      prefs.setString(_lastActiveUserKey, userId),
-    ]);
+    try {
+      final prefs = await _prefs();
+      await Future.wait<bool>(<Future<bool>>[
+        prefs.setString(_prefsKey(userId, windowId), encoded),
+        prefs.setString(_latestPrefsKey(userId), encoded),
+        prefs.setString(_lastActiveUserKey, userId),
+      ]);
+    } catch (error) {
+      if (!durableStore.isSupported) rethrow;
+      _log(
+        'write legacy mirror failed user=$userId window=$windowId '
+        'updatedAtMs=$incomingUpdatedAtMs error=$error',
+      );
+    }
     _log(
       'write local done user=$userId window=$windowId '
       'route=${raw['routeLocation'] ?? '<none>'} '
       'updatedAtMs=${raw['updatedAtMs'] ?? '<none>'}',
     );
-    return true;
+    return _LocalPersistenceStatus.persisted;
   }
 
   Future<AppRestorationSnapshot?> _adoptRemoteSnapshot(
@@ -2330,8 +2511,12 @@ class AppRestorationService {
       return null;
     }
     return _enqueueMutationOperation(() async {
-      final persisted = await _persistRawSnapshotLocally(userId, windowId, raw);
-      if (persisted) {
+      final persistence = await _persistRawSnapshotLocally(
+        userId,
+        windowId,
+        raw,
+      );
+      if (persistence == _LocalPersistenceStatus.persisted) {
         _log(
           'adopted ${candidate.source} snapshot '
           'user=$userId window=$windowId',
@@ -2558,15 +2743,20 @@ class AppRestorationService {
     current['updatedAtMs'] = durableUpdatedAtMs == null
         ? now
         : (now > durableUpdatedAtMs ? now : durableUpdatedAtMs + 1);
-    final persisted = await _persistRawSnapshotLocally(
+    final persistence = await _persistRawSnapshotLocally(
       userId,
       windowId,
       current,
     );
-    if (persisted) {
+    if (persistence == _LocalPersistenceStatus.persisted) {
       _scheduleRemoteSnapshotWrite(current);
       return const AppRestorationMutationResult(
         AppRestorationMutationStatus.persisted,
+      );
+    }
+    if (persistence == _LocalPersistenceStatus.storageFailure) {
+      return const AppRestorationMutationResult(
+        AppRestorationMutationStatus.storageFailure,
       );
     }
     return const AppRestorationMutationResult(
@@ -2732,6 +2922,10 @@ class AppRestorationService {
       return;
     }
     final windowId = await _currentWindowId();
+    final durableStore = _durableSnapshotStore;
+    if (durableStore.isSupported) {
+      await durableStore.clearWindow(userId, windowId);
+    }
     final prefs = await _prefs();
     await prefs.remove(_prefsKey(userId, windowId));
     _writeCriticalSnapshot(windowId, null);
@@ -2763,6 +2957,15 @@ class AppRestorationService {
         'critical primary route rejected input=$location '
         'section=${metadata.section?.wireName ?? '<none>'} '
         'reason=identity_not_initialized',
+      );
+      return false;
+    }
+    if (_durableSnapshotStore.isSupported) {
+      _log(
+        'critical primary route skipped route=$normalized '
+        'section=${metadata.section?.wireName ?? '<none>'} '
+        'user=$userId window=$windowId '
+        'reason=acknowledged_transaction_required',
       );
       return false;
     }
