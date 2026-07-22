@@ -1,12 +1,54 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:mobile/data/event_filing_engine.dart';
+import 'package:mobile/data/shared_calendar_models.dart';
+import 'package:mobile/data/user_events_repo.dart';
+import 'package:mobile/features/calendar/calendar_page.dart' show CalendarPage;
+import 'package:mobile/features/calendar/day_view.dart' show DayViewPage;
 import 'package:mobile/features/calendar/maat_flow_response_models.dart';
 import 'package:mobile/features/calendar/maat_flow_response_resolver.dart';
 import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
+import 'package:mobile/services/calendar_snapshot_repository.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+const _readingHouseFlowId = 741;
+const _readingHouseClientEventId = 'reading-house-shared-event-1';
+const _readingHouseCalendarId = 'reading-house-shared-calendar';
+final _readingHouseBackend = _ReadingHouseFlowContextBackend();
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    _mockAppLinksChannels();
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    await _ensureSupabaseInitialized();
+  });
+
+  setUp(() {
+    _readingHouseBackend.reset();
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    CalendarSnapshotRepository.instance.debugReplaceStore(
+      MemoryCalendarSnapshotStore(),
+    );
+    CalendarPage.debugResetWarmStateStoreForTesting();
+    CalendarPage.debugSuppressPendingEventInviteOverlay = true;
+    CalendarPage.debugSuppressCalendarOnboardingHelpers = true;
+  });
+
+  tearDown(() {
+    CalendarPage.debugSuppressPendingEventInviteOverlay = false;
+    CalendarPage.debugSuppressCalendarOnboardingHelpers = false;
+  });
+
   test('Reading House has three starter sittings on the MVP rhythm', () {
     expect(kReadingHouseSittings, hasLength(3));
     expect(kReadingHouseSittings.map((sitting) => sitting.flowDay), <int>[
@@ -1137,45 +1179,47 @@ void main() {
     expect(directEdit, contains('_FlowStudioPage('));
   });
 
-  test('joined readers keep Reading House flow context in Day View', () {
-    final calendarPageSource = File(
-      'lib/features/calendar/calendar_page.dart',
-    ).readAsStringSync();
+  testWidgets('joined readers keep Reading House flow context in Day View', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(900, 1200);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
 
-    final sharedOpen = _sourceBetween(
-      calendarPageSource,
-      'static Future<void> openFiledCalendarEventFromAnyContext',
-      '  static Future<void> openMyFlowsFromAnyContext',
-    );
-    expect(sharedOpen, contains('_loadSharedCalendarFlowsForFiledEvents'));
-    expect(sharedOpen, contains('mountedHost._seedSharedCalendarFlows'));
-    expect(sharedOpen, contains('sharedCalendarFlows: sharedCalendarFlows'));
+    await tester.pumpWidget(MaterialApp(home: CalendarPage()));
+    await tester.pump();
+    await _drainRealAsync(tester);
 
-    final flowHydration = _sourceBetween(
-      calendarPageSource,
-      'static Future<List<_Flow>> _loadSharedCalendarFlowsForFiledEvents',
-      '  static int? _firstVisibleMinuteFromSharedCalendarSnapshot',
-    );
-    expect(flowHydration, contains('_positiveFiledFlowId'));
-    expect(flowHydration, contains('getFlowById(flowId)'));
-    expect(flowHydration, contains('_flowFromFiledRowDetached(row)'));
+    final mountedState = CalendarPage.globalKey.currentState;
+    expect(mountedState, isNotNull);
+    expect(find.byType(DayViewPage), findsNothing);
 
-    final pendingIntent = _sourceBetween(
-      calendarPageSource,
-      'class _SharedCalendarRealDayViewIntent',
-      'class _CalendarWarmStateSnapshot',
+    await CalendarPage.openFiledCalendarEventFromAnyContext(
+      CalendarPage.globalKey.currentContext!,
+      calendar: _readingHouseCalendar,
+      filedEvent: _readingHouseFiledEvent,
     );
-    expect(pendingIntent, contains('final List<_Flow> sharedCalendarFlows'));
+    await _pumpUntil(
+      tester,
+      () => find.byType(DayViewPage).evaluate().isNotEmpty,
+    );
+    await _pumpUntil(
+      tester,
+      () => find.text('Reading position').evaluate().isNotEmpty,
+      maxPumps: 160,
+    );
 
-    final consumeIntent = _sourceBetween(
-      calendarPageSource,
-      'bool _consumePendingSharedCalendarRealDayViewIntentIfAny()',
-      '  Future<void> _requestInitialStartupRun',
-    );
-    expect(
-      consumeIntent,
-      contains('_seedSharedCalendarFlows(intent.sharedCalendarFlows)'),
-    );
+    expect(_readingHouseBackend.requestedFlowIds, <int>[_readingHouseFlowId]);
+    expect(CalendarPage.globalKey.currentState, same(mountedState));
+    expect(find.byType(DayViewPage), findsOneWidget);
+    expect(find.text('Private reflection'), findsOneWidget);
+    expect(find.text('Reading position'), findsOneWidget);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 500));
   });
 
   test('Phase 3A viewer role cannot author sittings', () {
@@ -1344,5 +1388,156 @@ String _nextAuthoringMethodBoundary(String methodStart) {
       return '  Future<void> _save';
     default:
       return '  Widget _sittingTile';
+  }
+}
+
+const _readingHouseCalendar = SharedCalendarSummary(
+  id: _readingHouseCalendarId,
+  ownerId: 'reading-house-host',
+  name: 'Reading House Company',
+  colorValue: 0xFF9C6A4B,
+  icon: 'book',
+  isPersonal: false,
+  role: SharedCalendarRole.viewer,
+  status: SharedCalendarInviteStatus.accepted,
+  memberCount: 3,
+  pendingInviteCount: 0,
+);
+
+final _readingHouseFiledEvent = FiledEvent(
+  event: UserEvent(
+    id: 'reading-house-event-row-1',
+    clientEventId: _readingHouseClientEventId,
+    calendarId: _readingHouseCalendarId,
+    calendarName: 'Reading House Company',
+    calendarColor: 0xFF9C6A4B,
+    calendarIsPersonal: false,
+    title: 'Reading House 1: Open the Text',
+    allDay: false,
+    startsAt: DateTime(2026, 7, 22, 19),
+    endsAt: DateTime(2026, 7, 22, 20),
+    flowLocalId: _readingHouseFlowId,
+    category: 'Study',
+    actionId: 'the-reading-house-sitting-1',
+    behaviorPayload: const <String, dynamic>{
+      'kind': 'maat_reading_house_sitting',
+      'flow_key': kReadingHouseFlowKey,
+      'event_number': 1,
+      'flow_day': 1,
+      'sitting_title': 'Open the Text',
+    },
+  ),
+  kind: FiledItemKind.flow,
+  lifecycle: FiledItemLifecycle.active,
+  calendar: const FiledCalendarRef(
+    id: _readingHouseCalendarId,
+    name: 'Reading House Company',
+    color: 0xFF9C6A4B,
+    isPersonal: false,
+  ),
+  flowId: _readingHouseFlowId,
+  shared: true,
+  backendLiveOnCalendar: true,
+);
+
+void _mockAppLinksChannels() {
+  const messages = MethodChannel('com.llfbandit.app_links/messages');
+  const events = MethodChannel('com.llfbandit.app_links/events');
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  messenger.setMockMethodCallHandler(messages, (_) async => null);
+  messenger.setMockMethodCallHandler(events, (methodCall) async {
+    if (methodCall.method == 'listen') {
+      messenger.handlePlatformMessage(
+        events.name,
+        const StandardMethodCodec().encodeSuccessEnvelope(null),
+        (_) {},
+      );
+    }
+    return null;
+  });
+}
+
+Future<void> _ensureSupabaseInitialized() async {
+  try {
+    Supabase.instance.client;
+    return;
+  } catch (_) {}
+
+  await Supabase.initialize(
+    url: 'https://example.supabase.co',
+    anonKey: 'anon-key-0123456789012345678901234567890123456789',
+    httpClient: _readingHouseBackend,
+  );
+}
+
+Future<void> _drainRealAsync(WidgetTester tester) async {
+  await tester.runAsync<void>(() async {
+    await Future<void>.delayed(Duration.zero);
+  });
+}
+
+Future<void> _pumpUntil(
+  WidgetTester tester,
+  bool Function() condition, {
+  int maxPumps = 80,
+}) async {
+  for (var i = 0; i < maxPumps; i += 1) {
+    if (condition()) return;
+    await tester.pump(const Duration(milliseconds: 25));
+    if (i % 4 == 0) await _drainRealAsync(tester);
+  }
+  expect(condition(), isTrue, reason: 'Timed out waiting for fixture state.');
+}
+
+class _ReadingHouseFlowContextBackend extends http.BaseClient {
+  final List<int> requestedFlowIds = <int>[];
+
+  void reset() => requestedFlowIds.clear();
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    Object? responseBody = const <Object?>[];
+    final isFlowLookup =
+        request.method == 'GET' &&
+        request.url.path.endsWith('/rest/v1/flows') &&
+        request.url.queryParameters['id'] == 'eq.$_readingHouseFlowId';
+    if (isFlowLookup) {
+      requestedFlowIds.add(_readingHouseFlowId);
+      responseBody = <Object?>[
+        <String, Object?>{
+          'id': _readingHouseFlowId,
+          'user_id': 'reading-house-host',
+          'calendar_id': _readingHouseCalendarId,
+          'name': kReadingHouseTitle,
+          'color': 0x9C6A4B,
+          'active': true,
+          'is_saved': false,
+          'start_date': '2026-07-22',
+          'end_date': '2026-08-05',
+          'notes': null,
+          'rules': const <Object?>[],
+          'is_hidden': false,
+          'is_reminder': false,
+          'lifecycle': 'active',
+          'visible_in_active_list': true,
+          'total_event_count': 3,
+          'remaining_event_count': 3,
+          'remaining_live_event_count': 3,
+          'is_shared': true,
+          'is_shared_calendar_source': true,
+        },
+      ];
+    } else if (request.url.path.contains('/rest/v1/rpc/')) {
+      responseBody = null;
+    }
+
+    final body = utf8.encode(jsonEncode(responseBody));
+    return http.StreamedResponse(
+      Stream<List<int>>.value(body),
+      200,
+      headers: const <String, String>{'content-type': 'application/json'},
+      request: request,
+    );
   }
 }
