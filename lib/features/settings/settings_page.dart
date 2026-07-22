@@ -27,7 +27,33 @@ import 'settings_prefs.dart';
 import 'us_holiday_seeder.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({super.key})
+    : _debugSignOut = null,
+      _debugCalendarStatusLoader = null,
+      _debugPushDiagnosticsLoader = null,
+      _debugHasSession = null,
+      _debugUseWebCalendarPresentation = null;
+
+  @visibleForTesting
+  const SettingsPage.forTesting({
+    super.key,
+    Future<void> Function()? signOut,
+    Future<CalendarSyncStatus> Function()? calendarStatusLoader,
+    Future<PushRegistrationDiagnostics> Function()? pushDiagnosticsLoader,
+    bool? hasSession,
+    bool? useWebCalendarPresentation,
+  }) : _debugSignOut = signOut,
+       _debugCalendarStatusLoader = calendarStatusLoader,
+       _debugPushDiagnosticsLoader = pushDiagnosticsLoader,
+       _debugHasSession = hasSession,
+       _debugUseWebCalendarPresentation = useWebCalendarPresentation;
+
+  final Future<void> Function()? _debugSignOut;
+  final Future<CalendarSyncStatus> Function()? _debugCalendarStatusLoader;
+  final Future<PushRegistrationDiagnostics> Function()?
+  _debugPushDiagnosticsLoader;
+  final bool? _debugHasSession;
+  final bool? _debugUseWebCalendarPresentation;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -95,8 +121,12 @@ class _SettingsPageState extends State<SettingsPage> {
     debugLabel: 'settings_controls_helper',
   );
 
-  bool get _hasSession => Supabase.instance.client.auth.currentSession != null;
-  bool get _nativeCalendarSyncAvailable => !kIsWeb;
+  bool get _hasSession =>
+      widget._debugHasSession ??
+      Supabase.instance.client.auth.currentSession != null;
+  bool get _usesWebCalendarPresentation =>
+      widget._debugUseWebCalendarPresentation ?? kIsWeb;
+  bool get _nativeCalendarSyncAvailable => !_usesWebCalendarPresentation;
   bool get _calendarImportAvailable => true;
   bool get _calendarBusy => _syncingCalendar || _unlinkingCalendar;
 
@@ -119,7 +149,12 @@ class _SettingsPageState extends State<SettingsPage> {
     });
 
     try {
-      await Supabase.instance.client.auth.signOut();
+      final signOut = widget._debugSignOut;
+      if (signOut != null) {
+        await signOut();
+      } else {
+        await Supabase.instance.client.auth.signOut();
+      }
       if (!mounted) return;
 
       context.go('/');
@@ -155,7 +190,9 @@ class _SettingsPageState extends State<SettingsPage> {
     final prefs = await SharedPreferences.getInstance();
     await SettingsPrefs.clearLegacyReminderPrefs(prefs);
 
-    final calendarStatus = await _calendarSyncService().getStatus();
+    final calendarStatus =
+        await (widget._debugCalendarStatusLoader?.call() ??
+            _calendarSyncService().getStatus());
 
     if (!mounted) return;
     setState(() {
@@ -549,9 +586,11 @@ class _SettingsPageState extends State<SettingsPage> {
       _loadingPushDiagnostics = true;
     });
 
-    final diagnostics = await PushNotifications.instance(
-      Supabase.instance.client,
-    ).getDiagnostics();
+    final diagnostics =
+        await (widget._debugPushDiagnosticsLoader?.call() ??
+            PushNotifications.instance(
+              Supabase.instance.client,
+            ).getDiagnostics());
 
     if (!mounted) return;
     setState(() {
@@ -1344,7 +1383,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String _syncButtonLabel() {
     if (_syncingCalendar) return 'Importing...';
     if (!_hasSession) return 'Sign in to import';
-    if (kIsWeb) return 'Import from Google';
+    if (_usesWebCalendarPresentation) return 'Import from Google';
     return 'Import now';
   }
 
@@ -1353,10 +1392,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
     lines.add(
       _autoCalendarSync
-          ? kIsWeb
+          ? _usesWebCalendarPresentation
                 ? 'Automatic import is on. After Google Calendar is connected, HAw reads external changes into HAw after sign-in.'
                 : 'Automatic import is on. The app keeps reading external calendar changes into HAw after sign-in.'
-          : kIsWeb
+          : _usesWebCalendarPresentation
           ? 'Automatic import is off. Use Import from Google whenever you want to read external events into HAw again.'
           : 'Automatic import is off. Use Import now whenever you want to read external events into HAw again.',
     );
@@ -1380,7 +1419,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
     if (!_hasSession) {
       lines.add(
-        kIsWeb
+        _usesWebCalendarPresentation
             ? 'Sign in is required before Google Calendar import can run.'
             : 'Sign in is required before any device calendar import can run.',
       );
