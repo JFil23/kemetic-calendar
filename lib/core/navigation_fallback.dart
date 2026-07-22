@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
 import '../services/app_navigation_restoration_controller.dart';
+import '../services/app_restoration_service.dart';
 import '../services/restoration_coordinator.dart';
 import '../services/restoration_trace.dart';
 import 'navigation_persistence_policy.dart';
@@ -187,27 +188,51 @@ Future<T?> openUtilityRoute<T>(
   return pushContext.push<T>(location, extra: extra);
 }
 
-void recordPrimarySectionSelection(AppSection section) {
+Future<AppRestorationMutationResult> recordPrimarySectionSelection(
+  AppSection section,
+) async {
   RestorationCoordinator.instance.suppressRestoreForUserNavigation(
     reason: 'open_primary_section',
   );
-  unawaited(
-    AppNavigationRestorationController.instance.recordPrimaryTabSelection(
-      section,
-    ),
-  );
+  await RestorationCoordinator.instance.flushCalendarForPrimaryNavigation();
+  return AppNavigationRestorationController.instance
+      .recordPrimaryTabSelectionWithResult(section);
 }
 
-void openPrimarySection(
+Future<void> openPrimarySection(
   BuildContext context,
   AppSection section, {
   GoRouter? router,
 }) {
-  recordPrimarySectionSelection(section);
+  return recordPrimaryTabSelectionAndOpen(
+    section,
+    navigate: (location) {
+      if (router != null) {
+        router.go(location);
+        return;
+      }
+      context.go(location);
+    },
+  );
+}
+
+Future<void> recordPrimaryTabSelectionAndOpen(
+  AppSection section, {
+  required void Function(String location) navigate,
+}) async {
   final location = const NavigationPersistencePolicy().routeForSection(section);
-  if (router != null) {
-    router.go(location);
+  if (!AppRestorationService.instance.requiresAcknowledgedDurableWrites) {
+    unawaited(recordPrimarySectionSelection(section));
+    navigate(location);
     return;
   }
-  context.go(location);
+  final result = await recordPrimarySectionSelection(section);
+  if (result.status != AppRestorationMutationStatus.persisted) {
+    traceRestoration(
+      'navigation primary_section blocked section=${section.wireName} '
+      'reason=durable_write_${result.status.name}',
+    );
+    return;
+  }
+  navigate(location);
 }

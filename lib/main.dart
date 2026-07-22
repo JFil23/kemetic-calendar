@@ -3471,7 +3471,19 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
         ? null
         : _drawerUtilityChildResolution(destination);
     if (destination.isPrimaryReplacement && primarySection != null) {
-      recordPrimarySectionSelection(primarySection);
+      if (AppRestorationService.instance.requiresAcknowledgedDurableWrites) {
+        unawaited(
+          _dispatchAcknowledgedDrawerPrimary(
+            destination: destination,
+            primarySection: primarySection,
+            generation: generation,
+            matchingPrimaryBasePopCount: matchingPrimaryBasePopCount,
+          ),
+        );
+        return;
+      } else {
+        unawaited(recordPrimarySectionSelection(primarySection));
+      }
       _replaceDrawerHistoryPrimary(destination);
     } else if (matchingUtilityChildResolution != null) {
       RestorationCoordinator.instance.suppressRestoreForUserNavigation(
@@ -3484,6 +3496,54 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       _pushDrawerHistoryUtility(destination);
     }
 
+    _completeDrawerDestinationDispatch(
+      destination: destination,
+      generation: generation,
+      matchingPrimaryBasePopCount: matchingPrimaryBasePopCount,
+      matchingUtilityChildResolution: matchingUtilityChildResolution,
+    );
+  }
+
+  Future<void> _dispatchAcknowledgedDrawerPrimary({
+    required _DrawerDestination destination,
+    required AppSection primarySection,
+    required int generation,
+    required int? matchingPrimaryBasePopCount,
+  }) async {
+    final result = await recordPrimarySectionSelection(primarySection);
+    if (!_drawerNavigationGeneration.isCurrent(generation)) {
+      _traceDrawerNavigation(
+        'drawer stale durable primary acknowledgement ignored',
+        target: destination.label,
+        generation: generation,
+        route: destination.location,
+      );
+      return;
+    }
+    if (result.status != AppRestorationMutationStatus.persisted) {
+      _traceDrawerNavigation(
+        'drawer primary navigation blocked by durable storage',
+        target: destination.label,
+        generation: generation,
+        route: destination.location,
+      );
+      return;
+    }
+    _replaceDrawerHistoryPrimary(destination);
+    _completeDrawerDestinationDispatch(
+      destination: destination,
+      generation: generation,
+      matchingPrimaryBasePopCount: matchingPrimaryBasePopCount,
+      matchingUtilityChildResolution: null,
+    );
+  }
+
+  void _completeDrawerDestinationDispatch({
+    required _DrawerDestination destination,
+    required int generation,
+    required int? matchingPrimaryBasePopCount,
+    required _DrawerUtilityChildResolution? matchingUtilityChildResolution,
+  }) {
     _drawerDestinationDispatchInProgress = true;
     try {
       final dispatched = _drawerNavigationGeneration.runIfCurrent(
