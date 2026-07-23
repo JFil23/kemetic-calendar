@@ -2,107 +2,156 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:mobile/main.dart' as app;
 import 'package:mobile/services/navigation_trace.dart';
+import 'package:mobile/widgets/global_side_drawer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+Future<void> _ensureSupabaseInitialized() async {
+  try {
+    Supabase.instance.client;
+    return;
+  } catch (_) {}
+
+  await Supabase.initialize(
+    url: 'https://example.supabase.co',
+    anonKey: 'anon-key-0123456789012345678901234567890123456789',
+  );
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    await _ensureSupabaseInitialized();
+  });
+
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
+    app.resetGlobalFloatingMenuShellForTesting();
     NavigationTrace.instance.resetForTesting();
   });
 
   tearDown(() {
+    app.resetGlobalFloatingMenuShellForTesting();
     NavigationTrace.instance.resetForTesting();
   });
 
   group('navigation trace guard', () {
-    test('source contains the PWA tap-path labels and overlay state', () async {
-      final mainSource = await File('lib/main.dart').readAsString();
-      final calendarSource = await File(
-        'lib/features/calendar/calendar_page.dart',
-      ).readAsString();
-      final profileSource = await File(
-        'lib/features/profile/profile_page.dart',
-      ).readAsString();
-      final plannerSource = await File(
-        'lib/features/rhythm/pages/todays_alignment_page.dart',
-      ).readAsString();
-      final combined =
-          '$mainSource\n$calendarSource\n$profileSource\n$plannerSource';
+    testWidgets(
+      'production drawer tap emits ordered route and overlay state trace',
+      (tester) async {
+        await NavigationTrace.instance.setEnabled(true);
+        final router = _traceRouter();
+        addTearDown(router.dispose);
 
-      for (final label in <String>[
-        'global drawer bubble tapped',
-        'global drawer mounted closed',
-        'global drawer opened',
-        'Flow Studio tile tapped',
-        'Calendars tile tapped',
-        '_openFlowsFromDrawer entered',
-        '_openCalendarsFromDrawer entered',
-        'menu close started',
-        'menu close completed',
-        "global drawer utility route push('/flows') requested",
-        "global drawer utility route push('/calendars') requested",
-        'calendar overlay state save skipped',
-        'detached calendar overlay state save skipped',
-        'calendars sheet helper entered',
-        'calendars sheet overlay state save returned',
-        'calendars sheet show requested',
-        'calendars sheet future created',
-        'calendars sheet future completed',
-        'flow studio sheet helper entered',
-        'flow studio sheet overlay state save returned',
-        'flow studio sheet show requested',
-        'flow studio sheet future created',
-        'flow studio sheet future completed',
-        'sheet open success',
-        'sheet open error',
-        'Profile app-bar tap fired',
-        'openProfileFromAnyContext entered',
-        'current user id resolved',
-        'profile feed continuity clear skipped',
-        '/profile/me route command issued',
-        'profile route push requested',
-        'profile route push completed/current uri',
-        'profile route push error',
-        'profile route builder started',
-        'profile route user resolved',
-        'profile route returning ProfilePage',
-        'ProfilePage initState',
-        'ProfilePage build first frame',
-        'ProfilePage first frame completed',
-        'helper overlay shown',
-        'planner route go requested',
-        'planner route go returned/current uri',
-        'Planner load start',
-        'Planner load done',
-        'PlannerPage build first frame',
-        'PlannerPage first frame completed',
-        'Profile cache hydration start',
-        'Profile cache hydration done',
-        'Profile live load start',
-        'Profile live load done',
-        'Today app-bar tap fired',
-        'openMainCalendarAtToday entered',
-        'Today restoration state saved',
-        "go('/') issued",
-        'CalendarPage consumed pending Today command',
-      ]) {
-        expect(combined, contains(label), reason: 'Missing trace: $label');
-      }
+        await tester.pumpWidget(
+          MaterialApp.router(
+            routerConfig: router,
+            builder: (context, child) =>
+                app.buildGlobalFloatingMenuShellForTesting(
+                  router: router,
+                  child: child ?? const SizedBox.shrink(),
+                ),
+          ),
+        );
+        await tester.pump();
 
-      for (final stateKey in <String>[
-        '_menuMounted',
-        '_menuOpen',
-        '_floatingMenuModalDepth.value',
-        '_launchOverlayDismissed.value',
-        'route',
-        'MediaQuery.viewInsets.bottom',
-      ]) {
-        expect(mainSource, contains(stateKey));
-      }
-    });
+        await tester.tap(find.byKey(app.globalMenuButtonKey));
+        await tester.pump();
+        await tester.pump();
+        await tester.pump(globalSideDrawerTransitionDuration);
+
+        expect(find.byKey(globalSideDrawerKey), findsOneWidget);
+        await tester.tap(
+          find.byKey(
+            const ValueKey<String>('global-side-drawer-item-Calendar'),
+          ),
+        );
+        await tester.pump(globalSideDrawerTransitionDuration);
+        await tester.pump();
+
+        expect(router.routerDelegate.currentConfiguration.uri.path, '/');
+        expect(find.text('Calendar route'), findsOneWidget);
+        expect(find.byKey(globalSideDrawerKey), findsNothing);
+
+        final entries = NavigationTrace.instance.entries;
+        int traceIndex(String label) =>
+            entries.indexWhere((entry) => entry.contains(label));
+
+        final bubbleIndex = traceIndex('global drawer bubble tapped');
+        final mountedIndex = traceIndex('global drawer mounted closed');
+        final openedIndex = traceIndex('global drawer opened');
+        final tapIndex = traceIndex('drawer navigation tap target');
+        final requestIndex = traceIndex('drawer navigation route requested');
+        final committedIndex = traceIndex('drawer route committed');
+        final closeStartedIndex = traceIndex('menu close started');
+        final closeCompletedIndex = traceIndex('menu close completed');
+
+        expect(bubbleIndex, greaterThanOrEqualTo(0));
+        expect(mountedIndex, greaterThan(bubbleIndex));
+        expect(openedIndex, greaterThan(mountedIndex));
+        expect(tapIndex, greaterThan(openedIndex));
+        expect(requestIndex, greaterThan(tapIndex));
+        expect(committedIndex, greaterThan(requestIndex));
+        expect(closeStartedIndex, greaterThan(committedIndex));
+        expect(closeCompletedIndex, greaterThan(closeStartedIndex));
+
+        expect(
+          entries[bubbleIndex],
+          allOf(
+            contains('_menuMounted=false'),
+            contains('_menuOpen=false'),
+            contains('route=/nodes'),
+          ),
+        );
+        expect(
+          entries[mountedIndex],
+          allOf(
+            contains('_menuMounted=true'),
+            contains('_menuOpen=false'),
+            contains('route=/nodes'),
+          ),
+        );
+        expect(
+          entries[openedIndex],
+          allOf(
+            contains('_menuMounted=true'),
+            contains('_menuOpen=true'),
+            contains('route=/nodes'),
+          ),
+        );
+        expect(
+          entries[tapIndex],
+          allOf(
+            contains('target=Calendar'),
+            contains('generation=1'),
+            contains('route=/'),
+          ),
+        );
+        expect(
+          entries[committedIndex],
+          allOf(
+            contains('target=Calendar'),
+            contains('generation=1'),
+            contains('route=/'),
+          ),
+        );
+        expect(
+          entries[closeCompletedIndex],
+          allOf(
+            contains('_menuMounted=false'),
+            contains('_menuOpen=false'),
+            contains('route=/'),
+          ),
+        );
+        expect(entries.join('\n'), isNot(contains('stale')));
+        expect(entries.join('\n'), isNot(contains('error')));
+      },
+    );
 
     test(
       'Settings build marker is the hidden persisted activation path',
@@ -195,4 +244,34 @@ void main() {
       }
     });
   });
+}
+
+GoRouter _traceRouter() {
+  return GoRouter(
+    initialLocation: '/nodes',
+    observers: <NavigatorObserver>[
+      app.globalFloatingMenuRouteObserverForTesting,
+    ],
+    routes: <RouteBase>[
+      GoRoute(
+        path: '/',
+        builder: (context, state) => const _TracePage('Calendar route'),
+      ),
+      GoRoute(
+        path: '/nodes',
+        builder: (context, state) => const _TracePage('Library route'),
+      ),
+    ],
+  );
+}
+
+class _TracePage extends StatelessWidget {
+  const _TracePage(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(body: Center(child: Text(label)));
+  }
 }
