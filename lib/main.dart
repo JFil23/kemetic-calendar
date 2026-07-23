@@ -37,6 +37,7 @@ import 'data/maat_guidance_model.dart';
 import 'data/maat_guidance_repo.dart';
 import 'data/profile_avatar_glyphs.dart';
 import 'data/share_models.dart';
+import 'data/share_repo.dart';
 import 'utils/event_cid_util.dart';
 import 'telemetry/telemetry.dart';
 import 'shared/glossy_text.dart';
@@ -2249,6 +2250,54 @@ GoRouter createProductionRouterForTesting({required String initialLocation}) =>
 
 /* ───────────────────────── App Widgets ───────────────────────── */
 
+class _PrincipalUnreadAuthTransitionOwner {
+  Future<void> _tail = Future<void>.value();
+  final Expando<Future<void>> _operationByAuthState = Expando<Future<void>>(
+    'principal-unread-auth-transition',
+  );
+
+  Future<void> handle(SupabaseClient client, AuthState data) {
+    final existing = _operationByAuthState[data];
+    if (existing != null) return existing;
+
+    final activePrincipalId = data.event == AuthChangeEvent.signedOut
+        ? null
+        : data.session?.user.id ?? client.auth.currentUser?.id;
+    final previous = _tail;
+    final operation = () async {
+      await previous;
+      await ShareRepo.synchronizeUnreadTrackerPrincipal(
+        client: client,
+        activePrincipalId: activePrincipalId,
+      );
+    }();
+    _operationByAuthState[data] = operation;
+    _tail = operation.then<void>(
+      (value) {},
+      onError: (Object error, StackTrace stackTrace) {},
+    );
+    return operation;
+  }
+
+  Future<void> ensureHandled(SupabaseClient client, AuthState data) {
+    final operation = _operationByAuthState[data];
+    if (operation != null) return operation;
+    // MyApp is the primary auth owner in production. Reusing this same
+    // coordinator here keeps route-local harnesses and an unusually early
+    // child delivery fail-safe without adding another listener or a second
+    // cleanup authority.
+    return handle(client, data);
+  }
+}
+
+final _principalUnreadAuthTransitionOwner =
+    _PrincipalUnreadAuthTransitionOwner();
+
+@visibleForTesting
+Future<void> handleRootPrincipalUnreadAuthTransitionForTesting(
+  AuthState data,
+) => _principalUnreadAuthTransitionOwner.handle(supabase, data);
+
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
 
@@ -2268,12 +2317,18 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     _authSub = supabase.auth.onAuthStateChange.listen(
       (data) {
-        if (data.event == AuthChangeEvent.passwordRecovery) {
-          _passwordRecoverySession = true;
-        } else if (data.event == AuthChangeEvent.signedOut) {
-          _passwordRecoverySession = false;
-        }
-        _scheduleRebuild();
+        unawaited(
+          _handleRootAuthStateChange(data).catchError((
+            Object error,
+            StackTrace stackTrace,
+          ) {
+            _logRootAuthLinkError(
+              'principal unread auth transition',
+              error,
+              stackTrace,
+            );
+          }),
+        );
       },
       onError: (Object error, StackTrace stackTrace) {
         if (!kDebugMode) return;
@@ -2282,6 +2337,19 @@ class _MyAppState extends State<MyApp> {
       },
     );
     _initAuthDeepLinks();
+  }
+
+  Future<void> _handleRootAuthStateChange(AuthState data) async {
+    // MyApp outlives every routed authenticated branch. It owns principal
+    // cleanup so a route-local AuthGate or shell cannot orphan shared work.
+    await _principalUnreadAuthTransitionOwner.handle(supabase, data);
+    if (!mounted) return;
+    if (data.event == AuthChangeEvent.passwordRecovery) {
+      _passwordRecoverySession = true;
+    } else if (data.event == AuthChangeEvent.signedOut) {
+      _passwordRecoverySession = false;
+    }
+    _scheduleRebuild();
   }
 
   @override
@@ -5853,6 +5921,10 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   }
 
   Future<void> _handleAuthStateChange(AuthState data) async {
+    // MyApp normally registers the event before this route-local listener.
+    // The shared coordinator also claims an unusually early or harness-only
+    // delivery exactly once. Replacement-principal warmups cannot outrun it.
+    await _principalUnreadAuthTransitionOwner.ensureHandled(supabase, data);
     final ev = data.event;
     final isSessionReadyEvent =
         ev == AuthChangeEvent.initialSession || ev == AuthChangeEvent.signedIn;
