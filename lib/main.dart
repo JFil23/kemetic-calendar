@@ -2603,6 +2603,7 @@ Widget buildGlobalFloatingMenuShellForTesting({
   bool dailyCosmicContextAuthenticated = false,
   bool? dailyCosmicContextOnboardingComplete,
   DateTime Function()? dailyCosmicContextNow,
+  VoidCallback? onSignedInGuidanceRefreshTimerFired,
 }) {
   _debugForceGlobalFloatingMenuForTesting = true;
   _launchOverlayDismissed.value = true;
@@ -2613,6 +2614,8 @@ Widget buildGlobalFloatingMenuShellForTesting({
     dailyCosmicContextOnboardingCompleteForTesting:
         dailyCosmicContextOnboardingComplete,
     dailyCosmicContextNowForTesting: dailyCosmicContextNow,
+    onSignedInGuidanceRefreshTimerFiredForTesting:
+        onSignedInGuidanceRefreshTimerFired,
     child: KemeticKeyboardHost(child: child),
   );
 }
@@ -2676,6 +2679,7 @@ class _GlobalFloatingMenuShell extends StatefulWidget {
     this.dailyCosmicContextAuthenticatedForTesting = false,
     this.dailyCosmicContextOnboardingCompleteForTesting,
     this.dailyCosmicContextNowForTesting,
+    this.onSignedInGuidanceRefreshTimerFiredForTesting,
   });
 
   final GoRouter router;
@@ -2684,6 +2688,7 @@ class _GlobalFloatingMenuShell extends StatefulWidget {
   final bool dailyCosmicContextAuthenticatedForTesting;
   final bool? dailyCosmicContextOnboardingCompleteForTesting;
   final DateTime Function()? dailyCosmicContextNowForTesting;
+  final VoidCallback? onSignedInGuidanceRefreshTimerFiredForTesting;
 
   @override
   State<_GlobalFloatingMenuShell> createState() =>
@@ -2711,6 +2716,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   bool _drawerBackGestureActive = false;
   bool _drawerBackPopRouteConsumePending = false;
   Timer? _drawerBackPopRouteConsumeTimer;
+  Timer? _maatGuidanceSignedInRefreshTimer;
   bool _rebuildScheduled = false;
   bool? _lastGuidanceSuppressed;
   int _dailyCosmicContextEvaluationSerial = 0;
@@ -2740,17 +2746,12 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     );
     _authSub = supabase.auth.onAuthStateChange.listen((_) {
       if (supabase.auth.currentSession == null) {
+        _cancelMaatGuidanceSignedInRefresh();
         _resetFloatingMenuState();
         _maatGuidanceController.clearForSignedOut();
       } else {
         unawaited(_maatGuidanceController.refresh(force: true));
-        unawaited(
-          Future<void>.delayed(const Duration(seconds: 2)).then((_) {
-            if (mounted) {
-              return _maatGuidanceController.refresh(force: true);
-            }
-          }),
-        );
+        _scheduleMaatGuidanceSignedInRefresh();
       }
       _scheduleMaatGuidanceGateEvaluation();
       _scheduleRebuild();
@@ -2797,8 +2798,24 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     _maatGuidanceController.dispose();
     _dailyCosmicContextController.dispose();
     _drawerBackPopRouteConsumeTimer?.cancel();
+    _cancelMaatGuidanceSignedInRefresh();
     unawaited(_authSub?.cancel());
     super.dispose();
+  }
+
+  void _scheduleMaatGuidanceSignedInRefresh() {
+    _cancelMaatGuidanceSignedInRefresh();
+    _maatGuidanceSignedInRefreshTimer = Timer(const Duration(seconds: 2), () {
+      _maatGuidanceSignedInRefreshTimer = null;
+      if (!mounted || supabase.auth.currentSession == null) return;
+      widget.onSignedInGuidanceRefreshTimerFiredForTesting?.call();
+      unawaited(_maatGuidanceController.refresh(force: true));
+    });
+  }
+
+  void _cancelMaatGuidanceSignedInRefresh() {
+    _maatGuidanceSignedInRefreshTimer?.cancel();
+    _maatGuidanceSignedInRefreshTimer = null;
   }
 
   @override
