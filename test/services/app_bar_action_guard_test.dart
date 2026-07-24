@@ -3,9 +3,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:mobile/core/navigation_fallback.dart';
+import 'package:mobile/data/share_repo.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/main.dart' as app;
 import 'package:mobile/services/app_restoration_service.dart';
@@ -34,6 +38,132 @@ final Map<String, Map<String, dynamic>> _debugRemoteLatestSnapshots =
     <String, Map<String, dynamic>>{};
 String? _debugPlatformLastActiveUserId;
 
+const _keyboardTestUserId = '4d2583da-8de4-49d3-9cd1-37a9a74f55bd';
+const _unreadTopicPrefix = 'realtime:inbox_unread_state_';
+
+class _DeterministicRealtimeEndpoint {
+  late final HttpServer _server;
+  StreamSubscription<HttpRequest>? _requests;
+  final Set<WebSocket> _sockets = <WebSocket>{};
+  final Set<StreamSubscription<dynamic>> _socketSubscriptions =
+      <StreamSubscription<dynamic>>{};
+  final List<String> frames = <String>[];
+
+  String get origin => 'http://${_server.address.address}:${_server.port}';
+
+  Future<void> start() async {
+    _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    _requests = _server.listen(_handleRequest);
+  }
+
+  Future<void> _handleRequest(HttpRequest request) async {
+    if (!WebSocketTransformer.isUpgradeRequest(request)) {
+      request.response
+        ..statusCode = HttpStatus.notFound
+        ..close();
+      return;
+    }
+
+    final socket = await WebSocketTransformer.upgrade(request);
+    _sockets.add(socket);
+    late final StreamSubscription<dynamic> subscription;
+    subscription = socket.listen(
+      (dynamic raw) {
+        final decoded = jsonDecode(raw as String) as Map<String, dynamic>;
+        final event = decoded['event']?.toString() ?? '';
+        final topic = decoded['topic']?.toString() ?? '';
+        final ref = decoded['ref']?.toString();
+        frames.add('$event:$topic');
+        if (event == 'phx_join' ||
+            event == 'phx_leave' ||
+            event == 'heartbeat') {
+          socket.add(
+            jsonEncode(<String, Object?>{
+              'topic': topic,
+              'event': 'phx_reply',
+              'payload': <String, Object?>{
+                'status': 'ok',
+                'response': <String, Object?>{},
+              },
+              'ref': ref,
+            }),
+          );
+        }
+      },
+      onDone: () {
+        _sockets.remove(socket);
+        _socketSubscriptions.remove(subscription);
+      },
+    );
+    _socketSubscriptions.add(subscription);
+  }
+
+  int count(String event, String topic) =>
+      frames.where((frame) => frame == '$event:$topic').length;
+
+  String get frameSummary => frames.join('|');
+
+  Future<void> stop() async {
+    for (final socket in _sockets.toList(growable: false)) {
+      await socket.close();
+    }
+    for (final subscription in _socketSubscriptions.toList(growable: false)) {
+      await subscription.cancel();
+    }
+    await _requests?.cancel();
+    await _server.close(force: true);
+  }
+}
+
+final _realtimeEndpoint = _DeterministicRealtimeEndpoint();
+
+void _mockAppLinksChannels() {
+  const messages = MethodChannel('com.llfbandit.app_links/messages');
+  const events = MethodChannel('com.llfbandit.app_links/events');
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  messenger.setMockMethodCallHandler(messages, (_) async => null);
+  messenger.setMockMethodCallHandler(events, (methodCall) async {
+    if (methodCall.method == 'listen') {
+      messenger.handlePlatformMessage(
+        events.name,
+        const StandardMethodCodec().encodeSuccessEnvelope(null),
+        (_) {},
+      );
+    }
+    return null;
+  });
+}
+
+void _resetAppLinksChannels() {
+  const messages = MethodChannel('com.llfbandit.app_links/messages');
+  const events = MethodChannel('com.llfbandit.app_links/events');
+  final messenger =
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+  messenger.setMockMethodCallHandler(messages, null);
+  messenger.setMockMethodCallHandler(events, null);
+}
+
+http.Response _testBackendResponse(http.BaseRequest request) {
+  if (request.url.path.endsWith('/functions/v1/fetch_maat_guidance_pending')) {
+    return http.Response(
+      jsonEncode(<String, Object?>{'delivery': null}),
+      200,
+      headers: const <String, String>{'content-type': 'application/json'},
+      request: request,
+    );
+  }
+  if (request.url.path.endsWith('/auth/v1/logout')) {
+    return http.Response('', 204, request: request);
+  }
+  return http.Response(
+    '[]',
+    200,
+    headers: const <String, String>{'content-type': 'application/json'},
+    request: request,
+  );
+}
+
 Future<void> _ensureSupabaseInitialized() async {
   try {
     Supabase.instance.client;
@@ -41,22 +171,51 @@ Future<void> _ensureSupabaseInitialized() async {
   } catch (_) {}
 
   await Supabase.initialize(
-    url: 'https://example.supabase.co',
+    url: _realtimeEndpoint.origin,
     anonKey: 'anon-key-0123456789012345678901234567890123456789',
+    httpClient: MockClient((request) async => _testBackendResponse(request)),
   );
+}
+
+Future<void> _resetTestAuthAndRealtimeResources() async {
+  final client = Supabase.instance.client;
+  if (client.auth.currentSession != null) {
+    await client.auth.signOut(scope: SignOutScope.local);
+  }
+  await ShareRepo.synchronizeUnreadTrackerPrincipal(
+    client: client,
+    activePrincipalId: null,
+  );
+  await client.removeAllChannels();
+  await client.realtime.disconnect();
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
+    _mockAppLinksChannels();
     SharedPreferences.setMockInitialValues({});
+    await _realtimeEndpoint.start();
     await _ensureSupabaseInitialized();
   });
 
-  setUp(() {
+  setUp(() async {
+    await _resetTestAuthAndRealtimeResources();
     SharedPreferences.setMockInitialValues({});
     _clearRestorationDebugHooks();
+    app.resetGlobalFloatingMenuShellForTesting();
+  });
+
+  tearDown(() async {
+    await _resetTestAuthAndRealtimeResources();
+    app.resetGlobalFloatingMenuShellForTesting();
+  });
+
+  tearDownAll(() async {
+    await Supabase.instance.dispose();
+    await _realtimeEndpoint.stop();
+    _resetAppLinksChannels();
   });
 
   group('app bar action guard', () {
@@ -637,6 +796,30 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Profile me'), findsOneWidget);
     });
+
+    testWidgets(
+      'global drawer bubble does not absorb taps while keyboard is visible',
+      (tester) async {
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+        addTearDown(tester.view.resetViewInsets);
+
+        const authOrderMatrix = <List<bool>>[
+          <bool>[false, true],
+          <bool>[true, false],
+        ];
+        for (final order in authOrderMatrix) {
+          for (final authenticated in order) {
+            await _exerciseGlobalDrawerKeyboardBehavior(
+              tester,
+              authenticated: authenticated,
+            );
+          }
+        }
+      },
+    );
 
     test(
       'shared Today helper records today before in-place or routed use',
@@ -1278,24 +1461,6 @@ void main() {
       expect(bubble, isNot(contains('Color(0xF6000000)')));
       expect(bubble, isNot(contains('onPointerUp')));
     });
-
-    test(
-      'global drawer bubble does not absorb taps while keyboard is visible',
-      () async {
-        final source = await File('lib/main.dart').readAsString();
-        final shell = _sourceBetween(
-          source,
-          'class _GlobalFloatingMenuShellState',
-          'class PushIntentBridge',
-        );
-
-        expect(shell, contains('MediaQuery.viewInsetsOf(context).bottom == 0'));
-        expect(shell, contains('final keyboardVisible ='));
-        expect(shell, contains('final menuOpenForInteraction ='));
-        expect(shell, contains('visible: shouldActivateFloatingMenu'));
-        expect(shell, contains('_resetFloatingMenuStateAfterFrame'));
-      },
-    );
 
     test(
       'route changes dismiss only calendar-owned transient overlays',
@@ -2001,8 +2166,136 @@ List<String> _detachedMenuLabels(WidgetTester tester) {
       .toList(growable: false);
 }
 
+Future<bool> _waitFor(
+  bool Function() predicate, {
+  int maxObservations = 10000,
+}) async {
+  for (var observation = 0; observation < maxObservations; observation += 1) {
+    if (predicate()) return true;
+    await Future<void>.delayed(Duration.zero);
+  }
+  return false;
+}
+
+Future<void> _exerciseGlobalDrawerKeyboardBehavior(
+  WidgetTester tester, {
+  required bool authenticated,
+}) async {
+  await tester.runAsync(_resetTestAuthAndRealtimeResources);
+  if (authenticated) {
+    await tester.runAsync(_recoverTestSession);
+    await tester.runAsync(() async {
+      ShareRepo(Supabase.instance.client).currentUnreadState;
+      await Future<void>.delayed(Duration.zero);
+    });
+    expect(
+      Supabase.instance.client.getChannels(),
+      isNotEmpty,
+      reason: 'Authenticated test setup must own one unread channel.',
+    );
+  }
+  expect(
+    Supabase.instance.client.auth.currentSession != null,
+    authenticated,
+    reason: 'Every keyboard scenario must establish auth explicitly.',
+  );
+  expect(
+    ShareRepo.debugDisableUnreadTrackingForTesting,
+    isFalse,
+    reason: 'The signed-in production shell must keep unread tracking enabled.',
+  );
+
+  app.resetGlobalFloatingMenuShellForTesting();
+  var underlyingTaps = 0;
+  final router = GoRouter(
+    initialLocation: '/',
+    routes: <RouteBase>[
+      GoRoute(
+        path: '/',
+        builder: (context, state) => Scaffold(
+          body: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => underlyingTaps += 1,
+            child: const SizedBox.expand(),
+          ),
+        ),
+      ),
+    ],
+  );
+
+  try {
+    final unreadTopic = '$_unreadTopicPrefix$_keyboardTestUserId';
+    final unreadJoinCountBefore = _realtimeEndpoint.count(
+      'phx_join',
+      unreadTopic,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp.router(
+        routerConfig: router,
+        builder: (context, child) => app.buildGlobalFloatingMenuShellForTesting(
+          router: router,
+          child: child ?? const SizedBox.shrink(),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final bubble = find.byKey(app.globalMenuButtonKey);
+    expect(bubble, findsOneWidget);
+
+    if (authenticated) {
+      final unreadJoined = await tester.runAsync(
+        () => _waitFor(
+          () =>
+              _realtimeEndpoint.count('phx_join', unreadTopic) ==
+              unreadJoinCountBefore + 1,
+        ),
+      );
+      expect(
+        unreadJoined,
+        isTrue,
+        reason:
+            'The signed-in production state must exercise unread tracking: '
+            '${_realtimeEndpoint.frameSummary}',
+      );
+    }
+
+    final priorBubbleCenter = tester.getCenter(bubble);
+
+    tester.view.viewInsets = const FakeViewPadding(bottom: 10);
+    await tester.pump();
+    await tester.pump();
+
+    expect(bubble, findsNothing);
+    await tester.tapAt(priorBubbleCenter);
+    await tester.pump();
+    expect(underlyingTaps, 1);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    await tester.runAsync(_resetTestAuthAndRealtimeResources);
+    await tester.pump();
+
+    expect(Supabase.instance.client.auth.currentSession, isNull);
+    expect(Supabase.instance.client.getChannels(), isEmpty);
+    expect(
+      Supabase.instance.client.realtime.connectionState,
+      anyOf('closed', 'disconnected'),
+    );
+    expect(tester.takeException(), isNull);
+  } finally {
+    tester.view.viewInsets = const FakeViewPadding();
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    await tester.runAsync(_resetTestAuthAndRealtimeResources);
+    router.dispose();
+    app.resetGlobalFloatingMenuShellForTesting();
+  }
+}
+
 Future<void> _recoverTestSession() async {
-  const userId = '4d2583da-8de4-49d3-9cd1-37a9a74f55bd';
   final expiresAt =
       DateTime.now().add(const Duration(days: 365)).millisecondsSinceEpoch ~/
       1000;
@@ -2013,7 +2306,7 @@ Future<void> _recoverTestSession() async {
       'refresh_token': 'test-refresh-token',
       'token_type': 'bearer',
       'user': <String, Object?>{
-        'id': userId,
+        'id': _keyboardTestUserId,
         'app_metadata': <String, Object?>{
           'provider': 'email',
           'providers': <String>['email'],
