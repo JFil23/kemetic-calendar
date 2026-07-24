@@ -11,6 +11,7 @@ import 'package:http/testing.dart';
 import 'package:mobile/core/navigation_fallback.dart';
 import 'package:mobile/data/share_repo.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/features/profile/profile_page.dart';
 import 'package:mobile/main.dart' as app;
 import 'package:mobile/services/app_restoration_service.dart';
 import 'package:mobile/services/app_window_service.dart';
@@ -39,7 +40,14 @@ final Map<String, Map<String, dynamic>> _debugRemoteLatestSnapshots =
 String? _debugPlatformLastActiveUserId;
 
 const _keyboardTestUserId = '4d2583da-8de4-49d3-9cd1-37a9a74f55bd';
+const _communityFeedProfileId = '8e850fb1-577d-4954-a816-da86fef6df17';
 const _unreadTopicPrefix = 'realtime:inbox_unread_state_';
+
+enum _CommunityFeedFixture { neutral, empty, retryableError }
+
+var _communityFeedFixture = _CommunityFeedFixture.neutral;
+var _communityFeedFallbackShouldFail = false;
+var _communityFeedRpcRequests = 0;
 
 class _DeterministicRealtimeEndpoint {
   late final HttpServer _server;
@@ -145,6 +153,46 @@ void _resetAppLinksChannels() {
 }
 
 http.Response _testBackendResponse(http.BaseRequest request) {
+  final path = request.url.path;
+  if (_communityFeedFixture != _CommunityFeedFixture.neutral &&
+      path.endsWith('/rest/v1/profile_stats')) {
+    return http.Response(
+      jsonEncode(<String, Object?>{
+        'id': _communityFeedProfileId,
+        'handle': 'fixture',
+        'display_name': 'Fixture',
+        'avatar_glyphs': const <String>[],
+        'is_discoverable': true,
+        'allow_incoming_shares': true,
+        'active_flows_count': 0,
+        'total_flow_events_count': 0,
+        'followers_count': 0,
+        'following_count': 0,
+        'created_at': '2026-01-01T00:00:00.000Z',
+      }),
+      200,
+      headers: const <String, String>{'content-type': 'application/json'},
+      request: request,
+    );
+  }
+  if (path.endsWith('/rest/v1/rpc/get_profile_feed')) {
+    _communityFeedRpcRequests += 1;
+    if (_communityFeedFixture == _CommunityFeedFixture.retryableError) {
+      _communityFeedFallbackShouldFail = true;
+      return _postgrestFailure(request);
+    }
+    return http.Response(
+      '[]',
+      200,
+      headers: const <String, String>{'content-type': 'application/json'},
+      request: request,
+    );
+  }
+  if (_communityFeedFallbackShouldFail &&
+      (path.endsWith('/rest/v1/flow_posts') ||
+          path.endsWith('/rest/v1/insight_posts'))) {
+    return _postgrestFailure(request);
+  }
   if (request.url.path.endsWith('/functions/v1/fetch_maat_guidance_pending')) {
     return http.Response(
       jsonEncode(<String, Object?>{'delivery': null}),
@@ -159,6 +207,20 @@ http.Response _testBackendResponse(http.BaseRequest request) {
   return http.Response(
     '[]',
     200,
+    headers: const <String, String>{'content-type': 'application/json'},
+    request: request,
+  );
+}
+
+http.Response _postgrestFailure(http.BaseRequest request) {
+  return http.Response(
+    jsonEncode(<String, Object?>{
+      'code': 'PGRST000',
+      'message': 'deterministic unavailable feed',
+      'details': null,
+      'hint': null,
+    }),
+    503,
     headers: const <String, String>{'content-type': 'application/json'},
     request: request,
   );
@@ -202,6 +264,9 @@ void main() {
 
   setUp(() async {
     await _resetTestAuthAndRealtimeResources();
+    _communityFeedFixture = _CommunityFeedFixture.neutral;
+    _communityFeedFallbackShouldFail = false;
+    _communityFeedRpcRequests = 0;
     SharedPreferences.setMockInitialValues({});
     _clearRestorationDebugHooks();
     app.resetGlobalFloatingMenuShellForTesting();
@@ -1723,26 +1788,78 @@ void main() {
       },
     );
 
-    test('community feed distinguishes load errors from empty state', () async {
-      final repo = await File('lib/data/profile_repo.dart').readAsString();
-      final page = await File(
-        'lib/features/profile/profile_page.dart',
-      ).readAsString();
+    testWidgets('community feed distinguishes load errors from empty state', (
+      tester,
+    ) async {
+      // The widget-test font assigns every glyph a full em width. Keep this
+      // feed-state contract independent of that unrelated typography artifact.
+      tester.view.physicalSize = const Size(800, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-      expect(repo, contains('class ProfileFeedResult'));
-      expect(repo, contains('Future<ProfileFeedResult> getProfileFeedResult'));
-      expect(repo, contains('_getProfileFeedFallbackResult'));
-      expect(repo, contains('errorMessage: _friendlyFeedError'));
-      expect(
-        repo,
-        isNot(
-          contains('Future<List<ProfileFeedItem>> _getProfileFeedFallback'),
-        ),
+      _communityFeedFixture = _CommunityFeedFixture.retryableError;
+      await tester.runAsync(_recoverTestSession);
+
+      final router = GoRouter(
+        initialLocation: '/profile/$_communityFeedProfileId',
+        routes: <RouteBase>[
+          GoRoute(
+            path: '/',
+            builder: (context, state) =>
+                const Scaffold(body: Text('Calendar route')),
+          ),
+          GoRoute(
+            path: '/profile/:userId',
+            builder: (context, state) =>
+                ProfilePage(userId: state.pathParameters['userId']!),
+          ),
+        ],
       );
-      expect(page, contains('String? _feedErrorMessage'));
-      expect(page, contains('_feedErrorMessage = result.errorMessage'));
-      expect(page, contains('Community Feed could not load'));
-      expect(page, contains('No feed posts available yet'));
+
+      try {
+        await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+        await _pumpUntilFound(tester, find.text('Fixture'));
+
+        for (var drag = 0; drag < 8; drag += 1) {
+          if (find.text('FOR YOU').evaluate().isNotEmpty) break;
+          await tester.dragFrom(const Offset(195, 700), const Offset(0, -520));
+          await tester.pump(const Duration(milliseconds: 120));
+        }
+        await _pumpUntilFound(tester, find.text('FOR YOU'));
+
+        await tester.tap(find.text('FOR YOU'));
+        await _pumpUntilFound(tester, find.text('For You could not load'));
+
+        expect(find.byIcon(Icons.error_outline_rounded), findsOneWidget);
+        expect(find.text('Try again'), findsOneWidget);
+        expect(find.text('No recommendations yet'), findsNothing);
+        expect(find.byIcon(Icons.auto_awesome_motion_rounded), findsNothing);
+
+        final requestsBeforeRetry = _communityFeedRpcRequests;
+        expect(requestsBeforeRetry, greaterThan(0));
+        _communityFeedFixture = _CommunityFeedFixture.empty;
+        _communityFeedFallbackShouldFail = false;
+
+        await tester.ensureVisible(find.text('Try again'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Try again'));
+        await _pumpUntilFound(tester, find.text('No recommendations yet'));
+
+        expect(_communityFeedRpcRequests, requestsBeforeRetry + 1);
+        expect(find.byIcon(Icons.auto_awesome_motion_rounded), findsOneWidget);
+        expect(find.text('For You could not load'), findsNothing);
+        expect(find.byIcon(Icons.error_outline_rounded), findsNothing);
+        expect(find.text('Try again'), findsNothing);
+        expect(tester.takeException(), isNull);
+      } finally {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pump();
+        router.dispose();
+        _communityFeedFixture = _CommunityFeedFixture.neutral;
+        _communityFeedFallbackShouldFail = false;
+        await tester.runAsync(_resetTestAuthAndRealtimeResources);
+      }
     });
 
     test('inbox summary cells stay visible without recent activity', () async {
@@ -2175,6 +2292,22 @@ Future<bool> _waitFor(
     await Future<void>.delayed(Duration.zero);
   }
   return false;
+}
+
+Future<void> _pumpUntilFound(
+  WidgetTester tester,
+  Finder finder, {
+  int maxFrames = 120,
+}) async {
+  for (var frame = 0; frame < maxFrames; frame += 1) {
+    await tester.pump(const Duration(milliseconds: 25));
+    if (finder.evaluate().isNotEmpty) return;
+  }
+  expect(
+    finder,
+    findsWidgets,
+    reason: 'Expected widget did not appear within $maxFrames frames.',
+  );
 }
 
 Future<void> _exerciseGlobalDrawerKeyboardBehavior(
