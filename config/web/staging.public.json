@@ -17,9 +17,10 @@
   },
   "web": {
     "source_maps": false,
+    "icon_set": "staging",
     "manifest": {
-      "name": "Kemetic Calendar",
-      "short_name": "ḥꜣw",
+      "name": "Kemet Release Candidate",
+      "short_name": "Kemet RC",
       "description": "Sync your flows and events.",
       "id": "/",
       "start_url": "/",
@@ -34,8 +35,8 @@
       "background_color": "#000000"
     },
     "html": {
-      "title": "Kemetic Calendar",
-      "apple_mobile_web_app_title": "ḥꜣw"
+      "title": "Kemet Release Candidate",
+      "apple_mobile_web_app_title": "Kemet RC"
     }
   }
 }

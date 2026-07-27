@@ -62,10 +62,39 @@ MANIFEST_KEYS = (
     "background_color",
 )
 HTML_IDENTITY_KEYS = ("title", "apple_mobile_web_app_title")
+ICON_PATHS = (
+    "Icon-192.png",
+    "Icon-512.png",
+    "Icon-maskable-192.png",
+    "Icon-maskable-512.png",
+)
+ICON_SETS = {
+    "production": "web/icons",
+    "staging": "config/web/icons/staging",
+}
+MATERIALIZED_WEB_PATHS = (
+    "env.json",
+    "flutter_bootstrap.js",
+    "index.html",
+    "manifest.json",
+    "version.json",
+    *(f"icons/{name}" for name in ICON_PATHS),
+)
 BUILDER_FILES = (
     "scripts/build_web_release.sh",
     "scripts/web_release_pipeline.py",
 )
+PINNED_FLUTTER_TOOLCHAIN = {
+    "frameworkVersion": "3.35.3",
+    "channel": "stable",
+    "repositoryUrl": "https://github.com/flutter/flutter.git",
+    "frameworkRevision": "a402d9a4376add5bc2d6b1e33e53edaae58c07f8",
+    "engineRevision": "ddf47dd3ff96dbde6d9c614db0d7f019d7c7a2b7",
+    "dartSdkVersion": "3.9.2",
+    "devToolsVersion": "2.48.0",
+    "flutter_sdk_commit": "a402d9a4376add5bc2d6b1e33e53edaae58c07f8",
+    "flutter_sdk_tree": "49b4e0953230ddaa005225202d2ff70240dabc9f",
+}
 FORBIDDEN_ENVIRONMENT_NAMES = {
     "ENV_FILE",
     "SOURCE_DATE_EPOCH",
@@ -86,7 +115,7 @@ FORBIDDEN_ENVIRONMENT_PREFIXES = (
 )
 DEPLOYMENT_OMISSIONS = (".last_build_id",)
 BUILD_VERSION_PATTERN = re.compile(
-    r"const buildVersion = (?:null|\"[^\"]*\"|\d+);"
+    r"const buildVersion = (?:null|\"[^\"]*\"|\d+|\{\{flutter_service_worker_version\}\});"
 )
 SECRET_KEY_PATTERN = re.compile(
     r"(service.?role|private|password|oauth.?secret|client.?secret|database.?url)",
@@ -240,7 +269,11 @@ def validate_named_config(
     if not isinstance(runtime, Mapping) or not isinstance(web, Mapping):
         raise ReleaseInputError("runtime and web must be JSON objects.")
     require_exact_keys(runtime, RUNTIME_KEYS, label="runtime config")
-    require_exact_keys(web, ("source_maps", "manifest", "html"), label="web config")
+    require_exact_keys(
+        web,
+        ("source_maps", "icon_set", "manifest", "html"),
+        label="web config",
+    )
 
     expected_app_env = "staging" if environment == "staging" else "prod"
     if runtime["APP_ENV"] != expected_app_env:
@@ -273,6 +306,13 @@ def validate_named_config(
 
     if not isinstance(web["source_maps"], bool):
         raise ReleaseInputError("web.source_maps must be true or false.")
+    expected_icon_set = "staging" if environment == "staging" else "production"
+    if web["icon_set"] != expected_icon_set:
+        raise ReleaseInputError(
+            f"{environment} web.icon_set must be {expected_icon_set!r}."
+        )
+    if web["icon_set"] not in ICON_SETS:
+        raise ReleaseInputError("web.icon_set is not a tracked icon set.")
 
     manifest = web["manifest"]
     html = web["html"]
@@ -289,6 +329,9 @@ def validate_named_config(
             raise ReleaseInputError(f"web.manifest.{key} must be origin-relative.")
     if manifest["display"] != "standalone":
         raise ReleaseInputError("web.manifest.display must be standalone.")
+    for key in ("id", "start_url", "scope"):
+        if manifest[key] != "/":
+            raise ReleaseInputError(f"web.manifest.{key} must remain exactly '/'.")
     display_override = manifest["display_override"]
     if (
         not isinstance(display_override, list)
@@ -519,6 +562,43 @@ def normalized_toolchain() -> dict[str, Any]:
     }
 
 
+def verify_flutter_web_version_override_contract() -> None:
+    flutter_path = shutil.which("flutter")
+    if not flutter_path:
+        raise ReleaseInputError("Flutter is not on PATH.")
+    flutter_root = Path(flutter_path).resolve().parents[1]
+    source_path = (
+        flutter_root
+        / "packages/flutter_tools/lib/src/build_system/targets/web.dart"
+    )
+    source = source_path.read_text(encoding="utf-8")
+    create_marker = "createVersionFile(environment, environment.defines);"
+    resources_marker = (
+        "final Directory webResources = "
+        "environment.projectDir.childDirectory('web');"
+    )
+    copy_marker = "inputFile.copySync(outputFile.path);"
+    exclusion_marker = (
+        "if (relativePath == 'index.html' || "
+        "relativePath == 'flutter_bootstrap.js')"
+    )
+    create_position = source.find(create_marker)
+    resources_position = source.find(resources_marker, create_position + 1)
+    copy_position = source.find(copy_marker, resources_position + 1)
+    if (
+        source.count(create_marker) != 1
+        or resources_position < 0
+        or source.count(copy_marker) != 1
+        or source.count(exclusion_marker) != 1
+        or create_position >= resources_position
+        or resources_position >= copy_position
+    ):
+        raise ReleaseInputError(
+            "Pinned Flutter no longer copies pre-materialized web/version.json "
+            "after generating its default version receipt."
+        )
+
+
 def iso_utc_from_epoch(epoch: int) -> str:
     return (
         dt.datetime.fromtimestamp(epoch, tz=dt.timezone.utc)
@@ -535,15 +615,19 @@ def extract_tag_value(html: str, pattern: re.Pattern[str], *, label: str) -> str
     return match.group(1)
 
 
-def validate_source_web_identity(repo_root: Path, config: Mapping[str, Any]) -> None:
-    manifest_path = repo_root / "web/manifest.json"
-    index_path = repo_root / "web/index.html"
+def validate_web_identity_files(
+    *,
+    manifest_path: Path,
+    index_path: Path,
+    expected_web: Mapping[str, Any],
+    label: str,
+) -> None:
     source_manifest = load_json(manifest_path)
-    expected_manifest = config["web"]["manifest"]
+    expected_manifest = expected_web["manifest"]
     for key in MANIFEST_KEYS:
         if source_manifest.get(key) != expected_manifest[key]:
             raise ReleaseInputError(
-                f"Tracked web/manifest.json {key!r} does not match named config."
+                f"{label} manifest {key!r} does not match named config."
             )
 
     html = index_path.read_text(encoding="utf-8")
@@ -560,12 +644,84 @@ def validate_source_web_identity(repo_root: Path, config: Mapping[str, Any]) -> 
         ),
         label="Apple web-app title",
     )
-    expected_html = config["web"]["html"]
+    expected_html = expected_web["html"]
     if title != expected_html["title"]:
-        raise ReleaseInputError("Tracked HTML title does not match named config.")
+        raise ReleaseInputError(f"{label} HTML title does not match named config.")
     if apple_title != expected_html["apple_mobile_web_app_title"]:
         raise ReleaseInputError(
-            "Tracked Apple web-app title does not match named config."
+            f"{label} Apple web-app title does not match named config."
+        )
+
+
+def validate_source_web_identity(repo_root: Path) -> None:
+    production = load_json(repo_root / ENVIRONMENT_CONFIGS["production"])
+    if not isinstance(production, Mapping):
+        raise ReleaseInputError("Production web config must be a JSON object.")
+    validate_web_identity_files(
+        manifest_path=repo_root / "web/manifest.json",
+        index_path=repo_root / "web/index.html",
+        expected_web=production["web"],
+        label="Tracked production web template",
+    )
+
+
+def selected_icon_paths(
+    repo_root: Path,
+    web_config: Mapping[str, Any],
+) -> list[Path]:
+    icon_set = str(web_config["icon_set"])
+    source_dir = repo_root / ICON_SETS[icon_set]
+    paths = [source_dir / name for name in ICON_PATHS]
+    missing = [path.as_posix() for path in paths if not path.is_file()]
+    if missing:
+        raise ReleaseInputError(f"Tracked icon set is incomplete: {missing}")
+    for name, path in zip(ICON_PATHS, paths, strict=True):
+        expected_dimension = 192 if "192" in name else 512
+        body = path.read_bytes()
+        if (
+            len(body) < 33
+            or body[:8] != b"\x89PNG\r\n\x1a\n"
+            or int.from_bytes(body[8:12], "big") != 13
+            or body[12:16] != b"IHDR"
+            or int.from_bytes(body[16:20], "big") != expected_dimension
+            or int.from_bytes(body[20:24], "big") != expected_dimension
+            or body[24] != 8
+            or body[25] != 6
+        ):
+            raise ReleaseInputError(
+                f"Tracked icon has invalid PNG dimensions or alpha format: {path}"
+            )
+    return paths
+
+
+def icon_body_digest(paths: Sequence[Path]) -> str:
+    digest = hashlib.sha256()
+    for name, path in zip(
+        ICON_PATHS,
+        paths,
+        strict=True,
+    ):
+        digest.update(name.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(bytes.fromhex(sha256_file(path)))
+    return digest.hexdigest()
+
+
+def icon_set_digest(repo_root: Path, web_config: Mapping[str, Any]) -> str:
+    return icon_body_digest(selected_icon_paths(repo_root, web_config))
+
+
+def require_pinned_flutter_toolchain(toolchain: Mapping[str, Any]) -> None:
+    flutter = toolchain.get("flutter")
+    if not isinstance(flutter, Mapping):
+        raise ReleaseInputError("Flutter toolchain identity is missing.")
+    actual = dict(flutter)
+    actual["flutter_sdk_commit"] = toolchain.get("flutter_sdk_commit")
+    actual["flutter_sdk_tree"] = toolchain.get("flutter_sdk_tree")
+    if actual != PINNED_FLUTTER_TOOLCHAIN:
+        raise ReleaseInputError(
+            "Flutter/Dart toolchain left the pinned release authority: "
+            f"expected={PINNED_FLUTTER_TOOLCHAIN} actual={actual}"
         )
 
 
@@ -584,14 +740,16 @@ def compute_prepared_release(
     if not isinstance(config, Mapping):
         raise ReleaseInputError("Named public web config must be a JSON object.")
     validate_named_config(config, environment=environment)
-    validate_source_web_identity(repo_root, config)
+    validate_source_web_identity(repo_root)
 
     source = require_clean_paired_repositories(repo_root)
     builder_digest = combined_file_digest(repo_root, BUILDER_FILES)
     lock_digest = sha256_file(repo_root / "pubspec.lock")
     config_digest = sha256_file(config_path)
     runtime_env_digest = sha256_bytes(canonical_json_bytes(config["runtime"]))
+    selected_icon_digest = icon_set_digest(repo_root, config["web"])
     toolchain = normalized_toolchain()
+    require_pinned_flutter_toolchain(toolchain)
     toolchain_digest = sha256_bytes(canonical_json_bytes(toolchain))
 
     identity_inputs = {
@@ -600,6 +758,7 @@ def compute_prepared_release(
         "source": source,
         "config_sha256": config_digest,
         "runtime_env_sha256": runtime_env_digest,
+        "icon_set_sha256": selected_icon_digest,
         "builder_sha256": builder_digest,
         "lockfile_sha256": lock_digest,
         "toolchain_sha256": toolchain_digest,
@@ -620,6 +779,8 @@ def compute_prepared_release(
             "config_path": ENVIRONMENT_CONFIGS[environment],
             "config_sha256": config_digest,
             "runtime_env_sha256": runtime_env_digest,
+            "icon_set": config["web"]["icon_set"],
+            "icon_set_sha256": selected_icon_digest,
             "builder_files": list(BUILDER_FILES),
             "builder_sha256": builder_digest,
             "lockfile_path": "pubspec.lock",
@@ -673,6 +834,87 @@ def inject_build_version(path: Path, build_version: str) -> None:
     path.write_text(updated, encoding="utf-8")
 
 
+def replace_exact_html_identity(
+    path: Path,
+    *,
+    title: str,
+    apple_title: str,
+) -> None:
+    text = path.read_text(encoding="utf-8")
+    title_replacement = f"<title>{title}</title>"
+    updated, title_count = re.subn(
+        r"<title>[^<]*</title>",
+        title_replacement,
+        text,
+    )
+    apple_replacement = (
+        '<meta name="apple-mobile-web-app-title" '
+        f'content="{apple_title}">'
+    )
+    updated, apple_count = re.subn(
+        r'<meta\s+name="apple-mobile-web-app-title"\s+content="[^"]*">',
+        apple_replacement,
+        updated,
+        flags=re.MULTILINE,
+    )
+    if title_count != 1 or apple_count != 1:
+        raise ReleaseInputError(
+            "Could not uniquely materialize HTML/Apple installation identity."
+        )
+    path.write_text(updated, encoding="utf-8")
+
+
+def flutter_version_fields(pubspec_path: Path) -> dict[str, str]:
+    text = pubspec_path.read_text(encoding="utf-8")
+
+    def scalar(name: str) -> str:
+        matches = re.findall(
+            rf"^{re.escape(name)}:\s*([^#\r\n]+?)\s*$",
+            text,
+            flags=re.MULTILINE,
+        )
+        if len(matches) != 1 or not matches[0]:
+            raise ReleaseInputError(
+                f"pubspec.yaml must declare exactly one {name!r} scalar."
+            )
+        return matches[0].strip().strip("'\"")
+
+    app_name = scalar("name")
+    complete_version = scalar("version")
+    build_name, separator, build_number = complete_version.partition("+")
+    fields = {
+        "app_name": app_name,
+        "version": build_name,
+        "package_name": app_name,
+    }
+    if separator:
+        fields["build_number"] = build_number
+    return fields
+
+
+def deterministic_version_receipt(prepared: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "receipt_schema_version": SCHEMA_VERSION,
+        "environment": prepared["environment"],
+        "build_id": prepared["build_id"],
+        "build_version": prepared["build_version"],
+        "build_timestamp": prepared["build_timestamp"],
+        "app_env": prepared["runtime"]["APP_ENV"],
+        "site_origin": prepared["runtime"]["APP_SITE_URL"],
+        "source": prepared["source"],
+        "inputs": {
+            "config_sha256": prepared["inputs"]["config_sha256"],
+            "runtime_env_sha256": prepared["inputs"]["runtime_env_sha256"],
+            "icon_set": prepared["inputs"]["icon_set"],
+            "icon_set_sha256": prepared["inputs"]["icon_set_sha256"],
+            "builder_sha256": prepared["inputs"]["builder_sha256"],
+            "lockfile_sha256": prepared["inputs"]["lockfile_sha256"],
+            "toolchain_sha256": prepared["inputs"]["toolchain_sha256"],
+        },
+        "deployment_omissions": list(DEPLOYMENT_OMISSIONS),
+    }
+
+
 def file_manifest(root: Path, *, prefix: str = "") -> list[tuple[str, str]]:
     entries = []
     for path in sorted(root.rglob("*"), key=lambda item: item.as_posix()):
@@ -689,6 +931,153 @@ def manifest_bytes(entries: Sequence[tuple[str, str]]) -> bytes:
     return "".join(f"{digest}  {path}\n" for path, digest in entries).encode(
         "utf-8"
     )
+
+
+def materialize_release_inputs(
+    *,
+    build_root: Path,
+    state_dir: Path,
+) -> dict[str, Any]:
+    build_root = build_root.resolve()
+    prepared = load_json(state_dir / "prepared.json")
+    if not isinstance(prepared, Mapping):
+        raise ReleaseInputError("prepared.json must be a JSON object.")
+    web_root = build_root / "web"
+    if not web_root.is_dir():
+        raise ReleaseInputError("Fresh source extraction is missing web/.")
+
+    write_json(web_root / "env.json", prepared["runtime"])
+
+    manifest = load_json(web_root / "manifest.json")
+    if not isinstance(manifest, Mapping):
+        raise ReleaseInputError("Tracked web manifest must be a JSON object.")
+    materialized_manifest = dict(manifest)
+    for key in MANIFEST_KEYS:
+        materialized_manifest[key] = prepared["web"]["manifest"][key]
+    write_json(web_root / "manifest.json", materialized_manifest)
+
+    replace_exact_html_identity(
+        web_root / "index.html",
+        title=prepared["web"]["html"]["title"],
+        apple_title=prepared["web"]["html"]["apple_mobile_web_app_title"],
+    )
+    inject_build_version(web_root / "index.html", prepared["build_version"])
+    inject_build_version(
+        web_root / "flutter_bootstrap.js",
+        prepared["build_version"],
+    )
+
+    selected_paths = selected_icon_paths(build_root, prepared["web"])
+    icon_destination = web_root / "icons"
+    icon_destination.mkdir(parents=True, exist_ok=True)
+    for name, source in zip(ICON_PATHS, selected_paths, strict=True):
+        destination = icon_destination / name
+        if source.resolve() != destination.resolve():
+            shutil.copyfile(source, destination)
+    if icon_set_digest(build_root, prepared["web"]) != prepared["inputs"][
+        "icon_set_sha256"
+    ]:
+        raise ReleaseInputError("Selected icon bytes changed after preparation.")
+
+    version = flutter_version_fields(build_root / "pubspec.yaml")
+    version.update(deterministic_version_receipt(prepared))
+    write_json(web_root / "version.json", version)
+
+    validate_web_identity_files(
+        manifest_path=web_root / "manifest.json",
+        index_path=web_root / "index.html",
+        expected_web=prepared["web"],
+        label="Materialized web input",
+    )
+
+    entries = file_manifest(web_root)
+    record = {
+        "schema_version": SCHEMA_VERSION,
+        "environment": prepared["environment"],
+        "build_id": prepared["build_id"],
+        "runtime_affecting_paths": list(MATERIALIZED_WEB_PATHS),
+        "web_input_file_count": len(entries),
+        "web_input_manifest": [
+            {"path": path, "sha256": digest}
+            for path, digest in entries
+        ],
+        "web_input_manifest_sha256": sha256_bytes(manifest_bytes(entries)),
+    }
+    write_json(state_dir / "materialization.json", record)
+    return record
+
+
+def require_compiled_web_matches_materialization(
+    *,
+    raw_root: Path,
+    state_dir: Path,
+) -> dict[str, Any]:
+    record = load_json(state_dir / "materialization.json")
+    if not isinstance(record, Mapping):
+        raise ReleaseInputError("materialization.json must be a JSON object.")
+    require_exact_keys(
+        record,
+        (
+            "schema_version",
+            "environment",
+            "build_id",
+            "runtime_affecting_paths",
+            "web_input_file_count",
+            "web_input_manifest",
+            "web_input_manifest_sha256",
+        ),
+        label="materialization receipt",
+    )
+    entries_value = record["web_input_manifest"]
+    if not isinstance(entries_value, list):
+        raise ReleaseInputError("Materialized web input manifest must be a list.")
+    expected: list[tuple[str, str]] = []
+    for item in entries_value:
+        if not isinstance(item, Mapping):
+            raise ReleaseInputError("Materialized web input entry must be an object.")
+        require_exact_keys(item, ("path", "sha256"), label="web input entry")
+        require_sha256(item["sha256"], label="web input entry sha256")
+        expected.append((str(item["path"]), str(item["sha256"])))
+    if expected != sorted(expected):
+        raise ReleaseInputError("Materialized web input manifest is not canonical.")
+    if len(expected) != record["web_input_file_count"]:
+        raise ReleaseInputError("Materialized web input file count changed.")
+    if (
+        sha256_bytes(manifest_bytes(expected))
+        != record["web_input_manifest_sha256"]
+    ):
+        raise ReleaseInputError("Materialized web input manifest digest is invalid.")
+    missing = []
+    changed = []
+    for relative, digest in expected:
+        output = raw_root / relative
+        if not output.is_file():
+            missing.append(relative)
+        elif (
+            relative not in {"index.html", "flutter_bootstrap.js"}
+            and sha256_file(output) != digest
+        ):
+            changed.append(relative)
+    if missing or changed:
+        raise ReleaseInputError(
+            "Flutter output diverged from pre-compilation web inputs: "
+            f"missing={missing} changed={changed}"
+        )
+    expected_build_version = load_json(state_dir / "prepared.json")["build_version"]
+    for relative in ("index.html", "flutter_bootstrap.js"):
+        compiled_text = (raw_root / relative).read_text(encoding="utf-8")
+        expected_literal = (
+            f"const buildVersion = {json.dumps(expected_build_version)};"
+        )
+        if compiled_text.count(expected_literal) != 1:
+            raise ReleaseInputError(
+                f"Compiled {relative} lost the pre-materialized build identity."
+            )
+        if "{{flutter_service_worker_version}}" in compiled_text:
+            raise ReleaseInputError(
+                f"Compiled {relative} retained an unresolved build identity token."
+            )
+    return dict(record)
 
 
 def copy_deployment_payload(raw_root: Path, payload_root: Path) -> list[str]:
@@ -772,7 +1161,10 @@ def create_deterministic_archive(
             compressed.write(tar_buffer.getvalue())
 
 
-def safe_receipt(prepared: Mapping[str, Any]) -> dict[str, Any]:
+def safe_receipt(
+    prepared: Mapping[str, Any],
+    materialization: Mapping[str, Any],
+) -> dict[str, Any]:
     source = prepared["source"]
     inputs = prepared["inputs"]
     manifest = prepared["web"]["manifest"]
@@ -788,6 +1180,11 @@ def safe_receipt(prepared: Mapping[str, Any]) -> dict[str, Any]:
             "config_path": inputs["config_path"],
             "config_sha256": inputs["config_sha256"],
             "runtime_env_sha256": inputs["runtime_env_sha256"],
+            "icon_set": inputs["icon_set"],
+            "icon_set_sha256": inputs["icon_set_sha256"],
+            "materialized_web_inputs_sha256": materialization[
+                "web_input_manifest_sha256"
+            ],
             "builder_files": inputs["builder_files"],
             "builder_sha256": inputs["builder_sha256"],
             "lockfile_path": inputs["lockfile_path"],
@@ -807,6 +1204,8 @@ def safe_receipt(prepared: Mapping[str, Any]) -> dict[str, Any]:
             )
         }
         | {
+            "icon_set": inputs["icon_set"],
+            "icon_set_sha256": inputs["icon_set_sha256"],
             "html_title": prepared["web"]["html"]["title"],
             "apple_mobile_web_app_title": prepared["web"]["html"][
                 "apple_mobile_web_app_title"
@@ -885,62 +1284,21 @@ def finalize_release(
             "Flutter build output is missing .last_build_id; omission policy cannot be audited."
         )
 
-    inject_build_version(raw_root / "index.html", prepared["build_version"])
-    inject_build_version(
-        raw_root / "flutter_bootstrap.js",
-        prepared["build_version"],
+    materialization = require_compiled_web_matches_materialization(
+        raw_root=raw_root,
+        state_dir=state_dir,
     )
-
-    runtime_env = load_json(state_dir / "runtime-env.json")
-    write_json(raw_root / "env.json", runtime_env)
-    for relative in ("web/env.example.json", "web/_headers", "web/_redirects"):
-        source = build_root / relative
-        if source.is_file():
-            shutil.copyfile(source, raw_root / source.name)
-    well_known = build_root / "web/.well-known"
-    if well_known.is_dir():
-        destination = raw_root / ".well-known"
-        if destination.exists():
-            shutil.rmtree(destination)
-        shutil.copytree(well_known, destination)
-
-    validate_source_web_identity(build_root, {
-        "web": prepared["web"],
-    })
-    output_manifest = load_json(raw_root / "manifest.json")
-    for key in MANIFEST_KEYS:
-        if output_manifest.get(key) != prepared["web"]["manifest"][key]:
-            raise ReleaseInputError(
-                f"Built manifest {key!r} does not match named configuration."
-            )
-
-    version_path = raw_root / "version.json"
-    existing_version = load_json(version_path) if version_path.exists() else {}
-    deterministic_version = {
-        key: existing_version[key]
-        for key in ("app_name", "version", "build_number", "package_name")
-        if key in existing_version
-    }
-    deterministic_version.update(
-        {
-            "receipt_schema_version": SCHEMA_VERSION,
-            "build_id": prepared["build_id"],
-            "build_version": prepared["build_version"],
-            "build_timestamp": prepared["build_timestamp"],
-            "app_env": prepared["runtime"]["APP_ENV"],
-            "site_origin": prepared["runtime"]["APP_SITE_URL"],
-            "source": prepared["source"],
-            "inputs": {
-                "config_sha256": prepared["inputs"]["config_sha256"],
-                "runtime_env_sha256": prepared["inputs"]["runtime_env_sha256"],
-                "builder_sha256": prepared["inputs"]["builder_sha256"],
-                "lockfile_sha256": prepared["inputs"]["lockfile_sha256"],
-                "toolchain_sha256": prepared["inputs"]["toolchain_sha256"],
-            },
-            "deployment_omissions": list(DEPLOYMENT_OMISSIONS),
-        }
+    if (
+        materialization["environment"] != prepared["environment"]
+        or materialization["build_id"] != prepared["build_id"]
+    ):
+        raise ReleaseInputError("Materialized web authority does not match the build.")
+    validate_web_identity_files(
+        manifest_path=raw_root / "manifest.json",
+        index_path=raw_root / "index.html",
+        expected_web=prepared["web"],
+        label="Compiled web output",
     )
-    write_json(version_path, deterministic_version)
 
     raw_entries = file_manifest(raw_root)
     marker_value = last_build_id.read_text(encoding="utf-8").strip()
@@ -985,7 +1343,7 @@ def finalize_release(
             epoch=int(prepared["source_epoch"]),
         )
 
-        receipt = safe_receipt(prepared)
+        receipt = safe_receipt(prepared, materialization)
         receipt.update(
             {
                 "payload": {
@@ -1107,6 +1465,9 @@ def validate_release_receipt(receipt: Mapping[str, Any]) -> None:
             "config_path",
             "config_sha256",
             "runtime_env_sha256",
+            "icon_set",
+            "icon_set_sha256",
+            "materialized_web_inputs_sha256",
             "builder_files",
             "builder_sha256",
             "lockfile_path",
@@ -1119,6 +1480,8 @@ def validate_release_receipt(receipt: Mapping[str, Any]) -> None:
     for key in (
         "config_sha256",
         "runtime_env_sha256",
+        "icon_set_sha256",
+        "materialized_web_inputs_sha256",
         "builder_sha256",
         "lockfile_sha256",
         "toolchain_sha256",
@@ -1126,12 +1489,18 @@ def validate_release_receipt(receipt: Mapping[str, Any]) -> None:
         require_sha256(inputs[key], label=f"inputs.{key}")
     if inputs["config_path"] != ENVIRONMENT_CONFIGS[receipt["environment"]]:
         raise ReleaseInputError("Release config path does not match its environment.")
+    expected_icon_set = (
+        "staging" if receipt["environment"] == "staging" else "production"
+    )
+    if inputs["icon_set"] != expected_icon_set:
+        raise ReleaseInputError("Release icon set does not match its environment.")
     if inputs["builder_files"] != list(BUILDER_FILES):
         raise ReleaseInputError("Release builder file inventory is invalid.")
     if inputs["lockfile_path"] != "pubspec.lock":
         raise ReleaseInputError("Release lockfile path is invalid.")
     if not isinstance(inputs["toolchain"], Mapping):
         raise ReleaseInputError("Release toolchain identity must be an object.")
+    require_pinned_flutter_toolchain(inputs["toolchain"])
     if (
         sha256_bytes(canonical_json_bytes(inputs["toolchain"]))
         != inputs["toolchain_sha256"]
@@ -1144,6 +1513,7 @@ def validate_release_receipt(receipt: Mapping[str, Any]) -> None:
         "source": source,
         "config_sha256": inputs["config_sha256"],
         "runtime_env_sha256": inputs["runtime_env_sha256"],
+        "icon_set_sha256": inputs["icon_set_sha256"],
         "builder_sha256": inputs["builder_sha256"],
         "lockfile_sha256": inputs["lockfile_sha256"],
         "toolchain_sha256": inputs["toolchain_sha256"],
@@ -1171,6 +1541,8 @@ def validate_release_receipt(receipt: Mapping[str, Any]) -> None:
             "start_url",
             "scope",
             "display",
+            "icon_set",
+            "icon_set_sha256",
             "html_title",
             "apple_mobile_web_app_title",
         ),
@@ -1238,6 +1610,7 @@ def validate_embedded_identity(
 
     version_expectations = {
         "receipt_schema_version": SCHEMA_VERSION,
+        "environment": receipt["environment"],
         "build_id": receipt["build_id"],
         "build_version": receipt["build_version"],
         "build_timestamp": receipt["build_timestamp"],
@@ -1256,6 +1629,8 @@ def validate_embedded_identity(
         for key in (
             "config_sha256",
             "runtime_env_sha256",
+            "icon_set",
+            "icon_set_sha256",
             "builder_sha256",
             "lockfile_sha256",
             "toolchain_sha256",
@@ -1265,6 +1640,17 @@ def validate_embedded_identity(
         raise ReleaseInputError(
             "Embedded version.json input digests do not match release receipt."
         )
+    embedded_icon_paths = [web_root / "icons" / name for name in ICON_PATHS]
+    if any(not path.is_file() for path in embedded_icon_paths):
+        raise ReleaseInputError("Embedded icon set is incomplete.")
+    if (
+        icon_body_digest(embedded_icon_paths)
+        != receipt["pwa_identity"]["icon_set_sha256"]
+        or receipt["pwa_identity"]["icon_set_sha256"]
+        != receipt["inputs"]["icon_set_sha256"]
+        or receipt["pwa_identity"]["icon_set"] != receipt["inputs"]["icon_set"]
+    ):
+        raise ReleaseInputError("Embedded icon set does not match release receipt.")
 
     for key in ("name", "short_name", "id", "start_url", "scope", "display"):
         if manifest.get(key) != receipt["pwa_identity"][key]:
@@ -1322,6 +1708,24 @@ def verify_release(
         raise ReleaseInputError(".last_build_id entered the declared payload.")
     if len(expected) != payload["file_count"]:
         raise ReleaseInputError("Manifest file count does not match release receipt.")
+
+    staged_root = release_dir / "web"
+    if not staged_root.is_dir():
+        raise ReleaseInputError("Release directory is missing its staged web root.")
+    staged = dict(file_manifest(staged_root, prefix="web"))
+    if staged != expected:
+        missing = sorted(set(expected) - set(staged))
+        extra = sorted(set(staged) - set(expected))
+        changed = sorted(
+            name
+            for name in set(expected) & set(staged)
+            if expected[name] != staged[name]
+        )
+        raise ReleaseInputError(
+            "Staged payload does not match manifest: "
+            f"missing={missing} extra={extra} changed={changed}"
+        )
+    validate_embedded_identity(release_dir, receipt)
 
     temporary: tempfile.TemporaryDirectory[str] | None = None
     if extract_to is None:
@@ -1389,6 +1793,285 @@ def compare_releases(first: Path, second: Path) -> list[dict[str, str | None]]:
     return differences
 
 
+def json_difference_paths(
+    first: Any,
+    second: Any,
+    *,
+    prefix: str = "",
+) -> list[str]:
+    """Return the exact dotted paths whose JSON values differ."""
+    if isinstance(first, Mapping) and isinstance(second, Mapping):
+        paths: list[str] = []
+        for key in sorted(set(first) | set(second)):
+            path = f"{prefix}.{key}" if prefix else str(key)
+            if key not in first or key not in second:
+                paths.append(path)
+                continue
+            paths.extend(
+                json_difference_paths(first[key], second[key], prefix=path)
+            )
+        return paths
+    if first != second:
+        return [prefix or "$"]
+    return []
+
+
+def require_unique_string_list(value: Any, *, label: str) -> list[str]:
+    if (
+        not isinstance(value, list)
+        or not value
+        or not all(isinstance(item, str) and item for item in value)
+        or len(value) != len(set(value))
+    ):
+        raise ReleaseInputError(f"{label} must be a nonempty unique string list.")
+    return list(value)
+
+
+def validate_environment_delta(
+    staging_release: Path,
+    production_release: Path,
+    *,
+    contract_path: Path,
+) -> dict[str, Any]:
+    contract = load_json(contract_path)
+    if not isinstance(contract, Mapping):
+        raise ReleaseInputError("Environment delta contract must be an object.")
+    require_exact_keys(
+        contract,
+        (
+            "schema_version",
+            "runtime_keys",
+            "manifest_fields",
+            "html_identity_fields",
+            "release_receipt_fields",
+            "version_receipt_fields",
+            "reason_vocabulary",
+            "reason_bindings",
+            "icon_body_paths",
+            "deployable_body_paths",
+            "required_equal_manifest_fields",
+            "required_fixed_values",
+        ),
+        label="environment delta contract",
+    )
+    if contract["schema_version"] != 1:
+        raise ReleaseInputError("Environment delta contract schema is unsupported.")
+
+    runtime_keys = require_unique_string_list(
+        contract["runtime_keys"],
+        label="environment delta runtime_keys",
+    )
+    manifest_fields = require_unique_string_list(
+        contract["manifest_fields"],
+        label="environment delta manifest_fields",
+    )
+    html_identity_fields = require_unique_string_list(
+        contract["html_identity_fields"],
+        label="environment delta html_identity_fields",
+    )
+    release_receipt_fields = require_unique_string_list(
+        contract["release_receipt_fields"],
+        label="environment delta release_receipt_fields",
+    )
+    version_receipt_fields = require_unique_string_list(
+        contract["version_receipt_fields"],
+        label="environment delta version_receipt_fields",
+    )
+    icon_body_paths = require_unique_string_list(
+        contract["icon_body_paths"],
+        label="environment delta icon_body_paths",
+    )
+    reason_vocabulary = require_unique_string_list(
+        contract["reason_vocabulary"],
+        label="environment delta reason_vocabulary",
+    )
+    deployable_body_paths = contract["deployable_body_paths"]
+    reason_bindings = contract["reason_bindings"]
+    if not isinstance(deployable_body_paths, Mapping) or not deployable_body_paths:
+        raise ReleaseInputError(
+            "environment delta deployable_body_paths must be an object."
+        )
+    if not isinstance(reason_bindings, Mapping):
+        raise ReleaseInputError("environment delta reason_bindings must be an object.")
+    if set(reason_bindings) != set(reason_vocabulary):
+        raise ReleaseInputError(
+            "Environment delta reason vocabulary and bindings disagree."
+        )
+    expected_reason_paths: dict[str, set[str]] = {}
+    for reason in reason_vocabulary:
+        expected_reason_paths[reason] = set(
+            require_unique_string_list(
+                reason_bindings[reason],
+                label=f"environment delta reason binding {reason}",
+            )
+        )
+    actual_reason_paths = {reason: set() for reason in reason_vocabulary}
+    for path, reasons_value in deployable_body_paths.items():
+        if not isinstance(path, str) or not path.startswith("web/"):
+            raise ReleaseInputError(
+                f"Environment delta deployable path is invalid: {path!r}"
+            )
+        reasons = require_unique_string_list(
+            reasons_value,
+            label=f"environment delta reasons for {path}",
+        )
+        unknown_reasons = sorted(set(reasons) - set(reason_vocabulary))
+        if unknown_reasons:
+            raise ReleaseInputError(
+                f"Environment delta path {path} uses unknown reasons: "
+                f"{unknown_reasons}"
+            )
+        for reason in reasons:
+            actual_reason_paths[reason].add(path)
+    if actual_reason_paths != expected_reason_paths:
+        raise ReleaseInputError(
+            "Environment delta reason-to-body bindings drifted: "
+            f"expected={expected_reason_paths} actual={actual_reason_paths}"
+        )
+
+    staging_receipt = verify_release(staging_release)
+    production_receipt = verify_release(production_release)
+    if (
+        staging_receipt["environment"] != "staging"
+        or production_receipt["environment"] != "production"
+    ):
+        raise ReleaseInputError("Environment release ordering is invalid.")
+    receipt_differences = json_difference_paths(
+        staging_receipt,
+        production_receipt,
+    )
+    if receipt_differences != sorted(release_receipt_fields):
+        raise ReleaseInputError(
+            "Release-receipt environment delta drifted: "
+            f"actual={receipt_differences}"
+        )
+
+    differences = compare_releases(staging_release, production_release)
+    actual_paths = {item["path"] for item in differences}
+    expected_paths = set(deployable_body_paths)
+    if actual_paths != expected_paths:
+        raise ReleaseInputError(
+            "Cross-environment deployable delta is unexplained: "
+            f"missing={sorted(expected_paths - actual_paths)} "
+            f"extra={sorted(actual_paths - expected_paths)}"
+        )
+
+    staging_runtime = load_json(staging_release / "web/env.json")
+    production_runtime = load_json(production_release / "web/env.json")
+    runtime_differences = sorted(
+        key
+        for key in RUNTIME_KEYS
+        if staging_runtime[key] != production_runtime[key]
+    )
+    if runtime_differences != sorted(runtime_keys):
+        raise ReleaseInputError(
+            f"Runtime environment delta drifted: {runtime_differences}"
+        )
+
+    staging_manifest = load_json(staging_release / "web/manifest.json")
+    production_manifest = load_json(production_release / "web/manifest.json")
+    manifest_differences = sorted(
+        key
+        for key in set(staging_manifest) | set(production_manifest)
+        if staging_manifest.get(key) != production_manifest.get(key)
+    )
+    if manifest_differences != sorted(manifest_fields):
+        raise ReleaseInputError(
+            f"Manifest structural delta drifted: {manifest_differences}"
+        )
+    for key in contract["required_equal_manifest_fields"]:
+        if staging_manifest.get(key) != production_manifest.get(key):
+            raise ReleaseInputError(f"Manifest field must remain equal: {key}")
+    for key, expected in contract["required_fixed_values"].items():
+        if (
+            staging_manifest.get(key) != expected
+            or production_manifest.get(key) != expected
+        ):
+            raise ReleaseInputError(
+                f"Manifest field {key!r} left its fixed release value."
+            )
+
+    staging_index = (staging_release / "web/index.html").read_text(
+        encoding="utf-8"
+    )
+    production_index = (production_release / "web/index.html").read_text(
+        encoding="utf-8"
+    )
+    html_values = {
+        "staging": {
+            "title": extract_tag_value(
+                staging_index,
+                re.compile(r"<title>([^<]*)</title>"),
+                label="staging HTML title",
+            ),
+            "apple_mobile_web_app_title": extract_tag_value(
+                staging_index,
+                re.compile(
+                    r'<meta\s+name="apple-mobile-web-app-title"\s+content="([^"]*)">'
+                ),
+                label="staging Apple title",
+            ),
+        },
+        "production": {
+            "title": extract_tag_value(
+                production_index,
+                re.compile(r"<title>([^<]*)</title>"),
+                label="production HTML title",
+            ),
+            "apple_mobile_web_app_title": extract_tag_value(
+                production_index,
+                re.compile(
+                    r'<meta\s+name="apple-mobile-web-app-title"\s+content="([^"]*)">'
+                ),
+                label="production Apple title",
+            ),
+        },
+    }
+    actual_html_differences = sorted(
+        key
+        for key in html_values["staging"]
+        if html_values["staging"][key] != html_values["production"][key]
+    )
+    if actual_html_differences != sorted(html_identity_fields):
+        raise ReleaseInputError(
+            f"HTML identity delta drifted: {actual_html_differences}"
+        )
+    for path in icon_body_paths:
+        if sha256_file(staging_release / path) == sha256_file(
+            production_release / path
+        ):
+            raise ReleaseInputError(f"RC icon body is not distinct: {path}")
+
+    staging_version = load_json(staging_release / "web/version.json")
+    production_version = load_json(production_release / "web/version.json")
+    version_differences = json_difference_paths(
+        staging_version,
+        production_version,
+    )
+    if version_differences != sorted(version_receipt_fields):
+        raise ReleaseInputError(
+            "Version-receipt environment delta drifted: "
+            f"actual={version_differences}"
+        )
+
+    return {
+        "schema_version": 1,
+        "staging_build_id": staging_receipt["build_id"],
+        "production_build_id": production_receipt["build_id"],
+        "runtime_differences": runtime_differences,
+        "manifest_differences": manifest_differences,
+        "html_identity_differences": actual_html_differences,
+        "release_receipt_differences": receipt_differences,
+        "version_receipt_differences": version_differences,
+        "deployable_body_differences": differences,
+        "reason_bindings": {
+            reason: sorted(paths)
+            for reason, paths in sorted(actual_reason_paths.items())
+        },
+        "unexplained_differences": [],
+    }
+
+
 def command_prepare(arguments: argparse.Namespace) -> None:
     prepared = prepare_release(
         environment=arguments.environment,
@@ -1420,6 +2103,18 @@ def command_verify_lockfile(arguments: argparse.Namespace) -> None:
             "Resolved pubspec.lock differs from the recorded source lockfile."
         )
     print(f"verified_lockfile_sha256={actual}")
+
+
+def command_materialize(arguments: argparse.Namespace) -> None:
+    record = materialize_release_inputs(
+        build_root=arguments.build_root,
+        state_dir=arguments.state_dir,
+    )
+    print(
+        "materialized_web_inputs_sha256="
+        f"{record['web_input_manifest_sha256']}"
+    )
+    print(f"materialized_web_files={record['web_input_file_count']}")
 
 
 def command_finalize(arguments: argparse.Namespace) -> None:
@@ -1456,6 +2151,18 @@ def command_compare(arguments: argparse.Namespace) -> None:
     )
 
 
+def command_compare_environments(arguments: argparse.Namespace) -> None:
+    result = validate_environment_delta(
+        arguments.staging,
+        arguments.production,
+        contract_path=arguments.contract,
+    )
+    content = canonical_json_bytes(result)
+    if arguments.output:
+        write_once_or_identical(arguments.output, content)
+    print(content.decode("utf-8"), end="")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -1479,6 +2186,11 @@ def build_parser() -> argparse.ArgumentParser:
     verify_lockfile.add_argument("--lockfile", type=Path, required=True)
     verify_lockfile.set_defaults(handler=command_verify_lockfile)
 
+    materialize = subparsers.add_parser("materialize")
+    materialize.add_argument("--build-root", type=Path, required=True)
+    materialize.add_argument("--state-dir", type=Path, required=True)
+    materialize.set_defaults(handler=command_materialize)
+
     finalize = subparsers.add_parser("finalize")
     finalize.add_argument("--build-root", type=Path, required=True)
     finalize.add_argument("--authority-root", type=Path, required=True)
@@ -1495,6 +2207,17 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument("first", type=Path)
     compare.add_argument("second", type=Path)
     compare.set_defaults(handler=command_compare)
+
+    compare_environments = subparsers.add_parser("compare-environments")
+    compare_environments.add_argument("staging", type=Path)
+    compare_environments.add_argument("production", type=Path)
+    compare_environments.add_argument(
+        "--contract",
+        type=Path,
+        default=Path("config/web/environment-delta-contract.v1.json"),
+    )
+    compare_environments.add_argument("--output", type=Path)
+    compare_environments.set_defaults(handler=command_compare_environments)
     return parser
 
 

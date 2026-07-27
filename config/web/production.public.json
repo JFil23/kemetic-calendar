@@ -17,6 +17,7 @@
   },
   "web": {
     "source_maps": false,
+    "icon_set": "production",
     "manifest": {
       "name": "Kemetic Calendar",
       "short_name": "ḥꜣw",

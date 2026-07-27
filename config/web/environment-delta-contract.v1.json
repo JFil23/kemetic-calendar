@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "runtime_keys": [
+    "APP_ENV",
+    "APP_SITE_URL"
+  ],
+  "manifest_fields": [
+    "name",
+    "short_name"
+  ],
+  "html_identity_fields": [
+    "title",
+    "apple_mobile_web_app_title"
+  ],
+  "release_receipt_fields": [
+    "build_id",
+    "build_version",
+    "environment",
+    "inputs.config_path",
+    "inputs.config_sha256",
+    "inputs.icon_set",
+    "inputs.icon_set_sha256",
+    "inputs.materialized_web_inputs_sha256",
+    "inputs.runtime_env_sha256",
+    "payload.archive_file",
+    "payload.archive_sha256",
+    "payload.manifest_sha256",
+    "pwa_identity.apple_mobile_web_app_title",
+    "pwa_identity.html_title",
+    "pwa_identity.icon_set",
+    "pwa_identity.icon_set_sha256",
+    "pwa_identity.name",
+    "pwa_identity.short_name",
+    "site_origin"
+  ],
+  "version_receipt_fields": [
+    "app_env",
+    "build_id",
+    "build_version",
+    "environment",
+    "inputs.config_sha256",
+    "inputs.icon_set",
+    "inputs.icon_set_sha256",
+    "inputs.runtime_env_sha256",
+    "site_origin"
+  ],
+  "reason_vocabulary": [
+    "build_identity",
+    "configuration",
+    "environment",
+    "html.apple_mobile_web_app_title",
+    "html.title",
+    "icon_set",
+    "icon_set_body_references_unchanged",
+    "manifest.name",
+    "manifest.short_name",
+    "runtime",
+    "runtime.APP_ENV",
+    "runtime.APP_SITE_URL"
+  ],
+  "reason_bindings": {
+    "build_identity": [
+      "web/flutter_bootstrap.js",
+      "web/index.html",
+      "web/version.json"
+    ],
+    "configuration": [
+      "web/version.json"
+    ],
+    "environment": [
+      "web/version.json"
+    ],
+    "html.apple_mobile_web_app_title": [
+      "web/index.html"
+    ],
+    "html.title": [
+      "web/index.html"
+    ],
+    "icon_set": [
+      "web/icons/Icon-192.png",
+      "web/icons/Icon-512.png",
+      "web/icons/Icon-maskable-192.png",
+      "web/icons/Icon-maskable-512.png",
+      "web/version.json"
+    ],
+    "icon_set_body_references_unchanged": [
+      "web/manifest.json"
+    ],
+    "manifest.name": [
+      "web/manifest.json"
+    ],
+    "manifest.short_name": [
+      "web/manifest.json"
+    ],
+    "runtime": [
+      "web/version.json"
+    ],
+    "runtime.APP_ENV": [
+      "web/env.json",
+      "web/main.dart.js"
+    ],
+    "runtime.APP_SITE_URL": [
+      "web/env.json",
+      "web/main.dart.js"
+    ]
+  },
+  "icon_body_paths": [
+    "web/icons/Icon-192.png",
+    "web/icons/Icon-512.png",
+    "web/icons/Icon-maskable-192.png",
+    "web/icons/Icon-maskable-512.png"
+  ],
+  "deployable_body_paths": {
+    "web/env.json": [
+      "runtime.APP_ENV",
+      "runtime.APP_SITE_URL"
+    ],
+    "web/flutter_bootstrap.js": [
+      "build_identity"
+    ],
+    "web/icons/Icon-192.png": [
+      "icon_set"
+    ],
+    "web/icons/Icon-512.png": [
+      "icon_set"
+    ],
+    "web/icons/Icon-maskable-192.png": [
+      "icon_set"
+    ],
+    "web/icons/Icon-maskable-512.png": [
+      "icon_set"
+    ],
+    "web/index.html": [
+      "build_identity",
+      "html.title",
+      "html.apple_mobile_web_app_title"
+    ],
+    "web/main.dart.js": [
+      "runtime.APP_ENV",
+      "runtime.APP_SITE_URL"
+    ],
+    "web/manifest.json": [
+      "manifest.name",
+      "manifest.short_name",
+      "icon_set_body_references_unchanged"
+    ],
+    "web/version.json": [
+      "environment",
+      "runtime",
+      "configuration",
+      "icon_set",
+      "build_identity"
+    ]
+  },
+  "required_equal_manifest_fields": [
+    "description",
+    "id",
+    "start_url",
+    "scope",
+    "display",
+    "display_override",
+    "theme_color",
+    "background_color",
+    "icons",
+    "screenshots",
+    "launch_handler",
+    "shortcuts",
+    "widgets"
+  ],
+  "required_fixed_values": {
+    "id": "/",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone"
+  }
+}

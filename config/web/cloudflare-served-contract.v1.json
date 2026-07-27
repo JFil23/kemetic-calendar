@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "pages_controls": [
+    "web/_headers",
+    "web/_redirects"
+  ],
+  "pages_control_sha256": {
+    "web/_headers": "fbeb8e670e1421aefd225ff79275b4ea62e45673261c3a1572331f6c2c63a7d6",
+    "web/_redirects": "763d169135c7eb0d1020e9b674bc5d6ca80a70741ebcebe0faa6cec7be55db89"
+  },
+  "redirect_only": [
+    {
+      "manifest_path": "web/index.html",
+      "request_path": "/index.html",
+      "status": 308,
+      "destination": "/",
+      "canonical_body_path": "/"
+    },
+    {
+      "manifest_path": "web/delete-account.html",
+      "request_path": "/delete-account.html",
+      "status": 308,
+      "destination": "/delete-account",
+      "canonical_body_path": "/delete-account"
+    },
+    {
+      "manifest_path": "web/privacy.html",
+      "request_path": "/privacy.html",
+      "status": 308,
+      "destination": "/privacy",
+      "canonical_body_path": "/privacy"
+    },
+    {
+      "manifest_path": "web/support.html",
+      "request_path": "/support.html",
+      "status": 308,
+      "destination": "/support",
+      "canonical_body_path": "/support"
+    },
+    {
+      "manifest_path": "web/terms.html",
+      "request_path": "/terms.html",
+      "status": 308,
+      "destination": "/terms",
+      "canonical_body_path": "/terms"
+    }
+  ]
+}

@@ -42,6 +42,11 @@ git archive --format=tar HEAD | tar -xf - -C "$SOURCE_DIR"
 
 cd "$SOURCE_DIR"
 
+echo "▶ Materializing all named web inputs before Flutter compilation"
+python3 scripts/web_release_pipeline.py materialize \
+  --build-root "$SOURCE_DIR" \
+  --state-dir "$STATE_DIR"
+
 echo "▶ Resolving exact locked dependencies in the clean source extraction"
 PUB_CACHE="$STATE_DIR/pub-cache" \
 PUB_HOSTED_URL="https://pub.dev" \
