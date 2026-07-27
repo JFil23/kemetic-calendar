@@ -3,7 +3,7 @@
 ## PWA RC Readiness
 
 - Smoke date: 2026-07-01 PDT / 2026-07-02 UTC
-- Build path: `scripts/build_web_release.sh env/prod.json`
+- Build path: `scripts/build_web_release.sh production`
 - Runtime config blocker fixed: `b8658b8` (`/env.json` is loaded from the site root)
 - Direct-route blocker fixed: `02f2491` (authenticated PWA deep links win over passive restoration)
 - Authenticated PWA smoke result: passed for login, auth restore after reload, auth restore after tab close/reopen, direct nested routes, Day View visible event-block continuity, Planner, Journal, Flows/My Flows, Profile, Inbox, Calendars, invalid shared-flow links, and invalid event-invite links.

@@ -9,6 +9,9 @@ void main() {
     late String webIndexSource;
     late String buildScriptSource;
     late String deployScriptSource;
+    late String pipelineSource;
+    late String stagingConfigSource;
+    late String productionConfigSource;
 
     setUpAll(() async {
       mainSource = await File('lib/main.dart').readAsString();
@@ -21,6 +24,15 @@ void main() {
       ).readAsString();
       deployScriptSource = await File(
         'scripts/deploy_cloudflare_pages.sh',
+      ).readAsString();
+      pipelineSource = await File(
+        'scripts/web_release_pipeline.py',
+      ).readAsString();
+      stagingConfigSource = await File(
+        'config/web/staging.public.json',
+      ).readAsString();
+      productionConfigSource = await File(
+        'config/web/production.public.json',
       ).readAsString();
     });
 
@@ -129,48 +141,77 @@ void main() {
       expect(runtimeGuardSource, contains('localSupabasePort = 54321'));
     });
 
-    test('web release build still emits env.json and dart defines', () {
+    test('web release build accepts only named public environments', () {
       expect(buildScriptSource, contains('--dart-define-from-file'));
       expect(
         buildScriptSource,
-        contains(r'cp "$BUILD_ENV_FILE" build/web/env.json'),
-      );
-      expect(buildScriptSource, contains('"SUPABASE_URL"'));
-      expect(buildScriptSource, contains('"SUPABASE_ANON_KEY"'));
-      expect(buildScriptSource, contains('"APP_ENV"'));
-      expect(buildScriptSource, contains('"APP_SITE_URL"'));
-    });
-
-    test('web release build stamps deploy marker output', () {
-      expect(buildScriptSource, contains('build/web/version.json'));
-      expect(buildScriptSource, contains('version_payload["build_version"]'));
-      expect(buildScriptSource, contains('version_payload["build_timestamp"]'));
-      expect(buildScriptSource, contains('version_payload["app_env"]'));
-      expect(
-        buildScriptSource,
-        contains('build/web/version.json is missing build_version.'),
+        contains('scripts/web_release_pipeline.py prepare'),
       );
       expect(
         buildScriptSource,
-        contains('build/web/env.json APP_ENV must be staging or prod.'),
+        contains('scripts/build_web_release.sh <staging|production>'),
       );
+      expect(buildScriptSource, isNot(contains('ENV_FILE')));
+      expect(buildScriptSource, isNot(contains('WEB_BUILD_VERSION')));
+      expect(buildScriptSource, isNot(contains('WEB_SOURCE_MAPS')));
+      expect(buildScriptSource, isNot(contains('web/env.json')));
+      expect(pipelineSource, contains('"config/web/staging.public.json"'));
+      expect(pipelineSource, contains('"config/web/production.public.json"'));
+      expect(pipelineSource, contains('"SUPABASE_URL"'));
+      expect(pipelineSource, contains('"SUPABASE_ANON_KEY"'));
+      expect(pipelineSource, contains('"APP_ENV"'));
+      expect(pipelineSource, contains('"APP_SITE_URL"'));
+      expect(pipelineSource, contains('reject_forbidden_environment'));
+      expect(pipelineSource, contains('require_clean_paired_repositories'));
+      expect(stagingConfigSource, contains('"environment": "staging"'));
+      expect(productionConfigSource, contains('"environment": "production"'));
     });
 
-    test('Cloudflare Pages deploy refuses dirty source trees by default', () {
-      expect(deployScriptSource, contains('git status --porcelain'));
-      expect(deployScriptSource, contains('ALLOW_DIRTY_DEPLOY'));
+    test('web release identity and archive are deterministic', () {
+      expect(pipelineSource, contains('"parent_tree"'));
+      expect(pipelineSource, contains('"mobile_tree"'));
+      expect(pipelineSource, contains('"config_sha256"'));
+      expect(pipelineSource, contains('"builder_sha256"'));
+      expect(pipelineSource, contains('"lockfile_sha256"'));
+      expect(pipelineSource, contains('"toolchain_sha256"'));
+      expect(pipelineSource, contains('iso_utc_from_epoch'));
+      expect(pipelineSource, isNot(contains('datetime.now')));
+      expect(buildScriptSource, contains('git archive --format=tar HEAD'));
+      expect(buildScriptSource, contains('flutter pub get --enforce-lockfile'));
+      expect(buildScriptSource, contains('PUB_CACHE="\$STATE_DIR/pub-cache"'));
+      expect(buildScriptSource, contains('PUB_HOSTED_URL="https://pub.dev"'));
+      expect(buildScriptSource, contains('verify-lockfile'));
+      expect(buildScriptSource, contains('--no-pub'));
+      expect(buildScriptSource, isNot(contains('flutter clean')));
+      expect(pipelineSource, contains('require_prepared_current'));
+      expect(pipelineSource, contains('dist/web-releases'));
+      expect(pipelineSource, contains('flutter_tools_snapshot'));
+      expect(pipelineSource, contains('"const_finder_snapshot"'));
+      expect(pipelineSource, contains('"font_subset"'));
+      expect(pipelineSource, contains('"dart_sdk": sha256_tree'));
+      expect(pipelineSource, contains('"python_stdlib": sha256_tree'));
+      expect(pipelineSource, contains('"host_executables"'));
+      expect(pipelineSource, contains('create_deterministic_archive'));
+      expect(
+        pipelineSource,
+        contains('DEPLOYMENT_OMISSIONS = (".last_build_id",)'),
+      );
+      expect(pipelineSource, contains('gzip.GzipFile'));
+      expect(pipelineSource, contains('mtime=0'));
+    });
+
+    test('Cloudflare Pages deploy uploads one authorized artifact', () {
+      expect(deployScriptSource, contains('<authorized-archive-sha256>'));
       expect(
         deployScriptSource,
-        contains('ERROR: Refusing to deploy from a dirty git tree.'),
+        contains('scripts/web_release_pipeline.py verify'),
       );
+      expect(deployScriptSource, contains('wrangler@\$WRANGLER_VERSION'));
+      expect(deployScriptSource, contains('WRANGLER_VERSION="4.114.0"'));
+      expect(deployScriptSource, isNot(contains('wrangler@latest')));
       expect(
         deployScriptSource,
-        contains('deployed build matches source control.'),
-      );
-      expect(deployScriptSource, contains('scripts/build_web_release.sh'));
-      expect(
-        deployScriptSource.indexOf('git status --porcelain'),
-        lessThan(deployScriptSource.indexOf('if [[ -n "\$ENV_FILE_ARG" ]]')),
+        isNot(contains('scripts/build_web_release.sh')),
       );
     });
 
