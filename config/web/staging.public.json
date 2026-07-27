@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "environment": "staging",
+  "runtime": {
+    "APP_ENV": "staging",
+    "APP_SITE_URL": "https://rc-198d9d4.kemet-autostab-20260714.pages.dev",
+    "SUPABASE_URL": "https://vrbubwqapwkxxexkwkgu.supabase.co",
+    "SUPABASE_ANON_KEY": "sb_publishable_AeCb9fWhxBcTQJ5-EuTw9g_Y6jwoHmQ",
+    "FIREBASE_WEB_API_KEY": "AIzaSyDxi7_OQx76JaPgjBTEF-Rfv2-1EZh0GeY",
+    "FIREBASE_WEB_APP_ID": "1:867956659884:web:08c4b8b604332669727109",
+    "FIREBASE_WEB_PROJECT_ID": "kemet-ead9d",
+    "FIREBASE_WEB_SENDER_ID": "867956659884",
+    "FIREBASE_WEB_AUTH_DOMAIN": "kemet-ead9d.firebaseapp.com",
+    "FIREBASE_WEB_STORAGE_BUCKET": "kemet-ead9d.firebasestorage.app",
+    "FIREBASE_WEB_VAPID_KEY": "BCL_DxiCA9I2kweZh33mnnNv2-41OLh1FZbO8lX-JjdVSHs7XS9e8gxZldJRYWVRh0WxhffmH37gMM7-qjPQgMY",
+    "WEB_PUSH_PUBLIC_KEY": "BLF5usfirDkmfJaEDDUzIVLzQOuF5XMdTEIscpYZxMpm26KvEuQ716kN2a2W6_gbVUAj7-xU7WEUWCi2ZLoUlYA"
+  },
+  "web": {
+    "source_maps": false,
+    "manifest": {
+      "name": "Kemetic Calendar",
+      "short_name": "ḥꜣw",
+      "description": "Sync your flows and events.",
+      "id": "/",
+      "start_url": "/",
+      "scope": "/",
+      "display": "standalone",
+      "display_override": [
+        "standalone",
+        "minimal-ui",
+        "browser"
+      ],
+      "theme_color": "#000000",
+      "background_color": "#000000"
+    },
+    "html": {
+      "title": "Kemetic Calendar",
+      "apple_mobile_web_app_title": "ḥꜣw"
+    }
+  }
+}

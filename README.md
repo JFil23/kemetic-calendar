@@ -32,12 +32,28 @@ scripts/verify_env.sh
 scripts/verify_env.sh env/prod.json
 ```
 
-For web/Cloudflare builds, `scripts/build_web_release.sh` will accept either:
+Web release builds accept one named, tracked public configuration:
 
-- `SUPABASE_URL` and `SUPABASE_ANON_KEY` from the shell/CI environment, or
-- a JSON env file passed as the first argument, such as `env/prod.json`
+```bash
+scripts/build_web_release.sh staging
+scripts/build_web_release.sh production
+```
 
-It also writes the final runtime `env.json`, `_headers`, `_redirects`, and `.well-known` files into `build/web`.
+The inputs are `config/web/staging.public.json` and
+`config/web/production.public.json`. They contain only public browser-client
+configuration. Ambient `APP_*`, Supabase/Firebase client values, build IDs,
+source-map flags, manifest identity, and site URL overrides are rejected.
+
+The builder verifies the clean parent/mobile pairing, binds the exact source
+trees, config, builder, lockfile, and toolchain into `version.json`, and emits a
+deterministic archive under `dist/web-releases/`. The build runs from a clean
+Git extraction, preserves a raw-output hash receipt, and explicitly excludes
+Flutter's `.last_build_id` from the deployment payload because it is
+build-tool cleanup state.
+
+The named staging and production configurations currently use the same public
+Supabase and Firebase projects. `APP_ENV=staging` does not by itself provide
+backend data isolation.
 
 Validate release identity and Firebase/deep-link alignment before submission:
 
@@ -64,7 +80,7 @@ config and reject placeholder identity/signing before producing store artifacts:
 cd mobile
 scripts/build_android_release.sh
 scripts/build_ios_release.sh
-scripts/build_web_release.sh env/prod.json
+scripts/build_web_release.sh production
 ```
 
 If you need raw Flutter commands for ad hoc testing, keep in mind:
@@ -108,6 +124,10 @@ upload keystore path.
 
 - Keep `kemet.app://login-callback` allowlisted in Supabase auth redirects.
 - Keep `maat.app/.well-known/assetlinks.json` and `maat.app/.well-known/apple-app-site-association` live for Android App Links and iOS Universal Links.
-- `scripts/deploy_cloudflare_pages.sh` can direct-upload `build/web` to Cloudflare Pages with `CLOUDFLARE_PAGES_PROJECT=<project>`.
-- Cloudflare Pages builds need `SUPABASE_URL` and `SUPABASE_ANON_KEY` configured in the build environment if you are not providing an env JSON file locally.
+- `scripts/deploy_cloudflare_pages.sh` accepts an already-built release
+  directory, the explicitly authorized archive SHA-256, a Pages project, and an
+  optional preview branch. It verifies and uploads that exact artifact without
+  rebuilding.
+- The deploy helper pins its Wrangler version. Updating it is a reviewed
+  build-pipeline change.
 - Commit example env files only; keep real env JSON files and production secrets out of git.

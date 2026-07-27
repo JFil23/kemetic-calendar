@@ -4,6 +4,7 @@
 .pub-cache/
 .pub/
 build/
+dist/
 
 # Generated files
 *.lock

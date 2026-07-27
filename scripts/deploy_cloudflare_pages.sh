@@ -3,50 +3,49 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-PROJECT="${CLOUDFLARE_PAGES_PROJECT:-}"
-ENV_FILE_ARG="${ENV_FILE:-}"
-BRANCH="${CLOUDFLARE_PAGES_BRANCH:-}"
+if [[ $# -lt 3 || $# -gt 4 ]]; then
+  cat >&2 <<'USAGE'
+Usage:
+  scripts/deploy_cloudflare_pages.sh \
+    <release-directory> <authorized-archive-sha256> <project> [preview-branch]
 
-if [[ -z "$PROJECT" && $# -gt 0 ]]; then
-  PROJECT="$1"
-  shift
-fi
-
-if [[ -z "$ENV_FILE_ARG" && $# -gt 0 ]]; then
-  ENV_FILE_ARG="$1"
-  shift
-fi
-
-if [[ -z "$BRANCH" && $# -gt 0 ]]; then
-  BRANCH="$1"
-  shift
-fi
-
-if [[ -z "$PROJECT" ]]; then
-  echo "Usage: CLOUDFLARE_PAGES_PROJECT=<project> scripts/deploy_cloudflare_pages.sh [env-file] [branch]" >&2
-  echo "   or: scripts/deploy_cloudflare_pages.sh <project> [env-file] [branch]" >&2
+This command uploads an already-built, verified artifact. It never rebuilds.
+USAGE
   exit 1
 fi
 
-if [[ "${ALLOW_DIRTY_DEPLOY:-0}" != "1" ]] && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  if [[ -n "$(git status --porcelain)" ]]; then
-    echo "ERROR: Refusing to deploy from a dirty git tree." >&2
-    echo "Commit or stash local changes so the deployed build matches source control." >&2
-    echo "Set ALLOW_DIRTY_DEPLOY=1 only for an intentional emergency deploy." >&2
-    exit 1
-  fi
-fi
+RELEASE_DIR="$1"
+EXPECTED_ARCHIVE_SHA256="$2"
+PROJECT="$3"
+BRANCH="${4:-}"
+WRANGLER_VERSION="4.114.0"
 
-if [[ -n "$ENV_FILE_ARG" ]]; then
-  scripts/build_web_release.sh "$ENV_FILE_ARG"
-else
-  scripts/build_web_release.sh
-fi
+EXTRACT_DIR="$(mktemp -d "/tmp/kemetic-web-upload.XXXXXX")"
+trap 'rm -rf "$EXTRACT_DIR"' EXIT
 
-CMD=(npx wrangler@latest pages deploy build/web --project-name "$PROJECT")
+python3 scripts/web_release_pipeline.py verify \
+  --release-dir "$RELEASE_DIR" \
+  --expected-archive-sha256 "$EXPECTED_ARCHIVE_SHA256" \
+  --extract-to "$EXTRACT_DIR"
+
+CMD=(
+  npx
+  --yes
+  "wrangler@$WRANGLER_VERSION"
+  pages
+  deploy
+  "$EXTRACT_DIR/web"
+  --project-name
+  "$PROJECT"
+)
 if [[ -n "$BRANCH" ]]; then
   CMD+=(--branch "$BRANCH")
 fi
 
-echo "▶ Deploying build/web to Cloudflare Pages project $PROJECT"
+echo "▶ Uploading the verified artifact without rebuilding"
+echo "▶ Cloudflare Pages project: $PROJECT"
+echo "▶ Wrangler version: $WRANGLER_VERSION"
+if [[ -n "$BRANCH" ]]; then
+  echo "▶ Preview branch: $BRANCH"
+fi
 "${CMD[@]}"
