@@ -3,15 +3,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:mobile/core/navigation_fallback.dart';
-import 'package:mobile/data/share_repo.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
-import 'package:mobile/features/profile/profile_page.dart';
 import 'package:mobile/main.dart' as app;
 import 'package:mobile/services/app_restoration_service.dart';
 import 'package:mobile/services/app_window_service.dart';
@@ -39,193 +34,6 @@ final Map<String, Map<String, dynamic>> _debugRemoteLatestSnapshots =
     <String, Map<String, dynamic>>{};
 String? _debugPlatformLastActiveUserId;
 
-const _keyboardTestUserId = '4d2583da-8de4-49d3-9cd1-37a9a74f55bd';
-const _communityFeedProfileId = '8e850fb1-577d-4954-a816-da86fef6df17';
-const _unreadTopicPrefix = 'realtime:inbox_unread_state_';
-
-enum _CommunityFeedFixture { neutral, empty, retryableError }
-
-var _communityFeedFixture = _CommunityFeedFixture.neutral;
-var _communityFeedFallbackShouldFail = false;
-var _communityFeedRpcRequests = 0;
-
-class _DeterministicRealtimeEndpoint {
-  late final HttpServer _server;
-  StreamSubscription<HttpRequest>? _requests;
-  final Set<WebSocket> _sockets = <WebSocket>{};
-  final Set<StreamSubscription<dynamic>> _socketSubscriptions =
-      <StreamSubscription<dynamic>>{};
-  final List<String> frames = <String>[];
-
-  String get origin => 'http://${_server.address.address}:${_server.port}';
-
-  Future<void> start() async {
-    _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-    _requests = _server.listen(_handleRequest);
-  }
-
-  Future<void> _handleRequest(HttpRequest request) async {
-    if (!WebSocketTransformer.isUpgradeRequest(request)) {
-      request.response
-        ..statusCode = HttpStatus.notFound
-        ..close();
-      return;
-    }
-
-    final socket = await WebSocketTransformer.upgrade(request);
-    _sockets.add(socket);
-    late final StreamSubscription<dynamic> subscription;
-    subscription = socket.listen(
-      (dynamic raw) {
-        final decoded = jsonDecode(raw as String) as Map<String, dynamic>;
-        final event = decoded['event']?.toString() ?? '';
-        final topic = decoded['topic']?.toString() ?? '';
-        final ref = decoded['ref']?.toString();
-        frames.add('$event:$topic');
-        if (event == 'phx_join' ||
-            event == 'phx_leave' ||
-            event == 'heartbeat') {
-          socket.add(
-            jsonEncode(<String, Object?>{
-              'topic': topic,
-              'event': 'phx_reply',
-              'payload': <String, Object?>{
-                'status': 'ok',
-                'response': <String, Object?>{},
-              },
-              'ref': ref,
-            }),
-          );
-        }
-      },
-      onDone: () {
-        _sockets.remove(socket);
-        _socketSubscriptions.remove(subscription);
-      },
-    );
-    _socketSubscriptions.add(subscription);
-  }
-
-  int count(String event, String topic) =>
-      frames.where((frame) => frame == '$event:$topic').length;
-
-  String get frameSummary => frames.join('|');
-
-  Future<void> stop() async {
-    for (final socket in _sockets.toList(growable: false)) {
-      await socket.close();
-    }
-    for (final subscription in _socketSubscriptions.toList(growable: false)) {
-      await subscription.cancel();
-    }
-    await _requests?.cancel();
-    await _server.close(force: true);
-  }
-}
-
-final _realtimeEndpoint = _DeterministicRealtimeEndpoint();
-
-void _mockAppLinksChannels() {
-  const messages = MethodChannel('com.llfbandit.app_links/messages');
-  const events = MethodChannel('com.llfbandit.app_links/events');
-  final messenger =
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-  messenger.setMockMethodCallHandler(messages, (_) async => null);
-  messenger.setMockMethodCallHandler(events, (methodCall) async {
-    if (methodCall.method == 'listen') {
-      messenger.handlePlatformMessage(
-        events.name,
-        const StandardMethodCodec().encodeSuccessEnvelope(null),
-        (_) {},
-      );
-    }
-    return null;
-  });
-}
-
-void _resetAppLinksChannels() {
-  const messages = MethodChannel('com.llfbandit.app_links/messages');
-  const events = MethodChannel('com.llfbandit.app_links/events');
-  final messenger =
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-  messenger.setMockMethodCallHandler(messages, null);
-  messenger.setMockMethodCallHandler(events, null);
-}
-
-http.Response _testBackendResponse(http.BaseRequest request) {
-  final path = request.url.path;
-  if (_communityFeedFixture != _CommunityFeedFixture.neutral &&
-      path.endsWith('/rest/v1/profile_stats')) {
-    return http.Response(
-      jsonEncode(<String, Object?>{
-        'id': _communityFeedProfileId,
-        'handle': 'fixture',
-        'display_name': 'Fixture',
-        'avatar_glyphs': const <String>[],
-        'is_discoverable': true,
-        'allow_incoming_shares': true,
-        'active_flows_count': 0,
-        'total_flow_events_count': 0,
-        'followers_count': 0,
-        'following_count': 0,
-        'created_at': '2026-01-01T00:00:00.000Z',
-      }),
-      200,
-      headers: const <String, String>{'content-type': 'application/json'},
-      request: request,
-    );
-  }
-  if (path.endsWith('/rest/v1/rpc/get_profile_feed')) {
-    _communityFeedRpcRequests += 1;
-    if (_communityFeedFixture == _CommunityFeedFixture.retryableError) {
-      _communityFeedFallbackShouldFail = true;
-      return _postgrestFailure(request);
-    }
-    return http.Response(
-      '[]',
-      200,
-      headers: const <String, String>{'content-type': 'application/json'},
-      request: request,
-    );
-  }
-  if (_communityFeedFallbackShouldFail &&
-      (path.endsWith('/rest/v1/flow_posts') ||
-          path.endsWith('/rest/v1/insight_posts'))) {
-    return _postgrestFailure(request);
-  }
-  if (request.url.path.endsWith('/functions/v1/fetch_maat_guidance_pending')) {
-    return http.Response(
-      jsonEncode(<String, Object?>{'delivery': null}),
-      200,
-      headers: const <String, String>{'content-type': 'application/json'},
-      request: request,
-    );
-  }
-  if (request.url.path.endsWith('/auth/v1/logout')) {
-    return http.Response('', 204, request: request);
-  }
-  return http.Response(
-    '[]',
-    200,
-    headers: const <String, String>{'content-type': 'application/json'},
-    request: request,
-  );
-}
-
-http.Response _postgrestFailure(http.BaseRequest request) {
-  return http.Response(
-    jsonEncode(<String, Object?>{
-      'code': 'PGRST000',
-      'message': 'deterministic unavailable feed',
-      'details': null,
-      'hint': null,
-    }),
-    503,
-    headers: const <String, String>{'content-type': 'application/json'},
-    request: request,
-  );
-}
-
 Future<void> _ensureSupabaseInitialized() async {
   try {
     Supabase.instance.client;
@@ -233,54 +41,22 @@ Future<void> _ensureSupabaseInitialized() async {
   } catch (_) {}
 
   await Supabase.initialize(
-    url: _realtimeEndpoint.origin,
+    url: 'https://example.supabase.co',
     anonKey: 'anon-key-0123456789012345678901234567890123456789',
-    httpClient: MockClient((request) async => _testBackendResponse(request)),
   );
-}
-
-Future<void> _resetTestAuthAndRealtimeResources() async {
-  final client = Supabase.instance.client;
-  if (client.auth.currentSession != null) {
-    await client.auth.signOut(scope: SignOutScope.local);
-  }
-  await ShareRepo.synchronizeUnreadTrackerPrincipal(
-    client: client,
-    activePrincipalId: null,
-  );
-  await client.removeAllChannels();
-  await client.realtime.disconnect();
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
-    _mockAppLinksChannels();
     SharedPreferences.setMockInitialValues({});
-    await _realtimeEndpoint.start();
     await _ensureSupabaseInitialized();
   });
 
-  setUp(() async {
-    await _resetTestAuthAndRealtimeResources();
-    _communityFeedFixture = _CommunityFeedFixture.neutral;
-    _communityFeedFallbackShouldFail = false;
-    _communityFeedRpcRequests = 0;
+  setUp(() {
     SharedPreferences.setMockInitialValues({});
     _clearRestorationDebugHooks();
-    app.resetGlobalFloatingMenuShellForTesting();
-  });
-
-  tearDown(() async {
-    await _resetTestAuthAndRealtimeResources();
-    app.resetGlobalFloatingMenuShellForTesting();
-  });
-
-  tearDownAll(() async {
-    await Supabase.instance.dispose();
-    await _realtimeEndpoint.stop();
-    _resetAppLinksChannels();
   });
 
   group('app bar action guard', () {
@@ -584,9 +360,7 @@ void main() {
       expect(launchedSheets, <String>['Calendars']);
     });
 
-    testWidgets('global drawer pushes /flows above its current route', (
-      tester,
-    ) async {
+    testWidgets('global drawer routes Flows to /flows', (tester) async {
       tester.view.physicalSize = const Size(1170, 2532);
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.resetPhysicalSize);
@@ -654,7 +428,6 @@ void main() {
 
       await tester.tap(find.byKey(app.globalMenuButtonKey));
       await tester.pump();
-      await tester.pump();
       await tester.pump(const Duration(milliseconds: 260));
       await tester.tap(find.text('Flows'));
       await tester.pump();
@@ -669,15 +442,13 @@ void main() {
       expect(
         router.routerDelegate.currentConfiguration.uri.path,
         '/profile/me',
-        reason: 'Utility-route close should reveal the preserved prior route.',
+        reason: 'Utility route close should return to the previous route.',
       );
       expect(find.text('Flow Studio route'), findsNothing);
       expect(find.text('Profile route'), findsOneWidget);
     });
 
-    testWidgets('global drawer pushes /calendars above its current route', (
-      tester,
-    ) async {
+    testWidgets('global drawer routes Calendars to /calendars', (tester) async {
       tester.view.physicalSize = const Size(1170, 2532);
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.resetPhysicalSize);
@@ -745,7 +516,6 @@ void main() {
 
       await tester.tap(find.byKey(app.globalMenuButtonKey));
       await tester.pump();
-      await tester.pump();
       await tester.pump(const Duration(milliseconds: 260));
       await tester.tap(find.text('Calendars'));
       await tester.pump();
@@ -760,7 +530,7 @@ void main() {
       expect(
         router.routerDelegate.currentConfiguration.uri.path,
         '/nodes',
-        reason: 'Utility-route close should reveal the preserved prior route.',
+        reason: 'Utility route close should return to the previous route.',
       );
       expect(find.text('Calendars route'), findsNothing);
       expect(find.text('Nodes route'), findsOneWidget);
@@ -862,93 +632,38 @@ void main() {
       expect(find.text('Profile me'), findsOneWidget);
     });
 
-    testWidgets(
-      'global drawer bubble does not absorb taps while keyboard is visible',
-      (tester) async {
-        tester.view.physicalSize = const Size(390, 844);
-        tester.view.devicePixelRatio = 1;
-        addTearDown(tester.view.resetPhysicalSize);
-        addTearDown(tester.view.resetDevicePixelRatio);
-        addTearDown(tester.view.resetViewInsets);
+    test('shared Today helper records today before routing home', () async {
+      final source = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final openToday = _sourceBetween(
+        source,
+        'static void openMainCalendarAtToday(',
+        '  // Static method for parsing rules from JSON',
+      );
+      final recordToday = _sourceBetween(
+        source,
+        'static Future<void> _recordCalendarTodayCommandState(',
+        'static void openMainCalendarAtToday(',
+      );
+      final loadPersisted = _sourceBetween(
+        source,
+        'Future<void> _loadPersistedViewState({String trigger = \'startup\'})',
+        '  /// ✅ Helper: Calculate max days in a Kemetic month',
+      );
 
-        const authOrderMatrix = <List<bool>>[
-          <bool>[false, true],
-          <bool>[true, false],
-        ];
-        for (final order in authOrderMatrix) {
-          for (final authenticated in order) {
-            await _exerciseGlobalDrawerKeyboardBehavior(
-              tester,
-              authenticated: authenticated,
-            );
-          }
-        }
-      },
-    );
-
-    test(
-      'shared Today helper records today before in-place or routed use',
-      () async {
-        final source = await File(
-          'lib/features/calendar/calendar_page.dart',
-        ).readAsString();
-        final openToday = _sourceBetween(
-          source,
-          'static void openMainCalendarAtToday(',
-          '  // Static method for parsing rules from JSON',
-        );
-        final recordToday = _sourceBetween(
-          source,
-          'static Future<void> _recordCalendarTodayCommandState(',
-          'static void openMainCalendarAtToday(',
-        );
-        final loadPersisted = _sourceBetween(
-          source,
-          'Future<void> _loadPersistedViewState({',
-          '  /// ✅ Helper: Calculate max days in a Kemetic month',
-        );
-
-        expect(openToday, contains('_recordCalendarTodayCommandState'));
-        expect(
-          openToday,
-          contains(
-            'mountedState != null && '
-            'mountedState._isPrimaryCalendarRouteCurrent',
-          ),
-        );
-        final mountedBranchStart = openToday.indexOf(
-          'if (mountedState != null && '
-          'mountedState._isPrimaryCalendarRouteCurrent)',
-        );
-        final routerStart = openToday.indexOf(
-          'final router = GoRouter.of(context);',
-        );
-        expect(mountedBranchStart, isNonNegative);
-        expect(routerStart, greaterThan(mountedBranchStart));
-        final mountedBranch = openToday.substring(
-          mountedBranchStart,
-          routerStart,
-        );
-        expect(mountedBranch, contains('_applyTodayNavigationCommand('));
-        expect(mountedBranch, contains('animate: true'));
-        expect(mountedBranch, contains('return;'));
-        expect(mountedBranch, isNot(contains("router.go('/')")));
-
-        expect(openToday, contains('_pendingTodayNavigationCommand = true'));
-        expect(openToday, contains("router.go('/')"));
-        expect(
-          openToday.indexOf('_recordCalendarTodayCommandState'),
-          lessThan(openToday.indexOf("router.go('/')")),
-        );
-        expect(recordToday, contains('saveCalendarState'));
-        expect(recordToday, contains('_calendarRestorationStateForToday'));
-        expect(
-          loadPersisted,
-          contains('_consumePendingTodayNavigationCommand'),
-        );
-        expect(loadPersisted, contains('return;'));
-      },
-    );
+      expect(openToday, contains('_pendingTodayNavigationCommand = true'));
+      expect(openToday, contains('_recordCalendarTodayCommandState'));
+      expect(openToday, contains("router.go('/')"));
+      expect(
+        openToday.indexOf('_recordCalendarTodayCommandState'),
+        lessThan(openToday.indexOf("router.go('/')")),
+      );
+      expect(recordToday, contains('saveCalendarState'));
+      expect(recordToday, contains('_calendarRestorationStateForToday'));
+      expect(loadPersisted, contains('_consumePendingTodayNavigationCommand'));
+      expect(loadPersisted, contains('return;'));
+    });
 
     test('calendar-host menu buttons keep expected handlers', () async {
       final source = await File(
@@ -996,14 +711,6 @@ void main() {
         source,
         'return AppBar(\n      backgroundColor: Colors.black,\n      elevation: 0.5,\n      centerTitle: false,',
         'Future<void> _openProfile(',
-      );
-
-      expect(
-        appBar,
-        contains('automaticallyImplyLeading: false'),
-        reason:
-            'The root Calendar app bar must not synthesize a back button when '
-            'a retained Calendar is revealed after drawer navigation.',
       );
 
       _expectTooltipAction(appBar, 'New note', <String>[
@@ -1199,82 +906,104 @@ void main() {
       },
     );
 
-    test(
-      'global drawer utility rows use the centralized route dispatcher',
-      () async {
-        final source = await File('lib/main.dart').readAsString();
-        final items = _sourceBetween(
-          source,
-          'List<GlobalSideDrawerItem> _buildGlobalSideDrawerItems()',
-          'void _openMaatGuidance(MaatGuidanceDelivery delivery)',
-        );
-        final dispatcher = _sourceBetween(
-          source,
-          'void _dispatchDrawerDestination',
-          'bool _isDrawerDestinationSelected',
-        );
+    test('global drawer utility rows use route-backed callbacks', () async {
+      final source = await File('lib/main.dart').readAsString();
+      final items = _sourceBetween(
+        source,
+        'List<GlobalSideDrawerItem> _buildGlobalSideDrawerItems()',
+        'void _openMaatGuidance(MaatGuidanceDelivery delivery)',
+      );
+      final flowStudioCallback = _sourceBetween(
+        source,
+        'Future<void> _openFlowsFromDrawer()',
+        'Future<void> _openCalendarsFromDrawer()',
+      );
+      final calendarsCallback = _sourceBetween(
+        source,
+        'Future<void> _openCalendarsFromDrawer()',
+        'void _openMaatGuidance(MaatGuidanceDelivery delivery)',
+      );
 
-        expect(items, contains("label: 'Flows'"));
-        expect(
-          items,
-          contains('_dispatchDrawerDestination(_DrawerDestination.flows)'),
-        );
-        expect(items, contains("label: 'Calendars'"));
-        expect(
-          items,
-          contains('_dispatchDrawerDestination(_DrawerDestination.calendars)'),
-        );
-        expect(
-          source,
-          contains('DrawerNavigationGeneration _drawerNavigationGeneration'),
-        );
-        expect(dispatcher, contains('widget.router.go(destination.location)'));
-        expect(dispatcher, contains('openUtilityRoute<void>('));
-        expect(dispatcher, contains('openDetailRoute<void>('));
-        expect(dispatcher, contains('unawaited(_closeFloatingMenu'));
-        expect(dispatcher, isNot(contains('await _closeFloatingMenu()')));
-        expect(dispatcher, isNot(contains('Navigator.maybeOf(')));
-        expect(source, contains("path: '/flows'"));
-        expect(
-          source,
-          contains(
-            'CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri)',
-          ),
-        );
-        expect(source, contains("path: '/calendars'"));
-        expect(
-          source,
-          contains('CalendarPage.buildSharedCalendarsRoutePage()'),
-        );
-        expect(
-          source,
-          isNot(contains('CalendarPage.openDetachedFlowStudioFromGlobalMenu')),
-        );
-        expect(
-          source,
-          isNot(
-            contains('CalendarPage.openDetachedSharedCalendarsFromGlobalMenu'),
-          ),
-        );
-        expect(source, isNot(contains("context.go('/flows')")));
-        expect(source, isNot(contains("context.go('/calendars')")));
-        expect(
-          dispatcher,
-          isNot(contains('CalendarPage.enqueueOpenFlowStudioFromGlobalMenu')),
-        );
-        expect(
-          dispatcher,
-          isNot(contains('CalendarPage.enqueueOpenCalendarsFromGlobalMenu')),
-        );
-        expect(
-          source,
-          isNot(contains('_routeToCalendarForGlobalMenuSheetCommand')),
-        );
-        expect(source, isNot(contains('_buildFloatingActionsPanel')));
-        expect(source, isNot(contains('_navigateFromMenu')));
-        expect(source, isNot(contains('global menu detached sheet open')));
-      },
-    );
+      expect(items, contains("label: 'Flows'"));
+      expect(items, contains('_openFlowsFromDrawer()'));
+      expect(items, contains("label: 'Calendars'"));
+      expect(items, contains('_openCalendarsFromDrawer()'));
+      expect(flowStudioCallback, contains('unawaited(_closeFloatingMenu())'));
+      expect(flowStudioCallback, isNot(contains('await _closeFloatingMenu()')));
+      expect(
+        flowStudioCallback,
+        contains("global drawer utility route push('/flows') requested"),
+      );
+      expect(flowStudioCallback, contains('openUtilityRoute<void>('));
+      expect(flowStudioCallback, contains("'/flows'"));
+      expect(
+        flowStudioCallback,
+        contains('navigationContext: _rootNavigatorKey.currentContext'),
+      );
+      expect(flowStudioCallback, contains('router: widget.router'));
+      expect(flowStudioCallback, isNot(contains("widget.router.go('/flows')")));
+      expect(flowStudioCallback, isNot(contains(".go('/flows')")));
+      expect(
+        flowStudioCallback.indexOf('unawaited(_closeFloatingMenu())'),
+        lessThan(flowStudioCallback.indexOf('openUtilityRoute<void>(')),
+      );
+      expect(calendarsCallback, contains('unawaited(_closeFloatingMenu())'));
+      expect(calendarsCallback, isNot(contains('await _closeFloatingMenu()')));
+      expect(
+        calendarsCallback,
+        contains("global drawer utility route push('/calendars') requested"),
+      );
+      expect(calendarsCallback, contains('openUtilityRoute<void>('));
+      expect(calendarsCallback, contains("'/calendars'"));
+      expect(
+        calendarsCallback,
+        contains('navigationContext: _rootNavigatorKey.currentContext'),
+      );
+      expect(calendarsCallback, contains('router: widget.router'));
+      expect(
+        calendarsCallback,
+        isNot(contains("widget.router.go('/calendars')")),
+      );
+      expect(calendarsCallback, isNot(contains(".go('/calendars')")));
+      expect(
+        calendarsCallback.indexOf('unawaited(_closeFloatingMenu())'),
+        lessThan(calendarsCallback.indexOf('openUtilityRoute<void>(')),
+      );
+      expect(source, contains("path: '/flows'"));
+      expect(
+        source,
+        contains('CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri)'),
+      );
+      expect(source, contains("path: '/calendars'"));
+      expect(source, contains('CalendarPage.buildSharedCalendarsRoutePage()'));
+      expect(
+        source,
+        isNot(contains('CalendarPage.openDetachedFlowStudioFromGlobalMenu')),
+      );
+      expect(
+        source,
+        isNot(
+          contains('CalendarPage.openDetachedSharedCalendarsFromGlobalMenu'),
+        ),
+      );
+      expect(source, isNot(contains("context.go('/flows')")));
+      expect(source, isNot(contains("context.go('/calendars')")));
+      expect(
+        flowStudioCallback,
+        isNot(contains('CalendarPage.enqueueOpenFlowStudioFromGlobalMenu')),
+      );
+      expect(
+        calendarsCallback,
+        isNot(contains('CalendarPage.enqueueOpenCalendarsFromGlobalMenu')),
+      );
+      expect(
+        source,
+        isNot(contains('_routeToCalendarForGlobalMenuSheetCommand')),
+      );
+      expect(source, isNot(contains('_buildFloatingActionsPanel')));
+      expect(source, isNot(contains('_navigateFromMenu')));
+      expect(source, isNot(contains('global menu detached sheet open')));
+    });
 
     test('CalendarPage legacy global sheet commands stay removed', () async {
       final source = await File(
@@ -1463,41 +1192,29 @@ void main() {
       expect(shell, isNot(contains("segments.first == 'profile'")));
     });
 
-    test(
-      'global drawer reveals an opaque underlay behind one foreground panel',
-      () async {
-        final source = await File('lib/main.dart').readAsString();
-        final shell = _sourceBetween(
-          source,
-          'class _GlobalFloatingMenuShellState',
-          'class PushIntentBridge',
-        );
-        final drawer = await File(
-          'lib/widgets/global_side_drawer.dart',
-        ).readAsString();
+    test('global drawer uses foreground tap dismiss layer', () async {
+      final source = await File('lib/main.dart').readAsString();
+      final shell = _sourceBetween(
+        source,
+        'class _GlobalFloatingMenuShellState',
+        'class PushIntentBridge',
+      );
+      final drawer = await File(
+        'lib/widgets/global_side_drawer.dart',
+      ).readAsString();
 
-        expect(shell, contains('globalSideDrawerScrimKey'));
-        expect(shell, contains('HitTestBehavior.opaque'));
-        expect(shell, contains('onTap: () => unawaited(_closeFloatingMenu())'));
-        expect(
-          shell.indexOf('GlobalSideDrawer('),
-          lessThan(shell.indexOf('GlobalSideDrawerForeground(')),
-        );
-        expect(drawer, contains('globalSideDrawerScrimKey'));
-        expect(drawer, contains('globalSideDrawerForegroundKey'));
-        expect(drawer, contains('class GlobalSideDrawerForeground'));
-        expect(drawer, contains('Color(0xFF000000)'));
-        final foreground = _sourceBetween(
-          drawer,
-          'class GlobalSideDrawerForeground extends StatelessWidget',
-          'class _GlobalSideDrawerRow extends StatelessWidget',
-        );
-        expect(foreground, contains('TweenAnimationBuilder<double>'));
-        expect(foreground, contains('Transform.translate'));
-        expect(foreground, contains('globalSideDrawerWidth(context)'));
-        expect(drawer, isNot(contains('AnimatedSlide')));
-      },
-    );
+      expect(shell, contains('globalSideDrawerScrimKey'));
+      expect(shell, contains('HitTestBehavior.opaque'));
+      expect(shell, contains('onTap: () => unawaited(_closeFloatingMenu())'));
+      expect(
+        shell.indexOf('GlobalSideDrawer('),
+        lessThan(shell.indexOf('GlobalSideDrawerForeground(')),
+      );
+      expect(drawer, contains('globalSideDrawerScrimKey'));
+      expect(drawer, contains('globalSideDrawerForegroundKey'));
+      expect(drawer, contains('class GlobalSideDrawerForeground'));
+      expect(drawer, contains('AnimatedSlide'));
+    });
 
     test('global bubble hit area matches the visible circle', () async {
       final drawer = await File(
@@ -1526,6 +1243,24 @@ void main() {
       expect(bubble, isNot(contains('Color(0xF6000000)')));
       expect(bubble, isNot(contains('onPointerUp')));
     });
+
+    test(
+      'global drawer bubble does not absorb taps while keyboard is visible',
+      () async {
+        final source = await File('lib/main.dart').readAsString();
+        final shell = _sourceBetween(
+          source,
+          'class _GlobalFloatingMenuShellState',
+          'class PushIntentBridge',
+        );
+
+        expect(shell, contains('MediaQuery.viewInsetsOf(context).bottom == 0'));
+        expect(shell, contains('final keyboardVisible ='));
+        expect(shell, contains('final menuOpenForInteraction ='));
+        expect(shell, contains('visible: shouldActivateFloatingMenu'));
+        expect(shell, contains('_resetFloatingMenuStateAfterFrame'));
+      },
+    );
 
     test(
       'route changes dismiss only calendar-owned transient overlays',
@@ -1788,78 +1523,26 @@ void main() {
       },
     );
 
-    testWidgets('community feed distinguishes load errors from empty state', (
-      tester,
-    ) async {
-      // The widget-test font assigns every glyph a full em width. Keep this
-      // feed-state contract independent of that unrelated typography artifact.
-      tester.view.physicalSize = const Size(800, 1000);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
+    test('community feed distinguishes load errors from empty state', () async {
+      final repo = await File('lib/data/profile_repo.dart').readAsString();
+      final page = await File(
+        'lib/features/profile/profile_page.dart',
+      ).readAsString();
 
-      _communityFeedFixture = _CommunityFeedFixture.retryableError;
-      await tester.runAsync(_recoverTestSession);
-
-      final router = GoRouter(
-        initialLocation: '/profile/$_communityFeedProfileId',
-        routes: <RouteBase>[
-          GoRoute(
-            path: '/',
-            builder: (context, state) =>
-                const Scaffold(body: Text('Calendar route')),
-          ),
-          GoRoute(
-            path: '/profile/:userId',
-            builder: (context, state) =>
-                ProfilePage(userId: state.pathParameters['userId']!),
-          ),
-        ],
+      expect(repo, contains('class ProfileFeedResult'));
+      expect(repo, contains('Future<ProfileFeedResult> getProfileFeedResult'));
+      expect(repo, contains('_getProfileFeedFallbackResult'));
+      expect(repo, contains('errorMessage: _friendlyFeedError'));
+      expect(
+        repo,
+        isNot(
+          contains('Future<List<ProfileFeedItem>> _getProfileFeedFallback'),
+        ),
       );
-
-      try {
-        await tester.pumpWidget(MaterialApp.router(routerConfig: router));
-        await _pumpUntilFound(tester, find.text('Fixture'));
-
-        for (var drag = 0; drag < 8; drag += 1) {
-          if (find.text('FOR YOU').evaluate().isNotEmpty) break;
-          await tester.dragFrom(const Offset(195, 700), const Offset(0, -520));
-          await tester.pump(const Duration(milliseconds: 120));
-        }
-        await _pumpUntilFound(tester, find.text('FOR YOU'));
-
-        await tester.tap(find.text('FOR YOU'));
-        await _pumpUntilFound(tester, find.text('For You could not load'));
-
-        expect(find.byIcon(Icons.error_outline_rounded), findsOneWidget);
-        expect(find.text('Try again'), findsOneWidget);
-        expect(find.text('No recommendations yet'), findsNothing);
-        expect(find.byIcon(Icons.auto_awesome_motion_rounded), findsNothing);
-
-        final requestsBeforeRetry = _communityFeedRpcRequests;
-        expect(requestsBeforeRetry, greaterThan(0));
-        _communityFeedFixture = _CommunityFeedFixture.empty;
-        _communityFeedFallbackShouldFail = false;
-
-        await tester.ensureVisible(find.text('Try again'));
-        await tester.pumpAndSettle();
-        await tester.tap(find.text('Try again'));
-        await _pumpUntilFound(tester, find.text('No recommendations yet'));
-
-        expect(_communityFeedRpcRequests, requestsBeforeRetry + 1);
-        expect(find.byIcon(Icons.auto_awesome_motion_rounded), findsOneWidget);
-        expect(find.text('For You could not load'), findsNothing);
-        expect(find.byIcon(Icons.error_outline_rounded), findsNothing);
-        expect(find.text('Try again'), findsNothing);
-        expect(tester.takeException(), isNull);
-      } finally {
-        await tester.pumpWidget(const SizedBox.shrink());
-        await tester.pump();
-        router.dispose();
-        _communityFeedFixture = _CommunityFeedFixture.neutral;
-        _communityFeedFallbackShouldFail = false;
-        await tester.runAsync(_resetTestAuthAndRealtimeResources);
-      }
+      expect(page, contains('String? _feedErrorMessage'));
+      expect(page, contains('_feedErrorMessage = result.errorMessage'));
+      expect(page, contains('Community Feed could not load'));
+      expect(page, contains('No feed posts available yet'));
     });
 
     test('inbox summary cells stay visible without recent activity', () async {
@@ -2283,152 +1966,8 @@ List<String> _detachedMenuLabels(WidgetTester tester) {
       .toList(growable: false);
 }
 
-Future<bool> _waitFor(
-  bool Function() predicate, {
-  int maxObservations = 10000,
-}) async {
-  for (var observation = 0; observation < maxObservations; observation += 1) {
-    if (predicate()) return true;
-    await Future<void>.delayed(Duration.zero);
-  }
-  return false;
-}
-
-Future<void> _pumpUntilFound(
-  WidgetTester tester,
-  Finder finder, {
-  int maxFrames = 120,
-}) async {
-  for (var frame = 0; frame < maxFrames; frame += 1) {
-    await tester.pump(const Duration(milliseconds: 25));
-    if (finder.evaluate().isNotEmpty) return;
-  }
-  expect(
-    finder,
-    findsWidgets,
-    reason: 'Expected widget did not appear within $maxFrames frames.',
-  );
-}
-
-Future<void> _exerciseGlobalDrawerKeyboardBehavior(
-  WidgetTester tester, {
-  required bool authenticated,
-}) async {
-  await tester.runAsync(_resetTestAuthAndRealtimeResources);
-  if (authenticated) {
-    await tester.runAsync(_recoverTestSession);
-    await tester.runAsync(() async {
-      ShareRepo(Supabase.instance.client).currentUnreadState;
-      await Future<void>.delayed(Duration.zero);
-    });
-    expect(
-      Supabase.instance.client.getChannels(),
-      isNotEmpty,
-      reason: 'Authenticated test setup must own one unread channel.',
-    );
-  }
-  expect(
-    Supabase.instance.client.auth.currentSession != null,
-    authenticated,
-    reason: 'Every keyboard scenario must establish auth explicitly.',
-  );
-  expect(
-    ShareRepo.debugDisableUnreadTrackingForTesting,
-    isFalse,
-    reason: 'The signed-in production shell must keep unread tracking enabled.',
-  );
-
-  app.resetGlobalFloatingMenuShellForTesting();
-  var underlyingTaps = 0;
-  final router = GoRouter(
-    initialLocation: '/',
-    routes: <RouteBase>[
-      GoRoute(
-        path: '/',
-        builder: (context, state) => Scaffold(
-          body: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => underlyingTaps += 1,
-            child: const SizedBox.expand(),
-          ),
-        ),
-      ),
-    ],
-  );
-
-  try {
-    final unreadTopic = '$_unreadTopicPrefix$_keyboardTestUserId';
-    final unreadJoinCountBefore = _realtimeEndpoint.count(
-      'phx_join',
-      unreadTopic,
-    );
-
-    await tester.pumpWidget(
-      MaterialApp.router(
-        routerConfig: router,
-        builder: (context, child) => app.buildGlobalFloatingMenuShellForTesting(
-          router: router,
-          child: child ?? const SizedBox.shrink(),
-        ),
-      ),
-    );
-    await tester.pump();
-
-    final bubble = find.byKey(app.globalMenuButtonKey);
-    expect(bubble, findsOneWidget);
-
-    if (authenticated) {
-      final unreadJoined = await tester.runAsync(
-        () => _waitFor(
-          () =>
-              _realtimeEndpoint.count('phx_join', unreadTopic) ==
-              unreadJoinCountBefore + 1,
-        ),
-      );
-      expect(
-        unreadJoined,
-        isTrue,
-        reason:
-            'The signed-in production state must exercise unread tracking: '
-            '${_realtimeEndpoint.frameSummary}',
-      );
-    }
-
-    final priorBubbleCenter = tester.getCenter(bubble);
-
-    tester.view.viewInsets = const FakeViewPadding(bottom: 10);
-    await tester.pump();
-    await tester.pump();
-
-    expect(bubble, findsNothing);
-    await tester.tapAt(priorBubbleCenter);
-    await tester.pump();
-    expect(underlyingTaps, 1);
-    expect(tester.takeException(), isNull);
-
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
-    await tester.runAsync(_resetTestAuthAndRealtimeResources);
-    await tester.pump();
-
-    expect(Supabase.instance.client.auth.currentSession, isNull);
-    expect(Supabase.instance.client.getChannels(), isEmpty);
-    expect(
-      Supabase.instance.client.realtime.connectionState,
-      anyOf('closed', 'disconnected'),
-    );
-    expect(tester.takeException(), isNull);
-  } finally {
-    tester.view.viewInsets = const FakeViewPadding();
-    await tester.pumpWidget(const SizedBox.shrink());
-    await tester.pump();
-    await tester.runAsync(_resetTestAuthAndRealtimeResources);
-    router.dispose();
-    app.resetGlobalFloatingMenuShellForTesting();
-  }
-}
-
 Future<void> _recoverTestSession() async {
+  const userId = '4d2583da-8de4-49d3-9cd1-37a9a74f55bd';
   final expiresAt =
       DateTime.now().add(const Duration(days: 365)).millisecondsSinceEpoch ~/
       1000;
@@ -2439,7 +1978,7 @@ Future<void> _recoverTestSession() async {
       'refresh_token': 'test-refresh-token',
       'token_type': 'bearer',
       'user': <String, Object?>{
-        'id': _keyboardTestUserId,
+        'id': userId,
         'app_metadata': <String, Object?>{
           'provider': 'email',
           'providers': <String>['email'],

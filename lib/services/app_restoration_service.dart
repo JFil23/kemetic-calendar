@@ -9,7 +9,6 @@ import '../data/app_restoration_repo.dart';
 import '../core/navigation_persistence_policy.dart';
 import '../core/route_location_sanitizer.dart';
 import 'app_window_service.dart';
-import 'restoration_durable_store.dart';
 import 'app_window_platform_stub.dart'
     if (dart.library.html) 'app_window_platform_web.dart'
     as app_window_platform;
@@ -37,37 +36,6 @@ const Set<String> _validEventDetailIdentityTypes = <String>{
   eventDetailIdentityEventId,
   eventDetailIdentityReminderId,
 };
-
-Object? _canonicalJsonValue(Object? value) {
-  if (value is Map) {
-    final keys = value.keys.map((key) => key.toString()).toList()..sort();
-    return <String, Object?>{
-      for (final key in keys) key: _canonicalJsonValue(value[key]),
-    };
-  }
-  if (value is Iterable) {
-    return value.map<Object?>(_canonicalJsonValue).toList(growable: false);
-  }
-  return value;
-}
-
-String _restorationContentDigest(Object? value) {
-  return jsonEncode(_canonicalJsonValue(value));
-}
-
-String _storedRestorationContentDigest(String serialized) {
-  try {
-    return _restorationContentDigest(jsonDecode(serialized));
-  } catch (_) {
-    return _restorationContentDigest(serialized);
-  }
-}
-
-String _observedRestorationContentDigest(Object value) {
-  return value is String
-      ? _storedRestorationContentDigest(value)
-      : _restorationContentDigest(value);
-}
 
 Map<String, dynamic>? _asJsonMap(Object? raw) {
   if (raw is! Map) {
@@ -323,8 +291,6 @@ class CalendarRestorationState {
     final anchorAlignment = (json['anchorAlignment'] as num?)?.toDouble();
     final viewportHeight = (json['viewportHeight'] as num?)?.toDouble();
     final layoutRevision = _asInt(json['layoutRevision']);
-    // Older centered calendar trees could persist negative raw offsets. The
-    // logical Kemetic date remains valid even when that optional pixel is not.
     final scrollOffset = _readOptionalScrollOffset(json);
     if (kYear == null ||
         kMonth == null ||
@@ -350,7 +316,10 @@ class CalendarRestorationState {
                 viewportHeight <= 0)) ||
         (json.containsKey('layoutRevision') &&
             json['layoutRevision'] != null &&
-            (layoutRevision == null || layoutRevision < 1))) {
+            (layoutRevision == null || layoutRevision < 1)) ||
+        (json.containsKey('scrollOffset') &&
+            json['scrollOffset'] != null &&
+            scrollOffset == null)) {
       return null;
     }
     return CalendarRestorationState(
@@ -366,12 +335,6 @@ class CalendarRestorationState {
       scrollOffset: scrollOffset,
     );
   }
-}
-
-CalendarRestorationState resolveCalendarViewportRestoration({
-  required CalendarRestorationState saved,
-}) {
-  return saved;
 }
 
 class EventDetailRestorationState {
@@ -673,22 +636,6 @@ enum OverlayStackMutationReason {
 
 enum AppRestorationReadStatus { restored, tentative, noSnapshot, awaitingAuth }
 
-enum AppRestorationMutationStatus {
-  persisted,
-  storageFailure,
-  deferred,
-  notReady,
-  invalid,
-  superseded,
-  droppedUserMismatch,
-}
-
-class AppRestorationMutationResult {
-  const AppRestorationMutationResult(this.status);
-
-  final AppRestorationMutationStatus status;
-}
-
 class AppRestorationReadResult {
   const AppRestorationReadResult({
     required this.status,
@@ -716,43 +663,11 @@ class _SnapshotCandidate {
     required this.snapshot,
     required this.raw,
     required this.source,
-    this.precedenceSource,
   });
 
   final AppRestorationSnapshot snapshot;
   final Map<String, dynamic> raw;
   final String source;
-  final String? precedenceSource;
-
-  String get sourceForPrecedence => precedenceSource ?? source;
-}
-
-enum _LocalPersistenceStatus { persisted, superseded, storageFailure }
-
-class _PendingCalendarRestorationIntent {
-  const _PendingCalendarRestorationIntent({
-    required this.userId,
-    required this.windowId,
-    required this.state,
-  });
-
-  final String userId;
-  final String windowId;
-  final CalendarRestorationState state;
-}
-
-class _PendingLaunchRouteRestorationIntent {
-  const _PendingLaunchRouteRestorationIntent({
-    required this.userId,
-    required this.windowId,
-    required this.location,
-    required this.metadata,
-  });
-
-  final String userId;
-  final String windowId;
-  final String location;
-  final NavigationLaunchRouteMetadata metadata;
 }
 
 String _snapshotTrace(AppRestorationSnapshot? snapshot) {
@@ -820,49 +735,11 @@ class AppRestorationService {
   debugLatestCriticalSnapshotWriter;
   static String? Function()? debugPlatformLastActiveUserIdReader;
   static void Function(String? userId)? debugPlatformLastActiveUserIdWriter;
-  static void Function(String message)? debugLogWriter;
-  static Future<void> Function()? debugBeforeMutationProvenanceRead;
-  static RestorationDurableStore? debugDurableSnapshotStore;
-
-  /// Tie-break order for divergent snapshots with the same provenance time.
-  ///
-  /// Current-window stores outrank cross-window/latest stores, and every local
-  /// store outranks remote state. Higher values are more authoritative.
-  static const Map<String, int> _snapshotSourcePrecedence = <String, int>{
-    'acknowledged_window': 700,
-    'acknowledged_latest': 600,
-    'prefs': 500,
-    'critical': 400,
-    'latest_prefs': 300,
-    'latest_critical': 200,
-    'remote_window': 100,
-    'remote_latest': 90,
-  };
 
   String? _deviceId;
   Future<String>? _deviceIdFuture;
   Future<void> _mutationQueue = Future<void>.value();
   Future<void> _remoteWriteQueue = Future<void>.value();
-  _PendingCalendarRestorationIntent? _pendingCalendarIntent;
-  _PendingLaunchRouteRestorationIntent? _pendingLaunchRouteIntent;
-
-  RestorationDurableStore get _durableSnapshotStore =>
-      debugDurableSnapshotStore ?? const PlatformRestorationDurableStore();
-
-  bool get requiresAcknowledgedDurableWrites =>
-      _durableSnapshotStore.isSupported;
-
-  void resetForTesting() {
-    _deviceId = null;
-    _deviceIdFuture = null;
-    _mutationQueue = Future<void>.value();
-    _remoteWriteQueue = Future<void>.value();
-    _pendingCalendarIntent = null;
-    _pendingLaunchRouteIntent = null;
-    debugLogWriter = null;
-    debugBeforeMutationProvenanceRead = null;
-    debugDurableSnapshotStore = null;
-  }
 
   Future<void> initialize() async {
     final windowId = await AppWindowService.instance.ensureInitialized();
@@ -870,11 +747,10 @@ class AppRestorationService {
   }
 
   void _log(String message) {
-    debugLogWriter?.call(message);
     traceRestoration(message);
   }
 
-  String? _currentUserIdNow() {
+  Future<String?> _currentUserId() async {
     final debugResolver = debugUserIdResolver;
     if (debugResolver != null) {
       final resolved = debugResolver()?.trim();
@@ -888,87 +764,10 @@ class AppRestorationService {
     }
   }
 
-  Future<String?> _currentUserId() async => _currentUserIdNow();
-
   Future<String> _currentWindowId() =>
       AppWindowService.instance.ensureInitialized();
 
   Future<SharedPreferences> _prefs() => SharedPreferences.getInstance();
-
-  Future<T> _enqueueMutationOperation<T>(Future<T> Function() operation) {
-    final next = _mutationQueue.then((_) => operation());
-    _mutationQueue = next.then<void>(
-      (_) {},
-      onError: (Object error, StackTrace stackTrace) {},
-    );
-    return next;
-  }
-
-  String? _readCriticalSnapshot(String windowId) {
-    final debugReader = debugCriticalSnapshotReader;
-    return debugReader != null
-        ? debugReader(windowId)
-        : app_window_platform.readCriticalSnapshot(windowId);
-  }
-
-  String? _readLatestCriticalSnapshot(String userId) {
-    final debugReader = debugLatestCriticalSnapshotReader;
-    return debugReader != null
-        ? debugReader(userId)
-        : app_window_platform.readLatestCriticalSnapshot(userId);
-  }
-
-  Future<void> _queuePrefsChangeIfUnchanged({
-    required String key,
-    required Object observedContent,
-    required String? replacement,
-    required String reason,
-  }) {
-    final expectedDigest = _observedRestorationContentDigest(observedContent);
-    return _enqueueMutationOperation(() async {
-      final prefs = await _prefs();
-      final current = prefs.getString(key);
-      if (current == null ||
-          _storedRestorationContentDigest(current) != expectedDigest) {
-        _log(
-          'conditional prefs change skipped key=$key reason=content_changed',
-        );
-        return;
-      }
-      if (replacement == null) {
-        await prefs.remove(key);
-      } else {
-        await prefs.setString(key, replacement);
-      }
-      _log('conditional prefs change committed key=$key reason=$reason');
-    });
-  }
-
-  Future<void> _queueCriticalChangeIfUnchanged({
-    required String storageKey,
-    required Object observedContent,
-    required String? replacement,
-    required String reason,
-    required String? Function() readCurrent,
-    required void Function(String? serialized) writeCurrent,
-  }) {
-    final expectedDigest = _observedRestorationContentDigest(observedContent);
-    return _enqueueMutationOperation(() async {
-      final current = readCurrent();
-      if (current == null ||
-          _storedRestorationContentDigest(current) != expectedDigest) {
-        _log(
-          'conditional critical change skipped key=$storageKey '
-          'reason=content_changed',
-        );
-        return;
-      }
-      writeCurrent(replacement);
-      _log(
-        'conditional critical change committed key=$storageKey reason=$reason',
-      );
-    });
-  }
 
   Future<String> _currentDeviceId() {
     final cached = _deviceId;
@@ -1007,6 +806,16 @@ class AppRestorationService {
 
   String _latestPrefsKey(String userId) => '$_latestUserKeyPrefix:$userId';
 
+  Future<void> _clearSnapshotFor(String userId, String windowId) async {
+    final prefs = await _prefs();
+    await prefs.remove(_prefsKey(userId, windowId));
+  }
+
+  Future<void> _clearLatestSnapshotForUser(String userId) async {
+    final prefs = await _prefs();
+    await prefs.remove(_latestPrefsKey(userId));
+  }
+
   Future<String?> _readLastActiveUserId() async {
     final prefs = await _prefs();
     final raw = prefs.getString(_lastActiveUserKey)?.trim();
@@ -1031,18 +840,6 @@ class AppRestorationService {
   }
 
   Future<String?> _readBootFallbackUserId() async {
-    final durableStore = _durableSnapshotStore;
-    if (durableStore.isSupported) {
-      try {
-        final durableUserId = (await durableStore.readLastActiveUserId())
-            ?.trim();
-        if (durableUserId != null && durableUserId.isNotEmpty) {
-          return durableUserId;
-        }
-      } catch (error) {
-        _log('acknowledged last-user read failed error=$error');
-      }
-    }
     final fromPrefs = await _readLastActiveUserId();
     if (fromPrefs != null) {
       return fromPrefs;
@@ -1051,10 +848,6 @@ class AppRestorationService {
   }
 
   Future<void> clearBootFallbackIdentity() async {
-    final durableStore = _durableSnapshotStore;
-    if (durableStore.isSupported) {
-      await durableStore.clearLastActiveUser();
-    }
     final prefs = await _prefs();
     await prefs.remove(_lastActiveUserKey);
     _writePlatformLastActiveUserId(null);
@@ -1161,24 +954,14 @@ class AppRestorationService {
       final decoded = jsonDecode(rawString);
       if (decoded is! Map<String, dynamic>) {
         if (clearIfInvalid) {
-          await _queuePrefsChangeIfUnchanged(
-            key: key,
-            observedContent: rawString,
-            replacement: null,
-            reason: 'invalid_json_shape',
-          );
+          await prefs.remove(key);
         }
         return null;
       }
       return Map<String, dynamic>.from(decoded);
     } catch (_) {
       if (clearIfInvalid) {
-        await _queuePrefsChangeIfUnchanged(
-          key: key,
-          observedContent: rawString,
-          replacement: null,
-          reason: 'invalid_json',
-        );
+        await prefs.remove(key);
       }
       return null;
     }
@@ -1199,24 +982,14 @@ class AppRestorationService {
       final decoded = jsonDecode(rawString);
       if (decoded is! Map<String, dynamic>) {
         if (clearIfInvalid) {
-          await _queuePrefsChangeIfUnchanged(
-            key: key,
-            observedContent: rawString,
-            replacement: null,
-            reason: 'invalid_json_shape',
-          );
+          await prefs.remove(key);
         }
         return null;
       }
       return Map<String, dynamic>.from(decoded);
     } catch (_) {
       if (clearIfInvalid) {
-        await _queuePrefsChangeIfUnchanged(
-          key: key,
-          observedContent: rawString,
-          replacement: null,
-          reason: 'invalid_json',
-        );
+        await prefs.remove(key);
       }
       return null;
     }
@@ -1226,7 +999,10 @@ class AppRestorationService {
     String windowId, {
     required bool clearIfInvalid,
   }) async {
-    final rawString = _readCriticalSnapshot(windowId);
+    final debugReader = debugCriticalSnapshotReader;
+    final rawString = debugReader != null
+        ? debugReader(windowId)
+        : app_window_platform.readCriticalSnapshot(windowId);
     if (rawString == null || rawString.trim().isEmpty) {
       return null;
     }
@@ -1235,30 +1011,14 @@ class AppRestorationService {
       final decoded = jsonDecode(rawString);
       if (decoded is! Map<String, dynamic>) {
         if (clearIfInvalid) {
-          await _queueCriticalChangeIfUnchanged(
-            storageKey: 'critical:$windowId',
-            observedContent: rawString,
-            replacement: null,
-            reason: 'invalid_json_shape',
-            readCurrent: () => _readCriticalSnapshot(windowId),
-            writeCurrent: (serialized) =>
-                _writeCriticalSnapshot(windowId, serialized),
-          );
+          _writeCriticalSnapshot(windowId, null);
         }
         return null;
       }
       return Map<String, dynamic>.from(decoded);
     } catch (_) {
       if (clearIfInvalid) {
-        await _queueCriticalChangeIfUnchanged(
-          storageKey: 'critical:$windowId',
-          observedContent: rawString,
-          replacement: null,
-          reason: 'invalid_json',
-          readCurrent: () => _readCriticalSnapshot(windowId),
-          writeCurrent: (serialized) =>
-              _writeCriticalSnapshot(windowId, serialized),
-        );
+        _writeCriticalSnapshot(windowId, null);
       }
       return null;
     }
@@ -1268,7 +1028,10 @@ class AppRestorationService {
     String userId, {
     required bool clearIfInvalid,
   }) async {
-    final rawString = _readLatestCriticalSnapshot(userId);
+    final debugReader = debugLatestCriticalSnapshotReader;
+    final rawString = debugReader != null
+        ? debugReader(userId)
+        : app_window_platform.readLatestCriticalSnapshot(userId);
     if (rawString == null || rawString.trim().isEmpty) {
       return null;
     }
@@ -1277,30 +1040,14 @@ class AppRestorationService {
       final decoded = jsonDecode(rawString);
       if (decoded is! Map<String, dynamic>) {
         if (clearIfInvalid) {
-          await _queueCriticalChangeIfUnchanged(
-            storageKey: 'latest_critical:$userId',
-            observedContent: rawString,
-            replacement: null,
-            reason: 'invalid_json_shape',
-            readCurrent: () => _readLatestCriticalSnapshot(userId),
-            writeCurrent: (serialized) =>
-                _writeLatestCriticalSnapshot(userId, serialized),
-          );
+          _writeLatestCriticalSnapshot(userId, null);
         }
         return null;
       }
       return Map<String, dynamic>.from(decoded);
     } catch (_) {
       if (clearIfInvalid) {
-        await _queueCriticalChangeIfUnchanged(
-          storageKey: 'latest_critical:$userId',
-          observedContent: rawString,
-          replacement: null,
-          reason: 'invalid_json',
-          readCurrent: () => _readLatestCriticalSnapshot(userId),
-          writeCurrent: (serialized) =>
-              _writeLatestCriticalSnapshot(userId, serialized),
-        );
+        _writeLatestCriticalSnapshot(userId, null);
       }
       return null;
     }
@@ -1310,7 +1057,6 @@ class AppRestorationService {
     String userId,
     String windowId, {
     required bool clearIfInvalid,
-    String precedenceSource = 'prefs',
   }) async {
     final raw = await _loadRawFor(
       userId,
@@ -1323,26 +1069,20 @@ class AppRestorationService {
     final migrated = _migrateRawSnapshot(raw);
     if (migrated == null) {
       if (clearIfInvalid) {
-        await _queuePrefsChangeIfUnchanged(
-          key: _prefsKey(userId, windowId),
-          observedContent: raw,
-          replacement: null,
-          reason: 'unsupported_snapshot',
-        );
+        await _clearSnapshotFor(userId, windowId);
       }
       return null;
+    }
+    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
+      final prefs = await _prefs();
+      await prefs.setString(_prefsKey(userId, windowId), jsonEncode(migrated));
     }
     final snapshot = AppRestorationSnapshot.fromJson(migrated);
     if (snapshot == null ||
         snapshot.userId != userId ||
         snapshot.windowId != windowId) {
       if (clearIfInvalid) {
-        await _queuePrefsChangeIfUnchanged(
-          key: _prefsKey(userId, windowId),
-          observedContent: raw,
-          replacement: null,
-          reason: 'snapshot_mismatch',
-        );
+        await _clearSnapshotFor(userId, windowId);
       }
       _log(
         'candidate rejected source=prefs user=$userId window=$windowId '
@@ -1350,19 +1090,10 @@ class AppRestorationService {
       );
       return null;
     }
-    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
-      await _queuePrefsChangeIfUnchanged(
-        key: _prefsKey(userId, windowId),
-        observedContent: raw,
-        replacement: jsonEncode(migrated),
-        reason: 'snapshot_migration',
-      );
-    }
     final candidate = _SnapshotCandidate(
       snapshot: snapshot,
       raw: migrated,
       source: 'prefs',
-      precedenceSource: precedenceSource,
     );
     _log('candidate loaded ${_candidateTrace(candidate)}');
     return candidate;
@@ -1383,17 +1114,12 @@ class AppRestorationService {
     final migrated = _migrateRawSnapshot(raw);
     if (migrated == null) {
       if (clearIfInvalid) {
-        await _queueCriticalChangeIfUnchanged(
-          storageKey: 'critical:$windowId',
-          observedContent: raw,
-          replacement: null,
-          reason: 'unsupported_snapshot',
-          readCurrent: () => _readCriticalSnapshot(windowId),
-          writeCurrent: (serialized) =>
-              _writeCriticalSnapshot(windowId, serialized),
-        );
+        _writeCriticalSnapshot(windowId, null);
       }
       return null;
+    }
+    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
+      _writeCriticalSnapshot(windowId, jsonEncode(migrated));
     }
     final snapshot = AppRestorationSnapshot.fromJson(migrated);
     final userMismatch =
@@ -1402,32 +1128,13 @@ class AppRestorationService {
         snapshot.userId != expectedUserId;
     if (snapshot == null || snapshot.windowId != windowId || userMismatch) {
       if (clearIfInvalid) {
-        await _queueCriticalChangeIfUnchanged(
-          storageKey: 'critical:$windowId',
-          observedContent: raw,
-          replacement: null,
-          reason: 'snapshot_mismatch',
-          readCurrent: () => _readCriticalSnapshot(windowId),
-          writeCurrent: (serialized) =>
-              _writeCriticalSnapshot(windowId, serialized),
-        );
+        _writeCriticalSnapshot(windowId, null);
       }
       _log(
         'candidate rejected source=critical window=$windowId '
         'expectedUser=${expectedUserId ?? '<any>'} reason=snapshot_mismatch',
       );
       return null;
-    }
-    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
-      await _queueCriticalChangeIfUnchanged(
-        storageKey: 'critical:$windowId',
-        observedContent: raw,
-        replacement: jsonEncode(migrated),
-        reason: 'snapshot_migration',
-        readCurrent: () => _readCriticalSnapshot(windowId),
-        writeCurrent: (serialized) =>
-            _writeCriticalSnapshot(windowId, serialized),
-      );
     }
     final candidate = _SnapshotCandidate(
       snapshot: snapshot,
@@ -1452,38 +1159,24 @@ class AppRestorationService {
     final migrated = _migrateRawSnapshot(raw);
     if (migrated == null) {
       if (clearIfInvalid) {
-        await _queuePrefsChangeIfUnchanged(
-          key: _latestPrefsKey(userId),
-          observedContent: raw,
-          replacement: null,
-          reason: 'unsupported_snapshot',
-        );
+        await _clearLatestSnapshotForUser(userId);
       }
       return null;
+    }
+    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
+      final prefs = await _prefs();
+      await prefs.setString(_latestPrefsKey(userId), jsonEncode(migrated));
     }
     final snapshot = AppRestorationSnapshot.fromJson(migrated);
     if (snapshot == null || snapshot.userId != userId) {
       if (clearIfInvalid) {
-        await _queuePrefsChangeIfUnchanged(
-          key: _latestPrefsKey(userId),
-          observedContent: raw,
-          replacement: null,
-          reason: 'snapshot_mismatch',
-        );
+        await _clearLatestSnapshotForUser(userId);
       }
       _log(
         'candidate rejected source=latest_prefs user=$userId '
         'reason=snapshot_mismatch',
       );
       return null;
-    }
-    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
-      await _queuePrefsChangeIfUnchanged(
-        key: _latestPrefsKey(userId),
-        observedContent: raw,
-        replacement: jsonEncode(migrated),
-        reason: 'snapshot_migration',
-      );
     }
     final candidate = _SnapshotCandidate(
       snapshot: snapshot,
@@ -1508,47 +1201,23 @@ class AppRestorationService {
     final migrated = _migrateRawSnapshot(raw);
     if (migrated == null) {
       if (clearIfInvalid) {
-        await _queueCriticalChangeIfUnchanged(
-          storageKey: 'latest_critical:$userId',
-          observedContent: raw,
-          replacement: null,
-          reason: 'unsupported_snapshot',
-          readCurrent: () => _readLatestCriticalSnapshot(userId),
-          writeCurrent: (serialized) =>
-              _writeLatestCriticalSnapshot(userId, serialized),
-        );
+        _writeLatestCriticalSnapshot(userId, null);
       }
       return null;
+    }
+    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
+      _writeLatestCriticalSnapshot(userId, jsonEncode(migrated));
     }
     final snapshot = AppRestorationSnapshot.fromJson(migrated);
     if (snapshot == null || snapshot.userId != userId) {
       if (clearIfInvalid) {
-        await _queueCriticalChangeIfUnchanged(
-          storageKey: 'latest_critical:$userId',
-          observedContent: raw,
-          replacement: null,
-          reason: 'snapshot_mismatch',
-          readCurrent: () => _readLatestCriticalSnapshot(userId),
-          writeCurrent: (serialized) =>
-              _writeLatestCriticalSnapshot(userId, serialized),
-        );
+        _writeLatestCriticalSnapshot(userId, null);
       }
       _log(
         'candidate rejected source=latest_critical user=$userId '
         'reason=snapshot_mismatch',
       );
       return null;
-    }
-    if (clearIfInvalid && _rawSnapshotChanged(raw, migrated)) {
-      await _queueCriticalChangeIfUnchanged(
-        storageKey: 'latest_critical:$userId',
-        observedContent: raw,
-        replacement: jsonEncode(migrated),
-        reason: 'snapshot_migration',
-        readCurrent: () => _readLatestCriticalSnapshot(userId),
-        writeCurrent: (serialized) =>
-            _writeLatestCriticalSnapshot(userId, serialized),
-      );
     }
     final candidate = _SnapshotCandidate(
       snapshot: snapshot,
@@ -1565,14 +1234,6 @@ class AppRestorationService {
     required String source,
   }) async {
     if (raw == null) {
-      return null;
-    }
-    final provenanceTimestamp = _asInt(raw['updatedAtMs']);
-    if (provenanceTimestamp == null || provenanceTimestamp < 0) {
-      _log(
-        'candidate rejected source=$source expectedUser=$expectedUserId '
-        'reason=no_provenance_timestamp',
-      );
       return null;
     }
     final migrated = _migrateRawSnapshot(raw);
@@ -1677,15 +1338,7 @@ class AppRestorationService {
       final windowId = key.substring(prefix.length).trim();
       if (windowId.isEmpty) {
         if (clearIfInvalid) {
-          final observed = prefs.getString(key);
-          if (observed != null) {
-            await _queuePrefsChangeIfUnchanged(
-              key: key,
-              observedContent: observed,
-              replacement: null,
-              reason: 'invalid_window_key',
-            );
-          }
+          await prefs.remove(key);
         }
         continue;
       }
@@ -1693,7 +1346,6 @@ class AppRestorationService {
         userId,
         windowId,
         clearIfInvalid: clearIfInvalid,
-        precedenceSource: 'latest_prefs',
       );
       if (candidate != null) {
         candidates.add(candidate);
@@ -1709,46 +1361,12 @@ class AppRestorationService {
     for (final candidate in candidates) {
       final currentWinner = winner;
       if (currentWinner == null ||
-          _candidateOutranks(candidate, currentWinner)) {
+          candidate.snapshot.updatedAtMs >=
+              currentWinner.snapshot.updatedAtMs) {
         winner = candidate;
       }
     }
     return winner;
-  }
-
-  bool _candidateOutranks(
-    _SnapshotCandidate candidate,
-    _SnapshotCandidate incumbent,
-  ) {
-    final candidateTimestamp = candidate.snapshot.updatedAtMs;
-    final incumbentTimestamp = incumbent.snapshot.updatedAtMs;
-    if (candidateTimestamp != incumbentTimestamp) {
-      return candidateTimestamp > incumbentTimestamp;
-    }
-
-    final candidateDigest = _restorationContentDigest(candidate.raw);
-    final incumbentDigest = _restorationContentDigest(incumbent.raw);
-    if (candidateDigest == incumbentDigest) {
-      return false;
-    }
-
-    final candidateSource = candidate.sourceForPrecedence;
-    final incumbentSource = incumbent.sourceForPrecedence;
-    final candidateRank = _snapshotSourcePrecedence[candidateSource] ?? 0;
-    final incumbentRank = _snapshotSourcePrecedence[incumbentSource] ?? 0;
-    _log(
-      'candidate collision updatedAtMs=$candidateTimestamp '
-      'candidateSource=$candidateSource incumbentSource=$incumbentSource '
-      'reason=timestamp_collision_content_divergence',
-    );
-    if (candidateRank != incumbentRank) {
-      return candidateRank > incumbentRank;
-    }
-    final sourceOrder = candidateSource.compareTo(incumbentSource);
-    if (sourceOrder != 0) {
-      return sourceOrder < 0;
-    }
-    return candidateDigest.compareTo(incumbentDigest) < 0;
   }
 
   Future<_SnapshotCandidate?> _readSnapshotCandidateForUser(
@@ -1795,118 +1413,21 @@ class AppRestorationService {
     ]);
   }
 
-  _SnapshotCandidate? _acknowledgedCandidateFromEnvelope(
-    String? encoded, {
-    required String expectedUserId,
-    String? expectedWindowId,
-    required String source,
-  }) {
-    final envelope = DurableRestorationEnvelope.tryDecode(
-      encoded,
-      expectedUserId: expectedUserId,
-      expectedWindowId: expectedWindowId,
-    );
-    if (envelope == null || envelope.snapshotSchemaVersion != schemaVersion) {
-      if (encoded != null && encoded.trim().isNotEmpty) {
-        _log(
-          'candidate rejected source=$source expectedUser=$expectedUserId '
-          'expectedWindow=${expectedWindowId ?? '<any>'} '
-          'reason=invalid_acknowledged_envelope',
-        );
-      }
-      return null;
-    }
-    try {
-      final decoded = jsonDecode(envelope.snapshotJson);
-      final raw = _asJsonMap(decoded);
-      final migrated = raw == null ? null : _migrateRawSnapshot(raw);
-      final snapshot = migrated == null
-          ? null
-          : AppRestorationSnapshot.fromJson(migrated);
-      if (snapshot == null ||
-          snapshot.userId != expectedUserId ||
-          snapshot.userId != envelope.userId ||
-          snapshot.windowId != envelope.windowId ||
-          snapshot.updatedAtMs != envelope.generation ||
-          (expectedWindowId != null && snapshot.windowId != expectedWindowId)) {
-        _log(
-          'candidate rejected source=$source expectedUser=$expectedUserId '
-          'expectedWindow=${expectedWindowId ?? '<any>'} '
-          'reason=acknowledged_snapshot_binding_mismatch',
-        );
-        return null;
-      }
-      final candidate = _SnapshotCandidate(
-        snapshot: snapshot,
-        raw: migrated!,
-        source: source,
-      );
-      _log('candidate loaded ${_candidateTrace(candidate)}');
-      return candidate;
-    } catch (error) {
-      _log(
-        'candidate rejected source=$source expectedUser=$expectedUserId '
-        'reason=acknowledged_snapshot_decode_failed error=$error',
-      );
-      return null;
-    }
-  }
-
-  Future<({_SnapshotCandidate? currentWindow, _SnapshotCandidate? latestUser})>
-  _readAcknowledgedCandidates(String userId, String windowId) async {
-    final store = _durableSnapshotStore;
-    if (!store.isSupported) {
-      return (currentWindow: null, latestUser: null);
-    }
-    try {
-      final values = await Future.wait<String?>(<Future<String?>>[
-        store.readWindowEnvelope(userId, windowId),
-        store.readLatestEnvelope(userId),
-      ]);
-      return (
-        currentWindow: _acknowledgedCandidateFromEnvelope(
-          values[0],
-          expectedUserId: userId,
-          expectedWindowId: windowId,
-          source: 'acknowledged_window',
-        ),
-        latestUser: _acknowledgedCandidateFromEnvelope(
-          values[1],
-          expectedUserId: userId,
-          source: 'acknowledged_latest',
-        ),
-      );
-    } catch (error) {
-      _log(
-        'acknowledged snapshot read failed user=$userId window=$windowId '
-        'error=$error',
-      );
-      return (currentWindow: null, latestUser: null);
-    }
-  }
-
   Future<_SnapshotCandidate?> _readStableSnapshotCandidateForUser(
     String userId,
     String windowId, {
     required bool clearIfInvalid,
     bool includeRemote = false,
   }) async {
-    final acknowledged = await _readAcknowledgedCandidates(userId, windowId);
-    final hasAcknowledgedAuthority =
-        acknowledged.currentWindow != null || acknowledged.latestUser != null;
-    final currentWindowCandidate = hasAcknowledgedAuthority
-        ? acknowledged.currentWindow
-        : await _readSnapshotCandidateForUser(
-            userId,
-            windowId,
-            clearIfInvalid: clearIfInvalid,
-          );
-    final latestLocalCandidate = hasAcknowledgedAuthority
-        ? acknowledged.latestUser
-        : await _readLatestLocalSnapshotCandidateForUser(
-            userId,
-            clearIfInvalid: clearIfInvalid,
-          );
+    final currentWindowCandidate = await _readSnapshotCandidateForUser(
+      userId,
+      windowId,
+      clearIfInvalid: clearIfInvalid,
+    );
+    final latestLocalCandidate = await _readLatestLocalSnapshotCandidateForUser(
+      userId,
+      clearIfInvalid: clearIfInvalid,
+    );
     if (!includeRemote) {
       return _selectStableCandidate(
         userId: userId,
@@ -2268,225 +1789,34 @@ class AppRestorationService {
         currentWindowCandidate.snapshot.updatedAtMs;
   }
 
-  Future<int?> _newestDurableUpdatedAtMs(String userId, String windowId) async {
-    final acknowledged = await _readAcknowledgedCandidates(userId, windowId);
-    final acknowledgedGenerations = <int>[
-      if (acknowledged.currentWindow != null)
-        acknowledged.currentWindow!.snapshot.updatedAtMs,
-      if (acknowledged.latestUser != null)
-        acknowledged.latestUser!.snapshot.updatedAtMs,
-    ];
-    if (acknowledgedGenerations.isNotEmpty) {
-      return acknowledgedGenerations.reduce(
-        (current, next) => next > current ? next : current,
-      );
-    }
-    int? newest;
-    void consider(
-      Map<String, dynamic>? raw, {
-      required bool requireCurrentWindow,
-    }) {
-      if (raw == null) return;
-      final migrated = _migrateRawSnapshot(raw);
-      final snapshot = migrated == null
-          ? null
-          : AppRestorationSnapshot.fromJson(migrated);
-      if (snapshot == null || snapshot.userId != userId) return;
-      if (requireCurrentWindow && snapshot.windowId != windowId) return;
-      if (newest == null || snapshot.updatedAtMs > newest!) {
-        newest = snapshot.updatedAtMs;
-      }
-    }
-
-    consider(
-      await _loadRawFor(userId, windowId, clearIfInvalid: false),
-      requireCurrentWindow: true,
-    );
-    consider(
-      await _loadCriticalRawFor(windowId, clearIfInvalid: false),
-      requireCurrentWindow: true,
-    );
-    consider(
-      await _loadLatestRawForUser(userId, clearIfInvalid: false),
-      requireCurrentWindow: false,
-    );
-    consider(
-      await _loadLatestCriticalRawForUser(userId, clearIfInvalid: false),
-      requireCurrentWindow: false,
-    );
-    return newest;
-  }
-
-  void _preserveNewerPrimaryRouteAuthority(
-    Map<String, dynamic> pending, {
-    required String userId,
-    required String windowId,
-    required int observedUpdatedAtMs,
-  }) {
-    if (_durableSnapshotStore.isSupported) {
-      return;
-    }
-    Map<String, dynamic>? decodePrimaryAuthority(
-      String? serialized, {
-      required bool requireCurrentWindow,
-    }) {
-      if (serialized == null || serialized.trim().isEmpty) return null;
-      try {
-        final raw = _asJsonMap(jsonDecode(serialized));
-        if (raw == null) return null;
-        final snapshot = AppRestorationSnapshot.fromJson(raw);
-        if (snapshot == null || snapshot.userId != userId) return null;
-        if (requireCurrentWindow && snapshot.windowId != windowId) return null;
-        final metadata = NavigationLaunchRouteMetadata.fromJson(
-          raw[navigationPrimarySelectionMetadataKey],
-        );
-        final route = stableRouteLocationForContinuity(
-          raw['routeLocation'] as String?,
-        );
-        if (metadata?.source != NavigationSource.userPrimaryTab ||
-            route == null ||
-            !const NavigationPersistencePolicy().isValidDurableLaunchRoute(
-              route,
-              metadata!,
-            )) {
-          return null;
-        }
-        return raw;
-      } catch (_) {
-        return null;
-      }
-    }
-
-    final current = decodePrimaryAuthority(
-      _readCriticalSnapshot(windowId),
-      requireCurrentWindow: true,
-    );
-    final latest = decodePrimaryAuthority(
-      _readLatestCriticalSnapshot(userId),
-      requireCurrentWindow: false,
-    );
-    final currentUpdatedAtMs = _asInt(current?['updatedAtMs']) ?? -1;
-    final latestUpdatedAtMs = _asInt(latest?['updatedAtMs']) ?? -1;
-    final authoritative = latestUpdatedAtMs > currentUpdatedAtMs
-        ? latest
-        : current;
-    final authoritativeUpdatedAtMs = currentUpdatedAtMs > latestUpdatedAtMs
-        ? currentUpdatedAtMs
-        : latestUpdatedAtMs;
-    if (authoritative == null ||
-        authoritativeUpdatedAtMs <= observedUpdatedAtMs) {
-      return;
-    }
-
-    final authoritativeRoute = authoritative['routeLocation'] as String;
-    final pendingRoute = pending['routeLocation'];
-    pending['routeLocation'] = authoritativeRoute;
-    pending[navigationLaunchRouteMetadataKey] = Map<String, dynamic>.from(
-      _asJsonMap(authoritative[navigationLaunchRouteMetadataKey]) ??
-          const <String, dynamic>{},
-    );
-    pending[navigationPrimarySelectionMetadataKey] = Map<String, dynamic>.from(
-      _asJsonMap(authoritative[navigationPrimarySelectionMetadataKey]) ??
-          const <String, dynamic>{},
-    );
-    _log(
-      'mutation preserved newer primary authority user=$userId '
-      'window=$windowId pendingRoute=${pendingRoute ?? '<none>'} '
-      'authoritativeRoute=$authoritativeRoute '
-      'observedAtMs=$observedUpdatedAtMs '
-      'authorityAtMs=$authoritativeUpdatedAtMs',
-    );
-  }
-
-  Future<_LocalPersistenceStatus> _persistRawSnapshotLocally(
+  Future<void> _persistRawSnapshotLocally(
     String userId,
     String windowId,
     Map<String, dynamic> raw,
   ) async {
-    final incomingUpdatedAtMs = _asInt(raw['updatedAtMs']);
-    if (incomingUpdatedAtMs == null || incomingUpdatedAtMs < 0) {
-      _log(
-        'write local rejected user=$userId window=$windowId '
-        'reason=no_provenance_timestamp',
-      );
-      return _LocalPersistenceStatus.superseded;
-    }
-    final durableUpdatedAtMs = await _newestDurableUpdatedAtMs(
-      userId,
-      windowId,
-    );
-    if (durableUpdatedAtMs != null &&
-        incomingUpdatedAtMs <= durableUpdatedAtMs) {
-      _log(
-        'write local rejected user=$userId window=$windowId '
-        'incoming=$incomingUpdatedAtMs durable=$durableUpdatedAtMs '
-        'reason=non_monotonic_timestamp',
-      );
-      return _LocalPersistenceStatus.superseded;
-    }
     _log(
       'write local start user=$userId window=$windowId '
       'route=${raw['routeLocation'] ?? '<none>'} '
       'overlayCount=${_asJsonMapList(raw['overlayStack']).length} '
       'overlay=${_overlayStackTrace(_asJsonMapList(raw['overlayStack']))} '
       'updatedAtMs=${raw['updatedAtMs'] ?? '<none>'} '
-      'targets=acknowledged,critical,latest_critical,prefs,latest_prefs,last_user',
+      'targets=critical,latest_critical,prefs,latest_prefs,last_user',
     );
     final encoded = jsonEncode(raw);
-    final durableStore = _durableSnapshotStore;
-    if (durableStore.isSupported) {
-      final envelope = DurableRestorationEnvelope.create(
-        snapshotSchemaVersion: schemaVersion,
-        userId: userId,
-        windowId: windowId,
-        generation: incomingUpdatedAtMs,
-        snapshotJson: encoded,
-      );
-      try {
-        final durableResult = await durableStore.writeEnvelope(envelope);
-        if (durableResult == DurableSnapshotWriteStatus.superseded) {
-          _log(
-            'write acknowledged superseded user=$userId window=$windowId '
-            'updatedAtMs=$incomingUpdatedAtMs',
-          );
-          return _LocalPersistenceStatus.superseded;
-        }
-        _log(
-          'write acknowledged committed user=$userId window=$windowId '
-          'updatedAtMs=$incomingUpdatedAtMs integrity=${envelope.integrity}',
-        );
-      } catch (error) {
-        _log(
-          'write acknowledged failed user=$userId window=$windowId '
-          'updatedAtMs=$incomingUpdatedAtMs error=$error',
-        );
-        return _LocalPersistenceStatus.storageFailure;
-      }
-    }
-
     _writeCriticalSnapshot(windowId, encoded);
     _writeLatestCriticalSnapshot(userId, encoded);
     _writePlatformLastActiveUserId(userId);
-    try {
-      final prefs = await _prefs();
-      await Future.wait<bool>(<Future<bool>>[
-        prefs.setString(_prefsKey(userId, windowId), encoded),
-        prefs.setString(_latestPrefsKey(userId), encoded),
-        prefs.setString(_lastActiveUserKey, userId),
-      ]);
-    } catch (error) {
-      if (!durableStore.isSupported) rethrow;
-      _log(
-        'write legacy mirror failed user=$userId window=$windowId '
-        'updatedAtMs=$incomingUpdatedAtMs error=$error',
-      );
-    }
+    final prefs = await _prefs();
+    await Future.wait<bool>(<Future<bool>>[
+      prefs.setString(_prefsKey(userId, windowId), encoded),
+      prefs.setString(_latestPrefsKey(userId), encoded),
+      prefs.setString(_lastActiveUserKey, userId),
+    ]);
     _log(
       'write local done user=$userId window=$windowId '
       'route=${raw['routeLocation'] ?? '<none>'} '
       'updatedAtMs=${raw['updatedAtMs'] ?? '<none>'}',
     );
-    return _LocalPersistenceStatus.persisted;
   }
 
   Future<AppRestorationSnapshot?> _adoptRemoteSnapshot(
@@ -2495,41 +1825,17 @@ class AppRestorationService {
     String windowId,
   ) async {
     final raw = Map<String, dynamic>.from(candidate.raw);
-    final provenanceTimestamp = _asInt(raw['updatedAtMs']);
-    if (provenanceTimestamp == null || provenanceTimestamp < 0) {
-      _log(
-        'adoption rejected source=${candidate.source} user=$userId '
-        'window=$windowId reason=no_provenance_timestamp',
-      );
-      return null;
-    }
     raw['schemaVersion'] = schemaVersion;
     raw['userId'] = userId;
     raw['windowId'] = windowId;
+    raw['updatedAtMs'] = DateTime.now().millisecondsSinceEpoch;
     final snapshot = AppRestorationSnapshot.fromJson(raw);
     if (snapshot == null) {
       return null;
     }
-    return _enqueueMutationOperation(() async {
-      final persistence = await _persistRawSnapshotLocally(
-        userId,
-        windowId,
-        raw,
-      );
-      if (persistence == _LocalPersistenceStatus.persisted) {
-        _log(
-          'adopted ${candidate.source} snapshot '
-          'user=$userId window=$windowId',
-        );
-        return snapshot;
-      }
-      final current = await _readStableSnapshotCandidateForUser(
-        userId,
-        windowId,
-        clearIfInvalid: false,
-      );
-      return current?.snapshot;
-    });
+    await _persistRawSnapshotLocally(userId, windowId, raw);
+    _log('adopted ${candidate.source} snapshot user=$userId window=$windowId');
+    return snapshot;
   }
 
   Future<AppRestorationSnapshot?> readSnapshotForUser(
@@ -2676,42 +1982,22 @@ class AppRestorationService {
     return readSnapshotForUser(userId, includeRemote: includeRemote);
   }
 
-  Future<AppRestorationMutationResult> _mutate(
-    void Function(Map<String, dynamic> current) update, {
-    String? expectedUserId,
-    String? expectedWindowId,
-  }) async {
-    return _enqueueMutationOperation(
-      () => _mutateNow(
-        update,
-        expectedUserId: expectedUserId,
-        expectedWindowId: expectedWindowId,
-      ),
-    );
+  Future<void> _mutate(
+    void Function(Map<String, dynamic> current) update,
+  ) async {
+    final next = _mutationQueue.then((_) => _mutateNow(update));
+    _mutationQueue = next.catchError((_) {});
+    return next;
   }
 
-  Future<AppRestorationMutationResult> _mutateNow(
-    void Function(Map<String, dynamic> current) update, {
-    String? expectedUserId,
-    String? expectedWindowId,
-  }) async {
+  Future<void> _mutateNow(
+    void Function(Map<String, dynamic> current) update,
+  ) async {
     final userId = await _currentUserId();
     if (userId == null) {
-      _log('mutation rejected reason=auth_not_ready');
-      return const AppRestorationMutationResult(
-        AppRestorationMutationStatus.notReady,
-      );
+      return;
     }
-    if (expectedUserId != null && userId != expectedUserId) {
-      _log(
-        'mutation dropped expected=$expectedUserId actual=$userId '
-        'reason=user_mismatch',
-      );
-      return const AppRestorationMutationResult(
-        AppRestorationMutationStatus.droppedUserMismatch,
-      );
-    }
-    final windowId = expectedWindowId ?? await _currentWindowId();
+    final windowId = await _currentWindowId();
     app_window_platform.registerCriticalSnapshotWindow(windowId);
     final snapshotCandidate = await _readStableSnapshotCandidateForUser(
       userId,
@@ -2722,46 +2008,14 @@ class AppRestorationService {
         snapshotCandidate?.raw ??
         await _loadRawFor(userId, windowId, clearIfInvalid: false) ??
         <String, dynamic>{};
-    final observedUpdatedAtMs = _asInt(baseline['updatedAtMs']) ?? -1;
     final current = Map<String, dynamic>.from(baseline);
     update(current);
     current['schemaVersion'] = schemaVersion;
     current['userId'] = userId;
     current['windowId'] = windowId;
-    await debugBeforeMutationProvenanceRead?.call();
-    final durableUpdatedAtMs = await _newestDurableUpdatedAtMs(
-      userId,
-      windowId,
-    );
-    _preserveNewerPrimaryRouteAuthority(
-      current,
-      userId: userId,
-      windowId: windowId,
-      observedUpdatedAtMs: observedUpdatedAtMs,
-    );
-    final now = DateTime.now().millisecondsSinceEpoch;
-    current['updatedAtMs'] = durableUpdatedAtMs == null
-        ? now
-        : (now > durableUpdatedAtMs ? now : durableUpdatedAtMs + 1);
-    final persistence = await _persistRawSnapshotLocally(
-      userId,
-      windowId,
-      current,
-    );
-    if (persistence == _LocalPersistenceStatus.persisted) {
-      _scheduleRemoteSnapshotWrite(current);
-      return const AppRestorationMutationResult(
-        AppRestorationMutationStatus.persisted,
-      );
-    }
-    if (persistence == _LocalPersistenceStatus.storageFailure) {
-      return const AppRestorationMutationResult(
-        AppRestorationMutationStatus.storageFailure,
-      );
-    }
-    return const AppRestorationMutationResult(
-      AppRestorationMutationStatus.superseded,
-    );
+    current['updatedAtMs'] = DateTime.now().millisecondsSinceEpoch;
+    await _persistRawSnapshotLocally(userId, windowId, current);
+    _scheduleRemoteSnapshotWrite(current);
   }
 
   void _scheduleRemoteSnapshotWrite(Map<String, dynamic> raw) {
@@ -2833,85 +2087,7 @@ class AppRestorationService {
     }
   }
 
-  void _deferCalendarIntent(_PendingCalendarRestorationIntent intent) {
-    _pendingCalendarIntent = intent;
-    _log(
-      'calendar mutation deferred user=${intent.userId} '
-      'window=${intent.windowId} reason=auth_not_ready',
-    );
-  }
-
-  Future<AppRestorationMutationResult> _persistCalendarIntent(
-    _PendingCalendarRestorationIntent intent,
-  ) async {
-    final result = await _mutate(
-      (current) {
-        current['calendar'] = intent.state.toJson();
-      },
-      expectedUserId: intent.userId,
-      expectedWindowId: intent.windowId,
-    );
-    if (result.status == AppRestorationMutationStatus.notReady) {
-      if (_pendingCalendarIntent == null) {
-        _deferCalendarIntent(intent);
-      }
-      return const AppRestorationMutationResult(
-        AppRestorationMutationStatus.deferred,
-      );
-    }
-    if (result.status == AppRestorationMutationStatus.droppedUserMismatch) {
-      _log(
-        'calendar mutation dropped expected=${intent.userId} '
-        'reason=user_mismatch',
-      );
-    }
-    return result;
-  }
-
-  Future<AppRestorationMutationResult?> handleSessionReady(
-    String? userId,
-  ) async {
-    final normalizedUserId = userId?.trim();
-    if (normalizedUserId == null || normalizedUserId.isEmpty) {
-      return const AppRestorationMutationResult(
-        AppRestorationMutationStatus.notReady,
-      );
-    }
-    AppRestorationMutationResult? routeResult;
-    final routeIntent = _pendingLaunchRouteIntent;
-    _pendingLaunchRouteIntent = null;
-    if (routeIntent != null && routeIntent.userId != normalizedUserId) {
-      _log(
-        'launch route mutation dropped expected=${routeIntent.userId} '
-        'actual=$normalizedUserId reason=user_mismatch',
-      );
-      routeResult = const AppRestorationMutationResult(
-        AppRestorationMutationStatus.droppedUserMismatch,
-      );
-    } else if (routeIntent != null) {
-      routeResult = await _persistLaunchRouteIntent(routeIntent);
-    }
-
-    final calendarIntent = _pendingCalendarIntent;
-    _pendingCalendarIntent = null;
-    if (calendarIntent == null) return routeResult;
-    if (calendarIntent.userId != normalizedUserId) {
-      _log(
-        'calendar mutation dropped expected=${calendarIntent.userId} '
-        'actual=$normalizedUserId reason=user_mismatch',
-      );
-      return const AppRestorationMutationResult(
-        AppRestorationMutationStatus.droppedUserMismatch,
-      );
-    }
-    return _persistCalendarIntent(calendarIntent);
-  }
-
   Future<void> flushPendingWrites() async {
-    final userId = await _currentUserId();
-    if (userId != null) {
-      await handleSessionReady(userId);
-    }
     await _mutationQueue;
     await _remoteWriteQueue;
   }
@@ -2922,143 +2098,12 @@ class AppRestorationService {
       return;
     }
     final windowId = await _currentWindowId();
-    final durableStore = _durableSnapshotStore;
-    if (durableStore.isSupported) {
-      await durableStore.clearWindow(userId, windowId);
-    }
     final prefs = await _prefs();
     await prefs.remove(_prefsKey(userId, windowId));
     _writeCriticalSnapshot(windowId, null);
   }
 
-  bool recordPrimaryTabSelectionCriticalSnapshot(
-    String location, {
-    required NavigationLaunchRouteMetadata metadata,
-  }) {
-    final normalized = stableRouteLocationForContinuity(location);
-    final policy = const NavigationPersistencePolicy();
-    if (normalized == null ||
-        normalized.isEmpty ||
-        metadata.source != NavigationSource.userPrimaryTab ||
-        !metadata.isCurrentUserPrimaryDurable ||
-        !policy.isValidDurableLaunchRoute(normalized, metadata)) {
-      _log(
-        'critical primary route rejected input=$location '
-        'section=${metadata.section?.wireName ?? '<none>'} '
-        'reason=policy_rejected',
-      );
-      return false;
-    }
-
-    final userId = _currentUserIdNow();
-    final windowId = AppWindowService.instance.currentWindowId;
-    if (userId == null || windowId == null || windowId.isEmpty) {
-      _log(
-        'critical primary route rejected input=$location '
-        'section=${metadata.section?.wireName ?? '<none>'} '
-        'reason=identity_not_initialized',
-      );
-      return false;
-    }
-    if (_durableSnapshotStore.isSupported) {
-      _log(
-        'critical primary route skipped route=$normalized '
-        'section=${metadata.section?.wireName ?? '<none>'} '
-        'user=$userId window=$windowId '
-        'reason=acknowledged_transaction_required',
-      );
-      return false;
-    }
-
-    Map<String, dynamic>? decodeCritical(
-      String? serialized, {
-      required bool requireCurrentWindow,
-    }) {
-      if (serialized == null || serialized.trim().isEmpty) return null;
-      try {
-        final raw = _asJsonMap(jsonDecode(serialized));
-        if (raw == null) return null;
-        final snapshot = AppRestorationSnapshot.fromJson(raw);
-        if (snapshot == null || snapshot.userId != userId) return null;
-        if (requireCurrentWindow && snapshot.windowId != windowId) return null;
-        return Map<String, dynamic>.from(raw);
-      } catch (_) {
-        return null;
-      }
-    }
-
-    final currentCritical = decodeCritical(
-      _readCriticalSnapshot(windowId),
-      requireCurrentWindow: true,
-    );
-    final latestCritical = decodeCritical(
-      _readLatestCriticalSnapshot(userId),
-      requireCurrentWindow: false,
-    );
-    final currentUpdatedAtMs = _asInt(currentCritical?['updatedAtMs']) ?? -1;
-    final latestUpdatedAtMs = _asInt(latestCritical?['updatedAtMs']) ?? -1;
-    final baseline = latestUpdatedAtMs > currentUpdatedAtMs
-        ? latestCritical
-        : currentCritical;
-    final next = baseline == null
-        ? <String, dynamic>{}
-        : Map<String, dynamic>.from(baseline);
-    final durableUpdatedAtMs = currentUpdatedAtMs > latestUpdatedAtMs
-        ? currentUpdatedAtMs
-        : latestUpdatedAtMs;
-    final now = DateTime.now().millisecondsSinceEpoch;
-    final updatedAtMs = now > durableUpdatedAtMs ? now : durableUpdatedAtMs + 1;
-
-    next['schemaVersion'] = schemaVersion;
-    next['userId'] = userId;
-    next['windowId'] = windowId;
-    next['updatedAtMs'] = updatedAtMs;
-    next['routeLocation'] = normalized;
-    next[navigationLaunchRouteMetadataKey] = metadata.toJson();
-    next[navigationPrimarySelectionMetadataKey] = metadata.toJson();
-    final encoded = jsonEncode(next);
-
-    app_window_platform.registerCriticalSnapshotWindow(windowId);
-    _writeCriticalSnapshot(windowId, encoded);
-    _writeLatestCriticalSnapshot(userId, encoded);
-    final verifyCurrent =
-        debugCriticalSnapshotReader != null ||
-        app_window_platform.supportsSynchronousCriticalSnapshotStorage;
-    final verifyLatest =
-        debugLatestCriticalSnapshotReader != null ||
-        app_window_platform.supportsSynchronousCriticalSnapshotStorage;
-    final currentReadback = verifyCurrent
-        ? _readCriticalSnapshot(windowId)
-        : encoded;
-    final latestReadback = verifyLatest
-        ? _readLatestCriticalSnapshot(userId)
-        : encoded;
-    final expectedDigest = _storedRestorationContentDigest(encoded);
-    final currentCommitted =
-        currentReadback != null &&
-        _storedRestorationContentDigest(currentReadback) == expectedDigest;
-    final latestCommitted =
-        latestReadback != null &&
-        _storedRestorationContentDigest(latestReadback) == expectedDigest;
-    if (!currentCommitted || !latestCommitted) {
-      _log(
-        'critical primary route failed reason=durable_readback '
-        'route=$normalized section=${metadata.section?.wireName ?? '<none>'} '
-        'user=$userId window=$windowId current=$currentCommitted '
-        'latest=$latestCommitted updatedAtMs=$updatedAtMs',
-      );
-      return false;
-    }
-    _writePlatformLastActiveUserId(userId);
-    _log(
-      'critical primary route committed route=$normalized '
-      'section=${metadata.section?.wireName ?? '<none>'} '
-      'user=$userId window=$windowId updatedAtMs=$updatedAtMs',
-    );
-    return true;
-  }
-
-  Future<AppRestorationMutationResult> saveDurableLaunchRoute(
+  Future<void> saveDurableLaunchRoute(
     String location, {
     required NavigationLaunchRouteMetadata metadata,
   }) async {
@@ -3075,9 +2120,7 @@ class AppRestorationService {
         'canonical=${metadata.canonicalRoute ?? '<none>'} '
         'reason=policy_rejected',
       );
-      return const AppRestorationMutationResult(
-        AppRestorationMutationStatus.invalid,
-      );
+      return;
     }
     if (!_sourceCanPersistDurableSurface(metadata.source)) {
       _log(
@@ -3089,9 +2132,7 @@ class AppRestorationService {
         'canonical=${metadata.canonicalRoute ?? '<none>'} '
         'reason=passive_source_cannot_persist',
       );
-      return const AppRestorationMutationResult(
-        AppRestorationMutationStatus.invalid,
-      );
+      return;
     }
     _log(
       'save launch route input=$location sanitized=$normalized '
@@ -3101,184 +2142,105 @@ class AppRestorationService {
       'section=${metadata.section?.wireName ?? '<none>'} '
       'canonical=${metadata.canonicalRoute ?? '<none>'} accepted=true',
     );
-    final activeUserId = await _currentUserId();
-    final boundUserId = activeUserId ?? await _readBootFallbackUserId();
-    if (boundUserId == null) {
-      _log('launch route mutation rejected reason=no_bound_user');
-      return const AppRestorationMutationResult(
-        AppRestorationMutationStatus.notReady,
-      );
-    }
-    final intent = _PendingLaunchRouteRestorationIntent(
-      userId: boundUserId,
-      windowId: await _currentWindowId(),
-      location: normalized,
-      metadata: metadata,
-    );
-    if (activeUserId == null) {
-      _deferLaunchRouteIntent(intent);
-      return const AppRestorationMutationResult(
-        AppRestorationMutationStatus.deferred,
-      );
-    }
-    return _persistLaunchRouteIntent(intent);
-  }
-
-  void _deferLaunchRouteIntent(_PendingLaunchRouteRestorationIntent intent) {
-    _pendingLaunchRouteIntent = intent;
-    _log(
-      'launch route mutation deferred user=${intent.userId} '
-      'window=${intent.windowId} route=${intent.location} '
-      'reason=auth_not_ready',
-    );
-  }
-
-  Future<AppRestorationMutationResult> _persistLaunchRouteIntent(
-    _PendingLaunchRouteRestorationIntent intent,
-  ) async {
-    final location = intent.location;
-    final metadata = intent.metadata;
-    final result = await _mutate(
-      (current) {
-        if (_isRootRouteLocation(location) &&
-            !_sourceCanEvictDurableSurface(metadata.source)) {
-          final existingMetadata = NavigationLaunchRouteMetadata.fromJson(
-            current[navigationLaunchRouteMetadataKey],
-          );
-          final existingRoute = (current['routeLocation'] as String?)?.trim();
-          if (existingMetadata?.source == NavigationSource.userPrimaryTab &&
-              !_isRootRouteLocation(existingRoute)) {
-            _log(
-              'save launch route rejected input=$location '
-              'source=${metadata.source.wireName} '
-              'classification=${metadata.routeClass.wireName} '
-              'schemaVersion=${metadata.schemaVersion} '
-              'section=${metadata.section?.wireName ?? '<none>'} '
-              'canonical=${metadata.canonicalRoute ?? '<none>'} '
-              'existingRoute=${existingRoute ?? '<none>'} '
-              'existingSource=${existingMetadata!.source.wireName} '
-              'reason=programmatic_root_cannot_evict_user_primary',
-            );
-            return;
-          }
-          final primaryMetadata = NavigationLaunchRouteMetadata.fromJson(
-            current[navigationPrimarySelectionMetadataKey],
-          );
-          final primaryRoute = primaryMetadata?.canonicalRoute?.trim();
-          if (primaryMetadata?.source == NavigationSource.userPrimaryTab &&
-              primaryRoute != null &&
-              primaryRoute.isNotEmpty &&
-              !_isRootRouteLocation(primaryRoute) &&
-              const NavigationPersistencePolicy().isValidPrimarySelection(
-                primaryMetadata,
-              )) {
-            _log(
-              'save launch route rejected input=$location '
-              'source=${metadata.source.wireName} '
-              'classification=${metadata.routeClass.wireName} '
-              'schemaVersion=${metadata.schemaVersion} '
-              'section=${metadata.section?.wireName ?? '<none>'} '
-              'canonical=${metadata.canonicalRoute ?? '<none>'} '
-              'primaryRoute=$primaryRoute '
-              'primarySource=${primaryMetadata!.source.wireName} '
-              'reason=programmatic_root_cannot_evict_primary_selection',
-            );
-            return;
-          }
-          if (existingRoute != null && !_isRootRouteLocation(existingRoute)) {
-            _log(
-              'save launch route rejected input=$location '
-              'source=${metadata.source.wireName} '
-              'classification=${metadata.routeClass.wireName} '
-              'schemaVersion=${metadata.schemaVersion} '
-              'section=${metadata.section?.wireName ?? '<none>'} '
-              'canonical=${metadata.canonicalRoute ?? '<none>'} '
-              'existingRoute=$existingRoute '
-              'reason=programmatic_root_cannot_evict_durable_surface',
-            );
-            return;
-          }
-        }
-        final previous = (current['routeLocation'] as String?)?.trim();
-        current['routeLocation'] = location;
-        current[navigationLaunchRouteMetadataKey] = metadata.toJson();
-        if (metadata.isCurrentUserPrimaryDurable) {
-          current[navigationPrimarySelectionMetadataKey] = metadata.toJson();
-        } else if (_isRootRouteLocation(location) &&
-            _sourceClearsPrimarySelectionOnRoot(metadata.source)) {
-          current.remove(navigationPrimarySelectionMetadataKey);
-        }
-        _log(
-          'save launch route committed before='
-          '${previous == null || previous.isEmpty ? '<none>' : previous} '
-          'after=$location source=${metadata.source.wireName} '
-          'classification=${metadata.routeClass.wireName} '
-          'section=${metadata.section?.wireName ?? '<none>'}',
+    await _mutate((current) {
+      if (_isRootRouteLocation(normalized) &&
+          !_sourceCanEvictDurableSurface(metadata.source)) {
+        final existingMetadata = NavigationLaunchRouteMetadata.fromJson(
+          current[navigationLaunchRouteMetadataKey],
         );
-      },
-      expectedUserId: intent.userId,
-      expectedWindowId: intent.windowId,
-    );
-    if (result.status == AppRestorationMutationStatus.notReady) {
-      if (_pendingLaunchRouteIntent == null) {
-        _deferLaunchRouteIntent(intent);
+        final existingRoute = (current['routeLocation'] as String?)?.trim();
+        if (existingMetadata?.source == NavigationSource.userPrimaryTab &&
+            !_isRootRouteLocation(existingRoute)) {
+          _log(
+            'save launch route rejected input=$location '
+            'source=${metadata.source.wireName} '
+            'classification=${metadata.routeClass.wireName} '
+            'schemaVersion=${metadata.schemaVersion} '
+            'section=${metadata.section?.wireName ?? '<none>'} '
+            'canonical=${metadata.canonicalRoute ?? '<none>'} '
+            'existingRoute=${existingRoute ?? '<none>'} '
+            'existingSource=${existingMetadata!.source.wireName} '
+            'reason=programmatic_root_cannot_evict_user_primary',
+          );
+          return;
+        }
+        final primaryMetadata = NavigationLaunchRouteMetadata.fromJson(
+          current[navigationPrimarySelectionMetadataKey],
+        );
+        final primaryRoute = primaryMetadata?.canonicalRoute?.trim();
+        if (primaryMetadata?.source == NavigationSource.userPrimaryTab &&
+            primaryRoute != null &&
+            primaryRoute.isNotEmpty &&
+            !_isRootRouteLocation(primaryRoute) &&
+            const NavigationPersistencePolicy().isValidPrimarySelection(
+              primaryMetadata,
+            )) {
+          _log(
+            'save launch route rejected input=$location '
+            'source=${metadata.source.wireName} '
+            'classification=${metadata.routeClass.wireName} '
+            'schemaVersion=${metadata.schemaVersion} '
+            'section=${metadata.section?.wireName ?? '<none>'} '
+            'canonical=${metadata.canonicalRoute ?? '<none>'} '
+            'primaryRoute=$primaryRoute '
+            'primarySource=${primaryMetadata!.source.wireName} '
+            'reason=programmatic_root_cannot_evict_primary_selection',
+          );
+          return;
+        }
+        if (existingRoute != null && !_isRootRouteLocation(existingRoute)) {
+          _log(
+            'save launch route rejected input=$location '
+            'source=${metadata.source.wireName} '
+            'classification=${metadata.routeClass.wireName} '
+            'schemaVersion=${metadata.schemaVersion} '
+            'section=${metadata.section?.wireName ?? '<none>'} '
+            'canonical=${metadata.canonicalRoute ?? '<none>'} '
+            'existingRoute=$existingRoute '
+            'reason=programmatic_root_cannot_evict_durable_surface',
+          );
+          return;
+        }
       }
-      return const AppRestorationMutationResult(
-        AppRestorationMutationStatus.deferred,
-      );
-    }
-    if (result.status == AppRestorationMutationStatus.droppedUserMismatch) {
+      final previous = (current['routeLocation'] as String?)?.trim();
+      current['routeLocation'] = normalized;
+      current[navigationLaunchRouteMetadataKey] = metadata.toJson();
+      if (metadata.isCurrentUserPrimaryDurable) {
+        current[navigationPrimarySelectionMetadataKey] = metadata.toJson();
+      } else if (_isRootRouteLocation(normalized) &&
+          _sourceClearsPrimarySelectionOnRoot(metadata.source)) {
+        current.remove(navigationPrimarySelectionMetadataKey);
+      }
       _log(
-        'launch route mutation dropped expected=${intent.userId} '
-        'route=$location reason=user_mismatch',
+        'save launch route committed before='
+        '${previous == null || previous.isEmpty ? '<none>' : previous} '
+        'after=$normalized source=${metadata.source.wireName} '
+        'classification=${metadata.routeClass.wireName} '
+        'section=${metadata.section?.wireName ?? '<none>'}',
       );
-    }
-    return result;
+    });
   }
 
   Future<CalendarRestorationState?> readCalendarState() async {
     return (await readSnapshot())?.calendar;
   }
 
-  Future<AppRestorationMutationResult> saveCalendarState(
-    CalendarRestorationState state,
-  ) async {
+  Future<void> saveCalendarState(CalendarRestorationState state) async {
     final validated = CalendarRestorationState.fromJson(state.toJson());
     if (validated == null) {
-      return const AppRestorationMutationResult(
-        AppRestorationMutationStatus.invalid,
-      );
+      return;
     }
-    final activeUserId = await _currentUserId();
-    final boundUserId = activeUserId ?? await _readBootFallbackUserId();
-    if (boundUserId == null) {
-      _log('calendar mutation rejected reason=no_bound_user');
-      return const AppRestorationMutationResult(
-        AppRestorationMutationStatus.notReady,
-      );
-    }
-    final intent = _PendingCalendarRestorationIntent(
-      userId: boundUserId,
-      windowId: await _currentWindowId(),
-      state: validated,
-    );
-    if (activeUserId == null) {
-      _deferCalendarIntent(intent);
-      return const AppRestorationMutationResult(
-        AppRestorationMutationStatus.deferred,
-      );
-    }
-    return _persistCalendarIntent(intent);
+    await _mutate((current) {
+      current['calendar'] = validated.toJson();
+    });
   }
 
   Future<DayViewRestorationState?> readDayViewState() async {
     return (await readSnapshot())?.dayView;
   }
 
-  Future<AppRestorationMutationResult> saveDayViewState(
-    DayViewRestorationState? state,
-  ) async {
-    return _mutate((current) {
+  Future<void> saveDayViewState(DayViewRestorationState? state) async {
+    await _mutate((current) {
       if (state == null) {
         current.remove('dayView');
         return;
@@ -3300,10 +2262,8 @@ class AppRestorationService {
     return Map<String, dynamic>.from(raw);
   }
 
-  Future<AppRestorationMutationResult> saveDaySheetState(
-    Map<String, dynamic>? state,
-  ) async {
-    return _mutate((current) {
+  Future<void> saveDaySheetState(Map<String, dynamic>? state) async {
+    await _mutate((current) {
       if (state == null || state.isEmpty) {
         current.remove('daySheet');
       } else {
@@ -3322,17 +2282,12 @@ class AppRestorationService {
     return state == null ? null : Map<String, dynamic>.from(state);
   }
 
-  Future<AppRestorationMutationResult> saveSurfaceState(
-    String key,
-    Map<String, dynamic>? state,
-  ) async {
+  Future<void> saveSurfaceState(String key, Map<String, dynamic>? state) async {
     final normalizedKey = key.trim();
     if (normalizedKey.isEmpty) {
-      return const AppRestorationMutationResult(
-        AppRestorationMutationStatus.invalid,
-      );
+      return;
     }
-    return _mutate((current) {
+    await _mutate((current) {
       final surfaces = _asJsonMapByKey(current['surfaces']);
       final next = <String, Map<String, dynamic>>{...surfaces};
       if (state == null || state.isEmpty) {
@@ -3356,7 +2311,7 @@ class AppRestorationService {
         const <Map<String, dynamic>>[];
   }
 
-  Future<AppRestorationMutationResult> saveOverlayStack(
+  Future<void> saveOverlayStack(
     List<Map<String, dynamic>> overlayStack, {
     OverlayStackMutationReason reason = OverlayStackMutationReason.programmatic,
   }) async {
@@ -3378,7 +2333,7 @@ class AppRestorationService {
       'overlay=${_overlayStackTrace(next)}'
       '${dismissedAtMs == null ? '' : ' dismissedAtMs=$dismissedAtMs'}',
     );
-    return _mutate((current) {
+    await _mutate((current) {
       if (next.isEmpty) {
         current.remove('overlayStack');
         if (dismissedAtMs != null) {
@@ -3401,17 +2356,12 @@ class AppRestorationService {
     return state == null ? null : Map<String, dynamic>.from(state);
   }
 
-  Future<AppRestorationMutationResult> saveEditorState(
-    String key,
-    Map<String, dynamic>? state,
-  ) async {
+  Future<void> saveEditorState(String key, Map<String, dynamic>? state) async {
     final normalizedKey = key.trim();
     if (normalizedKey.isEmpty) {
-      return const AppRestorationMutationResult(
-        AppRestorationMutationStatus.invalid,
-      );
+      return;
     }
-    return _mutate((current) {
+    await _mutate((current) {
       final editors = _asJsonMapByKey(current['editors']);
       final next = <String, Map<String, dynamic>>{...editors};
       if (state == null || state.isEmpty) {
@@ -3433,10 +2383,8 @@ class AppRestorationService {
     return hints == null ? null : Map<String, dynamic>.from(hints);
   }
 
-  Future<AppRestorationMutationResult> saveCacheHints(
-    Map<String, dynamic>? hints,
-  ) async {
-    return _mutate((current) {
+  Future<void> saveCacheHints(Map<String, dynamic>? hints) async {
+    await _mutate((current) {
       if (hints == null || hints.isEmpty) {
         current.remove('cacheHints');
       } else {

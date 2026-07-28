@@ -166,51 +166,15 @@ void main() {
         'Future<bool> _handlePushNavigation(Map<String, dynamic> data) async {',
         'void _openSharedFlow(String shareId) {',
       );
-      final decanReflectionPushGate = _sourceBetween(
-        mainSource,
-        'Future<bool> _canOpenDecanReflectionPush(',
-        'Future<bool> _canOpenMaatGuidancePush(',
-      );
-      final maatGuidancePushGate = _sourceBetween(
-        mainSource,
-        'Future<bool> _canOpenMaatGuidancePush(',
-        'void _openSharedFlow(String shareId) {',
-      );
 
       expect(pushNavigationSource, contains("kind == 'maat_guidance'"));
       expect(
         pushNavigationSource,
         contains("deliveryKey.startsWith('maat_guidance:')"),
       );
-      expect(
-        pushNavigationSource,
-        contains('await _canOpenMaatGuidancePush(uid, deliveryId: id)'),
-      );
       expect(pushNavigationSource, contains("'/maat-guidance/"));
       expect(pushNavigationSource, contains("kind == 'decan_reflection'"));
       expect(pushNavigationSource, contains("'/reflections/"));
-      expect(
-        decanReflectionPushGate,
-        contains('loadLocalReconciledWithLegacyCompletion('),
-      );
-      expect(
-        decanReflectionPushGate.indexOf(
-          'loadLocalReconciledWithLegacyCompletion(',
-        ),
-        lessThan(decanReflectionPushGate.indexOf('isCompletedLocally(userId)')),
-      );
-      expect(decanReflectionPushGate, isNot(contains('loadLocalIfPresent(')));
-      expect(
-        maatGuidancePushGate,
-        contains('loadLocalReconciledWithLegacyCompletion('),
-      );
-      expect(
-        maatGuidancePushGate.indexOf(
-          'loadLocalReconciledWithLegacyCompletion(',
-        ),
-        lessThan(maatGuidancePushGate.indexOf('isCompletedLocally(userId)')),
-      );
-      expect(maatGuidancePushGate, isNot(contains('loadLocalIfPresent(')));
       expect(pushNavigationSource, contains("kind == 'calendar_event'"));
       expect(
         pushNavigationSource,
@@ -260,26 +224,16 @@ void main() {
       expect(initialRouteSource, contains("kind == 'decan_reflection'"));
       expect(
         initialRouteSource,
-        contains("if (kind == 'decan_reflection' && reflectionId != null)"),
+        contains("'/reflections/\${Uri.encodeComponent(reflectionId)}'"),
       );
-      expect(initialRouteSource, contains("return '/';"));
       expect(initialRouteSource, isNot(contains('node_ref')));
       expect(initialRouteSource, isNot(contains('/nodes/')));
       expect(pushNavigationSource, contains("kind == 'decan_reflection'"));
-      expect(pushNavigationSource, contains('reflectionId: reflectionId'));
-      expect(
-        pushNavigationSource,
-        contains('DecanReflectionOnboardingGate.shouldBlock'),
-      );
       expect(
         pushNavigationSource,
         contains(
           "_router.go('/reflections/\${Uri.encodeComponent(reflectionId)}')",
         ),
-      );
-      expect(
-        pushNavigationSource,
-        contains('progress.currentStep != TrueOnboardingStep.complete'),
       );
       final decanReflectionNavigationSource = _sourceBetween(
         pushNavigationSource,
@@ -317,10 +271,15 @@ void main() {
           'void _startInitialTasks()',
           'void _consumePendingWebPushIntent()',
         );
-        final normalBootReadSource = _sourceBetween(
+        final mainBootReadSource = _sourceBetween(
           mainSource,
-          'await _readBootInitialAppLinkIntent();',
+          'await AppWindowService.instance.ensureInitialized();',
           'final initialLocation = _resolveInitialLocation();',
+        );
+        final normalBootReadSource = _sourceBetween(
+          mainBootReadSource,
+          '} else {',
+          '}\n    ',
         );
 
         expect(pushSource, contains('class PushInitialMessage'));

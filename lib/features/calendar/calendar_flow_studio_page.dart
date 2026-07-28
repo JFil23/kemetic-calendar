@@ -338,9 +338,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   int _flowAlertMinutesBefore = _alertNoneMinutes;
   bool _flowAlertMixed = false;
   String? _selectedCalendarId;
-  final Map<String, SharedCalendarSummary> _detachedCalendarSummariesById =
-      <String, SharedCalendarSummary>{};
-  String? _detachedPersonalCalendarId;
 
   // analytics
   int _originalEventCount = 0; // Store count of AI-generated events
@@ -353,34 +350,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
   Future<void> _ensureCalendarChoicesLoaded() async {
     final pageState = _calendarPageState;
-    if (pageState == null) {
-      final currentCalendarId = _selectedCalendarId ?? _editing?.calendarId;
-      try {
-        final loaded = await CalendarPage._loadHeadlessEditableCalendarsForFlow(
-          currentCalendarId,
-        );
-        if (!mounted) return;
-        _detachedCalendarSummariesById
-          ..clear()
-          ..addEntries(
-            loaded.calendars.map(
-              (calendar) => MapEntry<String, SharedCalendarSummary>(
-                calendar.id,
-                calendar,
-              ),
-            ),
-          );
-        _detachedPersonalCalendarId = loaded.personalCalendarId;
-      } catch (e) {
-        if (kDebugMode) {
-          _calendarDebugPrint(
-            '[FlowStudio] detached calendar choices load failed: $e',
-          );
-        }
-      }
-      return;
-    }
-    if (pageState._calendarStateLoaded) return;
+    if (pageState == null || pageState._calendarStateLoaded) return;
     try {
       await pageState._loadCalendarState();
     } catch (e) {
@@ -392,11 +362,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
   List<SharedCalendarSummary> get _editableCalendars {
     final pageState = _calendarPageState;
+    if (pageState == null) return const <SharedCalendarSummary>[];
     final currentCalendarId = _selectedCalendarId ?? _editing?.calendarId;
-    final summaries =
-        pageState?._calendarSummariesById.values ??
-        _detachedCalendarSummariesById.values;
-    final calendars = summaries
+    final calendars = pageState._calendarSummariesById.values
         .where(
           (calendar) => calendar.canEdit || currentCalendarId == calendar.id,
         )
@@ -409,19 +377,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     return calendars;
   }
 
-  SharedCalendarSummary? _calendarSummaryFor(String? calendarId) {
-    final trimmed = calendarId?.trim();
-    if (trimmed == null || trimmed.isEmpty) return null;
-    return _calendarPageState?._calendarSummariesById[trimmed] ??
-        _detachedCalendarSummariesById[trimmed];
-  }
-
   String? _defaultCalendarId() {
     final routeCalendarId = _routeInitialCalendarId();
     if (routeCalendarId != null) return routeCalendarId;
     final pageState = _calendarPageState;
-    final personalCalendarId =
-        pageState?._personalCalendarId ?? _detachedPersonalCalendarId;
+    final personalCalendarId = pageState?._personalCalendarId;
     if (personalCalendarId != null && personalCalendarId.isNotEmpty) {
       return personalCalendarId;
     }
@@ -442,7 +402,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   String _calendarLabelFor(String? calendarId) {
     final trimmed = calendarId?.trim();
     if (trimmed == null || trimmed.isEmpty) return 'My Calendar';
-    final summary = _calendarSummaryFor(trimmed);
+    final summary = _calendarPageState?._calendarSummariesById[trimmed];
     final name = summary?.name.trim();
     if (name != null && name.isNotEmpty) return name;
     return 'My Calendar';
@@ -451,7 +411,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   bool _canEditCalendar(String? calendarId) {
     final trimmed = calendarId?.trim();
     if (trimmed == null || trimmed.isEmpty) return true;
-    final summary = _calendarSummaryFor(trimmed);
+    final summary = _calendarPageState?._calendarSummariesById[trimmed];
     return summary?.canEdit ?? true;
   }
 
@@ -1890,17 +1850,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       return;
     }
 
-    if ((_startDate == null) != (_endDate == null)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Pick both start and end dates before saving a scheduled flow.',
-          ),
-        ),
-      );
-      return;
-    }
-
     // require rule choices only if a range is set
     if (_hasFullRange) {
       if (_useKemetic) {
@@ -1924,15 +1873,6 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           return;
         }
       }
-    }
-
-    if (_hasFullRange && _computeSelectedDays().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Pick at least one date inside the selected range.'),
-        ),
-      );
-      return;
     }
 
     // normalize
@@ -4685,7 +4625,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         _selectedCalendarId ?? _editing?.calendarId ?? _defaultCalendarId();
     final selectedCalendar = selectedCalendarId == null
         ? null
-        : _calendarSummaryFor(selectedCalendarId);
+        : _calendarPageState?._calendarSummariesById[selectedCalendarId];
     final canEditSelectedCalendar = _canEditCalendar(selectedCalendarId);
     final bodyPadding = EdgeInsets.fromLTRB(
       22,
@@ -4942,11 +4882,39 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
                       }
                       final calendars = _editableCalendars;
                       if (calendars.isEmpty) return;
-                      final chosenId = await _showCalendarChoiceSheet(
-                        context: context,
-                        calendars: calendars,
-                        selectedCalendarId:
-                            _selectedCalendarId ?? _editing?.calendarId,
+                      final sheetContext = context;
+                      final chosenId = await showCupertinoModalPopup<String>(
+                        context: sheetContext,
+                        builder: (popupCtx) {
+                          return CupertinoActionSheet(
+                            title: const GlossyText(
+                              text: 'Calendar',
+                              gradient: silverGloss,
+                              style: TextStyle(fontSize: 18),
+                            ),
+                            actions: [
+                              for (final calendar in calendars)
+                                CupertinoActionSheetAction(
+                                  onPressed: () {
+                                    Navigator.of(popupCtx).pop(calendar.id);
+                                  },
+                                  child: Text(
+                                    calendar.name,
+                                    style: TextStyle(
+                                      color: calendar.color,
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                            ],
+                            cancelButton: CupertinoActionSheetAction(
+                              isDestructiveAction: true,
+                              onPressed: () => Navigator.of(popupCtx).pop(),
+                              child: const Text('Cancel'),
+                            ),
+                          );
+                        },
                       );
                       if (chosenId == null) return;
                       setState(() {
@@ -4956,35 +4924,27 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
               child: Padding(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _studioSectionLabel('Calendar'),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Flexible(
-                            child: Text(
-                              _calendarLabelFor(selectedCalendarId),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.right,
-                              style: TextStyle(
-                                color: selectedCalendar?.color ?? _gold,
-                                fontSize: 17,
-                                fontWeight: FontWeight.w600,
-                                fontFamily: 'GentiumPlus',
-                              ),
-                            ),
+                    Row(
+                      children: [
+                        Text(
+                          _calendarLabelFor(selectedCalendarId),
+                          style: TextStyle(
+                            color: selectedCalendar?.color ?? _gold,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'GentiumPlus',
                           ),
-                          const SizedBox(width: 4),
-                          const Icon(
-                            Icons.chevron_right,
-                            size: 18,
-                            color: Color(0xFF6F604A),
-                          ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(
+                          Icons.chevron_right,
+                          size: 18,
+                          color: Color(0xFF6F604A),
+                        ),
+                      ],
                     ),
                   ],
                 ),

@@ -12,12 +12,10 @@ import 'package:mobile/shared/glossy_text.dart';
 import '../../core/navigation_fallback.dart';
 import '../../main.dart' show Events, appEnvironmentEnv;
 import '../../services/calendar_sync_service.dart';
-import '../../services/google_calendar_web_import_provider.dart';
 import '../../services/navigation_trace.dart';
 import '../../services/push_notifications.dart';
 import '../../services/speech/speech_service.dart';
 import '../../utils/external_link_utils.dart';
-import '../../widgets/responsive_content_rail.dart';
 import '../calendar/calendar_page.dart';
 import '../calendar/notify.dart';
 import '../calendar/speech_resolver.dart';
@@ -27,33 +25,7 @@ import 'settings_prefs.dart';
 import 'us_holiday_seeder.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key})
-    : _debugSignOut = null,
-      _debugCalendarStatusLoader = null,
-      _debugPushDiagnosticsLoader = null,
-      _debugHasSession = null,
-      _debugUseWebCalendarPresentation = null;
-
-  @visibleForTesting
-  const SettingsPage.forTesting({
-    super.key,
-    Future<void> Function()? signOut,
-    Future<CalendarSyncStatus> Function()? calendarStatusLoader,
-    Future<PushRegistrationDiagnostics> Function()? pushDiagnosticsLoader,
-    bool? hasSession,
-    bool? useWebCalendarPresentation,
-  }) : _debugSignOut = signOut,
-       _debugCalendarStatusLoader = calendarStatusLoader,
-       _debugPushDiagnosticsLoader = pushDiagnosticsLoader,
-       _debugHasSession = hasSession,
-       _debugUseWebCalendarPresentation = useWebCalendarPresentation;
-
-  final Future<void> Function()? _debugSignOut;
-  final Future<CalendarSyncStatus> Function()? _debugCalendarStatusLoader;
-  final Future<PushRegistrationDiagnostics> Function()?
-  _debugPushDiagnosticsLoader;
-  final bool? _debugHasSession;
-  final bool? _debugUseWebCalendarPresentation;
+  const SettingsPage({super.key});
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -121,24 +93,9 @@ class _SettingsPageState extends State<SettingsPage> {
     debugLabel: 'settings_controls_helper',
   );
 
-  bool get _hasSession =>
-      widget._debugHasSession ??
-      Supabase.instance.client.auth.currentSession != null;
-  bool get _usesWebCalendarPresentation =>
-      widget._debugUseWebCalendarPresentation ?? kIsWeb;
-  bool get _nativeCalendarSyncAvailable => !_usesWebCalendarPresentation;
-  bool get _calendarImportAvailable => true;
+  bool get _hasSession => Supabase.instance.client.auth.currentSession != null;
+  bool get _nativeCalendarSyncAvailable => !kIsWeb;
   bool get _calendarBusy => _syncingCalendar || _unlinkingCalendar;
-
-  CalendarSyncService _calendarSyncService() {
-    final client = Supabase.instance.client;
-    return sharedCalendarSyncService(
-      client,
-      webImportProvider: kIsWeb
-          ? GoogleCalendarWebImportProvider(client)
-          : null,
-    );
-  }
 
   Future<void> _signOut() async {
     if (_signingOut) return;
@@ -149,12 +106,7 @@ class _SettingsPageState extends State<SettingsPage> {
     });
 
     try {
-      final signOut = widget._debugSignOut;
-      if (signOut != null) {
-        await signOut();
-      } else {
-        await Supabase.instance.client.auth.signOut();
-      }
+      await Supabase.instance.client.auth.signOut();
       if (!mounted) return;
 
       context.go('/');
@@ -190,15 +142,17 @@ class _SettingsPageState extends State<SettingsPage> {
     final prefs = await SharedPreferences.getInstance();
     await SettingsPrefs.clearLegacyReminderPrefs(prefs);
 
-    final calendarStatus =
-        await (widget._debugCalendarStatusLoader?.call() ??
-            _calendarSyncService().getStatus());
+    CalendarSyncStatus? calendarStatus;
+    if (_nativeCalendarSyncAvailable) {
+      final sync = sharedCalendarSyncService(Supabase.instance.client);
+      calendarStatus = await sync.getStatus();
+    }
 
     if (!mounted) return;
     setState(() {
       _realTimeAlerts = SettingsPrefs.realTimeAlertsEnabledFrom(prefs);
       _autoCalendarSync =
-          _calendarImportAvailable &&
+          _nativeCalendarSyncAvailable &&
           SettingsPrefs.autoCalendarSyncEnabledFrom(prefs);
       _usHolidaysEnabled = SettingsPrefs.usHolidaysEnabledFrom(prefs);
       _dailyCosmicContextBadgeEnabled =
@@ -217,7 +171,6 @@ class _SettingsPageState extends State<SettingsPage> {
       unawaited(_refreshPushTestReceiptStatus());
     }
     unawaited(_maybeShowSettingsHelper());
-    unawaited(_resumePendingWebCalendarImport());
   }
 
   Future<void> _maybeShowSettingsHelper() async {
@@ -262,28 +215,6 @@ class _SettingsPageState extends State<SettingsPage> {
         },
       ),
     );
-  }
-
-  Future<void> _resumePendingWebCalendarImport() async {
-    if (!kIsWeb || !_hasSession) return;
-    final sync = _calendarSyncService();
-    if (!await sync.hasPendingWebImport()) return;
-
-    if (!await sync.hasWebCalendarReadAccess()) {
-      await sync.clearPendingWebImport();
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text(
-            'Google Calendar was not connected. Try import again when you are ready.',
-          ),
-          backgroundColor: Colors.orange.shade700,
-        ),
-      );
-      return;
-    }
-
-    await _syncCalendarNow();
   }
 
   Future<void> _save() async {
@@ -502,7 +433,10 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _refreshCalendarStatus() async {
-    final status = await _calendarSyncService().getStatus();
+    if (!_nativeCalendarSyncAvailable) return;
+    final status = await sharedCalendarSyncService(
+      Supabase.instance.client,
+    ).getStatus();
     if (!mounted) return;
     setState(() {
       _calendarSyncStatus = status;
@@ -586,11 +520,9 @@ class _SettingsPageState extends State<SettingsPage> {
       _loadingPushDiagnostics = true;
     });
 
-    final diagnostics =
-        await (widget._debugPushDiagnosticsLoader?.call() ??
-            PushNotifications.instance(
-              Supabase.instance.client,
-            ).getDiagnostics());
+    final diagnostics = await PushNotifications.instance(
+      Supabase.instance.client,
+    ).getDiagnostics();
 
     if (!mounted) return;
     setState(() {
@@ -774,8 +706,10 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _setAutoCalendarSync(bool enabled) async {
+    if (!_nativeCalendarSyncAvailable) return;
+
     final messenger = ScaffoldMessenger.of(context);
-    final sync = _calendarSyncService();
+    final sync = sharedCalendarSyncService(Supabase.instance.client);
 
     setState(() {
       _autoCalendarSync = enabled;
@@ -792,7 +726,7 @@ class _SettingsPageState extends State<SettingsPage> {
       messenger.showSnackBar(
         SnackBar(
           content: const Text(
-            'Automatic calendar import turned off. You can still import manually.',
+            'Automatic calendar sync turned off. You can still sync manually.',
           ),
           backgroundColor: Colors.green.shade700,
         ),
@@ -808,7 +742,7 @@ class _SettingsPageState extends State<SettingsPage> {
       messenger.showSnackBar(
         SnackBar(
           content: const Text(
-            'Automatic calendar import will start after you sign in.',
+            'Automatic calendar sync will start after you sign in.',
           ),
           backgroundColor: Colors.orange.shade700,
         ),
@@ -817,37 +751,20 @@ class _SettingsPageState extends State<SettingsPage> {
     }
 
     try {
-      final result = kIsWeb
-          ? await sync.sync(interactive: true)
-          : await sync.start().then(
-              (_) => const CalendarSyncRunResult.synced(),
-            );
-      if (result.didSync) {
-        final calendarState = CalendarPage.globalKey.currentState;
-        if (calendarState != null) {
-          await calendarState.reloadFromOutside();
-        }
-      }
+      await sync.start();
       await _refreshCalendarStatus();
       if (!mounted) return;
-      if (result.state == CalendarSyncRunState.authorizationStarted) {
-        return;
-      }
-      if (result.state == CalendarSyncRunState.authorizationRequired) {
-        _showCalendarSyncResult(result);
-      } else {
-        messenger.showSnackBar(
-          SnackBar(
-            content: const Text('Automatic calendar import turned on.'),
-            backgroundColor: Colors.green.shade700,
-          ),
-        );
-      }
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text('Automatic calendar sync turned on.'),
+          backgroundColor: Colors.green.shade700,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Could not start automatic calendar import: $e'),
+          content: Text('Could not start automatic calendar sync: $e'),
           backgroundColor: Colors.red.shade700,
         ),
       );
@@ -930,12 +847,25 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _syncCalendarNow() async {
+    final client = Supabase.instance.client;
     final messenger = ScaffoldMessenger.of(context);
+
+    if (!_nativeCalendarSyncAvailable) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Native calendar sync is only available in the iOS/Android app.',
+          ),
+          backgroundColor: Colors.orange.shade700,
+        ),
+      );
+      return;
+    }
 
     if (!_hasSession) {
       messenger.showSnackBar(
         SnackBar(
-          content: const Text('Sign in to import your external calendar.'),
+          content: const Text('Sign in to sync your device calendar.'),
           backgroundColor: Colors.red.shade700,
         ),
       );
@@ -947,7 +877,7 @@ class _SettingsPageState extends State<SettingsPage> {
     });
 
     try {
-      final sync = _calendarSyncService();
+      final sync = sharedCalendarSyncService(client);
       final result = await sync.sync(interactive: true);
 
       if (result.didSync) {
@@ -959,15 +889,13 @@ class _SettingsPageState extends State<SettingsPage> {
 
       await _refreshCalendarStatus();
       if (mounted) {
-        if (result.state != CalendarSyncRunState.authorizationStarted) {
-          _showCalendarSyncResult(result);
-        }
+        _showCalendarSyncResult(result);
       }
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Calendar import failed: $e'),
+          content: Text('Calendar sync failed: $e'),
           backgroundColor: Colors.red.shade700,
         ),
       );
@@ -981,14 +909,25 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   Future<void> _unlinkCalendarAccounts() async {
+    final client = Supabase.instance.client;
     final messenger = ScaffoldMessenger.of(context);
+
+    if (!_nativeCalendarSyncAvailable) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: const Text(
+            'Native calendar unlink cleanup is only available in the iOS/Android app.',
+          ),
+          backgroundColor: Colors.orange.shade700,
+        ),
+      );
+      return;
+    }
 
     if (!_hasSession) {
       messenger.showSnackBar(
         SnackBar(
-          content: const Text(
-            'Sign in before clearing imported calendar data.',
-          ),
+          content: const Text('Sign in before unlinking synced calendar data.'),
           backgroundColor: Colors.red.shade700,
         ),
       );
@@ -1001,11 +940,11 @@ class _SettingsPageState extends State<SettingsPage> {
         return AlertDialog(
           backgroundColor: const Color(0xFF0C0C0C),
           title: const Text(
-            'Clear Calendar Import',
+            'Unlink Calendar Sync',
             style: TextStyle(color: Colors.white),
           ),
           content: const Text(
-            'This removes imported Apple/Google calendar events from HAw, clears local import state, and turns automatic calendar import off. HAw will not create, update, export, or delete events in your outside calendar.',
+            'This removes imported Apple/Google calendar events from Kemetic, clears sync state, and turns automatic calendar sync off until you re-enable it. If older hAw exports still exist on the device calendar, the cleanup also removes those legacy copies.',
             style: TextStyle(color: Colors.white70, height: 1.4),
           ),
           actions: [
@@ -1018,7 +957,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 backgroundColor: Colors.red.shade700,
               ),
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Clear import data'),
+              child: const Text('Unlink and clear'),
             ),
           ],
         );
@@ -1032,8 +971,8 @@ class _SettingsPageState extends State<SettingsPage> {
     });
 
     try {
-      final sync = _calendarSyncService();
-      final result = await sync.unlinkImportedCalendarData(
+      final sync = sharedCalendarSyncService(client);
+      final result = await sync.unlinkAndPurge(
         interactive: true,
         markResetCompleted: true,
       );
@@ -1053,23 +992,30 @@ class _SettingsPageState extends State<SettingsPage> {
 
       final parts = <String>[
         if (result.removedImportedEvents > 0)
-          'removed ${result.removedImportedEvents} imported external-calendar events from HAw',
+          'removed ${result.removedImportedEvents} imported device-calendar events from Kemetic',
+        if (result.removedNativeEvents > 0)
+          'removed ${result.removedNativeEvents} legacy hAw exports from the device calendar',
       ];
       final summary = parts.isEmpty
-          ? 'Calendar import state was cleared and automatic import was turned off.'
-          : '${parts.join('; ')}. Automatic import is now off.';
+          ? 'Calendar import state was cleared and automatic sync was turned off.'
+          : '${parts.join('; ')}. Automatic sync is now off.';
+      final suffix = result.permissionGranted
+          ? ''
+          : ' Grant calendar access and run this again if older exported hAw copies still remain on the device calendar.';
 
       messenger.showSnackBar(
         SnackBar(
-          content: Text(summary),
-          backgroundColor: Colors.green.shade700,
+          content: Text('$summary$suffix'),
+          backgroundColor: result.permissionGranted
+              ? Colors.green.shade700
+              : Colors.orange.shade700,
         ),
       );
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
-          content: Text('Could not clear imported calendar data: $e'),
+          content: Text('Could not unlink synced calendar data: $e'),
           backgroundColor: Colors.red.shade700,
         ),
       );
@@ -1097,7 +1043,7 @@ class _SettingsPageState extends State<SettingsPage> {
         messenger.showSnackBar(
           SnackBar(
             content: const Text(
-              'Imported external-calendar data was cleared. Re-enable import when you want HAw to read external events again.',
+              'Imported device-calendar data was cleared. Re-enable sync when you want Kemetic to import again.',
             ),
             backgroundColor: Colors.orange.shade700,
           ),
@@ -1107,36 +1053,16 @@ class _SettingsPageState extends State<SettingsPage> {
         messenger.showSnackBar(
           SnackBar(
             content: const Text(
-              'Calendar read access is not granted on this device.',
+              'Calendar access is not granted on this device.',
             ),
             backgroundColor: Colors.red.shade700,
-          ),
-        );
-        return;
-      case CalendarSyncRunState.authorizationRequired:
-        messenger.showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Connect Google Calendar with read-only access to import events.',
-            ),
-            backgroundColor: Colors.orange.shade700,
-          ),
-        );
-        return;
-      case CalendarSyncRunState.authorizationStarted:
-        messenger.showSnackBar(
-          SnackBar(
-            content: const Text(
-              'Opening Google Calendar read-only permission...',
-            ),
-            backgroundColor: Colors.green.shade700,
           ),
         );
         return;
       case CalendarSyncRunState.skippedInProgress:
         messenger.showSnackBar(
           SnackBar(
-            content: const Text('Calendar import is already running.'),
+            content: const Text('Calendar sync is already running.'),
             backgroundColor: Colors.orange.shade700,
           ),
         );
@@ -1145,7 +1071,7 @@ class _SettingsPageState extends State<SettingsPage> {
         messenger.showSnackBar(
           SnackBar(
             content: const Text(
-              'Calendar import is not configured for this web build.',
+              'Native calendar sync is unavailable in this web context.',
             ),
             backgroundColor: Colors.orange.shade700,
           ),
@@ -1154,7 +1080,7 @@ class _SettingsPageState extends State<SettingsPage> {
       case CalendarSyncRunState.skippedNoSession:
         messenger.showSnackBar(
           SnackBar(
-            content: const Text('Sign in to import your calendar.'),
+            content: const Text('Sign in to sync your calendar.'),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -1172,7 +1098,7 @@ class _SettingsPageState extends State<SettingsPage> {
       case CalendarSyncRunState.failed:
         messenger.showSnackBar(
           SnackBar(
-            content: Text('Calendar import failed: ${result.error}'),
+            content: Text('Calendar sync failed: ${result.error}'),
             backgroundColor: Colors.red.shade700,
           ),
         );
@@ -1381,23 +1307,24 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   String _syncButtonLabel() {
-    if (_syncingCalendar) return 'Importing...';
-    if (!_hasSession) return 'Sign in to import';
-    if (_usesWebCalendarPresentation) return 'Import from Google';
-    return 'Import now';
+    if (!_nativeCalendarSyncAvailable) return 'Native sync unavailable on web';
+    if (_syncingCalendar) return 'Syncing...';
+    if (!_hasSession) return 'Sign in to sync';
+    return 'Sync now';
   }
 
   List<String> _calendarStatusLines() {
     final lines = <String>[];
 
+    if (!_nativeCalendarSyncAvailable) {
+      lines.add('Web builds cannot access the native device calendar.');
+      return lines;
+    }
+
     lines.add(
       _autoCalendarSync
-          ? _usesWebCalendarPresentation
-                ? 'Automatic import is on. After Google Calendar is connected, HAw reads external changes into HAw after sign-in.'
-                : 'Automatic import is on. The app keeps reading external calendar changes into HAw after sign-in.'
-          : _usesWebCalendarPresentation
-          ? 'Automatic import is off. Use Import from Google whenever you want to read external events into HAw again.'
-          : 'Automatic import is off. Use Import now whenever you want to read external events into HAw again.',
+          ? 'Automatic sync is on. The app keeps importing device-calendar changes after sign-in.'
+          : 'Automatic sync is off. Use Sync now whenever you want to import again.',
     );
 
     final lastSync = _calendarSyncStatus?.lastSyncAt?.toLocal();
@@ -1414,15 +1341,11 @@ class _SettingsPageState extends State<SettingsPage> {
 
     final lastReset = _calendarSyncStatus?.lastResetAt?.toLocal();
     if (lastReset != null) {
-      lines.add('Last import cleanup: ${_formatTimestamp(lastReset)}');
+      lines.add('Last unlink cleanup: ${_formatTimestamp(lastReset)}');
     }
 
     if (!_hasSession) {
-      lines.add(
-        _usesWebCalendarPresentation
-            ? 'Sign in is required before Google Calendar import can run.'
-            : 'Sign in is required before any device calendar import can run.',
-      );
+      lines.add('Sign in is required before any device calendar sync can run.');
     }
 
     return lines;
@@ -1792,327 +1715,332 @@ class _SettingsPageState extends State<SettingsPage> {
           ),
         ],
       ),
-      body: ResponsiveContentRail(
-        maxWidth: 760,
-        child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(16, 12, 16, scrollBottomPadding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Only live device, privacy, and account controls are surfaced here.',
-                style: TextStyle(color: Colors.white60, height: 1.4),
-              ),
-              const SizedBox(height: 16),
-              _sectionCard(
-                title: 'Notifications',
-                description:
-                    'Push alerts are opt-in per device. Scheduled reminder notifications continue to be driven by the events and reminders you create.',
-                children: [
-                  KeyedSubtree(
-                    key: _settingsControlsHelperKey,
-                    child: _settingSwitch(
-                      title: 'Push alerts on this device',
-                      subtitle: _pushToggleSubtitle(),
-                      value: _realTimeAlerts,
-                      onChanged: _requestingPush ? null : _setRealTimeAlerts,
+      body: SingleChildScrollView(
+        padding: EdgeInsets.fromLTRB(16, 12, 16, scrollBottomPadding),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Only live device, privacy, and account controls are surfaced here.',
+              style: TextStyle(color: Colors.white60, height: 1.4),
+            ),
+            const SizedBox(height: 16),
+            _sectionCard(
+              title: 'Notifications',
+              description:
+                  'Push alerts are opt-in per device. Scheduled reminder notifications continue to be driven by the events and reminders you create.',
+              children: [
+                KeyedSubtree(
+                  key: _settingsControlsHelperKey,
+                  child: _settingSwitch(
+                    title: 'Push alerts on this device',
+                    subtitle: _pushToggleSubtitle(),
+                    value: _realTimeAlerts,
+                    onChanged: _requestingPush ? null : _setRealTimeAlerts,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                _primaryButton(
+                  onPressed: _requestingPush || !_hasSession
+                      ? null
+                      : () => _setRealTimeAlerts(true),
+                  child: Text(_pushButtonLabel()),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Color(0xFF3A3A3A)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed: _canSendPushSelfTest ? _sendPushTest : null,
+                    child: Text(
+                      _sendingPushTest
+                          ? 'Sending test push...'
+                          : 'Send test push to this device',
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  _primaryButton(
-                    onPressed: _requestingPush || !_hasSession
+                ),
+                _statusLine(_pushStatusText()),
+                for (final line in pushDiagnosticLines) _statusLine(line),
+                const SizedBox(height: 16),
+                const Divider(color: Color(0xFF1D1D1D), height: 1),
+                const SizedBox(height: 16),
+                const Text(
+                  'Push test receipt',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                for (final line in pushReceiptLines) _statusLine(line),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Color(0xFF3A3A3A)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed:
+                        _checkingPushTestReceipt ||
+                            !_hasSession ||
+                            _pushTestDeliveryKey == null
                         ? null
-                        : () => _setRealTimeAlerts(true),
-                    child: Text(_pushButtonLabel()),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Color(0xFF3A3A3A)),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      onPressed: _canSendPushSelfTest ? _sendPushTest : null,
-                      child: Text(
-                        _sendingPushTest
-                            ? 'Sending test push...'
-                            : 'Send test push to this device',
-                      ),
+                        : () => _refreshPushTestReceiptStatus(),
+                    child: Text(
+                      _checkingPushTestReceipt
+                          ? 'Checking receipt...'
+                          : 'Refresh push test receipt',
                     ),
                   ),
-                  _statusLine(_pushStatusText()),
-                  for (final line in pushDiagnosticLines) _statusLine(line),
-                  const SizedBox(height: 16),
-                  const Divider(color: Color(0xFF1D1D1D), height: 1),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Push test receipt',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  for (final line in pushReceiptLines) _statusLine(line),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Color(0xFF3A3A3A)),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      onPressed:
-                          _checkingPushTestReceipt ||
-                              !_hasSession ||
-                              _pushTestDeliveryKey == null
-                          ? null
-                          : () => _refreshPushTestReceiptStatus(),
-                      child: Text(
-                        _checkingPushTestReceipt
-                            ? 'Checking receipt...'
-                            : 'Refresh push test receipt',
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _sectionCard(
-                title: 'Calendar Import',
-                description:
-                    'One-way import only: external calendar events can appear in HAw, and HAw events stay in HAw. The app does not export, create, update, or delete events in outside calendars.',
-                children: [
-                  _settingSwitch(
-                    title: 'Keep external calendar import on',
-                    subtitle: _nativeCalendarSyncAvailable
-                        ? 'Runs after sign-in and reads external calendar changes in the background.'
-                        : 'Uses Google Calendar read-only access to read external events into HAw.',
-                    value: _autoCalendarSync,
-                    onChanged: _calendarBusy ? null : _setAutoCalendarSync,
-                  ),
-                  const SizedBox(height: 16),
-                  _primaryButton(
-                    onPressed: _calendarBusy || !_hasSession
-                        ? null
-                        : _syncCalendarNow,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_syncingCalendar) ...[
-                          const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.black,
-                              ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _sectionCard(
+              title: 'Calendar Sync',
+              description:
+                  'Device calendar sync only imports external events into Kemetic. Events you create in Kemetic stay in Kemetic.',
+              children: [
+                _settingSwitch(
+                  title: 'Keep device calendar synced automatically',
+                  subtitle: _nativeCalendarSyncAvailable
+                      ? 'Runs after sign-in and keeps importing device-calendar changes in the background.'
+                      : 'Native calendar sync is not available in web builds.',
+                  value: _autoCalendarSync,
+                  onChanged: !_nativeCalendarSyncAvailable || _calendarBusy
+                      ? null
+                      : _setAutoCalendarSync,
+                ),
+                const SizedBox(height: 16),
+                _primaryButton(
+                  onPressed:
+                      !_nativeCalendarSyncAvailable ||
+                          _calendarBusy ||
+                          !_hasSession
+                      ? null
+                      : _syncCalendarNow,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_syncingCalendar) ...[
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.black,
                             ),
                           ),
-                          const SizedBox(width: 10),
-                        ] else ...[
-                          const Icon(Icons.file_download_outlined),
-                          const SizedBox(width: 10),
-                        ],
-                        Text(_syncButtonLabel()),
+                        ),
+                        const SizedBox(width: 10),
+                      ] else ...[
+                        const Icon(Icons.sync),
+                        const SizedBox(width: 10),
                       ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.red.shade200,
-                        side: BorderSide(color: Colors.red.shade300),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      onPressed: _calendarBusy || !_hasSession
-                          ? null
-                          : _unlinkCalendarAccounts,
-                      child: Text(
-                        _unlinkingCalendar
-                            ? 'Clearing import data...'
-                            : 'Clear imported calendar data',
-                      ),
-                    ),
-                  ),
-                  for (final line in calendarStatusLines) _statusLine(line),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _sectionCard(
-                title: 'Calendar Content',
-                description:
-                    'Optional data sources that add entries inside the app without changing your core sync behavior.',
-                children: [
-                  _settingSwitch(
-                    title: 'Add U.S. holidays as notes',
-                    subtitle: _seedingHolidays
-                        ? 'Applying holiday notes...'
-                        : 'Adds standard U.S. holidays as editable app notes.',
-                    value: _usHolidaysEnabled,
-                    onChanged: _seedingHolidays ? null : _toggleUsHolidays,
-                    trailing: _seedingHolidays
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: KemeticGold.base,
-                            ),
-                          )
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-                  _settingSwitch(
-                    title: 'The Day’s Rhythm badge',
-                    subtitle:
-                        'Shows today\'s Day Card rhythm once per local Gregorian day.',
-                    value: _dailyCosmicContextBadgeEnabled,
-                    onChanged: _setDailyCosmicContextBadgeEnabled,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _sectionCard(
-                title: 'Speech',
-                description:
-                    'Pronunciation still runs through the device or browser TTS engine. You can choose an English voice on this device and preview it here.',
-                children: [
-                  DropdownButtonFormField<String?>(
-                    key: ValueKey(_selectedSpeechVoiceId),
-                    initialValue: _selectedSpeechVoiceId,
-                    decoration: _dropdownDecoration('Pronunciation voice'),
-                    dropdownColor: const Color(0xFF101010),
-                    style: const TextStyle(color: Colors.white),
-                    items: [
-                      const DropdownMenuItem<String?>(
-                        value: null,
-                        child: Text('System default'),
-                      ),
-                      ..._speechVoices.map(
-                        (voice) => DropdownMenuItem<String?>(
-                          value: voice.id,
-                          child: Text(voice.displayLabel),
-                        ),
-                      ),
+                      Text(_syncButtonLabel()),
                     ],
-                    onChanged: _loadingSpeechVoices || _savingSpeechVoice
-                        ? null
-                        : _setSpeechVoice,
                   ),
-                  const SizedBox(height: 12),
-                  ValueListenableBuilder<String?>(
-                    valueListenable: SpeechService.instance.activeUtteranceId,
-                    builder: (context, activeUtteranceId, child) {
-                      final previewActive =
-                          activeUtteranceId == _speechPreviewUtteranceId;
-                      return SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Color(0xFF3A3A3A)),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red.shade200,
+                      side: BorderSide(color: Colors.red.shade300),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    onPressed:
+                        !_nativeCalendarSyncAvailable ||
+                            _calendarBusy ||
+                            !_hasSession
+                        ? null
+                        : _unlinkCalendarAccounts,
+                    child: Text(
+                      _unlinkingCalendar
+                          ? 'Unlinking calendars...'
+                          : 'Unlink and clear synced calendar data',
+                    ),
+                  ),
+                ),
+                for (final line in calendarStatusLines) _statusLine(line),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _sectionCard(
+              title: 'Calendar Content',
+              description:
+                  'Optional data sources that add entries inside the app without changing your core sync behavior.',
+              children: [
+                _settingSwitch(
+                  title: 'Add U.S. holidays as notes',
+                  subtitle: _seedingHolidays
+                      ? 'Applying holiday notes...'
+                      : 'Adds standard U.S. holidays as editable app notes.',
+                  value: _usHolidaysEnabled,
+                  onChanged: _seedingHolidays ? null : _toggleUsHolidays,
+                  trailing: _seedingHolidays
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: KemeticGold.base,
                           ),
-                          onPressed: _loadingSpeechVoices || _savingSpeechVoice
-                              ? null
-                              : _previewSpeechVoice,
-                          child: Text(
-                            previewActive
-                                ? 'Stop voice preview'
-                                : (_loadingSpeechVoices
-                                      ? 'Loading available voices...'
-                                      : 'Preview selected voice'),
+                        )
+                      : null,
+                ),
+                const SizedBox(height: 16),
+                _settingSwitch(
+                  title: 'The Day’s Rhythm badge',
+                  subtitle:
+                      'Shows today\'s Day Card rhythm once per local Gregorian day.',
+                  value: _dailyCosmicContextBadgeEnabled,
+                  onChanged: _setDailyCosmicContextBadgeEnabled,
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _sectionCard(
+              title: 'Speech',
+              description:
+                  'Pronunciation still runs through the device or browser TTS engine. You can choose an English voice on this device and preview it here.',
+              children: [
+                DropdownButtonFormField<String?>(
+                  key: ValueKey(_selectedSpeechVoiceId),
+                  initialValue: _selectedSpeechVoiceId,
+                  decoration: _dropdownDecoration('Pronunciation voice'),
+                  dropdownColor: const Color(0xFF101010),
+                  style: const TextStyle(color: Colors.white),
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('System default'),
+                    ),
+                    ..._speechVoices.map(
+                      (voice) => DropdownMenuItem<String?>(
+                        value: voice.id,
+                        child: Text(voice.displayLabel),
+                      ),
+                    ),
+                  ],
+                  onChanged: _loadingSpeechVoices || _savingSpeechVoice
+                      ? null
+                      : _setSpeechVoice,
+                ),
+                const SizedBox(height: 12),
+                ValueListenableBuilder<String?>(
+                  valueListenable: SpeechService.instance.activeUtteranceId,
+                  builder: (context, activeUtteranceId, child) {
+                    final previewActive =
+                        activeUtteranceId == _speechPreviewUtteranceId;
+                    return SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Color(0xFF3A3A3A)),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 14,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
                           ),
                         ),
-                      );
-                    },
-                  ),
-                  for (final line in speechStatusLines) _statusLine(line),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _visibilityNotice(),
-              const SizedBox(height: 18),
-              _footerHeading('Legal & Support'),
-              _compactFooterRow(
-                icon: Icons.description_outlined,
-                title: 'Terms',
-                onPressed: () => _openExternalSupportTarget(_termsUrl),
-              ),
-              _thinDivider(),
-              _compactFooterRow(
-                icon: Icons.privacy_tip_outlined,
-                title: 'Privacy',
-                onPressed: () => _openExternalSupportTarget(_privacyPolicyUrl),
-              ),
-              _thinDivider(),
-              _compactFooterRow(
-                icon: Icons.help_outline,
-                title: 'Support',
-                onPressed: () => _openExternalSupportTarget(_supportUrl),
-              ),
-              const SizedBox(height: 18),
-              _footerHeading('Danger Zone'),
-              _compactFooterRow(
-                icon: Icons.delete_outline,
-                title: _deletingAccount
-                    ? 'Deleting account...'
-                    : 'Delete account',
-                subtitle: _hasSession
-                    ? (_accountStatus ??
-                          'Permanently removes your sign-in and account data.')
-                    : 'Sign in to manage or delete your account.',
-                destructive: true,
-                onPressed: _deletingAccount || !_hasSession
-                    ? null
-                    : _deleteAccount,
-              ),
-              _thinDivider(),
-              _compactFooterRow(
-                icon: Icons.logout,
-                title: _signingOut ? 'Signing out...' : 'Sign out',
-                onPressed: _signingOut ? null : _signOut,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Preferences stay local to this device. Push registration and calendar permission are also device-specific.',
-                style: TextStyle(color: Colors.white60, height: 1.4),
-              ),
-              const SizedBox(height: 12),
-              _buildMarker(),
-            ],
-          ),
+                        onPressed: _loadingSpeechVoices || _savingSpeechVoice
+                            ? null
+                            : _previewSpeechVoice,
+                        child: Text(
+                          previewActive
+                              ? 'Stop voice preview'
+                              : (_loadingSpeechVoices
+                                    ? 'Loading available voices...'
+                                    : 'Preview selected voice'),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                for (final line in speechStatusLines) _statusLine(line),
+              ],
+            ),
+            const SizedBox(height: 16),
+            _visibilityNotice(),
+            const SizedBox(height: 18),
+            _footerHeading('Legal & Support'),
+            _compactFooterRow(
+              icon: Icons.description_outlined,
+              title: 'Terms',
+              onPressed: () => _openExternalSupportTarget(_termsUrl),
+            ),
+            _thinDivider(),
+            _compactFooterRow(
+              icon: Icons.privacy_tip_outlined,
+              title: 'Privacy',
+              onPressed: () => _openExternalSupportTarget(_privacyPolicyUrl),
+            ),
+            _thinDivider(),
+            _compactFooterRow(
+              icon: Icons.help_outline,
+              title: 'Support',
+              onPressed: () => _openExternalSupportTarget(_supportUrl),
+            ),
+            const SizedBox(height: 18),
+            _footerHeading('Danger Zone'),
+            _compactFooterRow(
+              icon: Icons.delete_outline,
+              title: _deletingAccount
+                  ? 'Deleting account...'
+                  : 'Delete account',
+              subtitle: _hasSession
+                  ? (_accountStatus ??
+                        'Permanently removes your sign-in and account data.')
+                  : 'Sign in to manage or delete your account.',
+              destructive: true,
+              onPressed: _deletingAccount || !_hasSession
+                  ? null
+                  : _deleteAccount,
+            ),
+            _thinDivider(),
+            _compactFooterRow(
+              icon: Icons.logout,
+              title: _signingOut ? 'Signing out...' : 'Sign out',
+              onPressed: _signingOut ? null : _signOut,
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              'Preferences stay local to this device. Push registration and calendar permission are also device-specific.',
+              style: TextStyle(color: Colors.white60, height: 1.4),
+            ),
+            const SizedBox(height: 12),
+            _buildMarker(),
+          ],
         ),
       ),
     );

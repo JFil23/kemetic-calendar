@@ -28,11 +28,9 @@ import 'landscape_month_view.dart';
 import 'maat_flow_identity.dart';
 import 'maat_flow_interactive_primitives.dart';
 import 'maat_flow_palette.dart';
-import 'maat_flow_completion_response_persistence.dart';
 import 'maat_flow_response_draft_store.dart';
 import 'maat_flow_response_journal_blocks.dart';
 import 'maat_flow_response_models.dart';
-import 'maat_flow_response_projection.dart';
 import 'maat_flow_response_resolver.dart';
 import 'maat_flow_visual_tokens.dart';
 import 'track_sky_flow.dart';
@@ -80,11 +78,7 @@ import '../../utils/flow_filter_engine.dart';
 import '../../utils/text_editing_controller_sync.dart';
 import '../shared_practice/shared_practice_completion_sheet.dart';
 
-typedef MaatCompletionMetadataLoader =
-    Future<Map<String, dynamic>?> Function({required String clientEventId});
-
 const double _kMinEventBlockHeight = 56.0;
-const double _kWideMinEventBlockHeight = 68.0;
 const double _kTimelineLabelWidth = 60.0;
 const double _kTimelineRightPadding = 16.0;
 const double _kEventColumnGap = 4.0;
@@ -1612,7 +1606,6 @@ Widget? buildDayViewMaatFlowCompletionPanel({
   onRecordCompletion,
   Future<void> Function(String clientEventId)? onUnrecordCompletion,
   Future<void> Function(String badgeId)? onRemoveCompletionBadge,
-  MaatCompletionMetadataLoader? loadCompletionMetadata,
   MaatJournalResponseBlockWriter? onWriteJournalResponse,
   Future<void> Function(CompletionStatus status)? onCompletionContinuity,
   ValueChanged<CompletionStatus>? onUserCompletionFeedback,
@@ -1642,7 +1635,6 @@ Widget? buildDayViewMaatFlowCompletionPanel({
     onRecordCompletion: onRecordCompletion,
     onUnrecordCompletion: onUnrecordCompletion,
     onRemoveCompletionBadge: onRemoveCompletionBadge,
-    loadCompletionMetadata: loadCompletionMetadata,
     onWriteJournalResponse: onWriteJournalResponse,
     onCompletionContinuity: onCompletionContinuity,
     onUserCompletionFeedback: onUserCompletionFeedback,
@@ -2098,7 +2090,6 @@ class EventLayoutEngine {
     required double textScale,
     required int day, // For debug logging
     double singleEventWidthFactor = _kSingleEventWidthFactor,
-    double minEventBlockHeight = _kMinEventBlockHeight,
   }) {
     if (kDebugMode) {
       debugPrint(
@@ -2115,7 +2106,6 @@ class EventLayoutEngine {
       textScale: textScale,
       day: day,
       singleEventWidthFactor: singleEventWidthFactor,
-      minEventBlockHeight: minEventBlockHeight,
     );
   }
 
@@ -2126,7 +2116,6 @@ class EventLayoutEngine {
     required double textScale,
     required int day,
     double singleEventWidthFactor = _kSingleEventWidthFactor,
-    double minEventBlockHeight = _kMinEventBlockHeight,
   }) {
     if (events.isEmpty) return [];
 
@@ -2134,16 +2123,11 @@ class EventLayoutEngine {
     final overlapGroups = _buildOverlapGroups(
       sortedEvents,
       textScale: textScale,
-      minEventBlockHeight: minEventBlockHeight,
     );
     final blocks = <PositionedEventBlock>[];
 
     for (final group in overlapGroups) {
-      final columnAssignments = _assignColumns(
-        group,
-        textScale: textScale,
-        minEventBlockHeight: minEventBlockHeight,
-      );
+      final columnAssignments = _assignColumns(group, textScale: textScale);
       final highestColumn = columnAssignments.values.fold<int>(0, math.max);
       final totalColumns = highestColumn + 1;
       final columnWidth = _columnWidthForGroup(
@@ -2188,7 +2172,6 @@ class EventLayoutEngine {
   static List<List<EventItem>> _buildOverlapGroups(
     List<EventItem> events, {
     required double textScale,
-    required double minEventBlockHeight,
   }) {
     final groups = <List<EventItem>>[];
     var currentGroup = <EventItem>[];
@@ -2197,11 +2180,7 @@ class EventLayoutEngine {
     for (final event in events) {
       if (currentGroup.isEmpty) {
         currentGroup = [event];
-        currentGroupMaxBottom = _eventVisualEndMin(
-          event,
-          textScale: textScale,
-          minEventBlockHeight: minEventBlockHeight,
-        );
+        currentGroupMaxBottom = _eventVisualEndMin(event, textScale: textScale);
         continue;
       }
 
@@ -2209,22 +2188,14 @@ class EventLayoutEngine {
         currentGroup.add(event);
         currentGroupMaxBottom = math.max(
           currentGroupMaxBottom,
-          _eventVisualEndMin(
-            event,
-            textScale: textScale,
-            minEventBlockHeight: minEventBlockHeight,
-          ),
+          _eventVisualEndMin(event, textScale: textScale),
         );
         continue;
       }
 
       groups.add(currentGroup);
       currentGroup = [event];
-      currentGroupMaxBottom = _eventVisualEndMin(
-        event,
-        textScale: textScale,
-        minEventBlockHeight: minEventBlockHeight,
-      );
+      currentGroupMaxBottom = _eventVisualEndMin(event, textScale: textScale);
     }
 
     if (currentGroup.isNotEmpty) {
@@ -2250,7 +2221,6 @@ class EventLayoutEngine {
   static Map<EventItem, int> _assignColumns(
     List<EventItem> events, {
     required double textScale,
-    required double minEventBlockHeight,
   }) {
     final assignments = <EventItem, int>{};
     final columnBottoms = <int, double>{}; // column -> rendered visual bottom
@@ -2264,11 +2234,7 @@ class EventLayoutEngine {
       }
 
       assignments[event] = column;
-      columnBottoms[column] = _eventVisualEndMin(
-        event,
-        textScale: textScale,
-        minEventBlockHeight: minEventBlockHeight,
-      );
+      columnBottoms[column] = _eventVisualEndMin(event, textScale: textScale);
     }
 
     return assignments;
@@ -2342,24 +2308,15 @@ class _SharedPracticeDetailModule extends StatelessWidget {
     required this.roomId,
     required this.calendarName,
     required this.flowTitle,
-    required this.localDate,
-    required this.onOpenRoute,
   });
 
   final String roomId;
   final String? calendarName;
   final String flowTitle;
-  final DateTime localDate;
-  final ValueChanged<String> onOpenRoute;
 
   @override
   Widget build(BuildContext context) {
     final calendar = calendarName?.trim();
-    final routePath = Uri(
-      pathSegments: <String>['shared-practice', roomId],
-      queryParameters: <String, String>{'date': _sharedPracticeDate(localDate)},
-    ).toString();
-    final route = routePath.startsWith('/') ? routePath : '/$routePath';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
@@ -2386,7 +2343,11 @@ class _SharedPracticeDetailModule extends StatelessWidget {
               ),
               const Spacer(),
               TextButton(
-                onPressed: () => onOpenRoute(route),
+                onPressed: () {
+                  context.push(
+                    '/shared-practice/${Uri.encodeComponent(roomId)}',
+                  );
+                },
                 style: TextButton.styleFrom(
                   foregroundColor: _dayGold,
                   padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -2419,15 +2380,6 @@ class _SharedPracticeDetailModule extends StatelessWidget {
       ),
     );
   }
-}
-
-String _sharedPracticeDate(DateTime value) {
-  final local = DateTime(value.year, value.month, value.day);
-  return [
-    local.year.toString().padLeft(4, '0'),
-    local.month.toString().padLeft(2, '0'),
-    local.day.toString().padLeft(2, '0'),
-  ].join('-');
 }
 
 class EventItem {
@@ -2589,7 +2541,6 @@ class CalendarEventDetailSheet extends StatefulWidget {
     this.onRecordCompletion,
     this.onUnrecordCompletion,
     this.onRemoveCompletionBadge,
-    this.loadCompletionMetadata,
     this.onboardingEventClientEventId,
     this.onboardingObservedKey,
     this.onboardingJournalKey,
@@ -2636,7 +2587,6 @@ class CalendarEventDetailSheet extends StatefulWidget {
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
-  final MaatCompletionMetadataLoader? loadCompletionMetadata;
   final String? onboardingEventClientEventId;
   final GlobalKey? onboardingObservedKey;
   final GlobalKey? onboardingJournalKey;
@@ -3292,10 +3242,12 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       completionStatus: completionStatus,
       sourceType: sourceType,
     );
-    await cb('$token ');
-    if (triggerHaptic) {
-      unawaited(AppHaptics.productiveAction());
-    }
+    try {
+      await cb('$token ');
+      if (triggerHaptic) {
+        unawaited(AppHaptics.productiveAction());
+      }
+    } catch (_) {}
   }
 
   Future<void> _appendCompletionContinuity(
@@ -3669,7 +3621,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           onRecordCompletion: widget.onRecordCompletion,
           onUnrecordCompletion: widget.onUnrecordCompletion,
           onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
-          loadCompletionMetadata: widget.loadCompletionMetadata,
           onWriteJournalResponse: widget.onWriteJournalResponse,
           onCompletionContinuity: (status) => _appendCompletionContinuity(
             target,
@@ -3896,10 +3847,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             roomId: sharedPracticeRoomId,
             calendarName: currentEvent.calendarName,
             flowTitle: flow?.name ?? currentEvent.title,
-            localDate: DateUtils.dateOnly(
-              KemeticMath.toGregorian(target.ky, target.km, target.kd),
-            ),
-            onOpenRoute: (route) => _openSharedPracticeRoute(route, context),
           ),
         ],
         if (hasMaatCompletionPanel && responseSpecs.isNotEmpty) ...[
@@ -4358,62 +4305,46 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       target.event,
     );
 
-    final calendarTextStyle = _goldHeaderStyle.copyWith(
-      fontSize: 15,
-      color: calendarEnabled ? _dayGold : Colors.white24,
-    );
-
     return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         _buildEventDetailPrimaryAction(
           rootContext: rootContext,
           sheetContext: sheetContext,
           target: target,
         ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: calendarEnabled
-                  ? () async {
-                      final updatedTarget =
-                          await CalendarPage.showDetailSheetCalendarPicker(
-                            context: sheetContext,
-                            target: target,
-                            onOptimisticTargetChanged: (optimisticTarget) {
-                              if (sheetContext.mounted) {
-                                _moveToTarget(optimisticTarget);
-                              }
-                            },
-                          );
-                      if (!sheetContext.mounted || updatedTarget == null) {
-                        return;
-                      }
-                      _moveToTarget(updatedTarget);
-                    }
-                  : null,
-              child: Text(
-                calendarLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.right,
-                style: calendarTextStyle,
-              ),
-            ),
-          ),
+        TextButton(
+          onPressed: calendarEnabled
+              ? () async {
+                  final updatedTarget =
+                      await CalendarPage.showDetailSheetCalendarPicker(
+                        context: sheetContext,
+                        target: target,
+                        onOptimisticTargetChanged: (optimisticTarget) {
+                          if (sheetContext.mounted) {
+                            _moveToTarget(optimisticTarget);
+                          }
+                        },
+                      );
+                  if (!sheetContext.mounted || updatedTarget == null) return;
+                  _moveToTarget(updatedTarget);
+                }
+              : null,
+          child: calendarEnabled
+              ? KemeticGold.text(
+                  calendarLabel,
+                  style: _goldHeaderStyle.copyWith(fontSize: 15),
+                )
+              : Text(
+                  calendarLabel,
+                  style: _goldHeaderStyle.copyWith(
+                    fontSize: 15,
+                    color: Colors.white24,
+                  ),
+                ),
         ),
       ],
     );
-  }
-
-  void _openSharedPracticeRoute(String route, BuildContext sheetContext) {
-    final hostContext = widget.hostContext;
-    Navigator.of(sheetContext).maybePop();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!hostContext.mounted) return;
-      hostContext.push(route);
-    });
   }
 
   @override
@@ -4903,33 +4834,14 @@ bool _eventsShareStableIdentity(EventItem a, EventItem b) {
   return _eventIdentityKey(a) == _eventIdentityKey(b);
 }
 
-bool _eventsOverlap(
-  EventItem a,
-  EventItem b, {
-  double textScale = 1.0,
-  double minEventBlockHeight = _kMinEventBlockHeight,
-}) {
-  return _eventVisualTop(a) <
-          _eventVisualEndMin(
-            b,
-            textScale: textScale,
-            minEventBlockHeight: minEventBlockHeight,
-          ) &&
-      _eventVisualTop(b) <
-          _eventVisualEndMin(
-            a,
-            textScale: textScale,
-            minEventBlockHeight: minEventBlockHeight,
-          );
+bool _eventsOverlap(EventItem a, EventItem b, {double textScale = 1.0}) {
+  return _eventVisualTop(a) < _eventVisualEndMin(b, textScale: textScale) &&
+      _eventVisualTop(b) < _eventVisualEndMin(a, textScale: textScale);
 }
 
 double _eventVisualTop(EventItem event) => event.startMin.toDouble();
 
-double _eventVisualHeightForLayout(
-  EventItem event, {
-  double textScale = 1.0,
-  double minEventBlockHeight = _kMinEventBlockHeight,
-}) {
+double _eventVisualHeightForLayout(EventItem event, {double textScale = 1.0}) {
   int durationMinutes = event.endMin - event.startMin;
   if (durationMinutes <= 0) {
     durationMinutes = 15;
@@ -4945,27 +4857,16 @@ double _eventVisualHeightForLayout(
         .toDouble()
         .clamp(42.0, 90.0)
         .toDouble();
-    return math.max(
-      minEventBlockHeight,
-      math.max(compactPreviewHeight, durationHeight),
-    );
+    return math.max(compactPreviewHeight, durationHeight);
   }
 
   final double rawHeight = durationMinutes.toDouble();
-  return rawHeight < minEventBlockHeight ? minEventBlockHeight : rawHeight;
+  return rawHeight < _kMinEventBlockHeight ? _kMinEventBlockHeight : rawHeight;
 }
 
-double _eventVisualEndMin(
-  EventItem event, {
-  double textScale = 1.0,
-  double minEventBlockHeight = _kMinEventBlockHeight,
-}) {
+double _eventVisualEndMin(EventItem event, {double textScale = 1.0}) {
   return _eventVisualTop(event) +
-      _eventVisualHeightForLayout(
-        event,
-        textScale: textScale,
-        minEventBlockHeight: minEventBlockHeight,
-      );
+      _eventVisualHeightForLayout(event, textScale: textScale);
 }
 
 int _compareEventItemsBySchedule(EventItem a, EventItem b) {
@@ -5113,7 +5014,6 @@ class DayViewPage extends StatefulWidget {
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
-  final MaatCompletionMetadataLoader? loadCompletionMetadata;
   final String? onboardingEventClientEventId;
   final GlobalKey? onboardingEventTargetKey;
   final GlobalKey? onboardingObservedKey;
@@ -5171,7 +5071,6 @@ class DayViewPage extends StatefulWidget {
     this.onRecordCompletion,
     this.onUnrecordCompletion,
     this.onRemoveCompletionBadge,
-    this.loadCompletionMetadata,
     this.onboardingEventClientEventId,
     this.onboardingEventTargetKey,
     this.onboardingObservedKey,
@@ -6013,8 +5912,6 @@ class _DayViewPageState extends State<DayViewPage> {
                             onUnrecordCompletion: widget.onUnrecordCompletion,
                             onRemoveCompletionBadge:
                                 widget.onRemoveCompletionBadge,
-                            loadCompletionMetadata:
-                                widget.loadCompletionMetadata,
                             onboardingEventClientEventId:
                                 widget.onboardingEventClientEventId,
                             onboardingEventTargetKey:
@@ -6137,7 +6034,6 @@ class DayViewGrid extends StatefulWidget {
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
-  final MaatCompletionMetadataLoader? loadCompletionMetadata;
   final String? onboardingEventClientEventId;
   final GlobalKey? onboardingEventTargetKey;
   final GlobalKey? onboardingObservedKey;
@@ -6196,7 +6092,6 @@ class DayViewGrid extends StatefulWidget {
     this.onRecordCompletion,
     this.onUnrecordCompletion,
     this.onRemoveCompletionBadge,
-    this.loadCompletionMetadata,
     this.onboardingEventClientEventId,
     this.onboardingEventTargetKey,
     this.onboardingObservedKey,
@@ -6228,7 +6123,6 @@ class _DayViewGridState extends State<DayViewGrid> {
   double? _cachedAvailableWidth;
   double? _cachedTextScale;
   double? _cachedSingleEventWidthFactor;
-  double? _cachedMinEventBlockHeight;
   List<PositionedEventBlock> _displayBlocks = const [];
   final Map<TrackSkyTimeZone, TrackSkyFlowData> _trackSkyDataByTimeZone =
       <TrackSkyTimeZone, TrackSkyFlowData>{};
@@ -6934,12 +6828,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     return _usesTabletLandscapeLayout(context) ? 1.0 : _kSingleEventWidthFactor;
   }
 
-  double _minEventBlockHeight(BuildContext context) {
-    return _usesTabletLandscapeLayout(context)
-        ? _kWideMinEventBlockHeight
-        : _kMinEventBlockHeight;
-  }
-
   double _layoutTextScale(BuildContext context) {
     final textScaler = MediaQuery.maybeTextScalerOf(context);
     if (textScaler == null) return 1.0;
@@ -6955,7 +6843,6 @@ class _DayViewGridState extends State<DayViewGrid> {
             candidate.event,
             block.event,
             textScale: textScale,
-            minEventBlockHeight: _minEventBlockHeight(context),
           ),
         )
         .map((candidate) => _eventHitHeight(candidate.event))
@@ -6972,7 +6859,6 @@ class _DayViewGridState extends State<DayViewGrid> {
         final availableWidth = _timelineAvailableWidthFor(layoutWidth);
         final textScale = _layoutTextScale(context);
         final singleEventWidthFactor = _singleEventWidthFactor(context);
-        final minEventBlockHeight = _minEventBlockHeight(context);
 
         // ✅ NEW: Dedupe notes before rendering to handle legacy duplicates
         final dedupedNotes = _dedupeNotesForUI(widget.notes);
@@ -6985,8 +6871,7 @@ class _DayViewGridState extends State<DayViewGrid> {
             _cachedFlowHash != flowHash ||
             _cachedAvailableWidth != availableWidth ||
             _cachedTextScale != textScale ||
-            _cachedSingleEventWidthFactor != singleEventWidthFactor ||
-            _cachedMinEventBlockHeight != minEventBlockHeight) {
+            _cachedSingleEventWidthFactor != singleEventWidthFactor) {
           if (kDebugMode) {
             final originalCount = widget.notes.length;
             final dedupedCount = dedupedNotes.length;
@@ -7005,14 +6890,12 @@ class _DayViewGridState extends State<DayViewGrid> {
             textScale: textScale,
             day: widget.kd,
             singleEventWidthFactor: singleEventWidthFactor,
-            minEventBlockHeight: minEventBlockHeight,
           );
           _cachedNotesHash = notesHash;
           _cachedFlowHash = flowHash;
           _cachedAvailableWidth = availableWidth;
           _cachedTextScale = textScale;
           _cachedSingleEventWidthFactor = singleEventWidthFactor;
-          _cachedMinEventBlockHeight = minEventBlockHeight;
         }
 
         _displayBlocks = _buildDisplayBlocks(
@@ -7575,7 +7458,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     return _eventVisualHeightForLayout(
       event,
       textScale: _layoutTextScale(context),
-      minEventBlockHeight: _minEventBlockHeight(context),
     );
   }
 
@@ -7606,8 +7488,6 @@ class _DayViewGridState extends State<DayViewGrid> {
 
     final int durationMinutes = (event.endMin - event.startMin).clamp(15, 180);
     final double height = _eventVisualHeight(event);
-    final useCompactEventPreview =
-        _usesTabletLandscapeLayout(context) && durationMinutes < 45;
 
     final borderRadius = BorderRadius.circular(graphic != null ? 7 : 6);
 
@@ -7701,7 +7581,6 @@ class _DayViewGridState extends State<DayViewGrid> {
                 event,
                 durationMinutes,
                 isPreview: isPreview,
-                compact: useCompactEventPreview,
               ),
             ),
           ],
@@ -7793,7 +7672,6 @@ class _DayViewGridState extends State<DayViewGrid> {
                 event,
                 durationMinutes,
                 isPreview: isPreview,
-                compact: useCompactEventPreview,
               ),
             ),
           ],
@@ -7906,7 +7784,6 @@ class _DayViewGridState extends State<DayViewGrid> {
                 event,
                 durationMinutes,
                 isPreview: isPreview,
-                compact: useCompactEventPreview,
               ),
             ),
           ],
@@ -7946,7 +7823,6 @@ class _DayViewGridState extends State<DayViewGrid> {
           event,
           durationMinutes,
           isPreview: isPreview,
-          compact: useCompactEventPreview,
         ),
       );
     }
@@ -8021,7 +7897,6 @@ class _DayViewGridState extends State<DayViewGrid> {
               event,
               durationMinutes,
               isPreview: isPreview,
-              compact: useCompactEventPreview,
             ),
           ),
         ],
@@ -8034,7 +7909,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     EventItem event,
     int durationMinutes, {
     bool isPreview = false,
-    bool compact = false,
   }) {
     final flow = _chromeFlowForId(event.flowId);
     final bool hasFlow = flow != null;
@@ -8060,8 +7934,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
 
     final showTitle = event.title.trim().isNotEmpty;
-    final showPreviewLabel =
-        !compact && (!isGraphicFlow || (hasFlow && !event.isReminder));
+    final showPreviewLabel = !isGraphicFlow || (hasFlow && !event.isReminder);
     final graphicFlowNameColor = (graphic?.labelColor ?? _dayGold).withValues(
       alpha: isPreview ? 0.92 : 1.0,
     );
@@ -8075,8 +7948,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     final flowColor = !isGraphicFlow
         ? visual.category.withValues(alpha: isPreview ? 0.52 : 0.68)
         : null;
-    final titleMaxLines =
-        (compact || event.isReminder || hasFlow || durationMinutes < 90)
+    final titleMaxLines = (event.isReminder || hasFlow || durationMinutes < 90)
         ? 1
         : 2;
     final trackSkyTeaser = isTrackSky
@@ -8264,8 +8136,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                   overflow: TextOverflow.ellipsis,
                 ),
 
-        if (!compact &&
-            isTrackSky &&
+        if (isTrackSky &&
             trackSkyTeaser.isNotEmpty &&
             durationMinutes >= 45) ...[
           const SizedBox(height: 0),
@@ -8377,7 +8248,6 @@ class _DayViewGridState extends State<DayViewGrid> {
           onRecordCompletion: widget.onRecordCompletion,
           onUnrecordCompletion: widget.onUnrecordCompletion,
           onRemoveCompletionBadge: widget.onRemoveCompletionBadge,
-          loadCompletionMetadata: widget.loadCompletionMetadata,
           onboardingEventClientEventId: widget.onboardingEventClientEventId,
           onboardingObservedKey: widget.onboardingObservedKey,
           onboardingJournalKey: widget.onboardingJournalKey,
@@ -9096,7 +8966,6 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
     required this.onRecordCompletion,
     this.onUnrecordCompletion,
     this.onRemoveCompletionBadge,
-    this.loadCompletionMetadata,
     this.onWriteJournalResponse,
     this.onCompletionContinuity,
     this.onUserCompletionFeedback,
@@ -9122,7 +8991,6 @@ class _MaatFlowCompletionPanel extends StatefulWidget {
   onRecordCompletion;
   final Future<void> Function(String clientEventId)? onUnrecordCompletion;
   final Future<void> Function(String badgeId)? onRemoveCompletionBadge;
-  final MaatCompletionMetadataLoader? loadCompletionMetadata;
   final MaatJournalResponseBlockWriter? onWriteJournalResponse;
   final Future<void> Function(CompletionStatus status)? onCompletionContinuity;
   final ValueChanged<CompletionStatus>? onUserCompletionFeedback;
@@ -9204,8 +9072,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
   int _decanWatchResponseLoadGeneration = 0;
   Map<String, MaatFlowResponseValue> _responseValues =
       const <String, MaatFlowResponseValue>{};
-  Map<String, dynamic> _loadedCompletionMetadata = const <String, dynamic>{};
-  Set<String> _dirtyResponseSpecIds = const <String>{};
   bool _responseDirty = false;
 
   @override
@@ -9322,16 +9188,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     });
   }
 
-  void _showCompletionResultMessage(String message) {
-    if (_isEveningThresholdCompletion) {
-      _showSheetFeedback(message);
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
-    }
-  }
-
   void _resetReadingHouseFragmentState() {
     _readingHouseFragmentsLoadGeneration++;
     _readingHouseFragments = const <ReadingHouseSharedFragment>[];
@@ -9370,8 +9226,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     if (oldWidget.event.clientEventId != widget.event.clientEventId) {
       _cancelCompletionFeedback();
       _responseValues = const <String, MaatFlowResponseValue>{};
-      _loadedCompletionMetadata = const <String, dynamic>{};
-      _dirtyResponseSpecIds = const <String>{};
       _responseDirty = false;
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
@@ -9380,8 +9234,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       unawaited(_load());
     } else if (oldWidget.reloadSignal != widget.reloadSignal) {
       _responseValues = const <String, MaatFlowResponseValue>{};
-      _loadedCompletionMetadata = const <String, dynamic>{};
-      _dirtyResponseSpecIds = const <String>{};
       _responseDirty = false;
       _eveningThresholdReleaseCarryController.clear();
       _eveningThresholdReleasePending = false;
@@ -9393,8 +9245,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       widget.responseSpecs,
     )) {
       _responseValues = const <String, MaatFlowResponseValue>{};
-      _loadedCompletionMetadata = const <String, dynamic>{};
-      _dirtyResponseSpecIds = const <String>{};
       _responseDirty = false;
       if (_usesDecanWatchResponseBridge) {
         unawaited(_loadDecanWatchResponseValuesIfNeeded());
@@ -9515,7 +9365,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     if (nextValues.isEmpty || nextValues == _responseValues) return;
     setState(() {
       _responseValues = nextValues;
-      _dirtyResponseSpecIds = const <String>{};
       _responseDirty = false;
     });
   }
@@ -9635,7 +9484,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     }
     setState(() {
       _responseValues = nextValues;
-      _dirtyResponseSpecIds = const <String>{};
       _responseDirty = false;
     });
   }
@@ -9651,7 +9499,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     if (!mounted) return;
     setState(() {
       _responseValues = values;
-      _dirtyResponseSpecIds = const <String>{};
       _responseDirty = false;
     });
   }
@@ -9676,7 +9523,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       if (!mounted) return true;
       setState(() {
         _responseDirty = false;
-        _dirtyResponseSpecIds = const <String>{};
         _readingHousePrivateMarginSaving = false;
       });
       if (showFeedback) {
@@ -10205,19 +10051,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
             : null);
   }
 
-  bool get _isOnboardingReviewEvent {
-    final raw = widget.event.behaviorPayload?['review_mode'];
-    if (raw is bool) return raw;
-    return raw?.toString().trim().toLowerCase() == 'true';
-  }
-
-  String? get _onboardingReviewCarryText {
-    final raw = widget.event.behaviorPayload?['review_initial_carry']
-        ?.toString()
-        .trim();
-    return raw == null || raw.isEmpty ? null : raw;
-  }
-
   static DateTime? _parseDateOnly(String? raw) {
     if (raw == null || raw.isEmpty) return null;
     final parsed = DateTime.tryParse(raw);
@@ -10227,24 +10060,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
 
   Future<void> _loadEveningThresholdOrientationState(String userId) async {
     if (!_isEveningThresholdCompletion) return;
-    if (_isOnboardingReviewEvent) {
-      final orientationDate = _eveningThresholdOrientationDate();
-      final carryText = _onboardingReviewCarryText;
-      final orientation = DailyOrientationEntry(
-        userId: userId,
-        localDate: orientationDate,
-        chosenReturn: carryText,
-        source: 'onboarding_review',
-        status: 'started',
-      );
-      if (!mounted) return;
-      setState(() {
-        _eveningThresholdOrientation = orientation;
-        _eveningThresholdPreviousOrientation =
-            widget.completion.eventNumber == 2 ? orientation : null;
-      });
-      return;
-    }
     final repo = DailyOrientationRepo(Supabase.instance.client);
     final orientationDate = _eveningThresholdOrientationDate();
     final previousDate = _eveningThresholdPreviousOrientationDate();
@@ -10274,21 +10089,8 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     }
 
     final clientEventId = widget.event.clientEventId?.trim();
-    if (_isOnboardingReviewEvent) {
-      await _loadEveningThresholdOrientationState('onboarding_review');
-      if (!mounted) return;
-      setState(() {
-        _status = null;
-        _loading = false;
-      });
-      return;
-    }
-
-    final metadataLoader = widget.loadCompletionMetadata;
     final user = Supabase.instance.client.auth.currentUser;
-    if (clientEventId == null ||
-        clientEventId.isEmpty ||
-        (metadataLoader == null && user == null)) {
+    if (clientEventId == null || clientEventId.isEmpty || user == null) {
       if (mounted) {
         setState(() {
           _status = null;
@@ -10301,63 +10103,28 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
       return;
     }
 
-    if (user != null) {
-      await _loadEveningThresholdOrientationState(user.id);
-    }
+    await _loadEveningThresholdOrientationState(user.id);
 
     try {
-      Map<String, dynamic>? loadedMetadata;
-      var hasCompletionRow = false;
-      if (metadataLoader != null) {
-        loadedMetadata = await metadataLoader(clientEventId: clientEventId);
-        hasCompletionRow = loadedMetadata != null;
-      } else {
-        final row = await Supabase.instance.client
-            .from('user_event_completions')
-            .select('metadata')
-            .eq('user_id', user!.id)
-            .eq('client_event_id', clientEventId)
-            .maybeSingle();
-        final metadata = row?['metadata'];
-        loadedMetadata = metadata is Map
-            ? Map<String, dynamic>.from(metadata)
-            : null;
-        hasCompletionRow = row != null;
-      }
-      final metadataMap = loadedMetadata ?? const <String, dynamic>{};
-      final canonicalResponses = extractMaatCompletionResponseValues(
-        metadataMap,
-        specs: widget.responseSpecs,
-      ).values;
-      final hydratedResponseValues = canonicalResponses.isEmpty
-          ? _responseValues
-          : _mergeInitialPromptDraftValues(canonicalResponses);
-      if (canonicalResponses.isNotEmpty) {
-        kMaatFlowResponseDraftStore.rememberValues(
-          flowKey: widget.completion.flowKey,
-          values: canonicalResponses,
-        );
-      }
-      final rawStatus = metadataMap['status']?.toString().trim().toLowerCase();
+      final row = await Supabase.instance.client
+          .from('user_event_completions')
+          .select('metadata')
+          .eq('user_id', user.id)
+          .eq('client_event_id', clientEventId)
+          .maybeSingle();
+      final metadata = row?['metadata'];
+      final rawStatus = metadata is Map
+          ? metadata['status']?.toString().trim().toLowerCase()
+          : null;
       final nextStatus =
           _normalizeStatus(rawStatus) ??
           (widget.completion.customStatusLabels.containsKey(rawStatus)
               ? rawStatus
               : null);
+      final hasCompletionRow = row != null;
       if (!mounted) return;
       setState(() {
         _status = nextStatus ?? (hasCompletionRow ? 'observed' : null);
-        _loadedCompletionMetadata = metadataMap;
-        if (user == null) {
-          _eveningThresholdOrientation = null;
-          _eveningThresholdPreviousOrientation = null;
-          _eveningThresholdReleasePending = false;
-        }
-        if (canonicalResponses.isNotEmpty) {
-          _responseValues = hydratedResponseValues;
-        }
-        _dirtyResponseSpecIds = const <String>{};
-        _responseDirty = false;
         _loading = false;
       });
       unawaited(_syncAndLoadReadingHouseSharedFragments());
@@ -10529,28 +10296,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     String? releaseCarryText,
   }) async {
     if (!_isEveningThresholdCompletion) return true;
-    if (_isOnboardingReviewEvent) {
-      final orientationDate = _eveningThresholdOrientationDate();
-      final carryText = releaseCarryText?.trim().isNotEmpty == true
-          ? releaseCarryText!.trim()
-          : _onboardingReviewCarryText;
-      final orientation = DailyOrientationEntry(
-        userId: 'onboarding_review',
-        localDate: orientationDate,
-        chosenReturn: carryText,
-        source: 'onboarding_review',
-        landingStatus: widget.completion.eventNumber == 1 ? status : null,
-        status: 'started',
-      );
-      if (mounted) {
-        setState(() {
-          _eveningThresholdOrientation = orientation;
-          _eveningThresholdPreviousOrientation =
-              widget.completion.eventNumber == 2 ? orientation : null;
-        });
-      }
-      return true;
-    }
     final userId = Supabase.instance.client.auth.currentUser?.id;
     if (userId == null || userId.trim().isEmpty) return true;
     if (!await _ensureEveningThresholdCanChoose()) return false;
@@ -10621,9 +10366,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     final completedOnDate = DateUtils.dateOnly(
       KemeticMath.toGregorian(widget.ky, widget.km, widget.kd),
     );
-    var completionRecorded = false;
-    var journalContinuityRecorded = !completionStatus.createsJournalContinuity;
-    Map<String, dynamic>? persistedMetadata;
     try {
       final thresholdApplied = await _applyEveningThresholdCompletion(
         status,
@@ -10635,21 +10377,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         setState(() => _saving = false);
         return;
       }
-      if (_isOnboardingReviewEvent) {
-        if (!mounted) return;
-        setState(() {
-          _status = status;
-          _saving = false;
-          _responseDirty = false;
-          _eveningThresholdReleasePending = false;
-        });
-        if (status == 'release') {
-          _eveningThresholdReleaseCarryController.clear();
-        }
-        return;
-      }
-      var metadata = <String, dynamic>{
-        ..._loadedCompletionMetadata,
+      final metadata = <String, dynamic>{
         ...widget.completion.metadataFor(
           status: status,
           completedOnDate: completedOnDate,
@@ -10698,20 +10426,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           readingHousePrivateMarginCompletionMetadata(_responseValues),
         );
       }
-      metadata = buildMaatCompletionResponseMetadata(
-        existingMetadata: metadata,
-        specs: widget.responseSpecs,
-        currentValues: _responseValues,
-        dirtySpecIds: _dirtyResponseSpecIds,
-        clientEventId: clientEventId,
-        flowId: flowId,
-        localDate: completedOnDate,
-        eventKey: _maatFlowResponseEventKey(widget.completion),
-        completedAt: DateTime.now().toUtc(),
-        sourceIdForSpec: (spec) => _responseSourceId(spec, completedOnDate),
-        sourceIdForGroup: (spec, groupId) =>
-            _responseGroupSourceId(spec, groupId, completedOnDate),
-      );
       final completionIdentity = widget.identity;
       final completionContinuity = widget.onCompletionContinuity;
       final callback = widget.onRecordCompletion;
@@ -10756,21 +10470,21 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         identity: completionIdentity,
         status: completionStatus,
       );
-      completionRecorded = true;
-      persistedMetadata = metadata;
       if (completionStatus.createsJournalContinuity) {
-        await _syncResponseBlocks(completionStatus);
-        if (completionContinuity != null) {
-          await completionContinuity(completionStatus);
+        try {
+          await _syncResponseBlocks(completionStatus);
+        } on Object {
+          // Keep completion persistence independent from journal response sync.
         }
-        journalContinuityRecorded = true;
+      }
+      if (completionStatus.createsJournalContinuity &&
+          completionContinuity != null) {
+        await completionContinuity(completionStatus);
       }
       if (!mounted) return;
       setState(() {
         _status = status;
         _saving = false;
-        _loadedCompletionMetadata = metadata;
-        _dirtyResponseSpecIds = const <String>{};
         _responseDirty = false;
         _eveningThresholdReleasePending = false;
       });
@@ -10781,55 +10495,17 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         unawaited(_syncAndLoadReadingHouseSharedFragments());
       }
       unawaited(_maybeCaptureLivingTextDayOneNode(status));
-    } on CalendarCompletionPostCommitException {
-      if (!mounted) return;
-      if (!completionRecorded) {
-        _cancelCompletionFeedback();
-        setState(() => _saving = false);
-        _showCompletionResultMessage('Could not record this sitting.');
-        return;
-      }
-      setState(() {
-        _status = status;
-        _saving = false;
-        _loadedCompletionMetadata =
-            persistedMetadata ?? _loadedCompletionMetadata;
-        _dirtyResponseSpecIds = const <String>{};
-        _responseDirty = false;
-        _eveningThresholdReleasePending = false;
-      });
-      if (status == 'release') {
-        _eveningThresholdReleaseCarryController.clear();
-      }
-      _showCompletionResultMessage(kCalendarCompletionPostCommitFailureMessage);
     } catch (_) {
+      _cancelCompletionFeedback();
       if (!mounted) return;
-      if (!journalContinuityRecorded) {
-        _cancelCompletionFeedback();
+      setState(() => _saving = false);
+      if (_isEveningThresholdCompletion) {
+        _showSheetFeedback('Could not record this sitting.');
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not record this sitting.')),
+        );
       }
-      setState(() {
-        if (completionRecorded) {
-          _status = status;
-          _loadedCompletionMetadata =
-              persistedMetadata ?? _loadedCompletionMetadata;
-          if (journalContinuityRecorded) {
-            _dirtyResponseSpecIds = const <String>{};
-            _responseDirty = false;
-            _eveningThresholdReleasePending = false;
-          }
-        }
-        _saving = false;
-      });
-      if (journalContinuityRecorded && status == 'release') {
-        _eveningThresholdReleaseCarryController.clear();
-      }
-      _showCompletionResultMessage(
-        completionRecorded
-            ? journalContinuityRecorded
-                  ? kCalendarCompletionPostCommitFailureMessage
-                  : kCalendarCompletionContinuityFailureMessage
-            : 'Could not record this sitting.',
-      );
     }
   }
 
@@ -10840,17 +10516,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     if (clientEventId == null || clientEventId.isEmpty) return;
     setState(() => _saving = true);
     try {
-      if (_isOnboardingReviewEvent) {
-        if (!mounted) return;
-        setState(() {
-          _status = null;
-          _saving = false;
-          _responseDirty = false;
-          _eveningThresholdReleasePending = false;
-        });
-        _eveningThresholdReleaseCarryController.clear();
-        return;
-      }
       final callback = widget.onUnrecordCompletion;
       if (callback != null) {
         await callback(clientEventId);
@@ -10872,13 +10537,15 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           ),
         );
       }
-      await _syncResponseBlocks(CompletionStatus.skipped);
+      try {
+        await _syncResponseBlocks(CompletionStatus.skipped);
+      } on Object {
+        // Keep clear persistence independent from journal response sync.
+      }
       if (!mounted) return;
       setState(() {
         _status = null;
         _saving = false;
-        _loadedCompletionMetadata = const <String, dynamic>{};
-        _dirtyResponseSpecIds = const <String>{};
         _responseDirty = false;
         _eveningThresholdReleasePending = false;
       });
@@ -11225,6 +10892,22 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     );
   }
 
+  List<String> _responseBlockSourceIds(DateTime localDate) {
+    final sourceIds = <String>[];
+    final seenGroups = <String>{};
+    for (final spec in widget.responseSpecs) {
+      final groupId = spec.normalizedJournalGroupId;
+      if (groupId == null) {
+        sourceIds.add(_responseSourceId(spec, localDate));
+        continue;
+      }
+      if (seenGroups.add(groupId)) {
+        sourceIds.add(_responseGroupSourceId(spec, groupId, localDate));
+      }
+    }
+    return sourceIds;
+  }
+
   void _handleResponseChanged(MaatFlowResponseValue value) {
     final nextValues = <String, MaatFlowResponseValue>{
       ..._responseValues,
@@ -11232,7 +10915,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     };
     setState(() {
       _responseValues = nextValues;
-      _dirtyResponseSpecIds = <String>{..._dirtyResponseSpecIds, value.specId};
       _responseDirty = true;
     });
     _rememberInitialPromptDraftValue(value);
@@ -11248,17 +10930,21 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
     if (writer == null || widget.responseSpecs.isEmpty) return;
 
     final localDate = _eventGregorianDate;
-    final projections = buildMaatJournalResponseProjections(
+    final includeText =
+        completionStatus == CompletionStatus.observed ||
+        completionStatus == CompletionStatus.partial;
+    final blocks = buildMaatJournalPlainUserTextBlocks(
+      sourceIds: _responseBlockSourceIds(localDate),
       specs: widget.responseSpecs,
       values: _responseValues,
-      completionStatus: completionStatus,
       localDate: localDate,
+      includeText: includeText,
       sourceIdForSpec: (spec) => _responseSourceId(spec, localDate),
       sourceIdForGroup: (spec, groupId) =>
           _responseGroupSourceId(spec, groupId, localDate),
     );
-    for (final projection in projections) {
-      await writer(projection.block);
+    for (final block in blocks) {
+      await writer(block);
     }
   }
 

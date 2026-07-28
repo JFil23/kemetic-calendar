@@ -52,7 +52,7 @@ void main() {
   });
 
   test(
-    'UX-DRAWER contract keeps an opaque underlay and translated shell',
+    'global side drawer is an underlay behind the foreground shell',
     () async {
       final main = await File('lib/main.dart').readAsString();
       final shell = _sourceBetween(
@@ -78,16 +78,7 @@ void main() {
       expect(shell, contains('globalSideDrawerScrimKey'));
       expect(shell, contains('onTap: () => unawaited(_closeFloatingMenu())'));
       expect(drawer, contains('globalSideDrawerForegroundKey'));
-      expect(drawerWidget, contains('Color(0xFF000000)'));
-      expect(drawerWidget, isNot(contains('AnimatedSlide')));
-      final foregroundWidget = _sourceBetween(
-        drawer,
-        'class GlobalSideDrawerForeground extends StatelessWidget',
-        'class _GlobalSideDrawerRow extends StatelessWidget',
-      );
-      expect(foregroundWidget, contains('TweenAnimationBuilder<double>'));
-      expect(foregroundWidget, contains('Transform.translate'));
-      expect(foregroundWidget, contains('globalSideDrawerWidth(context)'));
+      expect(drawer, contains('AnimatedSlide'));
       expect(drawerWidget, isNot(contains('globalSideDrawerScrimKey')));
       expect(drawerWidget, isNot(contains('GestureDetector')));
     },
@@ -121,12 +112,27 @@ void main() {
   });
 
   test(
-    'drawer dispatch generation-guards primary replacement and utility pushes',
+    'drawer dispatch keeps primary utility and profile route contracts',
     () async {
       final main = await File('lib/main.dart').readAsString();
-      final dispatcher = _sourceBetween(
+      final primary = _sourceBetween(
         main,
-        'void _dispatchDrawerDestination',
+        'Future<void> _openPrimarySectionFromDrawer',
+        'Future<void> _openProfileFromDrawer',
+      );
+      final profile = _sourceBetween(
+        main,
+        'Future<void> _openProfileFromDrawer',
+        'Future<void> _openFlowsFromDrawer',
+      );
+      final flows = _sourceBetween(
+        main,
+        'Future<void> _openFlowsFromDrawer',
+        'Future<void> _openCalendarsFromDrawer',
+      );
+      final calendars = _sourceBetween(
+        main,
+        'Future<void> _openCalendarsFromDrawer',
         'bool _isDrawerDestinationSelected',
       );
       final items = _sourceBetween(
@@ -135,55 +141,28 @@ void main() {
         'void _openMaatGuidance',
       );
 
-      expect(main, contains('DrawerNavigationGeneration'));
-      expect(dispatcher, contains('_drawerNavigationGeneration.runIfCurrent'));
-      expect(dispatcher, contains('drawer navigation tap target'));
-      expect(dispatcher, contains('drawer navigation route requested'));
-      expect(dispatcher, contains('widget.router.go(destination.location)'));
-      expect(
-        'widget.router.go(destination.location)'.allMatches(dispatcher).length,
-        1,
-      );
-      expect(
-        dispatcher,
-        contains('recordPrimarySectionSelection(primarySection)'),
-      );
-      expect(dispatcher, contains('suppressRestoreForUserNavigation'));
-      expect(dispatcher, contains('drawer current selection closed in place'));
-      expect(dispatcher, contains('destination.isPrimaryReplacement'));
-      expect(dispatcher, contains('openUtilityRoute<void>('));
-      expect(dispatcher, contains('openDetailRoute<void>('));
-      expect(dispatcher, isNot(contains('Navigator.maybeOf(')));
-      expect(dispatcher, isNot(contains('popUntil(')));
-      expect(dispatcher, isNot(contains('.push(')));
-      expect(dispatcher, isNot(contains('pushReplacement')));
-      expect(dispatcher, isNot(contains('openPrimarySection(')));
-      expect(main, contains('_DrawerNavigationOperation.historyPush'));
-      expect(main, contains('_pushDrawerHistoryUtility(destination)'));
-      expect(main, contains('_replaceDrawerHistoryPrimary(destination)'));
-      expect(main, contains('DrawerRouteHistory'));
-      expect(main, contains('_drawerRouteHistorySurfaceKey'));
-      expect(main, contains('boot drawer history accepted'));
-      expect(
-        items,
-        contains('_dispatchDrawerDestination(_DrawerDestination.calendar)'),
-      );
-      expect(
-        items,
-        contains('_dispatchDrawerDestination(_DrawerDestination.calendars)'),
-      );
-      expect(
-        items,
-        contains('_dispatchDrawerDestination(_DrawerDestination.profile)'),
-      );
+      expect(primary, contains('openPrimarySection(context, section'));
+      expect(primary, contains('unawaited(_closeFloatingMenu())'));
+      expect(primary, isNot(contains('await _closeFloatingMenu();')));
+      expect(profile, contains('openDetailRoute<void>'));
+      expect(profile, contains("'/profile/me'"));
+      expect(profile, contains('unawaited(_closeFloatingMenu())'));
+      expect(profile, isNot(contains('await _closeFloatingMenu();')));
+      expect(profile, isNot(contains('openPrimarySection')));
+      expect(profile, isNot(contains('recordPrimaryTabSelection')));
       expect(
         main,
-        isNot(contains('_calendarRouteRetainedUnderDrawerDestination')),
+        isNot(contains('openPrimarySection(context, AppSection.profile')),
       );
-      expect(
-        main,
-        isNot(contains('Navigator.maybeOf(\n        navigationContext')),
-      );
+      expect(flows, contains('unawaited(_closeFloatingMenu())'));
+      expect(flows, isNot(contains('await _closeFloatingMenu();')));
+      expect(calendars, contains('unawaited(_closeFloatingMenu())'));
+      expect(calendars, isNot(contains('await _closeFloatingMenu();')));
+      expect(items, contains('_openCalendarsFromDrawer()'));
+      expect(items, contains('_openFlowsFromDrawer()'));
+      expect(main, contains('openUtilityRoute<void>'));
+      expect(main, contains("'/flows'"));
+      expect(main, contains("'/calendars'"));
     },
   );
 
@@ -269,35 +248,6 @@ void main() {
     expect(shell, isNot(contains('RestorableBool')));
     expect(shell, isNot(contains('restorationId')));
   });
-
-  test(
-    'NAVIGATION locks the reveal-push drawer interaction contract',
-    () async {
-      final navigation = await File('NAVIGATION.md').readAsString();
-
-      for (final contract in <String>[
-        'UX-DRAWER-001',
-        'UX-DRAWER-002',
-        'UX-DRAWER-003',
-        'UX-DRAWER-004',
-        'UX-DRAWER-005',
-        'UX-DRAWER-006',
-        'UX-DRAWER-007',
-        'UX-DRAWER-008',
-      ]) {
-        expect(navigation, contains(contract));
-      }
-      expect(navigation, contains('opaque surface behind the application'));
-      expect(navigation, contains('translates the entire foreground'));
-      expect(navigation, contains('exact pre-open Calendar offset'));
-      expect(navigation, contains('single `GlobalMenuBubble` remains mounted'));
-      expect(navigation, contains('before it starts the independent close'));
-      expect(navigation, contains('one centralized, generation-'));
-      expect(navigation, contains('history-preserving pushes'));
-      expect(navigation, contains('valid base route plus its utility'));
-      expect(navigation, contains('must not reconstruct the routed page'));
-    },
-  );
 
   test('global drawer shell does not add route swipe systems', () async {
     final main = await File('lib/main.dart').readAsString();

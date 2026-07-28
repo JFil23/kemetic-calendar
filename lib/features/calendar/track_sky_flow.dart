@@ -1099,10 +1099,6 @@ DateTime _nowInZone(TrackSkyTimeZone timezone, {DateTime? now}) {
   return _fromZonedDateTime(zoned);
 }
 
-DateTime trackSkyNowInZone(TrackSkyTimeZone timezone, {DateTime? now}) {
-  return _nowInZone(timezone, now: now);
-}
-
 tz.TZDateTime _zonedDateTimeInZone(
   TrackSkyTimeZone timezone,
   String dateIso,

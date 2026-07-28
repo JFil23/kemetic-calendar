@@ -6,20 +6,16 @@ const String kMaatJournalResponseBlockIdPrefix = 'maat_response:';
 const String kMaatJournalPlainTextSourceMetaKey =
     'maat_plain_user_text_sources';
 
-enum MaatJournalResponseProjectionKind { formatted, plainUserText }
-
 class MaatJournalResponseBlock {
   const MaatJournalResponseBlock({
     required this.sourceId,
     required this.text,
     this.localDate,
-    this.projectionKind = MaatJournalResponseProjectionKind.formatted,
   }) : assert(sourceId.length > 0);
 
   final String sourceId;
   final String text;
   final DateTime? localDate;
-  final MaatJournalResponseProjectionKind projectionKind;
 
   String get blockId => maatJournalResponseBlockId(sourceId);
 }
@@ -47,7 +43,6 @@ List<MaatJournalResponseBlock> buildMaatJournalResponseBlocksForPolicy({
           sourceId: sourceId,
           text: text,
           localDate: localDate,
-          projectionKind: MaatJournalResponseProjectionKind.formatted,
         );
       })
       .toList(growable: false);
@@ -101,7 +96,6 @@ List<MaatJournalResponseBlock> buildMaatJournalPlainUserTextBlocks({
               .where((text) => text.isNotEmpty)
               .join('\n\n'),
           localDate: localDate,
-          projectionKind: MaatJournalResponseProjectionKind.plainUserText,
         ),
       )
       .toList(growable: false);

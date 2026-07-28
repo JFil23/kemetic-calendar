@@ -151,7 +151,6 @@ void main() {
       kind: MaatFlowResponseKind.text,
       label: 'What do you set down?',
       journalPolicy: MaatFlowJournalPolicy.localOnly,
-      journalBehavior: MaatFlowJournalBehavior.none,
     );
     const prompt = MaatFlowInitialPromptSpec(
       flowKey: 'the-moon-return',
@@ -181,7 +180,6 @@ void main() {
       surface: MaatFlowResponseSurface.initialDetail,
       kind: MaatFlowResponseKind.text,
       label: 'What action fits this hour?',
-      journalBehavior: MaatFlowJournalBehavior.none,
     );
     const fieldless = MaatFlowInitialPromptSpec(
       flowKey: 'the-course',

@@ -20,37 +20,6 @@ enum TrueOnboardingStep {
   complete,
 }
 
-enum OnboardingDayRhythmState { idle, scheduled, visible, completed }
-
-extension OnboardingDayRhythmStateWire on OnboardingDayRhythmState {
-  String get wireName {
-    switch (this) {
-      case OnboardingDayRhythmState.idle:
-        return 'idle';
-      case OnboardingDayRhythmState.scheduled:
-        return 'scheduled';
-      case OnboardingDayRhythmState.visible:
-        return 'visible';
-      case OnboardingDayRhythmState.completed:
-        return 'completed';
-    }
-  }
-
-  static OnboardingDayRhythmState fromWire(String? raw) {
-    switch (raw) {
-      case 'scheduled':
-        return OnboardingDayRhythmState.scheduled;
-      case 'visible':
-        return OnboardingDayRhythmState.visible;
-      case 'completed':
-        return OnboardingDayRhythmState.completed;
-      case 'idle':
-      default:
-        return OnboardingDayRhythmState.idle;
-    }
-  }
-}
-
 extension TrueOnboardingStepWire on TrueOnboardingStep {
   String get wireName {
     switch (this) {
@@ -104,7 +73,6 @@ class OnboardingHelperIds {
   OnboardingHelperIds._();
 
   static const String calendarToggle = 'calendar_toggle';
-  static const String calendarMenuExplore = 'calendar_menu_explore';
   static const String monthDetails = 'calendar_month_details';
   static const String dayCardLongPress = 'calendar_day_card_long_press';
   static const String journalBadges = 'journal_badges';
@@ -121,7 +89,6 @@ class OnboardingHelperIds {
 
   static const Set<String> all = {
     calendarToggle,
-    calendarMenuExplore,
     monthDetails,
     dayCardLongPress,
     journalBadges,
@@ -134,7 +101,6 @@ class OnboardingHelperIds {
 
   static const Map<String, int> versions = {
     calendarToggle: defaultVersion,
-    calendarMenuExplore: defaultVersion,
     monthDetails: defaultVersion,
     dayCardLongPress: defaultVersion,
     journalBadges: defaultVersion,
@@ -146,7 +112,6 @@ class OnboardingHelperIds {
   };
 
   static const Map<String, Set<String>> legacyAliases = {
-    'calendarMenuExplore': {calendarMenuExplore},
     'calendarToggle': {calendarToggle},
     'monthDetails': {monthDetails},
     'dayCardLongPress': {dayCardLongPress},
@@ -228,15 +193,14 @@ class OnboardingHelperRegistry {
 
   static const String flowHubPageAddFlowSourceWidget =
       'FlowHubPage.addFlowHelper';
-  static const String flowHubPageMaatFlowsSourceWidget =
-      'FlowHubPage.maatFlowsHelper';
   static const String maatFlowListAddFlowSourceWidget =
       'MaatFlowListPage.addFlowHelper';
 
   static const flowStudioAddFlow = OnboardingHelperDefinition(
     id: OnboardingHelperIds.flowStudioAddFlow,
-    title: 'Add a custom flow',
-    body: 'Create a personal rhythm from scratch when you need one.',
+    title: 'Build your own rhythm',
+    body:
+        'Create personal flows for study, health, family, writing, business, or spiritual practice.',
     analyticsEvent: 'helper_seen_flow_builder',
     sourceWidget: 'FlowStudioAddFlowHelper',
   );
@@ -251,18 +215,10 @@ class OnboardingHelperRegistry {
 
   static const flowStudioMaatFlows = OnboardingHelperDefinition(
     id: OnboardingHelperIds.flowStudioMaatFlows,
-    title: 'Start with Ma’at',
-    body: 'Choose a guided rhythm, ḥꜣw carries it into your calendar.',
+    title: 'Ma’at template flows',
+    body: 'Ma’at templates give you ready-made rhythms to adapt.',
     analyticsEvent: 'helper_seen_flow_studio_maat_flows',
     sourceWidget: 'FlowStudioMaatFlowsHelper',
-  );
-
-  static const calendarMenuExplore = OnboardingHelperDefinition(
-    id: OnboardingHelperIds.calendarMenuExplore,
-    title: 'Tap to explore',
-    body: 'Create with flows, journal, planner, and tools.',
-    analyticsEvent: 'helper_seen_calendar_menu_explore',
-    sourceWidget: 'CalendarPage.menuExploreHelper',
   );
 
   static const calendarToggle = OnboardingHelperDefinition(
@@ -292,8 +248,9 @@ class OnboardingHelperRegistry {
 
   static const journalBadges = OnboardingHelperDefinition(
     id: OnboardingHelperIds.journalBadges,
-    title: 'Observed events will appear here',
-    body: 'Observed events are added to your ledger.',
+    title: 'Your record gathers here',
+    body:
+        'Reflections, observed events, and journal badges will appear here over time.',
     analyticsEvent: 'helper_seen_journal_badges',
     sourceWidget: 'JournalPage.journalBadgesHelper',
   );
@@ -310,14 +267,14 @@ class OnboardingHelperRegistry {
   static const profileCommunityFeed = OnboardingHelperDefinition(
     id: OnboardingHelperIds.profileCommunityFeed,
     title: 'Your community lives below',
-    body: 'Scroll down for shared flows and confirmations.',
+    body:
+        'Scroll down to reveal the community feed, where shared flows and confirmations begin to gather.',
     analyticsEvent: 'helper_seen_profile_community_feed',
     sourceWidget: 'ProfilePage.profileCommunityFeedHelper',
   );
 
   static const List<OnboardingHelperDefinition> all = [
     calendarToggle,
-    calendarMenuExplore,
     monthDetails,
     dayCardLongPress,
     journalBadges,
@@ -330,7 +287,6 @@ class OnboardingHelperRegistry {
 
   static const Map<String, OnboardingHelperDefinition> byId = {
     OnboardingHelperIds.calendarToggle: calendarToggle,
-    OnboardingHelperIds.calendarMenuExplore: calendarMenuExplore,
     OnboardingHelperIds.monthDetails: monthDetails,
     OnboardingHelperIds.dayCardLongPress: dayCardLongPress,
     OnboardingHelperIds.journalBadges: journalBadges,
@@ -377,12 +333,6 @@ class OnboardingProgress {
     this.hasSeenMenuPrompt = false,
     this.completedOnboarding = false,
     this.skippedOnboarding = false,
-    this.reflectionSignupDecanIdentity,
-    this.firstReflectionEligibleDecanIdentity,
-    this.hasCrossedFirstDecanBoundary = false,
-    this.onboardingDayRhythmState = OnboardingDayRhythmState.idle,
-    this.onboardingDayRhythmDateIdentity,
-    this.lastSatisfiedDayRhythmIdentity,
     this.seenHelpers = const <String>{},
   });
 
@@ -402,12 +352,6 @@ class OnboardingProgress {
   final bool hasSeenMenuPrompt;
   final bool completedOnboarding;
   final bool skippedOnboarding;
-  final String? reflectionSignupDecanIdentity;
-  final String? firstReflectionEligibleDecanIdentity;
-  final bool hasCrossedFirstDecanBoundary;
-  final OnboardingDayRhythmState onboardingDayRhythmState;
-  final String? onboardingDayRhythmDateIdentity;
-  final String? lastSatisfiedDayRhythmIdentity;
   final Set<String> seenHelpers;
 
   OnboardingProgress copyWith({
@@ -431,16 +375,6 @@ class OnboardingProgress {
     bool? hasSeenMenuPrompt,
     bool? completedOnboarding,
     bool? skippedOnboarding,
-    String? reflectionSignupDecanIdentity,
-    bool clearReflectionSignupDecanIdentity = false,
-    String? firstReflectionEligibleDecanIdentity,
-    bool clearFirstReflectionEligibleDecanIdentity = false,
-    bool? hasCrossedFirstDecanBoundary,
-    OnboardingDayRhythmState? onboardingDayRhythmState,
-    String? onboardingDayRhythmDateIdentity,
-    bool clearOnboardingDayRhythmDateIdentity = false,
-    String? lastSatisfiedDayRhythmIdentity,
-    bool clearLastSatisfiedDayRhythmIdentity = false,
     Set<String>? seenHelpers,
   }) {
     return OnboardingProgress(
@@ -478,27 +412,6 @@ class OnboardingProgress {
           (this.completedOnboarding ||
               (currentStep ?? this.currentStep) == TrueOnboardingStep.complete),
       skippedOnboarding: skippedOnboarding ?? this.skippedOnboarding,
-      reflectionSignupDecanIdentity: clearReflectionSignupDecanIdentity
-          ? null
-          : (reflectionSignupDecanIdentity ??
-                this.reflectionSignupDecanIdentity),
-      firstReflectionEligibleDecanIdentity:
-          clearFirstReflectionEligibleDecanIdentity
-          ? null
-          : (firstReflectionEligibleDecanIdentity ??
-                this.firstReflectionEligibleDecanIdentity),
-      hasCrossedFirstDecanBoundary:
-          hasCrossedFirstDecanBoundary ?? this.hasCrossedFirstDecanBoundary,
-      onboardingDayRhythmState:
-          onboardingDayRhythmState ?? this.onboardingDayRhythmState,
-      onboardingDayRhythmDateIdentity: clearOnboardingDayRhythmDateIdentity
-          ? null
-          : (onboardingDayRhythmDateIdentity ??
-                this.onboardingDayRhythmDateIdentity),
-      lastSatisfiedDayRhythmIdentity: clearLastSatisfiedDayRhythmIdentity
-          ? null
-          : (lastSatisfiedDayRhythmIdentity ??
-                this.lastSatisfiedDayRhythmIdentity),
       seenHelpers: seenHelpers ?? this.seenHelpers,
     );
   }
@@ -529,13 +442,6 @@ class OnboardingProgress {
     'hasSeenMenuPrompt': hasSeenMenuPrompt,
     'completedOnboarding': completedOnboarding,
     'skippedOnboarding': skippedOnboarding,
-    'reflectionSignupDecanIdentity': reflectionSignupDecanIdentity,
-    'firstReflectionEligibleDecanIdentity':
-        firstReflectionEligibleDecanIdentity,
-    'hasCrossedFirstDecanBoundary': hasCrossedFirstDecanBoundary,
-    'onboardingDayRhythmState': onboardingDayRhythmState.wireName,
-    'onboardingDayRhythmDateIdentity': onboardingDayRhythmDateIdentity,
-    'lastSatisfiedDayRhythmIdentity': lastSatisfiedDayRhythmIdentity,
     'seenHelpers': seenHelpers.toList()..sort(),
   };
 
@@ -547,7 +453,7 @@ class OnboardingProgress {
           )
         : const <String>{};
     final eventDateRaw = json['firstMaatFlowEventDate'] as String?;
-    final progress = OnboardingProgress(
+    return OnboardingProgress(
       onboardingVersion:
           (json['onboardingVersion'] as num?)?.toInt() ??
           kTrueOnboardingVersion,
@@ -572,82 +478,9 @@ class OnboardingProgress {
       hasSeenMenuPrompt: json['hasSeenMenuPrompt'] == true,
       completedOnboarding: json['completedOnboarding'] == true,
       skippedOnboarding: json['skippedOnboarding'] == true,
-      reflectionSignupDecanIdentity:
-          json['reflectionSignupDecanIdentity'] as String?,
-      firstReflectionEligibleDecanIdentity:
-          json['firstReflectionEligibleDecanIdentity'] as String?,
-      hasCrossedFirstDecanBoundary:
-          json['hasCrossedFirstDecanBoundary'] == true,
-      onboardingDayRhythmState: OnboardingDayRhythmStateWire.fromWire(
-        json['onboardingDayRhythmState'] as String?,
-      ),
-      onboardingDayRhythmDateIdentity:
-          json['onboardingDayRhythmDateIdentity'] as String?,
-      lastSatisfiedDayRhythmIdentity:
-          json['lastSatisfiedDayRhythmIdentity'] as String?,
       seenHelpers: helperIds,
     );
-    return normalizeOnboardingProgressInvariants(progress);
   }
-}
-
-OnboardingProgress normalizeOnboardingProgressInvariants(
-  OnboardingProgress progress,
-) {
-  if (progress.completedOnboarding &&
-      progress.currentStep == TrueOnboardingStep.complete &&
-      !progress.hasSeenMenuPrompt) {
-    return progress.copyWith(hasSeenMenuPrompt: true);
-  }
-  return progress;
-}
-
-OnboardingProgress markOnboardingProgressComplete(OnboardingProgress progress) {
-  return normalizeOnboardingProgressInvariants(
-    progress.copyWith(
-      currentStep: TrueOnboardingStep.complete,
-      completedOnboarding: true,
-      hasSeenMenuPrompt: true,
-    ),
-  );
-}
-
-String? _cleanDayRhythmIdentity(String? identity) {
-  final trimmed = identity?.trim();
-  if (trimmed == null || trimmed.isEmpty) return null;
-  return trimmed;
-}
-
-String? onboardingSatisfiedDayRhythmIdentity(OnboardingProgress progress) {
-  return _cleanDayRhythmIdentity(progress.lastSatisfiedDayRhythmIdentity) ??
-      _cleanDayRhythmIdentity(progress.onboardingDayRhythmDateIdentity);
-}
-
-bool shouldPresentFinalOnboardingMenuHandoff(OnboardingProgress progress) {
-  if (progress.hasSeenMenuPrompt) return false;
-  if (progress.currentStep == TrueOnboardingStep.menuExplore) return true;
-  return progress.completedOnboarding &&
-      progress.currentStep == TrueOnboardingStep.complete;
-}
-
-bool shouldAllowDailyCosmicContextAfterOnboardingHandoff({
-  required OnboardingProgress progress,
-  required String todayIdentity,
-}) {
-  final normalizedToday = todayIdentity.trim();
-  if (normalizedToday.isEmpty) return false;
-
-  final satisfiedIdentity = onboardingSatisfiedDayRhythmIdentity(progress);
-  if (satisfiedIdentity != null &&
-      satisfiedIdentity.compareTo(normalizedToday) >= 0) {
-    return false;
-  }
-
-  return progress.completedOnboarding &&
-      progress.hasSeenMenuPrompt &&
-      progress.currentStep == TrueOnboardingStep.complete &&
-      progress.onboardingDayRhythmState != OnboardingDayRhythmState.scheduled &&
-      progress.onboardingDayRhythmState != OnboardingDayRhythmState.visible;
 }
 
 class OnboardingProgressStorage {
@@ -662,15 +495,11 @@ class OnboardingProgressStorage {
   }
 
   Future<OnboardingProgress> loadLocal(String userId) async {
-    return await loadLocalIfPresent(userId) ?? const OnboardingProgress();
-  }
-
-  Future<OnboardingProgress?> loadLocalIfPresent(String userId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_keyForUser(userId));
       if (raw == null || raw.trim().isEmpty) {
-        return null;
+        return const OnboardingProgress();
       }
       final decoded = jsonDecode(raw);
       if (decoded is! Map<String, dynamic>) {
@@ -683,27 +512,6 @@ class OnboardingProgressStorage {
     }
   }
 
-  Future<OnboardingProgress> loadLocalReconciledWithLegacyCompletion(
-    String userId, {
-    required Future<bool> Function() legacyCompleted,
-  }) async {
-    final localProgress = await loadLocalIfPresent(userId);
-    if (localProgress != null) {
-      if (localProgress.completedOnboarding) return localProgress;
-      if (!await legacyCompleted()) return localProgress;
-      final reconciled = markOnboardingProgressComplete(localProgress);
-      await saveLocal(userId, reconciled);
-      return reconciled;
-    }
-
-    if (!await legacyCompleted()) return const OnboardingProgress();
-    final reconciled = markOnboardingProgressComplete(
-      const OnboardingProgress(),
-    );
-    await saveLocal(userId, reconciled);
-    return reconciled;
-  }
-
   Future<void> save(String userId, OnboardingProgress progress) async {
     return saveLocal(userId, progress);
   }
@@ -711,10 +519,9 @@ class OnboardingProgressStorage {
   Future<void> saveLocal(String userId, OnboardingProgress progress) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final invariantProgress = normalizeOnboardingProgressInvariants(progress);
-      final normalized = invariantProgress.copyWith(
+      final normalized = progress.copyWith(
         seenHelpers: OnboardingHelperIds.normalizeCompletedHelperKeys(
-          invariantProgress.seenHelpers,
+          progress.seenHelpers,
         ),
       );
       await prefs.setString(

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../../widgets/responsive_content_rail.dart';
 import 'planner_visual_tokens.dart';
 
 class PlannerWall extends StatelessWidget {
@@ -17,7 +16,7 @@ class PlannerWall extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final wall = Padding(
+    return Padding(
       padding: EdgeInsets.fromLTRB(
         PlannerVisualTokens.wallHorizontalPadding,
         topPadding,
@@ -33,12 +32,6 @@ class PlannerWall extends StatelessWidget {
           ],
         ],
       ),
-    );
-
-    return ResponsiveContentRail(
-      maxWidth: 760,
-      expandHeight: false,
-      child: wall,
     );
   }
 }

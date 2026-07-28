@@ -3,7 +3,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:app_links/app_links.dart';
@@ -27,8 +26,6 @@ import 'features/inbox/shared_flow_details_entry.dart';
 import 'features/inbox/shared_flow_details_page.dart';
 import 'features/inbox/inbox_threading.dart';
 import 'features/invites/event_invite_details_page.dart';
-import 'data/decan_reflection_model.dart';
-import 'data/decan_reflection_repo.dart';
 import 'data/profile_model.dart';
 import 'data/profile_repo.dart';
 import 'data/flow_post_model.dart';
@@ -37,17 +34,13 @@ import 'data/maat_guidance_model.dart';
 import 'data/maat_guidance_repo.dart';
 import 'data/profile_avatar_glyphs.dart';
 import 'data/share_models.dart';
-import 'data/share_repo.dart';
 import 'utils/event_cid_util.dart';
 import 'telemetry/telemetry.dart';
 import 'shared/glossy_text.dart';
 
-import 'root_boot.dart';
 import 'utils/hive_local_storage_web.dart';
 import 'core/async_guard.dart';
 import 'core/app_link_intent.dart';
-import 'core/drawer_navigation_generation.dart';
-import 'core/drawer_route_history.dart';
 import 'core/global_menu_routes.dart';
 import 'core/navigation_fallback.dart';
 import 'core/navigation_persistence_policy.dart';
@@ -70,9 +63,7 @@ import 'features/maat_guidance/maat_guidance_floating_card.dart';
 import 'features/nodes/kemetic_node_library.dart';
 import 'features/nodes/kemetic_node_list_page.dart';
 import 'features/nodes/kemetic_node_reader_page.dart';
-import 'package:mobile/features/onboarding/decan_reflection_onboarding_gate.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
-import 'package:mobile/features/onboarding/onboarding_review_config.dart';
 import 'features/onboarding/onboarding_progress.dart';
 import 'features/onboarding/onboarding_storage.dart';
 import 'features/profile/edit_profile_page.dart';
@@ -100,9 +91,7 @@ import 'services/app_navigation_restoration_controller.dart';
 import 'services/restoration_coordinator.dart';
 import 'services/restoration_trace.dart';
 import 'services/session_resume_service.dart';
-import 'services/google_calendar_web_import_provider.dart';
 import 'core/supabase_runtime_config_guard.dart' as runtime_config;
-import 'utils/auth_redirect.dart';
 
 // Conditional import: on web we use URL cleanup + visibility hook; elsewhere no-ops.
 import 'utils/web_history.dart'
@@ -231,10 +220,6 @@ bool _isDebugDaySheetSmokeLocation(String? raw) {
 
 String? _debugInitialLocationFromDefines() {
   if (!kDebugMode) return null;
-  if (onboardingReviewRuntimeEnabled &&
-      isOnboardingReviewLocation(_debugInitialRouteEnv)) {
-    return kOnboardingReviewRoute;
-  }
   if (_debugDaySheetSmokeEnv) return _kDebugDaySheetSmokeRoute;
   if (_isDebugDaySheetSmokeLocation(_debugInitialRouteEnv)) {
     return _kDebugDaySheetSmokeRoute;
@@ -394,7 +379,6 @@ final ValueNotifier<bool> _webAuthExchangeInProgress = ValueNotifier<bool>(
 );
 String? _bootRestoredLocation;
 String? _bootExplicitIntentLocation;
-DrawerRouteHistory? _bootDrawerRouteHistory;
 String? _bootAuthDeferredRestoredLocation;
 bool _bootRestoreDeferredForAuth = false;
 bool _bootDeferredRestorePreparedForAuth = false;
@@ -402,12 +386,6 @@ PushInitialMessage? _bootInitialPushMessage;
 String? _bootInitialAppLinkSignature;
 String? _lastHandledAuthCallbackSignature;
 DateTime? _lastHandledAuthCallbackAt;
-final BootCoordinator _rootBootCoordinator = BootCoordinator();
-bool _bootSupabaseInitialized = false;
-bool _postFirstFrameWarmupsStarted = false;
-
-@visibleForTesting
-BootCoordinator get rootBootCoordinatorForTesting => _rootBootCoordinator;
 
 void _configureLogging() {
   if (kReleaseMode || kProfileMode) {
@@ -434,64 +412,6 @@ void _startBackgroundWarmups() {
   }());
 }
 
-Future<void> _waitForFirstRasterizedFrameForStartup() async {
-  final binding = WidgetsBinding.instance;
-  if (!binding.firstFrameRasterized) {
-    try {
-      await binding.waitUntilFirstFrameRasterized.timeout(
-        const Duration(seconds: 4),
-      );
-    } catch (_) {
-      // Test bindings and interrupted launches may not report rasterization.
-    }
-  }
-
-  try {
-    await binding.endOfFrame.timeout(const Duration(milliseconds: 500));
-  } catch (_) {
-    // Best effort: startup warmups should never crash launch.
-  }
-  try {
-    await SchedulerBinding.instance.scheduleTask<void>(
-      () {},
-      Priority.idle,
-      debugLabel: 'post-first-frame startup idle gate',
-    );
-  } catch (_) {
-    // If the scheduler rejects the idle task during shutdown, keep launch alive.
-  }
-}
-
-void _startPostFirstFrameWarmups() {
-  unawaited(() async {
-    await _waitForFirstRasterizedFrameForStartup();
-    Timer.run(() {
-      unawaited(() async {
-        try {
-          await ProfileRepo(Supabase.instance.client).preloadLocalCaches();
-        } catch (_) {
-          // best-effort; profile reads still fall back to the repository
-        }
-      }());
-      _startBackgroundWarmups();
-    });
-  }());
-}
-
-void _startPostFirstFrameWarmupsOnce() {
-  if (_postFirstFrameWarmupsStarted) return;
-  if (!_bootSupabaseInitialized) return;
-  _postFirstFrameWarmupsStarted = true;
-  _startPostFirstFrameWarmups();
-}
-
-void _handleRootBootReadyFrame() {
-  _traceRouterLocationAfterFrame('after_root_boot_ready_frame');
-  if (!_debugDaySheetSmokeBootRequested) {
-    _startPostFirstFrameWarmupsOnce();
-  }
-}
-
 Future<void> main() async {
   await runZoned(() async {
     _configureLogging();
@@ -503,47 +423,36 @@ Future<void> main() async {
     // Register background handler for FCM (no-op on web)
     registerPushBackgroundHandler();
 
-    runApp(
-      RootBootApp(
-        coordinator: _rootBootCoordinator,
-        onReadyFrame: _handleRootBootReadyFrame,
-      ),
-    );
-    _rootBootCoordinator.start(_bootstrapApplication);
-  }, zoneSpecification: _releasePrintSilencer);
-}
+    var supabaseConfig = await _loadSupabaseConfig();
+    var runtimeConfigErrors = _runtimeConfigErrors(supabaseConfig);
+    if (_debugDaySheetSmokeBootRequested && runtimeConfigErrors.isNotEmpty) {
+      supabaseConfig = _debugDaySheetSmokeFallbackConfig();
+      runtimeConfigErrors = _runtimeConfigErrors(supabaseConfig);
+      if (kDebugMode) {
+        debugPrint(
+          '[debug-smoke] Using local placeholder Supabase config for $_kDebugDaySheetSmokeRoute',
+        );
+      }
+    }
 
-Future<Widget> _bootstrapApplication() async {
-  var supabaseConfig = await _loadSupabaseConfig();
-  var runtimeConfigErrors = _runtimeConfigErrors(supabaseConfig);
-  if (_debugDaySheetSmokeBootRequested && runtimeConfigErrors.isNotEmpty) {
-    supabaseConfig = _debugDaySheetSmokeFallbackConfig();
-    runtimeConfigErrors = _runtimeConfigErrors(supabaseConfig);
     if (kDebugMode) {
       debugPrint(
-        '[debug-smoke] Using local placeholder Supabase config for $_kDebugDaySheetSmokeRoute',
+        '[boot] Supabase config present: '
+        'urlConfigured=${supabaseConfig.url.isNotEmpty} '
+        'anonKeyPresent=${supabaseConfig.anonKey.isNotEmpty}',
       );
     }
-  }
 
-  if (kDebugMode) {
-    debugPrint(
-      '[boot] Supabase config present: '
-      'urlConfigured=${supabaseConfig.url.isNotEmpty} '
-      'anonKeyPresent=${supabaseConfig.anonKey.isNotEmpty}',
-    );
-  }
+    if (runtimeConfigErrors.isNotEmpty) {
+      runApp(_runtimeConfigErrorApp(runtimeConfigErrors));
+      return;
+    }
 
-  if (runtimeConfigErrors.isNotEmpty) {
-    return _runtimeConfigErrorApp(runtimeConfigErrors);
-  }
+    // Normalize URL: strip trailing slash if present
+    final supabaseUrl = supabaseConfig.url.endsWith('/')
+        ? supabaseConfig.url.substring(0, supabaseConfig.url.length - 1)
+        : supabaseConfig.url;
 
-  // Normalize URL: strip trailing slash if present
-  final supabaseUrl = supabaseConfig.url.endsWith('/')
-      ? supabaseConfig.url.substring(0, supabaseConfig.url.length - 1)
-      : supabaseConfig.url;
-
-  if (!_bootSupabaseInitialized) {
     await Supabase.initialize(
       url: supabaseUrl, // Use normalized URL
       anonKey: supabaseConfig.anonKey,
@@ -552,50 +461,54 @@ Future<Widget> _bootstrapApplication() async {
         localStorage: kIsWeb ? HiveLocalStorageWeb() : null,
       ),
     );
-    _bootSupabaseInitialized = true;
-  }
 
-  if (!_debugDaySheetSmokeBootRequested) {
-    await _refreshSessionIfNeeded('boot');
-  }
+    if (!_debugDaySheetSmokeBootRequested) {
+      await _refreshSessionIfNeeded('boot');
 
-  await AppWindowService.instance.ensureInitialized();
-  await AppRestorationService.instance.initialize();
-  await NavigationTrace.instance.load();
-  if (_debugDaySheetSmokeBootRequested) {
-    _bootExplicitIntentLocation = _kDebugDaySheetSmokeRoute;
-    _bootRestoredLocation = null;
-  } else {
-    await _readBootInitialAppLinkIntent();
-    await _readBootInitialPushIntent();
-    _bootExplicitIntentLocation ??= _initialLocationFromWebBrowserLocation();
-    _bootRestoredLocation = await _readBootRestoredLocation();
-  }
-  final initialLocation = _resolveInitialLocation();
-  _router = _createRouter(initialLocation: initialLocation);
-  traceRestoration('boot router created initialLocation=$initialLocation');
-  traceRestoration(
-    'boot route apply prepared explicit=${_bootExplicitIntentLocation ?? '<none>'} '
-    'restored=${_bootRestoredLocation ?? '<none>'} '
-    'initial=$initialLocation',
-  );
-  final restoreTargetLocation = _authDeferredRestorePending
-      ? _bootAuthDeferredRestoredLocation
-      : initialLocation;
-  RestorationCoordinator.instance.beginLaunchRestore(
-    reason: RestorationRestoreReason.coldLaunch,
-    targetLocation: restoreTargetLocation,
-  );
-  _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded();
+      await ProfileRepo(Supabase.instance.client).preloadLocalCaches();
+    }
 
-  // 🚨 Initialize notifications/push without blocking the first frame.
-  // AuthGate will re-attempt on sign-in if these fail.
-  if (!_debugDaySheetSmokeBootRequested) {
-    // Web/PWA boot hardening (iOS PWA friendly)
-    _startWebBootTasks();
-  }
+    await AppWindowService.instance.ensureInitialized();
+    await AppRestorationService.instance.initialize();
+    await NavigationTrace.instance.load();
+    if (_debugDaySheetSmokeBootRequested) {
+      _bootExplicitIntentLocation = _kDebugDaySheetSmokeRoute;
+      _bootRestoredLocation = null;
+    } else {
+      await _readBootInitialAppLinkIntent();
+      await _readBootInitialPushIntent();
+      _bootExplicitIntentLocation ??= _initialLocationFromWebBrowserLocation();
+      _bootRestoredLocation = await _readBootRestoredLocation();
+    }
+    final initialLocation = _resolveInitialLocation();
+    _router = _createRouter(initialLocation: initialLocation);
+    traceRestoration('boot router created initialLocation=$initialLocation');
+    traceRestoration(
+      'boot route apply prepared explicit=${_bootExplicitIntentLocation ?? '<none>'} '
+      'restored=${_bootRestoredLocation ?? '<none>'} '
+      'initial=$initialLocation',
+    );
+    final restoreTargetLocation = _authDeferredRestorePending
+        ? _bootAuthDeferredRestoredLocation
+        : initialLocation;
+    RestorationCoordinator.instance.beginLaunchRestore(
+      reason: RestorationRestoreReason.coldLaunch,
+      targetLocation: restoreTargetLocation,
+    );
+    _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded();
 
-  return const MyApp();
+    // 🚨 Initialize notifications/push without blocking the first frame.
+    // AuthGate will re-attempt on sign-in if these fail.
+    if (!_debugDaySheetSmokeBootRequested) {
+      _startBackgroundWarmups();
+
+      // Web/PWA boot hardening (iOS PWA friendly)
+      _startWebBootTasks();
+    }
+
+    runApp(const MyApp());
+    _traceRouterLocationAfterFrame('after_run_app_first_frame');
+  }, zoneSpecification: _releasePrintSilencer);
 }
 
 final supabase = Supabase.instance.client;
@@ -831,6 +744,7 @@ class Events {
 /* ───────────────────────── Routing/Telemetry ───────────────────────── */
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
+const Color _launchBackdrop = Color(0xFF171518);
 final ValueNotifier<int> _floatingMenuModalDepth = ValueNotifier<int>(0);
 final ValueNotifier<bool> _launchOverlayDismissed = ValueNotifier<bool>(false);
 final ValueNotifier<int> _maatGuidancePostEnsureRefresh = ValueNotifier<int>(0);
@@ -847,28 +761,12 @@ const bool _debugForceGlobalFloatingMenu = bool.fromEnvironment(
   'FORCE_GLOBAL_MENU_FOR_TESTING',
 );
 bool _debugForceGlobalFloatingMenuForTesting = false;
-bool _debugSkipLaunchShellDetachedOverlayRestore = false;
 
 int get globalFloatingMenuModalDepthValue => _floatingMenuModalDepth.value;
 
 @visibleForTesting
 NavigatorObserver get globalFloatingMenuRouteObserverForTesting =>
     _floatingMenuRouteObserver;
-
-@visibleForTesting
-Widget buildLaunchShellForTesting({required Widget child}) =>
-    _LaunchShell(child: child);
-
-@visibleForTesting
-void resetLaunchShellForTesting() {
-  _launchOverlayDismissed.value = false;
-  _debugSkipLaunchShellDetachedOverlayRestore = false;
-}
-
-@visibleForTesting
-void setLaunchShellDetachedOverlayRestoreSuppressedForTesting(bool value) {
-  _debugSkipLaunchShellDetachedOverlayRestore = value;
-}
 
 bool get rootNavigatorContextMountedForNavigationTrace =>
     _rootNavigatorKey.currentContext?.mounted ?? false;
@@ -1094,6 +992,7 @@ Future<void> _readBootInitialPushIntent() async {
     }
     return;
   }
+
   final initial = await PushNotifications.instance(
     Supabase.instance.client,
   ).takeInitialMessage();
@@ -1153,16 +1052,6 @@ void _suppressPassiveLaunchSurfacesForExplicitIntentIfNeeded() {
   );
 }
 
-const _drawerRouteHistorySurfaceKey = 'drawer.routeHistory';
-
-DrawerRouteHistory? _drawerRouteHistoryFromSnapshot(
-  AppRestorationSnapshot? snapshot,
-) {
-  final raw = snapshot?.surfaces[_drawerRouteHistorySurfaceKey];
-  if (raw == null) return null;
-  return DrawerRouteHistory.fromJson(Map<String, dynamic>.from(raw));
-}
-
 Future<String?> _readBootRestoredLocation() async {
   final hasSession = Supabase.instance.client.auth.currentSession != null;
   traceRestoration('boot restore read start hasSession=$hasSession');
@@ -1199,25 +1088,6 @@ Future<String?> _readBootRestoredLocation() async {
     'boot restore selected=${destination.route} '
     'decisionSource=${destination.decisionSource} reason=${destination.reason}',
   );
-  final drawerHistory = _drawerRouteHistoryFromSnapshot(result.snapshot);
-  if (!_hasExplicitBootIntent() &&
-      drawerHistory != null &&
-      drawerHistory.matchesVisibleRoute(destination.route)) {
-    _bootDrawerRouteHistory = drawerHistory;
-    traceRestoration(
-      'boot drawer history accepted base=${drawerHistory.baseRoute} '
-      'overlayCount=${drawerHistory.overlayRoutes.length} '
-      'visible=${drawerHistory.visibleRoute}',
-    );
-    return drawerHistory.baseRoute;
-  }
-  _bootDrawerRouteHistory = null;
-  if (drawerHistory != null) {
-    traceRestoration(
-      'boot drawer history ignored visible=${drawerHistory.visibleRoute} '
-      'durable=${destination.route} reason=visible_route_mismatch',
-    );
-  }
   return destination.route;
 }
 
@@ -1245,8 +1115,6 @@ void _prepareDeferredBootRestoreForAuth(AuthChangeEvent event) {
 
 Future<void> _replayDeferredBootRestoreAfterAuth(AuthChangeEvent event) async {
   final currentRoute = _routerLocationForTrace();
-  final userIntentLease = RestorationCoordinator.instance
-      .captureUserIntentLease();
   traceRestoration(
     'auth deferred restore replay start event=${event.name} '
     'current=$currentRoute deferred=$_bootRestoreDeferredForAuth '
@@ -1259,31 +1127,20 @@ Future<void> _replayDeferredBootRestoreAfterAuth(AuthChangeEvent event) async {
         hasExplicitBootIntent: _hasExplicitBootIntent(),
         includeRemote: true,
       );
-  if (!_canApplyDeferredBootRestore(
-    userIntentLease,
-    stage: 'deferred_destination',
-  )) {
-    _clearDeferredBootRestoreState();
-    return;
-  }
   if (destination == null) {
-    _clearDeferredBootRestoreState();
+    _bootRestoreDeferredForAuth = false;
+    _bootAuthDeferredRestoredLocation = null;
+    _bootDeferredRestorePreparedForAuth = false;
 
     // Timing safety net: on hot restart or fast-auth, initialSession can
     // fire before _bootRestoreDeferredForAuth is set. If auth confirms while
     // the app is still at '/', run a fresh authenticated restore before
     // leaving the user on the boot default.
-    final trimmedCurrent = _routerLocationForTrace().trim();
+    final trimmedCurrent = currentRoute.trim();
     final isAtRoot = trimmedCurrent.isEmpty || trimmedCurrent == '/';
     if (isAtRoot) {
       final fallback = await AppNavigationRestorationController.instance
           .restoreLaunchDestination(isAuthenticated: true, includeRemote: true);
-      if (!_canApplyDeferredBootRestore(
-        userIntentLease,
-        stage: 'authenticated_fallback',
-      )) {
-        return;
-      }
       final fallbackRoute = fallback.route.trim();
       final fallbackIsRoot = fallbackRoute.isEmpty || fallbackRoute == '/';
       if (!fallbackIsRoot) {
@@ -1310,47 +1167,14 @@ Future<void> _replayDeferredBootRestoreAfterAuth(AuthChangeEvent event) async {
     'decisionSource=${destination.decisionSource} '
     'reason=${destination.reason}',
   );
-  _clearDeferredBootRestoreState();
+  _bootRestoreDeferredForAuth = false;
+  _bootAuthDeferredRestoredLocation = null;
+  _bootDeferredRestorePreparedForAuth = false;
   _router.go(destination.route);
   traceRestoration(
     'auth deferred restore replay completed route=${destination.route}',
   );
   _traceRouterLocationAfterFrame('after_auth_deferred_restore');
-}
-
-bool _canApplyDeferredBootRestore(
-  RestorationUserIntentLease userIntentLease, {
-  required String stage,
-}) {
-  final currentRoute = _routerLocationForTrace().trim();
-  if (!userIntentLease.isCurrent) {
-    traceRestoration(
-      'auth deferred restore aborted stage=$stage current=$currentRoute '
-      'reason=user_intent_during_restore',
-    );
-    return false;
-  }
-  if (_hasExplicitBootIntent()) {
-    traceRestoration(
-      'auth deferred restore aborted stage=$stage current=$currentRoute '
-      'reason=explicit_intent_during_restore',
-    );
-    return false;
-  }
-  if (currentRoute.isNotEmpty && currentRoute != '/') {
-    traceRestoration(
-      'auth deferred restore aborted stage=$stage current=$currentRoute '
-      'reason=route_changed_during_restore',
-    );
-    return false;
-  }
-  return true;
-}
-
-void _clearDeferredBootRestoreState() {
-  _bootRestoreDeferredForAuth = false;
-  _bootAuthDeferredRestoredLocation = null;
-  _bootDeferredRestorePreparedForAuth = false;
 }
 
 Map<String, dynamic>? _pushIntentDataFromQuery(Map<String, String> params) {
@@ -1479,14 +1303,14 @@ String? _initialLocationFromPushData(
         ? deliveryKey.substring('maat_guidance:'.length)
         : null;
     final id = deliveryId ?? keyId;
-    return id == null ? null : '/';
+    return id == null ? null : '/maat-guidance/${Uri.encodeComponent(id)}';
   }
 
   final reflectionId = _trimmedPushValue(
     data['reflectionId'] ?? data['reflection_id'],
   );
   if (kind == 'decan_reflection' && reflectionId != null) {
-    return '/';
+    return '/reflections/${Uri.encodeComponent(reflectionId)}';
   }
 
   final shareKind = _trimmedPushValue(data['share_kind'] ?? data['shareKind']);
@@ -1686,37 +1510,6 @@ GoRoute _utilitySheetRoute({
   );
 }
 
-DateTime? _parseLocalDateQuery(String? raw) {
-  final text = raw?.trim();
-  if (text == null || text.isEmpty) return null;
-  final match = RegExp(r'^(\d{4})-(\d{2})-(\d{2})$').firstMatch(text);
-  if (match == null) return null;
-  final year = int.tryParse(match.group(1)!);
-  final month = int.tryParse(match.group(2)!);
-  final day = int.tryParse(match.group(3)!);
-  if (year == null || month == null || day == null) return null;
-  final parsed = DateTime(year, month, day);
-  if (parsed.year != year || parsed.month != month || parsed.day != day) {
-    return null;
-  }
-  return DateUtils.dateOnly(parsed);
-}
-
-OnboardingDecanIdentity? _maatGuidanceDecanIdentityFromPeriodKey(String? raw) {
-  final text = raw?.trim();
-  if (text == null || text.isEmpty) return null;
-  final parts = text.split(':');
-  if (parts.isEmpty) return null;
-  final startDate = _parseLocalDateQuery(parts.first);
-  if (startDate == null) return null;
-  final kemetic = KemeticMath.fromGregorian(startDate);
-  return OnboardingDecanIdentity.fromKemeticDay(
-    kYear: kemetic.kYear,
-    kMonth: kemetic.kMonth,
-    kDay: kemetic.kDay,
-  );
-}
-
 GoRouter _createRouter({required String initialLocation}) => GoRouter(
   navigatorKey: _rootNavigatorKey,
   initialLocation: initialLocation,
@@ -1742,16 +1535,6 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
           return SessionTrackedRoute(
             location: state.uri.toString(),
             child: CalendarPage.buildDebugDaySheetSmokeRoute(),
-          );
-        },
-      ),
-    if (onboardingReviewRuntimeEnabled)
-      _calmRoute(
-        path: kOnboardingReviewRoute,
-        builder: (context, state) {
-          return SessionTrackedRoute(
-            location: state.uri.toString(),
-            child: CalendarPage.buildOnboardingReviewRoute(),
           );
         },
       ),
@@ -1846,12 +1629,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         }
         return SessionTrackedRoute(
           location: state.uri.toString(),
-          child: SharedPracticeRoomPage(
-            roomId: roomId,
-            initialLocalDate: _parseLocalDateQuery(
-              state.uri.queryParameters['date'],
-            ),
-          ),
+          child: SharedPracticeRoomPage(roomId: roomId),
         );
       },
     ),
@@ -1859,10 +1637,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
       path: '/flows',
       builder: (context, state) => SessionTrackedRoute(
         location: state.uri.toString(),
-        child: _FlowStudioUtilityCanonicalizationHost(
-          routeUri: state.uri,
-          child: CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri),
-        ),
+        child: CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri),
       ),
     ),
     _utilitySheetRoute(
@@ -1978,14 +1753,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
             'currentUserIdPresent': currentUserId != null,
           },
         );
-        final useReviewProfile =
-            rawUserId == 'me' &&
-            onboardingReviewSessionRequested &&
-            (currentUserId == null || currentUserId.trim().isEmpty);
-        final userId = rawUserId == 'me'
-            ? currentUserId ??
-                  (useReviewProfile ? kOnboardingReviewHelperUserId : null)
-            : rawUserId;
+        final userId = rawUserId == 'me' ? currentUserId : rawUserId;
         NavigationTrace.instance.record(
           'profile route user resolved',
           state: <String, Object?>{
@@ -2018,9 +1786,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
           child: ProfilePage(
             key: ValueKey(userId),
             userId: userId,
-            isMyProfile:
-                useReviewProfile ||
-                (currentUserId != null && currentUserId == userId),
+            isMyProfile: currentUserId != null && currentUserId == userId,
           ),
         );
       },
@@ -2244,59 +2010,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
   ],
 );
 
-@visibleForTesting
-GoRouter createProductionRouterForTesting({required String initialLocation}) =>
-    _createRouter(initialLocation: initialLocation);
-
 /* ───────────────────────── App Widgets ───────────────────────── */
-
-class _PrincipalUnreadAuthTransitionOwner {
-  Future<void> _tail = Future<void>.value();
-  final Expando<Future<void>> _operationByAuthState = Expando<Future<void>>(
-    'principal-unread-auth-transition',
-  );
-
-  Future<void> handle(SupabaseClient client, AuthState data) {
-    final existing = _operationByAuthState[data];
-    if (existing != null) return existing;
-
-    final activePrincipalId = data.event == AuthChangeEvent.signedOut
-        ? null
-        : data.session?.user.id ?? client.auth.currentUser?.id;
-    final previous = _tail;
-    final operation = () async {
-      await previous;
-      await ShareRepo.synchronizeUnreadTrackerPrincipal(
-        client: client,
-        activePrincipalId: activePrincipalId,
-      );
-    }();
-    _operationByAuthState[data] = operation;
-    _tail = operation.then<void>(
-      (value) {},
-      onError: (Object error, StackTrace stackTrace) {},
-    );
-    return operation;
-  }
-
-  Future<void> ensureHandled(SupabaseClient client, AuthState data) {
-    final operation = _operationByAuthState[data];
-    if (operation != null) return operation;
-    // MyApp is the primary auth owner in production. Reusing this same
-    // coordinator here keeps route-local harnesses and an unusually early
-    // child delivery fail-safe without adding another listener or a second
-    // cleanup authority.
-    return handle(client, data);
-  }
-}
-
-final _principalUnreadAuthTransitionOwner =
-    _PrincipalUnreadAuthTransitionOwner();
-
-@visibleForTesting
-Future<void> handleRootPrincipalUnreadAuthTransitionForTesting(
-  AuthState data,
-) => _principalUnreadAuthTransitionOwner.handle(supabase, data);
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -2317,18 +2031,12 @@ class _MyAppState extends State<MyApp> {
     super.initState();
     _authSub = supabase.auth.onAuthStateChange.listen(
       (data) {
-        unawaited(
-          _handleRootAuthStateChange(data).catchError((
-            Object error,
-            StackTrace stackTrace,
-          ) {
-            _logRootAuthLinkError(
-              'principal unread auth transition',
-              error,
-              stackTrace,
-            );
-          }),
-        );
+        if (data.event == AuthChangeEvent.passwordRecovery) {
+          _passwordRecoverySession = true;
+        } else if (data.event == AuthChangeEvent.signedOut) {
+          _passwordRecoverySession = false;
+        }
+        _scheduleRebuild();
       },
       onError: (Object error, StackTrace stackTrace) {
         if (!kDebugMode) return;
@@ -2337,19 +2045,6 @@ class _MyAppState extends State<MyApp> {
       },
     );
     _initAuthDeepLinks();
-  }
-
-  Future<void> _handleRootAuthStateChange(AuthState data) async {
-    // MyApp outlives every routed authenticated branch. It owns principal
-    // cleanup so a route-local AuthGate or shell cannot orphan shared work.
-    await _principalUnreadAuthTransitionOwner.handle(supabase, data);
-    if (!mounted) return;
-    if (data.event == AuthChangeEvent.passwordRecovery) {
-      _passwordRecoverySession = true;
-    } else if (data.event == AuthChangeEvent.signedOut) {
-      _passwordRecoverySession = false;
-    }
-    _scheduleRebuild();
   }
 
   @override
@@ -2491,13 +2186,7 @@ class _MyAppState extends State<MyApp> {
       theme: AppTheme.dark,
       routerConfig: _router,
       builder: (context, child) {
-        final isReviewRoute =
-            onboardingReviewSessionRequested ||
-            (onboardingReviewRuntimeEnabled &&
-                isOnboardingReviewLocation(
-                  _router.routeInformationProvider.value.uri.toString(),
-                ));
-        final app = NavigationTraceOverlay(
+        return NavigationTraceOverlay(
           child: _scaledMediaQuery(
             context: context,
             child: SessionLifecycleBridge(
@@ -2510,11 +2199,6 @@ class _MyAppState extends State<MyApp> {
             ),
           ),
         );
-        if (!isReviewRoute) return app;
-        return FocusTraversalGroup(
-          policy: WidgetOrderTraversalPolicy(),
-          child: app,
-        );
       },
     );
   }
@@ -2526,64 +2210,12 @@ class _MyAppState extends State<MyApp> {
     }
 
     final signedIn = supabase.auth.currentSession != null;
-    final isReviewRoute =
-        onboardingReviewSessionRequested ||
-        (onboardingReviewRuntimeEnabled &&
-            isOnboardingReviewLocation(
-              _router.routeInformationProvider.value.uri.toString(),
-            ));
     if (signedIn && _passwordRecoverySession) {
       return _buildPasswordRecoveryApp();
     }
-    return signedIn || isReviewRoute ? _buildAuthedApp() : _buildLoginApp();
+    return signedIn ? _buildAuthedApp() : _buildLoginApp();
   }
 }
-
-class _FlowStudioUtilityCanonicalizationHost extends StatefulWidget {
-  const _FlowStudioUtilityCanonicalizationHost({
-    required this.routeUri,
-    required this.child,
-  });
-
-  final Uri routeUri;
-  final Widget child;
-
-  @override
-  State<_FlowStudioUtilityCanonicalizationHost> createState() =>
-      _FlowStudioUtilityCanonicalizationHostState();
-}
-
-class _FlowStudioUtilityCanonicalizationHostState
-    extends State<_FlowStudioUtilityCanonicalizationHost> {
-  int _contentGeneration = 0;
-
-  @override
-  void didUpdateWidget(
-    covariant _FlowStudioUtilityCanonicalizationHost oldWidget,
-  ) {
-    super.didUpdateWidget(oldWidget);
-    final previousUri = oldWidget.routeUri;
-    final nextUri = widget.routeUri;
-    if (previousUri.path == '/flows' &&
-        previousUri.queryParameters.isNotEmpty &&
-        nextUri.path == '/flows' &&
-        nextUri.queryParameters.isEmpty) {
-      _contentGeneration += 1;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) =>
-      KeyedSubtree(key: ValueKey<int>(_contentGeneration), child: widget.child);
-}
-
-@visibleForTesting
-Widget buildFlowStudioUtilityCanonicalizationHostForTesting({
-  required Uri routeUri,
-}) => _FlowStudioUtilityCanonicalizationHost(
-  routeUri: routeUri,
-  child: CalendarPage.buildFlowStudioRoutePage(routeUri: routeUri),
-);
 
 class _AppChrome extends StatefulWidget {
   const _AppChrome({required this.router, required this.child});
@@ -2633,22 +2265,9 @@ class _AppChromeState extends State<_AppChrome> {
     });
   }
 
-  Uri _readRouterUri() {
-    final configuration = widget.router.routerDelegate.currentConfiguration;
-    final topMatch = configuration.lastOrNull;
-    if (topMatch is ImperativeRouteMatch) return topMatch.matches.uri;
-    final delegateUri = configuration.uri;
-    if (delegateUri.path.isNotEmpty) return delegateUri;
-    return widget.router.routeInformationProvider.value.uri;
-  }
-
   @override
   Widget build(BuildContext context) {
-    final isReviewRoute =
-        onboardingReviewSessionRequested ||
-        (onboardingReviewRuntimeEnabled &&
-            isOnboardingReviewLocation(_readRouterUri().toString()));
-    if (supabase.auth.currentSession == null && !isReviewRoute) {
+    if (supabase.auth.currentSession == null) {
       return widget.child;
     }
 
@@ -2671,7 +2290,6 @@ Widget buildGlobalFloatingMenuShellForTesting({
   bool dailyCosmicContextAuthenticated = false,
   bool? dailyCosmicContextOnboardingComplete,
   DateTime Function()? dailyCosmicContextNow,
-  VoidCallback? onSignedInGuidanceRefreshTimerFired,
 }) {
   _debugForceGlobalFloatingMenuForTesting = true;
   _launchOverlayDismissed.value = true;
@@ -2682,8 +2300,6 @@ Widget buildGlobalFloatingMenuShellForTesting({
     dailyCosmicContextOnboardingCompleteForTesting:
         dailyCosmicContextOnboardingComplete,
     dailyCosmicContextNowForTesting: dailyCosmicContextNow,
-    onSignedInGuidanceRefreshTimerFiredForTesting:
-        onSignedInGuidanceRefreshTimerFired,
     child: KemeticKeyboardHost(child: child),
   );
 }
@@ -2695,50 +2311,6 @@ void resetGlobalFloatingMenuShellForTesting() {
   _floatingMenuModalDepth.value = 0;
 }
 
-enum _DrawerNavigationOperation { primaryReplacement, historyPush }
-
-enum _DrawerUtilityChildResolution { popTop, replaceTop }
-
-enum _DrawerDestination {
-  calendar('Calendar', '/', primarySection: AppSection.calendar),
-  planner('Planner', '/rhythm/today', primarySection: AppSection.planner),
-  library('Library', '/nodes', primarySection: AppSection.library),
-  journal('Journal', '/journal', primarySection: AppSection.journal),
-  inbox('Inbox', '/inbox', primarySection: AppSection.inbox),
-  calendars(
-    'Calendars',
-    '/calendars',
-    operation: _DrawerNavigationOperation.historyPush,
-  ),
-  flows('Flows', '/flows', operation: _DrawerNavigationOperation.historyPush),
-  reflections(
-    'Reflections',
-    '/reflections',
-    primarySection: AppSection.reflections,
-  ),
-  profile(
-    'Profile',
-    '/profile/me',
-    operation: _DrawerNavigationOperation.historyPush,
-  ),
-  settings('Settings', '/settings', primarySection: AppSection.settings);
-
-  const _DrawerDestination(
-    this.label,
-    this.location, {
-    this.primarySection,
-    this.operation = _DrawerNavigationOperation.primaryReplacement,
-  });
-
-  final String label;
-  final String location;
-  final AppSection? primarySection;
-  final _DrawerNavigationOperation operation;
-
-  bool get isPrimaryReplacement =>
-      operation == _DrawerNavigationOperation.primaryReplacement;
-}
-
 class _GlobalFloatingMenuShell extends StatefulWidget {
   const _GlobalFloatingMenuShell({
     required this.router,
@@ -2747,7 +2319,6 @@ class _GlobalFloatingMenuShell extends StatefulWidget {
     this.dailyCosmicContextAuthenticatedForTesting = false,
     this.dailyCosmicContextOnboardingCompleteForTesting,
     this.dailyCosmicContextNowForTesting,
-    this.onSignedInGuidanceRefreshTimerFiredForTesting,
   });
 
   final GoRouter router;
@@ -2756,7 +2327,6 @@ class _GlobalFloatingMenuShell extends StatefulWidget {
   final bool dailyCosmicContextAuthenticatedForTesting;
   final bool? dailyCosmicContextOnboardingCompleteForTesting;
   final DateTime Function()? dailyCosmicContextNowForTesting;
-  final VoidCallback? onSignedInGuidanceRefreshTimerFiredForTesting;
 
   @override
   State<_GlobalFloatingMenuShell> createState() =>
@@ -2773,32 +2343,18 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   StreamSubscription<AuthState>? _authSub;
   bool _menuMounted = false;
   bool _menuOpen = false;
-  bool _drawerDestinationDispatchInProgress = false;
-  final DrawerNavigationGeneration _drawerNavigationGeneration =
-      DrawerNavigationGeneration();
-  int? _drawerPendingRouteGeneration;
-  String? _drawerPendingTarget;
-  String? _drawerPendingRoute;
-  DrawerRouteHistory? _drawerRouteHistory;
-  bool _drawerRouteHistoryRestoreScheduled = false;
   bool _drawerBackGestureActive = false;
   bool _drawerBackPopRouteConsumePending = false;
   Timer? _drawerBackPopRouteConsumeTimer;
-  Timer? _maatGuidanceSignedInRefreshTimer;
   bool _rebuildScheduled = false;
   bool? _lastGuidanceSuppressed;
   int _dailyCosmicContextEvaluationSerial = 0;
-  int _maatGuidanceGateEvaluationSerial = 0;
-  bool _maatGuidanceProactiveUiAllowed = false;
-  OnboardingProgress? _maatGuidanceGateProgress;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _currentUri = _readRouterUri();
-    _drawerRouteHistory = _bootDrawerRouteHistory;
-    _bootDrawerRouteHistory = null;
     widget.router.routerDelegate.addListener(_handleRouteChanged);
     widget.router.routeInformationProvider.addListener(_handleRouteChanged);
     _floatingMenuModalDepth.addListener(_handleMenuVisibilityChanged);
@@ -2806,7 +2362,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     _maatGuidancePostEnsureRefresh.addListener(
       _handleMaatGuidancePostEnsureRefresh,
     );
-    _maatGuidanceController.addListener(_handleMaatGuidanceChanged);
+    _maatGuidanceController.addListener(_scheduleRebuild);
     _dailyCosmicContextController.addListener(_scheduleRebuild);
     _shellBackChannel.setMethodCallHandler(_handleShellBackMethodCall);
     GuidedOnboardingController.instance.addListener(
@@ -2814,21 +2370,23 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     );
     _authSub = supabase.auth.onAuthStateChange.listen((_) {
       if (supabase.auth.currentSession == null) {
-        _cancelMaatGuidanceSignedInRefresh();
         _resetFloatingMenuState();
         _maatGuidanceController.clearForSignedOut();
       } else {
         unawaited(_maatGuidanceController.refresh(force: true));
-        _scheduleMaatGuidanceSignedInRefresh();
+        unawaited(
+          Future<void>.delayed(const Duration(seconds: 2)).then((_) {
+            if (mounted) {
+              return _maatGuidanceController.refresh(force: true);
+            }
+          }),
+        );
       }
-      _scheduleMaatGuidanceGateEvaluation();
       _scheduleRebuild();
       _scheduleDailyCosmicContextEvaluation();
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scheduleMaatGuidanceGateEvaluation();
       _scheduleDailyCosmicContextEvaluation();
-      _scheduleDrawerRouteHistoryRestore();
     });
   }
 
@@ -2843,7 +2401,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     _currentUri = _readRouterUri();
     widget.router.routerDelegate.addListener(_handleRouteChanged);
     widget.router.routeInformationProvider.addListener(_handleRouteChanged);
-    _scheduleMaatGuidanceGateEvaluation();
     _scheduleDailyCosmicContextEvaluation();
   }
 
@@ -2857,7 +2414,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     _maatGuidancePostEnsureRefresh.removeListener(
       _handleMaatGuidancePostEnsureRefresh,
     );
-    _maatGuidanceController.removeListener(_handleMaatGuidanceChanged);
+    _maatGuidanceController.removeListener(_scheduleRebuild);
     _dailyCosmicContextController.removeListener(_scheduleRebuild);
     _shellBackChannel.setMethodCallHandler(null);
     GuidedOnboardingController.instance.removeListener(
@@ -2866,24 +2423,8 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     _maatGuidanceController.dispose();
     _dailyCosmicContextController.dispose();
     _drawerBackPopRouteConsumeTimer?.cancel();
-    _cancelMaatGuidanceSignedInRefresh();
     unawaited(_authSub?.cancel());
     super.dispose();
-  }
-
-  void _scheduleMaatGuidanceSignedInRefresh() {
-    _cancelMaatGuidanceSignedInRefresh();
-    _maatGuidanceSignedInRefreshTimer = Timer(const Duration(seconds: 2), () {
-      _maatGuidanceSignedInRefreshTimer = null;
-      if (!mounted || supabase.auth.currentSession == null) return;
-      widget.onSignedInGuidanceRefreshTimerFiredForTesting?.call();
-      unawaited(_maatGuidanceController.refresh(force: true));
-    });
-  }
-
-  void _cancelMaatGuidanceSignedInRefresh() {
-    _maatGuidanceSignedInRefreshTimer?.cancel();
-    _maatGuidanceSignedInRefreshTimer = null;
   }
 
   @override
@@ -2923,19 +2464,12 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       _scheduleDailyCosmicContextEvaluation();
     }
     if (supabase.auth.currentSession == null) return;
-    _scheduleMaatGuidanceGateEvaluation();
     unawaited(_maatGuidanceController.evaluateAndRefresh());
   }
 
   void _handleMaatGuidancePostEnsureRefresh() {
     if (supabase.auth.currentSession == null) return;
-    _scheduleMaatGuidanceGateEvaluation();
     unawaited(_maatGuidanceController.refresh(force: true));
-  }
-
-  void _handleMaatGuidanceChanged() {
-    _scheduleMaatGuidanceGateEvaluation();
-    _scheduleRebuild();
   }
 
   Uri _readRouterUri() {
@@ -2950,179 +2484,17 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   void _handleRouteChanged() {
     final nextUri = _readRouterUri();
     if (nextUri == _currentUri) return;
-    final previousUri = _currentUri;
     _currentUri = nextUri;
-    _recordDrawerRouteCommit(nextUri);
-    _observeDrawerRouteHistoryChange(previousUri, nextUri);
     final navContext = _rootNavigatorKey.currentContext ?? context;
     unawaited(
       CalendarPage.dismissAppOwnedTransientOverlaysForRouteChange(navContext),
     );
-    if (!_drawerDestinationDispatchInProgress && (!_menuMounted || _menuOpen)) {
+    if (!_menuMounted || _menuOpen) {
       _resetFloatingMenuState();
     }
-    _scheduleMaatGuidanceGateEvaluation();
     unawaited(_maatGuidanceController.refresh());
     _scheduleDailyCosmicContextEvaluation();
     _scheduleRebuild();
-  }
-
-  void _recordDrawerRouteCommit(Uri nextUri) {
-    final generation = _drawerPendingRouteGeneration;
-    final target = _drawerPendingTarget;
-    final requestedRoute = _drawerPendingRoute;
-    if (generation == null || target == null || requestedRoute == null) return;
-    if (!_drawerNavigationGeneration.isCurrent(generation)) {
-      _traceDrawerNavigation(
-        'drawer stale route callback ignored',
-        target: target,
-        generation: generation,
-        route: requestedRoute,
-      );
-      return;
-    }
-    final requestedUri = Uri.parse(requestedRoute);
-    if (nextUri.path != requestedUri.path ||
-        nextUri.query != requestedUri.query) {
-      return;
-    }
-    _traceDrawerNavigation(
-      'drawer route committed',
-      target: target,
-      generation: generation,
-      route: requestedRoute,
-    );
-    _drawerPendingRouteGeneration = null;
-    _drawerPendingTarget = null;
-    _drawerPendingRoute = null;
-  }
-
-  void _scheduleDrawerRouteHistoryRestore() {
-    final history = _drawerRouteHistory;
-    if (_drawerRouteHistoryRestoreScheduled ||
-        history == null ||
-        !history.hasOverlays ||
-        !_drawerLocationMatches(_currentUri.toString(), history.baseRoute)) {
-      return;
-    }
-    _drawerRouteHistoryRestoreScheduled = true;
-    unawaited(_restoreDrawerRouteHistory(history));
-  }
-
-  Future<void> _restoreDrawerRouteHistory(DrawerRouteHistory history) async {
-    final generation = _drawerNavigationGeneration.current;
-    var expectedVisibleRoute = history.baseRoute;
-    for (final route in history.overlayRoutes) {
-      await WidgetsBinding.instance.endOfFrame;
-      if (!mounted ||
-          !_drawerNavigationGeneration.isCurrent(generation) ||
-          !_drawerLocationMatches(
-            _currentUri.toString(),
-            expectedVisibleRoute,
-          )) {
-        _traceDrawerNavigation(
-          'drawer history restore ignored',
-          target: 'history',
-          generation: generation,
-          route: route,
-        );
-        return;
-      }
-      _traceDrawerNavigation(
-        'drawer history restore requested',
-        target: 'history',
-        generation: generation,
-        route: route,
-      );
-      unawaited(widget.router.push<void>(route));
-      expectedVisibleRoute = route;
-    }
-  }
-
-  void _observeDrawerRouteHistoryChange(Uri previousUri, Uri nextUri) {
-    final history = _drawerRouteHistory;
-    if (history == null) return;
-    final previous = previousUri.toString();
-    final next = nextUri.toString();
-    if (history.hasOverlays &&
-        history.matchesVisibleRoute(previous) &&
-        history.matchesRouteBelowVisible(next)) {
-      _drawerRouteHistory = history.popOverlay();
-      _persistDrawerRouteHistory(reason: 'utility_pop');
-      return;
-    }
-
-    final primary = _drawerPrimaryDestinationForExactLocation(next);
-    if (primary != null && !history.matchesVisibleRoute(next)) {
-      _drawerRouteHistory = history.replacePrimary(primary.location);
-      _persistDrawerRouteHistory(reason: 'observed_primary_replacement');
-    }
-  }
-
-  _DrawerDestination? _drawerPrimaryDestinationForExactLocation(
-    String location,
-  ) {
-    for (final destination in _DrawerDestination.values) {
-      if (destination.isPrimaryReplacement &&
-          _drawerLocationMatches(destination.location, location)) {
-        return destination;
-      }
-    }
-    return null;
-  }
-
-  bool _drawerLocationMatches(String left, String right) {
-    final leftUri = Uri.tryParse(left);
-    final rightUri = Uri.tryParse(right);
-    return leftUri != null &&
-        rightUri != null &&
-        leftUri.path == rightUri.path &&
-        leftUri.query == rightUri.query;
-  }
-
-  DrawerRouteHistory _drawerHistoryForCurrentRoute() {
-    final current = _currentUri.toString();
-    final history = _drawerRouteHistory;
-    if (history != null && history.matchesVisibleRoute(current)) return history;
-    return DrawerRouteHistory(baseRoute: current);
-  }
-
-  void _replaceDrawerHistoryPrimary(_DrawerDestination destination) {
-    _drawerRouteHistory = _drawerHistoryForCurrentRoute().replacePrimary(
-      destination.location,
-    );
-    _persistDrawerRouteHistory(reason: 'primary_replacement');
-  }
-
-  void _pushDrawerHistoryUtility(_DrawerDestination destination) {
-    _drawerRouteHistory = _drawerHistoryForCurrentRoute().pushOverlay(
-      destination.location,
-    );
-    _persistDrawerRouteHistory(reason: 'utility_push');
-  }
-
-  void _persistDrawerRouteHistory({required String reason}) {
-    final history = _drawerRouteHistory;
-    if (history == null) return;
-    traceRestoration(
-      'drawer route history save reason=$reason base=${history.baseRoute} '
-      'overlayCount=${history.overlayRoutes.length} '
-      'visible=${history.visibleRoute}',
-    );
-    unawaited(
-      runGuardedAsync(
-        'drawer route history save',
-        () async {
-          await AppRestorationService.instance.saveSurfaceState(
-            _drawerRouteHistorySurfaceKey,
-            history.toJson(),
-          );
-        },
-        onError: (scope, error, stackTrace) {
-          traceRestoration('$scope failed error=$error');
-        },
-      ),
-    );
   }
 
   void _handleMenuVisibilityChanged() {
@@ -3131,13 +2503,11 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
         _menuMounted) {
       _resetFloatingMenuState();
     }
-    _scheduleMaatGuidanceGateEvaluation();
     _scheduleDailyCosmicContextEvaluation();
     _scheduleRebuild();
   }
 
   void _handleExternalOverlayGateChanged() {
-    _scheduleMaatGuidanceGateEvaluation();
     _scheduleDailyCosmicContextEvaluation();
     _scheduleRebuild();
   }
@@ -3176,19 +2546,10 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
 
   bool get _shouldMountFloatingMenu {
     if (!_launchOverlayDismissed.value) return false;
-    final activeHelper = GuidedOnboardingController.instance.target;
-    final showingMenuExploreHelper =
-        activeHelper?.helperId == OnboardingHelperIds.calendarMenuExplore;
-    if (GuidedOnboardingController.instance.suppressExternalOverlays &&
-        !showingMenuExploreHelper) {
+    if (GuidedOnboardingController.instance.suppressExternalOverlays) {
       return false;
     }
-    final isReviewRoute =
-        onboardingReviewSessionRequested ||
-        (onboardingReviewRuntimeEnabled &&
-            isOnboardingReviewLocation(_currentUri.toString()));
     if (supabase.auth.currentSession == null &&
-        !isReviewRoute &&
         !(kDebugMode &&
             (_debugForceGlobalFloatingMenu ||
                 _debugForceGlobalFloatingMenuForTesting))) {
@@ -3232,11 +2593,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     if (GuidedOnboardingController.instance.suppressExternalOverlays) {
       return true;
     }
-    if (onboardingReviewSessionRequested ||
-        (onboardingReviewRuntimeEnabled &&
-            isOnboardingReviewLocation(_currentUri.toString()))) {
-      return true;
-    }
     if (isDailyCosmicContextRouteSuppressed(_currentUri)) return true;
     return false;
   }
@@ -3273,99 +2629,12 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     if (kDebugMode && testingOverride != null) return testingOverride;
 
     try {
-      final progress = await OnboardingProgressStorage()
-          .loadLocalReconciledWithLegacyCompletion(
-            userId,
-            legacyCompleted: () =>
-                OnboardingStorage(supabase).isCompletedLocally(userId),
-          );
-      final todayIdentity = dailyCosmicContextGregorianDateKey(
-        DateUtils.dateOnly(
-          widget.dailyCosmicContextNowForTesting?.call() ?? DateTime.now(),
-        ),
-      );
-      return shouldAllowDailyCosmicContextAfterOnboardingHandoff(
-        progress: progress,
-        todayIdentity: todayIdentity,
-      );
+      final progress = await OnboardingProgressStorage().loadLocal(userId);
+      if (progress.completedOnboarding) return true;
+      return OnboardingStorage(supabase).isCompletedLocally(userId);
     } catch (_) {
       return false;
     }
-  }
-
-  OnboardingDecanIdentity? _currentProactiveDecanIdentity() {
-    final now = DateUtils.dateOnly(
-      widget.dailyCosmicContextNowForTesting?.call() ?? DateTime.now(),
-    );
-    final kemetic = KemeticMath.fromGregorian(now);
-    return OnboardingDecanIdentity.fromKemeticDay(
-      kYear: kemetic.kYear,
-      kMonth: kemetic.kMonth,
-      kDay: kemetic.kDay,
-    );
-  }
-
-  OnboardingDecanIdentity? _maatGuidancePromptDecanIdentity() {
-    return _maatGuidanceDecanIdentityFromPeriodKey(
-      _maatGuidanceController.current?.decanPeriodKey,
-    );
-  }
-
-  void _scheduleMaatGuidanceGateEvaluation() {
-    final serial = ++_maatGuidanceGateEvaluationSerial;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || serial != _maatGuidanceGateEvaluationSerial) return;
-      unawaited(_evaluateMaatGuidanceGate(serial));
-    });
-    WidgetsBinding.instance.ensureVisualUpdate();
-  }
-
-  Future<void> _evaluateMaatGuidanceGate(int serial) async {
-    var allowed = false;
-    OnboardingProgress? progressForPromptGate;
-    final userId = supabase.auth.currentUser?.id.trim();
-    if (userId != null && userId.isNotEmpty) {
-      try {
-        final progress = await OnboardingProgressStorage()
-            .loadLocalReconciledWithLegacyCompletion(
-              userId,
-              legacyCompleted: () =>
-                  OnboardingStorage(supabase).isCompletedLocally(userId),
-            );
-        if (progress.completedOnboarding) {
-          progressForPromptGate = progress;
-          final currentDecan = _currentProactiveDecanIdentity();
-          allowed = !DecanReflectionOnboardingGate.shouldBlock(
-            progress: progress,
-            currentDecanIdentity: currentDecan,
-            promptDecanIdentity: currentDecan,
-          );
-          final currentDelivery = _maatGuidanceController.current;
-          if (currentDelivery != null &&
-              DecanReflectionOnboardingGate.shouldBlock(
-                progress: progress,
-                currentDecanIdentity: currentDecan,
-                promptDecanIdentity: _maatGuidanceDecanIdentityFromPeriodKey(
-                  currentDelivery.decanPeriodKey,
-                ),
-              )) {
-            unawaited(_maatGuidanceController.dismissCurrent());
-          }
-        }
-      } catch (_) {
-        allowed = false;
-        progressForPromptGate = null;
-      }
-    }
-    if (!mounted || serial != _maatGuidanceGateEvaluationSerial) return;
-    if (_maatGuidanceProactiveUiAllowed == allowed &&
-        _maatGuidanceGateProgress == progressForPromptGate) {
-      return;
-    }
-    setState(() {
-      _maatGuidanceProactiveUiAllowed = allowed;
-      _maatGuidanceGateProgress = progressForPromptGate;
-    });
   }
 
   void _resetFloatingMenuStateAfterFrame() {
@@ -3378,7 +2647,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   bool _shouldSuppressMaatGuidance(BuildContext context) {
     if (!_launchOverlayDismissed.value) return true;
     if (supabase.auth.currentSession == null) return true;
-    if (!_maatGuidanceProactiveUiAllowed) return true;
     if (_dailyCosmicContextController.hasVisibleBadge) return true;
     if (_floatingMenuModalDepth.value > 0) return true;
     if (_menuMounted || _menuOpen) return true;
@@ -3388,27 +2656,9 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     }
 
     final path = _currentUri.path;
-    if (onboardingReviewSessionRequested ||
-        (onboardingReviewRuntimeEnabled &&
-            isOnboardingReviewLocation(_currentUri.toString()))) {
-      return true;
-    }
     if (_currentUri.queryParameters['onboarding'] == '1') return true;
     if (path.startsWith('/maat-guidance/')) return true;
     if (path.startsWith('/rhythm/editor/')) return true;
-    final progress = _maatGuidanceGateProgress;
-    if (progress != null && progress.completedOnboarding) {
-      final promptDecan =
-          _maatGuidancePromptDecanIdentity() ??
-          _currentProactiveDecanIdentity();
-      if (DecanReflectionOnboardingGate.shouldBlock(
-        progress: progress,
-        currentDecanIdentity: _currentProactiveDecanIdentity(),
-        promptDecanIdentity: promptDecan,
-      )) {
-        return true;
-      }
-    }
     return false;
   }
 
@@ -3451,22 +2701,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     );
   }
 
-  void _traceDrawerNavigation(
-    String label, {
-    required String target,
-    required int generation,
-    required String route,
-  }) {
-    NavigationTrace.instance.record(
-      label,
-      state: <String, Object?>{
-        'target': target,
-        'generation': generation,
-        'route': route,
-      },
-    );
-  }
-
   void _syncMaatGuidanceSuppression(bool suppressed) {
     if (_lastGuidanceSuppressed == suppressed) return;
     _lastGuidanceSuppressed = suppressed;
@@ -3483,10 +2717,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       return;
     }
     _openFloatingMenu();
-    final activeHelper = GuidedOnboardingController.instance.target;
-    if (activeHelper?.helperId == OnboardingHelperIds.calendarMenuExplore) {
-      activeHelper?.onDismiss?.call();
-    }
   }
 
   void _openFloatingMenu() {
@@ -3496,302 +2726,116 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     }
     setState(() {
       _menuMounted = true;
-      _menuOpen = false;
+      _menuOpen = true;
     });
-    _traceNavigation('global drawer mounted closed', mediaContext: context);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_menuMounted || _menuOpen) return;
-      setState(() => _menuOpen = true);
-      _traceNavigation('global drawer opened', mediaContext: context);
-    });
+    _traceNavigation('global drawer mounted/opened', mediaContext: context);
   }
 
-  Future<void> _closeFloatingMenu({int? navigationGeneration}) async {
+  Future<void> _closeFloatingMenu() async {
     if (!_menuMounted) return;
     _traceNavigation('menu close started', mediaContext: context);
     setState(() => _menuOpen = false);
     await Future<void>.delayed(globalSideDrawerTransitionDuration);
     if (!mounted || _menuOpen) return;
-    if (navigationGeneration != null &&
-        !_drawerNavigationGeneration.isCurrent(navigationGeneration)) {
-      _traceNavigation(
-        'drawer stale close callback ignored',
-        mediaContext: context,
-        state: <String, Object?>{'generation': navigationGeneration},
-      );
-      return;
-    }
     setState(() => _menuMounted = false);
     _traceNavigation('menu close completed', mediaContext: context);
   }
 
-  void _dispatchDrawerDestination(_DrawerDestination destination) {
-    final generation = _drawerNavigationGeneration.issue();
-    _traceDrawerNavigation(
-      'drawer navigation tap target',
-      target: destination.label,
-      generation: generation,
-      route: destination.location,
-    );
-    if (_isDrawerDestinationExactlyVisible(destination)) {
-      RestorationCoordinator.instance.suppressRestoreForUserNavigation(
-        reason: 'drawer_current_selection',
-      );
-      _traceDrawerNavigation(
-        'drawer current selection closed in place',
-        target: destination.label,
-        generation: generation,
-        route: destination.location,
-      );
-      unawaited(_closeFloatingMenu(navigationGeneration: generation));
-      return;
-    }
-
-    final primarySection = destination.primarySection;
-    final matchingPrimaryBasePopCount =
-        destination.isPrimaryReplacement && primarySection != null
-        ? _drawerOverlayCountAboveMatchingPrimaryBase(destination)
-        : null;
-    final matchingUtilityChildResolution = destination.isPrimaryReplacement
-        ? null
-        : _drawerUtilityChildResolution(destination);
-    if (destination.isPrimaryReplacement && primarySection != null) {
-      if (AppRestorationService.instance.requiresAcknowledgedDurableWrites) {
-        unawaited(
-          _dispatchAcknowledgedDrawerPrimary(
-            destination: destination,
-            primarySection: primarySection,
-            generation: generation,
-            matchingPrimaryBasePopCount: matchingPrimaryBasePopCount,
-          ),
-        );
-        return;
-      } else {
-        unawaited(recordPrimarySectionSelection(primarySection));
-      }
-      _replaceDrawerHistoryPrimary(destination);
-    } else if (matchingUtilityChildResolution != null) {
-      RestorationCoordinator.instance.suppressRestoreForUserNavigation(
-        reason: 'drawer_matching_utility_child',
-      );
-    } else {
-      RestorationCoordinator.instance.suppressRestoreForUserNavigation(
-        reason: 'drawer_destination_selection',
-      );
-      _pushDrawerHistoryUtility(destination);
-    }
-
-    _completeDrawerDestinationDispatch(
-      destination: destination,
-      generation: generation,
-      matchingPrimaryBasePopCount: matchingPrimaryBasePopCount,
-      matchingUtilityChildResolution: matchingUtilityChildResolution,
-    );
+  Future<void> _openPrimarySectionFromDrawer(AppSection section) {
+    unawaited(_closeFloatingMenu());
+    openPrimarySection(context, section, router: widget.router);
+    return Future<void>.value();
   }
 
-  Future<void> _dispatchAcknowledgedDrawerPrimary({
-    required _DrawerDestination destination,
-    required AppSection primarySection,
-    required int generation,
-    required int? matchingPrimaryBasePopCount,
-  }) async {
-    final result = await recordPrimarySectionSelection(primarySection);
-    if (!_drawerNavigationGeneration.isCurrent(generation)) {
-      _traceDrawerNavigation(
-        'drawer stale durable primary acknowledgement ignored',
-        target: destination.label,
-        generation: generation,
-        route: destination.location,
-      );
-      return;
-    }
-    if (result.status != AppRestorationMutationStatus.persisted) {
-      _traceDrawerNavigation(
-        'drawer primary navigation blocked by durable storage',
-        target: destination.label,
-        generation: generation,
-        route: destination.location,
-      );
-      return;
-    }
-    _replaceDrawerHistoryPrimary(destination);
-    _completeDrawerDestinationDispatch(
-      destination: destination,
-      generation: generation,
-      matchingPrimaryBasePopCount: matchingPrimaryBasePopCount,
-      matchingUtilityChildResolution: null,
+  Future<void> _openProfileFromDrawer() {
+    _traceNavigation(
+      '_openProfileFromDrawer entered',
+      mediaContext: context,
+      state: const <String, Object?>{'route': '/profile/me'},
     );
+    unawaited(_closeFloatingMenu());
+    if (!mounted) return Future<void>.value();
+    final navigationContext = _rootNavigatorKey.currentContext ?? context;
+    if (!navigationContext.mounted) return Future<void>.value();
+    _traceNavigation(
+      "global drawer detail route push('/profile/me') requested",
+      mediaContext: context,
+      state: const <String, Object?>{'route': '/profile/me'},
+    );
+    unawaited(
+      openDetailRoute<void>(
+        navigationContext,
+        '/profile/me',
+        router: widget.router,
+      ),
+    );
+    return Future<void>.value();
   }
 
-  void _completeDrawerDestinationDispatch({
-    required _DrawerDestination destination,
-    required int generation,
-    required int? matchingPrimaryBasePopCount,
-    required _DrawerUtilityChildResolution? matchingUtilityChildResolution,
-  }) {
-    _drawerDestinationDispatchInProgress = true;
-    try {
-      final dispatched = _drawerNavigationGeneration.runIfCurrent(
-        generation,
-        () {
-          if (matchingUtilityChildResolution != null) {
-            _traceDrawerNavigation(
-              'drawer matching utility child resolution started',
-              target: destination.label,
-              generation: generation,
-              route: destination.location,
-            );
-            switch (matchingUtilityChildResolution) {
-              case _DrawerUtilityChildResolution.popTop:
-                if (widget.router.canPop()) {
-                  widget.router.pop();
-                }
-              case _DrawerUtilityChildResolution.replaceTop:
-                unawaited(widget.router.replace<void>(destination.location));
-            }
-            _traceDrawerNavigation(
-              'drawer matching utility child canonicalized',
-              target: destination.label,
-              generation: generation,
-              route: destination.location,
-            );
-            return;
-          }
-          if (matchingPrimaryBasePopCount != null) {
-            _traceDrawerNavigation(
-              'drawer matching primary base resolution started',
-              target: destination.label,
-              generation: generation,
-              route: destination.location,
-            );
-            for (var index = 0; index < matchingPrimaryBasePopCount; index++) {
-              if (!_drawerNavigationGeneration.isCurrent(generation) ||
-                  !widget.router.canPop()) {
-                break;
-              }
-              widget.router.pop();
-            }
-            _traceDrawerNavigation(
-              'drawer matching primary base exposed',
-              target: destination.label,
-              generation: generation,
-              route: destination.location,
-            );
-            return;
-          }
-          _drawerPendingRouteGeneration = generation;
-          _drawerPendingTarget = destination.label;
-          _drawerPendingRoute = destination.location;
-          _traceDrawerNavigation(
-            'drawer navigation route requested',
-            target: destination.label,
-            generation: generation,
-            route: destination.location,
-          );
-          if (destination.isPrimaryReplacement) {
-            widget.router.go(destination.location);
-          } else if (destination == _DrawerDestination.profile) {
-            unawaited(
-              openDetailRoute<void>(
-                context,
-                destination.location,
-                router: widget.router,
-                source: NavigationSource.userDrawerSelection,
-              ),
-            );
-          } else {
-            unawaited(
-              openUtilityRoute<void>(
-                context,
-                destination.location,
-                navigationContext: _rootNavigatorKey.currentContext,
-                router: widget.router,
-                source: NavigationSource.userDrawerSelection,
-              ),
-            );
-          }
-        },
-      );
-      if (!dispatched) {
-        _traceDrawerNavigation(
-          'drawer stale route request ignored',
-          target: destination.label,
-          generation: generation,
-          route: destination.location,
-        );
-        return;
-      }
-    } finally {
-      _drawerDestinationDispatchInProgress = false;
-    }
-    unawaited(_closeFloatingMenu(navigationGeneration: generation));
+  Future<void> _openFlowsFromDrawer() {
+    _traceNavigation(
+      '_openFlowsFromDrawer entered',
+      mediaContext: context,
+      state: const <String, Object?>{'route': '/flows'},
+    );
+    unawaited(_closeFloatingMenu());
+    if (!mounted) return Future<void>.value();
+    _traceNavigation(
+      "global drawer utility route push('/flows') requested",
+      mediaContext: context,
+      state: const <String, Object?>{'route': '/flows'},
+    );
+    unawaited(
+      openUtilityRoute<void>(
+        context,
+        '/flows',
+        navigationContext: _rootNavigatorKey.currentContext,
+        router: widget.router,
+      ),
+    );
+    return Future<void>.value();
   }
 
-  bool _isDrawerDestinationSelected(_DrawerDestination destination) {
+  Future<void> _openCalendarsFromDrawer() {
+    _traceNavigation(
+      '_openCalendarsFromDrawer entered',
+      mediaContext: context,
+      state: const <String, Object?>{'route': '/calendars'},
+    );
+    unawaited(_closeFloatingMenu());
+    if (!mounted) return Future<void>.value();
+    _traceNavigation(
+      "global drawer utility route push('/calendars') requested",
+      mediaContext: context,
+      state: const <String, Object?>{'route': '/calendars'},
+    );
+    unawaited(
+      openUtilityRoute<void>(
+        context,
+        '/calendars',
+        navigationContext: _rootNavigatorKey.currentContext,
+        router: widget.router,
+      ),
+    );
+    return Future<void>.value();
+  }
+
+  bool _isDrawerDestinationSelected(String destination) {
     final path = _currentUri.path.isEmpty ? '/' : _currentUri.path;
     return switch (destination) {
-      _DrawerDestination.calendar => path == '/',
-      _DrawerDestination.planner => path.startsWith('/rhythm/'),
-      _DrawerDestination.library =>
-        path == '/nodes' || path.startsWith('/nodes/'),
-      _DrawerDestination.journal =>
-        path == '/journal' || path.startsWith('/journal/'),
-      _DrawerDestination.inbox =>
-        path == '/inbox' || path.startsWith('/inbox/'),
-      _DrawerDestination.calendars => path == '/calendars',
-      _DrawerDestination.flows =>
-        path == '/flows' || path.startsWith('/flows/'),
-      _DrawerDestination.reflections =>
+      '/' => path == '/',
+      '/rhythm/today' => path.startsWith('/rhythm/'),
+      '/nodes' => path == '/nodes' || path.startsWith('/nodes/'),
+      '/journal' => path == '/journal' || path.startsWith('/journal/'),
+      '/inbox' => path == '/inbox' || path.startsWith('/inbox/'),
+      '/calendars' => path == '/calendars',
+      '/flows' => path == '/flows' || path.startsWith('/flows/'),
+      '/reflections' =>
         path == '/reflections' || path.startsWith('/reflections/'),
-      _DrawerDestination.profile =>
-        path == '/profile/me' || path.startsWith('/profile/'),
-      _DrawerDestination.settings => path == '/settings',
+      '/profile/me' => path == '/profile/me' || path.startsWith('/profile/'),
+      '/settings' => path == '/settings',
+      _ => false,
     };
-  }
-
-  bool _isDrawerDestinationExactlyVisible(_DrawerDestination destination) {
-    return _drawerLocationMatches(_currentUri.toString(), destination.location);
-  }
-
-  int? _drawerOverlayCountAboveMatchingPrimaryBase(
-    _DrawerDestination destination,
-  ) {
-    final mountedLocations = _drawerMountedLocations();
-    final baseIndex = mountedLocations.lastIndexWhere(
-      (location) => _drawerLocationMatches(location, destination.location),
-    );
-    if (baseIndex < 0 || baseIndex == mountedLocations.length - 1) {
-      return null;
-    }
-    return mountedLocations.length - baseIndex - 1;
-  }
-
-  _DrawerUtilityChildResolution? _drawerUtilityChildResolution(
-    _DrawerDestination destination,
-  ) {
-    final mountedLocations = _drawerMountedLocations();
-    if (mountedLocations.length < 2) return null;
-    final routeBelowTop = mountedLocations[mountedLocations.length - 2];
-    final topRoute = mountedLocations.last;
-    if (_drawerLocationMatches(routeBelowTop, destination.location) &&
-        !_drawerLocationMatches(topRoute, destination.location)) {
-      return _DrawerUtilityChildResolution.popTop;
-    }
-    if (_isDrawerDestinationSelected(destination) &&
-        !_drawerLocationMatches(topRoute, destination.location)) {
-      return _DrawerUtilityChildResolution.replaceTop;
-    }
-    return null;
-  }
-
-  List<String> _drawerMountedLocations() {
-    final configuration = widget.router.routerDelegate.currentConfiguration;
-    return <String>[
-      configuration.uri.toString(),
-      ...configuration.matches.whereType<ImperativeRouteMatch>().map(
-        (match) => match.matches.uri.toString(),
-      ),
-    ];
   }
 
   List<GlobalSideDrawerItem> _buildGlobalSideDrawerItems() {
@@ -3799,74 +2843,73 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       GlobalSideDrawerItem(
         label: 'Calendar',
         glyph: MeduNeterGlyphs.home,
-        selected: _isDrawerDestinationSelected(_DrawerDestination.calendar),
+        selected: _isDrawerDestinationSelected('/'),
         onSelected: () =>
-            _dispatchDrawerDestination(_DrawerDestination.calendar),
+            unawaited(_openPrimarySectionFromDrawer(AppSection.calendar)),
       ),
       GlobalSideDrawerItem(
         label: 'Planner',
         glyph: MeduNeterGlyphs.planner,
-        selected: _isDrawerDestinationSelected(_DrawerDestination.planner),
+        selected: _isDrawerDestinationSelected('/rhythm/today'),
         onSelected: () =>
-            _dispatchDrawerDestination(_DrawerDestination.planner),
+            unawaited(_openPrimarySectionFromDrawer(AppSection.planner)),
       ),
       GlobalSideDrawerItem(
         label: 'Library',
         glyph: MeduNeterGlyphs.library,
         glyphSize: 20,
-        selected: _isDrawerDestinationSelected(_DrawerDestination.library),
+        selected: _isDrawerDestinationSelected('/nodes'),
         onSelected: () =>
-            _dispatchDrawerDestination(_DrawerDestination.library),
+            unawaited(_openPrimarySectionFromDrawer(AppSection.library)),
       ),
       GlobalSideDrawerItem(
         label: 'Journal',
         glyph: MeduNeterGlyphs.journal,
-        selected: _isDrawerDestinationSelected(_DrawerDestination.journal),
+        selected: _isDrawerDestinationSelected('/journal'),
         onSelected: () =>
-            _dispatchDrawerDestination(_DrawerDestination.journal),
+            unawaited(_openPrimarySectionFromDrawer(AppSection.journal)),
       ),
       GlobalSideDrawerItem(
         label: 'Inbox',
         glyph: MeduNeterGlyphs.inbox,
         showNotificationDot: true,
-        selected: _isDrawerDestinationSelected(_DrawerDestination.inbox),
-        onSelected: () => _dispatchDrawerDestination(_DrawerDestination.inbox),
+        selected: _isDrawerDestinationSelected('/inbox'),
+        onSelected: () =>
+            unawaited(_openPrimarySectionFromDrawer(AppSection.inbox)),
       ),
       GlobalSideDrawerItem(
         label: 'Calendars',
         glyph: MeduNeterGlyphs.calendars,
-        selected: _isDrawerDestinationSelected(_DrawerDestination.calendars),
-        onSelected: () =>
-            _dispatchDrawerDestination(_DrawerDestination.calendars),
+        selected: _isDrawerDestinationSelected('/calendars'),
+        onSelected: () => unawaited(_openCalendarsFromDrawer()),
       ),
       GlobalSideDrawerItem(
         label: 'Flows',
         glyph: MeduNeterGlyphs.flowStudio,
         glyphSize: 20,
-        selected: _isDrawerDestinationSelected(_DrawerDestination.flows),
-        onSelected: () => _dispatchDrawerDestination(_DrawerDestination.flows),
+        selected: _isDrawerDestinationSelected('/flows'),
+        onSelected: () => unawaited(_openFlowsFromDrawer()),
       ),
       GlobalSideDrawerItem(
         label: 'Reflections',
         glyph: MeduNeterGlyphs.reflections,
         glyphSize: 18,
-        selected: _isDrawerDestinationSelected(_DrawerDestination.reflections),
+        selected: _isDrawerDestinationSelected('/reflections'),
         onSelected: () =>
-            _dispatchDrawerDestination(_DrawerDestination.reflections),
+            unawaited(_openPrimarySectionFromDrawer(AppSection.reflections)),
       ),
       GlobalSideDrawerItem(
         label: 'Profile',
         glyph: MeduNeterGlyphs.profile,
-        selected: _isDrawerDestinationSelected(_DrawerDestination.profile),
-        onSelected: () =>
-            _dispatchDrawerDestination(_DrawerDestination.profile),
+        selected: _isDrawerDestinationSelected('/profile/me'),
+        onSelected: () => unawaited(_openProfileFromDrawer()),
       ),
       GlobalSideDrawerItem(
         label: 'Settings',
         glyph: MeduNeterGlyphs.settings,
-        selected: _isDrawerDestinationSelected(_DrawerDestination.settings),
+        selected: _isDrawerDestinationSelected('/settings'),
         onSelected: () =>
-            _dispatchDrawerDestination(_DrawerDestination.settings),
+            unawaited(_openPrimarySectionFromDrawer(AppSection.settings)),
       ),
     ];
   }
@@ -3950,14 +2993,13 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       child: Stack(
         fit: StackFit.expand,
         children: [
-          Positioned.fill(
-            child: shouldMountFloatingMenu && _menuMounted
-                ? GlobalSideDrawer(
-                    open: menuOpenForInteraction,
-                    items: _buildGlobalSideDrawerItems(),
-                  )
-                : const SizedBox.shrink(),
-          ),
+          if (shouldMountFloatingMenu && _menuMounted)
+            Positioned.fill(
+              child: GlobalSideDrawer(
+                open: menuOpenForInteraction,
+                items: _buildGlobalSideDrawerItems(),
+              ),
+            ),
           GlobalSideDrawerForeground(
             open: menuOpenForInteraction,
             child: Stack(
@@ -3977,26 +3019,17 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
                           child: GestureDetector(
                             key: globalSideDrawerScrimKey,
                             behavior: HitTestBehavior.opaque,
-                            excludeFromSemantics: true,
                             onTap: () => unawaited(_closeFloatingMenu()),
-                            child: Semantics(
-                              container: true,
-                              label: 'Close navigation menu',
-                              button: true,
-                              onTap: () => unawaited(_closeFloatingMenu()),
-                              child: const ColoredBox(
-                                color: Colors.transparent,
-                              ),
-                            ),
+                            child: const ColoredBox(color: Colors.transparent),
                           ),
                         ),
                       ),
                     ),
                   ),
-                if (shouldActivateFloatingMenu)
+                if (shouldActivateFloatingMenu || _menuMounted)
                   GlobalMenuBubble(
                     key: globalMenuButtonKey,
-                    visible: true,
+                    visible: shouldActivateFloatingMenu,
                     open: menuOpenForInteraction,
                     onPressed: _handleFloatingMenuPressed,
                   ),
@@ -4298,20 +3331,12 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
           : null;
       final id = deliveryId ?? keyId;
       if (id == null) return false;
-      final uid = supabase.auth.currentUser?.id;
-      if (uid == null) return false;
-      if (!await _canOpenMaatGuidancePush(uid, deliveryId: id)) {
-        return false;
-      }
       _router.go('/maat-guidance/${Uri.encodeComponent(id)}');
       return true;
     }
     if (kind == 'decan_reflection' && reflectionId != null) {
       final uid = supabase.auth.currentUser?.id;
       if (uid == null) return false;
-      if (!await _canOpenDecanReflectionPush(uid, reflectionId: reflectionId)) {
-        return false;
-      }
       _router.go('/reflections/${Uri.encodeComponent(reflectionId)}');
       return true;
     }
@@ -4435,94 +3460,6 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     }
 
     return false;
-  }
-
-  OnboardingDecanIdentity? _currentPushDecanIdentity() {
-    final kem = KemeticMath.fromGregorian(DateTime.now());
-    return OnboardingDecanIdentity.fromKemeticDay(
-      kYear: kem.kYear,
-      kMonth: kem.kMonth,
-      kDay: kem.kDay,
-    );
-  }
-
-  OnboardingDecanIdentity? _reflectionPushDecanIdentity(
-    DecanReflection? reflection,
-  ) {
-    if (reflection == null) return null;
-    final kem = KemeticMath.fromGregorian(reflection.decanStart);
-    return OnboardingDecanIdentity.fromKemeticDay(
-      kYear: kem.kYear,
-      kMonth: kem.kMonth,
-      kDay: kem.kDay,
-    );
-  }
-
-  Future<bool> _canOpenDecanReflectionPush(
-    String userId, {
-    String? reflectionId,
-  }) async {
-    try {
-      final progress = await OnboardingProgressStorage()
-          .loadLocalReconciledWithLegacyCompletion(
-            userId,
-            legacyCompleted: () =>
-                OnboardingStorage(supabase).isCompletedLocally(userId),
-          );
-      if (progress.completedOnboarding) {
-        if (!progress.hasSeenMenuPrompt ||
-            progress.currentStep != TrueOnboardingStep.complete) {
-          return false;
-        }
-        DecanReflection? reflection;
-        if (reflectionId != null && reflectionId.trim().isNotEmpty) {
-          reflection = await DecanReflectionRepo(
-            supabase,
-          ).getById(reflectionId.trim());
-        }
-        return !DecanReflectionOnboardingGate.shouldBlock(
-          progress: progress,
-          currentDecanIdentity: _currentPushDecanIdentity(),
-          promptDecanIdentity: _reflectionPushDecanIdentity(reflection),
-        );
-      }
-      return false;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<bool> _canOpenMaatGuidancePush(
-    String userId, {
-    required String deliveryId,
-  }) async {
-    try {
-      final progress = await OnboardingProgressStorage()
-          .loadLocalReconciledWithLegacyCompletion(
-            userId,
-            legacyCompleted: () =>
-                OnboardingStorage(supabase).isCompletedLocally(userId),
-          );
-      if (progress.completedOnboarding) {
-        if (!progress.hasSeenMenuPrompt ||
-            progress.currentStep != TrueOnboardingStep.complete) {
-          return false;
-        }
-        final delivery = await MaatGuidanceRepo(
-          supabase,
-        ).getById(deliveryId.trim());
-        return !DecanReflectionOnboardingGate.shouldBlock(
-          progress: progress,
-          currentDecanIdentity: _currentPushDecanIdentity(),
-          promptDecanIdentity: _maatGuidanceDecanIdentityFromPeriodKey(
-            delivery?.decanPeriodKey,
-          ),
-        );
-      }
-      return false;
-    } catch (_) {
-      return false;
-    }
   }
 
   void _openSharedFlow(String shareId) {
@@ -4764,41 +3701,31 @@ class _LaunchShell extends StatefulWidget {
 
 class _LaunchShellState extends State<_LaunchShell>
     with SingleTickerProviderStateMixin {
-  AnimationController? _fadeController;
-  Animation<double>? _fadeOut;
+  late final AnimationController _fadeController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 420),
+  );
+  late final Animation<double> _fadeOut = Tween<double>(
+    begin: 1,
+    end: 0,
+  ).animate(CurvedAnimation(parent: _fadeController, curve: Curves.easeOut));
 
   bool _dismissed = false;
-
-  AnimationController get _launchFadeController {
-    return _fadeController ??= AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 420),
-    );
-  }
-
-  Animation<double> get _launchFadeOut {
-    return _fadeOut ??= Tween<double>(begin: 1, end: 0).animate(
-      CurvedAnimation(parent: _launchFadeController, curve: Curves.easeOut),
-    );
-  }
 
   @override
   void initState() {
     super.initState();
-    final shouldShowOverlay = _shouldShowLaunchOverlay();
-    _dismissed = !shouldShowOverlay;
-    _launchOverlayDismissed.value = !shouldShowOverlay;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!_debugSkipLaunchShellDetachedOverlayRestore) {
-        unawaited(_restoreDetachedCalendarOverlayAfterBoot());
-      }
-      if (shouldShowOverlay) unawaited(_dismissOverlay());
-    });
-  }
+    if (supabase.auth.currentSession == null) {
+      _dismissed = true;
+      _launchOverlayDismissed.value = true;
+      return;
+    }
 
-  bool _shouldShowLaunchOverlay() {
-    if (supabase.auth.currentSession == null) return false;
-    return _webAuthExchangeInProgress.value;
+    _launchOverlayDismissed.value = false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_restoreDetachedCalendarOverlayAfterBoot());
+      _dismissOverlay();
+    });
   }
 
   Future<void> _restoreDetachedCalendarOverlayAfterBoot() async {
@@ -4829,9 +3756,11 @@ class _LaunchShellState extends State<_LaunchShell>
       return;
     }
 
+    await Future<void>.delayed(const Duration(milliseconds: 950));
     await _waitForWebAuthExchangeToSettle();
+    await CalendarPage.waitForInitialCalendarRestorationToSettle();
     if (!mounted) return;
-    await _launchFadeController.forward();
+    await _fadeController.forward();
     if (!mounted) return;
     setState(() => _dismissed = true);
     _launchOverlayDismissed.value = true;
@@ -4839,7 +3768,7 @@ class _LaunchShellState extends State<_LaunchShell>
 
   @override
   void dispose() {
-    _fadeController?.dispose();
+    _fadeController.dispose();
     super.dispose();
   }
 
@@ -4855,11 +3784,87 @@ class _LaunchShellState extends State<_LaunchShell>
             // standalone web auth/bootstrap.
             ignoring: true,
             child: FadeTransition(
-              opacity: _launchFadeOut,
-              child: const LaunchWordSurface(),
+              opacity: _fadeOut,
+              child: const ColoredBox(
+                color: _launchBackdrop,
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 32),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: _ShimmeringLaunchWord(),
+                    ),
+                  ),
+                ),
+              ),
             ),
           ),
       ],
+    );
+  }
+}
+
+class _ShimmeringLaunchWord extends StatefulWidget {
+  const _ShimmeringLaunchWord();
+
+  @override
+  State<_ShimmeringLaunchWord> createState() => _ShimmeringLaunchWordState();
+}
+
+class _ShimmeringLaunchWordState extends State<_ShimmeringLaunchWord>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2600),
+  )..repeat();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final shimmerOffset = (_controller.value * 2.6) - 1.3;
+        final shimmerGradient = LinearGradient(
+          begin: Alignment(-1.6 + shimmerOffset, 0),
+          end: Alignment(1.6 + shimmerOffset, 0),
+          colors: const [
+            goldDeep,
+            gold,
+            goldLight,
+            Color(0xFFFFF8DD),
+            goldLight,
+            gold,
+            goldDeep,
+          ],
+          stops: const [0.0, 0.2, 0.38, 0.5, 0.62, 0.8, 1.0],
+        );
+
+        return GlossyText(
+          text: 'ḥꜣw',
+          gradient: shimmerGradient,
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 42,
+            fontWeight: FontWeight.w500,
+            fontFamily: 'GentiumPlus',
+            fontFamilyFallback: ['NotoSans', 'Roboto', 'Arial', 'sans-serif'],
+            shadows: [
+              Shadow(
+                color: Color(0x552C1A00),
+                blurRadius: 18,
+                offset: Offset(0, 4),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
@@ -5752,12 +4757,7 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _calendarSync = sharedCalendarSyncService(
-      supabase,
-      webImportProvider: kIsWeb
-          ? GoogleCalendarWebImportProvider(supabase)
-          : null,
-    );
+    _calendarSync = sharedCalendarSyncService(supabase);
 
     // React to auth changes (includes initialSession)
     _authSub = supabase.auth.onAuthStateChange.listen(
@@ -5853,26 +4853,47 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
     );
   }
 
-  void _startPostAuthStartupWarmupsAfterFirstFrame() {
-    unawaited(() async {
-      await _waitForFirstRasterizedFrameForStartup();
-      if (!mounted || supabase.auth.currentSession == null) return;
-      _startPostAuthStartupWarmups();
-    }());
-  }
+  Future<void> _handleAuthStateChange(AuthState data) async {
+    final ev = data.event;
+    final isSessionReadyEvent =
+        ev == AuthChangeEvent.initialSession || ev == AuthChangeEvent.signedIn;
+    if (isSessionReadyEvent) {
+      _prepareDeferredBootRestoreForAuth(ev);
+    }
+    if (!isSessionReadyEvent && mounted) setState(() {});
 
-  void _startAuthenticatedServiceWarmupsAfterFirstFrame() {
-    unawaited(() async {
-      await _waitForFirstRasterizedFrameForStartup();
-      if (!mounted || supabase.auth.currentSession == null) return;
-
+    if (isSessionReadyEvent) {
+      Events.debugAuthBanner('onAuthStateChange:$ev');
+      final shouldReplayBeforeStartup =
+          _authDeferredRestorePending || _bootDeferredRestorePreparedForAuth;
+      final pendingPlannerLaunch = _pendingPlannerLaunchIntent;
+      if (pendingPlannerLaunch != null) {
+        _pendingPlannerLaunchIntent = null;
+        _bootRestoreDeferredForAuth = false;
+        _bootAuthDeferredRestoredLocation = null;
+        _bootDeferredRestorePreparedForAuth = false;
+        traceRestoration(
+          'auth deferred restore skipped event=${ev.name} '
+          'reason=pending_planner_launch_intent',
+        );
+        _routeToPlanner(pendingPlannerLaunch);
+      } else {
+        await _replayDeferredBootRestoreAfterAuth(ev);
+      }
+      if (mounted) setState(() {});
+      if (shouldReplayBeforeStartup) {
+        _startPostAuthStartupWarmups();
+      } else {
+        await _ensureProfile(); // keep profiles hydrated with email
+        await UserEventsRepo.refreshTelemetrySettings(supabase);
+        await _logAppOpenOnce(); // one-shot per cold start
+      }
       fireAndForgetGuarded(
         'notify init',
         _initNotificationsSafely(),
         onError: _logAuthGateError,
       );
       final pushEnabled = await SettingsPrefs.realTimeAlertsEnabled();
-      if (!mounted || supabase.auth.currentSession == null) return;
       if (pushEnabled) {
         final push = PushNotifications.instance(supabase);
         if (!kIsWeb) {
@@ -5907,7 +4928,6 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       }
       final autoCalendarSyncEnabled =
           await SettingsPrefs.autoCalendarSyncEnabled();
-      if (!mounted || supabase.auth.currentSession == null) return;
       if (autoCalendarSyncEnabled) {
         fireAndForgetGuarded(
           'calendar sync start',
@@ -5917,44 +4937,6 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       } else {
         _calendarSync?.stop();
       }
-    }());
-  }
-
-  Future<void> _handleAuthStateChange(AuthState data) async {
-    // MyApp normally registers the event before this route-local listener.
-    // The shared coordinator also claims an unusually early or harness-only
-    // delivery exactly once. Replacement-principal warmups cannot outrun it.
-    await _principalUnreadAuthTransitionOwner.ensureHandled(supabase, data);
-    final ev = data.event;
-    final isSessionReadyEvent =
-        ev == AuthChangeEvent.initialSession || ev == AuthChangeEvent.signedIn;
-    if (isSessionReadyEvent) {
-      await AppRestorationService.instance.handleSessionReady(
-        data.session?.user.id,
-      );
-      _prepareDeferredBootRestoreForAuth(ev);
-    }
-    if (!isSessionReadyEvent && mounted) setState(() {});
-
-    if (isSessionReadyEvent) {
-      Events.debugAuthBanner('onAuthStateChange:$ev');
-      final pendingPlannerLaunch = _pendingPlannerLaunchIntent;
-      if (pendingPlannerLaunch != null) {
-        _pendingPlannerLaunchIntent = null;
-        _bootRestoreDeferredForAuth = false;
-        _bootAuthDeferredRestoredLocation = null;
-        _bootDeferredRestorePreparedForAuth = false;
-        traceRestoration(
-          'auth deferred restore skipped event=${ev.name} '
-          'reason=pending_planner_launch_intent',
-        );
-        _routeToPlanner(pendingPlannerLaunch);
-      } else {
-        await _replayDeferredBootRestoreAfterAuth(ev);
-      }
-      if (mounted) setState(() {});
-      _startPostAuthStartupWarmupsAfterFirstFrame();
-      _startAuthenticatedServiceWarmupsAfterFirstFrame();
     }
 
     if (ev == AuthChangeEvent.signedOut) {

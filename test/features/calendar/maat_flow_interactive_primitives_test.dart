@@ -318,7 +318,6 @@ void main() {
               kind: MaatFlowResponseKind.multiline,
               label: 'Note',
               placeholder: 'Write one line',
-              journalBehavior: MaatFlowJournalBehavior.none,
             ),
             MaatFlowResponseSpec(
               id: 'state',
@@ -326,7 +325,6 @@ void main() {
               surface: MaatFlowResponseSurface.calendarSheet,
               kind: MaatFlowResponseKind.choice,
               label: 'State',
-              journalBehavior: MaatFlowJournalBehavior.none,
               options: <MaatFlowResponseOption>[
                 MaatFlowResponseOption(id: 'inside', label: 'Inside'),
                 MaatFlowResponseOption(id: 'outside', label: 'Outside'),

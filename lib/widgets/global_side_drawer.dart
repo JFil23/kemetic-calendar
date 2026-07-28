@@ -210,7 +210,6 @@ class _GlobalMenuBubbleSurface extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         shape: const CircleBorder(),
-        clipBehavior: Clip.antiAlias,
         child: _GlobalMenuBubbleInk(onPressed: onPressed, child: glyph),
       ),
     );
@@ -228,24 +227,15 @@ class _GlobalMenuBubbleInk extends StatelessWidget {
     return InkWell(
       customBorder: const CircleBorder(),
       onTap: onPressed,
-      child: SizedBox.expand(
-        child: Center(
-          child: SizedBox.square(
-            dimension: 34,
-            child: FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.center,
-              child: InboxUnreadDotOverlay(
-                top: -1,
-                right: -1,
-                size: 7,
-                dotColor: const Color(0xFFFF3B30),
-                borderColor: const Color(0xFF07080A),
-                borderWidth: 1.1,
-                child: child,
-              ),
-            ),
-          ),
+      child: Center(
+        child: InboxUnreadDotOverlay(
+          top: -1,
+          right: -1,
+          size: 7,
+          dotColor: const Color(0xFFFF3B30),
+          borderColor: const Color(0xFF07080A),
+          borderWidth: 1.1,
+          child: child,
         ),
       ),
     );
@@ -277,7 +267,7 @@ class GlobalSideDrawer extends StatelessWidget {
               curve: globalSideDrawerTransitionCurve,
               child: Material(
                 key: globalSideDrawerKey,
-                color: const Color(0xFF000000),
+                color: const Color(0xF2000000),
                 elevation: 14,
                 shadowColor: const Color(0xB3000000),
                 child: SafeArea(
@@ -655,13 +645,15 @@ class GlobalSideDrawerForeground extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final drawerOffset = open ? globalSideDrawerWidth(context) : 0.0;
-    return TweenAnimationBuilder<double>(
-      tween: Tween<double>(begin: drawerOffset, end: drawerOffset),
+    final foregroundWidth = MediaQuery.sizeOf(context).width;
+
+    return AnimatedSlide(
+      offset: Offset(
+        foregroundWidth == 0 ? 0 : drawerOffset / foregroundWidth,
+        0,
+      ),
       duration: globalSideDrawerTransitionDuration,
       curve: globalSideDrawerTransitionCurve,
-      builder: (context, offset, child) {
-        return Transform.translate(offset: Offset(offset, 0), child: child);
-      },
       child: SizedBox.expand(key: globalSideDrawerForegroundKey, child: child),
     );
   }

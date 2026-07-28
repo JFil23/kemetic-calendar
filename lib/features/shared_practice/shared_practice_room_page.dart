@@ -16,14 +16,9 @@ const Color _muted = Color(0xFF9E9A94);
 const String _serif = 'CormorantGaramond';
 
 class SharedPracticeRoomPage extends StatefulWidget {
-  const SharedPracticeRoomPage({
-    super.key,
-    required this.roomId,
-    this.initialLocalDate,
-  });
+  const SharedPracticeRoomPage({super.key, required this.roomId});
 
   final String roomId;
-  final DateTime? initialLocalDate;
 
   @override
   State<SharedPracticeRoomPage> createState() => _SharedPracticeRoomPageState();
@@ -34,9 +29,6 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
     Supabase.instance.client,
   );
   late Future<SharedPracticeRoomSnapshot> _future;
-  late final DateTime _localDate = DateUtils.dateOnly(
-    widget.initialLocalDate ?? DateTime.now(),
-  );
   SharedPracticeRoomSnapshot? _snapshot;
   String? _presenceMarkedForClientEventId;
   bool _visibilityUpdating = false;
@@ -51,7 +43,7 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
   Future<SharedPracticeRoomSnapshot> _load() async {
     final snapshot = await _repo.getSharedPracticeRoom(
       roomId: widget.roomId,
-      localDate: _localDate,
+      localDate: DateTime.now(),
     );
     if (mounted) {
       setState(() {
@@ -325,7 +317,7 @@ class _RoomHeader extends StatelessWidget {
         const SizedBox(height: 8),
         if (step != null)
           Text(
-            _stepLine(step, snapshot.localDate),
+            _stepLine(step),
             style: const TextStyle(color: _muted, fontSize: 13, height: 1.35),
           ),
         const SizedBox(height: 10),
@@ -333,8 +325,8 @@ class _RoomHeader extends StatelessWidget {
           spacing: 8,
           runSpacing: 8,
           children: [
-            for (final label in snapshot.accessPillLabels)
-              _RoomPill(label: label),
+            _RoomPill(label: snapshot.room.visibility.label),
+            _RoomPill(label: snapshot.room.joinPolicy.label),
           ],
         ),
         const SizedBox(height: 16),
@@ -381,45 +373,39 @@ class _RoomManagementSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _Panel(
-      title: snapshot.isSharedCalendarPractice
-          ? 'Shared Calendar Access'
-          : 'Room Access',
+      title: 'Room Access',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (snapshot.isSharedCalendarPractice)
-            _SharedCalendarAccessSummary(snapshot: snapshot)
-          else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final visibility in SharedPracticeRoomVisibility.values)
-                  ChoiceChip(
-                    selected: snapshot.room.visibility == visibility,
-                    onSelected: visibilityUpdating
-                        ? null
-                        : (_) => onVisibilitySelected(visibility),
-                    label: Text(visibility.label),
-                    selectedColor: _gold.withValues(alpha: 0.22),
-                    backgroundColor: Colors.black.withValues(alpha: 0.20),
-                    labelStyle: TextStyle(
-                      color: snapshot.room.visibility == visibility
-                          ? _gold
-                          : Colors.white.withValues(alpha: 0.68),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                    ),
-                    side: BorderSide(
-                      color: snapshot.room.visibility == visibility
-                          ? _gold.withValues(alpha: 0.58)
-                          : Colors.white.withValues(alpha: 0.12),
-                    ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final visibility in SharedPracticeRoomVisibility.values)
+                ChoiceChip(
+                  selected: snapshot.room.visibility == visibility,
+                  onSelected: visibilityUpdating
+                      ? null
+                      : (_) => onVisibilitySelected(visibility),
+                  label: Text(visibility.label),
+                  selectedColor: _gold.withValues(alpha: 0.22),
+                  backgroundColor: Colors.black.withValues(alpha: 0.20),
+                  labelStyle: TextStyle(
+                    color: snapshot.room.visibility == visibility
+                        ? _gold
+                        : Colors.white.withValues(alpha: 0.68),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
                   ),
-              ],
-            ),
-          if (!snapshot.isSharedCalendarPractice &&
-              snapshot.joinRequests.isNotEmpty) ...[
+                  side: BorderSide(
+                    color: snapshot.room.visibility == visibility
+                        ? _gold.withValues(alpha: 0.58)
+                        : Colors.white.withValues(alpha: 0.12),
+                  ),
+                ),
+            ],
+          ),
+          if (snapshot.joinRequests.isNotEmpty) ...[
             const SizedBox(height: 16),
             Text(
               'JOIN REQUESTS',
@@ -440,7 +426,7 @@ class _RoomManagementSection extends StatelessWidget {
               ),
               const SizedBox(height: 8),
             ],
-          ] else if (!snapshot.isSharedCalendarPractice) ...[
+          ] else ...[
             const SizedBox(height: 12),
             Text(
               'No pending join requests.',
@@ -454,24 +440,6 @@ class _RoomManagementSection extends StatelessWidget {
           ],
         ],
       ),
-    );
-  }
-}
-
-class _SharedCalendarAccessSummary extends StatelessWidget {
-  const _SharedCalendarAccessSummary({required this.snapshot});
-
-  final SharedPracticeRoomSnapshot snapshot;
-
-  @override
-  Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        _RoomPill(label: snapshot.sharedThroughLabel),
-        _RoomPill(label: snapshot.memberCountLabel),
-      ],
     );
   }
 }
@@ -577,9 +545,7 @@ class _MemberSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _Panel(
-      title: DateUtils.isSameDay(snapshot.localDate, DateTime.now())
-          ? 'Today\'s Circle'
-          : 'Practice Circle',
+      title: 'Today\'s Circle',
       child: Column(
         children: [
           for (var i = 0; i < snapshot.members.length; i++) ...[
@@ -685,7 +651,7 @@ class _EntriesSection extends StatelessWidget {
       title: 'Shared Entries',
       child: entries.isEmpty
           ? Text(
-              'No shared entries for this day.',
+              'No shared entries today.',
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.5),
                 fontFamily: _serif,
@@ -1010,16 +976,13 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
-String _stepLine(SharedPracticeStep step, DateTime localDate) {
+String _stepLine(SharedPracticeStep step) {
   final index = step.stepIndex;
   final total = step.totalSteps;
-  final prefix = DateUtils.isSameDay(localDate, DateTime.now())
-      ? 'Today'
-      : _dateOnly(localDate);
   if (index != null && total != null && total > 0) {
-    return '$prefix: ${step.title} · Step $index of $total';
+    return 'Today: ${step.title} · Step $index of $total';
   }
-  return '$prefix: ${step.title}';
+  return 'Today: ${step.title}';
 }
 
 String _statusLabel(SharedPracticeMemberStatus member) {

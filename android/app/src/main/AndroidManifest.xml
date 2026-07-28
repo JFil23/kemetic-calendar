@@ -13,8 +13,9 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- Allows the device to vibrate when a notification is delivered -->
     <uses-permission android:name="android.permission.VIBRATE" />
-    <!-- Read-only calendar access for one-way external calendar import -->
+    <!-- Calendar access for native sync -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.WRITE_CALENDAR" />
     <!-- FCM delivery -->
     <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" />
 
@@ -31,10 +32,6 @@
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
-
-            <meta-data
-                android:name="io.flutter.embedding.android.NormalTheme"
-                android:resource="@style/NormalTheme" />
 
             <!-- Launcher -->
             <intent-filter>
