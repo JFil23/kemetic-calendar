@@ -8,7 +8,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../data/user_events_repo.dart';
 import '../features/settings/settings_prefs.dart';
 import '../telemetry/telemetry.dart';
-import '../utils/auth_redirect.dart';
 
 const _channelName = 'com.kemetic.calendar/sync';
 const _permissionRetryCooldown = Duration(hours: 12);
@@ -66,12 +65,6 @@ String _calendarSyncNativeSummary(String cid, NativeCalendarEvent native) {
 
 String _calendarSyncError(Object error) => redactLogText(error.toString());
 
-bool _isRecentlyDeletedImportError(Object error) {
-  if (error is! PostgrestException) return false;
-  return error.message.contains('EVENT_RECENTLY_DELETED') ||
-      error.code == 'EVENT_RECENTLY_DELETED';
-}
-
 @immutable
 class CalendarSyncStatus {
   const CalendarSyncStatus({
@@ -89,8 +82,6 @@ enum CalendarSyncRunState {
   synced,
   unlinked,
   permissionDenied,
-  authorizationRequired,
-  authorizationStarted,
   skippedWeb,
   skippedNoSession,
   skippedInProgress,
@@ -109,12 +100,6 @@ class CalendarSyncRunResult {
 
   const CalendarSyncRunResult.permissionDenied()
     : this._(CalendarSyncRunState.permissionDenied);
-
-  const CalendarSyncRunResult.authorizationRequired()
-    : this._(CalendarSyncRunState.authorizationRequired);
-
-  const CalendarSyncRunResult.authorizationStarted()
-    : this._(CalendarSyncRunState.authorizationStarted);
 
   const CalendarSyncRunResult.skippedWeb()
     : this._(CalendarSyncRunState.skippedWeb);
@@ -141,13 +126,18 @@ class CalendarSyncRunResult {
 class CalendarSyncResetResult {
   const CalendarSyncResetResult({
     required this.removedImportedEvents,
+    required this.removedNativeEvents,
+    required this.permissionGranted,
     required this.completed,
   });
 
   final int removedImportedEvents;
+  final int removedNativeEvents;
+  final bool permissionGranted;
   final bool completed;
 
-  bool get changedAnything => removedImportedEvents > 0;
+  bool get changedAnything =>
+      removedImportedEvents > 0 || removedNativeEvents > 0;
 }
 
 bool _isLikelyHolidayTitle(String title) {
@@ -438,19 +428,6 @@ class CalendarPlatformBridge {
     }
   }
 
-  Future<bool> hasPermissions() async {
-    if (kIsWeb) return false;
-    try {
-      final granted = await _channel.invokeMethod<bool>('hasPermissions');
-      return granted ?? false;
-    } catch (e) {
-      debugPrint(
-        '[calendar-sync] hasPermissions error: ${_calendarSyncError(e)}',
-      );
-      return false;
-    }
-  }
-
   Future<List<NativeCalendarEvent>> fetchEvents(
     DateTime start,
     DateTime end,
@@ -471,194 +448,31 @@ class CalendarPlatformBridge {
       return const [];
     }
   }
-}
 
-abstract class CalendarWebImportProvider {
-  Future<bool> hasReadAccess();
-
-  Future<bool> requestReadAccess({required String redirectTo});
-
-  Future<List<NativeCalendarEvent>> fetchEvents(DateTime start, DateTime end);
-}
-
-class CalendarWebAuthorizationRequiredException implements Exception {
-  const CalendarWebAuthorizationRequiredException([this.message]);
-
-  final String? message;
-
-  @override
-  String toString() => message == null
-      ? 'Calendar web authorization required'
-      : 'Calendar web authorization required: $message';
-}
-
-abstract class CalendarSyncEventStore {
-  Future<UserEvent> upsertByClientId({
-    required String clientEventId,
-    required String title,
-    required DateTime startsAtUtc,
-    String? detail,
-    String? location,
-    bool allDay,
-    DateTime? endsAtUtc,
-    String? category,
-    String? caller,
-  });
-
-  Future<UserEvent> update({
-    required String id,
-    String? title,
-    String? detail,
-    String? location,
-    bool? allDay,
-    DateTime? startsAt,
-    DateTime? endsAt,
-  });
-
-  Future<List<UserEvent>> getEventsForWindow({
-    required DateTime startUtc,
-    required DateTime endUtc,
-    int limit,
-  });
-
-  Future<void> deleteByClientId(
-    String clientEventId, {
-    String semantic,
-    bool suppressesClient,
-    String sourceFeature,
-    String deleteScope,
-  });
-
-  Future<void> deleteByClientIdPrefix(
-    String prefix, {
-    String semantic,
-    bool suppressesClient,
-    String sourceFeature,
-    String deleteScope,
-  });
-
-  Future<void> deleteByCategory(
-    String category, {
-    String semantic,
-    bool suppressesClient,
-    String sourceFeature,
-    String deleteScope,
-  });
-}
-
-class UserEventsCalendarSyncStore implements CalendarSyncEventStore {
-  UserEventsCalendarSyncStore(this._repo);
-
-  final UserEventsRepo _repo;
-
-  @override
-  Future<UserEvent> upsertByClientId({
-    required String clientEventId,
-    required String title,
-    required DateTime startsAtUtc,
-    String? detail,
-    String? location,
-    bool allDay = false,
-    DateTime? endsAtUtc,
-    String? category,
-    String? caller,
-  }) {
-    return _repo.upsertByClientId(
-      clientEventId: clientEventId,
-      title: title,
-      startsAtUtc: startsAtUtc,
-      detail: detail,
-      location: location,
-      allDay: allDay,
-      endsAtUtc: endsAtUtc,
-      category: category,
-      caller: caller,
-    );
+  Future<bool> deleteEvent(String nativeId) async {
+    if (kIsWeb) return false;
+    try {
+      final deleted = await _channel.invokeMethod<bool>('deleteEvent', {
+        'eventId': nativeId,
+      });
+      return deleted ?? false;
+    } catch (e) {
+      debugPrint('[calendar-sync] deleteEvent error: ${_calendarSyncError(e)}');
+      return false;
+    }
   }
 
-  @override
-  Future<UserEvent> update({
-    required String id,
-    String? title,
-    String? detail,
-    String? location,
-    bool? allDay,
-    DateTime? startsAt,
-    DateTime? endsAt,
-  }) {
-    return _repo.update(
-      id: id,
-      title: title,
-      detail: detail,
-      location: location,
-      allDay: allDay,
-      startsAt: startsAt,
-      endsAt: endsAt,
-    );
-  }
-
-  @override
-  Future<List<UserEvent>> getEventsForWindow({
-    required DateTime startUtc,
-    required DateTime endUtc,
-    int limit = 2000,
-  }) {
-    return _repo.getEventsForWindow(
-      startUtc: startUtc,
-      endUtc: endUtc,
-      limit: limit,
-    );
-  }
-
-  @override
-  Future<void> deleteByClientId(
-    String clientEventId, {
-    String semantic = 'user_delete',
-    bool suppressesClient = true,
-    String sourceFeature = 'UserEventsRepo.deleteByClientId',
-    String deleteScope = 'exact_occurrence',
-  }) {
-    return _repo.deleteByClientId(
-      clientEventId,
-      semantic: semantic,
-      suppressesClient: suppressesClient,
-      sourceFeature: sourceFeature,
-      deleteScope: deleteScope,
-    );
-  }
-
-  @override
-  Future<void> deleteByClientIdPrefix(
-    String prefix, {
-    String semantic = 'bulk_delete',
-    bool suppressesClient = true,
-    String sourceFeature = 'UserEventsRepo.deleteByClientIdPrefix',
-    String deleteScope = 'client_id_prefix',
-  }) {
-    return _repo.deleteByClientIdPrefix(
-      prefix,
-      semantic: semantic,
-      suppressesClient: suppressesClient,
-      sourceFeature: sourceFeature,
-      deleteScope: deleteScope,
-    );
-  }
-
-  @override
-  Future<void> deleteByCategory(
-    String category, {
-    String semantic = 'bulk_delete',
-    bool suppressesClient = true,
-    String sourceFeature = 'UserEventsRepo.deleteByCategory',
-    String deleteScope = 'category',
-  }) {
-    return _repo.deleteByCategory(
-      category,
-      semantic: semantic,
-      suppressesClient: suppressesClient,
-      sourceFeature: sourceFeature,
-      deleteScope: deleteScope,
-    );
+  Future<int> purgeKemeticEvents() async {
+    if (kIsWeb) return 0;
+    try {
+      final deleted = await _channel.invokeMethod<int>('purgeKemeticEvents');
+      return deleted ?? 0;
+    } catch (e) {
+      debugPrint(
+        '[calendar-sync] purgeKemeticEvents error: ${_calendarSyncError(e)}',
+      );
+      return 0;
+    }
   }
 }
 
@@ -668,13 +482,8 @@ CalendarSyncService? _singleton;
 CalendarSyncService sharedCalendarSyncService(
   SupabaseClient client, {
   CalendarPlatformBridge? platform,
-  CalendarWebImportProvider? webImportProvider,
 }) {
-  _singleton ??= CalendarSyncService(
-    client,
-    platform: platform,
-    webImportProvider: webImportProvider,
-  );
+  _singleton ??= CalendarSyncService(client, platform: platform);
   return _singleton!;
 }
 
@@ -686,35 +495,22 @@ Future<void> disposeSharedCalendarSyncService() async {
 /// Sync engine that imports native device-calendar events into the app.
 class CalendarSyncService {
   CalendarSyncService(
-    SupabaseClient client, {
+    this._client, {
     CalendarPlatformBridge? platform,
-    CalendarWebImportProvider? webImportProvider,
     DateTime Function()? now,
-    @visibleForTesting CalendarSyncEventStore? eventsStore,
-    @visibleForTesting bool runLegacyUnlinkReset = true,
-    @visibleForTesting bool? forceWebImport,
-  }) : _client = client,
-       _platform = platform ?? CalendarPlatformBridge(),
-       _webImportProvider = webImportProvider,
+  }) : _platform = platform ?? CalendarPlatformBridge(),
        _now = now ?? DateTime.now,
-       _eventsRepo =
-           eventsStore ?? UserEventsCalendarSyncStore(UserEventsRepo(client)),
-       _runLegacyUnlinkReset = runLegacyUnlinkReset,
-       _forceWebImport = forceWebImport;
+       _eventsRepo = UserEventsRepo(_client);
 
   final SupabaseClient _client;
   final CalendarPlatformBridge _platform;
-  final CalendarWebImportProvider? _webImportProvider;
   final DateTime Function() _now;
-  final CalendarSyncEventStore _eventsRepo;
-  final bool _runLegacyUnlinkReset;
-  final bool? _forceWebImport;
+  final UserEventsRepo _eventsRepo;
 
   static const _cacheBoxName = 'calendar_sync.cache.v1';
   static const _stateBoxName = 'calendar_sync.state.v1';
   static const _deletedCidsKey = 'deleted_cids';
   static const _lastResetKey = 'lastReset';
-  static const _pendingWebImportKey = 'pendingWebCalendarImport';
   static const _legacyUnlinkResetVersion = 1;
 
   Box<dynamic>? _cacheBox;
@@ -723,12 +519,11 @@ class CalendarSyncService {
   bool _started = false;
   bool _syncing = false;
   Future<void>? _startFuture;
-
-  bool get _usesWebImport => _forceWebImport ?? kIsWeb;
   Timer? _timer;
   Set<String> _deletedCids = <String>{};
 
   Future<void> ensureInitialized() async {
+    if (kIsWeb) return;
     if (_initialized &&
         (_cacheBox?.isOpen ?? false) &&
         (_stateBox?.isOpen ?? false)) {
@@ -752,6 +547,7 @@ class CalendarSyncService {
   }
 
   Future<void> start() async {
+    if (kIsWeb) return;
     final inFlight = _startFuture;
     if (inFlight != null) {
       await inFlight;
@@ -789,6 +585,7 @@ class CalendarSyncService {
   }
 
   Future<CalendarSyncStatus> getStatus() async {
+    if (kIsWeb) return const CalendarSyncStatus();
     await ensureInitialized();
     return CalendarSyncStatus(
       lastSyncAt: parseCalendarSyncTimestamp(_stateBox?.get('lastSync')),
@@ -799,54 +596,18 @@ class CalendarSyncService {
     );
   }
 
-  Future<bool> hasPendingWebImport() async {
-    if (!_usesWebImport) return false;
-    await ensureInitialized();
-    return _stateBox?.get(_pendingWebImportKey) == true;
-  }
-
-  Future<bool> hasWebCalendarReadAccess() async {
-    if (!_usesWebImport) return false;
-    return await _webImportProvider?.hasReadAccess() ?? false;
-  }
-
-  Future<void> clearPendingWebImport() async {
-    if (!_usesWebImport) return;
-    await ensureInitialized();
-    await _stateBox?.delete(_pendingWebImportKey);
-  }
-
   Future<CalendarSyncRunResult> sync({
     DateTime? windowStart,
     DateTime? windowEnd,
     bool interactive = false,
   }) async {
+    if (kIsWeb) return const CalendarSyncRunResult.skippedWeb();
     if (_syncing) return const CalendarSyncRunResult.skippedInProgress();
     if (_client.auth.currentSession == null) {
       return const CalendarSyncRunResult.skippedNoSession();
     }
 
     await ensureInitialized();
-
-    final webProvider = _usesWebImport ? _webImportProvider : null;
-
-    if (_usesWebImport && webProvider == null) {
-      return const CalendarSyncRunResult.skippedWeb();
-    }
-
-    if (_usesWebImport && !(await webProvider!.hasReadAccess())) {
-      if (!interactive) {
-        return const CalendarSyncRunResult.authorizationRequired();
-      }
-      await _stateBox?.put(_pendingWebImportKey, true);
-      final launched = await webProvider.requestReadAccess(
-        redirectTo: authRedirectTo(),
-      );
-      return launched
-          ? const CalendarSyncRunResult.authorizationStarted()
-          : const CalendarSyncRunResult.authorizationRequired();
-    }
-
     final resetResult = await _maybeRunLegacyUnlinkResetIfNeeded(
       interactive: interactive,
     );
@@ -858,15 +619,11 @@ class CalendarSyncService {
     final lastPermissionDeniedAt = parseCalendarSyncTimestamp(
       _stateBox?.get('lastPermissionDenied'),
     );
-    final nativePermissionGranted = !_usesWebImport && !interactive
-        ? await _platform.hasPermissions()
-        : null;
     if (!interactive &&
         shouldBackOffCalendarPermissionRequest(
           now: now,
           lastPermissionDeniedAt: lastPermissionDeniedAt,
-        ) &&
-        nativePermissionGranted != true) {
+        )) {
       if (kDebugMode) {
         debugPrint('[calendar-sync] skip permission retry (recent denial)');
       }
@@ -878,37 +635,14 @@ class CalendarSyncService {
 
     _syncing = true;
     try {
-      late final List<NativeCalendarEvent> nativeEvents;
-      if (_usesWebImport) {
-        try {
-          nativeEvents = await webProvider!.fetchEvents(start, end);
-        } on CalendarWebAuthorizationRequiredException {
-          if (!interactive) {
-            return const CalendarSyncRunResult.authorizationRequired();
-          }
-          await _stateBox?.put(_pendingWebImportKey, true);
-          final launched = await webProvider!.requestReadAccess(
-            redirectTo: authRedirectTo(),
-          );
-          return launched
-              ? const CalendarSyncRunResult.authorizationStarted()
-              : const CalendarSyncRunResult.authorizationRequired();
-        }
-      } else {
-        if (!interactive && nativePermissionGranted != true) {
-          return const CalendarSyncRunResult.authorizationRequired();
-        }
-        if (interactive) {
-          final granted = await _platform.requestPermissions();
-          if (!granted) {
-            await _stateBox?.put('lastPermissionDenied', now.toIso8601String());
-            return const CalendarSyncRunResult.permissionDenied();
-          }
-        }
-        await _stateBox?.delete('lastPermissionDenied');
-        nativeEvents = await _platform.fetchEvents(start, end);
+      final granted = await _platform.requestPermissions();
+      if (!granted) {
+        await _stateBox?.put('lastPermissionDenied', now.toIso8601String());
+        return const CalendarSyncRunResult.permissionDenied();
       }
+      await _stateBox?.delete('lastPermissionDenied');
 
+      final nativeEvents = await _platform.fetchEvents(start, end);
       final supabaseEvents = await _loadSupabaseEvents(start, end);
       final supHolidayKeys = _holidayKeysFromSupabase(supabaseEvents);
 
@@ -929,20 +663,10 @@ class CalendarSyncService {
         supByCid[cid] = e;
       }
 
-      final changedCount = await _mergeNativeIntoSupabase(
-        nativeByCid,
-        supByCid,
-        supHolidayKeys,
-      );
-      if (kDebugMode && _usesWebImport) {
-        debugPrint(
-          '[calendar-sync] Google Calendar import wrote $changedCount HAw rows',
-        );
-      }
+      await _mergeNativeIntoSupabase(nativeByCid, supByCid, supHolidayKeys);
       await _removeStaleSupabaseNativeImports(nativeByCid, supByCid);
 
       await _stateBox?.put('lastSync', _now().toIso8601String());
-      await _stateBox?.delete(_pendingWebImportKey);
       return const CalendarSyncRunResult.synced();
     } catch (e, st) {
       debugPrint('[calendar-sync] sync failed: ${_calendarSyncError(e)}');
@@ -981,12 +705,11 @@ class CalendarSyncService {
 
   /* ───────────────────────── Merging helpers ───────────────────────── */
 
-  Future<int> _mergeNativeIntoSupabase(
+  Future<void> _mergeNativeIntoSupabase(
     Map<String, NativeCalendarEvent> nativeByCid,
     Map<String, UserEvent> supByCid,
     Set<String> supHolidayKeys,
   ) async {
-    var changedCount = 0;
     for (final entry in nativeByCid.entries) {
       final cid = entry.key;
       final native = entry.value;
@@ -1045,42 +768,29 @@ class CalendarSyncService {
         continue;
       }
 
-      try {
-        if (sup == null) {
-          await _eventsRepo.upsertByClientId(
-            clientEventId: cid,
-            title: native.title,
-            startsAtUtc: native.start.toUtc(),
-            detail: native.description,
-            location: native.location,
-            allDay: native.allDay,
-            endsAtUtc: native.end?.toUtc(),
-            category: 'native_sync',
-            caller: 'native_sync',
-          );
-          changedCount += 1;
-        } else if (nativeFingerprint != supFingerprint &&
-            nativeModified.isAfter(supUpdated)) {
-          await _eventsRepo.update(
-            id: sup.id,
-            title: native.title,
-            detail: native.description,
-            location: native.location,
-            allDay: native.allDay,
-            startsAt: native.start.toUtc(),
-            endsAt: native.end?.toUtc(),
-          );
-          changedCount += 1;
-        }
-      } catch (e) {
-        if (!_isRecentlyDeletedImportError(e)) rethrow;
-        _deletedCids.add(cid);
-        await _stateBox?.put(_deletedCidsKey, _deletedCids.toList());
-        debugPrint(
-          '[calendar-sync] skip recently deleted native import '
-          'cid=${_calendarSyncCidSummary(cid)}',
+      if (sup == null) {
+        await _eventsRepo.upsertByClientId(
+          clientEventId: cid,
+          title: native.title,
+          startsAtUtc: native.start.toUtc(),
+          detail: native.description,
+          location: native.location,
+          allDay: native.allDay,
+          endsAtUtc: native.end?.toUtc(),
+          category: 'native_sync',
+          caller: 'native_sync',
         );
-        continue;
+      } else if (nativeFingerprint != supFingerprint &&
+          nativeModified.isAfter(supUpdated)) {
+        await _eventsRepo.update(
+          id: sup.id,
+          title: native.title,
+          detail: native.description,
+          location: native.location,
+          allDay: native.allDay,
+          startsAt: native.start.toUtc(),
+          endsAt: native.end?.toUtc(),
+        );
       }
 
       _writeCache(
@@ -1095,7 +805,6 @@ class CalendarSyncService {
         ),
       );
     }
-    return changedCount;
   }
 
   /* ───────────────────────── Utilities ───────────────────────── */
@@ -1103,7 +812,6 @@ class CalendarSyncService {
   Future<CalendarSyncResetResult?> _maybeRunLegacyUnlinkResetIfNeeded({
     required bool interactive,
   }) async {
-    if (!_runLegacyUnlinkReset) return null;
     final user = _client.auth.currentUser;
     if (user == null) return null;
 
@@ -1117,10 +825,7 @@ class CalendarSyncService {
       return null;
     }
 
-    return unlinkImportedCalendarData(
-      interactive: interactive,
-      markResetCompleted: true,
-    );
+    return unlinkAndPurge(interactive: interactive, markResetCompleted: true);
   }
 
   String _resetKeyForUser(String userId) =>
@@ -1165,10 +870,19 @@ class CalendarSyncService {
     return false;
   }
 
-  Future<CalendarSyncResetResult> unlinkImportedCalendarData({
+  Future<CalendarSyncResetResult> unlinkAndPurge({
     bool interactive = true,
     bool markResetCompleted = false,
   }) async {
+    if (kIsWeb) {
+      return const CalendarSyncResetResult(
+        removedImportedEvents: 0,
+        removedNativeEvents: 0,
+        permissionGranted: false,
+        completed: false,
+      );
+    }
+
     await ensureInitialized();
     stop();
 
@@ -1176,26 +890,38 @@ class CalendarSyncService {
     if (user == null) {
       return const CalendarSyncResetResult(
         removedImportedEvents: 0,
+        removedNativeEvents: 0,
+        permissionGranted: false,
         completed: false,
       );
     }
 
     int removedImported = 0;
+    int removedNative = 0;
+    bool permissionGranted = false;
 
     removedImported = await _purgeImportedNativeEventsFromSupabase();
+    permissionGranted = await _platform.requestPermissions();
+    if (permissionGranted) {
+      removedNative = await _platform.purgeKemeticEvents();
+    }
 
     await _clearSyncState();
     await SettingsPrefs.setAutoCalendarSyncEnabled(false);
 
-    await _stateBox?.put(_lastResetKey, _now().toIso8601String());
+    if (removedImported > 0 || removedNative > 0 || permissionGranted) {
+      await _stateBox?.put(_lastResetKey, _now().toIso8601String());
+    }
 
-    const completed = true;
+    final completed = permissionGranted;
     if (markResetCompleted && completed) {
       await _stateBox?.put(_resetKeyForUser(user.id), true);
     }
 
     return CalendarSyncResetResult(
       removedImportedEvents: removedImported,
+      removedNativeEvents: removedNative,
+      permissionGranted: permissionGranted,
       completed: completed,
     );
   }
@@ -1262,7 +988,6 @@ class CalendarSyncService {
     for (final key in keys) {
       if (key == _deletedCidsKey ||
           key == 'lastSync' ||
-          key == _pendingWebImportKey ||
           key.startsWith('cid-for-native-')) {
         await _stateBox?.delete(key);
       }
@@ -1357,7 +1082,7 @@ class CalendarSyncService {
   }
 
   Future<void> recordDeletedInApp(String cid) async {
-    if (cid.isEmpty) return;
+    if (cid.isEmpty || kIsWeb) return;
     await ensureInitialized();
     _deletedCids.add(cid);
     await _stateBox?.put(_deletedCidsKey, _deletedCids.toList());

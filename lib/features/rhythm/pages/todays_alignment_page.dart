@@ -19,7 +19,6 @@ import 'package:mobile/features/calendar/decan_metadata.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/rhythm/rhythm_telemetry.dart';
 import 'package:mobile/features/rhythm/data/nutrition_items_cache.dart';
-import 'package:mobile/features/rhythm/planner/planner_input_helpers.dart';
 import 'package:mobile/features/rhythm/todo_day_window.dart';
 import 'package:mobile/features/rhythm/rhythm_user_messages.dart';
 import 'package:mobile/services/app_haptics.dart';
@@ -43,7 +42,6 @@ import '../theme/rhythm_theme.dart';
 import '../widgets/planner/planner_completed_section.dart';
 import '../widgets/planner/planner_horizon.dart';
 import '../widgets/planner/planner_notes_section.dart';
-import '../widgets/planner/nutrition_time_editor_row.dart';
 import '../widgets/planner/planner_nutrition_section.dart';
 import '../widgets/planner/planner_todo_section.dart';
 import '../widgets/planner/planner_wall.dart';
@@ -139,7 +137,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   bool _nutritionLocalNoticeShown = false;
   int _activeNutritionDayIndex = 0;
   bool _nutritionFormOpen = false;
-  bool _nutritionEveryDay = false;
   Timer? _sessionPersistDebounce;
   String? _lastPublishedWidgetReflectionKey;
   bool _buildTraceRecorded = false;
@@ -251,7 +248,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         state['nutritionSourceDraft'] as String? ?? '';
     _nutritionPurposeController.text =
         state['nutritionPurposeDraft'] as String? ?? '';
-    _nutritionEveryDay = state['nutritionEveryDay'] as bool? ?? false;
     _activeNoteIndex = ((state['activeNoteIndex'] as num?)?.toInt() ?? 0).clamp(
       0,
       1 << 20,
@@ -283,7 +279,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       'nutritionNutrientDraft': _nutritionNutrientController.text,
       'nutritionSourceDraft': _nutritionSourceController.text,
       'nutritionPurposeDraft': _nutritionPurposeController.text,
-      'nutritionEveryDay': _nutritionEveryDay,
       'activeNoteIndex': _activeNoteIndex,
       'activeNutritionDayIndex': _activeNutritionDayIndex,
     });
@@ -504,23 +499,19 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       );
       return;
     }
-    final newItem = plannerNutritionWithEveryDayMapping(
-      NutritionItem(
-        id: '',
-        nutrient: nutrient,
-        source: source,
-        purpose: purpose,
-        enabled: true,
-        schedule: IntakeSchedule(
-          mode: IntakeMode.decan,
-          decanDays: {decanDay},
-          daysOfWeek: const {},
-          repeat: true,
-          time: const TimeOfDay(hour: 9, minute: 0),
-        ),
+    final newItem = NutritionItem(
+      id: '',
+      nutrient: nutrient,
+      source: source,
+      purpose: purpose,
+      enabled: true,
+      schedule: IntakeSchedule(
+        mode: IntakeMode.decan,
+        decanDays: {decanDay},
+        daysOfWeek: const {},
+        repeat: true,
+        time: const TimeOfDay(hour: 9, minute: 0),
       ),
-      activeDecanDay: decanDay,
-      everyDay: _nutritionEveryDay,
     );
     if (_nutritionMissingTable) {
       await _saveNutritionItemLocally(newItem);
@@ -537,13 +528,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         _nutritionError = null;
       });
       await NutritionItemsCache.save(updated, uid: _currentUserId);
-      if (!mounted) return;
       _nutritionNutrientController.clear();
       _nutritionSourceController.clear();
       _nutritionPurposeController.clear();
-      setState(() {
-        _nutritionEveryDay = false;
-      });
       messenger.showSnackBar(
         SnackBar(content: Text('Saved to Day $decanDay of this decan.')),
       );
@@ -565,13 +552,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
           'Nutrition sources are saved only on this device. Cloud sync is unavailable.';
     });
     await NutritionItemsCache.save(updated, uid: _currentUserId);
-    if (!mounted) return;
     _nutritionNutrientController.clear();
     _nutritionSourceController.clear();
     _nutritionPurposeController.clear();
-    setState(() {
-      _nutritionEveryDay = false;
-    });
     _showLocalNutritionWarningOnce();
   }
 
@@ -723,77 +706,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     } catch (error, stackTrace) {
       debugPrint('[TodaysAlignment] planner badge sync failed: $error');
       debugPrint('$stackTrace');
-      synced = false;
-    }
-    if (synced) {
-      unawaited(_plannerBadgeRepo.refreshKnowledgeGraph());
-    }
-  }
-
-  Future<void> _moveTodoToTomorrow(int index) async {
-    final activeDay = _activeTodoDay;
-    final dayTodos = [...(_todosByDay[activeDay] ?? _todos)];
-    if (index < 0 || index >= dayTodos.length) return;
-    final todo = dayTodos[index];
-    if (todo.id.isEmpty || todo.state == RhythmItemState.done) return;
-
-    final previousMap = {
-      for (final entry in _todosByDay.entries)
-        entry.key: List<RhythmTodo>.from(entry.value),
-    };
-    final previousDays = List<DateTime>.from(_todoDays);
-    final previousTodos = List<RhythmTodo>.from(_todos);
-    final targetDay = _normalizeDate(activeDay.add(const Duration(days: 1)));
-    final moveResult = plannerMoveTodoToNextDayInMap(
-      todosByDay: _todosByDay,
-      sourceDay: activeDay,
-      sourceIndex: index,
-    );
-    if (moveResult == null) return;
-
-    setState(() {
-      _todosByDay = moveResult.todosByDay;
-      if (!_todoDays.any((day) => _sameDay(day, targetDay))) {
-        _todoDays = [..._todoDays, targetDay]..sort((a, b) => a.compareTo(b));
-      }
-      _todos = _todosByDay[activeDay] ?? const <RhythmTodo>[];
-    });
-
-    final result = await _repo.updateTodoDueDate(todo.id, targetDay);
-    if (!mounted) return;
-    if (result.friendlyError != null ||
-        result.missingTables ||
-        result.data == null) {
-      setState(() {
-        _todosByDay = previousMap;
-        _todoDays = previousDays;
-        _todos = previousTodos;
-      });
-      final msg = result.missingTables
-          ? 'To-do storage is not available in this environment yet.'
-          : (result.friendlyError ?? 'Could not move task.');
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-      return;
-    }
-
-    final savedTodo = result.data!;
-    final targetTodos = _todosByDay[targetDay] ?? const <RhythmTodo>[];
-    setState(() {
-      _todosByDay = {
-        ..._todosByDay,
-        targetDay: [
-          for (final current in targetTodos)
-            if (current.id == savedTodo.id) savedTodo else current,
-        ],
-      };
-    });
-
-    var synced = false;
-    try {
-      await _plannerBadgeRepo.deleteTodoBadge(todoId: todo.id, date: activeDay);
-      await _plannerBadgeRepo.syncTodoState(todo: savedTodo, date: targetDay);
-      synced = true;
-    } catch (_) {
       synced = false;
     }
     if (synced) {
@@ -1402,7 +1314,25 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
   }
 
   List<NutritionItem> _itemsForDecanDay(int decanDay) {
-    return plannerNutritionItemsForDecanDay(_nutritionItems, decanDay);
+    if (decanDay < 1 || decanDay > 10) return const [];
+    final items = _nutritionItems
+        .where(
+          (n) =>
+              n.enabled &&
+              n.schedule.mode == IntakeMode.decan &&
+              n.schedule.decanDays.contains(decanDay),
+        )
+        .toList();
+    items.sort((a, b) {
+      final aTime = a.schedule.time;
+      final bTime = b.schedule.time;
+      final hourCmp = aTime.hour.compareTo(bTime.hour);
+      if (hourCmp != 0) return hourCmp;
+      final minuteCmp = aTime.minute.compareTo(bTime.minute);
+      if (minuteCmp != 0) return minuteCmp;
+      return a.nutrient.toLowerCase().compareTo(b.nutrient.toLowerCase());
+    });
+    return items;
   }
 
   List<NutritionItem> _todayNutritionItems() {
@@ -1581,9 +1511,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
               dueTextOverride: _formatTodoDue(todos[i], day),
               dueTextColor: _dateAccentColor(),
               onStateChanged: (state) => unawaited(_persistTodoState(i, state)),
-              onMoveToTomorrow: todos[i].state == RhythmItemState.done
-                  ? null
-                  : () => unawaited(_moveTodoToTomorrow(i)),
               onDelete: () => unawaited(_deleteTodo(i)),
             ),
             if (i != todos.length - 1)
@@ -2170,7 +2097,11 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 
   Widget _buildNutritionTable(
     List<NutritionItem> items, {
-    ValueChanged<NutritionItem>? onOpenItem,
+    bool editable = false,
+    Map<String, TextEditingController>? nutrientControllers,
+    Map<String, TextEditingController>? sourceControllers,
+    Map<String, TextEditingController>? purposeControllers,
+    Future<void> Function(NutritionItem item)? onDeleteItem,
   }) {
     if (items.isEmpty) {
       return Center(
@@ -2186,6 +2117,8 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       const DataColumn(label: Text('Nutrient')),
       const DataColumn(label: Text('Source')),
       const DataColumn(label: Text('Purpose')),
+      if (editable && onDeleteItem != null)
+        const DataColumn(label: Text('Delete')),
     ];
 
     return LayoutBuilder(
@@ -2214,13 +2147,45 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                 rows: items
                     .map(
                       (item) => DataRow(
-                        onSelectChanged: onOpenItem == null
-                            ? null
-                            : (_) => onOpenItem(item),
                         cells: [
-                          DataCell(Text(_presentableText(item.nutrient))),
-                          DataCell(Text(_presentableText(item.source))),
-                          DataCell(Text(_presentableText(item.purpose))),
+                          DataCell(
+                            editable
+                                ? _buildNutritionEditableCell(
+                                    controller: nutrientControllers?[item.id],
+                                    hintText: 'Nutrient',
+                                    width: 170,
+                                  )
+                                : Text(_presentableText(item.nutrient)),
+                          ),
+                          DataCell(
+                            editable
+                                ? _buildNutritionEditableCell(
+                                    controller: sourceControllers?[item.id],
+                                    hintText: 'Source',
+                                    width: 220,
+                                  )
+                                : Text(_presentableText(item.source)),
+                          ),
+                          DataCell(
+                            editable
+                                ? _buildNutritionEditableCell(
+                                    controller: purposeControllers?[item.id],
+                                    hintText: 'Purpose',
+                                    width: 220,
+                                  )
+                                : Text(_presentableText(item.purpose)),
+                          ),
+                          if (editable && onDeleteItem != null)
+                            DataCell(
+                              IconButton(
+                                onPressed: () => unawaited(onDeleteItem(item)),
+                                tooltip: 'Delete item',
+                                icon: const Icon(
+                                  Icons.delete_outline_rounded,
+                                  color: Colors.redAccent,
+                                ),
+                              ),
+                            ),
                         ],
                       ),
                     )
@@ -2233,291 +2198,402 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     );
   }
 
-  Future<void> _removeNutritionItemFromDay(
-    NutritionItem item, {
-    required int decanDay,
-  }) async {
-    final targetDate = _nutritionDateForDecanDay(decanDay);
-    final stateKey = _nutritionCompletionKey(targetDate, item.id);
-    final updatedStates = Map<String, RhythmItemState>.from(
-      _nutritionStatesByKey,
-    )..remove(stateKey);
-    await _saveNutritionStatesToPrefs(updatedStates);
-
-    final result = plannerRemoveNutritionDayMappings([
-      item,
-    ], decanDay: decanDay);
-    if (result.deletedItemIds.contains(item.id)) {
-      await _deleteNutritionItem(item);
-      return;
-    } else if (result.items.isNotEmpty) {
-      await _saveNutritionItemEdits([result.items.first]);
-      final dateKey = DateFormat('yyyy-MM-dd').format(targetDate);
-      await _eventsRepo.deleteByClientIdPrefix('nutrition:${item.id}:$dateKey');
-      await _plannerBadgeRepo.syncNutritionState(
-        item: item,
-        date: targetDate,
-        state: RhythmItemState.pending,
-      );
+  Widget _buildNutritionEditableCell({
+    required TextEditingController? controller,
+    required String hintText,
+    required double width,
+  }) {
+    if (controller == null) {
+      return SizedBox(width: width);
     }
 
-    if (mounted) {
-      setState(() {
-        _nutritionStatesByKey = updatedStates;
-      });
-    }
-  }
-
-  Future<bool> _confirmRemoveNutritionItemFromDay(
-    NutritionItem item, {
-    required int decanDay,
-    required BuildContext dialogContext,
-  }) async {
-    final label = _nutritionItemLabel(item);
-    final confirmed = await showDialog<bool>(
-      context: dialogContext,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.black87,
-        title: const Text(
-          'Delete nutrition item?',
-          style: TextStyle(color: Colors.white),
-        ),
-        content: Text(
-          'Remove "$label" from Day $decanDay?',
-          style: const TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
+    return SizedBox(
+      width: width,
+      child: TextField(
+        controller: controller,
+        scrollPadding: keyboardManagedTextFieldScrollPadding,
+        style: RhythmTheme.subheading,
+        decoration: InputDecoration(
+          hintText: hintText,
+          hintStyle: RhythmTheme.label.copyWith(color: Colors.white38),
+          isDense: true,
+          filled: true,
+          fillColor: Colors.white.withValues(alpha: 0.05),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 10,
           ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Delete'),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
           ),
-        ],
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide: const BorderSide(color: RhythmTheme.aurora),
+          ),
+        ),
       ),
     );
-    if (confirmed != true) return false;
-    await _removeNutritionItemFromDay(item, decanDay: decanDay);
-    return true;
-  }
-
-  Future<bool> _showNutritionItemEditor(
-    NutritionItem item, {
-    required int decanDay,
-    required BuildContext sheetContext,
-  }) async {
-    final changed = await showModalBottomSheet<bool>(
-      context: sheetContext,
-      useRootNavigator: true,
-      isScrollControlled: true,
-      backgroundColor: Colors.black,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (context) {
-        return _NutritionItemEditorSheet(
-          item: item,
-          decanDay: decanDay,
-          onSaveItemEdits: _saveNutritionItemEdits,
-          onRemoveItem: (candidate, dialogContext) {
-            return _confirmRemoveNutritionItemFromDay(
-              candidate,
-              decanDay: decanDay,
-              dialogContext: dialogContext,
-            );
-          },
-        );
-      },
-    );
-    return changed == true;
   }
 
   Future<void> _showNutritionFullscreen(int decanDay, String decanName) async {
     var dialogItems = _itemsForDecanDay(
       decanDay,
     ).map((item) => item.copyWith()).toList();
+    var isEditing = false;
     var isSaving = false;
     String? dialogError;
+    final nutrientControllers = <String, TextEditingController>{};
+    final sourceControllers = <String, TextEditingController>{};
+    final purposeControllers = <String, TextEditingController>{};
 
-    await showGeneralDialog(
-      context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Nutrition detail',
-      barrierColor: Colors.black.withValues(alpha: 0.86),
-      transitionDuration: const Duration(milliseconds: 200),
-      pageBuilder: (dialogContext, animation, secondaryAnimation) {
-        return StatefulBuilder(
-          builder: (modalContext, setModalState) {
-            Future<void> deleteAllForDay() async {
-              final confirmed = await showDialog<bool>(
-                context: modalContext,
-                builder: (context) => AlertDialog(
-                  backgroundColor: Colors.black87,
-                  title: const Text(
-                    'Delete all?',
-                    style: TextStyle(color: Colors.white),
-                  ),
-                  content: Text(
-                    'Remove all nutrition entries from Day $decanDay?',
-                    style: const TextStyle(color: Colors.white70),
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: const Text('Cancel'),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: const Text('Delete all'),
-                    ),
-                  ],
-                ),
-              );
-              if (confirmed != true) return;
-              setModalState(() {
-                isSaving = true;
-                dialogError = null;
-              });
-              try {
-                for (final item in [...dialogItems]) {
-                  await _removeNutritionItemFromDay(item, decanDay: decanDay);
-                }
-                if (!modalContext.mounted) return;
-                setModalState(() {
-                  dialogItems = _itemsForDecanDay(
-                    decanDay,
-                  ).map((item) => item.copyWith()).toList();
-                  isSaving = false;
-                });
-              } catch (_) {
-                if (!modalContext.mounted) return;
-                setModalState(() {
-                  isSaving = false;
-                  dialogError = 'Could not delete nutrition entries.';
-                });
-              }
-            }
+    void syncControllers(List<NutritionItem> items) {
+      for (final item in items) {
+        nutrientControllers
+                .putIfAbsent(
+                  item.id,
+                  () => TextEditingController(text: item.nutrient),
+                )
+                .text =
+            item.nutrient;
+        sourceControllers
+                .putIfAbsent(
+                  item.id,
+                  () => TextEditingController(text: item.source),
+                )
+                .text =
+            item.source;
+        purposeControllers
+                .putIfAbsent(
+                  item.id,
+                  () => TextEditingController(text: item.purpose),
+                )
+                .text =
+            item.purpose;
+      }
+    }
 
-            return SafeArea(
-              child: Material(
-                color: Colors.transparent,
-                child: Container(
-                  color: Colors.black.withValues(alpha: 0.94),
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: KemeticGold.text(
-                              '$decanName · Day $decanDay',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                fontFamily: 'GentiumPlus',
+    void disposeControllers(Map<String, TextEditingController> controllers) {
+      for (final controller in controllers.values) {
+        controller.dispose();
+      }
+    }
+
+    void disposeItemControllers(String itemId) {
+      nutrientControllers.remove(itemId)?.dispose();
+      sourceControllers.remove(itemId)?.dispose();
+      purposeControllers.remove(itemId)?.dispose();
+    }
+
+    List<NutritionItem> draftItems() {
+      return [
+        for (final item in dialogItems)
+          item.copyWith(
+            nutrient:
+                nutrientControllers[item.id]?.text.trim() ?? item.nutrient,
+            source: sourceControllers[item.id]?.text.trim() ?? item.source,
+            purpose: purposeControllers[item.id]?.text.trim() ?? item.purpose,
+          ),
+      ];
+    }
+
+    syncControllers(dialogItems);
+
+    try {
+      await showGeneralDialog(
+        context: context,
+        barrierDismissible: true,
+        barrierLabel: 'Nutrition detail',
+        barrierColor: Colors.black.withValues(alpha: 0.86),
+        transitionDuration: const Duration(milliseconds: 200),
+        pageBuilder: (dialogContext, animation, secondaryAnimation) {
+          return StatefulBuilder(
+            builder: (modalContext, setModalState) {
+              return SafeArea(
+                child: Material(
+                  color: Colors.transparent,
+                  child: Container(
+                    color: Colors.black.withValues(alpha: 0.94),
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: KemeticGold.text(
+                                '$decanName · Day $decanDay',
+                                style: const TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w700,
+                                  fontFamily: 'GentiumPlus',
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                          if (dialogItems.isNotEmpty)
-                            TextButton(
-                              onPressed: isSaving ? null : deleteAllForDay,
-                              child: const Text('Delete all'),
-                            ),
-                          IconButton(
-                            onPressed: () => Navigator.of(
-                              dialogContext,
-                              rootNavigator: true,
-                            ).maybePop(),
-                            icon: const Icon(
-                              Icons.close,
-                              color: Colors.white70,
-                            ),
-                            tooltip: 'Close',
-                          ),
-                        ],
-                      ),
-                      if (dialogError != null) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Colors.redAccent.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: Colors.redAccent.withValues(alpha: 0.4),
-                            ),
-                          ),
-                          child: Text(
-                            dialogError!,
-                            style: RhythmTheme.subheading.copyWith(
-                              color: Colors.redAccent,
-                            ),
-                          ),
-                        ),
-                      ],
-                      const SizedBox(height: 12),
-                      Expanded(
-                        child: _buildNutritionTable(
-                          dialogItems,
-                          onOpenItem: isSaving
-                              ? null
-                              : (item) async {
-                                  final changed =
-                                      await _showNutritionItemEditor(
-                                        item,
-                                        decanDay: decanDay,
-                                        sheetContext: modalContext,
-                                      );
-                                  if (!modalContext.mounted || !changed) {
-                                    return;
-                                  }
+                            if (dialogItems.isNotEmpty && !isEditing)
+                              TextButton.icon(
+                                onPressed: () {
                                   setModalState(() {
-                                    dialogItems = _itemsForDecanDay(
-                                      decanDay,
-                                    ).map((item) => item.copyWith()).toList();
+                                    syncControllers(dialogItems);
                                     dialogError = null;
+                                    isEditing = true;
                                   });
                                 },
+                                icon: const Icon(Icons.edit_outlined, size: 18),
+                                label: const Text('Edit'),
+                              ),
+                            if (isEditing) ...[
+                              TextButton(
+                                onPressed: isSaving
+                                    ? null
+                                    : () {
+                                        setModalState(() {
+                                          syncControllers(dialogItems);
+                                          dialogError = null;
+                                          isEditing = false;
+                                        });
+                                      },
+                                child: const Text('Cancel'),
+                              ),
+                              const SizedBox(width: 4),
+                              FilledButton.icon(
+                                style: FilledButton.styleFrom(
+                                  backgroundColor: RhythmTheme.aurora,
+                                  foregroundColor: Colors.black,
+                                ),
+                                onPressed: isSaving
+                                    ? null
+                                    : () async {
+                                        final messenger = ScaffoldMessenger.of(
+                                          context,
+                                        );
+                                        setModalState(() {
+                                          dialogError = null;
+                                          isSaving = true;
+                                        });
+
+                                        final updatedItems = draftItems();
+                                        final hasEmptyRequiredRow = updatedItems
+                                            .any(
+                                              (item) =>
+                                                  item.nutrient
+                                                      .trim()
+                                                      .isEmpty &&
+                                                  item.source.trim().isEmpty,
+                                            );
+                                        if (hasEmptyRequiredRow) {
+                                          setModalState(() {
+                                            isSaving = false;
+                                            dialogError =
+                                                'Each row needs at least a nutrient or source.';
+                                          });
+                                          return;
+                                        }
+
+                                        try {
+                                          final savedItems =
+                                              await _saveNutritionItemEdits(
+                                                updatedItems,
+                                              );
+                                          if (!modalContext.mounted) return;
+                                          setModalState(() {
+                                            dialogItems = savedItems;
+                                            syncControllers(dialogItems);
+                                            isEditing = false;
+                                            isSaving = false;
+                                          });
+                                          messenger.showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Updated Day $decanDay nutrition table.',
+                                              ),
+                                            ),
+                                          );
+                                        } catch (_) {
+                                          if (!modalContext.mounted) return;
+                                          setModalState(() {
+                                            isSaving = false;
+                                            dialogError =
+                                                'Could not update nutrition table.';
+                                          });
+                                        }
+                                      },
+                                icon: isSaving
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                                Colors.black,
+                                              ),
+                                        ),
+                                      )
+                                    : const Icon(Icons.check, size: 18),
+                                label: Text(isSaving ? 'Saving' : 'Save'),
+                              ),
+                              const SizedBox(width: 4),
+                            ],
+                            IconButton(
+                              onPressed: () => Navigator.of(
+                                dialogContext,
+                                rootNavigator: true,
+                              ).maybePop(),
+                              icon: const Icon(
+                                Icons.close,
+                                color: Colors.white70,
+                              ),
+                              tooltip: 'Close',
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        'Tap a row to view or edit.',
-                        style: RhythmTheme.label.copyWith(
-                          color: Colors.white54,
+                        if (dialogError != null) ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.redAccent.withValues(alpha: 0.4),
+                              ),
+                            ),
+                            child: Text(
+                              dialogError!,
+                              style: RhythmTheme.subheading.copyWith(
+                                color: Colors.redAccent,
+                              ),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        Expanded(
+                          child: _buildNutritionTable(
+                            dialogItems,
+                            editable: isEditing,
+                            nutrientControllers: nutrientControllers,
+                            sourceControllers: sourceControllers,
+                            purposeControllers: purposeControllers,
+                            onDeleteItem: isEditing && !isSaving
+                                ? (item) async {
+                                    final label = _nutritionItemLabel(item);
+                                    final confirmed = await showDialog<bool>(
+                                      context: modalContext,
+                                      builder: (dialogContext) => AlertDialog(
+                                        backgroundColor: Colors.black87,
+                                        title: const Text(
+                                          'Delete nutrition item?',
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                        content: Text(
+                                          'Delete "$label"? This also removes its reminders and calendar entries.',
+                                          style: const TextStyle(
+                                            color: Colors.white70,
+                                          ),
+                                        ),
+                                        actions: [
+                                          TextButton(
+                                            onPressed: () => Navigator.of(
+                                              dialogContext,
+                                            ).pop(false),
+                                            child: const Text('Cancel'),
+                                          ),
+                                          TextButton(
+                                            onPressed: () => Navigator.of(
+                                              dialogContext,
+                                            ).pop(true),
+                                            child: const Text('Delete'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirmed != true) return;
+
+                                    setModalState(() {
+                                      dialogError = null;
+                                      isSaving = true;
+                                    });
+                                    try {
+                                      await _deleteNutritionItem(item);
+                                      if (!modalContext.mounted) return;
+                                      disposeItemControllers(item.id);
+                                      final remaining = [
+                                        for (final current in dialogItems)
+                                          if (current.id != item.id) current,
+                                      ];
+                                      setModalState(() {
+                                        dialogItems = remaining;
+                                        isEditing = remaining.isNotEmpty;
+                                        isSaving = false;
+                                      });
+                                      ScaffoldMessenger.of(
+                                        modalContext,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Deleted $label from nutrition.',
+                                          ),
+                                        ),
+                                      );
+                                    } catch (_) {
+                                      if (!modalContext.mounted) return;
+                                      setModalState(() {
+                                        isSaving = false;
+                                        dialogError =
+                                            'Could not delete nutrition item.';
+                                      });
+                                    }
+                                  }
+                                : null,
+                          ),
                         ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ],
+                        if (isEditing) ...[
+                          const SizedBox(height: 10),
+                          Text(
+                            'Edit or delete rows, then save the remaining fields.',
+                            style: RhythmTheme.label.copyWith(
+                              color: Colors.white54,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            );
-          },
-        );
-      },
-      transitionBuilder: (context, anim, secondaryAnim, child) {
-        final curved = CurvedAnimation(
-          parent: anim,
-          curve: Curves.easeOutCubic,
-        );
-        return FadeTransition(
-          opacity: curved,
-          child: SlideTransition(
-            position: Tween(
-              begin: const Offset(0, 0.02),
-              end: Offset.zero,
-            ).animate(curved),
-            child: child,
-          ),
-        );
-      },
-    );
+              );
+            },
+          );
+        },
+        transitionBuilder: (context, anim, secondaryAnim, child) {
+          final curved = CurvedAnimation(
+            parent: anim,
+            curve: Curves.easeOutCubic,
+          );
+          return FadeTransition(
+            opacity: curved,
+            child: SlideTransition(
+              position: Tween(
+                begin: const Offset(0, 0.02),
+                end: Offset.zero,
+              ).animate(curved),
+              child: child,
+            ),
+          );
+        },
+      );
+    } finally {
+      disposeControllers(nutrientControllers);
+      disposeControllers(sourceControllers);
+      disposeControllers(purposeControllers);
+    }
   }
 
   Widget _nutritionGridPage({required int index, required String decanName}) {
@@ -2525,9 +2601,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     final items = _itemsForDecanDay(decanDay);
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: items.isEmpty
-          ? () => _showNutritionFullscreen(decanDay, decanName)
-          : null,
+      onDoubleTap: () => _showNutritionFullscreen(decanDay, decanName),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
         padding: const EdgeInsets.all(14),
@@ -2647,25 +2721,15 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                             ),
                             const SizedBox(width: 8),
                             Expanded(
-                              child: GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: () => unawaited(
-                                  _showNutritionItemEditor(
-                                    item,
-                                    decanDay: decanDay,
-                                    sheetContext: context,
-                                  ),
-                                ),
-                                child: Text(
-                                  source,
-                                  style: PlannerVisualTokens.plateBody.copyWith(
-                                    color: const Color(0xFFE0C897).withValues(
-                                      alpha: PlannerVisualTokens.liftedAlpha(
-                                        0.78,
-                                      ),
+                              child: Text(
+                                source,
+                                style: PlannerVisualTokens.plateBody.copyWith(
+                                  color: const Color(0xFFE0C897).withValues(
+                                    alpha: PlannerVisualTokens.liftedAlpha(
+                                      0.78,
                                     ),
-                                    fontWeight: FontWeight.w700,
                                   ),
+                                  fontWeight: FontWeight.w700,
                                 ),
                               ),
                             ),
@@ -2676,7 +2740,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Tap a source to view or edit.',
+              'Double-tap for nutrient + purpose.',
               style: PlannerVisualTokens.captionItalic.copyWith(fontSize: 12),
             ),
           ],
@@ -2696,7 +2760,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       nutritionMissingTable: _nutritionMissingTable,
       nutritionLocalOnly: _nutritionLocalOnly,
       nutritionError: _nutritionError,
-      nutritionEveryDay: _nutritionEveryDay,
       nutritionPageController: _nutritionPageController,
       nutritionSourceController: _nutritionSourceController,
       nutritionNutrientController: _nutritionNutrientController,
@@ -2705,12 +2768,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         setState(() {
           _nutritionFormOpen = !_nutritionFormOpen;
         });
-      },
-      onNutritionEveryDayChanged: (value) {
-        setState(() {
-          _nutritionEveryDay = value;
-        });
-        _persistSessionStateSoon();
       },
       onAddNutritionItem: () => unawaited(_addNutritionItem()),
       onRetryNutrition: () => unawaited(_loadNutrition()),
@@ -3062,7 +3119,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
 
         final progress = _progress();
         final progressPercent = (progress * 100).round();
-        final hasMeaningfulProgressData = _hasMeaningfulProgressData();
         final plannerAction = _todayPlannerAction();
         final listBottomPadding = bottomPaddingAboveGlobalChrome(context, 32);
         final keyboardInset = keyboardInsetOf(context);
@@ -3096,7 +3152,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
             percent: progressPercent,
             dateLabel: dateLabel,
             question: question,
-            showProgressStatus: hasMeaningfulProgressData,
           ),
           const PlannerHorizon(),
         ];
@@ -3343,13 +3398,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     return (doneAlignment + partialAlignment * 0.5) / totalAlignment;
   }
 
-  bool _hasMeaningfulProgressData() {
-    final todayTodos = _todosByDay[_todayLocal] ?? const <RhythmTodo>[];
-    return todayTodos.isNotEmpty ||
-        _todayNutritionItems().isNotEmpty ||
-        _alignmentItems.isNotEmpty;
-  }
-
   List<RhythmItem> _completed() {
     final doneAlignment = _alignmentItems.where(
       (i) => i.state == RhythmItemState.done,
@@ -3365,295 +3413,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
           ),
         );
     return [...doneAlignment, ...doneTodos];
-  }
-}
-
-class _NutritionItemEditorSheet extends StatefulWidget {
-  const _NutritionItemEditorSheet({
-    required this.item,
-    required this.decanDay,
-    required this.onSaveItemEdits,
-    required this.onRemoveItem,
-  });
-
-  final NutritionItem item;
-  final int decanDay;
-  final Future<void> Function(List<NutritionItem> items) onSaveItemEdits;
-  final Future<bool> Function(NutritionItem item, BuildContext dialogContext)
-  onRemoveItem;
-
-  @override
-  State<_NutritionItemEditorSheet> createState() =>
-      _NutritionItemEditorSheetState();
-}
-
-class _NutritionItemEditorSheetState extends State<_NutritionItemEditorSheet> {
-  late final TextEditingController _sourceController;
-  late final TextEditingController _nutrientController;
-  late final TextEditingController _purposeController;
-  late bool _everyDay;
-  late TimeOfDay _selectedTime;
-
-  var _isSaving = false;
-  String? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _sourceController = TextEditingController(text: widget.item.source);
-    _nutrientController = TextEditingController(text: widget.item.nutrient);
-    _purposeController = TextEditingController(text: widget.item.purpose);
-    _everyDay = plannerNutritionAppliesEveryDay(widget.item);
-    _selectedTime = widget.item.schedule.time;
-  }
-
-  @override
-  void dispose() {
-    _sourceController.dispose();
-    _nutrientController.dispose();
-    _purposeController.dispose();
-    super.dispose();
-  }
-
-  InputDecoration _fieldDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: PlannerVisualTokens.captionItalic.copyWith(
-        color: PlannerVisualTokens.gold.withValues(
-          alpha: PlannerVisualTokens.liftedAlpha(0.46),
-        ),
-      ),
-      filled: true,
-      fillColor: Colors.white.withValues(alpha: 0.05),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.12)),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: RhythmTheme.aurora),
-      ),
-    );
-  }
-
-  Widget _field({
-    required TextEditingController controller,
-    required String label,
-  }) {
-    return TextField(
-      controller: controller,
-      scrollPadding: keyboardManagedTextFieldScrollPadding,
-      minLines: 1,
-      maxLines: null,
-      keyboardType: TextInputType.multiline,
-      textCapitalization: TextCapitalization.sentences,
-      style: RhythmTheme.subheading,
-      decoration: _fieldDecoration(label),
-    );
-  }
-
-  Future<void> _pickTime() async {
-    FocusScope.of(context).unfocus();
-    final picked = await showTimePicker(
-      context: context,
-      initialTime: _selectedTime,
-      useRootNavigator: true,
-      builder: (pickerContext, child) => Theme(
-        data: Theme.of(pickerContext).copyWith(
-          colorScheme: const ColorScheme.dark(
-            primary: RhythmTheme.aurora,
-            surface: Colors.black,
-            onSurface: Colors.white,
-          ),
-        ),
-        child: child ?? const SizedBox.shrink(),
-      ),
-    );
-    if (picked == null || !mounted) return;
-    setState(() {
-      _selectedTime = picked;
-    });
-  }
-
-  Future<void> _remove() async {
-    final removed = await widget.onRemoveItem(widget.item, context);
-    if (removed && mounted) {
-      Navigator.of(context).pop(true);
-    }
-  }
-
-  Future<void> _save() async {
-    final source = _sourceController.text.trim();
-    final nutrient = _nutrientController.text.trim();
-    final purpose = _purposeController.text.trim();
-    if (source.isEmpty && nutrient.isEmpty) {
-      setState(() {
-        _error = 'Add a nutrient or source first.';
-      });
-      return;
-    }
-
-    setState(() {
-      _isSaving = true;
-      _error = null;
-    });
-
-    final edited = plannerNutritionWithEveryDayMapping(
-      widget.item.copyWith(
-        source: source,
-        nutrient: nutrient,
-        purpose: purpose,
-        schedule: widget.item.schedule.copyWith(time: _selectedTime),
-      ),
-      activeDecanDay: widget.decanDay,
-      everyDay: _everyDay,
-    );
-
-    try {
-      await widget.onSaveItemEdits([edited]);
-      if (!mounted) return;
-      Navigator.of(context).pop(true);
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _isSaving = false;
-        _error = 'Could not update nutrition item.';
-      });
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottomInset = keyboardInsetOf(context);
-    return SafeArea(
-      child: AnimatedPadding(
-        duration: const Duration(milliseconds: 160),
-        curve: Curves.easeOut,
-        padding: EdgeInsets.fromLTRB(16, 14, 16, 16 + bottomInset),
-        child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: KemeticGold.text(
-                      'Day ${widget.decanDay} nutrition',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        fontFamily: 'GentiumPlus',
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: _isSaving
-                        ? null
-                        : () => Navigator.of(context).pop(false),
-                    icon: const Icon(Icons.close, color: Colors.white70),
-                    tooltip: 'Close',
-                  ),
-                ],
-              ),
-              if (_error != null) ...[
-                const SizedBox(height: 10),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                      color: Colors.redAccent.withValues(alpha: 0.4),
-                    ),
-                  ),
-                  child: Text(
-                    _error!,
-                    style: RhythmTheme.subheading.copyWith(
-                      color: Colors.redAccent,
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 12),
-              _field(controller: _sourceController, label: 'Source'),
-              const SizedBox(height: 12),
-              _field(controller: _nutrientController, label: 'Nutrient'),
-              const SizedBox(height: 12),
-              _field(controller: _purposeController, label: 'Purpose'),
-              const SizedBox(height: 12),
-              NutritionTimeEditorRow(
-                enabled: !_isSaving,
-                value: _selectedTime.format(context),
-                onTap: () => unawaited(_pickTime()),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Checkbox(
-                    value: _everyDay,
-                    onChanged: _isSaving
-                        ? null
-                        : (value) {
-                            setState(() {
-                              _everyDay = value ?? false;
-                            });
-                          },
-                    activeColor: PlannerVisualTokens.gold,
-                    checkColor: Colors.black,
-                  ),
-                  Text('Every day', style: RhythmTheme.subheading),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  TextButton.icon(
-                    onPressed: _isSaving ? null : () => unawaited(_remove()),
-                    icon: const Icon(Icons.delete_outline_rounded),
-                    label: const Text('Delete'),
-                  ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: _isSaving
-                        ? null
-                        : () => Navigator.of(context).pop(false),
-                    child: const Text('Cancel'),
-                  ),
-                  const SizedBox(width: 8),
-                  FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: RhythmTheme.aurora,
-                      foregroundColor: Colors.black,
-                    ),
-                    onPressed: _isSaving ? null : () => unawaited(_save()),
-                    icon: _isSaving
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Colors.black,
-                              ),
-                            ),
-                          )
-                        : const Icon(Icons.check, size: 18),
-                    label: Text(_isSaving ? 'Saving' : 'Save'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 

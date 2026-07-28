@@ -32,7 +32,6 @@ class JournalController {
   int _localEditRevision = 0;
   int _initRunCount = 0;
   int _reloadTodayRunCount = 0;
-  bool _initialized = false;
 
   // Callbacks for UI updates
   void Function()? onDraftChanged;
@@ -305,13 +304,7 @@ class JournalController {
 
     await reloadToday();
     await finalizeYesterdayIfNeeded();
-    _initialized = true;
     _log('init: complete');
-  }
-
-  Future<void> _ensureInitializedForMutation() async {
-    if (_initialized) return;
-    await init();
   }
 
   /// Reload today's entry from the server/cache decision path.
@@ -772,11 +765,6 @@ class JournalController {
 
   /// Update document directly (V2)
   Future<void> updateDocument(JournalDocument document) async {
-    await _ensureInitializedForMutation();
-    await _updateDocumentInitialized(document);
-  }
-
-  Future<void> _updateDocumentInitialized(JournalDocument document) async {
     final beforeCompletionBadges = _completionBadgesFromCurrentEntry();
     final normalized = JournalBadgeUtils.normalizeDocument(document);
     if (_currentDocument == normalized) return;
@@ -804,11 +792,10 @@ class JournalController {
     final id = badgeId.trim();
     if (id.isEmpty) return;
 
-    await _ensureInitializedForMutation();
     final doc =
         _currentDocument ?? JournalDocument.fromPlainText(_currentDraft);
     final nextDoc = JournalBadgeUtils.removeBadgesById(doc, <String>{id});
-    await _updateDocumentInitialized(nextDoc);
+    await updateDocument(nextDoc);
   }
 
   /// Save draft to local storage (V1)
@@ -1023,11 +1010,7 @@ class JournalController {
   /// Append content to today's journal (for daily review integration)
   Future<int> appendToToday(String content) async {
     if (content.trim().isEmpty) return 0;
-    await _ensureInitializedForMutation();
-    return _appendToTodayInitialized(content);
-  }
 
-  Future<int> _appendToTodayInitialized(String content) async {
     final appendPosition = _currentDraft.length;
     final containsBadges = JournalBadgeUtils.hasBadges(content);
 
@@ -1035,7 +1018,7 @@ class JournalController {
         (containsBadges && FeatureFlags.isJournalV2Active)) {
       _currentDocument ??= JournalDocument.fromPlainText(_currentDraft);
       _isDocumentMode = true;
-      final appendedAt = await _appendToDocumentInitialized(content);
+      final appendedAt = await appendToDocument(content);
       _log(
         'appendToToday: appended ${content.length} chars at position $appendedAt',
       );
@@ -1057,11 +1040,6 @@ class JournalController {
   /// Append content to document (V2)
   Future<int> appendToDocument(String content) async {
     if (content.trim().isEmpty) return 0;
-    await _ensureInitializedForMutation();
-    return _appendToDocumentInitialized(content);
-  }
-
-  Future<int> _appendToDocumentInitialized(String content) async {
     final appendStart = _currentDraft.length;
 
     // Ensure we have a document to append to
@@ -1079,7 +1057,7 @@ class JournalController {
     final cleanedContent = JournalBadgeUtils.stripBadges(content).trim();
 
     if (cleanedContent.isEmpty) {
-      await _updateDocumentInitialized(doc);
+      await updateDocument(doc);
       return appendStart;
     }
 
@@ -1112,7 +1090,7 @@ class JournalController {
       meta: doc.meta,
     );
 
-    await _updateDocumentInitialized(newDoc);
+    await updateDocument(newDoc);
 
     return appendStart;
   }

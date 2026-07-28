@@ -1498,7 +1498,6 @@ class UserEventsRepo {
     required DateTime endUtc,
     int pageSize = 1000,
     Map<int, FlowRecordSnapshot> flowOwnersById = const {},
-    bool throwOnError = false,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
@@ -1549,7 +1548,6 @@ class UserEventsRepo {
         'getStandaloneEventsForDateRangeAll ✗ code=${e.code} ${e.message} hint=${e.hint} details=${e.details} '
         '(${startUtc.toUtc().toIso8601String()} → ${endUtc.toUtc().toIso8601String()})',
       );
-      if (throwOnError) rethrow;
       return (
         events: const <StandaloneEventRow>[],
         ghostEventIds: const <String>[],
@@ -1558,7 +1556,6 @@ class UserEventsRepo {
       );
     } catch (e) {
       _log('getStandaloneEventsForDateRangeAll ✗ $e');
-      if (throwOnError) rethrow;
       return (
         events: const <StandaloneEventRow>[],
         ghostEventIds: const <String>[],
@@ -1990,13 +1987,13 @@ class UserEventsRepo {
         );
         debugPrint('$st');
       }
-      rethrow;
+      return const [];
     } catch (e, st) {
       if (kDebugMode) {
         debugPrint('[UserEventsRepo] getEventsForFlowIds error: $e');
         debugPrint('$st');
       }
-      rethrow;
+      return const [];
     }
 
     return events;

@@ -113,7 +113,7 @@ void main() {
     expect(detailCardBuilder, isNot(contains('DayViewBottomSheetFrame(')));
   });
 
-  test('Main Calendar keeps rendering behind every covered route', () {
+  test('Main Calendar keeps rendering behind detail and quick-add sheets', () {
     final overlayGate = _sourceBetween(
       calendarPage,
       '  static bool get _hasCalendarOwnedTransientOverlayOpenOrOpening {',
@@ -123,7 +123,6 @@ void main() {
       overlayGate,
       contains('CalendarEventDetailSheetCoordinator.isOpenOrOpening'),
     );
-    expect(overlayGate, contains('_calendarOwnedTransientRouteDepth > 0'));
     expect(
       overlayGate,
       contains('(mountedState?._daySheetOpenOrOpening ?? false)'),
@@ -136,10 +135,14 @@ void main() {
     final buildGate = _sourceBetween(
       calendarPage,
       '    final routeIsCurrent = ModalRoute.of(context)?.isCurrent ?? true;',
-      '    final scaffold = Scaffold(',
+      '    if (shouldBuildLandscapeGrid) {',
     );
-    expect(buildGate, isNot(contains('routeShouldRemainRendered')));
-    expect(buildGate, isNot(contains('SizedBox.shrink()')));
+    expect(buildGate, contains('final routeShouldRemainRendered ='));
+    expect(
+      buildGate,
+      contains('CalendarPage._hasCalendarOwnedTransientOverlayOpenOrOpening'),
+    );
+    expect(buildGate, contains('if (!routeShouldRemainRendered)'));
   });
 
   test('Main Calendar quick-add sheet uses transparent route background', () {

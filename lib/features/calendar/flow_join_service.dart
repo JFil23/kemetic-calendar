@@ -1588,7 +1588,6 @@ class FlowJoinService {
     int materializedDays = kEveningThresholdMaterializedDays,
     int alertOffsetMinutes = kEventFilingNoAlertMinutes,
     String? initialCarryText,
-    bool deferRemainingEvents = false,
   }) async {
     if (kEveningThresholdEvents.isEmpty || materializedDays <= 0) {
       return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
@@ -1710,9 +1709,10 @@ class FlowJoinService {
       );
     }
 
-    Future<String> upsertOccurrence(int index, {required String caller}) async {
-      final entry = schedules[index];
-      final occurrence = occurrences[index];
+    final clientEventIds = <String>[];
+    for (var i = 0; i < schedules.length; i++) {
+      final entry = schedules[i];
+      final occurrence = occurrences[i];
       final k = KemeticMath.fromGregorian(
         DateUtils.dateOnly(occurrence.startLocal),
       );
@@ -1744,8 +1744,9 @@ class FlowJoinService {
           event: entry.event,
           schedule: occurrence,
         ),
-        caller: caller,
+        caller: 'evening_threshold_join_headless',
       );
+      clientEventIds.add(clientEventId);
 
       if (alertOffsetMinutes != kEventFilingNoAlertMinutes &&
           entry.event.kind == EveningThresholdEventKind.theReturn) {
@@ -1758,59 +1759,6 @@ class FlowJoinService {
           body: detail,
         );
       }
-      return clientEventId;
-    }
-
-    final clientEventIds = <String>[];
-    final firstReturnIndex = schedules.indexWhere(
-      (entry) => entry.event.kind == EveningThresholdEventKind.theReturn,
-    );
-    final synchronousIndexes = deferRemainingEvents
-        ? <int>{firstReturnIndex >= 0 ? firstReturnIndex : 0}
-        : {for (var i = 0; i < schedules.length; i++) i};
-    for (final index in synchronousIndexes) {
-      clientEventIds.add(
-        await upsertOccurrence(
-          index,
-          caller: 'evening_threshold_join_headless',
-        ),
-      );
-    }
-
-    if (deferRemainingEvents && schedules.length > synchronousIndexes.length) {
-      final deferredIndexes = <int>[
-        for (var i = 0; i < schedules.length; i++)
-          if (!synchronousIndexes.contains(i)) i,
-      ];
-      unawaited(
-        Future<void>(() async {
-          final deferredClientEventIds = <String>[];
-          for (final index in deferredIndexes) {
-            try {
-              deferredClientEventIds.add(
-                await upsertOccurrence(
-                  index,
-                  caller: 'evening_threshold_join_headless_deferred',
-                ),
-              );
-            } catch (error, stackTrace) {
-              if (kDebugMode) {
-                _calendarDebugPrint(
-                  '[eveningThresholdHeadless] deferred event creation failed: $error',
-                );
-                _calendarDebugPrint('$stackTrace');
-              }
-            }
-          }
-          if (deferredClientEventIds.isNotEmpty) {
-            _publishHeadlessCalendarInvalidation(
-              reason: CalendarInvalidationReason.flowJoined,
-              flowId: flowId,
-              clientEventIds: deferredClientEventIds,
-            );
-          }
-        }),
-      );
     }
 
     return _completeHeadlessJoin(

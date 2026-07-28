@@ -4,7 +4,6 @@ import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 
 import '../services/app_navigation_restoration_controller.dart';
-import '../services/app_restoration_service.dart';
 import '../services/restoration_coordinator.dart';
 import '../services/restoration_trace.dart';
 import 'navigation_persistence_policy.dart';
@@ -52,19 +51,6 @@ void closeOrReturn(
     return;
   }
 
-  final dismissedClassification = AppNavigationRestorationController.instance
-      .classifyRoute(dismissedRoute, NavigationSource.userDismissal);
-  if (dismissedClassification.routeClass == NavigationRouteClass.utility) {
-    unawaited(
-      _closeUtilityWithoutLocalStack(
-        context,
-        router,
-        dismissedRoute: dismissedRoute,
-      ),
-    );
-    return;
-  }
-
   traceRestoration(
     'navigation close_or_return fallback route=$fallbackLocation',
   );
@@ -73,39 +59,6 @@ void closeOrReturn(
     AppNavigationRestorationController.instance.recordSurfaceDismissal(
       dismissedRoute: dismissedRoute,
       fallbackRoute: fallbackLocation,
-      source: NavigationSource.userDismissal,
-    ),
-  );
-}
-
-Future<void> _closeUtilityWithoutLocalStack(
-  BuildContext context,
-  GoRouter router, {
-  required String dismissedRoute,
-}) async {
-  final destination = await AppNavigationRestorationController.instance
-      .resolveUtilityFallbackDestination();
-  if (!context.mounted) return;
-
-  final currentRoute = router.routerDelegate.currentConfiguration.uri
-      .toString();
-  if (currentRoute != dismissedRoute) {
-    traceRestoration(
-      'navigation utility fallback dropped dismissed=$dismissedRoute '
-      'current=$currentRoute reason=route_changed',
-    );
-    return;
-  }
-
-  traceRestoration(
-    'navigation utility fallback route=${destination.route} '
-    'reason=${destination.reason}',
-  );
-  router.go(destination.route);
-  unawaited(
-    AppNavigationRestorationController.instance.recordSurfaceDismissal(
-      dismissedRoute: dismissedRoute,
-      fallbackRoute: destination.route,
       source: NavigationSource.userDismissal,
     ),
   );
@@ -188,51 +141,23 @@ Future<T?> openUtilityRoute<T>(
   return pushContext.push<T>(location, extra: extra);
 }
 
-Future<AppRestorationMutationResult> recordPrimarySectionSelection(
-  AppSection section,
-) async {
-  RestorationCoordinator.instance.suppressRestoreForUserNavigation(
-    reason: 'open_primary_section',
-  );
-  await RestorationCoordinator.instance.flushCalendarForPrimaryNavigation();
-  return AppNavigationRestorationController.instance
-      .recordPrimaryTabSelectionWithResult(section);
-}
-
-Future<void> openPrimarySection(
+void openPrimarySection(
   BuildContext context,
   AppSection section, {
   GoRouter? router,
 }) {
-  return recordPrimaryTabSelectionAndOpen(
-    section,
-    navigate: (location) {
-      if (router != null) {
-        router.go(location);
-        return;
-      }
-      context.go(location);
-    },
+  RestorationCoordinator.instance.suppressRestoreForUserNavigation(
+    reason: 'open_primary_section',
   );
-}
-
-Future<void> recordPrimaryTabSelectionAndOpen(
-  AppSection section, {
-  required void Function(String location) navigate,
-}) async {
+  unawaited(
+    AppNavigationRestorationController.instance.recordPrimaryTabSelection(
+      section,
+    ),
+  );
   final location = const NavigationPersistencePolicy().routeForSection(section);
-  if (!AppRestorationService.instance.requiresAcknowledgedDurableWrites) {
-    unawaited(recordPrimarySectionSelection(section));
-    navigate(location);
+  if (router != null) {
+    router.go(location);
     return;
   }
-  final result = await recordPrimarySectionSelection(section);
-  if (result.status != AppRestorationMutationStatus.persisted) {
-    traceRestoration(
-      'navigation primary_section blocked section=${section.wireName} '
-      'reason=durable_write_${result.status.name}',
-    );
-    return;
-  }
-  navigate(location);
+  context.go(location);
 }

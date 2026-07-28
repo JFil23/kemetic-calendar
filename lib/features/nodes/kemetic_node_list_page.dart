@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import '../../core/navigation_fallback.dart';
 import '../../shared/kemetic_text.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
-import '../../widgets/responsive_content_rail.dart';
 import 'kemetic_node_library.dart';
 import 'library_canon_adapter.dart';
 import 'library_canon_list.dart';
@@ -250,23 +249,20 @@ class _KemeticNodeListPageState extends State<KemeticNodeListPage>
             color: LibraryVisualTokens.base,
             gradient: LibraryVisualTokens.pageGradient,
           ),
-          child: ResponsiveContentRail(
-            maxWidth: 760,
-            child: LibraryCanonList(
-              entries: entries,
-              controller: _scrollController,
-              nodeKeyFor: _nodeKey,
-              onOpenEntry: (entry) {
-                unawaited(
-                  openDetailRoute<void>(
-                    context,
-                    '/nodes/${Uri.encodeComponent(entry.node.id)}',
-                  ).whenComplete(() {
-                    if (mounted) unawaited(_loadReadSnapshot());
-                  }),
-                );
-              },
-            ),
+          child: LibraryCanonList(
+            entries: entries,
+            controller: _scrollController,
+            nodeKeyFor: _nodeKey,
+            onOpenEntry: (entry) {
+              unawaited(
+                openDetailRoute<void>(
+                  context,
+                  '/nodes/${Uri.encodeComponent(entry.node.id)}',
+                ).whenComplete(() {
+                  if (mounted) unawaited(_loadReadSnapshot());
+                }),
+              );
+            },
           ),
         ),
       ),

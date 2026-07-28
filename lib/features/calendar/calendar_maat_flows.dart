@@ -290,8 +290,66 @@ bool maatFlowTemplateMatchesActiveFlowForTesting({
 }
 
 class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
+  final GlobalKey _addFlowHelperKey = GlobalKey(
+    debugLabel: 'flow_studio_maat_add_flow_helper',
+  );
   final Set<String> _locallyJoinedTemplateKeys = <String>{};
   _MaatFlowLibraryCategory? _selectedWaitingCategory;
+  bool _helperPrompted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_maybeShowFlowStudioAddFlowHelper());
+  }
+
+  Future<void> _maybeShowFlowStudioAddFlowHelper() async {
+    if (_helperPrompted) return;
+    final String? userId;
+    try {
+      userId = Supabase.instance.client.auth.currentUser?.id;
+    } catch (_) {
+      return;
+    }
+    if (userId == null || userId.isEmpty) return;
+    final helperUserId = userId;
+    const helper = OnboardingHelperRegistry.flowStudioAddFlow;
+    final helperService = OnboardingHelperCompletionService.instance;
+    if (!await helperService.shouldShowHelper(helperUserId, helper.id)) return;
+    _helperPrompted = true;
+    await Future<void>.delayed(const Duration(milliseconds: 450));
+    if (!mounted) return;
+    await helperService.hydrateUser(helperUserId);
+    if (!mounted ||
+        !helperService.shouldShowHelperSync(helperUserId, helper.id)) {
+      return;
+    }
+    GuidedOnboardingController.instance.show(
+      CoachmarkTarget(
+        key: _addFlowHelperKey,
+        title: helper.title,
+        body: helper.body,
+        placement: CoachmarkPlacement.below,
+        variant: CoachmarkVariant.helperBubble,
+        showDismissButton: true,
+        dismissLabel: 'Got it',
+        helperId: helper.id,
+        helperUserId: helperUserId,
+        sourceWidget: OnboardingHelperRegistry.maatFlowListAddFlowSourceWidget,
+        onDismiss: () async {
+          final completion = helperService.markHelperCompleted(
+            helperUserId,
+            helper.id,
+          );
+          GuidedOnboardingController.instance.clear();
+          await completion;
+        },
+      ),
+    );
+    unawaited(
+      Events.trackIfAuthed(helper.analyticsEvent, const <String, dynamic>{}),
+    );
+  }
 
   Future<void> _markFlowStudioHelperCompleted(String helperId) async {
     final String? userId;
@@ -440,6 +498,7 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
           Padding(
             padding: const EdgeInsets.only(right: 7),
             child: IconButton(
+              key: _addFlowHelperKey,
               tooltip: 'New flow',
               icon: const Icon(
                 Icons.add,
@@ -2104,9 +2163,6 @@ class _MaatFlowArcChevron extends StatelessWidget {
 
 class _MaatFlowTemplateDetailPageState
     extends State<_MaatFlowTemplateDetailPage> {
-  late final ScrollController _detailScrollController = ScrollController(
-    keepScrollOffset: !widget.embeddedInOnboarding,
-  );
   late TrackSkyTimeZone _previewTrackSkyTimeZone;
   Future<TrackSkyFlowData>? _trackSkyFuture;
   bool _dawnDiscreetMode = false;
@@ -2115,11 +2171,6 @@ class _MaatFlowTemplateDetailPageState
   bool _dawnJoinInFlight = false;
   bool _eveningThresholdStartDateTouched = false;
   bool _eveningThresholdJoinInFlight = false;
-  final FocusNode _eveningThresholdCarryFocusNode = FocusNode();
-  final GlobalKey _eveningThresholdCarryPromptKey = GlobalKey();
-  final GlobalKey _eveningThresholdCarryFieldKey = GlobalKey();
-  bool _eveningThresholdCarryPrompted = false;
-  bool _eveningThresholdCarryHintVisible = false;
   final TextEditingController _eveningThresholdInitialCarryController =
       TextEditingController();
   bool _eveningDiscreetMode = false;
@@ -2187,9 +2238,6 @@ class _MaatFlowTemplateDetailPageState
   void initState() {
     super.initState();
     _previewTrackSkyTimeZone = detectTrackSkyTimeZone();
-    _eveningThresholdCarryFocusNode.addListener(
-      _handleEveningThresholdCarryFocusChange,
-    );
     if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
       _trackSkyFuture = loadTrackSkyFlowData(_previewTrackSkyTimeZone);
     } else if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
@@ -2235,35 +2283,8 @@ class _MaatFlowTemplateDetailPageState
 
   @override
   void dispose() {
-    _eveningThresholdCarryFocusNode.removeListener(
-      _handleEveningThresholdCarryFocusChange,
-    );
-    _detailScrollController.dispose();
-    _eveningThresholdCarryFocusNode.dispose();
     _eveningThresholdInitialCarryController.dispose();
     super.dispose();
-  }
-
-  void _handleEveningThresholdCarryFocusChange() {
-    if (!mounted) return;
-    setState(() {});
-  }
-
-  Future<void> _ensureEveningThresholdCarryPromptVisible({
-    required double alignment,
-    required Duration duration,
-  }) async {
-    final promptContext =
-        _eveningThresholdCarryPromptKey.currentContext ??
-        _eveningThresholdCarryFieldKey.currentContext;
-    if (promptContext == null || !promptContext.mounted) return;
-    await Scrollable.ensureVisible(
-      promptContext,
-      duration: duration,
-      curve: Curves.easeInOutCubic,
-      alignment: alignment,
-      alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
-    );
   }
 
   String _kemeticLabelFor(DateTime g) {
@@ -2440,9 +2461,6 @@ class _MaatFlowTemplateDetailPageState
       initialMode: _useKemetic
           ? MaatFlowDatePickerMode.kemetic
           : MaatFlowDatePickerMode.gregorian,
-      barrierColor: widget.embeddedInOnboarding
-          ? Colors.black.withValues(alpha: 0.28)
-          : null,
     );
     if (picked == null || !mounted) return;
     setState(() {
@@ -3542,24 +3560,8 @@ class _MaatFlowTemplateDetailPageState
     if (_eveningThresholdJoinInFlight) return;
     final initialCarry = _eveningThresholdInitialCarryController.text.trim();
     if (initialCarry.isEmpty) {
-      setState(() {
-        _eveningThresholdCarryPrompted = true;
-        _eveningThresholdCarryHintVisible = true;
-      });
-      await WidgetsBinding.instance.endOfFrame;
-      if (!mounted) return;
-      await _ensureEveningThresholdCarryPromptVisible(
-        alignment: 0.28,
-        duration: const Duration(milliseconds: 620),
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 120));
-      if (!mounted) return;
-      _eveningThresholdCarryFocusNode.requestFocus();
-      await Future<void>.delayed(const Duration(milliseconds: 320));
-      if (!mounted) return;
-      await _ensureEveningThresholdCarryPromptVisible(
-        alignment: 0.20,
-        duration: const Duration(milliseconds: 260),
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Name what you carry today first.')),
       );
       return;
     }
@@ -4643,26 +4645,23 @@ class _MaatFlowTemplateDetailPageState
     final media = MediaQuery.of(context);
     const ctaHeight = 52.0;
     final embedded = widget.embeddedInOnboarding;
-    final keyboardInset = media.viewInsets.bottom;
     final scrollBottomPadding =
         ctaHeight +
-        (embedded ? keyboardInset : media.padding.bottom) +
-        (embedded ? 96 : 24);
+        (embedded ? 0 : media.padding.bottom) +
+        (embedded ? 18 : 24);
     final bodyPadding = embedded
         ? EdgeInsets.fromLTRB(16, 18, 16, scrollBottomPadding)
         : EdgeInsets.fromLTRB(14, 16, 14, scrollBottomPadding);
     final ctaPadding = embedded
-        ? EdgeInsets.fromLTRB(14, 10, 14, 14 + keyboardInset)
+        ? const EdgeInsets.fromLTRB(14, 10, 14, 14)
         : const EdgeInsets.fromLTRB(18, 14, 18, 22);
     return Scaffold(
-      resizeToAvoidBottomInset: true,
       backgroundColor: MaatFlowListTokens.pageBg,
       appBar: embedded ? null : _buildMaatFlowDetailAppBar(context),
       body: SafeArea(
         top: !embedded,
         bottom: false,
         child: ListView(
-          controller: _detailScrollController,
           padding: bodyPadding,
           children: [
             Center(
@@ -4689,9 +4688,7 @@ class _MaatFlowTemplateDetailPageState
               stops: [0.0, 0.45],
             ),
           ),
-          child: AnimatedPadding(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeOutCubic,
+          child: Padding(
             padding: ctaPadding,
             child: Align(
               alignment: Alignment.center,
@@ -4967,9 +4964,7 @@ class _MaatFlowTemplateDetailPageState
     return LayoutBuilder(
       builder: (context, constraints) {
         final textScale = MediaQuery.textScalerOf(context).scale(1);
-        final useVertical =
-            !widget.embeddedInOnboarding &&
-            (constraints.maxWidth < 330 || textScale > 1.3);
+        final useVertical = constraints.maxWidth < 330 || textScale > 1.3;
         if (useVertical) {
           return Column(
             children: [
@@ -6657,6 +6652,9 @@ class _MaatFlowTemplateDetailPageState
     final l10n = MaterialLocalizations.of(context);
     final selectedStart =
         _picked ?? defaultEveningThresholdStartDate(_previewTrackSkyTimeZone);
+    final initialCarryReady = _eveningThresholdInitialCarryController.text
+        .trim()
+        .isNotEmpty;
     final firstEvent = kEveningThresholdEvents.first;
     final firstSchedule = dailyEveningThresholdScheduleForDate(
       localDate: selectedStart,
@@ -6682,18 +6680,12 @@ class _MaatFlowTemplateDetailPageState
         minute: finalSchedule.endLocal.minute,
       ),
     );
-    final carryFieldActive =
-        _eveningThresholdCarryPrompted ||
-        _eveningThresholdCarryFocusNode.hasFocus;
-    final carryBorderColor = carryFieldActive
-        ? MaatFlowPalette.gold.withValues(alpha: 0.78)
-        : MaatFlowPalette.gold.withValues(alpha: 0.30);
 
     return _buildMaatFlowDetailScaffold(
       context,
       joinButton: _buildTemplateStickyJoinButton(
         text: _eveningThresholdJoinInFlight ? 'Joining…' : 'Join Flow',
-        onPressed: _eveningThresholdJoinInFlight
+        onPressed: _eveningThresholdJoinInFlight || !initialCarryReady
             ? null
             : () => _joinEveningThresholdFlow(selectedStart),
       ),
@@ -6708,111 +6700,41 @@ class _MaatFlowTemplateDetailPageState
           ),
           tagline: widget.template.subtitle,
           configurationControls: [
-            Column(
-              key: _eveningThresholdCarryPromptKey,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const _MaatFlowDetailSectionLabel('WHAT DO YOU CARRY TODAY?'),
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOutCubic,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(14),
-                    boxShadow: carryFieldActive
-                        ? [
-                            BoxShadow(
-                              color: MaatFlowPalette.gold.withValues(
-                                alpha: 0.14,
-                              ),
-                              blurRadius: 18,
-                              spreadRadius: 1,
-                            ),
-                          ]
-                        : const [],
-                  ),
-                  child: TextSelectionTheme(
-                    data: TextSelectionTheme.of(context).copyWith(
-                      cursorColor: MaatFlowPalette.gold,
-                      selectionColor: MaatFlowPalette.gold.withValues(
-                        alpha: 0.26,
-                      ),
-                      selectionHandleColor: MaatFlowPalette.gold,
-                    ),
-                    child: TextField(
-                      key: _eveningThresholdCarryFieldKey,
-                      focusNode: _eveningThresholdCarryFocusNode,
-                      controller: _eveningThresholdInitialCarryController,
-                      cursorColor: MaatFlowPalette.gold,
-                      maxLines: 3,
-                      minLines: 2,
-                      textInputAction: TextInputAction.newline,
-                      onChanged: (value) {
-                        if (value.trim().isEmpty ||
-                            (!_eveningThresholdCarryPrompted &&
-                                !_eveningThresholdCarryHintVisible)) {
-                          return;
-                        }
-                        setState(() {
-                          _eveningThresholdCarryPrompted = false;
-                          _eveningThresholdCarryHintVisible = false;
-                        });
-                      },
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontFamily: MaatFlowListTokens.fontFamily,
-                        fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                        fontSize: 15,
-                        height: 1.35,
-                      ),
-                      decoration: InputDecoration(
-                        hintText: 'What do you carry today?',
-                        hintStyle: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.36),
-                          fontFamily: MaatFlowListTokens.fontFamily,
-                          fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                        ),
-                        filled: true,
-                        fillColor: Colors.black.withValues(alpha: 0.28),
-                        contentPadding: const EdgeInsets.all(14),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(color: carryBorderColor),
-                        ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(
-                            color: carryBorderColor,
-                            width: 1.4,
-                          ),
-                        ),
-                      ),
-                    ),
+            const _MaatFlowDetailSectionLabel('WHAT DO YOU CARRY TODAY?'),
+            TextField(
+              controller: _eveningThresholdInitialCarryController,
+              maxLines: 3,
+              minLines: 2,
+              textInputAction: TextInputAction.newline,
+              onChanged: (_) => setState(() {}),
+              style: const TextStyle(
+                color: Colors.white,
+                fontFamily: MaatFlowListTokens.fontFamily,
+                fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                fontSize: 15,
+                height: 1.35,
+              ),
+              decoration: InputDecoration(
+                hintText: 'What do you carry today?',
+                hintStyle: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.36),
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                ),
+                filled: true,
+                fillColor: Colors.black.withValues(alpha: 0.28),
+                contentPadding: const EdgeInsets.all(14),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(
+                    color: _palette.accent.withValues(alpha: 0.28),
                   ),
                 ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 42,
-                  child: AnimatedOpacity(
-                    duration: const Duration(milliseconds: 420),
-                    curve: Curves.easeOut,
-                    opacity: _eveningThresholdCarryHintVisible ? 1 : 0,
-                    child: Align(
-                      alignment: Alignment.topLeft,
-                      child: Text(
-                        'Name what you carry today before this flow begins.',
-                        style: TextStyle(
-                          color: MaatFlowPalette.gold.withValues(alpha: 0.72),
-                          fontFamily: MaatFlowListTokens.fontFamily,
-                          fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                          fontSize: 13.5,
-                          fontStyle: FontStyle.italic,
-                          height: 1.25,
-                        ),
-                      ),
-                    ),
-                  ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide(color: _palette.accent),
                 ),
-              ],
+              ),
             ),
             const SizedBox(height: 18),
             const _MaatFlowDetailSectionLabel('TIMEZONE'),

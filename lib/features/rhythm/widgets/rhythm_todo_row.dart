@@ -10,7 +10,6 @@ class RhythmTodoRow extends StatelessWidget {
     super.key,
     required this.todo,
     this.onStateChanged,
-    this.onMoveToTomorrow,
     this.onDelete,
     this.dueTextOverride,
     this.dueTextColor,
@@ -18,7 +17,6 @@ class RhythmTodoRow extends StatelessWidget {
 
   final RhythmTodo todo;
   final ValueChanged<RhythmItemState>? onStateChanged;
-  final VoidCallback? onMoveToTomorrow;
   final VoidCallback? onDelete;
   final String? dueTextOverride;
   final Color? dueTextColor;
@@ -158,7 +156,6 @@ class RhythmTodoRow extends StatelessWidget {
                 RhythmStateButtonGroup(
                   current: todo.state,
                   onChanged: onStateChanged,
-                  onMoveToTomorrow: onMoveToTomorrow,
                   onDelete: onDelete,
                 ),
               ],

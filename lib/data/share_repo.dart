@@ -117,22 +117,6 @@ Map<String, dynamic>? buildImportedFlowInviteEventSpec({
   };
 }
 
-class _UnreadTrackerKey {
-  const _UnreadTrackerKey(this.client, this.principalId);
-
-  final SupabaseClient client;
-  final String principalId;
-
-  @override
-  bool operator ==(Object other) =>
-      other is _UnreadTrackerKey &&
-      identical(other.client, client) &&
-      other.principalId == principalId;
-
-  @override
-  int get hashCode => Object.hash(identityHashCode(client), principalId);
-}
-
 class ShareRepo {
   static const String _activitySeenPrefKey = 'inbox:activity_seen_at:v1';
   static const String _shareFilingView = 'share_filing_items_client';
@@ -143,15 +127,9 @@ class ShareRepo {
       'calendar:manual_delete_tombstones';
   static final StreamController<void> _activitySeenChangedController =
       StreamController<void>.broadcast();
-  static final Map<_UnreadTrackerKey, _InboxUnreadTracker> _unreadTrackers = {};
-  static final Map<SupabaseClient, Future<void>>
-  _unreadPrincipalCleanupByClient =
-      Map<SupabaseClient, Future<void>>.identity();
+  static final Map<String, _InboxUnreadTracker> _unreadTrackers = {};
   static final Map<String, List<InboxShareItem>> _inboxItemsMemoryCache = {};
   static final Map<String, List<InboxActivityItem>> _activityMemoryCache = {};
-
-  @visibleForTesting
-  static bool debugDisableUnreadTrackingForTesting = false;
 
   final SupabaseClient _client;
 
@@ -163,102 +141,24 @@ class ShareRepo {
     }
   }
 
-  static List<_InboxUnreadTracker> _claimStaleUnreadTrackers(
-    SupabaseClient client,
-    String? activePrincipalId,
-  ) {
-    final normalizedPrincipalId = activePrincipalId?.trim();
-    final activeId =
-        normalizedPrincipalId == null || normalizedPrincipalId.isEmpty
-        ? null
-        : normalizedPrincipalId;
-    final staleKeys = _unreadTrackers.keys
-        .where(
-          (key) => identical(key.client, client) && key.principalId != activeId,
-        )
-        .toList(growable: false);
-    final claimed = <_InboxUnreadTracker>[];
-    for (final key in staleKeys) {
-      final tracker = _unreadTrackers.remove(key);
-      if (tracker != null) claimed.add(tracker);
-    }
-    return claimed;
-  }
-
-  static Future<void> _enqueueUnreadTrackerCleanup(
-    SupabaseClient client,
-    List<_InboxUnreadTracker> claimed,
-  ) {
-    final pending = _unreadPrincipalCleanupByClient[client];
-    if (claimed.isEmpty) return pending ?? Future<void>.value();
-
-    final completer = Completer<void>();
-    final operation = completer.future;
-    _unreadPrincipalCleanupByClient[client] = operation;
-    unawaited(() async {
-      try {
-        if (pending != null) await pending;
-        await Future.wait(claimed.map((tracker) => tracker.dispose()));
-        completer.complete();
-      } catch (error, stackTrace) {
-        completer.completeError(error, stackTrace);
-      } finally {
-        if (identical(_unreadPrincipalCleanupByClient[client], operation)) {
-          _unreadPrincipalCleanupByClient.remove(client);
-        }
-      }
-    }());
-    return operation;
-  }
-
-  /// Reconciles principal-scoped unread work with the current auth owner.
-  ///
-  /// Stale trackers are claimed synchronously before any disposal is awaited,
-  /// so concurrent or repeated auth events cannot dispose the same tracker
-  /// twice. Passing `null` disposes every tracker owned by [client].
-  static Future<void> synchronizeUnreadTrackerPrincipal({
-    required SupabaseClient client,
-    required String? activePrincipalId,
-  }) {
-    final claimed = _claimStaleUnreadTrackers(client, activePrincipalId);
-    return _enqueueUnreadTrackerCleanup(client, claimed);
-  }
-
-  static void _defensivelyReconcileUnreadTrackerPrincipal(
-    SupabaseClient client,
-    String? activePrincipalId,
-  ) {
-    unawaited(
-      synchronizeUnreadTrackerPrincipal(
-        client: client,
-        activePrincipalId: activePrincipalId,
-      ).catchError((Object error, StackTrace stackTrace) {
-        if (kDebugMode) {
-          debugPrint(
-            '[ShareRepo] defensive unread tracker cleanup failed: $error',
-          );
-          debugPrint('$stackTrace');
-        }
-      }),
-    );
-  }
-
   _InboxUnreadTracker? _trackerForCurrentUser() {
-    if (debugDisableUnreadTrackingForTesting) return null;
     final uid = _client.auth.currentUser?.id;
-    _defensivelyReconcileUnreadTrackerPrincipal(_client, uid);
+    final staleTrackerIds = _unreadTrackers.keys
+        .where((trackerUid) => trackerUid != uid)
+        .toList(growable: false);
+    for (final trackerUid in staleTrackerIds) {
+      final tracker = _unreadTrackers.remove(trackerUid);
+      if (tracker != null) {
+        unawaited(tracker.dispose());
+      }
+    }
 
     if (uid == null || uid.isEmpty) {
       return null;
     }
 
-    final key = _UnreadTrackerKey(_client, uid);
-    final existing = _unreadTrackers[key];
-    if (existing != null) return existing;
-    if (_unreadPrincipalCleanupByClient.containsKey(_client)) return null;
-
     return _unreadTrackers.putIfAbsent(
-      key,
+      uid,
       () => _InboxUnreadTracker(_client, uid),
     );
   }
@@ -3385,52 +3285,33 @@ class _InboxUnreadTracker {
   RealtimeChannel? _channel;
   StreamSubscription<void>? _seenSub;
   Timer? _refreshDebounce;
-  Future<void>? _refreshFuture;
-  Future<void>? _disposeFuture;
   bool _refreshInFlight = false;
   bool _refreshQueued = false;
-  bool _disposed = false;
   InboxUnreadState _state = const InboxUnreadState();
 
   InboxUnreadState get currentState => _state;
 
   void scheduleRefresh({bool immediate = false}) {
-    if (_disposed) return;
     _refreshDebounce?.cancel();
-    _refreshDebounce = null;
     if (immediate) {
-      _startRefresh();
+      unawaited(_refresh());
       return;
     }
     _refreshDebounce = Timer(const Duration(milliseconds: 120), () {
-      _refreshDebounce = null;
-      _startRefresh();
+      unawaited(_refresh());
     });
   }
 
-  void _startRefresh() {
-    if (_disposed) return;
+  Future<void> _refresh() async {
     if (_refreshInFlight) {
       _refreshQueued = true;
       return;
     }
 
-    final future = _refresh();
-    _refreshFuture = future;
-    unawaited(
-      future.whenComplete(() {
-        if (identical(_refreshFuture, future)) {
-          _refreshFuture = null;
-        }
-      }),
-    );
-  }
-
-  Future<void> _refresh() async {
     _refreshInFlight = true;
     try {
       final nextState = await ShareRepo(_client).getUnreadState();
-      if (!_disposed && nextState != _state) {
+      if (nextState != _state) {
         _state = nextState;
         if (!_changes.isClosed) {
           _changes.add(nextState);
@@ -3443,26 +3324,17 @@ class _InboxUnreadTracker {
       }
     } finally {
       _refreshInFlight = false;
-      if (_refreshQueued && !_disposed) {
+      if (_refreshQueued) {
         _refreshQueued = false;
-        _startRefresh();
+        scheduleRefresh(immediate: true);
       }
     }
   }
 
-  Future<void> dispose() => _disposeFuture ??= _dispose();
-
-  Future<void> _dispose() async {
-    _disposed = true;
-    _refreshQueued = false;
+  Future<void> dispose() async {
     _refreshDebounce?.cancel();
-    _refreshDebounce = null;
     await _seenSub?.cancel();
-    _seenSub = null;
     await _channel?.unsubscribe();
-    _channel = null;
-    final refreshFuture = _refreshFuture;
-    if (refreshFuture != null) await refreshFuture;
     await _changes.close();
   }
 }

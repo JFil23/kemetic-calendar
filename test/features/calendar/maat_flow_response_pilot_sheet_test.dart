@@ -782,10 +782,12 @@ void main() {
     await _enterPilotResponse(
       tester,
       specId: 'closing-release-tonight',
-      text: 'Tonight I release the need to be perfect.',
+      text: 'the unfinished worry and leave it for tomorrow\'s light.',
     );
     expect(
-      find.text('Tonight I release the need to be perfect.'),
+      find.text(
+        'The Closing: I release the unfinished worry and leave it for tomorrow\'s light.',
+      ),
       findsOneWidget,
     );
 
@@ -794,7 +796,9 @@ void main() {
     expect(document.toPlainText(), contains('Closing journal body stays.'));
     expect(
       document.toPlainText(),
-      contains('Tonight I release the need to be perfect.'),
+      contains(
+        'The Closing: I release the unfinished worry and leave it for tomorrow\'s light.',
+      ),
     );
     expect(MaatJournalResponseBlockUtils.extract(document), hasLength(1));
     expect(JournalBadgeUtils.hasBadges(document.toPlainText()), isFalse);
@@ -6284,8 +6288,8 @@ List<_PromptHydrationSmokeCase> _initialPromptHydrationSmokeCases() {
           text: 'the old loop.',
         );
       },
-      expectedBlock: 'Tonight I release the unfinished worry.',
-      updatedBlock: 'Tonight I release the old loop.',
+      expectedBlock: 'The Closing: I release the unfinished worry.',
+      updatedBlock: 'The Closing: I release the old loop.',
       staleText: 'the unfinished worry',
     ),
     _PromptHydrationSmokeCase(

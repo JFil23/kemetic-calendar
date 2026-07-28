@@ -65,23 +65,17 @@ class AppNavigationRestorationController {
     return _policy.classifyRoute(route, source);
   }
 
-  Future<void> recordPrimaryTabSelection(AppSection section) async {
-    await recordPrimaryTabSelectionWithResult(section);
-  }
-
-  Future<AppRestorationMutationResult> recordPrimaryTabSelectionWithResult(
-    AppSection section,
-  ) {
+  Future<void> recordPrimaryTabSelection(AppSection section) {
     return _recordPrimaryRouteFromUserCommand(
       section,
       route: _policy.routeForSection(section),
     );
   }
 
-  Future<AppRestorationMutationResult> _recordPrimaryRouteFromUserCommand(
+  Future<void> _recordPrimaryRouteFromUserCommand(
     AppSection section, {
     required String route,
-  }) {
+  }) async {
     final classification = _policy.classifyRoute(
       route,
       NavigationSource.userPrimaryTab,
@@ -91,26 +85,9 @@ class AppNavigationRestorationController {
         !classification.canRecordPrimarySelection ||
         classification.canonicalRoute == null ||
         classification.section != section) {
-      return Future<AppRestorationMutationResult>.value(
-        const AppRestorationMutationResult(
-          AppRestorationMutationStatus.invalid,
-        ),
-      );
+      return;
     }
-    final restoration = AppRestorationService.instance;
-    if (!restoration.requiresAcknowledgedDurableWrites) {
-      restoration.recordPrimaryTabSelectionCriticalSnapshot(
-        classification.canonicalRoute!,
-        metadata: classification.metadata,
-      );
-    } else {
-      traceRestoration(
-        'critical primary route fast path skipped '
-        'route=${classification.canonicalRoute} '
-        'reason=acknowledged_transaction_required',
-      );
-    }
-    return restoration.saveDurableLaunchRoute(
+    await AppRestorationService.instance.saveDurableLaunchRoute(
       classification.canonicalRoute!,
       metadata: classification.metadata,
     );
@@ -172,41 +149,6 @@ class AppNavigationRestorationController {
     await AppRestorationService.instance.saveDurableLaunchRoute(
       classification.canonicalRoute!,
       metadata: classification.metadata,
-    );
-  }
-
-  Future<LaunchDestination> resolveUtilityFallbackDestination() async {
-    final result = await AppRestorationService.instance.readBestSnapshot();
-    final snapshot = result.snapshot;
-    final activeUserId = result.activeUserId?.trim();
-    if (result.status != AppRestorationReadStatus.restored ||
-        activeUserId == null ||
-        activeUserId.isEmpty ||
-        snapshot == null ||
-        snapshot.userId != activeUserId) {
-      return _decision(
-        route: '/',
-        source: 'utilityFallback',
-        reason: 'no_identity_matching_durable_primary',
-      );
-    }
-
-    final primarySelection = snapshot.primarySelectionMetadata;
-    final primaryRoute = primarySelection?.canonicalRoute?.trim();
-    if (primaryRoute == null ||
-        primaryRoute.isEmpty ||
-        !_policy.isValidPrimarySelection(primarySelection)) {
-      return _decision(
-        route: '/',
-        source: 'utilityFallback',
-        reason: 'no_valid_durable_primary',
-      );
-    }
-
-    return _decision(
-      route: primaryRoute,
-      source: 'utilityFallback',
-      reason: 'identity_matching_durable_primary',
     );
   }
 
