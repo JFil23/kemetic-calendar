@@ -17879,7 +17879,11 @@ class CalendarPageState extends State<CalendarPage>
     return (primary: label, subline: null);
   }
 
-  bool _pruneReminderNotes(String ruleId, {DateTime? fromDate}) {
+  bool _pruneReminderNotes(
+    String ruleId, {
+    DateTime? fromDate,
+    bool preserveDatabaseBacked = false,
+  }) {
     var changed = false;
     final keysToRemove = <String>[];
     _notes.forEach((k, list) {
@@ -17890,6 +17894,9 @@ class CalendarPageState extends State<CalendarPage>
             n.detail?.contains(_kReminderManualOverrideMarker) == true;
         if (isOverride) return false;
         if (!isTarget) return false;
+        if (preserveDatabaseBacked) {
+          if ((n.id ?? '').trim().isNotEmpty) return false;
+        }
         if (fromDate == null) return true;
         final parts = k.split('-');
         if (parts.length != 3) return true;
@@ -18371,7 +18378,13 @@ class CalendarPageState extends State<CalendarPage>
     var changed = false;
     // Clear existing reminder notes
     for (final r in _reminderRules) {
-      changed = _pruneReminderNotes(r.id, fromDate: null) || changed;
+      changed =
+          _pruneReminderNotes(
+            r.id,
+            fromDate: null,
+            preserveDatabaseBacked: true,
+          ) ||
+          changed;
     }
     for (final r in _reminderRules) {
       final occs = _generateReminderOccurrences(r, today, windowEnd);
@@ -34126,6 +34139,11 @@ class CalendarPageState extends State<CalendarPage>
     // Zombie filters are already applied during _loadFromDisk, so we just count.
     final key = _kKey(kYear, kMonth, kDay);
     return (_notes[key] ?? const []).length;
+  }
+
+  @visibleForTesting
+  List<NoteData> notesForDayForTesting(int kYear, int kMonth, int kDay) {
+    return List<NoteData>.unmodifiable(_noteDataForDay(kYear, kMonth, kDay));
   }
 }
 
