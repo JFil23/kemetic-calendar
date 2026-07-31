@@ -260,7 +260,16 @@ def validate_deployment_target(
 ) -> str:
     expected = expected_alias_origin(project=project, branch=branch)
     receipt_origin = exact_origin(str(receipt["site_origin"]))
-    if receipt["environment"] == "staging" and branch == "production":
+    is_dedicated_staging_root = (
+        receipt["environment"] == "staging"
+        and project == "kemet-rc"
+        and branch == "production"
+    )
+    if (
+        receipt["environment"] == "staging"
+        and branch == "production"
+        and not is_dedicated_staging_root
+    ):
         raise ServedVerificationError(
             "A staging artifact cannot target a production Pages branch."
         )

@@ -347,6 +347,19 @@ class ServedArtifactVerifierTest(unittest.TestCase):
                 branch="production",
             )
 
+    def test_staging_can_target_dedicated_rc_project_root(self) -> None:
+        receipt = copy.deepcopy(self.receipt)
+        receipt["site_origin"] = "https://kemet-rc.pages.dev"
+        self.assertEqual(
+            verifier.validate_deployment_target(
+                receipt=receipt,
+                project="kemet-rc",
+                branch="production",
+                alias_url="https://kemet-rc.pages.dev",
+            ),
+            "https://kemet-rc.pages.dev",
+        )
+
     def test_immutable_origin_must_belong_to_declared_project(self) -> None:
         self.assertEqual(
             verifier.validate_immutable_project_origin(

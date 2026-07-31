@@ -46,11 +46,13 @@ backend data isolation.
 
 The production site authority is `https://kemet.pages.dev`. The staging site
 authority is the owner-selected stable RC origin
-`https://rc-198d9d4.kemet-autostab-20260714.pages.dev`.
+`https://kemet-rc.pages.dev`.
 
-`rc-198d9d4` is a permanent channel label. It is not a source SHA, artifact
-identity or current build identifier. The runtime `version.json` receipt is the
-authority for actual source, configuration, toolchain and build identity.
+`kemet-rc` is the dedicated staging Pages project. Its root branch may receive
+only sealed staging artifacts whose named `APP_SITE_URL` is exactly that origin;
+the production `kemet` project remains ineligible for staging artifacts. The
+runtime `version.json` receipt is the authority for actual source,
+configuration, toolchain and build identity.
 
 Production retains the `Kemetic Calendar` / `ḥꜣw` installation identity and
 canonical production icons. Staging materializes `Kemet Release Candidate` /
