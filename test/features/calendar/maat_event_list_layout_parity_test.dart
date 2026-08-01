@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
-import 'package:mobile/features/calendar/maat_flow_palette.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 
 void main() {
