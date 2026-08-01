@@ -434,6 +434,13 @@ class BuildOrchestrationTest(unittest.TestCase):
         )
         self.assertIn("--immutable-url", deploy)
         self.assertIn("--alias-url", deploy)
+        self.assertIn('PROJECT="kemet-rc"', deploy)
+        self.assertIn('PROJECT="kemet"', deploy)
+        self.assertEqual(deploy.count('CLOUDFLARE_BRANCH="main"'), 2)
+        self.assertIn("--project-name\n  \"$PROJECT\"\n  --branch\n  \"$CLOUDFLARE_BRANCH\"", deploy)
+        self.assertIn("pages deployment list", deploy)
+        self.assertIn("--environment production", deploy)
+        self.assertIn("--deployment-metadata", deploy)
         self.assertIn("record-upload-attempt", deploy)
         self.assertLess(
             deploy.index("record-upload-attempt"),
@@ -441,6 +448,9 @@ class BuildOrchestrationTest(unittest.TestCase):
         )
         self.assertIn("web-deployment-receipts", deploy)
         self.assertNotIn('SERVED_RECEIPT="$RELEASE_DIR/', deploy)
+        self.assertNotIn("git branch", deploy.lower())
+        self.assertNotIn("symbolic-ref", deploy.lower())
+        self.assertNotIn("TARGET_BRANCH", deploy)
         self.assertNotIn("retry", deploy.lower())
 
     def test_pinned_flutter_copies_materialized_version_after_generation(self) -> None:

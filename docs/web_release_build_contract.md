@@ -44,15 +44,19 @@ The staging and production configs currently use the same public Supabase,
 Firebase and push-client values. Staging is a build/run-mode distinction, not
 backend data isolation.
 
-The production site authority is `https://kemet.pages.dev`. The staging site
-authority is the owner-selected stable RC origin
-`https://kemet-rc.pages.dev`.
+There are exactly two canonical user-facing lanes:
 
-`kemet-rc` is the dedicated staging Pages project. Its root branch may receive
-only sealed staging artifacts whose named `APP_SITE_URL` is exactly that origin;
-the production `kemet` project remains ineligible for staging artifacts. The
-runtime `version.json` receipt is the authority for actual source,
-configuration, toolchain and build identity.
+| Artifact environment | Pages project | Cloudflare production branch | Canonical origin |
+| --- | --- | --- | --- |
+| `staging` | `kemet-rc` | `main` | `https://kemet-rc.pages.dev` |
+| `production` | `kemet` | `main` | `https://kemet.pages.dev` |
+
+The deployment branch is never inferred from Git. A staging artifact cannot
+target a preview branch, branch alias, new Pages project or the production
+project; the same closed mapping applies to production. Cloudflare's immutable
+deployment host is evidence and a rollback identifier only, never a third
+physical-test destination. The runtime `version.json` receipt is the authority
+for actual source, configuration, toolchain and build identity.
 
 Production retains the `Kemetic Calendar` / `ḥꜣw` installation identity and
 canonical production icons. Staging materializes `Kemet Release Candidate` /
@@ -121,20 +125,33 @@ The release directory contains:
 - a deterministic `.tar.gz`;
 - `release-receipt.json`.
 
-The upload helper requires the externally authorized archive SHA-256 and
-validates the requested project/branch against the sealed `site_origin` before
-Wrangler can run. It verifies and extracts the archive, and uploads that exact
-root. It never rebuilds.
-After Wrangler succeeds, the helper must verify both the immutable deployment
-and stable alias against the local payload. Every retrievable body must match
-its manifest hash. `_headers` and `_redirects` are Pages controls. Exactly five
-versioned clean-URL redirects are allowed and must return HTTP 308 to their
-same-origin canonical destinations. Any missing body, stale alias, unexpected
-redirect, origin escape, identity mismatch or classification drift fails
-closed without retry, rebuild, redeploy, promotion or rollback. The Wrangler
-version is fixed, but npm's transitive download integrity is not part of this
-artifact-build proof; network upload remains a separately authorized release
-operation.
+The upload helper requires the externally authorized archive SHA-256 and one
+of the two environment names. It resolves the project, root alias and
+Cloudflare production branch from the closed table above, then explicitly
+invokes Wrangler with `--project-name <project> --branch main`. There is no
+caller-provided project or branch and no Git-branch discovery. It verifies and
+extracts the archive, and uploads that exact root. It never rebuilds.
+
+After Wrangler succeeds, a read-only Cloudflare metadata query must identify
+the new immutable receipt as the latest deployment with environment
+`Production` and source branch `main`. The helper then verifies both that
+receipt and the canonical root alias against the local payload and requires
+the two complete verification matrices to agree. This proves the root alias
+was replaced by the exact uploaded artifact rather than creating a preview.
+
+The served contract partitions the 78-entry payload into 71 directly served
+bodies, five clean-URL redirect-only HTML entries and two Pages controls. All
+71 direct bodies must match their manifest hashes. The six application routes
+must each return the exact `index.html` body, and AASA must return its exact body
+with `application/json` media type. The `/index.html` HTTP 308 behavior remains
+strict. The four known July 1 legal-route self-loops are recorded separately as
+an explicit diagnostic waiver; they never set payload, application routing,
+AASA or identity verification to success. Any new legal result or any missing
+body, stale root alias, preview metadata, unexpected redirect, origin escape,
+identity mismatch or classification drift fails closed without retry, rebuild,
+redeploy, promotion or rollback. The Wrangler version is fixed, but npm's
+transitive download integrity is not part of this artifact-build proof; network
+upload remains a separately authorized release operation.
 
 The exact `_headers` and `_redirects` bodies are hash-bound by the served
 contract. Every tracked `_redirects` rule is parsed as a same-origin HTTP 200
@@ -148,6 +165,10 @@ served-verification logs are preserved in a sibling
 evidence never mutates the sealed release directory.
 Each deployment receipt binds the verifier, deploy helper and served-contract
 hashes used for that attempt.
+
+User-facing status reports name only the two canonical origins. Immutable
+deployment origins may appear only as internal deployment receipts and must
+never be presented as an installation or physical-test link.
 
 ## Evidence interpretation
 

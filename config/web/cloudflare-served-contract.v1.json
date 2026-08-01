@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "pages_controls": [
     "web/_headers",
     "web/_redirects"
@@ -43,6 +43,40 @@
       "status": 308,
       "destination": "/terms",
       "canonical_body_path": "/terms"
+    }
+  ],
+  "application_routes": [
+    "/",
+    "/rhythm/today",
+    "/inbox",
+    "/journal",
+    "/settings",
+    "/profile/me"
+  ],
+  "legal_self_loop_waiver": [
+    {
+      "request_path": "/delete-account",
+      "status": 308,
+      "destination": "/delete-account",
+      "classification": "known_july1_clean_url_self_loop"
+    },
+    {
+      "request_path": "/privacy",
+      "status": 308,
+      "destination": "/privacy",
+      "classification": "known_july1_clean_url_self_loop"
+    },
+    {
+      "request_path": "/support",
+      "status": 308,
+      "destination": "/support",
+      "classification": "known_july1_clean_url_self_loop"
+    },
+    {
+      "request_path": "/terms",
+      "status": 308,
+      "destination": "/terms",
+      "classification": "known_july1_clean_url_self_loop"
     }
   ]
 }
