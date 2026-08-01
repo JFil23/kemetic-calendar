@@ -3988,6 +3988,12 @@ class CalendarPage extends StatefulWidget {
   @visibleForTesting
   static bool debugDisableTodayNavigationRetry = false;
   @visibleForTesting
+  static DateTime? debugReminderSyncTodayForTesting;
+  @visibleForTesting
+  static DateTime? debugReminderSyncWindowEndForTesting;
+  @visibleForTesting
+  static VoidCallback? debugReminderSyncCompletedForTesting;
+  @visibleForTesting
   static Future<void> Function(BuildContext context)?
   debugOpenSharedCalendarsFromAnyContext;
   @visibleForTesting
@@ -17879,7 +17885,11 @@ class CalendarPageState extends State<CalendarPage>
     return (primary: label, subline: null);
   }
 
-  bool _pruneReminderNotes(String ruleId, {DateTime? fromDate}) {
+  bool _pruneReminderNotes(
+    String ruleId, {
+    DateTime? fromDate,
+    bool preserveDatabaseBacked = false,
+  }) {
     var changed = false;
     final keysToRemove = <String>[];
     _notes.forEach((k, list) {
@@ -17890,6 +17900,9 @@ class CalendarPageState extends State<CalendarPage>
             n.detail?.contains(_kReminderManualOverrideMarker) == true;
         if (isOverride) return false;
         if (!isTarget) return false;
+        if (preserveDatabaseBacked) {
+          if ((n.id ?? '').trim().isNotEmpty) return false;
+        }
         if (fromDate == null) return true;
         final parts = k.split('-');
         if (parts.length != 3) return true;
@@ -18033,9 +18046,13 @@ class CalendarPageState extends State<CalendarPage>
     await _loadReminderRules();
     if (_reminderRules.isEmpty) return;
     final repo = UserEventsRepo(Supabase.instance.client);
-    final today = DateUtils.dateOnly(DateTime.now());
+    final today = DateUtils.dateOnly(
+      CalendarPage.debugReminderSyncTodayForTesting ?? DateTime.now(),
+    );
 
-    final windowEnd = _reminderWindowEnd(today, _reminderRules);
+    final windowEnd =
+        CalendarPage.debugReminderSyncWindowEndForTesting ??
+        _reminderWindowEnd(today, _reminderRules);
     var localCacheChanged = false;
     var processedOccurrenceWrites = 0;
     var desiredOccurrenceWrites = 0;
@@ -18120,7 +18137,12 @@ class CalendarPageState extends State<CalendarPage>
       if (updateLocalCache) {
         // Update local cache first so UI reflects immediately even if network fails.
         localCacheChanged =
-            _pruneReminderNotes(rule.id, fromDate: today) || localCacheChanged;
+            _pruneReminderNotes(
+              rule.id,
+              fromDate: today,
+              preserveDatabaseBacked: true,
+            ) ||
+            localCacheChanged;
         localCacheChanged =
             _materializeReminderLocally(
               rule: rule,
@@ -18271,6 +18293,7 @@ class CalendarPageState extends State<CalendarPage>
     } else if (updateLocalCache && localCacheChanged) {
       _refreshNoteCacheUi();
     }
+    CalendarPage.debugReminderSyncCompletedForTesting?.call();
     if (kDebugMode) {
       _calendarDebugPrint(
         '[reminder_sync] completed rules=${_reminderRules.length} desired=$desiredOccurrenceWrites upserted=$completedOccurrenceWrites skippedUnchanged=$skippedUnchangedOccurrenceWrites refreshUi=$refreshUi updateLocalCache=$updateLocalCache',
@@ -18371,7 +18394,13 @@ class CalendarPageState extends State<CalendarPage>
     var changed = false;
     // Clear existing reminder notes
     for (final r in _reminderRules) {
-      changed = _pruneReminderNotes(r.id, fromDate: null) || changed;
+      changed =
+          _pruneReminderNotes(
+            r.id,
+            fromDate: null,
+            preserveDatabaseBacked: true,
+          ) ||
+          changed;
     }
     for (final r in _reminderRules) {
       final occs = _generateReminderOccurrences(r, today, windowEnd);
@@ -34126,6 +34155,11 @@ class CalendarPageState extends State<CalendarPage>
     // Zombie filters are already applied during _loadFromDisk, so we just count.
     final key = _kKey(kYear, kMonth, kDay);
     return (_notes[key] ?? const []).length;
+  }
+
+  @visibleForTesting
+  List<NoteData> notesForDayForTesting(int kYear, int kMonth, int kDay) {
+    return List<NoteData>.unmodifiable(_noteDataForDay(kYear, kMonth, kDay));
   }
 }
 
