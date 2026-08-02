@@ -3,7 +3,7 @@
   "environment": "staging",
   "runtime": {
     "APP_ENV": "staging",
-    "APP_SITE_URL": "https://rc-198d9d4.kemet-autostab-20260714.pages.dev",
+    "APP_SITE_URL": "https://kemet-rc.pages.dev",
     "SUPABASE_URL": "https://vrbubwqapwkxxexkwkgu.supabase.co",
     "SUPABASE_ANON_KEY": "sb_publishable_AeCb9fWhxBcTQJ5-EuTw9g_Y6jwoHmQ",
     "FIREBASE_WEB_API_KEY": "AIzaSyDxi7_OQx76JaPgjBTEF-Rfv2-1EZh0GeY",

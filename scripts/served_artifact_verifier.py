@@ -31,6 +31,21 @@ VERIFICATION_AUTHORITY_PATHS = (
     "scripts/deploy_cloudflare_pages.sh",
     "scripts/served_artifact_verifier.py",
 )
+CANONICAL_LANES = {
+    "staging": {
+        "project": "kemet-rc",
+        "branch": "main",
+        "alias": "https://kemet-rc.pages.dev",
+        "runtime_environment": "staging",
+    },
+    "production": {
+        "project": "kemet",
+        "branch": "main",
+        "alias": "https://kemet.pages.dev",
+        "runtime_environment": "prod",
+    },
+}
+AASA_PATH = "/.well-known/apple-app-site-association"
 
 
 class ServedVerificationError(RuntimeError):
@@ -110,14 +125,18 @@ def load_contract(path: Path) -> dict[str, Any]:
             "pages_controls",
             "pages_control_sha256",
             "redirect_only",
+            "application_routes",
+            "legal_self_loop_waiver",
         ),
         label="served contract",
     )
-    if value["schema_version"] != 1:
+    if value["schema_version"] != 2:
         raise ServedVerificationError("Served contract schema version is unsupported.")
     controls = value["pages_controls"]
     control_hashes = value["pages_control_sha256"]
     redirects = value["redirect_only"]
+    application_routes = value["application_routes"]
+    legal_waivers = value["legal_self_loop_waiver"]
     if (
         not isinstance(controls, list)
         or not controls
@@ -171,6 +190,48 @@ def load_contract(path: Path) -> dict[str, Any]:
         seen_request_paths.add(request_path)
     if set(controls) & seen_manifest_paths:
         raise ServedVerificationError("Pages controls overlap redirect entries.")
+    if (
+        not isinstance(application_routes, list)
+        or len(application_routes) != 6
+        or len(application_routes) != len(set(application_routes))
+        or not all(
+            isinstance(route, str)
+            and route.startswith("/")
+            and not route.startswith("//")
+            for route in application_routes
+        )
+    ):
+        raise ServedVerificationError("Application-route authority is invalid.")
+    if not isinstance(legal_waivers, list) or len(legal_waivers) != 4:
+        raise ServedVerificationError("Legal diagnostic waiver is invalid.")
+    canonical_legal_paths = {
+        item["canonical_body_path"]
+        for item in redirects
+        if item["canonical_body_path"] != "/"
+    }
+    waiver_paths: set[str] = set()
+    for item in legal_waivers:
+        if not isinstance(item, Mapping):
+            raise ServedVerificationError("Legal waiver entry must be an object.")
+        release.require_exact_keys(
+            item,
+            ("request_path", "status", "destination", "classification"),
+            label="legal waiver entry",
+        )
+        request_path = item["request_path"]
+        if (
+            not isinstance(request_path, str)
+            or request_path in waiver_paths
+            or item["status"] != 308
+            or item["destination"] != request_path
+            or item["classification"] != "known_july1_clean_url_self_loop"
+        ):
+            raise ServedVerificationError("Legal waiver entry is invalid.")
+        waiver_paths.add(request_path)
+    if waiver_paths != canonical_legal_paths:
+        raise ServedVerificationError(
+            "Legal waiver paths do not match the four clean legal routes."
+        )
     return dict(value)
 
 
@@ -241,16 +302,6 @@ def validate_pages_controls(
     }
 
 
-def expected_alias_origin(*, project: str, branch: str) -> str:
-    if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", project):
-        raise ServedVerificationError("Cloudflare project name is invalid.")
-    if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", branch):
-        raise ServedVerificationError("Cloudflare preview branch is invalid.")
-    if branch == "production":
-        return f"https://{project}.pages.dev"
-    return f"https://{branch}.{project}.pages.dev"
-
-
 def validate_deployment_target(
     *,
     receipt: Mapping[str, Any],
@@ -258,16 +309,19 @@ def validate_deployment_target(
     branch: str,
     alias_url: str | None = None,
 ) -> str:
-    expected = expected_alias_origin(project=project, branch=branch)
+    environment = receipt.get("environment")
+    lane = CANONICAL_LANES.get(str(environment))
+    if lane is None:
+        raise ServedVerificationError(
+            f"Artifact environment is not a canonical release lane: {environment!r}"
+        )
+    expected = str(lane["alias"])
+    if project != lane["project"] or branch != lane["branch"]:
+        raise ServedVerificationError(
+            "Cloudflare target is outside the permanent two-lane model: "
+            f"environment={environment} project={project} branch={branch}"
+        )
     receipt_origin = exact_origin(str(receipt["site_origin"]))
-    if receipt["environment"] == "staging" and branch == "production":
-        raise ServedVerificationError(
-            "A staging artifact cannot target a production Pages branch."
-        )
-    if receipt["environment"] == "production" and branch != "production":
-        raise ServedVerificationError(
-            "A production artifact cannot target a preview Pages branch."
-        )
     if receipt_origin != expected:
         raise ServedVerificationError(
             "Cloudflare target does not match the sealed artifact origin: "
@@ -301,6 +355,68 @@ def validate_immutable_project_origin(
             f"{immutable_origin}"
         )
     return immutable_origin
+
+
+def validate_cloudflare_deployment_metadata(
+    *,
+    metadata_path: Path,
+    immutable_url: str,
+    receipt: Mapping[str, Any],
+    project: str,
+    branch: str,
+) -> dict[str, Any]:
+    if not metadata_path.is_file():
+        raise ServedVerificationError("Cloudflare deployment metadata is missing.")
+    value = release.load_json(metadata_path)
+    if not isinstance(value, list) or not value:
+        raise ServedVerificationError(
+            "Cloudflare production deployment metadata is invalid."
+        )
+    immutable_origin = validate_immutable_project_origin(
+        immutable_url=immutable_url,
+        project=project,
+        alias_url=validate_deployment_target(
+            receipt=receipt,
+            project=project,
+            branch=branch,
+        ),
+    )
+    if not all(isinstance(row, Mapping) for row in value):
+        raise ServedVerificationError(
+            "Cloudflare production deployment metadata contains an invalid row."
+        )
+    rows = list(value)
+    matching = [
+        row
+        for row in rows
+        if row.get("Deployment") == immutable_origin
+    ]
+    if len(matching) != 1 or rows[0].get("Deployment") != immutable_origin:
+        raise ServedVerificationError(
+            "Uploaded deployment is not the latest production deployment."
+        )
+    row = matching[0]
+    if row.get("Environment") != "Production" or row.get("Branch") != "main":
+        raise ServedVerificationError(
+            "Cloudflare classified the upload outside production/main: "
+            f"environment={row.get('Environment')!r} branch={row.get('Branch')!r}"
+        )
+    deployment_id = row.get("Id")
+    if not isinstance(deployment_id, str) or not re.fullmatch(
+        r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}",
+        deployment_id,
+    ):
+        raise ServedVerificationError("Cloudflare deployment ID is invalid.")
+    return {
+        "deployment_id": deployment_id,
+        "environment": "production",
+        "branch": "main",
+        "immutable_url": immutable_origin,
+        "stable_alias": str(
+            CANONICAL_LANES[str(receipt["environment"])]["alias"]
+        ),
+        "metadata_sha256": release.sha256_file(metadata_path),
+    }
 
 
 def verification_authority() -> dict[str, str]:
@@ -366,6 +482,14 @@ def _require_body(
         raise ServedVerificationError(
             f"Expected body status 200 for {url}; received {response.status}."
         )
+    if response.headers.get("location"):
+        raise ServedVerificationError(
+            f"Direct body unexpectedly redirects: {url}"
+        )
+    if response.url != url:
+        raise ServedVerificationError(
+            f"Direct body changed request URL: {url} -> {response.url}"
+        )
     actual = hashlib.sha256(response.body).hexdigest()
     if actual != expected_sha256:
         raise ServedVerificationError(
@@ -383,17 +507,18 @@ def _require_body(
 def _require_redirect(
     *,
     origin: str,
-    rule: Mapping[str, Any],
-    expected_sha256: str,
+    request_path: str,
+    status: int,
+    destination: str,
     fetcher: Fetcher,
     cache: dict[str, HttpResult],
 ) -> dict[str, Any]:
-    request_url = origin + rule["request_path"]
+    request_url = origin + request_path
     response = cache.setdefault(request_url, fetcher(request_url))
-    if response.status != rule["status"]:
+    if response.status != status:
         raise ServedVerificationError(
             f"Redirect status mismatch for {request_url}: "
-            f"expected={rule['status']} actual={response.status}"
+            f"expected={status} actual={response.status}"
         )
     location = response.headers.get("location")
     if not location:
@@ -406,7 +531,7 @@ def _require_redirect(
             f"Redirect escapes the expected origin: {request_url} -> {resolved}"
         )
     if (
-        parsed.path != rule["destination"]
+        parsed.path != destination
         or parsed.params
         or parsed.query
         or parsed.fragment
@@ -414,18 +539,11 @@ def _require_redirect(
         raise ServedVerificationError(
             f"Redirect destination mismatch for {request_url}: {location!r}"
         )
-    canonical = _require_body(
-        origin=origin,
-        request_path=rule["canonical_body_path"],
-        expected_sha256=expected_sha256,
-        fetcher=fetcher,
-        cache=cache,
-    )
     return {
-        "request_path": rule["request_path"],
+        "request_path": request_path,
         "status": response.status,
-        "destination": rule["destination"],
-        "canonical_body": canonical,
+        "destination": destination,
+        "body_sha256": hashlib.sha256(response.body).hexdigest(),
     }
 
 
@@ -458,42 +576,56 @@ def verify_served_origin(
 ) -> dict[str, Any]:
     origin = exact_origin(origin, allow_local_http=allow_local_http)
     classification = classify_manifest(manifest, contract)
-    redirect_manifest_paths = {
-        item["manifest_path"] for item in contract["redirect_only"]
+    counts = {
+        "direct_bodies": len(classification["body_paths"]),
+        "redirect_only": len(classification["redirect_only"]),
+        "pages_controls": len(classification["pages_controls"]),
+        "total": len(manifest),
     }
+    if counts != {
+        "direct_bodies": 71,
+        "redirect_only": 5,
+        "pages_controls": 2,
+        "total": 78,
+    }:
+        raise ServedVerificationError(
+            f"Unexpected served-payload classification: {counts}"
+        )
     cache: dict[str, HttpResult] = {}
     body_results = []
     for manifest_path in classification["body_paths"]:
-        body_results.append(
-            _require_body(
-                origin=origin,
-                request_path=request_path_for_manifest_path(manifest_path),
-                expected_sha256=manifest[manifest_path],
-                fetcher=fetcher,
-                cache=cache,
-            )
+        result = _require_body(
+            origin=origin,
+            request_path=request_path_for_manifest_path(manifest_path),
+            expected_sha256=manifest[manifest_path],
+            fetcher=fetcher,
+            cache=cache,
         )
-    redirect_results = []
-    for rule in contract["redirect_only"]:
-        manifest_path = rule["manifest_path"]
-        if manifest_path not in redirect_manifest_paths:
-            raise ServedVerificationError("Redirect classification drifted.")
-        redirect_results.append(
-            _require_redirect(
-                origin=origin,
-                rule=rule,
-                expected_sha256=manifest[manifest_path],
-                fetcher=fetcher,
-                cache=cache,
-            )
-        )
+        result["manifest_path"] = manifest_path
+        body_results.append(result)
 
     version = _decoded_json_body(origin=origin, path="/version.json", cache=cache)
     runtime = _decoded_json_body(origin=origin, path="/env.json", cache=cache)
+    web_manifest = _decoded_json_body(
+        origin=origin,
+        path="/manifest.json",
+        cache=cache,
+    )
+    lane = CANONICAL_LANES.get(str(receipt["environment"]))
+    if lane is None:
+        raise ServedVerificationError("Served artifact has no canonical lane.")
     if version.get("build_id") != receipt["build_id"]:
         raise ServedVerificationError("Served build identity is wrong.")
+    if version.get("build_version") != receipt["build_version"]:
+        raise ServedVerificationError("Served build version is wrong.")
     if version.get("environment") != receipt["environment"]:
         raise ServedVerificationError("Served environment identity is wrong.")
+    if version.get("app_env") != lane["runtime_environment"]:
+        raise ServedVerificationError("Served runtime environment is wrong.")
+    if version.get("source") != receipt["source"]:
+        raise ServedVerificationError("Served source identity is wrong.")
+    if runtime.get("APP_ENV") != lane["runtime_environment"]:
+        raise ServedVerificationError("Served APP_ENV identity is wrong.")
     if runtime.get("APP_SITE_URL") != receipt["site_origin"]:
         raise ServedVerificationError("Served site-origin identity is wrong.")
     if version.get("inputs", {}).get("config_sha256") != receipt["inputs"][
@@ -504,21 +636,123 @@ def verify_served_origin(
         "icon_set_sha256"
     ]:
         raise ServedVerificationError("Served icon identity is wrong.")
+    pwa_identity = receipt.get("pwa_identity")
+    if not isinstance(pwa_identity, Mapping):
+        raise ServedVerificationError("Sealed standalone identity is missing.")
+    for key in ("name", "short_name", "id", "start_url", "scope", "display"):
+        if web_manifest.get(key) != pwa_identity.get(key):
+            raise ServedVerificationError(
+                f"Served standalone identity is wrong for {key}."
+            )
+
+    aasa = cache.get(origin + AASA_PATH)
+    if aasa is None:
+        raise ServedVerificationError(
+            "AASA was not included in direct-body verification."
+        )
+    aasa_content_type = aasa.headers.get("content-type", "").split(";", 1)[0]
+    if aasa_content_type.strip().lower() != "application/json":
+        raise ServedVerificationError(
+            f"AASA Content-Type is not application/json: {aasa_content_type!r}"
+        )
+
+    app_route_results = []
+    index_sha256 = manifest["web/index.html"]
+    for route in contract["application_routes"]:
+        result = _require_body(
+            origin=origin,
+            request_path=route,
+            expected_sha256=index_sha256,
+            fetcher=fetcher,
+            cache=cache,
+        )
+        result["route"] = route
+        app_route_results.append(result)
+
+    redirect_by_canonical = {
+        item["canonical_body_path"]: item for item in contract["redirect_only"]
+    }
+    index_rule = redirect_by_canonical["/"]
+    index_redirect = _require_redirect(
+        origin=origin,
+        request_path=index_rule["request_path"],
+        status=index_rule["status"],
+        destination=index_rule["destination"],
+        fetcher=fetcher,
+        cache=cache,
+    )
+    legal_route_results = []
+    waived_legal_failures = []
+    for waiver in contract["legal_self_loop_waiver"]:
+        canonical_path = waiver["request_path"]
+        html_rule = redirect_by_canonical[canonical_path]
+        html = _require_redirect(
+            origin=origin,
+            request_path=html_rule["request_path"],
+            status=html_rule["status"],
+            destination=html_rule["destination"],
+            fetcher=fetcher,
+            cache=cache,
+        )
+        canonical = _require_redirect(
+            origin=origin,
+            request_path=canonical_path,
+            status=waiver["status"],
+            destination=waiver["destination"],
+            fetcher=fetcher,
+            cache=cache,
+        )
+        trailing_slash = _require_redirect(
+            origin=origin,
+            request_path=canonical_path + "/",
+            status=waiver["status"],
+            destination=waiver["destination"],
+            fetcher=fetcher,
+            cache=cache,
+        )
+        legal_route_results.append(
+            {
+                "path": canonical_path,
+                "html": html,
+                "canonical": canonical,
+                "trailing_slash": trailing_slash,
+            }
+        )
+        waived_legal_failures.append(dict(waiver))
 
     return {
         "origin": origin,
         "build_id": receipt["build_id"],
         "environment": receipt["environment"],
         "classification": classification,
+        "classification_counts": counts,
         "body_results": body_results,
-        "redirect_results": redirect_results,
-        "verified_retrievable_entries": (
-            len(classification["body_paths"])
-            + len(classification["redirect_only"])
-        ),
+        "verified_direct_bodies": len(body_results),
+        "app_route_results": app_route_results,
+        "aasa": {
+            "status": aasa.status,
+            "sha256": hashlib.sha256(aasa.body).hexdigest(),
+            "content_type": aasa_content_type,
+        },
+        "index_redirect": index_redirect,
+        "legal_route_results": legal_route_results,
+        "waived_legal_failures": waived_legal_failures,
+        "verdicts": {
+            "PAYLOAD_VERIFIED": True,
+            "APP_ROUTING_VERIFIED": True,
+            "IDENTITY_VERIFIED": True,
+            "AASA_VERIFIED": True,
+            "LEGAL_ROUTING_VERIFIED": False,
+        },
         "pages_controls": classification["pages_controls"],
         "unaccounted_entries": [],
     }
+
+
+def comparable_origin_verification(value: Mapping[str, Any]) -> dict[str, Any]:
+    result = dict(value)
+    result.pop("origin", None)
+    return result
 
 
 def verify_deployment(
@@ -531,6 +765,7 @@ def verify_deployment(
     branch: str,
     wrangler_version: str,
     upload_result_path: Path,
+    deployment_metadata_path: Path,
     contract_path: Path,
     fetcher: Fetcher = fetch_once,
 ) -> dict[str, Any]:
@@ -559,6 +794,13 @@ def verify_deployment(
     )
     if immutable_origin == expected_alias:
         raise ServedVerificationError("Immutable and alias origins must be distinct.")
+    cloudflare_metadata = validate_cloudflare_deployment_metadata(
+        metadata_path=deployment_metadata_path,
+        immutable_url=immutable_origin,
+        receipt=receipt,
+        project=project,
+        branch=branch,
+    )
     payload = receipt["payload"]
     manifest = release.parse_manifest(release_dir / payload["manifest_file"])
     contract = load_contract(contract_path)
@@ -581,6 +823,12 @@ def verify_deployment(
         receipt=receipt,
         fetcher=fetcher,
     )
+    if comparable_origin_verification(immutable) != comparable_origin_verification(
+        alias
+    ):
+        raise ServedVerificationError(
+            "Immutable and root-origin verification matrices differ."
+        )
     return {
         "schema_version": 1,
         "archive_sha256": payload["archive_sha256"],
@@ -594,11 +842,13 @@ def verify_deployment(
         "pages_control_validation": control_validation,
         "cloudflare": {
             "project": project,
-            "preview_branch": branch,
+            "branch": branch,
+            "environment": "production",
             "immutable_url": immutable_origin,
             "stable_alias": alias_origin,
             "wrangler_version": wrangler_version,
             "upload_result_sha256": release.sha256_file(upload_result_path),
+            "deployment_metadata": cloudflare_metadata,
         },
         "immutable_verification": immutable,
         "alias_verification": alias,
@@ -626,6 +876,8 @@ class _LocalPagesHandler(http.server.BaseHTTPRequestHandler):
             return
         body = (self.server.web_root / manifest_path.removeprefix("web/")).read_bytes()
         self.send_response(200)
+        if request_path == AASA_PATH:
+            self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -657,8 +909,11 @@ def verify_local_release(
     redirects = {
         item["request_path"]: item for item in contract["redirect_only"]
     }
-    for item in contract["redirect_only"]:
-        bodies[item["canonical_body_path"]] = item["manifest_path"]
+    for route in contract["application_routes"]:
+        bodies[route] = "web/index.html"
+    for waiver in contract["legal_self_loop_waiver"]:
+        redirects[waiver["request_path"]] = waiver
+        redirects[waiver["request_path"] + "/"] = waiver
 
     server = http.server.ThreadingHTTPServer(
         ("127.0.0.1", 0),
@@ -796,6 +1051,7 @@ def command_verify(arguments: argparse.Namespace) -> None:
         branch=arguments.branch,
         wrangler_version=arguments.wrangler_version,
         upload_result_path=arguments.upload_result,
+        deployment_metadata_path=arguments.deployment_metadata,
         contract_path=arguments.contract,
     )
     release.write_once_or_identical(
@@ -869,6 +1125,7 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("--branch", required=True)
     verify.add_argument("--wrangler-version", required=True)
     verify.add_argument("--upload-result", type=Path, required=True)
+    verify.add_argument("--deployment-metadata", type=Path, required=True)
     verify.add_argument("--receipt", type=Path, required=True)
     verify.add_argument(
         "--contract",

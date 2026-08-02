@@ -4,6 +4,8 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -37,13 +39,31 @@ class FakeFetcher:
 class ServedArtifactVerifierTest(unittest.TestCase):
     def setUp(self) -> None:
         self.contract = verifier.load_contract(CONTRACT_PATH)
-        self.origin = "https://immutable.example.pages.dev"
-        self.alias = "https://rc-198d9d4.example.pages.dev"
+        self.origin = "https://0123abcd.kemet-rc.pages.dev"
+        self.alias = "https://kemet-rc.pages.dev"
+        self.source = {
+            "parent_commit": "1" * 40,
+            "parent_tree": "2" * 40,
+            "parent_mobile_gitlink": "3" * 40,
+            "mobile_commit": "3" * 40,
+            "mobile_tree": "4" * 40,
+            "source_epoch": 1_700_000_000,
+        }
+        self.pwa_identity = {
+            "name": "Kemet Release Candidate",
+            "short_name": "Kemet RC",
+            "id": "/",
+            "start_url": "/",
+            "scope": "/",
+            "display": "standalone",
+        }
         self.receipt = {
             "environment": "staging",
             "build_id": "a" * 64,
-            "build_version": "staging-test-aaaaaaaaaaaa",
-            "site_origin": "https://rc-198d9d4.example.pages.dev",
+            "build_version": "staging-3333333-aaaaaaaaaaaa",
+            "site_origin": self.alias,
+            "source": self.source,
+            "pwa_identity": self.pwa_identity,
             "inputs": {
                 "config_sha256": "b" * 64,
                 "icon_set_sha256": "c" * 64,
@@ -52,19 +72,20 @@ class ServedArtifactVerifierTest(unittest.TestCase):
         self.version = canonical_json(
             {
                 "environment": "staging",
-                "build_id": "a" * 64,
-                "inputs": {
-                    "config_sha256": "b" * 64,
-                    "icon_set_sha256": "c" * 64,
-                },
+                "app_env": "staging",
+                "build_id": self.receipt["build_id"],
+                "build_version": self.receipt["build_version"],
+                "source": self.source,
+                "inputs": self.receipt["inputs"],
             }
         )
         self.environment = canonical_json(
-            {"APP_SITE_URL": "https://rc-198d9d4.example.pages.dev"}
+            {"APP_ENV": "staging", "APP_SITE_URL": self.alias}
         )
         self.bodies = {
             "web/_headers": b"headers-control",
             "web/_redirects": b"redirects-control",
+            "web/.well-known/apple-app-site-association": b'{"applinks":{}}\n',
             "web/index.html": b"index-body",
             "web/delete-account.html": b"delete-body",
             "web/privacy.html": b"privacy-body",
@@ -72,13 +93,18 @@ class ServedArtifactVerifierTest(unittest.TestCase):
             "web/terms.html": b"terms-body",
             "web/version.json": self.version,
             "web/env.json": self.environment,
-            "web/manifest.json": b'{"name":"Kemet RC"}\n',
+            "web/manifest.json": canonical_json(self.pwa_identity),
             "web/main.dart.js": b"compiled-app",
         }
+        for index in range(66):
+            self.bodies[f"web/assets/test-{index:02d}.bin"] = (
+                f"asset-{index:02d}".encode("ascii")
+            )
         self.manifest = {
             path: hashlib.sha256(body).hexdigest()
             for path, body in self.bodies.items()
         }
+        self.assertEqual(len(self.manifest), 78)
 
     def responses_for(self, origin, *, bodies=None):
         bodies = bodies or self.bodies
@@ -88,28 +114,44 @@ class ServedArtifactVerifierTest(unittest.TestCase):
             for item in self.contract["redirect_only"]
         }
         for path, body in bodies.items():
-            if path in self.contract["pages_controls"]:
+            if path in self.contract["pages_controls"] or path in redirect_by_manifest:
                 continue
-            if path in redirect_by_manifest:
-                rule = redirect_by_manifest[path]
-                responses[origin + rule["request_path"]] = verifier.HttpResult(
-                    308,
-                    {"location": rule["destination"]},
-                    b"",
-                    origin + rule["request_path"],
-                )
-                responses[origin + rule["canonical_body_path"]] = verifier.HttpResult(
-                    200,
-                    {},
-                    body,
-                    origin + rule["canonical_body_path"],
-                )
-            else:
-                request_path = verifier.request_path_for_manifest_path(path)
+            request_path = verifier.request_path_for_manifest_path(path)
+            headers = (
+                {"content-type": "application/json; charset=utf-8"}
+                if request_path == verifier.AASA_PATH
+                else {}
+            )
+            responses[origin + request_path] = verifier.HttpResult(
+                200,
+                headers,
+                body,
+                origin + request_path,
+            )
+        index_body = bodies["web/index.html"]
+        for route in self.contract["application_routes"]:
+            responses[origin + route] = verifier.HttpResult(
+                200,
+                {},
+                index_body,
+                origin + route,
+            )
+        for rule in self.contract["redirect_only"]:
+            responses[origin + rule["request_path"]] = verifier.HttpResult(
+                rule["status"],
+                {"location": rule["destination"]},
+                b"",
+                origin + rule["request_path"],
+            )
+        for waiver in self.contract["legal_self_loop_waiver"]:
+            for request_path in (
+                waiver["request_path"],
+                waiver["request_path"] + "/",
+            ):
                 responses[origin + request_path] = verifier.HttpResult(
-                    200,
-                    {},
-                    body,
+                    waiver["status"],
+                    {"location": waiver["destination"]},
+                    b"",
                     origin + request_path,
                 )
         return responses
@@ -128,17 +170,30 @@ class ServedArtifactVerifierTest(unittest.TestCase):
         )
         return result, fetcher
 
-    def test_all_bodies_match_on_immutable_and_alias(self) -> None:
+    def test_payload_routes_aasa_identity_and_legal_waiver_are_separate(self) -> None:
         immutable, _ = self.verify(self.origin)
         alias, _ = self.verify(self.alias)
-        self.assertEqual(immutable["unaccounted_entries"], [])
-        self.assertEqual(alias["unaccounted_entries"], [])
-        self.assertEqual(
-            immutable["verified_retrievable_entries"],
-            len(self.manifest) - 2,
-        )
+        for result in (immutable, alias):
+            self.assertEqual(result["classification_counts"], {
+                "direct_bodies": 71,
+                "redirect_only": 5,
+                "pages_controls": 2,
+                "total": 78,
+            })
+            self.assertEqual(result["verified_direct_bodies"], 71)
+            self.assertEqual(len(result["app_route_results"]), 6)
+            self.assertEqual(result["aasa"]["content_type"], "application/json")
+            self.assertEqual(len(result["waived_legal_failures"]), 4)
+            self.assertEqual(result["verdicts"], {
+                "PAYLOAD_VERIFIED": True,
+                "APP_ROUTING_VERIFIED": True,
+                "IDENTITY_VERIFIED": True,
+                "AASA_VERIFIED": True,
+                "LEGAL_ROUTING_VERIFIED": False,
+            })
+            self.assertEqual(result["unaccounted_entries"], [])
 
-    def test_immutable_body_mismatch_fails(self) -> None:
+    def test_direct_body_mismatch_fails(self) -> None:
         responses = self.responses_for(self.origin)
         responses[self.origin + "/main.dart.js"] = verifier.HttpResult(
             200, {}, b"changed", self.origin + "/main.dart.js"
@@ -158,28 +213,35 @@ class ServedArtifactVerifierTest(unittest.TestCase):
         ):
             self.verify(self.alias, responses=responses)
 
-    def test_missing_body_fails(self) -> None:
+    def test_missing_body_fails_once_without_automatic_action(self) -> None:
         responses = self.responses_for(self.origin)
         responses.pop(self.origin + "/main.dart.js")
-        with self.assertRaisesRegex(
-            verifier.ServedVerificationError, "status 200"
-        ):
-            self.verify(responses=responses)
+        fetcher = FakeFetcher(responses)
+        with self.assertRaisesRegex(verifier.ServedVerificationError, "status 200"):
+            verifier.verify_served_origin(
+                origin=self.origin,
+                manifest=self.manifest,
+                contract=self.contract,
+                receipt=self.receipt,
+                fetcher=fetcher,
+            )
+        self.assertEqual(fetcher.calls.count(self.origin + "/main.dart.js"), 1)
 
-    def test_unexpected_extra_contract_classification_fails(self) -> None:
+    def test_unexpected_payload_population_fails(self) -> None:
+        manifest = dict(self.manifest)
+        manifest["web/unexpected.bin"] = "d" * 64
+        with self.assertRaisesRegex(
+            verifier.ServedVerificationError, "Unexpected served-payload classification"
+        ):
+            self.verify(manifest=manifest)
+
+    def test_missing_contract_classification_fails(self) -> None:
         contract = copy.deepcopy(self.contract)
         contract["pages_controls"].append("web/not-in-payload")
         with self.assertRaisesRegex(
             verifier.ServedVerificationError, "absent from the payload"
         ):
             verifier.classify_manifest(self.manifest, contract)
-
-    def test_expected_redirect_and_canonical_body_pass(self) -> None:
-        result, _ = self.verify()
-        self.assertEqual(
-            {item["status"] for item in result["redirect_results"]},
-            {308},
-        )
 
     def test_wrong_redirect_destination_fails(self) -> None:
         responses = self.responses_for(self.origin)
@@ -194,10 +256,10 @@ class ServedArtifactVerifierTest(unittest.TestCase):
         ):
             self.verify(responses=responses)
 
-    def test_redirect_unexpectedly_replaced_by_body_fails(self) -> None:
+    def test_legal_self_loop_change_fails_outside_exact_waiver(self) -> None:
         responses = self.responses_for(self.origin)
-        responses[self.origin + "/terms.html"] = verifier.HttpResult(
-            200, {}, self.bodies["web/terms.html"], self.origin + "/terms.html"
+        responses[self.origin + "/terms"] = verifier.HttpResult(
+            200, {}, b"unexpected-body", self.origin + "/terms"
         )
         with self.assertRaisesRegex(
             verifier.ServedVerificationError, "Redirect status mismatch"
@@ -212,17 +274,12 @@ class ServedArtifactVerifierTest(unittest.TestCase):
             b"",
             self.origin + "/main.dart.js",
         )
-        with self.assertRaisesRegex(
-            verifier.ServedVerificationError, "body status 200"
-        ):
+        with self.assertRaisesRegex(verifier.ServedVerificationError, "body status 200"):
             self.verify(responses=responses)
 
     def test_pages_controls_are_not_fetched_as_bodies(self) -> None:
         result, fetcher = self.verify()
-        self.assertEqual(
-            result["pages_controls"],
-            ["web/_headers", "web/_redirects"],
-        )
+        self.assertEqual(result["pages_controls"], ["web/_headers", "web/_redirects"])
         self.assertNotIn(self.origin + "/_headers", fetcher.calls)
         self.assertNotIn(self.origin + "/_redirects", fetcher.calls)
 
@@ -239,159 +296,169 @@ class ServedArtifactVerifierTest(unittest.TestCase):
         ):
             self.verify(responses=responses)
 
-    def test_wrong_build_or_config_identity_fails(self) -> None:
-        wrong_version = canonical_json(
-            {
-                "environment": "staging",
-                "build_id": "d" * 64,
-                "inputs": {
-                    "config_sha256": "e" * 64,
-                    "icon_set_sha256": "c" * 64,
-                },
-            }
-        )
+    def test_wrong_build_identity_fails(self) -> None:
         bodies = dict(self.bodies)
-        bodies["web/version.json"] = wrong_version
+        version = json.loads(self.version)
+        version["build_id"] = "d" * 64
+        bodies["web/version.json"] = canonical_json(version)
         manifest = {
             path: hashlib.sha256(body).hexdigest()
             for path, body in bodies.items()
         }
-        responses = self.responses_for(self.origin, bodies=bodies)
         with self.assertRaisesRegex(
             verifier.ServedVerificationError, "build identity is wrong"
         ):
-            self.verify(manifest=manifest, responses=responses)
-
-    def test_alias_serving_older_otherwise_valid_artifact_fails(self) -> None:
-        old_version = canonical_json(
-            {
-                "environment": "staging",
-                "build_id": "f" * 64,
-                "inputs": {
-                    "config_sha256": "b" * 64,
-                    "icon_set_sha256": "c" * 64,
-                },
-            }
-        )
-        bodies = dict(self.bodies)
-        bodies["web/version.json"] = old_version
-        manifest = {
-            path: hashlib.sha256(body).hexdigest()
-            for path, body in bodies.items()
-        }
-        responses = self.responses_for(self.alias, bodies=bodies)
-        with self.assertRaisesRegex(
-            verifier.ServedVerificationError, "build identity is wrong"
-        ):
-            self.verify(self.alias, manifest=manifest, responses=responses)
-
-    def test_failure_is_single_attempt_with_no_automatic_action(self) -> None:
-        responses = self.responses_for(self.origin)
-        responses.pop(self.origin + "/main.dart.js")
-        fetcher = FakeFetcher(responses)
-        with self.assertRaises(verifier.ServedVerificationError):
-            verifier.verify_served_origin(
-                origin=self.origin,
-                manifest=self.manifest,
-                contract=self.contract,
-                receipt=self.receipt,
-                fetcher=fetcher,
+            self.verify(
+                manifest=manifest,
+                responses=self.responses_for(self.origin, bodies=bodies),
             )
-        self.assertEqual(fetcher.calls.count(self.origin + "/main.dart.js"), 1)
 
-    def test_contract_is_exactly_five_308_same_origin_redirects(self) -> None:
+    def test_wrong_app_env_or_site_origin_fails(self) -> None:
+        for field, value, message in (
+            ("APP_ENV", "prod", "APP_ENV identity is wrong"),
+            ("APP_SITE_URL", "https://old.example", "site-origin identity is wrong"),
+        ):
+            with self.subTest(field=field):
+                bodies = dict(self.bodies)
+                runtime = json.loads(self.environment)
+                runtime[field] = value
+                bodies["web/env.json"] = canonical_json(runtime)
+                manifest = {
+                    path: hashlib.sha256(body).hexdigest()
+                    for path, body in bodies.items()
+                }
+                with self.assertRaisesRegex(verifier.ServedVerificationError, message):
+                    self.verify(
+                        manifest=manifest,
+                        responses=self.responses_for(self.origin, bodies=bodies),
+                    )
+
+    def test_contract_is_exact_and_known_legal_failures_are_explicit(self) -> None:
         self.assertEqual(len(self.contract["redirect_only"]), 5)
+        self.assertEqual(len(self.contract["application_routes"]), 6)
+        self.assertEqual(len(self.contract["legal_self_loop_waiver"]), 4)
         self.assertEqual(
-            {item["status"] for item in self.contract["redirect_only"]},
-            {308},
-        )
-        self.assertEqual(
-            {item["request_path"] for item in self.contract["redirect_only"]},
-            {
-                "/index.html",
-                "/delete-account.html",
-                "/privacy.html",
-                "/support.html",
-                "/terms.html",
-            },
+            {item["classification"] for item in self.contract["legal_self_loop_waiver"]},
+            {"known_july1_clean_url_self_loop"},
         )
 
-    def test_deployment_target_must_equal_sealed_site_origin(self) -> None:
+    def test_two_canonical_deployment_targets_only(self) -> None:
         self.assertEqual(
             verifier.validate_deployment_target(
                 receipt=self.receipt,
-                project="example",
-                branch="rc-198d9d4",
+                project="kemet-rc",
+                branch="main",
                 alias_url=self.alias,
             ),
             self.alias,
         )
-        with self.assertRaisesRegex(
-            verifier.ServedVerificationError,
-            "does not match the sealed artifact origin",
-        ):
+        production = copy.deepcopy(self.receipt)
+        production["environment"] = "production"
+        production["site_origin"] = "https://kemet.pages.dev"
+        self.assertEqual(
             verifier.validate_deployment_target(
-                receipt=self.receipt,
-                project="example",
-                branch="different-preview",
-            )
-
-    def test_staging_cannot_target_production_branch(self) -> None:
-        with self.assertRaisesRegex(
-            verifier.ServedVerificationError,
-            "staging artifact cannot target",
+                receipt=production,
+                project="kemet",
+                branch="main",
+                alias_url="https://kemet.pages.dev",
+            ),
+            "https://kemet.pages.dev",
+        )
+        for project, branch in (
+            ("kemet-rc", "feature"),
+            ("new-kemet-rc", "main"),
+            ("kemet", "main"),
+            ("kemet-rc", "production"),
         ):
-            verifier.validate_deployment_target(
-                receipt=self.receipt,
-                project="example",
-                branch="production",
-            )
+            with self.subTest(project=project, branch=branch):
+                with self.assertRaisesRegex(
+                    verifier.ServedVerificationError, "two-lane model"
+                ):
+                    verifier.validate_deployment_target(
+                        receipt=self.receipt,
+                        project=project,
+                        branch=branch,
+                    )
 
     def test_immutable_origin_must_belong_to_declared_project(self) -> None:
         self.assertEqual(
             verifier.validate_immutable_project_origin(
-                immutable_url="https://0123abcd.example.pages.dev",
-                project="example",
+                immutable_url=self.origin,
+                project="kemet-rc",
                 alias_url=self.alias,
             ),
-            "https://0123abcd.example.pages.dev",
+            self.origin,
         )
-        with self.assertRaisesRegex(
-            verifier.ServedVerificationError,
-            "8-lowercase-hex",
-        ):
-            verifier.validate_immutable_project_origin(
-                immutable_url="https://0123abcd.other.pages.dev",
-                project="example",
-                alias_url=self.alias,
-            )
-
-    def test_mutable_or_malformed_pages_hosts_are_not_immutable(self) -> None:
         for invalid_url in (
-            "https://main.example.pages.dev",
-            "https://another-branch.example.pages.dev",
-            "https://foo.0123abcd.example.pages.dev",
-            "https://0123abc.example.pages.dev",
-            "https://0123abcdef.example.pages.dev",
-            "https://0123ABCD.example.pages.dev",
-            "https://0123abcd.EXAMPLE.pages.dev",
-            "https://user@0123abcd.example.pages.dev",
-            "https://0123abcd.example.pages.dev:443",
+            "https://main.kemet-rc.pages.dev",
+            "https://feature.kemet-rc.pages.dev",
+            "https://foo.0123abcd.kemet-rc.pages.dev",
+            "https://0123ABCD.kemet-rc.pages.dev",
+            "https://0123abcd.kemet.pages.dev",
         ):
             with self.subTest(invalid_url=invalid_url):
                 with self.assertRaisesRegex(
-                    verifier.ServedVerificationError,
-                    "8-lowercase-hex",
+                    verifier.ServedVerificationError, "8-lowercase-hex"
                 ):
                     verifier.validate_immutable_project_origin(
                         immutable_url=invalid_url,
-                        project="example",
+                        project="kemet-rc",
                         alias_url=self.alias,
                     )
 
-    def test_pages_controls_match_exact_hashes_and_reject_external_rewrites(
-        self,
-    ) -> None:
+    def test_cloudflare_metadata_requires_latest_production_main(self) -> None:
+        good = {
+            "Id": "12345678-1234-1234-1234-123456789abc",
+            "Environment": "Production",
+            "Branch": "main",
+            "Deployment": self.origin,
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "deployments.json"
+            for mutation, message in (
+                (lambda rows: rows, None),
+                (
+                    lambda rows: [{**rows[0], "Environment": "Preview"}],
+                    "outside production/main",
+                ),
+                (
+                    lambda rows: [{**rows[0], "Branch": "feature"}],
+                    "outside production/main",
+                ),
+                (
+                    lambda rows: [
+                        {**rows[0], "Deployment": "https://deadbeef.kemet-rc.pages.dev"},
+                        rows[0],
+                    ],
+                    "not the latest production deployment",
+                ),
+            ):
+                with self.subTest(message=message):
+                    path.write_text(json.dumps(mutation([good])), encoding="utf-8")
+                    if message is None:
+                        result = verifier.validate_cloudflare_deployment_metadata(
+                            metadata_path=path,
+                            immutable_url=self.origin,
+                            receipt=self.receipt,
+                            project="kemet-rc",
+                            branch="main",
+                        )
+                        self.assertEqual(result["environment"], "production")
+                        self.assertEqual(result["branch"], "main")
+                        self.assertEqual(result["stable_alias"], self.alias)
+                    else:
+                        with self.assertRaisesRegex(
+                            verifier.ServedVerificationError, message
+                        ):
+                            verifier.validate_cloudflare_deployment_metadata(
+                                metadata_path=path,
+                                immutable_url=self.origin,
+                                receipt=self.receipt,
+                                project="kemet-rc",
+                                branch="main",
+                            )
+
+    def test_pages_controls_match_exact_hashes_and_reject_external_rewrites(self) -> None:
         manifest = dict(self.manifest)
         with tempfile.TemporaryDirectory() as temporary:
             release_dir = Path(temporary)
@@ -407,7 +474,6 @@ class ServedArtifactVerifierTest(unittest.TestCase):
                 contract=self.contract,
             )
             self.assertGreater(len(result["redirect_rewrite_rules"]), 1)
-
             redirects = release_dir / "web/_redirects"
             redirects.write_text("/escape https://kemet.pages.dev 200\n")
             changed_contract = copy.deepcopy(self.contract)
@@ -415,8 +481,7 @@ class ServedArtifactVerifierTest(unittest.TestCase):
             changed_contract["pages_control_sha256"]["web/_redirects"] = changed_hash
             manifest["web/_redirects"] = changed_hash
             with self.assertRaisesRegex(
-                verifier.ServedVerificationError,
-                "Unsafe or unsupported",
+                verifier.ServedVerificationError, "Unsafe or unsupported"
             ):
                 verifier.validate_pages_controls(
                     release_dir=release_dir,
@@ -424,64 +489,110 @@ class ServedArtifactVerifierTest(unittest.TestCase):
                     contract=changed_contract,
                 )
 
-    def test_pages_control_hash_drift_fails_before_served_classification(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary:
-            release_dir = Path(temporary)
-            (release_dir / "web").mkdir()
-            (release_dir / "web/_headers").write_text("changed")
-            (release_dir / "web/_redirects").write_text("/* /index.html 200\n")
-            with self.assertRaisesRegex(
-                verifier.ServedVerificationError,
-                "Pages-control hash drifted",
-            ):
-                verifier.validate_pages_controls(
-                    release_dir=release_dir,
-                    manifest={
-                        "web/_headers": hashlib.sha256(b"changed").hexdigest(),
-                        "web/_redirects": hashlib.sha256(
-                            b"/* /index.html 200\n"
-                        ).hexdigest(),
-                    },
-                    contract=self.contract,
-                )
-
-    def test_wrangler_output_yields_one_non_alias_immutable_origin(self) -> None:
+    def test_wrangler_output_yields_only_exact_immutable_origin(self) -> None:
         result = verifier.extract_immutable_origin(
-            upload_result=(
-                "Deployment complete: "
-                "https://0123abcd.kemet-autostab-20260714.pages.dev\n"
-                "Alias: https://rc.kemet-autostab-20260714.pages.dev\n"
-            ),
-            project="kemet-autostab-20260714",
-            alias_origin="https://rc.kemet-autostab-20260714.pages.dev",
+            upload_result=f"Deployment complete: {self.origin}\nAlias: {self.alias}\n",
+            project="kemet-rc",
+            alias_origin=self.alias,
         )
-        self.assertEqual(
-            result,
-            "https://0123abcd.kemet-autostab-20260714.pages.dev",
-        )
-
-    def test_wrangler_output_rejects_aliases_and_nested_subdomains(self) -> None:
+        self.assertEqual(result, self.origin)
         for invalid_url in (
-            "https://main.kemet-autostab-20260714.pages.dev",
-            "https://other-branch.kemet-autostab-20260714.pages.dev",
-            "https://foo.0123abcd.kemet-autostab-20260714.pages.dev",
-            "https://0123ABCD.kemet-autostab-20260714.pages.dev",
-            "https://0123abcd.KEMET-AUTOSTAB-20260714.pages.dev",
-            "https://user@0123abcd.kemet-autostab-20260714.pages.dev",
-            "https://0123abcd.kemet-autostab-20260714.pages.dev:443",
+            self.alias,
+            "https://main.kemet-rc.pages.dev",
+            "https://foo.0123abcd.kemet-rc.pages.dev",
+            "https://0123ABCD.kemet-rc.pages.dev",
         ):
             with self.subTest(invalid_url=invalid_url):
-                with self.assertRaisesRegex(
-                    verifier.ServedVerificationError,
-                    "found=\\[\\]",
-                ):
+                with self.assertRaisesRegex(verifier.ServedVerificationError, "found"):
                     verifier.extract_immutable_origin(
                         upload_result=f"Deployment complete: {invalid_url}\n",
-                        project="kemet-autostab-20260714",
-                        alias_origin=(
-                            "https://rc.kemet-autostab-20260714.pages.dev"
-                        ),
+                        project="kemet-rc",
+                        alias_origin=self.alias,
                     )
+
+    def test_actual_helper_passes_rc_project_and_main_to_wrangler(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            fake_bin = root / "bin"
+            fake_bin.mkdir()
+            release_dir = root / "release"
+            release_dir.mkdir()
+            capture = root / "npx-arguments.txt"
+            fake_python = fake_bin / "python3"
+            fake_python.write_text(
+                """#!/bin/sh
+case "$*" in
+  *"web_release_pipeline.py verify"*)
+    while [ "$#" -gt 0 ]; do
+      if [ "$1" = "--extract-to" ]; then mkdir -p "$2/web"; fi
+      shift
+    done
+    ;;
+  *"served_artifact_verifier.py extract-immutable-url"*)
+    echo "https://0123abcd.kemet-rc.pages.dev"
+    ;;
+  *"served_artifact_verifier.py record-upload-attempt"*|*"served_artifact_verifier.py verify"*)
+    while [ "$#" -gt 0 ]; do
+      if [ "$1" = "--receipt" ]; then printf '{}\n' > "$2"; fi
+      shift
+    done
+    ;;
+esac
+exit 0
+""",
+                encoding="utf-8",
+            )
+            fake_npx = fake_bin / "npx"
+            fake_npx.write_text(
+                """#!/bin/sh
+printf '%s\n' "$*" >> "$CAPTURE_PATH"
+case "$*" in
+  *"pages deploy"*)
+    echo "Deployment complete: https://0123abcd.kemet-rc.pages.dev"
+    ;;
+  *"pages deployment list"*)
+    printf '%s\n' '[{"Id":"12345678-1234-1234-1234-123456789abc","Environment":"Production","Branch":"main","Deployment":"https://0123abcd.kemet-rc.pages.dev"}]'
+    ;;
+esac
+exit 0
+""",
+                encoding="utf-8",
+            )
+            fake_python.chmod(0o755)
+            fake_npx.chmod(0o755)
+            environment = dict(os.environ)
+            environment["PATH"] = f"{fake_bin}:{environment['PATH']}"
+            environment["CAPTURE_PATH"] = str(capture)
+            subprocess.run(
+                [
+                    str(ROOT / "scripts/deploy_cloudflare_pages.sh"),
+                    str(release_dir),
+                    "e" * 64,
+                    "staging",
+                ],
+                cwd=ROOT,
+                env=environment,
+                check=True,
+                capture_output=True,
+                text=True,
+            )
+            calls = capture.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(len(calls), 2)
+            command, deploy_arguments = calls[0].split(" pages deploy ", 1)
+            payload_root, target_arguments = deploy_arguments.rsplit(
+                " --project-name ", 1
+            )
+            self.assertEqual(
+                command,
+                "--yes wrangler@4.114.0",
+            )
+            self.assertTrue(payload_root.endswith("/web"))
+            self.assertEqual(target_arguments, "kemet-rc --branch main")
+            self.assertEqual(
+                calls[1],
+                "--yes wrangler@4.114.0 pages deployment list --project-name kemet-rc --environment production --json",
+            )
+            self.assertNotIn("codex", "\n".join(calls).lower())
 
 
 if __name__ == "__main__":

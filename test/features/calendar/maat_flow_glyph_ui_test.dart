@@ -376,7 +376,7 @@ void main() {
     expect(overviewZones, contains('_buildFullDescriptionToggle'));
     expect(startDateRow, contains('onPressed: _pickDate'));
     expect(descriptionToggle, contains('_descriptionExpanded ='));
-    expect(sittingTile, contains('ExpansionTile'));
+    expect(sittingTile, contains('_buildExpandableFlowEventTile'));
   });
 
   test('Ma’at Flow detail uses shared palette and surface contract', () {
@@ -495,10 +495,13 @@ void main() {
     expect(arc, contains('MaatFlowSurface('));
     expect(arc, contains('_MaatFlowArcDivider(palette: palette)'));
     expect(arc, contains('_MaatFlowArcChevron(palette: palette)'));
-    expect(sittingTile, contains('MaatFlowSurface('));
-    expect(sittingTile, contains('MaatFlowPalette.separator'));
-    expect(sittingTile, contains('_buildMaatFlowDetailSections(detailText)'));
-    expect(expandableTile, contains('MaatFlowSurface('));
+    expect(sittingTile, contains('_buildExpandableFlowEventTile'));
+    expect(expandableTile, contains('_MyFlowDayContentCard('));
+    expect(expandableTile, contains('_maatEventCardPalette(accent)'));
+    expect(
+      expandableTile,
+      contains('_buildMaatFlowDetailSections(detailText)'),
+    );
     expect(scaffold, contains('leading: _MaatFlowGlyphTile('));
   });
 }

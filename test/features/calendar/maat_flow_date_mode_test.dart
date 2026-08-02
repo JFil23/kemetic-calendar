@@ -102,7 +102,10 @@ void main() {
     ).readAsStringSync();
 
     expect(source, contains('Widget _buildExpandableFlowEventTile'));
-    expect(source, contains('ExpansionTile'));
+    expect(source, contains('AnimatedSize'));
+    expect(source, contains('_expandedMaatEventKey'));
+    expect(source, contains('_MyFlowDayContentCard'));
+    expect(source, isNot(contains('ExpansionTile')));
     expect(source, isNot(contains('_showFlowEventDetails')));
     expect(source, isNot(contains('DraggableScrollableSheet')));
 
@@ -123,12 +126,6 @@ void main() {
         tile,
         contains(branch.detailFunction),
         reason: '${branch.name} should use its canonical detail text.',
-      );
-      expect(
-        tile,
-        isNot(contains('onTap: ()')),
-        reason:
-            '${branch.name} detail cells should use expansion, not tap handlers.',
       );
     }
   });
