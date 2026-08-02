@@ -1,10 +1,48 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 
 void main() {
-  testWidgets('all 33 Ma’at details use the compact contextual event rows', (
+  test('Ma’at expansion has no automatic scroll or retirement authority', () {
+    final source = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+    final expansionSource = source.substring(
+      source.indexOf('Widget _buildExpandableFlowEventTile'),
+      source.indexOf('_MyFlowCardPalette _maatEventCardPalette'),
+    );
+
+    expect(source, contains('final Set<String> _expandedMaatEventKeys'));
+    expect(
+      expansionSource,
+      contains('_expandedMaatEventKeys.remove(eventKey)'),
+    );
+    expect(expansionSource, contains('_expandedMaatEventKeys.add(eventKey)'));
+    for (final forbidden in <String>[
+      'ensureVisible',
+      'animateTo',
+      'jumpTo(',
+      'correctBy',
+      'ScrollController',
+      'addPostFrameCallback',
+      'Timer(',
+      'Future.delayed',
+      'RenderAbstractViewport',
+    ]) {
+      expect(
+        expansionSource,
+        isNot(contains(forbidden)),
+        reason: 'Ma’at expansion must not use $forbidden',
+      );
+    }
+    expect(source, isNot(contains('_outgoingExpandedMaatEventKey')));
+    expect(source, isNot(contains('_maatEventRetirement')));
+  });
+
+  testWidgets('all 33 Ma’at details use stable multi-expansion state', (
     tester,
   ) async {
     for (final entry in _expectedAccents.entries) {
@@ -50,6 +88,38 @@ void main() {
           reason: '${entry.key} later events should begin collapsed',
         );
       }
+
+      final secondRow = rows.at(1);
+      final secondTap = taps.at(1);
+      final scrollable = find.byType(Scrollable).first;
+      final position = tester.state<ScrollableState>(scrollable).position;
+      await _positionAtViewportBottom(tester, secondRow, scrollable);
+      final beforePixels = position.pixels;
+      final beforeTop = tester.getTopLeft(secondRow).dy;
+
+      await tester.tap(secondTap);
+      await tester.pumpAndSettle();
+
+      expect(
+        _expandedCards(),
+        findsNWidgets(2),
+        reason:
+            '${entry.key} should retain the first event when opening another',
+      );
+      expect(position.pixels, closeTo(beforePixels, 0.01));
+      expect(tester.getTopLeft(secondRow).dy, closeTo(beforeTop, 0.01));
+      expect(
+        find.descendant(of: rows.first, matching: _expandedCards()),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: secondRow, matching: _expandedCards()),
+        findsOneWidget,
+      );
+
+      await tester.tap(secondTap);
+      await tester.pumpAndSettle();
+      expect(_expandedCards(), findsOneWidget);
       expect(tester.takeException(), isNull, reason: entry.key);
     }
   });
@@ -182,57 +252,243 @@ void main() {
     expect(_expandedCards(), findsOneWidget);
   });
 
-  testWidgets('selection, collapse, and automatic reveal remain singular', (
+  testWidgets(
+    'opening events below and above the fold never changes scroll offset',
+    (tester) async {
+      tester.view.physicalSize = const Size(1170, 2532);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await _pumpFlow(tester, 'the-offering-table');
+
+      final rows = _eventRows();
+      final taps = _eventTaps();
+      final firstRow = rows.at(0);
+      final firstTap = taps.at(0);
+      final lowerRow = rows.at(5);
+      final lowerTap = taps.at(5);
+      final scrollable = find.byType(Scrollable).first;
+      final position = tester.state<ScrollableState>(scrollable).position;
+
+      await _positionAtViewportBottom(tester, lowerRow, scrollable);
+      final beforeLowerPixels = position.pixels;
+      final beforeLowerTop = tester.getTopLeft(lowerRow).dy;
+      await tester.tap(lowerTap);
+      await tester.pump();
+      final lowerOpening = await _sampleMotion(
+        tester,
+        position: position,
+        trackedRow: lowerRow,
+      );
+
+      expect(_expandedCards(), findsNWidgets(2));
+      expect(
+        lowerOpening.map((sample) => sample.pixels),
+        everyElement(closeTo(beforeLowerPixels, 0.01)),
+      );
+      expect(
+        lowerOpening.map((sample) => sample.rowTop),
+        everyElement(closeTo(beforeLowerTop, 0.1)),
+      );
+
+      await _reveal(tester, firstRow);
+      final beforeFirstCollapsePixels = position.pixels;
+      final beforeFirstCollapseTop = tester.getTopLeft(firstRow).dy;
+      await tester.tap(firstTap);
+      await tester.pump();
+      final firstCollapse = await _sampleMotion(
+        tester,
+        position: position,
+        trackedRow: firstRow,
+      );
+      expect(_expandedCards(), findsOneWidget);
+      expect(
+        firstCollapse.map((sample) => sample.pixels),
+        everyElement(closeTo(beforeFirstCollapsePixels, 0.01)),
+      );
+      expect(
+        firstCollapse.map((sample) => sample.rowTop),
+        everyElement(closeTo(beforeFirstCollapseTop, 0.1)),
+      );
+
+      final beforeFirstOpenPixels = position.pixels;
+      final beforeFirstOpenTop = tester.getTopLeft(firstRow).dy;
+      await tester.tap(firstTap);
+      await tester.pump();
+      final firstOpening = await _sampleMotion(
+        tester,
+        position: position,
+        trackedRow: firstRow,
+      );
+      expect(_expandedCards(), findsNWidgets(2));
+      expect(
+        firstOpening.map((sample) => sample.pixels),
+        everyElement(closeTo(beforeFirstOpenPixels, 0.01)),
+      );
+      expect(
+        firstOpening.map((sample) => sample.rowTop),
+        everyElement(closeTo(beforeFirstOpenTop, 0.1)),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'rapid multi-expansion persists and manual collapse changes one card',
+    (tester) async {
+      tester.view.physicalSize = const Size(1400, 9000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await _pumpFlow(tester, 'the-offering-table');
+
+      final rows = _eventRows();
+      final taps = _eventTaps();
+      final scrollable = find.byType(Scrollable).first;
+      final position = tester.state<ScrollableState>(scrollable).position;
+
+      for (var index = 1; index <= 3; index++) {
+        await tester.tap(taps.at(index));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      await tester.pumpAndSettle();
+
+      expect(_expandedCards(), findsNWidgets(4));
+      for (var index = 0; index <= 3; index++) {
+        expect(
+          find.descendant(of: rows.at(index), matching: _expandedCards()),
+          findsOneWidget,
+        );
+      }
+
+      final collapsedRow = rows.at(2);
+      final beforePixels = position.pixels;
+      final beforeTop = tester.getTopLeft(collapsedRow).dy;
+      await tester.tap(taps.at(2));
+      await tester.pump();
+      final collapse = await _sampleMotion(
+        tester,
+        position: position,
+        trackedRow: collapsedRow,
+      );
+
+      expect(_expandedCards(), findsNWidgets(3));
+      expect(
+        find.descendant(of: collapsedRow, matching: _expandedCards()),
+        findsNothing,
+      );
+      for (final index in <int>[0, 1, 3]) {
+        expect(
+          find.descendant(of: rows.at(index), matching: _expandedCards()),
+          findsOneWidget,
+        );
+      }
+      expect(
+        collapse.map((sample) => sample.pixels),
+        everyElement(closeTo(beforePixels, 0.01)),
+      );
+      expect(
+        collapse.map((sample) => sample.rowTop),
+        everyElement(closeTo(beforeTop, 0.1)),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('leaving and reopening resets to only the first event', (
     tester,
   ) async {
     await _pumpFlow(tester, 'the-offering-table');
 
-    final firstTap = _eventTaps().at(0);
-    final secondTap = _eventTaps().at(1);
+    for (final index in <int>[1, 2]) {
+      final tap = _eventTaps().at(index);
+      await _reveal(tester, tap);
+      await tester.tap(tap);
+      await tester.pumpAndSettle();
+    }
+    expect(_expandedCards(), findsNWidgets(3));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+    await _pumpFlow(tester, 'the-offering-table');
+
     expect(_expandedCards(), findsOneWidget);
-    expect(find.text('DAY 1'), findsOneWidget);
+    expect(
+      find.descendant(of: _eventRows().first, matching: _expandedCards()),
+      findsOneWidget,
+    );
+    for (final laterRow in _eventRows().evaluate().skip(1)) {
+      expect(
+        find.descendant(
+          of: find.byWidget(laterRow.widget),
+          matching: _expandedCards(),
+        ),
+        findsNothing,
+      );
+    }
+    expect(tester.takeException(), isNull);
+  });
 
-    await _reveal(tester, firstTap);
-    await tester.tap(firstTap);
-    await tester.pumpAndSettle();
-    expect(_expandedCards(), findsNothing);
+  testWidgets('long expanded cards remain reachable above Join Flow', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1170, 2532);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.tap(firstTap);
-    await tester.pumpAndSettle();
-    expect(_expandedCards(), findsOneWidget);
+    await _pumpFlow(tester, 'the-offering-table');
 
-    await _reveal(tester, secondTap);
-    await tester.tap(secondTap);
-    await tester.pumpAndSettle();
-    expect(_expandedCards(), findsOneWidget);
-    expect(find.text('DAY 2'), findsOneWidget);
-
-    await _reveal(tester, secondTap);
-    await tester.tap(secondTap);
-    await tester.pumpAndSettle();
-    expect(_expandedCards(), findsNothing);
-
-    final revealRow = _eventRows().at(5);
-    final revealTap = _eventTaps().at(5);
-    await _reveal(tester, revealRow);
+    final row = _eventRows().at(7);
+    final tap = _eventTaps().at(7);
     final scrollable = find.byType(Scrollable).first;
     final position = tester.state<ScrollableState>(scrollable).position;
-    final viewport = tester.getRect(scrollable);
-    final rowRect = tester.getRect(revealRow);
-    final targetTop = viewport.bottom - rowRect.height - 12;
-    final positionedPixels = (position.pixels + rowRect.top - targetTop).clamp(
-      position.minScrollExtent,
-      position.maxScrollExtent,
-    );
-    position.jumpTo(positionedPixels);
-    await tester.pump();
-    final beforeRevealTop = tester.getTopLeft(revealRow).dy;
+    await _positionAtViewportBottom(tester, row, scrollable);
+    final anchoredTop = tester.getTopLeft(row).dy;
+    final anchoredPixels = position.pixels;
 
-    await tester.tap(revealTap);
-    await tester.pumpAndSettle();
-    final afterRevealTop = tester.getTopLeft(revealRow).dy;
-    expect(afterRevealTop, lessThan(beforeRevealTop - 40));
-    expect(_expandedCards(), findsOneWidget);
+    await tester.tap(tap);
+    await tester.pump();
+    final opening = await _sampleMotion(
+      tester,
+      position: position,
+      trackedRow: row,
+    );
+    expect(_expandedCards(), findsNWidgets(2));
+    expect(
+      opening.map((sample) => sample.pixels),
+      everyElement(closeTo(anchoredPixels, 0.01)),
+    );
+    expect(
+      opening.map((sample) => sample.rowTop),
+      everyElement(closeTo(anchoredTop, 0.1)),
+    );
+
+    final card = find.descendant(of: row, matching: _expandedCards());
+    final viewport = tester.getRect(scrollable);
+    expect(tester.getSize(card).height, greaterThan(viewport.height * 0.75));
+    final cardRect = tester.getRect(card);
+    final revealCardBottom =
+        position.pixels + cardRect.bottom - viewport.bottom + 8;
+    position.jumpTo(
+      revealCardBottom.clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      ),
+    );
+    await tester.pump();
+
+    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold).first);
+    final bottomCta = find.byWidget(scaffold.bottomNavigationBar!);
+    expect(tester.getRect(card).bottom, lessThanOrEqualTo(viewport.bottom - 7));
+    expect(tester.getRect(card).bottom, greaterThan(viewport.top));
+    expect(
+      tester.getRect(bottomCta).top,
+      greaterThanOrEqualTo(viewport.bottom),
+    );
+    expect(_expandedCards(), findsNWidgets(2));
     expect(tester.takeException(), isNull);
   });
 
@@ -394,6 +650,37 @@ Future<void> _reveal(WidgetTester tester, Finder target) async {
   );
   position.jumpTo(pixels);
   await tester.pump();
+}
+
+Future<void> _positionAtViewportBottom(
+  WidgetTester tester,
+  Finder target,
+  Finder scrollable,
+) async {
+  final position = tester.state<ScrollableState>(scrollable).position;
+  final viewport = tester.getRect(scrollable);
+  final targetRect = tester.getRect(target);
+  final pixels = (position.pixels + targetRect.bottom - viewport.bottom + 12)
+      .clamp(position.minScrollExtent, position.maxScrollExtent);
+  position.jumpTo(pixels);
+  await tester.pump();
+}
+
+Future<List<({double pixels, double rowTop})>> _sampleMotion(
+  WidgetTester tester, {
+  required ScrollPosition position,
+  required Finder trackedRow,
+  int frameCount = 20,
+}) async {
+  final samples = <({double pixels, double rowTop})>[];
+  for (var frame = 0; frame < frameCount; frame++) {
+    await tester.pump(const Duration(milliseconds: 16));
+    samples.add((
+      pixels: position.pixels,
+      rowTop: tester.getTopLeft(trackedRow).dy,
+    ));
+  }
+  return samples;
 }
 
 Future<void> _scrollUntilBuilt(WidgetTester tester, Finder target) async {

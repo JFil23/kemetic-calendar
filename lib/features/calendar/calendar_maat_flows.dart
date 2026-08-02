@@ -2234,7 +2234,7 @@ class _MaatFlowTemplateDetailPageState
   bool _maatDecanStartDateTouched = false;
   bool _maatDecanJoinInFlight = false;
   bool _descriptionExpanded = false;
-  String? _expandedMaatEventKey;
+  final Set<String> _expandedMaatEventKeys = <String>{};
   String? _initializedMaatEventFlowKey;
   int _maatEventSequence = 0;
 
@@ -5922,9 +5922,9 @@ class _MaatFlowTemplateDetailPageState
     final eventKey = '${widget.template.key}:$number:$title';
     if (_initializedMaatEventFlowKey != widget.template.key) {
       _initializedMaatEventFlowKey = widget.template.key;
-      _expandedMaatEventKey = eventKey;
+      _expandedMaatEventKeys.add(eventKey);
     }
-    final expanded = _expandedMaatEventKey == eventKey;
+    final expanded = _expandedMaatEventKeys.contains(eventKey);
     final accent = borderColor == Colors.white12 ? palette.accent : borderColor;
     final expandedCard = _MyFlowDayContentCard(
       content: _FlowDayContent(
@@ -5952,7 +5952,7 @@ class _MaatFlowTemplateDetailPageState
     );
     return Builder(
       key: ValueKey<String>('maat_flow_event_row_$eventKey'),
-      builder: (rowContext) => Column(
+      builder: (_) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Material(
@@ -5961,19 +5961,10 @@ class _MaatFlowTemplateDetailPageState
               key: ValueKey<String>('maat_flow_event_tap_$eventKey'),
               onTap: () {
                 setState(() {
-                  _expandedMaatEventKey = expanded ? null : eventKey;
+                  if (!_expandedMaatEventKeys.remove(eventKey)) {
+                    _expandedMaatEventKeys.add(eventKey);
+                  }
                 });
-                if (!expanded) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (!rowContext.mounted) return;
-                    Scrollable.ensureVisible(
-                      rowContext,
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeInOutCubic,
-                      alignment: 0.08,
-                    );
-                  });
-                }
               },
               splashColor: palette.accent.withValues(alpha: 0.05),
               highlightColor: palette.accent.withValues(alpha: 0.03),
@@ -8773,7 +8764,7 @@ class _MaatFlowTemplateDetailPageState
   Widget build(BuildContext context) {
     _maatEventSequence = 0;
     if (_initializedMaatEventFlowKey != widget.template.key) {
-      _expandedMaatEventKey = null;
+      _expandedMaatEventKeys.clear();
     }
     if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
       return _buildTrackSkyScaffold(context);
