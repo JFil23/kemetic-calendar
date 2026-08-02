@@ -222,10 +222,26 @@ Widget buildMaatFlowsListPreviewForTesting({
 @visibleForTesting
 Widget buildMaatFlowTemplateDetailPreviewForTesting({
   String templateKey = 'the-weighing',
+  bool emptyEvents = false,
 }) {
-  final template = _kMaatFlowTemplates.firstWhere(
+  final resolvedTemplate = _kMaatFlowTemplates.firstWhere(
     (candidate) => candidate.key == templateKey,
   );
+  final template = emptyEvents
+      ? _MaatFlowTemplate(
+          key: resolvedTemplate.key,
+          title: resolvedTemplate.title,
+          overview: resolvedTemplate.overview,
+          subtitle: resolvedTemplate.subtitle,
+          historicalBadgeText: resolvedTemplate.historicalBadgeText,
+          libraryCategory: resolvedTemplate.libraryCategory,
+          glyph: resolvedTemplate.glyph,
+          glyphMeaning: resolvedTemplate.glyphMeaning,
+          glyphSourceWord: resolvedTemplate.glyphSourceWord,
+          glyphType: resolvedTemplate.glyphType,
+          color: resolvedTemplate.color,
+        )
+      : resolvedTemplate;
   return _MaatFlowTemplateDetailPage(
     template: template,
     addInstance:
@@ -2219,6 +2235,7 @@ class _MaatFlowTemplateDetailPageState
   bool _maatDecanJoinInFlight = false;
   bool _descriptionExpanded = false;
   String? _expandedMaatEventKey;
+  String? _initializedMaatEventFlowKey;
   int _maatEventSequence = 0;
 
   MaatFlowPalette get _palette => MaatFlowPalette.resolve(
@@ -5903,6 +5920,10 @@ class _MaatFlowTemplateDetailPageState
     final palette = _palette;
     final number = ++_maatEventSequence;
     final eventKey = '${widget.template.key}:$number:$title';
+    if (_initializedMaatEventFlowKey != widget.template.key) {
+      _initializedMaatEventFlowKey = widget.template.key;
+      _expandedMaatEventKey = eventKey;
+    }
     final expanded = _expandedMaatEventKey == eventKey;
     final accent = borderColor == Colors.white12 ? palette.accent : borderColor;
     final expandedCard = _MyFlowDayContentCard(
@@ -8751,6 +8772,9 @@ class _MaatFlowTemplateDetailPageState
   @override
   Widget build(BuildContext context) {
     _maatEventSequence = 0;
+    if (_initializedMaatEventFlowKey != widget.template.key) {
+      _expandedMaatEventKey = null;
+    }
     if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
       return _buildTrackSkyScaffold(context);
     }

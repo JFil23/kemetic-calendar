@@ -32,11 +32,11 @@ void main() {
 
       final tap = _eventTaps().first;
       await _reveal(tester, tap);
-      await binding.takeScreenshot('${capture.$2}-collapsed');
+      await binding.takeScreenshot('${capture.$2}-expanded');
 
       await tester.tap(tap);
       await tester.pumpAndSettle();
-      await binding.takeScreenshot('${capture.$2}-expanded');
+      await binding.takeScreenshot('${capture.$2}-collapsed');
       expect(tester.takeException(), isNull);
     }
   });

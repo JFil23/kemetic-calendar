@@ -29,9 +29,52 @@ void main() {
         find.descendant(of: rows.first, matching: find.byType(ExpansionTile)),
         findsNothing,
       );
+      final expandedCards = _expandedCards();
+      expect(
+        expandedCards,
+        findsOneWidget,
+        reason: '${entry.key} should open its first event',
+      );
+      expect(
+        find.descendant(of: rows.first, matching: expandedCards),
+        findsOneWidget,
+        reason: '${entry.key} should expand only its first event',
+      );
+      for (final laterRow in rows.evaluate().skip(1)) {
+        expect(
+          find.descendant(
+            of: find.byWidget(laterRow.widget),
+            matching: expandedCards,
+          ),
+          findsNothing,
+          reason: '${entry.key} later events should begin collapsed',
+        );
+      }
       expect(tester.takeException(), isNull, reason: entry.key);
     }
   });
+
+  testWidgets(
+    'first Ma’at event content is visible immediately without a tap',
+    (tester) async {
+      await _pumpFlow(tester, 'the-weighing');
+
+      final firstRow = _eventRows().first;
+      final card = find.descendant(of: firstRow, matching: _expandedCards());
+      expect(card, findsOneWidget);
+      expect(
+        find.descendant(
+          of: card,
+          matching: find.text('Weighing 1: Open the Material Ledger'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: card, matching: find.text('DAY 1')),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('Ma’at rows and expanded cards use My Flows geometry', (
     tester,
@@ -72,13 +115,8 @@ void main() {
           .any((box) => box.width == 82),
       isTrue,
     );
-    expect(_expandedCards(), findsNothing);
-
-    await _reveal(tester, firstTap);
-    await tester.tap(firstTap);
-    await tester.pumpAndSettle();
-
     final card = _expandedCards();
+    expect(card, findsOneWidget);
     expect(tester.getSize(card).width, tester.getSize(firstRow).width);
     final cardTexts = tester
         .widgetList<Text>(
@@ -133,6 +171,15 @@ void main() {
       isTrue,
     );
     expect(tester.takeException(), isNull);
+
+    await _reveal(tester, firstTap);
+    await tester.tap(firstTap);
+    await tester.pumpAndSettle();
+    expect(_expandedCards(), findsNothing);
+
+    await tester.tap(firstTap);
+    await tester.pumpAndSettle();
+    expect(_expandedCards(), findsOneWidget);
   });
 
   testWidgets('selection, collapse, and automatic reveal remain singular', (
@@ -142,7 +189,14 @@ void main() {
 
     final firstTap = _eventTaps().at(0);
     final secondTap = _eventTaps().at(1);
+    expect(_expandedCards(), findsOneWidget);
+    expect(find.text('DAY 1'), findsOneWidget);
+
     await _reveal(tester, firstTap);
+    await tester.tap(firstTap);
+    await tester.pumpAndSettle();
+    expect(_expandedCards(), findsNothing);
+
     await tester.tap(firstTap);
     await tester.pumpAndSettle();
     expect(_expandedCards(), findsOneWidget);
@@ -203,11 +257,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(overview), findsOneWidget);
 
-    final firstTap = _eventTaps().first;
-    await _reveal(tester, firstTap);
-    await tester.tap(firstTap);
-    await tester.pumpAndSettle();
     final card = _expandedCards();
+    expect(card, findsOneWidget);
     final fullTitle = tester.widget<Text>(
       find.descendant(
         of: card,
@@ -225,6 +276,72 @@ void main() {
       isTrue,
     );
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('empty Ma’at event lists keep selection empty and remain safe', (
+    tester,
+  ) async {
+    await _pumpFlow(tester, 'the-weighing', emptyEvents: true);
+
+    expect(_eventRows(), findsNothing);
+    expect(_eventTaps(), findsNothing);
+    expect(_expandedCards(), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('entering another Ma’at flow selects that flow first event', (
+    tester,
+  ) async {
+    await _pumpFlow(tester, 'the-weighing');
+    expect(
+      find.descendant(of: _eventRows().first, matching: _expandedCards()),
+      findsOneWidget,
+    );
+
+    await _pumpFlow(tester, 'the-offering-table');
+    final firstRowKey = _eventRows().first.evaluate().single.widget.key;
+    expect(
+      firstRowKey,
+      const ValueKey<String>(
+        'maat_flow_event_row_the-offering-table:1:Day 1: The First Water',
+      ),
+    );
+    expect(
+      find.descendant(of: _eventRows().first, matching: _expandedCards()),
+      findsOneWidget,
+    );
+    expect(find.text('DAY 1'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('My Flows lead card and keyed row behavior remain unchanged', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: buildMyFlowDetailPreviewForTesting(saved: true),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final leadCard = find.byKey(
+      const ValueKey<String>('my_flow_day_card_71:preview-71-0'),
+    );
+    await _scrollUntilBuilt(tester, leadCard);
+    final secondTap = find.byKey(
+      const ValueKey<String>('my_flow_day_tap_71:preview-71-1'),
+    );
+    await _scrollUntilBuilt(tester, secondTap);
+    await tester.ensureVisible(secondTap);
+    await tester.pumpAndSettle();
+    await tester.tap(secondTap);
+    await tester.pumpAndSettle();
+    expect(find.text('DAY 2'), findsOneWidget);
+
+    await tester.tap(secondTap);
+    await tester.pumpAndSettle();
+    expect(find.text('DAY 2'), findsNothing);
   });
 }
 
@@ -245,12 +362,17 @@ bool _hasValueKeyPrefix(Widget widget, String prefix) {
   return key is ValueKey<String> && key.value.startsWith(prefix);
 }
 
-Future<void> _pumpFlow(WidgetTester tester, String templateKey) async {
+Future<void> _pumpFlow(
+  WidgetTester tester,
+  String templateKey, {
+  bool emptyEvents = false,
+}) async {
   await tester.pumpWidget(
     MaterialApp(
       debugShowCheckedModeBanner: false,
       home: buildMaatFlowTemplateDetailPreviewForTesting(
         templateKey: templateKey,
+        emptyEvents: emptyEvents,
       ),
     ),
   );
@@ -272,6 +394,14 @@ Future<void> _reveal(WidgetTester tester, Finder target) async {
   );
   position.jumpTo(pixels);
   await tester.pump();
+}
+
+Future<void> _scrollUntilBuilt(WidgetTester tester, Finder target) async {
+  for (var attempt = 0; attempt < 12 && target.evaluate().isEmpty; attempt++) {
+    await tester.drag(find.byType(ListView).first, const Offset(0, -360));
+    await tester.pumpAndSettle();
+  }
+  expect(target, findsOneWidget);
 }
 
 const Map<String, Color> _expectedAccents = <String, Color>{
