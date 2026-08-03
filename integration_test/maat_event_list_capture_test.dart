@@ -42,7 +42,7 @@ void main() {
   });
 
   testWidgets(
-    'record stable multi-expansion, manual collapse, and page reset',
+    'record tap-bounded off-screen cleanup, anchoring, and page reset',
     (tester) async {
       await tester.pumpWidget(
         MaterialApp(
@@ -63,57 +63,86 @@ void main() {
       final firstRow = rows.at(0);
       final secondRow = rows.at(1);
       final secondTap = taps.at(1);
-      await _positionAtViewportBottom(tester, secondRow, scrollable);
-
-      final secondTop = tester.getTopLeft(secondRow).dy;
-      final secondPixels = position.pixels;
+      final viewport = tester.getRect(scrollable);
+      await _positionBlockBottom(
+        tester,
+        block: firstRow,
+        screenY: viewport.top + 2,
+        scrollable: scrollable,
+      );
+      expect(tester.getRect(firstRow).top, lessThan(viewport.top));
+      expect(tester.getRect(firstRow).bottom, greaterThan(viewport.top));
+      final partialSecondTop = tester.getTopLeft(secondRow).dy;
+      final partialPixels = position.pixels;
       await tester.tap(secondTap);
       await _pumpFramesForRecording(
         tester,
         trackedRow: secondRow,
         position: position,
-        expectedTop: secondTop,
-        expectedPixels: secondPixels,
+        expectedTop: partialSecondTop,
+        expectedPixels: partialPixels,
+      );
+      expect(
+        find.descendant(of: firstRow, matching: _expandedCards()),
+        findsOneWidget,
+        reason: 'a partially visible complete block must remain expanded',
       );
       expect(_expandedCards(), findsNWidgets(2));
       await _recordingPause();
 
-      final viewport = tester.getRect(scrollable);
-      for (
-        var step = 0;
-        step < 16 && tester.getRect(firstRow).bottom > viewport.top;
-        step++
-      ) {
-        await tester.timedDrag(
-          scrollable,
-          const Offset(0, -180),
-          const Duration(milliseconds: 320),
-        );
-        await tester.pumpAndSettle();
-      }
+      final cleanupRow = rows.at(5);
+      final cleanupTap = taps.at(5);
+      await _positionBlockFullyAbove(
+        tester,
+        block: firstRow,
+        target: cleanupRow,
+        scrollable: scrollable,
+      );
       expect(tester.getRect(firstRow).bottom, lessThanOrEqualTo(viewport.top));
+      expect(_expandedCards(), findsNWidgets(2));
+      final cleanupTop = tester.getTopLeft(cleanupRow).dy;
+      await tester.tap(cleanupTap);
+      await _pumpFramesForRecording(
+        tester,
+        trackedRow: cleanupRow,
+        position: position,
+        expectedTop: cleanupTop,
+      );
       expect(
         find.descendant(of: firstRow, matching: _expandedCards()),
-        findsOneWidget,
-        reason: 'off-screen cards stay expanded until the user closes them',
+        findsNothing,
+        reason: 'a fully off-screen block retires on the next opening tap',
       );
-      expect(_expandedCards(), findsNWidgets(2));
+      expect(
+        find.descendant(of: cleanupRow, matching: _expandedCards()),
+        findsOneWidget,
+      );
       await _recordingPause();
 
       final longRow = rows.at(7);
       final longTap = taps.at(7);
-      await _positionAtViewportBottom(tester, longRow, scrollable);
+      await _positionBlockFullyAbove(
+        tester,
+        block: cleanupRow,
+        target: longRow,
+        scrollable: scrollable,
+      );
       final longTop = tester.getTopLeft(longRow).dy;
-      final longPixels = position.pixels;
       await tester.tap(longTap);
       await _pumpFramesForRecording(
         tester,
         trackedRow: longRow,
         position: position,
         expectedTop: longTop,
-        expectedPixels: longPixels,
       );
-      expect(_expandedCards(), findsNWidgets(3));
+      expect(
+        find.descendant(of: cleanupRow, matching: _expandedCards()),
+        findsNothing,
+      );
+      expect(
+        find.descendant(of: longRow, matching: _expandedCards()),
+        findsOneWidget,
+      );
       await _recordingPause();
 
       final collapseTop = tester.getTopLeft(longRow).dy;
@@ -126,7 +155,10 @@ void main() {
         expectedTop: collapseTop,
         expectedPixels: collapsePixels,
       );
-      expect(_expandedCards(), findsNWidgets(2));
+      expect(
+        find.descendant(of: longRow, matching: _expandedCards()),
+        findsNothing,
+      );
       await _recordingPause();
 
       final reopenTop = tester.getTopLeft(longRow).dy;
@@ -139,7 +171,10 @@ void main() {
         expectedTop: reopenTop,
         expectedPixels: reopenPixels,
       );
-      expect(_expandedCards(), findsNWidgets(3));
+      expect(
+        find.descendant(of: longRow, matching: _expandedCards()),
+        findsOneWidget,
+      );
       await _recordingPause();
 
       final longCard = find.descendant(of: longRow, matching: _expandedCards());
@@ -166,7 +201,36 @@ void main() {
         tester.getRect(bottomCta).top,
         greaterThanOrEqualTo(viewport.bottom),
       );
-      expect(_expandedCards(), findsNWidgets(3));
+      expect(
+        find.descendant(of: longRow, matching: _expandedCards()),
+        findsOneWidget,
+      );
+      await _recordingPause();
+
+      await _reveal(tester, firstRow);
+      expect(
+        tester.getRect(longRow).top,
+        greaterThanOrEqualTo(viewport.bottom),
+      );
+      final reverseTop = tester.getTopLeft(firstRow).dy;
+      final reversePixels = position.pixels;
+      await tester.tap(taps.at(0));
+      await _pumpFramesForRecording(
+        tester,
+        trackedRow: firstRow,
+        position: position,
+        expectedTop: reverseTop,
+        expectedPixels: reversePixels,
+      );
+      expect(
+        find.descendant(of: longRow, matching: _expandedCards()),
+        findsNothing,
+        reason: 'off-screen cleanup below must not move the viewport',
+      );
+      expect(
+        find.descendant(of: firstRow, matching: _expandedCards()),
+        findsOneWidget,
+      );
       await _recordingPause();
 
       await tester.pumpWidget(const SizedBox.shrink());
@@ -237,6 +301,45 @@ Future<void> _positionAtViewportBottom(
   await tester.pumpAndSettle();
 }
 
+Future<void> _positionBlockFullyAbove(
+  WidgetTester tester, {
+  required Finder block,
+  required Finder target,
+  required Finder scrollable,
+}) async {
+  await _positionAtViewportBottom(tester, target, scrollable);
+  final position = tester.state<ScrollableState>(scrollable).position;
+  final viewport = tester.getRect(scrollable);
+  final blockRect = tester.getRect(block);
+  if (blockRect.bottom > viewport.top) {
+    position.jumpTo(
+      (position.pixels + blockRect.bottom - viewport.top + 1).clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+  expect(tester.getRect(target).top, lessThan(viewport.bottom));
+}
+
+Future<void> _positionBlockBottom(
+  WidgetTester tester, {
+  required Finder block,
+  required double screenY,
+  required Finder scrollable,
+}) async {
+  final position = tester.state<ScrollableState>(scrollable).position;
+  final blockRect = tester.getRect(block);
+  position.jumpTo(
+    (position.pixels + blockRect.bottom - screenY).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
 Future<void> _recordingPause() =>
     Future<void>.delayed(const Duration(milliseconds: 600));
 
@@ -245,13 +348,15 @@ Future<void> _pumpFramesForRecording(
   required Finder trackedRow,
   required ScrollPosition position,
   required double expectedTop,
-  required double expectedPixels,
+  double? expectedPixels,
   int frameCount = 28,
 }) async {
   for (var frame = 0; frame < frameCount; frame++) {
     await tester.pump(const Duration(milliseconds: 16));
     await Future<void>.delayed(const Duration(milliseconds: 16));
     expect(tester.getTopLeft(trackedRow).dy, closeTo(expectedTop, 1));
-    expect(position.pixels, closeTo(expectedPixels, 0.01));
+    if (expectedPixels != null) {
+      expect(position.pixels, closeTo(expectedPixels, 0.01));
+    }
   }
 }
