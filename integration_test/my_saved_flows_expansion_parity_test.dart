@@ -65,7 +65,7 @@ void main() {
             of: _dayRow('$flowId:preview-$flowId-$firstInlineIndex'),
             matching: _expandedCards(),
           ),
-          findsNothing,
+          findsOneWidget,
         );
         expect(
           find.descendant(
@@ -86,14 +86,14 @@ void main() {
             of: _dayRow('$flowId:preview-$flowId-$firstInlineIndex'),
             matching: _expandedCards(),
           ),
-          findsOneWidget,
+          findsNothing,
         );
         expect(
           find.descendant(
             of: _dayRow('$flowId:preview-$flowId-$secondInlineIndex'),
             matching: _expandedCards(),
           ),
-          findsNothing,
+          findsOneWidget,
         );
 
         await _tapAndRequireAnchor(tester, firstInline);
@@ -102,13 +102,43 @@ void main() {
             of: _dayRow('$flowId:preview-$flowId-$firstInlineIndex'),
             matching: _expandedCards(),
           ),
-          findsNothing,
+          findsOneWidget,
+        );
+        await _revealWithPointer(tester, secondInline);
+        expect(
+          find.descendant(
+            of: _dayRow('$flowId:preview-$flowId-$secondInlineIndex'),
+            matching: _expandedCards(),
+          ),
+          findsOneWidget,
+        );
+        await _revealWithPointer(
+          tester,
+          firstInline,
+          towardEndWhenVirtualized: false,
+        );
+        expect(
+          find.descendant(
+            of: _dayRow('$flowId:preview-$flowId-$firstInlineIndex'),
+            matching: _expandedCards(),
+          ),
+          findsOneWidget,
         );
 
         final longIndex = 4;
         final longTap = _dayTap('$flowId:preview-$flowId-$longIndex');
         final longRow = _dayRow('$flowId:preview-$flowId-$longIndex');
         await _revealWithPointer(tester, longTap);
+        if (find
+            .descendant(of: longRow, matching: _expandedCards())
+            .evaluate()
+            .isNotEmpty) {
+          await _tapAndRequireAnchor(tester, longTap);
+          expect(
+            find.descendant(of: longRow, matching: _expandedCards()),
+            findsNothing,
+          );
+        }
         await _tapAndRequireAnchor(tester, longTap);
         expect(
           find.descendant(of: longRow, matching: _expandedCards()),
@@ -141,6 +171,62 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'physical Today-to-Upcoming sequence uses one global two-event queue',
+    (tester) async {
+      await _pumpDetail(
+        tester,
+        saved: false,
+        longDetails: true,
+        physicalQueueTitles: true,
+      );
+      const leadKey = '72:preview-72-2';
+      const mindfulnessKey = '72:preview-72-4';
+      const mealsKey = '72:preview-72-5';
+      final leadTap = _dayTap(leadKey);
+      final mindfulness = _dayTap(mindfulnessKey);
+      final meals = _dayTap(mealsKey);
+
+      await _revealWithPointer(tester, leadTap);
+      expect(find.text('Limit Screen Time'), findsOneWidget);
+      expect(_expandedCards(), findsOneWidget);
+
+      await _revealWithPointer(tester, mindfulness);
+      await _tapAndRequireAnchor(tester, mindfulness, maxExpandedCards: 2);
+      expect(_expandedCards(), findsNWidgets(2));
+
+      await _revealWithPointer(tester, meals);
+      await _tapAndRequireAnchor(tester, meals, maxExpandedCards: 2);
+      expect(_expandedCards(), findsNWidgets(2));
+      expect(
+        find.descendant(of: _dayRow(leadKey), matching: _expandedCards()),
+        findsNothing,
+      );
+      expect(
+        find.descendant(
+          of: _dayRow(mindfulnessKey),
+          matching: _expandedCards(),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: _dayRow(mealsKey), matching: _expandedCards()),
+        findsOneWidget,
+      );
+
+      await _revealWithPointer(
+        tester,
+        leadTap,
+        towardEndWhenVirtualized: false,
+      );
+      expect(find.text('Limit Screen Time'), findsOneWidget);
+      expect(
+        find.descendant(of: _dayRow(leadKey), matching: _expandedCards()),
+        findsNothing,
+      );
+    },
+  );
 }
 
 Finder _dayTap(String key) =>
@@ -157,6 +243,7 @@ Future<void> _pumpDetail(
   WidgetTester tester, {
   required bool saved,
   required bool longDetails,
+  bool physicalQueueTitles = false,
   Key? previewKey,
 }) async {
   await tester.pumpWidget(
@@ -165,6 +252,7 @@ Future<void> _pumpDetail(
       home: buildMyFlowDetailPreviewForTesting(
         saved: saved,
         longDetails: longDetails,
+        physicalQueueTitles: physicalQueueTitles,
         previewKey: previewKey,
       ),
     ),
@@ -172,11 +260,22 @@ Future<void> _pumpDetail(
   await tester.pumpAndSettle();
 }
 
-Future<void> _tapAndRequireAnchor(WidgetTester tester, Finder target) async {
+Future<void> _tapAndRequireAnchor(
+  WidgetTester tester,
+  Finder target, {
+  int? maxExpandedCards,
+}) async {
   final before = tester.getTopLeft(target).dy;
   await tester.tap(target);
   for (var frame = 0; frame < 20; frame++) {
     await tester.pump(const Duration(milliseconds: 16));
+    if (maxExpandedCards != null) {
+      expect(
+        _expandedCards().evaluate().length,
+        lessThanOrEqualTo(maxExpandedCards),
+        reason: 'global expanded-card capacity exceeded at frame $frame',
+      );
+    }
     expect(
       tester.getTopLeft(target).dy,
       closeTo(before, 1.0),

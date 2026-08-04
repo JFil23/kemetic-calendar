@@ -306,7 +306,7 @@ void main() {
     },
   );
 
-  testWidgets('Detail rows expand, collapse, and switch inline content', (
+  testWidgets('Detail rows expand, collapse, and retain the two newest cards', (
     tester,
   ) async {
     await _pumpMyFlowDetail(tester);
@@ -335,7 +335,7 @@ void main() {
       find.byKey(const ValueKey<String>('my_flow_day_tap_72:preview-72-4')),
     );
     await tester.pumpAndSettle();
-    expect(find.text('DAY 4'), findsNothing);
+    expect(find.text('DAY 4'), findsOneWidget);
     expect(find.text('DAY 5'), findsOneWidget);
   });
 

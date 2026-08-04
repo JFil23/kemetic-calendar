@@ -22,6 +22,12 @@ void main() {
     expect(source, contains('builder: (_) => _FlowPreviewPage('));
     expect(source, contains('useMySavedExpansionParity: true'));
     expect(source, contains('Widget _buildDashboardExpandableRow({'));
+    expect(
+      source,
+      contains('final List<String> _expandedDayKeys = <String>[];'),
+    );
+    expect(source, contains('_seedDashboardExpansion('));
+    expect(source, contains('..add(hero.key);'));
     expect(source, isNot(contains('class _SavedFlowPreviewPage')));
   });
 
@@ -48,6 +54,7 @@ void main() {
       (tester) async {
         await _pumpDetail(tester, saved: saved);
         final flowId = saved ? 71 : 72;
+        final leadIndex = saved ? 0 : 2;
         final firstInlineIndex = saved ? 1 : 3;
         final secondInlineIndex = firstInlineIndex + 1;
         final firstInline = _dayTap(
@@ -72,7 +79,7 @@ void main() {
             of: _dayRow('$flowId:preview-$flowId-$firstInlineIndex'),
             matching: _expandedCards(),
           ),
-          findsNothing,
+          findsOneWidget,
         );
         expect(
           find.descendant(
@@ -81,9 +88,83 @@ void main() {
           ),
           findsOneWidget,
         );
+        final leadTap = _dayTap('$flowId:preview-$flowId-$leadIndex');
+        await _reveal(tester, leadTap, towardEndWhenVirtualized: false);
+        expect(
+          find.descendant(
+            of: _dayRow('$flowId:preview-$flowId-$leadIndex'),
+            matching: _expandedCards(),
+          ),
+          findsNothing,
+        );
       },
     );
   }
+
+  testWidgets('Today lead and Upcoming rows share one global two-event queue', (
+    tester,
+  ) async {
+    await _pumpDetail(tester, physicalQueueTitles: true);
+    const leadKey = '72:preview-72-2';
+    const mindfulnessKey = '72:preview-72-4';
+    const mealsKey = '72:preview-72-5';
+    final leadTap = _dayTap(leadKey);
+    final mindfulness = _dayTap(mindfulnessKey);
+    final meals = _dayTap(mealsKey);
+
+    await _reveal(tester, leadTap);
+    expect(find.text('Limit Screen Time'), findsOneWidget);
+    expect(_expandedCards(), findsOneWidget);
+    expect(
+      find.descendant(of: _dayRow(leadKey), matching: _expandedCards()),
+      findsOneWidget,
+    );
+
+    await _reveal(tester, mindfulness);
+    await tester.tap(mindfulness);
+    await tester.pumpAndSettle();
+    expect(_expandedCards(), findsNWidgets(2));
+
+    await _reveal(tester, meals);
+    final anchoredY = tester.getTopLeft(meals).dy;
+    await tester.tap(meals);
+    for (var frame = 0; frame < 20; frame++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(
+        _expandedCards().evaluate().length,
+        lessThanOrEqualTo(2),
+        reason: 'the complete page exceeded two cards at frame $frame',
+      );
+      expect(
+        tester.getTopLeft(meals).dy,
+        closeTo(anchoredY, 1.0),
+        reason: 'the tapped Upcoming row moved at frame $frame',
+      );
+    }
+    await tester.pumpAndSettle();
+
+    expect(_expandedCards(), findsNWidgets(2));
+    expect(
+      find.descendant(of: _dayRow(leadKey), matching: _expandedCards()),
+      findsNothing,
+    );
+    expect(
+      find.descendant(of: _dayRow(mindfulnessKey), matching: _expandedCards()),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: _dayRow(mealsKey), matching: _expandedCards()),
+      findsOneWidget,
+    );
+
+    await _reveal(tester, leadTap, towardEndWhenVirtualized: false);
+    expect(find.text('Limit Screen Time'), findsOneWidget);
+    expect(
+      find.descendant(of: _dayRow(leadKey), matching: _expandedCards()),
+      findsNothing,
+      reason: 'Limit Screen Time must remain retired after scrolling back',
+    );
+  });
 
   testWidgets('Saved Flows replacement keeps the tapped row anchored', (
     tester,
@@ -165,7 +246,22 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.getTopLeft(second).dy, closeTo(before, 1.0));
-    expect(_expandedCards(), findsNWidgets(2));
+    expect(
+      find.descendant(
+        of: _dayRow('71:preview-71-1'),
+        matching: _expandedCards(),
+      ),
+      findsOneWidget,
+    );
+    await _reveal(tester, fifth);
+    expect(
+      find.descendant(
+        of: _dayRow('71:preview-71-4'),
+        matching: _expandedCards(),
+      ),
+      findsOneWidget,
+    );
+    expect(_expandedCards().evaluate().length, lessThanOrEqualTo(2));
   });
 
   testWidgets('scrolling alone does not change expansion authority', (
@@ -292,6 +388,7 @@ Future<void> _pumpDetail(
   WidgetTester tester, {
   bool saved = false,
   bool longDetails = false,
+  bool physicalQueueTitles = false,
   bool includeSecondFlow = false,
   int eventCount = 6,
   Key? previewKey,
@@ -306,6 +403,7 @@ Future<void> _pumpDetail(
       home: buildMyFlowDetailPreviewForTesting(
         saved: saved,
         longDetails: longDetails,
+        physicalQueueTitles: physicalQueueTitles,
         includeSecondFlow: includeSecondFlow,
         eventCount: eventCount,
         previewKey: previewKey,
@@ -315,7 +413,11 @@ Future<void> _pumpDetail(
   await tester.pumpAndSettle();
 }
 
-Future<void> _reveal(WidgetTester tester, Finder target) async {
+Future<void> _reveal(
+  WidgetTester tester,
+  Finder target, {
+  bool towardEndWhenVirtualized = true,
+}) async {
   final list = find.byType(ListView).first;
   final viewport = tester.getRect(list);
   for (var i = 0; i < 36; i++) {
@@ -328,7 +430,7 @@ Future<void> _reveal(WidgetTester tester, Finder target) async {
       final direction = rect.top < viewport.top ? 280.0 : -280.0;
       await tester.drag(list, Offset(0, direction));
     } else {
-      await tester.drag(list, const Offset(0, -280));
+      await tester.drag(list, Offset(0, towardEndWhenVirtualized ? -280 : 280));
     }
     await tester.pumpAndSettle();
   }
