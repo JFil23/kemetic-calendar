@@ -142,6 +142,8 @@ class _FlowPreviewPage extends StatefulWidget {
     this.initialEventsByFlow,
     this.actionPolicy,
     this.showFlowOptions = true,
+    this.useMySavedExpansionParity = false,
+    super.key,
   });
 
   final _Flow flow;
@@ -152,6 +154,7 @@ class _FlowPreviewPage extends StatefulWidget {
   final Map<int, List<FlowEventRow>>? initialEventsByFlow;
   final FlowDetailActionPolicy? actionPolicy;
   final bool showFlowOptions;
+  final bool useMySavedExpansionParity;
   final String Function(int km, int di) getDecanLabel;
   final String Function(DateTime? g) fmt;
   final void Function(_Flow flow) onEdit;
@@ -175,7 +178,11 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   final Map<int, List<FlowEventRow>> _eventsByFlow = {};
   final Map<int, Object?> _eventsErrorByFlow = {};
   final Set<int> _loadingFlowIds = {};
-  String? _expandedDayKey;
+  final List<String> _expandedDayKeys = <String>[];
+  String? _instantCollapseDayKey;
+  int? _dashboardExpansionFlowId;
+  final Map<String, GlobalKey> _dashboardDayBlockKeys = <String, GlobalKey>{};
+  final Map<String, GlobalKey> _dashboardDayDetailKeys = <String, GlobalKey>{};
   DateTime? _selectedStartForSaved;
   bool _isImportingSaved = false;
 
@@ -203,6 +210,11 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     if (initialEventsByFlow != null) {
       _eventsByFlow.addAll(initialEventsByFlow);
     }
+    final initialFlow = _flowSequence[_currentIndex];
+    _seedDashboardExpansion(
+      initialFlow,
+      _eventsByFlow[initialFlow.id] ?? const <FlowEventRow>[],
+    );
     _loadEventsFor(_flowSequence[_currentIndex]);
   }
 
@@ -210,6 +222,46 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _FlowPreviewPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.flow.id != widget.flow.id ||
+        oldWidget.mode != widget.mode ||
+        oldWidget.useMySavedExpansionParity !=
+            widget.useMySavedExpansionParity) {
+      _resetDashboardExpansion();
+      final flow = _flowSequence[_currentIndex];
+      _seedDashboardExpansion(
+        flow,
+        _eventsByFlow[flow.id] ?? const <FlowEventRow>[],
+      );
+    }
+  }
+
+  void _resetDashboardExpansion() {
+    _expandedDayKeys.clear();
+    _instantCollapseDayKey = null;
+    _dashboardExpansionFlowId = null;
+    _dashboardDayBlockKeys.clear();
+    _dashboardDayDetailKeys.clear();
+  }
+
+  void _seedDashboardExpansion(_Flow flow, List<FlowEventRow> events) {
+    if (!widget.useMySavedExpansionParity ||
+        _dashboardExpansionFlowId == flow.id) {
+      return;
+    }
+    final reminderRule = _reminderRuleFromFlow(flow);
+    if (!_usesDashboardBody(flow, reminderRule)) return;
+    final hero = _partitionDashboardDays(flow, events).hero;
+    if (hero == null) return;
+
+    _dashboardExpansionFlowId = flow.id;
+    _expandedDayKeys
+      ..clear()
+      ..add(hero.key);
   }
 
   ({bool kemetic, bool split, String overview, String? maatKey}) _metaFor(
@@ -380,6 +432,9 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       setState(() {
         _eventsByFlow[flowId] = deduped;
         _loadingFlowIds.remove(flowId);
+        if (_flowSequence[_currentIndex].id == flowId) {
+          _seedDashboardExpansion(flow, deduped);
+        }
       });
     } catch (e) {
       if (!mounted) return;
@@ -1411,28 +1466,42 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
             ],
             const SizedBox(height: 34),
           ],
-          _buildDashboardSectionHeader(
-            widget.mode == _FlowPreviewMode.saved
-                ? 'DAY 1'
-                : 'TODAY · DAY ${partition.hero?.dayNumber ?? progressDay}',
-            palette,
-          ),
-          const SizedBox(height: 14),
-          if (partition.hero != null)
-            _MyFlowDayContentCard(
-              key: ValueKey<String>('my_flow_day_card_${partition.hero!.key}'),
-              content: _contentForDashboardDay(
-                partition.hero!,
-                isTrackSky: isTrackSky,
-              ),
+          if (partition.hero != null && widget.useMySavedExpansionParity)
+            _buildDashboardExpandableRow(
+              day: partition.hero!,
               palette: palette,
-              variant: widget.mode == _FlowPreviewMode.saved
-                  ? _MyFlowDayCardVariant.savedLead
-                  : _MyFlowDayCardVariant.liveHero,
-              eyebrow: widget.mode == _FlowPreviewMode.saved
+              isCompleted: false,
+              isTrackSky: isTrackSky,
+              leadSectionLabel: widget.mode == _FlowPreviewMode.saved
                   ? 'DAY 1'
                   : 'TODAY · DAY ${partition.hero!.dayNumber}',
+            )
+          else ...[
+            _buildDashboardSectionHeader(
+              widget.mode == _FlowPreviewMode.saved
+                  ? 'DAY 1'
+                  : 'TODAY · DAY ${partition.hero?.dayNumber ?? progressDay}',
+              palette,
             ),
+            const SizedBox(height: 14),
+            if (partition.hero != null)
+              _MyFlowDayContentCard(
+                key: ValueKey<String>(
+                  'my_flow_day_card_${partition.hero!.key}',
+                ),
+                content: _contentForDashboardDay(
+                  partition.hero!,
+                  isTrackSky: isTrackSky,
+                ),
+                palette: palette,
+                variant: widget.mode == _FlowPreviewMode.saved
+                    ? _MyFlowDayCardVariant.savedLead
+                    : _MyFlowDayCardVariant.liveHero,
+                eyebrow: widget.mode == _FlowPreviewMode.saved
+                    ? 'DAY 1'
+                    : 'TODAY · DAY ${partition.hero!.dayNumber}',
+              ),
+          ],
           if (partition.upcoming.isNotEmpty) ...[
             const SizedBox(height: 46),
             _buildDashboardSectionHeader('UPCOMING', palette),
@@ -1608,8 +1677,9 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
 
   Widget _buildDashboardSectionHeader(
     String label,
-    _MyFlowCardPalette palette,
-  ) {
+    _MyFlowCardPalette palette, {
+    String? collapsedEventTitle,
+  }) {
     return Row(
       children: [
         Text(
@@ -1623,8 +1693,42 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           ),
         ),
         const SizedBox(width: 20),
-        const Expanded(
-          child: Divider(color: Color(0x332A230D), thickness: 0.8, height: 1),
+        Expanded(
+          child: collapsedEventTitle == null
+              ? const Divider(
+                  color: Color(0x332A230D),
+                  thickness: 0.8,
+                  height: 1,
+                )
+              : SizedBox(
+                  height: 13,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          collapsedEventTitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFF7D6E50),
+                            fontFamily: MaatFlowListTokens.fontFamily,
+                            fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                            fontSize: 13,
+                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.w600,
+                            height: 1,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.chevron_right,
+                        color: palette.chevronColor,
+                        size: 13,
+                      ),
+                    ],
+                  ),
+                ),
         ),
       ],
     );
@@ -1658,110 +1762,226 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     required _MyFlowCardPalette palette,
     required bool isCompleted,
     required bool isTrackSky,
+    String? leadSectionLabel,
   }) {
-    final expanded = _expandedDayKey == day.key;
+    final expanded = _expandedDayKeys.contains(day.key);
+    final isLead = leadSectionLabel != null;
     final content = _contentForDashboardDay(day, isTrackSky: isTrackSky);
+    final blockKey = _dashboardDayBlockKeys.putIfAbsent(
+      day.key,
+      () => GlobalKey(debugLabel: 'my-flow-day-block-${day.key}'),
+    );
+    final detailKey = _dashboardDayDetailKeys.putIfAbsent(
+      day.key,
+      () => GlobalKey(debugLabel: 'my-flow-day-detail-${day.key}'),
+    );
+
+    final detail = Padding(
+      padding: EdgeInsets.only(bottom: isLead ? 0 : 18),
+      child: _MyFlowDayContentCard(
+        key: isLead ? ValueKey<String>('my_flow_day_card_${day.key}') : null,
+        content: content,
+        palette: palette,
+        variant: isLead
+            ? widget.mode == _FlowPreviewMode.saved
+                  ? _MyFlowDayCardVariant.savedLead
+                  : _MyFlowDayCardVariant.liveHero
+            : _MyFlowDayCardVariant.expandedInline,
+        eyebrow: isLead
+            ? leadSectionLabel
+            : isCompleted
+            ? 'COMPLETED · DAY ${day.dayNumber}'
+            : 'DAY ${day.dayNumber}',
+      ),
+    );
 
     return Column(
       key: ValueKey<String>('my_flow_day_row_${day.key}'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
-            key: ValueKey<String>('my_flow_day_tap_${day.key}'),
-            onTap: () {
-              setState(() {
-                _expandedDayKey = expanded ? null : day.key;
-              });
-            },
-            splashColor: palette.accent.withValues(alpha: 0.05),
-            highlightColor: palette.accent.withValues(alpha: 0.03),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  SizedBox(
-                    width: 82,
-                    child: Text(
-                      'DAY\n${day.dayNumber}',
-                      style: const TextStyle(
-                        color: Color(0xFF4A3E22),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 2.2,
-                        height: 1.18,
+        Builder(
+          key: blockKey,
+          builder: (rowContext) => Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (isLead) ...[
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    key: ValueKey<String>('my_flow_day_tap_${day.key}'),
+                    onTap: () => _handleDashboardDayTap(
+                      dayKey: day.key,
+                      rowContext: rowContext,
+                    ),
+                    splashColor: palette.accent.withValues(alpha: 0.05),
+                    highlightColor: palette.accent.withValues(alpha: 0.03),
+                    child: _buildDashboardSectionHeader(
+                      leadSectionLabel,
+                      palette,
+                      collapsedEventTitle: expanded ? null : content.title,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+              ] else
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    key: ValueKey<String>('my_flow_day_tap_${day.key}'),
+                    onTap: () => _handleDashboardDayTap(
+                      dayKey: day.key,
+                      rowContext: rowContext,
+                    ),
+                    splashColor: palette.accent.withValues(alpha: 0.05),
+                    highlightColor: palette.accent.withValues(alpha: 0.03),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 16, 0, 16),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            width: 82,
+                            child: Text(
+                              'DAY\n${day.dayNumber}',
+                              style: const TextStyle(
+                                color: Color(0xFF4A3E22),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 2.2,
+                                height: 1.18,
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  content.title,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Color(0xFF7D6E50),
+                                    fontFamily: MaatFlowListTokens.fontFamily,
+                                    fontFamilyFallback:
+                                        MaatFlowListTokens.fontFallback,
+                                    fontSize: 22,
+                                    fontStyle: FontStyle.italic,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.1,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  widget.fmt(day.localStart),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: Color(0xFF4E422B),
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          if (isCompleted)
+                            Icon(Icons.check, color: palette.accent, size: 26),
+                          const SizedBox(width: 8),
+                          Icon(
+                            expanded ? Icons.expand_less : Icons.chevron_right,
+                            color: palette.chevronColor,
+                            size: 20,
+                          ),
+                        ],
                       ),
                     ),
                   ),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          content.title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFF7D6E50),
-                            fontFamily: MaatFlowListTokens.fontFamily,
-                            fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                            fontSize: 22,
-                            fontStyle: FontStyle.italic,
-                            fontWeight: FontWeight.w600,
-                            height: 1.1,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          widget.fmt(day.localStart),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFF4E422B),
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            height: 1,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  if (isCompleted)
-                    Icon(Icons.check, color: palette.accent, size: 26),
-                  const SizedBox(width: 8),
-                  Icon(
-                    expanded ? Icons.expand_less : Icons.chevron_right,
-                    color: palette.chevronColor,
-                    size: 20,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        AnimatedSize(
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeInOutCubic,
-          alignment: Alignment.topCenter,
-          child: expanded
-              ? Padding(
-                  padding: const EdgeInsets.only(bottom: 18),
-                  child: _MyFlowDayContentCard(
-                    content: content,
-                    palette: palette,
-                    variant: _MyFlowDayCardVariant.expandedInline,
-                    eyebrow: isCompleted
-                        ? 'COMPLETED · DAY ${day.dayNumber}'
-                        : 'DAY ${day.dayNumber}',
-                  ),
+                ),
+              if (widget.useMySavedExpansionParity)
+                _MaatExpandableEventDetail(
+                  key: detailKey,
+                  expanded: expanded,
+                  collapseInstantly: _instantCollapseDayKey == day.key,
+                  child: detail,
                 )
-              : const SizedBox.shrink(),
+              else
+                AnimatedSize(
+                  key: detailKey,
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: expanded ? detail : const SizedBox.shrink(),
+                ),
+            ],
+          ),
         ),
       ],
     );
+  }
+
+  void _handleDashboardDayTap({
+    required String dayKey,
+    required BuildContext rowContext,
+  }) {
+    final wasExpanded = _expandedDayKeys.contains(dayKey);
+    if (wasExpanded) {
+      setState(() {
+        _instantCollapseDayKey = null;
+        _expandedDayKeys.remove(dayKey);
+      });
+      return;
+    }
+    if (!widget.useMySavedExpansionParity) {
+      setState(() {
+        _expandedDayKeys
+          ..clear()
+          ..add(dayKey);
+      });
+      return;
+    }
+
+    final retiredKey = _expandedDayKeys.length >= 2
+        ? _expandedDayKeys.first
+        : null;
+    final scrollable = Scrollable.maybeOf(rowContext);
+    var removedHeightAbove = 0.0;
+    if (retiredKey != null &&
+        scrollable != null &&
+        !scrollable.position.isScrollingNotifier.value) {
+      final tappedBox = rowContext.findRenderObject();
+      final previousBlockContext =
+          _dashboardDayBlockKeys[retiredKey]?.currentContext;
+      final previousBlockBox = previousBlockContext?.findRenderObject();
+      final previousDetailContext =
+          _dashboardDayDetailKeys[retiredKey]?.currentContext;
+      final previousDetailBox = previousDetailContext?.findRenderObject();
+      if (tappedBox is RenderBox &&
+          previousBlockBox is RenderBox &&
+          previousDetailBox is RenderBox &&
+          previousBlockBox.localToGlobal(Offset.zero).dy <
+              tappedBox.localToGlobal(Offset.zero).dy) {
+        removedHeightAbove = previousDetailBox.size.height;
+      }
+    }
+
+    setState(() {
+      _instantCollapseDayKey = retiredKey;
+      if (retiredKey != null) {
+        _expandedDayKeys.remove(retiredKey);
+      }
+      _expandedDayKeys
+        ..remove(dayKey)
+        ..add(dayKey);
+      while (_expandedDayKeys.length > 2) {
+        _expandedDayKeys.removeAt(0);
+      }
+    });
+    if (removedHeightAbove > 0) {
+      scrollable!.position.correctBy(-removedHeightAbove);
+    }
   }
 
   @override
@@ -1909,7 +2129,12 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
             _currentIndex = index;
             _selectedStartForSaved = null;
             _isImportingSaved = false;
-            _expandedDayKey = null;
+            _resetDashboardExpansion();
+            final flow = _flowSequence[index];
+            _seedDashboardExpansion(
+              flow,
+              _eventsByFlow[flow.id] ?? const <FlowEventRow>[],
+            );
           });
           _loadEventsFor(_flowSequence[index]);
         },
@@ -3422,6 +3647,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
             unawaited(_runAndReload(() => widget.onEndFlow(flow.id)));
             Navigator.of(context).pop();
           },
+          useMySavedExpansionParity: true,
         ),
       ),
     );
@@ -3763,8 +3989,13 @@ Widget buildMyFlowDetailPreviewForTesting({
   bool saved = false,
   bool reminderBacked = false,
   bool longTitle = false,
+  bool longDetails = false,
+  bool physicalQueueTitles = false,
+  bool includeSecondFlow = false,
+  int eventCount = 6,
   Color flowColor = const Color(0xFFB95A38),
   VoidCallback? onManageFlow,
+  Key? previewKey,
 }) {
   final now = DateUtils.dateOnly(DateTime.now());
   final flow = _buildMyFlowsPreviewFlow(
@@ -3782,10 +4013,27 @@ Widget buildMyFlowDetailPreviewForTesting({
         : 'mode=gregorian;ov=${Uri.encodeComponent('A focused flow with one linked video each day and a short reflection.')}',
     isReminder: reminderBacked,
   );
-  final events = reminderBacked
+  final previewTitles = physicalQueueTitles
+      ? const <String>[
+          'Sleep Environment Setup',
+          'Evening Wind Down',
+          'Limit Screen Time',
+          'Consistent Sleep Schedule',
+          'Mindfulness Practice',
+          'Avoid Heavy Meals',
+        ]
+      : const <String>[
+          'Area of Square',
+          'How to Simplify Fractions',
+          'Why Does Fermat’s Last Theorem Matter?',
+          'The Birthday Problem and Probability',
+          'What Is the Golden Ratio?',
+          'How Euler’s Formula Connects Everything',
+        ];
+  List<FlowEventRow> previewEventsFor(_Flow targetFlow) => reminderBacked
       ? <FlowEventRow>[
           _buildMyFlowPreviewEvent(
-            flowId: flow.id,
+            flowId: targetFlow.id,
             index: 0,
             title: 'Morning Review',
             detail: 'A short check-in for the day.',
@@ -3794,19 +4042,19 @@ Widget buildMyFlowDetailPreviewForTesting({
           ),
         ]
       : <FlowEventRow>[
-          for (var i = 0; i < 6; i++)
+          for (var i = 0; i < eventCount.clamp(0, 6); i++)
             _buildMyFlowPreviewEvent(
-              flowId: flow.id,
+              flowId: targetFlow.id,
               index: i,
-              title: [
-                'Area of Square',
-                'How to Simplify Fractions',
-                'Why Does Fermat’s Last Theorem Matter?',
-                'The Birthday Problem and Probability',
-                'What Is the Golden Ratio?',
-                'How Euler’s Formula Connects Everything',
-              ][i],
-              detail: i == 2
+              title: previewTitles[i],
+              detail: physicalQueueTitles && i == 2
+                  ? 'Turn off screens at least one hour before bed. '
+                        'Consider using blue light blocking glasses if necessary. '
+                        'Reducing screen exposure helps your body produce melatonin, '
+                        'promoting better sleep.'
+                  : longDetails && i == 4
+                  ? '${List<String>.generate(18, (line) => 'Long practice reflection line ${line + 1}.').join('\n\n')}\n\nLONG DETAIL TAIL IS REACHABLE'
+                  : i == 2
                   ? 'Watch the linked video.\n\n"What does Fermat’s Last Theorem teach about patience in long problems?"'
                   : 'Watch the linked video and write one short reflection.',
               location: i == 2
@@ -3820,26 +4068,62 @@ Widget buildMyFlowDetailPreviewForTesting({
                   .add(Duration(days: i, hours: 13)),
             ),
         ];
+  final events = previewEventsFor(flow);
+  final secondFlow = includeSecondFlow
+      ? _buildMyFlowsPreviewFlow(
+          id: flow.id + 100,
+          name: saved ? 'Second Saved Template' : 'Second Active Flow',
+          color: flowColor,
+          active: !saved,
+          isSaved: saved,
+          start: now.subtract(const Duration(days: 2)),
+          end: now.add(const Duration(days: 3)),
+          notes:
+              'mode=gregorian;ov=${Uri.encodeComponent('A separate flow used to verify expansion isolation.')}',
+        )
+      : null;
+  final secondEvents = secondFlow == null
+      ? const <FlowEventRow>[]
+      : previewEventsFor(secondFlow);
+  final previewFlows = secondFlow == null
+      ? <_Flow>[flow]
+      : <_Flow>[flow, secondFlow];
+  final allEventsByFlow = <int, List<FlowEventRow>>{
+    flow.id: events,
+    if (secondFlow != null) secondFlow.id: secondEvents,
+  };
 
   return _FlowPreviewPage(
+    key: previewKey,
     flow: flow,
+    flowSequence: previewFlows,
     mode: reminderBacked
         ? _FlowPreviewMode.legacy
         : (saved ? _FlowPreviewMode.saved : _FlowPreviewMode.active),
-    metricsByFlow: {
-      flow.id: _FlowPreviewMetrics(
-        totalEventCount: events.length,
-        remainingEventCount: saved ? events.length : 3,
-        completedEventCount: saved ? 0 : 3,
-      ),
+    metricsByFlow: <int, _FlowPreviewMetrics>{
+      for (final previewFlow in previewFlows)
+        previewFlow.id: _FlowPreviewMetrics(
+          totalEventCount: allEventsByFlow[previewFlow.id]!.length,
+          remainingEventCount: saved
+              ? allEventsByFlow[previewFlow.id]!.length
+              : math.min(3, allEventsByFlow[previewFlow.id]!.length),
+          completedEventCount: saved
+              ? 0
+              : math.max(
+                  0,
+                  allEventsByFlow[previewFlow.id]!.length -
+                      math.min(3, allEventsByFlow[previewFlow.id]!.length),
+                ),
+        ),
     },
-    initialEventsByFlow: {flow.id: events},
+    initialEventsByFlow: allEventsByFlow,
     getDecanLabel: (km, di) =>
         (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
     fmt: _formatMyFlowsPreviewGregorian,
     onEdit: (_) => onManageFlow?.call(),
     onAppendToJournal: null,
     onEndMaatFlow: null,
+    useMySavedExpansionParity: true,
   );
 }
 
