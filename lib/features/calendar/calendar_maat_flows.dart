@@ -25,6 +25,47 @@ const Key kMaatFlowCategoryLivingInMaatTabKey = ValueKey<String>(
   'maat_flow_category_living_in_maat_tab',
 );
 
+class _MaatExpandableEventDetail extends StatefulWidget {
+  const _MaatExpandableEventDetail({
+    required this.expanded,
+    required this.collapseInstantly,
+    required this.child,
+    super.key,
+  });
+
+  final bool expanded;
+  final bool collapseInstantly;
+  final Widget child;
+
+  @override
+  State<_MaatExpandableEventDetail> createState() =>
+      _MaatExpandableEventDetailState();
+}
+
+class _MaatExpandableEventDetailState
+    extends State<_MaatExpandableEventDetail> {
+  int _animationGeneration = 0;
+
+  @override
+  void didUpdateWidget(covariant _MaatExpandableEventDetail oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.expanded && !widget.expanded && widget.collapseInstantly) {
+      _animationGeneration += 1;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSize(
+      key: ValueKey<int>(_animationGeneration),
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeInOutCubic,
+      alignment: Alignment.topCenter,
+      child: widget.expanded ? widget.child : const SizedBox.shrink(),
+    );
+  }
+}
+
 class MaatFlowGlyph extends StatelessWidget {
   const MaatFlowGlyph({required this.glyph, this.size = 34, super.key});
 
@@ -2234,7 +2275,11 @@ class _MaatFlowTemplateDetailPageState
   bool _maatDecanStartDateTouched = false;
   bool _maatDecanJoinInFlight = false;
   bool _descriptionExpanded = false;
-  String? _expandedMaatEventKey;
+  final Set<String> _expandedMaatEventKeys = <String>{};
+  final Set<String> _maatEventInstantCollapseKeys = <String>{};
+  final Map<String, GlobalKey> _maatEventBlockKeys = <String, GlobalKey>{};
+  final Map<String, GlobalKey> _maatEventDetailKeys = <String, GlobalKey>{};
+  final Map<String, bool> _maatEventTapStartedWhileScrolling = <String, bool>{};
   String? _initializedMaatEventFlowKey;
   int _maatEventSequence = 0;
 
@@ -5920,11 +5965,19 @@ class _MaatFlowTemplateDetailPageState
     final palette = _palette;
     final number = ++_maatEventSequence;
     final eventKey = '${widget.template.key}:$number:$title';
+    final blockKey = _maatEventBlockKeys.putIfAbsent(
+      eventKey,
+      () => GlobalKey(debugLabel: 'maat-event-block-$eventKey'),
+    );
+    final detailKey = _maatEventDetailKeys.putIfAbsent(
+      eventKey,
+      () => GlobalKey(debugLabel: 'maat-event-detail-$eventKey'),
+    );
     if (_initializedMaatEventFlowKey != widget.template.key) {
       _initializedMaatEventFlowKey = widget.template.key;
-      _expandedMaatEventKey = eventKey;
+      _expandedMaatEventKeys.add(eventKey);
     }
-    final expanded = _expandedMaatEventKey == eventKey;
+    final expanded = _expandedMaatEventKeys.contains(eventKey);
     final accent = borderColor == Colors.white12 ? palette.accent : borderColor;
     final expandedCard = _MyFlowDayContentCard(
       content: _FlowDayContent(
@@ -5950,109 +6003,195 @@ class _MaatFlowTemplateDetailPageState
         ],
       ),
     );
-    return Builder(
+    return KeyedSubtree(
       key: ValueKey<String>('maat_flow_event_row_$eventKey'),
-      builder: (rowContext) => Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Material(
-            color: Colors.transparent,
-            child: InkWell(
-              key: ValueKey<String>('maat_flow_event_tap_$eventKey'),
-              onTap: () {
-                setState(() {
-                  _expandedMaatEventKey = expanded ? null : eventKey;
-                });
-                if (!expanded) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (!rowContext.mounted) return;
-                    Scrollable.ensureVisible(
+      child: Builder(
+        key: blockKey,
+        builder: (rowContext) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Listener(
+              onPointerDown: (_) {
+                _maatEventTapStartedWhileScrolling[eventKey] =
+                    Scrollable.maybeOf(
                       rowContext,
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeInOutCubic,
-                      alignment: 0.08,
-                    );
-                  });
-                }
+                    )?.position.isScrollingNotifier.value ??
+                    false;
               },
-              splashColor: palette.accent.withValues(alpha: 0.05),
-              highlightColor: palette.accent.withValues(alpha: 0.03),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 82,
-                      child: Text(
-                        'DAY\n$number',
-                        style: const TextStyle(
-                          color: MaatFlowPalette.goldMute,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 2.2,
-                          height: 1.18,
+              onPointerCancel: (_) {
+                _maatEventTapStartedWhileScrolling.remove(eventKey);
+              },
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  key: ValueKey<String>('maat_flow_event_tap_$eventKey'),
+                  onTap: () => _handleMaatEventTap(
+                    eventKey: eventKey,
+                    rowContext: rowContext,
+                  ),
+                  onTapCancel: () {
+                    _maatEventTapStartedWhileScrolling.remove(eventKey);
+                  },
+                  splashColor: palette.accent.withValues(alpha: 0.05),
+                  highlightColor: palette.accent.withValues(alpha: 0.03),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Row(
+                      children: [
+                        SizedBox(
+                          width: 82,
+                          child: Text(
+                            'DAY\n$number',
+                            style: const TextStyle(
+                              color: MaatFlowPalette.goldMute,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 2.2,
+                              height: 1.18,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: MaatFlowPalette.gold,
-                              fontFamily: MaatFlowListTokens.fontFamily,
-                              fontFamilyFallback:
-                                  MaatFlowListTokens.fontFallback,
-                              fontSize: 22,
-                              fontStyle: FontStyle.italic,
-                              fontWeight: FontWeight.w600,
-                              height: 1.1,
-                            ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: MaatFlowPalette.gold,
+                                  fontFamily: MaatFlowListTokens.fontFamily,
+                                  fontFamilyFallback:
+                                      MaatFlowListTokens.fontFallback,
+                                  fontSize: 22,
+                                  fontStyle: FontStyle.italic,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1.1,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: MaatFlowPalette.silverMid,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  height: 1,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: MaatFlowPalette.silverMid,
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              height: 1,
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(width: 12),
+                        Icon(
+                          expanded ? Icons.expand_less : Icons.chevron_right,
+                          color: MaatFlowListTokens.joinedChevron,
+                          size: 20,
+                        ),
+                      ],
                     ),
-                    const SizedBox(width: 12),
-                    Icon(
-                      expanded ? Icons.expand_less : Icons.chevron_right,
-                      color: MaatFlowListTokens.joinedChevron,
-                      size: 20,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-          AnimatedSize(
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeInOutCubic,
-            alignment: Alignment.topCenter,
-            child: expanded
-                ? Padding(
-                    padding: const EdgeInsets.only(bottom: 18),
-                    child: expandedCard,
-                  )
-                : const SizedBox.shrink(),
-          ),
-        ],
+            _MaatExpandableEventDetail(
+              key: detailKey,
+              expanded: expanded,
+              collapseInstantly: _maatEventInstantCollapseKeys.contains(
+                eventKey,
+              ),
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 18),
+                child: expandedCard,
+              ),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  void _handleMaatEventTap({
+    required String eventKey,
+    required BuildContext rowContext,
+  }) {
+    final wasExpanded = _expandedMaatEventKeys.contains(eventKey);
+    final tapStartedWhileScrolling =
+        _maatEventTapStartedWhileScrolling.remove(eventKey) ?? false;
+    if (wasExpanded) {
+      setState(() {
+        _maatEventInstantCollapseKeys.remove(eventKey);
+        _expandedMaatEventKeys.remove(eventKey);
+      });
+      return;
+    }
+
+    final scrollable = Scrollable.maybeOf(rowContext);
+    final canCleanUp =
+        scrollable != null &&
+        !tapStartedWhileScrolling &&
+        !scrollable.position.isScrollingNotifier.value;
+    final cleanup = canCleanUp
+        ? _offscreenMaatEventsForTap(
+            eventKey: eventKey,
+            rowContext: rowContext,
+            scrollable: scrollable,
+          )
+        : (eventKeys: <String>{}, removedHeightAbove: 0.0);
+
+    setState(() {
+      _maatEventInstantCollapseKeys
+        ..remove(eventKey)
+        ..addAll(cleanup.eventKeys);
+      _expandedMaatEventKeys
+        ..removeAll(cleanup.eventKeys)
+        ..add(eventKey);
+    });
+    if (cleanup.removedHeightAbove > 0) {
+      scrollable!.position.correctBy(-cleanup.removedHeightAbove);
+    }
+  }
+
+  ({Set<String> eventKeys, double removedHeightAbove})
+  _offscreenMaatEventsForTap({
+    required String eventKey,
+    required BuildContext rowContext,
+    required ScrollableState scrollable,
+  }) {
+    final viewportBox = scrollable.context.findRenderObject();
+    final tappedRowBox = rowContext.findRenderObject();
+    if (viewportBox is! RenderBox || tappedRowBox is! RenderBox) {
+      return (eventKeys: <String>{}, removedHeightAbove: 0);
+    }
+    final viewportRect =
+        viewportBox.localToGlobal(Offset.zero) & viewportBox.size;
+    final tappedRowScreenTop = tappedRowBox.localToGlobal(Offset.zero).dy;
+    final offscreenKeys = <String>{};
+    var removedHeightAbove = 0.0;
+
+    for (final expandedKey in _expandedMaatEventKeys) {
+      if (expandedKey == eventKey) continue;
+      final blockContext = _maatEventBlockKeys[expandedKey]?.currentContext;
+      final blockBox = blockContext?.findRenderObject();
+      if (blockBox is! RenderBox) continue;
+      final blockRect = blockBox.localToGlobal(Offset.zero) & blockBox.size;
+      final fullyAbove = blockRect.bottom <= viewportRect.top;
+      final fullyBelow = blockRect.top >= viewportRect.bottom;
+      if (!fullyAbove && !fullyBelow) continue;
+
+      offscreenKeys.add(expandedKey);
+      if (fullyAbove && blockRect.bottom <= tappedRowScreenTop) {
+        final detailContext = _maatEventDetailKeys[expandedKey]?.currentContext;
+        final detailBox = detailContext?.findRenderObject();
+        if (detailBox is RenderBox) {
+          removedHeightAbove += detailBox.size.height;
+        }
+      }
+    }
+    return (eventKeys: offscreenKeys, removedHeightAbove: removedHeightAbove);
   }
 
   _MyFlowCardPalette _maatEventCardPalette(Color accent) => _MyFlowCardPalette(
@@ -8773,7 +8912,11 @@ class _MaatFlowTemplateDetailPageState
   Widget build(BuildContext context) {
     _maatEventSequence = 0;
     if (_initializedMaatEventFlowKey != widget.template.key) {
-      _expandedMaatEventKey = null;
+      _expandedMaatEventKeys.clear();
+      _maatEventInstantCollapseKeys.clear();
+      _maatEventBlockKeys.clear();
+      _maatEventDetailKeys.clear();
+      _maatEventTapStartedWhileScrolling.clear();
     }
     if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
       return _buildTrackSkyScaffold(context);
