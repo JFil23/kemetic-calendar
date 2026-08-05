@@ -4349,7 +4349,8 @@ class _JournalRoutePageState extends State<JournalRoutePage>
     return FutureBuilder<void>(
       future: _future,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.done) {
+        if (widget.reflectionContext == null ||
+            snapshot.connectionState == ConnectionState.done) {
           return JournalPage(
             controller: _controller,
             entryPoint: 'restored_route',
