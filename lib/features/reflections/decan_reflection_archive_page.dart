@@ -14,7 +14,16 @@ import '../calendar/kemetic_month_metadata.dart';
 import 'decan_reflection_skin.dart';
 
 class DecanReflectionArchivePage extends StatefulWidget {
-  const DecanReflectionArchivePage({super.key});
+  const DecanReflectionArchivePage({
+    super.key,
+    @visibleForTesting this.reflectionRepoForTesting,
+    @visibleForTesting this.maatRepoForTesting,
+    @visibleForTesting this.promptStateForTesting,
+  });
+
+  final DecanReflectionRepo? reflectionRepoForTesting;
+  final MaatGuidanceRepo? maatRepoForTesting;
+  final DecanReflectionPromptState? promptStateForTesting;
 
   @override
   State<DecanReflectionArchivePage> createState() =>
@@ -23,9 +32,9 @@ class DecanReflectionArchivePage extends StatefulWidget {
 
 class _DecanReflectionArchivePageState
     extends State<DecanReflectionArchivePage> {
-  final _repo = DecanReflectionRepo(Supabase.instance.client);
-  final _maatRepo = MaatGuidanceRepo(Supabase.instance.client);
-  final _promptState = DecanReflectionPromptState(Supabase.instance.client);
+  late final DecanReflectionRepo _repo;
+  late final MaatGuidanceRepo _maatRepo;
+  late final DecanReflectionPromptState _promptState;
   List<_ArchiveEntry> _items = const [];
   bool _loading = true;
   String? _errorMessage;
@@ -33,6 +42,14 @@ class _DecanReflectionArchivePageState
   @override
   void initState() {
     super.initState();
+    _repo =
+        widget.reflectionRepoForTesting ??
+        DecanReflectionRepo(Supabase.instance.client);
+    _maatRepo =
+        widget.maatRepoForTesting ?? MaatGuidanceRepo(Supabase.instance.client);
+    _promptState =
+        widget.promptStateForTesting ??
+        DecanReflectionPromptState(Supabase.instance.client);
     _load();
   }
 
@@ -54,14 +71,6 @@ class _DecanReflectionArchivePageState
           ? reflection
           : latest,
     );
-    if (latestReflection != null) {
-      await _promptState.markInteracted(latestReflection.decanStart);
-      await _repo.markPromptInteracted(
-        decanStart: latestReflection.decanStart,
-        decanEnd: latestReflection.decanEnd,
-        interactionKind: 'archived',
-      );
-    }
     if (!mounted) return;
     setState(() {
       _items = entries;
@@ -72,6 +81,14 @@ class _DecanReflectionArchivePageState
       );
       _loading = false;
     });
+    if (latestReflection != null) {
+      await _promptState.markInteracted(latestReflection.decanStart);
+      await _repo.markPromptInteracted(
+        decanStart: latestReflection.decanStart,
+        decanEnd: latestReflection.decanEnd,
+        interactionKind: 'archived',
+      );
+    }
   }
 
   @override
