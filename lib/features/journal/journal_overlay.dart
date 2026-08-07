@@ -177,10 +177,17 @@ class _JournalOverlayState extends State<JournalOverlay>
     });
   }
 
-  String get _journalPlaceholderText =>
-      widget.reflectionContext?.buildJournalPlaceholderText() ??
-      dailyReflectionQuestionForDate(DateTime.now())?.question ??
-      'Write your day…';
+  String get _journalPlaceholderText {
+    final reflectionPrompt = widget.reflectionContext
+        ?.buildJournalPlaceholderText();
+    if (reflectionPrompt != null) return reflectionPrompt;
+    if (FeatureFlags.isJournalV2Active &&
+        widget.controller.currentDocument == null) {
+      return 'Write your day…';
+    }
+    return dailyReflectionQuestionForDate(DateTime.now())?.question ??
+        'Write your day…';
+  }
 
   void _onDraftChanged() {
     if (!mounted) return;
