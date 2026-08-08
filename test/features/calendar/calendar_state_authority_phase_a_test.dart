@@ -98,4 +98,20 @@ void main() {
       reason: 'warm-start must not set the server-hydration sentinel',
     );
   });
+
+  test('PR5 routes tombstone and reminder prefs through CalendarUserScopedPrefs', () {
+    expect(
+      calendarPageSource,
+      contains('CalendarUserScopedPrefs.readStringList'),
+    );
+    expect(
+      calendarPageSource,
+      contains('CalendarUserScopedPrefs.writeStringList'),
+    );
+    expect(calendarPageSource, contains('CalendarUserScopedPrefs.readBool'));
+    expect(
+      File('lib/features/calendar/calendar_user_scoped_prefs.dart').existsSync(),
+      isTrue,
+    );
+  });
 }
