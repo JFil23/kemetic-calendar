@@ -35,53 +35,65 @@ void main() {
     expect(listSource, contains('class _MaatFlowsListPageWithSnapshot'));
   });
 
-  test('Ma_at flow join focuses first hydrated calendar occurrence', () {
+  test('Ma_at flow join opens Day View on chronological first day', () {
     final source = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
-    final helper = _sourceBetween(
+    final chronologicalHelper = _sourceBetween(
       source,
-      '_focusCalendarOnFirstUpcomingFlowEvent',
-      '_Note? _firstFlowTargetNoteForDay',
+      '({int ky, int km, int kd, _Note note})? _firstChronologicalNoteForFlow(',
+      'void _openDayViewForJoinedMaatFlow(int flowId)',
+    );
+    final openHelper = _sourceBetween(
+      source,
+      'void _openDayViewForJoinedMaatFlow(int flowId)',
+      '_focusCalendarOnFirstUpcomingFlowEvent(int flowId)',
     );
     final listJoin = _sourceBetween(
       source,
       'Widget _buildMaatFlowsListPage',
       'Widget _buildFlowStudioHubPage',
     );
-    final routeReturn = _sourceBetween(
+    final hubJoin = _sourceBetween(
       source,
       "source: 'open_maat_flows'",
       'onCreateNew: () async',
     );
 
-    expect(helper, contains('_firstUpcomingNoteForFlow(flowId)'));
     expect(
-      helper,
-      contains('_setView(firstEvent.ky, firstEvent.km, kd: firstEvent.kd)'),
+      chronologicalHelper,
+      isNot(contains('_firstUpcomingNoteForFlow')),
+      reason: 'chronological helper must not prefer today/future',
     );
-    expect(helper, contains('_centerMonth(firstEvent.ky, firstEvent.km)'));
+    expect(chronologicalHelper, contains('a.date.compareTo(b.date)'));
+    expect(chronologicalHelper, contains('aStart.compareTo(bStart)'));
+    expect(
+      chronologicalHelper,
+      isNot(contains('!a.date.isBefore(today)')),
+    );
+
+    expect(openHelper, contains('_firstChronologicalNoteForFlow(flowId)'));
+    expect(openHelper, contains('_openDayView('));
+    expect(openHelper, contains('focusEvent: _noteToEventItem(first.note)'));
+    expect(openHelper, contains("debugOpenSource: 'maat_flow_join'"));
+
     expect(
       listJoin,
-      contains("await _loadFromDisk(source: 'maat_flow_imported')"),
+      isNot(contains("await _loadFromDisk(source: 'maat_flow_imported')")),
     );
     expect(
       listJoin,
-      contains('_focusCalendarOnFirstUpcomingFlowEvent(importedFlowId)'),
+      isNot(contains('_focusCalendarOnFirstUpcomingFlowEvent')),
     );
+    expect(listJoin, contains('_firstChronologicalNoteForFlow(importedFlowId)'));
+
+    expect(hubJoin, isNot(contains("source: 'maat_flow_imported_return'")));
     expect(
-      listJoin.indexOf("await _loadFromDisk(source: 'maat_flow_imported')"),
-      lessThan(
-        listJoin.indexOf(
-          '_focusCalendarOnFirstUpcomingFlowEvent(importedFlowId)',
-        ),
-      ),
+      hubJoin,
+      isNot(contains('_focusCalendarOnFirstUpcomingFlowEvent')),
     );
-    expect(routeReturn, contains("source: 'maat_flow_imported_return'"));
-    expect(
-      routeReturn,
-      contains('_focusCalendarOnFirstUpcomingFlowEvent(importedFlowId)'),
-    );
+    expect(hubJoin, contains('_openDayViewForJoinedMaatFlow(importedFlowId)'));
+    expect(hubJoin, contains('_firstChronologicalNoteForFlow(importedFlowId)'));
   });
 
   test('Ma_at flow detail pages default to Kemetic date mode', () {
