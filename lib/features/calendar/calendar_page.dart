@@ -34161,6 +34161,39 @@ class CalendarPageState extends State<CalendarPage>
   List<NoteData> notesForDayForTesting(int kYear, int kMonth, int kDay) {
     return List<NoteData>.unmodifiable(_noteDataForDay(kYear, kMonth, kDay));
   }
+
+  /// Stable JSON of live `_notes` / `_flows` for behavior-preserving CI baselines.
+  /// Omits non-deterministic fields (`savedAt`) and sorts map keys.
+  @visibleForTesting
+  String debugCanonicalHydrationBaselineJson({
+    String userId = 'baseline-user',
+  }) {
+    final notesJson = <String, dynamic>{};
+    final sortedDayKeys = _notes.keys.toList()..sort();
+    for (final key in sortedDayKeys) {
+      notesJson[key] = (_notes[key] ?? const <_Note>[])
+          .map(_serializeWarmStartNote)
+          .map((note) {
+            final copy = Map<String, dynamic>.from(note);
+            // Display-resolved color can drift with theme helpers; baseline
+            // identity is the authoring fields.
+            copy.remove('resolvedColor');
+            return copy;
+          })
+          .toList(growable: false);
+    }
+    final payload = <String, dynamic>{
+      'userId': userId,
+      'nextFlowId': _nextFlowId,
+      'flows': _flows.map(_serializeWarmStartFlow).toList(growable: false),
+      'notes': notesJson,
+      'flowTotalEventCounts': _encodeWarmStartIntMap(_flowTotalEventCounts),
+      'flowRemainingEventCounts': _encodeWarmStartIntMap(
+        _flowRemainingEventCounts,
+      ),
+    };
+    return const JsonEncoder.withIndent('  ').convert(payload);
+  }
 }
 
 // ───────────────────────── Flow Studio (date range → rule chips + per-day note editors) ─────────────────────────
