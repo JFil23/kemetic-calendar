@@ -72,4 +72,30 @@ void main() {
     expect(persist, contains('final currentUserId = _activeWarmStartUserId()'));
     expect(persist, contains('currentUserId != resolvedUserId'));
   });
+
+  test('PR4 warm-start claims slot and abandons when server hydration won', () {
+    expect(calendarPageSource, contains('_warmStartRestoreInFlightForUserId'));
+    expect(calendarPageSource, contains('_serverHydrationCommittedForUserId'));
+    final restore = calendarPageSource.substring(
+      calendarPageSource.indexOf(
+        'Future<void> _restoreWarmStartCacheIfAvailable({',
+      ),
+      calendarPageSource.indexOf('Future<void> _loadCalendarState() async {'),
+    );
+    expect(
+      restore.indexOf('_warmStartRestoreInFlightForUserId = userId'),
+      lessThan(restore.indexOf('await _loadEndedReminderIds()')),
+    );
+    expect(restore, contains('_serverHydrationCommittedForUserId == userId'));
+    expect(restore, contains('finally {'));
+
+    const commitMarker =
+        '_serverHydrationCommittedForUserId = _activeWarmStartUserId()';
+    expect(calendarPageSource, contains(commitMarker));
+    expect(
+      restore.contains(commitMarker),
+      isFalse,
+      reason: 'warm-start must not set the server-hydration sentinel',
+    );
+  });
 }

@@ -8756,6 +8756,10 @@ class CalendarPageState extends State<CalendarPage>
       ValueNotifier<DayViewSheetEventTarget?>(null);
   Timer? _warmStartCacheDebounceTimer;
   String? _warmStartCacheRestoredForUserId;
+  /// Claim slot so concurrent warm-start restores cannot both pass the entry guard.
+  String? _warmStartRestoreInFlightForUserId;
+  /// Set only by load commit — not by warm-start paint.
+  String? _serverHydrationCommittedForUserId;
   bool _warmStartSnapshotVisible = false;
   bool _sharedCalendarRealDayViewOpening = false;
   void _bumpDataVersion() {
@@ -9495,10 +9499,20 @@ class CalendarPageState extends State<CalendarPage>
     final userId = _activeWarmStartUserId();
     if (userId == null) return;
     if (_warmStartCacheRestoredForUserId == userId) return;
+    if (_warmStartRestoreInFlightForUserId == userId) return;
+    if (_serverHydrationCommittedForUserId == userId) return;
 
+    _warmStartRestoreInFlightForUserId = userId;
     try {
       await _loadEndedReminderIds();
       final prefs = await SharedPreferences.getInstance();
+
+      // Re-check after awaits — another restore, load, or auth may have won.
+      if (!mounted) return;
+      if (_activeWarmStartUserId() != userId) return;
+      if (_warmStartCacheRestoredForUserId == userId) return;
+      if (_serverHydrationCommittedForUserId == userId) return;
+
       final raw = prefs.getString(_warmStartCacheKey(userId));
       if (raw == null || raw.trim().isEmpty) {
         _warmStartCacheRestoredForUserId = userId;
@@ -9560,6 +9574,10 @@ class CalendarPageState extends State<CalendarPage>
       );
 
       if (!mounted) return;
+      if (_activeWarmStartUserId() != userId) return;
+      if (_warmStartCacheRestoredForUserId == userId) return;
+      if (_serverHydrationCommittedForUserId == userId) return;
+
       setState(() {
         _flows
           ..clear()
@@ -9596,6 +9614,10 @@ class CalendarPageState extends State<CalendarPage>
         _calendarDebugPrint(
           '[warmStart] restore failed reason=$reason error=$e',
         );
+      }
+    } finally {
+      if (_warmStartRestoreInFlightForUserId == userId) {
+        _warmStartRestoreInFlightForUserId = null;
       }
     }
   }
@@ -13698,6 +13720,8 @@ class CalendarPageState extends State<CalendarPage>
         _initialStartupUserId = null;
         _warmStartSnapshotVisible = false;
         _warmStartCacheRestoredForUserId = null;
+        _warmStartRestoreInFlightForUserId = null;
+        _serverHydrationCommittedForUserId = null;
         _myFlowsFilingSnapshotCache = null;
         _lastSuccessfulHydrationAt = null;
         _flows.clear();
@@ -30612,6 +30636,7 @@ class CalendarPageState extends State<CalendarPage>
         _bumpDataVersion();
         _lastSuccessfulHydrationAt = DateTime.now();
         _warmStartCacheRestoredForUserId = _activeWarmStartUserId();
+        _serverHydrationCommittedForUserId = _activeWarmStartUserId();
         if (loadComplete || !hasPaintedEventSnapshotAtLoadStart) {
           _warmStartSnapshotVisible = false;
         }
