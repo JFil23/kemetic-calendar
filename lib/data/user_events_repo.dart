@@ -576,6 +576,42 @@ class UserEventsRepo {
     }
   }
 
+  /// Build the same Map payload used by [upsertByClientId] / [upsertManyDeterministic].
+  /// Throws if there is no signed-in user.
+  Map<String, dynamic> deterministicUpsertPayload({
+    required String clientEventId,
+    required String title,
+    required DateTime startsAtUtc,
+    String? detail,
+    String? location,
+    bool allDay = false,
+    DateTime? endsAtUtc,
+    int? flowLocalId,
+    String? category,
+    String? actionId,
+    Map<String, dynamic>? behaviorPayload,
+    String? calendarId,
+  }) {
+    final user = _client.auth.currentUser;
+    if (user == null) throw StateError('No user session. Please sign in.');
+
+    return {
+      'user_id': user.id,
+      'client_event_id': clientEventId,
+      if (calendarId != null) 'calendar_id': calendarId,
+      'title': title,
+      'detail': detail,
+      'location': location,
+      'all_day': allDay,
+      'starts_at': startsAtUtc.toIso8601String(),
+      if (endsAtUtc != null) 'ends_at': endsAtUtc.toIso8601String(),
+      if (flowLocalId != null) 'flow_local_id': flowLocalId,
+      if (category != null) 'category': category,
+      if (actionId != null) 'action_id': actionId,
+      if (behaviorPayload != null) 'behavior_payload': behaviorPayload,
+    };
+  }
+
   /// Create or update by client_event_id (idempotent).
   /// IMPORTANT: we now conflict on `(user_id, client_event_id)` to match the DB unique index.
   Future<UserEvent> upsertByClientId({
@@ -593,9 +629,6 @@ class UserEventsRepo {
     String? calendarId,
     String? caller,
   }) async {
-    final user = _client.auth.currentUser;
-    if (user == null) throw StateError('No user session. Please sign in.');
-
     try {
       final existing = await _client
           .from(_kTable)
@@ -623,21 +656,20 @@ class UserEventsRepo {
       }
     }
 
-    final payload = {
-      'user_id': user.id,
-      'client_event_id': clientEventId,
-      if (calendarId != null) 'calendar_id': calendarId,
-      'title': title,
-      'detail': detail,
-      'location': location,
-      'all_day': allDay,
-      'starts_at': startsAtUtc.toIso8601String(),
-      if (endsAtUtc != null) 'ends_at': endsAtUtc.toIso8601String(),
-      if (flowLocalId != null) 'flow_local_id': flowLocalId,
-      if (category != null) 'category': category,
-      if (actionId != null) 'action_id': actionId,
-      if (behaviorPayload != null) 'behavior_payload': behaviorPayload,
-    };
+    final payload = deterministicUpsertPayload(
+      clientEventId: clientEventId,
+      title: title,
+      startsAtUtc: startsAtUtc,
+      detail: detail,
+      location: location,
+      allDay: allDay,
+      endsAtUtc: endsAtUtc,
+      flowLocalId: flowLocalId,
+      category: category,
+      actionId: actionId,
+      behaviorPayload: behaviorPayload,
+      calendarId: calendarId,
+    );
 
     final callerTag = caller == null || caller.isEmpty ? 'unspecified' : caller;
     _log(
@@ -1295,12 +1327,16 @@ class UserEventsRepo {
   }
 
   /// Bulk idempotent upsert for Ma'at note batches (deterministic client_event_id).
+  /// Ma'at joins are single-chunk-safe (≤30); multi-chunk callers need rollback
+  /// review before adopting (partial failure across chunks).
   Future<void> upsertManyDeterministic(List<Map<String, dynamic>> rows) async {
     if (rows.isEmpty) return;
     try {
-      await _client
-          .from(_kTable)
-          .upsert(rows, onConflict: 'user_id,client_event_id');
+      for (final chunk in _chunkList(rows, 200)) {
+        await _client
+            .from(_kTable)
+            .upsert(chunk, onConflict: 'user_id,client_event_id');
+      }
       if (kDebugMode) {
         debugPrint(
           '[user_events] upsertManyDeterministic ✓ ${rows.length} rows',

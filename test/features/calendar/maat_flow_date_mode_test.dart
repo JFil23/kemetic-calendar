@@ -348,70 +348,52 @@ void main() {
   });
 
   test('calendar invalidation consumer coalesces reloads', () {
-    final source = File(
+    final pageSource = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
-    final initState = _sourceBetween(
-      source,
-      'void initState()',
-      'void _handleCalendarInvalidated',
-    );
-    final handler = _sourceBetween(
-      source,
-      'void _handleCalendarInvalidated',
-      'void _schedulePendingCalendarInvalidationReload',
-    );
-    final pendingScheduler = _sourceBetween(
-      source,
-      'void _schedulePendingCalendarInvalidationReload',
-      'void _scheduleCalendarInvalidationReload',
-    );
-    final scheduler = _sourceBetween(
-      source,
-      'void _scheduleCalendarInvalidationReload',
-      'void _flushCalendarInvalidationReload',
-    );
-    final flush = _sourceBetween(
-      source,
-      'void _flushCalendarInvalidationReload',
-      'void _scheduleDaySheetResumeRestore',
-    );
-    final dispose = _sourceBetween(
-      source,
-      'void dispose()',
-      '// ✅ Called when we pop back to Calendar from another page',
-    );
+    final coordinatorSource = File(
+      'lib/features/calendar/calendar_load_coordinator.dart',
+    ).readAsStringSync();
 
-    expect(initState, contains('CalendarInvalidationBus.instance.stream'));
-    expect(initState, contains('_schedulePendingCalendarInvalidationReload'));
-    expect(handler, contains('_schedulePendingCalendarInvalidationReload'));
-    expect(handler, isNot(contains('_loadFromDisk(')));
-    expect(
-      pendingScheduler,
-      contains('CalendarInvalidationBus.instance.peekPendingAfter'),
+    expect(pageSource, contains('_loadCoordinator.attach()'));
+    expect(pageSource, contains('_loadCoordinator.dispose()'));
+    expect(pageSource, isNot(contains('_handleCalendarInvalidated')));
+    expect(pageSource, isNot(contains('_flushCalendarInvalidationReload')));
+
+    final attach = _sourceBetween(
+      coordinatorSource,
+      'void attach() {',
+      'void _drainBusBacklog()',
     );
-    expect(
-      pendingScheduler,
-      contains('_calendarInvalidationScheduledRevision'),
+    expect(attach, contains('_bus.stream.listen'));
+    expect(attach, contains('_drainBusBacklog()'));
+
+    final drain = _sourceBetween(
+      coordinatorSource,
+      'void _drainBusBacklog() {',
+      'void _schedule(CalendarInvalidationReason reason',
     );
-    expect(pendingScheduler, contains('revision: pending.revision'));
-    expect(scheduler, contains('_calendarInvalidationReloadPending = true'));
-    expect(scheduler, contains('_calendarInvalidationReloadInFlight'));
-    expect(
-      scheduler,
-      contains('_calendarInvalidationReloadDebounce?.cancel()'),
+    expect(drain, contains('_bus.peekPendingAfter(_scheduledRevision)'));
+    expect(drain, contains('_schedule(pending.invalidation.reason'));
+
+    final schedule = _sourceBetween(
+      coordinatorSource,
+      'void _schedule(CalendarInvalidationReason reason',
+      'void _flush() {',
     );
-    expect(scheduler, contains('Timer('));
-    expect(scheduler, contains('_calendarInvalidationReloadRevision'));
-    expect(flush, contains('_calendarInvalidationReloadInFlight = true'));
-    expect(flush, contains('_calendarInvalidationReloadPending = false'));
-    expect(flush, contains('_isLoadingFromDisk'));
-    expect(flush, contains('_loadFromDisk('));
-    expect(flush, contains('CalendarInvalidationBus.instance.markConsumed'));
+    expect(schedule, contains('_pending = true'));
+    expect(schedule, contains('_debounceTimer?.cancel()'));
+    expect(schedule, contains('Timer(_debounce, _flush)'));
+
+    final flush = _sourceBetween(
+      coordinatorSource,
+      'void _flush() {',
+      'void dispose() {',
+    );
     expect(flush, contains('preserveViewport: true'));
-    expect(flush, contains('whenComplete'));
-    expect(flush, contains('_flushCalendarInvalidationReload();'));
-    expect(dispose, contains('_calendarInvalidationReloadDebounce?.cancel()'));
+    expect(flush, contains('_bus.markConsumed(revision)'));
+    expect(flush, contains("source: 'invalidation:"));
+    expect(flush, isNot(contains('_loadFromDisk(')));
   });
 
   test('headless Moon Return delegates to FlowJoinService', () {
@@ -1064,7 +1046,7 @@ void main() {
       );
       _expectPersistsBeforeAlertFiling(
         trackSkyBranch,
-        caller: "caller: 'track_sky_join'",
+        persistMarker: 'await repo.upsertManyDeterministic(',
         branchName: 'mounted Track Sky',
       );
 
@@ -1075,7 +1057,7 @@ void main() {
       );
       _expectPersistsBeforeAlertFiling(
         moonReturnBranch,
-        caller: "caller: 'moon_return_join'",
+        persistMarker: 'await repo.upsertManyDeterministic(',
         branchName: 'mounted Moon Return',
       );
 
@@ -1086,7 +1068,7 @@ void main() {
       );
       _expectPersistsBeforeAlertFiling(
         wagBranch,
-        caller: "caller: 'wag_join'",
+        persistMarker: 'await repo.upsertManyDeterministic(',
         branchName: 'mounted Wag',
       );
 
@@ -1097,7 +1079,7 @@ void main() {
       );
       _expectPersistsBeforeAlertFiling(
         daysOutsideBranch,
-        caller: "caller: 'days_outside_year_join'",
+        persistMarker: 'await repo.upsertManyDeterministic(',
         branchName: 'mounted Days Outside the Year',
       );
 
@@ -1108,7 +1090,7 @@ void main() {
       );
       _expectPersistsBeforeAlertFiling(
         decanWatchBranch,
-        caller: "caller: 'decan_watch_join'",
+        persistMarker: 'await repo.upsertManyDeterministic(',
         branchName: 'mounted Decan Watch',
       );
 
@@ -1119,7 +1101,7 @@ void main() {
       );
       _expectPersistsBeforeAlertFiling(
         openHandBranch,
-        caller: "caller: 'open_hand_join'",
+        persistMarker: 'await repo.upsertManyDeterministic(',
         branchName: 'mounted Open Hand',
       );
 
@@ -1130,7 +1112,7 @@ void main() {
       );
       _expectPersistsBeforeAlertFiling(
         djedBranch,
-        caller: "caller: 'djed_join'",
+        persistMarker: 'await repo.upsertManyDeterministic(',
         branchName: 'mounted Djed',
       );
 
@@ -1141,7 +1123,7 @@ void main() {
       );
       expect(
         readingHouseBranch,
-        contains("caller: 'reading_house_join'"),
+        contains('await repo.upsertManyDeterministic('),
         reason: 'mounted Reading House must persist its user_event row.',
       );
       expect(
@@ -1158,7 +1140,7 @@ void main() {
       );
       _expectPersistsBeforeAlertFiling(
         offeringTableBranch,
-        caller: "caller: 'offering_table_join'",
+        persistMarker: 'await repo.upsertManyDeterministic(',
         branchName: 'mounted Offering Table',
       );
 
@@ -1169,7 +1151,7 @@ void main() {
       );
       _expectPersistsBeforeAlertFiling(
         tendingBranch,
-        caller: "caller: 'the_tending_join'",
+        persistMarker: 'await repo.upsertManyDeterministic(',
         branchName: 'mounted Tending',
       );
 
@@ -1180,7 +1162,7 @@ void main() {
       );
       _expectPersistsBeforeAlertFiling(
         keptWordBranch,
-        caller: "caller: 'the_kept_word_join'",
+        persistMarker: 'await repo.upsertManyDeterministic(',
         branchName: 'mounted Kept Word',
       );
 
@@ -1191,7 +1173,7 @@ void main() {
       );
       _expectPersistsBeforeAlertFiling(
         courseBranch,
-        caller: "caller: 'the_course_join'",
+        persistMarker: 'await repo.upsertManyDeterministic(',
         branchName: 'mounted Course',
       );
     },
@@ -1241,9 +1223,9 @@ void main() {
       contains('endsAtUtc: trackSkyEventEndUtc(event, timezone)'),
     );
     expect(trackSkyBranch, contains('alertMinutes: alertMinutesBefore'));
-    expect(trackSkyBranch, contains('caller: \'track_sky_join\''));
     expect(trackSkyBranch, contains('_addNote('));
-    expect(trackSkyBranch, contains('await repo.upsertByClientId('));
+    expect(trackSkyBranch, contains('repo.deterministicUpsertPayload('));
+    expect(trackSkyBranch, contains('await repo.upsertManyDeterministic('));
     expect(trackSkyBranch, contains('await _scheduleAlertForEvent('));
   });
 
@@ -1266,7 +1248,7 @@ void main() {
     expect(trackSkyBranch, contains('} catch (e, st) {'));
     expect(trackSkyBranch, contains('[trackSky] event creation failed: \$e'));
     expect(trackSkyBranch, contains('Could not create \${template.title}.'));
-    expect(trackSkyBranch, contains('await repo.deleteFlow(serverFlowId);'));
+    expect(trackSkyBranch, contains('await _rollbackJoinedFlowLocally('));
     expect(trackSkyBranch, contains('return -1;'));
   });
 
@@ -1282,7 +1264,7 @@ void main() {
 
     _expectPersistsBeforeAlertFiling(
       horizon,
-      caller: "caller: 'decan_watch_horizon'",
+      persistMarker: "caller: 'decan_watch_horizon'",
       branchName: 'Decan Watch horizon',
     );
     expect(horizon, contains('alertOffsetMinutes: 0'));
@@ -1518,7 +1500,7 @@ void main() {
       expect(moonReturnBranch, contains('endsAtUtc: occurrence.endUtc'));
       expect(moonReturnBranch, contains('category: \'Ritual\''));
       expect(moonReturnBranch, contains('alertOffsetMinutes: 0'));
-      expect(moonReturnBranch, contains('caller: \'moon_return_join\''));
+      expect(moonReturnBranch, contains('await repo.upsertManyDeterministic('));
       expect(moonReturnBranch, contains('_addNote('));
       expect(moonReturnBranch, contains('await _scheduleAlertForEvent('));
     },
@@ -1587,7 +1569,7 @@ void main() {
     expect(wagBranch, contains('endsAtUtc: schedule.endUtc'));
     expect(wagBranch, contains('category: \'Ritual\''));
     expect(wagBranch, contains('alertOffsetMinutes: 0'));
-    expect(wagBranch, contains('caller: \'wag_join\''));
+    expect(wagBranch, contains('await repo.upsertManyDeterministic('));
     expect(wagBranch, contains('_addNote('));
     expect(wagBranch, contains('await _scheduleAlertForEvent('));
   });
@@ -1668,7 +1650,7 @@ void main() {
       expect(daysOutsideBranch, contains('endsAtUtc: schedule.endUtc'));
       expect(daysOutsideBranch, contains('category: \'Ritual\''));
       expect(daysOutsideBranch, contains('alertOffsetMinutes: 0'));
-      expect(daysOutsideBranch, contains('caller: \'days_outside_year_join\''));
+      expect(daysOutsideBranch, contains('await repo.upsertManyDeterministic('));
       expect(daysOutsideBranch, contains('_addNote('));
       expect(daysOutsideBranch, contains('await _scheduleAlertForEvent('));
     },
@@ -1756,7 +1738,7 @@ void main() {
       expect(decanWatchBranch, contains('endsAtUtc: occurrence.endUtc'));
       expect(decanWatchBranch, contains('category: \'Ritual\''));
       expect(decanWatchBranch, contains('alertOffsetMinutes: 0'));
-      expect(decanWatchBranch, contains('caller: \'decan_watch_join\''));
+      expect(decanWatchBranch, contains('await repo.upsertManyDeterministic('));
       expect(decanWatchBranch, contains('_addNote('));
       expect(decanWatchBranch, contains('await _scheduleAlertForEvent('));
     },
@@ -1843,7 +1825,7 @@ void main() {
       expect(openHandBranch, contains('endsAtUtc: schedule.endUtc'));
       expect(openHandBranch, contains('category: \'Ritual\''));
       expect(openHandBranch, contains('alertOffsetMinutes: 0'));
-      expect(openHandBranch, contains('caller: \'open_hand_join\''));
+      expect(openHandBranch, contains('await repo.upsertManyDeterministic('));
       expect(openHandBranch, contains('_addNote('));
       expect(openHandBranch, contains('await _scheduleAlertForEvent('));
     },
@@ -1925,7 +1907,7 @@ void main() {
     expect(djedBranch, contains('endsAtUtc: schedule.endUtc'));
     expect(djedBranch, contains('category: \'Ritual\''));
     expect(djedBranch, contains('alertOffsetMinutes: 0'));
-    expect(djedBranch, contains('caller: \'djed_join\''));
+    expect(djedBranch, contains('await repo.upsertManyDeterministic('));
     expect(djedBranch, contains('_addNote('));
     expect(djedBranch, contains('await _scheduleAlertForEvent('));
   });
@@ -1977,7 +1959,7 @@ void main() {
         readingHouseBranch,
         contains('alertOffsetMinutes: _alertNoneMinutes'),
       );
-      expect(readingHouseBranch, contains('caller: \'reading_house_join\''));
+      expect(readingHouseBranch, contains('await repo.upsertManyDeterministic('));
       expect(readingHouseBranch, contains('_addNote('));
       expect(
         readingHouseBranch,
@@ -2027,7 +2009,7 @@ void main() {
       expect(offeringTableBranch, contains('endsAtUtc: occurrence.endUtc'));
       expect(offeringTableBranch, contains('category: \'Ritual\''));
       expect(offeringTableBranch, contains('alertOffsetMinutes: 0'));
-      expect(offeringTableBranch, contains('caller: \'offering_table_join\''));
+      expect(offeringTableBranch, contains('await repo.upsertManyDeterministic('));
       expect(offeringTableBranch, contains('_addNote('));
       expect(offeringTableBranch, contains('await _scheduleAlertForEvent('));
     },
@@ -2076,7 +2058,7 @@ void main() {
       expect(weighingBranch, contains('endsAtUtc: occurrence.endUtc'));
       expect(weighingBranch, contains('category: \'Ritual\''));
       expect(weighingBranch, contains('alertOffsetMinutes: _alertNoneMinutes'));
-      expect(weighingBranch, contains('caller: \'the_weighing_join\''));
+      expect(weighingBranch, contains('await repo.upsertManyDeterministic('));
       expect(weighingBranch, contains('_addNote('));
       expect(
         weighingBranch,
@@ -2135,7 +2117,7 @@ void main() {
       expect(tendingBranch, contains('endsAtUtc: occurrence.endUtc'));
       expect(tendingBranch, contains('category: \'Ritual\''));
       expect(tendingBranch, contains('alertOffsetMinutes: 0'));
-      expect(tendingBranch, contains('caller: \'the_tending_join\''));
+      expect(tendingBranch, contains('await repo.upsertManyDeterministic('));
       expect(tendingBranch, contains('_addNote('));
       expect(tendingBranch, contains('await _scheduleAlertForEvent('));
 
@@ -2188,7 +2170,7 @@ void main() {
       expect(keptWordBranch, contains('endsAtUtc: occurrence.endUtc'));
       expect(keptWordBranch, contains('category: \'Ritual\''));
       expect(keptWordBranch, contains('alertOffsetMinutes: 0'));
-      expect(keptWordBranch, contains('caller: \'the_kept_word_join\''));
+      expect(keptWordBranch, contains('await repo.upsertManyDeterministic('));
       expect(keptWordBranch, contains('_addNote('));
       expect(keptWordBranch, contains('await _scheduleAlertForEvent('));
 
@@ -2257,7 +2239,7 @@ void main() {
       expect(courseBranch, contains('endsAtUtc: occurrence.endUtc'));
       expect(courseBranch, contains('category: \'Ritual\''));
       expect(courseBranch, contains('alertOffsetMinutes: 0'));
-      expect(courseBranch, contains('caller: \'the_course_join\''));
+      expect(courseBranch, contains('await repo.upsertManyDeterministic('));
       expect(courseBranch, contains('_addNote('));
       expect(courseBranch, contains('await _scheduleAlertForEvent('));
 
@@ -2855,10 +2837,10 @@ int _countOccurrences(String source, String needle) {
 
 void _expectPersistsBeforeAlertFiling(
   String branch, {
-  required String caller,
+  required String persistMarker,
   required String branchName,
 }) {
-  final eventPersistIndex = branch.indexOf(caller);
+  final eventPersistIndex = branch.indexOf(persistMarker);
   expect(
     eventPersistIndex,
     isNonNegative,
