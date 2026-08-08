@@ -9446,6 +9446,17 @@ class CalendarPageState extends State<CalendarPage>
     final resolvedUserId = userId ?? _activeWarmStartUserId();
     if (resolvedUserId == null) return;
     final prefs = await SharedPreferences.getInstance();
+    // Re-validate after the prefs await — account may have switched.
+    final currentUserId = _activeWarmStartUserId();
+    if (currentUserId == null || currentUserId != resolvedUserId) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[warmStart] skip cache save reason=$debugReason '
+          'userMismatch scheduled=$resolvedUserId current=$currentUserId',
+        );
+      }
+      return;
+    }
     final key = _warmStartCacheKey(resolvedUserId);
 
     if (_flows.isEmpty && _notes.isEmpty) {

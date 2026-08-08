@@ -57,4 +57,19 @@ void main() {
       reason: '_loadEndedReminderIds has no load-once guard',
     );
   });
+
+  test('PR3 warm-start persist revalidates user after prefs await', () {
+    final persist = calendarPageSource.substring(
+      calendarPageSource.indexOf('Future<void> _persistWarmStartCacheNow({'),
+      calendarPageSource.indexOf(
+        'Future<void> _restoreWarmStartCacheIfAvailable({',
+      ),
+    );
+    expect(
+      persist,
+      contains('final prefs = await SharedPreferences.getInstance()'),
+    );
+    expect(persist, contains('final currentUserId = _activeWarmStartUserId()'));
+    expect(persist, contains('currentUserId != resolvedUserId'));
+  });
 }
