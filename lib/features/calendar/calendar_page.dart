@@ -25654,21 +25654,8 @@ class CalendarPageState extends State<CalendarPage>
             allDay: false,
             flowId: serverFlowId,
           );
-          final note = _Note(
-            clientEventId: clientEventId,
-            calendarId: _personalCalendarId,
-            title: title,
-            detail: detail,
-            allDay: false,
-            start: startTod,
-            end: endTod,
-            flowId: serverFlowId,
-            category: 'Study',
-            alertOffsetMinutes: _alertNoneMinutes,
-            actionId: readingHouseActionId(sitting),
-            behaviorPayload: behaviorPayload,
-          );
-
+          // Fresh join CID + alert None: nothing exists to cancel. Do not reuse
+          // this skip for repair/re-join of an existing clientEventId.
           _addNote(
             kyKmKd.kYear,
             kyKmKd.kMonth,
@@ -25700,14 +25687,6 @@ class CalendarPageState extends State<CalendarPage>
             actionId: readingHouseActionId(sitting),
             behaviorPayload: behaviorPayload,
             caller: 'reading_house_join',
-          );
-
-          await _scheduleAlertForEvent(
-            note: note,
-            ky: kyKmKd.kYear,
-            km: kyKmKd.kMonth,
-            kd: kyKmKd.kDay,
-            clientEventId: clientEventId,
           );
         }
       } catch (e, st) {
@@ -25999,21 +25978,8 @@ class CalendarPageState extends State<CalendarPage>
             allDay: false,
             flowId: serverFlowId,
           );
-          final note = _Note(
-            clientEventId: clientEventId,
-            calendarId: _personalCalendarId,
-            title: title,
-            detail: detail,
-            allDay: false,
-            start: startTod,
-            end: endTod,
-            flowId: serverFlowId,
-            category: 'Ritual',
-            alertOffsetMinutes: _alertNoneMinutes,
-            actionId: dawnHouseRiteActionId(day),
-            behaviorPayload: behaviorPayload,
-          );
-
+          // Fresh join CID + alert None: nothing exists to cancel. Do not reuse
+          // this skip for repair/re-join of an existing clientEventId.
           _addNote(
             kyKmKd.kYear,
             kyKmKd.kMonth,
@@ -26030,14 +25996,6 @@ class CalendarPageState extends State<CalendarPage>
             alertOffsetMinutes: _alertNoneMinutes,
             actionId: dawnHouseRiteActionId(day),
             behaviorPayload: behaviorPayload,
-          );
-
-          await _scheduleAlertForEvent(
-            note: note,
-            ky: kyKmKd.kYear,
-            km: kyKmKd.kMonth,
-            kd: kyKmKd.kDay,
-            clientEventId: clientEventId,
           );
 
           await repo.upsertByClientId(
@@ -26191,21 +26149,8 @@ class CalendarPageState extends State<CalendarPage>
             allDay: false,
             flowId: serverFlowId,
           );
-          final note = _Note(
-            clientEventId: clientEventId,
-            calendarId: _personalCalendarId,
-            title: title,
-            detail: detail,
-            allDay: false,
-            start: startTod,
-            end: endTod,
-            flowId: serverFlowId,
-            category: 'Ritual',
-            alertOffsetMinutes: _alertNoneMinutes,
-            actionId: eveningThresholdRiteActionId(day),
-            behaviorPayload: behaviorPayload,
-          );
-
+          // Fresh join CID + alert None: nothing exists to cancel. Do not reuse
+          // this skip for repair/re-join of an existing clientEventId.
           _addNote(
             kyKmKd.kYear,
             kyKmKd.kMonth,
@@ -26222,14 +26167,6 @@ class CalendarPageState extends State<CalendarPage>
             alertOffsetMinutes: _alertNoneMinutes,
             actionId: eveningThresholdRiteActionId(day),
             behaviorPayload: behaviorPayload,
-          );
-
-          await _scheduleAlertForEvent(
-            note: note,
-            ky: kyKmKd.kYear,
-            km: kyKmKd.kMonth,
-            kd: kyKmKd.kDay,
-            clientEventId: clientEventId,
           );
 
           await repo.upsertByClientId(
@@ -26348,21 +26285,8 @@ class CalendarPageState extends State<CalendarPage>
             allDay: false,
             flowId: serverFlowId,
           );
-          final note = _Note(
-            clientEventId: clientEventId,
-            calendarId: _personalCalendarId,
-            title: title,
-            detail: detail,
-            allDay: false,
-            start: startTod,
-            end: endTod,
-            flowId: serverFlowId,
-            category: 'Ritual',
-            alertOffsetMinutes: _alertNoneMinutes,
-            actionId: theWeighingActionId(event),
-            behaviorPayload: behaviorPayload,
-          );
-
+          // Fresh join CID + alert None: nothing exists to cancel. Do not reuse
+          // this skip for repair/re-join of an existing clientEventId.
           _addNote(
             kyKmKd.kYear,
             kyKmKd.kMonth,
@@ -26379,14 +26303,6 @@ class CalendarPageState extends State<CalendarPage>
             alertOffsetMinutes: _alertNoneMinutes,
             actionId: theWeighingActionId(event),
             behaviorPayload: behaviorPayload,
-          );
-
-          await _scheduleAlertForEvent(
-            note: note,
-            ky: kyKmKd.kYear,
-            km: kyKmKd.kMonth,
-            kd: kyKmKd.kDay,
-            clientEventId: clientEventId,
           );
 
           await repo.upsertByClientId(

@@ -1046,7 +1046,7 @@ void main() {
   });
 
   test(
-    'mounted Track Sky, Moon Return, Wag, Days Outside, Decan Watch, Open Hand, Djed, Reading House, Offering Table, Tending, Kept Word, and Course persist events before filing alerts',
+    'mounted Track Sky, Moon Return, Wag, Days Outside, Decan Watch, Open Hand, Djed, Offering Table, Tending, Kept Word, and Course persist events before filing alerts',
     () {
       final source = File(
         'lib/features/calendar/calendar_page.dart',
@@ -1139,10 +1139,16 @@ void main() {
         'if (template.kind == _MaatFlowTemplateKind.readingHouse)',
         'if (template.kind == _MaatFlowTemplateKind.decanWatch)',
       );
-      _expectPersistsBeforeAlertFiling(
+      expect(
         readingHouseBranch,
-        caller: "caller: 'reading_house_join'",
-        branchName: 'mounted Reading House',
+        contains("caller: 'reading_house_join'"),
+        reason: 'mounted Reading House must persist its user_event row.',
+      );
+      expect(
+        readingHouseBranch,
+        isNot(contains('await _scheduleAlertForEvent(')),
+        reason:
+            'mounted Reading House skips cancel on freshly generated join CIDs.',
       );
 
       final offeringTableBranch = _sourceBetween(
@@ -1973,7 +1979,10 @@ void main() {
       );
       expect(readingHouseBranch, contains('caller: \'reading_house_join\''));
       expect(readingHouseBranch, contains('_addNote('));
-      expect(readingHouseBranch, contains('await _scheduleAlertForEvent('));
+      expect(
+        readingHouseBranch,
+        isNot(contains('await _scheduleAlertForEvent(')),
+      );
     },
   );
 
@@ -2069,7 +2078,10 @@ void main() {
       expect(weighingBranch, contains('alertOffsetMinutes: _alertNoneMinutes'));
       expect(weighingBranch, contains('caller: \'the_weighing_join\''));
       expect(weighingBranch, contains('_addNote('));
-      expect(weighingBranch, contains('await _scheduleAlertForEvent('));
+      expect(
+        weighingBranch,
+        isNot(contains('await _scheduleAlertForEvent(')),
+      );
 
       expect(weighingPayload, contains("'kind': 'maat_the_weighing_event'"));
       expect(weighingPayload, contains("'flow_key': kTheWeighingFlowKey"));
@@ -2883,7 +2895,9 @@ void _expectMountedBranchUsesExplicitNoAlert(
   );
   expect(
     branch,
-    contains('await _scheduleAlertForEvent('),
-    reason: '$branchName should still route through no-alert cancellation.',
+    isNot(contains('await _scheduleAlertForEvent(')),
+    reason:
+        '$branchName skips cancel on freshly generated join CIDs; '
+        'nothing exists to cancel.',
   );
 }
