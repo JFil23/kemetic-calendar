@@ -7340,6 +7340,7 @@ class CalendarPage extends StatefulWidget {
           );
           await flowsRepo.clearMyFiledFlowsCache();
           if (!navigator.mounted) return importedFlowId;
+          // Day View completion is mounted-host only; detached keeps filing refresh.
           unawaited(
             flowsRepo.refreshMyFiledFlows().then((rows) {
               _reconcileRememberedMaatJoinsFromLiveSnapshot(
@@ -7661,6 +7662,7 @@ class CalendarPage extends StatefulWidget {
             flowId: importedFlowId,
           );
           await flowsRepo.clearMyFiledFlowsCache();
+          // Day View completion is mounted-host only; detached keeps filing refresh.
           unawaited(
             flowsRepo.refreshMyFiledFlows().then((rows) {
               _reconcileRememberedMaatJoinsFromLiveSnapshot(
@@ -10562,10 +10564,6 @@ class CalendarPageState extends State<CalendarPage>
                       .shouldPreserveOverlayForLifecycleClose) {
                 return;
               }
-              await _saveCalendarOverlayState(
-                _kCalendarOverlayKindFlowStudio,
-                const <String, dynamic>{'mode': _kFlowStudioModeMaatFlows},
-              );
               if (importedFlowId != null && importedFlowId > 0) {
                 CalendarPage._rememberJoinedMaatFlowTemplate(
                   templateKey: template.key,
@@ -10573,8 +10571,42 @@ class CalendarPageState extends State<CalendarPage>
                 );
                 _myFlowsFilingSnapshotCache = null;
                 await _flowsRepo.clearMyFiledFlowsCache();
-                await _loadFromDisk();
+                // Mounted restore join: notes already in _notes; open Day View.
+                if (_firstChronologicalNoteForFlow(importedFlowId) == null) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Could not open the first day of this flow.',
+                        ),
+                      ),
+                    );
+                  }
+                  await _saveCalendarOverlayState(
+                    _kCalendarOverlayKindFlowStudio,
+                    const <String, dynamic>{'mode': _kFlowStudioModeMaatFlows},
+                  );
+                  return;
+                }
+                if (mounted) {
+                  final rootNavigator = Navigator.of(
+                    context,
+                    rootNavigator: true,
+                  );
+                  if (rootNavigator.canPop()) {
+                    rootNavigator.pop();
+                  }
+                }
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) return;
+                  _openDayViewForJoinedMaatFlow(importedFlowId);
+                });
+                return;
               }
+              await _saveCalendarOverlayState(
+                _kCalendarOverlayKindFlowStudio,
+                const <String, dynamic>{'mode': _kFlowStudioModeMaatFlows},
+              );
             }),
           );
           return <Route<dynamic>>[hubRoute, listRoute, detailRoute];
@@ -14955,6 +14987,67 @@ class CalendarPageState extends State<CalendarPage>
     });
     final first = candidates.first;
     return (ky: first.ky, km: first.km, kd: first.kd, note: first.note);
+  }
+
+  /// Chronological first note for a flow: earliest date, then earliest start.
+  /// Same-day tiebreak is start time only (Course dawn wins via date then start).
+  /// Null only when the flow has no notes. Do not use upcoming-biased helpers.
+  ({int ky, int km, int kd, _Note note})? _firstChronologicalNoteForFlow(
+    int flowId,
+  ) {
+    final candidates =
+        <({int ky, int km, int kd, DateTime date, _Note note})>[];
+    for (final entry in _notes.entries) {
+      final parts = entry.key.split('-');
+      if (parts.length != 3) continue;
+      final ky = int.tryParse(parts[0]);
+      final km = int.tryParse(parts[1]);
+      final kd = int.tryParse(parts[2]);
+      if (ky == null || km == null || kd == null) continue;
+      final date = DateUtils.dateOnly(KemeticMath.toGregorian(ky, km, kd));
+      for (final note in entry.value) {
+        if (note.flowId == flowId) {
+          candidates.add((ky: ky, km: km, kd: kd, date: date, note: note));
+        }
+      }
+    }
+    if (candidates.isEmpty) return null;
+    candidates.sort((a, b) {
+      final byDate = a.date.compareTo(b.date);
+      if (byDate != 0) return byDate;
+      final aStart = a.note.allDay
+          ? 0
+          : (a.note.start?.hour ?? 9) * 60 + (a.note.start?.minute ?? 0);
+      final bStart = b.note.allDay
+          ? 0
+          : (b.note.start?.hour ?? 9) * 60 + (b.note.start?.minute ?? 0);
+      return aStart.compareTo(bStart);
+    });
+    final first = candidates.first;
+    return (ky: first.ky, km: first.km, kd: first.kd, note: first.note);
+  }
+
+  void _openDayViewForJoinedMaatFlow(int flowId) {
+    final first = _firstChronologicalNoteForFlow(flowId);
+    if (first == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not open the first day of this flow.'),
+          ),
+        );
+      }
+      return;
+    }
+    if (!mounted) return;
+    _openDayView(
+      context,
+      first.ky,
+      first.km,
+      first.kd,
+      focusEvent: _noteToEventItem(first.note),
+      debugOpenSource: 'maat_flow_join',
+    );
   }
 
   ({int ky, int km, int kd, _Note note})?
@@ -23698,9 +23791,16 @@ class CalendarPageState extends State<CalendarPage>
           );
           _myFlowsFilingSnapshotCache = null;
           await _flowsRepo.clearMyFiledFlowsCache();
-          await _loadFromDisk(source: 'maat_flow_imported');
           if (!listCtx.mounted) return importedFlowId;
-          _focusCalendarOnFirstUpcomingFlowEvent(importedFlowId);
+          // Notes already in _notes from join; hub completion opens Day View.
+          if (_firstChronologicalNoteForFlow(importedFlowId) == null &&
+              listCtx.mounted) {
+            ScaffoldMessenger.of(listCtx).showSnackBar(
+              const SnackBar(
+                content: Text('Could not open the first day of this flow.'),
+              ),
+            );
+          }
           if (!listCtx.mounted) return importedFlowId;
           final listNavigator = Navigator.of(listCtx);
           if (listNavigator.canPop()) {
@@ -23803,14 +23903,20 @@ class CalendarPageState extends State<CalendarPage>
             },
             returnState: const <String, dynamic>{'mode': _kFlowStudioModeHub},
           );
-          if (importedFlowId != null && importedFlowId > 0) {
-            if (_firstUpcomingNoteForFlow(importedFlowId) == null) {
-              await _loadFromDisk(source: 'maat_flow_imported_return');
-            }
-            if (mounted) {
-              _focusCalendarOnFirstUpcomingFlowEvent(importedFlowId);
+          if (importedFlowId == null || importedFlowId <= 0) return;
+          // List already snackbars when chronological first note is missing.
+          if (_firstChronologicalNoteForFlow(importedFlowId) == null) return;
+          // Close hub + Flow Studio sheet, then open Day View on first day.
+          if (innerCtx.mounted) {
+            final rootNavigator = Navigator.of(innerCtx, rootNavigator: true);
+            if (rootNavigator.canPop()) {
+              rootNavigator.pop();
             }
           }
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            _openDayViewForJoinedMaatFlow(importedFlowId);
+          });
         }());
       },
       onCreateNew: () async {
@@ -25729,7 +25835,6 @@ class CalendarPageState extends State<CalendarPage>
             allDay: false,
             flowId: serverFlowId,
           );
-
           // Fresh join CID + alert None: nothing exists to cancel. Do not reuse
           // this skip for repair/re-join of an existing clientEventId.
           _addNote(
@@ -26070,7 +26175,6 @@ class CalendarPageState extends State<CalendarPage>
             allDay: false,
             flowId: serverFlowId,
           );
-
           // Fresh join CID + alert None: nothing exists to cancel. Do not reuse
           // this skip for repair/re-join of an existing clientEventId.
           _addNote(
@@ -26245,7 +26349,6 @@ class CalendarPageState extends State<CalendarPage>
             allDay: false,
             flowId: serverFlowId,
           );
-
           // Fresh join CID + alert None: nothing exists to cancel. Do not reuse
           // this skip for repair/re-join of an existing clientEventId.
           _addNote(
@@ -26385,7 +26488,6 @@ class CalendarPageState extends State<CalendarPage>
             allDay: false,
             flowId: serverFlowId,
           );
-
           // Fresh join CID + alert None: nothing exists to cancel. Do not reuse
           // this skip for repair/re-join of an existing clientEventId.
           _addNote(
