@@ -175,6 +175,22 @@ void main() {
     );
   });
 
+  test('PR10a drops full hydrate on early-success single-note delete', () {
+    expect(
+      calendarPageSource.contains("await _loadFromDisk(source: 'delete')"),
+      isFalse,
+    );
+    expect(calendarPageSource, contains("source: 'repeat_scope_delete_"));
+    final earlySuccessArm = calendarPageSource.substring(
+      calendarPageSource.indexOf('[delete-note] ✅ SUCCESS: Deleted by id='),
+      calendarPageSource.indexOf(
+        'Priority 3: Pre-fetch events from Supabase to gather other possible flowIds',
+      ),
+    );
+    expect(earlySuccessArm.contains('_loadFromDisk('), isFalse);
+    expect(earlySuccessArm, contains('return true;'));
+  });
+
   test('PR6.5 extracts maat join rollback into one helper', () {
     expect(calendarPageSource, contains('_rollbackJoinedFlowLocally'));
     expect(

@@ -20968,8 +20968,11 @@ class CalendarPageState extends State<CalendarPage>
             ),
           );
         }
-        // ✅ Reload from server truth so other-device state is reflected immediately.
-        await _loadFromDisk(source: 'delete');
+        // Local row, pending-delete key, ledger forget, server delete, and
+        // tombstone are already done above. Skipping full hydration here:
+        // other-device changes surface on the next trigger (resume /
+        // invalidation / startup). Standalone deletes do not need flow-count
+        // or reminder regen from finishNonCriticalPostProcessing.
         return true;
       }
 
