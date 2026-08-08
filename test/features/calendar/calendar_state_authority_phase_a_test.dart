@@ -115,6 +115,27 @@ void main() {
     );
   });
 
+  test('PR6 wires CalendarLoadCoordinator and epoch/same-user commit guards', () {
+    expect(
+      File('lib/features/calendar/calendar_load_coordinator.dart').existsSync(),
+      isTrue,
+    );
+    expect(calendarPageSource, contains('CalendarLoadCoordinator _loadCoordinator'));
+    expect(calendarPageSource.contains('_isLoadingFromDisk'), isFalse);
+    expect(calendarPageSource.contains('_flushCalendarInvalidationReload'), isFalse);
+    expect(
+      calendarPageSource,
+      contains("_loadCoordinator.invalidate(reason: 'signed_out')"),
+    );
+    expect(
+      RegExp(
+        r"if \(!_loadCoordinator\.isCurrent\(epoch\)\) return;\n"
+        r"\s+if \(_activeWarmStartUserId\(\) != loadUserId\) return;",
+      ).allMatches(calendarPageSource).length,
+      2,
+    );
+  });
+
   test('PR6.5 extracts maat join rollback into one helper', () {
     expect(calendarPageSource, contains('_rollbackJoinedFlowLocally'));
     expect(
