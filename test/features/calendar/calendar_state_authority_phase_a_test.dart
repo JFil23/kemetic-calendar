@@ -38,4 +38,23 @@ void main() {
       reason: 'load commit must not assign nextFlowId outright',
     );
   });
+
+  test('PR2 signedOut clears live maps and tombstone load-once only', () {
+    final block = calendarPageSource.substring(
+      calendarPageSource.indexOf('if (event == AuthChangeEvent.signedOut) {'),
+      calendarPageSource.indexOf('// Initialize journal controller'),
+    );
+    expect(block, contains('_flows.clear()'));
+    expect(block, contains('_notes.clear()'));
+    expect(block, contains('_manualDeleteTombstones.clear()'));
+    expect(block, contains('_pendingDeleteKeys.clear()'));
+    expect(block, contains('_endedReminderIds.clear()'));
+    expect(block, contains('_manualTombstonesLoaded = false'));
+    expect(block, contains('_manualTombstonesLoad = null'));
+    expect(
+      block.contains('_endedReminderIdsLoaded'),
+      isFalse,
+      reason: '_loadEndedReminderIds has no load-once guard',
+    );
+  });
 }

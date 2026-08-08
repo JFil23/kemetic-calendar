@@ -13689,6 +13689,15 @@ class CalendarPageState extends State<CalendarPage>
         _warmStartCacheRestoredForUserId = null;
         _myFlowsFilingSnapshotCache = null;
         _lastSuccessfulHydrationAt = null;
+        _flows.clear();
+        _notes.clear();
+        _flowTotalEventCounts.clear();
+        _flowRemainingEventCounts.clear();
+        _manualDeleteTombstones.clear();
+        _pendingDeleteKeys.clear();
+        _endedReminderIds.clear();
+        _manualTombstonesLoaded = false;
+        _manualTombstonesLoad = null;
       }
     });
 
