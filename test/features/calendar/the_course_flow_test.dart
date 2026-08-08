@@ -252,8 +252,9 @@ void main() {
     expect(branch, contains('kTheCourseEvents'));
     expect(branch, contains('courseScheduleForDate'));
     expect(branch, contains('courseContextForKemeticDate'));
-    expect(branch, contains('await repo.upsertByClientId'));
-    expect(branch, contains('repo.deleteFlow(serverFlowId)'));
+    expect(branch, contains('repo.deterministicUpsertPayload'));
+    expect(branch, contains('await repo.upsertManyDeterministic'));
+    expect(branch, contains('_rollbackJoinedFlowLocally('));
     expect(branch, contains('firstG.add(const Duration(days: 29))'));
     expect(branch, isNot(contains('kDawnHouseRiteDays')));
   });

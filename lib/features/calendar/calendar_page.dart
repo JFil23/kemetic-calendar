@@ -8765,8 +8765,10 @@ class CalendarPageState extends State<CalendarPage>
       ValueNotifier<DayViewSheetEventTarget?>(null);
   Timer? _warmStartCacheDebounceTimer;
   String? _warmStartCacheRestoredForUserId;
+
   /// Claim slot so concurrent warm-start restores cannot both pass the entry guard.
   String? _warmStartRestoreInFlightForUserId;
+
   /// Set only by load commit — not by warm-start paint.
   String? _serverHydrationCommittedForUserId;
   bool _warmStartSnapshotVisible = false;
@@ -19834,9 +19836,9 @@ class CalendarPageState extends State<CalendarPage>
 
     if (mounted) {
       setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(failureMessage)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(failureMessage)));
     }
 
     try {
@@ -19864,9 +19866,7 @@ class CalendarPageState extends State<CalendarPage>
 
     final removed = list.removeAt(index);
     if (list.isEmpty) _notes.remove(k);
-    _unconfirmed.forget(
-      (pending) => _sameStandaloneLaneNote(removed, pending),
-    );
+    _unconfirmed.forget((pending) => _sameStandaloneLaneNote(removed, pending));
     setState(() {});
     _notifyDayViewDataChanged();
     return removed;
@@ -20002,9 +20002,7 @@ class CalendarPageState extends State<CalendarPage>
     if (trimmed.isEmpty) return;
     await _ensureManualDeleteTombstonesLoaded();
     final added = _manualDeleteTombstones.add(trimmed);
-    _unconfirmed.forget(
-      (pending) => pending.clientEventId?.trim() == trimmed,
-    );
+    _unconfirmed.forget((pending) => pending.clientEventId?.trim() == trimmed);
     if (added) {
       await _persistManualDeleteTombstones();
     }
@@ -20853,9 +20851,7 @@ class CalendarPageState extends State<CalendarPage>
       _pendingDeleteKeys.add(pendingKey);
       final cid = note.clientEventId?.trim();
       if (cid != null && cid.isNotEmpty) {
-        _unconfirmed.forget(
-          (pending) => pending.clientEventId?.trim() == cid,
-        );
+        _unconfirmed.forget((pending) => pending.clientEventId?.trim() == cid);
       }
       if (kDebugMode) {
         _calendarDebugPrint('[delete-note] pending delete key=$pendingKey');
@@ -24483,6 +24479,9 @@ class CalendarPageState extends State<CalendarPage>
 
       final repo = UserEventsRepo(Supabase.instance.client);
       try {
+        final rows = <Map<String, dynamic>>[];
+        final pendingAlerts =
+            <({_Note note, int ky, int km, int kd, String clientEventId})>[];
         for (final event in events) {
           final startLocal = trackSkyEventStartLocal(event, timezone);
           final endLocal = trackSkyEventEndLocal(event, timezone);
@@ -24531,28 +24530,38 @@ class CalendarPageState extends State<CalendarPage>
             alertOffsetMinutes: alertMinutesBefore,
           );
 
-          await repo.upsertByClientId(
-            clientEventId: clientEventId,
-            title: event.title,
-            startsAtUtc: trackSkyEventStartUtc(event, timezone),
-            detail: _encodeDetailWithMeta(
-              event.detailText,
-              alertMinutes: alertMinutesBefore,
+          rows.add(
+            repo.deterministicUpsertPayload(
+              clientEventId: clientEventId,
+              title: event.title,
+              startsAtUtc: trackSkyEventStartUtc(event, timezone),
+              detail: _encodeDetailWithMeta(
+                event.detailText,
+                alertMinutes: alertMinutesBefore,
+              ),
+              location: null,
+              allDay: event.schedule.allDay,
+              endsAtUtc: trackSkyEventEndUtc(event, timezone),
+              category: event.category,
+              flowLocalId: serverFlowId,
             ),
-            location: null,
-            allDay: event.schedule.allDay,
-            endsAtUtc: trackSkyEventEndUtc(event, timezone),
-            category: event.category,
-            flowLocalId: serverFlowId,
-            caller: 'track_sky_join',
           );
-
-          await _scheduleAlertForEvent(
+          pendingAlerts.add((
             note: note,
             ky: kyKmKd.kYear,
             km: kyKmKd.kMonth,
             kd: kyKmKd.kDay,
             clientEventId: clientEventId,
+          ));
+        }
+        await repo.upsertManyDeterministic(rows);
+        for (final pending in pendingAlerts) {
+          await _scheduleAlertForEvent(
+            note: pending.note,
+            ky: pending.ky,
+            km: pending.km,
+            kd: pending.kd,
+            clientEventId: pending.clientEventId,
           );
         }
       } catch (e, st) {
@@ -24636,6 +24645,9 @@ class CalendarPageState extends State<CalendarPage>
 
       final repo = UserEventsRepo(Supabase.instance.client);
       try {
+        final rows = <Map<String, dynamic>>[];
+        final pendingAlerts =
+            <({_Note note, int ky, int km, int kd, String clientEventId})>[];
         for (final occurrence in occurrences) {
           final kyKmKd = KemeticMath.fromGregorian(
             DateUtils.dateOnly(occurrence.startLocal),
@@ -24691,27 +24703,37 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await repo.upsertByClientId(
-            clientEventId: clientEventId,
-            title: title,
-            startsAtUtc: occurrence.startUtc,
-            detail: detail,
-            calendarId: _personalCalendarId,
-            allDay: false,
-            endsAtUtc: occurrence.endUtc,
-            category: 'Ritual',
-            flowLocalId: serverFlowId,
-            actionId: moonReturnActionId(occurrence),
-            behaviorPayload: behaviorPayload,
-            caller: 'moon_return_join',
+          rows.add(
+            repo.deterministicUpsertPayload(
+              clientEventId: clientEventId,
+              title: title,
+              startsAtUtc: occurrence.startUtc,
+              detail: detail,
+              calendarId: _personalCalendarId,
+              allDay: false,
+              endsAtUtc: occurrence.endUtc,
+              category: 'Ritual',
+              flowLocalId: serverFlowId,
+              actionId: moonReturnActionId(occurrence),
+              behaviorPayload: behaviorPayload,
+            ),
           );
-
-          await _scheduleAlertForEvent(
+          pendingAlerts.add((
             note: note,
             ky: kyKmKd.kYear,
             km: kyKmKd.kMonth,
             kd: kyKmKd.kDay,
             clientEventId: clientEventId,
+          ));
+        }
+        await repo.upsertManyDeterministic(rows);
+        for (final pending in pendingAlerts) {
+          await _scheduleAlertForEvent(
+            note: pending.note,
+            ky: pending.ky,
+            km: pending.km,
+            kd: pending.kd,
+            clientEventId: pending.clientEventId,
           );
         }
       } catch (e, st) {
@@ -24813,6 +24835,9 @@ class CalendarPageState extends State<CalendarPage>
 
       final repo = UserEventsRepo(Supabase.instance.client);
       try {
+        final rows = <Map<String, dynamic>>[];
+        final pendingAlerts =
+            <({_Note note, int ky, int km, int kd, String clientEventId})>[];
         for (final event in kWagEvents) {
           final schedule = schedules[event]!;
           final variant = wagCopyVariantForEvent(event: event, kYear: kYear);
@@ -24885,27 +24910,37 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await repo.upsertByClientId(
-            clientEventId: clientEventId,
-            title: title,
-            startsAtUtc: schedule.startUtc,
-            detail: detail,
-            calendarId: _personalCalendarId,
-            allDay: false,
-            endsAtUtc: schedule.endUtc,
-            category: 'Ritual',
-            flowLocalId: serverFlowId,
-            actionId: wagActionId(event),
-            behaviorPayload: behaviorPayload,
-            caller: 'wag_join',
+          rows.add(
+            repo.deterministicUpsertPayload(
+              clientEventId: clientEventId,
+              title: title,
+              startsAtUtc: schedule.startUtc,
+              detail: detail,
+              calendarId: _personalCalendarId,
+              allDay: false,
+              endsAtUtc: schedule.endUtc,
+              category: 'Ritual',
+              flowLocalId: serverFlowId,
+              actionId: wagActionId(event),
+              behaviorPayload: behaviorPayload,
+            ),
           );
-
-          await _scheduleAlertForEvent(
+          pendingAlerts.add((
             note: note,
             ky: kyKmKd.kYear,
             km: kyKmKd.kMonth,
             kd: kyKmKd.kDay,
             clientEventId: clientEventId,
+          ));
+        }
+        await repo.upsertManyDeterministic(rows);
+        for (final pending in pendingAlerts) {
+          await _scheduleAlertForEvent(
+            note: pending.note,
+            ky: pending.ky,
+            km: pending.km,
+            kd: pending.kd,
+            clientEventId: pending.clientEventId,
           );
         }
       } catch (e, st) {
@@ -25013,6 +25048,9 @@ class CalendarPageState extends State<CalendarPage>
 
       final repo = UserEventsRepo(Supabase.instance.client);
       try {
+        final rows = <Map<String, dynamic>>[];
+        final pendingAlerts =
+            <({_Note note, int ky, int km, int kd, String clientEventId})>[];
         for (final event in kDaysOutsideEvents) {
           final schedule = schedules[event]!;
           final gregorian = daysOutsideEventGregorian(
@@ -25089,27 +25127,37 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await repo.upsertByClientId(
-            clientEventId: clientEventId,
-            title: title,
-            startsAtUtc: schedule.startUtc,
-            detail: detail,
-            calendarId: _personalCalendarId,
-            allDay: false,
-            endsAtUtc: schedule.endUtc,
-            category: 'Ritual',
-            flowLocalId: serverFlowId,
-            actionId: daysOutsideActionId(event),
-            behaviorPayload: behaviorPayload,
-            caller: 'days_outside_year_join',
+          rows.add(
+            repo.deterministicUpsertPayload(
+              clientEventId: clientEventId,
+              title: title,
+              startsAtUtc: schedule.startUtc,
+              detail: detail,
+              calendarId: _personalCalendarId,
+              allDay: false,
+              endsAtUtc: schedule.endUtc,
+              category: 'Ritual',
+              flowLocalId: serverFlowId,
+              actionId: daysOutsideActionId(event),
+              behaviorPayload: behaviorPayload,
+            ),
           );
-
-          await _scheduleAlertForEvent(
+          pendingAlerts.add((
             note: note,
             ky: kyKmKd.kYear,
             km: kyKmKd.kMonth,
             kd: kyKmKd.kDay,
             clientEventId: clientEventId,
+          ));
+        }
+        await repo.upsertManyDeterministic(rows);
+        for (final pending in pendingAlerts) {
+          await _scheduleAlertForEvent(
+            note: pending.note,
+            ky: pending.ky,
+            km: pending.km,
+            kd: pending.kd,
+            clientEventId: pending.clientEventId,
           );
         }
       } catch (e, st) {
@@ -25290,6 +25338,9 @@ class CalendarPageState extends State<CalendarPage>
 
       final repo = UserEventsRepo(Supabase.instance.client);
       try {
+        final rows = <Map<String, dynamic>>[];
+        final pendingAlerts =
+            <({_Note note, int ky, int km, int kd, String clientEventId})>[];
         for (final event in kOpenHandEvents) {
           final schedule = schedules[event]!;
           final kyKmKd = KemeticMath.fromGregorian(
@@ -25347,27 +25398,37 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await repo.upsertByClientId(
-            clientEventId: clientEventId,
-            title: title,
-            startsAtUtc: schedule.startUtc,
-            detail: detail,
-            calendarId: _personalCalendarId,
-            allDay: false,
-            endsAtUtc: schedule.endUtc,
-            category: 'Ritual',
-            flowLocalId: serverFlowId,
-            actionId: openHandActionId(event),
-            behaviorPayload: behaviorPayload,
-            caller: 'open_hand_join',
+          rows.add(
+            repo.deterministicUpsertPayload(
+              clientEventId: clientEventId,
+              title: title,
+              startsAtUtc: schedule.startUtc,
+              detail: detail,
+              calendarId: _personalCalendarId,
+              allDay: false,
+              endsAtUtc: schedule.endUtc,
+              category: 'Ritual',
+              flowLocalId: serverFlowId,
+              actionId: openHandActionId(event),
+              behaviorPayload: behaviorPayload,
+            ),
           );
-
-          await _scheduleAlertForEvent(
+          pendingAlerts.add((
             note: note,
             ky: kyKmKd.kYear,
             km: kyKmKd.kMonth,
             kd: kyKmKd.kDay,
             clientEventId: clientEventId,
+          ));
+        }
+        await repo.upsertManyDeterministic(rows);
+        for (final pending in pendingAlerts) {
+          await _scheduleAlertForEvent(
+            note: pending.note,
+            ky: pending.ky,
+            km: pending.km,
+            kd: pending.kd,
+            clientEventId: pending.clientEventId,
           );
         }
       } catch (e, st) {
@@ -25473,6 +25534,9 @@ class CalendarPageState extends State<CalendarPage>
 
       final repo = UserEventsRepo(Supabase.instance.client);
       try {
+        final rows = <Map<String, dynamic>>[];
+        final pendingAlerts =
+            <({_Note note, int ky, int km, int kd, String clientEventId})>[];
         for (final event in kDjedEvents) {
           final schedule = schedules[event]!;
           final kyKmKd = KemeticMath.fromGregorian(
@@ -25530,27 +25594,37 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await repo.upsertByClientId(
-            clientEventId: clientEventId,
-            title: title,
-            startsAtUtc: schedule.startUtc,
-            detail: detail,
-            calendarId: _personalCalendarId,
-            allDay: false,
-            endsAtUtc: schedule.endUtc,
-            category: 'Ritual',
-            flowLocalId: serverFlowId,
-            actionId: djedActionId(event),
-            behaviorPayload: behaviorPayload,
-            caller: 'djed_join',
+          rows.add(
+            repo.deterministicUpsertPayload(
+              clientEventId: clientEventId,
+              title: title,
+              startsAtUtc: schedule.startUtc,
+              detail: detail,
+              calendarId: _personalCalendarId,
+              allDay: false,
+              endsAtUtc: schedule.endUtc,
+              category: 'Ritual',
+              flowLocalId: serverFlowId,
+              actionId: djedActionId(event),
+              behaviorPayload: behaviorPayload,
+            ),
           );
-
-          await _scheduleAlertForEvent(
+          pendingAlerts.add((
             note: note,
             ky: kyKmKd.kYear,
             km: kyKmKd.kMonth,
             kd: kyKmKd.kDay,
             clientEventId: clientEventId,
+          ));
+        }
+        await repo.upsertManyDeterministic(rows);
+        for (final pending in pendingAlerts) {
+          await _scheduleAlertForEvent(
+            note: pending.note,
+            ky: pending.ky,
+            km: pending.km,
+            kd: pending.kd,
+            clientEventId: pending.clientEventId,
           );
         }
       } catch (e, st) {
@@ -25623,6 +25697,7 @@ class CalendarPageState extends State<CalendarPage>
 
       final repo = UserEventsRepo(Supabase.instance.client);
       try {
+        final rows = <Map<String, dynamic>>[];
         for (var i = 0; i < sittings.length; i++) {
           final sitting = sittings[i];
           final occurrence = occurrences[i];
@@ -25654,6 +25729,7 @@ class CalendarPageState extends State<CalendarPage>
             allDay: false,
             flowId: serverFlowId,
           );
+
           // Fresh join CID + alert None: nothing exists to cancel. Do not reuse
           // this skip for repair/re-join of an existing clientEventId.
           _addNote(
@@ -25674,21 +25750,23 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await repo.upsertByClientId(
-            clientEventId: clientEventId,
-            title: title,
-            startsAtUtc: occurrence.startUtc,
-            detail: detail,
-            calendarId: _personalCalendarId,
-            allDay: false,
-            endsAtUtc: occurrence.endUtc,
-            category: 'Study',
-            flowLocalId: serverFlowId,
-            actionId: readingHouseActionId(sitting),
-            behaviorPayload: behaviorPayload,
-            caller: 'reading_house_join',
+          rows.add(
+            repo.deterministicUpsertPayload(
+              clientEventId: clientEventId,
+              title: title,
+              startsAtUtc: occurrence.startUtc,
+              detail: detail,
+              calendarId: _personalCalendarId,
+              allDay: false,
+              endsAtUtc: occurrence.endUtc,
+              category: 'Study',
+              flowLocalId: serverFlowId,
+              actionId: readingHouseActionId(sitting),
+              behaviorPayload: behaviorPayload,
+            ),
           );
         }
+        await repo.upsertManyDeterministic(rows);
       } catch (e, st) {
         if (kDebugMode) {
           _calendarDebugPrint('[readingHouse] event creation failed: $e');
@@ -25792,6 +25870,9 @@ class CalendarPageState extends State<CalendarPage>
 
       final repo = UserEventsRepo(Supabase.instance.client);
       try {
+        final rows = <Map<String, dynamic>>[];
+        final pendingAlerts =
+            <({_Note note, int ky, int km, int kd, String clientEventId})>[];
         for (final occurrence in occurrences) {
           final kyKmKd = KemeticMath.fromGregorian(
             DateUtils.dateOnly(occurrence.startLocal),
@@ -25856,27 +25937,37 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await repo.upsertByClientId(
-            clientEventId: clientEventId,
-            title: title,
-            startsAtUtc: occurrence.startUtc,
-            detail: detail,
-            calendarId: _personalCalendarId,
-            allDay: false,
-            endsAtUtc: occurrence.endUtc,
-            category: 'Ritual',
-            flowLocalId: serverFlowId,
-            actionId: decanWatchActionId(occurrence),
-            behaviorPayload: behaviorPayload,
-            caller: 'decan_watch_join',
+          rows.add(
+            repo.deterministicUpsertPayload(
+              clientEventId: clientEventId,
+              title: title,
+              startsAtUtc: occurrence.startUtc,
+              detail: detail,
+              calendarId: _personalCalendarId,
+              allDay: false,
+              endsAtUtc: occurrence.endUtc,
+              category: 'Ritual',
+              flowLocalId: serverFlowId,
+              actionId: decanWatchActionId(occurrence),
+              behaviorPayload: behaviorPayload,
+            ),
           );
-
-          await _scheduleAlertForEvent(
+          pendingAlerts.add((
             note: note,
             ky: kyKmKd.kYear,
             km: kyKmKd.kMonth,
             kd: kyKmKd.kDay,
             clientEventId: clientEventId,
+          ));
+        }
+        await repo.upsertManyDeterministic(rows);
+        for (final pending in pendingAlerts) {
+          await _scheduleAlertForEvent(
+            note: pending.note,
+            ky: pending.ky,
+            km: pending.km,
+            kd: pending.kd,
+            clientEventId: pending.clientEventId,
           );
         }
       } catch (e, st) {
@@ -25942,6 +26033,7 @@ class CalendarPageState extends State<CalendarPage>
 
       final repo = UserEventsRepo(Supabase.instance.client);
       try {
+        final rows = <Map<String, dynamic>>[];
         for (var i = 0; i < kDawnHouseRiteDays.length; i++) {
           final day = kDawnHouseRiteDays[i];
           final occurrence = occurrences[i];
@@ -25978,6 +26070,7 @@ class CalendarPageState extends State<CalendarPage>
             allDay: false,
             flowId: serverFlowId,
           );
+
           // Fresh join CID + alert None: nothing exists to cancel. Do not reuse
           // this skip for repair/re-join of an existing clientEventId.
           _addNote(
@@ -25998,21 +26091,23 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await repo.upsertByClientId(
-            clientEventId: clientEventId,
-            title: title,
-            startsAtUtc: occurrence.startUtc,
-            detail: detail,
-            calendarId: _personalCalendarId,
-            allDay: false,
-            endsAtUtc: occurrence.endUtc,
-            category: 'Ritual',
-            flowLocalId: serverFlowId,
-            actionId: dawnHouseRiteActionId(day),
-            behaviorPayload: behaviorPayload,
-            caller: 'dawn_house_rite_join',
+          rows.add(
+            repo.deterministicUpsertPayload(
+              clientEventId: clientEventId,
+              title: title,
+              startsAtUtc: occurrence.startUtc,
+              detail: detail,
+              calendarId: _personalCalendarId,
+              allDay: false,
+              endsAtUtc: occurrence.endUtc,
+              category: 'Ritual',
+              flowLocalId: serverFlowId,
+              actionId: dawnHouseRiteActionId(day),
+              behaviorPayload: behaviorPayload,
+            ),
           );
         }
+        await repo.upsertManyDeterministic(rows);
       } catch (e, st) {
         if (kDebugMode) {
           _calendarDebugPrint('[dawnHouseRite] event creation failed: $e');
@@ -26113,6 +26208,7 @@ class CalendarPageState extends State<CalendarPage>
 
       final repo = UserEventsRepo(Supabase.instance.client);
       try {
+        final rows = <Map<String, dynamic>>[];
         for (var i = 0; i < kEveningThresholdRiteDays.length; i++) {
           final day = kEveningThresholdRiteDays[i];
           final occurrence = occurrences[i];
@@ -26149,6 +26245,7 @@ class CalendarPageState extends State<CalendarPage>
             allDay: false,
             flowId: serverFlowId,
           );
+
           // Fresh join CID + alert None: nothing exists to cancel. Do not reuse
           // this skip for repair/re-join of an existing clientEventId.
           _addNote(
@@ -26169,21 +26266,23 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await repo.upsertByClientId(
-            clientEventId: clientEventId,
-            title: title,
-            startsAtUtc: occurrence.startUtc,
-            detail: detail,
-            calendarId: _personalCalendarId,
-            allDay: false,
-            endsAtUtc: occurrence.endUtc,
-            category: 'Ritual',
-            flowLocalId: serverFlowId,
-            actionId: eveningThresholdRiteActionId(day),
-            behaviorPayload: behaviorPayload,
-            caller: 'evening_threshold_rite_join',
+          rows.add(
+            repo.deterministicUpsertPayload(
+              clientEventId: clientEventId,
+              title: title,
+              startsAtUtc: occurrence.startUtc,
+              detail: detail,
+              calendarId: _personalCalendarId,
+              allDay: false,
+              endsAtUtc: occurrence.endUtc,
+              category: 'Ritual',
+              flowLocalId: serverFlowId,
+              actionId: eveningThresholdRiteActionId(day),
+              behaviorPayload: behaviorPayload,
+            ),
           );
         }
+        await repo.upsertManyDeterministic(rows);
       } catch (e, st) {
         if (kDebugMode) {
           _calendarDebugPrint(
@@ -26254,6 +26353,7 @@ class CalendarPageState extends State<CalendarPage>
 
       final repo = UserEventsRepo(Supabase.instance.client);
       try {
+        final rows = <Map<String, dynamic>>[];
         for (var i = 0; i < kTheWeighingEvents.length; i++) {
           final event = kTheWeighingEvents[i];
           final occurrence = occurrences[i];
@@ -26285,6 +26385,7 @@ class CalendarPageState extends State<CalendarPage>
             allDay: false,
             flowId: serverFlowId,
           );
+
           // Fresh join CID + alert None: nothing exists to cancel. Do not reuse
           // this skip for repair/re-join of an existing clientEventId.
           _addNote(
@@ -26305,21 +26406,23 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await repo.upsertByClientId(
-            clientEventId: clientEventId,
-            title: title,
-            startsAtUtc: occurrence.startUtc,
-            detail: detail,
-            calendarId: _personalCalendarId,
-            allDay: false,
-            endsAtUtc: occurrence.endUtc,
-            category: 'Ritual',
-            flowLocalId: serverFlowId,
-            actionId: theWeighingActionId(event),
-            behaviorPayload: behaviorPayload,
-            caller: 'the_weighing_join',
+          rows.add(
+            repo.deterministicUpsertPayload(
+              clientEventId: clientEventId,
+              title: title,
+              startsAtUtc: occurrence.startUtc,
+              detail: detail,
+              calendarId: _personalCalendarId,
+              allDay: false,
+              endsAtUtc: occurrence.endUtc,
+              category: 'Ritual',
+              flowLocalId: serverFlowId,
+              actionId: theWeighingActionId(event),
+              behaviorPayload: behaviorPayload,
+            ),
           );
         }
+        await repo.upsertManyDeterministic(rows);
       } catch (e, st) {
         if (kDebugMode) {
           _calendarDebugPrint('[theWeighing] event creation failed: $e');
@@ -26389,6 +26492,9 @@ class CalendarPageState extends State<CalendarPage>
 
       final repo = UserEventsRepo(Supabase.instance.client);
       try {
+        final rows = <Map<String, dynamic>>[];
+        final pendingAlerts =
+            <({_Note note, int ky, int km, int kd, String clientEventId})>[];
         for (var i = 0; i < kOfferingTableDays.length; i++) {
           final day = kOfferingTableDays[i];
           final occurrence = occurrences[i];
@@ -26458,27 +26564,37 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await repo.upsertByClientId(
-            clientEventId: clientEventId,
-            title: title,
-            startsAtUtc: occurrence.startUtc,
-            detail: detail,
-            calendarId: _personalCalendarId,
-            allDay: false,
-            endsAtUtc: occurrence.endUtc,
-            category: 'Ritual',
-            flowLocalId: serverFlowId,
-            actionId: offeringTableActionId(day),
-            behaviorPayload: behaviorPayload,
-            caller: 'offering_table_join',
+          rows.add(
+            repo.deterministicUpsertPayload(
+              clientEventId: clientEventId,
+              title: title,
+              startsAtUtc: occurrence.startUtc,
+              detail: detail,
+              calendarId: _personalCalendarId,
+              allDay: false,
+              endsAtUtc: occurrence.endUtc,
+              category: 'Ritual',
+              flowLocalId: serverFlowId,
+              actionId: offeringTableActionId(day),
+              behaviorPayload: behaviorPayload,
+            ),
           );
-
-          await _scheduleAlertForEvent(
+          pendingAlerts.add((
             note: note,
             ky: kyKmKd.kYear,
             km: kyKmKd.kMonth,
             kd: kyKmKd.kDay,
             clientEventId: clientEventId,
+          ));
+        }
+        await repo.upsertManyDeterministic(rows);
+        for (final pending in pendingAlerts) {
+          await _scheduleAlertForEvent(
+            note: pending.note,
+            ky: pending.ky,
+            km: pending.km,
+            kd: pending.kd,
+            clientEventId: pending.clientEventId,
           );
         }
       } catch (e, st) {
@@ -26549,6 +26665,9 @@ class CalendarPageState extends State<CalendarPage>
 
       final repo = UserEventsRepo(Supabase.instance.client);
       try {
+        final rows = <Map<String, dynamic>>[];
+        final pendingAlerts =
+            <({_Note note, int ky, int km, int kd, String clientEventId})>[];
         for (var i = 0; i < kTheTendingEvents.length; i++) {
           final event = kTheTendingEvents[i];
           final occurrence = occurrences[i];
@@ -26613,27 +26732,37 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await repo.upsertByClientId(
-            clientEventId: clientEventId,
-            title: title,
-            startsAtUtc: occurrence.startUtc,
-            detail: detail,
-            calendarId: _personalCalendarId,
-            allDay: false,
-            endsAtUtc: occurrence.endUtc,
-            category: 'Ritual',
-            flowLocalId: serverFlowId,
-            actionId: theTendingActionId(event),
-            behaviorPayload: behaviorPayload,
-            caller: 'the_tending_join',
+          rows.add(
+            repo.deterministicUpsertPayload(
+              clientEventId: clientEventId,
+              title: title,
+              startsAtUtc: occurrence.startUtc,
+              detail: detail,
+              calendarId: _personalCalendarId,
+              allDay: false,
+              endsAtUtc: occurrence.endUtc,
+              category: 'Ritual',
+              flowLocalId: serverFlowId,
+              actionId: theTendingActionId(event),
+              behaviorPayload: behaviorPayload,
+            ),
           );
-
-          await _scheduleAlertForEvent(
+          pendingAlerts.add((
             note: note,
             ky: kyKmKd.kYear,
             km: kyKmKd.kMonth,
             kd: kyKmKd.kDay,
             clientEventId: clientEventId,
+          ));
+        }
+        await repo.upsertManyDeterministic(rows);
+        for (final pending in pendingAlerts) {
+          await _scheduleAlertForEvent(
+            note: pending.note,
+            ky: pending.ky,
+            km: pending.km,
+            kd: pending.kd,
+            clientEventId: pending.clientEventId,
           );
         }
       } catch (e, st) {
@@ -26704,6 +26833,9 @@ class CalendarPageState extends State<CalendarPage>
 
       final repo = UserEventsRepo(Supabase.instance.client);
       try {
+        final rows = <Map<String, dynamic>>[];
+        final pendingAlerts =
+            <({_Note note, int ky, int km, int kd, String clientEventId})>[];
         for (var i = 0; i < kKeptWordEvents.length; i++) {
           final event = kKeptWordEvents[i];
           final occurrence = occurrences[i];
@@ -26768,27 +26900,37 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await repo.upsertByClientId(
-            clientEventId: clientEventId,
-            title: title,
-            startsAtUtc: occurrence.startUtc,
-            detail: detail,
-            calendarId: _personalCalendarId,
-            allDay: false,
-            endsAtUtc: occurrence.endUtc,
-            category: 'Ritual',
-            flowLocalId: serverFlowId,
-            actionId: keptWordActionId(event),
-            behaviorPayload: behaviorPayload,
-            caller: 'the_kept_word_join',
+          rows.add(
+            repo.deterministicUpsertPayload(
+              clientEventId: clientEventId,
+              title: title,
+              startsAtUtc: occurrence.startUtc,
+              detail: detail,
+              calendarId: _personalCalendarId,
+              allDay: false,
+              endsAtUtc: occurrence.endUtc,
+              category: 'Ritual',
+              flowLocalId: serverFlowId,
+              actionId: keptWordActionId(event),
+              behaviorPayload: behaviorPayload,
+            ),
           );
-
-          await _scheduleAlertForEvent(
+          pendingAlerts.add((
             note: note,
             ky: kyKmKd.kYear,
             km: kyKmKd.kMonth,
             kd: kyKmKd.kDay,
             clientEventId: clientEventId,
+          ));
+        }
+        await repo.upsertManyDeterministic(rows);
+        for (final pending in pendingAlerts) {
+          await _scheduleAlertForEvent(
+            note: pending.note,
+            ky: pending.ky,
+            km: pending.km,
+            kd: pending.kd,
+            clientEventId: pending.clientEventId,
           );
         }
       } catch (e, st) {
@@ -26863,6 +27005,9 @@ class CalendarPageState extends State<CalendarPage>
 
       final repo = UserEventsRepo(Supabase.instance.client);
       try {
+        final rows = <Map<String, dynamic>>[];
+        final pendingAlerts =
+            <({_Note note, int ky, int km, int kd, String clientEventId})>[];
         for (var i = 0; i < kTheCourseEvents.length; i++) {
           final event = kTheCourseEvents[i];
           final occurrence = occurrences[i];
@@ -26936,27 +27081,37 @@ class CalendarPageState extends State<CalendarPage>
             behaviorPayload: behaviorPayload,
           );
 
-          await repo.upsertByClientId(
-            clientEventId: clientEventId,
-            title: title,
-            startsAtUtc: occurrence.startUtc,
-            detail: detail,
-            calendarId: _personalCalendarId,
-            allDay: false,
-            endsAtUtc: occurrence.endUtc,
-            category: 'Ritual',
-            flowLocalId: serverFlowId,
-            actionId: courseActionId(event),
-            behaviorPayload: behaviorPayload,
-            caller: 'the_course_join',
+          rows.add(
+            repo.deterministicUpsertPayload(
+              clientEventId: clientEventId,
+              title: title,
+              startsAtUtc: occurrence.startUtc,
+              detail: detail,
+              calendarId: _personalCalendarId,
+              allDay: false,
+              endsAtUtc: occurrence.endUtc,
+              category: 'Ritual',
+              flowLocalId: serverFlowId,
+              actionId: courseActionId(event),
+              behaviorPayload: behaviorPayload,
+            ),
           );
-
-          await _scheduleAlertForEvent(
+          pendingAlerts.add((
             note: note,
             ky: kyKmKd.kYear,
             km: kyKmKd.kMonth,
             kd: kyKmKd.kDay,
             clientEventId: clientEventId,
+          ));
+        }
+        await repo.upsertManyDeterministic(rows);
+        for (final pending in pendingAlerts) {
+          await _scheduleAlertForEvent(
+            note: pending.note,
+            ky: pending.ky,
+            km: pending.km,
+            kd: pending.kd,
+            clientEventId: pending.clientEventId,
           );
         }
       } catch (e, st) {

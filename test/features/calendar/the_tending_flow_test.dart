@@ -249,9 +249,10 @@ void main() {
     final branch = source.substring(branchStart, branchEnd);
 
     expect(branch, contains('kTheTendingEvents'));
-    expect(branch, contains('await repo.upsertByClientId'));
+    expect(branch, contains('repo.deterministicUpsertPayload'));
+    expect(branch, contains('await repo.upsertManyDeterministic'));
     expect(branch, isNot(contains('Future.microtask')));
-    expect(branch, contains('repo.deleteFlow(serverFlowId)'));
+    expect(branch, contains('_rollbackJoinedFlowLocally('));
     expect(branch, contains('firstG.add(const Duration(days: 29))'));
   });
 }

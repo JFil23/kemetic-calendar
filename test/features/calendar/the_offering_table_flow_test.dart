@@ -264,9 +264,10 @@ void main() {
     final branch = source.substring(branchStart, branchEnd);
 
     expect(branch, contains('kOfferingTableDays'));
-    expect(branch, contains('await repo.upsertByClientId'));
+    expect(branch, contains('repo.deterministicUpsertPayload'));
+    expect(branch, contains('await repo.upsertManyDeterministic'));
     expect(branch, isNot(contains('Future.microtask')));
-    expect(branch, contains('repo.deleteFlow(serverFlowId)'));
+    expect(branch, contains('_rollbackJoinedFlowLocally('));
     expect(branch, contains(r'offering_hour=$kOfferingTableDefaultHour'));
     expect(branch, contains('no_cup_mode='));
   });
