@@ -190,6 +190,7 @@ part 'calendar_event_search_delegate.dart';
 part 'calendar_note_model.dart';
 part 'calendar_custom_repeat_page.dart';
 part 'flow_join_service.dart';
+part 'calendar_unconfirmed_notes.dart';
 
 enum EndFlowActionResult { success, failed, notHandled }
 
@@ -8737,6 +8738,7 @@ class CalendarPageState extends State<CalendarPage>
     isDeferred: () => _sharedCalendarRealDayViewOpening,
     debugLog: _calendarDebugPrint,
   );
+  final _UnconfirmedNoteLedger _unconfirmed = _UnconfirmedNoteLedger();
   // Startup coordinator: single-flight gate for auth-triggered startup work.
   Completer<void>? _startupFlight;
   bool _startupRerunRequested = false;
@@ -13731,6 +13733,7 @@ class CalendarPageState extends State<CalendarPage>
         _lastSuccessfulHydrationAt = null;
         _flows.clear();
         _notes.clear();
+        _unconfirmed.clear();
         _flowTotalEventCounts.clear();
         _flowRemainingEventCounts.clear();
         _manualDeleteTombstones.clear();
@@ -17899,6 +17902,9 @@ class CalendarPageState extends State<CalendarPage>
     if (keysToRemove.isNotEmpty) {
       changed = true;
     }
+    _unconfirmed.forget(
+      (pending) => pending.isReminder && pending.reminderId == ruleId,
+    );
     return changed;
   }
 
@@ -19740,6 +19746,7 @@ class CalendarPageState extends State<CalendarPage>
     String? actionId,
     Map<String, dynamic>? behaviorPayload,
     bool notify = true,
+    NoteConfirmation confirmation = NoteConfirmation.confirmed,
   }) {
     final shouldSkip =
         _isPendingDelete(
@@ -19766,32 +19773,38 @@ class CalendarPageState extends State<CalendarPage>
 
     final k = _kKey(kYear, kMonth, kDay);
     final list = _notes.putIfAbsent(k, () => <_Note>[]);
-    list.add(
-      _Note(
-        id: id,
-        clientEventId: clientEventId,
-        calendarId: calendarId,
-        calendarName: calendarName,
-        title: title.trim(),
-        detail: detail?.trim(),
-        location: (location == null || location.trim().isEmpty)
-            ? null
-            : location.trim(),
-        allDay: allDay,
-        start: allDay ? null : start,
-        end: allDay ? null : end,
-        flowId: flowId,
-        manualColor: manualColor,
-        category: category,
-        isReminder: isReminder,
-        reminderId: reminderId,
-        alertOffsetMinutes: alertOffsetMinutes,
-        actionId: actionId,
-        behaviorPayload: behaviorPayload == null
-            ? null
-            : Map<String, dynamic>.from(behaviorPayload),
-      ),
+    final note = _Note(
+      id: id,
+      clientEventId: clientEventId,
+      calendarId: calendarId,
+      calendarName: calendarName,
+      title: title.trim(),
+      detail: detail?.trim(),
+      location: (location == null || location.trim().isEmpty)
+          ? null
+          : location.trim(),
+      allDay: allDay,
+      start: allDay ? null : start,
+      end: allDay ? null : end,
+      flowId: flowId,
+      manualColor: manualColor,
+      category: category,
+      isReminder: isReminder,
+      reminderId: reminderId,
+      alertOffsetMinutes: alertOffsetMinutes,
+      actionId: actionId,
+      behaviorPayload: behaviorPayload == null
+          ? null
+          : Map<String, dynamic>.from(behaviorPayload),
     );
+    list.add(note);
+    if (confirmation == NoteConfirmation.unconfirmed) {
+      _unconfirmed.register(
+        dayKey: k,
+        note: note,
+        isSameNote: _sameStandaloneLaneNote,
+      );
+    }
     // Do not schedule notifications here; scheduling is handled by the caller.
     if (notify) {
       _refreshNoteCacheUi();
@@ -19817,6 +19830,7 @@ class CalendarPageState extends State<CalendarPage>
     for (final key in emptyKeys) {
       _notes.remove(key);
     }
+    _unconfirmed.forget((pending) => pending.flowId == serverFlowId);
 
     if (mounted) {
       setState(() {});
@@ -19839,6 +19853,7 @@ class CalendarPageState extends State<CalendarPage>
       removed += before - bucket.length;
       return bucket.isEmpty;
     });
+    _unconfirmed.forget((pending) => pending.flowId == flowId);
     return removed;
   }
 
@@ -19849,6 +19864,9 @@ class CalendarPageState extends State<CalendarPage>
 
     final removed = list.removeAt(index);
     if (list.isEmpty) _notes.remove(k);
+    _unconfirmed.forget(
+      (pending) => _sameStandaloneLaneNote(removed, pending),
+    );
     setState(() {});
     _notifyDayViewDataChanged();
     return removed;
@@ -19984,6 +20002,9 @@ class CalendarPageState extends State<CalendarPage>
     if (trimmed.isEmpty) return;
     await _ensureManualDeleteTombstonesLoaded();
     final added = _manualDeleteTombstones.add(trimmed);
+    _unconfirmed.forget(
+      (pending) => pending.clientEventId?.trim() == trimmed,
+    );
     if (added) {
       await _persistManualDeleteTombstones();
     }
@@ -20085,6 +20106,7 @@ class CalendarPageState extends State<CalendarPage>
       removed += before - bucket.length;
       return bucket.isEmpty;
     });
+    _unconfirmed.forget((pending) => pending.flowId == flowId);
     if (removed > 0) {
       setState(() {});
       _notifyDayViewDataChanged();
@@ -20829,6 +20851,12 @@ class CalendarPageState extends State<CalendarPage>
     );
     if (pendingKey != null) {
       _pendingDeleteKeys.add(pendingKey);
+      final cid = note.clientEventId?.trim();
+      if (cid != null && cid.isNotEmpty) {
+        _unconfirmed.forget(
+          (pending) => pending.clientEventId?.trim() == cid,
+        );
+      }
       if (kDebugMode) {
         _calendarDebugPrint('[delete-note] pending delete key=$pendingKey');
       }
@@ -22001,6 +22029,36 @@ class CalendarPageState extends State<CalendarPage>
               incomingCidMatch ||
               titleStartMatch;
         });
+        _unconfirmed.forget((pending) {
+          final noteId = pending.id?.trim() ?? '';
+          final noteCid = pending.clientEventId?.trim() ?? '';
+          final updatedIdMatch =
+              reminderNote.id != null &&
+              reminderNote.id!.isNotEmpty &&
+              noteId == reminderNote.id;
+          final updatedCidMatch =
+              reminderNote.clientEventId != null &&
+              reminderNote.clientEventId!.isNotEmpty &&
+              noteCid == reminderNote.clientEventId;
+          final incomingIdMatch =
+              rawId != null && rawId.isNotEmpty && noteId == rawId;
+          final incomingCidMatch =
+              rawClientId != null &&
+              rawClientId.isNotEmpty &&
+              noteCid == rawClientId;
+          final titleStartMatch =
+              pending.title.trim().toLowerCase() ==
+                  reminderNote.title.trim().toLowerCase() &&
+              pending.start != null &&
+              reminderNote.start != null &&
+              pending.start!.hour == reminderNote.start!.hour &&
+              pending.start!.minute == reminderNote.start!.minute;
+          return updatedIdMatch ||
+              updatedCidMatch ||
+              incomingIdMatch ||
+              incomingCidMatch ||
+              titleStartMatch;
+        });
         logBucket('move: reconciled _notes (fallback)');
       }
 
@@ -22198,6 +22256,7 @@ class CalendarPageState extends State<CalendarPage>
     for (final k in keysToPrune) {
       _notes.remove(k);
     }
+    _unconfirmed.forget((pending) => pending.flowId == flowId);
 
     if (isSaved) {
       // For saved flows, keep the flow row and events as a template,
@@ -30365,6 +30424,10 @@ class CalendarPageState extends State<CalendarPage>
         final preservedStandaloneCount = preservePaintedStandaloneLane
             ? _mergePaintedStandaloneLaneInto(newNotes)
             : 0;
+        final unconfirmedMerge = _unconfirmed.mergeInto(
+          newNotes,
+          isSameNote: _sameStandaloneLaneNote,
+        );
         final hydratedTrackSkyFlowIds = newFlows
             .where((flow) => _isTrackSkyFlowName(flow.name))
             .map((flow) => flow.id)
@@ -30394,7 +30457,9 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint(
             '[loadFromDisk] committed phase=$phase '
             '_flows.length=${_flows.length} _notes keys=${_notes.length} '
-            'preservedStandalone=$preservedStandaloneCount',
+            'preservedStandalone=$preservedStandaloneCount '
+            'unconfirmedPreserved=${unconfirmedMerge.preserved} '
+            'unconfirmedConfirmed=${unconfirmedMerge.confirmed}',
           );
         }
 
@@ -31902,6 +31967,7 @@ class CalendarPageState extends State<CalendarPage>
         manualColor: color,
         category: category,
         alertOffsetMinutes: alertMinutesBefore,
+        confirmation: NoteConfirmation.unconfirmed,
       );
 
       final scheduleResult = await _scheduleAlertForEvent(
@@ -33968,6 +34034,67 @@ class CalendarPageState extends State<CalendarPage>
     // Zombie filters are already applied during _loadFromDisk, so we just count.
     final key = _kKey(kYear, kMonth, kDay);
     return (_notes[key] ?? const []).length;
+  }
+
+  @visibleForTesting
+  int get debugUnconfirmedCount => _unconfirmed.length;
+
+  /// Runs the commit-seam merge and writes the result into `_notes`.
+  ///
+  /// When [emptyIncoming] is true, merges against an empty hydration map
+  /// (preserve path). Otherwise copies live `_notes` as incoming (confirm path).
+  @visibleForTesting
+  ({int preserved, int confirmed}) debugMergeUnconfirmedInto({
+    bool emptyIncoming = false,
+  }) {
+    final notesByDay = emptyIncoming
+        ? <String, List<_Note>>{}
+        : <String, List<_Note>>{
+            for (final entry in _notes.entries)
+              entry.key: List<_Note>.from(entry.value),
+          };
+    final result = _unconfirmed.mergeInto(
+      notesByDay,
+      isSameNote: _sameStandaloneLaneNote,
+    );
+    _notes
+      ..clear()
+      ..addAll(notesByDay);
+    return result;
+  }
+
+  /// Test access to production `_addNote` (library-private).
+  @visibleForTesting
+  bool debugAddNote(
+    int kYear,
+    int kMonth,
+    int kDay,
+    String title,
+    String? detail, {
+    String? id,
+    String? clientEventId,
+    bool allDay = true,
+    bool notify = false,
+    NoteConfirmation confirmation = NoteConfirmation.confirmed,
+  }) {
+    return _addNote(
+      kYear,
+      kMonth,
+      kDay,
+      title,
+      detail,
+      id: id,
+      clientEventId: clientEventId,
+      allDay: allDay,
+      notify: notify,
+      confirmation: confirmation,
+    );
+  }
+
+  /// Test access to production `_removeLocalNoteOnly` (library-private).
+  @visibleForTesting
+  bool debugRemoveLocalNoteOnly(int kYear, int kMonth, int kDay, int index) {
+    return _removeLocalNoteOnly(kYear, kMonth, kDay, index) != null;
   }
 
   @visibleForTesting
