@@ -59,6 +59,7 @@ import '../../services/speech/speech_service.dart';
 import 'speech_resolver.dart';
 import 'decan_id.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'calendar_user_scoped_prefs.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'package:mobile/features/calendar/decan_metadata.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
@@ -8756,6 +8757,10 @@ class CalendarPageState extends State<CalendarPage>
       ValueNotifier<DayViewSheetEventTarget?>(null);
   Timer? _warmStartCacheDebounceTimer;
   String? _warmStartCacheRestoredForUserId;
+  /// Claim slot so concurrent warm-start restores cannot both pass the entry guard.
+  String? _warmStartRestoreInFlightForUserId;
+  /// Set only by load commit — not by warm-start paint.
+  String? _serverHydrationCommittedForUserId;
   bool _warmStartSnapshotVisible = false;
   bool _sharedCalendarRealDayViewOpening = false;
   void _bumpDataVersion() {
@@ -9056,12 +9061,8 @@ class CalendarPageState extends State<CalendarPage>
   Set<String> _hiddenCalendarIds = <String>{};
   String? _personalCalendarId;
   bool _calendarStateLoaded = false;
-  static const _endedReminderPrefsKey = 'reminder:ended_ids';
   static const String _kReminderManualOverrideMarker =
       'kemet_cid:manual_override';
-  static const String _kManualDeleteTombstonesKey =
-      'calendar:manual_delete_tombstones';
-  static const String _kCidMigrationPrefKey = 'calendar:cid_migration_done';
   final Set<String> _endedReminderIds = {};
 
   // Decan reflection prompt state
@@ -9446,6 +9447,17 @@ class CalendarPageState extends State<CalendarPage>
     final resolvedUserId = userId ?? _activeWarmStartUserId();
     if (resolvedUserId == null) return;
     final prefs = await SharedPreferences.getInstance();
+    // Re-validate after the prefs await — account may have switched.
+    final currentUserId = _activeWarmStartUserId();
+    if (currentUserId == null || currentUserId != resolvedUserId) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[warmStart] skip cache save reason=$debugReason '
+          'userMismatch scheduled=$resolvedUserId current=$currentUserId',
+        );
+      }
+      return;
+    }
     final key = _warmStartCacheKey(resolvedUserId);
 
     if (_flows.isEmpty && _notes.isEmpty) {
@@ -9484,10 +9496,20 @@ class CalendarPageState extends State<CalendarPage>
     final userId = _activeWarmStartUserId();
     if (userId == null) return;
     if (_warmStartCacheRestoredForUserId == userId) return;
+    if (_warmStartRestoreInFlightForUserId == userId) return;
+    if (_serverHydrationCommittedForUserId == userId) return;
 
+    _warmStartRestoreInFlightForUserId = userId;
     try {
       await _loadEndedReminderIds();
       final prefs = await SharedPreferences.getInstance();
+
+      // Re-check after awaits — another restore, load, or auth may have won.
+      if (!mounted) return;
+      if (_activeWarmStartUserId() != userId) return;
+      if (_warmStartCacheRestoredForUserId == userId) return;
+      if (_serverHydrationCommittedForUserId == userId) return;
+
       final raw = prefs.getString(_warmStartCacheKey(userId));
       if (raw == null || raw.trim().isEmpty) {
         _warmStartCacheRestoredForUserId = userId;
@@ -9549,6 +9571,10 @@ class CalendarPageState extends State<CalendarPage>
       );
 
       if (!mounted) return;
+      if (_activeWarmStartUserId() != userId) return;
+      if (_warmStartCacheRestoredForUserId == userId) return;
+      if (_serverHydrationCommittedForUserId == userId) return;
+
       setState(() {
         _flows
           ..clear()
@@ -9562,7 +9588,9 @@ class CalendarPageState extends State<CalendarPage>
         _flowRemainingEventCounts
           ..clear()
           ..addAll(remainingCounts);
-        _nextFlowId = nextFlowId > 0 ? nextFlowId : _nextFlowId;
+        if (nextFlowId > 0) {
+          _nextFlowId = math.max(_nextFlowId, nextFlowId);
+        }
       });
       _rebuildReminderRulesFromFlowsIfMissing();
       _warmStartCacheRestoredForUserId = userId;
@@ -9583,6 +9611,10 @@ class CalendarPageState extends State<CalendarPage>
         _calendarDebugPrint(
           '[warmStart] restore failed reason=$reason error=$e',
         );
+      }
+    } finally {
+      if (_warmStartRestoreInFlightForUserId == userId) {
+        _warmStartRestoreInFlightForUserId = null;
       }
     }
   }
@@ -12624,7 +12656,12 @@ class CalendarPageState extends State<CalendarPage>
     await _ensureManualDeleteTombstonesLoaded();
     try {
       final prefs = await SharedPreferences.getInstance();
-      final alreadyDone = prefs.getBool(_kCidMigrationPrefKey) ?? false;
+      final alreadyDone = await CalendarUserScopedPrefs.readBool(
+        prefs: prefs,
+        userId: _activeWarmStartUserId(),
+        userKey: CalendarUserScopedPrefs.cidMigrationDoneKey,
+        legacyKey: CalendarUserScopedPrefs.legacyCidMigrationDoneKey,
+      );
       if (alreadyDone) {
         if (kDebugMode) {
           _calendarDebugPrint('[migrate-cid] Skipping; persisted flag is set.');
@@ -12760,7 +12797,13 @@ class CalendarPageState extends State<CalendarPage>
           }
         }
       }
-      await prefs.setBool(_kCidMigrationPrefKey, true);
+      await CalendarUserScopedPrefs.writeBool(
+        prefs: prefs,
+        userId: _activeWarmStartUserId(),
+        userKey: CalendarUserScopedPrefs.cidMigrationDoneKey,
+        legacyKey: CalendarUserScopedPrefs.legacyCidMigrationDoneKey,
+        value: true,
+      );
       _calendarDebugPrint(
         '[migrate-cid] Completed pass. migrated=$migrated flag persisted',
       );
@@ -13685,8 +13728,19 @@ class CalendarPageState extends State<CalendarPage>
         _initialStartupUserId = null;
         _warmStartSnapshotVisible = false;
         _warmStartCacheRestoredForUserId = null;
+        _warmStartRestoreInFlightForUserId = null;
+        _serverHydrationCommittedForUserId = null;
         _myFlowsFilingSnapshotCache = null;
         _lastSuccessfulHydrationAt = null;
+        _flows.clear();
+        _notes.clear();
+        _flowTotalEventCounts.clear();
+        _flowRemainingEventCounts.clear();
+        _manualDeleteTombstones.clear();
+        _pendingDeleteKeys.clear();
+        _endedReminderIds.clear();
+        _manualTombstonesLoaded = false;
+        _manualTombstonesLoad = null;
       }
     });
 
@@ -17006,7 +17060,12 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> _loadEndedReminderIds() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final list = prefs.getStringList(_endedReminderPrefsKey) ?? const [];
+      final list = await CalendarUserScopedPrefs.readStringList(
+        prefs: prefs,
+        userId: _activeWarmStartUserId(),
+        userKey: CalendarUserScopedPrefs.endedReminderIdsKey,
+        legacyKey: CalendarUserScopedPrefs.legacyEndedReminderIdsKey,
+      );
       _endedReminderIds
         ..clear()
         ..addAll(list);
@@ -17018,9 +17077,12 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> _saveEndedReminderIds() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(
-        _endedReminderPrefsKey,
-        _endedReminderIds.toList(),
+      await CalendarUserScopedPrefs.writeStringList(
+        prefs: prefs,
+        userId: _activeWarmStartUserId(),
+        userKey: CalendarUserScopedPrefs.endedReminderIdsKey,
+        legacyKey: CalendarUserScopedPrefs.legacyEndedReminderIdsKey,
+        values: _endedReminderIds.toList(),
       );
     } catch (_) {
       // ignore
@@ -19943,8 +20005,12 @@ class CalendarPageState extends State<CalendarPage>
     _manualTombstonesLoad ??= () async {
       try {
         final prefs = await SharedPreferences.getInstance();
-        final stored =
-            prefs.getStringList(_kManualDeleteTombstonesKey) ?? <String>[];
+        final stored = await CalendarUserScopedPrefs.readStringList(
+          prefs: prefs,
+          userId: _activeWarmStartUserId(),
+          userKey: CalendarUserScopedPrefs.manualDeleteTombstonesKey,
+          legacyKey: CalendarUserScopedPrefs.legacyManualDeleteTombstonesKey,
+        );
         _manualDeleteTombstones
           ..clear()
           ..addAll(stored);
@@ -19960,9 +20026,12 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> _persistManualDeleteTombstones() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(
-        _kManualDeleteTombstonesKey,
-        _manualDeleteTombstones.toList(),
+      await CalendarUserScopedPrefs.writeStringList(
+        prefs: prefs,
+        userId: _activeWarmStartUserId(),
+        userKey: CalendarUserScopedPrefs.manualDeleteTombstonesKey,
+        legacyKey: CalendarUserScopedPrefs.legacyManualDeleteTombstonesKey,
+        values: _manualDeleteTombstones.toList(),
       );
     } catch (_) {
       // ignore persistence errors; safeguard is best-effort
@@ -30575,7 +30644,7 @@ class CalendarPageState extends State<CalendarPage>
         _notes
           ..clear()
           ..addAll(dedupedNotes);
-        _nextFlowId = nextFlowId;
+        _nextFlowId = math.max(_nextFlowId, nextFlowId);
         CalendarPage._reconcileRememberedMaatJoinsFromLiveFlows(_flows);
 
         if (kDebugMode) {
@@ -30590,6 +30659,7 @@ class CalendarPageState extends State<CalendarPage>
         _bumpDataVersion();
         _lastSuccessfulHydrationAt = DateTime.now();
         _warmStartCacheRestoredForUserId = _activeWarmStartUserId();
+        _serverHydrationCommittedForUserId = _activeWarmStartUserId();
         if (loadComplete || !hasPaintedEventSnapshotAtLoadStart) {
           _warmStartSnapshotVisible = false;
         }
@@ -34160,6 +34230,39 @@ class CalendarPageState extends State<CalendarPage>
   @visibleForTesting
   List<NoteData> notesForDayForTesting(int kYear, int kMonth, int kDay) {
     return List<NoteData>.unmodifiable(_noteDataForDay(kYear, kMonth, kDay));
+  }
+
+  /// Stable JSON of live `_notes` / `_flows` for behavior-preserving CI baselines.
+  /// Omits non-deterministic fields (`savedAt`) and sorts map keys.
+  @visibleForTesting
+  String debugCanonicalHydrationBaselineJson({
+    String userId = 'baseline-user',
+  }) {
+    final notesJson = <String, dynamic>{};
+    final sortedDayKeys = _notes.keys.toList()..sort();
+    for (final key in sortedDayKeys) {
+      notesJson[key] = (_notes[key] ?? const <_Note>[])
+          .map(_serializeWarmStartNote)
+          .map((note) {
+            final copy = Map<String, dynamic>.from(note);
+            // Display-resolved color can drift with theme helpers; baseline
+            // identity is the authoring fields.
+            copy.remove('resolvedColor');
+            return copy;
+          })
+          .toList(growable: false);
+    }
+    final payload = <String, dynamic>{
+      'userId': userId,
+      'nextFlowId': _nextFlowId,
+      'flows': _flows.map(_serializeWarmStartFlow).toList(growable: false),
+      'notes': notesJson,
+      'flowTotalEventCounts': _encodeWarmStartIntMap(_flowTotalEventCounts),
+      'flowRemainingEventCounts': _encodeWarmStartIntMap(
+        _flowRemainingEventCounts,
+      ),
+    };
+    return const JsonEncoder.withIndent('  ').convert(payload);
   }
 }
 
