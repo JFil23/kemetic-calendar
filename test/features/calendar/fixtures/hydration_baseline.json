@@ -1,8 +1,287 @@
 {
   "userId": "baseline-user",
-  "nextFlowId": 1,
-  "flows": [],
-  "notes": {},
-  "flowTotalEventCounts": {},
-  "flowRemainingEventCounts": {}
+  "nextFlowId": 9006,
+  "flows": [
+    {
+      "id": 9001,
+      "calendarId": "debug-day-sheet-personal",
+      "name": "The Weighing",
+      "color": 4283817440,
+      "active": true,
+      "isSaved": false,
+      "savedAt": null,
+      "start": "2026-06-21T00:00:00.000",
+      "end": "2026-06-21T00:00:00.000",
+      "rules": [
+        {
+          "type": "dates",
+          "dates": [
+            1782025200000
+          ],
+          "allDay": false,
+          "startHour": 9,
+          "startMinute": 0,
+          "endHour": 9,
+          "endMinute": 30
+        }
+      ],
+      "notes": null,
+      "shareId": null,
+      "isHidden": false,
+      "isReminder": false,
+      "reminderUuid": null
+    },
+    {
+      "id": 9002,
+      "calendarId": "debug-day-sheet-personal",
+      "name": "journal every day",
+      "color": 4293948014,
+      "active": true,
+      "isSaved": false,
+      "savedAt": null,
+      "start": "2026-06-21T00:00:00.000",
+      "end": "2026-06-21T00:00:00.000",
+      "rules": [
+        {
+          "type": "dates",
+          "dates": [
+            1782025200000
+          ],
+          "allDay": false,
+          "startHour": 7,
+          "startMinute": 15,
+          "endHour": 7,
+          "endMinute": 45
+        }
+      ],
+      "notes": null,
+      "shareId": null,
+      "isHidden": false,
+      "isReminder": false,
+      "reminderUuid": null
+    },
+    {
+      "id": 9003,
+      "calendarId": "debug-day-sheet-personal",
+      "name": "journal every night",
+      "color": 4293444431,
+      "active": true,
+      "isSaved": false,
+      "savedAt": null,
+      "start": "2026-06-21T00:00:00.000",
+      "end": "2026-06-21T00:00:00.000",
+      "rules": [],
+      "notes": null,
+      "shareId": null,
+      "isHidden": false,
+      "isReminder": false,
+      "reminderUuid": null
+    },
+    {
+      "id": 9004,
+      "calendarId": "debug-day-sheet-personal",
+      "name": "same decan off-day flow",
+      "color": 4291263456,
+      "active": true,
+      "isSaved": false,
+      "savedAt": null,
+      "start": "2026-06-22T00:00:00.000",
+      "end": "2026-06-22T00:00:00.000",
+      "rules": [
+        {
+          "type": "dates",
+          "dates": [
+            1782111600000
+          ],
+          "allDay": false,
+          "startHour": 12,
+          "startMinute": 0,
+          "endHour": 12,
+          "endMinute": 30
+        }
+      ],
+      "notes": null,
+      "shareId": null,
+      "isHidden": false,
+      "isReminder": false,
+      "reminderUuid": null
+    },
+    {
+      "id": 9005,
+      "calendarId": "debug-day-sheet-personal",
+      "name": "template only flow",
+      "color": 4282366106,
+      "active": true,
+      "isSaved": false,
+      "savedAt": null,
+      "start": "2026-06-21T00:00:00.000",
+      "end": "2026-06-22T00:00:00.000",
+      "rules": [],
+      "notes": null,
+      "shareId": null,
+      "isHidden": false,
+      "isReminder": false,
+      "reminderUuid": null
+    }
+  ],
+  "notes": {
+    "2-4-4": [
+      {
+        "id": "debug-day-sheet-note-weighing",
+        "clientEventId": "debug:day-sheet:flow-note:weighing",
+        "calendarId": "debug-day-sheet-personal",
+        "calendarName": "Smoke Calendar",
+        "title": "The Weighing",
+        "detail": "Event-backed duplicate of the computed selected-day flow.",
+        "location": null,
+        "allDay": false,
+        "startMinutes": 540,
+        "endMinutes": 570,
+        "flowId": 9001,
+        "manualColor": 4283817440,
+        "category": "Spirit",
+        "isReminder": false,
+        "reminderId": null,
+        "alertOffsetMinutes": null,
+        "actionId": null,
+        "behaviorPayload": null
+      },
+      {
+        "id": "debug-day-sheet-note-offering",
+        "clientEventId": "debug:day-sheet:note:offering",
+        "calendarId": "debug-day-sheet-personal",
+        "calendarName": "Smoke Calendar",
+        "title": "Smoke note: offering list",
+        "detail": "Bread, water, incense, and a final visual pass.",
+        "location": "Debug shrine",
+        "allDay": false,
+        "startMinutes": 600,
+        "endMinutes": 630,
+        "flowId": null,
+        "manualColor": 4286282728,
+        "category": "Spirit",
+        "isReminder": false,
+        "reminderId": null,
+        "alertOffsetMinutes": null,
+        "actionId": null,
+        "behaviorPayload": null
+      },
+      {
+        "id": "debug-day-sheet-note-journal-day",
+        "clientEventId": "debug:day-sheet:flow-note:journal-day",
+        "calendarId": "debug-day-sheet-personal",
+        "calendarName": "Smoke Calendar",
+        "title": "journal every day",
+        "detail": "Flow-backed note row for the selected day.",
+        "location": null,
+        "allDay": false,
+        "startMinutes": 435,
+        "endMinutes": 465,
+        "flowId": 9002,
+        "manualColor": 4293948014,
+        "category": "Mind",
+        "isReminder": false,
+        "reminderId": null,
+        "alertOffsetMinutes": null,
+        "actionId": null,
+        "behaviorPayload": null
+      },
+      {
+        "id": "debug-day-sheet-note-journal-night",
+        "clientEventId": "debug:day-sheet:flow-note:journal-night",
+        "calendarId": "debug-day-sheet-personal",
+        "calendarName": "Smoke Calendar",
+        "title": "journal every night",
+        "detail": "Flow-backed note without a computed occurrence.",
+        "location": null,
+        "allDay": false,
+        "startMinutes": 1230,
+        "endMinutes": 1260,
+        "flowId": 9003,
+        "manualColor": 4293444431,
+        "category": "Recovery",
+        "isReminder": false,
+        "reminderId": null,
+        "alertOffsetMinutes": null,
+        "actionId": null,
+        "behaviorPayload": null
+      },
+      {
+        "id": "debug-day-sheet-note-midnight",
+        "clientEventId": "debug:day-sheet:note:midnight",
+        "calendarId": "debug-day-sheet-personal",
+        "calendarName": "Smoke Calendar",
+        "title": "Smoke note: midnight overlap",
+        "detail": "Visible on both the start day and the following day.",
+        "location": "Debug shrine",
+        "allDay": false,
+        "startMinutes": 1410,
+        "endMinutes": 30,
+        "flowId": null,
+        "manualColor": 4293433946,
+        "category": "Body",
+        "isReminder": false,
+        "reminderId": null,
+        "alertOffsetMinutes": null,
+        "actionId": null,
+        "behaviorPayload": null
+      },
+      {
+        "id": "debug-day-sheet-reminder-family-salon",
+        "clientEventId": "debug:day-sheet:shared-reminder:family-salon",
+        "calendarId": "debug-day-sheet-shared-family",
+        "calendarName": "Family Calendar",
+        "title": "Family Salon",
+        "detail": "Shared-calendar reminder event with no local rule.",
+        "location": null,
+        "allDay": false,
+        "startMinutes": 960,
+        "endMinutes": 990,
+        "flowId": null,
+        "manualColor": 4293418495,
+        "category": "Home",
+        "isReminder": true,
+        "reminderId": null,
+        "alertOffsetMinutes": null,
+        "actionId": null,
+        "behaviorPayload": null
+      }
+    ],
+    "2-4-5": [
+      {
+        "id": "debug-day-sheet-note-next-day",
+        "clientEventId": "debug:day-sheet:note:next-day",
+        "calendarId": "debug-day-sheet-personal",
+        "calendarName": "Smoke Calendar",
+        "title": "Smoke note: next day only",
+        "detail": "Appears after changing the Day sheet picker by one day.",
+        "location": "Debug shrine",
+        "allDay": false,
+        "startMinutes": 840,
+        "endMinutes": 870,
+        "flowId": null,
+        "manualColor": 4284131048,
+        "category": "Mind",
+        "isReminder": false,
+        "reminderId": null,
+        "alertOffsetMinutes": null,
+        "actionId": null,
+        "behaviorPayload": null
+      }
+    ]
+  },
+  "flowTotalEventCounts": {
+    "9001": 1,
+    "9002": 1,
+    "9003": 1,
+    "9004": 1,
+    "9005": 0
+  },
+  "flowRemainingEventCounts": {
+    "9001": 1,
+    "9002": 1,
+    "9003": 1,
+    "9004": 1,
+    "9005": 0
+  }
 }
