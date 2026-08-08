@@ -114,4 +114,57 @@ void main() {
       isTrue,
     );
   });
+
+  test('PR6 wires CalendarLoadCoordinator and epoch/same-user commit guards', () {
+    expect(
+      File('lib/features/calendar/calendar_load_coordinator.dart').existsSync(),
+      isTrue,
+    );
+    expect(calendarPageSource, contains('CalendarLoadCoordinator _loadCoordinator'));
+    expect(calendarPageSource.contains('_isLoadingFromDisk'), isFalse);
+    expect(calendarPageSource.contains('_flushCalendarInvalidationReload'), isFalse);
+    expect(
+      calendarPageSource,
+      contains("_loadCoordinator.invalidate(reason: 'signed_out')"),
+    );
+    expect(
+      RegExp(
+        r"if \(!_loadCoordinator\.isCurrent\(epoch\)\) return;\n"
+        r"\s+if \(_activeWarmStartUserId\(\) != loadUserId\) return;",
+      ).allMatches(calendarPageSource).length,
+      2,
+    );
+  });
+
+  test('PR6.5 extracts maat join rollback into one helper', () {
+    expect(calendarPageSource, contains('_rollbackJoinedFlowLocally'));
+    expect(
+      RegExp(r'await _rollbackJoinedFlowLocally\(')
+          .allMatches(calendarPageSource)
+          .length,
+      15,
+    );
+    final helper = calendarPageSource.substring(
+      calendarPageSource.indexOf('Future<void> _rollbackJoinedFlowLocally('),
+      calendarPageSource.indexOf(
+        'int _removeLocalNotesForFlowReplacement(int flowId)',
+      ),
+    );
+    expect(helper, contains('_flows.removeWhere'));
+    expect(helper, contains('notes.removeWhere((note) => note.flowId == serverFlowId)'));
+    expect(helper, contains('await repo.deleteFlow(serverFlowId)'));
+    expect(
+      helper.contains('_removeLocalNotesForFlowReplacement('),
+      isFalse,
+      reason: 'inline prune must not call the flowId<=0 guard helper',
+    );
+    expect(
+      calendarPageSource.contains(
+        '_flows.removeWhere((flow) => flow.id == serverFlowId);\n'
+        '        final emptyKeys = <String>[];',
+      ),
+      isFalse,
+      reason: 'inline maat rollback bodies must be gone',
+    );
+  });
 }

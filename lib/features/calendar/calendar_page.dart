@@ -110,6 +110,7 @@ import '../../widgets/kemetic_date_picker.dart' show showKemeticDatePicker;
 import '../../widgets/recurrence_until_date_picker.dart';
 import '../../utils/external_link_utils.dart';
 import 'calendar_invalidation.dart';
+import 'calendar_load_coordinator.dart';
 import 'calendar_visible_state_policy.dart';
 import 'calendar_completion.dart';
 import 'reminder_sync_idempotence.dart';
@@ -8730,7 +8731,12 @@ class CalendarPageState extends State<CalendarPage>
   static const Duration _foregroundRefreshThreshold = Duration(minutes: 10);
   static const Duration _restorationWriteDebounce = Duration(milliseconds: 150);
   static const int _calendarProgressSaveIntervalMs = 300;
-  bool _isLoadingFromDisk = false;
+  late final CalendarLoadCoordinator _loadCoordinator = CalendarLoadCoordinator(
+    runner: _loadFromDiskInner,
+    isMounted: () => mounted,
+    isDeferred: () => _sharedCalendarRealDayViewOpening,
+    debugLog: _calendarDebugPrint,
+  );
   // Startup coordinator: single-flight gate for auth-triggered startup work.
   Completer<void>? _startupFlight;
   bool _startupRerunRequested = false;
@@ -9034,13 +9040,6 @@ class CalendarPageState extends State<CalendarPage>
   late final ReminderService _reminderService = ReminderService();
   StreamSubscription<List<Reminder>>? _reminderSub; // unused now (safety)
   StreamSubscription<AuthState>? _authSub;
-  StreamSubscription<CalendarInvalidated>? _calendarInvalidationSub;
-  Timer? _calendarInvalidationReloadDebounce;
-  bool _calendarInvalidationReloadPending = false;
-  bool _calendarInvalidationReloadInFlight = false;
-  CalendarInvalidationReason? _calendarInvalidationReloadReason;
-  int _calendarInvalidationScheduledRevision = 0;
-  int? _calendarInvalidationReloadRevision;
   bool _remindersLoaded = false;
   final bool _remindersEnabled = false; // disable floating badges for now
   List<Reminder> _floatingReminders = [];
@@ -13645,10 +13644,7 @@ class CalendarPageState extends State<CalendarPage>
     }
     unawaited(_restoreMyFlowsFilingSnapshotCache(reason: 'initState'));
     calendarPushOpenIntent.addListener(_handleCalendarPushOpenIntent);
-    _calendarInvalidationSub = CalendarInvalidationBus.instance.stream.listen(
-      _handleCalendarInvalidated,
-    );
-    _schedulePendingCalendarInvalidationReload();
+    _loadCoordinator.attach();
     _scheduleDaySheetResumeRestore();
     _schedulePushEventResumeRestore();
 
@@ -13725,6 +13721,7 @@ class CalendarPageState extends State<CalendarPage>
         return;
       }
       if (event == AuthChangeEvent.signedOut) {
+        _loadCoordinator.invalidate(reason: 'signed_out');
         _initialStartupUserId = null;
         _warmStartSnapshotVisible = false;
         _warmStartCacheRestoredForUserId = null;
@@ -13760,92 +13757,6 @@ class CalendarPageState extends State<CalendarPage>
       return;
     }
     unawaited(_loadCalendarState());
-  }
-
-  void _handleCalendarInvalidated(CalendarInvalidated invalidation) {
-    if (!mounted) return;
-    _schedulePendingCalendarInvalidationReload();
-  }
-
-  void _schedulePendingCalendarInvalidationReload() {
-    if (!mounted) return;
-    final pending = CalendarInvalidationBus.instance.peekPendingAfter(
-      _calendarInvalidationScheduledRevision,
-    );
-    if (pending == null) return;
-    _calendarInvalidationScheduledRevision = pending.revision;
-    _scheduleCalendarInvalidationReload(
-      pending.invalidation.reason,
-      revision: pending.revision,
-    );
-  }
-
-  void _scheduleCalendarInvalidationReload(
-    CalendarInvalidationReason reason, {
-    int? revision,
-  }) {
-    _calendarInvalidationReloadPending = true;
-    _calendarInvalidationReloadReason = reason;
-    if (revision != null) {
-      _calendarInvalidationReloadRevision = revision;
-    }
-    if (_calendarInvalidationReloadInFlight) return;
-
-    _calendarInvalidationReloadDebounce?.cancel();
-    _calendarInvalidationReloadDebounce = Timer(
-      const Duration(milliseconds: 80),
-      _flushCalendarInvalidationReload,
-    );
-  }
-
-  void _flushCalendarInvalidationReload() {
-    _calendarInvalidationReloadDebounce?.cancel();
-    _calendarInvalidationReloadDebounce = null;
-    if (!mounted || !_calendarInvalidationReloadPending) return;
-    if (_sharedCalendarRealDayViewOpening) {
-      _calendarInvalidationReloadDebounce = Timer(
-        const Duration(milliseconds: 80),
-        _flushCalendarInvalidationReload,
-      );
-      return;
-    }
-    if (_calendarInvalidationReloadInFlight || _isLoadingFromDisk) {
-      _calendarInvalidationReloadDebounce = Timer(
-        const Duration(milliseconds: 80),
-        _flushCalendarInvalidationReload,
-      );
-      return;
-    }
-
-    final reason = _calendarInvalidationReloadReason;
-    final revision = _calendarInvalidationReloadRevision;
-    _calendarInvalidationReloadPending = false;
-    _calendarInvalidationReloadReason = null;
-    _calendarInvalidationReloadRevision = null;
-    _calendarInvalidationReloadInFlight = true;
-    unawaited(
-      _loadFromDisk(
-            source: 'invalidation:${reason?.name ?? 'coalesced'}',
-            preserveViewport: true,
-          )
-          .then((_) {
-            if (revision != null) {
-              CalendarInvalidationBus.instance.markConsumed(revision);
-            }
-          })
-          .catchError((Object e, StackTrace st) {
-            if (kDebugMode) {
-              _calendarDebugPrint('[calendar] invalidation reload failed: $e');
-              _calendarDebugPrint('$st');
-            }
-          })
-          .whenComplete(() {
-            _calendarInvalidationReloadInFlight = false;
-            if (_calendarInvalidationReloadPending && mounted) {
-              _flushCalendarInvalidationReload();
-            }
-          }),
-    );
   }
 
   void _scheduleDaySheetResumeRestore() {
@@ -16827,8 +16738,7 @@ class CalendarPageState extends State<CalendarPage>
     calendarPushOpenIntent.removeListener(_handleCalendarPushOpenIntent);
     _reminderSub?.cancel();
     _authSub?.cancel();
-    _calendarInvalidationSub?.cancel();
-    _calendarInvalidationReloadDebounce?.cancel();
+    _loadCoordinator.dispose();
     _reminderSyncGate.dispose();
     _reminderService.dispose();
     unawaited(_journalController.forceSave());
@@ -19887,6 +19797,37 @@ class CalendarPageState extends State<CalendarPage>
       _refreshNoteCacheUi();
     }
     return true;
+  }
+
+  Future<void> _rollbackJoinedFlowLocally(
+    int serverFlowId, {
+    required UserEventsRepo repo,
+    required String failureMessage,
+  }) async {
+    _flows.removeWhere((flow) => flow.id == serverFlowId);
+
+    // Inline — do NOT call _removeLocalNotesForFlowReplacement:
+    // that helper guards `if (flowId <= 0) return 0;` ; inline
+    // blocks do not. Keep this PR provably identical; swap later behind an assert.
+    final emptyKeys = <String>[];
+    _notes.forEach((key, notes) {
+      notes.removeWhere((note) => note.flowId == serverFlowId);
+      if (notes.isEmpty) emptyKeys.add(key);
+    });
+    for (final key in emptyKeys) {
+      _notes.remove(key);
+    }
+
+    if (mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(failureMessage)),
+      );
+    }
+
+    try {
+      await repo.deleteFlow(serverFlowId);
+    } catch (_) {}
   }
 
   int _removeLocalNotesForFlowReplacement(int flowId) {
@@ -24557,24 +24498,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[trackSky] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Could not create ${template.title}.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create ${template.title}.',
+        );
         return -1;
       }
 
@@ -24729,24 +24657,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[moonReturn] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not create The Moon Return.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Moon Return.',
+        );
         return -1;
       }
 
@@ -24936,24 +24851,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[theWag] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not create The Wag.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Wag.',
+        );
         return -1;
       }
 
@@ -25153,26 +25055,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[daysOutsideYear] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not create The Days Outside the Year.'),
-            ),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Days Outside the Year.',
+        );
         return -1;
       }
 
@@ -25426,24 +25313,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[openHand] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not create The Open Hand.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Open Hand.',
+        );
         return -1;
       }
 
@@ -25622,24 +25496,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[djed] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not create The Djed.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Djed.',
+        );
         return -1;
       }
 
@@ -25792,26 +25653,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[readingHouse] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not create The Reading House.'),
-            ),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Reading House.',
+        );
         return -1;
       }
 
@@ -25997,24 +25843,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[decanWatch] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not create The Decan Watch.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Decan Watch.',
+        );
         return -1;
       }
 
@@ -26165,26 +25998,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[dawnHouseRite] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not create Dawn House Rite events.'),
-            ),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create Dawn House Rite events.',
+        );
         return -1;
       }
 
@@ -26374,26 +26192,11 @@ class CalendarPageState extends State<CalendarPage>
           );
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not create Evening Threshold Rite events.'),
-            ),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create Evening Threshold Rite events.',
+        );
         return -1;
       }
 
@@ -26544,24 +26347,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[theWeighing] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not create The Weighing.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Weighing.',
+        );
         return -1;
       }
 
@@ -26718,26 +26508,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[offeringTable] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not create The Offering Table.'),
-            ),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Offering Table.',
+        );
         return -1;
       }
 
@@ -26888,24 +26663,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[theTending] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not create The Tending.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Tending.',
+        );
         return -1;
       }
 
@@ -27056,24 +26818,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[keptWord] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not create The Kept Word.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Kept Word.',
+        );
         return -1;
       }
 
@@ -27237,24 +26986,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[theCourse] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not create The Course.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Course.',
+        );
         return -1;
       }
 
@@ -30310,12 +30046,16 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> _loadFromDisk({
     String source = 'manual',
     bool preserveViewport = false,
-  }) async {
-    if (_isLoadingFromDisk) {
-      return;
-    }
-    _isLoadingFromDisk = true;
+  }) => _loadCoordinator.request(
+    source: source,
+    preserveViewport: preserveViewport,
+  );
 
+  Future<void> _loadFromDiskInner({
+    required String source,
+    required bool preserveViewport,
+    required int epoch,
+  }) async {
     try {
       if (kDebugMode) {
         _calendarDebugPrint('=== _loadFromDisk START ($source) ===');
@@ -30330,6 +30070,7 @@ class CalendarPageState extends State<CalendarPage>
         }
         return;
       }
+      final loadUserId = currentUser.id;
       final preservedScrollOffset = preserveViewport
           ? _calendarScrollOffsetForPreservation()
           : null;
@@ -30592,6 +30333,8 @@ class CalendarPageState extends State<CalendarPage>
         String phase, {
         bool loadComplete = false,
       }) {
+        if (!_loadCoordinator.isCurrent(epoch)) return;
+        if (_activeWarmStartUserId() != loadUserId) return;
         if (!mounted) return;
         final hasIncomingEventSnapshot = newNotes.values.any(
           (notes) => notes.isNotEmpty,
@@ -31180,6 +30923,8 @@ class CalendarPageState extends State<CalendarPage>
       );
 
       Future<void> finishNonCriticalPostProcessing() async {
+        if (!_loadCoordinator.isCurrent(epoch)) return;
+        if (_activeWarmStartUserId() != loadUserId) return;
         try {
           final flowEventCounts = await flowEventCountsFuture;
           if (mounted) {
@@ -31240,8 +30985,6 @@ class CalendarPageState extends State<CalendarPage>
         _calendarDebugPrint('Supabase sync FAILED: $e');
         _calendarDebugPrint('Stack: $stackTrace');
       }
-    } finally {
-      _isLoadingFromDisk = false;
     }
 
     if (kDebugMode) {
