@@ -9562,7 +9562,9 @@ class CalendarPageState extends State<CalendarPage>
         _flowRemainingEventCounts
           ..clear()
           ..addAll(remainingCounts);
-        _nextFlowId = nextFlowId > 0 ? nextFlowId : _nextFlowId;
+        if (nextFlowId > 0) {
+          _nextFlowId = math.max(_nextFlowId, nextFlowId);
+        }
       });
       _rebuildReminderRulesFromFlowsIfMissing();
       _warmStartCacheRestoredForUserId = userId;
@@ -30575,7 +30577,7 @@ class CalendarPageState extends State<CalendarPage>
         _notes
           ..clear()
           ..addAll(dedupedNotes);
-        _nextFlowId = nextFlowId;
+        _nextFlowId = math.max(_nextFlowId, nextFlowId);
         CalendarPage._reconcileRememberedMaatJoinsFromLiveFlows(_flows);
 
         if (kDebugMode) {

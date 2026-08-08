@@ -26,4 +26,16 @@ void main() {
       isTrue,
     );
   });
+
+  test('PR1 keeps _nextFlowId monotonic at warm-start and load commit', () {
+    expect(
+      calendarPageSource,
+      contains('_nextFlowId = math.max(_nextFlowId, nextFlowId)'),
+    );
+    expect(
+      calendarPageSource.contains('_nextFlowId = nextFlowId;\n'),
+      isFalse,
+      reason: 'load commit must not assign nextFlowId outright',
+    );
+  });
 }
