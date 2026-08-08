@@ -1421,7 +1421,6 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           if (partition.hero != null)
             _MyFlowDayContentCard(
               key: ValueKey<String>('my_flow_day_card_${partition.hero!.key}'),
-              day: partition.hero!,
               content: _contentForDashboardDay(
                 partition.hero!,
                 isTrackSky: isTrackSky,
@@ -1751,7 +1750,6 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
               ? Padding(
                   padding: const EdgeInsets.only(bottom: 18),
                   child: _MyFlowDayContentCard(
-                    day: day,
                     content: content,
                     palette: palette,
                     variant: _MyFlowDayCardVariant.expandedInline,
@@ -2434,18 +2432,22 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
 class _MyFlowDayContentCard extends StatelessWidget {
   const _MyFlowDayContentCard({
     super.key,
-    required this.day,
     required this.content,
     required this.palette,
     required this.variant,
     required this.eyebrow,
+    this.body,
+    this.titleColor = const Color(0xFFF0D46E),
+    this.metadataColor = const Color(0xFF8F817A),
   });
 
-  final _FlowDashboardDay day;
   final _FlowDayContent content;
   final _MyFlowCardPalette palette;
   final _MyFlowDayCardVariant variant;
   final String eyebrow;
+  final Widget? body;
+  final Color titleColor;
+  final Color metadataColor;
 
   @override
   Widget build(BuildContext context) {
@@ -2533,7 +2535,7 @@ class _MyFlowDayContentCard extends StatelessWidget {
                   Text(
                     content.title,
                     style: TextStyle(
-                      color: const Color(0xFFF0D46E),
+                      color: titleColor,
                       fontFamily: MaatFlowListTokens.fontFamily,
                       fontFamilyFallback: MaatFlowListTokens.fontFallback,
                       fontSize: titleSize,
@@ -2544,8 +2546,8 @@ class _MyFlowDayContentCard extends StatelessWidget {
                   const SizedBox(height: 22),
                   Text(
                     content.timeRange,
-                    style: const TextStyle(
-                      color: Color(0xFF8F817A),
+                    style: TextStyle(
+                      color: metadataColor,
                       fontFamily: MaatFlowListTokens.fontFamily,
                       fontFamilyFallback: MaatFlowListTokens.fontFallback,
                       fontSize: 17,
@@ -2554,7 +2556,10 @@ class _MyFlowDayContentCard extends StatelessWidget {
                       height: 1.2,
                     ),
                   ),
-                  if (content.body != null) ...[
+                  if (body != null) ...[
+                    const SizedBox(height: 28),
+                    body!,
+                  ] else if (content.body != null) ...[
                     const SizedBox(height: 28),
                     RichText(
                       text: TextSpan(

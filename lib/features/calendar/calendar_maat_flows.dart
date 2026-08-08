@@ -2218,6 +2218,8 @@ class _MaatFlowTemplateDetailPageState
   bool _maatDecanStartDateTouched = false;
   bool _maatDecanJoinInFlight = false;
   bool _descriptionExpanded = false;
+  String? _expandedMaatEventKey;
+  int _maatEventSequence = 0;
 
   MaatFlowPalette get _palette => MaatFlowPalette.resolve(
     flowId: widget.template.key,
@@ -5899,72 +5901,152 @@ class _MaatFlowTemplateDetailPageState
     Color badgeAccent = _gold,
   }) {
     final palette = _palette;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: MaatFlowSurface(
-        palette: palette,
-        borderRadius: BorderRadius.circular(14),
-        showCrown: false,
-        showTopGlow: true,
-        washOpacity: 0.07,
-        border: Border.all(
-          color: borderColor == Colors.white12
-              ? palette.accent.withValues(alpha: 0.22)
-              : borderColor,
-          width: MaatFlowListTokens.cardBorderWidth,
-        ),
-        child: Theme(
-          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            tilePadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 4,
-            ),
-            collapsedIconColor: MaatFlowListTokens.joinedChevron,
-            iconColor: MaatFlowListTokens.joinedChevron,
-            childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            title: Text(
-              title,
-              style: const TextStyle(
-                color: MaatFlowPalette.gold,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: MaatFlowPalette.silverMid,
-                      fontFamily: MaatFlowListTokens.fontFamily,
-                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                      fontSize: 12,
-                      fontStyle: FontStyle.italic,
+    final number = ++_maatEventSequence;
+    final eventKey = '${widget.template.key}:$number:$title';
+    final expanded = _expandedMaatEventKey == eventKey;
+    final accent = borderColor == Colors.white12 ? palette.accent : borderColor;
+    final expandedCard = _MyFlowDayContentCard(
+      content: _FlowDayContent(
+        title: title,
+        timeRange: subtitle,
+        body: null,
+        location: null,
+        externalButtonLabel: null,
+      ),
+      palette: _maatEventCardPalette(accent),
+      variant: _MyFlowDayCardVariant.expandedInline,
+      eyebrow: 'DAY $number',
+      titleColor: MaatFlowPalette.gold,
+      metadataColor: MaatFlowPalette.silverMid,
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (badges.isNotEmpty) ...[
+            _buildEventBadgeRow(badges, accent: badgeAccent),
+            const SizedBox(height: 20),
+          ],
+          _buildMaatFlowDetailSections(detailText),
+        ],
+      ),
+    );
+    return Builder(
+      key: ValueKey<String>('maat_flow_event_row_$eventKey'),
+      builder: (rowContext) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              key: ValueKey<String>('maat_flow_event_tap_$eventKey'),
+              onTap: () {
+                setState(() {
+                  _expandedMaatEventKey = expanded ? null : eventKey;
+                });
+                if (!expanded) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (!rowContext.mounted) return;
+                    Scrollable.ensureVisible(
+                      rowContext,
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeInOutCubic,
+                      alignment: 0.08,
+                    );
+                  });
+                }
+              },
+              splashColor: palette.accent.withValues(alpha: 0.05),
+              highlightColor: palette.accent.withValues(alpha: 0.03),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 82,
+                      child: Text(
+                        'DAY\n$number',
+                        style: const TextStyle(
+                          color: MaatFlowPalette.goldMute,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 2.2,
+                          height: 1.18,
+                        ),
+                      ),
                     ),
-                  ),
-                  if (badges.isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    _buildEventBadgeRow(badges, accent: badgeAccent),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: MaatFlowPalette.gold,
+                              fontFamily: MaatFlowListTokens.fontFamily,
+                              fontFamilyFallback:
+                                  MaatFlowListTokens.fontFallback,
+                              fontSize: 22,
+                              fontStyle: FontStyle.italic,
+                              fontWeight: FontWeight.w600,
+                              height: 1.1,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            subtitle,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: MaatFlowPalette.silverMid,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              height: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Icon(
+                      expanded ? Icons.expand_less : Icons.chevron_right,
+                      color: MaatFlowListTokens.joinedChevron,
+                      size: 20,
+                    ),
                   ],
-                ],
+                ),
               ),
             ),
-            children: [
-              SizedBox(
-                width: double.infinity,
-                child: _buildMaatFlowDetailSections(detailText),
-              ),
-            ],
           ),
-        ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOutCubic,
+            alignment: Alignment.topCenter,
+            child: expanded
+                ? Padding(
+                    padding: const EdgeInsets.only(bottom: 18),
+                    child: expandedCard,
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
       ),
     );
   }
+
+  _MyFlowCardPalette _maatEventCardPalette(Color accent) => _MyFlowCardPalette(
+    accent: accent,
+    cardBase: MaatFlowPalette.joinedBase,
+    leftWash: accent.withValues(alpha: 0.11),
+    cardBorder: accent.withValues(alpha: 0.22),
+    categoryColor: MaatFlowPalette.goldMute,
+    nameColor: MaatFlowPalette.gold,
+    iconBg: MaatFlowPalette.joinedBase,
+    iconBorder: accent,
+    iconColor: accent,
+    progressColor: accent,
+    chevronColor: MaatFlowListTokens.joinedChevron,
+  );
 
   Widget _buildMaatFlowSittingTile({
     required String title,
@@ -5972,74 +6054,11 @@ class _MaatFlowTemplateDetailPageState
     required String detailText,
     Color? borderColor,
   }) {
-    final palette = _palette;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: MaatFlowSurface(
-        palette: palette,
-        borderRadius: BorderRadius.circular(14),
-        showCrown: false,
-        showTopGlow: true,
-        washOpacity: 0.07,
-        border: Border.all(
-          color: borderColor ?? palette.accent.withValues(alpha: 0.22),
-          width: MaatFlowListTokens.cardBorderWidth,
-        ),
-        child: Theme(
-          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-          child: ExpansionTile(
-            tilePadding: const EdgeInsets.symmetric(
-              horizontal: 16,
-              vertical: 3,
-            ),
-            collapsedIconColor: MaatFlowListTokens.joinedChevron,
-            iconColor: MaatFlowListTokens.joinedChevron,
-            childrenPadding: EdgeInsets.zero,
-            expandedAlignment: Alignment.centerLeft,
-            expandedCrossAxisAlignment: CrossAxisAlignment.start,
-            title: Text(
-              title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: MaatFlowPalette.gold,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                height: 1.15,
-              ),
-            ),
-            subtitle: Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                subtitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: MaatFlowPalette.silverMid,
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                  fontSize: 12,
-                  fontStyle: FontStyle.italic,
-                  height: 1.25,
-                ),
-              ),
-            ),
-            children: [
-              const Divider(
-                height: 1,
-                thickness: 0.5,
-                color: MaatFlowPalette.separator,
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 2, 16, 18),
-                child: _buildMaatFlowDetailSections(detailText),
-              ),
-            ],
-          ),
-        ),
-      ),
+    return _buildExpandableFlowEventTile(
+      title: title,
+      subtitle: subtitle,
+      detailText: detailText,
+      borderColor: borderColor ?? Colors.white12,
     );
   }
 
@@ -6053,7 +6072,8 @@ class _MaatFlowTemplateDetailPageState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (final section in sections) _buildMaatFlowDetailSection(section),
+        for (var i = 0; i < sections.length; i++)
+          _buildMaatFlowDetailSection(sections[i], first: i == 0),
       ],
     );
   }
@@ -6309,7 +6329,7 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
-  Widget _buildMaatFlowDetailSection(String section) {
+  Widget _buildMaatFlowDetailSection(String section, {bool first = false}) {
     final firstLineEnd = section.indexOf('\n');
     final label = firstLineEnd == -1
         ? ''
@@ -6324,13 +6344,13 @@ class _MaatFlowTemplateDetailPageState
       color: isWords ? MaatFlowPalette.silverMid : MaatFlowPalette.silverHi,
       fontFamily: MaatFlowListTokens.fontFamily,
       fontFamilyFallback: MaatFlowListTokens.fontFallback,
-      fontSize: 15,
+      fontSize: 22,
       fontWeight: isWords ? FontWeight.w500 : FontWeight.w400,
       fontStyle: isWords ? FontStyle.italic : FontStyle.normal,
-      height: isSteps ? 1.7 : 1.56,
+      height: 1.45,
     );
     return Padding(
-      padding: const EdgeInsets.only(top: 16),
+      padding: EdgeInsets.only(top: first ? 0 : 28),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -6341,9 +6361,9 @@ class _MaatFlowTemplateDetailPageState
                 color: MaatFlowPalette.interiorLabel,
                 fontFamily: MaatFlowListTokens.fontFamily,
                 fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 10,
+                fontSize: 13,
                 fontWeight: FontWeight.w600,
-                letterSpacing: 1.6,
+                letterSpacing: 3.1,
                 height: 1,
               ),
             ),
@@ -8730,6 +8750,7 @@ class _MaatFlowTemplateDetailPageState
 
   @override
   Widget build(BuildContext context) {
+    _maatEventSequence = 0;
     if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
       return _buildTrackSkyScaffold(context);
     }
