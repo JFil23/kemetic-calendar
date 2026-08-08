@@ -136,6 +136,45 @@ void main() {
     );
   });
 
+  test('PR7 wires unconfirmed ledger after PR6 commit guards', () {
+    expect(
+      File('lib/features/calendar/calendar_unconfirmed_notes.dart').existsSync(),
+      isTrue,
+    );
+    expect(calendarPageSource, contains("part 'calendar_unconfirmed_notes.dart';"));
+    expect(calendarPageSource, contains('_UnconfirmedNoteLedger _unconfirmed'));
+    expect(calendarPageSource, contains('_unconfirmed.clear()'));
+    expect(
+      calendarPageSource,
+      contains('confirmation: NoteConfirmation.unconfirmed'),
+    );
+    expect(
+      RegExp(r'confirmation:\s*NoteConfirmation\.unconfirmed')
+          .allMatches(calendarPageSource)
+          .length,
+      1,
+      reason: 'only _saveSingleNoteOnly should tag unconfirmed',
+    );
+    final commitStart = calendarPageSource.indexOf(
+      'void commitVisibleCalendarState(',
+    );
+    final commitSlice = calendarPageSource.substring(
+      commitStart,
+      calendarPageSource.indexOf(
+        'Future<void> finishNonCriticalPostProcessing()',
+        commitStart,
+      ),
+    );
+    expect(
+      commitSlice.indexOf('_unconfirmed.mergeInto('),
+      greaterThan(
+        commitSlice.indexOf(
+          'if (!_loadCoordinator.isCurrent(epoch)) return;',
+        ),
+      ),
+    );
+  });
+
   test('PR6.5 extracts maat join rollback into one helper', () {
     expect(calendarPageSource, contains('_rollbackJoinedFlowLocally'));
     expect(
