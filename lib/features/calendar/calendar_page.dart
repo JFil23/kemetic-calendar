@@ -19889,6 +19889,37 @@ class CalendarPageState extends State<CalendarPage>
     return true;
   }
 
+  Future<void> _rollbackJoinedFlowLocally(
+    int serverFlowId, {
+    required UserEventsRepo repo,
+    required String failureMessage,
+  }) async {
+    _flows.removeWhere((flow) => flow.id == serverFlowId);
+
+    // Inline — do NOT call _removeLocalNotesForFlowReplacement:
+    // that helper guards `if (flowId <= 0) return 0;` ; inline
+    // blocks do not. Keep this PR provably identical; swap later behind an assert.
+    final emptyKeys = <String>[];
+    _notes.forEach((key, notes) {
+      notes.removeWhere((note) => note.flowId == serverFlowId);
+      if (notes.isEmpty) emptyKeys.add(key);
+    });
+    for (final key in emptyKeys) {
+      _notes.remove(key);
+    }
+
+    if (mounted) {
+      setState(() {});
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(failureMessage)),
+      );
+    }
+
+    try {
+      await repo.deleteFlow(serverFlowId);
+    } catch (_) {}
+  }
+
   int _removeLocalNotesForFlowReplacement(int flowId) {
     if (flowId <= 0) return 0;
     var removed = 0;
@@ -24557,24 +24588,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[trackSky] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Could not create ${template.title}.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create ${template.title}.',
+        );
         return -1;
       }
 
@@ -24729,24 +24747,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[moonReturn] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not create The Moon Return.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Moon Return.',
+        );
         return -1;
       }
 
@@ -24936,24 +24941,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[theWag] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not create The Wag.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Wag.',
+        );
         return -1;
       }
 
@@ -25153,26 +25145,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[daysOutsideYear] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not create The Days Outside the Year.'),
-            ),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Days Outside the Year.',
+        );
         return -1;
       }
 
@@ -25426,24 +25403,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[openHand] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not create The Open Hand.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Open Hand.',
+        );
         return -1;
       }
 
@@ -25622,24 +25586,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[djed] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not create The Djed.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Djed.',
+        );
         return -1;
       }
 
@@ -25792,26 +25743,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[readingHouse] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not create The Reading House.'),
-            ),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Reading House.',
+        );
         return -1;
       }
 
@@ -25997,24 +25933,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[decanWatch] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not create The Decan Watch.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Decan Watch.',
+        );
         return -1;
       }
 
@@ -26165,26 +26088,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[dawnHouseRite] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not create Dawn House Rite events.'),
-            ),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create Dawn House Rite events.',
+        );
         return -1;
       }
 
@@ -26374,26 +26282,11 @@ class CalendarPageState extends State<CalendarPage>
           );
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not create Evening Threshold Rite events.'),
-            ),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create Evening Threshold Rite events.',
+        );
         return -1;
       }
 
@@ -26544,24 +26437,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[theWeighing] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not create The Weighing.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Weighing.',
+        );
         return -1;
       }
 
@@ -26718,26 +26598,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[offeringTable] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not create The Offering Table.'),
-            ),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Offering Table.',
+        );
         return -1;
       }
 
@@ -26888,24 +26753,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[theTending] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not create The Tending.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Tending.',
+        );
         return -1;
       }
 
@@ -27056,24 +26908,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[keptWord] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not create The Kept Word.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Kept Word.',
+        );
         return -1;
       }
 
@@ -27237,24 +27076,11 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[theCourse] event creation failed: $e');
           _calendarDebugPrint('$st');
         }
-        _flows.removeWhere((flow) => flow.id == serverFlowId);
-        final emptyKeys = <String>[];
-        _notes.forEach((key, notes) {
-          notes.removeWhere((note) => note.flowId == serverFlowId);
-          if (notes.isEmpty) emptyKeys.add(key);
-        });
-        for (final key in emptyKeys) {
-          _notes.remove(key);
-        }
-        if (mounted) {
-          setState(() {});
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not create The Course.')),
-          );
-        }
-        try {
-          await repo.deleteFlow(serverFlowId);
-        } catch (_) {}
+        await _rollbackJoinedFlowLocally(
+          serverFlowId,
+          repo: repo,
+          failureMessage: 'Could not create The Course.',
+        );
         return -1;
       }
 
