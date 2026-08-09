@@ -563,6 +563,8 @@ class _EditorGroup {
 }
 
 /// A note to add on a specific Kemetic day (result payload).
+typedef FlowAddCompletion = FutureOr<void> Function(int flowId);
+
 class ImportFlowData {
   final InboxShareItem share;
   final String name;
@@ -613,6 +615,12 @@ class _FlowStudioResult {
   final _Flow? savedFlow;
   final int? deleteFlowId;
   final List<_PlannedNote> plannedNotes;
+
+  /// The editor session began as an add-to-calendar operation.
+  ///
+  /// This is deliberately independent of [savedFlow.id]: AI composition may
+  /// create and reload a database row before the user completes the first add.
+  final bool completionRequired;
   final String? originType;
   final int? originFlowId;
   final String? originShareId;
@@ -623,6 +631,7 @@ class _FlowStudioResult {
     this.savedFlow,
     this.deleteFlowId,
     this.plannedNotes = const [],
+    this.completionRequired = false,
     this.originType,
     this.originFlowId,
     this.originShareId,

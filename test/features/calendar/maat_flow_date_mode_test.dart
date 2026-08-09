@@ -483,49 +483,6 @@ void main() {
       expect(pageSource, isNot(contains(retired)));
     }
   });
-
-  test('Flow Studio create defers writes while edits never arm Day View', () {
-    final source = File(
-      'lib/features/calendar/calendar_page.dart',
-    ).readAsStringSync();
-    final createPolicy = _sourceBetween(
-      source,
-      'static bool _didStageFlowStudioEvents',
-      '// Headless persistence helper',
-    );
-    expect(createPolicy, contains('flow.id <= 0'));
-    expect(createPolicy, contains('_didStageFlowStudioEvents(result)'));
-    expect(createPolicy, contains('_shouldSkipExplicitHydrate'));
-
-    final mountedPersist = _sourceBetween(
-      source,
-      'Future<int?> _persistFlowStudioResult(_FlowStudioResult r) async',
-      '/// Schedules all note occurrences for a flow',
-    );
-    expect(mountedPersist, contains('stagePlannedNotesAndDeferPersist'));
-    expect(mountedPersist, contains('_armStagedFlowDayView'));
-    expect(mountedPersist, contains('if (!isNewFlowSave)'));
-    expect(mountedPersist, isNot(contains('await repo.upsertByClientId(')));
-    expect(
-      mountedPersist,
-      contains('Editing deliberately never navigates to Day View'),
-    );
-
-    final editorCompletion = _sourceBetween(
-      source,
-      'Future<_FlowStudioResult?> _pushFlowStudioEditor',
-      '_Flow? _readingHouseFlowForEditor',
-    );
-    expect(editorCompletion, contains('if (mounted && !skipExplicitHydrate)'));
-    expect(
-      editorCompletion,
-      contains("_loadFromDisk(source: 'flow_studio_editor_save')"),
-    );
-    expect(
-      editorCompletion,
-      contains('_schedulePendingStagedFlowDayViewIfAny()'),
-    );
-  });
 }
 
 const _previewEnrollmentBranches = [

@@ -26,6 +26,274 @@ enum FlowDetailActionKind {
   viewOnly,
 }
 
+typedef FlowImportNoteMetadata = ({
+  String? detail,
+  String? location,
+  String? category,
+  int? alertMinutes,
+});
+
+DateTime _addLocalCalendarDays(DateTime date, int days) =>
+    DateTime(date.year, date.month, date.day + days);
+
+FlowImportNoteMetadata decodeFlowImportNoteMetadata(String? rawNotes) {
+  if (rawNotes == null || rawNotes.isEmpty) {
+    return (detail: null, location: null, category: null, alertMinutes: null);
+  }
+
+  try {
+    final meta = jsonDecode(rawNotes) as Map<String, dynamic>;
+    if (meta['kind'] == 'repeating_note') {
+      return (
+        detail: (meta['detail'] as String?)?.trim(),
+        location: (meta['location'] as String?)?.trim(),
+        category: (meta['category'] as String?)?.trim(),
+        alertMinutes: (meta['alertMinutes'] as num?)?.toInt(),
+      );
+    }
+  } catch (_) {
+    // Fall through to legacy note decoding.
+  }
+
+  try {
+    final decoded = notesDecode(rawNotes);
+    final overview = decoded.overview.trim();
+    return (
+      detail: overview.isEmpty ? null : overview,
+      location: null,
+      category: null,
+      alertMinutes: null,
+    );
+  } catch (_) {
+    return (detail: null, location: null, category: null, alertMinutes: null);
+  }
+}
+
+/// Pure rule-to-write materialization shared by saved and shared imports.
+List<PlannedNoteWrite> materializeFlowRuleWrites({
+  required int flowId,
+  required List<FlowRule> rules,
+  required DateTime startDate,
+  DateTime? endDate,
+  required String title,
+  String? notes,
+  String? calendarId,
+  String? calendarName,
+  Color? manualColor,
+  required String caller,
+  required String alertDebugLabel,
+}) {
+  final scheduleStart = DateUtils.dateOnly(startDate);
+  final scheduleEnd = DateUtils.dateOnly(
+    endDate ?? _addLocalCalendarDays(scheduleStart, 90),
+  );
+  final noteMeta = decodeFlowImportNoteMetadata(notes);
+  final noteTitle = title.trim().isEmpty ? 'Flow Event' : title.trim();
+  final detailWithMeta = _encodeDetailWithMeta(
+    noteMeta.detail,
+    alertMinutes: noteMeta.alertMinutes,
+  );
+  final alertBodyLines = <String>[
+    if ((noteMeta.location ?? '').trim().isNotEmpty) noteMeta.location!.trim(),
+    if ((noteMeta.detail ?? '').trim().isNotEmpty) noteMeta.detail!.trim(),
+  ];
+
+  final writes = <PlannedNoteWrite>[];
+  for (
+    var date = scheduleStart;
+    !date.isAfter(scheduleEnd);
+    date = _addLocalCalendarDays(date, 1)
+  ) {
+    final kDate = KemeticMath.fromGregorian(date);
+    for (final rule in rules) {
+      if (!rule.matches(
+        ky: kDate.kYear,
+        km: kDate.kMonth,
+        kd: kDate.kDay,
+        g: date,
+      )) {
+        continue;
+      }
+
+      final startHour = rule.allDay ? 9 : (rule.start?.hour ?? 9);
+      final startMinute = rule.allDay ? 0 : (rule.start?.minute ?? 0);
+      final startsAt = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        startHour,
+        startMinute,
+      );
+      DateTime? endsAt;
+      if (!rule.allDay) {
+        endsAt = rule.end == null
+            ? startsAt.add(const Duration(hours: 1))
+            : DateTime(
+                date.year,
+                date.month,
+                date.day,
+                rule.end!.hour,
+                rule.end!.minute,
+              );
+      }
+      final cid = EventCidUtil.buildClientEventId(
+        ky: kDate.kYear,
+        km: kDate.kMonth,
+        kd: kDate.kDay,
+        title: noteTitle,
+        startHour: startHour,
+        startMinute: startMinute,
+        allDay: rule.allDay,
+        flowId: flowId,
+      );
+      writes.add(
+        PlannedNoteWrite(
+          clientEventId: cid,
+          title: noteTitle,
+          startsAtUtc: startsAt.toUtc(),
+          endsAtUtc: endsAt?.toUtc(),
+          startsAtLocal: startsAt,
+          endsAtLocal: endsAt,
+          detail: detailWithMeta ?? noteMeta.detail,
+          noteDetail: noteMeta.detail,
+          location: noteMeta.location,
+          allDay: rule.allDay,
+          calendarId: calendarId,
+          calendarName: calendarName,
+          flowId: flowId,
+          manualColor: manualColor,
+          category: noteMeta.category,
+          isReminder: false,
+          reminderId: null,
+          actionId: null,
+          behaviorPayload: null,
+          caller: caller,
+          alertBody: alertBodyLines.isEmpty ? null : alertBodyLines.join('\n'),
+          alertDebugLabel: alertDebugLabel,
+          alertOffsetMinutes: noteMeta.alertMinutes ?? _alertNoneMinutes,
+        ),
+      );
+    }
+  }
+  return writes;
+}
+
+/// Pure snapshot-to-write materialization for shared flow payloads.
+List<PlannedNoteWrite> materializeFlowSnapshotWrites({
+  required int flowId,
+  required List<dynamic> events,
+  required DateTime startDate,
+  required String fallbackTitle,
+  String? calendarId,
+  String? calendarName,
+  Color? manualColor,
+  required String caller,
+  required String alertDebugLabel,
+}) {
+  final baseDate = DateUtils.dateOnly(startDate);
+  final writes = <PlannedNoteWrite>[];
+  for (final raw in events) {
+    if (raw is! Map) continue;
+    try {
+      final event = Map<String, dynamic>.from(raw);
+      final date = _addLocalCalendarDays(
+        baseDate,
+        (event['offset_days'] as num?)?.toInt() ?? 0,
+      );
+      final allDay = event['all_day'] as bool? ?? false;
+
+      TimeOfDay parseTime(Object? raw, TimeOfDay fallback) {
+        final value = raw as String?;
+        if (value == null || value.length < 5) return fallback;
+        final hour = int.tryParse(value.substring(0, 2));
+        final minute = int.tryParse(value.substring(3, 5));
+        if (hour == null || minute == null) return fallback;
+        return TimeOfDay(hour: hour, minute: minute);
+      }
+
+      final startTime = parseTime(
+        event['start_time'],
+        const TimeOfDay(hour: 9, minute: 0),
+      );
+      final startsAt = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        startTime.hour,
+        startTime.minute,
+      );
+      DateTime? endsAt;
+      if (!allDay) {
+        final endTime = parseTime(
+          event['end_time'],
+          TimeOfDay.fromDateTime(startsAt.add(const Duration(hours: 1))),
+        );
+        endsAt = DateTime(
+          date.year,
+          date.month,
+          date.day,
+          endTime.hour,
+          endTime.minute,
+        );
+      }
+      final title = ((event['title'] as String?) ?? fallbackTitle).trim();
+      final safeTitle = title.isEmpty ? fallbackTitle : title;
+      final rawDetail = (event['detail'] as String?)?.trim();
+      final detailMeta = _decodeDetailMetadata(rawDetail);
+      final location = (event['location'] as String?)?.trim();
+      final kDate = KemeticMath.fromGregorian(date);
+      final cid = EventCidUtil.buildClientEventId(
+        ky: kDate.kYear,
+        km: kDate.kMonth,
+        kd: kDate.kDay,
+        title: safeTitle,
+        startHour: startTime.hour,
+        startMinute: startTime.minute,
+        allDay: allDay,
+        flowId: flowId,
+      );
+      final behaviorPayload = event['behavior_payload'] is Map
+          ? Map<String, dynamic>.from(event['behavior_payload'] as Map)
+          : null;
+      final alertBodyLines = <String>[
+        if ((location ?? '').isNotEmpty) location!,
+        if ((detailMeta.detail ?? '').trim().isNotEmpty)
+          detailMeta.detail!.trim(),
+      ];
+      writes.add(
+        PlannedNoteWrite(
+          clientEventId: cid,
+          title: safeTitle,
+          startsAtUtc: startsAt.toUtc(),
+          endsAtUtc: endsAt?.toUtc(),
+          startsAtLocal: startsAt,
+          endsAtLocal: endsAt,
+          detail: rawDetail,
+          noteDetail: detailMeta.detail,
+          location: location?.isEmpty == true ? null : location,
+          allDay: allDay,
+          calendarId: calendarId,
+          calendarName: calendarName,
+          flowId: flowId,
+          manualColor: detailMeta.color ?? manualColor,
+          category: (event['category'] as String?)?.trim(),
+          isReminder: false,
+          reminderId: null,
+          actionId: (event['action_id'] as String?)?.trim(),
+          behaviorPayload: behaviorPayload,
+          caller: caller,
+          alertBody: alertBodyLines.isEmpty ? null : alertBodyLines.join('\n'),
+          alertDebugLabel: alertDebugLabel,
+          alertOffsetMinutes: detailMeta.alertMinutes ?? _alertNoneMinutes,
+        ),
+      );
+    } catch (_) {
+      // A malformed event must not discard the rest of a valid shared flow.
+    }
+  }
+  return writes;
+}
+
 @immutable
 class FlowDetailActionPolicy {
   const FlowDetailActionPolicy({
@@ -133,6 +401,7 @@ class _FlowPreviewPage extends StatefulWidget {
     required this.getDecanLabel,
     required this.fmt,
     required this.onEdit,
+    required this.completeAdd,
     this.onAppendToJournal,
     this.onEndMaatFlow,
     this.flowSequence,
@@ -158,6 +427,7 @@ class _FlowPreviewPage extends StatefulWidget {
   final String Function(int km, int di) getDecanLabel;
   final String Function(DateTime? g) fmt;
   final void Function(_Flow flow) onEdit;
+  final FlowAddCompletion completeAdd;
   final Future<void> Function(String text)? onAppendToJournal;
 
   /// if provided & flow is a Ma'at instance, show a gold-outline "End Flow" button.
@@ -670,11 +940,18 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
 
     if (writes.isEmpty && template.rules.isNotEmpty) {
       writes.addAll(
-        _materializeSavedFlowRules(
+        materializeFlowRuleWrites(
           flowId: newId,
-          template: template,
+          rules: template.rules,
           startDate: targetStart,
           endDate: newEnd,
+          title: template.name,
+          notes: template.notes,
+          calendarId: template.calendarId,
+          calendarName: null,
+          manualColor: null,
+          caller: 'saved_flow_import_rules',
+          alertDebugLabel: 'savedFlowImportRules',
         ),
       );
     }
@@ -755,7 +1032,6 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         ),
       );
       CalendarPage._mountedState?._applyPendingStagedFlow(newId);
-      CalendarPage._armStagedFlowDayView(newId);
       CalendarPage._startStagedFlowPersistence(newId);
     } else {
       await _ensureSharedExperienceForFlow(
@@ -794,153 +1070,6 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     return (flowId: newId, didStageEvents: dedupedWrites.isNotEmpty);
   }
 
-  List<PlannedNoteWrite> _materializeSavedFlowRules({
-    required int flowId,
-    required _Flow template,
-    required DateTime startDate,
-    DateTime? endDate,
-  }) {
-    final scheduleStart = DateUtils.dateOnly(startDate);
-    final scheduleEnd = DateUtils.dateOnly(
-      endDate ?? scheduleStart.add(const Duration(days: 90)),
-    );
-
-    final noteMeta = _decodeSavedFlowImportNotes(template.notes);
-    final noteTitle = template.name.isEmpty ? 'Flow Event' : template.name;
-    final detailWithMeta = _encodeDetailWithMeta(
-      noteMeta.detail,
-      alertMinutes: noteMeta.alertMinutes,
-    );
-
-    final writes = <PlannedNoteWrite>[];
-    for (
-      var date = scheduleStart;
-      !date.isAfter(scheduleEnd);
-      date = date.add(const Duration(days: 1))
-    ) {
-      final kDate = KemeticMath.fromGregorian(date);
-
-      for (final rule in template.rules) {
-        if (!rule.matches(
-          ky: kDate.kYear,
-          km: kDate.kMonth,
-          kd: kDate.kDay,
-          g: date,
-        )) {
-          continue;
-        }
-
-        final startHour = rule.allDay ? 9 : (rule.start?.hour ?? 9);
-        final startMinute = rule.allDay ? 0 : (rule.start?.minute ?? 0);
-        final startsAt = DateTime(
-          date.year,
-          date.month,
-          date.day,
-          startHour,
-          startMinute,
-        );
-
-        DateTime? endsAt;
-        if (!rule.allDay) {
-          if (rule.end != null) {
-            endsAt = DateTime(
-              date.year,
-              date.month,
-              date.day,
-              rule.end!.hour,
-              rule.end!.minute,
-            );
-          } else {
-            endsAt = startsAt.add(const Duration(hours: 1));
-          }
-        }
-
-        final cid = EventCidUtil.buildClientEventId(
-          ky: kDate.kYear,
-          km: kDate.kMonth,
-          kd: kDate.kDay,
-          title: noteTitle,
-          startHour: startHour,
-          startMinute: startMinute,
-          allDay: rule.allDay,
-          flowId: flowId,
-        );
-
-        final alertBodyLines = <String>[
-          if ((noteMeta.location ?? '').trim().isNotEmpty)
-            noteMeta.location!.trim(),
-          if ((noteMeta.detail ?? '').trim().isNotEmpty)
-            noteMeta.detail!.trim(),
-        ];
-        writes.add(
-          PlannedNoteWrite(
-            clientEventId: cid,
-            title: noteTitle,
-            startsAtUtc: startsAt.toUtc(),
-            endsAtUtc: endsAt?.toUtc(),
-            startsAtLocal: startsAt,
-            endsAtLocal: endsAt,
-            detail: detailWithMeta ?? noteMeta.detail,
-            noteDetail: noteMeta.detail,
-            location: noteMeta.location,
-            allDay: rule.allDay,
-            calendarId: template.calendarId,
-            calendarName: null,
-            flowId: flowId,
-            manualColor: null,
-            category: noteMeta.category,
-            isReminder: false,
-            reminderId: null,
-            actionId: null,
-            behaviorPayload: null,
-            caller: 'saved_flow_import_rules',
-            alertBody: alertBodyLines.isEmpty
-                ? null
-                : alertBodyLines.join('\n'),
-            alertDebugLabel: 'savedFlowImportRules',
-            alertOffsetMinutes: noteMeta.alertMinutes ?? _alertNoneMinutes,
-          ),
-        );
-      }
-    }
-
-    return writes;
-  }
-
-  ({String? detail, String? location, String? category, int? alertMinutes})
-  _decodeSavedFlowImportNotes(String? rawNotes) {
-    if (rawNotes == null || rawNotes.isEmpty) {
-      return (detail: null, location: null, category: null, alertMinutes: null);
-    }
-
-    try {
-      final meta = jsonDecode(rawNotes) as Map<String, dynamic>;
-      if (meta['kind'] == 'repeating_note') {
-        return (
-          detail: (meta['detail'] as String?)?.trim(),
-          location: (meta['location'] as String?)?.trim(),
-          category: (meta['category'] as String?)?.trim(),
-          alertMinutes: (meta['alertMinutes'] as num?)?.toInt(),
-        );
-      }
-    } catch (_) {
-      // Fall through to legacy note decoding.
-    }
-
-    try {
-      final decoded = notesDecode(rawNotes);
-      final overview = decoded.overview.trim();
-      return (
-        detail: overview.isEmpty ? null : overview,
-        location: null,
-        category: null,
-        alertMinutes: null,
-      );
-    } catch (_) {
-      return (detail: null, location: null, category: null, alertMinutes: null);
-    }
-  }
-
   Future<void> _handleImportSaved(_Flow flow) async {
     if (_isImportingSaved) return;
     setState(() => _isImportingSaved = true);
@@ -956,10 +1085,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         ),
       );
       if (imported.didStageEvents) {
-        CalendarPage.completeStagedFlowAddFromAnyContext(
-          context,
-          imported.flowId,
-        );
+        await widget.completeAdd(imported.flowId);
       } else {
         Navigator.of(context).pop<int?>(imported.flowId);
       }
@@ -3701,6 +3827,7 @@ class _FlowsViewerPage extends StatefulWidget {
     required this.onCreateNew,
     required this.onEditFlow,
     required this.onEndFlow,
+    required this.completeAdd,
     this.onImportFlow,
     this.onAppendToJournal,
     this.initialFilingSnapshot,
@@ -3713,6 +3840,7 @@ class _FlowsViewerPage extends StatefulWidget {
   final FutureOr<void> Function() onCreateNew;
   final FutureOr<void> Function(int flowId) onEditFlow;
   final FutureOr<void> Function(int flowId) onEndFlow;
+  final FlowAddCompletion completeAdd;
   final Future<void> Function(int? importedFlowId)? onImportFlow;
   final Future<void> Function(String text)? onAppendToJournal;
   final ValueChanged<int>? onPreviewFlowForTesting;
@@ -3799,6 +3927,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
           fmt: widget.fmtGregorian,
           onEdit: (flow) =>
               unawaited(_runAndReload(() => widget.onEditFlow(flow.id))),
+          completeAdd: widget.completeAdd,
           onAppendToJournal: widget.onAppendToJournal,
           onEndMaatFlow: (flow) {
             unawaited(_runAndReload(() => widget.onEndFlow(flow.id)));
@@ -4137,6 +4266,7 @@ Widget buildMyFlowsListPreviewForTesting({
     onCreateNew: onCreateNew ?? () {},
     onEditFlow: (_) {},
     onEndFlow: (_) {},
+    completeAdd: (_) {},
     onPreviewFlowForTesting: onPreviewFlow,
   );
 }
@@ -4278,6 +4408,7 @@ Widget buildMyFlowDetailPreviewForTesting({
         (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
     fmt: _formatMyFlowsPreviewGregorian,
     onEdit: (_) => onManageFlow?.call(),
+    completeAdd: (_) {},
     onAppendToJournal: null,
     onEndMaatFlow: null,
     useMySavedExpansionParity: true,

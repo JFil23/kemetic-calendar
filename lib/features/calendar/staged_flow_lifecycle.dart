@@ -1,3 +1,9 @@
+bool shouldCompleteStagedFlowAdd({
+  required bool hasSavedFlow,
+  required bool completionRequired,
+  required bool hasPlannedNotes,
+}) => hasSavedFlow && completionRequired && hasPlannedNotes;
+
 /// Lifecycle for a staged flow whose persistence and UI completion can finish
 /// in either order.
 ///
