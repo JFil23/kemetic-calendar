@@ -3825,6 +3825,17 @@ void main() {
       expect(result.flowId, 308);
       expect(result.flowIdOrNegativeOne, 308);
       expect(result.clientEventIds, expectedIds);
+      expect(result.hasLocalFastPath, isTrue);
+      expect(result.plannedNoteCount, events.length);
+      expect(result.persistInBackground, isNotNull);
+
+      // Joining returns after the authoritative flow row; derived event rows
+      // and alert filing do not hold navigation open.
+      expect(eventCalls, isEmpty);
+      expect(deliveryCalls, isEmpty);
+      expect(invalidations, isEmpty);
+      await result.persistInBackground!();
+      await Future<void>.delayed(Duration.zero);
 
       expect(flowCalls, hasLength(1));
       expect(flowCalls.single['name'], kTheCourseTitle);
@@ -3908,10 +3919,10 @@ void main() {
       expect(order, <String>[
         'flow',
         'event:${expectedIds[0]}',
-        'delivery:${expectedIds[0]}',
         'event:${expectedIds[1]}',
-        'delivery:${expectedIds[1]}',
         'invalidation',
+        'delivery:${expectedIds[0]}',
+        'delivery:${expectedIds[1]}',
       ]);
     },
   );

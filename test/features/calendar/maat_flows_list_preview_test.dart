@@ -313,6 +313,58 @@ void main() {
     expect(find.text('Join Flow'), findsOneWidget);
   });
 
+  testWidgets(
+    'active template detail reflects joined state and disables join',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: buildMaatFlowTemplateDetailPreviewForTesting(
+            templateKey: 'the-course',
+            alreadyJoined: true,
+          ),
+        ),
+      );
+
+      expect(find.text('Joined'), findsOneWidget);
+      final button = tester.widget<ElevatedButton>(
+        find.ancestor(
+          of: find.text('Joined'),
+          matching: find.byType(ElevatedButton),
+        ),
+      );
+      expect(button.onPressed, isNull);
+    },
+  );
+
+  testWidgets(
+    'The Course ignores a second join tap while the first is pending',
+    (tester) async {
+      final pendingJoin = Completer<int>();
+      var joinCalls = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: buildMaatFlowTemplateDetailPreviewForTesting(
+            templateKey: 'the-course',
+            onJoin: () {
+              joinCalls += 1;
+              return pendingJoin.future;
+            },
+          ),
+        ),
+      );
+
+      final joinButton = find.text('Join Flow');
+      await tester.tap(joinButton);
+      await tester.tap(joinButton);
+      await tester.pump();
+
+      expect(joinCalls, 1);
+      expect(find.text('Joining…'), findsOneWidget);
+    },
+  );
+
   testWidgets('successful join cannot be overridden by stale joined keys', (
     tester,
   ) async {

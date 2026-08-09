@@ -264,6 +264,8 @@ Widget buildMaatFlowsListPreviewForTesting({
 Widget buildMaatFlowTemplateDetailPreviewForTesting({
   String templateKey = 'the-weighing',
   bool emptyEvents = false,
+  bool alreadyJoined = false,
+  Future<int> Function()? onJoin,
 }) {
   final resolvedTemplate = _kMaatFlowTemplates.firstWhere(
     (candidate) => candidate.key == templateKey,
@@ -285,6 +287,7 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
       : resolvedTemplate;
   return _MaatFlowTemplateDetailPage(
     template: template,
+    alreadyJoined: alreadyJoined,
     addInstance:
         ({
           required _MaatFlowTemplate template,
@@ -310,7 +313,7 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
           DjedLens? djedLens,
           List<ReadingHouseSitting>? readingHouseSittings,
           String? eveningThresholdInitialCarry,
-        }) async => 1,
+        }) => onJoin?.call() ?? Future<int>.value(1),
   );
 }
 
@@ -2097,6 +2100,7 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
     required this.template,
     required this.addInstance,
     this.onJoined,
+    this.alreadyJoined = false,
     this.showBackButton = true,
     this.embeddedInOnboarding = false,
   });
@@ -2129,6 +2133,7 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
   })
   addInstance;
   final Future<void> Function(int flowId)? onJoined;
+  final bool alreadyJoined;
   final bool showBackButton;
   final bool embeddedInOnboarding;
 
@@ -4642,9 +4647,11 @@ class _MaatFlowTemplateDetailPageState
     String text = 'Join Flow',
     Widget? leading,
   }) {
+    final buttonText = widget.alreadyJoined ? 'Joined' : text;
+    final callback = widget.alreadyJoined ? null : onPressed;
     return Semantics(
       button: true,
-      label: text,
+      label: buttonText,
       child: SizedBox(
         width: buttonWidth,
         height: 52,
@@ -4661,14 +4668,14 @@ class _MaatFlowTemplateDetailPageState
             side: const BorderSide(color: MaatFlowListTokens.gold, width: 1.15),
             elevation: 0,
           ),
-          onPressed: onPressed,
+          onPressed: callback,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
               if (leading != null) ...[leading, const SizedBox(width: 18)],
               Text(
-                text,
+                buttonText,
                 style: const TextStyle(
                   color: MaatFlowListTokens.gold,
                   fontFamily: MaatFlowListTokens.fontFamily,

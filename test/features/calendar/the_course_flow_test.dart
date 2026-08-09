@@ -236,26 +236,26 @@ void main() {
 
   test('calendar join branch creates nine events without placeholders', () {
     final source = File(
-      'lib/features/calendar/calendar_page.dart',
+      'lib/features/calendar/flow_join_service.dart',
     ).readAsStringSync();
-    final methodStart = source.indexOf('Future<int> _addMaatFlowInstance({');
+    final methodStart = source.indexOf(
+      'Future<FlowJoinResult> joinTheCourseHeadless',
+    );
     expect(methodStart, isNonNegative);
-    final branchStart = source.indexOf(
-      'if (template.kind == _MaatFlowTemplateKind.theCourse)',
+    final branchEnd = source.indexOf(
+      'Future<void> _fileHeadlessJoinDelivery',
       methodStart,
     );
-    expect(branchStart, isNonNegative);
-    final branchEnd = source.indexOf('if (startDate == null)', branchStart);
     expect(branchEnd, isNonNegative);
-    final branch = source.substring(branchStart, branchEnd);
+    final branch = source.substring(methodStart, branchEnd);
 
-    expect(branch, contains('kTheCourseEvents'));
-    expect(branch, contains('courseScheduleForDate'));
+    expect(branch, contains('_courseEvents'));
+    expect(branch, contains('_courseScheduleForDate'));
     expect(branch, contains('courseContextForKemeticDate'));
-    expect(branch, contains('repo.deterministicUpsertPayload'));
-    expect(branch, contains('await repo.upsertManyDeterministic'));
-    expect(branch, contains('_rollbackJoinedFlowLocally('));
-    expect(branch, contains('firstG.add(const Duration(days: 29))'));
+    expect(branch, contains('_repo.deterministicUpsertPayload'));
+    expect(branch, contains('await _repo.upsertManyDeterministic'));
+    expect(branch, contains('persistInBackground: persistInBackground'));
+    expect(branch, contains('firstGregorian.add(const Duration(days: 29))'));
     expect(branch, isNot(contains('kDawnHouseRiteDays')));
   });
 }
