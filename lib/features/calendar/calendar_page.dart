@@ -6315,7 +6315,8 @@ class CalendarPage extends StatefulWidget {
     if (_hasRememberedJoinedMaatTemplate(tplKey)) return true;
     if (snapshot == null) return false;
     return snapshot.flows.any((flow) {
-      return _flowMatchesActiveMaatTemplate(flow, tplKey);
+      return snapshot.activeFlowIds.contains(flow.id) &&
+          _flowMatchesActiveMaatTemplate(flow, tplKey);
     });
   }
 
@@ -6325,6 +6326,7 @@ class CalendarPage extends StatefulWidget {
   ) {
     if (snapshot == null) return null;
     for (final flow in snapshot.flows) {
+      if (!snapshot.activeFlowIds.contains(flow.id)) continue;
       if (!_flowMatchesActiveMaatTemplate(flow, tplKey)) continue;
       return _maatCompletionStatusFromCounts(
         totalEventCount: snapshot.totalEventCounts[flow.id] ?? 0,
@@ -6434,7 +6436,8 @@ class CalendarPage extends StatefulWidget {
     final keysToForget = <String>[];
     for (final entry in _rememberedJoinedMaatFlowIdsByTemplateKey.entries) {
       final hasCanonicalFlow = snapshot.flows.any((flow) {
-        return flow.id == entry.value &&
+        return snapshot.activeFlowIds.contains(flow.id) &&
+            flow.id == entry.value &&
             _flowMatchesActiveMaatTemplate(flow, entry.key);
       });
       if (hasCanonicalFlow) keysToForget.add(entry.key);
@@ -24285,6 +24288,10 @@ class CalendarPageState extends State<CalendarPage>
   /// with any remaining day today or in the future.
   bool _hasActiveMaatInstanceFor(String tplKey) {
     if (CalendarPage._hasRememberedJoinedMaatTemplate(tplKey)) return true;
+    final snapshot = _cachedMyFlowsFilingSnapshot();
+    if (snapshot != null) {
+      return CalendarPage._snapshotHasActiveMaatInstanceFor(snapshot, tplKey);
+    }
     return _flows.any((f) {
       return CalendarPage._flowMatchesActiveMaatTemplate(f, tplKey);
     });

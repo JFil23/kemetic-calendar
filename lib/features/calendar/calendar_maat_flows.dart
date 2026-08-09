@@ -346,6 +346,30 @@ bool maatFlowTemplateMatchesActiveFlowForTesting({
   );
 }
 
+@visibleForTesting
+bool maatFlowFilingSnapshotMarksInstanceActiveForTesting({
+  required bool visibleInActiveList,
+  bool flowActive = true,
+}) {
+  final flow = _Flow(
+    id: 1,
+    name: 'The Course',
+    color: Colors.white,
+    active: flowActive,
+    rules: const <FlowRule>[],
+  );
+  return CalendarPage._snapshotHasActiveMaatInstanceFor(
+    _MyFlowsFilingSnapshot(
+      flows: <_Flow>[flow],
+      activeFlowIds: visibleInActiveList ? const <int>{1} : const <int>{},
+      savedFlowIds: const <int>{},
+      totalEventCounts: const <int, int>{1: 9},
+      remainingEventCounts: const <int, int>{1: 9},
+    ),
+    'the-course',
+  );
+}
+
 class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
   final GlobalKey _addFlowHelperKey = GlobalKey(
     debugLabel: 'flow_studio_maat_add_flow_helper',

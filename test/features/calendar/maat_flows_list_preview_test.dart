@@ -55,6 +55,21 @@ void main() {
     );
   });
 
+  test('ended filing rows do not keep Ma’at templates joined', () {
+    expect(
+      maatFlowFilingSnapshotMarksInstanceActiveForTesting(
+        visibleInActiveList: false,
+      ),
+      isFalse,
+    );
+    expect(
+      maatFlowFilingSnapshotMarksInstanceActiveForTesting(
+        visibleInActiveList: true,
+      ),
+      isTrue,
+    );
+  });
+
   testWidgets('Ma’at flows list groups joined flows above waiting flows', (
     tester,
   ) async {
