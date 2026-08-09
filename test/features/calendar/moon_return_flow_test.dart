@@ -254,7 +254,7 @@ void main() {
     expect(joinSource, contains('resolveMoonReturnEnrollmentWindowSafely'));
     expect(pageSource, isNot(contains('moonReturnEnrollmentIsOpen')));
     expect(joinSource, contains('moonReturnClientEventId'));
-    expect(joinSource, contains('_stageAndDeferPersist('));
+    expect(joinSource, contains('stagePlannedNotesAndDeferPersist('));
     expect(pageSource, isNot(contains('kMoonReturnDays')));
   });
 }

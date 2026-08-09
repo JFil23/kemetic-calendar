@@ -265,7 +265,7 @@ void main() {
 
     expect(method, contains('_offeringTableDays'));
     expect(method, contains('await _upsertEventRow('));
-    expect(method, contains('_stageAndDeferPersist('));
+    expect(method, contains('stagePlannedNotesAndDeferPersist('));
     expect(method, isNot(contains('await _repo.upsertManyDeterministic')));
     expect(method, contains(r'offering_hour=$kOfferingTableDefaultHour'));
     expect(method, contains('no_cup_mode='));

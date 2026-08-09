@@ -889,9 +889,13 @@ void main() {
       'Future<int?> _persistFlowStudioResult(_FlowStudioResult r) async',
       '/// Schedules all note occurrences for a flow to the calendar',
     );
-    expect(persistBody, contains('rollbackNewFlowSave'));
-    expect(persistBody, contains('isSaved: r.savedFlow!.isSaved'));
-    expect(persistBody, contains("deleteScope: 'failed_new_flow_save'"));
+    expect(persistBody, contains('_rollbackStagedFlowLocally'));
+    expect(persistBody, contains('stagePlannedNotesAndDeferPersist'));
+    expect(
+      persistBody,
+      contains('CalendarPage._savedFlowForStudioResult(r.savedFlow!, savedId)'),
+    );
+    expect(persistBody, isNot(contains('await repo.upsertByClientId(')));
     expect(persistBody, contains('await commitGenerationIfNeeded();'));
 
     final headlessPersistBody = _sliceBetween(

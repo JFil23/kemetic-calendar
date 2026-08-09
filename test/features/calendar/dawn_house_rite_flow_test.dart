@@ -212,7 +212,7 @@ void main() {
 
     expect(method, contains('_dawnHouseRiteDays'));
     expect(method, contains('await _upsertEventRow('));
-    expect(method, contains('_stageAndDeferPersist('));
+    expect(method, contains('stagePlannedNotesAndDeferPersist('));
     expect(method, isNot(contains('await _repo.upsertManyDeterministic')));
   });
 

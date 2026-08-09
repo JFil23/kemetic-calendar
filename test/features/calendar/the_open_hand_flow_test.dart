@@ -293,7 +293,7 @@ void main() {
     expect(enrollmentSource, contains('openHandEnrollmentWindowForStartDate'));
     expect(calendarPage, isNot(contains('openHandEnrollmentIsOpen')));
     expect(joinService, contains('openHandClientEventId'));
-    expect(joinService, contains('_stageAndDeferPersist('));
+    expect(joinService, contains('stagePlannedNotesAndDeferPersist('));
     expect(detailPage, contains('_pickOpenHandWindowDate'));
     expect(detailPage, contains('designated decan-opening enrollment windows'));
     expect(detailPage, contains('Add Flow'));

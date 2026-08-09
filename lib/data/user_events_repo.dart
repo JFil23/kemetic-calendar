@@ -1326,9 +1326,9 @@ class UserEventsRepo {
     }
   }
 
-  /// Bulk idempotent upsert for Ma'at note batches (deterministic client_event_id).
-  /// Ma'at joins are single-chunk-safe (≤30); multi-chunk callers need rollback
-  /// review before adopting (partial failure across chunks).
+  /// Bulk idempotent upsert for deterministic staged note batches.
+  /// Calls are chunked at 200 rows; producers own rollback semantics if a
+  /// multi-chunk write fails after an earlier chunk committed.
   Future<void> upsertManyDeterministic(List<Map<String, dynamic>> rows) async {
     if (rows.isEmpty) return;
     try {

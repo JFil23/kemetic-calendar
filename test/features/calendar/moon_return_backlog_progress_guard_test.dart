@@ -23,7 +23,7 @@ void main() {
       final body = source.substring(start, end);
       expect(body, contains('_upsertEventRow('));
       expect(body, contains('_fileHeadlessJoinDelivery('));
-      expect(body, contains('_stageAndDeferPersist('));
+      expect(body, contains('stagePlannedNotesAndDeferPersist('));
       expect(body, isNot(contains('recordEventCompletion')));
       expect(body, isNot(contains('user_event_completions')));
       expect(body, isNot(contains('flow_skipped')));

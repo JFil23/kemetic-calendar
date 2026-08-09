@@ -3731,12 +3731,25 @@ void main() {
   );
 
   test(
-    'headless Course join persists events, files at-time delivery, invalidates once, and returns success',
+    '62-event staged join returns before event writes then persists once',
     () async {
       final timezone = TrackSkyTimeZone.mountain;
       final selectedStart = DateTime(2026, 6, 11);
       final joinedK = KemeticMath.fromGregorian(selectedStart);
-      final events = <CourseEvent>[kTheCourseEvents[0], kTheCourseEvents[1]];
+      final events = List<CourseEvent>.generate(
+        62,
+        (index) => CourseEvent(
+          eventNumber: index + 1,
+          flowDay: (index % 30) + 1,
+          decanSection: 'Load test',
+          title: 'Deferred occurrence ${index + 1}',
+          scheduleKind: CourseScheduleKind.solarDawn,
+          durationMinutesMin: 5,
+          durationMinutesMax: 10,
+          spokenLine: 'Begin.',
+          steps: const <String>['Begin.'],
+        ),
+      );
 
       CourseOccurrenceSchedule scheduleForEvent(
         CourseEvent event,
@@ -4019,11 +4032,9 @@ void main() {
       expect(invalidations.single.clientEventIds, expectedIds);
       expect(order, <String>[
         'flow',
-        'event:${expectedIds[0]}',
-        'event:${expectedIds[1]}',
+        for (final id in expectedIds) 'event:$id',
         'invalidation',
-        'delivery:${expectedIds[0]}',
-        'delivery:${expectedIds[1]}',
+        for (final id in expectedIds) 'delivery:$id',
       ]);
     },
   );

@@ -263,7 +263,7 @@ void main() {
     expect(enrollmentSource, contains('djedEnrollmentWindowForStartDate'));
     expect(calendarPage, isNot(contains('djedEnrollmentIsOpen')));
     expect(joinService, contains('djedClientEventId'));
-    expect(joinService, contains('_stageAndDeferPersist('));
+    expect(joinService, contains('stagePlannedNotesAndDeferPersist('));
     expect(detailPage, contains('_pickDjedWindowDate'));
     expect(detailPage, contains('Djed Start Windows'));
     expect(detailPage, contains('designated decan-opening enrollment windows'));

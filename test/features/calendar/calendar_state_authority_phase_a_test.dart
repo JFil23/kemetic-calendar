@@ -209,17 +209,17 @@ void main() {
     expect(earlySuccessArm, contains('return true;'));
   });
 
-  test('PR6.5 extracts maat join rollback into one helper', () {
-    expect(calendarPageSource, contains('_rollbackJoinedFlowLocally'));
+  test('staged flow producers share one local rollback helper', () {
+    expect(calendarPageSource, contains('_rollbackStagedFlowLocally'));
     expect(
       RegExp(
-        r'await (?:state\.)?_rollbackJoinedFlowLocally\(',
+        r'await (?:state\.)?_rollbackStagedFlowLocally\(',
       ).allMatches(calendarPageSource).length,
-      1,
-      reason: 'all Ma_at join failures must use the centralized rollback',
+      2,
+      reason: 'Ma_at and Flow Studio failures use the centralized rollback',
     );
     final helper = calendarPageSource.substring(
-      calendarPageSource.indexOf('Future<void> _rollbackJoinedFlowLocally('),
+      calendarPageSource.indexOf('Future<void> _rollbackStagedFlowLocally('),
       calendarPageSource.indexOf(
         'int _removeLocalNotesForFlowReplacement(int flowId)',
       ),
@@ -230,6 +230,7 @@ void main() {
       contains('notes.removeWhere((note) => note.flowId == serverFlowId)'),
     );
     expect(helper, contains('await repo.deleteFlow(serverFlowId)'));
+    expect(helper, contains('await repo.deleteByFlowId('));
     expect(
       helper.contains('_removeLocalNotesForFlowReplacement('),
       isFalse,

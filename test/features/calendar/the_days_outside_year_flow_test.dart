@@ -361,7 +361,7 @@ void main() {
     );
     expect(pageSource, isNot(contains('daysOutsideYearEnrollmentIsOpen')));
     expect(joinSource, contains('doy_kyear='));
-    expect(joinSource, contains('_stageAndDeferPersist('));
+    expect(joinSource, contains('stagePlannedNotesAndDeferPersist('));
     expect(schedulerSource, contains('daysOutsideEventGregorian'));
     expect(
       joinSource,
