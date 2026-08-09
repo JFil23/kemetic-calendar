@@ -1,163 +1,150 @@
-import 'dart:io';
-
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-String between(String source, String start, String end) {
-  final startIndex = source.indexOf(start);
-  expect(startIndex, isNonNegative, reason: 'missing start marker $start');
-  final endIndex = source.indexOf(end, startIndex + start.length);
-  expect(endIndex, isNonNegative, reason: 'missing end marker $end');
-  return source.substring(startIndex, endIndex);
-}
+import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/features/calendar/staged_flow_lifecycle.dart';
 
 void main() {
-  late String calendar;
-  late String flowPages;
-
-  setUpAll(() {
-    calendar = File(
-      'lib/features/calendar/calendar_page.dart',
-    ).readAsStringSync();
-    flowPages = File(
-      'lib/features/calendar/calendar_flow_pages.dart',
-    ).readAsStringSync();
-  });
-
-  test('completion policy separates staging, navigation, and hydration', () {
-    final policy = between(
-      calendar,
-      'static bool _didStageFlowStudioEvents',
-      '// Headless persistence helper',
-    );
-
-    expect(policy, contains('_shouldOpenDayViewAfterFlowStudioAdd'));
-    expect(policy, contains('_shouldSkipExplicitHydrate'));
-    expect(policy, contains('flow.id <= 0'));
-    expect(policy, isNot(contains('originType')));
-    expect(policy, isNot(contains('originShareId')));
-  });
-
-  test(
-    'persistence failure clears intent before rollback and resolves entry',
-    () {
-      final persistence = between(
-        calendar,
-        'static void _startStagedFlowPersistence',
-        'static FlowDetailActionPolicy resolveCanonicalCustomFlowActionPolicy',
+  group('universal add completion policy', () {
+    test('first calendar add completes independently of database identity', () {
+      expect(
+        shouldCompleteStagedFlowAdd(
+          hasSavedFlow: true,
+          completionRequired: true,
+          hasPlannedNotes: true,
+        ),
+        isTrue,
       );
-      final rollback = between(
-        calendar,
-        'Future<void> _rollbackStagedFlowLocally',
-        'int _removeLocalNotesForFlowReplacement',
+    });
+
+    test('edits and empty results do not request Day View completion', () {
+      expect(
+        shouldCompleteStagedFlowAdd(
+          hasSavedFlow: true,
+          completionRequired: false,
+          hasPlannedNotes: true,
+        ),
+        isFalse,
       );
-
-      final clearIndex = persistence.indexOf('_clearStagedFlowDayViewIntent');
-      final rollbackIndex = persistence.indexOf('await pending.rollback');
-      final terminalIndex = persistence.indexOf(
-        'pending.completePersistence',
-        rollbackIndex,
+      expect(
+        shouldCompleteStagedFlowAdd(
+          hasSavedFlow: true,
+          completionRequired: true,
+          hasPlannedNotes: false,
+        ),
+        isFalse,
       );
-      expect(clearIndex, isNonNegative);
-      expect(rollbackIndex, greaterThan(clearIndex));
-      expect(terminalIndex, greaterThan(rollbackIndex));
-      expect(persistence, contains('pending.consumeCompletion()'));
-      expect(rollback, contains('_flows.removeWhere'));
-      expect(rollback, contains('notes.removeWhere'));
-      expect(rollback, contains('_unconfirmed.forget'));
-    },
-  );
-
-  test('Day View consumption never starts persistence a second time', () {
-    final consumer = between(
-      calendar,
-      'Future<void> _consumePendingStagedFlowDayViewIfAny',
-      'Future<void> _completeMountedMaatJoinWithDayView',
-    );
-
-    expect(consumer, contains('_consumeStagedFlowCompletion(flowId)'));
-    expect(consumer, contains('Could not stage the first day of this flow.'));
-    expect(consumer, isNot(contains('_startStagedFlowPersistence')));
+    });
   });
 
-  test('detached Ma_at and Studio use one outer-route completion', () {
-    final completion = between(
-      calendar,
-      'static void _completeDetachedStagedFlowWithDayView',
-      'static Widget _buildDetachedMyFlowsPage',
-    );
-    final studio = between(
-      calendar,
-      'static Future<_FlowStudioResult?> _pushDetachedFlowStudioEditor',
-      'static Future<_Flow> _moveReadingHouseFlowToCalendarHeadless',
-    );
-    final maat = between(
-      calendar,
-      'static Future<void> _completeDetachedMaatJoinWithDayView',
-      'static void _completeDetachedStagedFlowWithDayView',
-    );
+  group('universal import materialization', () {
+    test('saved and shared rule imports produce equivalent planned writes', () {
+      final rule = CalendarPage.ruleFromJson(<String, dynamic>{
+        'type': 'week',
+        'weekdays': <int>[1],
+        'allDay': false,
+        'startHour': 6,
+        'startMinute': 30,
+        'endHour': 7,
+        'endMinute': 15,
+      });
+      final start = DateTime(2026, 8, 10);
+      final end = DateTime(2026, 8, 24);
 
-    expect(completion, contains('_armStagedFlowDayView(flowId)'));
-    expect(completion, contains('onClose()'));
-    expect(completion, contains("closeOrReturn(navigator.context, '/')"));
-    expect(completion, contains('_schedulePendingStagedFlowDayViewIfAny()'));
-    expect(studio, contains('_completeDetachedStagedFlowWithDayView'));
-    expect(maat, contains('_completeDetachedStagedFlowWithDayView'));
-  });
+      final saved = materializeFlowRuleWrites(
+        flowId: 42,
+        rules: <FlowRule>[rule],
+        startDate: start,
+        endDate: end,
+        title: 'Rule flow',
+        notes: 'A rule-backed import',
+        calendarId: 'calendar-1',
+        calendarName: 'Personal',
+        manualColor: const Color(0xFF4DD0E1),
+        caller: 'saved_flow_import_rules',
+        alertDebugLabel: 'savedFlowImportRules',
+      );
+      final shared = materializeFlowRuleWrites(
+        flowId: 42,
+        rules: <FlowRule>[rule],
+        startDate: start,
+        endDate: end,
+        title: 'Rule flow',
+        notes: 'A rule-backed import',
+        calendarId: 'calendar-1',
+        calendarName: 'Personal',
+        manualColor: const Color(0xFF4DD0E1),
+        caller: 'shared_flow_import_rules',
+        alertDebugLabel: 'sharedFlowImportRules',
+      );
 
-  test(
-    'shared, preview, and generated callers finish on Calendar Day View',
-    () {
-      final details = File(
-        'lib/features/inbox/shared_flow_details_page.dart',
-      ).readAsStringSync();
-      final preview = File(
-        'lib/features/sharing/share_preview_page.dart',
-      ).readAsStringSync();
-      final guidance = File(
-        'lib/features/maat_guidance/maat_guidance_detail_page.dart',
-      ).readAsStringSync();
-
-      for (final source in <String>[details, preview, guidance]) {
-        expect(source, contains('completeStagedFlowAddFromAnyContext'));
-        expect(source, contains('didStageEvents'));
+      expect(saved, hasLength(3));
+      expect(shared, hasLength(saved.length));
+      for (var i = 0; i < saved.length; i++) {
+        expect(shared[i].clientEventId, saved[i].clientEventId);
+        expect(shared[i].title, saved[i].title);
+        expect(shared[i].startsAtLocal, saved[i].startsAtLocal);
+        expect(shared[i].endsAtLocal, saved[i].endsAtLocal);
+        expect(shared[i].detail, saved[i].detail);
+        expect(shared[i].calendarId, saved[i].calendarId);
+        expect(shared[i].flowId, saved[i].flowId);
       }
-    },
-  );
+    });
 
-  test(
-    'saved snapshot import stages one deduplicated universal write list',
-    () {
-      final import = between(
-        flowPages,
-        'Future<({int flowId, bool didStageEvents})> _importSavedFlow',
-        'List<PlannedNoteWrite> _materializeSavedFlowRules',
+    test('rule materialization preserves the inclusive 90-day horizon', () {
+      final daily = CalendarPage.ruleFromJson(<String, dynamic>{
+        'type': 'week',
+        'weekdays': <int>[1, 2, 3, 4, 5, 6, 7],
+        'allDay': true,
+      });
+      final writes = materializeFlowRuleWrites(
+        flowId: 7,
+        rules: <FlowRule>[daily],
+        startDate: DateTime(2026, 8, 9),
+        title: 'Daily rule',
+        caller: 'test',
+        alertDebugLabel: 'test',
       );
 
-      expect(import, contains('PlannedNoteWrite('));
-      expect(import, contains('actionId: e.actionId'));
-      expect(import, contains('behaviorPayload: e.behaviorPayload'));
-      expect(import, contains('detailMeta.alertMinutes'));
-      expect(import, contains('write.clientEventId: write'));
-      expect(import, contains('stagePlannedNotesAndDeferPersist'));
-      expect(import, contains('completionRequired: true'));
-      expect(import, contains('_startStagedFlowPersistence(newId)'));
-      expect(import, isNot(contains('await _eventsRepo.upsertByClientId')));
-      expect(import, isNot(contains('getEventsForFlow(newId)')));
-    },
-  );
+      expect(writes, hasLength(91));
+      expect(writes.last.startsAtLocal, DateTime(2026, 11, 7, 9));
+      expect(writes.map((write) => write.clientEventId).toSet(), hasLength(91));
+    });
 
-  test('saved rules materializer preserves inclusive 91-day semantics', () {
-    final materialize = between(
-      flowPages,
-      'List<PlannedNoteWrite> _materializeSavedFlowRules',
-      '({String? detail, String? location, String? category, int? alertMinutes})',
-    );
+    test('snapshot materialization preserves event behavior and ordering', () {
+      final writes = materializeFlowSnapshotWrites(
+        flowId: 88,
+        events: <dynamic>[
+          <String, dynamic>{
+            'offset_days': 0,
+            'title': 'First block',
+            'all_day': false,
+            'start_time': '06:00',
+            'end_time': '06:45',
+            'action_id': 'reflect',
+            'behavior_payload': <String, dynamic>{'prompt': 'Begin'},
+          },
+          <String, dynamic>{
+            'offset_days': 2,
+            'title': 'Third-day block',
+            'all_day': true,
+          },
+        ],
+        startDate: DateTime(2026, 8, 9),
+        fallbackTitle: 'Shared flow',
+        calendarId: 'calendar-1',
+        caller: 'shared_flow_import_snapshot',
+        alertDebugLabel: 'sharedFlowImportSnapshot',
+      );
 
-    expect(materialize, contains('Duration(days: 90)'));
-    expect(materialize, contains('!date.isAfter(scheduleEnd)'));
-    expect(materialize, contains('PlannedNoteWrite('));
-    expect(materialize, contains('detailWithMeta ?? noteMeta.detail'));
-    expect(materialize, contains('noteMeta.alertMinutes ?? _alertNoneMinutes'));
-    expect(materialize, isNot(contains('upsertByClientId')));
+      expect(writes, hasLength(2));
+      expect(writes.first.startsAtLocal, DateTime(2026, 8, 9, 6));
+      expect(writes.first.endsAtLocal, DateTime(2026, 8, 9, 6, 45));
+      expect(writes.first.actionId, 'reflect');
+      expect(writes.first.behaviorPayload, <String, dynamic>{
+        'prompt': 'Begin',
+      });
+      expect(writes.last.startsAtLocal, DateTime(2026, 8, 11, 9));
+      expect(writes.last.allDay, isTrue);
+    });
   });
 }

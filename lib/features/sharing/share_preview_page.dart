@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -64,28 +65,24 @@ class _SharePreviewPageState extends State<SharePreviewPage> {
 
     try {
       final imported = await CalendarPage.importFlowFromShare(
-        context,
         importData,
+        completeAdd: (flowId) {
+          unawaited(() async {
+            try {
+              await _repo.markImported(widget.shareId, isFlow: true);
+            } catch (_) {}
+          }());
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Flow imported successfully!'),
+              backgroundColor: KemeticGold.base,
+            ),
+          );
+          CalendarPage.completeRootRouteStagedFlowAdd(context, flowId);
+        },
       );
       if (!mounted || imported == null) return;
-
-      await _repo.markImported(widget.shareId, isFlow: true);
-      if (!mounted) return;
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Flow imported successfully!'),
-          backgroundColor: KemeticGold.base,
-        ),
-      );
-      if (imported.didStageEvents) {
-        CalendarPage.completeStagedFlowAddFromAnyContext(
-          context,
-          imported.flowId,
-        );
-      } else {
-        context.go('/');
-      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

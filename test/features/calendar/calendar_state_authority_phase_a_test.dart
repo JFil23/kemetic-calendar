@@ -215,8 +215,9 @@ void main() {
       RegExp(
         r'await (?:state\.)?_rollbackStagedFlowLocally\(',
       ).allMatches(calendarPageSource).length,
-      2,
-      reason: 'Ma_at and Flow Studio failures use the centralized rollback',
+      3,
+      reason:
+          'Ma_at, Flow Studio, and shared import failures use the centralized rollback',
     );
     final helper = calendarPageSource.substring(
       calendarPageSource.indexOf('Future<void> _rollbackStagedFlowLocally('),

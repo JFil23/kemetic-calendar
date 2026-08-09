@@ -441,11 +441,10 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           int.tryParse(share.payloadId);
       final scheduledStartIso =
           '${scheduledStart.year}-${scheduledStart.month.toString().padLeft(2, '0')}-${scheduledStart.day.toString().padLeft(2, '0')}';
+      final routeContext = context;
 
-      if (!context.mounted) return;
+      if (!routeContext.mounted) return;
       final imported = await CalendarPage.importFlowFromShare(
-        // ignore: use_build_context_synchronously
-        context,
         ImportFlowData(
           share: share,
           name: (payload['name'] as String?) ?? share.title,
@@ -457,28 +456,32 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           rootFlowId: originFlowId,
           originType: 'share_import',
         ),
+        completeAdd: (flowId) {
+          unawaited(() async {
+            try {
+              final inboxRepo = InboxRepo(Supabase.instance.client);
+              await inboxRepo.markImported(share.shareId, isFlow: true);
+            } catch (_) {}
+          }());
+          unawaited(
+            _userEventsRepo.trackFlowImported(
+              flowId: flowId,
+              shareId: share.shareId,
+              originType: 'share_import',
+              originFlowId: originFlowId,
+              scheduledStartIso: scheduledStartIso,
+            ),
+          );
+          if (!routeContext.mounted) return;
+          CalendarPage.completeRootRouteStagedFlowAdd(routeContext, flowId);
+        },
       );
 
       if (!mounted) return;
 
       if (imported != null) {
         final flowId = imported.flowId;
-        final inboxRepo = InboxRepo(Supabase.instance.client);
-        await inboxRepo.markImported(share.shareId, isFlow: true);
-        unawaited(
-          _userEventsRepo.trackFlowImported(
-            flowId: flowId,
-            shareId: share.shareId,
-            originType: 'share_import',
-            originFlowId: originFlowId,
-            scheduledStartIso: scheduledStartIso,
-          ),
-        );
         if (!mounted) return;
-        if (imported.didStageEvents) {
-          CalendarPage.completeStagedFlowAddFromAnyContext(context, flowId);
-          return;
-        }
         setState(() {
           _localImportedFlowId = flowId;
           _isImporting = false;
