@@ -512,7 +512,10 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     }
   }
 
-  Future<int> _importSavedFlow(_Flow template, DateTime startDate) async {
+  Future<({int flowId, bool didStageEvents})> _importSavedFlow(
+    _Flow template,
+    DateTime startDate,
+  ) async {
     DateTime dateOnly(DateTime d) => DateUtils.dateOnly(d);
     final targetStart = dateOnly(startDate);
     final events = await _eventsRepo.getEventsForFlow(template.id);
@@ -563,8 +566,27 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       isReminder: template.isReminder,
       reminderUuid: template.reminderUuid,
     );
+    if (newId <= 0) {
+      throw StateError('Saved flow import returned invalid flow id $newId.');
+    }
 
-    var importedEventCount = 0;
+    final localFlow = _Flow(
+      id: newId,
+      calendarId: template.calendarId,
+      name: template.name,
+      color: template.color,
+      active: true,
+      isSaved: false,
+      rules: List<FlowRule>.from(template.rules),
+      start: targetStart,
+      end: newEnd,
+      notes: template.notes,
+      shareId: template.shareId,
+      isHidden: false,
+      isReminder: template.isReminder,
+      reminderUuid: template.reminderUuid,
+    );
+    final writes = <PlannedNoteWrite>[];
     for (final e in events) {
       final localStart = e.startsAtUtc.toLocal();
       final originDate = dateOnly(localStart);
@@ -611,47 +633,173 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         allDay: e.allDay,
         flowId: newId,
       );
-
-      await _eventsRepo.upsertByClientId(
-        clientEventId: cid,
-        title: e.title,
-        startsAtUtc: startDt.toUtc(),
-        detail: (e.detail ?? '').trim().isEmpty ? null : e.detail,
-        location: (e.location ?? '').trim().isEmpty ? null : e.location,
-        allDay: e.allDay,
-        endsAtUtc: endDt?.toUtc(),
-        calendarId: template.calendarId,
-        flowLocalId: newId,
-        category: e.category,
-        caller: 'saved_flow_import',
+      final detailMeta = _decodeDetailMetadata(e.detail);
+      final alertBodyLines = <String>[
+        if ((e.location ?? '').trim().isNotEmpty) e.location!.trim(),
+        if ((detailMeta.detail ?? '').trim().isNotEmpty)
+          detailMeta.detail!.trim(),
+      ];
+      writes.add(
+        PlannedNoteWrite(
+          clientEventId: cid,
+          title: e.title.isEmpty ? template.name : e.title,
+          startsAtUtc: startDt.toUtc(),
+          endsAtUtc: endDt?.toUtc(),
+          startsAtLocal: startDt,
+          endsAtLocal: endDt,
+          detail: (e.detail ?? '').trim().isEmpty ? null : e.detail,
+          noteDetail: detailMeta.detail,
+          location: (e.location ?? '').trim().isEmpty ? null : e.location,
+          allDay: e.allDay,
+          calendarId: template.calendarId,
+          calendarName: e.calendarName,
+          flowId: newId,
+          manualColor: detailMeta.color,
+          category: e.category,
+          isReminder: false,
+          reminderId: null,
+          actionId: e.actionId,
+          behaviorPayload: e.behaviorPayload,
+          caller: 'saved_flow_import',
+          alertBody: alertBodyLines.isEmpty ? null : alertBodyLines.join('\n'),
+          alertDebugLabel: 'savedFlowImport',
+          alertOffsetMinutes: detailMeta.alertMinutes ?? _alertNoneMinutes,
+        ),
       );
-      importedEventCount++;
     }
 
-    if (importedEventCount == 0 && template.rules.isNotEmpty) {
-      importedEventCount = await _materializeSavedFlowRules(
-        flowId: newId,
-        template: template,
-        startDate: targetStart,
-        endDate: newEnd,
+    if (writes.isEmpty && template.rules.isNotEmpty) {
+      writes.addAll(
+        _materializeSavedFlowRules(
+          flowId: newId,
+          template: template,
+          startDate: targetStart,
+          endDate: newEnd,
+        ),
       );
+    }
+    final dedupedWrites = <String, PlannedNoteWrite>{
+      for (final write in writes) write.clientEventId: write,
+    }.values.toList(growable: false);
+
+    if (dedupedWrites.isNotEmpty) {
+      final firstClientEventId = dedupedWrites.first.clientEventId;
+      final staged = FlowJoinService(userEventsRepo: _eventsRepo)
+          .stagePlannedNotesAndDeferPersist(
+            flowId: newId,
+            localFlow: localFlow,
+            writes: dedupedWrites,
+            invalidationReason: CalendarInvalidationReason.flowStudioPersisted,
+            additionalPersistence: () async {
+              await _ensureSharedExperienceForFlow(
+                flowId: newId,
+                calendarId: template.calendarId,
+                source: '_FlowPreviewPageState._importSavedFlow',
+              );
+              try {
+                await SharedCalendarsRepo(
+                  Supabase.instance.client,
+                ).notifySharedCalendarItemAdded(
+                  calendarId: template.calendarId,
+                  itemType: 'flow',
+                  itemId: newId.toString(),
+                  itemTitle: template.name,
+                  clientEventId: firstClientEventId,
+                  flowId: newId,
+                  startDate: targetStart,
+                  endDate: newEnd,
+                );
+              } catch (error, stackTrace) {
+                if (kDebugMode) {
+                  _calendarDebugPrint(
+                    '[saved_flow_import] shared notification failed: $error',
+                  );
+                  _calendarDebugPrint('$stackTrace');
+                }
+              }
+            },
+          );
+      final persist = staged.persistInBackground;
+      if (persist == null || staged._plannedNotes.isEmpty) {
+        throw StateError('Saved flow $newId did not produce staged notes.');
+      }
+      CalendarPage._stageFlowForDeferredPersistence(
+        _PendingStagedFlow(
+          flowId: newId,
+          localFlow: localFlow,
+          plannedNotes: staged._plannedNotes,
+          persist: persist,
+          completionRequired: true,
+          rollback: (state) async {
+            if (state != null) {
+              await state._rollbackStagedFlowLocally(
+                newId,
+                repo: _eventsRepo,
+                failureMessage: 'Could not import ${template.name}.',
+              );
+              return;
+            }
+            try {
+              await _eventsRepo.deleteByFlowId(
+                newId,
+                semantic: 'flow_save_rollback',
+                suppressesClient: false,
+                sourceFeature: '_FlowPreviewPageState._importSavedFlow',
+                deleteScope: 'failed_saved_flow_import',
+              );
+            } catch (_) {}
+            try {
+              await _eventsRepo.deleteFlow(newId);
+            } catch (_) {}
+          },
+        ),
+      );
+      CalendarPage._mountedState?._applyPendingStagedFlow(newId);
+      CalendarPage._armStagedFlowDayView(newId);
+      CalendarPage._startStagedFlowPersistence(newId);
+    } else {
+      await _ensureSharedExperienceForFlow(
+        flowId: newId,
+        calendarId: template.calendarId,
+        source: '_FlowPreviewPageState._importSavedFlow.empty',
+      );
+      try {
+        await SharedCalendarsRepo(
+          Supabase.instance.client,
+        ).notifySharedCalendarItemAdded(
+          calendarId: template.calendarId,
+          itemType: 'flow',
+          itemId: newId.toString(),
+          itemTitle: template.name,
+          flowId: newId,
+          startDate: targetStart,
+          endDate: newEnd,
+        );
+      } catch (error, stackTrace) {
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[saved_flow_import] empty-flow notification failed: $error',
+          );
+          _calendarDebugPrint('$stackTrace');
+        }
+      }
     }
 
     if (kDebugMode) {
       _calendarDebugPrint(
-        '[saved_flow_import] Imported flow $newId with $importedEventCount events',
+        '[saved_flow_import] Imported flow $newId with ${dedupedWrites.length} events',
       );
     }
 
-    return newId;
+    return (flowId: newId, didStageEvents: dedupedWrites.isNotEmpty);
   }
 
-  Future<int> _materializeSavedFlowRules({
+  List<PlannedNoteWrite> _materializeSavedFlowRules({
     required int flowId,
     required _Flow template,
     required DateTime startDate,
     DateTime? endDate,
-  }) async {
+  }) {
     final scheduleStart = DateUtils.dateOnly(startDate);
     final scheduleEnd = DateUtils.dateOnly(
       endDate ?? scheduleStart.add(const Duration(days: 90)),
@@ -664,7 +812,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
       alertMinutes: noteMeta.alertMinutes,
     );
 
-    var imported = 0;
+    final writes = <PlannedNoteWrite>[];
     for (
       var date = scheduleStart;
       !date.isAfter(scheduleEnd);
@@ -718,24 +866,45 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           flowId: flowId,
         );
 
-        await _eventsRepo.upsertByClientId(
-          clientEventId: cid,
-          title: noteTitle,
-          startsAtUtc: startsAt.toUtc(),
-          detail: detailWithMeta ?? noteMeta.detail,
-          location: noteMeta.location,
-          allDay: rule.allDay,
-          endsAtUtc: endsAt?.toUtc(),
-          calendarId: template.calendarId,
-          flowLocalId: flowId,
-          category: noteMeta.category,
-          caller: 'saved_flow_import_rules',
+        final alertBodyLines = <String>[
+          if ((noteMeta.location ?? '').trim().isNotEmpty)
+            noteMeta.location!.trim(),
+          if ((noteMeta.detail ?? '').trim().isNotEmpty)
+            noteMeta.detail!.trim(),
+        ];
+        writes.add(
+          PlannedNoteWrite(
+            clientEventId: cid,
+            title: noteTitle,
+            startsAtUtc: startsAt.toUtc(),
+            endsAtUtc: endsAt?.toUtc(),
+            startsAtLocal: startsAt,
+            endsAtLocal: endsAt,
+            detail: detailWithMeta ?? noteMeta.detail,
+            noteDetail: noteMeta.detail,
+            location: noteMeta.location,
+            allDay: rule.allDay,
+            calendarId: template.calendarId,
+            calendarName: null,
+            flowId: flowId,
+            manualColor: null,
+            category: noteMeta.category,
+            isReminder: false,
+            reminderId: null,
+            actionId: null,
+            behaviorPayload: null,
+            caller: 'saved_flow_import_rules',
+            alertBody: alertBodyLines.isEmpty
+                ? null
+                : alertBodyLines.join('\n'),
+            alertDebugLabel: 'savedFlowImportRules',
+            alertOffsetMinutes: noteMeta.alertMinutes ?? _alertNoneMinutes,
+          ),
         );
-        imported++;
       }
     }
 
-    return imported;
+    return writes;
   }
 
   ({String? detail, String? location, String? category, int? alertMinutes})
@@ -777,26 +946,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     setState(() => _isImportingSaved = true);
     final startDate = _savedDisplayStart(flow);
     try {
-      final newId = await _importSavedFlow(flow, startDate);
-      String? firstClientEventId;
-      try {
-        final events = await _eventsRepo.getEventsForFlow(newId);
-        if (events.isNotEmpty) {
-          firstClientEventId = events.first.clientEventId;
-        }
-      } catch (_) {}
-      final pageState = CalendarPage.globalKey.currentState;
-      if (pageState != null) {
-        await pageState._notifySharedCalendarItemAdded(
-          calendarId: flow.calendarId,
-          itemType: 'flow',
-          itemId: newId.toString(),
-          itemTitle: flow.name,
-          clientEventId: firstClientEventId,
-          flowId: newId,
-          startDate: startDate,
-        );
-      }
+      final imported = await _importSavedFlow(flow, startDate);
       if (!mounted) return;
       setState(() => _isImportingSaved = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -805,7 +955,14 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
           duration: Duration(seconds: 2),
         ),
       );
-      Navigator.of(context).pop<int?>(newId);
+      if (imported.didStageEvents) {
+        CalendarPage.completeStagedFlowAddFromAnyContext(
+          context,
+          imported.flowId,
+        );
+      } else {
+        Navigator.of(context).pop<int?>(imported.flowId);
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() => _isImportingSaved = false);

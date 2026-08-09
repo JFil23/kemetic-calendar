@@ -8617,11 +8617,12 @@ class CalendarPage extends StatefulWidget {
     return savedId;
   }
 
-  static Future<int?> importFlowFromShare(
+  static Future<({int flowId, bool didStageEvents})?> importFlowFromShare(
     BuildContext context,
     ImportFlowData data,
   ) async {
     int? persistedFlowId;
+    var didStageEvents = false;
     final result = await showModalBottomSheet<_FlowStudioResult?>(
       context: context,
       isScrollControlled: true,
@@ -8649,6 +8650,7 @@ class CalendarPage extends StatefulWidget {
                         existingFlows: const [],
                         importData: data,
                         onRouteResult: (result) async {
+                          didStageEvents = _didStageFlowStudioEvents(result);
                           final state = CalendarPage.globalKey.currentState;
                           if (state != null) {
                             persistedFlowId = await state
@@ -8680,20 +8682,25 @@ class CalendarPage extends StatefulWidget {
     );
 
     if (persistedFlowId != null) {
-      return persistedFlowId;
+      return (flowId: persistedFlowId!, didStageEvents: didStageEvents);
     }
     if (result != null && result.savedFlow != null) {
+      didStageEvents = _didStageFlowStudioEvents(result);
       final state = CalendarPage.globalKey.currentState;
+      final int? flowId;
       if (state != null) {
-        return await state._persistFlowStudioResult(result);
+        flowId = await state._persistFlowStudioResult(result);
       } else {
-        return await CalendarPage._persistFlowStudioResultHeadless(result);
+        flowId = await CalendarPage._persistFlowStudioResultHeadless(result);
       }
+      if (flowId == null) return null;
+      return (flowId: flowId, didStageEvents: didStageEvents);
     }
     return null;
   }
 
-  static Future<int?> importGeneratedFlowFromAnyContext(
+  static Future<({int flowId, bool didStageEvents})?>
+  importGeneratedFlowFromAnyContext(
     BuildContext context, {
     required AIFlowGenerationResponse response,
     required DateTime baseStart,
@@ -8701,6 +8708,19 @@ class CalendarPage extends StatefulWidget {
     final data = _importDataFromAiGenerationResponse(response, baseStart);
     if (data == null) return null;
     return importFlowFromShare(context, data);
+  }
+
+  static void completeStagedFlowAddFromAnyContext(
+    BuildContext context,
+    int flowId,
+  ) {
+    _armStagedFlowDayView(flowId);
+    if (context.mounted) {
+      context.go('/');
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _mountedState?._schedulePendingStagedFlowDayViewIfAny();
+    });
   }
 
   static ImportFlowData? _importDataFromAiGenerationResponse(

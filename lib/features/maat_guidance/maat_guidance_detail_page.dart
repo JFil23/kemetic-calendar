@@ -177,20 +177,27 @@ class _MaatGuidanceDetailPageState extends State<MaatGuidanceDetailPage> {
         return;
       }
 
-      final flowId = await CalendarPage.importGeneratedFlowFromAnyContext(
+      final imported = await CalendarPage.importGeneratedFlowFromAnyContext(
         context,
         response: response,
         baseStart: start,
       );
-      if (!mounted || flowId == null) return;
+      if (!mounted || imported == null) return;
 
       final metadata = <String, dynamic>{
         'brief_id': _trimmed(delivery.payload['brief_id']) ?? delivery.ctaRef,
         'generation_id': response.generationId,
-        'flow_id': flowId,
+        'flow_id': imported.flowId,
         'cta_type': 'flow_personalized',
       };
       await _markActed(delivery, metadata: metadata);
+      if (!mounted) return;
+      if (imported.didStageEvents) {
+        CalendarPage.completeStagedFlowAddFromAnyContext(
+          context,
+          imported.flowId,
+        );
+      }
     } finally {
       if (mounted) setState(() => _creatingPersonalizedFlow = false);
     }

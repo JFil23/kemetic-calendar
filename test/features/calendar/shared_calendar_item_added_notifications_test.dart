@@ -75,7 +75,11 @@ void main() {
     expect(repeatingNoteSave, contains("itemType: 'note'"));
     expect(repeatingNoteSave, contains('noteId: firstEventId'));
 
-    expect(flowPagesSource, contains('_notifySharedCalendarItemAdded'));
+    // Saved imports now fan out from deferred persistence, which can run
+    // without a mounted Calendar host. Assert the repository operation rather
+    // than the former mounted-state wrapper name.
+    expect(flowPagesSource, contains('notifySharedCalendarItemAdded'));
+    expect(flowPagesSource, contains('SharedCalendarsRepo'));
     expect(flowPagesSource, contains("itemType: 'flow'"));
 
     final standaloneMove = _sourceBetween(

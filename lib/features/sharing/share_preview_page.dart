@@ -63,11 +63,11 @@ class _SharePreviewPageState extends State<SharePreviewPage> {
     setState(() => _importing = true);
 
     try {
-      final flowId = await CalendarPage.importFlowFromShare(
+      final imported = await CalendarPage.importFlowFromShare(
         context,
         importData,
       );
-      if (!mounted || flowId == null) return;
+      if (!mounted || imported == null) return;
 
       await _repo.markImported(widget.shareId, isFlow: true);
       if (!mounted) return;
@@ -78,8 +78,14 @@ class _SharePreviewPageState extends State<SharePreviewPage> {
           backgroundColor: KemeticGold.base,
         ),
       );
-
-      context.go('/');
+      if (imported.didStageEvents) {
+        CalendarPage.completeStagedFlowAddFromAnyContext(
+          context,
+          imported.flowId,
+        );
+      } else {
+        context.go('/');
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
