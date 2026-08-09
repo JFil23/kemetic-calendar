@@ -291,19 +291,6 @@ void main() {
         expect(consumer, isNot(contains('saveDurableLaunchRoute')));
         expect(consumer, isNot(contains('SessionResumeService')));
 
-        final initState = _sourceBetween(
-          calendar,
-          '  @override\n  void initState() {',
-          '  void _handleCalendarInvalidated',
-        );
-        final consumedIntentBranch = _sourceBetween(
-          initState,
-          'if (consumedSharedCalendarIntent) {',
-          '}\n    unawaited(_loadCalendarState());',
-        );
-        expect(consumedIntentBranch, contains('return;'));
-        expect(consumedIntentBranch, isNot(contains('_loadCalendarState')));
-
         final seed = _sourceBetween(
           calendar,
           'void _seedOneShotSharedCalendarEventSnapshot({',

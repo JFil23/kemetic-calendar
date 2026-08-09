@@ -260,7 +260,7 @@ void main() {
       final headlessPersist = _sourceBetween(
         pageSource,
         'static Future<int?> _persistFlowStudioResultHeadless',
-        'static Future<int?> importFlowFromShare',
+        'static Future<({int flowId, bool didStageEvents})?> importFlowFromShare',
       );
       final sharedPersist = _sourceBetween(
         serviceSource,
@@ -490,11 +490,12 @@ void main() {
     ).readAsStringSync();
     final createPolicy = _sourceBetween(
       source,
-      'static bool _isDirectFlowStudioCreateWithEvents',
+      'static bool _didStageFlowStudioEvents',
       '// Headless persistence helper',
     );
     expect(createPolicy, contains('flow.id <= 0'));
-    expect(createPolicy, contains('result.plannedNotes.isNotEmpty'));
+    expect(createPolicy, contains('_didStageFlowStudioEvents(result)'));
+    expect(createPolicy, contains('_shouldSkipExplicitHydrate'));
 
     final mountedPersist = _sourceBetween(
       source,
@@ -502,7 +503,7 @@ void main() {
       '/// Schedules all note occurrences for a flow',
     );
     expect(mountedPersist, contains('stagePlannedNotesAndDeferPersist'));
-    expect(mountedPersist, contains('_pendingStagedFlowDayViewFlowId'));
+    expect(mountedPersist, contains('_armStagedFlowDayView'));
     expect(mountedPersist, contains('if (!isNewFlowSave)'));
     expect(mountedPersist, isNot(contains('await repo.upsertByClientId(')));
     expect(
@@ -515,7 +516,7 @@ void main() {
       'Future<_FlowStudioResult?> _pushFlowStudioEditor',
       '_Flow? _readingHouseFlowForEditor',
     );
-    expect(editorCompletion, contains('if (mounted && !opensDayView)'));
+    expect(editorCompletion, contains('if (mounted && !skipExplicitHydrate)'));
     expect(
       editorCompletion,
       contains("_loadFromDisk(source: 'flow_studio_editor_save')"),

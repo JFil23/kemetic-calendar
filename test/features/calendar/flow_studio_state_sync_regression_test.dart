@@ -901,7 +901,7 @@ void main() {
     final headlessPersistBody = _sliceBetween(
       calendar,
       'static Future<int?> _persistFlowStudioResultHeadless',
-      'static Future<int?> importFlowFromShare',
+      'static Future<({int flowId, bool didStageEvents})?> importFlowFromShare',
     );
     expect(headlessPersistBody, contains('isSaved: f.isSaved'));
   });
