@@ -133,6 +133,7 @@ class _FlowPreviewPage extends StatefulWidget {
     required this.getDecanLabel,
     required this.fmt,
     required this.onEdit,
+    required this.completeAdd,
     this.onAppendToJournal,
     this.onEndMaatFlow,
     this.flowSequence,
@@ -158,6 +159,7 @@ class _FlowPreviewPage extends StatefulWidget {
   final String Function(int km, int di) getDecanLabel;
   final String Function(DateTime? g) fmt;
   final void Function(_Flow flow) onEdit;
+  final FlowAddCompletion completeAdd;
   final Future<void> Function(String text)? onAppendToJournal;
 
   /// if provided & flow is a Ma'at instance, show a gold-outline "End Flow" button.
@@ -755,7 +757,6 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         ),
       );
       CalendarPage._mountedState?._applyPendingStagedFlow(newId);
-      CalendarPage._armStagedFlowDayView(newId);
       CalendarPage._startStagedFlowPersistence(newId);
     } else {
       await _ensureSharedExperienceForFlow(
@@ -956,10 +957,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         ),
       );
       if (imported.didStageEvents) {
-        CalendarPage.completeStagedFlowAddFromAnyContext(
-          context,
-          imported.flowId,
-        );
+        await widget.completeAdd(imported.flowId);
       } else {
         Navigator.of(context).pop<int?>(imported.flowId);
       }
@@ -3701,6 +3699,7 @@ class _FlowsViewerPage extends StatefulWidget {
     required this.onCreateNew,
     required this.onEditFlow,
     required this.onEndFlow,
+    required this.completeAdd,
     this.onImportFlow,
     this.onAppendToJournal,
     this.initialFilingSnapshot,
@@ -3713,6 +3712,7 @@ class _FlowsViewerPage extends StatefulWidget {
   final FutureOr<void> Function() onCreateNew;
   final FutureOr<void> Function(int flowId) onEditFlow;
   final FutureOr<void> Function(int flowId) onEndFlow;
+  final FlowAddCompletion completeAdd;
   final Future<void> Function(int? importedFlowId)? onImportFlow;
   final Future<void> Function(String text)? onAppendToJournal;
   final ValueChanged<int>? onPreviewFlowForTesting;
@@ -3799,6 +3799,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
           fmt: widget.fmtGregorian,
           onEdit: (flow) =>
               unawaited(_runAndReload(() => widget.onEditFlow(flow.id))),
+          completeAdd: widget.completeAdd,
           onAppendToJournal: widget.onAppendToJournal,
           onEndMaatFlow: (flow) {
             unawaited(_runAndReload(() => widget.onEndFlow(flow.id)));
@@ -4137,6 +4138,7 @@ Widget buildMyFlowsListPreviewForTesting({
     onCreateNew: onCreateNew ?? () {},
     onEditFlow: (_) {},
     onEndFlow: (_) {},
+    completeAdd: (_) {},
     onPreviewFlowForTesting: onPreviewFlow,
   );
 }
@@ -4278,6 +4280,7 @@ Widget buildMyFlowDetailPreviewForTesting({
         (DecanMetadata.decanNames[km] ?? const ['I', 'II', 'III'])[di],
     fmt: _formatMyFlowsPreviewGregorian,
     onEdit: (_) => onManageFlow?.call(),
+    completeAdd: (_) {},
     onAppendToJournal: null,
     onEndMaatFlow: null,
     useMySavedExpansionParity: true,

@@ -320,6 +320,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   // Loading flag for async flow loading
   bool _isLoadingFlow = false;
   bool _closeInFlight = false;
+  late bool _completionRequired;
 
   // cached spans + per-period selections
   List<_KemeticDecanSpan> _kemeticSpans = const [];
@@ -2075,6 +2076,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _FlowStudioResult(
         savedFlow: flow,
         plannedNotes: planned,
+        completionRequired: _completionRequired,
         originType: originType,
         originFlowId: originFlowId,
         originShareId: originShareId,
@@ -2304,6 +2306,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
             _loadFlowForEdit(flow);
             Navigator.of(context).pop();
           },
+          completeAdd: (_) {},
           onAppendToJournal: null,
           onEndMaatFlow:
               null, // Flow Studio can't end flows (no access to _endFlow)
@@ -2314,6 +2317,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
 
   void _clearEditorForNew() {
     setState(() {
+      _completionRequired = true;
       _editing = null;
       _selectedCalendarId = _defaultCalendarId();
       _nameCtrl.text = '';
@@ -2365,7 +2369,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   }
 
   // Load an existing flow into the editor (best-effort reconstruction of rules)
-  void _loadFlowForEdit(_Flow f) {
+  void _loadFlowForEdit(_Flow f, {bool preserveCompletionIntent = false}) {
     // Add debug logging
     if (kDebugMode) {
       _calendarDebugPrint(
@@ -2374,6 +2378,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     }
 
     setState(() {
+      if (!preserveCompletionIntent) {
+        _completionRequired = false;
+      }
       _editing = f;
       _selectedCalendarId = f.calendarId ?? _defaultCalendarId();
       _nameCtrl.text = f.name;
@@ -2659,7 +2666,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   }
 
   /// Load a flow by ID from database (for imported or AI flows not in existingFlows)
-  Future<void> _loadFlowByIdFromDb(int flowId) async {
+  Future<void> _loadFlowByIdFromDb(
+    int flowId, {
+    bool preserveCompletionIntent = false,
+  }) async {
     if (kDebugMode) {
       _calendarDebugPrint('🔍 [LoadFlow] START: flowId=$flowId');
     }
@@ -2754,7 +2764,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       _editing = f;
       _nameCtrl.text = f.name;
       _active = f.active;
-      _loadFlowForEdit(f);
+      _loadFlowForEdit(f, preserveCompletionIntent: preserveCompletionIntent);
       return;
     }
 
@@ -3367,6 +3377,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _completionRequired = widget.editFlowId == null;
 
     if (kDebugMode) {
       _calendarDebugPrint(
@@ -4056,7 +4067,10 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         requestedEndDate: endDate,
       );
       if (result.flowId != null) {
-        await _loadFlowByIdFromDb(result.flowId!);
+        await _loadFlowByIdFromDb(
+          result.flowId!,
+          preserveCompletionIntent: true,
+        );
         if (!mounted) return;
         setState(() {
           _studioMode = _FlowStudioMode.build;

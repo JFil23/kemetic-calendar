@@ -611,6 +611,7 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(savedResult, isNotNull);
+      expect(savedResult.completionRequired, isTrue);
       expect(savedResult.savedFlow.name, 'Spanish Conjugation Practice');
       final planned = List<dynamic>.from(savedResult.plannedNotes as Iterable);
       expect(planned, hasLength(3));
