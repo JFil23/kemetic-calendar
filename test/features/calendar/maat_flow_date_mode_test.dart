@@ -248,24 +248,39 @@ void main() {
     }
   });
 
-  test('headless flow studio files delivery and invalidates calendar data', () {
-    final source = File(
-      'lib/features/calendar/calendar_page.dart',
-    ).readAsStringSync();
-    final headlessPersist = _sourceBetween(
-      source,
-      'static Future<int?> _persistFlowStudioResultHeadless',
-      'static Future<int?> importFlowFromShare',
-    );
+  test(
+    'headless flow studio defers delivery and invalidation through shared API',
+    () {
+      final pageSource = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final serviceSource = File(
+        'lib/features/calendar/flow_join_service.dart',
+      ).readAsStringSync();
+      final headlessPersist = _sourceBetween(
+        pageSource,
+        'static Future<int?> _persistFlowStudioResultHeadless',
+        'static Future<int?> importFlowFromShare',
+      );
+      final sharedPersist = _sourceBetween(
+        serviceSource,
+        'FlowJoinResult stagePlannedNotesAndDeferPersist',
+        'Future<int> _upsertFlowRow',
+      );
 
-    expect(headlessPersist, contains('EventFilingService'));
-    expect(headlessPersist, contains('_fileHeadlessEventDelivery'));
-    expect(headlessPersist, contains('_publishHeadlessCalendarInvalidation'));
-    expect(
-      headlessPersist,
-      contains('CalendarInvalidationReason.flowStudioPersisted'),
-    );
-  });
+      expect(headlessPersist, contains('stagePlannedNotesAndDeferPersist'));
+      expect(
+        headlessPersist,
+        isNot(contains('await userEventsRepo.upsertByClientId')),
+      );
+      expect(sharedPersist, contains('_fileHeadlessEventDelivery'));
+      expect(sharedPersist, contains('_publishHeadlessCalendarInvalidation'));
+      expect(
+        headlessPersist,
+        contains('CalendarInvalidationReason.flowStudioPersisted'),
+      );
+    },
+  );
 
   test('headless delivery helper logs delivery failures without throwing', () {
     final source = File(
@@ -347,16 +362,20 @@ void main() {
     expect(flush, isNot(contains('_loadFromDisk(')));
   });
 
-  test('all Ma_at service joins share one staged deferred completion', () {
+  test('all Ma_at service joins call the universal staged completion', () {
     final source = File(
       'lib/features/calendar/flow_join_service.dart',
     ).readAsStringSync();
 
-    expect(_countOccurrences(source, '_stageAndDeferPersist('), 19);
+    expect(_countOccurrences(source, 'stagePlannedNotesAndDeferPersist('), 19);
     expect(
-      _countOccurrences(source, 'FlowJoinResult _stageAndDeferPersist'),
+      _countOccurrences(
+        source,
+        'FlowJoinResult stagePlannedNotesAndDeferPersist',
+      ),
       1,
     );
+    expect(source, isNot(contains('_stageAndDeferPersist')));
     expect(source, isNot(contains('_completeHeadlessJoin')));
     expect(source, contains('joinTrackSkyHeadless'));
     expect(source, contains('_joinSequenceHeadless'));
@@ -379,7 +398,7 @@ void main() {
     );
 
     expect(headless, contains('int stageResult(FlowJoinResult result)'));
-    expect(headless, contains('_stageMaatJoinFastPath('));
+    expect(headless, contains('_stageFlowForDeferredPersistence('));
     expect(headless, contains('joinTrackSkyHeadless'));
     expect(headless, contains('_joinSequenceHeadless'));
     expect(
@@ -387,7 +406,7 @@ void main() {
       isNot(contains('if (template.kind == _MaatFlowTemplateKind.theCourse)')),
     );
     expect(mounted, contains('_addMaatFlowInstanceHeadless('));
-    expect(mounted, contains('_applyPendingMaatJoinFastPath(flowId)'));
+    expect(mounted, contains('_applyPendingStagedFlow(flowId)'));
     expect(mounted, isNot(contains('upsertManyDeterministic')));
   });
 
@@ -409,7 +428,102 @@ void main() {
       isNot(contains("_loadFromDisk(source: 'evening_threshold_join')")),
     );
     expect(source, contains('Could not stage the first day of this flow.'));
-    expect(source, contains('_openDayViewForJoinedMaatFlow(flowId)'));
+    expect(source, contains('_openDayViewForStagedFlow(flowId)'));
+  });
+
+  test('universal staging boundary contains no Ma_at-named symbols', () {
+    final pageSource = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final serviceSource = File(
+      'lib/features/calendar/flow_join_service.dart',
+    ).readAsStringSync();
+
+    final api = _sourceBetween(
+      serviceSource,
+      'FlowJoinResult stagePlannedNotesAndDeferPersist',
+      'Future<int> _upsertFlowRow',
+    );
+    final pendingType = _sourceBetween(
+      pageSource,
+      'class _PendingStagedFlow',
+      'class CalendarPage extends StatefulWidget',
+    );
+    final pendingFields = _sourceBetween(
+      pageSource,
+      'static int? _pendingStagedFlowDayViewFlowId',
+      'static _SharedCalendarRealDayViewIntent?',
+    );
+    final persistenceHelpers = _sourceBetween(
+      pageSource,
+      'static void _stageFlowForDeferredPersistence',
+      'static FlowDetailActionPolicy resolveCanonicalCustomFlowActionPolicy',
+    );
+    final completionHelpers = _sourceBetween(
+      pageSource,
+      'void _openDayViewForStagedFlow',
+      'Future<void> _completeMountedMaatJoinWithDayView',
+    );
+
+    for (final boundary in <String>[
+      api,
+      pendingType,
+      pendingFields,
+      persistenceHelpers,
+      completionHelpers,
+    ]) {
+      expect(boundary.toLowerCase(), isNot(contains('maat')));
+    }
+    for (final retired in <String>[
+      '_stageMaatJoinFastPath',
+      '_applyPendingMaatJoinFastPath',
+      '_pendingMaatJoinDayViewFlowId',
+      '_openDayViewForJoinedMaatFlow',
+    ]) {
+      expect(pageSource, isNot(contains(retired)));
+    }
+  });
+
+  test('Flow Studio create defers writes while edits never arm Day View', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final createPolicy = _sourceBetween(
+      source,
+      'static bool _isDirectFlowStudioCreateWithEvents',
+      '// Headless persistence helper',
+    );
+    expect(createPolicy, contains('flow.id <= 0'));
+    expect(createPolicy, contains('result.plannedNotes.isNotEmpty'));
+
+    final mountedPersist = _sourceBetween(
+      source,
+      'Future<int?> _persistFlowStudioResult(_FlowStudioResult r) async',
+      '/// Schedules all note occurrences for a flow',
+    );
+    expect(mountedPersist, contains('stagePlannedNotesAndDeferPersist'));
+    expect(mountedPersist, contains('_pendingStagedFlowDayViewFlowId'));
+    expect(mountedPersist, contains('if (!isNewFlowSave)'));
+    expect(mountedPersist, isNot(contains('await repo.upsertByClientId(')));
+    expect(
+      mountedPersist,
+      contains('Editing deliberately never navigates to Day View'),
+    );
+
+    final editorCompletion = _sourceBetween(
+      source,
+      'Future<_FlowStudioResult?> _pushFlowStudioEditor',
+      '_Flow? _readingHouseFlowForEditor',
+    );
+    expect(editorCompletion, contains('if (mounted && !opensDayView)'));
+    expect(
+      editorCompletion,
+      contains("_loadFromDisk(source: 'flow_studio_editor_save')"),
+    );
+    expect(
+      editorCompletion,
+      contains('_schedulePendingStagedFlowDayViewIfAny()'),
+    );
   });
 }
 

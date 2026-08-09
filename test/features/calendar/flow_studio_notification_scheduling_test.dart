@@ -27,26 +27,21 @@ void main() {
 
       final plannedBranch = body.indexOf('if (r.plannedNotes.isNotEmpty)');
       final replaceCall = body.indexOf(
-        'await repo2.deleteByFlowId(',
+        'await repo.deleteByFlowId(',
         plannedBranch,
       );
       final writeLoop = body.indexOf(
-        'for (final p in r.plannedNotes)',
+        'for (final planned in r.plannedNotes)',
         plannedBranch,
       );
-      final upsertCall = body.indexOf(
-        'await repo2.upsertByClientId(',
+      final deferCall = body.indexOf(
+        '.stagePlannedNotesAndDeferPersist(',
         writeLoop,
       );
       final localCleanup = body.indexOf(
         '_removeLocalNotesForFlowReplacement(flowId)',
         replaceCall,
       );
-      final scheduleCall = body.indexOf(
-        'final scheduleResult = await _scheduleAlertForEvent(',
-        upsertCall,
-      );
-
       expect(plannedBranch, greaterThanOrEqualTo(0));
       expect(replaceCall, greaterThan(plannedBranch));
       expect(replaceCall, lessThan(writeLoop));
@@ -55,9 +50,19 @@ void main() {
       expect(body, contains("semantic: 'flow_replace'"));
       expect(body, contains('suppressesClient: false'));
       expect(body, contains("'planned_flow_replace'"));
-      expect(upsertCall, greaterThan(writeLoop));
-      expect(scheduleCall, greaterThan(upsertCall));
-      expect(body, contains('alertMinutes: n.alertOffsetMinutes'));
+      expect(deferCall, greaterThan(writeLoop));
+      expect(body, isNot(contains('await repo.upsertByClientId(')));
+
+      final writeHelper = _sliceBetween(
+        source,
+        'static PlannedNoteWrite _flowStudioPlannedNoteWrite',
+        'static _Flow _savedFlowForStudioResult',
+      );
+      expect(
+        writeHelper,
+        contains('alertOffsetMinutes: note.alertOffsetMinutes'),
+      );
+      expect(writeHelper, contains("alertDebugLabel: 'flowStudioDeferred'"));
     },
   );
 

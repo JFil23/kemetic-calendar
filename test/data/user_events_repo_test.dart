@@ -60,13 +60,13 @@ void main() {
       ).readAsStringSync();
       final body = _sourceBetween(
         repoSource,
-        '/// Bulk idempotent upsert for Ma\'at note batches',
+        '/// Bulk idempotent upsert for deterministic staged note batches',
         'Stream<List<Map<String, dynamic>>> streamMyEvents()',
       );
 
       expect(body, contains('for (final chunk in _chunkList(rows, 200))'));
       expect(body, contains("onConflict: 'user_id,client_event_id'"));
-      expect(body, contains('single-chunk-safe'));
+      expect(body, contains('producers own rollback semantics'));
       expect(body, isNot(contains('tombstone')));
     });
   });

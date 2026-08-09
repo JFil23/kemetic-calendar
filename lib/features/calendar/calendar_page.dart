@@ -3957,20 +3957,20 @@ class _CalendarWarmStateStore {
   }
 }
 
-class _PendingMaatJoinFastPath {
-  _PendingMaatJoinFastPath({
+class _PendingStagedFlow {
+  _PendingStagedFlow({
     required this.flowId,
     required this.localFlow,
     required this.plannedNotes,
     required this.persist,
-    required this.failureMessage,
+    required this.rollback,
   });
 
   final int flowId;
   final _Flow localFlow;
   final List<_PlannedNote> plannedNotes;
   final Future<void> Function() persist;
-  final String failureMessage;
+  final Future<void> Function(CalendarPageState? state) rollback;
   bool persistenceStarted = false;
 }
 
@@ -4002,9 +4002,9 @@ class CalendarPage extends StatefulWidget {
   static ({int ky, int km, int kd, EventDetailRestorationState? eventDetail})?
   _pendingDetachedSearchResult;
   static ({int ky, int km, int kd})? _pendingDetachedSearchDay;
-  static int? _pendingMaatJoinDayViewFlowId;
-  static final Map<int, _PendingMaatJoinFastPath> _pendingMaatJoinFastPaths =
-      <int, _PendingMaatJoinFastPath>{};
+  static int? _pendingStagedFlowDayViewFlowId;
+  static final Map<int, _PendingStagedFlow> _pendingStagedFlows =
+      <int, _PendingStagedFlow>{};
   static _SharedCalendarRealDayViewIntent?
   _pendingSharedCalendarRealDayViewIntent;
   static bool _pendingTodayNavigationCommand = false;
@@ -4041,40 +4041,28 @@ class CalendarPage extends StatefulWidget {
 
   static bool get hasMountedHost => _mountedState != null;
 
-  static void _stageMaatJoinFastPath(_PendingMaatJoinFastPath pending) {
-    _pendingMaatJoinFastPaths[pending.flowId] = pending;
+  static void _stageFlowForDeferredPersistence(_PendingStagedFlow pending) {
+    _pendingStagedFlows[pending.flowId] = pending;
   }
 
-  static void _startMaatJoinPersistence(int flowId) {
-    final pending = _pendingMaatJoinFastPaths[flowId];
+  static void _startStagedFlowPersistence(int flowId) {
+    final pending = _pendingStagedFlows[flowId];
     if (pending == null || pending.persistenceStarted) return;
     pending.persistenceStarted = true;
     unawaited(() async {
       try {
         await pending.persist();
-        _pendingMaatJoinFastPaths.remove(flowId);
+        _pendingStagedFlows.remove(flowId);
       } catch (error, stackTrace) {
         if (kDebugMode) {
           _calendarDebugPrint(
-            '[maatFlowJoin] background persistence failed '
+            '[stagedFlowPersist] background persistence failed '
             'flowId=$flowId error=$error',
           );
           _calendarDebugPrint('$stackTrace');
         }
-        _pendingMaatJoinFastPaths.remove(flowId);
-        final state = _mountedState;
-        if (state != null) {
-          await state._rollbackJoinedFlowLocally(
-            flowId,
-            repo: UserEventsRepo(Supabase.instance.client),
-            failureMessage: pending.failureMessage,
-          );
-        } else {
-          _forgetRememberedJoinedMaatFlow(flowId);
-          try {
-            await UserEventsRepo(Supabase.instance.client).deleteFlow(flowId);
-          } catch (_) {}
-        }
+        _pendingStagedFlows.remove(flowId);
+        await pending.rollback(_mountedState);
       }
     }());
   }
@@ -6694,13 +6682,27 @@ class CalendarPage extends StatefulWidget {
           result._plannedNotes.isEmpty) {
         return -1;
       }
-      _stageMaatJoinFastPath(
-        _PendingMaatJoinFastPath(
+      _stageFlowForDeferredPersistence(
+        _PendingStagedFlow(
           flowId: flowId,
           localFlow: localFlow,
           plannedNotes: result._plannedNotes,
           persist: persist,
-          failureMessage: 'Could not create ${template.title}.',
+          rollback: (state) async {
+            _forgetRememberedJoinedMaatFlow(flowId);
+            final repo = UserEventsRepo(Supabase.instance.client);
+            if (state != null) {
+              await state._rollbackStagedFlowLocally(
+                flowId,
+                repo: repo,
+                failureMessage: 'Could not create ${template.title}.',
+              );
+              return;
+            }
+            try {
+              await repo.deleteFlow(flowId);
+            } catch (_) {}
+          },
         ),
       );
       return flowId;
@@ -7074,6 +7076,7 @@ class CalendarPage extends StatefulWidget {
     required Map<String, dynamic> returnState,
   }) {
     Future<void> handleResult(_FlowStudioResult result) async {
+      final opensDayView = _isDirectFlowStudioCreateWithEvents(result);
       final savedId = await _persistFlowStudioResultHeadless(result);
       if (savedId != null) {
         await flowsRepo.clearMyFiledFlowsCache();
@@ -7081,6 +7084,9 @@ class CalendarPage extends StatefulWidget {
       }
       if (navigator.mounted) {
         navigator.pop();
+      }
+      if (opensDayView) {
+        _mountedState?._schedulePendingStagedFlowDayViewIfAny();
       }
     }
 
@@ -7238,7 +7244,7 @@ class CalendarPage extends StatefulWidget {
     VoidCallback? onClose,
   }) async {
     _rememberJoinedMaatFlowTemplate(templateKey: template.key, flowId: flowId);
-    _pendingMaatJoinDayViewFlowId = flowId;
+    _pendingStagedFlowDayViewFlowId = flowId;
     unawaited(flowsRepo.clearMyFiledFlowsCache());
     unawaited(
       flowsRepo.refreshMyFiledFlows().then((rows) {
@@ -7254,7 +7260,7 @@ class CalendarPage extends StatefulWidget {
       closeOrReturn(navigator.context, '/');
     }
     final state = _mountedState;
-    state?._schedulePendingMaatJoinDayViewIfAny();
+    state?._schedulePendingStagedFlowDayViewIfAny();
   }
 
   static Widget _buildDetachedMyFlowsPage({
@@ -8148,6 +8154,104 @@ class CalendarPage extends StatefulWidget {
     throw ArgumentError('Unknown rule type ${j['type']}');
   }
 
+  static PlannedNoteWrite _flowStudioPlannedNoteWrite({
+    required _PlannedNote planned,
+    required _Flow localFlow,
+    required String? calendarName,
+    required String? persistedDetail,
+    required String caller,
+  }) {
+    final note = planned.note;
+    final day = KemeticMath.toGregorian(planned.ky, planned.km, planned.kd);
+    final startsAt = DateTime(
+      day.year,
+      day.month,
+      day.day,
+      note.start?.hour ?? 9,
+      note.start?.minute ?? 0,
+    );
+    DateTime? endsAt;
+    if (!note.allDay && note.end != null) {
+      endsAt = DateTime(
+        day.year,
+        day.month,
+        day.day,
+        note.end!.hour,
+        note.end!.minute,
+      );
+    } else if (!note.allDay) {
+      endsAt = startsAt.add(const Duration(hours: 1));
+    }
+    final clientEventId = EventCidUtil.buildClientEventId(
+      ky: planned.ky,
+      km: planned.km,
+      kd: planned.kd,
+      title: note.title,
+      startHour: note.start?.hour ?? 9,
+      startMinute: note.start?.minute ?? 0,
+      allDay: note.allDay,
+      flowId: localFlow.id,
+    );
+    final alertBodyLines = <String>[
+      if ((note.location ?? '').trim().isNotEmpty) note.location!.trim(),
+      if ((note.detail ?? '').trim().isNotEmpty) note.detail!.trim(),
+    ];
+    return PlannedNoteWrite(
+      clientEventId: clientEventId,
+      title: note.title,
+      startsAtUtc: startsAt.toUtc(),
+      endsAtUtc: endsAt?.toUtc(),
+      startsAtLocal: startsAt,
+      endsAtLocal: endsAt,
+      detail: persistedDetail,
+      noteDetail: note.detail,
+      location: note.location,
+      allDay: note.allDay,
+      calendarId: localFlow.calendarId,
+      calendarName: calendarName,
+      flowId: localFlow.id,
+      manualColor: note.manualColor,
+      category: note.category,
+      isReminder: note.isReminder,
+      reminderId: note.reminderId,
+      actionId: note.actionId,
+      behaviorPayload: note.behaviorPayload,
+      caller: caller,
+      alertBody: alertBodyLines.isEmpty ? null : alertBodyLines.join('\n'),
+      alertDebugLabel: 'flowStudioDeferred',
+      alertOffsetMinutes: note.alertOffsetMinutes,
+    );
+  }
+
+  static _Flow _savedFlowForStudioResult(_Flow source, int savedId) {
+    return _Flow(
+      id: savedId,
+      calendarId: source.calendarId,
+      name: source.name,
+      color: source.color,
+      active: source.active,
+      isSaved: source.isSaved,
+      savedAt: source.savedAt,
+      rules: source.rules,
+      start: source.start,
+      end: source.end,
+      notes: source.notes,
+      shareId: source.shareId,
+      isHidden: source.isHidden,
+      isReminder: source.isReminder,
+      reminderUuid: source.reminderUuid,
+    );
+  }
+
+  static bool _isDirectFlowStudioCreateWithEvents(_FlowStudioResult result) {
+    final flow = result.savedFlow;
+    return flow != null &&
+        flow.id <= 0 &&
+        result.plannedNotes.isNotEmpty &&
+        result.originType == null &&
+        result.originShareId == null;
+  }
+
   // Headless persistence helper: save/delete flows + planned notes without calendar state.
   static Future<int?> _persistFlowStudioResultHeadless(
     _FlowStudioResult r,
@@ -8195,9 +8299,7 @@ class CalendarPage extends StatefulWidget {
       aiMetadata: r.aiMetadata,
     );
 
-    // Persist planned notes (with individual titles)
-    final clientEventIds = <String>[];
-    String? firstClientEventId;
+    final localFlow = _savedFlowForStudioResult(f, savedId);
     bool generationCommitted = false;
 
     Future<void> commitGenerationIfNeeded() async {
@@ -8217,121 +8319,126 @@ class CalendarPage extends StatefulWidget {
       }
     }
 
-    Future<void> rollbackNewFlowSave(
-      Object error,
-      StackTrace stackTrace,
-    ) async {
-      if (!isNewFlowSave) return;
-      if (kDebugMode) {
-        _calendarDebugPrint(
-          '[persistFlowStudioHeadless] Rolling back new flow $savedId after planned-note save failed: $error',
-        );
-        _calendarDebugPrint('$stackTrace');
-      }
-      try {
+    if (r.plannedNotes.isNotEmpty) {
+      if (!isNewFlowSave) {
         await userEventsRepo.deleteByFlowId(
           savedId,
-          semantic: 'flow_save_rollback',
+          semantic: 'flow_replace',
           suppressesClient: false,
           sourceFeature: 'CalendarPage._persistFlowStudioResultHeadless',
-          deleteScope: 'failed_new_flow_save',
+          deleteScope: 'planned_flow_replace',
         );
-      } catch (rollbackError) {
-        if (kDebugMode) {
-          _calendarDebugPrint(
-            '[persistFlowStudioHeadless] rollback deleteByFlowId failed: $rollbackError',
-          );
-        }
       }
-      try {
-        await userEventsRepo.deleteFlow(savedId);
-      } catch (rollbackError) {
-        if (kDebugMode) {
-          _calendarDebugPrint(
-            '[persistFlowStudioHeadless] rollback deleteFlow failed: $rollbackError',
-          );
-        }
-      }
-    }
-
-    if (r.plannedNotes.isNotEmpty) {
-      final eventFiling = EventFilingService();
-      try {
-        for (final p in r.plannedNotes) {
-          final n = p.note;
-          final gDay = KemeticMath.toGregorian(p.ky, p.km, p.kd);
-          final startsAt = DateTime(
-            gDay.year,
-            gDay.month,
-            gDay.day,
-            n.start?.hour ?? 9,
-            n.start?.minute ?? 0,
-          );
-          DateTime? endsAt;
-          if (!n.allDay && n.end != null) {
-            endsAt = DateTime(
-              gDay.year,
-              gDay.month,
-              gDay.day,
-              n.end!.hour,
-              n.end!.minute,
-            );
-          } else if (!n.allDay) {
-            endsAt = startsAt.add(const Duration(hours: 1));
-          }
-
-          final cid = EventCidUtil.buildClientEventId(
-            ky: p.ky,
-            km: p.km,
-            kd: p.kd,
-            title: n.title,
-            startHour: n.start?.hour ?? 9,
-            startMinute: n.start?.minute ?? 0,
-            allDay: n.allDay,
+      final writes = <PlannedNoteWrite>[
+        for (final planned in r.plannedNotes)
+          CalendarPage._flowStudioPlannedNoteWrite(
+            planned: planned,
+            localFlow: localFlow,
+            calendarName: null,
+            persistedDetail: (planned.note.detail ?? '').trim().isEmpty
+                ? null
+                : planned.note.detail,
+            caller: 'flow_studio_headless_deferred',
+          ),
+      ];
+      final firstClientEventId = writes.first.clientEventId;
+      final staged = FlowJoinService(userEventsRepo: userEventsRepo)
+          .stagePlannedNotesAndDeferPersist(
             flowId: savedId,
+            localFlow: localFlow,
+            writes: writes,
+            invalidationReason: CalendarInvalidationReason.flowStudioPersisted,
+            additionalPersistence: () async {
+              await commitGenerationIfNeeded();
+              await _ensureSharedExperienceForFlow(
+                flowId: savedId,
+                calendarId: f.calendarId,
+                source: 'CalendarPage._persistFlowStudioResultHeadless',
+              );
+              if (isNewFlowSave) {
+                try {
+                  await SharedCalendarsRepo(
+                    Supabase.instance.client,
+                  ).notifySharedCalendarItemAdded(
+                    calendarId: f.calendarId,
+                    itemType: 'flow',
+                    itemId: savedId.toString(),
+                    itemTitle: f.name,
+                    clientEventId: firstClientEventId,
+                    flowId: savedId,
+                    startDate: f.start,
+                    endDate: f.end,
+                  );
+                } catch (error, stackTrace) {
+                  if (kDebugMode) {
+                    _calendarDebugPrint(
+                      '[persistFlowStudioHeadless] shared notification failed: '
+                      '$error',
+                    );
+                    _calendarDebugPrint('$stackTrace');
+                  }
+                }
+              }
+            },
           );
-          clientEventIds.add(cid);
-
-          final savedEvent = await userEventsRepo.upsertByClientId(
-            clientEventId: cid,
-            title: n.title,
-            startsAtUtc: startsAt.toUtc(),
-            detail: (n.detail ?? '').trim().isEmpty ? null : n.detail,
-            location: (n.location ?? '').trim().isEmpty ? null : n.location,
-            allDay: n.allDay,
-            endsAtUtc: endsAt?.toUtc(),
-            calendarId: f.calendarId,
-            flowLocalId: savedId,
-            category: n.category,
-            actionId: n.actionId,
-            behaviorPayload: n.behaviorPayload,
-            caller: 'flow_save_notes',
-          );
-          firstClientEventId ??= savedEvent.clientEventId ?? cid;
-
-          final bodyLines = <String>[
-            if ((n.location ?? '').trim().isNotEmpty) n.location!.trim(),
-            if ((n.detail ?? '').trim().isNotEmpty) n.detail!.trim(),
-          ];
-          await _fileHeadlessEventDelivery(
-            eventFiling: eventFiling,
-            debugLabel: 'flowStudioHeadless',
-            clientEventId: cid,
-            startsAtLocal: startsAt,
-            alertOffsetMinutes: n.alertOffsetMinutes,
-            title: n.title,
-            body: bodyLines.isEmpty ? null : bodyLines.join('\n'),
-            kYear: p.ky,
-            kMonth: p.km,
-            kDay: p.kd,
-            eventId: savedEvent.id,
-            flowId: savedId,
-          );
-        }
-      } catch (error, stackTrace) {
-        await rollbackNewFlowSave(error, stackTrace);
-        rethrow;
+      final persist = staged.persistInBackground;
+      if (persist == null || staged._plannedNotes.isEmpty) {
+        throw StateError('Flow $savedId did not produce staged notes.');
       }
+      _stageFlowForDeferredPersistence(
+        _PendingStagedFlow(
+          flowId: savedId,
+          localFlow: localFlow,
+          plannedNotes: staged._plannedNotes,
+          persist: persist,
+          rollback: (state) async {
+            if (!isNewFlowSave) {
+              if (state != null) {
+                await state._loadFromDisk(
+                  source: 'flow_studio_edit_persist_failure',
+                );
+              } else {
+                _publishHeadlessCalendarInvalidation(
+                  reason: CalendarInvalidationReason.flowStudioPersisted,
+                  flowId: savedId,
+                  clientEventIds: const <String>[],
+                );
+              }
+              return;
+            }
+            if (state != null) {
+              await state._rollbackStagedFlowLocally(
+                savedId,
+                repo: userEventsRepo,
+                failureMessage: 'Could not create ${f.name}.',
+              );
+              return;
+            }
+            try {
+              await userEventsRepo.deleteByFlowId(
+                savedId,
+                semantic: 'flow_save_rollback',
+                suppressesClient: false,
+                sourceFeature: 'CalendarPage._persistFlowStudioResultHeadless',
+                deleteScope: 'failed_new_flow_save',
+              );
+            } catch (_) {}
+            try {
+              await userEventsRepo.deleteFlow(savedId);
+            } catch (_) {}
+          },
+        ),
+      );
+
+      // A create opens Day View only when this direct Studio save staged
+      // events. Edits deliberately never navigate, including edits that add
+      // days; they apply locally and persist in the background.
+      if (CalendarPage._isDirectFlowStudioCreateWithEvents(r)) {
+        _pendingStagedFlowDayViewFlowId = savedId;
+      } else {
+        _startStagedFlowPersistence(savedId);
+      }
+      return savedId;
     }
 
     await commitGenerationIfNeeded();
@@ -8340,7 +8447,6 @@ class CalendarPage extends StatefulWidget {
       calendarId: f.calendarId,
       source: 'CalendarPage._persistFlowStudioResultHeadless',
     );
-
     if (isNewFlowSave) {
       await SharedCalendarsRepo(
         Supabase.instance.client,
@@ -8349,17 +8455,15 @@ class CalendarPage extends StatefulWidget {
         itemType: 'flow',
         itemId: savedId.toString(),
         itemTitle: f.name,
-        clientEventId: firstClientEventId,
         flowId: savedId,
         startDate: f.start,
         endDate: f.end,
       );
     }
-
     _publishHeadlessCalendarInvalidation(
       reason: CalendarInvalidationReason.flowStudioPersisted,
       flowId: savedId,
-      clientEventIds: clientEventIds,
+      clientEventIds: const <String>[],
     );
     return savedId;
   }
@@ -10637,7 +10741,7 @@ class CalendarPageState extends State<CalendarPage>
                 }
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (!mounted) return;
-                  _openDayViewForJoinedMaatFlow(importedFlowId);
+                  _openDayViewForStagedFlow(importedFlowId);
                 });
                 return;
               }
@@ -10722,12 +10826,18 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     Future<void> handleResult(_FlowStudioResult result) async {
+      final opensDayView = CalendarPage._isDirectFlowStudioCreateWithEvents(
+        result,
+      );
       await _persistFlowStudioResult(result);
-      if (mounted) {
+      if (mounted && !opensDayView) {
         await _loadFromDisk(source: 'flow_studio_editor_save');
       }
       if (navigator.mounted) {
         navigator.pop();
+      }
+      if (opensDayView) {
+        _schedulePendingStagedFlowDayViewIfAny();
       }
     }
 
@@ -15070,7 +15180,7 @@ class CalendarPageState extends State<CalendarPage>
     return (ky: first.ky, km: first.km, kd: first.kd, note: first.note);
   }
 
-  void _openDayViewForJoinedMaatFlow(int flowId) {
+  void _openDayViewForStagedFlow(int flowId) {
     final first = _firstChronologicalNoteForFlow(flowId);
     if (first == null) {
       if (mounted) {
@@ -15089,12 +15199,12 @@ class CalendarPageState extends State<CalendarPage>
       first.km,
       first.kd,
       focusEvent: _noteToEventItem(first.note),
-      debugOpenSource: 'maat_flow_join',
+      debugOpenSource: 'staged_flow_completion',
     );
   }
 
-  void _applyPendingMaatJoinFastPath(int flowId) {
-    final pending = CalendarPage._pendingMaatJoinFastPaths[flowId];
+  void _applyPendingStagedFlow(int flowId) {
+    final pending = CalendarPage._pendingStagedFlows[flowId];
     if (pending == null) return;
     if (!_flows.any((flow) => flow.id == flowId)) {
       _flows.add(pending.localFlow);
@@ -15150,34 +15260,35 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
-  bool _schedulePendingMaatJoinDayViewIfAny() {
-    if (CalendarPage._pendingMaatJoinDayViewFlowId == null) return false;
+  bool _schedulePendingStagedFlowDayViewIfAny() {
+    if (CalendarPage._pendingStagedFlowDayViewFlowId == null) return false;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(_consumePendingMaatJoinDayViewIfAny());
+      unawaited(_consumePendingStagedFlowDayViewIfAny());
     });
     return true;
   }
 
-  Future<void> _consumePendingMaatJoinDayViewIfAny() async {
-    final flowId = CalendarPage._pendingMaatJoinDayViewFlowId;
+  Future<void> _consumePendingStagedFlowDayViewIfAny() async {
+    final flowId = CalendarPage._pendingStagedFlowDayViewFlowId;
     if (flowId == null || !mounted) return;
-    _applyPendingMaatJoinFastPath(flowId);
+    _applyPendingStagedFlow(flowId);
     if (_firstChronologicalNoteForFlow(flowId) == null) {
-      if (CalendarPage._pendingMaatJoinDayViewFlowId == flowId) {
-        CalendarPage._pendingMaatJoinDayViewFlowId = null;
+      if (CalendarPage._pendingStagedFlowDayViewFlowId == flowId) {
+        CalendarPage._pendingStagedFlowDayViewFlowId = null;
       }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Could not stage the first day of this flow.'),
         ),
       );
+      CalendarPage._startStagedFlowPersistence(flowId);
       return;
     }
-    if (CalendarPage._pendingMaatJoinDayViewFlowId == flowId) {
-      CalendarPage._pendingMaatJoinDayViewFlowId = null;
+    if (CalendarPage._pendingStagedFlowDayViewFlowId == flowId) {
+      CalendarPage._pendingStagedFlowDayViewFlowId = null;
     }
-    _openDayViewForJoinedMaatFlow(flowId);
+    _openDayViewForStagedFlow(flowId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       // A detached cold start can restore the warm snapshot between the first
@@ -15185,9 +15296,9 @@ class CalendarPageState extends State<CalendarPage>
       // notes after that frame so the local block stays visible while the
       // background batch confirms it.
       try {
-        _applyPendingMaatJoinFastPath(flowId);
+        _applyPendingStagedFlow(flowId);
       } finally {
-        CalendarPage._startMaatJoinPersistence(flowId);
+        CalendarPage._startStagedFlowPersistence(flowId);
       }
     });
   }
@@ -15209,9 +15320,9 @@ class CalendarPageState extends State<CalendarPage>
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      _openDayViewForJoinedMaatFlow(flowId);
+      _openDayViewForStagedFlow(flowId);
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        CalendarPage._startMaatJoinPersistence(flowId);
+        CalendarPage._startStagedFlowPersistence(flowId);
       });
     });
   }
@@ -17080,7 +17191,7 @@ class CalendarPageState extends State<CalendarPage>
   // ✅ Refresh when returning to this page
   Future<void> _handleCalendarReturnFromAnotherPage() async {
     if (!mounted) return;
-    if (_schedulePendingMaatJoinDayViewIfAny()) return;
+    if (_schedulePendingStagedFlowDayViewIfAny()) return;
     try {
       await _journalController.reloadToday();
       if (mounted) {
@@ -20058,7 +20169,7 @@ class CalendarPageState extends State<CalendarPage>
     return true;
   }
 
-  Future<void> _rollbackJoinedFlowLocally(
+  Future<void> _rollbackStagedFlowLocally(
     int serverFlowId, {
     required UserEventsRepo repo,
     required String failureMessage,
@@ -20085,6 +20196,15 @@ class CalendarPageState extends State<CalendarPage>
       ).showSnackBar(SnackBar(content: Text(failureMessage)));
     }
 
+    try {
+      await repo.deleteByFlowId(
+        serverFlowId,
+        semantic: 'flow_save_rollback',
+        suppressesClient: false,
+        sourceFeature: 'CalendarPage._rollbackStagedFlowLocally',
+        deleteScope: 'failed_staged_flow_save',
+      );
+    } catch (_) {}
     try {
       await repo.deleteFlow(serverFlowId);
     } catch (_) {}
@@ -24066,7 +24186,7 @@ class CalendarPageState extends State<CalendarPage>
           }
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
-            _openDayViewForJoinedMaatFlow(importedFlowId);
+            _openDayViewForStagedFlow(importedFlowId);
           });
         }());
       },
@@ -24524,7 +24644,7 @@ class CalendarPageState extends State<CalendarPage>
       }
       return -1;
     }
-    _applyPendingMaatJoinFastPath(flowId);
+    _applyPendingStagedFlow(flowId);
     return flowId;
   }
 
@@ -27241,7 +27361,7 @@ class CalendarPageState extends State<CalendarPage>
             _openFlowEditorDirectly(targetFlowId);
           } else if (widget.openMyFlowsOnLaunch) {
             _openMyFlowsList();
-          } else if (_schedulePendingMaatJoinDayViewIfAny()) {
+          } else if (_schedulePendingStagedFlowDayViewIfAny()) {
             return;
           } else if (!_schedulePendingDetachedLaunchActionIfAny()) {
             _schedulePersistentOverlayRestore(reason: 'init');
@@ -27268,7 +27388,7 @@ class CalendarPageState extends State<CalendarPage>
         if (mounted) _openMyFlowsList();
       });
     } else {
-      if (!_schedulePendingMaatJoinDayViewIfAny()) {
+      if (!_schedulePendingStagedFlowDayViewIfAny()) {
         _schedulePendingDetachedLaunchActionIfAny();
       }
     }
@@ -27282,7 +27402,7 @@ class CalendarPageState extends State<CalendarPage>
             widget.openMyFlowsOnLaunch) {
           return;
         }
-        if (_schedulePendingMaatJoinDayViewIfAny()) {
+        if (_schedulePendingStagedFlowDayViewIfAny()) {
           return;
         }
         if (!_schedulePendingDetachedLaunchActionIfAny()) {
@@ -27294,7 +27414,7 @@ class CalendarPageState extends State<CalendarPage>
     // The detached `/flows` route can close before a Calendar host exists.
     // Stage the join immediately, then consume again after startup as a safety
     // net so a cold host cannot drop the Day View intent.
-    _schedulePendingMaatJoinDayViewIfAny();
+    _schedulePendingStagedFlowDayViewIfAny();
   }
 
   Future<void> _runStartupPipeline(String reason) async {
@@ -28922,21 +29042,7 @@ class CalendarPageState extends State<CalendarPage>
         aiMetadata: r.aiMetadata,
       );
 
-      saved = _Flow(
-        id: savedId,
-        calendarId: r.savedFlow!.calendarId,
-        name: r.savedFlow!.name,
-        color: r.savedFlow!.color,
-        active: r.savedFlow!.active,
-        isSaved: r.savedFlow!.isSaved,
-        savedAt: r.savedFlow!.savedAt,
-        rules: r.savedFlow!.rules,
-        start: r.savedFlow!.start,
-        end: r.savedFlow!.end,
-        notes: r.savedFlow!.notes,
-        shareId: r.savedFlow!.shareId,
-        isHidden: r.savedFlow!.isHidden, // Preserve hidden status
-      );
+      saved = CalendarPage._savedFlowForStudioResult(r.savedFlow!, savedId);
 
       final idx = _flows.indexWhere((f) => f.id == savedId);
       if (idx >= 0) {
@@ -28963,7 +29069,6 @@ class CalendarPageState extends State<CalendarPage>
         : oldFlowRow!.aiMetadata?['generated'];
     final isAIFlow = aiGenerated is bool && aiGenerated;
     String? firstClientEventId;
-    String? notificationWarning;
     bool flowAdditionNotified = false;
     bool generationCommitted = false;
 
@@ -28986,48 +29091,6 @@ class CalendarPageState extends State<CalendarPage>
           );
         }
       }
-    }
-
-    Future<void> rollbackNewFlowSave(
-      Object error,
-      StackTrace stackTrace,
-    ) async {
-      if (!isNewFlowSave || saved == null) return;
-      final savedFlow = saved;
-      if (kDebugMode) {
-        _calendarDebugPrint(
-          '[persistFlowStudio] Rolling back new flow ${savedFlow.id} after planned-note save failed: $error',
-        );
-        _calendarDebugPrint('$stackTrace');
-      }
-      try {
-        await repo.deleteByFlowId(
-          savedFlow.id,
-          semantic: 'flow_save_rollback',
-          suppressesClient: false,
-          sourceFeature: 'CalendarPage._persistFlowStudioResult',
-          deleteScope: 'failed_new_flow_save',
-        );
-      } catch (rollbackError) {
-        if (kDebugMode) {
-          _calendarDebugPrint(
-            '[persistFlowStudio] rollback deleteByFlowId failed: $rollbackError',
-          );
-        }
-      }
-      try {
-        await repo.deleteFlow(savedFlow.id);
-      } catch (rollbackError) {
-        if (kDebugMode) {
-          _calendarDebugPrint(
-            '[persistFlowStudio] rollback deleteFlow failed: $rollbackError',
-          );
-        }
-      }
-      _removeLocalNotesForFlowReplacement(savedFlow.id);
-      _flows.removeWhere((flow) => flow.id == savedFlow.id);
-      if (mounted) setState(() {});
-      _notifyDayViewDataChanged();
     }
 
     Future<void> notifyFlowAdditionIfNeeded() async {
@@ -29056,13 +29119,16 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     if (r.plannedNotes.isNotEmpty) {
-      final repo2 = UserEventsRepo(Supabase.instance.client);
+      final savedFlow = saved;
+      if (savedFlow == null) {
+        throw StateError('Planned Flow Studio notes require a saved flow.');
+      }
 
       // Concrete planned-note edits replace the occurrence set. The CIDs include
       // event time, so stale rows must be retired before new times are written.
-      if (flowId > 0) {
+      if (!isNewFlowSave) {
         try {
-          await repo2.deleteByFlowId(
+          await repo.deleteByFlowId(
             flowId,
             semantic: 'flow_replace',
             suppressesClient: false,
@@ -29084,126 +29150,101 @@ class CalendarPageState extends State<CalendarPage>
         }
       }
 
-      try {
-        for (final p in r.plannedNotes) {
-          final n = p.note;
-          final noteFlowId = n.flowId ?? flowId;
-
-          // Add to in-memory notes
-          _addNote(
-            p.ky,
-            p.km,
-            p.kd,
-            n.title,
-            n.detail,
-            calendarId: flowCalendarId,
+      final writes = <PlannedNoteWrite>[
+        for (final planned in r.plannedNotes)
+          CalendarPage._flowStudioPlannedNoteWrite(
+            planned: planned,
+            localFlow: savedFlow,
             calendarName: flowCalendarName,
-            location: n.location,
-            allDay: n.allDay,
-            start: n.start,
-            end: n.end,
-            flowId: noteFlowId >= 0 ? noteFlowId : null,
-            category: n.category,
-            alertOffsetMinutes: n.alertOffsetMinutes,
-          );
-
-          // Persist to database
-          final cid = EventCidUtil.buildClientEventId(
-            ky: p.ky,
-            km: p.km,
-            kd: p.kd,
-            title: n.title,
-            startHour: n.start?.hour ?? 9,
-            startMinute: n.start?.minute ?? 0,
-            allDay: n.allDay,
-            flowId: noteFlowId,
-          );
-
-          final gDay = KemeticMath.toGregorian(p.ky, p.km, p.kd);
-          final startsAt = DateTime(
-            gDay.year,
-            gDay.month,
-            gDay.day,
-            n.start?.hour ?? 9,
-            n.start?.minute ?? 0,
-          );
-
-          DateTime? endsAt;
-          if (!n.allDay && n.end != null) {
-            endsAt = DateTime(
-              gDay.year,
-              gDay.month,
-              gDay.day,
-              n.end!.hour,
-              n.end!.minute,
-            );
-          } else if (!n.allDay) {
-            endsAt = startsAt.add(const Duration(hours: 1));
-          }
-
-          final trimmedDetail = (n.detail ?? '').trim();
-          final baseDetail = trimmedDetail.isEmpty ? null : trimmedDetail;
-          final detailWithMeta = _encodeDetailWithMeta(
-            baseDetail,
-            alertMinutes: n.alertOffsetMinutes,
-          );
-          final detailToSave = detailWithMeta ?? baseDetail;
-
-          final savedEvent = await repo2.upsertByClientId(
-            clientEventId: cid,
-            title: n.title,
-            startsAtUtc: startsAt.toUtc(),
-            detail: detailToSave,
-            location: (n.location ?? '').trim().isEmpty ? null : n.location,
-            allDay: n.allDay,
-            endsAtUtc: endsAt?.toUtc(),
-            calendarId: flowCalendarId,
-            flowLocalId: noteFlowId >= 0 ? noteFlowId : null,
-            category: n.category,
-            actionId: n.actionId,
-            behaviorPayload: n.behaviorPayload,
-            caller: 'persist_flow_studio',
-          );
-          firstClientEventId ??= savedEvent.clientEventId ?? cid;
-
-          final scheduleResult = await _scheduleAlertForEvent(
-            note: n.copyWith(
-              calendarId: flowCalendarId,
-              calendarName: flowCalendarName,
+            persistedDetail: _encodeDetailWithMeta(
+              (planned.note.detail ?? '').trim().isEmpty
+                  ? null
+                  : planned.note.detail,
+              alertMinutes: planned.note.alertOffsetMinutes,
             ),
-            ky: p.ky,
-            km: p.km,
-            kd: p.kd,
-            clientEventId: savedEvent.clientEventId ?? cid,
-            eventId: savedEvent.id,
+            caller: 'flow_studio_deferred',
+          ),
+      ];
+      firstClientEventId = writes.first.clientEventId;
+      final staged = FlowJoinService(userEventsRepo: repo)
+          .stagePlannedNotesAndDeferPersist(
+            flowId: savedFlow.id,
+            localFlow: savedFlow,
+            writes: writes,
+            invalidationReason: CalendarInvalidationReason.flowStudioPersisted,
+            additionalPersistence: () async {
+              await commitGenerationIfNeeded();
+              await ensureSharedExperienceIfNeeded();
+              try {
+                if (isNewFlowSave) {
+                  await notifyFlowAdditionIfNeeded();
+                } else {
+                  await _notifySharedCalendarMembers(
+                    calendarId: savedFlow.calendarId,
+                    title: _calendarDisplayName(savedFlow.calendarId),
+                    body: 'Flow updated: ${savedFlow.name}',
+                    clientEventId: firstClientEventId,
+                    data: <String, dynamic>{'flow_id': savedFlow.id},
+                  );
+                }
+              } catch (error, stackTrace) {
+                if (kDebugMode) {
+                  _calendarDebugPrint(
+                    '[persistFlowStudio] shared notification failed: $error',
+                  );
+                  _calendarDebugPrint('$stackTrace');
+                }
+              }
+            },
           );
-          if (scheduleResult?.needsUserVisibleWarning == true) {
-            notificationWarning ??= scheduleResult?.message;
-          }
-        }
-      } catch (error, stackTrace) {
-        await rollbackNewFlowSave(error, stackTrace);
-        rethrow;
+      final persist = staged.persistInBackground;
+      if (persist == null || staged._plannedNotes.isEmpty) {
+        throw StateError('Flow ${savedFlow.id} did not produce staged notes.');
       }
+      CalendarPage._stageFlowForDeferredPersistence(
+        _PendingStagedFlow(
+          flowId: savedFlow.id,
+          localFlow: savedFlow,
+          plannedNotes: staged._plannedNotes,
+          persist: persist,
+          rollback: (state) async {
+            if (!isNewFlowSave) {
+              final liveState = state;
+              if (liveState != null) {
+                await liveState._loadFromDisk(
+                  source: 'flow_studio_edit_persist_failure',
+                );
+              }
+              return;
+            }
+            final liveState = state;
+            if (liveState != null) {
+              await liveState._rollbackStagedFlowLocally(
+                savedFlow.id,
+                repo: repo,
+                failureMessage: 'Could not create ${savedFlow.name}.',
+              );
+            }
+          },
+        ),
+      );
+      _applyPendingStagedFlow(savedFlow.id);
+
+      // Editing deliberately never navigates to Day View, including edits
+      // that add days. Only a direct Studio create with staged events arms the
+      // completion intent; persistence begins after its first Day View frame.
+      if (CalendarPage._isDirectFlowStudioCreateWithEvents(r)) {
+        CalendarPage._pendingStagedFlowDayViewFlowId = savedFlow.id;
+      } else {
+        CalendarPage._startStagedFlowPersistence(savedFlow.id);
+      }
+      return savedFlow.id;
     }
 
-    // Use shared scheduler for flow notes if we have a saved flow
+    // Use shared scheduler for rule-only flows that did not return concrete
+    // planned notes. PR 2's rules-materialize acceptance is the stop-the-line
+    // gate before this producer can move onto the universal write API.
     if (saved != null && saved.active && saved.rules.isNotEmpty) {
-      // If we have planned notes, skip rule-based scheduling to preserve titles/times.
-      if (r.plannedNotes.isNotEmpty) {
-        if (kDebugMode) {
-          _calendarDebugPrint(
-            '[persistFlowStudio] ✅ Skipping scheduleFlowNotes - using plannedNotes with individual titles',
-          );
-        }
-        await commitGenerationIfNeeded();
-        await ensureSharedExperienceIfNeeded();
-        await notifyFlowAdditionIfNeeded();
-        setState(() {});
-        _notifyDayViewDataChanged();
-        _showNotificationScheduleWarning(notificationWarning);
-        return saved.id;
-      }
       // If rules list was cleared (e.g., snapshot-only imports), skip scheduling.
       if (saved.rules.isEmpty) {
         if (kDebugMode) {
@@ -29259,14 +29300,12 @@ class CalendarPageState extends State<CalendarPage>
                 '[persistFlowStudio] ✅ Scheduled recurring notes for flow ${saved.id}',
               );
             }
-            if (firstClientEventId == null) {
-              try {
-                final events = await repo.getEventsForFlow(saved.id);
-                if (events.isNotEmpty) {
-                  firstClientEventId = events.first.clientEventId;
-                }
-              } catch (_) {}
-            }
+            try {
+              final events = await repo.getEventsForFlow(saved.id);
+              if (events.isNotEmpty) {
+                firstClientEventId = events.first.clientEventId;
+              }
+            } catch (_) {}
           }
 
           // TODO: Add analytics once analytics service is integrated
@@ -29309,7 +29348,6 @@ class CalendarPageState extends State<CalendarPage>
 
     setState(() {});
     _notifyDayViewDataChanged();
-    _showNotificationScheduleWarning(notificationWarning);
     return saved?.id;
   }
 

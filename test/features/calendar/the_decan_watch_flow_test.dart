@@ -259,7 +259,7 @@ void main() {
     );
     expect(calendarPage, isNot(contains('decanWatchEnrollmentIsOpen')));
     expect(joinService, contains('decanWatchClientEventId'));
-    expect(joinService, contains('_stageAndDeferPersist('));
+    expect(joinService, contains('stagePlannedNotesAndDeferPersist('));
     expect(detailPage, contains('_pickDecanWatchWindowDate'));
     expect(detailPage, contains('designated decan-opening enrollment windows'));
     expect(detailPage, contains('Add Flow'));

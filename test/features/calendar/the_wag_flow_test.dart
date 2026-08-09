@@ -297,7 +297,7 @@ void main() {
       expect(pageSource, isNot(contains('wagEnrollmentIsOpen')));
       expect(schedulerSource, contains('wagEventGregorian'));
       expect(joinSource, contains('wag_kyear='));
-      expect(joinSource, contains('_stageAndDeferPersist('));
+      expect(joinSource, contains('stagePlannedNotesAndDeferPersist('));
       expect(
         joinSource,
         isNot(contains('startDate.add(Duration(days: event.kemeticDay')),

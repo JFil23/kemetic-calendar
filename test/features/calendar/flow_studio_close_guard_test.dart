@@ -220,7 +220,19 @@ void main() {
           'final flowCalendarId = saved?.calendarId ?? r.savedFlow?.calendarId;',
         ),
       );
-      expect(persistSection, contains('calendarId: flowCalendarId,'));
+      expect(persistSection, contains('localFlow: savedFlow,'));
+      final writeHelperStart = calendarPageSource.indexOf(
+        'static PlannedNoteWrite _flowStudioPlannedNoteWrite',
+      );
+      final writeHelperEnd = calendarPageSource.indexOf(
+        'static _Flow _savedFlowForStudioResult',
+        writeHelperStart,
+      );
+      final writeHelper = calendarPageSource.substring(
+        writeHelperStart,
+        writeHelperEnd,
+      );
+      expect(writeHelper, contains('calendarId: localFlow.calendarId,'));
     },
   );
 }

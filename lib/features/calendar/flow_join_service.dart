@@ -276,8 +276,8 @@ class FlowJoinResult {
   int get flowIdOrNegativeOne => succeeded ? flowId! : -1;
 }
 
-class _DeferredJoinEventWrite {
-  _DeferredJoinEventWrite({
+class PlannedNoteWrite {
+  PlannedNoteWrite({
     required this.clientEventId,
     required this.title,
     required this.startsAtUtc,
@@ -285,13 +285,22 @@ class _DeferredJoinEventWrite {
     required this.startsAtLocal,
     required this.endsAtLocal,
     required this.detail,
+    required this.noteDetail,
+    required this.location,
     required this.allDay,
     required this.calendarId,
+    required this.calendarName,
     required this.flowId,
+    required this.manualColor,
     required this.category,
+    required this.isReminder,
+    required this.reminderId,
     required this.actionId,
     required this.behaviorPayload,
     required this.caller,
+    this.alertBody,
+    this.alertDebugLabel,
+    this.alertOffsetMinutes = kEventFilingNoAlertMinutes,
   });
 
   final String clientEventId;
@@ -300,18 +309,29 @@ class _DeferredJoinEventWrite {
   final DateTime? endsAtUtc;
   final DateTime startsAtLocal;
   final DateTime? endsAtLocal;
+
+  /// Detail encoded for persistence.
   final String? detail;
+
+  /// User-facing detail kept in the staged local note.
+  final String? noteDetail;
+  final String? location;
   final bool allDay;
   final String? calendarId;
+  final String? calendarName;
   final int flowId;
+  final Color? manualColor;
   final String? category;
+  final bool isReminder;
+  final String? reminderId;
   final String? actionId;
   final Map<String, dynamic>? behaviorPayload;
   final String? caller;
+  final String? alertBody;
   String? alertDebugLabel;
-  int? alertOffsetMinutes = kEventFilingNoAlertMinutes;
+  int? alertOffsetMinutes;
 
-  _PlannedNote get plannedNote {
+  _PlannedNote get _plannedNote {
     final day = KemeticMath.fromGregorian(DateUtils.dateOnly(startsAtLocal));
     return _PlannedNote(
       ky: day.kYear,
@@ -320,8 +340,10 @@ class _DeferredJoinEventWrite {
       note: _Note(
         clientEventId: clientEventId,
         calendarId: calendarId,
+        calendarName: calendarName,
         title: title,
-        detail: detail,
+        detail: noteDetail,
+        location: location,
         allDay: allDay,
         start: allDay
             ? null
@@ -330,7 +352,10 @@ class _DeferredJoinEventWrite {
             ? null
             : TimeOfDay(hour: endsAtLocal!.hour, minute: endsAtLocal!.minute),
         flowId: flowId,
+        manualColor: manualColor,
         category: category,
+        isReminder: isReminder,
+        reminderId: reminderId,
         alertOffsetMinutes: alertOffsetMinutes,
         actionId: actionId,
         behaviorPayload: behaviorPayload,
@@ -343,7 +368,7 @@ class _DeferredJoinContext {
   _DeferredJoinContext({required this.localFlow});
 
   final _Flow localFlow;
-  final List<_DeferredJoinEventWrite> writes = <_DeferredJoinEventWrite>[];
+  final List<PlannedNoteWrite> writes = <PlannedNoteWrite>[];
 }
 
 class FlowJoinService {
@@ -659,9 +684,14 @@ class FlowJoinService {
       }
     }
 
-    return _stageAndDeferPersist(
+    final staged = _takeDeferredJoinContext(
       flowId: flowId,
       clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
     );
   }
 
@@ -776,9 +806,14 @@ class FlowJoinService {
         }
       }
     }
-    return _stageAndDeferPersist(
+    final staged = _takeDeferredJoinContext(
       flowId: flowId,
       clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
     );
   }
 
@@ -882,9 +917,14 @@ class FlowJoinService {
       );
     }
 
-    return _stageAndDeferPersist(
+    final staged = _takeDeferredJoinContext(
       flowId: flowId,
       clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
     );
   }
 
@@ -1014,9 +1054,14 @@ class FlowJoinService {
       );
     }
 
-    return _stageAndDeferPersist(
+    final staged = _takeDeferredJoinContext(
       flowId: flowId,
       clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
     );
   }
 
@@ -1151,9 +1196,14 @@ class FlowJoinService {
       );
     }
 
-    return _stageAndDeferPersist(
+    final staged = _takeDeferredJoinContext(
       flowId: flowId,
       clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
     );
   }
 
@@ -1274,9 +1324,14 @@ class FlowJoinService {
       );
     }
 
-    return _stageAndDeferPersist(
+    final staged = _takeDeferredJoinContext(
       flowId: flowId,
       clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
     );
   }
 
@@ -1395,9 +1450,14 @@ class FlowJoinService {
       );
     }
 
-    return _stageAndDeferPersist(
+    final staged = _takeDeferredJoinContext(
       flowId: flowId,
       clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
     );
   }
 
@@ -1513,9 +1573,14 @@ class FlowJoinService {
       );
     }
 
-    return _stageAndDeferPersist(
+    final staged = _takeDeferredJoinContext(
       flowId: flowId,
       clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
     );
   }
 
@@ -1633,9 +1698,14 @@ class FlowJoinService {
       );
     }
 
-    return _stageAndDeferPersist(
+    final staged = _takeDeferredJoinContext(
       flowId: flowId,
       clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
     );
   }
 
@@ -1764,9 +1834,14 @@ class FlowJoinService {
       }
     }
 
-    return _stageAndDeferPersist(
+    final staged = _takeDeferredJoinContext(
       flowId: flowId,
       clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
     );
   }
 
@@ -1902,9 +1977,14 @@ class FlowJoinService {
       }
     }
 
-    return _stageAndDeferPersist(
+    final staged = _takeDeferredJoinContext(
       flowId: flowId,
       clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
     );
   }
 
@@ -2090,9 +2170,14 @@ class FlowJoinService {
       }
     }
 
-    return _stageAndDeferPersist(
+    final staged = _takeDeferredJoinContext(
       flowId: flowId,
       clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
       additionalPersistence:
           trimmedInitialCarry != null && trimmedInitialCarry.isNotEmpty
           ? () => _persistEveningThresholdInitialCarry(
@@ -2224,9 +2309,14 @@ class FlowJoinService {
       }
     }
 
-    return _stageAndDeferPersist(
+    final staged = _takeDeferredJoinContext(
       flowId: flowId,
       clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
     );
   }
 
@@ -2358,9 +2448,14 @@ class FlowJoinService {
       }
     }
 
-    return _stageAndDeferPersist(
+    final staged = _takeDeferredJoinContext(
       flowId: flowId,
       clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
     );
   }
 
@@ -2485,9 +2580,14 @@ class FlowJoinService {
       }
     }
 
-    return _stageAndDeferPersist(
+    final staged = _takeDeferredJoinContext(
       flowId: flowId,
       clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
     );
   }
 
@@ -2611,9 +2711,14 @@ class FlowJoinService {
       }
     }
 
-    return _stageAndDeferPersist(
+    final staged = _takeDeferredJoinContext(
       flowId: flowId,
       clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
     );
   }
 
@@ -2738,9 +2843,14 @@ class FlowJoinService {
       }
     }
 
-    return _stageAndDeferPersist(
+    final staged = _takeDeferredJoinContext(
       flowId: flowId,
       clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
     );
   }
 
@@ -2875,9 +2985,14 @@ class FlowJoinService {
       }
     }
 
-    return _stageAndDeferPersist(
+    final staged = _takeDeferredJoinContext(
       flowId: flowId,
       clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
     );
   }
 
@@ -2908,30 +3023,57 @@ class FlowJoinService {
     );
   }
 
-  FlowJoinResult _stageAndDeferPersist({
+  _DeferredJoinContext _takeDeferredJoinContext({
     required int flowId,
     required List<String> clientEventIds,
-    Future<void> Function()? additionalPersistence,
   }) {
-    final context = _deferredJoinContext;
+    final stagedContext = _deferredJoinContext;
     _deferredJoinContext = null;
-    if (context == null || context.localFlow.id != flowId) {
-      throw StateError('Missing staged Ma\'at join context for flow $flowId.');
+    if (stagedContext == null || stagedContext.localFlow.id != flowId) {
+      throw StateError('Missing staged event context for flow $flowId.');
     }
-    if (context.writes.isEmpty) {
-      throw StateError(
-        'Ma\'at join produced no staged events for flow $flowId.',
-      );
+    final stagedClientEventIds = stagedContext.writes
+        .map((write) => write.clientEventId)
+        .toSet();
+    if (!stagedClientEventIds.containsAll(clientEventIds)) {
+      throw StateError('Staged event IDs do not match flow $flowId.');
     }
-    final writes = List<_DeferredJoinEventWrite>.unmodifiable(context.writes);
+    return stagedContext;
+  }
+
+  // The calendar library intentionally keeps [_Flow] private; this method is
+  // public so every producer uses one origin-neutral staging/persistence API.
+  // ignore: library_private_types_in_public_api
+  FlowJoinResult stagePlannedNotesAndDeferPersist({
+    required int flowId,
+    // ignore: library_private_types_in_public_api
+    required _Flow localFlow,
+    required List<PlannedNoteWrite> writes,
+    Future<void> Function()? additionalPersistence,
+    CalendarInvalidationReason invalidationReason =
+        CalendarInvalidationReason.flowJoined,
+  }) {
+    if (localFlow.id != flowId) {
+      throw StateError('Staged flow ID does not match flow $flowId.');
+    }
+    if (writes.isEmpty) {
+      throw StateError('Flow $flowId produced no staged events.');
+    }
+    if (writes.any((write) => write.flowId != flowId)) {
+      throw StateError('Staged event flow IDs do not match flow $flowId.');
+    }
+    final stagedWrites = List<PlannedNoteWrite>.unmodifiable(writes);
     final plannedNotes = List<_PlannedNote>.unmodifiable(
-      writes.map((write) => write.plannedNote),
+      stagedWrites.map((write) => write._plannedNote),
+    );
+    final clientEventIds = List<String>.unmodifiable(
+      stagedWrites.map((write) => write.clientEventId),
     );
 
     Future<void> persistInBackground() async {
       final injectedUpsert = _upsertEvent;
       if (injectedUpsert != null) {
-        for (final write in writes) {
+        for (final write in stagedWrites) {
           await injectedUpsert(
             clientEventId: write.clientEventId,
             title: write.title,
@@ -2949,12 +3091,13 @@ class FlowJoinService {
         }
       } else {
         final rows = <Map<String, dynamic>>[
-          for (final write in writes)
+          for (final write in stagedWrites)
             _repo.deterministicUpsertPayload(
               clientEventId: write.clientEventId,
               title: write.title,
               startsAtUtc: write.startsAtUtc,
               detail: write.detail,
+              location: write.location,
               allDay: write.allDay,
               endsAtUtc: write.endsAtUtc,
               calendarId: write.calendarId,
@@ -2971,27 +3114,27 @@ class FlowJoinService {
         await additionalPersistence();
       }
       _publishHeadlessCalendarInvalidation(
-        reason: CalendarInvalidationReason.flowJoined,
+        reason: invalidationReason,
         flowId: flowId,
         clientEventIds: clientEventIds,
       );
 
-      for (final write in writes) {
+      for (final write in stagedWrites) {
         final alertOffset = write.alertOffsetMinutes;
         if (alertOffset == kEventFilingNoAlertMinutes) continue;
         unawaited(
           _fileHeadlessEventDelivery(
             eventFiling: _eventFiling,
-            debugLabel: write.alertDebugLabel ?? 'maatJoinHeadless',
+            debugLabel: write.alertDebugLabel ?? 'stagedFlowPersist',
             clientEventId: write.clientEventId,
             startsAtLocal: write.startsAtLocal,
             alertOffsetMinutes: alertOffset,
             title: write.title,
-            body: write.detail,
+            body: write.alertBody ?? write.noteDetail,
           ).catchError((Object error, StackTrace stackTrace) {
             if (kDebugMode) {
               _calendarDebugPrint(
-                '[maatFlowJoin] background alert filing failed: $error',
+                '[stagedFlowPersist] background alert filing failed: $error',
               );
               _calendarDebugPrint('$stackTrace');
             }
@@ -3002,8 +3145,8 @@ class FlowJoinService {
 
     return FlowJoinResult._fastPathSuccess(
       flowId: flowId,
-      clientEventIds: List<String>.unmodifiable(clientEventIds),
-      localFlow: context.localFlow,
+      clientEventIds: clientEventIds,
+      localFlow: localFlow,
       plannedNotes: plannedNotes,
       persistInBackground: persistInBackground,
     );
@@ -3091,10 +3234,10 @@ class FlowJoinService {
   }) async {
     final context = _deferredJoinContext;
     if (context == null || flowLocalId == null) {
-      throw StateError('Event write attempted without a staged Ma\'at flow.');
+      throw StateError('Event write attempted without a staged flow.');
     }
     context.writes.add(
-      _DeferredJoinEventWrite(
+      PlannedNoteWrite(
         clientEventId: clientEventId,
         title: title,
         startsAtUtc: startsAtUtc,
@@ -3102,10 +3245,16 @@ class FlowJoinService {
         startsAtLocal: startsAtLocal,
         endsAtLocal: endsAtLocal,
         detail: detail,
+        noteDetail: detail,
+        location: null,
         allDay: allDay,
         calendarId: calendarId,
+        calendarName: null,
         flowId: flowLocalId,
+        manualColor: null,
         category: category,
+        isReminder: false,
+        reminderId: null,
         actionId: actionId,
         behaviorPayload: behaviorPayload,
         caller: caller,

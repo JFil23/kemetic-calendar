@@ -253,7 +253,7 @@ void main() {
     expect(branch, contains('_courseScheduleForDate'));
     expect(branch, contains('courseContextForKemeticDate'));
     expect(branch, contains('await _upsertEventRow('));
-    expect(branch, contains('return _stageAndDeferPersist('));
+    expect(branch, contains('return stagePlannedNotesAndDeferPersist('));
     expect(branch, isNot(contains('_repo.deterministicUpsertPayload')));
     expect(branch, contains('firstGregorian.add(const Duration(days: 29))'));
     expect(branch, isNot(contains('kDawnHouseRiteDays')));

@@ -270,7 +270,7 @@ void main() {
 
     expect(method, contains('_keptWordEvents'));
     expect(method, contains('await _upsertEventRow('));
-    expect(method, contains('_stageAndDeferPersist('));
+    expect(method, contains('stagePlannedNotesAndDeferPersist('));
     expect(method, isNot(contains('await _repo.upsertManyDeterministic')));
     expect(method, contains('firstGregorian.add(const Duration(days: 29))'));
     expect(method, isNot(contains('kDawnHouseRiteDays')));
