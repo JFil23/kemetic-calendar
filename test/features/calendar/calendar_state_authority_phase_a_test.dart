@@ -16,13 +16,12 @@ void main() {
   });
 
   test('Phase 0 baseline encoder exists for CI capture', () {
-    expect(
-      calendarPageSource,
-      contains('debugCanonicalHydrationBaselineJson'),
-    );
+    expect(calendarPageSource, contains('debugCanonicalHydrationBaselineJson'));
     expect(calendarPageSource, contains("copy.remove('resolvedColor')"));
     expect(
-      File('test/features/calendar/fixtures/hydration_baseline.json').existsSync(),
+      File(
+        'test/features/calendar/fixtures/hydration_baseline.json',
+      ).existsSync(),
       isTrue,
     );
   });
@@ -99,49 +98,70 @@ void main() {
     );
   });
 
-  test('PR5 routes tombstone and reminder prefs through CalendarUserScopedPrefs', () {
-    expect(
-      calendarPageSource,
-      contains('CalendarUserScopedPrefs.readStringList'),
-    );
-    expect(
-      calendarPageSource,
-      contains('CalendarUserScopedPrefs.writeStringList'),
-    );
-    expect(calendarPageSource, contains('CalendarUserScopedPrefs.readBool'));
-    expect(
-      File('lib/features/calendar/calendar_user_scoped_prefs.dart').existsSync(),
-      isTrue,
-    );
-  });
+  test(
+    'PR5 routes tombstone and reminder prefs through CalendarUserScopedPrefs',
+    () {
+      expect(
+        calendarPageSource,
+        contains('CalendarUserScopedPrefs.readStringList'),
+      );
+      expect(
+        calendarPageSource,
+        contains('CalendarUserScopedPrefs.writeStringList'),
+      );
+      expect(calendarPageSource, contains('CalendarUserScopedPrefs.readBool'));
+      expect(
+        File(
+          'lib/features/calendar/calendar_user_scoped_prefs.dart',
+        ).existsSync(),
+        isTrue,
+      );
+    },
+  );
 
-  test('PR6 wires CalendarLoadCoordinator and epoch/same-user commit guards', () {
-    expect(
-      File('lib/features/calendar/calendar_load_coordinator.dart').existsSync(),
-      isTrue,
-    );
-    expect(calendarPageSource, contains('CalendarLoadCoordinator _loadCoordinator'));
-    expect(calendarPageSource.contains('_isLoadingFromDisk'), isFalse);
-    expect(calendarPageSource.contains('_flushCalendarInvalidationReload'), isFalse);
-    expect(
-      calendarPageSource,
-      contains("_loadCoordinator.invalidate(reason: 'signed_out')"),
-    );
-    expect(
-      RegExp(
-        r"if \(!_loadCoordinator\.isCurrent\(epoch\)\) return;\n"
-        r"\s+if \(_activeWarmStartUserId\(\) != loadUserId\) return;",
-      ).allMatches(calendarPageSource).length,
-      2,
-    );
-  });
+  test(
+    'PR6 wires CalendarLoadCoordinator and epoch/same-user commit guards',
+    () {
+      expect(
+        File(
+          'lib/features/calendar/calendar_load_coordinator.dart',
+        ).existsSync(),
+        isTrue,
+      );
+      expect(
+        calendarPageSource,
+        contains('CalendarLoadCoordinator _loadCoordinator'),
+      );
+      expect(calendarPageSource.contains('_isLoadingFromDisk'), isFalse);
+      expect(
+        calendarPageSource.contains('_flushCalendarInvalidationReload'),
+        isFalse,
+      );
+      expect(
+        calendarPageSource,
+        contains("_loadCoordinator.invalidate(reason: 'signed_out')"),
+      );
+      expect(
+        RegExp(
+          r"if \(!_loadCoordinator\.isCurrent\(epoch\)\) return;\n"
+          r"\s+if \(_activeWarmStartUserId\(\) != loadUserId\) return;",
+        ).allMatches(calendarPageSource).length,
+        2,
+      );
+    },
+  );
 
   test('PR7 wires unconfirmed ledger after PR6 commit guards', () {
     expect(
-      File('lib/features/calendar/calendar_unconfirmed_notes.dart').existsSync(),
+      File(
+        'lib/features/calendar/calendar_unconfirmed_notes.dart',
+      ).existsSync(),
       isTrue,
     );
-    expect(calendarPageSource, contains("part 'calendar_unconfirmed_notes.dart';"));
+    expect(
+      calendarPageSource,
+      contains("part 'calendar_unconfirmed_notes.dart';"),
+    );
     expect(calendarPageSource, contains('_UnconfirmedNoteLedger _unconfirmed'));
     expect(calendarPageSource, contains('_unconfirmed.clear()'));
     expect(
@@ -149,11 +169,11 @@ void main() {
       contains('confirmation: NoteConfirmation.unconfirmed'),
     );
     expect(
-      RegExp(r'confirmation:\s*NoteConfirmation\.unconfirmed')
-          .allMatches(calendarPageSource)
-          .length,
-      1,
-      reason: 'only _saveSingleNoteOnly should tag unconfirmed',
+      RegExp(
+        r'confirmation:\s*NoteConfirmation\.unconfirmed',
+      ).allMatches(calendarPageSource).length,
+      2,
+      reason: 'standalone saves and staged Ma_at joins must survive hydration',
     );
     final commitStart = calendarPageSource.indexOf(
       'void commitVisibleCalendarState(',
@@ -168,9 +188,7 @@ void main() {
     expect(
       commitSlice.indexOf('_unconfirmed.mergeInto('),
       greaterThan(
-        commitSlice.indexOf(
-          'if (!_loadCoordinator.isCurrent(epoch)) return;',
-        ),
+        commitSlice.indexOf('if (!_loadCoordinator.isCurrent(epoch)) return;'),
       ),
     );
   });
@@ -194,10 +212,11 @@ void main() {
   test('PR6.5 extracts maat join rollback into one helper', () {
     expect(calendarPageSource, contains('_rollbackJoinedFlowLocally'));
     expect(
-      RegExp(r'await _rollbackJoinedFlowLocally\(')
-          .allMatches(calendarPageSource)
-          .length,
-      15,
+      RegExp(
+        r'await (?:state\.)?_rollbackJoinedFlowLocally\(',
+      ).allMatches(calendarPageSource).length,
+      1,
+      reason: 'all Ma_at join failures must use the centralized rollback',
     );
     final helper = calendarPageSource.substring(
       calendarPageSource.indexOf('Future<void> _rollbackJoinedFlowLocally('),
@@ -206,7 +225,10 @@ void main() {
       ),
     );
     expect(helper, contains('_flows.removeWhere'));
-    expect(helper, contains('notes.removeWhere((note) => note.flowId == serverFlowId)'));
+    expect(
+      helper,
+      contains('notes.removeWhere((note) => note.flowId == serverFlowId)'),
+    );
     expect(helper, contains('await repo.deleteFlow(serverFlowId)'));
     expect(
       helper.contains('_removeLocalNotesForFlowReplacement('),

@@ -242,15 +242,19 @@ void main() {
     final pageSource = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
+    final joinSource = File(
+      'lib/features/calendar/flow_join_service.dart',
+    ).readAsStringSync();
 
     expect(detailSource, contains('_pickMoonReturnWindowDate'));
     expect(detailSource, contains('designated new-moon enrollment windows'));
     expect(detailSource, contains('Add Flow'));
     expect(pageSource, contains('_MaatFlowTemplateKind.moonReturn'));
-    expect(pageSource, contains('_resolveMountedMoonReturnJoinWindow'));
-    expect(pageSource, contains('resolveMoonReturnEnrollmentWindowSafely'));
+    expect(pageSource, contains('joinMoonReturnHeadless'));
+    expect(joinSource, contains('resolveMoonReturnEnrollmentWindowSafely'));
     expect(pageSource, isNot(contains('moonReturnEnrollmentIsOpen')));
-    expect(pageSource, contains('moonReturnClientEventId'));
+    expect(joinSource, contains('moonReturnClientEventId'));
+    expect(joinSource, contains('_stageAndDeferPersist('));
     expect(pageSource, isNot(contains('kMoonReturnDays')));
   });
 }

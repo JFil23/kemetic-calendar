@@ -338,6 +338,9 @@ void main() {
     final pageSource = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
+    final joinSource = File(
+      'lib/features/calendar/flow_join_service.dart',
+    ).readAsStringSync();
     final schedulerSource = File(
       'lib/features/calendar/the_days_outside_year_scheduler.dart',
     ).readAsStringSync();
@@ -351,16 +354,17 @@ void main() {
     expect(detailSource, isNot(contains('Closing Kemetic Year')));
     expect(detailSource, isNot(contains('Kemetic Year')));
     expect(pageSource, contains('_MaatFlowTemplateKind.daysOutsideTheYear'));
-    expect(pageSource, contains('_resolveMountedDaysOutsideYearJoinWindow'));
+    expect(pageSource, contains('joinDaysOutsideYearHeadless'));
     expect(
-      pageSource,
+      joinSource,
       contains('resolveDaysOutsideYearEnrollmentWindowSafely'),
     );
     expect(pageSource, isNot(contains('daysOutsideYearEnrollmentIsOpen')));
-    expect(pageSource, contains('doy_kyear='));
+    expect(joinSource, contains('doy_kyear='));
+    expect(joinSource, contains('_stageAndDeferPersist('));
     expect(schedulerSource, contains('daysOutsideEventGregorian'));
     expect(
-      pageSource,
+      joinSource,
       isNot(contains('startDate.add(Duration(days: event.eventNumber')),
     );
   });

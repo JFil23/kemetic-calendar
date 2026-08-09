@@ -276,18 +276,74 @@ class FlowJoinResult {
   int get flowIdOrNegativeOne => succeeded ? flowId! : -1;
 }
 
-class _DeferredCourseEventWrite {
-  const _DeferredCourseEventWrite({
-    required this.plannedNote,
+class _DeferredJoinEventWrite {
+  _DeferredJoinEventWrite({
+    required this.clientEventId,
+    required this.title,
     required this.startsAtUtc,
     required this.endsAtUtc,
     required this.startsAtLocal,
+    required this.endsAtLocal,
+    required this.detail,
+    required this.allDay,
+    required this.calendarId,
+    required this.flowId,
+    required this.category,
+    required this.actionId,
+    required this.behaviorPayload,
+    required this.caller,
   });
 
-  final _PlannedNote plannedNote;
+  final String clientEventId;
+  final String title;
   final DateTime startsAtUtc;
-  final DateTime endsAtUtc;
+  final DateTime? endsAtUtc;
   final DateTime startsAtLocal;
+  final DateTime? endsAtLocal;
+  final String? detail;
+  final bool allDay;
+  final String? calendarId;
+  final int flowId;
+  final String? category;
+  final String? actionId;
+  final Map<String, dynamic>? behaviorPayload;
+  final String? caller;
+  String? alertDebugLabel;
+  int? alertOffsetMinutes = kEventFilingNoAlertMinutes;
+
+  _PlannedNote get plannedNote {
+    final day = KemeticMath.fromGregorian(DateUtils.dateOnly(startsAtLocal));
+    return _PlannedNote(
+      ky: day.kYear,
+      km: day.kMonth,
+      kd: day.kDay,
+      note: _Note(
+        clientEventId: clientEventId,
+        calendarId: calendarId,
+        title: title,
+        detail: detail,
+        allDay: allDay,
+        start: allDay
+            ? null
+            : TimeOfDay(hour: startsAtLocal.hour, minute: startsAtLocal.minute),
+        end: allDay || endsAtLocal == null
+            ? null
+            : TimeOfDay(hour: endsAtLocal!.hour, minute: endsAtLocal!.minute),
+        flowId: flowId,
+        category: category,
+        alertOffsetMinutes: alertOffsetMinutes,
+        actionId: actionId,
+        behaviorPayload: behaviorPayload,
+      ),
+    );
+  }
+}
+
+class _DeferredJoinContext {
+  _DeferredJoinContext({required this.localFlow});
+
+  final _Flow localFlow;
+  final List<_DeferredJoinEventWrite> writes = <_DeferredJoinEventWrite>[];
 }
 
 class FlowJoinService {
@@ -492,6 +548,7 @@ class FlowJoinService {
   final CourseStartDateResolver _resolveTheCourseDefaultStartDate;
   final CourseScheduleResolver _courseScheduleForDate;
   final List<CourseEvent> _courseEvents;
+  _DeferredJoinContext? _deferredJoinContext;
 
   UserEventsRepo get _repo =>
       _userEventsRepo ?? UserEventsRepo(Supabase.instance.client);
@@ -509,6 +566,219 @@ class FlowJoinService {
       localDate: localDate,
       chosenReturn: carryText,
       source: 'initial_enrollment',
+    );
+  }
+
+  Future<FlowJoinResult> joinTrackSkyHeadless({
+    required String templateKey,
+    required String templateTitle,
+    required String templateOverview,
+    required Color templateColor,
+    required String? personalCalendarId,
+    required TrackSkyTimeZone timezone,
+    int alertOffsetMinutes = kEventFilingNoAlertMinutes,
+  }) async {
+    final flowData = await loadTrackSkyFlowData(timezone);
+    final events = upcomingTrackSkyEvents(flowData);
+    if (events.isEmpty) {
+      return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
+    }
+    final dates = <DateTime>{
+      for (final event in events)
+        DateUtils.dateOnly(trackSkyEventStartLocal(event, timezone)),
+    };
+    final orderedDates = dates.toList()..sort();
+    final notes = [
+      'mode=gregorian',
+      'split=1',
+      if (templateOverview.trim().isNotEmpty)
+        'ov=${Uri.encodeComponent(templateOverview.trim())}',
+      'maat=$templateKey',
+      'sky_tz=${timezone.key}',
+    ].join(';');
+    final flowId = await _upsertFlowRow(
+      id: null,
+      name: templateTitle,
+      color: templateColor.toARGB32(),
+      active: true,
+      calendarId: personalCalendarId,
+      startDate: orderedDates.first,
+      endDate: orderedDates.last,
+      notes: notes,
+      rules: jsonEncode(
+        <FlowRule>[
+          _RuleDates(dates: dates),
+        ].map(CalendarPageState.ruleToJson).toList(),
+      ),
+      originType: 'template',
+    );
+
+    final clientEventIds = <String>[];
+    for (final event in events) {
+      final startsAtLocal = trackSkyEventStartLocal(event, timezone);
+      final endsAtLocal = trackSkyEventEndLocal(event, timezone);
+      final day = KemeticMath.fromGregorian(DateUtils.dateOnly(startsAtLocal));
+      final clientEventId = EventCidUtil.buildClientEventId(
+        ky: day.kYear,
+        km: day.kMonth,
+        kd: day.kDay,
+        title: event.title,
+        startHour: startsAtLocal.hour,
+        startMinute: startsAtLocal.minute,
+        allDay: event.schedule.allDay,
+        flowId: flowId,
+      );
+      final detail = _encodeDetailWithMeta(
+        event.detailText,
+        alertMinutes: alertOffsetMinutes,
+      );
+      await _upsertEventRow(
+        clientEventId: clientEventId,
+        title: event.title,
+        startsAtUtc: trackSkyEventStartUtc(event, timezone),
+        startsAtLocal: startsAtLocal,
+        detail: detail,
+        allDay: event.schedule.allDay,
+        endsAtUtc: trackSkyEventEndUtc(event, timezone),
+        endsAtLocal: endsAtLocal,
+        calendarId: personalCalendarId,
+        flowLocalId: flowId,
+        category: event.category,
+        caller: 'track_sky_join_headless',
+      );
+      clientEventIds.add(clientEventId);
+      if (alertOffsetMinutes != kEventFilingNoAlertMinutes) {
+        await _fileHeadlessJoinDelivery(
+          debugLabel: 'trackSkyHeadless',
+          clientEventId: clientEventId,
+          startsAtLocal: startsAtLocal,
+          alertOffsetMinutes: alertOffsetMinutes,
+          title: event.title,
+          body: detail,
+        );
+      }
+    }
+
+    return _stageAndDeferPersist(
+      flowId: flowId,
+      clientEventIds: clientEventIds,
+    );
+  }
+
+  Future<FlowJoinResult> _joinSequenceHeadless({
+    required _MaatFlowTemplate template,
+    required String? personalCalendarId,
+    required DateTime startDate,
+    required bool useKemetic,
+    int alertOffsetMinutes = kEventFilingNoAlertMinutes,
+  }) async {
+    final firstGregorian = useKemetic
+        ? (() {
+            final kemetic = KemeticMath.fromGregorian(startDate);
+            return KemeticMath.toGregorian(
+              kemetic.kYear,
+              kemetic.kMonth,
+              kemetic.kDay,
+            );
+          })()
+        : DateUtils.dateOnly(startDate);
+    final dates = <DateTime>{
+      for (var i = 0; i < template.days.length; i++)
+        DateUtils.dateOnly(firstGregorian.add(Duration(days: i))),
+    };
+    if (dates.isEmpty || template.days.every((day) => day.notes.isEmpty)) {
+      return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
+    }
+    final orderedDates = dates.toList()..sort();
+    final notes = [
+      useKemetic ? 'mode=kemetic' : 'mode=gregorian',
+      'split=1',
+      if (template.overview.trim().isNotEmpty)
+        'ov=${Uri.encodeComponent(template.overview.trim())}',
+      'maat=${template.key}',
+    ].join(';');
+    final rules = <FlowRule>[
+      _RuleDates(
+        dates: dates,
+        allDay: false,
+        start: const TimeOfDay(hour: 9, minute: 0),
+        end: const TimeOfDay(hour: 10, minute: 0),
+      ),
+    ];
+    final flowId = await _upsertFlowRow(
+      id: null,
+      name: template.title,
+      color: template.color.toARGB32(),
+      active: true,
+      calendarId: personalCalendarId,
+      startDate: orderedDates.first,
+      endDate: orderedDates.last,
+      notes: notes,
+      rules: jsonEncode(rules.map(CalendarPageState.ruleToJson).toList()),
+      originType: 'template',
+    );
+
+    final clientEventIds = <String>[];
+    for (var dayIndex = 0; dayIndex < template.days.length; dayIndex++) {
+      final gregorian = orderedDates[dayIndex];
+      final kemetic = KemeticMath.fromGregorian(gregorian);
+      for (final slot in template.days[dayIndex].notes) {
+        final startsAtLocal = DateTime(
+          gregorian.year,
+          gregorian.month,
+          gregorian.day,
+          slot.start.hour,
+          slot.start.minute,
+        );
+        var endsAtLocal = DateTime(
+          gregorian.year,
+          gregorian.month,
+          gregorian.day,
+          slot.end.hour,
+          slot.end.minute,
+        );
+        if (!endsAtLocal.isAfter(startsAtLocal)) {
+          endsAtLocal = endsAtLocal.add(const Duration(days: 1));
+        }
+        final clientEventId = EventCidUtil.buildClientEventId(
+          ky: kemetic.kYear,
+          km: kemetic.kMonth,
+          kd: kemetic.kDay,
+          title: slot.title,
+          startHour: slot.start.hour,
+          startMinute: slot.start.minute,
+          allDay: false,
+          flowId: flowId,
+        );
+        await _upsertEventRow(
+          clientEventId: clientEventId,
+          title: slot.title,
+          startsAtUtc: startsAtLocal.toUtc(),
+          startsAtLocal: startsAtLocal,
+          detail: slot.detail,
+          allDay: false,
+          endsAtUtc: endsAtLocal.toUtc(),
+          endsAtLocal: endsAtLocal,
+          calendarId: personalCalendarId,
+          flowLocalId: flowId,
+          caller: 'maat_sequence_join_headless',
+        );
+        clientEventIds.add(clientEventId);
+        if (alertOffsetMinutes != kEventFilingNoAlertMinutes) {
+          await _fileHeadlessJoinDelivery(
+            debugLabel: 'maatSequenceHeadless',
+            clientEventId: clientEventId,
+            startsAtLocal: startsAtLocal,
+            alertOffsetMinutes: alertOffsetMinutes,
+            title: slot.title,
+            body: slot.detail,
+          );
+        }
+      }
+    }
+    return _stageAndDeferPersist(
+      flowId: flowId,
+      clientEventIds: clientEventIds,
     );
   }
 
@@ -586,9 +856,11 @@ class FlowJoinService {
         clientEventId: clientEventId,
         title: title,
         startsAtUtc: occurrence.startUtc,
+        startsAtLocal: occurrence.startLocal,
         detail: detail,
         allDay: false,
         endsAtUtc: occurrence.endUtc,
+        endsAtLocal: occurrence.endLocal,
         calendarId: personalCalendarId,
         flowLocalId: flowId,
         category: 'Ritual',
@@ -610,7 +882,7 @@ class FlowJoinService {
       );
     }
 
-    return _completeHeadlessJoin(
+    return _stageAndDeferPersist(
       flowId: flowId,
       clientEventIds: clientEventIds,
     );
@@ -709,9 +981,11 @@ class FlowJoinService {
         clientEventId: clientEventId,
         title: title,
         startsAtUtc: schedule.startUtc,
+        startsAtLocal: schedule.startLocal,
         detail: detail,
         allDay: false,
         endsAtUtc: schedule.endUtc,
+        endsAtLocal: schedule.endLocal,
         calendarId: personalCalendarId,
         flowLocalId: flowId,
         category: 'Ritual',
@@ -740,7 +1014,7 @@ class FlowJoinService {
       );
     }
 
-    return _completeHeadlessJoin(
+    return _stageAndDeferPersist(
       flowId: flowId,
       clientEventIds: clientEventIds,
     );
@@ -845,9 +1119,11 @@ class FlowJoinService {
         clientEventId: clientEventId,
         title: title,
         startsAtUtc: schedule.startUtc,
+        startsAtLocal: schedule.startLocal,
         detail: detail,
         allDay: false,
         endsAtUtc: schedule.endUtc,
+        endsAtLocal: schedule.endLocal,
         calendarId: personalCalendarId,
         flowLocalId: flowId,
         category: 'Ritual',
@@ -875,7 +1151,7 @@ class FlowJoinService {
       );
     }
 
-    return _completeHeadlessJoin(
+    return _stageAndDeferPersist(
       flowId: flowId,
       clientEventIds: clientEventIds,
     );
@@ -972,9 +1248,11 @@ class FlowJoinService {
         clientEventId: clientEventId,
         title: title,
         startsAtUtc: occurrence.startUtc,
+        startsAtLocal: occurrence.startLocal,
         detail: detail,
         allDay: false,
         endsAtUtc: occurrence.endUtc,
+        endsAtLocal: occurrence.endLocal,
         calendarId: personalCalendarId,
         flowLocalId: flowId,
         category: 'Ritual',
@@ -996,7 +1274,7 @@ class FlowJoinService {
       );
     }
 
-    return _completeHeadlessJoin(
+    return _stageAndDeferPersist(
       flowId: flowId,
       clientEventIds: clientEventIds,
     );
@@ -1090,9 +1368,11 @@ class FlowJoinService {
         clientEventId: clientEventId,
         title: title,
         startsAtUtc: schedule.startUtc,
+        startsAtLocal: schedule.startLocal,
         detail: detail,
         allDay: false,
         endsAtUtc: schedule.endUtc,
+        endsAtLocal: schedule.endLocal,
         calendarId: personalCalendarId,
         flowLocalId: flowId,
         category: 'Ritual',
@@ -1115,7 +1395,7 @@ class FlowJoinService {
       );
     }
 
-    return _completeHeadlessJoin(
+    return _stageAndDeferPersist(
       flowId: flowId,
       clientEventIds: clientEventIds,
     );
@@ -1206,9 +1486,11 @@ class FlowJoinService {
         clientEventId: clientEventId,
         title: title,
         startsAtUtc: schedule.startUtc,
+        startsAtLocal: schedule.startLocal,
         detail: detail,
         allDay: false,
         endsAtUtc: schedule.endUtc,
+        endsAtLocal: schedule.endLocal,
         calendarId: personalCalendarId,
         flowLocalId: flowId,
         category: 'Ritual',
@@ -1231,7 +1513,7 @@ class FlowJoinService {
       );
     }
 
-    return _completeHeadlessJoin(
+    return _stageAndDeferPersist(
       flowId: flowId,
       clientEventIds: clientEventIds,
     );
@@ -1324,9 +1606,11 @@ class FlowJoinService {
         clientEventId: clientEventId,
         title: title,
         startsAtUtc: schedule.startUtc,
+        startsAtLocal: schedule.startLocal,
         detail: detail,
         allDay: false,
         endsAtUtc: schedule.endUtc,
+        endsAtLocal: schedule.endLocal,
         calendarId: personalCalendarId,
         flowLocalId: flowId,
         category: 'Ritual',
@@ -1349,7 +1633,7 @@ class FlowJoinService {
       );
     }
 
-    return _completeHeadlessJoin(
+    return _stageAndDeferPersist(
       flowId: flowId,
       clientEventIds: clientEventIds,
     );
@@ -1450,9 +1734,11 @@ class FlowJoinService {
         clientEventId: clientEventId,
         title: title,
         startsAtUtc: occurrence.startUtc,
+        startsAtLocal: occurrence.startLocal,
         detail: detail,
         allDay: false,
         endsAtUtc: occurrence.endUtc,
+        endsAtLocal: occurrence.endLocal,
         calendarId: personalCalendarId,
         flowLocalId: flowId,
         category: 'Ritual',
@@ -1478,7 +1764,7 @@ class FlowJoinService {
       }
     }
 
-    return _completeHeadlessJoin(
+    return _stageAndDeferPersist(
       flowId: flowId,
       clientEventIds: clientEventIds,
     );
@@ -1586,9 +1872,11 @@ class FlowJoinService {
         clientEventId: clientEventId,
         title: title,
         startsAtUtc: occurrence.startUtc,
+        startsAtLocal: occurrence.startLocal,
         detail: detail,
         allDay: false,
         endsAtUtc: occurrence.endUtc,
+        endsAtLocal: occurrence.endLocal,
         calendarId: personalCalendarId,
         flowLocalId: flowId,
         category: 'Ritual',
@@ -1614,7 +1902,7 @@ class FlowJoinService {
       }
     }
 
-    return _completeHeadlessJoin(
+    return _stageAndDeferPersist(
       flowId: flowId,
       clientEventIds: clientEventIds,
     );
@@ -1747,12 +2035,6 @@ class FlowJoinService {
     );
 
     final trimmedInitialCarry = initialCarryText?.trim();
-    if (trimmedInitialCarry != null && trimmedInitialCarry.isNotEmpty) {
-      await _persistEveningThresholdInitialCarry(
-        localDate: firstGregorian,
-        carryText: trimmedInitialCarry,
-      );
-    }
 
     final clientEventIds = <String>[];
     for (var i = 0; i < schedules.length; i++) {
@@ -1778,9 +2060,11 @@ class FlowJoinService {
         clientEventId: clientEventId,
         title: title,
         startsAtUtc: occurrence.startUtc,
+        startsAtLocal: occurrence.startLocal,
         detail: detail,
         allDay: false,
         endsAtUtc: occurrence.endUtc,
+        endsAtLocal: occurrence.endLocal,
         calendarId: personalCalendarId,
         flowLocalId: flowId,
         category: 'Ritual',
@@ -1806,9 +2090,16 @@ class FlowJoinService {
       }
     }
 
-    return _completeHeadlessJoin(
+    return _stageAndDeferPersist(
       flowId: flowId,
       clientEventIds: clientEventIds,
+      additionalPersistence:
+          trimmedInitialCarry != null && trimmedInitialCarry.isNotEmpty
+          ? () => _persistEveningThresholdInitialCarry(
+              localDate: firstGregorian,
+              carryText: trimmedInitialCarry,
+            )
+          : null,
     );
   }
 
@@ -1904,9 +2195,11 @@ class FlowJoinService {
         clientEventId: clientEventId,
         title: title,
         startsAtUtc: occurrence.startUtc,
+        startsAtLocal: occurrence.startLocal,
         detail: detail,
         allDay: false,
         endsAtUtc: occurrence.endUtc,
+        endsAtLocal: occurrence.endLocal,
         calendarId: personalCalendarId,
         flowLocalId: flowId,
         category: 'Ritual',
@@ -1931,7 +2224,7 @@ class FlowJoinService {
       }
     }
 
-    return _completeHeadlessJoin(
+    return _stageAndDeferPersist(
       flowId: flowId,
       clientEventIds: clientEventIds,
     );
@@ -2035,9 +2328,11 @@ class FlowJoinService {
         clientEventId: clientEventId,
         title: title,
         startsAtUtc: occurrence.startUtc,
+        startsAtLocal: occurrence.startLocal,
         detail: detail,
         allDay: false,
         endsAtUtc: occurrence.endUtc,
+        endsAtLocal: occurrence.endLocal,
         calendarId: personalCalendarId,
         flowLocalId: flowId,
         category: 'Ritual',
@@ -2063,7 +2358,7 @@ class FlowJoinService {
       }
     }
 
-    return _completeHeadlessJoin(
+    return _stageAndDeferPersist(
       flowId: flowId,
       clientEventIds: clientEventIds,
     );
@@ -2161,9 +2456,11 @@ class FlowJoinService {
         clientEventId: clientEventId,
         title: title,
         startsAtUtc: occurrence.startUtc,
+        startsAtLocal: occurrence.startLocal,
         detail: detail,
         allDay: false,
         endsAtUtc: occurrence.endUtc,
+        endsAtLocal: occurrence.endLocal,
         calendarId: personalCalendarId,
         flowLocalId: flowId,
         category: 'Ritual',
@@ -2188,7 +2485,7 @@ class FlowJoinService {
       }
     }
 
-    return _completeHeadlessJoin(
+    return _stageAndDeferPersist(
       flowId: flowId,
       clientEventIds: clientEventIds,
     );
@@ -2285,9 +2582,11 @@ class FlowJoinService {
         clientEventId: clientEventId,
         title: title,
         startsAtUtc: occurrence.startUtc,
+        startsAtLocal: occurrence.startLocal,
         detail: detail,
         allDay: false,
         endsAtUtc: occurrence.endUtc,
+        endsAtLocal: occurrence.endLocal,
         calendarId: personalCalendarId,
         flowLocalId: flowId,
         category: 'Study',
@@ -2312,7 +2611,7 @@ class FlowJoinService {
       }
     }
 
-    return _completeHeadlessJoin(
+    return _stageAndDeferPersist(
       flowId: flowId,
       clientEventIds: clientEventIds,
     );
@@ -2410,9 +2709,11 @@ class FlowJoinService {
         clientEventId: clientEventId,
         title: title,
         startsAtUtc: occurrence.startUtc,
+        startsAtLocal: occurrence.startLocal,
         detail: detail,
         allDay: false,
         endsAtUtc: occurrence.endUtc,
+        endsAtLocal: occurrence.endLocal,
         calendarId: personalCalendarId,
         flowLocalId: flowId,
         category: 'Ritual',
@@ -2437,7 +2738,7 @@ class FlowJoinService {
       }
     }
 
-    return _completeHeadlessJoin(
+    return _stageAndDeferPersist(
       flowId: flowId,
       clientEventIds: clientEventIds,
     );
@@ -2517,8 +2818,6 @@ class FlowJoinService {
     );
 
     final clientEventIds = <String>[];
-    final plannedNotes = <_PlannedNote>[];
-    final writes = <_DeferredCourseEventWrite>[];
     for (var i = 0; i < events.length; i++) {
       final event = events[i];
       final occurrence = occurrences[i];
@@ -2547,130 +2846,38 @@ class FlowJoinService {
         lens: lens,
         context: context,
       );
-      final plannedNote = _PlannedNote(
-        ky: k.kYear,
-        km: k.kMonth,
-        kd: k.kDay,
-        note: _Note(
-          clientEventId: clientEventId,
-          calendarId: personalCalendarId,
-          title: title,
-          detail: detail,
-          allDay: false,
-          start: TimeOfDay(
-            hour: occurrence.startLocal.hour,
-            minute: occurrence.startLocal.minute,
-          ),
-          end: TimeOfDay(
-            hour: occurrence.endLocal.hour,
-            minute: occurrence.endLocal.minute,
-          ),
-          flowId: flowId,
-          category: 'Ritual',
-          alertOffsetMinutes: alertOffsetMinutes,
-          actionId: courseActionId(event),
-          behaviorPayload: behaviorPayload,
-        ),
-      );
-      plannedNotes.add(plannedNote);
-      writes.add(
-        _DeferredCourseEventWrite(
-          plannedNote: plannedNote,
-          startsAtUtc: occurrence.startUtc,
-          endsAtUtc: occurrence.endUtc,
-          startsAtLocal: occurrence.startLocal,
-        ),
+      await _upsertEventRow(
+        clientEventId: clientEventId,
+        title: title,
+        startsAtUtc: occurrence.startUtc,
+        startsAtLocal: occurrence.startLocal,
+        detail: detail,
+        allDay: false,
+        endsAtUtc: occurrence.endUtc,
+        endsAtLocal: occurrence.endLocal,
+        calendarId: personalCalendarId,
+        flowLocalId: flowId,
+        category: 'Ritual',
+        actionId: courseActionId(event),
+        behaviorPayload: behaviorPayload,
+        caller: 'the_course_join_headless',
       );
       clientEventIds.add(clientEventId);
-    }
-
-    final localFlow = _Flow(
-      id: flowId,
-      calendarId: personalCalendarId,
-      name: templateTitle,
-      color: templateColor,
-      active: true,
-      rules: <FlowRule>[_RuleDates(dates: dates)],
-      start: orderedDates.first,
-      end: firstGregorian.add(const Duration(days: 29)),
-      notes: notes,
-    );
-
-    Future<void> persistInBackground() async {
-      if (_upsertEvent != null) {
-        for (final write in writes) {
-          final note = write.plannedNote.note;
-          await _upsertEventRow(
-            clientEventId: note.clientEventId!,
-            title: note.title,
-            startsAtUtc: write.startsAtUtc,
-            detail: note.detail,
-            allDay: note.allDay,
-            endsAtUtc: write.endsAtUtc,
-            calendarId: note.calendarId,
-            flowLocalId: flowId,
-            category: note.category,
-            actionId: note.actionId,
-            behaviorPayload: note.behaviorPayload,
-            caller: 'the_course_join_headless',
-          );
-        }
-      } else {
-        final rows = <Map<String, dynamic>>[
-          for (final write in writes)
-            _repo.deterministicUpsertPayload(
-              clientEventId: write.plannedNote.note.clientEventId!,
-              title: write.plannedNote.note.title,
-              startsAtUtc: write.startsAtUtc,
-              detail: write.plannedNote.note.detail,
-              allDay: write.plannedNote.note.allDay,
-              endsAtUtc: write.endsAtUtc,
-              calendarId: write.plannedNote.note.calendarId,
-              flowLocalId: flowId,
-              category: write.plannedNote.note.category,
-              actionId: write.plannedNote.note.actionId,
-              behaviorPayload: write.plannedNote.note.behaviorPayload,
-            ),
-        ];
-        await _repo.upsertManyDeterministic(rows);
-      }
-
-      _publishHeadlessCalendarInvalidation(
-        reason: CalendarInvalidationReason.flowJoined,
-        flowId: flowId,
-        clientEventIds: clientEventIds,
-      );
-
       if (alertOffsetMinutes != kEventFilingNoAlertMinutes) {
-        for (final write in writes) {
-          final note = write.plannedNote.note;
-          unawaited(
-            _fileHeadlessJoinDelivery(
-              debugLabel: 'theCourseHeadless',
-              clientEventId: note.clientEventId!,
-              startsAtLocal: write.startsAtLocal,
-              alertOffsetMinutes: alertOffsetMinutes,
-              title: note.title,
-              body: note.detail,
-            ).catchError((Object error, StackTrace stackTrace) {
-              if (kDebugMode) {
-                _calendarDebugPrint(
-                  '[theCourse] background alert filing failed: $error',
-                );
-                _calendarDebugPrint('$stackTrace');
-              }
-            }),
-          );
-        }
+        await _fileHeadlessJoinDelivery(
+          debugLabel: 'theCourseHeadless',
+          clientEventId: clientEventId,
+          startsAtLocal: occurrence.startLocal,
+          alertOffsetMinutes: alertOffsetMinutes,
+          title: title,
+          body: detail,
+        );
       }
     }
 
-    return FlowJoinResult._fastPathSuccess(
+    return _stageAndDeferPersist(
       flowId: flowId,
-      clientEventIds: List<String>.unmodifiable(clientEventIds),
-      localFlow: localFlow,
-      plannedNotes: List<_PlannedNote>.unmodifiable(plannedNotes),
-      persistInBackground: persistInBackground,
+      clientEventIds: clientEventIds,
     );
   }
 
@@ -2682,6 +2889,14 @@ class FlowJoinService {
     required String title,
     String? body,
   }) {
+    final deferred = _deferredJoinContext?.writes
+        .where((write) => write.clientEventId == clientEventId)
+        .lastOrNull;
+    if (deferred != null) {
+      deferred.alertDebugLabel = debugLabel;
+      deferred.alertOffsetMinutes = alertOffsetMinutes;
+      return Future<void>.value();
+    }
     return _fileHeadlessEventDelivery(
       eventFiling: _eventFiling,
       debugLabel: debugLabel,
@@ -2693,18 +2908,104 @@ class FlowJoinService {
     );
   }
 
-  FlowJoinResult _completeHeadlessJoin({
+  FlowJoinResult _stageAndDeferPersist({
     required int flowId,
     required List<String> clientEventIds,
+    Future<void> Function()? additionalPersistence,
   }) {
-    _publishHeadlessCalendarInvalidation(
-      reason: CalendarInvalidationReason.flowJoined,
-      flowId: flowId,
-      clientEventIds: clientEventIds,
+    final context = _deferredJoinContext;
+    _deferredJoinContext = null;
+    if (context == null || context.localFlow.id != flowId) {
+      throw StateError('Missing staged Ma\'at join context for flow $flowId.');
+    }
+    if (context.writes.isEmpty) {
+      throw StateError(
+        'Ma\'at join produced no staged events for flow $flowId.',
+      );
+    }
+    final writes = List<_DeferredJoinEventWrite>.unmodifiable(context.writes);
+    final plannedNotes = List<_PlannedNote>.unmodifiable(
+      writes.map((write) => write.plannedNote),
     );
-    return FlowJoinResult.success(
+
+    Future<void> persistInBackground() async {
+      final injectedUpsert = _upsertEvent;
+      if (injectedUpsert != null) {
+        for (final write in writes) {
+          await injectedUpsert(
+            clientEventId: write.clientEventId,
+            title: write.title,
+            startsAtUtc: write.startsAtUtc,
+            detail: write.detail,
+            allDay: write.allDay,
+            endsAtUtc: write.endsAtUtc,
+            flowLocalId: write.flowId,
+            category: write.category,
+            actionId: write.actionId,
+            behaviorPayload: write.behaviorPayload,
+            calendarId: write.calendarId,
+            caller: write.caller,
+          );
+        }
+      } else {
+        final rows = <Map<String, dynamic>>[
+          for (final write in writes)
+            _repo.deterministicUpsertPayload(
+              clientEventId: write.clientEventId,
+              title: write.title,
+              startsAtUtc: write.startsAtUtc,
+              detail: write.detail,
+              allDay: write.allDay,
+              endsAtUtc: write.endsAtUtc,
+              calendarId: write.calendarId,
+              flowLocalId: write.flowId,
+              category: write.category,
+              actionId: write.actionId,
+              behaviorPayload: write.behaviorPayload,
+            ),
+        ];
+        await _repo.upsertManyDeterministic(rows);
+      }
+
+      if (additionalPersistence != null) {
+        await additionalPersistence();
+      }
+      _publishHeadlessCalendarInvalidation(
+        reason: CalendarInvalidationReason.flowJoined,
+        flowId: flowId,
+        clientEventIds: clientEventIds,
+      );
+
+      for (final write in writes) {
+        final alertOffset = write.alertOffsetMinutes;
+        if (alertOffset == kEventFilingNoAlertMinutes) continue;
+        unawaited(
+          _fileHeadlessEventDelivery(
+            eventFiling: _eventFiling,
+            debugLabel: write.alertDebugLabel ?? 'maatJoinHeadless',
+            clientEventId: write.clientEventId,
+            startsAtLocal: write.startsAtLocal,
+            alertOffsetMinutes: alertOffset,
+            title: write.title,
+            body: write.detail,
+          ).catchError((Object error, StackTrace stackTrace) {
+            if (kDebugMode) {
+              _calendarDebugPrint(
+                '[maatFlowJoin] background alert filing failed: $error',
+              );
+              _calendarDebugPrint('$stackTrace');
+            }
+          }),
+        );
+      }
+    }
+
+    return FlowJoinResult._fastPathSuccess(
       flowId: flowId,
-      clientEventIds: List.unmodifiable(clientEventIds),
+      clientEventIds: List<String>.unmodifiable(clientEventIds),
+      localFlow: context.localFlow,
+      plannedNotes: plannedNotes,
+      persistInBackground: persistInBackground,
     );
   }
 
@@ -2719,43 +3020,68 @@ class FlowJoinService {
     String? notes,
     required String rules,
     String? originType,
-  }) {
+  }) async {
     final upsert = _upsertFlow;
-    if (upsert != null) {
-      return upsert(
-        id: id,
-        name: name,
-        color: color,
-        active: active,
+    final flowId = upsert != null
+        ? await upsert(
+            id: id,
+            name: name,
+            color: color,
+            active: active,
+            calendarId: calendarId,
+            startDate: startDate,
+            endDate: endDate,
+            notes: notes,
+            rules: rules,
+            originType: originType,
+          )
+        : await _repo.upsertFlow(
+            id: id,
+            name: name,
+            color: color,
+            active: active,
+            calendarId: calendarId,
+            startDate: startDate,
+            endDate: endDate,
+            notes: notes,
+            rules: rules,
+            originType: originType,
+          );
+    final decodedRules = jsonDecode(rules);
+    final localRules = decodedRules is List
+        ? decodedRules
+              .whereType<Map>()
+              .map(
+                (rule) =>
+                    CalendarPage.ruleFromJson(Map<String, dynamic>.from(rule)),
+              )
+              .toList(growable: false)
+        : const <FlowRule>[];
+    _deferredJoinContext = _DeferredJoinContext(
+      localFlow: _Flow(
+        id: flowId,
         calendarId: calendarId,
-        startDate: startDate,
-        endDate: endDate,
+        name: name,
+        color: Color(color),
+        active: active,
+        rules: localRules,
+        start: startDate,
+        end: endDate,
         notes: notes,
-        rules: rules,
-        originType: originType,
-      );
-    }
-    return _repo.upsertFlow(
-      id: id,
-      name: name,
-      color: color,
-      active: active,
-      calendarId: calendarId,
-      startDate: startDate,
-      endDate: endDate,
-      notes: notes,
-      rules: rules,
-      originType: originType,
+      ),
     );
+    return flowId;
   }
 
   Future<void> _upsertEventRow({
     required String clientEventId,
     required String title,
     required DateTime startsAtUtc,
+    required DateTime startsAtLocal,
     String? detail,
     bool allDay = false,
     DateTime? endsAtUtc,
+    DateTime? endsAtLocal,
     int? flowLocalId,
     String? category,
     String? actionId,
@@ -2763,36 +3089,27 @@ class FlowJoinService {
     String? calendarId,
     String? caller,
   }) async {
-    final upsert = _upsertEvent;
-    if (upsert != null) {
-      return upsert(
+    final context = _deferredJoinContext;
+    if (context == null || flowLocalId == null) {
+      throw StateError('Event write attempted without a staged Ma\'at flow.');
+    }
+    context.writes.add(
+      _DeferredJoinEventWrite(
         clientEventId: clientEventId,
         title: title,
         startsAtUtc: startsAtUtc,
+        endsAtUtc: endsAtUtc,
+        startsAtLocal: startsAtLocal,
+        endsAtLocal: endsAtLocal,
         detail: detail,
         allDay: allDay,
-        endsAtUtc: endsAtUtc,
-        flowLocalId: flowLocalId,
+        calendarId: calendarId,
+        flowId: flowLocalId,
         category: category,
         actionId: actionId,
         behaviorPayload: behaviorPayload,
-        calendarId: calendarId,
         caller: caller,
-      );
-    }
-    await _repo.upsertByClientId(
-      clientEventId: clientEventId,
-      title: title,
-      startsAtUtc: startsAtUtc,
-      detail: detail,
-      allDay: allDay,
-      endsAtUtc: endsAtUtc,
-      flowLocalId: flowLocalId,
-      category: category,
-      actionId: actionId,
-      behaviorPayload: behaviorPayload,
-      calendarId: calendarId,
-      caller: caller,
+      ),
     );
   }
 

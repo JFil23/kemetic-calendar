@@ -243,6 +243,9 @@ void main() {
     final calendarPage = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
+    final joinService = File(
+      'lib/features/calendar/flow_join_service.dart',
+    ).readAsStringSync();
     final enrollmentSource = File(
       'lib/features/calendar/the_djed_enrollment.dart',
     ).readAsStringSync();
@@ -254,12 +257,13 @@ void main() {
     ).readAsStringSync();
 
     expect(calendarPage, contains('_MaatFlowTemplateKind.theDjed'));
-    expect(calendarPage, contains('_resolveMountedDjedJoinWindow'));
-    expect(calendarPage, contains('resolveDjedEnrollmentWindowSafely'));
+    expect(calendarPage, contains('joinDjedHeadless'));
+    expect(joinService, contains('resolveDjedEnrollmentWindowSafely'));
     expect(enrollmentSource, contains('djedNextEnrollmentWindow'));
     expect(enrollmentSource, contains('djedEnrollmentWindowForStartDate'));
     expect(calendarPage, isNot(contains('djedEnrollmentIsOpen')));
-    expect(calendarPage, contains('djedClientEventId'));
+    expect(joinService, contains('djedClientEventId'));
+    expect(joinService, contains('_stageAndDeferPersist('));
     expect(detailPage, contains('_pickDjedWindowDate'));
     expect(detailPage, contains('Djed Start Windows'));
     expect(detailPage, contains('designated decan-opening enrollment windows'));

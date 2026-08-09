@@ -248,27 +248,26 @@ void main() {
     expect(detail, contains('Lens\nLet Ausar'));
   });
 
-  test('calendar join branch creates thirty daily events', () {
+  test('shared headless join path stages thirty daily events', () {
     final source = File(
-      'lib/features/calendar/calendar_page.dart',
+      'lib/features/calendar/flow_join_service.dart',
     ).readAsStringSync();
-    final methodStart = source.indexOf('Future<int> _addMaatFlowInstance({');
+    final methodStart = source.indexOf(
+      'Future<FlowJoinResult> joinOfferingTableHeadless({',
+    );
     expect(methodStart, isNonNegative);
-    final branchStart = source.indexOf(
-      'if (template.kind == _MaatFlowTemplateKind.offeringTable)',
+    final methodEnd = source.indexOf(
+      'Future<FlowJoinResult> joinTheTendingHeadless({',
       methodStart,
     );
-    expect(branchStart, isNonNegative);
-    final branchEnd = source.indexOf('if (startDate == null)', branchStart);
-    expect(branchEnd, isNonNegative);
-    final branch = source.substring(branchStart, branchEnd);
+    expect(methodEnd, isNonNegative);
+    final method = source.substring(methodStart, methodEnd);
 
-    expect(branch, contains('kOfferingTableDays'));
-    expect(branch, contains('repo.deterministicUpsertPayload'));
-    expect(branch, contains('await repo.upsertManyDeterministic'));
-    expect(branch, isNot(contains('Future.microtask')));
-    expect(branch, contains('_rollbackJoinedFlowLocally('));
-    expect(branch, contains(r'offering_hour=$kOfferingTableDefaultHour'));
-    expect(branch, contains('no_cup_mode='));
+    expect(method, contains('_offeringTableDays'));
+    expect(method, contains('await _upsertEventRow('));
+    expect(method, contains('_stageAndDeferPersist('));
+    expect(method, isNot(contains('await _repo.upsertManyDeterministic')));
+    expect(method, contains(r'offering_hour=$kOfferingTableDefaultHour'));
+    expect(method, contains('no_cup_mode='));
   });
 }
