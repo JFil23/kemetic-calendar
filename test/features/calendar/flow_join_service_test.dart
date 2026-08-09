@@ -365,6 +365,13 @@ void main() {
       );
 
       expect(result.succeeded, isTrue);
+      expect(result.hasLocalFastPath, isTrue);
+      expect(result.persistInBackground, isNotNull);
+      expect(eventCalls, isEmpty);
+      expect(deliveryCalls, isEmpty);
+      expect(invalidations, isEmpty);
+      await result.persistInBackground!();
+      await Future<void>.delayed(Duration.zero);
       expect(result.flowId, 42);
       expect(result.flowIdOrZero, 42);
       expect(result.clientEventIds, <String>['moon-return:42:new:2026-01-01']);
@@ -552,6 +559,13 @@ void main() {
       );
 
       expect(result.succeeded, isTrue);
+      expect(result.hasLocalFastPath, isTrue);
+      expect(result.persistInBackground, isNotNull);
+      expect(eventCalls, isEmpty);
+      expect(deliveryCalls, isEmpty);
+      expect(invalidations, isEmpty);
+      await result.persistInBackground!();
+      await Future<void>.delayed(Duration.zero);
       expect(result.clientEventIds, <String>[
         'moon-return:43:full:2026-01-01',
         'moon-return:43:new:2026-01-29',
@@ -733,6 +747,13 @@ void main() {
       ];
 
       expect(result.succeeded, isTrue);
+      expect(result.hasLocalFastPath, isTrue);
+      expect(result.persistInBackground, isNotNull);
+      expect(eventCalls, isEmpty);
+      expect(deliveryCalls, isEmpty);
+      expect(invalidations, isEmpty);
+      await result.persistInBackground!();
+      await Future<void>.delayed(Duration.zero);
       expect(result.flowId, 84);
       expect(result.clientEventIds, expectedIds);
 
@@ -950,6 +971,13 @@ void main() {
       ];
 
       expect(result.succeeded, isTrue);
+      expect(result.hasLocalFastPath, isTrue);
+      expect(result.persistInBackground, isNotNull);
+      expect(eventCalls, isEmpty);
+      expect(deliveryCalls, isEmpty);
+      expect(invalidations, isEmpty);
+      await result.persistInBackground!();
+      await Future<void>.delayed(Duration.zero);
       expect(result.flowId, 126);
       expect(result.clientEventIds, expectedIds);
 
@@ -1181,6 +1209,13 @@ void main() {
       ];
 
       expect(result.succeeded, isTrue);
+      expect(result.hasLocalFastPath, isTrue);
+      expect(result.persistInBackground, isNotNull);
+      expect(eventCalls, isEmpty);
+      expect(deliveryCalls, isEmpty);
+      expect(invalidations, isEmpty);
+      await result.persistInBackground!();
+      await Future<void>.delayed(Duration.zero);
       expect(result.flowId, 168);
       expect(result.clientEventIds, expectedIds);
 
@@ -1433,6 +1468,13 @@ void main() {
       ];
 
       expect(result.succeeded, isTrue);
+      expect(result.hasLocalFastPath, isTrue);
+      expect(result.persistInBackground, isNotNull);
+      expect(eventCalls, isEmpty);
+      expect(deliveryCalls, isEmpty);
+      expect(invalidations, isEmpty);
+      await result.persistInBackground!();
+      await Future<void>.delayed(Duration.zero);
       expect(result.flowId, 210);
       expect(result.clientEventIds, expectedIds);
 
@@ -1692,6 +1734,13 @@ void main() {
       ];
 
       expect(result.succeeded, isTrue);
+      expect(result.hasLocalFastPath, isTrue);
+      expect(result.persistInBackground, isNotNull);
+      expect(eventCalls, isEmpty);
+      expect(deliveryCalls, isEmpty);
+      expect(invalidations, isEmpty);
+      await result.persistInBackground!();
+      await Future<void>.delayed(Duration.zero);
       expect(result.flowId, 231);
       expect(result.clientEventIds, expectedIds);
 
@@ -1902,6 +1951,11 @@ void main() {
       ];
 
       expect(result.succeeded, isTrue);
+      expect(result.hasLocalFastPath, isTrue);
+      expect(result.persistInBackground, isNotNull);
+      expect(eventCalls, isEmpty);
+      await result.persistInBackground!();
+      await Future<void>.delayed(Duration.zero);
       expect(result.flowId, 240);
       expect(result.clientEventIds, expectedIds);
 
@@ -2055,6 +2109,11 @@ void main() {
       );
 
       expect(result.succeeded, isTrue);
+      expect(result.hasLocalFastPath, isTrue);
+      expect(result.persistInBackground, isNotNull);
+      expect(eventCalls, isEmpty);
+      await result.persistInBackground!();
+      await Future<void>.delayed(Duration.zero);
       expect(eventCalls, hasLength(definition.events.length));
 
       final event4Payload =
@@ -2244,6 +2303,13 @@ void main() {
       );
 
       expect(result.succeeded, isTrue);
+      expect(result.hasLocalFastPath, isTrue);
+      expect(result.persistInBackground, isNotNull);
+      expect(eventCalls, isEmpty);
+      expect(deliveryCalls, isEmpty);
+      expect(invalidations, isEmpty);
+      await result.persistInBackground!();
+      await Future<void>.delayed(Duration.zero);
       expect(result.flowId, 302);
       expect(result.flowIdOrNegativeOne, 302);
       expect(result.clientEventIds, expectedIds);
@@ -2477,6 +2543,13 @@ void main() {
       );
 
       expect(result.succeeded, isTrue);
+      expect(result.hasLocalFastPath, isTrue);
+      expect(result.persistInBackground, isNotNull);
+      expect(eventCalls, isEmpty);
+      expect(deliveryCalls, isEmpty);
+      expect(invalidations, isEmpty);
+      await result.persistInBackground!();
+      await Future<void>.delayed(Duration.zero);
       expect(result.flowId, 303);
       expect(result.flowIdOrNegativeOne, 303);
       expect(result.clientEventIds, expectedIds);
@@ -2749,6 +2822,13 @@ void main() {
       );
 
       expect(result.succeeded, isTrue);
+      expect(result.hasLocalFastPath, isTrue);
+      expect(result.persistInBackground, isNotNull);
+      expect(eventCalls, isEmpty);
+      expect(deliveryCalls, isEmpty);
+      expect(invalidations, isEmpty);
+      await result.persistInBackground!();
+      await Future<void>.delayed(Duration.zero);
       expect(result.flowId, 304);
       expect(result.flowIdOrNegativeOne, 304);
       expect(result.clientEventIds, expectedIds);
@@ -3001,6 +3081,13 @@ void main() {
       );
 
       expect(result.succeeded, isTrue);
+      expect(result.hasLocalFastPath, isTrue);
+      expect(result.persistInBackground, isNotNull);
+      expect(eventCalls, isEmpty);
+      expect(deliveryCalls, isEmpty);
+      expect(invalidations, isEmpty);
+      await result.persistInBackground!();
+      await Future<void>.delayed(Duration.zero);
       expect(result.flowId, 305);
       expect(result.flowIdOrNegativeOne, 305);
       expect(result.clientEventIds, expectedIds);
@@ -3070,10 +3157,10 @@ void main() {
       expect(order, <String>[
         'flow',
         'event:${expectedIds[0]}',
-        'delivery:${expectedIds[0]}',
         'event:${expectedIds[1]}',
-        'delivery:${expectedIds[1]}',
         'invalidation',
+        'delivery:${expectedIds[0]}',
+        'delivery:${expectedIds[1]}',
       ]);
     },
   );
@@ -3273,6 +3360,13 @@ void main() {
       );
 
       expect(result.succeeded, isTrue);
+      expect(result.hasLocalFastPath, isTrue);
+      expect(result.persistInBackground, isNotNull);
+      expect(eventCalls, isEmpty);
+      expect(deliveryCalls, isEmpty);
+      expect(invalidations, isEmpty);
+      await result.persistInBackground!();
+      await Future<void>.delayed(Duration.zero);
       expect(result.flowId, 306);
       expect(result.flowIdOrNegativeOne, 306);
       expect(result.clientEventIds, expectedIds);
@@ -3343,10 +3437,10 @@ void main() {
       expect(order, <String>[
         'flow',
         'event:${expectedIds[0]}',
-        'delivery:${expectedIds[0]}',
         'event:${expectedIds[1]}',
-        'delivery:${expectedIds[1]}',
         'invalidation',
+        'delivery:${expectedIds[0]}',
+        'delivery:${expectedIds[1]}',
       ]);
     },
   );
@@ -3543,6 +3637,13 @@ void main() {
       );
 
       expect(result.succeeded, isTrue);
+      expect(result.hasLocalFastPath, isTrue);
+      expect(result.persistInBackground, isNotNull);
+      expect(eventCalls, isEmpty);
+      expect(deliveryCalls, isEmpty);
+      expect(invalidations, isEmpty);
+      await result.persistInBackground!();
+      await Future<void>.delayed(Duration.zero);
       expect(result.flowId, 307);
       expect(result.flowIdOrNegativeOne, 307);
       expect(result.clientEventIds, expectedIds);
@@ -3621,10 +3722,10 @@ void main() {
       expect(order, <String>[
         'flow',
         'event:${expectedIds[0]}',
-        'delivery:${expectedIds[0]}',
         'event:${expectedIds[1]}',
-        'delivery:${expectedIds[1]}',
         'invalidation',
+        'delivery:${expectedIds[0]}',
+        'delivery:${expectedIds[1]}',
       ]);
     },
   );

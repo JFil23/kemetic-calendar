@@ -195,25 +195,25 @@ void main() {
     );
   });
 
-  test('calendar join waits for Dawn event persistence before success', () {
+  test('shared headless join stages Dawn events before persistence', () {
     final source = File(
-      'lib/features/calendar/calendar_page.dart',
+      'lib/features/calendar/flow_join_service.dart',
     ).readAsStringSync();
-    final methodStart = source.indexOf('Future<int> _addMaatFlowInstance({');
+    final methodStart = source.indexOf(
+      'Future<FlowJoinResult> joinDawnHouseRiteHeadless({',
+    );
     expect(methodStart, isNonNegative);
-    final branchStart = source.indexOf(
-      'if (template.kind == _MaatFlowTemplateKind.dawnHouseRite)',
+    final methodEnd = source.indexOf(
+      'Future<FlowJoinResult> joinEveningThresholdRiteHeadless({',
       methodStart,
     );
-    expect(branchStart, isNonNegative);
-    final branchEnd = source.indexOf('if (startDate == null)', branchStart);
-    expect(branchEnd, isNonNegative);
-    final branch = source.substring(branchStart, branchEnd);
+    expect(methodEnd, isNonNegative);
+    final method = source.substring(methodStart, methodEnd);
 
-    expect(branch, contains('repo.deterministicUpsertPayload'));
-    expect(branch, contains('await repo.upsertManyDeterministic'));
-    expect(branch, isNot(contains('Future.microtask')));
-    expect(branch, contains('_rollbackJoinedFlowLocally('));
+    expect(method, contains('_dawnHouseRiteDays'));
+    expect(method, contains('await _upsertEventRow('));
+    expect(method, contains('_stageAndDeferPersist('));
+    expect(method, isNot(contains('await _repo.upsertManyDeterministic')));
   });
 
   test(

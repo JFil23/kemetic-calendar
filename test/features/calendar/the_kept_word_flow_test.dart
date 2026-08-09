@@ -253,27 +253,27 @@ void main() {
     expect(issues, isEmpty);
   });
 
-  test('calendar join branch creates nine events without placeholders', () {
+  test('shared headless join path stages nine events without placeholders', () {
     final source = File(
-      'lib/features/calendar/calendar_page.dart',
+      'lib/features/calendar/flow_join_service.dart',
     ).readAsStringSync();
-    final methodStart = source.indexOf('Future<int> _addMaatFlowInstance({');
+    final methodStart = source.indexOf(
+      'Future<FlowJoinResult> joinKeptWordHeadless({',
+    );
     expect(methodStart, isNonNegative);
-    final branchStart = source.indexOf(
-      'if (template.kind == _MaatFlowTemplateKind.keptWord)',
+    final methodEnd = source.indexOf(
+      'Future<FlowJoinResult> joinTheCourseHeadless({',
       methodStart,
     );
-    expect(branchStart, isNonNegative);
-    final branchEnd = source.indexOf('if (startDate == null)', branchStart);
-    expect(branchEnd, isNonNegative);
-    final branch = source.substring(branchStart, branchEnd);
+    expect(methodEnd, isNonNegative);
+    final method = source.substring(methodStart, methodEnd);
 
-    expect(branch, contains('kKeptWordEvents'));
-    expect(branch, contains('repo.deterministicUpsertPayload'));
-    expect(branch, contains('await repo.upsertManyDeterministic'));
-    expect(branch, contains('_rollbackJoinedFlowLocally('));
-    expect(branch, contains('firstG.add(const Duration(days: 29))'));
-    expect(branch, isNot(contains('kDawnHouseRiteDays')));
+    expect(method, contains('_keptWordEvents'));
+    expect(method, contains('await _upsertEventRow('));
+    expect(method, contains('_stageAndDeferPersist('));
+    expect(method, isNot(contains('await _repo.upsertManyDeterministic')));
+    expect(method, contains('firstGregorian.add(const Duration(days: 29))'));
+    expect(method, isNot(contains('kDawnHouseRiteDays')));
   });
 }
 

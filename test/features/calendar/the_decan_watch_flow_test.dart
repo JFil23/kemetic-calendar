@@ -236,6 +236,9 @@ void main() {
     final calendarPage = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
+    final joinService = File(
+      'lib/features/calendar/flow_join_service.dart',
+    ).readAsStringSync();
     final enrollmentSource = File(
       'lib/features/calendar/the_decan_watch_enrollment.dart',
     ).readAsStringSync();
@@ -247,15 +250,16 @@ void main() {
     ).readAsStringSync();
 
     expect(calendarPage, contains('_MaatFlowTemplateKind.decanWatch'));
-    expect(calendarPage, contains('_resolveMountedDecanWatchJoinWindow'));
-    expect(calendarPage, contains('resolveDecanWatchEnrollmentWindowSafely'));
+    expect(calendarPage, contains('joinDecanWatchHeadless'));
+    expect(joinService, contains('resolveDecanWatchEnrollmentWindowSafely'));
     expect(enrollmentSource, contains('decanWatchNextEnrollmentWindow'));
     expect(
       enrollmentSource,
       contains('decanWatchEnrollmentWindowForStartDate'),
     );
     expect(calendarPage, isNot(contains('decanWatchEnrollmentIsOpen')));
-    expect(calendarPage, contains('decanWatchClientEventId'));
+    expect(joinService, contains('decanWatchClientEventId'));
+    expect(joinService, contains('_stageAndDeferPersist('));
     expect(detailPage, contains('_pickDecanWatchWindowDate'));
     expect(detailPage, contains('designated decan-opening enrollment windows'));
     expect(detailPage, contains('Add Flow'));

@@ -234,7 +234,7 @@ void main() {
     expect(detail, contains('Lens\nLet Ra'));
   });
 
-  test('calendar join branch creates nine events without placeholders', () {
+  test('calendar join derives nine events through shared fast path', () {
     final source = File(
       'lib/features/calendar/flow_join_service.dart',
     ).readAsStringSync();
@@ -252,9 +252,9 @@ void main() {
     expect(branch, contains('_courseEvents'));
     expect(branch, contains('_courseScheduleForDate'));
     expect(branch, contains('courseContextForKemeticDate'));
-    expect(branch, contains('_repo.deterministicUpsertPayload'));
-    expect(branch, contains('await _repo.upsertManyDeterministic'));
-    expect(branch, contains('persistInBackground: persistInBackground'));
+    expect(branch, contains('await _upsertEventRow('));
+    expect(branch, contains('return _stageAndDeferPersist('));
+    expect(branch, isNot(contains('_repo.deterministicUpsertPayload')));
     expect(branch, contains('firstGregorian.add(const Duration(days: 29))'));
     expect(branch, isNot(contains('kDawnHouseRiteDays')));
   });

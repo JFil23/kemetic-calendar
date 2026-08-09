@@ -259,27 +259,26 @@ void main() {
     expect(detail, contains('Lens\nLet Djehuty'));
   });
 
-  test('calendar join branch creates nine events without placeholders', () {
+  test('shared headless join stages nine events without placeholders', () {
     final source = File(
-      'lib/features/calendar/calendar_page.dart',
+      'lib/features/calendar/flow_join_service.dart',
     ).readAsStringSync();
-    final methodStart = source.indexOf('Future<int> _addMaatFlowInstance({');
+    final methodStart = source.indexOf(
+      'Future<FlowJoinResult> joinTheWeighingHeadless({',
+    );
     expect(methodStart, isNonNegative);
-    final branchStart = source.indexOf(
-      'if (template.kind == _MaatFlowTemplateKind.theWeighing)',
+    final methodEnd = source.indexOf(
+      'Future<FlowJoinResult> joinOfferingTableHeadless({',
       methodStart,
     );
-    expect(branchStart, isNonNegative);
-    final branchEnd = source.indexOf('if (startDate == null)', branchStart);
-    expect(branchEnd, isNonNegative);
-    final branch = source.substring(branchStart, branchEnd);
+    expect(methodEnd, isNonNegative);
+    final method = source.substring(methodStart, methodEnd);
 
-    expect(branch, contains('kTheWeighingEvents'));
-    expect(branch, contains('repo.deterministicUpsertPayload'));
-    expect(branch, contains('await repo.upsertManyDeterministic'));
-    expect(branch, isNot(contains('Future.microtask')));
-    expect(branch, contains('_rollbackJoinedFlowLocally('));
-    expect(branch, contains('firstG.add(const Duration(days: 29))'));
+    expect(method, contains('_theWeighingEvents'));
+    expect(method, contains('await _upsertEventRow('));
+    expect(method, contains('_stageAndDeferPersist('));
+    expect(method, isNot(contains('await _repo.upsertManyDeterministic')));
+    expect(method, contains('firstGregorian.add(const Duration(days: 29))'));
   });
 }
 

@@ -277,6 +277,9 @@ void main() {
       final pageSource = File(
         'lib/features/calendar/calendar_page.dart',
       ).readAsStringSync();
+      final joinSource = File(
+        'lib/features/calendar/flow_join_service.dart',
+      ).readAsStringSync();
       final schedulerSource = File(
         'lib/features/calendar/the_wag_scheduler.dart',
       ).readAsStringSync();
@@ -289,13 +292,14 @@ void main() {
       expect(detailSource, contains('Add Flow'));
       expect(detailSource, isNot(contains('Kemetic Year')));
       expect(pageSource, contains('_MaatFlowTemplateKind.theWag'));
-      expect(pageSource, contains('_resolveMountedWagJoinWindow'));
-      expect(pageSource, contains('resolveWagEnrollmentWindowSafely'));
+      expect(pageSource, contains('joinWagHeadless'));
+      expect(joinSource, contains('resolveWagEnrollmentWindowSafely'));
       expect(pageSource, isNot(contains('wagEnrollmentIsOpen')));
       expect(schedulerSource, contains('wagEventGregorian'));
-      expect(pageSource, contains('wag_kyear='));
+      expect(joinSource, contains('wag_kyear='));
+      expect(joinSource, contains('_stageAndDeferPersist('));
       expect(
-        pageSource,
+        joinSource,
         isNot(contains('startDate.add(Duration(days: event.kemeticDay')),
       );
     },

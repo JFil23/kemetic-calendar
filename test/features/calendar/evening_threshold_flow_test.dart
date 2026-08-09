@@ -194,6 +194,11 @@ void main() {
 
     expect(result.succeeded, isTrue);
     expect(result.flowId, 42);
+    expect(result.hasLocalFastPath, isTrue);
+    expect(result.persistInBackground, isNotNull);
+    expect(eventCalls, isEmpty);
+    expect(carryCalls, isEmpty);
+    await result.persistInBackground!();
     expect(flowCalls.single['notes'], contains('maat=evening_threshold'));
     expect(flowCalls.single['notes'], contains('materialized_days=2'));
     expect(

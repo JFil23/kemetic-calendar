@@ -273,6 +273,9 @@ void main() {
     final calendarPage = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
+    final joinService = File(
+      'lib/features/calendar/flow_join_service.dart',
+    ).readAsStringSync();
     final enrollmentSource = File(
       'lib/features/calendar/the_open_hand_enrollment.dart',
     ).readAsStringSync();
@@ -284,12 +287,13 @@ void main() {
     ).readAsStringSync();
 
     expect(calendarPage, contains('_MaatFlowTemplateKind.theOpenHand'));
-    expect(calendarPage, contains('_resolveMountedOpenHandJoinWindow'));
-    expect(calendarPage, contains('resolveOpenHandEnrollmentWindowSafely'));
+    expect(calendarPage, contains('joinOpenHandHeadless'));
+    expect(joinService, contains('resolveOpenHandEnrollmentWindowSafely'));
     expect(enrollmentSource, contains('openHandNextEnrollmentWindow'));
     expect(enrollmentSource, contains('openHandEnrollmentWindowForStartDate'));
     expect(calendarPage, isNot(contains('openHandEnrollmentIsOpen')));
-    expect(calendarPage, contains('openHandClientEventId'));
+    expect(joinService, contains('openHandClientEventId'));
+    expect(joinService, contains('_stageAndDeferPersist('));
     expect(detailPage, contains('_pickOpenHandWindowDate'));
     expect(detailPage, contains('designated decan-opening enrollment windows'));
     expect(detailPage, contains('Add Flow'));
