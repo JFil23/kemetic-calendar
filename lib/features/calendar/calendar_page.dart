@@ -174,6 +174,7 @@ import 'calendar_recurring_scope.dart';
 import 'day_sheet_scope.dart';
 import 'decan_reflection_composition/decan_reflection_composer.dart';
 import 'decan_reflection_composition/maat_flow_decan_fact_collector.dart';
+import 'staged_flow_lifecycle.dart';
 
 part 'calendar_flow_models.dart';
 part 'calendar_flow_studio_models.dart';
@@ -3957,13 +3958,14 @@ class _CalendarWarmStateStore {
   }
 }
 
-class _PendingStagedFlow {
+class _PendingStagedFlow extends StagedFlowLifecycle {
   _PendingStagedFlow({
     required this.flowId,
     required this.localFlow,
     required this.plannedNotes,
     required this.persist,
     required this.rollback,
+    required super.completionRequired,
   });
 
   final int flowId;
@@ -3971,7 +3973,6 @@ class _PendingStagedFlow {
   final List<_PlannedNote> plannedNotes;
   final Future<void> Function() persist;
   final Future<void> Function(CalendarPageState? state) rollback;
-  bool persistenceStarted = false;
 }
 
 class CalendarPage extends StatefulWidget {
@@ -4003,8 +4004,8 @@ class CalendarPage extends StatefulWidget {
   _pendingDetachedSearchResult;
   static ({int ky, int km, int kd})? _pendingDetachedSearchDay;
   static int? _pendingStagedFlowDayViewFlowId;
-  static final Map<int, _PendingStagedFlow> _pendingStagedFlows =
-      <int, _PendingStagedFlow>{};
+  static final StagedFlowLifecycleRegistry<_PendingStagedFlow>
+  _pendingStagedFlows = StagedFlowLifecycleRegistry<_PendingStagedFlow>();
   static _SharedCalendarRealDayViewIntent?
   _pendingSharedCalendarRealDayViewIntent;
   static bool _pendingTodayNavigationCommand = false;
@@ -4042,17 +4043,54 @@ class CalendarPage extends StatefulWidget {
   static bool get hasMountedHost => _mountedState != null;
 
   static void _stageFlowForDeferredPersistence(_PendingStagedFlow pending) {
-    _pendingStagedFlows[pending.flowId] = pending;
+    _pendingStagedFlows.register(pending.flowId, pending);
+  }
+
+  static void _cleanupPendingStagedFlowIfTerminal(int flowId) {
+    _pendingStagedFlows.cleanupIfTerminal(flowId);
+  }
+
+  static void _consumeStagedFlowCompletion(int flowId) {
+    final pending = _pendingStagedFlows[flowId];
+    if (pending == null) return;
+    pending.consumeCompletion();
+    _cleanupPendingStagedFlowIfTerminal(flowId);
+  }
+
+  static void _armStagedFlowDayView(int flowId) {
+    final pending = _pendingStagedFlows[flowId];
+    if (pending == null) {
+      throw StateError('Cannot arm missing staged flow $flowId.');
+    }
+    if (!pending.completionRequired) {
+      throw StateError(
+        'Staged flow $flowId was registered without completion.',
+      );
+    }
+
+    final existing = _pendingStagedFlowDayViewFlowId;
+    if (existing != null && existing != flowId) {
+      // The UI is single-flight, but do not leak an older staged payload if an
+      // external completion supersedes it.
+      _consumeStagedFlowCompletion(existing);
+    }
+    _pendingStagedFlowDayViewFlowId = flowId;
+  }
+
+  static void _clearStagedFlowDayViewIntent(int flowId) {
+    if (_pendingStagedFlowDayViewFlowId == flowId) {
+      _pendingStagedFlowDayViewFlowId = null;
+    }
   }
 
   static void _startStagedFlowPersistence(int flowId) {
     final pending = _pendingStagedFlows[flowId];
-    if (pending == null || pending.persistenceStarted) return;
-    pending.persistenceStarted = true;
+    if (pending == null || !pending.beginPersistence()) return;
     unawaited(() async {
       try {
         await pending.persist();
-        _pendingStagedFlows.remove(flowId);
+        pending.completePersistence();
+        _cleanupPendingStagedFlowIfTerminal(flowId);
       } catch (error, stackTrace) {
         if (kDebugMode) {
           _calendarDebugPrint(
@@ -4061,8 +4099,22 @@ class CalendarPage extends StatefulWidget {
           );
           _calendarDebugPrint('$stackTrace');
         }
-        _pendingStagedFlows.remove(flowId);
-        await pending.rollback(_mountedState);
+        _clearStagedFlowDayViewIntent(flowId);
+        try {
+          await pending.rollback(_mountedState);
+        } catch (rollbackError, rollbackStackTrace) {
+          if (kDebugMode) {
+            _calendarDebugPrint(
+              '[stagedFlowPersist] rollback failed '
+              'flowId=$flowId error=$rollbackError',
+            );
+            _calendarDebugPrint('$rollbackStackTrace');
+          }
+        } finally {
+          pending.completePersistence(failure: error);
+          pending.consumeCompletion();
+          _cleanupPendingStagedFlowIfTerminal(flowId);
+        }
       }
     }());
   }
@@ -6645,6 +6697,7 @@ class CalendarPage extends StatefulWidget {
 
   static Future<int> _addMaatFlowInstanceHeadless({
     required _MaatFlowTemplate template,
+    bool completionRequired = false,
     String? personalCalendarIdOverride,
     DateTime? startDate,
     bool? useKemetic,
@@ -6688,6 +6741,7 @@ class CalendarPage extends StatefulWidget {
           localFlow: localFlow,
           plannedNotes: result._plannedNotes,
           persist: persist,
+          completionRequired: completionRequired,
           rollback: (state) async {
             _forgetRememberedJoinedMaatFlow(flowId);
             final repo = UserEventsRepo(Supabase.instance.client);
@@ -6705,6 +6759,8 @@ class CalendarPage extends StatefulWidget {
           },
         ),
       );
+      _mountedState?._applyPendingStagedFlow(flowId);
+      _startStagedFlowPersistence(flowId);
       return flowId;
     }
 
@@ -6983,6 +7039,61 @@ class CalendarPage extends StatefulWidget {
     return stageResult(result);
   }
 
+  static Future<int> _addMaatFlowInstanceHeadlessWithCompletion({
+    required _MaatFlowTemplate template,
+    String? personalCalendarIdOverride,
+    DateTime? startDate,
+    bool? useKemetic,
+    TrackSkyTimeZone? trackSkyTimeZone,
+    int? alertMinutesBefore,
+    bool? dawnDiscreetMode,
+    DawnHouseRiteLens? dawnLens,
+    bool? eveningDiscreetMode,
+    EveningThresholdRiteLens? eveningLens,
+    int? eveningFallbackMinutesAfterMidnight,
+    TheWeighingLens? theWeighingLens,
+    OfferingTableLens? offeringTableLens,
+    bool? offeringNoCupMode,
+    TheTendingLens? theTendingLens,
+    KeptWordLens? keptWordLens,
+    CourseLens? courseLens,
+    MoonReturnLens? moonReturnLens,
+    WagLens? wagLens,
+    DecanWatchLens? decanWatchLens,
+    OpenHandLens? openHandLens,
+    DjedLens? djedLens,
+    List<ReadingHouseSitting>? readingHouseSittings,
+    String? eveningThresholdInitialCarry,
+  }) {
+    return _addMaatFlowInstanceHeadless(
+      template: template,
+      completionRequired: true,
+      personalCalendarIdOverride: personalCalendarIdOverride,
+      startDate: startDate,
+      useKemetic: useKemetic,
+      trackSkyTimeZone: trackSkyTimeZone,
+      alertMinutesBefore: alertMinutesBefore,
+      dawnDiscreetMode: dawnDiscreetMode,
+      dawnLens: dawnLens,
+      eveningDiscreetMode: eveningDiscreetMode,
+      eveningLens: eveningLens,
+      eveningFallbackMinutesAfterMidnight: eveningFallbackMinutesAfterMidnight,
+      theWeighingLens: theWeighingLens,
+      offeringTableLens: offeringTableLens,
+      offeringNoCupMode: offeringNoCupMode,
+      theTendingLens: theTendingLens,
+      keptWordLens: keptWordLens,
+      courseLens: courseLens,
+      moonReturnLens: moonReturnLens,
+      wagLens: wagLens,
+      decanWatchLens: decanWatchLens,
+      openHandLens: openHandLens,
+      djedLens: djedLens,
+      readingHouseSittings: readingHouseSittings,
+      eveningThresholdInitialCarry: eveningThresholdInitialCarry,
+    );
+  }
+
   static Future<void> _endFlowHeadless(int flowId) async {
     await UserEventsRepo(Supabase.instance.client).endFlow(
       flowId: flowId,
@@ -7074,19 +7185,23 @@ class CalendarPage extends StatefulWidget {
     int? editFlowId,
     ImportFlowData? importData,
     required Map<String, dynamic> returnState,
+    VoidCallback? onClose,
   }) {
     Future<void> handleResult(_FlowStudioResult result) async {
-      final opensDayView = _isDirectFlowStudioCreateWithEvents(result);
+      final opensDayView = _shouldOpenDayViewAfterFlowStudioAdd(result);
       final savedId = await _persistFlowStudioResultHeadless(result);
       if (savedId != null) {
         await flowsRepo.clearMyFiledFlowsCache();
         unawaited(flowsRepo.refreshMyFiledFlows());
       }
-      if (navigator.mounted) {
+      if (opensDayView && savedId != null) {
+        _completeDetachedStagedFlowWithDayView(
+          navigator: navigator,
+          flowId: savedId,
+          onClose: onClose,
+        );
+      } else if (navigator.mounted) {
         navigator.pop();
-      }
-      if (opensDayView) {
-        _mountedState?._schedulePendingStagedFlowDayViewIfAny();
       }
     }
 
@@ -7217,7 +7332,7 @@ class CalendarPage extends StatefulWidget {
             _cachedDetachedMyFlowsFilingSnapshot(flowsRepo),
             template.key,
           ),
-          addInstance: _addMaatFlowInstanceHeadless,
+          addInstance: _addMaatFlowInstanceHeadlessWithCompletion,
           onJoined: (flowId) => _completeDetachedMaatJoinWithDayView(
             navigator: navigator,
             template: template,
@@ -7244,7 +7359,6 @@ class CalendarPage extends StatefulWidget {
     VoidCallback? onClose,
   }) async {
     _rememberJoinedMaatFlowTemplate(templateKey: template.key, flowId: flowId);
-    _pendingStagedFlowDayViewFlowId = flowId;
     unawaited(flowsRepo.clearMyFiledFlowsCache());
     unawaited(
       flowsRepo.refreshMyFiledFlows().then((rows) {
@@ -7254,6 +7368,19 @@ class CalendarPage extends StatefulWidget {
       }),
     );
 
+    _completeDetachedStagedFlowWithDayView(
+      navigator: navigator,
+      flowId: flowId,
+      onClose: onClose,
+    );
+  }
+
+  static void _completeDetachedStagedFlowWithDayView({
+    required NavigatorState navigator,
+    required int flowId,
+    VoidCallback? onClose,
+  }) {
+    _armStagedFlowDayView(flowId);
     if (onClose != null) {
       onClose();
     } else if (navigator.mounted) {
@@ -7268,6 +7395,7 @@ class CalendarPage extends StatefulWidget {
     required String parentRoute,
     required FlowsRepo flowsRepo,
     int? initialFlowId,
+    VoidCallback? onClose,
   }) {
     if (initialFlowId != null) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -7278,6 +7406,7 @@ class CalendarPage extends StatefulWidget {
             parentRoute: parentRoute,
             flowsRepo: flowsRepo,
             editFlowId: initialFlowId,
+            onClose: onClose,
             returnState: const <String, dynamic>{
               'mode': _kFlowStudioModeMyFlows,
             },
@@ -7295,6 +7424,7 @@ class CalendarPage extends StatefulWidget {
           navigator,
           parentRoute: parentRoute,
           flowsRepo: flowsRepo,
+          onClose: onClose,
           returnState: const <String, dynamic>{'mode': _kFlowStudioModeMyFlows},
         );
         await _saveDetachedCalendarOverlayState(
@@ -7312,6 +7442,7 @@ class CalendarPage extends StatefulWidget {
           parentRoute: parentRoute,
           flowsRepo: flowsRepo,
           editFlowId: id,
+          onClose: onClose,
           returnState: const <String, dynamic>{'mode': _kFlowStudioModeMyFlows},
         );
         await _saveDetachedCalendarOverlayState(
@@ -7386,6 +7517,7 @@ class CalendarPage extends StatefulWidget {
           navigator,
           parentRoute: parentRoute,
           flowsRepo: flowsRepo,
+          onClose: onClose,
           returnState: const <String, dynamic>{
             'mode': _kFlowStudioModeMaatFlows,
           },
@@ -7434,10 +7566,19 @@ class CalendarPage extends StatefulWidget {
         editFlowId: editFlowId,
         onRouteClose: onClose,
         onRouteResult: (result) async {
+          final opensDayView = _shouldOpenDayViewAfterFlowStudioAdd(result);
           final savedId = await _persistFlowStudioResultHeadless(result);
           if (savedId != null) {
             await flowsRepo.clearMyFiledFlowsCache();
             unawaited(flowsRepo.refreshMyFiledFlows());
+          }
+          if (opensDayView && savedId != null) {
+            _completeDetachedStagedFlowWithDayView(
+              navigator: navigator,
+              flowId: savedId,
+              onClose: onClose,
+            );
+            return;
           }
           if (onClose != null) {
             onClose();
@@ -7470,6 +7611,7 @@ class CalendarPage extends StatefulWidget {
         parentRoute: parentRoute,
         flowsRepo: flowsRepo,
         initialFlowId: (restorationState['initialFlowId'] as num?)?.toInt(),
+        onClose: onClose,
       );
     }
 
@@ -7518,6 +7660,7 @@ class CalendarPage extends StatefulWidget {
                 navigator: Navigator.of(ctx),
                 parentRoute: parentRoute,
                 flowsRepo: flowsRepo,
+                onClose: onClose,
               ),
             ),
             parentRoute: parentRoute,
@@ -7558,6 +7701,7 @@ class CalendarPage extends StatefulWidget {
             navigator,
             parentRoute: parentRoute,
             flowsRepo: flowsRepo,
+            onClose: onClose,
             returnState: const <String, dynamic>{'mode': _kFlowStudioModeHub},
           ).then((edited) async {
             if (edited != null) {
@@ -7624,6 +7768,7 @@ class CalendarPage extends StatefulWidget {
           parentRoute: parentRoute,
           flowsRepo: flowsRepo,
           initialFlowId: (restorationState['initialFlowId'] as num?)?.toInt(),
+          onClose: onClose,
         ),
       );
       unawaited(listRoute.popped.then((_) => recordReturnToHub()));
@@ -7673,7 +7818,7 @@ class CalendarPage extends StatefulWidget {
           _cachedDetachedMyFlowsFilingSnapshot(flowsRepo),
           resolvedTemplate.key,
         ),
-        addInstance: _addMaatFlowInstanceHeadless,
+        addInstance: _addMaatFlowInstanceHeadlessWithCompletion,
         onJoined: (flowId) => _completeDetachedMaatJoinWithDayView(
           navigator: Navigator.of(detailContext),
           template: resolvedTemplate,
@@ -8243,14 +8388,16 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
-  static bool _isDirectFlowStudioCreateWithEvents(_FlowStudioResult result) {
+  static bool _didStageFlowStudioEvents(_FlowStudioResult result) =>
+      result.plannedNotes.isNotEmpty;
+
+  static bool _shouldOpenDayViewAfterFlowStudioAdd(_FlowStudioResult result) {
     final flow = result.savedFlow;
-    return flow != null &&
-        flow.id <= 0 &&
-        result.plannedNotes.isNotEmpty &&
-        result.originType == null &&
-        result.originShareId == null;
+    return flow != null && flow.id <= 0 && _didStageFlowStudioEvents(result);
   }
+
+  static bool _shouldSkipExplicitHydrate(_FlowStudioResult result) =>
+      _didStageFlowStudioEvents(result);
 
   // Headless persistence helper: save/delete flows + planned notes without calendar state.
   static Future<int?> _persistFlowStudioResultHeadless(
@@ -8275,6 +8422,7 @@ class CalendarPage extends StatefulWidget {
     if (r.savedFlow == null) return null;
     final f = r.savedFlow!;
     final isNewFlowSave = f.id <= 0;
+    final opensDayView = _shouldOpenDayViewAfterFlowStudioAdd(r);
     final rulesJson = jsonEncode(
       f.rules.map(CalendarPageState.ruleToJson).toList(),
     );
@@ -8391,6 +8539,7 @@ class CalendarPage extends StatefulWidget {
           localFlow: localFlow,
           plannedNotes: staged._plannedNotes,
           persist: persist,
+          completionRequired: opensDayView,
           rollback: (state) async {
             if (!isNewFlowSave) {
               if (state != null) {
@@ -8429,15 +8578,15 @@ class CalendarPage extends StatefulWidget {
           },
         ),
       );
+      _mountedState?._applyPendingStagedFlow(savedId);
 
       // A create opens Day View only when this direct Studio save staged
       // events. Edits deliberately never navigate, including edits that add
       // days; they apply locally and persist in the background.
-      if (CalendarPage._isDirectFlowStudioCreateWithEvents(r)) {
-        _pendingStagedFlowDayViewFlowId = savedId;
-      } else {
-        _startStagedFlowPersistence(savedId);
+      if (opensDayView) {
+        _armStagedFlowDayView(savedId);
       }
+      _startStagedFlowPersistence(savedId);
       return savedId;
     }
 
@@ -8468,11 +8617,12 @@ class CalendarPage extends StatefulWidget {
     return savedId;
   }
 
-  static Future<int?> importFlowFromShare(
+  static Future<({int flowId, bool didStageEvents})?> importFlowFromShare(
     BuildContext context,
     ImportFlowData data,
   ) async {
     int? persistedFlowId;
+    var didStageEvents = false;
     final result = await showModalBottomSheet<_FlowStudioResult?>(
       context: context,
       isScrollControlled: true,
@@ -8500,6 +8650,7 @@ class CalendarPage extends StatefulWidget {
                         existingFlows: const [],
                         importData: data,
                         onRouteResult: (result) async {
+                          didStageEvents = _didStageFlowStudioEvents(result);
                           final state = CalendarPage.globalKey.currentState;
                           if (state != null) {
                             persistedFlowId = await state
@@ -8531,20 +8682,25 @@ class CalendarPage extends StatefulWidget {
     );
 
     if (persistedFlowId != null) {
-      return persistedFlowId;
+      return (flowId: persistedFlowId!, didStageEvents: didStageEvents);
     }
     if (result != null && result.savedFlow != null) {
+      didStageEvents = _didStageFlowStudioEvents(result);
       final state = CalendarPage.globalKey.currentState;
+      final int? flowId;
       if (state != null) {
-        return await state._persistFlowStudioResult(result);
+        flowId = await state._persistFlowStudioResult(result);
       } else {
-        return await CalendarPage._persistFlowStudioResultHeadless(result);
+        flowId = await CalendarPage._persistFlowStudioResultHeadless(result);
       }
+      if (flowId == null) return null;
+      return (flowId: flowId, didStageEvents: didStageEvents);
     }
     return null;
   }
 
-  static Future<int?> importGeneratedFlowFromAnyContext(
+  static Future<({int flowId, bool didStageEvents})?>
+  importGeneratedFlowFromAnyContext(
     BuildContext context, {
     required AIFlowGenerationResponse response,
     required DateTime baseStart,
@@ -8552,6 +8708,19 @@ class CalendarPage extends StatefulWidget {
     final data = _importDataFromAiGenerationResponse(response, baseStart);
     if (data == null) return null;
     return importFlowFromShare(context, data);
+  }
+
+  static void completeStagedFlowAddFromAnyContext(
+    BuildContext context,
+    int flowId,
+  ) {
+    _armStagedFlowDayView(flowId);
+    if (context.mounted) {
+      context.go('/');
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _mountedState?._schedulePendingStagedFlowDayViewIfAny();
+    });
   }
 
   static ImportFlowData? _importDataFromAiGenerationResponse(
@@ -10826,11 +10995,14 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     Future<void> handleResult(_FlowStudioResult result) async {
-      final opensDayView = CalendarPage._isDirectFlowStudioCreateWithEvents(
+      final opensDayView = CalendarPage._shouldOpenDayViewAfterFlowStudioAdd(
+        result,
+      );
+      final skipExplicitHydrate = CalendarPage._shouldSkipExplicitHydrate(
         result,
       );
       await _persistFlowStudioResult(result);
-      if (mounted && !opensDayView) {
+      if (mounted && !skipExplicitHydrate) {
         await _loadFromDisk(source: 'flow_studio_editor_save');
       }
       if (navigator.mounted) {
@@ -10857,6 +11029,16 @@ class CalendarPageState extends State<CalendarPage>
       },
       returnState: returnState,
     );
+  }
+
+  Future<void> _persistReturnedFlowStudioResult(
+    _FlowStudioResult? result,
+  ) async {
+    if (result == null) return;
+    await _persistFlowStudioResult(result);
+    if (!CalendarPage._shouldSkipExplicitHydrate(result)) {
+      await _loadFromDisk(source: 'flow_studio_returned_result');
+    }
   }
 
   _Flow? _readingHouseFlowForEditor(int? flowId) {
@@ -15032,6 +15214,7 @@ class CalendarPageState extends State<CalendarPage>
             onAddFlow: (template) async {
               final id = await _addMaatFlowInstance(
                 template: template,
+                completionRequired: false,
                 startDate: DateTime.now(),
               );
               if (id <= 0) return;
@@ -15274,23 +15457,22 @@ class CalendarPageState extends State<CalendarPage>
     if (flowId == null || !mounted) return;
     _applyPendingStagedFlow(flowId);
     if (_firstChronologicalNoteForFlow(flowId) == null) {
-      if (CalendarPage._pendingStagedFlowDayViewFlowId == flowId) {
-        CalendarPage._pendingStagedFlowDayViewFlowId = null;
-      }
+      CalendarPage._clearStagedFlowDayViewIntent(flowId);
+      CalendarPage._consumeStagedFlowCompletion(flowId);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Could not stage the first day of this flow.'),
         ),
       );
-      CalendarPage._startStagedFlowPersistence(flowId);
       return;
     }
-    if (CalendarPage._pendingStagedFlowDayViewFlowId == flowId) {
-      CalendarPage._pendingStagedFlowDayViewFlowId = null;
-    }
+    CalendarPage._clearStagedFlowDayViewIntent(flowId);
     _openDayViewForStagedFlow(flowId);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
+      if (!mounted) {
+        CalendarPage._consumeStagedFlowCompletion(flowId);
+        return;
+      }
       // A detached cold start can restore the warm snapshot between the first
       // local apply and Day View's first frame. Re-apply the same cid-keyed
       // notes after that frame so the local block stays visible while the
@@ -15298,7 +15480,7 @@ class CalendarPageState extends State<CalendarPage>
       try {
         _applyPendingStagedFlow(flowId);
       } finally {
-        CalendarPage._startStagedFlowPersistence(flowId);
+        CalendarPage._consumeStagedFlowCompletion(flowId);
       }
     });
   }
@@ -15311,6 +15493,7 @@ class CalendarPageState extends State<CalendarPage>
       templateKey: templateKey,
       flowId: flowId,
     );
+    CalendarPage._armStagedFlowDayView(flowId);
     _myFlowsFilingSnapshotCache = null;
     unawaited(_flowsRepo.clearMyFiledFlowsCache());
     if (!mounted) return;
@@ -15318,13 +15501,7 @@ class CalendarPageState extends State<CalendarPage>
     if (rootNavigator.canPop()) {
       rootNavigator.pop();
     }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _openDayViewForStagedFlow(flowId);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        CalendarPage._startStagedFlowPersistence(flowId);
-      });
-    });
+    _schedulePendingStagedFlowDayViewIfAny();
   }
 
   _Note? _firstFlowTargetNoteForDay(int ky, int km, int kd) {
@@ -23971,10 +24148,7 @@ class CalendarPageState extends State<CalendarPage>
                                   'mode': _kFlowStudioModeMyFlows,
                                 },
                               );
-                              if (edited != null) {
-                                await _persistFlowStudioResult(edited);
-                              }
-                              await _loadFromDisk();
+                              await _persistReturnedFlowStudioResult(edited);
                             },
                             onEditFlow: (id) async {
                               final edited = await _pushFlowStudioEditor(
@@ -23990,10 +24164,7 @@ class CalendarPageState extends State<CalendarPage>
                                   'mode': _kFlowStudioModeMyFlows,
                                 },
                               );
-                              if (edited != null) {
-                                await _persistFlowStudioResult(edited);
-                              }
-                              await _loadFromDisk();
+                              await _persistReturnedFlowStudioResult(edited);
                             },
                             onEndFlow: (id) => _endFlow(id),
                             onImportFlow: (importedFlowId) async {
@@ -24126,10 +24297,7 @@ class CalendarPageState extends State<CalendarPage>
                       'mode': _kFlowStudioModeMyFlows,
                     },
                   );
-                  if (edited != null) {
-                    await _persistFlowStudioResult(edited);
-                  }
-                  await _loadFromDisk();
+                  await _persistReturnedFlowStudioResult(edited);
                 },
                 onEditFlow: (id) async {
                   final edited = await _pushFlowStudioEditor(
@@ -24139,10 +24307,7 @@ class CalendarPageState extends State<CalendarPage>
                       'mode': _kFlowStudioModeMyFlows,
                     },
                   );
-                  if (edited != null) {
-                    await _persistFlowStudioResult(edited);
-                  }
-                  await _loadFromDisk();
+                  await _persistReturnedFlowStudioResult(edited);
                 },
                 onEndFlow: (id) => _endFlow(id),
                 onImportFlow: (importedFlowId) async {
@@ -24328,9 +24493,7 @@ class CalendarPageState extends State<CalendarPage>
               _kCalendarOverlayKindFlowStudio,
               const <String, dynamic>{'mode': _kFlowStudioModeMyFlows},
             );
-            if (edited != null) await _persistFlowStudioResult(edited);
-            // ✅ Refresh calendar data after flow operations
-            await _loadFromDisk();
+            await _persistReturnedFlowStudioResult(edited);
           },
           onEditFlow: (id) async {
             final edited = await _pushFlowStudioEditor(
@@ -24344,9 +24507,7 @@ class CalendarPageState extends State<CalendarPage>
               _kCalendarOverlayKindFlowStudio,
               const <String, dynamic>{'mode': _kFlowStudioModeMyFlows},
             );
-            if (edited != null) await _persistFlowStudioResult(edited);
-            // ✅ Refresh calendar data after flow operations
-            await _loadFromDisk();
+            await _persistReturnedFlowStudioResult(edited);
           },
           onEndFlow: (id) => _endFlow(id),
           onImportFlow: (importedFlowId) async {
@@ -24586,6 +24747,7 @@ class CalendarPageState extends State<CalendarPage>
   /// - Returns the created flow's id.
   Future<int> _addMaatFlowInstance({
     required _MaatFlowTemplate template,
+    bool completionRequired = true,
     DateTime? startDate,
     bool useKemetic = false,
     TrackSkyTimeZone? trackSkyTimeZone,
@@ -24612,6 +24774,7 @@ class CalendarPageState extends State<CalendarPage>
   }) async {
     final flowId = await CalendarPage._addMaatFlowInstanceHeadless(
       template: template,
+      completionRequired: completionRequired,
       personalCalendarIdOverride: _personalCalendarId,
       startDate: startDate,
       useKemetic: useKemetic,
@@ -28952,6 +29115,7 @@ class CalendarPageState extends State<CalendarPage>
   Future<int?> _persistFlowStudioResult(_FlowStudioResult r) async {
     final repo = UserEventsRepo(Supabase.instance.client);
     final isNewFlowSave = r.savedFlow != null && r.savedFlow!.id <= 0;
+    final opensDayView = CalendarPage._shouldOpenDayViewAfterFlowStudioAdd(r);
 
     // 1) Deletes take precedence
     final deleteId = r.deleteFlowId;
@@ -29207,6 +29371,7 @@ class CalendarPageState extends State<CalendarPage>
           localFlow: savedFlow,
           plannedNotes: staged._plannedNotes,
           persist: persist,
+          completionRequired: opensDayView,
           rollback: (state) async {
             if (!isNewFlowSave) {
               final liveState = state;
@@ -29232,12 +29397,11 @@ class CalendarPageState extends State<CalendarPage>
 
       // Editing deliberately never navigates to Day View, including edits
       // that add days. Only a direct Studio create with staged events arms the
-      // completion intent; persistence begins after its first Day View frame.
-      if (CalendarPage._isDirectFlowStudioCreateWithEvents(r)) {
-        CalendarPage._pendingStagedFlowDayViewFlowId = savedFlow.id;
-      } else {
-        CalendarPage._startStagedFlowPersistence(savedFlow.id);
+      // completion intent. Persistence begins immediately for both cases.
+      if (opensDayView) {
+        CalendarPage._armStagedFlowDayView(savedFlow.id);
       }
+      CalendarPage._startStagedFlowPersistence(savedFlow.id);
       return savedFlow.id;
     }
 

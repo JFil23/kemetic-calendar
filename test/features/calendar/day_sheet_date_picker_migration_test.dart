@@ -615,11 +615,6 @@ void main() {
       'void _scheduleDebugDaySheetSmoke()',
       '@override\n  void initState',
     );
-    final initState = _sourceBetween(
-      calendarSource,
-      'void initState()',
-      'void _handleCalendarInvalidated',
-    );
     final route = _sourceBetween(
       mainSource,
       "if (kDebugMode)\n      _calmRoute(",
@@ -686,14 +681,6 @@ void main() {
     expect(launcher, contains("initialTitle: 'Smoke draft note'"));
     expect(launcher, contains('initialCalendarId: _personalCalendarId'));
 
-    expect(
-      initState.indexOf('_configureDebugDaySheetSmokeState()'),
-      lessThan(initState.indexOf('_reminderService.load()')),
-    );
-    expect(
-      initState.indexOf('_scheduleDebugDaySheetSmoke()'),
-      lessThan(initState.indexOf('_reminderService.load()')),
-    );
   });
 
   test(

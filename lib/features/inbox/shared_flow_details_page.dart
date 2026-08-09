@@ -443,7 +443,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           '${scheduledStart.year}-${scheduledStart.month.toString().padLeft(2, '0')}-${scheduledStart.day.toString().padLeft(2, '0')}';
 
       if (!context.mounted) return;
-      final flowId = await CalendarPage.importFlowFromShare(
+      final imported = await CalendarPage.importFlowFromShare(
         // ignore: use_build_context_synchronously
         context,
         ImportFlowData(
@@ -461,7 +461,8 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
 
       if (!mounted) return;
 
-      if (flowId != null) {
+      if (imported != null) {
+        final flowId = imported.flowId;
         final inboxRepo = InboxRepo(Supabase.instance.client);
         await inboxRepo.markImported(share.shareId, isFlow: true);
         unawaited(
@@ -474,6 +475,10 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           ),
         );
         if (!mounted) return;
+        if (imported.didStageEvents) {
+          CalendarPage.completeStagedFlowAddFromAnyContext(context, flowId);
+          return;
+        }
         setState(() {
           _localImportedFlowId = flowId;
           _isImporting = false;
