@@ -67,10 +67,7 @@ void main() {
     );
     expect(chronologicalHelper, contains('a.date.compareTo(b.date)'));
     expect(chronologicalHelper, contains('aStart.compareTo(bStart)'));
-    expect(
-      chronologicalHelper,
-      isNot(contains('!a.date.isBefore(today)')),
-    );
+    expect(chronologicalHelper, isNot(contains('!a.date.isBefore(today)')));
 
     expect(openHelper, contains('_firstChronologicalNoteForFlow(flowId)'));
     expect(openHelper, contains('_openDayView('));
@@ -81,17 +78,14 @@ void main() {
       listJoin,
       isNot(contains("await _loadFromDisk(source: 'maat_flow_imported')")),
     );
+    expect(listJoin, isNot(contains('_focusCalendarOnFirstUpcomingFlowEvent')));
     expect(
       listJoin,
-      isNot(contains('_focusCalendarOnFirstUpcomingFlowEvent')),
+      contains('_firstChronologicalNoteForFlow(importedFlowId)'),
     );
-    expect(listJoin, contains('_firstChronologicalNoteForFlow(importedFlowId)'));
 
     expect(hubJoin, isNot(contains("source: 'maat_flow_imported_return'")));
-    expect(
-      hubJoin,
-      isNot(contains('_focusCalendarOnFirstUpcomingFlowEvent')),
-    );
+    expect(hubJoin, isNot(contains('_focusCalendarOnFirstUpcomingFlowEvent')));
     expect(hubJoin, contains('_openDayViewForJoinedMaatFlow(importedFlowId)'));
     expect(hubJoin, contains('_firstChronologicalNoteForFlow(importedFlowId)'));
   });
@@ -1016,7 +1010,9 @@ void main() {
     );
     expect(courseService, contains('_fileHeadlessJoinDelivery'));
     expect(courseService, contains('alertOffsetMinutes: alertOffsetMinutes'));
-    expect(_countOccurrences(courseService, '_completeHeadlessJoin'), 1);
+    expect(courseService, contains('_repo.upsertManyDeterministic(rows)'));
+    expect(courseService, contains('persistInBackground: persistInBackground'));
+    expect(_countOccurrences(courseService, '_completeHeadlessJoin'), 0);
   });
 
   test('FlowJoinService headless completion helper invalidates once', () {
@@ -1183,10 +1179,12 @@ void main() {
         'if (template.kind == _MaatFlowTemplateKind.theCourse)',
         "// Current Ma'at templates must use explicit branches above;",
       );
-      _expectPersistsBeforeAlertFiling(
+      expect(courseBranch, contains('joinTheCourseHeadless'));
+      expect(courseBranch, contains('_stageMaatJoinFastPath'));
+      expect(courseBranch, contains('_applyPendingMaatJoinFastPath'));
+      expect(
         courseBranch,
-        persistMarker: 'await repo.upsertManyDeterministic(',
-        branchName: 'mounted Course',
+        isNot(contains('await repo.upsertManyDeterministic')),
       );
     },
   );
@@ -1662,7 +1660,10 @@ void main() {
       expect(daysOutsideBranch, contains('endsAtUtc: schedule.endUtc'));
       expect(daysOutsideBranch, contains('category: \'Ritual\''));
       expect(daysOutsideBranch, contains('alertOffsetMinutes: 0'));
-      expect(daysOutsideBranch, contains('await repo.upsertManyDeterministic('));
+      expect(
+        daysOutsideBranch,
+        contains('await repo.upsertManyDeterministic('),
+      );
       expect(daysOutsideBranch, contains('_addNote('));
       expect(daysOutsideBranch, contains('await _scheduleAlertForEvent('));
     },
@@ -1971,7 +1972,10 @@ void main() {
         readingHouseBranch,
         contains('alertOffsetMinutes: _alertNoneMinutes'),
       );
-      expect(readingHouseBranch, contains('await repo.upsertManyDeterministic('));
+      expect(
+        readingHouseBranch,
+        contains('await repo.upsertManyDeterministic('),
+      );
       expect(readingHouseBranch, contains('_addNote('));
       expect(
         readingHouseBranch,
@@ -2021,7 +2025,10 @@ void main() {
       expect(offeringTableBranch, contains('endsAtUtc: occurrence.endUtc'));
       expect(offeringTableBranch, contains('category: \'Ritual\''));
       expect(offeringTableBranch, contains('alertOffsetMinutes: 0'));
-      expect(offeringTableBranch, contains('await repo.upsertManyDeterministic('));
+      expect(
+        offeringTableBranch,
+        contains('await repo.upsertManyDeterministic('),
+      );
       expect(offeringTableBranch, contains('_addNote('));
       expect(offeringTableBranch, contains('await _scheduleAlertForEvent('));
     },
@@ -2072,10 +2079,7 @@ void main() {
       expect(weighingBranch, contains('alertOffsetMinutes: _alertNoneMinutes'));
       expect(weighingBranch, contains('await repo.upsertManyDeterministic('));
       expect(weighingBranch, contains('_addNote('));
-      expect(
-        weighingBranch,
-        isNot(contains('await _scheduleAlertForEvent(')),
-      );
+      expect(weighingBranch, isNot(contains('await _scheduleAlertForEvent(')));
 
       expect(weighingPayload, contains("'kind': 'maat_the_weighing_event'"));
       expect(weighingPayload, contains("'flow_key': kTheWeighingFlowKey"));
@@ -2209,6 +2213,9 @@ void main() {
       final courseSource = File(
         'lib/features/calendar/the_course_flow.dart',
       ).readAsStringSync();
+      final joinServiceSource = File(
+        'lib/features/calendar/flow_join_service.dart',
+      ).readAsStringSync();
       final mountedJoin = _sourceBetween(
         source,
         'Future<int> _addMaatFlowInstance({',
@@ -2219,41 +2226,49 @@ void main() {
         'if (template.kind == _MaatFlowTemplateKind.theCourse)',
         "// Current Ma'at templates must use explicit branches above;",
       );
+      final courseService = _sourceBetween(
+        joinServiceSource,
+        'Future<FlowJoinResult> joinTheCourseHeadless',
+        'Future<void> _fileHeadlessJoinDelivery',
+      );
       final coursePayload = _sourceBetween(
         courseSource,
         'Map<String, dynamic> courseBehaviorPayload({',
         'String courseDetailText(',
       );
 
-      expect(courseBranch, contains('mode=gregorian'));
-      expect(courseBranch, contains('maat=\${template.key}'));
-      expect(courseBranch, contains('course_tz=\${timezone.key}'));
-      expect(courseBranch, contains('course_lens=\${courseLens.key}'));
-      expect(courseBranch, contains('course_midday_hour='));
-      expect(courseBranch, contains('course_midday_minute='));
-      expect(courseBranch, contains('joined_ky='));
-      expect(courseBranch, contains('joined_km='));
-      expect(courseBranch, contains('joined_kd='));
-      expect(courseBranch, contains('courseContextForKemeticDate('));
-      expect(courseBranch, contains('kYear: kyKmKd.kYear'));
-      expect(courseBranch, contains('kMonth: kyKmKd.kMonth'));
-      expect(courseBranch, contains('kDay: kyKmKd.kDay'));
-      expect(courseBranch, contains('courseEventTitle(event)'));
-      expect(courseBranch, contains('courseDetailText('));
-      expect(courseBranch, contains('lens: courseLens'));
-      expect(courseBranch, contains('context: courseContext'));
-      expect(courseBranch, contains('courseBehaviorPayload('));
-      expect(courseBranch, contains('event: event'));
-      expect(courseBranch, contains('schedule: occurrence'));
-      expect(courseBranch, contains('courseActionId(event)'));
-      expect(courseBranch, contains('clientEventId = _buildCid('));
-      expect(courseBranch, contains('startsAtUtc: occurrence.startUtc'));
-      expect(courseBranch, contains('endsAtUtc: occurrence.endUtc'));
-      expect(courseBranch, contains('category: \'Ritual\''));
-      expect(courseBranch, contains('alertOffsetMinutes: 0'));
-      expect(courseBranch, contains('await repo.upsertManyDeterministic('));
-      expect(courseBranch, contains('_addNote('));
-      expect(courseBranch, contains('await _scheduleAlertForEvent('));
+      expect(courseBranch, contains('joinTheCourseHeadless'));
+      expect(courseBranch, contains('_stageMaatJoinFastPath'));
+      expect(courseBranch, contains('_applyPendingMaatJoinFastPath'));
+      expect(courseService, contains('mode=gregorian'));
+      expect(courseService, contains(r'maat=$templateKey'));
+      expect(courseService, contains('course_tz=\${timezone.key}'));
+      expect(courseService, contains('course_lens=\${lens.key}'));
+      expect(courseService, contains('course_midday_hour='));
+      expect(courseService, contains('course_midday_minute='));
+      expect(courseService, contains('joined_ky='));
+      expect(courseService, contains('joined_km='));
+      expect(courseService, contains('joined_kd='));
+      expect(courseService, contains('courseContextForKemeticDate('));
+      expect(courseService, contains('kYear: k.kYear'));
+      expect(courseService, contains('kMonth: k.kMonth'));
+      expect(courseService, contains('kDay: k.kDay'));
+      expect(courseService, contains('courseEventTitle(event)'));
+      expect(courseService, contains('courseDetailText('));
+      expect(courseService, contains('lens: lens'));
+      expect(courseService, contains('context: context'));
+      expect(courseService, contains('courseBehaviorPayload('));
+      expect(courseService, contains('event: event'));
+      expect(courseService, contains('schedule: occurrence'));
+      expect(courseService, contains('courseActionId(event)'));
+      expect(courseService, contains('EventCidUtil.buildClientEventId('));
+      expect(courseService, contains('startsAtUtc: occurrence.startUtc'));
+      expect(courseService, contains('endsAtUtc: occurrence.endUtc'));
+      expect(courseService, contains("category: 'Ritual'"));
+      expect(courseService, contains('alertOffsetMinutes: alertOffsetMinutes'));
+      expect(courseService, contains('_repo.upsertManyDeterministic(rows)'));
+      expect(courseService, contains('_PlannedNote('));
+      expect(courseService, contains('_fileHeadlessJoinDelivery('));
 
       expect(coursePayload, contains("'flow_key': kTheCourseFlowKey"));
       expect(coursePayload, contains("'required': <String>['day_card']"));

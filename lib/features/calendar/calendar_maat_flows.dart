@@ -264,6 +264,8 @@ Widget buildMaatFlowsListPreviewForTesting({
 Widget buildMaatFlowTemplateDetailPreviewForTesting({
   String templateKey = 'the-weighing',
   bool emptyEvents = false,
+  bool alreadyJoined = false,
+  Future<int> Function()? onJoin,
 }) {
   final resolvedTemplate = _kMaatFlowTemplates.firstWhere(
     (candidate) => candidate.key == templateKey,
@@ -285,6 +287,7 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
       : resolvedTemplate;
   return _MaatFlowTemplateDetailPage(
     template: template,
+    alreadyJoined: alreadyJoined,
     addInstance:
         ({
           required _MaatFlowTemplate template,
@@ -310,7 +313,7 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
           DjedLens? djedLens,
           List<ReadingHouseSitting>? readingHouseSittings,
           String? eveningThresholdInitialCarry,
-        }) async => 1,
+        }) => onJoin?.call() ?? Future<int>.value(1),
   );
 }
 
@@ -343,6 +346,30 @@ bool maatFlowTemplateMatchesActiveFlowForTesting({
       isReminder: isReminder,
     ),
     templateKey,
+  );
+}
+
+@visibleForTesting
+bool maatFlowFilingSnapshotMarksInstanceActiveForTesting({
+  required bool visibleInActiveList,
+  bool flowActive = true,
+}) {
+  final flow = _Flow(
+    id: 1,
+    name: 'The Course',
+    color: Colors.white,
+    active: flowActive,
+    rules: const <FlowRule>[],
+  );
+  return CalendarPage._snapshotHasActiveMaatInstanceFor(
+    _MyFlowsFilingSnapshot(
+      flows: <_Flow>[flow],
+      activeFlowIds: visibleInActiveList ? const <int>{1} : const <int>{},
+      savedFlowIds: const <int>{},
+      totalEventCounts: const <int, int>{1: 9},
+      remainingEventCounts: const <int, int>{1: 9},
+    ),
+    'the-course',
   );
 }
 
@@ -2073,6 +2100,7 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
     required this.template,
     required this.addInstance,
     this.onJoined,
+    this.alreadyJoined = false,
     this.showBackButton = true,
     this.embeddedInOnboarding = false,
   });
@@ -2105,6 +2133,7 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
   })
   addInstance;
   final Future<void> Function(int flowId)? onJoined;
+  final bool alreadyJoined;
   final bool showBackButton;
   final bool embeddedInOnboarding;
 
@@ -4618,9 +4647,11 @@ class _MaatFlowTemplateDetailPageState
     String text = 'Join Flow',
     Widget? leading,
   }) {
+    final buttonText = widget.alreadyJoined ? 'Joined' : text;
+    final callback = widget.alreadyJoined ? null : onPressed;
     return Semantics(
       button: true,
-      label: text,
+      label: buttonText,
       child: SizedBox(
         width: buttonWidth,
         height: 52,
@@ -4637,14 +4668,14 @@ class _MaatFlowTemplateDetailPageState
             side: const BorderSide(color: MaatFlowListTokens.gold, width: 1.15),
             elevation: 0,
           ),
-          onPressed: onPressed,
+          onPressed: callback,
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
               if (leading != null) ...[leading, const SizedBox(width: 18)],
               Text(
-                text,
+                buttonText,
                 style: const TextStyle(
                   color: MaatFlowListTokens.gold,
                   fontFamily: MaatFlowListTokens.fontFamily,

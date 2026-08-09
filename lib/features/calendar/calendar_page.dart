@@ -3957,6 +3957,23 @@ class _CalendarWarmStateStore {
   }
 }
 
+class _PendingMaatJoinFastPath {
+  _PendingMaatJoinFastPath({
+    required this.flowId,
+    required this.localFlow,
+    required this.plannedNotes,
+    required this.persist,
+    required this.failureMessage,
+  });
+
+  final int flowId;
+  final _Flow localFlow;
+  final List<_PlannedNote> plannedNotes;
+  final Future<void> Function() persist;
+  final String failureMessage;
+  bool persistenceStarted = false;
+}
+
 class CalendarPage extends StatefulWidget {
   final int? initialFlowIdToEdit;
   final bool openMyFlowsOnLaunch;
@@ -3985,6 +4002,9 @@ class CalendarPage extends StatefulWidget {
   static ({int ky, int km, int kd, EventDetailRestorationState? eventDetail})?
   _pendingDetachedSearchResult;
   static ({int ky, int km, int kd})? _pendingDetachedSearchDay;
+  static int? _pendingMaatJoinDayViewFlowId;
+  static final Map<int, _PendingMaatJoinFastPath> _pendingMaatJoinFastPaths =
+      <int, _PendingMaatJoinFastPath>{};
   static _SharedCalendarRealDayViewIntent?
   _pendingSharedCalendarRealDayViewIntent;
   static bool _pendingTodayNavigationCommand = false;
@@ -4020,6 +4040,44 @@ class CalendarPage extends StatefulWidget {
   }
 
   static bool get hasMountedHost => _mountedState != null;
+
+  static void _stageMaatJoinFastPath(_PendingMaatJoinFastPath pending) {
+    _pendingMaatJoinFastPaths[pending.flowId] = pending;
+  }
+
+  static void _startMaatJoinPersistence(int flowId) {
+    final pending = _pendingMaatJoinFastPaths[flowId];
+    if (pending == null || pending.persistenceStarted) return;
+    pending.persistenceStarted = true;
+    unawaited(() async {
+      try {
+        await pending.persist();
+        _pendingMaatJoinFastPaths.remove(flowId);
+      } catch (error, stackTrace) {
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[maatFlowJoin] background persistence failed '
+            'flowId=$flowId error=$error',
+          );
+          _calendarDebugPrint('$stackTrace');
+        }
+        _pendingMaatJoinFastPaths.remove(flowId);
+        final state = _mountedState;
+        if (state != null) {
+          await state._rollbackJoinedFlowLocally(
+            flowId,
+            repo: UserEventsRepo(Supabase.instance.client),
+            failureMessage: pending.failureMessage,
+          );
+        } else {
+          _forgetRememberedJoinedMaatFlow(flowId);
+          try {
+            await UserEventsRepo(Supabase.instance.client).deleteFlow(flowId);
+          } catch (_) {}
+        }
+      }
+    }());
+  }
 
   static FlowDetailActionPolicy resolveCanonicalCustomFlowActionPolicy({
     required FlowDetailSource source,
@@ -6315,7 +6373,8 @@ class CalendarPage extends StatefulWidget {
     if (_hasRememberedJoinedMaatTemplate(tplKey)) return true;
     if (snapshot == null) return false;
     return snapshot.flows.any((flow) {
-      return _flowMatchesActiveMaatTemplate(flow, tplKey);
+      return snapshot.activeFlowIds.contains(flow.id) &&
+          _flowMatchesActiveMaatTemplate(flow, tplKey);
     });
   }
 
@@ -6325,6 +6384,7 @@ class CalendarPage extends StatefulWidget {
   ) {
     if (snapshot == null) return null;
     for (final flow in snapshot.flows) {
+      if (!snapshot.activeFlowIds.contains(flow.id)) continue;
       if (!_flowMatchesActiveMaatTemplate(flow, tplKey)) continue;
       return _maatCompletionStatusFromCounts(
         totalEventCount: snapshot.totalEventCounts[flow.id] ?? 0,
@@ -6434,7 +6494,8 @@ class CalendarPage extends StatefulWidget {
     final keysToForget = <String>[];
     for (final entry in _rememberedJoinedMaatFlowIdsByTemplateKey.entries) {
       final hasCanonicalFlow = snapshot.flows.any((flow) {
-        return flow.id == entry.value &&
+        return snapshot.activeFlowIds.contains(flow.id) &&
+            flow.id == entry.value &&
             _flowMatchesActiveMaatTemplate(flow, entry.key);
       });
       if (hasCanonicalFlow) keysToForget.add(entry.key);
@@ -6932,6 +6993,23 @@ class CalendarPage extends StatefulWidget {
         lens: courseLens ?? CourseLens.neutral,
         alertOffsetMinutes: 0,
       );
+      final flowId = result.flowId;
+      final localFlow = result._localFlow;
+      final persist = result.persistInBackground;
+      if (result.succeeded &&
+          flowId != null &&
+          localFlow != null &&
+          persist != null) {
+        _stageMaatJoinFastPath(
+          _PendingMaatJoinFastPath(
+            flowId: flowId,
+            localFlow: localFlow,
+            plannedNotes: result._plannedNotes,
+            persist: persist,
+            failureMessage: 'Could not create The Course.',
+          ),
+        );
+      }
       return result.flowIdOrNegativeOne;
     }
 
@@ -7222,13 +7300,26 @@ class CalendarPage extends StatefulWidget {
     _MaatFlowTemplate template, {
     required String parentRoute,
     required Map<String, dynamic> returnState,
+    required FlowsRepo flowsRepo,
+    VoidCallback? onClose,
   }) {
     return _pushDetachedFlowStudioRoute<int?>(
       navigator,
       MaterialPageRoute<int?>(
         builder: (_) => _MaatFlowTemplateDetailPage(
           template: template,
+          alreadyJoined: _snapshotHasActiveMaatInstanceFor(
+            _cachedDetachedMyFlowsFilingSnapshot(flowsRepo),
+            template.key,
+          ),
           addInstance: _addMaatFlowInstanceHeadless,
+          onJoined: (flowId) => _completeDetachedMaatJoinWithDayView(
+            navigator: navigator,
+            template: template,
+            flowId: flowId,
+            flowsRepo: flowsRepo,
+            onClose: onClose,
+          ),
         ),
       ),
       parentRoute: parentRoute,
@@ -7238,6 +7329,33 @@ class CalendarPage extends StatefulWidget {
       },
       returnState: returnState,
     );
+  }
+
+  static Future<void> _completeDetachedMaatJoinWithDayView({
+    required NavigatorState navigator,
+    required _MaatFlowTemplate template,
+    required int flowId,
+    required FlowsRepo flowsRepo,
+    VoidCallback? onClose,
+  }) async {
+    _rememberJoinedMaatFlowTemplate(templateKey: template.key, flowId: flowId);
+    _pendingMaatJoinDayViewFlowId = flowId;
+    unawaited(flowsRepo.clearMyFiledFlowsCache());
+    unawaited(
+      flowsRepo.refreshMyFiledFlows().then((rows) {
+        _reconcileRememberedMaatJoinsFromLiveSnapshot(
+          _myFlowsFilingSnapshotFromRowsDetached(rows),
+        );
+      }),
+    );
+
+    if (onClose != null) {
+      onClose();
+    } else if (navigator.mounted) {
+      closeOrReturn(navigator.context, '/');
+    }
+    final state = _mountedState;
+    state?._schedulePendingMaatJoinDayViewIfAny();
   }
 
   static Widget _buildDetachedMyFlowsPage({
@@ -7329,6 +7447,8 @@ class CalendarPage extends StatefulWidget {
           navigator,
           template,
           parentRoute: parentRoute,
+          flowsRepo: flowsRepo,
+          onClose: onClose,
           returnState: const <String, dynamic>{
             'mode': _kFlowStudioModeMaatFlows,
           },
@@ -7463,6 +7583,8 @@ class CalendarPage extends StatefulWidget {
                 navigator,
                 template,
                 parentRoute: parentRoute,
+                flowsRepo: flowsRepo,
+                onClose: onClose,
                 returnState: const <String, dynamic>{
                   'mode': _kFlowStudioModeMaatFlows,
                 },
@@ -7637,11 +7759,23 @@ class CalendarPage extends StatefulWidget {
     );
     unawaited(listRoute.popped.then((_) => recordReturnToHub()));
     if (template == null) return <Route<dynamic>>[hubRoute(), listRoute];
+    final resolvedTemplate = template;
 
     final detailRoute = MaterialPageRoute<int?>(
-      builder: (_) => _MaatFlowTemplateDetailPage(
-        template: template!,
+      builder: (detailContext) => _MaatFlowTemplateDetailPage(
+        template: resolvedTemplate,
+        alreadyJoined: _snapshotHasActiveMaatInstanceFor(
+          _cachedDetachedMyFlowsFilingSnapshot(flowsRepo),
+          resolvedTemplate.key,
+        ),
         addInstance: _addMaatFlowInstanceHeadless,
+        onJoined: (flowId) => _completeDetachedMaatJoinWithDayView(
+          navigator: Navigator.of(detailContext),
+          template: resolvedTemplate,
+          flowId: flowId,
+          flowsRepo: flowsRepo,
+          onClose: onClose,
+        ),
       ),
     );
     unawaited(
@@ -10494,6 +10628,7 @@ class CalendarPageState extends State<CalendarPage>
           final detailRoute = MaterialPageRoute<int?>(
             builder: (_) => _MaatFlowTemplateDetailPage(
               template: template,
+              alreadyJoined: _hasActiveMaatInstanceFor(template.key),
               addInstance:
                   ({
                     required _MaatFlowTemplate template,
@@ -10554,6 +10689,10 @@ class CalendarPageState extends State<CalendarPage>
                     );
                     return id;
                   },
+              onJoined: (flowId) => _completeMountedMaatJoinWithDayView(
+                flowId: flowId,
+                templateKey: template.key,
+              ),
             ),
           );
           unawaited(
@@ -10737,6 +10876,7 @@ class CalendarPageState extends State<CalendarPage>
       MaterialPageRoute<int?>(
         builder: (_) => _MaatFlowTemplateDetailPage(
           template: template,
+          alreadyJoined: _hasActiveMaatInstanceFor(template.key),
           addInstance:
               ({
                 required _MaatFlowTemplate template,
@@ -10793,6 +10933,10 @@ class CalendarPageState extends State<CalendarPage>
                 );
                 return id;
               },
+          onJoined: (flowId) => _completeMountedMaatJoinWithDayView(
+            flowId: flowId,
+            templateKey: template.key,
+          ),
         ),
       ),
       visibleState: <String, dynamic>{
@@ -15050,6 +15194,122 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
+  void _applyPendingMaatJoinFastPath(int flowId) {
+    final pending = CalendarPage._pendingMaatJoinFastPaths[flowId];
+    if (pending == null) return;
+    if (!_flows.any((flow) => flow.id == flowId)) {
+      _flows.add(pending.localFlow);
+    }
+
+    var changed = false;
+    for (final planned in pending.plannedNotes) {
+      final clientEventId = planned.note.clientEventId;
+      final key = _kKey(planned.ky, planned.km, planned.kd);
+      final bucket = _notes[key];
+      if (clientEventId != null &&
+          bucket?.any((note) => note.clientEventId == clientEventId) == true) {
+        continue;
+      }
+      if (bucket != null) {
+        // Warm-start snapshots deserialize day buckets as fixed-length lists.
+        // The fast path must make only the touched bucket growable before
+        // appending its locally derived note.
+        _notes[key] = List<_Note>.of(bucket);
+      }
+      final note = planned.note;
+      changed =
+          _addNote(
+            planned.ky,
+            planned.km,
+            planned.kd,
+            note.title,
+            note.detail,
+            id: note.id,
+            clientEventId: note.clientEventId,
+            calendarId: note.calendarId,
+            calendarName: note.calendarName,
+            location: note.location,
+            allDay: note.allDay,
+            start: note.start,
+            end: note.end,
+            flowId: note.flowId,
+            manualColor: note.manualColor,
+            category: note.category,
+            isReminder: note.isReminder,
+            reminderId: note.reminderId,
+            alertOffsetMinutes: note.alertOffsetMinutes,
+            actionId: note.actionId,
+            behaviorPayload: note.behaviorPayload,
+            notify: false,
+            confirmation: NoteConfirmation.unconfirmed,
+          ) ||
+          changed;
+    }
+    if (changed && mounted) {
+      setState(() {});
+      _notifyDayViewDataChanged();
+    }
+  }
+
+  bool _schedulePendingMaatJoinDayViewIfAny() {
+    if (CalendarPage._pendingMaatJoinDayViewFlowId == null) return false;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_consumePendingMaatJoinDayViewIfAny());
+    });
+    return true;
+  }
+
+  Future<void> _consumePendingMaatJoinDayViewIfAny() async {
+    final flowId = CalendarPage._pendingMaatJoinDayViewFlowId;
+    if (flowId == null || !mounted) return;
+    _applyPendingMaatJoinFastPath(flowId);
+    if (_firstChronologicalNoteForFlow(flowId) == null) {
+      await _loadFromDisk(source: 'maat_join_day_view');
+      if (!mounted) return;
+    }
+    if (CalendarPage._pendingMaatJoinDayViewFlowId == flowId) {
+      CalendarPage._pendingMaatJoinDayViewFlowId = null;
+    }
+    _openDayViewForJoinedMaatFlow(flowId);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // A detached cold start can restore the warm snapshot between the first
+      // local apply and Day View's first frame. Re-apply the same cid-keyed
+      // notes after that frame so the local block stays visible while the
+      // background batch confirms it.
+      try {
+        _applyPendingMaatJoinFastPath(flowId);
+      } finally {
+        CalendarPage._startMaatJoinPersistence(flowId);
+      }
+    });
+  }
+
+  Future<void> _completeMountedMaatJoinWithDayView({
+    required int flowId,
+    required String templateKey,
+  }) async {
+    CalendarPage._rememberJoinedMaatFlowTemplate(
+      templateKey: templateKey,
+      flowId: flowId,
+    );
+    _myFlowsFilingSnapshotCache = null;
+    unawaited(_flowsRepo.clearMyFiledFlowsCache());
+    if (!mounted) return;
+    final rootNavigator = Navigator.of(context, rootNavigator: true);
+    if (rootNavigator.canPop()) {
+      rootNavigator.pop();
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _openDayViewForJoinedMaatFlow(flowId);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        CalendarPage._startMaatJoinPersistence(flowId);
+      });
+    });
+  }
+
   ({int ky, int km, int kd, _Note note})?
   _focusCalendarOnFirstUpcomingFlowEvent(int flowId) {
     final firstEvent = _firstUpcomingNoteForFlow(flowId);
@@ -16930,6 +17190,7 @@ class CalendarPageState extends State<CalendarPage>
   // ✅ Refresh when returning to this page
   Future<void> _handleCalendarReturnFromAnotherPage() async {
     if (!mounted) return;
+    if (_schedulePendingMaatJoinDayViewIfAny()) return;
     try {
       await _journalController.reloadToday();
       if (mounted) {
@@ -24285,6 +24546,10 @@ class CalendarPageState extends State<CalendarPage>
   /// with any remaining day today or in the future.
   bool _hasActiveMaatInstanceFor(String tplKey) {
     if (CalendarPage._hasRememberedJoinedMaatTemplate(tplKey)) return true;
+    final snapshot = _cachedMyFlowsFilingSnapshot();
+    if (snapshot != null) {
+      return CalendarPage._snapshotHasActiveMaatInstanceFor(snapshot, tplKey);
+    }
     return _flows.any((f) {
       return CalendarPage._flowMatchesActiveMaatTemplate(f, tplKey);
     });
@@ -27054,183 +27319,38 @@ class CalendarPageState extends State<CalendarPage>
 
     if (template.kind == _MaatFlowTemplateKind.theCourse) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
-      final firstG = DateUtils.dateOnly(
-        startDate ?? defaultTheCourseStartDate(timezone),
+      final result = await FlowJoinService().joinTheCourseHeadless(
+        templateKey: template.key,
+        templateTitle: template.title,
+        templateOverview: template.overview,
+        templateColor: template.color,
+        personalCalendarId: _personalCalendarId,
+        timezone: timezone,
+        startDate: startDate,
+        lens: courseLens,
+        alertOffsetMinutes: 0,
       );
-      final joinedK = KemeticMath.fromGregorian(firstG);
-      final occurrences = <CourseOccurrenceSchedule>[
-        for (final event in kTheCourseEvents)
-          courseScheduleForDate(
-            event,
-            firstG.add(Duration(days: event.flowDay - 1)),
-            timezone,
-          ),
-      ];
-      final dates = <DateTime>{
-        for (final occurrence in occurrences)
-          DateUtils.dateOnly(occurrence.startLocal),
-      };
-      final orderedDates = dates.toList()..sort();
-
-      final flow = _Flow(
-        id: -1,
-        calendarId: _personalCalendarId,
-        name: template.title,
-        color: template.color,
-        active: true,
-        rules: [_RuleDates(dates: dates)],
-        start: orderedDates.first,
-        end: firstG.add(const Duration(days: 29)),
-        notes: [
-          'mode=gregorian',
-          'split=1',
-          if (template.overview.trim().isNotEmpty)
-            'ov=${Uri.encodeComponent(template.overview.trim())}',
-          'maat=${template.key}',
-          'course_tz=${timezone.key}',
-          'course_lens=${courseLens.key}',
-          'course_midday_hour=$kTheCourseDefaultMiddayHour',
-          'course_midday_minute=$kTheCourseDefaultMiddayMinute',
-          'joined_ky=${joinedK.kYear}',
-          'joined_km=${joinedK.kMonth}',
-          'joined_kd=${joinedK.kDay}',
-        ].join(';'),
-      );
-
-      final serverFlowId = await _saveNewFlow(flow);
-      if (serverFlowId == null) {
-        if (kDebugMode) {
-          _calendarDebugPrint('[theCourse] Aborting - flow insert failed');
-        }
+      final flowId = result.flowId;
+      final localFlow = result._localFlow;
+      final persist = result.persistInBackground;
+      if (!result.succeeded ||
+          flowId == null ||
+          localFlow == null ||
+          persist == null) {
         return -1;
       }
 
-      final repo = UserEventsRepo(Supabase.instance.client);
-      try {
-        final rows = <Map<String, dynamic>>[];
-        final pendingAlerts =
-            <({_Note note, int ky, int km, int kd, String clientEventId})>[];
-        for (var i = 0; i < kTheCourseEvents.length; i++) {
-          final event = kTheCourseEvents[i];
-          final occurrence = occurrences[i];
-          final dayOnly = DateUtils.dateOnly(occurrence.startLocal);
-          final kyKmKd = KemeticMath.fromGregorian(dayOnly);
-          final courseContext = courseContextForKemeticDate(
-            kYear: kyKmKd.kYear,
-            kMonth: kyKmKd.kMonth,
-            kDay: kyKmKd.kDay,
-          );
-          final startTod = TimeOfDay(
-            hour: occurrence.startLocal.hour,
-            minute: occurrence.startLocal.minute,
-          );
-          final endTod = TimeOfDay(
-            hour: occurrence.endLocal.hour,
-            minute: occurrence.endLocal.minute,
-          );
-          final title = courseEventTitle(event);
-          final detail = courseDetailText(
-            event,
-            lens: courseLens,
-            context: courseContext,
-          );
-          final behaviorPayload = courseBehaviorPayload(
-            event: event,
-            schedule: occurrence,
-            lens: courseLens,
-            context: courseContext,
-          );
-          final clientEventId = _buildCid(
-            ky: kyKmKd.kYear,
-            km: kyKmKd.kMonth,
-            kd: kyKmKd.kDay,
-            title: title,
-            startHour: startTod.hour,
-            startMinute: startTod.minute,
-            allDay: false,
-            flowId: serverFlowId,
-          );
-          final note = _Note(
-            clientEventId: clientEventId,
-            calendarId: _personalCalendarId,
-            title: title,
-            detail: detail,
-            allDay: false,
-            start: startTod,
-            end: endTod,
-            flowId: serverFlowId,
-            category: 'Ritual',
-            alertOffsetMinutes: 0,
-            actionId: courseActionId(event),
-            behaviorPayload: behaviorPayload,
-          );
-
-          _addNote(
-            kyKmKd.kYear,
-            kyKmKd.kMonth,
-            kyKmKd.kDay,
-            title,
-            detail,
-            clientEventId: clientEventId,
-            calendarId: _personalCalendarId,
-            allDay: false,
-            start: startTod,
-            end: endTod,
-            flowId: serverFlowId,
-            category: 'Ritual',
-            alertOffsetMinutes: 0,
-            actionId: courseActionId(event),
-            behaviorPayload: behaviorPayload,
-          );
-
-          rows.add(
-            repo.deterministicUpsertPayload(
-              clientEventId: clientEventId,
-              title: title,
-              startsAtUtc: occurrence.startUtc,
-              detail: detail,
-              calendarId: _personalCalendarId,
-              allDay: false,
-              endsAtUtc: occurrence.endUtc,
-              category: 'Ritual',
-              flowLocalId: serverFlowId,
-              actionId: courseActionId(event),
-              behaviorPayload: behaviorPayload,
-            ),
-          );
-          pendingAlerts.add((
-            note: note,
-            ky: kyKmKd.kYear,
-            km: kyKmKd.kMonth,
-            kd: kyKmKd.kDay,
-            clientEventId: clientEventId,
-          ));
-        }
-        await repo.upsertManyDeterministic(rows);
-        for (final pending in pendingAlerts) {
-          await _scheduleAlertForEvent(
-            note: pending.note,
-            ky: pending.ky,
-            km: pending.km,
-            kd: pending.kd,
-            clientEventId: pending.clientEventId,
-          );
-        }
-      } catch (e, st) {
-        if (kDebugMode) {
-          _calendarDebugPrint('[theCourse] event creation failed: $e');
-          _calendarDebugPrint('$st');
-        }
-        await _rollbackJoinedFlowLocally(
-          serverFlowId,
-          repo: repo,
+      CalendarPage._stageMaatJoinFastPath(
+        _PendingMaatJoinFastPath(
+          flowId: flowId,
+          localFlow: localFlow,
+          plannedNotes: result._plannedNotes,
+          persist: persist,
           failureMessage: 'Could not create The Course.',
-        );
-        return -1;
-      }
-
-      setState(() {});
-      return serverFlowId;
+        ),
+      );
+      _applyPendingMaatJoinFastPath(flowId);
+      return flowId;
     }
 
     // Current Ma'at templates must use explicit branches above; legacy sequence
@@ -29966,6 +30086,8 @@ class CalendarPageState extends State<CalendarPage>
             _openFlowEditorDirectly(targetFlowId);
           } else if (widget.openMyFlowsOnLaunch) {
             _openMyFlowsList();
+          } else if (_schedulePendingMaatJoinDayViewIfAny()) {
+            return;
           } else if (!_schedulePendingDetachedLaunchActionIfAny()) {
             _schedulePersistentOverlayRestore(reason: 'init');
           }
@@ -29991,7 +30113,9 @@ class CalendarPageState extends State<CalendarPage>
         if (mounted) _openMyFlowsList();
       });
     } else {
-      _schedulePendingDetachedLaunchActionIfAny();
+      if (!_schedulePendingMaatJoinDayViewIfAny()) {
+        _schedulePendingDetachedLaunchActionIfAny();
+      }
     }
 
     if (!_sharedCalendarRealDayViewOpening &&
@@ -30003,11 +30127,19 @@ class CalendarPageState extends State<CalendarPage>
             widget.openMyFlowsOnLaunch) {
           return;
         }
+        if (_schedulePendingMaatJoinDayViewIfAny()) {
+          return;
+        }
         if (!_schedulePendingDetachedLaunchActionIfAny()) {
           _schedulePersistentOverlayRestore(reason: 'init-pending');
         }
       });
     }
+
+    // The detached `/flows` route can close before a Calendar host exists.
+    // Stage the join immediately, then consume again after startup as a safety
+    // net so a cold host cannot drop the Day View intent.
+    _schedulePendingMaatJoinDayViewIfAny();
   }
 
   Future<void> _runStartupPipeline(String reason) async {
