@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -8,7 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/calendar_completion.dart';
-import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
+import 'package:mobile/features/calendar/calendar_page.dart'
+    show EndFlowFailureKind, EndFlowOutcome, KemeticMath;
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/landscape_month_view.dart';
 import 'package:mobile/features/calendar/living_text_day_one_node_store.dart';
@@ -1628,8 +1630,9 @@ void main() {
               ),
             },
             activeLedgerFlowIds: const <int>{},
-            onEndFlow: (flowId) {
+            onEndFlow: (flowId) async {
               endedFlowId = flowId;
+              return EndFlowOutcome.success(operationId: 'inactive-unused');
             },
           ),
         );
@@ -1681,7 +1684,8 @@ void main() {
               ),
             },
             activeLedgerFlowIds: const <int>{},
-            onEndFlow: (_) {},
+            onEndFlow: (_) async =>
+                EndFlowOutcome.success(operationId: 'active-overflow'),
           ),
         );
         await tester.pumpAndSettle();
@@ -1703,18 +1707,62 @@ void main() {
       },
     );
 
+    testWidgets('End Flow awaits its owner when CalendarPage is not the host', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+
+      int? endedFlowId;
+      final endResult = Completer<EndFlowOutcome>();
+
+      await tester.pumpWidget(
+        _DayViewHarness(
+          notes: [
+            _timedNote(
+              title: 'Local Flow',
+              startHour: 10,
+              startMinute: 0,
+              endHour: 11,
+              endMinute: 0,
+              flowId: 1,
+            ),
+          ],
+          onEndFlow: (flowId) {
+            endedFlowId = flowId;
+            return endResult.future;
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Local Flow'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('End Flow'));
+      await tester.pump();
+
+      expect(endedFlowId, 1);
+      expect(find.text('Add reflection'), findsOneWidget);
+
+      endResult.complete(EndFlowOutcome.success(operationId: 'sheet-ok'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Add reflection'), findsNothing);
+    });
+
     testWidgets(
-      'End Flow falls back to onEndFlow when CalendarPage is not the host',
+      'failed End Flow keeps the sheet open and restores the timeline anchor',
       (tester) async {
         await _setPhoneViewport(tester);
-
+        final endResult = Completer<EndFlowOutcome>();
         int? endedFlowId;
 
         await tester.pumpWidget(
           _DayViewHarness(
             notes: [
               _timedNote(
-                title: 'Local Flow',
+                title: 'Rollback Flow',
                 startHour: 10,
                 startMinute: 0,
                 endHour: 11,
@@ -1722,23 +1770,228 @@ void main() {
                 flowId: 1,
               ),
             ],
+            initialScrollOffset: 8 * 60,
             onEndFlow: (flowId) {
               endedFlowId = flowId;
+              return endResult.future;
             },
           ),
         );
         await tester.pumpAndSettle();
 
-        await tester.tap(find.text('Local Flow'));
+        final timeline = tester.state<ScrollableState>(
+          find.byType(Scrollable).first,
+        );
+        final anchor = timeline.position.pixels;
+
+        await tester.tap(find.text('Rollback Flow'));
         await tester.pumpAndSettle();
         await tester.tap(find.byIcon(Icons.more_vert));
         await tester.pumpAndSettle();
         await tester.tap(find.text('End Flow'));
-        await tester.pumpAndSettle();
+        await tester.pump();
 
         expect(endedFlowId, 1);
+        timeline.position.jumpTo(anchor + 120);
+        await tester.pump();
+
+        endResult.complete(
+          EndFlowOutcome.failure(
+            operationId: 'rollback-op',
+            failureKind: EndFlowFailureKind.transport,
+          ),
+        );
+        await tester.pump();
+        await tester.pumpAndSettle();
+
+        expect(timeline.position.pixels, closeTo(anchor, 0.001));
+        expect(find.text('Add reflection'), findsOneWidget);
+        expect(
+          find.textContaining('Couldn’t reach the server.'),
+          findsOneWidget,
+        );
+        expect(find.text('Copy diagnostics'), findsOneWidget);
       },
     );
+
+    testWidgets('failed End Flow does not undo a manual pending scroll', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+      final endResult = Completer<EndFlowOutcome>();
+
+      await tester.pumpWidget(
+        _DayViewHarness(
+          notes: [
+            _timedNote(
+              title: 'Manual Scroll Flow',
+              startHour: 10,
+              startMinute: 0,
+              endHour: 11,
+              endMinute: 0,
+              flowId: 1,
+            ),
+          ],
+          initialScrollOffset: 8 * 60,
+          onEndFlow: (_) => endResult.future,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final timeline = tester.state<ScrollableState>(
+        find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Manual Scroll Flow'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('End Flow'));
+      await tester.pump();
+
+      Navigator.of(tester.element(find.byType(CalendarEventDetailSheet))).pop();
+      await tester.pumpAndSettle();
+      await tester.drag(
+        find.byKey(const PageStorageKey<String>('day_timeline_list')),
+        const Offset(0, -140),
+      );
+      await tester.pumpAndSettle();
+      final userOffset = timeline.position.pixels;
+
+      endResult.complete(
+        EndFlowOutcome.failure(
+          operationId: 'manual-scroll-op',
+          failureKind: EndFlowFailureKind.server,
+        ),
+      );
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(timeline.position.pixels, closeTo(userOffset, 0.001));
+    });
+
+    testWidgets('pending End Flow can finish after leaving the Day View', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+      final showGrid = ValueNotifier<bool>(true);
+      final dataVersion = ValueNotifier<int>(0);
+      final endResult = Completer<EndFlowOutcome>();
+      addTearDown(() {
+        showGrid.dispose();
+        dataVersion.dispose();
+      });
+
+      await tester.pumpWidget(
+        _SheetPersistenceHarness(
+          showGrid: showGrid,
+          dataVersion: dataVersion,
+          onEndFlow: (_) => endResult.future,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Flow Block'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('End Flow'));
+      await tester.pump();
+
+      showGrid.value = false;
+      await tester.pump();
+      endResult.complete(
+        EndFlowOutcome.failure(
+          operationId: 'left-route-op',
+          failureKind: EndFlowFailureKind.transport,
+        ),
+      );
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('Couldn’t reach the server.'), findsOneWidget);
+    });
+
+    testWidgets('overlapping End Flow failures restore their own anchors', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+      final firstResult = Completer<EndFlowOutcome>();
+      final secondResult = Completer<EndFlowOutcome>();
+
+      await tester.pumpWidget(
+        _DayViewHarness(
+          notes: [
+            _timedNote(
+              title: 'First Pending Flow',
+              startHour: 10,
+              startMinute: 0,
+              endHour: 11,
+              endMinute: 0,
+              flowId: 1,
+            ),
+            _timedNote(
+              title: 'Second Pending Flow',
+              startHour: 12,
+              startMinute: 0,
+              endHour: 13,
+              endMinute: 0,
+              flowId: 2,
+            ),
+          ],
+          initialScrollOffset: 8 * 60,
+          onEndFlow: (flowId) => switch (flowId) {
+            1 => firstResult.future,
+            2 => secondResult.future,
+            _ => throw StateError('Unexpected flow $flowId'),
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+      final timeline = tester.state<ScrollableState>(
+        find.byType(Scrollable).first,
+      );
+      final firstAnchor = timeline.position.pixels;
+
+      await tester.tap(find.text('First Pending Flow'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('End Flow'));
+      await tester.pump();
+      Navigator.of(tester.element(find.byType(CalendarEventDetailSheet))).pop();
+      await tester.pumpAndSettle();
+
+      timeline.position.jumpTo(650);
+      await tester.pump();
+      final secondAnchor = timeline.position.pixels;
+      await tester.tap(find.text('Second Pending Flow'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.more_vert));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('End Flow'));
+      await tester.pump();
+
+      timeline.position.jumpTo(300);
+      firstResult.complete(
+        EndFlowOutcome.failure(
+          operationId: 'first-overlap-op',
+          failureKind: EndFlowFailureKind.server,
+        ),
+      );
+      await tester.pump();
+      await tester.pumpAndSettle();
+      expect(timeline.position.pixels, closeTo(firstAnchor, 0.001));
+
+      secondResult.complete(
+        EndFlowOutcome.failure(
+          operationId: 'second-overlap-op',
+          failureKind: EndFlowFailureKind.transport,
+        ),
+      );
+      await tester.pump();
+      await tester.pumpAndSettle();
+      expect(timeline.position.pixels, closeTo(secondAnchor, 0.001));
+    });
 
     testWidgets('Living Text CTA routes to fixed node slug from payload', (
       tester,
@@ -2639,7 +2892,7 @@ class _DayViewHarness extends StatelessWidget {
   final double initialScrollOffset;
   final Map<int, FlowData> flowIndex;
   final Set<int>? activeLedgerFlowIds;
-  final void Function(int flowId)? onEndFlow;
+  final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
   final Future<void> Function({
     required String clientEventId,
@@ -2823,10 +3076,12 @@ class _SheetPersistenceHarness extends StatelessWidget {
   const _SheetPersistenceHarness({
     required this.showGrid,
     required this.dataVersion,
+    this.onEndFlow,
   });
 
   final ValueNotifier<bool> showGrid;
   final ValueNotifier<int> dataVersion;
+  final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
 
   @override
   Widget build(BuildContext context) {
@@ -2865,6 +3120,7 @@ class _SheetPersistenceHarness extends StatelessWidget {
               },
               activeLedgerFlowIds: const {1},
               initialScrollOffset: 9 * 60,
+              onEndFlow: onEndFlow,
             );
           },
         ),

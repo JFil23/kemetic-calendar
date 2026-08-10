@@ -48,7 +48,7 @@ class _YearSection extends StatelessWidget {
   final Future<void> Function(String reminderId)? onEditReminder;
   final Future<void> Function(String reminderId)? onEndReminder;
   final Future<void> Function(EventItem event)? onShareReminder;
-  final void Function(int flowId)? onEndFlow;
+  final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
 
   // existing notes
@@ -916,7 +916,7 @@ class _MonthCard extends StatelessWidget {
   final Future<void> Function(String reminderId)? onEditReminder;
   final Future<void> Function(String reminderId)? onEndReminder;
   final Future<void> Function(EventItem event)? onShareReminder;
-  final void Function(int flowId)? onEndFlow;
+  final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
 
   // Optional overrides for taps (used by the detail page)
@@ -1456,7 +1456,7 @@ class _DecanRow extends StatelessWidget {
   final Future<void> Function(String reminderId)? onEditReminder;
   final Future<void> Function(String reminderId)? onEndReminder;
   final Future<void> Function(EventItem event)? onShareReminder;
-  final void Function(int flowId)? onEndFlow;
+  final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
 
   const _DecanRow({
@@ -1584,7 +1584,7 @@ class _DayChip extends StatelessWidget {
   final Future<void> Function(String reminderId)? onEditReminder;
   final Future<void> Function(String reminderId)? onEndReminder;
   final Future<void> Function(EventItem event)? onShareReminder;
-  final void Function(int flowId)? onEndFlow;
+  final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
 
   const _DayChip({
@@ -2935,7 +2935,7 @@ class _EpagomenalCard extends StatelessWidget {
   final Future<void> Function(String reminderId)? onEditReminder;
   final Future<void> Function(String reminderId)? onEndReminder;
   final Future<void> Function(EventItem event)? onShareReminder;
-  final void Function(int flowId)? onEndFlow;
+  final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
 
   // Weekday labels row for epagomenal days (5 or 6 days)

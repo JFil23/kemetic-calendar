@@ -582,35 +582,15 @@ void main() {
     expect(diagnostics, contains('final EndFlowFailureKind? failureKind;'));
     expect(diagnostics, contains('final EndFlowTerminalStage terminalStage;'));
 
-    final staticHandler = _sourceBetween(
-      calendarPage,
-      'static Future<EndFlowOutcome> endFlowFromEventTarget',
-      'static Future<bool> makeTodoFromEventTarget',
-    );
-    expect(staticHandler, contains('return _notHandledEndFlowOutcome();'));
-    expect(staticHandler, contains('return state._endFlowFromEventTarget'));
-
-    final targetHandler = _sourceBetween(
-      calendarPage,
-      'Future<EndFlowOutcome> _endFlowFromEventTarget',
-      'Future<bool> _makeTodoFromEventTarget',
-    );
-    expect(
-      targetHandler,
-      contains('return CalendarPage._notHandledEndFlowOutcome();'),
-    );
-    expect(targetHandler, contains('return _endFlow(flowId);'));
-    expect(targetHandler, isNot(contains('return true;')));
-
     final endFlowHandler = _sourceBetween(
       calendarPage,
       'Future<EndFlowOutcome> _endFlow(',
       '//// === END END FLOW ===',
     );
     expect(endFlowHandler, contains('return result;'));
-    expect(endFlowHandler, contains('endFlowFailureDisplayMessage(result)'));
-    expect(endFlowHandler, contains("label: 'Copy diagnostics'"));
-    expect(endFlowHandler, contains("Text('Flow ended.')"));
+    expect(endFlowHandler, isNot(contains('ScaffoldMessenger')));
+    expect(endFlowHandler, isNot(contains('SnackBar')));
+    expect(calendarPage, isNot(contains('endFlowFromEventTarget')));
   });
 
   test(
@@ -669,7 +649,7 @@ void main() {
       );
       final detached = _sourceBetween(
         flowPages,
-        'Future<void> _performEndFlowAndReconcile(int flowId) async {',
+        'Future<EndFlowOutcome> _performEndFlowAndReconcile(int flowId) async {',
         'Future<void> _openFlowPreview',
       );
 
@@ -704,19 +684,15 @@ void main() {
       "if (value == 'end_flow') {",
       "} else if (value == 'end_reminder')",
     );
-    final awaitIndex = handler.indexOf(
-      'await CalendarPage.endFlowFromEventTarget(',
-    );
+    final awaitIndex = handler.indexOf('await onEndFlow(flowId)');
     final popIndex = handler.indexOf('Navigator.pop(sheetContext)');
 
     expect(awaitIndex, isNonNegative);
     expect(popIndex, isNonNegative);
     expect(awaitIndex, lessThan(popIndex));
     expect(handler, contains('result.result == EndFlowActionResult.success'));
-    expect(
-      handler,
-      contains('result.result == EndFlowActionResult.notHandled'),
-    );
+    expect(RegExp(r'onEndFlow\(flowId\)').allMatches(handler), hasLength(1));
+    expect(handler, isNot(contains('endFlowFromEventTarget')));
     expect(handler, contains('_beginEndFlowAction'));
     expect(handler, contains('_finishEndFlowAction'));
     expect(handler, isNot(contains('routedThroughCalendarPage')));
@@ -734,12 +710,68 @@ void main() {
       "} else if (value == 'end_reminder')",
     );
 
-    expect(handler, contains('result.result == EndFlowActionResult.failed'));
+    expect(handler, contains('} else {'));
     expect(handler, contains('_setEndFlowError('));
     expect(handler, contains('endFlowFailureDisplayMessage(result)'));
     expect(dayView, contains("label: const Text('Copy diagnostics')"));
     expect(dayView, contains('_buildEventDetailInlineError('));
     expect(dayView, contains('AnimatedSize('));
+  });
+
+  test('End Flow owner callbacks return the awaited structured outcome', () {
+    final sources = <String>[
+      'lib/features/calendar/day_view.dart',
+      'lib/features/calendar/calendar_grid_widgets.dart',
+      'lib/features/calendar/calendar_month_detail.dart',
+      'lib/features/calendar/landscape_month_view.dart',
+    ].map((path) => File(path).readAsStringSync());
+    final flowPages = File(
+      'lib/features/calendar/calendar_flow_pages.dart',
+    ).readAsStringSync();
+
+    for (final source in sources) {
+      expect(
+        source,
+        isNot(contains('final void Function(int flowId)? onEndFlow;')),
+      );
+    }
+    expect(
+      sources.join('\n'),
+      contains('Future<EndFlowOutcome> Function(int flowId)? onEndFlow'),
+    );
+    expect(
+      flowPages,
+      contains(
+        'final Future<EndFlowOutcome> Function(_Flow flow)? onEndMaatFlow;',
+      ),
+    );
+    expect(flowPages, isNot(contains('unawaited(_endFlowAndReconcile')));
+  });
+
+  test('Day View rollback anchors are isolated by operation and guarded', () {
+    final dayView = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
+    final handler = _sourceBetween(
+      dayView,
+      'Future<EndFlowOutcome> _endFlowPreservingScrollAnchor',
+      'bool _canRestoreEndFlowScroll',
+    );
+    final captureIndex = handler.indexOf('offset: _scrollController.position');
+    final awaitIndex = handler.indexOf('await onEndFlow(flowId)');
+
+    expect(captureIndex, isNonNegative);
+    expect(captureIndex, lessThan(awaitIndex));
+    expect(
+      handler,
+      contains('_endFlowScrollAnchorsByOperationId.putIfAbsent('),
+    );
+    expect(handler, contains('result.operationId'));
+    expect(handler, contains('WidgetsBinding.instance.endOfFrame'));
+    expect(handler, contains('position.minScrollExtent'));
+    expect(handler, contains('position.maxScrollExtent'));
+    expect(dayView, contains('_manualScrollRevision != anchor.'));
+    expect(dayView, contains('route.isActive'));
   });
 
   test(

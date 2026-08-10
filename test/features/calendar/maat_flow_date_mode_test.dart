@@ -394,7 +394,7 @@ void main() {
     final mounted = _sourceBetween(
       source,
       'Future<int> _addMaatFlowInstance({',
-      'Future<EndFlowOutcome> _endFlowFromEventTarget',
+      '_MountedFlowEndPatch _optimisticallyPatchEndedFlow',
     );
 
     expect(headless, contains('int stageResult(FlowJoinResult result)'));

@@ -4190,20 +4190,6 @@ class CalendarPage extends StatefulWidget {
     return record;
   }
 
-  static EndFlowOutcome _notHandledEndFlowOutcome() {
-    final operationId = const Uuid().v4();
-    return EndFlowOutcome(
-      result: EndFlowActionResult.notHandled,
-      failureKind: EndFlowFailureKind.unknown,
-      terminalStage: EndFlowTerminalStage.preRpcGuard,
-      operationId: operationId,
-      rpcAttempted: false,
-      postgrestCode: null,
-      httpStatus: null,
-      referenceCode: endFlowReferenceCode(operationId),
-    );
-  }
-
   static Future<EndFlowOutcome> _runEndFlowRemote(
     int flowId, {
     DateTime? endedAtLocal,
@@ -8424,15 +8410,6 @@ class CalendarPage extends StatefulWidget {
     await state._shareFlowFromEventItem(event);
   }
 
-  /// Returns the actual result of the end-flow action for this event target.
-  static Future<EndFlowOutcome> endFlowFromEventTarget(
-    DayViewSheetEventTarget target,
-  ) async {
-    final state = globalKey.currentState;
-    if (state == null || !state.mounted) return _notHandledEndFlowOutcome();
-    return state._endFlowFromEventTarget(target);
-  }
-
   static Future<bool> makeTodoFromEventTarget(
     DayViewSheetEventTarget target,
   ) async {
@@ -10950,7 +10927,7 @@ class CalendarPageState extends State<CalendarPage>
           onEditReminder: _editReminderById,
           onEndReminder: _endReminderRule,
           onShareReminder: (event) async => _shareNoteSimple(event),
-          onEndFlow: (id) => unawaited(_endFlow(id).then<void>((_) {})),
+          onEndFlow: _endFlow,
           onAppendToJournal: _appendToJournalAndRefresh,
           onWriteJournalResponse: _writeMaatJournalResponseBlockAndRefresh,
           onSaveFlow: _saveFlowById,
@@ -25122,9 +25099,25 @@ class CalendarPageState extends State<CalendarPage>
           },
           completeAdd: _completeMountedStagedFlowAddWithDayView,
           onAppendToJournal: _appendToJournalAndRefresh,
-          onEndMaatFlow: (flow) {
-            unawaited(_endFlow(flow.id));
-            Navigator.of(innerCtx).maybePop();
+          onEndMaatFlow: (flow) async {
+            final result = await _endFlow(flow.id);
+            if (result.result != EndFlowActionResult.success &&
+                innerCtx.mounted) {
+              ScaffoldMessenger.of(innerCtx).showSnackBar(
+                SnackBar(
+                  content: Text(endFlowFailureDisplayMessage(result)),
+                  action: SnackBarAction(
+                    label: 'Copy diagnostics',
+                    onPressed: () => unawaited(
+                      EndFlowDiagnostics.instance.copyTerminalDiagnostics(
+                        result.operationId,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }
+            return result;
           },
         );
       },
@@ -25325,14 +25318,6 @@ class CalendarPageState extends State<CalendarPage>
   /// canonical RPC. Previously shared, posted, or saved copies live in their
   /// own records and are not removed by this action.
   //// === FLOW LIFECYCLE: END FLOW ===
-  Future<EndFlowOutcome> _endFlowFromEventTarget(
-    DayViewSheetEventTarget target,
-  ) async {
-    final flowId = target.event.flowId;
-    if (flowId == null) return CalendarPage._notHandledEndFlowOutcome();
-    return _endFlow(flowId);
-  }
-
   _MountedFlowEndPatch _optimisticallyPatchEndedFlow(int flowId) {
     final flowIndex = _flows.indexWhere((flow) => flow.id == flowId);
     final existingFlow = flowIndex < 0 ? null : _flows[flowIndex];
@@ -25548,28 +25533,7 @@ class CalendarPageState extends State<CalendarPage>
     );
     if (result.result != EndFlowActionResult.success) {
       _rollbackOptimisticEndedFlow(flowId, optimisticPatch);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(endFlowFailureDisplayMessage(result)),
-            action: SnackBarAction(
-              label: 'Copy diagnostics',
-              onPressed: () => unawaited(
-                EndFlowDiagnostics.instance.copyTerminalDiagnostics(
-                  result.operationId,
-                ),
-              ),
-            ),
-          ),
-        );
-      }
       return result;
-    }
-
-    if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Flow ended.')));
     }
     return result;
   }

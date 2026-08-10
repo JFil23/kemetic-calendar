@@ -12,7 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../services/app_haptics.dart';
 import '../../services/app_restoration_service.dart';
 import 'day_view.dart'; // For NoteData, FlowData
-import 'calendar_page.dart' show KemeticMath;
+import 'calendar_page.dart' show EndFlowOutcome, KemeticMath;
 import 'maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'dart:math' as math;
@@ -591,7 +591,7 @@ class LandscapeMonthView extends StatelessWidget {
   final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
   final void Function(int ky, int km)? onVisibleMonthCommitted;
   final ValueChanged<VoidCallback?>? onTodayActionChanged;
-  final void Function(int flowId)? onEndFlow;
+  final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
   final Future<void> Function(int ky, int km, int kd, EventItem evt)?
   onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem evt)?
@@ -722,7 +722,7 @@ class LandscapeMonthPager extends StatefulWidget {
   final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
   final void Function(int ky, int km)? onVisibleMonthCommitted;
   final ValueChanged<VoidCallback?>? onTodayActionChanged;
-  final void Function(int flowId)? onEndFlow;
+  final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
   final Future<void> Function(int ky, int km, int kd, EventItem evt)?
   onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem evt)?
@@ -1273,7 +1273,7 @@ class LandscapeMonthGridBody extends StatefulWidget {
   final String Function(int km) getMonthName;
   final void Function(int? flowId)? onManageFlows;
   final void Function(int ky, int km, int kd)? onAddNote;
-  final void Function(int flowId)? onEndFlow;
+  final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
   final Future<void> Function(int ky, int km, int kd, EventItem evt)?
   onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem evt)?
