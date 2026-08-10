@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'birthday_calendar.dart';
 import '../features/calendar/notify.dart';
+import '../features/calendar/end_flow_diagnostics.dart';
 import '../telemetry/telemetry.dart';
 import '../utils/flow_filter_engine.dart';
 
@@ -2449,17 +2450,7 @@ class UserEventsRepo {
   /// history intact. When true, it removes every matched materialized row from
   /// the current flow calendar while leaving previously shared, posted, or
   /// saved copies in their own records unchanged.
-  Future<
-    ({
-      int flowId,
-      DateTime endedAtUtc,
-      String endedOn,
-      int deletedEventCount,
-      int retiredNotificationCount,
-      int deletedCompletionCount,
-    })
-  >
-  endFlow({
+  Future<EndFlowRpcResponse> endFlow({
     required int flowId,
     required DateTime endedAtLocal,
     bool deleteAllMaterialized = false,
@@ -2480,10 +2471,6 @@ class UserEventsRepo {
     } else if (response is Map) {
       row = Map<String, dynamic>.from(response);
     }
-    if (row == null) {
-      throw StateError('end_flow returned no result for flowId=$flowId');
-    }
-
     try {
       await Notify.syncLocalDeliveryMode();
     } catch (e, st) {
@@ -2493,20 +2480,7 @@ class UserEventsRepo {
       }
     }
 
-    return (
-      flowId: (row['flow_id'] as num?)?.toInt() ?? flowId,
-      endedAtUtc:
-          DateTime.tryParse(row['ended_at'] as String? ?? '')?.toUtc() ??
-          endedAtLocal.toUtc(),
-      endedOn: (row['ended_on'] as String?)?.trim().isNotEmpty == true
-          ? (row['ended_on'] as String).trim()
-          : _formatDateOnlyLocal(endedAtLocal),
-      deletedEventCount: (row['deleted_event_count'] as num?)?.toInt() ?? 0,
-      retiredNotificationCount:
-          (row['retired_notification_count'] as num?)?.toInt() ?? 0,
-      deletedCompletionCount:
-          (row['deleted_completion_count'] as num?)?.toInt() ?? 0,
-    );
+    return EndFlowRpcResponse.fromRow(row);
   }
 
   /// Upsert a flow (jsonb rules). Returns server id.

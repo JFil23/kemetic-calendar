@@ -4072,6 +4072,12 @@ class CalendarPage extends StatefulWidget {
   )?
   debugEndFlowRpcForTesting;
   @visibleForTesting
+  static Future<EndFlowRpcResponse> Function(int flowId, DateTime endedAtLocal)?
+  debugEndFlowRpcResponseForTesting;
+  @visibleForTesting
+  static Future<EndFlowVerificationResult> Function(int flowId)?
+  debugVerifyEndedFlowForTesting;
+  @visibleForTesting
   static Future<void> Function()? debugClearFlowEndCacheForTesting;
   @visibleForTesting
   static void Function(CalendarInvalidated invalidation)?
@@ -4123,6 +4129,8 @@ class CalendarPage extends StatefulWidget {
     _flowEndStateRevision += 1;
     debugFlowEndUserScopeForTesting = null;
     debugEndFlowRpcForTesting = null;
+    debugEndFlowRpcResponseForTesting = null;
+    debugVerifyEndedFlowForTesting = null;
     debugClearFlowEndCacheForTesting = null;
     debugPublishFlowEndForTesting = null;
     debugTrackFlowEndClassificationForTesting = null;
@@ -4160,6 +4168,40 @@ class CalendarPage extends StatefulWidget {
     }
     readiness.ensureBound(Supabase.instance.client);
     return readiness.isReady;
+  }
+
+  static bool _isAlreadyDeletedEndFlowError(Object error) =>
+      error is PostgrestException &&
+      error.message.trim().toLowerCase() == 'flow already deleted';
+
+  static Future<EndFlowVerificationResult> _verifyEndedFlowState(
+    int flowId,
+  ) async {
+    try {
+      final override = debugVerifyEndedFlowForTesting;
+      if (override != null) return await override(flowId);
+      final row = await Supabase.instance.client
+          .from('flows')
+          .select('id, active')
+          .eq('id', flowId)
+          .maybeSingle();
+      if (row == null) {
+        return const EndFlowVerificationResult.unavailable();
+      }
+      final active = row['active'];
+      if (active == false) return const EndFlowVerificationResult.inactive();
+      if (active == true) return const EndFlowVerificationResult.active();
+      return const EndFlowVerificationResult.unavailable(
+        failureKind: EndFlowFailureKind.server,
+      );
+    } catch (error) {
+      final classification = classifyEndFlowFailure(error);
+      return EndFlowVerificationResult.unavailable(
+        failureKind: classification.failureKind,
+        postgrestCode: classification.postgrestCode,
+        httpStatus: classification.httpStatus,
+      );
+    }
   }
 
   static EndFlowDiagnosticRecord _recordEndFlowTerminal({
@@ -4243,6 +4285,8 @@ class CalendarPage extends StatefulWidget {
 
           final effectiveEndedAtLocal = endedAtLocal ?? DateTime.now();
           EndFlowActionResult rpcResult = EndFlowActionResult.success;
+          EndFlowRpcResponse? rpcResponse;
+          var alreadyDeleted = false;
           try {
             EndFlowDiagnostics.instance.recordRpcAttempted(
               flowId: flowId,
@@ -4250,44 +4294,49 @@ class CalendarPage extends StatefulWidget {
               referenceCode: referenceCode,
               initiatorOwner: initiatorOwner,
             );
-            final rpcOverride = debugEndFlowRpcForTesting;
-            if (rpcOverride != null) {
-              rpcResult = await rpcOverride(flowId, effectiveEndedAtLocal);
+            final responseOverride = debugEndFlowRpcResponseForTesting;
+            final legacyOverride = debugEndFlowRpcForTesting;
+            if (responseOverride != null) {
+              rpcResponse = await responseOverride(
+                flowId,
+                effectiveEndedAtLocal,
+              );
+            } else if (legacyOverride != null) {
+              rpcResult = await legacyOverride(flowId, effectiveEndedAtLocal);
+              if (rpcResult == EndFlowActionResult.success) {
+                rpcResponse = EndFlowRpcResponse.matching(flowId);
+              }
             } else {
-              final result = await UserEventsRepo(Supabase.instance.client)
+              rpcResponse = await UserEventsRepo(Supabase.instance.client)
                   .endFlow(
                     flowId: flowId,
                     endedAtLocal: effectiveEndedAtLocal,
                     deleteAllMaterialized: true,
                   );
-              if (kDebugMode) {
-                _calendarDebugPrint(
-                  '[endFlow] committed operation=$operationId flowId=${result.flowId} '
-                  'deletedEvents=${result.deletedEventCount} '
-                  'retiredNotifications=${result.retiredNotificationCount} '
-                  'deletedCompletions=${result.deletedCompletionCount}',
-                );
-              }
             }
           } catch (error) {
-            final classification = classifyEndFlowFailure(error);
-            final outcome = EndFlowOutcome(
-              result: EndFlowActionResult.failed,
-              failureKind: classification.failureKind,
-              terminalStage: classification.terminalStage,
-              operationId: operationId,
-              rpcAttempted: true,
-              postgrestCode: classification.postgrestCode,
-              httpStatus: classification.httpStatus,
-              referenceCode: referenceCode,
-            );
-            _removeFlowEndVisibility(flowId);
-            _recordEndFlowTerminal(
-              flowId: flowId,
-              outcome: outcome,
-              initiatorOwner: initiatorOwner,
-            );
-            return outcome;
+            if (_isAlreadyDeletedEndFlowError(error)) {
+              alreadyDeleted = true;
+            } else {
+              final classification = classifyEndFlowFailure(error);
+              final outcome = EndFlowOutcome(
+                result: EndFlowActionResult.failed,
+                failureKind: classification.failureKind,
+                terminalStage: classification.terminalStage,
+                operationId: operationId,
+                rpcAttempted: true,
+                postgrestCode: classification.postgrestCode,
+                httpStatus: classification.httpStatus,
+                referenceCode: referenceCode,
+              );
+              _removeFlowEndVisibility(flowId);
+              _recordEndFlowTerminal(
+                flowId: flowId,
+                outcome: outcome,
+                initiatorOwner: initiatorOwner,
+              );
+              return outcome;
+            }
           }
 
           if (rpcResult != EndFlowActionResult.success) {
@@ -4310,16 +4359,33 @@ class CalendarPage extends StatefulWidget {
             return outcome;
           }
 
-          final outcome = EndFlowOutcome(
-            result: EndFlowActionResult.success,
-            failureKind: null,
-            terminalStage: EndFlowTerminalStage.postCommit,
+          final verification = await _verifyEndedFlowState(flowId);
+          final outcome = resolveEndFlowPostRpc(
+            requestedFlowId: flowId,
             operationId: operationId,
-            rpcAttempted: true,
-            postgrestCode: null,
-            httpStatus: null,
             referenceCode: referenceCode,
+            rpcResponse: rpcResponse,
+            verification: verification,
+            alreadyDeleted: alreadyDeleted,
           );
+          if (kDebugMode) {
+            _calendarDebugPrint(
+              '[endFlow] decision operation=$operationId flowId=$flowId '
+              'identity=${outcome.rpcIdentityStatus?.name} '
+              'verification=${outcome.verificationStatus?.name} '
+              'result=${outcome.result.name}',
+            );
+          }
+          if (!outcome.isSuccess) {
+            _removeFlowEndVisibility(flowId);
+            _recordEndFlowTerminal(
+              flowId: flowId,
+              outcome: outcome,
+              initiatorOwner: initiatorOwner,
+            );
+            return outcome;
+          }
+
           _markFlowEndCommitted(flowId);
           _recordEndFlowTerminal(
             flowId: flowId,

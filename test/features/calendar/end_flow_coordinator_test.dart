@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile/features/calendar/calendar_invalidation.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -14,6 +15,8 @@ void main() {
     EndFlowAuthReadiness.instance.debugSetReadyForTesting(true);
     CalendarPage.debugClearFlowEndCacheForTesting = () async {};
     CalendarPage.debugTrackFlowEndClassificationForTesting = (_) async {};
+    CalendarPage.debugVerifyEndedFlowForTesting = (_) async =>
+        const EndFlowVerificationResult.inactive();
   });
 
   tearDown(CalendarPage.debugResetEndFlowCoordinatorForTesting);
@@ -216,4 +219,83 @@ void main() {
     expect(telemetry.isCompleted, isFalse);
     telemetry.complete();
   });
+
+  test('mismatching id only commits the requested inactive flow', () async {
+    CalendarPage.debugEndFlowRpcResponseForTesting = (_, _) async =>
+        const EndFlowRpcResponse(
+          flowIdFieldPresent: true,
+          rawFlowId: 920,
+          parsedFlowId: 920,
+          deletedEventCount: 30,
+        );
+
+    final outcome = await CalendarPage.debugRunEndFlowForTesting(919);
+
+    expect(outcome.result, EndFlowActionResult.success);
+    expect(outcome.rpcIdentityStatus, EndFlowRpcIdentityStatus.mismatching);
+    expect(outcome.verificationStatus, EndFlowVerificationStatus.inactive);
+    expect(
+      EndFlowVisibilityStore.instance.stateFor(919),
+      EndFlowVisibilityState.committed,
+    );
+    expect(EndFlowVisibilityStore.instance.stateFor(920), isNull);
+    final terminal = CalendarPage.debugEndFlowDiagnosticRecordsForTesting
+        .firstWhere(
+          (record) =>
+              record.recordKind ==
+              EndFlowDiagnosticRecordKind.canonicalTerminal,
+        );
+    expect(terminal.rpcReturnedFlowIdRaw, '920');
+    expect(terminal.deletedEventCount, 30);
+  });
+
+  test(
+    'mismatching id with unavailable verification rolls back strictly',
+    () async {
+      final published = <CalendarInvalidated>[];
+      CalendarPage.debugPublishFlowEndForTesting = published.add;
+      CalendarPage.debugEndFlowRpcResponseForTesting = (_, _) async =>
+          const EndFlowRpcResponse(
+            flowIdFieldPresent: true,
+            rawFlowId: 921,
+            parsedFlowId: 921,
+          );
+      CalendarPage.debugVerifyEndedFlowForTesting = (_) async =>
+          const EndFlowVerificationResult.unavailable(
+            failureKind: EndFlowFailureKind.transport,
+          );
+
+      final outcome = await CalendarPage.debugRunEndFlowForTesting(919);
+
+      expect(outcome.result, EndFlowActionResult.failed);
+      expect(outcome.terminalStage, EndFlowTerminalStage.postRpcVerification);
+      expect(outcome.failureKind, EndFlowFailureKind.transport);
+      expect(EndFlowVisibilityStore.instance.stateFor(919), isNull);
+      expect(EndFlowVisibilityStore.instance.stateFor(921), isNull);
+      expect(published, isEmpty);
+    },
+  );
+
+  test(
+    'already deleted plus unavailable verification is idempotent success',
+    () async {
+      CalendarPage.debugEndFlowRpcForTesting = (_, _) async {
+        throw const PostgrestException(
+          message: 'flow already deleted',
+          code: 'P0001',
+        );
+      };
+      CalendarPage.debugVerifyEndedFlowForTesting = (_) async =>
+          const EndFlowVerificationResult.unavailable();
+
+      final outcome = await CalendarPage.debugRunEndFlowForTesting(922);
+
+      expect(outcome.result, EndFlowActionResult.success);
+      expect(outcome.alreadyDeleted, isTrue);
+      expect(
+        EndFlowVisibilityStore.instance.stateFor(922),
+        EndFlowVisibilityState.committed,
+      );
+    },
+  );
 }

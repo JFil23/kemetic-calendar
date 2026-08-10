@@ -23,8 +23,13 @@ enum EndFlowTerminalStage {
   preRpcGuard,
   rpcErrorReturned,
   rpcNoResponse,
+  postRpcVerification,
   postCommit,
 }
+
+enum EndFlowRpcIdentityStatus { matching, mismatching, missing, malformed }
+
+enum EndFlowVerificationStatus { inactive, active, unavailable }
 
 enum EndFlowOperationOwner { calendar, detachedMyFlows, test }
 
@@ -60,7 +65,25 @@ extension on EndFlowTerminalStage {
     EndFlowTerminalStage.preRpcGuard => 'pre_rpc_guard',
     EndFlowTerminalStage.rpcErrorReturned => 'rpc_error_returned',
     EndFlowTerminalStage.rpcNoResponse => 'rpc_no_response',
+    EndFlowTerminalStage.postRpcVerification => 'post_rpc_verification',
     EndFlowTerminalStage.postCommit => 'post_commit',
+  };
+}
+
+extension on EndFlowRpcIdentityStatus {
+  String get diagnosticValue => switch (this) {
+    EndFlowRpcIdentityStatus.matching => 'matching',
+    EndFlowRpcIdentityStatus.mismatching => 'mismatching',
+    EndFlowRpcIdentityStatus.missing => 'missing',
+    EndFlowRpcIdentityStatus.malformed => 'malformed',
+  };
+}
+
+extension on EndFlowVerificationStatus {
+  String get diagnosticValue => switch (this) {
+    EndFlowVerificationStatus.inactive => 'inactive',
+    EndFlowVerificationStatus.active => 'active',
+    EndFlowVerificationStatus.unavailable => 'unavailable',
   };
 }
 
@@ -100,6 +123,17 @@ class EndFlowOutcome {
     required this.postgrestCode,
     required this.httpStatus,
     required this.referenceCode,
+    this.rpcIdentityStatus,
+    this.rpcReturnedFlowId,
+    this.rpcReturnedFlowIdRaw,
+    this.deletedEventCount,
+    this.retiredNotificationCount,
+    this.deletedCompletionCount,
+    this.verificationStatus,
+    this.verificationFailureKind,
+    this.verificationPostgrestCode,
+    this.verificationHttpStatus,
+    this.alreadyDeleted = false,
   });
 
   factory EndFlowOutcome.success({required String operationId}) =>
@@ -152,6 +186,17 @@ class EndFlowOutcome {
   final String? postgrestCode;
   final int? httpStatus;
   final String referenceCode;
+  final EndFlowRpcIdentityStatus? rpcIdentityStatus;
+  final int? rpcReturnedFlowId;
+  final String? rpcReturnedFlowIdRaw;
+  final int? deletedEventCount;
+  final int? retiredNotificationCount;
+  final int? deletedCompletionCount;
+  final EndFlowVerificationStatus? verificationStatus;
+  final EndFlowFailureKind? verificationFailureKind;
+  final String? verificationPostgrestCode;
+  final int? verificationHttpStatus;
+  final bool alreadyDeleted;
 
   bool get isSuccess => result == EndFlowActionResult.success;
 
@@ -164,7 +209,176 @@ class EndFlowOutcome {
     'postgrest_code': postgrestCode,
     'http_status': httpStatus,
     'reference_code': referenceCode,
+    'rpc_identity_status': rpcIdentityStatus?.diagnosticValue,
+    'rpc_returned_flow_id': rpcReturnedFlowId,
+    'rpc_returned_flow_id_raw': rpcReturnedFlowIdRaw,
+    'deleted_event_count': deletedEventCount,
+    'retired_notification_count': retiredNotificationCount,
+    'deleted_completion_count': deletedCompletionCount,
+    'verification_status': verificationStatus?.diagnosticValue,
+    'verification_failure_kind': verificationFailureKind?.diagnosticValue,
+    'verification_postgrest_code': verificationPostgrestCode,
+    'verification_http_status': verificationHttpStatus,
+    'already_deleted': alreadyDeleted,
   };
+}
+
+@immutable
+class EndFlowRpcResponse {
+  const EndFlowRpcResponse({
+    required this.flowIdFieldPresent,
+    required this.rawFlowId,
+    required this.parsedFlowId,
+    this.deletedEventCount,
+    this.retiredNotificationCount,
+    this.deletedCompletionCount,
+  });
+
+  factory EndFlowRpcResponse.fromRow(Map<String, dynamic>? row) {
+    final present = row?.containsKey('flow_id') ?? false;
+    final rawFlowId = present ? row!['flow_id'] : null;
+    return EndFlowRpcResponse(
+      flowIdFieldPresent: present,
+      rawFlowId: rawFlowId,
+      parsedFlowId: _strictDiagnosticInteger(rawFlowId),
+      deletedEventCount: _strictDiagnosticInteger(row?['deleted_event_count']),
+      retiredNotificationCount: _strictDiagnosticInteger(
+        row?['retired_notification_count'],
+      ),
+      deletedCompletionCount: _strictDiagnosticInteger(
+        row?['deleted_completion_count'],
+      ),
+    );
+  }
+
+  factory EndFlowRpcResponse.matching(
+    int flowId, {
+    int deletedEventCount = 0,
+    int retiredNotificationCount = 0,
+    int deletedCompletionCount = 0,
+  }) => EndFlowRpcResponse(
+    flowIdFieldPresent: true,
+    rawFlowId: flowId,
+    parsedFlowId: flowId,
+    deletedEventCount: deletedEventCount,
+    retiredNotificationCount: retiredNotificationCount,
+    deletedCompletionCount: deletedCompletionCount,
+  );
+
+  final bool flowIdFieldPresent;
+  final Object? rawFlowId;
+  final int? parsedFlowId;
+  final int? deletedEventCount;
+  final int? retiredNotificationCount;
+  final int? deletedCompletionCount;
+
+  EndFlowRpcIdentityStatus identityStatusFor(int requestedFlowId) {
+    if (!flowIdFieldPresent || rawFlowId == null) {
+      return EndFlowRpcIdentityStatus.missing;
+    }
+    final parsed = parsedFlowId;
+    if (parsed == null) return EndFlowRpcIdentityStatus.malformed;
+    return parsed == requestedFlowId
+        ? EndFlowRpcIdentityStatus.matching
+        : EndFlowRpcIdentityStatus.mismatching;
+  }
+
+  String get rawFlowIdDiagnosticValue {
+    if (!flowIdFieldPresent) return '<missing>';
+    final raw = rawFlowId;
+    if (raw == null) return '<null>';
+    if (raw is num || raw is bool || raw is String) {
+      final safe = redactLogText(raw.toString());
+      return safe.length <= 80 ? safe : '${safe.substring(0, 80)}…';
+    }
+    return '<${raw.runtimeType}>';
+  }
+}
+
+int? _strictDiagnosticInteger(Object? raw) {
+  if (raw is int) return raw;
+  if (raw is num && raw.isFinite && raw == raw.truncateToDouble()) {
+    return raw.toInt();
+  }
+  return null;
+}
+
+@immutable
+class EndFlowVerificationResult {
+  const EndFlowVerificationResult._({
+    required this.status,
+    this.failureKind,
+    this.postgrestCode,
+    this.httpStatus,
+  });
+
+  const EndFlowVerificationResult.inactive()
+    : this._(status: EndFlowVerificationStatus.inactive);
+
+  const EndFlowVerificationResult.active()
+    : this._(status: EndFlowVerificationStatus.active);
+
+  const EndFlowVerificationResult.unavailable({
+    EndFlowFailureKind? failureKind,
+    String? postgrestCode,
+    int? httpStatus,
+  }) : this._(
+         status: EndFlowVerificationStatus.unavailable,
+         failureKind: failureKind,
+         postgrestCode: postgrestCode,
+         httpStatus: httpStatus,
+       );
+
+  final EndFlowVerificationStatus status;
+  final EndFlowFailureKind? failureKind;
+  final String? postgrestCode;
+  final int? httpStatus;
+}
+
+EndFlowOutcome resolveEndFlowPostRpc({
+  required int requestedFlowId,
+  required String operationId,
+  required String referenceCode,
+  required EndFlowRpcResponse? rpcResponse,
+  required EndFlowVerificationResult verification,
+  bool alreadyDeleted = false,
+}) {
+  assert(alreadyDeleted || rpcResponse != null);
+  final identity = rpcResponse?.identityStatusFor(requestedFlowId);
+  final commits = alreadyDeleted
+      ? verification.status != EndFlowVerificationStatus.active
+      : identity == EndFlowRpcIdentityStatus.matching
+      ? verification.status != EndFlowVerificationStatus.active
+      : verification.status == EndFlowVerificationStatus.inactive;
+  final failureKind = commits
+      ? null
+      : verification.status == EndFlowVerificationStatus.unavailable
+      ? verification.failureKind ?? EndFlowFailureKind.server
+      : EndFlowFailureKind.server;
+
+  return EndFlowOutcome(
+    result: commits ? EndFlowActionResult.success : EndFlowActionResult.failed,
+    failureKind: failureKind,
+    terminalStage: commits
+        ? EndFlowTerminalStage.postCommit
+        : EndFlowTerminalStage.postRpcVerification,
+    operationId: operationId,
+    rpcAttempted: true,
+    postgrestCode: commits ? null : verification.postgrestCode,
+    httpStatus: commits ? null : verification.httpStatus,
+    referenceCode: referenceCode,
+    rpcIdentityStatus: identity,
+    rpcReturnedFlowId: rpcResponse?.parsedFlowId,
+    rpcReturnedFlowIdRaw: rpcResponse?.rawFlowIdDiagnosticValue,
+    deletedEventCount: rpcResponse?.deletedEventCount,
+    retiredNotificationCount: rpcResponse?.retiredNotificationCount,
+    deletedCompletionCount: rpcResponse?.deletedCompletionCount,
+    verificationStatus: verification.status,
+    verificationFailureKind: verification.failureKind,
+    verificationPostgrestCode: verification.postgrestCode,
+    verificationHttpStatus: verification.httpStatus,
+    alreadyDeleted: alreadyDeleted,
+  );
 }
 
 @immutable
@@ -199,6 +413,17 @@ class EndFlowDiagnosticRecord {
     this.postgrestCode,
     this.httpStatus,
     this.sideEffectKind,
+    this.rpcIdentityStatus,
+    this.rpcReturnedFlowId,
+    this.rpcReturnedFlowIdRaw,
+    this.deletedEventCount,
+    this.retiredNotificationCount,
+    this.deletedCompletionCount,
+    this.verificationStatus,
+    this.verificationFailureKind,
+    this.verificationPostgrestCode,
+    this.verificationHttpStatus,
+    this.alreadyDeleted = false,
   });
 
   final EndFlowDiagnosticRecordKind recordKind;
@@ -215,6 +440,17 @@ class EndFlowDiagnosticRecord {
   final String? postgrestCode;
   final int? httpStatus;
   final EndFlowSideEffectKind? sideEffectKind;
+  final EndFlowRpcIdentityStatus? rpcIdentityStatus;
+  final int? rpcReturnedFlowId;
+  final String? rpcReturnedFlowIdRaw;
+  final int? deletedEventCount;
+  final int? retiredNotificationCount;
+  final int? deletedCompletionCount;
+  final EndFlowVerificationStatus? verificationStatus;
+  final EndFlowFailureKind? verificationFailureKind;
+  final String? verificationPostgrestCode;
+  final int? verificationHttpStatus;
+  final bool alreadyDeleted;
 
   Map<String, Object?> toJson() => <String, Object?>{
     'record_kind': recordKind.diagnosticValue,
@@ -231,6 +467,17 @@ class EndFlowDiagnosticRecord {
     'postgrest_code': postgrestCode,
     'http_status': httpStatus,
     'side_effect_kind': sideEffectKind?.diagnosticValue,
+    'rpc_identity_status': rpcIdentityStatus?.diagnosticValue,
+    'rpc_returned_flow_id': rpcReturnedFlowId,
+    'rpc_returned_flow_id_raw': rpcReturnedFlowIdRaw,
+    'deleted_event_count': deletedEventCount,
+    'retired_notification_count': retiredNotificationCount,
+    'deleted_completion_count': deletedCompletionCount,
+    'verification_status': verificationStatus?.diagnosticValue,
+    'verification_failure_kind': verificationFailureKind?.diagnosticValue,
+    'verification_postgrest_code': verificationPostgrestCode,
+    'verification_http_status': verificationHttpStatus,
+    'already_deleted': alreadyDeleted,
   };
 }
 
@@ -333,6 +580,17 @@ class EndFlowDiagnostics {
       rpcAttempted: outcome.rpcAttempted,
       postgrestCode: outcome.postgrestCode,
       httpStatus: outcome.httpStatus,
+      rpcIdentityStatus: outcome.rpcIdentityStatus,
+      rpcReturnedFlowId: outcome.rpcReturnedFlowId,
+      rpcReturnedFlowIdRaw: outcome.rpcReturnedFlowIdRaw,
+      deletedEventCount: outcome.deletedEventCount,
+      retiredNotificationCount: outcome.retiredNotificationCount,
+      deletedCompletionCount: outcome.deletedCompletionCount,
+      verificationStatus: outcome.verificationStatus,
+      verificationFailureKind: outcome.verificationFailureKind,
+      verificationPostgrestCode: outcome.verificationPostgrestCode,
+      verificationHttpStatus: outcome.verificationHttpStatus,
+      alreadyDeleted: outcome.alreadyDeleted,
     ),
   );
 
