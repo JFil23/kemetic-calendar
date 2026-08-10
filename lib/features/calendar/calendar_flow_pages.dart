@@ -3896,9 +3896,20 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
   void initState() {
     super.initState();
     EndFlowAuthReadiness.instance.ensureBound(Supabase.instance.client);
+    EndFlowVisibilityStore.instance.addListener(_handleVisibilityChanged);
     _snapshot = widget.initialFilingSnapshot;
     _loading = _snapshot == null;
     unawaited(_reloadFiledFlows());
+  }
+
+  void _handleVisibilityChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    EndFlowVisibilityStore.instance.removeListener(_handleVisibilityChanged);
+    super.dispose();
   }
 
   Future<void> _reloadFiledFlows() async {
@@ -3935,98 +3946,6 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
     }
   }
 
-  _MyFlowsFilingSnapshot _optimisticallyEndFlow(int flowId) {
-    _loadSerial += 1;
-    final previous = _currentSnapshot;
-    final nextFlows = previous.flows
-        .map((flow) {
-          if (flow.id != flowId) return flow;
-          return _Flow(
-            id: flow.id,
-            calendarId: flow.calendarId,
-            name: flow.name,
-            color: flow.color,
-            active: false,
-            isSaved: flow.isSaved,
-            savedAt: flow.savedAt,
-            rules: List<FlowRule>.from(flow.rules),
-            start: flow.start,
-            end: flow.end,
-            notes: flow.notes,
-            shareId: flow.shareId,
-            isHidden: flow.isHidden,
-            isReminder: flow.isReminder,
-            reminderUuid: flow.reminderUuid,
-          );
-        })
-        .toList(growable: false);
-    final totalCounts = Map<int, int>.from(previous.totalEventCounts)
-      ..[flowId] = 0;
-    final remainingCounts = Map<int, int>.from(previous.remainingEventCounts)
-      ..[flowId] = 0;
-    final next = _MyFlowsFilingSnapshot(
-      flows: List<_Flow>.unmodifiable(nextFlows),
-      activeFlowIds: Set<int>.unmodifiable(
-        Set<int>.from(previous.activeFlowIds)..remove(flowId),
-      ),
-      savedFlowIds: previous.savedFlowIds,
-      totalEventCounts: Map<int, int>.unmodifiable(totalCounts),
-      remainingEventCounts: Map<int, int>.unmodifiable(remainingCounts),
-    );
-    if (mounted) setState(() => _snapshot = next);
-    return previous;
-  }
-
-  void _mergeRollbackEndedFlow(int flowId, _MyFlowsFilingSnapshot previous) {
-    if (!mounted) return;
-    final current = _currentSnapshot;
-    _Flow? previousFlow;
-    for (final flow in previous.flows) {
-      if (flow.id == flowId) {
-        previousFlow = flow;
-        break;
-      }
-    }
-    final flows = current.flows.toList(growable: true);
-    if (previousFlow != null) {
-      final currentIndex = flows.indexWhere((flow) => flow.id == flowId);
-      if (currentIndex >= 0) {
-        flows[currentIndex] = previousFlow;
-      } else {
-        final previousIndex = previous.flows.indexWhere(
-          (flow) => flow.id == flowId,
-        );
-        final insertAt = previousIndex.clamp(0, flows.length).toInt();
-        flows.insert(insertAt, previousFlow);
-      }
-    }
-    final activeIds = Set<int>.from(current.activeFlowIds);
-    if (previous.activeFlowIds.contains(flowId)) activeIds.add(flowId);
-    final savedIds = Set<int>.from(current.savedFlowIds);
-    if (previous.savedFlowIds.contains(flowId)) savedIds.add(flowId);
-    final totalCounts = Map<int, int>.from(current.totalEventCounts);
-    final remainingCounts = Map<int, int>.from(current.remainingEventCounts);
-    if (previous.totalEventCounts.containsKey(flowId)) {
-      totalCounts[flowId] = previous.totalEventCounts[flowId] ?? 0;
-    } else {
-      totalCounts.remove(flowId);
-    }
-    if (previous.remainingEventCounts.containsKey(flowId)) {
-      remainingCounts[flowId] = previous.remainingEventCounts[flowId] ?? 0;
-    } else {
-      remainingCounts.remove(flowId);
-    }
-    setState(() {
-      _snapshot = _MyFlowsFilingSnapshot(
-        flows: List<_Flow>.unmodifiable(flows),
-        activeFlowIds: Set<int>.unmodifiable(activeIds),
-        savedFlowIds: Set<int>.unmodifiable(savedIds),
-        totalEventCounts: Map<int, int>.unmodifiable(totalCounts),
-        remainingEventCounts: Map<int, int>.unmodifiable(remainingCounts),
-      );
-    });
-  }
-
   Future<EndFlowOutcome> _endFlowAndReconcile(int flowId) {
     final existing = _endFlowReconciliations[flowId];
     if (existing != null) return existing;
@@ -4042,14 +3961,16 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
   }
 
   Future<EndFlowOutcome> _performEndFlowAndReconcile(int flowId) async {
-    final previous = _optimisticallyEndFlow(flowId);
+    EndFlowVisibilityStore.instance.markPending(flowId);
     final result = await widget.onEndFlow(flowId);
-    if (!mounted) return result;
     if (result.result == EndFlowActionResult.success) {
+      EndFlowVisibilityStore.instance.markCommitted(flowId);
+      if (!mounted) return result;
       await _reloadFiledFlows();
       return result;
     }
-    _mergeRollbackEndedFlow(flowId, previous);
+    EndFlowVisibilityStore.instance.removePending(flowId);
+    if (!mounted) return result;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(endFlowFailureDisplayMessage(result)),
@@ -4120,21 +4041,27 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
   }
 
   _MyFlowsFilingSnapshot get _currentSnapshot =>
-      _snapshot ?? _MyFlowsFilingSnapshot.empty;
+      CalendarPage._applyEndFlowVisibilityOverlay(
+        _snapshot ?? _MyFlowsFilingSnapshot.empty,
+      );
 
-  List<_Flow> get _activeItems =>
-      _currentSnapshot.flows
-          .where((flow) => _currentSnapshot.activeFlowIds.contains(flow.id))
-          .toList()
-        ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  List<_Flow> get _activeItems {
+    final snapshot = _currentSnapshot;
+    return snapshot.flows
+        .where((flow) => snapshot.activeFlowIds.contains(flow.id))
+        .toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+  }
 
   // Saved flows act as templates, so they stay visible even after the user
   // removes them from the active calendar.
-  List<_Flow> get _savedItems =>
-      _currentSnapshot.flows
-          .where((flow) => _currentSnapshot.savedFlowIds.contains(flow.id))
-          .toList()
-        ..sort(_compareSavedFlows);
+  List<_Flow> get _savedItems {
+    final snapshot = _currentSnapshot;
+    return snapshot.flows
+        .where((flow) => snapshot.savedFlowIds.contains(flow.id))
+        .toList()
+      ..sort(_compareSavedFlows);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -4821,6 +4748,25 @@ String _formatMyFlowsPreviewGregorian(DateTime? date) {
   return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 }
 
+@visibleForTesting
+Widget buildFlowHubPreviewForTesting() {
+  final snapshot = _buildMyFlowsPreviewSnapshot(
+    activeEmpty: false,
+    savedEmpty: false,
+    includeUnresolvedMaatFlow: false,
+    includeSecondActiveMaatFlow: false,
+    includeMissingProgressFlow: false,
+    includeNoScheduleSavedFlow: false,
+  );
+  return _FlowHubPage(
+    filingSnapshotProvider: () => snapshot,
+    loadFilingSnapshot: () async => snapshot,
+    openMyFlows: () {},
+    openMaatFlows: () {},
+    onCreateNew: () {},
+  );
+}
+
 /* ───────────────────────── Flow Hub (entry page) ───────────────────────── */
 
 class _FlowHubPage extends StatefulWidget {
@@ -4828,12 +4774,16 @@ class _FlowHubPage extends StatefulWidget {
     required this.openMyFlows,
     required this.openMaatFlows,
     required this.onCreateNew,
+    required this.filingSnapshotProvider,
+    required this.loadFilingSnapshot,
     this.onClose,
   });
 
   final VoidCallback openMyFlows;
   final VoidCallback openMaatFlows;
   final VoidCallback onCreateNew;
+  final _MyFlowsFilingSnapshot? Function() filingSnapshotProvider;
+  final Future<_MyFlowsFilingSnapshot> Function() loadFilingSnapshot;
   final VoidCallback? onClose;
 
   @override
@@ -4846,11 +4796,41 @@ class _FlowHubPageState extends State<_FlowHubPage> {
   );
   bool _helperPrompted = false;
   bool _helperPromptScheduled = false;
+  _MyFlowsFilingSnapshot? _sourceSnapshot;
+  int _loadSerial = 0;
 
   @override
   void initState() {
     super.initState();
+    _sourceSnapshot = widget.filingSnapshotProvider();
+    EndFlowVisibilityStore.instance.addListener(_handleVisibilityChanged);
     _scheduleFlowStudioAddFlowHelper();
+    unawaited(_refreshSourceSnapshot());
+  }
+
+  Future<void> _refreshSourceSnapshot() async {
+    final loadSerial = ++_loadSerial;
+    try {
+      final snapshot = await widget.loadFilingSnapshot();
+      if (!mounted || loadSerial != _loadSerial) return;
+      setState(() => _sourceSnapshot = snapshot);
+    } catch (_) {
+      // Keep the latest available source snapshot; the destination lists own
+      // their explicit loading/error presentation.
+    }
+  }
+
+  void _handleVisibilityChanged() {
+    if (!mounted) return;
+    setState(() {
+      _sourceSnapshot = widget.filingSnapshotProvider() ?? _sourceSnapshot;
+    });
+  }
+
+  @override
+  void dispose() {
+    EndFlowVisibilityStore.instance.removeListener(_handleVisibilityChanged);
+    super.dispose();
   }
 
   void _scheduleFlowStudioAddFlowHelper() {
@@ -4960,6 +4940,24 @@ class _FlowHubPageState extends State<_FlowHubPage> {
 
   @override
   Widget build(BuildContext context) {
+    final sourceSnapshot = widget.filingSnapshotProvider() ?? _sourceSnapshot;
+    if (sourceSnapshot != null) _sourceSnapshot = sourceSnapshot;
+    final visibleSnapshot = sourceSnapshot == null
+        ? null
+        : CalendarPage._applyEndFlowVisibilityOverlay(sourceSnapshot);
+    final activeCount = visibleSnapshot?.activeFlowIds.length ?? 0;
+    final savedCount = visibleSnapshot?.savedFlowIds.length ?? 0;
+    final joinedMaatCount = visibleSnapshot == null
+        ? 0
+        : _kMaatFlowTemplates
+              .where(
+                (template) =>
+                    CalendarPage._visibleSnapshotHasActiveMaatInstanceFor(
+                      visibleSnapshot,
+                      template.key,
+                    ),
+              )
+              .length;
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
@@ -5016,14 +5014,15 @@ class _FlowHubPageState extends State<_FlowHubPage> {
                         title: _kMaatFlowsDisplayTitle,
                         subtitle:
                             'Practices offered by the tradition. Each one a\npath you can walk.',
-                        joinedText: '3 of 31',
+                        joinedText:
+                            '$joinedMaatCount of ${_kMaatFlowTemplates.length}',
                         onTap: _handleOpenMaatFlows,
                       ),
                       const SizedBox(height: 14),
                       _FlowHubMyFlowsCard(
                         title: 'My Flows',
                         subtitle: 'Your active and saved flows.',
-                        statsText: '5 active · 7 saved',
+                        statsText: '$activeCount active · $savedCount saved',
                         onTap: _handleOpenMyFlows,
                       ),
                       const SizedBox(height: 14),

@@ -5,7 +5,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 
 void main() {
-  tearDown(resetMaatFlowJoinedStateForTesting);
+  setUp(EndFlowVisibilityStore.instance.debugReset);
+  tearDown(() {
+    EndFlowVisibilityStore.instance.debugReset();
+    resetMaatFlowJoinedStateForTesting();
+  });
 
   test(
     'Ma’at joined accounting recognizes active Follow the sky rows by name',
@@ -67,6 +71,32 @@ void main() {
         visibleInActiveList: true,
       ),
       isTrue,
+    );
+  });
+
+  test('Ma’at joined accounting always applies the visibility overlay', () {
+    EndFlowVisibilityStore.instance.markPending(1);
+    expect(
+      maatFlowFilingSnapshotMarksInstanceActiveForTesting(
+        visibleInActiveList: true,
+      ),
+      isFalse,
+    );
+
+    EndFlowVisibilityStore.instance.removePending(1);
+    expect(
+      maatFlowFilingSnapshotMarksInstanceActiveForTesting(
+        visibleInActiveList: true,
+      ),
+      isTrue,
+    );
+
+    EndFlowVisibilityStore.instance.markCommitted(1);
+    expect(
+      maatFlowFilingSnapshotMarksInstanceActiveForTesting(
+        visibleInActiveList: true,
+      ),
+      isFalse,
     );
   });
 

@@ -169,7 +169,6 @@ class _MaatFlowsListPageWithSnapshot extends StatefulWidget {
 class _MaatFlowsListPageWithSnapshotState
     extends State<_MaatFlowsListPageWithSnapshot> {
   _MyFlowsFilingSnapshot? _snapshot;
-  StreamSubscription<CalendarInvalidated>? _flowLifecycleSub;
   int _refreshSerial = 0;
   int _flowLifecycleRevision = 0;
 
@@ -177,20 +176,13 @@ class _MaatFlowsListPageWithSnapshotState
   void initState() {
     super.initState();
     _snapshot = widget.initialSnapshot;
-    _flowLifecycleSub = CalendarInvalidationBus.instance.stream
-        .where(
-          (event) =>
-              event.reason == CalendarInvalidationReason.flowEndedCommitted,
-        )
-        .listen((event) {
-          if (!mounted) return;
-          setState(() {
-            _snapshot = _snapshotAfterCommittedEnd(_snapshot, event.flowId);
-            _flowLifecycleRevision += 1;
-          });
-          unawaited(_refreshSnapshot());
-        });
+    EndFlowVisibilityStore.instance.addListener(_handleVisibilityChanged);
     unawaited(_refreshSnapshot());
+  }
+
+  void _handleVisibilityChanged() {
+    if (!mounted) return;
+    setState(() => _flowLifecycleRevision += 1);
   }
 
   Future<void> _refreshSnapshot() async {
@@ -207,63 +199,33 @@ class _MaatFlowsListPageWithSnapshotState
     }
   }
 
-  _MyFlowsFilingSnapshot? _snapshotAfterCommittedEnd(
-    _MyFlowsFilingSnapshot? snapshot,
-    int? flowId,
-  ) {
-    if (snapshot == null || flowId == null) return snapshot;
-    final totalCounts = Map<int, int>.from(snapshot.totalEventCounts)
-      ..[flowId] = 0;
-    final remainingCounts = Map<int, int>.from(snapshot.remainingEventCounts)
-      ..[flowId] = 0;
-    return _MyFlowsFilingSnapshot(
-      flows: List<_Flow>.unmodifiable(
-        snapshot.flows.map((flow) {
-          if (flow.id != flowId) return flow;
-          return _Flow(
-            id: flow.id,
-            calendarId: flow.calendarId,
-            name: flow.name,
-            color: flow.color,
-            active: false,
-            isSaved: flow.isSaved,
-            savedAt: flow.savedAt,
-            rules: List<FlowRule>.from(flow.rules),
-            start: flow.start,
-            end: flow.end,
-            notes: flow.notes,
-            shareId: flow.shareId,
-            isHidden: flow.isHidden,
-            isReminder: flow.isReminder,
-            reminderUuid: flow.reminderUuid,
-          );
-        }),
-      ),
-      activeFlowIds: Set<int>.unmodifiable(
-        Set<int>.from(snapshot.activeFlowIds)..remove(flowId),
-      ),
-      savedFlowIds: snapshot.savedFlowIds,
-      totalEventCounts: Map<int, int>.unmodifiable(totalCounts),
-      remainingEventCounts: Map<int, int>.unmodifiable(remainingCounts),
-    );
-  }
-
   @override
   void dispose() {
-    _flowLifecycleSub?.cancel();
+    EndFlowVisibilityStore.instance.removeListener(_handleVisibilityChanged);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final visibleSnapshot = _snapshot == null
+        ? null
+        : CalendarPage._applyEndFlowVisibilityOverlay(_snapshot!);
     return _MaatFlowsListPage(
       key: ValueKey<int>(_flowLifecycleRevision),
       title: widget.title,
       templates: widget.templates,
-      hasActiveForKey: (key) =>
-          CalendarPage._snapshotHasActiveMaatInstanceFor(_snapshot, key),
-      progressForKey: (key) =>
-          CalendarPage._snapshotMaatCompletionStatusFor(_snapshot, key),
+      hasActiveForKey: (key) => visibleSnapshot == null
+          ? CalendarPage._hasRememberedJoinedMaatTemplate(key)
+          : CalendarPage._visibleSnapshotHasActiveMaatInstanceFor(
+              visibleSnapshot,
+              key,
+            ),
+      progressForKey: (key) => visibleSnapshot == null
+          ? null
+          : CalendarPage._visibleSnapshotMaatCompletionStatusFor(
+              visibleSnapshot,
+              key,
+            ),
       onPickTemplate: widget.onPickTemplate,
       onCreateNew: widget.onCreateNew,
       onClose: widget.onClose,
@@ -450,7 +412,18 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
   @override
   void initState() {
     super.initState();
+    EndFlowVisibilityStore.instance.addListener(_handleVisibilityChanged);
     unawaited(_maybeShowFlowStudioAddFlowHelper());
+  }
+
+  void _handleVisibilityChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    EndFlowVisibilityStore.instance.removeListener(_handleVisibilityChanged);
+    super.dispose();
   }
 
   Future<void> _maybeShowFlowStudioAddFlowHelper() async {

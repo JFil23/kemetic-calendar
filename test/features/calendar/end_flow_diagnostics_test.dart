@@ -139,6 +139,194 @@ void main() {
       hasLength(4),
     );
   });
+
+  test('RPC flow id parsing is strict and preserves release diagnostics', () {
+    final matching = EndFlowRpcResponse.fromRow(<String, dynamic>{
+      'flow_id': 919,
+      'deleted_event_count': 30,
+      'retired_notification_count': 4,
+      'deleted_completion_count': 2,
+    });
+    expect(matching.identityStatusFor(919), EndFlowRpcIdentityStatus.matching);
+    expect(matching.deletedEventCount, 30);
+
+    expect(
+      EndFlowRpcResponse.fromRow(const <String, dynamic>{
+        'flow_id': 920,
+      }).identityStatusFor(919),
+      EndFlowRpcIdentityStatus.mismatching,
+    );
+    expect(
+      EndFlowRpcResponse.fromRow(const <String, dynamic>{
+        'flow_id': '919',
+      }).identityStatusFor(919),
+      EndFlowRpcIdentityStatus.malformed,
+    );
+    expect(
+      EndFlowRpcResponse.fromRow(const <String, dynamic>{
+        'flow_id': 919.5,
+      }).identityStatusFor(919),
+      EndFlowRpcIdentityStatus.malformed,
+    );
+    expect(
+      EndFlowRpcResponse.fromRow(
+        const <String, dynamic>{},
+      ).identityStatusFor(919),
+      EndFlowRpcIdentityStatus.missing,
+    );
+  });
+
+  test('post-RPC verification matrix is table driven', () {
+    final matching = EndFlowRpcResponse.matching(919);
+    const mismatching = EndFlowRpcResponse(
+      flowIdFieldPresent: true,
+      rawFlowId: 920,
+      parsedFlowId: 920,
+    );
+    const missing = EndFlowRpcResponse(
+      flowIdFieldPresent: false,
+      rawFlowId: null,
+      parsedFlowId: null,
+    );
+    const malformed = EndFlowRpcResponse(
+      flowIdFieldPresent: true,
+      rawFlowId: 'bad-id',
+      parsedFlowId: null,
+    );
+    const inactive = EndFlowVerificationResult.inactive();
+    const active = EndFlowVerificationResult.active();
+    const unavailable = EndFlowVerificationResult.unavailable(
+      failureKind: EndFlowFailureKind.transport,
+    );
+    final cases =
+        <
+          ({
+            String label,
+            EndFlowRpcResponse? response,
+            EndFlowVerificationResult verification,
+            bool alreadyDeleted,
+            EndFlowActionResult expected,
+          })
+        >[
+          (
+            label: 'matching + inactive',
+            response: matching,
+            verification: inactive,
+            alreadyDeleted: false,
+            expected: EndFlowActionResult.success,
+          ),
+          (
+            label: 'matching + active',
+            response: matching,
+            verification: active,
+            alreadyDeleted: false,
+            expected: EndFlowActionResult.failed,
+          ),
+          (
+            label: 'matching + unavailable',
+            response: matching,
+            verification: unavailable,
+            alreadyDeleted: false,
+            expected: EndFlowActionResult.success,
+          ),
+          for (final response in <EndFlowRpcResponse>[
+            mismatching,
+            missing,
+            malformed,
+          ]) ...[
+            (
+              label: 'anomaly + inactive',
+              response: response,
+              verification: inactive,
+              alreadyDeleted: false,
+              expected: EndFlowActionResult.success,
+            ),
+            (
+              label: 'anomaly + active',
+              response: response,
+              verification: active,
+              alreadyDeleted: false,
+              expected: EndFlowActionResult.failed,
+            ),
+            (
+              label: 'anomaly + unavailable',
+              response: response,
+              verification: unavailable,
+              alreadyDeleted: false,
+              expected: EndFlowActionResult.failed,
+            ),
+          ],
+          (
+            label: 'already deleted + inactive',
+            response: null,
+            verification: inactive,
+            alreadyDeleted: true,
+            expected: EndFlowActionResult.success,
+          ),
+          (
+            label: 'already deleted + unavailable',
+            response: null,
+            verification: unavailable,
+            alreadyDeleted: true,
+            expected: EndFlowActionResult.success,
+          ),
+          (
+            label: 'already deleted + active',
+            response: null,
+            verification: active,
+            alreadyDeleted: true,
+            expected: EndFlowActionResult.failed,
+          ),
+        ];
+
+    for (final testCase in cases) {
+      final outcome = resolveEndFlowPostRpc(
+        requestedFlowId: 919,
+        operationId: testCase.label,
+        referenceCode: 'EF-MATRIX',
+        rpcResponse: testCase.response,
+        verification: testCase.verification,
+        alreadyDeleted: testCase.alreadyDeleted,
+      );
+      expect(outcome.result, testCase.expected, reason: testCase.label);
+      expect(
+        outcome.verificationStatus,
+        testCase.verification.status,
+        reason: testCase.label,
+      );
+    }
+  });
+
+  test('terminal diagnostics retain protocol and verification evidence', () {
+    final response = EndFlowRpcResponse.fromRow(<String, dynamic>{
+      'flow_id': 920,
+      'deleted_event_count': 30,
+      'retired_notification_count': 4,
+      'deleted_completion_count': 2,
+    });
+    final outcome = resolveEndFlowPostRpc(
+      requestedFlowId: 919,
+      operationId: 'protocol-evidence',
+      referenceCode: 'EF-EVIDENCE',
+      rpcResponse: response,
+      verification: const EndFlowVerificationResult.unavailable(
+        failureKind: EndFlowFailureKind.transport,
+      ),
+    );
+    final record = EndFlowDiagnostics(capacity: 2).recordTerminal(
+      flowId: 919,
+      outcome: outcome,
+      initiatorOwner: EndFlowOperationOwner.test,
+    );
+
+    expect(record.rpcIdentityStatus, EndFlowRpcIdentityStatus.mismatching);
+    expect(record.rpcReturnedFlowId, 920);
+    expect(record.rpcReturnedFlowIdRaw, '920');
+    expect(record.deletedEventCount, 30);
+    expect(record.verificationStatus, EndFlowVerificationStatus.unavailable);
+    expect(record.verificationFailureKind, EndFlowFailureKind.transport);
+    expect(record.referenceCode, 'EF-EVIDENCE');
+  });
 }
 
 EndFlowDiagnosticRecord _terminalRecord({
