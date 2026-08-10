@@ -2607,11 +2607,15 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   final Set<int> _endingFlowIds = <int>{};
   Map<String, double> _measuredHeights = <String, double>{};
   String? _endFlowError;
+  EndFlowOutcome? _endFlowFailureOutcome;
   bool _onboardingDetailPromptScheduled = false;
 
   @override
   void initState() {
     super.initState();
+    EndFlowAuthReadiness.instance.listenable.addListener(
+      _handleEndFlowAuthReadinessChanged,
+    );
     _currentTarget =
         widget.resolveCurrentEventTarget?.call(widget.initialTarget) ??
         widget.initialTarget;
@@ -2626,6 +2630,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
 
   @override
   void dispose() {
+    EndFlowAuthReadiness.instance.listenable.removeListener(
+      _handleEndFlowAuthReadinessChanged,
+    );
     final activeCoachmark = GuidedOnboardingController.instance.target;
     final journalKey = widget.onboardingJournalKey;
     if (activeCoachmark?.key == widget.onboardingObservedKey ||
@@ -2635,6 +2642,10 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     }
     _pageController.dispose();
     super.dispose();
+  }
+
+  void _handleEndFlowAuthReadinessChanged() {
+    if (mounted) setState(() {});
   }
 
   bool _isOnboardingTargetEvent(EventItem event) {
@@ -2751,6 +2762,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     setState(() {
       _currentTarget = nextTarget;
       _endFlowError = null;
+      _endFlowFailureOutcome = null;
     });
     widget.onTargetChanged?.call(nextTarget);
     _primeTrackSkyFlowDataForEvent(nextTarget.event);
@@ -2765,14 +2777,19 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     unawaited(AppHaptics.selection());
   }
 
-  void _setEndFlowError(String? message) {
-    if (_endFlowError == message) return;
+  void _setEndFlowError(String? message, {EndFlowOutcome? outcome}) {
+    if (_endFlowError == message &&
+        identical(_endFlowFailureOutcome, outcome)) {
+      return;
+    }
     if (!mounted) {
       _endFlowError = message;
+      _endFlowFailureOutcome = outcome;
       return;
     }
     setState(() {
       _endFlowError = message;
+      _endFlowFailureOutcome = outcome;
     });
   }
 
@@ -4017,13 +4034,34 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           const Icon(Icons.error_outline, color: Color(0xFFFFB4AB), size: 18),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(
-                color: Color(0xFFFFDAD6),
-                fontSize: 13,
-                height: 1.25,
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  message,
+                  style: const TextStyle(
+                    color: Color(0xFFFFDAD6),
+                    fontSize: 13,
+                    height: 1.25,
+                  ),
+                ),
+                if (_endFlowFailureOutcome != null)
+                  TextButton.icon(
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFFFFDAD6),
+                      padding: const EdgeInsets.only(top: 4),
+                      minimumSize: const Size(0, 32),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: () => unawaited(
+                      EndFlowDiagnostics.instance.copyTerminalDiagnostics(
+                        _endFlowFailureOutcome!.operationId,
+                      ),
+                    ),
+                    icon: const Icon(Icons.copy, size: 15),
+                    label: const Text('Copy diagnostics'),
+                  ),
+              ],
             ),
           ),
         ],
@@ -4080,14 +4118,14 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             _setEndFlowError(null);
             try {
               final result = await CalendarPage.endFlowFromEventTarget(target);
-              if (result == EndFlowActionResult.success) {
+              if (result.result == EndFlowActionResult.success) {
                 if (sheetContext.mounted) Navigator.pop(sheetContext);
-              } else if (result == EndFlowActionResult.failed) {
+              } else if (result.result == EndFlowActionResult.failed) {
                 _setEndFlowError(
-                  'Could not end this flow right now.\n'
-                  'Check your connection and try again.',
+                  endFlowFailureDisplayMessage(result),
+                  outcome: result,
                 );
-              } else if (result == EndFlowActionResult.notHandled) {
+              } else if (result.result == EndFlowActionResult.notHandled) {
                 onEndFlow(flowId);
                 if (sheetContext.mounted) Navigator.pop(sheetContext);
               }
@@ -4214,6 +4252,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         if (flow != null &&
             actionableFlow &&
             !isReminder &&
+            EndFlowAuthReadiness.instance.isReady &&
             widget.onEndFlow != null)
           PopupMenuItem(
             value: 'end_flow',

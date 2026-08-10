@@ -389,12 +389,12 @@ void main() {
     final headless = _sourceBetween(
       source,
       'static Future<int> _addMaatFlowInstanceHeadless',
-      'static Future<EndFlowActionResult> _endFlowHeadless',
+      'static Future<EndFlowOutcome> _endFlowHeadless',
     );
     final mounted = _sourceBetween(
       source,
       'Future<int> _addMaatFlowInstance({',
-      'Future<EndFlowActionResult> _endFlowFromEventTarget',
+      'Future<EndFlowOutcome> _endFlowFromEventTarget',
     );
 
     expect(headless, contains('int stageResult(FlowJoinResult result)'));

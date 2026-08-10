@@ -566,40 +566,50 @@ void main() {
     },
   );
 
-  test('End Flow reports success, failure, and not-handled distinctly', () {
+  test('End Flow returns a structured success, failure, or not-handled', () {
     final calendarPage = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
+    final diagnostics = File(
+      'lib/features/calendar/end_flow_diagnostics.dart',
+    ).readAsStringSync();
 
     expect(
-      calendarPage,
+      diagnostics,
       contains('enum EndFlowActionResult { success, failed, notHandled }'),
     );
+    expect(diagnostics, contains('class EndFlowOutcome'));
+    expect(diagnostics, contains('final EndFlowFailureKind? failureKind;'));
+    expect(diagnostics, contains('final EndFlowTerminalStage terminalStage;'));
 
     final staticHandler = _sourceBetween(
       calendarPage,
-      'static Future<EndFlowActionResult> endFlowFromEventTarget',
+      'static Future<EndFlowOutcome> endFlowFromEventTarget',
       'static Future<bool> makeTodoFromEventTarget',
     );
-    expect(staticHandler, contains('return EndFlowActionResult.notHandled;'));
+    expect(staticHandler, contains('return _notHandledEndFlowOutcome();'));
     expect(staticHandler, contains('return state._endFlowFromEventTarget'));
 
     final targetHandler = _sourceBetween(
       calendarPage,
-      'Future<EndFlowActionResult> _endFlowFromEventTarget',
+      'Future<EndFlowOutcome> _endFlowFromEventTarget',
       'Future<bool> _makeTodoFromEventTarget',
     );
-    expect(targetHandler, contains('return EndFlowActionResult.notHandled;'));
+    expect(
+      targetHandler,
+      contains('return CalendarPage._notHandledEndFlowOutcome();'),
+    );
     expect(targetHandler, contains('return _endFlow(flowId);'));
     expect(targetHandler, isNot(contains('return true;')));
 
     final endFlowHandler = _sourceBetween(
       calendarPage,
-      'Future<EndFlowActionResult> _endFlow(',
+      'Future<EndFlowOutcome> _endFlow(',
       '//// === END END FLOW ===',
     );
-    expect(endFlowHandler, contains('return EndFlowActionResult.failed;'));
-    expect(endFlowHandler, contains('return EndFlowActionResult.success;'));
+    expect(endFlowHandler, contains('return result;'));
+    expect(endFlowHandler, contains('endFlowFailureDisplayMessage(result)'));
+    expect(endFlowHandler, contains("label: 'Copy diagnostics'"));
     expect(endFlowHandler, contains("Text('Flow ended.')"));
   });
 
@@ -611,14 +621,14 @@ void main() {
       ).readAsStringSync();
       final coordinator = _sourceBetween(
         calendarPage,
-        'static Future<EndFlowActionResult> _runEndFlowRemote(',
+        'static Future<EndFlowOutcome> _runEndFlowRemote(',
         'static void _stageFlowForDeferredPersistence',
       );
       final existingIndex = coordinator.indexOf(
         'final existing = _flowEndOperations[key];',
       );
       final rpcIndex = coordinator.indexOf(
-        'await UserEventsRepo(Supabase.instance.client).endFlow(',
+        'await UserEventsRepo(Supabase.instance.client)',
       );
       final publishIndex = coordinator.indexOf(
         'CalendarInvalidationBus.instance.publish(',
@@ -627,6 +637,11 @@ void main() {
       expect(existingIndex, isNonNegative);
       expect(coordinator, contains('if (existing != null) return existing;'));
       expect(coordinator, contains('final operationId = const Uuid().v4();'));
+      expect(
+        coordinator,
+        contains('final referenceCode = endFlowReferenceCode'),
+      );
+      expect(coordinator, contains('_recordEndFlowTerminal('));
       expect(rpcIndex, greaterThan(existingIndex));
       expect(publishIndex, greaterThan(rpcIndex));
       expect(
@@ -649,7 +664,7 @@ void main() {
       ).readAsStringSync();
       final mounted = _sourceBetween(
         calendarPage,
-        'Future<EndFlowActionResult> _performEndFlow(',
+        'Future<EndFlowOutcome> _performEndFlow(',
         '//// === END END FLOW ===',
       );
       final detached = _sourceBetween(
@@ -690,15 +705,18 @@ void main() {
       "} else if (value == 'end_reminder')",
     );
     final awaitIndex = handler.indexOf(
-      'await CalendarPage.endFlowFromEventTarget(target)',
+      'await CalendarPage.endFlowFromEventTarget(',
     );
     final popIndex = handler.indexOf('Navigator.pop(sheetContext)');
 
     expect(awaitIndex, isNonNegative);
     expect(popIndex, isNonNegative);
     expect(awaitIndex, lessThan(popIndex));
-    expect(handler, contains('result == EndFlowActionResult.success'));
-    expect(handler, contains('result == EndFlowActionResult.notHandled'));
+    expect(handler, contains('result.result == EndFlowActionResult.success'));
+    expect(
+      handler,
+      contains('result.result == EndFlowActionResult.notHandled'),
+    );
     expect(handler, contains('_beginEndFlowAction'));
     expect(handler, contains('_finishEndFlowAction'));
     expect(handler, isNot(contains('routedThroughCalendarPage')));
@@ -716,10 +734,10 @@ void main() {
       "} else if (value == 'end_reminder')",
     );
 
-    expect(handler, contains('result == EndFlowActionResult.failed'));
+    expect(handler, contains('result.result == EndFlowActionResult.failed'));
     expect(handler, contains('_setEndFlowError('));
-    expect(dayView, contains("'Could not end this flow right now.\\n'"));
-    expect(dayView, contains("'Check your connection and try again.'"));
+    expect(handler, contains('endFlowFailureDisplayMessage(result)'));
+    expect(dayView, contains("label: const Text('Copy diagnostics')"));
     expect(dayView, contains('_buildEventDetailInlineError('));
     expect(dayView, contains('AnimatedSize('));
   });

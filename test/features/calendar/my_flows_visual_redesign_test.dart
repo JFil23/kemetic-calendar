@@ -193,7 +193,7 @@ void main() {
   testWidgets('End Flow hides immediately and merge-restores on failure', (
     tester,
   ) async {
-    final endResult = Completer<EndFlowActionResult>();
+    final endResult = Completer<EndFlowOutcome>();
     await _pumpMyFlows(
       tester,
       onEndFlow: (flowId) {
@@ -210,18 +210,67 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Follow the sky'), findsNothing);
 
-    endResult.complete(EndFlowActionResult.failed);
+    endResult.complete(_failedEndFlowOutcome('failed-2'));
     await tester.pumpAndSettle();
     expect(find.text('Follow the sky'), findsOneWidget);
-    expect(find.text('Could not end this flow right now.'), findsOneWidget);
+    expect(
+      find.textContaining('Could not end this flow right now.'),
+      findsOneWidget,
+    );
+    expect(find.text('Copy diagnostics'), findsOneWidget);
+  });
+
+  testWidgets('session-not-ready End Flow uses the mapped message', (
+    tester,
+  ) async {
+    await _pumpMyFlows(
+      tester,
+      onEndFlow: (_) async => EndFlowOutcome.failure(
+        operationId: 'session-not-ready',
+        failureKind: EndFlowFailureKind.sessionNotReady,
+        terminalStage: EndFlowTerminalStage.preRpcGuard,
+        rpcAttempted: false,
+      ),
+    );
+
+    await tester.tap(find.text('Follow the sky'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('End Flow'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.textContaining('Your session isn’t ready. Try again in a moment.'),
+      findsOneWidget,
+    );
+    expect(find.text('Copy diagnostics'), findsOneWidget);
+  });
+
+  testWidgets('auth readiness restores End Flow without leaving the preview', (
+    tester,
+  ) async {
+    addTearDown(
+      () => EndFlowAuthReadiness.instance.debugSetReadyForTesting(true),
+    );
+    await _pumpMyFlows(tester);
+    await tester.tap(find.text('Follow the sky'));
+    await tester.pumpAndSettle();
+    expect(find.text('End Flow'), findsOneWidget);
+
+    EndFlowAuthReadiness.instance.debugSetReadyForTesting(false);
+    await tester.pump();
+    expect(find.text('End Flow'), findsNothing);
+
+    EndFlowAuthReadiness.instance.debugSetReadyForTesting(true);
+    await tester.pump();
+    expect(find.text('End Flow'), findsOneWidget);
   });
 
   testWidgets(
     'failed End Flow restores only its target and preserves a concurrent commit',
     (tester) async {
-      final completions = <int, Completer<EndFlowActionResult>>{
-        2: Completer<EndFlowActionResult>(),
-        8: Completer<EndFlowActionResult>(),
+      final completions = <int, Completer<EndFlowOutcome>>{
+        2: Completer<EndFlowOutcome>(),
+        8: Completer<EndFlowOutcome>(),
       };
       final pendingFlowIds = <int>{};
       final committedFlowIds = <int>{};
@@ -236,7 +285,7 @@ void main() {
           filingInactiveFlowIds.add(flowId);
           final result = await completions[flowId]!.future;
           pendingFlowIds.remove(flowId);
-          if (result == EndFlowActionResult.success) {
+          if (result.result == EndFlowActionResult.success) {
             committedFlowIds.add(flowId);
           }
           filingInactiveFlowIds
@@ -260,24 +309,30 @@ void main() {
       expect(find.text('Follow the sky'), findsNothing);
       expect(find.text('Dawn House Rite'), findsNothing);
 
-      completions[8]!.complete(EndFlowActionResult.success);
+      completions[8]!.complete(
+        EndFlowOutcome.success(operationId: 'success-8'),
+      );
       await tester.pumpAndSettle();
       expect(find.text('Follow the sky'), findsNothing);
       expect(find.text('Dawn House Rite'), findsNothing);
 
-      completions[2]!.complete(EndFlowActionResult.failed);
+      completions[2]!.complete(_failedEndFlowOutcome('failed-2-concurrent'));
       await tester.pumpAndSettle();
 
       expect(find.text('Follow the sky'), findsOneWidget);
       expect(find.text('Dawn House Rite'), findsNothing);
-      expect(find.text('Could not end this flow right now.'), findsOneWidget);
+      expect(
+        find.textContaining('Could not end this flow right now.'),
+        findsOneWidget,
+      );
     },
   );
 
   testWidgets('ended saved Ma’at flow remains in Saved', (tester) async {
     await _pumpMyFlows(
       tester,
-      onEndFlow: (_) async => EndFlowActionResult.success,
+      onEndFlow: (_) async =>
+          EndFlowOutcome.success(operationId: 'saved-success'),
     );
 
     await tester.tap(find.text('Saved Flows'));
@@ -495,7 +550,7 @@ Future<void> _pumpMyFlows(
   bool includeNoScheduleSavedFlow = false,
   ValueChanged<int>? onPreviewFlow,
   VoidCallback? onCreateNew,
-  Future<EndFlowActionResult> Function(int flowId)? onEndFlow,
+  Future<EndFlowOutcome> Function(int flowId)? onEndFlow,
   Set<int>? filingInactiveFlowIdsForTesting,
 }) async {
   await tester.pumpWidget(
@@ -517,6 +572,12 @@ Future<void> _pumpMyFlows(
   );
   await tester.pump();
 }
+
+EndFlowOutcome _failedEndFlowOutcome(String operationId) =>
+    EndFlowOutcome.failure(
+      operationId: operationId,
+      failureKind: EndFlowFailureKind.unknown,
+    );
 
 Future<void> _pumpMyFlowsAtSize(
   WidgetTester tester,
