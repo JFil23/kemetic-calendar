@@ -431,7 +431,7 @@ class _FlowPreviewPage extends StatefulWidget {
   final Future<void> Function(String text)? onAppendToJournal;
 
   /// if provided & flow is a Ma'at instance, show a gold-outline "End Flow" button.
-  final void Function(_Flow flow)? onEndMaatFlow;
+  final Future<EndFlowOutcome> Function(_Flow flow)? onEndMaatFlow;
 
   @override
   State<_FlowPreviewPage> createState() => _FlowPreviewPageState();
@@ -455,6 +455,7 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
   final Map<String, GlobalKey> _dashboardDayDetailKeys = <String, GlobalKey>{};
   DateTime? _selectedStartForSaved;
   bool _isImportingSaved = false;
+  final Set<int> _endingFlowIds = <int>{};
 
   UserEventsRepo get _eventsRepo =>
       _userEventsRepo ??= UserEventsRepo(Supabase.instance.client);
@@ -2327,8 +2328,36 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
                           ),
                         ),
                       ),
-                      onPressed: () => widget.onEndMaatFlow?.call(currentFlow),
-                      child: const Text('End Flow'),
+                      onPressed: _endingFlowIds.contains(currentFlow.id)
+                          ? null
+                          : () async {
+                              final onEndMaatFlow = widget.onEndMaatFlow;
+                              if (onEndMaatFlow == null) return;
+                              final navigator = Navigator.of(context);
+                              setState(
+                                () => _endingFlowIds.add(currentFlow.id),
+                              );
+                              try {
+                                final operation = onEndMaatFlow(currentFlow);
+                                if (navigator.mounted) {
+                                  await navigator.maybePop();
+                                }
+                                await operation;
+                              } finally {
+                                if (mounted) {
+                                  setState(
+                                    () => _endingFlowIds.remove(currentFlow.id),
+                                  );
+                                } else {
+                                  _endingFlowIds.remove(currentFlow.id);
+                                }
+                              }
+                            },
+                      child: Text(
+                        _endingFlowIds.contains(currentFlow.id)
+                            ? 'Ending…'
+                            : 'End Flow',
+                      ),
                     )
                   : const SizedBox.shrink(),
             ),
@@ -3860,7 +3889,8 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
   Object? _loadError;
   bool _loading = true;
   int _loadSerial = 0;
-  final Map<int, Future<void>> _endFlowReconciliations = <int, Future<void>>{};
+  final Map<int, Future<EndFlowOutcome>> _endFlowReconciliations =
+      <int, Future<EndFlowOutcome>>{};
 
   @override
   void initState() {
@@ -3997,11 +4027,11 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
     });
   }
 
-  Future<void> _endFlowAndReconcile(int flowId) {
+  Future<EndFlowOutcome> _endFlowAndReconcile(int flowId) {
     final existing = _endFlowReconciliations[flowId];
     if (existing != null) return existing;
 
-    late final Future<void> operation;
+    late final Future<EndFlowOutcome> operation;
     operation = _performEndFlowAndReconcile(flowId).whenComplete(() {
       if (identical(_endFlowReconciliations[flowId], operation)) {
         _endFlowReconciliations.remove(flowId);
@@ -4011,13 +4041,13 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
     return operation;
   }
 
-  Future<void> _performEndFlowAndReconcile(int flowId) async {
+  Future<EndFlowOutcome> _performEndFlowAndReconcile(int flowId) async {
     final previous = _optimisticallyEndFlow(flowId);
     final result = await widget.onEndFlow(flowId);
-    if (!mounted) return;
+    if (!mounted) return result;
     if (result.result == EndFlowActionResult.success) {
       await _reloadFiledFlows();
-      return;
+      return result;
     }
     _mergeRollbackEndedFlow(flowId, previous);
     ScaffoldMessenger.of(context).showSnackBar(
@@ -4033,6 +4063,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
         ),
       ),
     );
+    return result;
   }
 
   Future<void> _openFlowPreview(List<_Flow> items, int index) async {
@@ -4068,10 +4099,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
               unawaited(_runAndReload(() => widget.onEditFlow(flow.id))),
           completeAdd: widget.completeAdd,
           onAppendToJournal: widget.onAppendToJournal,
-          onEndMaatFlow: (flow) {
-            unawaited(_endFlowAndReconcile(flow.id));
-            Navigator.of(context).pop();
-          },
+          onEndMaatFlow: (flow) => _endFlowAndReconcile(flow.id),
           useMySavedExpansionParity: true,
         ),
       ),

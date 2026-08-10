@@ -44,7 +44,7 @@ class _MonthDetailPage extends StatefulWidget {
   final Future<void> Function(String reminderId)? onEditReminder;
   final Future<void> Function(String reminderId)? onEndReminder;
   final Future<void> Function(EventItem event)? onShareReminder;
-  final void Function(int flowId)? onEndFlow;
+  final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
 
   @override

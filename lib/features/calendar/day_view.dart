@@ -2573,7 +2573,7 @@ class CalendarEventDetailSheet extends StatefulWidget {
   final Future<void> Function(String reminderId)? onEditReminder;
   final Future<void> Function(String reminderId)? onEndReminder;
   final Future<void> Function(EventItem event)? onShareReminder;
-  final void Function(int flowId)? onEndFlow;
+  final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
   final MaatJournalResponseBlockWriter? onWriteJournalResponse;
   final Future<void> Function(int flowId)? onSaveFlow;
@@ -4117,17 +4117,14 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             if (!_beginEndFlowAction(flowId)) return;
             _setEndFlowError(null);
             try {
-              final result = await CalendarPage.endFlowFromEventTarget(target);
+              final result = await onEndFlow(flowId);
               if (result.result == EndFlowActionResult.success) {
                 if (sheetContext.mounted) Navigator.pop(sheetContext);
-              } else if (result.result == EndFlowActionResult.failed) {
+              } else {
                 _setEndFlowError(
                   endFlowFailureDisplayMessage(result),
                   outcome: result,
                 );
-              } else if (result.result == EndFlowActionResult.notHandled) {
-                onEndFlow(flowId);
-                if (sheetContext.mounted) Navigator.pop(sheetContext);
               }
             } finally {
               _finishEndFlowAction(flowId);
@@ -5038,7 +5035,7 @@ class DayViewPage extends StatefulWidget {
 
   /// Called when user taps "End Flow" on a flow event in the info bar.
   /// If null, the End Flow button is hidden.
-  final void Function(int flowId)? onEndFlow;
+  final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
   final MaatJournalResponseBlockWriter? onWriteJournalResponse;
   final Future<void> Function(int flowId)? onSaveFlow;
@@ -6058,7 +6055,7 @@ class DayViewGrid extends StatefulWidget {
     bool allDay,
   })?
   onCreateTimedEvent;
-  final void Function(int flowId)? onEndFlow;
+  final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
   final MaatJournalResponseBlockWriter? onWriteJournalResponse;
   final Future<void> Function(int flowId)? onSaveFlow;
@@ -6150,10 +6147,25 @@ class DayViewGrid extends StatefulWidget {
   State<DayViewGrid> createState() => _DayViewGridState();
 }
 
+class _DayViewEndFlowScrollAnchor {
+  const _DayViewEndFlowScrollAnchor({
+    required this.offset,
+    required this.manualScrollRevision,
+    required this.route,
+  });
+
+  final double offset;
+  final int manualScrollRevision;
+  final ModalRoute<dynamic>? route;
+}
+
 class _DayViewGridState extends State<DayViewGrid> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _timelineKey = GlobalKey();
+  final Map<String, _DayViewEndFlowScrollAnchor>
+  _endFlowScrollAnchorsByOperationId = <String, _DayViewEndFlowScrollAnchor>{};
   BuildContext? _timelineCtx;
+  int _manualScrollRevision = 0;
 
   // 🔧 OPTIMIZATION: Cache layout results
   List<PositionedEventBlock>? _cachedBlocks;
@@ -6221,6 +6233,77 @@ class _DayViewGridState extends State<DayViewGrid> {
     if (_scrollController.hasClients && widget.onScrollChanged != null) {
       widget.onScrollChanged!(_scrollController.offset);
     }
+  }
+
+  bool _trackManualTimelineScroll(ScrollNotification notification) {
+    if ((notification is ScrollStartNotification &&
+            notification.dragDetails != null) ||
+        (notification is UserScrollNotification &&
+            notification.direction != ScrollDirection.idle)) {
+      _manualScrollRevision += 1;
+    }
+    return false;
+  }
+
+  Future<EndFlowOutcome> _endFlowPreservingScrollAnchor(int flowId) async {
+    final onEndFlow = widget.onEndFlow!;
+    final route = ModalRoute.of(context);
+    final anchor = _scrollController.hasClients
+        ? _DayViewEndFlowScrollAnchor(
+            offset: _scrollController.position.pixels,
+            manualScrollRevision: _manualScrollRevision,
+            route: route,
+          )
+        : null;
+
+    final result = await onEndFlow(flowId);
+    if (anchor == null) return result;
+
+    try {
+      final operationAnchor = _endFlowScrollAnchorsByOperationId.putIfAbsent(
+        result.operationId,
+        () => anchor,
+      );
+      if (result.result == EndFlowActionResult.success) {
+        _endFlowScrollAnchorsByOperationId.remove(result.operationId);
+        await WidgetsBinding.instance.endOfFrame;
+        if (!_canRestoreEndFlowScroll(operationAnchor)) return result;
+        final position = _scrollController.position;
+        final clamped = position.pixels
+            .clamp(position.minScrollExtent, position.maxScrollExtent)
+            .toDouble();
+        if (clamped != position.pixels) _scrollController.jumpTo(clamped);
+        return result;
+      }
+
+      await WidgetsBinding.instance.endOfFrame;
+      final rollbackAnchor = _endFlowScrollAnchorsByOperationId.remove(
+        result.operationId,
+      );
+      if (rollbackAnchor == null || !_canRestoreEndFlowScroll(rollbackAnchor)) {
+        return result;
+      }
+      final position = _scrollController.position;
+      final target = rollbackAnchor.offset
+          .clamp(position.minScrollExtent, position.maxScrollExtent)
+          .toDouble();
+      if ((position.pixels - target).abs() > precisionErrorTolerance) {
+        _scrollController.jumpTo(target);
+      }
+    } catch (_) {
+      // Scroll reconciliation is best-effort and cannot replace a committed
+      // or failed End Flow outcome.
+      _endFlowScrollAnchorsByOperationId.remove(result.operationId);
+    }
+    return result;
+  }
+
+  bool _canRestoreEndFlowScroll(_DayViewEndFlowScrollAnchor anchor) {
+    if (!mounted || !_scrollController.hasClients) return false;
+    if (_manualScrollRevision != anchor.manualScrollRevision) return false;
+    final route = anchor.route;
+    if (route == null) return true;
+    return route.isActive && identical(ModalRoute.of(context), route);
   }
 
   String? _eventDetailRestoreKey(EventDetailRestorationState? state) {
@@ -6951,39 +7034,42 @@ class _DayViewGridState extends State<DayViewGrid> {
                 key: _timelineKey,
                 builder: (context, candidateData, rejectedData) {
                   _timelineCtx = context;
-                  return ListView(
-                    key: const PageStorageKey('day_timeline_list'),
-                    clipBehavior: Clip.none,
-                    controller: _scrollController,
-                    padding: EdgeInsets.only(
-                      bottom: bottomPaddingAboveGlobalChrome(context, 24),
-                    ),
-                    cacheExtent: 600, // 🔧 OPTIMIZATION: Cache more items
-                    children: [
-                      SizedBox(
-                        height: _kDayViewTimelineHeight,
-                        child: Stack(
-                          key: dayViewTimelineStackKey,
-                          clipBehavior: Clip.none,
-                          children: [
-                            _buildTimelineGridLayer(),
-                            _buildTimelineLabelLayer(),
-                            _buildTimelineGestureLayer(),
-                            _buildTimelineEventLayer(
-                              key: dayViewTimelineEventLayerKey,
-                              blocks: _displayBlocks.where(
-                                (block) => !_isPreviewBlock(block),
-                              ),
-                            ),
-                            _buildTimelineEventLayer(
-                              key: dayViewTimelinePreviewLayerKey,
-                              blocks: _displayBlocks.where(_isPreviewBlock),
-                            ),
-                            _buildTimelineOverlayLayer(),
-                          ],
-                        ),
+                  return NotificationListener<ScrollNotification>(
+                    onNotification: _trackManualTimelineScroll,
+                    child: ListView(
+                      key: const PageStorageKey('day_timeline_list'),
+                      clipBehavior: Clip.none,
+                      controller: _scrollController,
+                      padding: EdgeInsets.only(
+                        bottom: bottomPaddingAboveGlobalChrome(context, 24),
                       ),
-                    ],
+                      cacheExtent: 600, // 🔧 OPTIMIZATION: Cache more items
+                      children: [
+                        SizedBox(
+                          height: _kDayViewTimelineHeight,
+                          child: Stack(
+                            key: dayViewTimelineStackKey,
+                            clipBehavior: Clip.none,
+                            children: [
+                              _buildTimelineGridLayer(),
+                              _buildTimelineLabelLayer(),
+                              _buildTimelineGestureLayer(),
+                              _buildTimelineEventLayer(
+                                key: dayViewTimelineEventLayerKey,
+                                blocks: _displayBlocks.where(
+                                  (block) => !_isPreviewBlock(block),
+                                ),
+                              ),
+                              _buildTimelineEventLayer(
+                                key: dayViewTimelinePreviewLayerKey,
+                                blocks: _displayBlocks.where(_isPreviewBlock),
+                              ),
+                              _buildTimelineOverlayLayer(),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   );
                 },
                 onWillAcceptWithDetails: (_) => true,
@@ -8279,7 +8365,9 @@ class _DayViewGridState extends State<DayViewGrid> {
           onEditReminder: widget.onEditReminder,
           onEndReminder: widget.onEndReminder,
           onShareReminder: widget.onShareReminder,
-          onEndFlow: widget.onEndFlow,
+          onEndFlow: widget.onEndFlow == null
+              ? null
+              : _endFlowPreservingScrollAnchor,
           onAppendToJournal: widget.onAppendToJournal,
           onWriteJournalResponse: widget.onWriteJournalResponse,
           onSaveFlow: widget.onSaveFlow,
