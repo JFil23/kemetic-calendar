@@ -21,6 +21,7 @@ import '../../features/calendar/calendar_page.dart'
         FlowDetailActionPolicy,
         FlowDetailSource,
         ImportFlowData;
+import '../../features/calendar/calendar_invalidation.dart';
 import '../../widgets/flow_start_date_picker.dart';
 
 const Color _bg = Color(0xFF000000);
@@ -64,9 +65,13 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
   DateTime? _selectedStart;
   bool _isImporting = false;
   int? _localImportedFlowId;
+  int? _endedCommittedFlowId;
+  StreamSubscription<CalendarInvalidated>? _flowLifecycleSub;
 
-  int? get _effectiveImportedFlowId =>
-      _localImportedFlowId ?? widget.importedFlowId;
+  int? get _effectiveImportedFlowId {
+    final flowId = _localImportedFlowId ?? widget.importedFlowId;
+    return flowId == _endedCommittedFlowId ? null : flowId;
+  }
 
   /// Merge duplicate events (same day/title/time/detail/location) to avoid double rendering
   List<Map<String, dynamic>> _dedupeEvents(List<Map<String, dynamic>> events) {
@@ -106,6 +111,19 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
   void initState() {
     super.initState();
     _userEventsRepo = UserEventsRepo(Supabase.instance.client);
+    _flowLifecycleSub = CalendarInvalidationBus.instance.stream
+        .where(
+          (event) =>
+              event.reason == CalendarInvalidationReason.flowEndedCommitted,
+        )
+        .listen((event) {
+          if (!mounted || event.flowId != _effectiveImportedFlowId) return;
+          setState(() {
+            _endedCommittedFlowId = event.flowId;
+            _localImportedFlowId = null;
+            _configureFutures();
+          });
+        });
 
     // Mark as viewed if current user is the recipient (only for non-imported shares)
     if (widget.share != null) {
@@ -131,8 +149,17 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
         oldWidget.importedFlowId != widget.importedFlowId ||
         oldWidget.share?.shareId != widget.share?.shareId ||
         oldWidget.payloadJson != widget.payloadJson) {
+      if (widget.importedFlowId != _endedCommittedFlowId) {
+        _endedCommittedFlowId = null;
+      }
       _configureFutures();
     }
+  }
+
+  @override
+  void dispose() {
+    _flowLifecycleSub?.cancel();
+    super.dispose();
   }
 
   void _configureFutures() {
@@ -417,14 +444,14 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
     setState(() => _isImporting = true);
 
     try {
-      final existingFlowId = await _userEventsRepo.getFlowIdByShareId(
-        share.shareId,
-      );
+      final existingFlowId = await _userEventsRepo
+          .getCurrentlyActiveImportedFlowId(share.shareId);
       if (existingFlowId != null) {
         final inboxRepo = InboxRepo(Supabase.instance.client);
         await inboxRepo.markImported(share.shareId, isFlow: true);
         if (!mounted) return;
         setState(() {
+          _endedCommittedFlowId = null;
           _localImportedFlowId = existingFlowId;
           _isImporting = false;
           _configureFutures();
@@ -483,6 +510,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
         final flowId = imported.flowId;
         if (!mounted) return;
         setState(() {
+          _endedCommittedFlowId = null;
           _localImportedFlowId = flowId;
           _isImporting = false;
           _configureFutures();

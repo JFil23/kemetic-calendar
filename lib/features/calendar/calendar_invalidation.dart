@@ -4,6 +4,7 @@ enum CalendarInvalidationReason {
   flowStudioPersisted,
   flowDeleted,
   flowJoined,
+  flowEndedCommitted,
   eventSaved,
   calendarImportSynced,
 }

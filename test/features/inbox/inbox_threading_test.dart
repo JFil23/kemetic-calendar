@@ -387,7 +387,8 @@ void main() {
           '@override\n  Widget build(BuildContext context)',
         );
 
-        expect(_countOccurrences(initState, 'watchInbox().listen'), 1);
+        expect(_countOccurrences(initState, '_inboxRepo.watchInbox()'), 1);
+        expect(_countOccurrences(initState, 'itemsStream.listen'), 1);
         expect(initState, isNot(contains('watchConversations().listen')));
         expect(source, isNot(contains('_convSub')));
         expect(dispose, contains('_inboxItemsSub?.cancel();'));

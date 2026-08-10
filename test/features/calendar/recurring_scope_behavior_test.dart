@@ -329,7 +329,13 @@ void main() {
 
         expect(saveHandler, contains('_updateSingleNoteOnly'));
         expect(saveHandler, contains('_saveSingleNoteOnly'));
-        expect(deleteFallback, contains('await repo.delete(note.id!)'));
+        expect(
+          deleteFallback,
+          contains('final deleteResult = await repo.delete('),
+        );
+        expect(deleteFallback, contains('note.id!,'));
+        expect(deleteFallback, contains('clientEventId: note.clientEventId'));
+        expect(deleteFallback, contains('removed = deleteResult.isSuccess'));
         expect(deleteFallback, contains('await repo.deleteByClientId'));
       },
     );

@@ -29,6 +29,7 @@ import '../../services/restoration_coordinator.dart';
 import '_post_glossy_helper.dart';
 import 'follow_list_page.dart';
 import '../calendar/calendar_page.dart';
+import '../calendar/calendar_invalidation.dart';
 import '../calendar/kemetic_month_metadata.dart' show getMonthById;
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import '../onboarding/onboarding_progress.dart';
@@ -220,6 +221,7 @@ class _ProfilePageState extends State<ProfilePage>
   int _profileLoadSerial = 0;
   double _feedTopPullDistance = 0;
   Timer? _continuitySaveDebounce;
+  StreamSubscription<CalendarInvalidated>? _flowLifecycleSub;
   bool _continuityRestored = false;
   bool _buildTraceRecorded = false;
   double? _pendingProfileScrollOffset;
@@ -287,6 +289,16 @@ class _ProfilePageState extends State<ProfilePage>
       duration: const Duration(milliseconds: 720),
     );
     _seedPostedContentFromMemory();
+    _flowLifecycleSub = CalendarInvalidationBus.instance.stream
+        .where(
+          (event) =>
+              event.reason == CalendarInvalidationReason.flowEndedCommitted,
+        )
+        .listen((_) {
+          if (_isViewingOwnProfile) {
+            unawaited(_loadProfile(showSpinner: false));
+          }
+        });
     unawaited(_restoreContinuityState());
     _loadProfile();
   }
@@ -294,6 +306,7 @@ class _ProfilePageState extends State<ProfilePage>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _flowLifecycleSub?.cancel();
     _continuitySaveDebounce?.cancel();
     unawaited(_persistContinuityState());
     _feedBloomController.dispose();

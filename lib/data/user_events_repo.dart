@@ -52,6 +52,67 @@ typedef StandaloneEventRow = ({
   bool isReminder,
 });
 
+enum UserEventDeleteDisposition { deleted, alreadyAbsentSuppressed, failed }
+
+@immutable
+class UserEventDeleteResult {
+  const UserEventDeleteResult._({
+    required this.disposition,
+    required this.deletedCount,
+    required this.suppressionRecorded,
+  });
+
+  const UserEventDeleteResult.deleted(
+    int deletedCount, {
+    bool suppressionRecorded = true,
+  }) : this._(
+         disposition: UserEventDeleteDisposition.deleted,
+         deletedCount: deletedCount,
+         suppressionRecorded: suppressionRecorded,
+       );
+
+  const UserEventDeleteResult.alreadyAbsentSuppressed()
+    : this._(
+        disposition: UserEventDeleteDisposition.alreadyAbsentSuppressed,
+        deletedCount: 0,
+        suppressionRecorded: true,
+      );
+
+  const UserEventDeleteResult.failed()
+    : this._(
+        disposition: UserEventDeleteDisposition.failed,
+        deletedCount: 0,
+        suppressionRecorded: false,
+      );
+
+  final UserEventDeleteDisposition disposition;
+  final int deletedCount;
+  final bool suppressionRecorded;
+
+  bool get isSuccess =>
+      disposition == UserEventDeleteDisposition.deleted ||
+      disposition == UserEventDeleteDisposition.alreadyAbsentSuppressed;
+}
+
+class UserEventUpsertCancelledException implements Exception {
+  const UserEventUpsertCancelledException(this.clientEventId);
+
+  final String clientEventId;
+
+  @override
+  String toString() =>
+      'UserEventUpsertCancelledException(${safeLogIdentifier(clientEventId)})';
+}
+
+class _PendingUserEventUpsert {
+  _PendingUserEventUpsert(this.key, this.clientEventId);
+
+  final String key;
+  final String clientEventId;
+  final Completer<void> settled = Completer<void>();
+  bool cancelled = false;
+}
+
 bool _isUuid(String? v) {
   if (v == null) return false;
   return RegExp(
@@ -257,6 +318,58 @@ class UserEventsRepo {
   final SupabaseClient _client;
   static final Set<String> _graphRefreshInFlightUsers = <String>{};
   static final Set<String> _graphRefreshPendingUsers = <String>{};
+  static final Map<String, Set<_PendingUserEventUpsert>> _pendingUpsertsByKey =
+      <String, Set<_PendingUserEventUpsert>>{};
+
+  String? _pendingUpsertKey(String clientEventId) {
+    final userId = _client.auth.currentUser?.id.trim();
+    final cid = clientEventId.trim();
+    if (userId == null || userId.isEmpty || cid.isEmpty) return null;
+    return '$userId:$cid';
+  }
+
+  _PendingUserEventUpsert? _registerPendingUpsert(String clientEventId) {
+    final key = _pendingUpsertKey(clientEventId);
+    if (key == null) return null;
+    final pending = _PendingUserEventUpsert(key, clientEventId.trim());
+    _pendingUpsertsByKey
+        .putIfAbsent(key, () => <_PendingUserEventUpsert>{})
+        .add(pending);
+    return pending;
+  }
+
+  void _settlePendingUpsert(_PendingUserEventUpsert? pending) {
+    if (pending == null) return;
+    final entries = _pendingUpsertsByKey[pending.key];
+    entries?.remove(pending);
+    if (entries?.isEmpty ?? false) {
+      _pendingUpsertsByKey.remove(pending.key);
+    }
+    if (!pending.settled.isCompleted) pending.settled.complete();
+  }
+
+  List<_PendingUserEventUpsert> _cancelPendingUpserts(String? clientEventId) {
+    if (clientEventId == null) return const <_PendingUserEventUpsert>[];
+    final key = _pendingUpsertKey(clientEventId);
+    if (key == null) return const <_PendingUserEventUpsert>[];
+    final pending = _pendingUpsertsByKey[key]?.toList(growable: false);
+    if (pending == null || pending.isEmpty) {
+      return const <_PendingUserEventUpsert>[];
+    }
+    for (final operation in pending) {
+      operation.cancelled = true;
+    }
+    return pending;
+  }
+
+  Future<void> _waitForCancelledUpserts(
+    List<_PendingUserEventUpsert> pending,
+  ) async {
+    if (pending.isEmpty) return;
+    await Future.wait<void>(
+      pending.map((operation) => operation.settled.future),
+    );
+  }
 
   int _rpcCount(dynamic value) {
     if (value == null) return 0;
@@ -629,67 +742,85 @@ class UserEventsRepo {
     String? calendarId,
     String? caller,
   }) async {
+    final pending = _registerPendingUpsert(clientEventId);
     try {
-      final existing = await _client
-          .from(_kTable)
-          .select()
-          .eq('client_event_id', clientEventId)
-          .maybeSingle();
-      if (existing != null &&
-          (existing['category'] as String?) == 'tombstone') {
-        final callerTag = caller == null || caller.isEmpty
-            ? 'unspecified'
-            : caller;
-        _log(
-          'upsert blocked by tombstone '
-          'client_event_id=${safeLogIdentifier(clientEventId)} '
-          'caller=$callerTag',
-        );
-        return UserEvent.fromRow(existing);
+      try {
+        final existing = await _client
+            .from(_kTable)
+            .select()
+            .eq('client_event_id', clientEventId)
+            .maybeSingle();
+        if (pending?.cancelled ?? false) {
+          throw UserEventUpsertCancelledException(clientEventId);
+        }
+        if (existing != null &&
+            (existing['category'] as String?) == 'tombstone') {
+          final callerTag = caller == null || caller.isEmpty
+              ? 'unspecified'
+              : caller;
+          _log(
+            'upsert blocked by tombstone '
+            'client_event_id=${safeLogIdentifier(clientEventId)} '
+            'caller=$callerTag',
+          );
+          return UserEvent.fromRow(existing);
+        }
+      } on UserEventUpsertCancelledException {
+        rethrow;
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint(
+            '[user_events] tombstone check failed for '
+            'cid=${safeLogIdentifier(clientEventId)}: ${redactLogText('$e')}',
+          );
+        }
       }
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint(
-          '[user_events] tombstone check failed for '
-          'cid=${safeLogIdentifier(clientEventId)}: ${redactLogText('$e')}',
-        );
+
+      if (pending?.cancelled ?? false) {
+        throw UserEventUpsertCancelledException(clientEventId);
       }
-    }
+      final payload = deterministicUpsertPayload(
+        clientEventId: clientEventId,
+        title: title,
+        startsAtUtc: startsAtUtc,
+        detail: detail,
+        location: location,
+        allDay: allDay,
+        endsAtUtc: endsAtUtc,
+        flowLocalId: flowLocalId,
+        category: category,
+        actionId: actionId,
+        behaviorPayload: behaviorPayload,
+        calendarId: calendarId,
+      );
 
-    final payload = deterministicUpsertPayload(
-      clientEventId: clientEventId,
-      title: title,
-      startsAtUtc: startsAtUtc,
-      detail: detail,
-      location: location,
-      allDay: allDay,
-      endsAtUtc: endsAtUtc,
-      flowLocalId: flowLocalId,
-      category: category,
-      actionId: actionId,
-      behaviorPayload: behaviorPayload,
-      calendarId: calendarId,
-    );
-
-    final callerTag = caller == null || caller.isEmpty ? 'unspecified' : caller;
-    _log(
-      'upsert(client_event_id=${safeLogIdentifier(clientEventId)} '
-      'caller=$callerTag) → ${safeLogMapSummary(payload)}',
-    );
-    try {
-      final row = await _client
-          .from(_kTable)
-          .upsert(payload, onConflict: 'client_event_id')
-          .select()
-          .single();
-      _log('upsert ✓ id=${row['id']} caller=$callerTag');
-      return UserEvent.fromRow(row);
-    } on PostgrestException catch (e) {
-      _log('upsert ✗ ${e.code} ${e.message}');
-      rethrow;
-    } catch (e) {
-      _log('upsert ✗ $e');
-      rethrow;
+      final callerTag = caller == null || caller.isEmpty
+          ? 'unspecified'
+          : caller;
+      _log(
+        'upsert(client_event_id=${safeLogIdentifier(clientEventId)} '
+        'caller=$callerTag) → ${safeLogMapSummary(payload)}',
+      );
+      try {
+        final row = await _client
+            .from(_kTable)
+            .upsert(payload, onConflict: 'client_event_id')
+            .select()
+            .single();
+        if (pending?.cancelled ?? false) {
+          throw UserEventUpsertCancelledException(clientEventId);
+        }
+        _log('upsert ✓ id=${row['id']} caller=$callerTag');
+        return UserEvent.fromRow(row);
+      } on PostgrestException catch (e) {
+        _log('upsert ✗ ${e.code} ${e.message}');
+        rethrow;
+      } catch (e) {
+        _log('upsert ✗ $e');
+        rethrow;
+      }
+    } finally {
+      _settlePendingUpsert(pending);
     }
   }
 
@@ -823,8 +954,14 @@ class UserEventsRepo {
     }
   }
 
-  Future<void> delete(String id) async {
-    String? cidForLog;
+  Future<UserEventDeleteResult> delete(
+    String id, {
+    String? clientEventId,
+  }) async {
+    String? cidForLog = clientEventId?.trim();
+    final cancelledPendingUpserts = <_PendingUserEventUpsert>{
+      ..._cancelPendingUpserts(cidForLog),
+    };
     int? flowIdForLog;
     try {
       final user = _client.auth.currentUser;
@@ -835,10 +972,14 @@ class UserEventsRepo {
             .eq('user_id', user.id)
             .eq('id', id)
             .maybeSingle();
-        cidForLog = (row?['client_event_id'] as String?);
+        cidForLog = (row?['client_event_id'] as String?) ?? cidForLog;
+        cancelledPendingUpserts.addAll(_cancelPendingUpserts(cidForLog));
         flowIdForLog = (row?['flow_local_id'] as num?)?.toInt();
       }
     } catch (_) {}
+    final cancelledPendingUpsertList = cancelledPendingUpserts.toList(
+      growable: false,
+    );
     _log('delete($id) cid=${cidForLog ?? 'unknown'}');
     try {
       final deletedCount = await _deleteUserEventIdsSemantic(
@@ -851,7 +992,16 @@ class UserEventsRepo {
 
       if (deletedCount <= 0) {
         _log('delete ⚠️ no rows for id=$id');
-        return;
+        final cid = cidForLog?.trim();
+        if (cid != null && cid.isNotEmpty) {
+          await recordDeletionTombstone(
+            clientEventId: cid,
+            reason: 'delete_by_id_missing_row',
+          );
+          await _waitForCancelledUpserts(cancelledPendingUpsertList);
+          return const UserEventDeleteResult.alreadyAbsentSuppressed();
+        }
+        return const UserEventDeleteResult.failed();
       }
 
       _log('delete ✓ deleted=$deletedCount');
@@ -868,11 +1018,22 @@ class UserEventsRepo {
           ),
         );
       }
+      await _waitForCancelledUpserts(cancelledPendingUpsertList);
+      return UserEventDeleteResult.deleted(deletedCount);
     } on PostgrestException catch (e) {
       if (e.code == 'PGRST116' ||
           e.message.contains('Results contain 0 rows')) {
         _log('delete ⚠️ no rows for id=$id');
-        return;
+        final cid = cidForLog?.trim();
+        if (cid != null && cid.isNotEmpty) {
+          await recordDeletionTombstone(
+            clientEventId: cid,
+            reason: 'delete_by_id_missing_row',
+          );
+          await _waitForCancelledUpserts(cancelledPendingUpsertList);
+          return const UserEventDeleteResult.alreadyAbsentSuppressed();
+        }
+        return const UserEventDeleteResult.failed();
       }
       _log('delete ✗ ${e.code} ${e.message}');
       rethrow;
@@ -901,7 +1062,7 @@ class UserEventsRepo {
     }
   }
 
-  Future<void> deleteByClientId(
+  Future<UserEventDeleteResult> deleteByClientId(
     String clientEventId, {
     String semantic = 'user_delete',
     bool suppressesClient = true,
@@ -909,6 +1070,7 @@ class UserEventsRepo {
     String deleteScope = 'exact_occurrence',
   }) async {
     _log('deleteByClientId($clientEventId)');
+    final cancelledPendingUpserts = _cancelPendingUpserts(clientEventId);
     try {
       await Notify.cancelNotificationsForClientEventIds([clientEventId]);
 
@@ -925,8 +1087,10 @@ class UserEventsRepo {
             clientEventId: clientEventId,
             reason: 'delete_by_client_id_missing_row',
           );
+          await _waitForCancelledUpserts(cancelledPendingUpserts);
+          return const UserEventDeleteResult.alreadyAbsentSuppressed();
         }
-        return;
+        return const UserEventDeleteResult.failed();
       }
 
       final deletedCount = await _deleteUserEventsByClientIdSemantic(
@@ -943,8 +1107,10 @@ class UserEventsRepo {
             clientEventId: clientEventId,
             reason: 'delete_by_client_id_missing_row',
           );
+          await _waitForCancelledUpserts(cancelledPendingUpserts);
+          return const UserEventDeleteResult.alreadyAbsentSuppressed();
         }
-        return;
+        return const UserEventDeleteResult.failed();
       }
 
       final deletedId = rows.first['id'] as String?;
@@ -965,6 +1131,11 @@ class UserEventsRepo {
           ),
         );
       }
+      await _waitForCancelledUpserts(cancelledPendingUpserts);
+      return UserEventDeleteResult.deleted(
+        deletedCount,
+        suppressionRecorded: suppressesClient,
+      );
     } on PostgrestException catch (e) {
       if (e.code == 'PGRST116' ||
           e.message.contains('Results contain 0 rows')) {
@@ -974,8 +1145,10 @@ class UserEventsRepo {
             clientEventId: clientEventId,
             reason: 'delete_by_client_id_missing_row',
           );
+          await _waitForCancelledUpserts(cancelledPendingUpserts);
+          return const UserEventDeleteResult.alreadyAbsentSuppressed();
         }
-        return;
+        return const UserEventDeleteResult.failed();
       }
       _log('deleteByClientId ✗ ${e.code} ${e.message}');
       rethrow;
@@ -2696,5 +2869,51 @@ class UserEventsRepo {
       }
       return null;
     }
+  }
+
+  /// Resolve the current, calendar-active imported flow for each share.
+  ///
+  /// This is the canonical import-state lookup. Historical share markers and
+  /// saved/inactive flows deliberately do not count as currently imported.
+  /// Both legacy `share_id` and route-backed `origin_share_id` lineage are
+  /// supported without issuing one query per inbox row.
+  Future<Map<String, int>> getCurrentlyActiveImportedFlowIds(
+    Iterable<String> shareIds,
+  ) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return const <String, int>{};
+
+    final requested = shareIds
+        .map((id) => id.trim())
+        .where((id) => _isUuid(id))
+        .toSet();
+    if (requested.isEmpty) return const <String, int>{};
+
+    final response = await _client
+        .from('flow_filing_items_client')
+        .select('id, share_id, origin_share_id, created_at')
+        .eq('user_id', user.id)
+        .eq('visible_in_active_list', true)
+        .order('created_at', ascending: false);
+
+    final result = <String, int>{};
+    for (final row in (response as List).cast<Map<String, dynamic>>()) {
+      final flowId = (row['id'] as num?)?.toInt();
+      if (flowId == null) continue;
+      for (final rawShareId in <Object?>[
+        row['share_id'],
+        row['origin_share_id'],
+      ]) {
+        final shareId = rawShareId?.toString().trim();
+        if (shareId == null || !requested.contains(shareId)) continue;
+        result.putIfAbsent(shareId, () => flowId);
+      }
+    }
+    return Map<String, int>.unmodifiable(result);
+  }
+
+  Future<int?> getCurrentlyActiveImportedFlowId(String shareId) async {
+    final byShare = await getCurrentlyActiveImportedFlowIds(<String>[shareId]);
+    return byShare[shareId.trim()];
   }
 }

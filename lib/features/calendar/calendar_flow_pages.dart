@@ -3839,7 +3839,7 @@ class _FlowsViewerPage extends StatefulWidget {
   final String Function(DateTime? d) fmtGregorian;
   final FutureOr<void> Function() onCreateNew;
   final FutureOr<void> Function(int flowId) onEditFlow;
-  final FutureOr<void> Function(int flowId) onEndFlow;
+  final Future<EndFlowActionResult> Function(int flowId) onEndFlow;
   final FlowAddCompletion completeAdd;
   final Future<void> Function(int? importedFlowId)? onImportFlow;
   final Future<void> Function(String text)? onAppendToJournal;
@@ -3854,6 +3854,8 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
   _MyFlowsFilingSnapshot? _snapshot;
   Object? _loadError;
   bool _loading = true;
+  int _loadSerial = 0;
+  final Map<int, Future<void>> _endFlowReconciliations = <int, Future<void>>{};
 
   @override
   void initState() {
@@ -3864,6 +3866,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
   }
 
   Future<void> _reloadFiledFlows() async {
+    final loadSerial = ++_loadSerial;
     if (mounted) {
       setState(() {
         _loading = true;
@@ -3873,13 +3876,13 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
 
     try {
       final snapshot = await widget.loadFilingSnapshot();
-      if (!mounted) return;
+      if (!mounted || loadSerial != _loadSerial) return;
       setState(() {
         _snapshot = snapshot;
         _loading = false;
       });
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || loadSerial != _loadSerial) return;
       setState(() {
         _loadError = e;
         _snapshot ??= _MyFlowsFilingSnapshot.empty;
@@ -3894,6 +3897,126 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
     } finally {
       await _reloadFiledFlows();
     }
+  }
+
+  _MyFlowsFilingSnapshot _optimisticallyEndFlow(int flowId) {
+    _loadSerial += 1;
+    final previous = _currentSnapshot;
+    final nextFlows = previous.flows
+        .map((flow) {
+          if (flow.id != flowId) return flow;
+          return _Flow(
+            id: flow.id,
+            calendarId: flow.calendarId,
+            name: flow.name,
+            color: flow.color,
+            active: false,
+            isSaved: flow.isSaved,
+            savedAt: flow.savedAt,
+            rules: List<FlowRule>.from(flow.rules),
+            start: flow.start,
+            end: flow.end,
+            notes: flow.notes,
+            shareId: flow.shareId,
+            isHidden: flow.isHidden,
+            isReminder: flow.isReminder,
+            reminderUuid: flow.reminderUuid,
+          );
+        })
+        .toList(growable: false);
+    final totalCounts = Map<int, int>.from(previous.totalEventCounts)
+      ..[flowId] = 0;
+    final remainingCounts = Map<int, int>.from(previous.remainingEventCounts)
+      ..[flowId] = 0;
+    final next = _MyFlowsFilingSnapshot(
+      flows: List<_Flow>.unmodifiable(nextFlows),
+      activeFlowIds: Set<int>.unmodifiable(
+        Set<int>.from(previous.activeFlowIds)..remove(flowId),
+      ),
+      savedFlowIds: previous.savedFlowIds,
+      totalEventCounts: Map<int, int>.unmodifiable(totalCounts),
+      remainingEventCounts: Map<int, int>.unmodifiable(remainingCounts),
+    );
+    if (mounted) setState(() => _snapshot = next);
+    return previous;
+  }
+
+  void _mergeRollbackEndedFlow(int flowId, _MyFlowsFilingSnapshot previous) {
+    if (!mounted) return;
+    final current = _currentSnapshot;
+    _Flow? previousFlow;
+    for (final flow in previous.flows) {
+      if (flow.id == flowId) {
+        previousFlow = flow;
+        break;
+      }
+    }
+    final flows = current.flows.toList(growable: true);
+    if (previousFlow != null) {
+      final currentIndex = flows.indexWhere((flow) => flow.id == flowId);
+      if (currentIndex >= 0) {
+        flows[currentIndex] = previousFlow;
+      } else {
+        final previousIndex = previous.flows.indexWhere(
+          (flow) => flow.id == flowId,
+        );
+        final insertAt = previousIndex.clamp(0, flows.length).toInt();
+        flows.insert(insertAt, previousFlow);
+      }
+    }
+    final activeIds = Set<int>.from(current.activeFlowIds);
+    if (previous.activeFlowIds.contains(flowId)) activeIds.add(flowId);
+    final savedIds = Set<int>.from(current.savedFlowIds);
+    if (previous.savedFlowIds.contains(flowId)) savedIds.add(flowId);
+    final totalCounts = Map<int, int>.from(current.totalEventCounts);
+    final remainingCounts = Map<int, int>.from(current.remainingEventCounts);
+    if (previous.totalEventCounts.containsKey(flowId)) {
+      totalCounts[flowId] = previous.totalEventCounts[flowId] ?? 0;
+    } else {
+      totalCounts.remove(flowId);
+    }
+    if (previous.remainingEventCounts.containsKey(flowId)) {
+      remainingCounts[flowId] = previous.remainingEventCounts[flowId] ?? 0;
+    } else {
+      remainingCounts.remove(flowId);
+    }
+    setState(() {
+      _snapshot = _MyFlowsFilingSnapshot(
+        flows: List<_Flow>.unmodifiable(flows),
+        activeFlowIds: Set<int>.unmodifiable(activeIds),
+        savedFlowIds: Set<int>.unmodifiable(savedIds),
+        totalEventCounts: Map<int, int>.unmodifiable(totalCounts),
+        remainingEventCounts: Map<int, int>.unmodifiable(remainingCounts),
+      );
+    });
+  }
+
+  Future<void> _endFlowAndReconcile(int flowId) {
+    final existing = _endFlowReconciliations[flowId];
+    if (existing != null) return existing;
+
+    late final Future<void> operation;
+    operation = _performEndFlowAndReconcile(flowId).whenComplete(() {
+      if (identical(_endFlowReconciliations[flowId], operation)) {
+        _endFlowReconciliations.remove(flowId);
+      }
+    });
+    _endFlowReconciliations[flowId] = operation;
+    return operation;
+  }
+
+  Future<void> _performEndFlowAndReconcile(int flowId) async {
+    final previous = _optimisticallyEndFlow(flowId);
+    final result = await widget.onEndFlow(flowId);
+    if (!mounted) return;
+    if (result == EndFlowActionResult.success) {
+      await _reloadFiledFlows();
+      return;
+    }
+    _mergeRollbackEndedFlow(flowId, previous);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Could not end this flow right now.')),
+    );
   }
 
   Future<void> _openFlowPreview(List<_Flow> items, int index) async {
@@ -3930,7 +4053,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
           completeAdd: widget.completeAdd,
           onAppendToJournal: widget.onAppendToJournal,
           onEndMaatFlow: (flow) {
-            unawaited(_runAndReload(() => widget.onEndFlow(flow.id)));
+            unawaited(_endFlowAndReconcile(flow.id));
             Navigator.of(context).pop();
           },
           useMySavedExpansionParity: true,
@@ -4246,26 +4369,71 @@ Widget buildMyFlowsListPreviewForTesting({
   bool activeEmpty = false,
   bool savedEmpty = false,
   bool includeUnresolvedMaatFlow = false,
+  bool includeSecondActiveMaatFlow = false,
   bool includeMissingProgressFlow = false,
   bool includeNoScheduleSavedFlow = false,
   ValueChanged<int>? onPreviewFlow,
   VoidCallback? onCreateNew,
+  Future<EndFlowActionResult> Function(int flowId)? onEndFlow,
+  Set<int>? filingInactiveFlowIdsForTesting,
 }) {
   final snapshot = _buildMyFlowsPreviewSnapshot(
     activeEmpty: activeEmpty,
     savedEmpty: savedEmpty,
     includeUnresolvedMaatFlow: includeUnresolvedMaatFlow,
+    includeSecondActiveMaatFlow: includeSecondActiveMaatFlow,
     includeMissingProgressFlow: includeMissingProgressFlow,
     includeNoScheduleSavedFlow: includeNoScheduleSavedFlow,
   );
 
   return _FlowsViewerPage(
-    loadFilingSnapshot: () async => snapshot,
+    loadFilingSnapshot: () async {
+      final inactiveIds = filingInactiveFlowIdsForTesting;
+      if (inactiveIds == null || inactiveIds.isEmpty) return snapshot;
+      return _MyFlowsFilingSnapshot(
+        flows: List<_Flow>.unmodifiable(
+          snapshot.flows.map((flow) {
+            if (!inactiveIds.contains(flow.id)) return flow;
+            return _Flow(
+              id: flow.id,
+              calendarId: flow.calendarId,
+              name: flow.name,
+              color: flow.color,
+              active: false,
+              isSaved: flow.isSaved,
+              savedAt: flow.savedAt,
+              rules: List<FlowRule>.from(flow.rules),
+              start: flow.start,
+              end: flow.end,
+              notes: flow.notes,
+              shareId: flow.shareId,
+              isHidden: flow.isHidden,
+              isReminder: flow.isReminder,
+              reminderUuid: flow.reminderUuid,
+            );
+          }),
+        ),
+        activeFlowIds: Set<int>.unmodifiable(
+          Set<int>.from(snapshot.activeFlowIds)..removeAll(inactiveIds),
+        ),
+        savedFlowIds: snapshot.savedFlowIds,
+        totalEventCounts: Map<int, int>.unmodifiable(
+          Map<int, int>.from(snapshot.totalEventCounts)..updateAll(
+            (flowId, count) => inactiveIds.contains(flowId) ? 0 : count,
+          ),
+        ),
+        remainingEventCounts: Map<int, int>.unmodifiable(
+          Map<int, int>.from(snapshot.remainingEventCounts)..updateAll(
+            (flowId, count) => inactiveIds.contains(flowId) ? 0 : count,
+          ),
+        ),
+      );
+    },
     initialFilingSnapshot: snapshot,
     fmtGregorian: _formatMyFlowsPreviewGregorian,
     onCreateNew: onCreateNew ?? () {},
     onEditFlow: (_) {},
-    onEndFlow: (_) {},
+    onEndFlow: onEndFlow ?? (_) async => EndFlowActionResult.success,
     completeAdd: (_) {},
     onPreviewFlowForTesting: onPreviewFlow,
   );
@@ -4448,6 +4616,7 @@ _MyFlowsFilingSnapshot _buildMyFlowsPreviewSnapshot({
   required bool activeEmpty,
   required bool savedEmpty,
   required bool includeUnresolvedMaatFlow,
+  required bool includeSecondActiveMaatFlow,
   required bool includeMissingProgressFlow,
   required bool includeNoScheduleSavedFlow,
 }) {
@@ -4468,6 +4637,18 @@ _MyFlowsFilingSnapshot _buildMyFlowsPreviewSnapshot({
       notes: 'mode=kemetic;maat=track-the-sky',
     ),
   ];
+  if (includeSecondActiveMaatFlow) {
+    activeFlows.add(
+      _buildMyFlowsPreviewFlow(
+        id: 8,
+        name: 'Dawn House Rite',
+        color: const Color(0xFFC8A84A),
+        start: DateTime(2026, 7, 1),
+        end: DateTime(2026, 7, 10),
+        notes: 'mode=kemetic;maat=dawn-house-rite',
+      ),
+    );
+  }
   if (includeUnresolvedMaatFlow) {
     activeFlows.add(
       _buildMyFlowsPreviewFlow(
@@ -4542,12 +4723,14 @@ _MyFlowsFilingSnapshot _buildMyFlowsPreviewSnapshot({
     2: 27,
     3: 9,
     if (includeUnresolvedMaatFlow) 4: 10,
+    if (includeSecondActiveMaatFlow) 8: 10,
   };
   final remainingCounts = <int, int>{
     1: 2,
     2: 22,
     3: 2,
     if (includeUnresolvedMaatFlow) 4: 10,
+    if (includeSecondActiveMaatFlow) 8: 10,
   };
 
   return _MyFlowsFilingSnapshot(
