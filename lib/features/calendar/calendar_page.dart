@@ -110,6 +110,8 @@ import '../../widgets/kemetic_date_picker.dart' show showKemeticDatePicker;
 import '../../widgets/recurrence_until_date_picker.dart';
 import '../../utils/external_link_utils.dart';
 import 'calendar_invalidation.dart';
+import 'end_flow_diagnostics.dart';
+export 'end_flow_diagnostics.dart';
 import 'calendar_load_coordinator.dart';
 import 'calendar_visible_state_policy.dart';
 import 'calendar_completion.dart';
@@ -192,8 +194,6 @@ part 'calendar_note_model.dart';
 part 'calendar_custom_repeat_page.dart';
 part 'flow_join_service.dart';
 part 'calendar_unconfirmed_notes.dart';
-
-enum EndFlowActionResult { success, failed, notHandled }
 
 class _MountedFlowEndPatch {
   const _MountedFlowEndPatch({
@@ -4057,8 +4057,8 @@ class CalendarPage extends StatefulWidget {
   static String? _rememberedJoinedMaatUserScope;
   // Process-local only. These guards are deliberately never persisted: if the
   // process dies during the RPC, the next process hydrates from server truth.
-  static final Map<String, Future<EndFlowActionResult>> _flowEndOperations =
-      <String, Future<EndFlowActionResult>>{};
+  static final Map<String, Future<EndFlowOutcome>> _flowEndOperations =
+      <String, Future<EndFlowOutcome>>{};
   static final Map<String, String> _pendingFlowEndOperationIds =
       <String, String>{};
   static int _flowEndStateRevision = 0;
@@ -4076,6 +4076,9 @@ class CalendarPage extends StatefulWidget {
   @visibleForTesting
   static void Function(CalendarInvalidated invalidation)?
   debugPublishFlowEndForTesting;
+  @visibleForTesting
+  static Future<void> Function(Map<String, Object?> properties)?
+  debugTrackFlowEndClassificationForTesting;
 
   static CalendarPageState? get _mountedState {
     final state = globalKey.currentState;
@@ -4085,19 +4088,29 @@ class CalendarPage extends StatefulWidget {
 
   static bool get hasMountedHost => _mountedState != null;
 
-  static String? _flowEndOperationKey(int flowId) {
+  static String _flowEndOperationKey(int flowId) {
+    if (flowId <= 0) return 'invalid:$flowId';
     final userId =
         debugFlowEndUserScopeForTesting?.trim() ??
         Supabase.instance.client.auth.currentUser?.id.trim();
-    if (userId == null || userId.isEmpty || flowId <= 0) return null;
+    if (userId == null || userId.isEmpty) return 'session-unready:$flowId';
     return '$userId:$flowId';
   }
 
   @visibleForTesting
-  static Future<EndFlowActionResult> debugRunEndFlowForTesting(
+  static Future<EndFlowOutcome> debugRunEndFlowForTesting(
     int flowId, {
     DateTime? endedAtLocal,
-  }) => _runEndFlowRemote(flowId, endedAtLocal: endedAtLocal);
+  }) => _runEndFlowRemote(
+    flowId,
+    endedAtLocal: endedAtLocal,
+    initiatorOwner: EndFlowOperationOwner.test,
+  );
+
+  @visibleForTesting
+  static List<EndFlowDiagnosticRecord>
+  get debugEndFlowDiagnosticRecordsForTesting =>
+      EndFlowDiagnostics.instance.records;
 
   @visibleForTesting
   static bool debugIsFlowEndPendingForTesting(int flowId) =>
@@ -4112,12 +4125,15 @@ class CalendarPage extends StatefulWidget {
     debugEndFlowRpcForTesting = null;
     debugClearFlowEndCacheForTesting = null;
     debugPublishFlowEndForTesting = null;
+    debugTrackFlowEndClassificationForTesting = null;
+    EndFlowDiagnostics.instance.debugReset();
+    EndFlowAuthReadiness.instance.debugSetReadyForTesting(null);
   }
 
   static bool _isFlowEndPending(int flowId) {
     if (flowId <= 0 || _pendingFlowEndOperationIds.isEmpty) return false;
     final key = _flowEndOperationKey(flowId);
-    return key != null && _pendingFlowEndOperationIds.containsKey(key);
+    return _pendingFlowEndOperationIds.containsKey(key);
   }
 
   static void _clearPendingFlowEnd(String key, String operationId) {
@@ -4126,96 +4142,247 @@ class CalendarPage extends StatefulWidget {
     _flowEndStateRevision += 1;
   }
 
-  static Future<EndFlowActionResult> _runEndFlowRemote(
+  static bool _isEndFlowSessionReady() {
+    final readiness = EndFlowAuthReadiness.instance;
+    if (debugFlowEndUserScopeForTesting != null) {
+      return readiness.isReady;
+    }
+    readiness.ensureBound(Supabase.instance.client);
+    return readiness.isReady;
+  }
+
+  static EndFlowDiagnosticRecord _recordEndFlowTerminal({
+    required int flowId,
+    required EndFlowOutcome outcome,
+    required EndFlowOperationOwner initiatorOwner,
+  }) {
+    final record = EndFlowDiagnostics.instance.recordTerminal(
+      flowId: flowId,
+      outcome: outcome,
+      initiatorOwner: initiatorOwner,
+    );
+    void recordTelemetryFailure() {
+      EndFlowDiagnostics.instance.recordSideEffect(
+        flowId: flowId,
+        outcome: outcome,
+        initiatorOwner: initiatorOwner,
+        sideEffectKind: EndFlowSideEffectKind.telemetry,
+      );
+    }
+
+    try {
+      final override = debugTrackFlowEndClassificationForTesting;
+      final future = override != null
+          ? override(record.toJson())
+          : Events.trackIfAuthed(
+              'end_flow_classified',
+              record.toJson(),
+              rethrowFailure: true,
+            );
+      unawaited(
+        future.catchError((Object _) {
+          recordTelemetryFailure();
+        }),
+      );
+    } catch (_) {
+      recordTelemetryFailure();
+    }
+    return record;
+  }
+
+  static EndFlowOutcome _notHandledEndFlowOutcome() {
+    final operationId = const Uuid().v4();
+    return EndFlowOutcome(
+      result: EndFlowActionResult.notHandled,
+      failureKind: EndFlowFailureKind.unknown,
+      terminalStage: EndFlowTerminalStage.preRpcGuard,
+      operationId: operationId,
+      rpcAttempted: false,
+      postgrestCode: null,
+      httpStatus: null,
+      referenceCode: endFlowReferenceCode(operationId),
+    );
+  }
+
+  static Future<EndFlowOutcome> _runEndFlowRemote(
     int flowId, {
     DateTime? endedAtLocal,
+    required EndFlowOperationOwner initiatorOwner,
   }) {
     final key = _flowEndOperationKey(flowId);
-    if (key == null) {
-      return Future<EndFlowActionResult>.value(EndFlowActionResult.failed);
-    }
     final existing = _flowEndOperations[key];
     if (existing != null) return existing;
 
     final operationId = const Uuid().v4();
+    final referenceCode = endFlowReferenceCode(operationId);
     _pendingFlowEndOperationIds[key] = operationId;
     _flowEndStateRevision += 1;
 
-    late final Future<EndFlowActionResult> operation;
-    operation = () async {
-      try {
-        final effectiveEndedAtLocal = endedAtLocal ?? DateTime.now();
-        final rpcOverride = debugEndFlowRpcForTesting;
-        if (rpcOverride != null) {
-          final result = await rpcOverride(flowId, effectiveEndedAtLocal);
-          if (result != EndFlowActionResult.success) return result;
-        } else {
-          final result = await UserEventsRepo(Supabase.instance.client).endFlow(
-            flowId: flowId,
-            endedAtLocal: effectiveEndedAtLocal,
-            deleteAllMaterialized: true,
+    late final Future<EndFlowOutcome> operation;
+    operation =
+        () async {
+          if (!_isEndFlowSessionReady() || flowId <= 0) {
+            final outcome = EndFlowOutcome(
+              result: flowId <= 0
+                  ? EndFlowActionResult.notHandled
+                  : EndFlowActionResult.failed,
+              failureKind: flowId <= 0
+                  ? EndFlowFailureKind.unknown
+                  : EndFlowFailureKind.sessionNotReady,
+              terminalStage: EndFlowTerminalStage.preRpcGuard,
+              operationId: operationId,
+              rpcAttempted: false,
+              postgrestCode: null,
+              httpStatus: null,
+              referenceCode: referenceCode,
+            );
+            _recordEndFlowTerminal(
+              flowId: flowId,
+              outcome: outcome,
+              initiatorOwner: initiatorOwner,
+            );
+            return outcome;
+          }
+
+          final effectiveEndedAtLocal = endedAtLocal ?? DateTime.now();
+          EndFlowActionResult rpcResult = EndFlowActionResult.success;
+          try {
+            EndFlowDiagnostics.instance.recordRpcAttempted(
+              flowId: flowId,
+              operationId: operationId,
+              referenceCode: referenceCode,
+              initiatorOwner: initiatorOwner,
+            );
+            final rpcOverride = debugEndFlowRpcForTesting;
+            if (rpcOverride != null) {
+              rpcResult = await rpcOverride(flowId, effectiveEndedAtLocal);
+            } else {
+              final result = await UserEventsRepo(Supabase.instance.client)
+                  .endFlow(
+                    flowId: flowId,
+                    endedAtLocal: effectiveEndedAtLocal,
+                    deleteAllMaterialized: true,
+                  );
+              if (kDebugMode) {
+                _calendarDebugPrint(
+                  '[endFlow] committed operation=$operationId flowId=${result.flowId} '
+                  'deletedEvents=${result.deletedEventCount} '
+                  'retiredNotifications=${result.retiredNotificationCount} '
+                  'deletedCompletions=${result.deletedCompletionCount}',
+                );
+              }
+            }
+          } catch (error) {
+            final classification = classifyEndFlowFailure(error);
+            final outcome = EndFlowOutcome(
+              result: EndFlowActionResult.failed,
+              failureKind: classification.failureKind,
+              terminalStage: classification.terminalStage,
+              operationId: operationId,
+              rpcAttempted: true,
+              postgrestCode: classification.postgrestCode,
+              httpStatus: classification.httpStatus,
+              referenceCode: referenceCode,
+            );
+            _clearPendingFlowEnd(key, operationId);
+            _recordEndFlowTerminal(
+              flowId: flowId,
+              outcome: outcome,
+              initiatorOwner: initiatorOwner,
+            );
+            return outcome;
+          }
+
+          if (rpcResult != EndFlowActionResult.success) {
+            final outcome = EndFlowOutcome(
+              result: rpcResult,
+              failureKind: EndFlowFailureKind.unknown,
+              terminalStage: EndFlowTerminalStage.rpcErrorReturned,
+              operationId: operationId,
+              rpcAttempted: true,
+              postgrestCode: null,
+              httpStatus: null,
+              referenceCode: referenceCode,
+            );
+            _clearPendingFlowEnd(key, operationId);
+            _recordEndFlowTerminal(
+              flowId: flowId,
+              outcome: outcome,
+              initiatorOwner: initiatorOwner,
+            );
+            return outcome;
+          }
+
+          final outcome = EndFlowOutcome(
+            result: EndFlowActionResult.success,
+            failureKind: null,
+            terminalStage: EndFlowTerminalStage.postCommit,
+            operationId: operationId,
+            rpcAttempted: true,
+            postgrestCode: null,
+            httpStatus: null,
+            referenceCode: referenceCode,
           );
-          if (kDebugMode) {
-            _calendarDebugPrint(
-              '[endFlow] committed operation=$operationId flowId=${result.flowId} '
-              'deletedEvents=${result.deletedEventCount} '
-              'retiredNotifications=${result.retiredNotificationCount} '
-              'deletedCompletions=${result.deletedCompletionCount}',
+          _clearPendingFlowEnd(key, operationId);
+          _recordEndFlowTerminal(
+            flowId: flowId,
+            outcome: outcome,
+            initiatorOwner: initiatorOwner,
+          );
+
+          try {
+            _forgetRememberedJoinedMaatFlow(flowId);
+            final mountedState = _mountedState;
+            if (mountedState != null) {
+              mountedState._myFlowsFilingSnapshotGeneration += 1;
+              mountedState._myFlowsFilingSnapshotCache = null;
+              mountedState._myFlowsFilingSnapshotLoadInFlight = null;
+            }
+            final clearOverride = debugClearFlowEndCacheForTesting;
+            if (clearOverride != null) {
+              await clearOverride();
+            } else {
+              await FlowsRepo(
+                Supabase.instance.client,
+              ).clearMyFiledFlowsCache();
+            }
+          } catch (_) {
+            EndFlowDiagnostics.instance.recordSideEffect(
+              flowId: flowId,
+              outcome: outcome,
+              initiatorOwner: initiatorOwner,
+              sideEffectKind: EndFlowSideEffectKind.filingCacheClear,
             );
           }
-        }
 
-        _clearPendingFlowEnd(key, operationId);
-        _forgetRememberedJoinedMaatFlow(flowId);
-        final mountedState = _mountedState;
-        if (mountedState != null) {
-          mountedState._myFlowsFilingSnapshotGeneration += 1;
-          mountedState._myFlowsFilingSnapshotCache = null;
-          mountedState._myFlowsFilingSnapshotLoadInFlight = null;
-        }
-        try {
-          final clearOverride = debugClearFlowEndCacheForTesting;
-          if (clearOverride != null) {
-            await clearOverride();
-          } else {
-            await FlowsRepo(Supabase.instance.client).clearMyFiledFlowsCache();
+          // This event means the server transaction has committed. Consumers may
+          // safely refetch without racing the still-active pre-end flow state.
+          try {
+            final invalidation = CalendarInvalidated(
+              reason: CalendarInvalidationReason.flowEndedCommitted,
+              flowId: flowId,
+            );
+            final publishOverride = debugPublishFlowEndForTesting;
+            if (publishOverride != null) {
+              publishOverride(invalidation);
+            } else {
+              CalendarInvalidationBus.instance.publish(invalidation);
+            }
+          } catch (_) {
+            EndFlowDiagnostics.instance.recordSideEffect(
+              flowId: flowId,
+              outcome: outcome,
+              initiatorOwner: initiatorOwner,
+              sideEffectKind: EndFlowSideEffectKind.invalidationPublish,
+            );
           }
-        } catch (e, st) {
-          if (kDebugMode) {
-            _calendarDebugPrint('[endFlow] filing cache clear failed: $e');
-            _calendarDebugPrint('$st');
+          return outcome;
+        }().whenComplete(() {
+          if (identical(_flowEndOperations[key], operation)) {
+            _flowEndOperations.remove(key);
           }
-        }
-
-        // This event means the server transaction has committed. Consumers may
-        // safely refetch without racing the still-active pre-end flow state.
-        final invalidation = CalendarInvalidated(
-          reason: CalendarInvalidationReason.flowEndedCommitted,
-          flowId: flowId,
-        );
-        final publishOverride = debugPublishFlowEndForTesting;
-        if (publishOverride != null) {
-          publishOverride(invalidation);
-        } else {
-          CalendarInvalidationBus.instance.publish(invalidation);
-        }
-        return EndFlowActionResult.success;
-      } catch (e, st) {
-        _clearPendingFlowEnd(key, operationId);
-        if (kDebugMode) {
-          _calendarDebugPrint(
-            '[endFlow] failed operation=$operationId flowId=$flowId error=$e',
-          );
-          _calendarDebugPrint('$st');
-        }
-        return EndFlowActionResult.failed;
-      } finally {
-        if (identical(_flowEndOperations[key], operation)) {
-          _flowEndOperations.remove(key);
-        }
-        _clearPendingFlowEnd(key, operationId);
-      }
-    }();
+          _clearPendingFlowEnd(key, operationId);
+        });
     _flowEndOperations[key] = operation;
     return operation;
   }
@@ -7270,8 +7437,11 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
-  static Future<EndFlowActionResult> _endFlowHeadless(int flowId) =>
-      _runEndFlowRemote(flowId);
+  static Future<EndFlowOutcome> _endFlowHeadless(int flowId) =>
+      _runEndFlowRemote(
+        flowId,
+        initiatorOwner: EndFlowOperationOwner.detachedMyFlows,
+      );
 
   static bool _isFlowStudioRouteParent(String parentRoute) {
     final uri = Uri.tryParse(parentRoute.trim());
@@ -8255,11 +8425,11 @@ class CalendarPage extends StatefulWidget {
   }
 
   /// Returns the actual result of the end-flow action for this event target.
-  static Future<EndFlowActionResult> endFlowFromEventTarget(
+  static Future<EndFlowOutcome> endFlowFromEventTarget(
     DayViewSheetEventTarget target,
   ) async {
     final state = globalKey.currentState;
-    if (state == null || !state.mounted) return EndFlowActionResult.notHandled;
+    if (state == null || !state.mounted) return _notHandledEndFlowOutcome();
     return state._endFlowFromEventTarget(target);
   }
 
@@ -9609,8 +9779,8 @@ class CalendarPageState extends State<CalendarPage>
   _MyFlowsFilingSnapshot? _myFlowsFilingSnapshotCache;
   Future<_MyFlowsFilingSnapshot>? _myFlowsFilingSnapshotLoadInFlight;
   int _myFlowsFilingSnapshotGeneration = 0;
-  final Map<int, Future<EndFlowActionResult>> _mountedEndFlowOperations =
-      <int, Future<EndFlowActionResult>>{};
+  final Map<int, Future<EndFlowOutcome>> _mountedEndFlowOperations =
+      <int, Future<EndFlowOutcome>>{};
   int _nextFlowId = 1;
   // Removed _nextAlarmId; notifications are persisted via Notify.scheduleAlertWithPersistence
   final ScrollController _scrollCtrl = ScrollController();
@@ -14286,6 +14456,7 @@ class CalendarPageState extends State<CalendarPage>
   @override
   void initState() {
     super.initState();
+    EndFlowAuthReadiness.instance.ensureBound(Supabase.instance.client);
     _calendarDebugPrint('[calendar] initState');
     final hasSharedCalendarRealDayViewIntent =
         CalendarPage._pendingSharedCalendarRealDayViewIntent != null;
@@ -25154,11 +25325,11 @@ class CalendarPageState extends State<CalendarPage>
   /// canonical RPC. Previously shared, posted, or saved copies live in their
   /// own records and are not removed by this action.
   //// === FLOW LIFECYCLE: END FLOW ===
-  Future<EndFlowActionResult> _endFlowFromEventTarget(
+  Future<EndFlowOutcome> _endFlowFromEventTarget(
     DayViewSheetEventTarget target,
   ) async {
     final flowId = target.event.flowId;
-    if (flowId == null) return EndFlowActionResult.notHandled;
+    if (flowId == null) return CalendarPage._notHandledEndFlowOutcome();
     return _endFlow(flowId);
   }
 
@@ -25342,11 +25513,11 @@ class CalendarPageState extends State<CalendarPage>
     context.go(location);
   }
 
-  Future<EndFlowActionResult> _endFlow(int flowId, {DateTime? endedAtLocal}) {
+  Future<EndFlowOutcome> _endFlow(int flowId, {DateTime? endedAtLocal}) {
     final existing = _mountedEndFlowOperations[flowId];
     if (existing != null) return existing;
 
-    late final Future<EndFlowActionResult> operation;
+    late final Future<EndFlowOutcome> operation;
     operation = _performEndFlow(flowId, endedAtLocal: endedAtLocal)
         .whenComplete(() {
           if (identical(_mountedEndFlowOperations[flowId], operation)) {
@@ -25357,7 +25528,7 @@ class CalendarPageState extends State<CalendarPage>
     return operation;
   }
 
-  Future<EndFlowActionResult> _performEndFlow(
+  Future<EndFlowOutcome> _performEndFlow(
     int flowId, {
     DateTime? endedAtLocal,
   }) async {
@@ -25373,15 +25544,26 @@ class CalendarPageState extends State<CalendarPage>
     final result = await CalendarPage._runEndFlowRemote(
       flowId,
       endedAtLocal: effectiveEndedAtLocal,
+      initiatorOwner: EndFlowOperationOwner.calendar,
     );
-    if (result != EndFlowActionResult.success) {
+    if (result.result != EndFlowActionResult.success) {
       _rollbackOptimisticEndedFlow(flowId, optimisticPatch);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not end this flow right now.')),
+          SnackBar(
+            content: Text(endFlowFailureDisplayMessage(result)),
+            action: SnackBarAction(
+              label: 'Copy diagnostics',
+              onPressed: () => unawaited(
+                EndFlowDiagnostics.instance.copyTerminalDiagnostics(
+                  result.operationId,
+                ),
+              ),
+            ),
+          ),
         );
       }
-      return EndFlowActionResult.failed;
+      return result;
     }
 
     if (mounted) {
@@ -25389,7 +25571,7 @@ class CalendarPageState extends State<CalendarPage>
         context,
       ).showSnackBar(const SnackBar(content: Text('Flow ended.')));
     }
-    return EndFlowActionResult.success;
+    return result;
   }
   //// === END END FLOW ===
 

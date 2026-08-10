@@ -2306,26 +2306,31 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         ),
         actions: [
           if (isMaatInstance && widget.onEndMaatFlow != null)
-            OutlinedButton(
-              style: withExpandedTouchTargets(
-                context,
-                OutlinedButton.styleFrom(
-                  foregroundColor: _gold,
-                  side: const BorderSide(color: _gold, width: 1.2),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 11,
-                    vertical: 7,
-                  ),
-                  minimumSize: const Size(0, 35),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: const VisualDensity(
-                    horizontal: -1,
-                    vertical: -1,
-                  ),
-                ),
-              ),
-              onPressed: () => widget.onEndMaatFlow?.call(currentFlow),
-              child: const Text('End Flow'),
+            ValueListenableBuilder<bool>(
+              valueListenable: EndFlowAuthReadiness.instance.listenable,
+              builder: (context, sessionReady, _) => sessionReady
+                  ? OutlinedButton(
+                      style: withExpandedTouchTargets(
+                        context,
+                        OutlinedButton.styleFrom(
+                          foregroundColor: _gold,
+                          side: const BorderSide(color: _gold, width: 1.2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 11,
+                            vertical: 7,
+                          ),
+                          minimumSize: const Size(0, 35),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: const VisualDensity(
+                            horizontal: -1,
+                            vertical: -1,
+                          ),
+                        ),
+                      ),
+                      onPressed: () => widget.onEndMaatFlow?.call(currentFlow),
+                      child: const Text('End Flow'),
+                    )
+                  : const SizedBox.shrink(),
             ),
           if (widget.showFlowOptions)
             PopupMenuButton<String>(
@@ -3839,7 +3844,7 @@ class _FlowsViewerPage extends StatefulWidget {
   final String Function(DateTime? d) fmtGregorian;
   final FutureOr<void> Function() onCreateNew;
   final FutureOr<void> Function(int flowId) onEditFlow;
-  final Future<EndFlowActionResult> Function(int flowId) onEndFlow;
+  final Future<EndFlowOutcome> Function(int flowId) onEndFlow;
   final FlowAddCompletion completeAdd;
   final Future<void> Function(int? importedFlowId)? onImportFlow;
   final Future<void> Function(String text)? onAppendToJournal;
@@ -3860,6 +3865,7 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
   @override
   void initState() {
     super.initState();
+    EndFlowAuthReadiness.instance.ensureBound(Supabase.instance.client);
     _snapshot = widget.initialFilingSnapshot;
     _loading = _snapshot == null;
     unawaited(_reloadFiledFlows());
@@ -4009,13 +4015,23 @@ class _FlowsViewerPageState extends State<_FlowsViewerPage> {
     final previous = _optimisticallyEndFlow(flowId);
     final result = await widget.onEndFlow(flowId);
     if (!mounted) return;
-    if (result == EndFlowActionResult.success) {
+    if (result.result == EndFlowActionResult.success) {
       await _reloadFiledFlows();
       return;
     }
     _mergeRollbackEndedFlow(flowId, previous);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Could not end this flow right now.')),
+      SnackBar(
+        content: Text(endFlowFailureDisplayMessage(result)),
+        action: SnackBarAction(
+          label: 'Copy diagnostics',
+          onPressed: () => unawaited(
+            EndFlowDiagnostics.instance.copyTerminalDiagnostics(
+              result.operationId,
+            ),
+          ),
+        ),
+      ),
     );
   }
 
@@ -4374,9 +4390,10 @@ Widget buildMyFlowsListPreviewForTesting({
   bool includeNoScheduleSavedFlow = false,
   ValueChanged<int>? onPreviewFlow,
   VoidCallback? onCreateNew,
-  Future<EndFlowActionResult> Function(int flowId)? onEndFlow,
+  Future<EndFlowOutcome> Function(int flowId)? onEndFlow,
   Set<int>? filingInactiveFlowIdsForTesting,
 }) {
+  EndFlowAuthReadiness.instance.debugSetReadyForTesting(true);
   final snapshot = _buildMyFlowsPreviewSnapshot(
     activeEmpty: activeEmpty,
     savedEmpty: savedEmpty,
@@ -4433,7 +4450,9 @@ Widget buildMyFlowsListPreviewForTesting({
     fmtGregorian: _formatMyFlowsPreviewGregorian,
     onCreateNew: onCreateNew ?? () {},
     onEditFlow: (_) {},
-    onEndFlow: onEndFlow ?? (_) async => EndFlowActionResult.success,
+    onEndFlow:
+        onEndFlow ??
+        (_) async => EndFlowOutcome.success(operationId: const Uuid().v4()),
     completeAdd: (_) {},
     onPreviewFlowForTesting: onPreviewFlow,
   );

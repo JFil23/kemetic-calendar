@@ -716,8 +716,9 @@ class Events {
 
   static Future<void> trackIfAuthed(
     String event,
-    Map<String, dynamic> props,
-  ) async {
+    Map<String, dynamic> props, {
+    bool rethrowFailure = false,
+  }) async {
     final s = supabase.auth.currentSession;
     if (s == null) {
       if (kDebugMode) {
@@ -734,9 +735,14 @@ class Events {
       }
     } catch (e, st) {
       if (kDebugMode) {
-        debugPrint('[events] failed "$event": $e');
-        debugPrint('$st');
+        if (rethrowFailure) {
+          debugPrint('[events] failed "$event"');
+        } else {
+          debugPrint('[events] failed "$event": $e');
+          debugPrint('$st');
+        }
       }
+      if (rethrowFailure) rethrow;
     }
   }
 }
