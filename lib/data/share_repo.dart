@@ -15,6 +15,18 @@ import '../telemetry/telemetry.dart';
 import '../utils/event_cid_util.dart';
 import '../utils/flow_visibility.dart';
 
+Set<String> inboxFlowShareIdsFromRows(Iterable<Map<String, dynamic>> rows) {
+  final ids = <String>{};
+  for (final row in rows) {
+    if (row['kind'] != 'flow') continue;
+    final id = row['share_id']?.toString().trim();
+    if (id != null && id.isNotEmpty) {
+      ids.add(id);
+    }
+  }
+  return ids;
+}
+
 bool isExternalInboxActivityActor(String? actorId, String currentUserId) {
   if (currentUserId.isEmpty) return false;
   if (actorId == null || actorId.isEmpty) return false;
@@ -2887,12 +2899,7 @@ class ShareRepo {
       );
     }
 
-    final flowShareIds = filtered
-        .where((row) => row['kind'] == 'flow')
-        .map((row) => row['share_id']?.toString().trim())
-        .whereType<String>()
-        .where((id) => id.isNotEmpty)
-        .toSet();
+    final flowShareIds = inboxFlowShareIdsFromRows(filtered);
     final activeImportedFlowIds = uid == null
         ? const <String, int>{}
         : await UserEventsRepo(
