@@ -195,6 +195,28 @@ part 'calendar_unconfirmed_notes.dart';
 
 enum EndFlowActionResult { success, failed, notHandled }
 
+class _MountedFlowEndPatch {
+  const _MountedFlowEndPatch({
+    required this.flow,
+    required this.flowIndex,
+    required this.notesByDay,
+    required this.hadTotalCount,
+    required this.totalCount,
+    required this.hadRemainingCount,
+    required this.remainingCount,
+    required this.unconfirmedNotes,
+  });
+
+  final _Flow? flow;
+  final int flowIndex;
+  final Map<String, List<_Note>> notesByDay;
+  final bool hadTotalCount;
+  final int? totalCount;
+  final bool hadRemainingCount;
+  final int? remainingCount;
+  final List<_UnconfirmedNote> unconfirmedNotes;
+}
+
 void _calendarDebugPrint(String? message, {int? wrapWidth}) {
   if (kDebugMode) {
     debugPrint(message, wrapWidth: wrapWidth);
@@ -4033,6 +4055,27 @@ class CalendarPage extends StatefulWidget {
   static final Map<int, String> _rememberedJoinedMaatTemplateKeysByFlowId =
       <int, String>{};
   static String? _rememberedJoinedMaatUserScope;
+  // Process-local only. These guards are deliberately never persisted: if the
+  // process dies during the RPC, the next process hydrates from server truth.
+  static final Map<String, Future<EndFlowActionResult>> _flowEndOperations =
+      <String, Future<EndFlowActionResult>>{};
+  static final Map<String, String> _pendingFlowEndOperationIds =
+      <String, String>{};
+  static int _flowEndStateRevision = 0;
+
+  @visibleForTesting
+  static String? debugFlowEndUserScopeForTesting;
+  @visibleForTesting
+  static Future<EndFlowActionResult> Function(
+    int flowId,
+    DateTime endedAtLocal,
+  )?
+  debugEndFlowRpcForTesting;
+  @visibleForTesting
+  static Future<void> Function()? debugClearFlowEndCacheForTesting;
+  @visibleForTesting
+  static void Function(CalendarInvalidated invalidation)?
+  debugPublishFlowEndForTesting;
 
   static CalendarPageState? get _mountedState {
     final state = globalKey.currentState;
@@ -4041,6 +4084,140 @@ class CalendarPage extends StatefulWidget {
   }
 
   static bool get hasMountedHost => _mountedState != null;
+
+  static String? _flowEndOperationKey(int flowId) {
+    final userId =
+        debugFlowEndUserScopeForTesting?.trim() ??
+        Supabase.instance.client.auth.currentUser?.id.trim();
+    if (userId == null || userId.isEmpty || flowId <= 0) return null;
+    return '$userId:$flowId';
+  }
+
+  @visibleForTesting
+  static Future<EndFlowActionResult> debugRunEndFlowForTesting(
+    int flowId, {
+    DateTime? endedAtLocal,
+  }) => _runEndFlowRemote(flowId, endedAtLocal: endedAtLocal);
+
+  @visibleForTesting
+  static bool debugIsFlowEndPendingForTesting(int flowId) =>
+      _isFlowEndPending(flowId);
+
+  @visibleForTesting
+  static void debugResetEndFlowCoordinatorForTesting() {
+    _flowEndOperations.clear();
+    _pendingFlowEndOperationIds.clear();
+    _flowEndStateRevision += 1;
+    debugFlowEndUserScopeForTesting = null;
+    debugEndFlowRpcForTesting = null;
+    debugClearFlowEndCacheForTesting = null;
+    debugPublishFlowEndForTesting = null;
+  }
+
+  static bool _isFlowEndPending(int flowId) {
+    final key = _flowEndOperationKey(flowId);
+    return key != null && _pendingFlowEndOperationIds.containsKey(key);
+  }
+
+  static void _clearPendingFlowEnd(String key, String operationId) {
+    if (_pendingFlowEndOperationIds[key] != operationId) return;
+    _pendingFlowEndOperationIds.remove(key);
+    _flowEndStateRevision += 1;
+  }
+
+  static Future<EndFlowActionResult> _runEndFlowRemote(
+    int flowId, {
+    DateTime? endedAtLocal,
+  }) {
+    final key = _flowEndOperationKey(flowId);
+    if (key == null) {
+      return Future<EndFlowActionResult>.value(EndFlowActionResult.failed);
+    }
+    final existing = _flowEndOperations[key];
+    if (existing != null) return existing;
+
+    final operationId = const Uuid().v4();
+    _pendingFlowEndOperationIds[key] = operationId;
+    _flowEndStateRevision += 1;
+
+    late final Future<EndFlowActionResult> operation;
+    operation = () async {
+      try {
+        final effectiveEndedAtLocal = endedAtLocal ?? DateTime.now();
+        final rpcOverride = debugEndFlowRpcForTesting;
+        if (rpcOverride != null) {
+          final result = await rpcOverride(flowId, effectiveEndedAtLocal);
+          if (result != EndFlowActionResult.success) return result;
+        } else {
+          final result = await UserEventsRepo(Supabase.instance.client).endFlow(
+            flowId: flowId,
+            endedAtLocal: effectiveEndedAtLocal,
+            deleteAllMaterialized: true,
+          );
+          if (kDebugMode) {
+            _calendarDebugPrint(
+              '[endFlow] committed operation=$operationId flowId=${result.flowId} '
+              'deletedEvents=${result.deletedEventCount} '
+              'retiredNotifications=${result.retiredNotificationCount} '
+              'deletedCompletions=${result.deletedCompletionCount}',
+            );
+          }
+        }
+
+        _clearPendingFlowEnd(key, operationId);
+        _forgetRememberedJoinedMaatFlow(flowId);
+        final mountedState = _mountedState;
+        if (mountedState != null) {
+          mountedState._myFlowsFilingSnapshotGeneration += 1;
+          mountedState._myFlowsFilingSnapshotCache = null;
+          mountedState._myFlowsFilingSnapshotLoadInFlight = null;
+        }
+        try {
+          final clearOverride = debugClearFlowEndCacheForTesting;
+          if (clearOverride != null) {
+            await clearOverride();
+          } else {
+            await FlowsRepo(Supabase.instance.client).clearMyFiledFlowsCache();
+          }
+        } catch (e, st) {
+          if (kDebugMode) {
+            _calendarDebugPrint('[endFlow] filing cache clear failed: $e');
+            _calendarDebugPrint('$st');
+          }
+        }
+
+        // This event means the server transaction has committed. Consumers may
+        // safely refetch without racing the still-active pre-end flow state.
+        final invalidation = CalendarInvalidated(
+          reason: CalendarInvalidationReason.flowEndedCommitted,
+          flowId: flowId,
+        );
+        final publishOverride = debugPublishFlowEndForTesting;
+        if (publishOverride != null) {
+          publishOverride(invalidation);
+        } else {
+          CalendarInvalidationBus.instance.publish(invalidation);
+        }
+        return EndFlowActionResult.success;
+      } catch (e, st) {
+        _clearPendingFlowEnd(key, operationId);
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[endFlow] failed operation=$operationId flowId=$flowId error=$e',
+          );
+          _calendarDebugPrint('$st');
+        }
+        return EndFlowActionResult.failed;
+      } finally {
+        if (identical(_flowEndOperations[key], operation)) {
+          _flowEndOperations.remove(key);
+        }
+        _clearPendingFlowEnd(key, operationId);
+      }
+    }();
+    _flowEndOperations[key] = operation;
+    return operation;
+  }
 
   static void _stageFlowForDeferredPersistence(_PendingStagedFlow pending) {
     _pendingStagedFlows.register(pending.flowId, pending);
@@ -6363,11 +6540,14 @@ class CalendarPage extends StatefulWidget {
     final remainingCounts = <int, int>{};
 
     for (final row in rows) {
-      flows.add(_flowFromFiledRowDetached(row));
-      if (row.visibleInActiveList) activeIds.add(row.id);
+      final pendingEnd = _isFlowEndPending(row.id);
+      final flow = _flowFromFiledRowDetached(row);
+      if (pendingEnd) flow.active = false;
+      flows.add(flow);
+      if (row.visibleInActiveList && !pendingEnd) activeIds.add(row.id);
       if (row.visibleInSavedList) savedIds.add(row.id);
-      totalCounts[row.id] = row.totalEventCount;
-      remainingCounts[row.id] = row.remainingLiveEventCount;
+      totalCounts[row.id] = pendingEnd ? 0 : row.totalEventCount;
+      remainingCounts[row.id] = pendingEnd ? 0 : row.remainingLiveEventCount;
     }
 
     return _MyFlowsFilingSnapshot(
@@ -6390,17 +6570,9 @@ class CalendarPage extends StatefulWidget {
   static Future<_MyFlowsFilingSnapshot> _loadDetachedMyFlowsFilingSnapshot(
     FlowsRepo repo,
   ) async {
-    final cachedRows = await repo.restoreCachedFiledFlows();
-    if (cachedRows != null) {
-      unawaited(
-        repo.refreshMyFiledFlows().then((rows) {
-          _reconcileRememberedMaatJoinsFromLiveSnapshot(
-            _myFlowsFilingSnapshotFromRowsDetached(rows),
-          );
-        }),
-      );
-      return _myFlowsFilingSnapshotFromRowsDetached(cachedRows);
-    }
+    // The caller already receives cached rows as its initial snapshot. A reload
+    // must deliver live rows to the open page instead of silently refreshing a
+    // cache that the widget never observes.
     final rows = await repo.refreshMyFiledFlows();
     final snapshot = _myFlowsFilingSnapshotFromRowsDetached(rows);
     _reconcileRememberedMaatJoinsFromLiveSnapshot(snapshot);
@@ -6414,7 +6586,8 @@ class CalendarPage extends StatefulWidget {
     if (_hasRememberedJoinedMaatTemplate(tplKey)) return true;
     if (snapshot == null) return false;
     return snapshot.flows.any((flow) {
-      return snapshot.activeFlowIds.contains(flow.id) &&
+      return !_isFlowEndPending(flow.id) &&
+          snapshot.activeFlowIds.contains(flow.id) &&
           _flowMatchesActiveMaatTemplate(flow, tplKey);
     });
   }
@@ -6425,6 +6598,7 @@ class CalendarPage extends StatefulWidget {
   ) {
     if (snapshot == null) return null;
     for (final flow in snapshot.flows) {
+      if (_isFlowEndPending(flow.id)) continue;
       if (!snapshot.activeFlowIds.contains(flow.id)) continue;
       if (!_flowMatchesActiveMaatTemplate(flow, tplKey)) continue;
       return _maatCompletionStatusFromCounts(
@@ -7095,14 +7269,8 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
-  static Future<void> _endFlowHeadless(int flowId) async {
-    await UserEventsRepo(Supabase.instance.client).endFlow(
-      flowId: flowId,
-      endedAtLocal: DateTime.now(),
-      deleteAllMaterialized: true,
-    );
-    _forgetRememberedJoinedMaatFlow(flowId);
-  }
+  static Future<EndFlowActionResult> _endFlowHeadless(int flowId) =>
+      _runEndFlowRemote(flowId);
 
   static bool _isFlowStudioRouteParent(String parentRoute) {
     final uri = Uri.tryParse(parentRoute.trim());
@@ -9439,6 +9607,9 @@ class CalendarPageState extends State<CalendarPage>
   final Map<int, int> _flowRemainingEventCounts = <int, int>{};
   _MyFlowsFilingSnapshot? _myFlowsFilingSnapshotCache;
   Future<_MyFlowsFilingSnapshot>? _myFlowsFilingSnapshotLoadInFlight;
+  int _myFlowsFilingSnapshotGeneration = 0;
+  final Map<int, Future<EndFlowActionResult>> _mountedEndFlowOperations =
+      <int, Future<EndFlowActionResult>>{};
   int _nextFlowId = 1;
   // Removed _nextAlarmId; notifications are persisted via Notify.scheduleAlertWithPersistence
   final ScrollController _scrollCtrl = ScrollController();
@@ -21540,6 +21711,7 @@ class CalendarPageState extends State<CalendarPage>
     final repo = UserEventsRepo(Supabase.instance.client);
     final Set<int> candidateFlowIds = <int>{};
     bool removed = false;
+    bool absentSuppressed = false;
     String? successfulCid;
 
     Future<void> cancelNotification(String cid) async {
@@ -21567,13 +21739,17 @@ class CalendarPageState extends State<CalendarPage>
       // Attempt direct delete by persistent id or clientEventId first.
       try {
         if (note.id != null && note.id!.trim().isNotEmpty) {
-          await repo.delete(note.id!);
-          if (note.clientEventId != null) {
+          final deleteResult = await repo.delete(
+            note.id!,
+            clientEventId: note.clientEventId,
+          );
+          if (deleteResult.isSuccess && note.clientEventId != null) {
             await cancelNotification(note.clientEventId!);
           }
-          removed = true;
-          successfulCid = note.clientEventId ?? note.id;
-          if (note.clientEventId != null &&
+          removed = deleteResult.isSuccess;
+          if (removed) successfulCid = note.clientEventId ?? note.id;
+          if (removed &&
+              note.clientEventId != null &&
               note.clientEventId!.startsWith('native:')) {
             await sharedCalendarSyncService(
               Supabase.instance.client,
@@ -21586,11 +21762,13 @@ class CalendarPageState extends State<CalendarPage>
           }
         } else if (note.clientEventId != null &&
             note.clientEventId!.trim().isNotEmpty) {
-          await repo.deleteByClientId(note.clientEventId!);
-          await cancelNotification(note.clientEventId!);
-          removed = true;
-          successfulCid = note.clientEventId;
-          if (note.clientEventId!.startsWith('native:')) {
+          final deleteResult = await repo.deleteByClientId(note.clientEventId!);
+          removed = deleteResult.isSuccess;
+          if (removed) {
+            await cancelNotification(note.clientEventId!);
+            successfulCid = note.clientEventId;
+          }
+          if (removed && note.clientEventId!.startsWith('native:')) {
             await sharedCalendarSyncService(
               Supabase.instance.client,
             ).recordDeletedInApp(note.clientEventId!);
@@ -21709,9 +21887,17 @@ class CalendarPageState extends State<CalendarPage>
           _calendarDebugPrint('[delete-note] Trying CID: $cid');
         }
         try {
-          await repo.deleteByClientId(cid);
+          final deleteResult = await repo.deleteByClientId(cid);
+          if (deleteResult.disposition ==
+              UserEventDeleteDisposition.alreadyAbsentSuppressed) {
+            absentSuppressed = true;
+            successfulCid ??= cid;
+            continue;
+          }
+          removed =
+              deleteResult.disposition == UserEventDeleteDisposition.deleted;
+          if (!removed) continue;
           await cancelNotification(cid);
-          removed = true;
           successfulCid = cid;
           if (kDebugMode) {
             _calendarDebugPrint(
@@ -21756,9 +21942,10 @@ class CalendarPageState extends State<CalendarPage>
                 kEvt.kDay == kDay) {
               final cid = evt.clientEventId;
               if (cid != null && cid.isNotEmpty) {
-                await repo.deleteByClientId(cid);
+                final deleteResult = await repo.deleteByClientId(cid);
+                removed = deleteResult.isSuccess;
+                if (!removed) continue;
                 await cancelNotification(cid);
-                removed = true;
                 successfulCid = cid;
                 if (kDebugMode) {
                   _calendarDebugPrint(
@@ -21782,6 +21969,19 @@ class CalendarPageState extends State<CalendarPage>
           if (kDebugMode) {
             _calendarDebugPrint('[delete-note] ❌ Direct deletion failed: $e');
           }
+        }
+      }
+
+      if (!removed && absentSuppressed) {
+        removed = true;
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✓ Deleted: $deletedTitle'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 1),
+            ),
+          );
         }
       }
 
@@ -24961,6 +25161,121 @@ class CalendarPageState extends State<CalendarPage>
     return _endFlow(flowId);
   }
 
+  _MountedFlowEndPatch _optimisticallyPatchEndedFlow(int flowId) {
+    final flowIndex = _flows.indexWhere((flow) => flow.id == flowId);
+    final existingFlow = flowIndex < 0 ? null : _flows[flowIndex];
+    final flowSnapshot = existingFlow == null
+        ? null
+        : _Flow(
+            id: existingFlow.id,
+            calendarId: existingFlow.calendarId,
+            name: existingFlow.name,
+            color: existingFlow.color,
+            active: existingFlow.active,
+            isSaved: existingFlow.isSaved,
+            savedAt: existingFlow.savedAt,
+            rules: List<FlowRule>.from(existingFlow.rules),
+            start: existingFlow.start,
+            end: existingFlow.end,
+            notes: existingFlow.notes,
+            shareId: existingFlow.shareId,
+            isHidden: existingFlow.isHidden,
+            isReminder: existingFlow.isReminder,
+            reminderUuid: existingFlow.reminderUuid,
+          );
+    final removedNotes = <String, List<_Note>>{};
+    final emptyKeys = <String>[];
+    _notes.forEach((key, notes) {
+      final removed = notes
+          .where((note) => note.flowId == flowId)
+          .toList(growable: false);
+      if (removed.isEmpty) return;
+      removedNotes[key] = removed;
+      notes.removeWhere((note) => note.flowId == flowId);
+      if (notes.isEmpty) emptyKeys.add(key);
+    });
+    for (final key in emptyKeys) {
+      _notes.remove(key);
+    }
+    final unconfirmedNotes = _unconfirmed.take(
+      (pending) => pending.flowId == flowId,
+    );
+
+    if (existingFlow != null) {
+      if (existingFlow.isSaved) {
+        existingFlow.active = false;
+      } else {
+        _flows.removeAt(flowIndex);
+      }
+    }
+
+    final patch = _MountedFlowEndPatch(
+      flow: flowSnapshot,
+      flowIndex: flowIndex,
+      notesByDay: removedNotes,
+      hadTotalCount: _flowTotalEventCounts.containsKey(flowId),
+      totalCount: _flowTotalEventCounts[flowId],
+      hadRemainingCount: _flowRemainingEventCounts.containsKey(flowId),
+      remainingCount: _flowRemainingEventCounts[flowId],
+      unconfirmedNotes: unconfirmedNotes,
+    );
+    _flowTotalEventCounts[flowId] = 0;
+    _flowRemainingEventCounts[flowId] = 0;
+    if (mounted) {
+      setState(() {});
+      _notifyDayViewDataChanged();
+    }
+    return patch;
+  }
+
+  void _rollbackOptimisticEndedFlow(int flowId, _MountedFlowEndPatch patch) {
+    final flow = patch.flow;
+    if (flow != null) {
+      final currentIndex = _flows.indexWhere((item) => item.id == flowId);
+      if (currentIndex >= 0) {
+        _flows[currentIndex] = flow;
+      } else {
+        final insertAt = patch.flowIndex.clamp(0, _flows.length).toInt();
+        _flows.insert(insertAt, flow);
+      }
+    }
+
+    patch.notesByDay.forEach((key, removedNotes) {
+      final bucket = _notes.putIfAbsent(key, () => <_Note>[]);
+      for (final removed in removedNotes) {
+        final removedId = removed.id?.trim();
+        final removedCid = removed.clientEventId?.trim();
+        final alreadyPresent = bucket.any((candidate) {
+          if (removedId != null && removedId.isNotEmpty) {
+            return candidate.id?.trim() == removedId;
+          }
+          if (removedCid != null && removedCid.isNotEmpty) {
+            return candidate.clientEventId?.trim() == removedCid;
+          }
+          return identical(candidate, removed);
+        });
+        if (!alreadyPresent) bucket.add(removed);
+      }
+    });
+    _unconfirmed.restore(patch.unconfirmedNotes);
+
+    if (patch.hadTotalCount) {
+      _flowTotalEventCounts[flowId] = patch.totalCount ?? 0;
+    } else {
+      _flowTotalEventCounts.remove(flowId);
+    }
+    if (patch.hadRemainingCount) {
+      _flowRemainingEventCounts[flowId] = patch.remainingCount ?? 0;
+    } else {
+      _flowRemainingEventCounts.remove(flowId);
+    }
+    _myFlowsFilingSnapshotCache = null;
+    if (mounted) {
+      setState(() {});
+      _notifyDayViewDataChanged();
+    }
+  }
+
   Future<bool> _makeTodoFromEventTarget(DayViewSheetEventTarget target) async {
     final event = target.event;
     final flow = _calendarChromeFlowDataForId(event.flowId);
@@ -25026,11 +25341,25 @@ class CalendarPageState extends State<CalendarPage>
     context.go(location);
   }
 
-  Future<EndFlowActionResult> _endFlow(
+  Future<EndFlowActionResult> _endFlow(int flowId, {DateTime? endedAtLocal}) {
+    final existing = _mountedEndFlowOperations[flowId];
+    if (existing != null) return existing;
+
+    late final Future<EndFlowActionResult> operation;
+    operation = _performEndFlow(flowId, endedAtLocal: endedAtLocal)
+        .whenComplete(() {
+          if (identical(_mountedEndFlowOperations[flowId], operation)) {
+            _mountedEndFlowOperations.remove(flowId);
+          }
+        });
+    _mountedEndFlowOperations[flowId] = operation;
+    return operation;
+  }
+
+  Future<EndFlowActionResult> _performEndFlow(
     int flowId, {
     DateTime? endedAtLocal,
   }) async {
-    final repo = UserEventsRepo(Supabase.instance.client);
     final effectiveEndedAtLocal = endedAtLocal ?? DateTime.now();
     if (kDebugMode) {
       _calendarDebugPrint(
@@ -25039,25 +25368,13 @@ class CalendarPageState extends State<CalendarPage>
       );
     }
 
-    try {
-      final result = await repo.endFlow(
-        flowId: flowId,
-        endedAtLocal: effectiveEndedAtLocal,
-        deleteAllMaterialized: true,
-      );
-      if (kDebugMode) {
-        _calendarDebugPrint(
-          '[endFlow] ✓ rpc flowId=${result.flowId} endedOn=${result.endedOn} '
-          'deletedEvents=${result.deletedEventCount} '
-          'retiredNotifications=${result.retiredNotificationCount} '
-          'deletedCompletions=${result.deletedCompletionCount}',
-        );
-      }
-    } catch (e, st) {
-      if (kDebugMode) {
-        _calendarDebugPrint('[endFlow] ✗ flowId=$flowId error=$e');
-        _calendarDebugPrint('$st');
-      }
+    final optimisticPatch = _optimisticallyPatchEndedFlow(flowId);
+    final result = await CalendarPage._runEndFlowRemote(
+      flowId,
+      endedAtLocal: effectiveEndedAtLocal,
+    );
+    if (result != EndFlowActionResult.success) {
+      _rollbackOptimisticEndedFlow(flowId, optimisticPatch);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Could not end this flow right now.')),
@@ -25066,10 +25383,6 @@ class CalendarPageState extends State<CalendarPage>
       return EndFlowActionResult.failed;
     }
 
-    // End Flow removes the local materialized calendar copy only. Shared,
-    // posted, and saved copies are separate records and remain available.
-    CalendarPage._forgetRememberedJoinedMaatFlow(flowId);
-    await _loadFromDisk(source: 'end_flow');
     if (mounted) {
       ScaffoldMessenger.of(
         context,
@@ -27998,6 +28311,7 @@ class CalendarPageState extends State<CalendarPage>
     required bool preserveViewport,
     required int epoch,
   }) async {
+    final flowEndRevisionAtLoadStart = CalendarPage._flowEndStateRevision;
     try {
       if (kDebugMode) {
         _calendarDebugPrint('=== _loadFromDisk START ($source) ===');
@@ -28045,6 +28359,10 @@ class CalendarPageState extends State<CalendarPage>
         );
       }
       for (final f in serverFlows) {
+        final pendingEnd = CalendarPage._isFlowEndPending(f.id);
+        if (pendingEnd && !f.isSaved) {
+          continue;
+        }
         final repMeta = _decodeRepeatingNoteMetadata(f.notes);
         final derivedHidden =
             f.isHidden ||
@@ -28068,7 +28386,7 @@ class CalendarPageState extends State<CalendarPage>
           calendarId: f.calendarId,
           name: f.name,
           color: Color(rgbToArgb(f.color)),
-          active: f.active,
+          active: pendingEnd ? false : f.active,
           isSaved: f.isSaved,
           savedAt: f.savedAt,
           rules: _parseRules(f.rules),
@@ -28133,7 +28451,8 @@ class CalendarPageState extends State<CalendarPage>
       // templates and backend deleted rows stay out of the calendar.
       final hydrationFlowIds = newFlows
           .where((f) {
-            return shouldHydrateMaterializedUserEvents(flowOwnersById[f.id]!);
+            return !CalendarPage._isFlowEndPending(f.id) &&
+                shouldHydrateMaterializedUserEvents(flowOwnersById[f.id]!);
           })
           .map((f) => f.id)
           .toSet(); // 👈 Set for O(1) contains() lookups
@@ -28277,6 +28596,9 @@ class CalendarPageState extends State<CalendarPage>
       }) {
         if (!_loadCoordinator.isCurrent(epoch)) return;
         if (_activeWarmStartUserId() != loadUserId) return;
+        if (flowEndRevisionAtLoadStart != CalendarPage._flowEndStateRevision) {
+          return;
+        }
         if (!mounted) return;
         final hasIncomingEventSnapshot = newNotes.values.any(
           (notes) => notes.isNotEmpty,
@@ -28873,6 +29195,9 @@ class CalendarPageState extends State<CalendarPage>
       Future<void> finishNonCriticalPostProcessing() async {
         if (!_loadCoordinator.isCurrent(epoch)) return;
         if (_activeWarmStartUserId() != loadUserId) return;
+        if (flowEndRevisionAtLoadStart != CalendarPage._flowEndStateRevision) {
+          return;
+        }
         try {
           final flowEventCounts = await flowEventCountsFuture;
           if (mounted) {
@@ -29042,11 +29367,14 @@ class CalendarPageState extends State<CalendarPage>
     final remainingCounts = <int, int>{};
 
     for (final row in rows) {
-      flows.add(_flowFromFiledRow(row));
-      if (row.visibleInActiveList) activeIds.add(row.id);
+      final pendingEnd = CalendarPage._isFlowEndPending(row.id);
+      final flow = _flowFromFiledRow(row);
+      if (pendingEnd) flow.active = false;
+      flows.add(flow);
+      if (row.visibleInActiveList && !pendingEnd) activeIds.add(row.id);
       if (row.visibleInSavedList) savedIds.add(row.id);
-      totalCounts[row.id] = row.totalEventCount;
-      remainingCounts[row.id] = row.remainingLiveEventCount;
+      totalCounts[row.id] = pendingEnd ? 0 : row.totalEventCount;
+      remainingCounts[row.id] = pendingEnd ? 0 : row.remainingLiveEventCount;
     }
 
     if (kDebugMode) {
@@ -29078,8 +29406,13 @@ class CalendarPageState extends State<CalendarPage>
     String reason = 'restore',
   }) async {
     if (_myFlowsFilingSnapshotCache != null) return;
+    final generation = _myFlowsFilingSnapshotGeneration;
     final rows = await _flowsRepo.restoreCachedFiledFlows();
-    if (rows == null || !mounted) return;
+    if (rows == null ||
+        !mounted ||
+        generation != _myFlowsFilingSnapshotGeneration) {
+      return;
+    }
     _myFlowsFilingSnapshotCache = _myFlowsFilingSnapshotFromRows(rows);
     if (kDebugMode) {
       _calendarDebugPrint(
@@ -29092,11 +29425,14 @@ class CalendarPageState extends State<CalendarPage>
     final inFlight = _myFlowsFilingSnapshotLoadInFlight;
     if (inFlight != null) return inFlight;
 
+    final generation = _myFlowsFilingSnapshotGeneration;
     final load = () async {
       final rows = await _flowsRepo.refreshMyFiledFlows();
       final snapshot = _myFlowsFilingSnapshotFromRows(rows);
-      _myFlowsFilingSnapshotCache = snapshot;
-      CalendarPage._reconcileRememberedMaatJoinsFromLiveSnapshot(snapshot);
+      if (generation == _myFlowsFilingSnapshotGeneration) {
+        _myFlowsFilingSnapshotCache = snapshot;
+        CalendarPage._reconcileRememberedMaatJoinsFromLiveSnapshot(snapshot);
+      }
       return snapshot;
     }();
     _myFlowsFilingSnapshotLoadInFlight = load;

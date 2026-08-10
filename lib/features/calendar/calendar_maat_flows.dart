@@ -169,18 +169,35 @@ class _MaatFlowsListPageWithSnapshot extends StatefulWidget {
 class _MaatFlowsListPageWithSnapshotState
     extends State<_MaatFlowsListPageWithSnapshot> {
   _MyFlowsFilingSnapshot? _snapshot;
+  StreamSubscription<CalendarInvalidated>? _flowLifecycleSub;
+  int _refreshSerial = 0;
+  int _flowLifecycleRevision = 0;
 
   @override
   void initState() {
     super.initState();
     _snapshot = widget.initialSnapshot;
+    _flowLifecycleSub = CalendarInvalidationBus.instance.stream
+        .where(
+          (event) =>
+              event.reason == CalendarInvalidationReason.flowEndedCommitted,
+        )
+        .listen((event) {
+          if (!mounted) return;
+          setState(() {
+            _snapshot = _snapshotAfterCommittedEnd(_snapshot, event.flowId);
+            _flowLifecycleRevision += 1;
+          });
+          unawaited(_refreshSnapshot());
+        });
     unawaited(_refreshSnapshot());
   }
 
   Future<void> _refreshSnapshot() async {
+    final refreshSerial = ++_refreshSerial;
     try {
       final snapshot = await widget.loadSnapshot();
-      if (!mounted) return;
+      if (!mounted || refreshSerial != _refreshSerial) return;
       setState(() => _snapshot = snapshot);
     } catch (e, st) {
       if (kDebugMode) {
@@ -190,9 +207,57 @@ class _MaatFlowsListPageWithSnapshotState
     }
   }
 
+  _MyFlowsFilingSnapshot? _snapshotAfterCommittedEnd(
+    _MyFlowsFilingSnapshot? snapshot,
+    int? flowId,
+  ) {
+    if (snapshot == null || flowId == null) return snapshot;
+    final totalCounts = Map<int, int>.from(snapshot.totalEventCounts)
+      ..[flowId] = 0;
+    final remainingCounts = Map<int, int>.from(snapshot.remainingEventCounts)
+      ..[flowId] = 0;
+    return _MyFlowsFilingSnapshot(
+      flows: List<_Flow>.unmodifiable(
+        snapshot.flows.map((flow) {
+          if (flow.id != flowId) return flow;
+          return _Flow(
+            id: flow.id,
+            calendarId: flow.calendarId,
+            name: flow.name,
+            color: flow.color,
+            active: false,
+            isSaved: flow.isSaved,
+            savedAt: flow.savedAt,
+            rules: List<FlowRule>.from(flow.rules),
+            start: flow.start,
+            end: flow.end,
+            notes: flow.notes,
+            shareId: flow.shareId,
+            isHidden: flow.isHidden,
+            isReminder: flow.isReminder,
+            reminderUuid: flow.reminderUuid,
+          );
+        }),
+      ),
+      activeFlowIds: Set<int>.unmodifiable(
+        Set<int>.from(snapshot.activeFlowIds)..remove(flowId),
+      ),
+      savedFlowIds: snapshot.savedFlowIds,
+      totalEventCounts: Map<int, int>.unmodifiable(totalCounts),
+      remainingEventCounts: Map<int, int>.unmodifiable(remainingCounts),
+    );
+  }
+
+  @override
+  void dispose() {
+    _flowLifecycleSub?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return _MaatFlowsListPage(
+      key: ValueKey<int>(_flowLifecycleRevision),
       title: widget.title,
       templates: widget.templates,
       hasActiveForKey: (key) =>
@@ -208,6 +273,7 @@ class _MaatFlowsListPageWithSnapshotState
 
 class _MaatFlowsListPage extends StatefulWidget {
   const _MaatFlowsListPage({
+    super.key,
     required this.hasActiveForKey,
     this.progressForKey,
     required this.onPickTemplate,

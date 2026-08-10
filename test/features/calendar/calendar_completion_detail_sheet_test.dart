@@ -603,6 +603,77 @@ void main() {
     expect(endFlowHandler, contains("Text('Flow ended.')"));
   });
 
+  test(
+    'End Flow coordinator joins callers and publishes only after commit',
+    () {
+      final calendarPage = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final coordinator = _sourceBetween(
+        calendarPage,
+        'static Future<EndFlowActionResult> _runEndFlowRemote(',
+        'static void _stageFlowForDeferredPersistence',
+      );
+      final existingIndex = coordinator.indexOf(
+        'final existing = _flowEndOperations[key];',
+      );
+      final rpcIndex = coordinator.indexOf(
+        'await UserEventsRepo(Supabase.instance.client).endFlow(',
+      );
+      final publishIndex = coordinator.indexOf(
+        'CalendarInvalidationBus.instance.publish(',
+      );
+
+      expect(existingIndex, isNonNegative);
+      expect(coordinator, contains('if (existing != null) return existing;'));
+      expect(coordinator, contains('final operationId = const Uuid().v4();'));
+      expect(rpcIndex, greaterThan(existingIndex));
+      expect(publishIndex, greaterThan(rpcIndex));
+      expect(
+        coordinator,
+        contains('reason: CalendarInvalidationReason.flowEndedCommitted'),
+      );
+      expect(coordinator, contains('_flowEndOperations.remove(key)'));
+      expect(coordinator, isNot(contains('.timeout(')));
+    },
+  );
+
+  test(
+    'End Flow owners patch before await and merge-restore only on failure',
+    () {
+      final calendarPage = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final flowPages = File(
+        'lib/features/calendar/calendar_flow_pages.dart',
+      ).readAsStringSync();
+      final mounted = _sourceBetween(
+        calendarPage,
+        'Future<EndFlowActionResult> _performEndFlow(',
+        '//// === END END FLOW ===',
+      );
+      final detached = _sourceBetween(
+        flowPages,
+        'Future<void> _performEndFlowAndReconcile(int flowId) async {',
+        'Future<void> _openFlowPreview',
+      );
+
+      expect(
+        mounted.indexOf('_optimisticallyPatchEndedFlow(flowId)'),
+        lessThan(mounted.indexOf('await CalendarPage._runEndFlowRemote(')),
+      );
+      expect(mounted, contains('_rollbackOptimisticEndedFlow('));
+      expect(calendarPage, contains('_mountedEndFlowOperations[flowId]'));
+      expect(
+        detached.indexOf('_optimisticallyEndFlow(flowId)'),
+        lessThan(detached.indexOf('await widget.onEndFlow(flowId)')),
+      );
+      expect(detached, contains('_mergeRollbackEndedFlow(flowId, previous)'));
+      expect(flowPages, contains('_endFlowReconciliations[flowId]'));
+      expect(flowPages, contains('savedFlowIds: previous.savedFlowIds'));
+    },
+  );
+
   test('End Flow detail sheets await success before closing', () {
     final dayView = File(
       'lib/features/calendar/day_view.dart',

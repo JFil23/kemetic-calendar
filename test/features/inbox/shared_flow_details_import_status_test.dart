@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/share_models.dart';
@@ -83,6 +85,44 @@ void main() {
     expect(localOwner.kind, FlowDetailActionKind.manage);
     expect(localOwner.label, 'Manage Flow');
   });
+
+  test(
+    'Inbox import state has one active-filing authority without N+1 UI reads',
+    () {
+      final userEventsRepo = File(
+        'lib/data/user_events_repo.dart',
+      ).readAsStringSync();
+      final shareRepo = File('lib/data/share_repo.dart').readAsStringSync();
+      final inboxPage = File(
+        'lib/features/inbox/inbox_page.dart',
+      ).readAsStringSync();
+      final detailsEntry = File(
+        'lib/features/inbox/shared_flow_details_entry.dart',
+      ).readAsStringSync();
+      final lookup = _sourceBetween(
+        userEventsRepo,
+        'Future<Map<String, int>> getCurrentlyActiveImportedFlowIds(',
+        'Future<int?> getCurrentlyActiveImportedFlowId',
+      );
+      final inboxFetch = _sourceBetween(
+        shareRepo,
+        'Future<List<InboxShareItem>> _fetchInboxItems({',
+        'Future<bool> _updateShareRow',
+      );
+
+      expect(lookup, contains(".from('flow_filing_items_client')"));
+      expect(lookup, contains(".eq('visible_in_active_list', true)"));
+      expect(lookup, contains("row['share_id']"));
+      expect(lookup, contains("row['origin_share_id']"));
+      expect(
+        inboxFetch,
+        contains('getCurrentlyActiveImportedFlowIds(flowShareIds)'),
+      );
+      expect(inboxPage, contains('widget.item.isCurrentlyImported'));
+      expect(inboxPage, isNot(contains('getFlowIdByShareId(')));
+      expect(detailsEntry, isNot(contains('getFlowIdByShareId(')));
+    },
+  );
 
   testWidgets('share payload renders Manage Flow once imported flow is known', (
     tester,
@@ -366,4 +406,12 @@ Map<String, dynamic> _profilePayload() {
       },
     ],
   };
+}
+
+String _sourceBetween(String source, String startMarker, String endMarker) {
+  final start = source.indexOf(startMarker);
+  expect(start, isNonNegative, reason: 'missing start marker $startMarker');
+  final end = source.indexOf(endMarker, start + startMarker.length);
+  expect(end, isNonNegative, reason: 'missing end marker $endMarker');
+  return source.substring(start, end);
 }

@@ -389,7 +389,7 @@ void main() {
     final headless = _sourceBetween(
       source,
       'static Future<int> _addMaatFlowInstanceHeadless',
-      'static Future<void> _endFlowHeadless',
+      'static Future<EndFlowActionResult> _endFlowHeadless',
     );
     final mounted = _sourceBetween(
       source,

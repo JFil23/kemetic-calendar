@@ -230,6 +230,7 @@ class FlowsRepo {
 
   static const _kFiledFlowsCacheKeyPrefix = 'flow_filing:client:v1';
   static final Map<String, List<FlowRow>> _filedFlowsMemoryCache = {};
+  static final Map<String, int> _filedFlowsCacheGenerations = <String, int>{};
 
   static String _filedFlowsCacheKey(String userId) =>
       '$_kFiledFlowsCacheKeyPrefix:$userId';
@@ -247,6 +248,8 @@ class FlowsRepo {
   Future<void> clearMyFiledFlowsCache() async {
     final userId = _currentUserId;
     if (userId == null) return;
+    _filedFlowsCacheGenerations[userId] =
+        (_filedFlowsCacheGenerations[userId] ?? 0) + 1;
     _filedFlowsMemoryCache.remove(userId);
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -265,6 +268,7 @@ class FlowsRepo {
   Future<List<FlowRow>?> restoreCachedFiledFlows() async {
     final userId = _currentUserId;
     if (userId == null) return null;
+    final generation = _filedFlowsCacheGenerations[userId] ?? 0;
     final cachedRows = _filedFlowsMemoryCache[userId];
     if (cachedRows != null) return List<FlowRow>.unmodifiable(cachedRows);
 
@@ -278,7 +282,9 @@ class FlowsRepo {
           .whereType<Map>()
           .map((row) => FlowRow.fromRow(Map<String, dynamic>.from(row)))
           .toList(growable: false);
-      _filedFlowsMemoryCache[userId] = List<FlowRow>.unmodifiable(rows);
+      if (generation == (_filedFlowsCacheGenerations[userId] ?? 0)) {
+        _filedFlowsMemoryCache[userId] = List<FlowRow>.unmodifiable(rows);
+      }
       return rows;
     } catch (e) {
       _log('restore filed flow cache failed: $e');
@@ -295,12 +301,15 @@ class FlowsRepo {
   Future<void> _cacheFiledFlows({
     required String userId,
     required List<FlowRow> rows,
+    required int generation,
   }) async {
+    if (generation != (_filedFlowsCacheGenerations[userId] ?? 0)) return;
     final frozen = List<FlowRow>.unmodifiable(rows);
     _filedFlowsMemoryCache[userId] = frozen;
 
     try {
       final prefs = await SharedPreferences.getInstance();
+      if (generation != (_filedFlowsCacheGenerations[userId] ?? 0)) return;
       await prefs.setString(
         _filedFlowsCacheKey(userId),
         jsonEncode(frozen.map((row) => row.toCacheJson()).toList()),
@@ -403,6 +412,7 @@ class FlowsRepo {
   Future<List<FlowRow>> refreshMyFiledFlows({int? limit}) async {
     final user = _client.auth.currentUser;
     if (user == null) return const [];
+    final cacheGeneration = _filedFlowsCacheGenerations[user.id] ?? 0;
 
     final query = _client
         .from('flow_filing_items_client')
@@ -415,7 +425,13 @@ class FlowsRepo {
       rows.cast<Map<String, dynamic>>(),
       userId: user.id,
     );
-    unawaited(_cacheFiledFlows(userId: user.id, rows: inflated));
+    unawaited(
+      _cacheFiledFlows(
+        userId: user.id,
+        rows: inflated,
+        generation: cacheGeneration,
+      ),
+    );
     return inflated;
   }
 

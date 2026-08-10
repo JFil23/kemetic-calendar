@@ -158,6 +158,73 @@ void main() {
       expect(item.subtitle, 'Event shared by @ritualhost');
     });
 
+    test('historical imported_at does not imply a current active import', () {
+      final item = InboxShareItem.fromJson({
+        'share_id': 'share-history',
+        'kind': 'flow',
+        'recipient_id': 'recipient-1',
+        'sender_id': 'sender-1',
+        'payload_id': '42',
+        'title': 'Historical Flow',
+        'created_at': '2026-04-15T00:00:00Z',
+        'imported_at': '2026-04-15T02:00:00Z',
+      });
+
+      expect(item.isImported, isTrue);
+      expect(item.wasImported, isTrue);
+      expect(item.currentlyActiveImportedFlowId, isNull);
+      expect(item.isCurrentlyImported, isFalse);
+      expect(item.canImport, isTrue);
+    });
+
+    test('parses only active filing rows as current imports', () {
+      final active = InboxShareItem.fromJson({
+        'share_id': 'share-active',
+        'kind': 'flow',
+        'recipient_id': 'recipient-1',
+        'sender_id': 'sender-1',
+        'payload_id': '42',
+        'title': 'Active Flow',
+        'created_at': '2026-04-15T00:00:00Z',
+        'imported_flow_id': '731',
+        'imported_flow_visible_active': true,
+      });
+      final inactive = InboxShareItem.fromJson({
+        'share_id': 'share-inactive',
+        'kind': 'flow',
+        'recipient_id': 'recipient-1',
+        'sender_id': 'sender-1',
+        'payload_id': '42',
+        'title': 'Inactive Flow',
+        'created_at': '2026-04-15T00:00:00Z',
+        'imported_flow_id': 732,
+        'imported_flow_visible_active': false,
+      });
+
+      expect(active.currentlyActiveImportedFlowId, 731);
+      expect(active.isCurrentlyImported, isTrue);
+      expect(active.canImport, isFalse);
+      expect(inactive.currentlyActiveImportedFlowId, isNull);
+      expect(inactive.isCurrentlyImported, isFalse);
+    });
+
+    test('accepts batched origin-lineage enrichment as current state', () {
+      final item = InboxShareItem.fromJson({
+        'share_id': 'share-origin',
+        'kind': 'flow',
+        'recipient_id': 'recipient-1',
+        'sender_id': 'sender-1',
+        'payload_id': '42',
+        'title': 'Route Import',
+        'created_at': '2026-04-15T00:00:00Z',
+        'currently_active_imported_flow_id': 733,
+      });
+
+      expect(item.currentlyActiveImportedFlowId, 733);
+      expect(item.isCurrentlyImported, isTrue);
+      expect(item.toJson()['currently_active_imported_flow_id'], 733);
+    });
+
     test('flags pending event invites from inbox rows', () {
       final item = InboxShareItem.fromJson({
         'share_id': 'share-5',

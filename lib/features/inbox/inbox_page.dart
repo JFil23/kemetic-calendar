@@ -10,7 +10,6 @@ import '../../data/share_models.dart';
 import '../../data/shared_calendar_models.dart';
 import '../../data/share_repo.dart';
 import '../../data/shared_calendars_repo.dart';
-import '../../data/user_events_repo.dart';
 import '../../repositories/dm_conversation_repo.dart';
 import '../../repositories/inbox_repo.dart';
 import 'conversation_user.dart';
@@ -28,6 +27,7 @@ import '../../widgets/kemetic_app_bar_action.dart';
 import '../../widgets/kemetic_heart_icon.dart';
 import '../../widgets/profile_avatar.dart';
 import '../calendar/calendar_page.dart' show CalendarPage;
+import '../calendar/calendar_invalidation.dart';
 import '../calendars/shared_calendars_sheet.dart';
 import 'inbox_threading.dart';
 
@@ -38,9 +38,28 @@ void _logInboxImport(String message) {
 }
 
 class InboxPage extends StatefulWidget {
-  const InboxPage({super.key, this.initialSharedCalendarId});
+  const InboxPage({
+    super.key,
+    this.initialSharedCalendarId,
+    this.inboxItemsStreamForTesting,
+    this.committedFlowItemsLoaderForTesting,
+    this.onInboxItemsAppliedForTesting,
+    this.flowLifecycleStreamForTesting,
+    this.disableAuxiliarySubscriptionsForTesting = false,
+  });
 
   final String? initialSharedCalendarId;
+  @visibleForTesting
+  final Stream<List<InboxShareItem>>? inboxItemsStreamForTesting;
+  @visibleForTesting
+  final Future<List<InboxShareItem>> Function()?
+  committedFlowItemsLoaderForTesting;
+  @visibleForTesting
+  final ValueChanged<List<InboxShareItem>>? onInboxItemsAppliedForTesting;
+  @visibleForTesting
+  final Stream<CalendarInvalidated>? flowLifecycleStreamForTesting;
+  @visibleForTesting
+  final bool disableAuxiliarySubscriptionsForTesting;
 
   @override
   State<InboxPage> createState() => _InboxPageState();
@@ -97,6 +116,7 @@ class _InboxPageState extends State<InboxPage> {
   StreamSubscription<InboxUnreadState>? _unreadStateSub;
   StreamSubscription<List<SharedCalendarSentInvite>>? _sentCalendarInvitesSub;
   StreamSubscription<List<SharedCalendarInvite>>? _incomingCalendarInvitesSub;
+  StreamSubscription<CalendarInvalidated>? _flowLifecycleSub;
   Map<String, List<InboxShareItem>> _latestThreads = const {};
   List<InboxShareItem> _latestEventInvites = const [];
   List<InboxShareItem> _latestCalendarNotifications = const [];
@@ -114,6 +134,8 @@ class _InboxPageState extends State<InboxPage> {
   bool _invitesSheetRestoreChecked = false;
   bool _invitesSheetOpenOrOpening = false;
   String? _openedInitialSharedCalendarId;
+  int _committedFlowRefreshSerial = 0;
+  int _inboxItemsSubscriptionSerial = 0;
 
   @override
   void initState() {
@@ -124,61 +146,82 @@ class _InboxPageState extends State<InboxPage> {
     _unreadState = _shareRepo.currentUnreadState;
     _inboxRepo = InboxRepo(client);
     _dmConversationRepo = DmConversationRepo(client);
-    unawaited(_restoreCachedUnified());
-    _inboxItemsSub = _inboxRepo.watchInbox().listen((items) {
-      _applyInboxItems(items);
-      if (mounted) {
-        setState(() {
-          _unified = _buildUnifiedItems();
-          _loading = false;
-        });
-      }
-    });
-    _dmConversationsSub = _dmConversationRepo
-        .watchConversationSummaries()
-        .listen((conversations) {
-          _latestDmConversations = conversations;
-          if (mounted) {
-            setState(() {
-              _unified = _buildUnifiedItems();
-              _loading = false;
-            });
-          }
-        });
-    _unreadStateSub = _shareRepo.watchUnreadState().listen((state) {
-      if (!mounted) {
-        _unreadState = state;
+    _subscribeInboxItems();
+    if (!widget.disableAuxiliarySubscriptionsForTesting) {
+      unawaited(_restoreCachedUnified());
+      _dmConversationsSub = _dmConversationRepo
+          .watchConversationSummaries()
+          .listen((conversations) {
+            _latestDmConversations = conversations;
+            if (mounted) {
+              setState(() {
+                _unified = _buildUnifiedItems();
+                _loading = false;
+              });
+            }
+          });
+      _unreadStateSub = _shareRepo.watchUnreadState().listen((state) {
+        if (!mounted) {
+          _unreadState = state;
+          return;
+        }
+        setState(() => _unreadState = state);
+      });
+      _sentCalendarInvitesSub = _sharedCalendarsRepo
+          .watchSentPendingInvites()
+          .listen((invites) {
+            _latestSentCalendarInvites = invites;
+            if (mounted) {
+              setState(() {
+                _unified = _buildUnifiedItems();
+                _loading = false;
+              });
+            }
+          });
+      _incomingCalendarInvitesSub = _sharedCalendarsRepo
+          .watchPendingInvites()
+          .listen((invites) {
+            _latestIncomingCalendarInvites = invites;
+            if (mounted) {
+              setState(() {
+                _unified = _buildUnifiedItems();
+                _loading = false;
+              });
+            }
+          });
+    }
+    final flowLifecycleStream =
+        widget.flowLifecycleStreamForTesting ??
+        CalendarInvalidationBus.instance.stream;
+    _flowLifecycleSub = flowLifecycleStream
+        .where(
+          (event) =>
+              event.reason == CalendarInvalidationReason.flowEndedCommitted,
+        )
+        .listen((_) => unawaited(_refreshCommittedFlowState()));
+    if (!widget.disableAuxiliarySubscriptionsForTesting) {
+      _refreshUnified(showLoading: false);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_resumeConversationIfNeeded());
+        unawaited(_restoreInvitesSheetIfNeeded());
+        unawaited(_openInitialSharedCalendarIfNeeded());
+      });
+    }
+  }
+
+  void _subscribeInboxItems() {
+    final subscriptionSerial = ++_inboxItemsSubscriptionSerial;
+    final itemsStream =
+        widget.inboxItemsStreamForTesting ?? _inboxRepo.watchInbox();
+    _inboxItemsSub = itemsStream.listen((items) {
+      if (!mounted || subscriptionSerial != _inboxItemsSubscriptionSerial) {
         return;
       }
-      setState(() => _unreadState = state);
-    });
-    _sentCalendarInvitesSub = _sharedCalendarsRepo
-        .watchSentPendingInvites()
-        .listen((invites) {
-          _latestSentCalendarInvites = invites;
-          if (mounted) {
-            setState(() {
-              _unified = _buildUnifiedItems();
-              _loading = false;
-            });
-          }
-        });
-    _incomingCalendarInvitesSub = _sharedCalendarsRepo
-        .watchPendingInvites()
-        .listen((invites) {
-          _latestIncomingCalendarInvites = invites;
-          if (mounted) {
-            setState(() {
-              _unified = _buildUnifiedItems();
-              _loading = false;
-            });
-          }
-        });
-    _refreshUnified(showLoading: false);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_resumeConversationIfNeeded());
-      unawaited(_restoreInvitesSheetIfNeeded());
-      unawaited(_openInitialSharedCalendarIfNeeded());
+      _applyInboxItems(items);
+      setState(() {
+        _unified = _buildUnifiedItems();
+        _loading = false;
+      });
     });
   }
 
@@ -218,6 +261,36 @@ class _InboxPageState extends State<InboxPage> {
       _unified = _buildUnifiedItems();
       _loading = false;
     });
+  }
+
+  Future<void> _refreshCommittedFlowState() async {
+    final refreshSerial = ++_committedFlowRefreshSerial;
+    _inboxItemsSubscriptionSerial += 1;
+    final staleSubscription = _inboxItemsSub;
+    _inboxItemsSub = null;
+    if (staleSubscription != null) {
+      unawaited(staleSubscription.cancel());
+    }
+    try {
+      final loader = widget.committedFlowItemsLoaderForTesting;
+      final items = loader != null
+          ? await loader()
+          : await _shareRepo.getInboxItems(throwOnError: true);
+      if (!mounted || refreshSerial != _committedFlowRefreshSerial) return;
+      _applyInboxItems(items);
+      setState(() {
+        _unified = _buildUnifiedItems();
+        _loading = false;
+      });
+    } catch (e) {
+      _logInboxImport('[InboxPage] Committed flow refresh failed: $e');
+    } finally {
+      if (mounted &&
+          refreshSerial == _committedFlowRefreshSerial &&
+          _inboxItemsSub == null) {
+        _subscribeInboxItems();
+      }
+    }
   }
 
   Future<void> _restoreCachedUnified() async {
@@ -281,6 +354,7 @@ class _InboxPageState extends State<InboxPage> {
               .toList()
             ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
     _markOpenedInitialCalendarNotificationsViewedIfNeeded();
+    widget.onInboxItemsAppliedForTesting?.call(items);
   }
 
   void _applyActivity(List<InboxActivityItem> activity) {
@@ -302,11 +376,13 @@ class _InboxPageState extends State<InboxPage> {
 
   @override
   void dispose() {
+    _inboxItemsSubscriptionSerial += 1;
     _inboxItemsSub?.cancel();
     _dmConversationsSub?.cancel();
     _unreadStateSub?.cancel();
     _sentCalendarInvitesSub?.cancel();
     _incomingCalendarInvitesSub?.cancel();
+    _flowLifecycleSub?.cancel();
     super.dispose();
   }
 
@@ -2989,53 +3065,38 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
   }
 
   Widget _buildImportButton() {
-    return FutureBuilder<int?>(
-      future: UserEventsRepo(
-        Supabase.instance.client,
-      ).getFlowIdByShareId(widget.item.shareId),
-      builder: (context, snapshot) {
-        final flowId = snapshot.data;
-        final isImported = flowId != null; // Flow exists in user's flows
-        final isFlowImportable = widget.item.isFlow;
+    final isImported = widget.item.isCurrentlyImported;
+    final isFlowImportable = widget.item.isFlow;
 
-        return ElevatedButton(
-          onPressed: _isImporting || isImported || !isFlowImportable
-              ? null
-              : _handleImport,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: isImported
-                ? const Color(0xFF4A4A4A) // Visible medium grey
-                : KemeticGold.base,
-            foregroundColor: isImported
-                ? const Color(0xFFAAAAAA) // Light grey text
-                : Colors.black,
-            minimumSize: const Size(double.infinity, 56),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+    return ElevatedButton(
+      onPressed: _isImporting || isImported || !isFlowImportable
+          ? null
+          : _handleImport,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: isImported
+            ? const Color(0xFF4A4A4A)
+            : KemeticGold.base,
+        foregroundColor: isImported ? const Color(0xFFAAAAAA) : Colors.black,
+        minimumSize: const Size(double.infinity, 56),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+      child: _isImporting
+          ? const SizedBox(
+              height: 24,
+              width: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
+              ),
+            )
+          : Text(
+              isImported
+                  ? 'Already Imported'
+                  : (isFlowImportable
+                        ? 'Import Flow to Calendar'
+                        : 'Event Import Unavailable'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
-          ),
-          child: _isImporting
-              ? const SizedBox(
-                  height: 24,
-                  width: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.black),
-                  ),
-                )
-              : Text(
-                  isImported
-                      ? 'Already Imported'
-                      : (isFlowImportable
-                            ? 'Import Flow to Calendar'
-                            : 'Event Import Unavailable'),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-        );
-      },
     );
   }
 

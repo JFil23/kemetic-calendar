@@ -1,12 +1,14 @@
 // lib/features/inbox/shared_flow_details_entry.dart
 // Router widget that checks if flow is imported and routes accordingly
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/share_models.dart';
 import '../../data/share_repo.dart';
-import '../../data/user_events_repo.dart';
+import '../calendar/calendar_invalidation.dart';
 import 'shared_flow_details_page.dart';
 
 class SharedFlowDetailsEntry extends StatefulWidget {
@@ -24,12 +26,23 @@ class SharedFlowDetailsEntry extends StatefulWidget {
 }
 
 class _SharedFlowDetailsEntryState extends State<SharedFlowDetailsEntry> {
-  Future<int?>? _flowIdFuture;
+  StreamSubscription<CalendarInvalidated>? _flowLifecycleSub;
+  int? _activeImportedFlowId;
   bool _usePayloadMode = false;
 
   @override
   void initState() {
     super.initState();
+    _activeImportedFlowId = widget.share.currentlyActiveImportedFlowId;
+    _flowLifecycleSub = CalendarInvalidationBus.instance.stream
+        .where(
+          (event) =>
+              event.reason == CalendarInvalidationReason.flowEndedCommitted,
+        )
+        .listen((event) {
+          if (!mounted || event.flowId != _activeImportedFlowId) return;
+          setState(() => _activeImportedFlowId = null);
+        });
 
     // Mark as viewed if current user is the recipient
     _markAsViewedIfRecipient();
@@ -49,22 +62,6 @@ class _SharedFlowDetailsEntryState extends State<SharedFlowDetailsEntry> {
       debugPrint('  payload keys=${payload?.keys.toList()}');
     }
 
-    final repo = UserEventsRepo(Supabase.instance.client);
-
-    _flowIdFuture = repo
-        .getFlowIdByShareId(widget.share.shareId)
-        .timeout(
-          const Duration(seconds: 6),
-          onTimeout: () {
-            if (kDebugMode) {
-              debugPrint(
-                "[SharedFlowDetailsEntry] getFlowIdByShareId TIMEOUT for shareId=${widget.share.shareId}",
-              );
-            }
-            return null;
-          },
-        );
-
     if (hasValidPayload) {
       // ---------------------------------------------------
       // 2. USE PAYLOAD MODE → render the sender snapshot, but still check
@@ -79,6 +76,23 @@ class _SharedFlowDetailsEntryState extends State<SharedFlowDetailsEntry> {
     // Only for legacy/old shares without payload_json
     // ---------------------------------------------------
     _usePayloadMode = false;
+  }
+
+  @override
+  void didUpdateWidget(covariant SharedFlowDetailsEntry oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.share.shareId != widget.share.shareId ||
+        oldWidget.share.currentlyActiveImportedFlowId !=
+            widget.share.currentlyActiveImportedFlowId) {
+      _activeImportedFlowId = widget.share.currentlyActiveImportedFlowId;
+    }
+    _usePayloadMode = widget.share.payloadJson?.isNotEmpty ?? false;
+  }
+
+  @override
+  void dispose() {
+    _flowLifecycleSub?.cancel();
+    super.dispose();
   }
 
   /// Mark the share as viewed if the current user is the recipient
@@ -113,62 +127,27 @@ class _SharedFlowDetailsEntryState extends State<SharedFlowDetailsEntry> {
     // PAYLOAD MODE → instant UI rendering
     // ----------------------------------
     if (_usePayloadMode) {
-      return FutureBuilder<int?>(
-        future: _flowIdFuture,
-        builder: (context, snapshot) {
-          return SharedFlowDetailsPage(
-            share: widget.share,
-            importedFlowId: snapshot.data,
-            fallbackLocation: widget.fallbackLocation,
-          );
-        },
+      return SharedFlowDetailsPage(
+        share: widget.share,
+        importedFlowId: _activeImportedFlowId,
+        fallbackLocation: widget.fallbackLocation,
       );
     }
 
     // ----------------------------------
-    // FLOW-ID MODE → wait for database query
+    // FLOW-ID MODE → use the inbox item's canonical current-state filing
     // ----------------------------------
-    return FutureBuilder<int?>(
-      future: _flowIdFuture,
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Scaffold(
-            appBar: AppBar(backgroundColor: Colors.black),
-            body: Center(
-              child: Text(
-                'Error: ${snapshot.error}',
-                style: const TextStyle(color: Colors.white),
-              ),
-            ),
-          );
-        }
+    final flowId = _activeImportedFlowId;
+    if (flowId != null) {
+      return SharedFlowDetailsPage(
+        flowId: flowId,
+        fallbackLocation: widget.fallbackLocation,
+      );
+    }
 
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            backgroundColor: Colors.black,
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        final flowId = snapshot.data;
-
-        if (flowId != null) {
-          return SharedFlowDetailsPage(
-            flowId: flowId,
-            fallbackLocation: widget.fallbackLocation,
-          );
-        }
-
-        // ---------------------------------------------------
-        // 4. LAST RESORT:
-        // If DB lookup failed, fallback to payload anyway
-        // (User still sees something instead of infinite spinner)
-        // ---------------------------------------------------
-        return SharedFlowDetailsPage(
-          share: widget.share,
-          fallbackLocation: widget.fallbackLocation,
-        );
-      },
+    return SharedFlowDetailsPage(
+      share: widget.share,
+      fallbackLocation: widget.fallbackLocation,
     );
   }
 }

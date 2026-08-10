@@ -2642,6 +2642,7 @@ class ShareRepo {
   Future<List<InboxShareItem>> getInboxItems({
     int limit = 50,
     int offset = 0,
+    bool throwOnError = false,
   }) async {
     _log('📬 [ShareRepo] getInboxItems() called');
     _log(
@@ -2659,6 +2660,7 @@ class ShareRepo {
     } catch (e, stackTrace) {
       _log('❌ [ShareRepo] Error fetching inbox items: $e');
       _log('❌ [ShareRepo] Stack trace: $stackTrace');
+      if (throwOnError) rethrow;
       return [];
     }
   }
@@ -2885,8 +2887,24 @@ class ShareRepo {
       );
     }
 
+    final flowShareIds = filtered
+        .where((row) => row['kind'] == 'flow')
+        .map((row) => row['share_id']?.toString().trim())
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet();
+    final activeImportedFlowIds = uid == null
+        ? const <String, int>{}
+        : await UserEventsRepo(
+            _client,
+          ).getCurrentlyActiveImportedFlowIds(flowShareIds);
+
     final items = <InboxShareItem>[];
-    for (final item in filtered) {
+    for (final rawItem in filtered) {
+      final item = Map<String, dynamic>.from(rawItem);
+      final shareId = item['share_id']?.toString().trim();
+      item['currently_active_imported_flow_id'] =
+          activeImportedFlowIds[shareId];
       if (verbose) {
         _log('📬 [ShareRepo] Parsing item: ${item['share_id']}');
       }

@@ -109,6 +109,31 @@ class _UnconfirmedNoteLedger {
     return before - _entries.length;
   }
 
+  List<_UnconfirmedNote> take(bool Function(_Note note) matches) {
+    final removed = _entries
+        .where((entry) => matches(entry.note))
+        .toList(growable: false);
+    if (removed.isNotEmpty) {
+      _entries.removeWhere((entry) => matches(entry.note));
+    }
+    return removed;
+  }
+
+  void restore(Iterable<_UnconfirmedNote> entries) {
+    _pruneExpired();
+    for (final entry in entries) {
+      final cid = entry.note.clientEventId?.trim();
+      final alreadyPresent = _entries.any((candidate) {
+        if (identical(candidate.note, entry.note)) return true;
+        return cid != null &&
+            cid.isNotEmpty &&
+            candidate.note.clientEventId?.trim() == cid;
+      });
+      if (alreadyPresent || _entries.length >= maxEntries) continue;
+      _entries.add(entry);
+    }
+  }
+
   void clear() => _entries.clear();
 
   /// Single pass over the ledger during commit:

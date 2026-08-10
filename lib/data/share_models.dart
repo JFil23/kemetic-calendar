@@ -461,6 +461,7 @@ class InboxShareItem {
   final DateTime createdAt;
   final DateTime? viewedAt;
   final DateTime? importedAt;
+  final int? currentlyActiveImportedFlowId;
   final DateTime? deletedAt; // ✅ new - represents soft deletion
   final SuggestedSchedule? suggestedSchedule;
   final DateTime? eventDate; // For event shares
@@ -486,6 +487,7 @@ class InboxShareItem {
     required this.createdAt,
     this.viewedAt,
     this.importedAt,
+    this.currentlyActiveImportedFlowId,
     this.deletedAt, // ✅ new
     this.suggestedSchedule,
     this.eventDate,
@@ -544,6 +546,13 @@ class InboxShareItem {
           DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
       viewedAt: _parseDateTime(json['viewed_at']),
       importedAt: _parseDateTime(json['imported_at']),
+      currentlyActiveImportedFlowId:
+          _parseBoolish(json['imported_flow_visible_active'])
+          ? _parseNullableInt(
+              json['currently_active_imported_flow_id'] ??
+                  json['imported_flow_id'],
+            )
+          : _parseNullableInt(json['currently_active_imported_flow_id']),
       deletedAt: _parseDateTime(json['deleted_at']),
       suggestedSchedule: _parseSuggestedSchedule(json['suggested_schedule']),
       eventDate: _parseDateTime(json['event_date']),
@@ -578,6 +587,7 @@ class InboxShareItem {
       'created_at': createdAt.toIso8601String(),
       'viewed_at': viewedAt?.toIso8601String(),
       'imported_at': importedAt?.toIso8601String(),
+      'currently_active_imported_flow_id': currentlyActiveImportedFlowId,
       'deleted_at': deletedAt?.toIso8601String(), // ✅ new
       'suggested_schedule': suggestedSchedule?.toJson(),
       'event_date': eventDate?.toIso8601String(),
@@ -601,7 +611,10 @@ class InboxShareItem {
       isEvent && !isDeleted && responseStatus.isPending;
   bool get isDeleted => deletedAt != null;
   bool get isUnread => viewedAt == null && !isDeleted;
-  bool get isImported => importedAt != null && !isDeleted;
+  bool get wasImported => importedAt != null;
+  bool get isImported => wasImported && !isDeleted;
+  bool get isCurrentlyImported => currentlyActiveImportedFlowId != null;
+  bool get canImport => !isCurrentlyImported;
 
   /// Extracts a text body for chat-style messages if present.
   String? get messageText {
@@ -716,6 +729,20 @@ String? _nullableString(Object? value) {
   final text = value is String ? value : value.toString();
   final trimmed = text.trim();
   return trimmed.isEmpty ? null : trimmed;
+}
+
+int? _parseNullableInt(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  final text = _nullableString(value);
+  return text == null ? null : int.tryParse(text);
+}
+
+bool _parseBoolish(Object? value) {
+  if (value is bool) return value;
+  if (value is num) return value != 0;
+  final text = _nullableString(value)?.toLowerCase();
+  return text == 'true' || text == 't' || text == '1' || text == 'yes';
 }
 
 DateTime? _parseDateTime(Object? value) {

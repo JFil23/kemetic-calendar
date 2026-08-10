@@ -1,9 +1,28 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    try {
+      Supabase.instance.client;
+    } catch (_) {
+      await Supabase.initialize(
+        url: 'https://example.supabase.test',
+        anonKey: 'test-anon-key',
+        httpClient: _RejectingClient(),
+        authOptions: const FlutterAuthClientOptions(autoRefreshToken: false),
+      );
+    }
+  });
 
   testWidgets('My Flows active and saved tabs stay mutually exclusive', (
     tester,
@@ -169,6 +188,109 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('No flows yet'), findsOneWidget);
+  });
+
+  testWidgets('End Flow hides immediately and merge-restores on failure', (
+    tester,
+  ) async {
+    final endResult = Completer<EndFlowActionResult>();
+    await _pumpMyFlows(
+      tester,
+      onEndFlow: (flowId) {
+        expect(flowId, 2);
+        return endResult.future;
+      },
+    );
+
+    await tester.tap(find.text('Follow the sky'));
+    await tester.pumpAndSettle();
+    expect(find.text('End Flow'), findsOneWidget);
+
+    await tester.tap(find.text('End Flow'));
+    await tester.pumpAndSettle();
+    expect(find.text('Follow the sky'), findsNothing);
+
+    endResult.complete(EndFlowActionResult.failed);
+    await tester.pumpAndSettle();
+    expect(find.text('Follow the sky'), findsOneWidget);
+    expect(find.text('Could not end this flow right now.'), findsOneWidget);
+  });
+
+  testWidgets(
+    'failed End Flow restores only its target and preserves a concurrent commit',
+    (tester) async {
+      final completions = <int, Completer<EndFlowActionResult>>{
+        2: Completer<EndFlowActionResult>(),
+        8: Completer<EndFlowActionResult>(),
+      };
+      final pendingFlowIds = <int>{};
+      final committedFlowIds = <int>{};
+      final filingInactiveFlowIds = <int>{};
+
+      await _pumpMyFlows(
+        tester,
+        includeSecondActiveMaatFlow: true,
+        filingInactiveFlowIdsForTesting: filingInactiveFlowIds,
+        onEndFlow: (flowId) async {
+          pendingFlowIds.add(flowId);
+          filingInactiveFlowIds.add(flowId);
+          final result = await completions[flowId]!.future;
+          pendingFlowIds.remove(flowId);
+          if (result == EndFlowActionResult.success) {
+            committedFlowIds.add(flowId);
+          }
+          filingInactiveFlowIds
+            ..clear()
+            ..addAll(pendingFlowIds)
+            ..addAll(committedFlowIds);
+          return result;
+        },
+      );
+
+      await tester.tap(find.text('Follow the sky'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('End Flow'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Dawn House Rite'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('End Flow'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Follow the sky'), findsNothing);
+      expect(find.text('Dawn House Rite'), findsNothing);
+
+      completions[8]!.complete(EndFlowActionResult.success);
+      await tester.pumpAndSettle();
+      expect(find.text('Follow the sky'), findsNothing);
+      expect(find.text('Dawn House Rite'), findsNothing);
+
+      completions[2]!.complete(EndFlowActionResult.failed);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Follow the sky'), findsOneWidget);
+      expect(find.text('Dawn House Rite'), findsNothing);
+      expect(find.text('Could not end this flow right now.'), findsOneWidget);
+    },
+  );
+
+  testWidgets('ended saved Ma’at flow remains in Saved', (tester) async {
+    await _pumpMyFlows(
+      tester,
+      onEndFlow: (_) async => EndFlowActionResult.success,
+    );
+
+    await tester.tap(find.text('Saved Flows'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('The Weighing'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('End Flow'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('The Weighing'), findsOneWidget);
+    await tester.tap(find.text('Active Flows'));
+    await tester.pumpAndSettle();
+    expect(find.text('The Weighing'), findsNothing);
   });
 
   testWidgets('My Flows layout has no overflow in required viewports', (
@@ -352,15 +474,29 @@ void main() {
   });
 }
 
+class _RejectingClient extends http.BaseClient {
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    return http.StreamedResponse(
+      Stream<List<int>>.value(const <int>[]),
+      500,
+      request: request,
+    );
+  }
+}
+
 Future<void> _pumpMyFlows(
   WidgetTester tester, {
   bool activeEmpty = false,
   bool savedEmpty = false,
   bool includeUnresolvedMaatFlow = false,
+  bool includeSecondActiveMaatFlow = false,
   bool includeMissingProgressFlow = false,
   bool includeNoScheduleSavedFlow = false,
   ValueChanged<int>? onPreviewFlow,
   VoidCallback? onCreateNew,
+  Future<EndFlowActionResult> Function(int flowId)? onEndFlow,
+  Set<int>? filingInactiveFlowIdsForTesting,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -369,10 +505,13 @@ Future<void> _pumpMyFlows(
         activeEmpty: activeEmpty,
         savedEmpty: savedEmpty,
         includeUnresolvedMaatFlow: includeUnresolvedMaatFlow,
+        includeSecondActiveMaatFlow: includeSecondActiveMaatFlow,
         includeMissingProgressFlow: includeMissingProgressFlow,
         includeNoScheduleSavedFlow: includeNoScheduleSavedFlow,
         onPreviewFlow: onPreviewFlow,
         onCreateNew: onCreateNew,
+        onEndFlow: onEndFlow,
+        filingInactiveFlowIdsForTesting: filingInactiveFlowIdsForTesting,
       ),
     ),
   );
