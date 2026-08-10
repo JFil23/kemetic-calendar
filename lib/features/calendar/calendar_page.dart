@@ -4115,6 +4115,7 @@ class CalendarPage extends StatefulWidget {
   }
 
   static bool _isFlowEndPending(int flowId) {
+    if (flowId <= 0 || _pendingFlowEndOperationIds.isEmpty) return false;
     final key = _flowEndOperationKey(flowId);
     return key != null && _pendingFlowEndOperationIds.containsKey(key);
   }
