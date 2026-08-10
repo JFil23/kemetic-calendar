@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/share_models.dart';
+import 'package:mobile/data/share_repo.dart';
 import 'package:mobile/data/user_events_repo.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/inbox/shared_flow_details_page.dart';
@@ -123,6 +124,23 @@ void main() {
       expect(detailsEntry, isNot(contains('getFlowIdByShareId(')));
     },
   );
+
+  test('Inbox extracts flow share IDs from Supabase-shaped dynamic rows', () {
+    final dynamic response = <dynamic>[
+      <String, dynamic>{
+        'kind': 'flow',
+        'share_id': ' f51344fb-5f1f-46b9-99cd-c0396be0c594 ',
+      },
+      <String, dynamic>{'kind': 'flow', 'share_id': null},
+      <String, dynamic>{'kind': 'flow', 'share_id': '   '},
+      <String, dynamic>{'kind': 'event', 'share_id': 'event-share'},
+    ];
+    final rows = (response as List).cast<Map<String, dynamic>>();
+
+    expect(inboxFlowShareIdsFromRows(rows), <String>{
+      'f51344fb-5f1f-46b9-99cd-c0396be0c594',
+    });
+  });
 
   testWidgets('share payload renders Manage Flow once imported flow is known', (
     tester,
