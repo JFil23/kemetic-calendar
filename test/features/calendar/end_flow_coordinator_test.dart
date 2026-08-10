@@ -47,6 +47,10 @@ void main() {
       expect(firstOutcome.terminalStage, EndFlowTerminalStage.postCommit);
       expect(firstOutcome.rpcAttempted, isTrue);
       expect(CalendarPage.debugIsFlowEndPendingForTesting(41), isFalse);
+      expect(
+        EndFlowVisibilityStore.instance.stateFor(41),
+        EndFlowVisibilityState.committed,
+      );
       expect(published, hasLength(1));
       expect(
         published.single.reason,
@@ -124,6 +128,7 @@ void main() {
     expect(outcome.failureKind, EndFlowFailureKind.sessionNotReady);
     expect(outcome.terminalStage, EndFlowTerminalStage.preRpcGuard);
     expect(outcome.rpcAttempted, isFalse);
+    expect(EndFlowVisibilityStore.instance.stateFor(61), isNull);
     expect(
       endFlowFailureMessage(outcome.failureKind),
       'Your session isn’t ready. Try again in a moment.',
@@ -148,6 +153,7 @@ void main() {
       expect(outcome.failureKind, EndFlowFailureKind.transport);
       expect(outcome.terminalStage, EndFlowTerminalStage.rpcNoResponse);
       expect(outcome.rpcAttempted, isTrue);
+      expect(EndFlowVisibilityStore.instance.stateFor(62), isNull);
       final payload = EndFlowDiagnostics.instance.copyPayloadForOperation(
         outcome.operationId,
       );

@@ -633,41 +633,43 @@ void main() {
     },
   );
 
-  test(
-    'End Flow owners patch before await and merge-restore only on failure',
-    () {
-      final calendarPage = File(
-        'lib/features/calendar/calendar_page.dart',
-      ).readAsStringSync();
-      final flowPages = File(
-        'lib/features/calendar/calendar_flow_pages.dart',
-      ).readAsStringSync();
-      final mounted = _sourceBetween(
-        calendarPage,
-        'Future<EndFlowOutcome> _performEndFlow(',
-        '//// === END END FLOW ===',
-      );
-      final detached = _sourceBetween(
-        flowPages,
-        'Future<EndFlowOutcome> _performEndFlowAndReconcile(int flowId) async {',
-        'Future<void> _openFlowPreview',
-      );
+  test('End Flow owners use the visibility overlay before local patching', () {
+    final calendarPage = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final flowPages = File(
+      'lib/features/calendar/calendar_flow_pages.dart',
+    ).readAsStringSync();
+    final mounted = _sourceBetween(
+      calendarPage,
+      'Future<EndFlowOutcome> _performEndFlow(',
+      '//// === END END FLOW ===',
+    );
+    final detached = _sourceBetween(
+      flowPages,
+      'Future<EndFlowOutcome> _performEndFlowAndReconcile(int flowId) async {',
+      'Future<void> _openFlowPreview',
+    );
 
-      expect(
-        mounted.indexOf('_optimisticallyPatchEndedFlow(flowId)'),
-        lessThan(mounted.indexOf('await CalendarPage._runEndFlowRemote(')),
-      );
-      expect(mounted, contains('_rollbackOptimisticEndedFlow('));
-      expect(calendarPage, contains('_mountedEndFlowOperations[flowId]'));
-      expect(
-        detached.indexOf('_optimisticallyEndFlow(flowId)'),
-        lessThan(detached.indexOf('await widget.onEndFlow(flowId)')),
-      );
-      expect(detached, contains('_mergeRollbackEndedFlow(flowId, previous)'));
-      expect(flowPages, contains('_endFlowReconciliations[flowId]'));
-      expect(flowPages, contains('savedFlowIds: previous.savedFlowIds'));
-    },
-  );
+    expect(mounted, contains('final remoteOperation ='));
+    expect(
+      mounted.indexOf('CalendarPage._runEndFlowRemote('),
+      lessThan(mounted.indexOf('_optimisticallyPatchEndedFlow(flowId)')),
+    );
+    expect(mounted, contains('_rollbackOptimisticEndedFlow('));
+    expect(calendarPage, contains('_mountedEndFlowOperations[flowId]'));
+    expect(
+      detached.indexOf('EndFlowVisibilityStore.instance.markPending(flowId)'),
+      lessThan(detached.indexOf('await widget.onEndFlow(flowId)')),
+    );
+    expect(
+      detached,
+      contains('EndFlowVisibilityStore.instance.removePending(flowId)'),
+    );
+    expect(flowPages, contains('_endFlowReconciliations[flowId]'));
+    expect(flowPages, isNot(contains('_mergeRollbackEndedFlow')));
+    expect(flowPages, isNot(contains('_optimisticallyEndFlow')));
+  });
 
   test('End Flow detail sheets patch first and close without awaiting', () {
     final dayView = File(

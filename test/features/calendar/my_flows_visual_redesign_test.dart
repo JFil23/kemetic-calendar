@@ -24,6 +24,9 @@ void main() {
     }
   });
 
+  setUp(EndFlowVisibilityStore.instance.debugReset);
+  tearDown(EndFlowVisibilityStore.instance.debugReset);
+
   testWidgets('My Flows active and saved tabs stay mutually exclusive', (
     tester,
   ) async {
@@ -190,7 +193,54 @@ void main() {
     expect(find.text('No flows yet'), findsOneWidget);
   });
 
-  testWidgets('End Flow hides immediately and merge-restores on failure', (
+  testWidgets('visibility overlay survives late mount and stale refresh', (
+    tester,
+  ) async {
+    EndFlowVisibilityStore.instance.markPending(1);
+    await _pumpMyFlows(tester);
+
+    expect(find.text('Personal Practice'), findsNothing);
+    expect(find.text('Follow the sky'), findsOneWidget);
+
+    EndFlowVisibilityStore.instance.markCommitted(1);
+    await tester.pump();
+    expect(find.text('Personal Practice'), findsNothing);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await _pumpMyFlows(tester);
+    expect(find.text('Personal Practice'), findsNothing);
+
+    EndFlowVisibilityStore.instance.remove(1);
+    await tester.pump();
+    expect(find.text('Personal Practice'), findsOneWidget);
+  });
+
+  testWidgets('Flow Studio counts render source snapshot plus overlay', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: buildFlowHubPreviewForTesting(),
+      ),
+    );
+    await tester.pump();
+    expect(find.text('2 active · 2 saved'), findsOneWidget);
+
+    EndFlowVisibilityStore.instance.markPending(1);
+    await tester.pump();
+    expect(find.text('1 active · 2 saved'), findsOneWidget);
+
+    EndFlowVisibilityStore.instance.markCommitted(1);
+    await tester.pump();
+    expect(find.text('1 active · 2 saved'), findsOneWidget);
+
+    EndFlowVisibilityStore.instance.remove(1);
+    await tester.pump();
+    expect(find.text('2 active · 2 saved'), findsOneWidget);
+  });
+
+  testWidgets('End Flow hides immediately and overlay-restores on failure', (
     tester,
   ) async {
     final endResult = Completer<EndFlowOutcome>();
@@ -272,7 +322,6 @@ void main() {
         2: Completer<EndFlowOutcome>(),
         8: Completer<EndFlowOutcome>(),
       };
-      final pendingFlowIds = <int>{};
       final committedFlowIds = <int>{};
       final filingInactiveFlowIds = <int>{};
 
@@ -281,16 +330,12 @@ void main() {
         includeSecondActiveMaatFlow: true,
         filingInactiveFlowIdsForTesting: filingInactiveFlowIds,
         onEndFlow: (flowId) async {
-          pendingFlowIds.add(flowId);
-          filingInactiveFlowIds.add(flowId);
           final result = await completions[flowId]!.future;
-          pendingFlowIds.remove(flowId);
           if (result.result == EndFlowActionResult.success) {
             committedFlowIds.add(flowId);
           }
           filingInactiveFlowIds
             ..clear()
-            ..addAll(pendingFlowIds)
             ..addAll(committedFlowIds);
           return result;
         },
