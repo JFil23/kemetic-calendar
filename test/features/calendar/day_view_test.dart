@@ -73,6 +73,72 @@ void main() {
     },
   );
 
+  test('End Flow successor is same-day, stable, and excludes ending flow', () {
+    const targetEvent = EventItem(
+      clientEventId: 'cid-b',
+      title: 'Ending event',
+      startMin: 600,
+      endMin: 630,
+      flowId: 7,
+      color: Colors.red,
+      allDay: false,
+    );
+    const sameFlowLater = EventItem(
+      clientEventId: 'cid-d',
+      title: 'Same flow later',
+      startMin: 610,
+      endMin: 640,
+      flowId: 7,
+      color: Colors.red,
+      allDay: false,
+    );
+    const tiedSuccessor = EventItem(
+      clientEventId: 'cid-c',
+      title: 'Stable tied successor',
+      startMin: 600,
+      endMin: 630,
+      flowId: 8,
+      color: Colors.blue,
+      allDay: false,
+    );
+    const earlier = EventItem(
+      clientEventId: 'cid-a',
+      title: 'Earlier',
+      startMin: 540,
+      endMin: 570,
+      flowId: 8,
+      color: Colors.blue,
+      allDay: false,
+    );
+
+    final successor = sameDayEndFlowSuccessor(
+      target: const DayViewSheetEventTarget(
+        ky: 1,
+        km: 2,
+        kd: 3,
+        event: targetEvent,
+      ),
+      events: const [sameFlowLater, tiedSuccessor, earlier, targetEvent],
+      endingFlowId: 7,
+    );
+
+    expect(successor?.event.clientEventId, 'cid-c');
+    expect((successor?.ky, successor?.km, successor?.kd), (1, 2, 3));
+    expect(
+      sameDayEndFlowSuccessor(
+        target: const DayViewSheetEventTarget(
+          ky: 1,
+          km: 2,
+          kd: 3,
+          event: targetEvent,
+        ),
+        events: const [earlier, targetEvent, sameFlowLater],
+        endingFlowId: 7,
+      ),
+      isNull,
+    );
+  });
+
   group('DayViewGrid overlapping event gestures', () {
     testWidgets(
       'saved initial scroll offset is clamped to the current extent',
@@ -1707,7 +1773,7 @@ void main() {
       },
     );
 
-    testWidgets('End Flow awaits its owner when CalendarPage is not the host', (
+    testWidgets('End Flow dismisses before its owner completes', (
       tester,
     ) async {
       await _setPhoneViewport(tester);
@@ -1740,10 +1806,11 @@ void main() {
       await tester.tap(find.byIcon(Icons.more_vert));
       await tester.pumpAndSettle();
       await tester.tap(find.text('End Flow'));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
       expect(endedFlowId, 1);
-      expect(find.text('Add reflection'), findsOneWidget);
+      expect(find.text('Add reflection'), findsNothing);
+      expect(find.byType(CalendarEventDetailSheet), findsNothing);
 
       endResult.complete(EndFlowOutcome.success(operationId: 'sheet-ok'));
       await tester.pumpAndSettle();
@@ -1752,7 +1819,40 @@ void main() {
     });
 
     testWidgets(
-      'failed End Flow keeps the sheet open and restores the timeline anchor',
+      'End Flow applies optimistic removal and reveals the successor',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        final endResult = Completer<EndFlowOutcome>();
+
+        await tester.pumpWidget(
+          _OptimisticEndFlowHarness(onEndFlow: (_) => endResult.future),
+        );
+        await tester.pumpAndSettle();
+        final timeline = tester.state<ScrollableState>(
+          find.byType(Scrollable).first,
+        );
+        final initialOffset = timeline.position.pixels;
+
+        await tester.tap(find.text('Ending Flow Event'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('End Flow'));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(CalendarEventDetailSheet), findsNothing);
+        expect(find.text('Ending Flow Event'), findsNothing);
+        expect(find.text('Same Flow Later'), findsNothing);
+        expect(find.text('Successor Event'), findsOneWidget);
+        expect(timeline.position.pixels, greaterThan(initialOffset));
+
+        endResult.complete(EndFlowOutcome.success(operationId: 'optimistic'));
+        await tester.pumpAndSettle();
+      },
+    );
+
+    testWidgets(
+      'failed End Flow keeps the sheet closed and reports at the root',
       (tester) async {
         await _setPhoneViewport(tester);
         final endResult = Completer<EndFlowOutcome>();
@@ -1789,9 +1889,10 @@ void main() {
         await tester.tap(find.byIcon(Icons.more_vert));
         await tester.pumpAndSettle();
         await tester.tap(find.text('End Flow'));
-        await tester.pump();
+        await tester.pumpAndSettle();
 
         expect(endedFlowId, 1);
+        expect(find.byType(CalendarEventDetailSheet), findsNothing);
         timeline.position.jumpTo(anchor + 120);
         await tester.pump();
 
@@ -1804,8 +1905,8 @@ void main() {
         await tester.pump();
         await tester.pumpAndSettle();
 
-        expect(timeline.position.pixels, closeTo(anchor, 0.001));
-        expect(find.text('Add reflection'), findsOneWidget);
+        expect(timeline.position.pixels, closeTo(anchor + 120, 0.001));
+        expect(find.text('Add reflection'), findsNothing);
         expect(
           find.textContaining('Couldn’t reach the server.'),
           findsOneWidget,
@@ -1848,8 +1949,6 @@ void main() {
       await tester.tap(find.text('End Flow'));
       await tester.pump();
 
-      Navigator.of(tester.element(find.byType(CalendarEventDetailSheet))).pop();
-      await tester.pumpAndSettle();
       await tester.drag(
         find.byKey(const PageStorageKey<String>('day_timeline_list')),
         const Offset(0, -140),
@@ -1911,7 +2010,7 @@ void main() {
       expect(find.textContaining('Couldn’t reach the server.'), findsOneWidget);
     });
 
-    testWidgets('overlapping End Flow failures restore their own anchors', (
+    testWidgets('overlapping End Flow failures do not steal timeline focus', (
       tester,
     ) async {
       await _setPhoneViewport(tester);
@@ -1950,20 +2049,14 @@ void main() {
       final timeline = tester.state<ScrollableState>(
         find.byType(Scrollable).first,
       );
-      final firstAnchor = timeline.position.pixels;
-
       await tester.tap(find.text('First Pending Flow'));
       await tester.pumpAndSettle();
       await tester.tap(find.byIcon(Icons.more_vert));
       await tester.pumpAndSettle();
       await tester.tap(find.text('End Flow'));
       await tester.pump();
-      Navigator.of(tester.element(find.byType(CalendarEventDetailSheet))).pop();
-      await tester.pumpAndSettle();
-
       timeline.position.jumpTo(650);
       await tester.pump();
-      final secondAnchor = timeline.position.pixels;
       await tester.tap(find.text('Second Pending Flow'));
       await tester.pumpAndSettle();
       await tester.tap(find.byIcon(Icons.more_vert));
@@ -1980,7 +2073,7 @@ void main() {
       );
       await tester.pump();
       await tester.pumpAndSettle();
-      expect(timeline.position.pixels, closeTo(firstAnchor, 0.001));
+      expect(timeline.position.pixels, closeTo(300, 0.001));
 
       secondResult.complete(
         EndFlowOutcome.failure(
@@ -1990,7 +2083,7 @@ void main() {
       );
       await tester.pump();
       await tester.pumpAndSettle();
-      expect(timeline.position.pixels, closeTo(secondAnchor, 0.001));
+      expect(timeline.position.pixels, closeTo(300, 0.001));
     });
 
     testWidgets('Living Text CTA routes to fixed node slug from payload', (
@@ -2874,6 +2967,87 @@ const Map<int, FlowData> _defaultFlowIndex = {
   3: FlowData(id: 3, name: 'Taxes', color: Colors.blue, active: true),
   4: FlowData(id: 4, name: 'Overflow', color: Colors.purple, active: true),
 };
+
+class _OptimisticEndFlowHarness extends StatefulWidget {
+  const _OptimisticEndFlowHarness({required this.onEndFlow});
+
+  final Future<EndFlowOutcome> Function(int flowId) onEndFlow;
+
+  @override
+  State<_OptimisticEndFlowHarness> createState() =>
+      _OptimisticEndFlowHarnessState();
+}
+
+class _OptimisticEndFlowHarnessState extends State<_OptimisticEndFlowHarness> {
+  List<NoteData> _notes = [
+    _timedNote(
+      clientEventId: 'ending',
+      title: 'Ending Flow Event',
+      startHour: 10,
+      startMinute: 0,
+      endHour: 11,
+      endMinute: 0,
+      flowId: 1,
+    ),
+    _timedNote(
+      clientEventId: 'same-flow-later',
+      title: 'Same Flow Later',
+      startHour: 11,
+      startMinute: 0,
+      endHour: 12,
+      endMinute: 0,
+      flowId: 1,
+    ),
+    _timedNote(
+      clientEventId: 'successor',
+      title: 'Successor Event',
+      startHour: 22,
+      startMinute: 0,
+      endHour: 23,
+      endMinute: 0,
+      flowId: 2,
+    ),
+  ];
+
+  Future<EndFlowOutcome> _endFlow(int flowId) {
+    setState(() {
+      _notes = _notes.where((note) => note.flowId != flowId).toList();
+    });
+    return widget.onEndFlow(flowId);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        body: DayViewGrid(
+          ky: 1,
+          km: 1,
+          kd: 1,
+          notes: _notes,
+          showGregorian: false,
+          flowIndex: const {
+            1: FlowData(
+              id: 1,
+              name: 'Ending Flow',
+              color: Colors.red,
+              active: true,
+            ),
+            2: FlowData(
+              id: 2,
+              name: 'Successor Flow',
+              color: Colors.blue,
+              active: true,
+            ),
+          },
+          activeLedgerFlowIds: const {1, 2},
+          initialScrollOffset: 9 * 60,
+          onEndFlow: _endFlow,
+        ),
+      ),
+    );
+  }
+}
 
 class _DayViewHarness extends StatelessWidget {
   const _DayViewHarness({

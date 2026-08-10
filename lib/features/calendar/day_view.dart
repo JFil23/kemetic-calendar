@@ -2441,6 +2441,31 @@ class DayViewSheetEventTarget {
   });
 }
 
+@visibleForTesting
+DayViewSheetEventTarget? sameDayEndFlowSuccessor({
+  required DayViewSheetEventTarget target,
+  required Iterable<EventItem> events,
+  required int endingFlowId,
+}) {
+  final ordered = events.toList(growable: false)
+    ..sort(_compareEventItemsBySchedule);
+  final targetIndex = ordered.indexWhere(
+    (candidate) => _eventsShareStableIdentity(candidate, target.event),
+  );
+  if (targetIndex < 0) return null;
+
+  for (final candidate in ordered.skip(targetIndex + 1)) {
+    if (candidate.flowId == endingFlowId) continue;
+    return DayViewSheetEventTarget(
+      ky: target.ky,
+      km: target.km,
+      kd: target.kd,
+      event: candidate,
+    );
+  }
+  return null;
+}
+
 class CalendarEventDetailSheetCoordinator {
   CalendarEventDetailSheetCoordinator._();
 
@@ -2524,7 +2549,9 @@ class CalendarEventDetailSheet extends StatefulWidget {
     this.activeLedgerFlowIds = const <int>{},
     this.resolveCurrentEventTarget,
     this.resolveAdjacentEventTarget,
+    this.resolveEndFlowSuccessor,
     this.onTargetChanged,
+    this.onEndFlowOptimisticDismiss,
     this.onNavigateToDay,
     this.onManageFlows,
     this.onEditNote,
@@ -2562,7 +2589,13 @@ class CalendarEventDetailSheet extends StatefulWidget {
     required bool forward,
   })?
   resolveAdjacentEventTarget;
+  final DayViewSheetEventTarget? Function(
+    DayViewSheetEventTarget target,
+    int endingFlowId,
+  )?
+  resolveEndFlowSuccessor;
   final ValueChanged<DayViewSheetEventTarget>? onTargetChanged;
+  final ValueChanged<DayViewSheetEventTarget?>? onEndFlowOptimisticDismiss;
   final Future<void> Function(int ky, int km, int kd)? onNavigateToDay;
   final void Function(int? flowId)? onManageFlows;
   final Future<void> Function(int ky, int km, int kd, EventItem event)?
@@ -2606,8 +2639,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   final Set<TrackSkyTimeZone> _trackSkyLoadingTimeZones = <TrackSkyTimeZone>{};
   final Set<int> _endingFlowIds = <int>{};
   Map<String, double> _measuredHeights = <String, double>{};
-  String? _endFlowError;
-  EndFlowOutcome? _endFlowFailureOutcome;
   bool _onboardingDetailPromptScheduled = false;
 
   @override
@@ -2761,8 +2792,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final previousTarget = _currentTarget;
     setState(() {
       _currentTarget = nextTarget;
-      _endFlowError = null;
-      _endFlowFailureOutcome = null;
     });
     widget.onTargetChanged?.call(nextTarget);
     _primeTrackSkyFlowDataForEvent(nextTarget.event);
@@ -2775,22 +2804,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       );
     }
     unawaited(AppHaptics.selection());
-  }
-
-  void _setEndFlowError(String? message, {EndFlowOutcome? outcome}) {
-    if (_endFlowError == message &&
-        identical(_endFlowFailureOutcome, outcome)) {
-      return;
-    }
-    if (!mounted) {
-      _endFlowError = message;
-      _endFlowFailureOutcome = outcome;
-      return;
-    }
-    setState(() {
-      _endFlowError = message;
-      _endFlowFailureOutcome = outcome;
-    });
   }
 
   TrackSkyTimeZone? _trackSkyTimeZoneForFlow(FlowData? flow) {
@@ -4017,58 +4030,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     );
   }
 
-  Widget _buildEventDetailInlineError(String message) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFF4A1414).withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: const Color(0xFFE57373).withValues(alpha: 0.45),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.error_outline, color: Color(0xFFFFB4AB), size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  message,
-                  style: const TextStyle(
-                    color: Color(0xFFFFDAD6),
-                    fontSize: 13,
-                    height: 1.25,
-                  ),
-                ),
-                if (_endFlowFailureOutcome != null)
-                  TextButton.icon(
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFFFFDAD6),
-                      padding: const EdgeInsets.only(top: 4),
-                      minimumSize: const Size(0, 32),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    onPressed: () => unawaited(
-                      EndFlowDiagnostics.instance.copyTerminalDiagnostics(
-                        _endFlowFailureOutcome!.operationId,
-                      ),
-                    ),
-                    icon: const Icon(Icons.copy, size: 15),
-                    label: const Text('Copy diagnostics'),
-                  ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildEventDetailPrimaryAction({
     required BuildContext rootContext,
     required BuildContext sheetContext,
@@ -4115,20 +4076,38 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           final onEndFlow = widget.onEndFlow;
           if (flowId != null && onEndFlow != null) {
             if (!_beginEndFlowAction(flowId)) return;
-            _setEndFlowError(null);
-            try {
-              final result = await onEndFlow(flowId);
-              if (result.result == EndFlowActionResult.success) {
-                if (sheetContext.mounted) Navigator.pop(sheetContext);
-              } else {
-                _setEndFlowError(
-                  endFlowFailureDisplayMessage(result),
-                  outcome: result,
-                );
-              }
-            } finally {
-              _finishEndFlowAction(flowId);
-            }
+            final successor = widget.resolveEndFlowSuccessor?.call(
+              _currentTarget,
+              flowId,
+            );
+            final messenger = ScaffoldMessenger.maybeOf(rootContext);
+            final operation = Future<EndFlowOutcome>.sync(
+              () => onEndFlow(flowId),
+            );
+            widget.onEndFlowOptimisticDismiss?.call(successor);
+            if (sheetContext.mounted) Navigator.pop(sheetContext);
+            unawaited(
+              operation.then((result) {
+                if (result.result != EndFlowActionResult.success &&
+                    messenger != null &&
+                    messenger.mounted) {
+                  messenger.showSnackBar(
+                    SnackBar(
+                      content: Text(endFlowFailureDisplayMessage(result)),
+                      action: SnackBarAction(
+                        label: 'Copy diagnostics',
+                        onPressed: () => unawaited(
+                          EndFlowDiagnostics.instance.copyTerminalDiagnostics(
+                            result.operationId,
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+                _finishEndFlowAction(flowId);
+              }),
+            );
           }
         } else if (value == 'end_reminder') {
           Navigator.pop(sheetContext);
@@ -4500,17 +4479,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                   rootContext: widget.hostContext,
                   sheetContext: context,
                   target: target,
-                ),
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOutCubic,
-                  alignment: Alignment.topCenter,
-                  child: _endFlowError == null
-                      ? const SizedBox.shrink()
-                      : Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                          child: _buildEventDetailInlineError(_endFlowError!),
-                        ),
                 ),
                 const SizedBox(height: 8),
                 AnimatedSize(
@@ -6147,23 +6115,9 @@ class DayViewGrid extends StatefulWidget {
   State<DayViewGrid> createState() => _DayViewGridState();
 }
 
-class _DayViewEndFlowScrollAnchor {
-  const _DayViewEndFlowScrollAnchor({
-    required this.offset,
-    required this.manualScrollRevision,
-    required this.route,
-  });
-
-  final double offset;
-  final int manualScrollRevision;
-  final ModalRoute<dynamic>? route;
-}
-
 class _DayViewGridState extends State<DayViewGrid> {
   final ScrollController _scrollController = ScrollController();
   final GlobalKey _timelineKey = GlobalKey();
-  final Map<String, _DayViewEndFlowScrollAnchor>
-  _endFlowScrollAnchorsByOperationId = <String, _DayViewEndFlowScrollAnchor>{};
   BuildContext? _timelineCtx;
   int _manualScrollRevision = 0;
 
@@ -6245,65 +6199,65 @@ class _DayViewGridState extends State<DayViewGrid> {
     return false;
   }
 
-  Future<EndFlowOutcome> _endFlowPreservingScrollAnchor(int flowId) async {
-    final onEndFlow = widget.onEndFlow!;
+  DayViewSheetEventTarget? _resolveEndFlowSuccessor(
+    DayViewSheetEventTarget target,
+    int endingFlowId,
+  ) => sameDayEndFlowSuccessor(
+    target: target,
+    events: _sortedEventsForDay(
+      notes: _dedupeNotesForUI(widget.notes),
+      flowIndex: widget.flowIndex,
+    ),
+    endingFlowId: endingFlowId,
+  );
+
+  void _handleEndFlowOptimisticDismiss(DayViewSheetEventTarget? successor) {
+    widget.onEventDetailRestorationChanged?.call(null);
+    if (successor == null) return;
+    final manualScrollRevision = _manualScrollRevision;
     final route = ModalRoute.of(context);
-    final anchor = _scrollController.hasClients
-        ? _DayViewEndFlowScrollAnchor(
-            offset: _scrollController.position.pixels,
-            manualScrollRevision: _manualScrollRevision,
-            route: route,
-          )
-        : null;
-
-    final result = await onEndFlow(flowId);
-    if (anchor == null) return result;
-
-    try {
-      final operationAnchor = _endFlowScrollAnchorsByOperationId.putIfAbsent(
-        result.operationId,
-        () => anchor,
-      );
-      if (result.result == EndFlowActionResult.success) {
-        _endFlowScrollAnchorsByOperationId.remove(result.operationId);
-        await WidgetsBinding.instance.endOfFrame;
-        if (!_canRestoreEndFlowScroll(operationAnchor)) return result;
-        final position = _scrollController.position;
-        final clamped = position.pixels
-            .clamp(position.minScrollExtent, position.maxScrollExtent)
-            .toDouble();
-        if (clamped != position.pixels) _scrollController.jumpTo(clamped);
-        return result;
-      }
-
-      await WidgetsBinding.instance.endOfFrame;
-      final rollbackAnchor = _endFlowScrollAnchorsByOperationId.remove(
-        result.operationId,
-      );
-      if (rollbackAnchor == null || !_canRestoreEndFlowScroll(rollbackAnchor)) {
-        return result;
-      }
-      final position = _scrollController.position;
-      final target = rollbackAnchor.offset
-          .clamp(position.minScrollExtent, position.maxScrollExtent)
-          .toDouble();
-      if ((position.pixels - target).abs() > precisionErrorTolerance) {
-        _scrollController.jumpTo(target);
-      }
-    } catch (_) {
-      // Scroll reconciliation is best-effort and cannot replace a committed
-      // or failed End Flow outcome.
-      _endFlowScrollAnchorsByOperationId.remove(result.operationId);
-    }
-    return result;
+    unawaited(
+      _revealEndFlowSuccessor(
+        successor,
+        manualScrollRevision: manualScrollRevision,
+        route: route,
+      ),
+    );
   }
 
-  bool _canRestoreEndFlowScroll(_DayViewEndFlowScrollAnchor anchor) {
-    if (!mounted || !_scrollController.hasClients) return false;
-    if (_manualScrollRevision != anchor.manualScrollRevision) return false;
-    final route = anchor.route;
-    if (route == null) return true;
-    return route.isActive && identical(ModalRoute.of(context), route);
+  Future<void> _revealEndFlowSuccessor(
+    DayViewSheetEventTarget successor, {
+    required int manualScrollRevision,
+    required ModalRoute<dynamic>? route,
+  }) async {
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted || !_scrollController.hasClients) return;
+    if (_manualScrollRevision != manualScrollRevision) return;
+    if (route != null &&
+        (!route.isActive || !identical(ModalRoute.of(context), route))) {
+      return;
+    }
+
+    final position = _scrollController.position;
+    final eventTop = successor.event.startMin * _kDayViewPixelsPerMinute;
+    final eventBottom = eventTop + _eventVisualHeightForLayout(successor.event);
+    const margin = 24.0;
+    final visibleTop = position.pixels + margin;
+    final visibleBottom = position.pixels + position.viewportDimension - margin;
+    if (eventTop >= visibleTop && eventBottom <= visibleBottom) return;
+
+    final rawTarget = eventTop < visibleTop
+        ? eventTop - margin
+        : eventBottom - position.viewportDimension + margin;
+    final target = rawTarget
+        .clamp(position.minScrollExtent, position.maxScrollExtent)
+        .toDouble();
+    if ((target - position.pixels).abs() < precisionErrorTolerance) return;
+    await _scrollController.animateTo(
+      target,
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+    );
   }
 
   String? _eventDetailRestoreKey(EventDetailRestorationState? state) {
@@ -8356,7 +8310,9 @@ class _DayViewGridState extends State<DayViewGrid> {
           activeLedgerFlowIds: widget.activeLedgerFlowIds,
           resolveCurrentEventTarget: widget.resolveCurrentEventTarget,
           resolveAdjacentEventTarget: widget.resolveAdjacentEvent,
+          resolveEndFlowSuccessor: _resolveEndFlowSuccessor,
           onTargetChanged: _publishEventDetailRestorationTarget,
+          onEndFlowOptimisticDismiss: _handleEndFlowOptimisticDismiss,
           onNavigateToDay: widget.onNavigateToDay,
           onManageFlows: widget.onManageFlows,
           onEditNote: widget.onEditNote,
@@ -8365,9 +8321,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           onEditReminder: widget.onEditReminder,
           onEndReminder: widget.onEndReminder,
           onShareReminder: widget.onShareReminder,
-          onEndFlow: widget.onEndFlow == null
-              ? null
-              : _endFlowPreservingScrollAnchor,
+          onEndFlow: widget.onEndFlow,
           onAppendToJournal: widget.onAppendToJournal,
           onWriteJournalResponse: widget.onWriteJournalResponse,
           onSaveFlow: widget.onSaveFlow,
