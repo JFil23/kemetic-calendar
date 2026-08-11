@@ -3226,12 +3226,18 @@ String _formatBasicTime(DateTime dt) {
 }
 
 ReminderRule? _reminderRuleFromFlow(_Flow f) {
-  final rule = _tryParseReminderRuleFromNotes(f.notes);
-  if (rule == null) return null;
-  return rule.copyWith(
-    calendarId: rule.calendarId ?? f.calendarId,
-    endLocal: rule.endLocal ?? f.end,
-  );
+  final notes = f.notes?.trim();
+  if (notes == null || notes.isEmpty) return null;
+  try {
+    final decoded = jsonDecode(notes);
+    return reminderRuleFromFlowPayload(
+      payload: Map<String, dynamic>.from(decoded as Map),
+      fallbackCalendarId: f.calendarId,
+      legacyFlowEnd: f.end,
+    );
+  } catch (_) {
+    return null;
+  }
 }
 
 ReminderRepeat _decodeReminderRepeat(String? detail) {

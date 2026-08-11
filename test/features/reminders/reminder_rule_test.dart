@@ -77,6 +77,42 @@ void main() {
       expect(fromCurrent.toJson()['endLocal'], '2026-05-15T00:00:00.000');
     });
 
+    test('explicit open end wins over a stale flow wrapper end', () {
+      final staleFlowEnd = DateTime(2026, 5, 1);
+
+      for (final endKey in <String>['endLocal', 'endDate', 'end_date']) {
+        final decoded = reminderRuleFromFlowPayload(
+          payload: <String, dynamic>{
+            'id': 'rule-$endKey',
+            'title': 'Journal every day',
+            'startLocal': '2026-04-15T09:00:00',
+            endKey: null,
+          },
+          legacyFlowEnd: staleFlowEnd,
+        );
+
+        expect(
+          decoded.endLocal,
+          isNull,
+          reason: '$endKey must be authoritative',
+        );
+      }
+    });
+
+    test('flow wrapper end remains the fallback for legacy payloads', () {
+      final legacyFlowEnd = DateTime(2026, 5, 20);
+      final decoded = reminderRuleFromFlowPayload(
+        payload: <String, dynamic>{
+          'id': 'legacy-rule',
+          'title': 'Journal every day',
+          'startLocal': '2026-04-15T09:00:00',
+        },
+        legacyFlowEnd: legacyFlowEnd,
+      );
+
+      expect(decoded.endLocal, legacyFlowEnd);
+    });
+
     test('keeps repeat end date and repeat configuration in save payload', () {
       final rule = ReminderRule(
         id: 'rule-1',

@@ -10814,7 +10814,7 @@ class CalendarPageState extends State<CalendarPage>
             value
                 .map(_deserializeWarmStartNote)
                 .whereType<_Note>()
-                .toList(growable: false),
+                .toList(growable: true),
             trackSkyFlowIds: restoredTrackSkyFlowIds,
           );
           if (notes.isNotEmpty) {
@@ -10852,6 +10852,16 @@ class CalendarPageState extends State<CalendarPage>
         recordSkip('server_won_before_commit');
         return;
       }
+
+      final reminderProjectionStopwatch = Stopwatch()..start();
+      final projectedReminderCount = _projectReminderMembershipForHydration(
+        flows: flows,
+        notesByDay: notesByDay,
+      );
+      recordCache('cache_restore_reminder_projection', <String, Object?>{
+        'added_count': projectedReminderCount,
+        'duration_ms': reminderProjectionStopwatch.elapsedMilliseconds,
+      });
 
       final commitStopwatch = Stopwatch()..start();
       setState(() {
@@ -18701,10 +18711,10 @@ class CalendarPageState extends State<CalendarPage>
         try {
           final decoded = jsonDecode(rawNotes);
           final map = Map<String, dynamic>.from(decoded as Map);
-          final parsed = ReminderRule.fromJson(map);
-          final rule = parsed.copyWith(
-            calendarId: parsed.calendarId ?? f.calendarId,
-            endLocal: parsed.endLocal ?? f.endDate,
+          final rule = reminderRuleFromFlowPayload(
+            payload: map,
+            fallbackCalendarId: f.calendarId,
+            legacyFlowEnd: f.endDate,
           );
           if (_endedReminderIds.contains(rule.id)) continue;
           rebuilt.add(rule);
@@ -19606,13 +19616,16 @@ class CalendarPageState extends State<CalendarPage>
   }) {
     final rules = <({ReminderRule rule, int flowId})>[];
     for (final flow in flows) {
-      if (!flow.isReminder ||
-          flow.isHidden ||
-          !isFlowScheduleOpenLocally(active: flow.active, endDate: flow.end)) {
+      if (!flow.isReminder || flow.isHidden) {
         continue;
       }
       final rule = _reminderRuleFromFlow(flow);
-      if (rule == null || !rule.active || _endedReminderIds.contains(rule.id)) {
+      if (rule == null ||
+          !isFlowScheduleOpenLocally(
+            active: flow.active && rule.active,
+            endDate: rule.endLocal,
+          ) ||
+          _endedReminderIds.contains(rule.id)) {
         continue;
       }
       rules.add((rule: rule, flowId: flow.id));
@@ -20109,14 +20122,14 @@ class CalendarPageState extends State<CalendarPage>
 
   void _rebuildReminderRulesFromFlowsIfMissing() {
     final rebuiltById = <String, ReminderRule>{};
-    for (final f in _flows.where(
-      (f) =>
-          f.isReminder &&
-          isFlowScheduleOpenLocally(active: f.active, endDate: f.end) &&
-          !f.isHidden,
-    )) {
+    for (final f in _flows.where((f) => f.isReminder && !f.isHidden)) {
       final rr = _reminderRuleFromFlow(f);
-      if (rr != null && !_endedReminderIds.contains(rr.id)) {
+      if (rr != null &&
+          isFlowScheduleOpenLocally(
+            active: f.active && rr.active,
+            endDate: rr.endLocal,
+          ) &&
+          !_endedReminderIds.contains(rr.id)) {
         rebuiltById[rr.id] = rr;
       }
     }
@@ -21240,10 +21253,10 @@ class CalendarPageState extends State<CalendarPage>
     try {
       final decoded = jsonDecode(f.notes!.trim());
       final map = Map<String, dynamic>.from(decoded as Map);
-      final rule = ReminderRule.fromJson(map);
-      return rule.copyWith(
-        calendarId: rule.calendarId ?? f.calendarId,
-        endLocal: rule.endLocal ?? f.end,
+      return reminderRuleFromFlowPayload(
+        payload: map,
+        fallbackCalendarId: f.calendarId,
+        legacyFlowEnd: f.end,
       );
     } catch (_) {
       return null;
