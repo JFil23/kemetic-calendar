@@ -9661,8 +9661,12 @@ class CalendarPageState extends State<CalendarPage>
   static const String _kWarmStartCacheKeyPrefix = 'calendar:warm_start:v1';
   static const Duration _warmStartCacheDebounce = Duration(milliseconds: 600);
   static const int _warmStartCacheMaxChars = 850000;
-  static const Duration _warmStartTrimPast = Duration(days: 120);
-  static const Duration _warmStartTrimFuture = Duration(days: 365);
+  static const Duration _warmStartWidePast = Duration(days: 120);
+  static const Duration _warmStartWideFuture = Duration(days: 365);
+  static const Duration _warmStartBoundedPast = Duration(days: 30);
+  static const Duration _warmStartBoundedFuture = Duration(days: 60);
+  static const Duration _warmStartNearPast = Duration(days: 7);
+  static const Duration _warmStartNearFuture = Duration(days: 14);
 
   int _dataVersion = 0;
   final ValueNotifier<int> _dayViewDataVersion = ValueNotifier<int>(0);
@@ -10570,8 +10574,15 @@ class CalendarPageState extends State<CalendarPage>
 
   Map<String, dynamic> _buildWarmStartSnapshot({
     required String userId,
-    required bool trimmed,
+    required String compactionLevel,
+    Duration? pastWindow,
+    Duration? futureWindow,
+    bool relevantFlowsOnly = false,
   }) {
+    assert(
+      (pastWindow == null) == (futureWindow == null),
+      'Warm-start cache windows must be both bounded or both unbounded.',
+    );
     final cacheSavedAt = DateTime.now().toUtc().toIso8601String();
     final centerDay =
         (_lastViewKy != null && _lastViewKm != null && _lastViewKd != null)
@@ -10579,23 +10590,51 @@ class CalendarPageState extends State<CalendarPage>
             KemeticMath.toGregorian(_lastViewKy!, _lastViewKm!, _lastViewKd!),
           )
         : DateUtils.dateOnly(DateTime.now());
-    final trimmedStart = centerDay.subtract(_warmStartTrimPast);
-    final trimmedEnd = centerDay.add(_warmStartTrimFuture);
+    final trimmedStart = pastWindow == null
+        ? null
+        : centerDay.subtract(pastWindow);
+    final trimmedEnd = futureWindow == null
+        ? null
+        : centerDay.add(futureWindow);
 
     final notesJson = <String, dynamic>{};
+    final referencedFlowIds = <int>{};
     _notes.forEach((key, notes) {
       final day = _warmStartDateFromKey(key);
-      if (trimmed &&
-          day != null &&
-          (day.isBefore(trimmedStart) || day.isAfter(trimmedEnd))) {
+      if (trimmedStart != null &&
+          trimmedEnd != null &&
+          (day == null ||
+              day.isBefore(trimmedStart) ||
+              day.isAfter(trimmedEnd))) {
         return;
+      }
+      for (final note in notes) {
+        final flowId = note.flowId;
+        if (flowId != null && flowId > 0) referencedFlowIds.add(flowId);
       }
       notesJson[key] = notes
           .map(_serializeWarmStartNote)
           .toList(growable: false);
     });
+    final snapshotFlows = relevantFlowsOnly
+        ? _flows
+              .where(
+                (flow) =>
+                    flow.isReminder || referencedFlowIds.contains(flow.id),
+              )
+              .toList(growable: false)
+        : _flows;
+    final snapshotFlowIds = snapshotFlows.map((flow) => flow.id).toSet();
+    Map<int, int> snapshotCounts(Map<int, int> counts) {
+      if (!relevantFlowsOnly) return counts;
+      return <int, int>{
+        for (final entry in counts.entries)
+          if (snapshotFlowIds.contains(entry.key)) entry.key: entry.value,
+      };
+    }
 
     return <String, dynamic>{
+      'snapshotSchemaVersion': 2,
       'userId': userId,
       // Keep savedAt for older builds while making cache-write time distinct
       // from the last server-authoritative calendar/accounting results.
@@ -10608,12 +10647,20 @@ class CalendarPageState extends State<CalendarPage>
           ?.toUtc()
           .toIso8601String(),
       'accountingStale': _accountingStale,
+      'compactionLevel': compactionLevel,
+      'cacheCenterDay': centerDay.toIso8601String(),
+      'cachePastDays': pastWindow?.inDays,
+      'cacheFutureDays': futureWindow?.inDays,
       'nextFlowId': _nextFlowId,
-      'flows': _flows.map(_serializeWarmStartFlow).toList(growable: false),
+      'flows': snapshotFlows
+          .map(_serializeWarmStartFlow)
+          .toList(growable: false),
       'notes': notesJson,
-      'flowTotalEventCounts': _encodeWarmStartIntMap(_flowTotalEventCounts),
+      'flowTotalEventCounts': _encodeWarmStartIntMap(
+        snapshotCounts(_flowTotalEventCounts),
+      ),
       'flowRemainingEventCounts': _encodeWarmStartIntMap(
-        _flowRemainingEventCounts,
+        snapshotCounts(_flowRemainingEventCounts),
       ),
     };
   }
@@ -10691,42 +10738,96 @@ class CalendarPageState extends State<CalendarPage>
         return;
       }
 
-      var encoded = jsonEncode(
-        _buildWarmStartSnapshot(userId: resolvedUserId, trimmed: false),
-      );
-      final untrimmedSize = encoded.length;
-      var trimmed = false;
-      if (encoded.length > _warmStartCacheMaxChars) {
-        trimmed = true;
-        encoded = jsonEncode(
-          _buildWarmStartSnapshot(userId: resolvedUserId, trimmed: true),
+      final candidates =
+          <
+            ({
+              String level,
+              Duration? past,
+              Duration? future,
+              bool relevantFlowsOnly,
+            })
+          >[
+            (level: 'full', past: null, future: null, relevantFlowsOnly: false),
+            (
+              level: 'wide',
+              past: _warmStartWidePast,
+              future: _warmStartWideFuture,
+              relevantFlowsOnly: false,
+            ),
+            (
+              level: 'bounded',
+              past: _warmStartBoundedPast,
+              future: _warmStartBoundedFuture,
+              relevantFlowsOnly: false,
+            ),
+            (
+              level: 'near',
+              past: _warmStartNearPast,
+              future: _warmStartNearFuture,
+              relevantFlowsOnly: false,
+            ),
+            (
+              level: 'selected_day',
+              past: Duration.zero,
+              future: Duration.zero,
+              relevantFlowsOnly: true,
+            ),
+          ];
+      String? encoded;
+      int? untrimmedSize;
+      int smallestCandidateSize = 0;
+      var selectedLevel = 'none';
+      int? selectedPastDays;
+      int? selectedFutureDays;
+      for (final candidate in candidates) {
+        final candidateEncoded = jsonEncode(
+          _buildWarmStartSnapshot(
+            userId: resolvedUserId,
+            compactionLevel: candidate.level,
+            pastWindow: candidate.past,
+            futureWindow: candidate.future,
+            relevantFlowsOnly: candidate.relevantFlowsOnly,
+          ),
         );
-        if (encoded.length > _warmStartCacheMaxChars) {
-          if (kDebugMode) {
-            _calendarDebugPrint(
-              '[warmStart] skip cache save reason=$debugReason size=${encoded.length}',
-            );
-          }
-          recordCache('cache_save_ended', <String, Object?>{
-            'outcome': 'oversize_skipped',
-            'untrimmed_chars': untrimmedSize,
-            'trimmed_chars': encoded.length,
-            'duration_ms': totalStopwatch.elapsedMilliseconds,
-          });
-          return;
+        untrimmedSize ??= candidateEncoded.length;
+        smallestCandidateSize = candidateEncoded.length;
+        if (candidateEncoded.length > _warmStartCacheMaxChars) continue;
+        encoded = candidateEncoded;
+        selectedLevel = candidate.level;
+        selectedPastDays = candidate.past?.inDays;
+        selectedFutureDays = candidate.future?.inDays;
+        break;
+      }
+      if (encoded == null) {
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[warmStart] skip cache save reason=$debugReason '
+            'smallestSize=$smallestCandidateSize',
+          );
         }
+        recordCache('cache_save_ended', <String, Object?>{
+          'outcome': 'oversize_skipped',
+          'untrimmed_chars': untrimmedSize,
+          'smallest_candidate_chars': smallestCandidateSize,
+          'duration_ms': totalStopwatch.elapsedMilliseconds,
+        });
+        return;
       }
 
       await prefs.setString(key, encoded);
       recordCache('cache_save_ended', <String, Object?>{
-        'outcome': trimmed ? 'trimmed_and_saved' : 'saved',
+        'outcome': selectedLevel == 'full' ? 'saved' : 'compacted_and_saved',
+        'compaction_level': selectedLevel,
+        'past_days': selectedPastDays,
+        'future_days': selectedFutureDays,
         'untrimmed_chars': untrimmedSize,
         'saved_chars': encoded.length,
         'duration_ms': totalStopwatch.elapsedMilliseconds,
       });
       if (kDebugMode) {
         _calendarDebugPrint(
-          '[warmStart] saved cache reason=$debugReason size=${encoded.length}',
+          '[warmStart] saved cache reason=$debugReason '
+          'level=$selectedLevel size=${encoded.length}',
         );
       }
     } catch (error) {
@@ -10954,6 +11055,12 @@ class CalendarPageState extends State<CalendarPage>
         (sum, notes) => sum + notes.length,
       );
       recordCache('cache_hit', <String, Object?>{
+        'snapshot_schema_version':
+            (json['snapshotSchemaVersion'] as num?)?.toInt() ?? 1,
+        'compaction_level': (json['compactionLevel'] as String?) ?? 'legacy',
+        'cache_center_day': json['cacheCenterDay'] as String?,
+        'cache_past_days': (json['cachePastDays'] as num?)?.toInt(),
+        'cache_future_days': (json['cacheFutureDays'] as num?)?.toInt(),
         'raw_chars': raw.length,
         'saved_age_ms': savedAgeMs,
         'cached_flow_count': flows.length,
@@ -33492,6 +33599,11 @@ class CalendarPageState extends State<CalendarPage>
 
   @visibleForTesting
   int get debugUnconfirmedCount => _unconfirmed.length;
+
+  @visibleForTesting
+  Future<void> debugPersistWarmStartCacheForTesting(String userId) {
+    return _persistWarmStartCacheNow(userId: userId, debugReason: 'test');
+  }
 
   @visibleForTesting
   Future<void> debugPersistPendingNoteForTesting({
