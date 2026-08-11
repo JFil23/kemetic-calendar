@@ -3100,12 +3100,10 @@ class UserEventsRepo {
         .toSet();
     if (requested.isEmpty) return const <String, int>{};
 
-    final response = await _client
-        .from('flow_filing_items_client')
-        .select('id, share_id, origin_share_id, created_at')
-        .eq('user_id', user.id)
-        .eq('visible_in_active_list', true)
-        .order('created_at', ascending: false);
+    final response = await _client.rpc(
+      'get_currently_active_imported_flows_v1',
+      params: {'p_share_ids': requested.toList(growable: false)},
+    );
 
     final result = <String, int>{};
     for (final row in (response as List).cast<Map<String, dynamic>>()) {
