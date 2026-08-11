@@ -56,6 +56,25 @@ typedef StandaloneEventRow = ({
 
 enum UserEventDeleteDisposition { deleted, alreadyAbsentSuppressed, failed }
 
+enum UserEventLookupDisposition { found, notFound, unavailable }
+
+@immutable
+class UserEventLookupResult {
+  const UserEventLookupResult._(this.disposition, this.event);
+
+  const UserEventLookupResult.found(UserEvent event)
+    : this._(UserEventLookupDisposition.found, event);
+
+  const UserEventLookupResult.notFound()
+    : this._(UserEventLookupDisposition.notFound, null);
+
+  const UserEventLookupResult.unavailable()
+    : this._(UserEventLookupDisposition.unavailable, null);
+
+  final UserEventLookupDisposition disposition;
+  final UserEvent? event;
+}
+
 @immutable
 class UserEventDeleteResult {
   const UserEventDeleteResult._({
@@ -889,10 +908,14 @@ class UserEventsRepo {
     }
   }
 
-  Future<UserEvent?> getEventByClientEventId(String clientEventId) async {
+  Future<UserEventLookupResult> lookupEventByClientEventId(
+    String clientEventId,
+  ) async {
     final user = _client.auth.currentUser;
     final trimmed = clientEventId.trim();
-    if (user == null || trimmed.isEmpty) return null;
+    if (user == null || trimmed.isEmpty) {
+      return const UserEventLookupResult.unavailable();
+    }
 
     try {
       final row = await _client
@@ -900,15 +923,22 @@ class UserEventsRepo {
           .select(_readSelect)
           .eq('client_event_id', trimmed)
           .maybeSingle();
-      if (row == null) return null;
-      return UserEvent.fromRow((row as Map).cast<String, dynamic>());
+      if (row == null) return const UserEventLookupResult.notFound();
+      return UserEventLookupResult.found(
+        UserEvent.fromRow((row as Map).cast<String, dynamic>()),
+      );
     } on PostgrestException catch (e) {
       _log('getEventByClientEventId ✗ ${e.code} ${e.message}');
-      return null;
+      return const UserEventLookupResult.unavailable();
     } catch (e) {
       _log('getEventByClientEventId ✗ $e');
-      return null;
+      return const UserEventLookupResult.unavailable();
     }
+  }
+
+  Future<UserEvent?> getEventByClientEventId(String clientEventId) async {
+    final result = await lookupEventByClientEventId(clientEventId);
+    return result.event;
   }
 
   /// Replace the editable event fields for an existing row.

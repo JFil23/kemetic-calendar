@@ -111,6 +111,7 @@ import '../../widgets/recurrence_until_date_picker.dart';
 import '../../utils/external_link_utils.dart';
 import 'calendar_invalidation.dart';
 import 'calendar_hydration_diagnostics.dart';
+import 'calendar_pending_note_store.dart';
 import 'end_flow_diagnostics.dart';
 export 'end_flow_diagnostics.dart';
 import 'end_flow_visibility_store.dart';
@@ -9628,6 +9629,11 @@ class CalendarPageState extends State<CalendarPage>
     observer: _handleHydrationLoadObservation,
   );
   final _UnconfirmedNoteLedger _unconfirmed = _UnconfirmedNoteLedger();
+  final PendingCalendarNoteStore _pendingNoteStore = PendingCalendarNoteStore();
+  final Set<String> _pendingCidVerificationInFlight = <String>{};
+  String? _pendingNotesRestoredForUserId;
+  Future<void>? _pendingNotesRestoreInFlight;
+  String? _pendingNotesRestoreInFlightForUserId;
   // Startup coordinator: single-flight gate for auth-triggered startup work.
   Completer<void>? _startupFlight;
   bool _startupRerunRequested = false;
@@ -9658,6 +9664,7 @@ class CalendarPageState extends State<CalendarPage>
 
   /// Claim slot so concurrent warm-start restores cannot both pass the entry guard.
   String? _warmStartRestoreInFlightForUserId;
+  Completer<void>? _warmStartRestoreInFlightCompleter;
 
   /// Set only by load commit — not by warm-start paint.
   String? _serverHydrationCommittedForUserId;
@@ -10338,6 +10345,185 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
+  PendingCalendarNoteRecord _pendingRecordForNote({
+    required String dayKey,
+    required _Note note,
+    required DateTime createdAt,
+  }) {
+    final cid = note.clientEventId?.trim();
+    if (cid == null || cid.isEmpty) {
+      throw ArgumentError('Pending note persistence requires an exact CID');
+    }
+    return PendingCalendarNoteRecord(
+      clientEventId: cid,
+      dayKey: dayKey,
+      createdAt: createdAt.toUtc(),
+      notePayload: _serializeWarmStartNote(note),
+    );
+  }
+
+  Future<void> _persistPendingNote({
+    required String userId,
+    required String dayKey,
+    required _Note note,
+    required DateTime createdAt,
+  }) {
+    return _pendingNoteStore.write(
+      userId: userId,
+      record: _pendingRecordForNote(
+        dayKey: dayKey,
+        note: note,
+        createdAt: createdAt,
+      ),
+    );
+  }
+
+  Future<void> _removePersistedPendingCids(
+    Iterable<String> clientEventIds, {
+    String? userId,
+  }) async {
+    final resolvedUserId = userId ?? _activeWarmStartUserId();
+    if (resolvedUserId == null || resolvedUserId.trim().isEmpty) return;
+    await _pendingNoteStore.removeMany(
+      userId: resolvedUserId,
+      clientEventIds: clientEventIds,
+    );
+  }
+
+  Future<void> _restoreDurablePendingNotesForUser(
+    String userId, {
+    bool requireActiveUser = true,
+  }) async {
+    final normalizedUserId = userId.trim();
+    if (normalizedUserId.isEmpty || !mounted) return;
+    if (_pendingNotesRestoredForUserId == normalizedUserId) return;
+    if (_pendingNotesRestoreInFlightForUserId == normalizedUserId) {
+      await _pendingNotesRestoreInFlight;
+      return;
+    }
+
+    final previousUserId = _pendingNotesRestoredForUserId;
+    if (previousUserId != null && previousUserId != normalizedUserId) {
+      _unconfirmed.clear();
+      unawaited(_pendingNoteStore.clearForUser(previousUserId));
+    }
+
+    final restore = () async {
+      final records = await _pendingNoteStore.readForUser(normalizedUserId);
+      if (!mounted ||
+          (requireActiveUser && _activeWarmStartUserId() != normalizedUserId)) {
+        return;
+      }
+      var paintedFallback = false;
+      for (final record in records) {
+        final bucket = _notes.putIfAbsent(record.dayKey, () => <_Note>[]);
+        _Note? note;
+        for (final candidate in bucket) {
+          if (candidate.clientEventId?.trim() == record.clientEventId) {
+            note = candidate;
+            break;
+          }
+        }
+        note ??= _deserializeWarmStartNote(record.notePayload);
+        if (note == null ||
+            note.clientEventId?.trim() != record.clientEventId) {
+          continue;
+        }
+        final alreadyPainted = bucket.any(
+          (candidate) =>
+              candidate.clientEventId?.trim() == record.clientEventId,
+        );
+        if (!alreadyPainted) {
+          bucket.add(note);
+          paintedFallback = true;
+        }
+        _unconfirmed.register(
+          dayKey: record.dayKey,
+          note: note,
+          createdAt: record.createdAt,
+        );
+      }
+      _pendingNotesRestoredForUserId = normalizedUserId;
+      if (paintedFallback && mounted) {
+        _warmStartCacheRestoredForUserId = normalizedUserId;
+        _warmStartSnapshotVisible = true;
+        _bumpDataVersion();
+      }
+    }();
+    _pendingNotesRestoreInFlight = restore;
+    _pendingNotesRestoreInFlightForUserId = normalizedUserId;
+    try {
+      await restore;
+    } finally {
+      if (_pendingNotesRestoreInFlightForUserId == normalizedUserId) {
+        _pendingNotesRestoreInFlightForUserId = null;
+        _pendingNotesRestoreInFlight = null;
+      }
+    }
+  }
+
+  void _scheduleExpiredPendingCidVerification() {
+    final userId = _activeWarmStartUserId();
+    if (userId == null) return;
+    for (final entry in _unconfirmed.dueForVerification()) {
+      final cid = entry.note.clientEventId?.trim();
+      if (cid == null ||
+          cid.isEmpty ||
+          !_pendingCidVerificationInFlight.add(cid)) {
+        continue;
+      }
+      unawaited(_verifyPendingCid(userId: userId, clientEventId: cid));
+    }
+  }
+
+  Future<void> _verifyPendingCid({
+    required String userId,
+    required String clientEventId,
+  }) async {
+    try {
+      final result = await UserEventsRepo(
+        Supabase.instance.client,
+      ).lookupEventByClientEventId(clientEventId);
+      if (!mounted || _activeWarmStartUserId() != userId) return;
+      switch (result.disposition) {
+        case UserEventLookupDisposition.found:
+          _unconfirmed.forgetCid(clientEventId);
+          await _removePersistedPendingCids(<String>[
+            clientEventId,
+          ], userId: userId);
+          return;
+        case UserEventLookupDisposition.notFound:
+          if (!_unconfirmed.containsCid(clientEventId)) return;
+          _unconfirmed.forgetCid(clientEventId);
+          _notes.removeWhere((_, notes) {
+            notes.removeWhere(
+              (note) => note.clientEventId?.trim() == clientEventId,
+            );
+            return notes.isEmpty;
+          });
+          await _removePersistedPendingCids(<String>[
+            clientEventId,
+          ], userId: userId);
+          if (!mounted) return;
+          _bumpDataVersion();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'An event could not be confirmed as saved and was restored to server state.',
+              ),
+            ),
+          );
+          return;
+        case UserEventLookupDisposition.unavailable:
+          // Keep both the painted event and its durable record. A later
+          // hydration or verification attempt will resolve it.
+          return;
+      }
+    } finally {
+      _pendingCidVerificationInFlight.remove(clientEventId);
+    }
+  }
+
   Map<String, dynamic> _buildWarmStartSnapshot({
     required String userId,
     required bool trimmed,
@@ -10531,6 +10717,7 @@ class CalendarPageState extends State<CalendarPage>
     }
     if (_warmStartRestoreInFlightForUserId == userId) {
       recordSkip('restore_in_flight');
+      await _warmStartRestoreInFlightCompleter?.future;
       return;
     }
     if (_serverHydrationCommittedForUserId == userId) {
@@ -10542,6 +10729,8 @@ class CalendarPageState extends State<CalendarPage>
       null,
       'warm_cache_restore',
     );
+    final restoreCompleter = Completer<void>();
+    _warmStartRestoreInFlightCompleter = restoreCompleter;
     _warmStartRestoreInFlightForUserId = userId;
     try {
       final endedReminderStopwatch = Stopwatch()..start();
@@ -10728,8 +10917,12 @@ class CalendarPageState extends State<CalendarPage>
         );
       }
     } finally {
+      if (!restoreCompleter.isCompleted) {
+        restoreCompleter.complete();
+      }
       if (_warmStartRestoreInFlightForUserId == userId) {
         _warmStartRestoreInFlightForUserId = null;
+        _warmStartRestoreInFlightCompleter = null;
       }
       diagnostics.markAsyncWorkEnded(
         null,
@@ -14942,6 +15135,16 @@ class CalendarPageState extends State<CalendarPage>
         _flows.clear();
         _notes.clear();
         _unconfirmed.clear();
+        _pendingCidVerificationInFlight.clear();
+        _pendingNotesRestoredForUserId = null;
+        _pendingNotesRestoreInFlight = null;
+        _pendingNotesRestoreInFlightForUserId = null;
+        if (previousHydrationUserId != null &&
+            previousHydrationUserId.trim().isNotEmpty) {
+          unawaited(
+            _pendingNoteStore.clearForUser(previousHydrationUserId.trim()),
+          );
+        }
         _flowTotalEventCounts.clear();
         _flowRemainingEventCounts.clear();
         _manualDeleteTombstones.clear();
@@ -19255,6 +19458,7 @@ class CalendarPageState extends State<CalendarPage>
   }) {
     var changed = false;
     final keysToRemove = <String>[];
+    final removedPendingCids = <String>{};
     _notes.forEach((k, list) {
       final before = list.length;
       list.removeWhere((n) {
@@ -19266,7 +19470,11 @@ class CalendarPageState extends State<CalendarPage>
         if (preserveDatabaseBacked) {
           if ((n.id ?? '').trim().isNotEmpty) return false;
         }
-        if (fromDate == null) return true;
+        if (fromDate == null) {
+          final cid = n.clientEventId?.trim();
+          if (cid != null && cid.isNotEmpty) removedPendingCids.add(cid);
+          return true;
+        }
         final parts = k.split('-');
         if (parts.length != 3) return true;
         final ky = int.tryParse(parts[0]) ?? 0;
@@ -19274,7 +19482,12 @@ class CalendarPageState extends State<CalendarPage>
         final kd = int.tryParse(parts[2]) ?? 0;
         try {
           final g = KemeticMath.toGregorian(ky, km, kd);
-          return !g.isBefore(fromDate);
+          final remove = !g.isBefore(fromDate);
+          if (remove) {
+            final cid = n.clientEventId?.trim();
+            if (cid != null && cid.isNotEmpty) removedPendingCids.add(cid);
+          }
+          return remove;
         } catch (_) {
           return true;
         }
@@ -19290,9 +19503,7 @@ class CalendarPageState extends State<CalendarPage>
     if (keysToRemove.isNotEmpty) {
       changed = true;
     }
-    _unconfirmed.forget(
-      (pending) => pending.isReminder && pending.reminderId == ruleId,
-    );
+    _unconfirmed.forgetCids(removedPendingCids);
     return changed;
   }
 
@@ -19302,7 +19513,27 @@ class CalendarPageState extends State<CalendarPage>
     int? flowId,
     bool notify = true,
   }) {
-    var changed = false;
+    final changed =
+        _materializeReminderIntoNotes(
+          notesByDay: _notes,
+          rule: rule,
+          occurrences: occurrences,
+          flowId: flowId,
+        ) >
+        0;
+    if (changed && notify) {
+      _refreshNoteCacheUi();
+    }
+    return changed;
+  }
+
+  int _materializeReminderIntoNotes({
+    required Map<String, List<_Note>> notesByDay,
+    required ReminderRule rule,
+    required List<DateTime> occurrences,
+    int? flowId,
+  }) {
+    var added = 0;
     final calendarName = _calendarSummary(rule.calendarId)?.name;
     for (final day in occurrences) {
       final k = KemeticMath.fromGregorian(day);
@@ -19321,7 +19552,7 @@ class CalendarPageState extends State<CalendarPage>
       // Skip if a canonical DB-backed note already exists for this flow/time/title.
       if (flowId != null && flowId > 0) {
         final key = _kKey(k.kYear, k.kMonth, k.kDay);
-        final bucket = _notes[key];
+        final bucket = notesByDay[key];
         if (bucket != null) {
           final targetTitle = rule.title.trim().toLowerCase();
           final hasCanonical = bucket.any((n) {
@@ -19342,39 +19573,100 @@ class CalendarPageState extends State<CalendarPage>
           }
         }
       }
-      changed =
-          _addNote(
-            k.kYear,
-            k.kMonth,
-            k.kDay,
-            rule.title,
-            null,
-            clientEventId: clientEventId,
-            calendarId: rule.calendarId,
-            calendarName: calendarName,
-            allDay: rule.allDay,
-            start: startTime,
-            end: endTime,
-            manualColor: rule.color,
-            category: rule.category,
-            isReminder: true,
-            reminderId: rule.id,
-            flowId: flowId,
-            alertOffsetMinutes: rule.alertOffsetMinutes,
-            notify: false,
-          ) ||
-          changed;
+      final key = _kKey(k.kYear, k.kMonth, k.kDay);
+      final bucket = notesByDay.putIfAbsent(key, () => <_Note>[]);
+      if (bucket.any((note) => note.clientEventId?.trim() == clientEventId)) {
+        continue;
+      }
+      bucket.add(
+        _Note(
+          clientEventId: clientEventId,
+          calendarId: rule.calendarId,
+          calendarName: calendarName,
+          title: rule.title,
+          allDay: rule.allDay,
+          start: startTime,
+          end: endTime,
+          flowId: flowId,
+          manualColor: rule.color,
+          category: rule.category,
+          isReminder: true,
+          reminderId: rule.id,
+          alertOffsetMinutes: rule.alertOffsetMinutes,
+        ),
+      );
+      added++;
     }
+    return added;
+  }
 
-    if (changed && notify) {
-      _refreshNoteCacheUi();
+  int _projectReminderMembershipForHydration({
+    required List<_Flow> flows,
+    required Map<String, List<_Note>> notesByDay,
+  }) {
+    final rules = <({ReminderRule rule, int flowId})>[];
+    for (final flow in flows) {
+      if (!flow.isReminder ||
+          flow.isHidden ||
+          !isFlowScheduleOpenLocally(active: flow.active, endDate: flow.end)) {
+        continue;
+      }
+      final rule = _reminderRuleFromFlow(flow);
+      if (rule == null || !rule.active || _endedReminderIds.contains(rule.id)) {
+        continue;
+      }
+      rules.add((rule: rule, flowId: flow.id));
     }
+    if (rules.isEmpty) return 0;
+
+    final today = DateUtils.dateOnly(
+      CalendarPage.debugReminderSyncTodayForTesting ?? DateTime.now(),
+    );
+    final windowEnd =
+        CalendarPage.debugReminderSyncWindowEndForTesting ??
+        _reminderWindowEnd(
+          today,
+          rules.map((entry) => entry.rule).toList(growable: false),
+        );
+    var added = 0;
+    for (final entry in rules) {
+      added += _materializeReminderIntoNotes(
+        notesByDay: notesByDay,
+        rule: entry.rule,
+        occurrences: _generateReminderOccurrences(entry.rule, today, windowEnd),
+        flowId: entry.flowId,
+      );
+    }
+    return added;
+  }
+
+  bool _applyReminderSyncVisibleMembership({
+    required bool updateLocalCache,
+    required ReminderRule rule,
+    required List<DateTime> occurrences,
+    required int? flowId,
+    required DateTime fromDate,
+  }) {
+    if (!updateLocalCache) return false;
+    var changed = _pruneReminderNotes(
+      rule.id,
+      fromDate: fromDate,
+      preserveDatabaseBacked: true,
+    );
+    changed =
+        _materializeReminderLocally(
+          rule: rule,
+          occurrences: occurrences,
+          flowId: flowId,
+          notify: false,
+        ) ||
+        changed;
     return changed;
   }
 
   Future<void> _syncReminderEvents({
     bool refreshUi = false,
-    bool updateLocalCache = true,
+    bool updateLocalCache = false,
     HydrationDiagnosticContext? diagnosticContext,
   }) async {
     final diagnostics = CalendarHydrationDiagnostics.instance;
@@ -19440,7 +19732,7 @@ class CalendarPageState extends State<CalendarPage>
 
   Future<void> _performReminderSync({
     bool refreshUi = false,
-    bool updateLocalCache = true,
+    bool updateLocalCache = false,
   }) async {
     await _reminderSyncGate.waitForOrientationCriticalSection();
     await _loadReminderRules();
@@ -19534,24 +19826,15 @@ class CalendarPageState extends State<CalendarPage>
       final flowIdForReminder = await _findFlowIdByReminderUuid(
         rule.id,
       ); // may be null/nonexistent
-      if (updateLocalCache) {
-        // Update local cache first so UI reflects immediately even if network fails.
-        localCacheChanged =
-            _pruneReminderNotes(
-              rule.id,
-              fromDate: today,
-              preserveDatabaseBacked: true,
-            ) ||
-            localCacheChanged;
-        localCacheChanged =
-            _materializeReminderLocally(
-              rule: rule,
-              occurrences: occurrences,
-              flowId: flowIdForReminder,
-              notify: false,
-            ) ||
-            localCacheChanged;
-      }
+      localCacheChanged =
+          _applyReminderSyncVisibleMembership(
+            updateLocalCache: updateLocalCache,
+            rule: rule,
+            occurrences: occurrences,
+            flowId: flowIdForReminder,
+            fromDate: today,
+          ) ||
+          localCacheChanged;
 
       if (!rule.id.startsWith('nutrition:')) {
         for (final day in occurrences) {
@@ -19786,7 +20069,11 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
-  Future<bool> _regenReminderNotes({bool notify = true}) async {
+  Future<bool> _regenReminderNotes({
+    bool notify = true,
+    bool allowVisibleMutation = true,
+  }) async {
+    if (!allowVisibleMutation) return false;
     await _loadReminderRules();
     if (_reminderRules.isEmpty) return false;
     final today = DateUtils.dateOnly(DateTime.now());
@@ -21169,6 +21456,7 @@ class CalendarPageState extends State<CalendarPage>
     Map<String, dynamic>? behaviorPayload,
     bool notify = true,
     NoteConfirmation confirmation = NoteConfirmation.confirmed,
+    DateTime? unconfirmedCreatedAt,
   }) {
     final shouldSkip =
         _isPendingDelete(
@@ -21224,7 +21512,7 @@ class CalendarPageState extends State<CalendarPage>
       _unconfirmed.register(
         dayKey: k,
         note: note,
-        isSameNote: _sameStandaloneLaneNote,
+        createdAt: unconfirmedCreatedAt,
       );
     }
     // Do not schedule notifications here; scheduling is handled by the caller.
@@ -21245,14 +21533,22 @@ class CalendarPageState extends State<CalendarPage>
     // that helper guards `if (flowId <= 0) return 0;` ; inline
     // blocks do not. Keep this PR provably identical; swap later behind an assert.
     final emptyKeys = <String>[];
+    final removedCids = <String>{};
     _notes.forEach((key, notes) {
+      removedCids.addAll(
+        notes
+            .where((note) => note.flowId == serverFlowId)
+            .map((note) => note.clientEventId?.trim())
+            .whereType<String>()
+            .where((cid) => cid.isNotEmpty),
+      );
       notes.removeWhere((note) => note.flowId == serverFlowId);
       if (notes.isEmpty) emptyKeys.add(key);
     });
     for (final key in emptyKeys) {
       _notes.remove(key);
     }
-    _unconfirmed.forget((pending) => pending.flowId == serverFlowId);
+    _unconfirmed.forgetCids(removedCids);
 
     if (mounted) {
       setState(() {});
@@ -21278,13 +21574,21 @@ class CalendarPageState extends State<CalendarPage>
   int _removeLocalNotesForFlowReplacement(int flowId) {
     if (flowId <= 0) return 0;
     var removed = 0;
+    final removedCids = <String>{};
     _notes.removeWhere((_, bucket) {
       final before = bucket.length;
+      removedCids.addAll(
+        bucket
+            .where((note) => note.flowId == flowId)
+            .map((note) => note.clientEventId?.trim())
+            .whereType<String>()
+            .where((cid) => cid.isNotEmpty),
+      );
       bucket.removeWhere((note) => note.flowId == flowId);
       removed += before - bucket.length;
       return bucket.isEmpty;
     });
-    _unconfirmed.forget((pending) => pending.flowId == flowId);
+    _unconfirmed.forgetCids(removedCids);
     return removed;
   }
 
@@ -21295,7 +21599,11 @@ class CalendarPageState extends State<CalendarPage>
 
     final removed = list.removeAt(index);
     if (list.isEmpty) _notes.remove(k);
-    _unconfirmed.forget((pending) => _sameStandaloneLaneNote(removed, pending));
+    final removedCid = removed.clientEventId?.trim();
+    _unconfirmed.forgetCid(removedCid);
+    if (removedCid != null && removedCid.isNotEmpty) {
+      unawaited(_removePersistedPendingCids(<String>[removedCid]));
+    }
     setState(() {});
     _notifyDayViewDataChanged();
     return removed;
@@ -21431,7 +21739,8 @@ class CalendarPageState extends State<CalendarPage>
     if (trimmed.isEmpty) return;
     await _ensureManualDeleteTombstonesLoaded();
     final added = _manualDeleteTombstones.add(trimmed);
-    _unconfirmed.forget((pending) => pending.clientEventId?.trim() == trimmed);
+    _unconfirmed.forgetCid(trimmed);
+    await _removePersistedPendingCids(<String>[trimmed]);
     if (added) {
       await _persistManualDeleteTombstones();
     }
@@ -21523,17 +21832,25 @@ class CalendarPageState extends State<CalendarPage>
     if (flowId <= 0 || dates.isEmpty) return 0;
     final normalizedDates = dates.map(calendarRecurringDateOnly).toSet();
     var removed = 0;
+    final removedCids = <String>{};
     _notes.removeWhere((key, bucket) {
       final bucketDate = _gregorianDateForNoteBucketKey(key);
       if (bucketDate == null || !normalizedDates.contains(bucketDate)) {
         return false;
       }
       final before = bucket.length;
+      removedCids.addAll(
+        bucket
+            .where((note) => (note.flowId ?? -1) == flowId)
+            .map((note) => note.clientEventId?.trim())
+            .whereType<String>()
+            .where((cid) => cid.isNotEmpty),
+      );
       bucket.removeWhere((note) => (note.flowId ?? -1) == flowId);
       removed += before - bucket.length;
       return bucket.isEmpty;
     });
-    _unconfirmed.forget((pending) => pending.flowId == flowId);
+    _unconfirmed.forgetCids(removedCids);
     if (removed > 0) {
       setState(() {});
       _notifyDayViewDataChanged();
@@ -22280,7 +22597,8 @@ class CalendarPageState extends State<CalendarPage>
       _pendingDeleteKeys.add(pendingKey);
       final cid = note.clientEventId?.trim();
       if (cid != null && cid.isNotEmpty) {
-        _unconfirmed.forget((pending) => pending.clientEventId?.trim() == cid);
+        _unconfirmed.forgetCid(cid);
+        await _removePersistedPendingCids(<String>[cid]);
       }
       if (kDebugMode) {
         _calendarDebugPrint('[delete-note] pending delete key=$pendingKey');
@@ -23486,35 +23804,10 @@ class CalendarPageState extends State<CalendarPage>
               incomingCidMatch ||
               titleStartMatch;
         });
-        _unconfirmed.forget((pending) {
-          final noteId = pending.id?.trim() ?? '';
-          final noteCid = pending.clientEventId?.trim() ?? '';
-          final updatedIdMatch =
-              reminderNote.id != null &&
-              reminderNote.id!.isNotEmpty &&
-              noteId == reminderNote.id;
-          final updatedCidMatch =
-              reminderNote.clientEventId != null &&
-              reminderNote.clientEventId!.isNotEmpty &&
-              noteCid == reminderNote.clientEventId;
-          final incomingIdMatch =
-              rawId != null && rawId.isNotEmpty && noteId == rawId;
-          final incomingCidMatch =
-              rawClientId != null &&
-              rawClientId.isNotEmpty &&
-              noteCid == rawClientId;
-          final titleStartMatch =
-              pending.title.trim().toLowerCase() ==
-                  reminderNote.title.trim().toLowerCase() &&
-              pending.start != null &&
-              reminderNote.start != null &&
-              pending.start!.hour == reminderNote.start!.hour &&
-              pending.start!.minute == reminderNote.start!.minute;
-          return updatedIdMatch ||
-              updatedCidMatch ||
-              incomingIdMatch ||
-              incomingCidMatch ||
-              titleStartMatch;
+        _unconfirmed.forgetCids(<String>{
+          if ((reminderNote.clientEventId ?? '').trim().isNotEmpty)
+            reminderNote.clientEventId!.trim(),
+          if ((rawClientId ?? '').trim().isNotEmpty) rawClientId!.trim(),
         });
         logBucket('move: reconciled _notes (fallback)');
       }
@@ -23706,14 +23999,22 @@ class CalendarPageState extends State<CalendarPage>
 
     // prune notes tied to this flow from the in-memory map
     final keysToPrune = <String>[];
+    final removedCids = <String>{};
     _notes.forEach((k, list) {
+      removedCids.addAll(
+        list
+            .where((note) => note.flowId == flowId)
+            .map((note) => note.clientEventId?.trim())
+            .whereType<String>()
+            .where((cid) => cid.isNotEmpty),
+      );
       list.removeWhere((n) => n.flowId == flowId);
       if (list.isEmpty) keysToPrune.add(k);
     });
     for (final k in keysToPrune) {
       _notes.remove(k);
     }
-    _unconfirmed.forget((pending) => pending.flowId == flowId);
+    _unconfirmed.forgetCids(removedCids);
 
     if (isSaved) {
       // For saved flows, keep the flow row and events as a template,
@@ -25801,9 +26102,13 @@ class CalendarPageState extends State<CalendarPage>
     for (final key in emptyKeys) {
       _notes.remove(key);
     }
-    final unconfirmedNotes = _unconfirmed.take(
-      (pending) => pending.flowId == flowId,
-    );
+    final removedCids = removedNotes.values
+        .expand((notes) => notes)
+        .map((note) => note.clientEventId?.trim())
+        .whereType<String>()
+        .where((cid) => cid.isNotEmpty)
+        .toSet();
+    final unconfirmedNotes = _unconfirmed.takeCids(removedCids);
 
     if (existingFlow != null) {
       if (existingFlow.isSaved) {
@@ -28647,6 +28952,7 @@ class CalendarPageState extends State<CalendarPage>
       return;
     }
     await _restoreWarmStartCacheIfAvailable(reason: 'startup_gate:$reason');
+    await _restoreDurablePendingNotesForUser(user.id);
     if (!mounted) return;
     _syncAcceptedInviteCalendarImportsInBackground(reason);
     final keepWarmStartVisible = _hasWarmStartSnapshotVisibleForCurrentUser();
@@ -28679,7 +28985,7 @@ class CalendarPageState extends State<CalendarPage>
             .contextForExecutedSource('startup_backfill:$reason');
         await _syncReminderEvents(
           refreshUi: false,
-          updateLocalCache: !keepWarmStartVisible,
+          updateLocalCache: false,
           diagnosticContext: diagnosticContext,
         );
         await _persistWarmStartCacheNow(
@@ -29364,10 +29670,15 @@ class CalendarPageState extends State<CalendarPage>
         final preservedStandaloneCount = preservePaintedStandaloneLane
             ? _mergePaintedStandaloneLaneInto(newNotes)
             : 0;
-        final unconfirmedMerge = _unconfirmed.mergeInto(
-          newNotes,
-          isSameNote: _sameStandaloneLaneNote,
-        );
+        final unconfirmedMerge = _unconfirmed.mergeInto(newNotes);
+        if (unconfirmedMerge.confirmedCids.isNotEmpty) {
+          unawaited(
+            _removePersistedPendingCids(
+              unconfirmedMerge.confirmedCids,
+              userId: loadUserId,
+            ),
+          );
+        }
         final hydratedTrackSkyFlowIds = newFlows
             .where((flow) => _isTrackSkyFlowName(flow.name))
             .map((flow) => flow.id)
@@ -29418,6 +29729,7 @@ class CalendarPageState extends State<CalendarPage>
         _lastSuccessfulHydrationAt = DateTime.now();
         _warmStartCacheRestoredForUserId = _activeWarmStartUserId();
         _serverHydrationCommittedForUserId = _activeWarmStartUserId();
+        _scheduleExpiredPendingCidVerification();
         if (loadComplete || !hasPaintedEventSnapshotAtLoadStart) {
           _warmStartSnapshotVisible = false;
         }
@@ -29950,6 +30262,22 @@ class CalendarPageState extends State<CalendarPage>
         }
       }
 
+      final reminderProjectionStopwatch = Stopwatch()..start();
+      final projectedReminderCount = _projectReminderMembershipForHydration(
+        flows: newFlows,
+        notesByDay: newNotes,
+      );
+      hydrationDiagnostics.recordPostProcessing(
+        hydrationContext,
+        'reminder_projection_applied',
+        durationMs: reminderProjectionStopwatch.elapsedMilliseconds,
+        changedNotes: projectedReminderCount > 0,
+        fields: <String, Object?>{
+          'added_count': projectedReminderCount,
+          'source': 'complete_snapshot',
+        },
+      );
+
       final diagnosticCompleteness = hydrationDiagnostics.recordCompleteness(
         context: hydrationContext,
         hydrationFlowCount: hydrationFlowIds.length,
@@ -30038,10 +30366,10 @@ class CalendarPageState extends State<CalendarPage>
                 );
               }
             } else {
-              final changed = await _regenReminderNotes(notify: false);
-              if (changed) {
-                _refreshNoteCacheUi();
-              }
+              final changed = await _regenReminderNotes(
+                notify: false,
+                allowVisibleMutation: false,
+              );
               hydrationDiagnostics.recordPostProcessing(
                 hydrationContext,
                 'reminder_regen_ended',
@@ -30913,6 +31241,24 @@ class CalendarPageState extends State<CalendarPage>
       }
 
       final savedClientEventId = updated.clientEventId ?? unifiedCid;
+      final pendingCreatedAt = DateTime.now().toUtc();
+      final savedNote = note.copyWith(
+        id: updated.id,
+        clientEventId: savedClientEventId,
+        calendarId: updated.calendarId ?? calendarId,
+        calendarName: calendarName,
+      );
+      final pendingDayKey = _kKey(selYear, selMonth, selDay);
+      final pendingUserId = _activeWarmStartUserId();
+      if (pendingUserId == null) {
+        throw StateError('Cannot persist pending note without a user');
+      }
+      await _persistPendingNote(
+        userId: pendingUserId,
+        dayKey: pendingDayKey,
+        note: savedNote,
+        createdAt: pendingCreatedAt,
+      );
 
       _addNote(
         selYear,
@@ -30932,15 +31278,11 @@ class CalendarPageState extends State<CalendarPage>
         category: category,
         alertOffsetMinutes: alertMinutesBefore,
         confirmation: NoteConfirmation.unconfirmed,
+        unconfirmedCreatedAt: pendingCreatedAt,
       );
 
       final scheduleResult = await _scheduleAlertForEvent(
-        note: note.copyWith(
-          id: updated.id,
-          clientEventId: updated.clientEventId,
-          calendarId: calendarId,
-          calendarName: calendarName,
-        ),
+        note: savedNote,
         ky: selYear,
         km: selMonth,
         kd: selDay,
@@ -33003,6 +33345,87 @@ class CalendarPageState extends State<CalendarPage>
   @visibleForTesting
   int get debugUnconfirmedCount => _unconfirmed.length;
 
+  @visibleForTesting
+  Future<void> debugPersistPendingNoteForTesting({
+    required String userId,
+    required int kYear,
+    required int kMonth,
+    required int kDay,
+    required String clientEventId,
+    required DateTime createdAt,
+  }) async {
+    final dayKey = _kKey(kYear, kMonth, kDay);
+    final note = (_notes[dayKey] ?? const <_Note>[]).firstWhere(
+      (candidate) => candidate.clientEventId?.trim() == clientEventId.trim(),
+    );
+    await _persistPendingNote(
+      userId: userId,
+      dayKey: dayKey,
+      note: note,
+      createdAt: createdAt,
+    );
+  }
+
+  @visibleForTesting
+  void debugDestroyInMemoryPendingState({bool keepWarmNotes = true}) {
+    _unconfirmed.clear();
+    _pendingNotesRestoredForUserId = null;
+    if (!keepWarmNotes) _notes.clear();
+  }
+
+  @visibleForTesting
+  Future<void> debugRestorePendingNotesForTesting(String userId) {
+    return _restoreDurablePendingNotesForUser(userId, requireActiveUser: false);
+  }
+
+  @visibleForTesting
+  int debugPendingNotesDueForVerification(DateTime now) =>
+      _unconfirmed.dueForVerification(now: now).length;
+
+  @visibleForTesting
+  int debugProjectReminderMembershipForTesting({
+    required ReminderRule rule,
+    int flowId = 9001,
+  }) {
+    final flow = _Flow(
+      id: flowId,
+      calendarId: rule.calendarId,
+      name: rule.title,
+      color: rule.color,
+      active: true,
+      rules: const <FlowRule>[],
+      start: rule.startLocal,
+      end: rule.endLocal,
+      notes: jsonEncode(rule.toJson()),
+      isReminder: true,
+      reminderUuid: rule.id,
+    );
+    return _projectReminderMembershipForHydration(
+      flows: <_Flow>[flow],
+      notesByDay: _notes,
+    );
+  }
+
+  @visibleForTesting
+  Future<bool> debugRunPostCompleteReminderRegenForTesting() {
+    return _regenReminderNotes(notify: false, allowVisibleMutation: false);
+  }
+
+  @visibleForTesting
+  bool debugRunPostCompleteReminderSyncProjectionForTesting({
+    required ReminderRule rule,
+    int flowId = 9001,
+  }) {
+    final today = DateUtils.dateOnly(rule.startLocal);
+    return _applyReminderSyncVisibleMembership(
+      updateLocalCache: false,
+      rule: rule,
+      occurrences: _generateReminderOccurrences(rule, today, today),
+      flowId: flowId,
+      fromDate: today,
+    );
+  }
+
   /// Runs the commit-seam merge and writes the result into `_notes`.
   ///
   /// When [emptyIncoming] is true, merges against an empty hydration map
@@ -33017,14 +33440,11 @@ class CalendarPageState extends State<CalendarPage>
             for (final entry in _notes.entries)
               entry.key: List<_Note>.from(entry.value),
           };
-    final result = _unconfirmed.mergeInto(
-      notesByDay,
-      isSameNote: _sameStandaloneLaneNote,
-    );
+    final result = _unconfirmed.mergeInto(notesByDay);
     _notes
       ..clear()
       ..addAll(notesByDay);
-    return result;
+    return (preserved: result.preserved, confirmed: result.confirmed);
   }
 
   /// Test access to production `_addNote` (library-private).

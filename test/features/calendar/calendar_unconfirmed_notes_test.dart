@@ -26,6 +26,13 @@ void main() {
     );
   });
 
+  setUp(() {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'app:has_seen_onboarding': true,
+      'app:onboarding:completed': true,
+    });
+  });
+
   Future<CalendarPageState> pumpCalendar(WidgetTester tester) async {
     final key = GlobalKey<CalendarPageState>();
     await tester.pumpWidget(
@@ -153,27 +160,170 @@ void main() {
     await disposeCalendar(tester);
   });
 
-  test('5. mergeInto is after epoch/same-user guards in commitVisibleCalendarState', () {
-    final source = File(
-      'lib/features/calendar/calendar_page.dart',
-    ).readAsStringSync();
-    final commitStart = source.indexOf('void commitVisibleCalendarState(');
-    expect(commitStart, greaterThanOrEqualTo(0));
-    final commitSlice = source.substring(
-      commitStart,
-      source.indexOf('Future<void> finishNonCriticalPostProcessing()', commitStart),
-    );
-    final isCurrentAt = commitSlice.indexOf(
-      'if (!_loadCoordinator.isCurrent(epoch)) return;',
-    );
-    final sameUserAt = commitSlice.indexOf(
-      'if (_activeWarmStartUserId() != loadUserId) return;',
-    );
-    final mergeAt = commitSlice.indexOf('_unconfirmed.mergeInto(');
-    expect(isCurrentAt, greaterThanOrEqualTo(0));
-    expect(sameUserAt, greaterThan(isCurrentAt));
-    expect(mergeAt, greaterThan(sameUserAt));
-  });
+  test(
+    '5. mergeInto is after epoch/same-user guards in commitVisibleCalendarState',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final commitStart = source.indexOf('void commitVisibleCalendarState(');
+      expect(commitStart, greaterThanOrEqualTo(0));
+      final commitSlice = source.substring(
+        commitStart,
+        source.indexOf(
+          'Future<void> finishNonCriticalPostProcessing()',
+          commitStart,
+        ),
+      );
+      final isCurrentAt = commitSlice.indexOf(
+        'if (!_loadCoordinator.isCurrent(epoch)) return;',
+      );
+      final sameUserAt = commitSlice.indexOf(
+        'if (_activeWarmStartUserId() != loadUserId) return;',
+      );
+      final mergeAt = commitSlice.indexOf('_unconfirmed.mergeInto(');
+      expect(isCurrentAt, greaterThanOrEqualTo(0));
+      expect(sameUserAt, greaterThan(isCurrentAt));
+      expect(mergeAt, greaterThan(sameUserAt));
+    },
+  );
+
+  testWidgets(
+    '6. persisted pending note joins restored warm note and survives omitted complete snapshot',
+    (tester) async {
+      const userId = 'restart-user';
+      const cid = 'cid-restart-warm';
+      const ky = 2;
+      const km = 1;
+      const kd = 6;
+      final createdAt = DateTime.utc(2026, 8, 10, 20);
+
+      var state = await pumpCalendar(tester);
+      expect(
+        state.debugAddNote(
+          ky,
+          km,
+          kd,
+          'Restart-safe warm event',
+          null,
+          clientEventId: cid,
+          confirmation: NoteConfirmation.unconfirmed,
+        ),
+        isTrue,
+      );
+      await state.debugPersistPendingNoteForTesting(
+        userId: userId,
+        kYear: ky,
+        kMonth: km,
+        kDay: kd,
+        clientEventId: cid,
+        createdAt: createdAt,
+      );
+      await disposeCalendar(tester);
+
+      state = await pumpCalendar(tester);
+      // This confirmed local row stands in for the separately restored warm
+      // snapshot, whose serialized payload intentionally has no pending flag.
+      state.debugAddNote(
+        ky,
+        km,
+        kd,
+        'Restart-safe warm event',
+        null,
+        clientEventId: cid,
+      );
+      await state.debugRestorePendingNotesForTesting(userId);
+      expect(state.debugUnconfirmedCount, 1);
+      expect(
+        state.debugPendingNotesDueForVerification(
+          createdAt.add(const Duration(minutes: 3)),
+        ),
+        1,
+        reason: 'restore must retain the original createdAt',
+      );
+
+      final merge = state.debugMergeUnconfirmedInto(emptyIncoming: true);
+      expect(merge.preserved, 1);
+      expect(state.filteredNoteCountForDay(ky, km, kd), 1);
+      await disposeCalendar(tester);
+    },
+  );
+
+  testWidgets(
+    '7. missing warm-cache note reconstructs from durable pending payload',
+    (tester) async {
+      const userId = 'payload-user';
+      const cid = 'cid-restart-payload';
+      const ky = 2;
+      const km = 1;
+      const kd = 7;
+
+      var state = await pumpCalendar(tester);
+      state.debugAddNote(
+        ky,
+        km,
+        kd,
+        'Reconstruct me',
+        'payload detail',
+        clientEventId: cid,
+        confirmation: NoteConfirmation.unconfirmed,
+      );
+      await state.debugPersistPendingNoteForTesting(
+        userId: userId,
+        kYear: ky,
+        kMonth: km,
+        kDay: kd,
+        clientEventId: cid,
+        createdAt: DateTime.utc(2026, 8, 10, 21),
+      );
+      await disposeCalendar(tester);
+
+      state = await pumpCalendar(tester);
+      expect(state.filteredNoteCountForDay(ky, km, kd), 0);
+      await state.debugRestorePendingNotesForTesting(userId);
+      expect(state.debugUnconfirmedCount, 1);
+      expect(state.filteredNoteCountForDay(ky, km, kd), 1);
+
+      final restored = state.notesForDayForTesting(ky, km, kd).single;
+      expect(restored.title, 'Reconstruct me');
+      expect(restored.detail, 'payload detail');
+      final merge = state.debugMergeUnconfirmedInto(emptyIncoming: true);
+      expect(merge.preserved, 1);
+      expect(state.filteredNoteCountForDay(ky, km, kd), 1);
+      await disposeCalendar(tester);
+    },
+  );
+
+  testWidgets(
+    '8. expired pending note survives while forced-live verification is unavailable',
+    (tester) async {
+      final state = await pumpCalendar(tester);
+      const ky = 2;
+      const km = 1;
+      const kd = 8;
+      state.debugAddNote(
+        ky,
+        km,
+        kd,
+        'Verification unavailable',
+        null,
+        clientEventId: 'cid-verify-unavailable',
+        confirmation: NoteConfirmation.unconfirmed,
+      );
+      expect(
+        state.debugPendingNotesDueForVerification(
+          DateTime.now().toUtc().add(const Duration(minutes: 3)),
+        ),
+        1,
+      );
+
+      final merge = state.debugMergeUnconfirmedInto(emptyIncoming: true);
+      expect(merge.preserved, 1);
+      expect(state.debugUnconfirmedCount, 1);
+      expect(state.filteredNoteCountForDay(ky, km, kd), 1);
+      await disposeCalendar(tester);
+    },
+  );
 }
 
 class _RejectingClient extends http.BaseClient {
