@@ -225,3 +225,29 @@ class ReminderRule {
     return out;
   }
 }
+
+/// Decodes a reminder rule stored in a flow row while preserving the
+/// difference between an explicitly open-ended rule and a legacy payload that
+/// did not encode an end field.
+///
+/// Current and legacy reminder payloads may declare their end using
+/// `endLocal`, `endDate`, or `end_date`. When any recognized field is present,
+/// its value (including null) is authoritative. The flow wrapper's end date is
+/// only a compatibility fallback for payloads where every recognized field is
+/// absent.
+ReminderRule reminderRuleFromFlowPayload({
+  required Map<String, dynamic> payload,
+  String? fallbackCalendarId,
+  DateTime? legacyFlowEnd,
+}) {
+  final declaresEnd =
+      payload.containsKey('endLocal') ||
+      payload.containsKey('endDate') ||
+      payload.containsKey('end_date');
+  final rule = ReminderRule.fromJson(payload);
+  final calendarId = rule.calendarId ?? fallbackCalendarId;
+  if (declaresEnd) {
+    return rule.copyWith(calendarId: calendarId);
+  }
+  return rule.copyWith(calendarId: calendarId, endLocal: legacyFlowEnd);
+}
