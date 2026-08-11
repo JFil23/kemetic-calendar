@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 const _userId = '27d63169-a28a-4550-a0a0-8fee0e8e7b95';
+final _hydrationStart = DateTime.utc(2026, 1, 1);
+final _hydrationEnd = DateTime.utc(2026, 1, 2);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -37,9 +39,12 @@ void main() {
 
         expect(await repo.getAllFlows(diagnosticContext: context), isEmpty);
         expect(
-          (await repo.getEventsForFlowIds(<int>{
-            1,
-          }, diagnosticContext: context)).status,
+          (await repo.getEventsForFlowIds(
+            <int>{1},
+            startUtc: _hydrationStart,
+            endUtc: _hydrationEnd,
+            diagnosticContext: context,
+          )).status,
           HydrationFetchStatus.successfulEmpty,
         );
         expect(
@@ -88,9 +93,12 @@ void main() {
           throwsA(isA<PostgrestException>()),
         );
         expect(
-          (await repo.getEventsForFlowIds(<int>{
-            1,
-          }, diagnosticContext: context)).status,
+          (await repo.getEventsForFlowIds(
+            <int>{1},
+            startUtc: _hydrationStart,
+            endUtc: _hydrationEnd,
+            diagnosticContext: context,
+          )).status,
           HydrationFetchStatus.failed,
         );
         expect(
@@ -135,9 +143,12 @@ void main() {
 
         expect(await repo.getAllFlows(diagnosticContext: context), isEmpty);
         expect(
-          (await repo.getEventsForFlowIds(<int>{
-            1,
-          }, diagnosticContext: context)).status,
+          (await repo.getEventsForFlowIds(
+            <int>{1},
+            startUtc: _hydrationStart,
+            endUtc: _hydrationEnd,
+            diagnosticContext: context,
+          )).status,
           HydrationFetchStatus.unauthenticated,
         );
         expect(
@@ -171,21 +182,93 @@ void main() {
     },
   );
 
-  test('a later-page failure discards the accumulated batch', () async {
+  test('critical hydration lanes use the versioned RPC contract', () async {
+    final transport = _HydrationClient(fail: false);
     final client = SupabaseClient(
       'https://example.supabase.test',
       'test-anon-key',
-      httpClient: _SecondPageFailureClient(),
+      httpClient: transport,
       authOptions: const AuthClientOptions(autoRefreshToken: false),
     );
     try {
       await client.auth.recoverSession(_sessionJson());
-      final result = await UserEventsRepo(
-        client,
-      ).getEventsForFlowIds(<int>{1}, pageSize: 1);
+      final repo = UserEventsRepo(client);
+      final start = DateTime.utc(2026, 1, 1);
+      final end = DateTime.utc(2026, 1, 3);
+
+      await repo.getEventsForFlowIds(
+        <int>{7, 3},
+        pageSize: 25,
+        startUtc: start,
+        endUtc: end,
+      );
+      await repo.getStandaloneEventsForDateRangeAll(
+        startUtc: start,
+        endUtc: end,
+        pageSize: 25,
+      );
+
+      final rpcRequests = transport.requests
+          .where(
+            (request) =>
+                request.url.path ==
+                '/rest/v1/rpc/get_calendar_hydration_events_v1',
+          )
+          .toList(growable: false);
+      expect(rpcRequests, hasLength(2));
+      expect(
+        rpcRequests.map((request) => request.url.path),
+        everyElement('/rest/v1/rpc/get_calendar_hydration_events_v1'),
+      );
+      expect(
+        transport.requests.map((request) => request.url.path),
+        isNot(contains('/rest/v1/user_event_filing_items_client')),
+      );
+
+      final flowBody = transport.bodyAt(0);
+      expect(flowBody['p_lane'], 'flow');
+      expect(flowBody['p_flow_ids'], <int>[3, 7]);
+      expect(flowBody['p_page_limit'], 25);
+      expect(flowBody['p_page_offset'], 0);
+      expect(flowBody['p_start_utc'], start.toIso8601String());
+      expect(flowBody['p_end_utc'], end.toIso8601String());
+
+      final standaloneBody = transport.bodyAt(1);
+      expect(standaloneBody['p_lane'], 'standalone');
+      expect(standaloneBody['p_flow_ids'], isNull);
+      expect(standaloneBody['p_page_limit'], 25);
+      expect(standaloneBody['p_page_offset'], 0);
+    } finally {
+      client.dispose();
+    }
+  });
+
+  test('a later-page failure discards the accumulated batch', () async {
+    final transport = _SecondPageFailureClient();
+    final client = SupabaseClient(
+      'https://example.supabase.test',
+      'test-anon-key',
+      httpClient: transport,
+      authOptions: const AuthClientOptions(autoRefreshToken: false),
+    );
+    try {
+      await client.auth.recoverSession(_sessionJson());
+      final result = await UserEventsRepo(client).getEventsForFlowIds(
+        <int>{1},
+        pageSize: 1,
+        startUtc: _hydrationStart,
+        endUtc: _hydrationEnd,
+      );
 
       expect(result.status, HydrationFetchStatus.failed);
       expect(result.value, isEmpty);
+      expect(transport.requests, hasLength(2));
+      expect(
+        transport.requests.map((request) => request.url.path),
+        everyElement('/rest/v1/rpc/get_calendar_hydration_events_v1'),
+      );
+      expect(transport.bodyAt(0)['p_page_offset'], 0);
+      expect(transport.bodyAt(1)['p_page_offset'], 1);
     } finally {
       client.dispose();
     }
@@ -225,9 +308,16 @@ class _HydrationClient extends http.BaseClient {
   _HydrationClient({required this.fail});
 
   final bool fail;
+  final List<http.BaseRequest> requests = <http.BaseRequest>[];
+
+  Map<String, Object?> bodyAt(int index) {
+    final request = requests[index] as http.Request;
+    return Map<String, Object?>.from(jsonDecode(request.body) as Map);
+  }
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    requests.add(request);
     if (fail) {
       return _jsonResponse(request, const <String, Object?>{
         'message': 'fixture failure',
@@ -255,9 +345,16 @@ class _HydrationClient extends http.BaseClient {
 
 class _SecondPageFailureClient extends http.BaseClient {
   int _requestCount = 0;
+  final List<http.BaseRequest> requests = <http.BaseRequest>[];
+
+  Map<String, Object?> bodyAt(int index) {
+    final request = requests[index] as http.Request;
+    return Map<String, Object?>.from(jsonDecode(request.body) as Map);
+  }
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    requests.add(request);
     _requestCount++;
     if (_requestCount == 1) {
       return _jsonResponse(request, <Object?>[

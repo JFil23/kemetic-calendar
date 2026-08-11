@@ -29605,8 +29605,8 @@ class CalendarPageState extends State<CalendarPage>
         try {
           final batchedResult = await repo.getEventsForFlowIds(
             hydrationFlowIds,
-            startUtc: flowWindow?.startUtc,
-            endUtc: flowWindow?.endUtc,
+            startUtc: flowWindow!.startUtc,
+            endUtc: flowWindow.endUtc,
             diagnosticContext: hydrationContext,
           );
           flowHydrationStatus = batchedResult.status;

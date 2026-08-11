@@ -12,6 +12,11 @@ import '../utils/flow_filter_engine.dart';
 
 const _kTable = 'user_events';
 const _kReadableEventsTable = 'user_event_filing_items_client';
+const _kCalendarHydrationRpc = 'get_calendar_hydration_events_v1';
+const _kUseLegacyCalendarHydrationView = bool.fromEnvironment(
+  'KEMET_USE_LEGACY_CALENDAR_HYDRATION_VIEW',
+  defaultValue: false,
+);
 
 void _log(String msg) {
   if (kDebugMode) debugPrint('[user_events] ${redactLogText(msg)}');
@@ -1742,6 +1747,7 @@ class UserEventsRepo {
     HydrationDiagnosticContext? diagnosticContext,
   }) async {
     final stopwatch = Stopwatch()..start();
+    final effectivePageSize = pageSize.clamp(1, 2000);
     final user = _client.auth.currentUser;
     if (user == null) {
       CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
@@ -1762,6 +1768,7 @@ class UserEventsRepo {
 
     final List<Map<String, dynamic>> pages = [];
     int pageCount = 0;
+    int requestCount = 0;
     int offset = 0;
 
     HydrationFetchResult<StandaloneEventRangeResult> failedResult() {
@@ -1775,17 +1782,31 @@ class UserEventsRepo {
 
     try {
       while (true) {
-        var query = _client
-            .from(_kReadableEventsTable)
-            .select(_flowEventReadSelect)
-            .inFilter('item_kind', const ['note', 'reminder'])
-            .gte('starts_at', startUtc.toUtc().toIso8601String())
-            .lt('starts_at', endUtc.toUtc().toIso8601String())
-            .order('starts_at', ascending: true)
-            .order('id', ascending: true)
-            .range(offset, offset + pageSize - 1);
-
-        final rows = await query;
+        requestCount++;
+        final dynamic rows;
+        if (_kUseLegacyCalendarHydrationView) {
+          rows = await _client
+              .from(_kReadableEventsTable)
+              .select(_flowEventReadSelect)
+              .inFilter('item_kind', const ['note', 'reminder'])
+              .gte('starts_at', startUtc.toUtc().toIso8601String())
+              .lt('starts_at', endUtc.toUtc().toIso8601String())
+              .order('starts_at', ascending: true)
+              .order('id', ascending: true)
+              .range(offset, offset + effectivePageSize - 1);
+        } else {
+          rows = await _client.rpc(
+            _kCalendarHydrationRpc,
+            params: <String, Object?>{
+              'p_start_utc': startUtc.toUtc().toIso8601String(),
+              'p_end_utc': endUtc.toUtc().toIso8601String(),
+              'p_lane': 'standalone',
+              'p_flow_ids': null,
+              'p_page_limit': effectivePageSize,
+              'p_page_offset': offset,
+            },
+          );
+        }
         final pageRows = (rows as List).cast<Map<String, dynamic>>().toList(
           growable: false,
         );
@@ -1798,10 +1819,10 @@ class UserEventsRepo {
           );
         }
 
-        if (pageRows.length < pageSize) {
+        if (pageRows.length < effectivePageSize) {
           break;
         }
-        offset += pageSize;
+        offset += effectivePageSize;
       }
     } on PostgrestException catch (e) {
       _log(
@@ -1814,7 +1835,7 @@ class UserEventsRepo {
         status: HydrationFetchStatus.failed,
         durationMs: stopwatch.elapsedMilliseconds,
         rowCount: pages.length,
-        requestCount: pageCount,
+        requestCount: requestCount,
         pageCount: pageCount,
         safeErrorClass: e.runtimeType.toString(),
       );
@@ -1827,7 +1848,7 @@ class UserEventsRepo {
         status: HydrationFetchStatus.failed,
         durationMs: stopwatch.elapsedMilliseconds,
         rowCount: pages.length,
-        requestCount: pageCount,
+        requestCount: requestCount,
         pageCount: pageCount,
         safeErrorClass: e.runtimeType.toString(),
       );
@@ -2251,11 +2272,12 @@ class UserEventsRepo {
   Future<HydrationFetchResult<List<FlowEventRow>>> getEventsForFlowIds(
     Set<int> flowIds, {
     int pageSize = 1000,
-    DateTime? startUtc,
-    DateTime? endUtc,
+    required DateTime startUtc,
+    required DateTime endUtc,
     HydrationDiagnosticContext? diagnosticContext,
   }) async {
     final stopwatch = Stopwatch()..start();
+    final effectivePageSize = pageSize.clamp(1, 2000);
     if (flowIds.isEmpty) {
       CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
         context: diagnosticContext,
@@ -2284,26 +2306,40 @@ class UserEventsRepo {
     final events = <FlowEventRow>[];
     int offset = 0;
     int pageCount = 0;
+    int requestCount = 0;
 
     try {
       while (true) {
-        var query = _client
-            .from(_kReadableEventsTable)
-            .select(_flowEventReadSelect)
-            .inFilter('filed_flow_id', ids)
-            .eq('item_kind', 'flow');
+        requestCount++;
+        final dynamic rows;
+        if (_kUseLegacyCalendarHydrationView) {
+          var query = _client
+              .from(_kReadableEventsTable)
+              .select(_flowEventReadSelect)
+              .inFilter('filed_flow_id', ids)
+              .eq('item_kind', 'flow');
 
-        if (startUtc != null) {
-          query = query.gte('starts_at', startUtc.toUtc().toIso8601String());
-        }
-        if (endUtc != null) {
-          query = query.lt('starts_at', endUtc.toUtc().toIso8601String());
-        }
+          query = query
+              .gte('starts_at', startUtc.toUtc().toIso8601String())
+              .lt('starts_at', endUtc.toUtc().toIso8601String());
 
-        final rows = await query
-            .order('filed_flow_id', ascending: true)
-            .order('starts_at', ascending: true)
-            .range(offset, offset + pageSize - 1);
+          rows = await query
+              .order('filed_flow_id', ascending: true)
+              .order('starts_at', ascending: true)
+              .range(offset, offset + effectivePageSize - 1);
+        } else {
+          rows = await _client.rpc(
+            _kCalendarHydrationRpc,
+            params: <String, Object?>{
+              'p_start_utc': startUtc.toUtc().toIso8601String(),
+              'p_end_utc': endUtc.toUtc().toIso8601String(),
+              'p_lane': 'flow',
+              'p_flow_ids': ids,
+              'p_page_limit': effectivePageSize,
+              'p_page_offset': offset,
+            },
+          );
+        }
         final typedRows = (rows as List).cast<Map<String, dynamic>>();
         final page = typedRows
             .where(filingRowIsFlowCalendarEvent)
@@ -2313,10 +2349,10 @@ class UserEventsRepo {
         events.addAll(page);
         pageCount++;
 
-        if (typedRows.length < pageSize) {
+        if (typedRows.length < effectivePageSize) {
           break;
         }
-        offset += pageSize;
+        offset += effectivePageSize;
       }
 
       if (kDebugMode) {
@@ -2337,7 +2373,7 @@ class UserEventsRepo {
         status: HydrationFetchStatus.failed,
         durationMs: stopwatch.elapsedMilliseconds,
         rowCount: events.length,
-        requestCount: pageCount,
+        requestCount: requestCount,
         pageCount: pageCount,
         safeErrorClass: e.runtimeType.toString(),
       );
@@ -2353,7 +2389,7 @@ class UserEventsRepo {
         status: HydrationFetchStatus.failed,
         durationMs: stopwatch.elapsedMilliseconds,
         rowCount: events.length,
-        requestCount: pageCount,
+        requestCount: requestCount,
         pageCount: pageCount,
         safeErrorClass: e.runtimeType.toString(),
       );
@@ -2368,7 +2404,7 @@ class UserEventsRepo {
           : HydrationFetchStatus.successNonempty,
       durationMs: stopwatch.elapsedMilliseconds,
       rowCount: events.length,
-      requestCount: pageCount,
+      requestCount: requestCount,
       pageCount: pageCount,
     );
 
