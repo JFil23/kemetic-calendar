@@ -19,6 +19,35 @@ typedef CalendarLoadRunner =
       required int epoch,
     });
 
+enum CalendarLoadObservationKind {
+  requested,
+  passStarted,
+  passEnded,
+  queueIdle,
+  invalidated,
+}
+
+@immutable
+class CalendarLoadObservation {
+  const CalendarLoadObservation({
+    required this.kind,
+    required this.source,
+    required this.passActive,
+    this.overwrittenSource,
+    this.epoch,
+    this.succeeded,
+  });
+
+  final CalendarLoadObservationKind kind;
+  final String source;
+  final bool passActive;
+  final String? overwrittenSource;
+  final int? epoch;
+  final bool? succeeded;
+}
+
+typedef CalendarLoadObserver = void Function(CalendarLoadObservation event);
+
 /// Owns all hydration scheduling for the calendar page: epoch tokens,
 /// single-flight with a drain queue, and the CalendarInvalidationBus
 /// subscription plus its debounce and revision bookkeeping.
@@ -40,12 +69,14 @@ class CalendarLoadCoordinator {
     void Function(String message)? debugLog,
     Duration debounce = const Duration(milliseconds: 80),
     CalendarInvalidationBus? bus,
+    CalendarLoadObserver? observer,
   }) : _runner = runner,
        _isMounted = isMounted,
        _isDeferred = isDeferred ?? _never,
        _debugLog = debugLog,
        _debounce = debounce,
-       _bus = bus ?? CalendarInvalidationBus.instance;
+       _bus = bus ?? CalendarInvalidationBus.instance,
+       _observer = observer;
 
   final CalendarLoadRunner _runner;
   final bool Function() _isMounted;
@@ -58,6 +89,7 @@ class CalendarLoadCoordinator {
   final void Function(String message)? _debugLog;
   final Duration _debounce;
   final CalendarInvalidationBus _bus;
+  final CalendarLoadObserver? _observer;
 
   static bool _never() => false;
 
@@ -83,6 +115,14 @@ class CalendarLoadCoordinator {
   void invalidate({String reason = 'invalidate'}) {
     _epoch++;
     _queued = false;
+    _observe(
+      CalendarLoadObservation(
+        kind: CalendarLoadObservationKind.invalidated,
+        source: reason,
+        passActive: _inFlight != null,
+        epoch: _epoch,
+      ),
+    );
     _log('epoch invalidated reason=$reason -> $_epoch');
   }
 
@@ -114,6 +154,15 @@ class CalendarLoadCoordinator {
     String source = 'manual',
     bool preserveViewport = false,
   }) {
+    final overwrittenSource = _queued ? _queuedSource : null;
+    _observe(
+      CalendarLoadObservation(
+        kind: CalendarLoadObservationKind.requested,
+        source: source,
+        passActive: _inFlight != null || _pumping,
+        overwrittenSource: overwrittenSource,
+      ),
+    );
     _queued = true;
     _queuedSource = source;
     _queuedPreserveViewport = preserveViewport;
@@ -130,6 +179,15 @@ class CalendarLoadCoordinator {
         final source = _queuedSource;
         final preserveViewport = _queuedPreserveViewport;
         final epoch = ++_epoch;
+        _observe(
+          CalendarLoadObservation(
+            kind: CalendarLoadObservationKind.passStarted,
+            source: source,
+            passActive: true,
+            epoch: epoch,
+          ),
+        );
+        var succeeded = false;
         try {
           _inFlight = _runner(
             source: source,
@@ -138,12 +196,22 @@ class CalendarLoadCoordinator {
           );
           await _inFlight;
           _lastPassSucceeded = true;
+          succeeded = true;
         } catch (err, st) {
           _lastPassSucceeded = false;
           _log('load failed source=$source: $err');
           if (kDebugMode) _log('$st');
         } finally {
           _inFlight = null;
+          _observe(
+            CalendarLoadObservation(
+              kind: CalendarLoadObservationKind.passEnded,
+              source: source,
+              passActive: false,
+              epoch: epoch,
+              succeeded: succeeded,
+            ),
+          );
         }
       }
     } finally {
@@ -154,6 +222,13 @@ class CalendarLoadCoordinator {
       final completer = _idle;
       _idle = null;
       completer?.complete();
+      _observe(
+        const CalendarLoadObservation(
+          kind: CalendarLoadObservationKind.queueIdle,
+          source: 'idle',
+          passActive: false,
+        ),
+      );
     }
   }
 
@@ -238,5 +313,13 @@ class CalendarLoadCoordinator {
   void _log(String message) {
     if (!kDebugMode) return;
     _debugLog?.call('[loadCoordinator] $message');
+  }
+
+  void _observe(CalendarLoadObservation event) {
+    try {
+      _observer?.call(event);
+    } catch (_) {
+      // Diagnostics must never affect hydration scheduling.
+    }
   }
 }

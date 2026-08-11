@@ -20,6 +20,7 @@ import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/features/onboarding/daily_orientation_repo.dart';
 import 'calendar_page.dart';
+import 'calendar_hydration_diagnostics.dart';
 import 'calendar_completion.dart';
 import 'calendar_event_visual_style.dart';
 import 'calendar_reflection_context.dart';
@@ -4946,6 +4947,7 @@ class DayViewPage extends StatefulWidget {
   final Set<int> activeLedgerFlowIds;
   final Set<int> Function()? activeLedgerFlowIdsBuilder;
   final ValueListenable<int>? dataVersion;
+  final ValueListenable<int>? hydrationActivation;
   final String Function(int km) getMonthName;
   final int? initialFirstVisibleMinute;
   final double? initialScrollOffset; // optional: jump to a target time on open
@@ -5042,6 +5044,7 @@ class DayViewPage extends StatefulWidget {
     this.activeLedgerFlowIds = const <int>{},
     this.activeLedgerFlowIdsBuilder,
     this.dataVersion,
+    this.hydrationActivation,
     required this.getMonthName,
     this.initialFirstVisibleMinute,
     this.initialScrollOffset,
@@ -5131,6 +5134,67 @@ class _DayViewPageState extends State<DayViewPage> {
     debugLabel: 'day_view_date_reveal_target',
   );
   Timer? _restorationDebounce;
+  bool _hydrationFrameScheduled = false;
+  bool _hydrationFirstFrameRecorded = false;
+
+  HydrationSelectedDaySnapshot _hydrationSelectedDaySnapshot() {
+    final notes = widget.notesForDay(_currentKy, _currentKm, _currentKd);
+    var flowBacked = 0;
+    var reminders = 0;
+    var standalone = 0;
+    var startMinuteSum = 0;
+    var checksum = 0x811c9dc5;
+    for (final note in notes) {
+      final startMinute = note.allDay
+          ? 0
+          : (note.start?.hour ?? 0) * 60 + (note.start?.minute ?? 0);
+      startMinuteSum += startMinute;
+      if (note.isReminder) {
+        reminders++;
+      } else if ((note.flowId ?? -1) > 0) {
+        flowBacked++;
+      } else {
+        standalone++;
+      }
+      for (final value in <int>[
+        startMinute,
+        note.allDay ? 1 : 0,
+        note.isReminder ? 1 : 0,
+        (note.flowId ?? -1) > 0 ? 1 : 0,
+      ]) {
+        checksum = ((checksum ^ value) * 0x01000193) & 0x7fffffff;
+      }
+    }
+    return HydrationSelectedDaySnapshot(
+      eventCount: notes.length,
+      flowBackedCount: flowBacked,
+      reminderCount: reminders,
+      standaloneCount: standalone,
+      startMinuteSum: startMinuteSum,
+      multisetChecksum: checksum,
+    );
+  }
+
+  void _scheduleHydrationFrame() {
+    if (_hydrationFrameScheduled) return;
+    _hydrationFrameScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _hydrationFrameScheduled = false;
+      if (!mounted) return;
+      final firstFrame = !_hydrationFirstFrameRecorded;
+      _hydrationFirstFrameRecorded = true;
+      CalendarHydrationDiagnostics.instance.recordDayViewFrame(
+        selectedDay: _hydrationSelectedDaySnapshot(),
+        dataVersion: widget.dataVersion?.value ?? 0,
+        firstFrame: firstFrame,
+        hasLocalSnapshot: true,
+      );
+    });
+  }
+
+  void _handleHydrationDataVersionChanged() => _scheduleHydrationFrame();
+
+  void _handleHydrationActivation() => _scheduleHydrationFrame();
 
   @override
   void initState() {
@@ -5148,6 +5212,10 @@ class _DayViewPageState extends State<DayViewPage> {
     _activeEventDetailRestoration = widget.initialEventDetailRestorationState;
     _pageController = PageController(initialPage: _centerPage);
     _miniCalendarScrollController = ScrollController();
+    CalendarHydrationDiagnostics.instance.recordDayViewMounted();
+    widget.dataVersion?.addListener(_handleHydrationDataVersionChanged);
+    widget.hydrationActivation?.addListener(_handleHydrationActivation);
+    _scheduleHydrationFrame();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _centerMiniCalendarOnDay(_currentKd, animated: false, force: true);
     });
@@ -5161,6 +5229,16 @@ class _DayViewPageState extends State<DayViewPage> {
   @override
   void didUpdateWidget(covariant DayViewPage old) {
     super.didUpdateWidget(old);
+    if (old.dataVersion != widget.dataVersion) {
+      old.dataVersion?.removeListener(_handleHydrationDataVersionChanged);
+      widget.dataVersion?.addListener(_handleHydrationDataVersionChanged);
+      _scheduleHydrationFrame();
+    }
+    if (old.hydrationActivation != widget.hydrationActivation) {
+      old.hydrationActivation?.removeListener(_handleHydrationActivation);
+      widget.hydrationActivation?.addListener(_handleHydrationActivation);
+      _scheduleHydrationFrame();
+    }
     if (old.eventDetailRequestListenable !=
         widget.eventDetailRequestListenable) {
       old.eventDetailRequestListenable?.removeListener(
@@ -5206,15 +5284,19 @@ class _DayViewPageState extends State<DayViewPage> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _centerMiniCalendarOnDay(_currentKd, animated: false, force: true);
       });
+      _scheduleHydrationFrame();
     }
   }
 
   @override
   void dispose() {
+    unawaited(CalendarHydrationDiagnostics.instance.closeForNavigation());
     _reportRestorationState(immediate: true);
     widget.eventDetailRequestListenable?.removeListener(
       _handleEventDetailRequest,
     );
+    widget.dataVersion?.removeListener(_handleHydrationDataVersionChanged);
+    widget.hydrationActivation?.removeListener(_handleHydrationActivation);
     _restorationDebounce?.cancel();
     _pageController.dispose();
     _miniCalendarScrollController.dispose(); // 🔧 Don't forget to dispose
@@ -5310,6 +5392,7 @@ class _DayViewPageState extends State<DayViewPage> {
       _currentKm = kDate.kMonth;
       _currentKd = kDate.kDay;
     });
+    _scheduleHydrationFrame();
 
     // ✅ Don't duplicate state updates during Today jump
     if (_isJumpingToToday) return;
@@ -5456,6 +5539,7 @@ class _DayViewPageState extends State<DayViewPage> {
         _currentKd = today.kDay;
         _gridInstance++; // rebuild grid to honor cleared scroll offset
       });
+      _scheduleHydrationFrame();
       _centerMiniCalendarOnDay(_currentKd, force: true);
       _reportRestorationState(immediate: true);
     } finally {
@@ -5652,6 +5736,7 @@ class _DayViewPageState extends State<DayViewPage> {
       _currentKm = km;
       _currentKd = kd;
     });
+    _scheduleHydrationFrame();
     _scheduleMiniCalendarCentering(kd, force: true);
   }
 

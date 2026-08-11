@@ -17,6 +17,7 @@ import '../../services/push_notifications.dart';
 import '../../services/speech/speech_service.dart';
 import '../../utils/external_link_utils.dart';
 import '../calendar/calendar_page.dart';
+import '../calendar/calendar_hydration_diagnostics.dart';
 import '../calendar/notify.dart';
 import '../calendar/speech_resolver.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
@@ -83,6 +84,7 @@ class _SettingsPageState extends State<SettingsPage> {
   String? _pushTestDeliveryKey;
   String? _speechVoiceStatus;
   String? _accountStatus;
+  Future<void>? _hydrationDiagnosticsReady;
   _SettingsBuildInfo _buildInfo = _SettingsBuildInfo.unavailable;
   CalendarSyncStatus? _calendarSyncStatus;
   PushRegistrationDiagnostics? _pushDiagnostics;
@@ -106,7 +108,11 @@ class _SettingsPageState extends State<SettingsPage> {
     });
 
     try {
+      final previousUserId = Supabase.instance.client.auth.currentUser?.id;
       await Supabase.instance.client.auth.signOut();
+      await CalendarHydrationDiagnostics.instance.clearForAccountChange(
+        previousUserId: previousUserId,
+      );
       if (!mounted) return;
 
       context.go('/');
@@ -124,9 +130,33 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   void initState() {
     super.initState();
+    _hydrationDiagnosticsReady = _prepareHydrationDiagnostics();
     _load();
     unawaited(_loadSpeechSettings());
     unawaited(_loadBuildInfo());
+  }
+
+  Future<void> _prepareHydrationDiagnostics() async {
+    await CalendarHydrationDiagnostics.instance.closeForNavigation();
+    await CalendarHydrationDiagnostics.instance.restoreLastCompletedForUser(
+      Supabase.instance.client.auth.currentUser?.id,
+    );
+  }
+
+  Future<void> _copyHydrationDiagnostics() async {
+    await _hydrationDiagnosticsReady;
+    final copied = await CalendarHydrationDiagnostics.instance
+        .copyLastCompleted(buildOverride: _buildInfo.webBuildVersion);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          copied
+              ? 'Hydration diagnostics copied.'
+              : 'No completed hydration diagnostics yet.',
+        ),
+      ),
+    );
   }
 
   @override
@@ -279,6 +309,9 @@ class _SettingsPageState extends State<SettingsPage> {
     setState(() {
       _buildInfo = buildInfo;
     });
+    CalendarHydrationDiagnostics.instance.setBuildLabel(
+      buildInfo.webBuildVersion,
+    );
   }
 
   Future<_SettingsBuildInfo> _readBuildInfo() async {
@@ -1600,6 +1633,20 @@ class _SettingsPageState extends State<SettingsPage> {
             _buildMarkerLine('Web build', _buildInfo.webBuildVersion),
             _buildMarkerLine('Build time', _buildInfo.buildTimestamp),
             _buildMarkerLine('APP_ENV', _buildInfo.appEnvironment),
+            const SizedBox(height: 6),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: _copyHydrationDiagnostics,
+                icon: const Icon(Icons.copy, size: 15),
+                label: const Text('Copy hydration diagnostics'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.white54,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  textStyle: const TextStyle(fontSize: 11),
+                ),
+              ),
+            ),
           ],
         ),
       ),
