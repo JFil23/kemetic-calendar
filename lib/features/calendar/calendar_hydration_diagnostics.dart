@@ -18,6 +18,33 @@ enum HydrationFetchStatus {
   notRun,
 }
 
+@immutable
+class HydrationFetchResult<T> {
+  const HydrationFetchResult._({required this.status, required this.value});
+
+  const HydrationFetchResult.successNonempty(T value)
+    : this._(status: HydrationFetchStatus.successNonempty, value: value);
+
+  const HydrationFetchResult.successfulEmpty(T value)
+    : this._(status: HydrationFetchStatus.successfulEmpty, value: value);
+
+  const HydrationFetchResult.failed(T value)
+    : this._(status: HydrationFetchStatus.failed, value: value);
+
+  const HydrationFetchResult.unauthenticated(T value)
+    : this._(status: HydrationFetchStatus.unauthenticated, value: value);
+
+  final HydrationFetchStatus status;
+  final T value;
+
+  bool get succeeded =>
+      status == HydrationFetchStatus.successNonempty ||
+      status == HydrationFetchStatus.successfulEmpty;
+
+  bool get failed => status == HydrationFetchStatus.failed;
+  bool get unauthenticated => status == HydrationFetchStatus.unauthenticated;
+}
+
 extension HydrationDiagnosticName on Enum {
   String get diagnosticName {
     final raw = name;

@@ -37,8 +37,10 @@ void main() {
 
         expect(await repo.getAllFlows(diagnosticContext: context), isEmpty);
         expect(
-          await repo.getEventsForFlowIds(<int>{1}, diagnosticContext: context),
-          isEmpty,
+          (await repo.getEventsForFlowIds(<int>{
+            1,
+          }, diagnosticContext: context)).status,
+          HydrationFetchStatus.successfulEmpty,
         );
         expect(
           await repo.getEventsForFlow(
@@ -52,8 +54,8 @@ void main() {
             startUtc: DateTime.utc(2026, 1, 1),
             endUtc: DateTime.utc(2026, 1, 2),
             diagnosticContext: context,
-          )).events,
-          isEmpty,
+          )).status,
+          HydrationFetchStatus.successfulEmpty,
         );
 
         final requests = await _closeAndRequests(context);
@@ -86,8 +88,10 @@ void main() {
           throwsA(isA<PostgrestException>()),
         );
         expect(
-          await repo.getEventsForFlowIds(<int>{1}, diagnosticContext: context),
-          isEmpty,
+          (await repo.getEventsForFlowIds(<int>{
+            1,
+          }, diagnosticContext: context)).status,
+          HydrationFetchStatus.failed,
         );
         expect(
           await repo.getEventsForFlow(
@@ -101,8 +105,8 @@ void main() {
             startUtc: DateTime.utc(2026, 1, 1),
             endUtc: DateTime.utc(2026, 1, 2),
             diagnosticContext: context,
-          )).events,
-          isEmpty,
+          )).status,
+          HydrationFetchStatus.failed,
         );
 
         final requests = await _closeAndRequests(context);
@@ -131,8 +135,10 @@ void main() {
 
         expect(await repo.getAllFlows(diagnosticContext: context), isEmpty);
         expect(
-          await repo.getEventsForFlowIds(<int>{1}, diagnosticContext: context),
-          isEmpty,
+          (await repo.getEventsForFlowIds(<int>{
+            1,
+          }, diagnosticContext: context)).status,
+          HydrationFetchStatus.unauthenticated,
         );
         expect(
           await repo.getEventsForFlow(
@@ -146,8 +152,8 @@ void main() {
             startUtc: DateTime.utc(2026, 1, 1),
             endUtc: DateTime.utc(2026, 1, 2),
             diagnosticContext: context,
-          )).events,
-          isEmpty,
+          )).status,
+          HydrationFetchStatus.unauthenticated,
         );
 
         final requests = await _closeAndRequests(context);

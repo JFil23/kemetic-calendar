@@ -5,9 +5,12 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../features/calendar/calendar_hydration_diagnostics.dart';
 import '../utils/flow_visibility.dart';
 
 const _kFlows = 'flows';
+
+typedef FlowEventCounts = ({Map<int, int> total, Map<int, int> remaining});
 
 void _log(String msg) {
   if (kDebugMode) debugPrint('[flows] $msg');
@@ -435,12 +438,21 @@ class FlowsRepo {
     return inflated;
   }
 
-  Future<({Map<int, int> total, Map<int, int> remaining})> _loadMyEventCounts(
+  Future<HydrationFetchResult<FlowEventCounts>> _loadMyEventCounts(
     List<int> flowIds,
   ) async {
     final user = _client.auth.currentUser;
-    if (user == null || flowIds.isEmpty) {
-      return (total: <int, int>{}, remaining: <int, int>{});
+    if (flowIds.isEmpty) {
+      return const HydrationFetchResult.successfulEmpty((
+        total: <int, int>{},
+        remaining: <int, int>{},
+      ));
+    }
+    if (user == null) {
+      return const HydrationFetchResult.unauthenticated((
+        total: <int, int>{},
+        remaining: <int, int>{},
+      ));
     }
     final flowIdSet = flowIds.toSet();
 
@@ -462,7 +474,10 @@ class FlowsRepo {
         remainingCounts[flowId] =
             (row['remaining_event_count'] as num?)?.toInt() ?? 0;
       }
-      return (total: totalCounts, remaining: remainingCounts);
+      final counts = (total: totalCounts, remaining: remainingCounts);
+      return totalCounts.isEmpty && remainingCounts.isEmpty
+          ? HydrationFetchResult.successfulEmpty(counts)
+          : HydrationFetchResult.successNonempty(counts);
     } catch (e) {
       final cachedRows =
           cachedMyFiledFlowsSync() ?? await restoreCachedFiledFlows();
@@ -473,7 +488,7 @@ class FlowsRepo {
         _log(
           'get_my_flow_activity unavailable, using cached filing counts: $e',
         );
-        return cachedCounts;
+        return HydrationFetchResult.failed(cachedCounts);
       }
       _log('get_my_flow_activity unavailable, using query fallback: $e');
     }
@@ -497,7 +512,10 @@ class FlowsRepo {
               as List<dynamic>;
     } catch (e) {
       _log('flow event count query fallback failed: $e');
-      return (total: <int, int>{}, remaining: <int, int>{});
+      return const HydrationFetchResult.failed((
+        total: <int, int>{},
+        remaining: <int, int>{},
+      ));
     }
 
     final completedClientIdsByFlow = <int, Set<String>>{};
@@ -530,11 +548,15 @@ class FlowsRepo {
       }
     }
 
-    return (total: totalCounts, remaining: remainingCounts);
+    return HydrationFetchResult.failed((
+      total: totalCounts,
+      remaining: remainingCounts,
+    ));
   }
 
-  Future<({Map<int, int> total, Map<int, int> remaining})>
-  loadMyFlowEventCounts({required Iterable<int> flowIds}) async {
+  Future<HydrationFetchResult<FlowEventCounts>> loadMyFlowEventCounts({
+    required Iterable<int> flowIds,
+  }) async {
     return _loadMyEventCounts(flowIds.toList(growable: false));
   }
 

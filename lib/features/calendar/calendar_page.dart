@@ -29517,12 +29517,13 @@ class CalendarPageState extends State<CalendarPage>
         }
 
         try {
-          final batchedEvents = await repo.getEventsForFlowIds(
+          final batchedResult = await repo.getEventsForFlowIds(
             hydrationFlowIds,
             startUtc: flowWindow?.startUtc,
             endUtc: flowWindow?.endUtc,
             diagnosticContext: hydrationContext,
           );
+          final batchedEvents = batchedResult.value;
           var mappedRowCount = 0;
           var nullFlowIdRowCount = 0;
           var outsideRequestedSetRowCount = 0;
@@ -30032,7 +30033,8 @@ class CalendarPageState extends State<CalendarPage>
       // Load filing-backed standalone calendar events: notes, reminders, and
       // nutrition rows. Flow rows stay in the flow hydration path above.
       try {
-        final standaloneResult = await standaloneFuture;
+        final standaloneFetchResult = await standaloneFuture;
+        final standaloneResult = standaloneFetchResult.value;
         final standaloneEvents = standaloneResult.events;
         final ghostStandaloneIds = standaloneResult.ghostEventIds;
         final standaloneConversionStopwatch = Stopwatch()..start();
@@ -30317,7 +30319,8 @@ class CalendarPageState extends State<CalendarPage>
             return;
           }
           try {
-            final flowEventCounts = await flowEventCountsFuture;
+            final flowEventCountsResult = await flowEventCountsFuture;
+            final flowEventCounts = flowEventCountsResult.value;
             if (mounted) {
               setState(() {
                 _flowTotalEventCounts
