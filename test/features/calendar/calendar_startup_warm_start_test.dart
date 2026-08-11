@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/calendar/calendar_hydration_diagnostics.dart';
 import 'package:mobile/features/calendar/calendar_visible_state_policy.dart';
 
 void main() {
@@ -106,6 +107,114 @@ void main() {
       isFalse,
       reason: 'transient empty hydration must not erase visible events',
     );
+  });
+
+  test('calendar completeness requires all three calendar authorities', () {
+    expect(
+      calendarHydrationIsSemanticallyComplete(
+        catalogComplete: true,
+        flowEvents: HydrationFetchStatus.successNonempty,
+        standalone: HydrationFetchStatus.successfulEmpty,
+      ),
+      isTrue,
+    );
+
+    for (final failedStatus in <HydrationFetchStatus>[
+      HydrationFetchStatus.failed,
+      HydrationFetchStatus.unauthenticated,
+      HydrationFetchStatus.notRun,
+    ]) {
+      expect(
+        calendarHydrationIsSemanticallyComplete(
+          catalogComplete: true,
+          flowEvents: failedStatus,
+          standalone: HydrationFetchStatus.successfulEmpty,
+        ),
+        isFalse,
+      );
+      expect(
+        calendarHydrationIsSemanticallyComplete(
+          catalogComplete: true,
+          flowEvents: HydrationFetchStatus.successfulEmpty,
+          standalone: failedStatus,
+        ),
+        isFalse,
+      );
+    }
+
+    expect(
+      calendarHydrationIsSemanticallyComplete(
+        catalogComplete: false,
+        flowEvents: HydrationFetchStatus.successfulEmpty,
+        standalone: HydrationFetchStatus.successfulEmpty,
+      ),
+      isFalse,
+    );
+  });
+
+  test('warm-cache metadata separates save time from server authority', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final snapshot = _sourceBetween(
+      source,
+      'Map<String, dynamic> _buildWarmStartSnapshot({',
+      'void _scheduleWarmStartCacheSave()',
+    );
+    final startup = _sourceBetween(
+      source,
+      'Future<void> _runStartupPipeline(String reason) async {',
+      'String? _canonicalDawnHouseRiteDetailForLoadedEvent',
+    );
+
+    expect(snapshot, contains("'cacheSavedAt': cacheSavedAt"));
+    expect(snapshot, contains("'lastAuthoritativeHydrationAt'"));
+    expect(snapshot, contains("'lastAccountingAuthorityAt'"));
+    expect(snapshot, contains("'accountingStale': _accountingStale"));
+    expect(startup, contains('authorityRevisionBefore'));
+    expect(
+      startup,
+      contains('_calendarAuthorityRevision > authorityRevisionBefore'),
+    );
+  });
+
+  test('accounting failure only applies cached counts', () {
+    expect(
+      shouldApplyHydrationAccountingResult(
+        status: HydrationFetchStatus.successfulEmpty,
+        hasCachedCounts: false,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldApplyHydrationAccountingResult(
+        status: HydrationFetchStatus.failed,
+        hasCachedCounts: true,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldApplyHydrationAccountingResult(
+        status: HydrationFetchStatus.failed,
+        hasCachedCounts: false,
+      ),
+      isFalse,
+    );
+  });
+
+  test('calendar hydration does not issue per-flow fallback requests', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final loadFlowEvents = _sourceBetween(
+      source,
+      'Future<Map<int, List<FlowEventRow>>> loadFlowEvents() async {',
+      'var standaloneWindow = _computeStandaloneHydrationWindow(newFlows);',
+    );
+
+    expect(loadFlowEvents, contains('getEventsForFlowIds('));
+    expect(loadFlowEvents, isNot(contains('getEventsForFlow(')));
+    expect(loadFlowEvents, isNot(contains('flow_fallback_')));
   });
 
   test('import sync complete commit preserves painted standalone lane', () {

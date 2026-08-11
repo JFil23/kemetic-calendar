@@ -374,7 +374,7 @@ void main() {
       commit,
     );
     final notification = restore.indexOf(
-      '_notifyDayViewDataChanged();',
+      '_notifyDayViewDataChanged(scheduleCacheSave: false);',
       diagnostic,
     );
 

@@ -146,7 +146,15 @@ void main() {
           r"if \(!_loadCoordinator\.isCurrent\(epoch\)\) return;\n"
           r"\s+if \(_activeWarmStartUserId\(\) != loadUserId\) return;",
         ).allMatches(calendarPageSource).length,
-        2,
+        1,
+      );
+      expect(
+        RegExp(
+          r"bool postProcessingStillCurrent\(\) =>\n"
+          r"\s+_loadCoordinator\.isCurrent\(epoch\) &&\n"
+          r"\s+_activeWarmStartUserId\(\) == loadUserId &&",
+        ).hasMatch(calendarPageSource),
+        isTrue,
       );
     },
   );

@@ -54,6 +54,13 @@ typedef StandaloneEventRow = ({
   bool isReminder,
 });
 
+typedef StandaloneEventRangeResult = ({
+  List<StandaloneEventRow> events,
+  List<String> ghostEventIds,
+  int pageCount,
+  int rawCount,
+});
+
 enum UserEventDeleteDisposition { deleted, alreadyAbsentSuppressed, failed }
 
 enum UserEventLookupDisposition { found, notFound, unavailable }
@@ -1726,14 +1733,7 @@ class UserEventsRepo {
 
   /// Fetch standalone events in a window, paging until exhausted to avoid server caps.
   /// Returns merged unique rows (by id then client_event_id) plus debug counts.
-  Future<
-    ({
-      List<StandaloneEventRow> events,
-      List<String> ghostEventIds,
-      int pageCount,
-      int rawCount,
-    })
-  >
+  Future<HydrationFetchResult<StandaloneEventRangeResult>>
   getStandaloneEventsForDateRangeAll({
     required DateTime startUtc,
     required DateTime endUtc,
@@ -1752,17 +1752,26 @@ class UserEventsRepo {
         rowCount: 0,
         requestCount: 0,
       );
-      return (
-        events: const <StandaloneEventRow>[],
-        ghostEventIds: const <String>[],
+      return const HydrationFetchResult.unauthenticated((
+        events: <StandaloneEventRow>[],
+        ghostEventIds: <String>[],
         pageCount: 0,
         rawCount: 0,
-      );
+      ));
     }
 
     final List<Map<String, dynamic>> pages = [];
     int pageCount = 0;
     int offset = 0;
+
+    HydrationFetchResult<StandaloneEventRangeResult> failedResult() {
+      return HydrationFetchResult.failed((
+        events: const <StandaloneEventRow>[],
+        ghostEventIds: const <String>[],
+        pageCount: pageCount,
+        rawCount: pages.length,
+      ));
+    }
 
     try {
       while (true) {
@@ -1809,12 +1818,7 @@ class UserEventsRepo {
         pageCount: pageCount,
         safeErrorClass: e.runtimeType.toString(),
       );
-      return (
-        events: const <StandaloneEventRow>[],
-        ghostEventIds: const <String>[],
-        pageCount: pageCount,
-        rawCount: pages.length,
-      );
+      return failedResult();
     } catch (e) {
       _log('getStandaloneEventsForDateRangeAll ✗ $e');
       CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
@@ -1827,12 +1831,7 @@ class UserEventsRepo {
         pageCount: pageCount,
         safeErrorClass: e.runtimeType.toString(),
       );
-      return (
-        events: const <StandaloneEventRow>[],
-        ghostEventIds: const <String>[],
-        pageCount: pageCount,
-        rawCount: pages.length,
-      );
+      return failedResult();
     }
 
     final seenIds = <String>{};
@@ -1946,12 +1945,15 @@ class UserEventsRepo {
       pageCount: pageCount,
     );
 
-    return (
+    final result = (
       events: events,
       ghostEventIds: ghostEventIds,
       pageCount: pageCount,
       rawCount: pages.length,
     );
+    return events.isEmpty
+        ? HydrationFetchResult.successfulEmpty(result)
+        : HydrationFetchResult.successNonempty(result);
   }
 
   /// Fetch reminder events by client_event_id prefix. Reminders-only.
@@ -2246,7 +2248,7 @@ class UserEventsRepo {
     }
   }
 
-  Future<List<FlowEventRow>> getEventsForFlowIds(
+  Future<HydrationFetchResult<List<FlowEventRow>>> getEventsForFlowIds(
     Set<int> flowIds, {
     int pageSize = 1000,
     DateTime? startUtc,
@@ -2263,7 +2265,7 @@ class UserEventsRepo {
         rowCount: 0,
         requestCount: 0,
       );
-      return const [];
+      return const HydrationFetchResult.successfulEmpty(<FlowEventRow>[]);
     }
     final user = _client.auth.currentUser;
     if (user == null) {
@@ -2275,7 +2277,7 @@ class UserEventsRepo {
         rowCount: 0,
         requestCount: 0,
       );
-      return const [];
+      return const HydrationFetchResult.unauthenticated(<FlowEventRow>[]);
     }
 
     final ids = flowIds.toList()..sort();
@@ -2339,7 +2341,7 @@ class UserEventsRepo {
         pageCount: pageCount,
         safeErrorClass: e.runtimeType.toString(),
       );
-      return const [];
+      return const HydrationFetchResult.failed(<FlowEventRow>[]);
     } catch (e, st) {
       if (kDebugMode) {
         debugPrint('[UserEventsRepo] getEventsForFlowIds error: $e');
@@ -2355,7 +2357,7 @@ class UserEventsRepo {
         pageCount: pageCount,
         safeErrorClass: e.runtimeType.toString(),
       );
-      return const [];
+      return const HydrationFetchResult.failed(<FlowEventRow>[]);
     }
 
     CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
@@ -2370,7 +2372,9 @@ class UserEventsRepo {
       pageCount: pageCount,
     );
 
-    return events;
+    return events.isEmpty
+        ? const HydrationFetchResult.successfulEmpty(<FlowEventRow>[])
+        : HydrationFetchResult.successNonempty(events);
   }
 
   /// Fetch client_event_id for given row ids (debug/logging helpers).

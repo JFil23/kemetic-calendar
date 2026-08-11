@@ -1,4 +1,24 @@
+import 'calendar_hydration_diagnostics.dart';
+
 enum CalendarHydrationPublicationPhase { flowEvents, complete }
+
+bool hydrationFetchSucceeded(HydrationFetchStatus status) =>
+    status == HydrationFetchStatus.successNonempty ||
+    status == HydrationFetchStatus.successfulEmpty;
+
+bool calendarHydrationIsSemanticallyComplete({
+  required bool catalogComplete,
+  required HydrationFetchStatus flowEvents,
+  required HydrationFetchStatus standalone,
+}) =>
+    catalogComplete &&
+    hydrationFetchSucceeded(flowEvents) &&
+    hydrationFetchSucceeded(standalone);
+
+bool shouldApplyHydrationAccountingResult({
+  required HydrationFetchStatus status,
+  required bool hasCachedCounts,
+}) => hydrationFetchSucceeded(status) || hasCachedCounts;
 
 bool shouldPublishVisibleCalendarHydration({
   required CalendarHydrationPublicationPhase phase,

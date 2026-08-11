@@ -168,6 +168,53 @@ void main() {
     expect(notesSection, contains('_deleteNoteByEvent('));
   });
 
+  test(
+    'open Day sheet follows calendar publications without replacing local state',
+    () async {
+      final source = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final daySheet = _sourceBetween(
+        source,
+        'void _openDaySheet',
+        'Future<void> _openQuickAddSheet',
+      );
+      final frame = await File(
+        'lib/widgets/day_sheet_components.dart',
+      ).readAsString();
+
+      final controllerIndex = daySheet.indexOf(
+        'final controllerTitle = TextEditingController',
+      );
+      final tabStateIndex = daySheet.indexOf(
+        'bool showReminders = _noteSheetShowReminders',
+      );
+      final liveBuilderIndex = daySheet.indexOf(
+        'final daySheetContent = DaySheetLiveDataBuilder',
+      );
+      final eventReadIndex = daySheet.indexOf(
+        'final dayEvents = _calendarSheetEventsForDay',
+      );
+
+      expect(controllerIndex, isNonNegative);
+      expect(tabStateIndex, isNonNegative);
+      expect(liveBuilderIndex, isNonNegative);
+      expect(eventReadIndex, isNonNegative);
+      expect(controllerIndex, lessThan(liveBuilderIndex));
+      expect(tabStateIndex, lessThan(liveBuilderIndex));
+      expect(liveBuilderIndex, lessThan(eventReadIndex));
+      expect(daySheet, contains('dataVersion: _dayViewDataVersion'));
+      expect(
+        daySheet,
+        contains("key: const ValueKey('calendar-day-sheet-live-content')"),
+      );
+      expect(frame, contains('class DaySheetLiveDataBuilder'));
+      expect(frame, contains('addListener(_handleDataVersionChanged)'));
+      expect(frame, contains('removeListener(_handleDataVersionChanged)'));
+      expect(frame, contains('key: daySheetKeyboardSafeScrollViewKey'));
+    },
+  );
+
   test('Day sheet reminders are scoped to the selected sheet day', () async {
     final source = await File(
       'lib/features/calendar/calendar_page.dart',
@@ -680,7 +727,6 @@ void main() {
     expect(launcher, contains('persistAsRestoration: false'));
     expect(launcher, contains("initialTitle: 'Smoke draft note'"));
     expect(launcher, contains('initialCalendarId: _personalCalendarId'));
-
   });
 
   test(

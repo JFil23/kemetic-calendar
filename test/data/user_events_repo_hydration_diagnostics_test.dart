@@ -37,8 +37,10 @@ void main() {
 
         expect(await repo.getAllFlows(diagnosticContext: context), isEmpty);
         expect(
-          await repo.getEventsForFlowIds(<int>{1}, diagnosticContext: context),
-          isEmpty,
+          (await repo.getEventsForFlowIds(<int>{
+            1,
+          }, diagnosticContext: context)).status,
+          HydrationFetchStatus.successfulEmpty,
         );
         expect(
           await repo.getEventsForFlow(
@@ -52,8 +54,8 @@ void main() {
             startUtc: DateTime.utc(2026, 1, 1),
             endUtc: DateTime.utc(2026, 1, 2),
             diagnosticContext: context,
-          )).events,
-          isEmpty,
+          )).status,
+          HydrationFetchStatus.successfulEmpty,
         );
 
         final requests = await _closeAndRequests(context);
@@ -86,8 +88,10 @@ void main() {
           throwsA(isA<PostgrestException>()),
         );
         expect(
-          await repo.getEventsForFlowIds(<int>{1}, diagnosticContext: context),
-          isEmpty,
+          (await repo.getEventsForFlowIds(<int>{
+            1,
+          }, diagnosticContext: context)).status,
+          HydrationFetchStatus.failed,
         );
         expect(
           await repo.getEventsForFlow(
@@ -101,8 +105,8 @@ void main() {
             startUtc: DateTime.utc(2026, 1, 1),
             endUtc: DateTime.utc(2026, 1, 2),
             diagnosticContext: context,
-          )).events,
-          isEmpty,
+          )).status,
+          HydrationFetchStatus.failed,
         );
 
         final requests = await _closeAndRequests(context);
@@ -131,8 +135,10 @@ void main() {
 
         expect(await repo.getAllFlows(diagnosticContext: context), isEmpty);
         expect(
-          await repo.getEventsForFlowIds(<int>{1}, diagnosticContext: context),
-          isEmpty,
+          (await repo.getEventsForFlowIds(<int>{
+            1,
+          }, diagnosticContext: context)).status,
+          HydrationFetchStatus.unauthenticated,
         );
         expect(
           await repo.getEventsForFlow(
@@ -146,8 +152,8 @@ void main() {
             startUtc: DateTime.utc(2026, 1, 1),
             endUtc: DateTime.utc(2026, 1, 2),
             diagnosticContext: context,
-          )).events,
-          isEmpty,
+          )).status,
+          HydrationFetchStatus.unauthenticated,
         );
 
         final requests = await _closeAndRequests(context);
@@ -164,6 +170,26 @@ void main() {
       }
     },
   );
+
+  test('a later-page failure discards the accumulated batch', () async {
+    final client = SupabaseClient(
+      'https://example.supabase.test',
+      'test-anon-key',
+      httpClient: _SecondPageFailureClient(),
+      authOptions: const AuthClientOptions(autoRefreshToken: false),
+    );
+    try {
+      await client.auth.recoverSession(_sessionJson());
+      final result = await UserEventsRepo(
+        client,
+      ).getEventsForFlowIds(<int>{1}, pageSize: 1);
+
+      expect(result.status, HydrationFetchStatus.failed);
+      expect(result.value, isEmpty);
+    } finally {
+      client.dispose();
+    }
+  });
 }
 
 HydrationDiagnosticContext _startPass() {
@@ -211,6 +237,48 @@ class _HydrationClient extends http.BaseClient {
       }, statusCode: 500);
     }
     return _jsonResponse(request, const <Object?>[]);
+  }
+
+  http.StreamedResponse _jsonResponse(
+    http.BaseRequest request,
+    Object? body, {
+    int statusCode = 200,
+  }) {
+    return http.StreamedResponse(
+      Stream<List<int>>.value(utf8.encode(jsonEncode(body))),
+      statusCode,
+      request: request,
+      headers: const <String, String>{'content-type': 'application/json'},
+    );
+  }
+}
+
+class _SecondPageFailureClient extends http.BaseClient {
+  int _requestCount = 0;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    _requestCount++;
+    if (_requestCount == 1) {
+      return _jsonResponse(request, <Object?>[
+        <String, Object?>{
+          'id': '11111111-1111-4111-8111-111111111111',
+          'client_event_id': 'fixture-page-one',
+          'title': 'Page one',
+          'all_day': false,
+          'starts_at': '2026-01-01T12:00:00.000Z',
+          'ends_at': '2026-01-01T13:00:00.000Z',
+          'filed_flow_id': 1,
+          'item_kind': 'flow',
+        },
+      ]);
+    }
+    return _jsonResponse(request, const <String, Object?>{
+      'message': 'second page timeout',
+      'code': '57014',
+      'details': null,
+      'hint': null,
+    }, statusCode: 500);
   }
 
   http.StreamedResponse _jsonResponse(

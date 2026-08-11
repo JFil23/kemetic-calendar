@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import 'keyboard_aware.dart';
@@ -46,6 +47,51 @@ const ValueKey<String> daySheetKeyboardSafePaddingKey = ValueKey<String>(
 const ValueKey<String> daySheetKeyboardSafeScrollViewKey = ValueKey<String>(
   'day_sheet_keyboard_safe_scroll_view',
 );
+
+class DaySheetLiveDataBuilder extends StatefulWidget {
+  const DaySheetLiveDataBuilder({
+    super.key,
+    required this.dataVersion,
+    required this.builder,
+  });
+
+  final ValueListenable<int> dataVersion;
+  final StatefulWidgetBuilder builder;
+
+  @override
+  State<DaySheetLiveDataBuilder> createState() =>
+      _DaySheetLiveDataBuilderState();
+}
+
+class _DaySheetLiveDataBuilderState extends State<DaySheetLiveDataBuilder> {
+  @override
+  void initState() {
+    super.initState();
+    widget.dataVersion.addListener(_handleDataVersionChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant DaySheetLiveDataBuilder oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.dataVersion == widget.dataVersion) return;
+    oldWidget.dataVersion.removeListener(_handleDataVersionChanged);
+    widget.dataVersion.addListener(_handleDataVersionChanged);
+  }
+
+  void _handleDataVersionChanged() {
+    if (!mounted) return;
+    setState(() {});
+  }
+
+  @override
+  void dispose() {
+    widget.dataVersion.removeListener(_handleDataVersionChanged);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, setState);
+}
 
 class DaySheetKeyboardSafeFrame extends StatelessWidget {
   const DaySheetKeyboardSafeFrame({

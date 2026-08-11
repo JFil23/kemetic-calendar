@@ -5,9 +5,12 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../features/calendar/calendar_hydration_diagnostics.dart';
 import '../utils/flow_visibility.dart';
 
 const _kFlows = 'flows';
+
+typedef FlowEventCounts = ({Map<int, int> total, Map<int, int> remaining});
 
 void _log(String msg) {
   if (kDebugMode) debugPrint('[flows] $msg');
@@ -435,12 +438,21 @@ class FlowsRepo {
     return inflated;
   }
 
-  Future<({Map<int, int> total, Map<int, int> remaining})> _loadMyEventCounts(
+  Future<HydrationFetchResult<FlowEventCounts>> _loadMyEventCounts(
     List<int> flowIds,
   ) async {
     final user = _client.auth.currentUser;
-    if (user == null || flowIds.isEmpty) {
-      return (total: <int, int>{}, remaining: <int, int>{});
+    if (flowIds.isEmpty) {
+      return const HydrationFetchResult.successfulEmpty((
+        total: <int, int>{},
+        remaining: <int, int>{},
+      ));
+    }
+    if (user == null) {
+      return const HydrationFetchResult.unauthenticated((
+        total: <int, int>{},
+        remaining: <int, int>{},
+      ));
     }
     final flowIdSet = flowIds.toSet();
 
@@ -462,7 +474,10 @@ class FlowsRepo {
         remainingCounts[flowId] =
             (row['remaining_event_count'] as num?)?.toInt() ?? 0;
       }
-      return (total: totalCounts, remaining: remainingCounts);
+      final counts = (total: totalCounts, remaining: remainingCounts);
+      return totalCounts.isEmpty && remainingCounts.isEmpty
+          ? HydrationFetchResult.successfulEmpty(counts)
+          : HydrationFetchResult.successNonempty(counts);
     } catch (e) {
       final cachedRows =
           cachedMyFiledFlowsSync() ?? await restoreCachedFiledFlows();
@@ -473,68 +488,19 @@ class FlowsRepo {
         _log(
           'get_my_flow_activity unavailable, using cached filing counts: $e',
         );
-        return cachedCounts;
+        return HydrationFetchResult.failed(cachedCounts);
       }
-      _log('get_my_flow_activity unavailable, using query fallback: $e');
+      _log('get_my_flow_activity unavailable, preserving current counts: $e');
+      return const HydrationFetchResult.failed((
+        total: <int, int>{},
+        remaining: <int, int>{},
+      ));
     }
-
-    late final List<dynamic> eventRows;
-    late final List<dynamic> completionRows;
-    try {
-      eventRows =
-          await _client
-                  .from('user_event_filing_items_client')
-                  .select('filed_flow_id, client_event_id')
-                  .eq('user_id', user.id)
-                  .inFilter('filed_flow_id', flowIds)
-              as List<dynamic>;
-      completionRows =
-          await _client
-                  .from('user_event_completions')
-                  .select('flow_id, client_event_id')
-                  .eq('user_id', user.id)
-                  .inFilter('flow_id', flowIds)
-              as List<dynamic>;
-    } catch (e) {
-      _log('flow event count query fallback failed: $e');
-      return (total: <int, int>{}, remaining: <int, int>{});
-    }
-
-    final completedClientIdsByFlow = <int, Set<String>>{};
-    for (final raw in completionRows.cast<Map<String, dynamic>>()) {
-      final flowId = (raw['flow_id'] as num?)?.toInt();
-      final clientEventId = (raw['client_event_id'] as String?)?.trim();
-      if (flowId == null || clientEventId == null || clientEventId.isEmpty) {
-        continue;
-      }
-      completedClientIdsByFlow
-          .putIfAbsent(flowId, () => <String>{})
-          .add(clientEventId);
-    }
-
-    final totalCounts = <int, int>{};
-    final remainingCounts = <int, int>{};
-    for (final raw in eventRows.cast<Map<String, dynamic>>()) {
-      final flowId = (raw['filed_flow_id'] as num?)?.toInt();
-      if (flowId == null) continue;
-
-      totalCounts[flowId] = (totalCounts[flowId] ?? 0) + 1;
-
-      final clientEventId = (raw['client_event_id'] as String?)?.trim();
-      final completed =
-          clientEventId != null &&
-          clientEventId.isNotEmpty &&
-          (completedClientIdsByFlow[flowId]?.contains(clientEventId) ?? false);
-      if (!completed) {
-        remainingCounts[flowId] = (remainingCounts[flowId] ?? 0) + 1;
-      }
-    }
-
-    return (total: totalCounts, remaining: remainingCounts);
   }
 
-  Future<({Map<int, int> total, Map<int, int> remaining})>
-  loadMyFlowEventCounts({required Iterable<int> flowIds}) async {
+  Future<HydrationFetchResult<FlowEventCounts>> loadMyFlowEventCounts({
+    required Iterable<int> flowIds,
+  }) async {
     return _loadMyEventCounts(flowIds.toList(growable: false));
   }
 
