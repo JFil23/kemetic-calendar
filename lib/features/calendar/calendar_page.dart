@@ -19513,7 +19513,27 @@ class CalendarPageState extends State<CalendarPage>
     int? flowId,
     bool notify = true,
   }) {
-    var changed = false;
+    final changed =
+        _materializeReminderIntoNotes(
+          notesByDay: _notes,
+          rule: rule,
+          occurrences: occurrences,
+          flowId: flowId,
+        ) >
+        0;
+    if (changed && notify) {
+      _refreshNoteCacheUi();
+    }
+    return changed;
+  }
+
+  int _materializeReminderIntoNotes({
+    required Map<String, List<_Note>> notesByDay,
+    required ReminderRule rule,
+    required List<DateTime> occurrences,
+    int? flowId,
+  }) {
+    var added = 0;
     final calendarName = _calendarSummary(rule.calendarId)?.name;
     for (final day in occurrences) {
       final k = KemeticMath.fromGregorian(day);
@@ -19532,7 +19552,7 @@ class CalendarPageState extends State<CalendarPage>
       // Skip if a canonical DB-backed note already exists for this flow/time/title.
       if (flowId != null && flowId > 0) {
         final key = _kKey(k.kYear, k.kMonth, k.kDay);
-        final bucket = _notes[key];
+        final bucket = notesByDay[key];
         if (bucket != null) {
           final targetTitle = rule.title.trim().toLowerCase();
           final hasCanonical = bucket.any((n) {
@@ -19553,39 +19573,100 @@ class CalendarPageState extends State<CalendarPage>
           }
         }
       }
-      changed =
-          _addNote(
-            k.kYear,
-            k.kMonth,
-            k.kDay,
-            rule.title,
-            null,
-            clientEventId: clientEventId,
-            calendarId: rule.calendarId,
-            calendarName: calendarName,
-            allDay: rule.allDay,
-            start: startTime,
-            end: endTime,
-            manualColor: rule.color,
-            category: rule.category,
-            isReminder: true,
-            reminderId: rule.id,
-            flowId: flowId,
-            alertOffsetMinutes: rule.alertOffsetMinutes,
-            notify: false,
-          ) ||
-          changed;
+      final key = _kKey(k.kYear, k.kMonth, k.kDay);
+      final bucket = notesByDay.putIfAbsent(key, () => <_Note>[]);
+      if (bucket.any((note) => note.clientEventId?.trim() == clientEventId)) {
+        continue;
+      }
+      bucket.add(
+        _Note(
+          clientEventId: clientEventId,
+          calendarId: rule.calendarId,
+          calendarName: calendarName,
+          title: rule.title,
+          allDay: rule.allDay,
+          start: startTime,
+          end: endTime,
+          flowId: flowId,
+          manualColor: rule.color,
+          category: rule.category,
+          isReminder: true,
+          reminderId: rule.id,
+          alertOffsetMinutes: rule.alertOffsetMinutes,
+        ),
+      );
+      added++;
     }
+    return added;
+  }
 
-    if (changed && notify) {
-      _refreshNoteCacheUi();
+  int _projectReminderMembershipForHydration({
+    required List<_Flow> flows,
+    required Map<String, List<_Note>> notesByDay,
+  }) {
+    final rules = <({ReminderRule rule, int flowId})>[];
+    for (final flow in flows) {
+      if (!flow.isReminder ||
+          flow.isHidden ||
+          !isFlowScheduleOpenLocally(active: flow.active, endDate: flow.end)) {
+        continue;
+      }
+      final rule = _reminderRuleFromFlow(flow);
+      if (rule == null || !rule.active || _endedReminderIds.contains(rule.id)) {
+        continue;
+      }
+      rules.add((rule: rule, flowId: flow.id));
     }
+    if (rules.isEmpty) return 0;
+
+    final today = DateUtils.dateOnly(
+      CalendarPage.debugReminderSyncTodayForTesting ?? DateTime.now(),
+    );
+    final windowEnd =
+        CalendarPage.debugReminderSyncWindowEndForTesting ??
+        _reminderWindowEnd(
+          today,
+          rules.map((entry) => entry.rule).toList(growable: false),
+        );
+    var added = 0;
+    for (final entry in rules) {
+      added += _materializeReminderIntoNotes(
+        notesByDay: notesByDay,
+        rule: entry.rule,
+        occurrences: _generateReminderOccurrences(entry.rule, today, windowEnd),
+        flowId: entry.flowId,
+      );
+    }
+    return added;
+  }
+
+  bool _applyReminderSyncVisibleMembership({
+    required bool updateLocalCache,
+    required ReminderRule rule,
+    required List<DateTime> occurrences,
+    required int? flowId,
+    required DateTime fromDate,
+  }) {
+    if (!updateLocalCache) return false;
+    var changed = _pruneReminderNotes(
+      rule.id,
+      fromDate: fromDate,
+      preserveDatabaseBacked: true,
+    );
+    changed =
+        _materializeReminderLocally(
+          rule: rule,
+          occurrences: occurrences,
+          flowId: flowId,
+          notify: false,
+        ) ||
+        changed;
     return changed;
   }
 
   Future<void> _syncReminderEvents({
     bool refreshUi = false,
-    bool updateLocalCache = true,
+    bool updateLocalCache = false,
     HydrationDiagnosticContext? diagnosticContext,
   }) async {
     final diagnostics = CalendarHydrationDiagnostics.instance;
@@ -19651,7 +19732,7 @@ class CalendarPageState extends State<CalendarPage>
 
   Future<void> _performReminderSync({
     bool refreshUi = false,
-    bool updateLocalCache = true,
+    bool updateLocalCache = false,
   }) async {
     await _reminderSyncGate.waitForOrientationCriticalSection();
     await _loadReminderRules();
@@ -19745,24 +19826,15 @@ class CalendarPageState extends State<CalendarPage>
       final flowIdForReminder = await _findFlowIdByReminderUuid(
         rule.id,
       ); // may be null/nonexistent
-      if (updateLocalCache) {
-        // Update local cache first so UI reflects immediately even if network fails.
-        localCacheChanged =
-            _pruneReminderNotes(
-              rule.id,
-              fromDate: today,
-              preserveDatabaseBacked: true,
-            ) ||
-            localCacheChanged;
-        localCacheChanged =
-            _materializeReminderLocally(
-              rule: rule,
-              occurrences: occurrences,
-              flowId: flowIdForReminder,
-              notify: false,
-            ) ||
-            localCacheChanged;
-      }
+      localCacheChanged =
+          _applyReminderSyncVisibleMembership(
+            updateLocalCache: updateLocalCache,
+            rule: rule,
+            occurrences: occurrences,
+            flowId: flowIdForReminder,
+            fromDate: today,
+          ) ||
+          localCacheChanged;
 
       if (!rule.id.startsWith('nutrition:')) {
         for (final day in occurrences) {
@@ -19997,7 +20069,11 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
-  Future<bool> _regenReminderNotes({bool notify = true}) async {
+  Future<bool> _regenReminderNotes({
+    bool notify = true,
+    bool allowVisibleMutation = true,
+  }) async {
+    if (!allowVisibleMutation) return false;
     await _loadReminderRules();
     if (_reminderRules.isEmpty) return false;
     final today = DateUtils.dateOnly(DateTime.now());
@@ -28909,7 +28985,7 @@ class CalendarPageState extends State<CalendarPage>
             .contextForExecutedSource('startup_backfill:$reason');
         await _syncReminderEvents(
           refreshUi: false,
-          updateLocalCache: !keepWarmStartVisible,
+          updateLocalCache: false,
           diagnosticContext: diagnosticContext,
         );
         await _persistWarmStartCacheNow(
@@ -30186,6 +30262,22 @@ class CalendarPageState extends State<CalendarPage>
         }
       }
 
+      final reminderProjectionStopwatch = Stopwatch()..start();
+      final projectedReminderCount = _projectReminderMembershipForHydration(
+        flows: newFlows,
+        notesByDay: newNotes,
+      );
+      hydrationDiagnostics.recordPostProcessing(
+        hydrationContext,
+        'reminder_projection_applied',
+        durationMs: reminderProjectionStopwatch.elapsedMilliseconds,
+        changedNotes: projectedReminderCount > 0,
+        fields: <String, Object?>{
+          'added_count': projectedReminderCount,
+          'source': 'complete_snapshot',
+        },
+      );
+
       final diagnosticCompleteness = hydrationDiagnostics.recordCompleteness(
         context: hydrationContext,
         hydrationFlowCount: hydrationFlowIds.length,
@@ -30274,10 +30366,10 @@ class CalendarPageState extends State<CalendarPage>
                 );
               }
             } else {
-              final changed = await _regenReminderNotes(notify: false);
-              if (changed) {
-                _refreshNoteCacheUi();
-              }
+              final changed = await _regenReminderNotes(
+                notify: false,
+                allowVisibleMutation: false,
+              );
               hydrationDiagnostics.recordPostProcessing(
                 hydrationContext,
                 'reminder_regen_ended',
@@ -33289,6 +33381,50 @@ class CalendarPageState extends State<CalendarPage>
   @visibleForTesting
   int debugPendingNotesDueForVerification(DateTime now) =>
       _unconfirmed.dueForVerification(now: now).length;
+
+  @visibleForTesting
+  int debugProjectReminderMembershipForTesting({
+    required ReminderRule rule,
+    int flowId = 9001,
+  }) {
+    final flow = _Flow(
+      id: flowId,
+      calendarId: rule.calendarId,
+      name: rule.title,
+      color: rule.color,
+      active: true,
+      rules: const <FlowRule>[],
+      start: rule.startLocal,
+      end: rule.endLocal,
+      notes: jsonEncode(rule.toJson()),
+      isReminder: true,
+      reminderUuid: rule.id,
+    );
+    return _projectReminderMembershipForHydration(
+      flows: <_Flow>[flow],
+      notesByDay: _notes,
+    );
+  }
+
+  @visibleForTesting
+  Future<bool> debugRunPostCompleteReminderRegenForTesting() {
+    return _regenReminderNotes(notify: false, allowVisibleMutation: false);
+  }
+
+  @visibleForTesting
+  bool debugRunPostCompleteReminderSyncProjectionForTesting({
+    required ReminderRule rule,
+    int flowId = 9001,
+  }) {
+    final today = DateUtils.dateOnly(rule.startLocal);
+    return _applyReminderSyncVisibleMembership(
+      updateLocalCache: false,
+      rule: rule,
+      occurrences: _generateReminderOccurrences(rule, today, today),
+      flowId: flowId,
+      fromDate: today,
+    );
+  }
 
   /// Runs the commit-seam merge and writes the result into `_notes`.
   ///
