@@ -1,12 +1,13 @@
-bool shouldCommitFlowOnlyVisibleCalendarState({
-  required int flowAddedCount,
-  required bool keepWarmStartSnapshotVisible,
-  required bool hasPaintedEventSnapshot,
+enum CalendarHydrationPublicationPhase { flowEvents, complete }
+
+bool shouldPublishVisibleCalendarHydration({
+  required CalendarHydrationPublicationPhase phase,
+  required bool loadComplete,
 }) {
-  if (flowAddedCount <= 0) return false;
-  if (keepWarmStartSnapshotVisible) return false;
-  if (hasPaintedEventSnapshot) return false;
-  return true;
+  // Flow and standalone hydration run concurrently, but neither lane owns a
+  // visible server snapshot by itself. Local state remains authoritative until
+  // both required lanes have produced the complete result for this pass.
+  return phase == CalendarHydrationPublicationPhase.complete && loadComplete;
 }
 
 bool shouldPreservePaintedStandaloneLaneForHydrationCommit({
@@ -17,14 +18,4 @@ bool shouldPreservePaintedStandaloneLaneForHydrationCommit({
   return hasPaintedStandaloneLane &&
       source == 'invalidation:calendarImportSynced' &&
       commitPhase == 'complete';
-}
-
-bool shouldPublishCompletedVisibleCalendarSnapshot({
-  required bool loadComplete,
-  required bool hasIncomingEventSnapshot,
-  required bool hasPaintedEventSnapshot,
-}) {
-  if (loadComplete) return true;
-  if (!hasPaintedEventSnapshot) return hasIncomingEventSnapshot;
-  return false;
 }
