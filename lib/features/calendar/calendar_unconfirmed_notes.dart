@@ -32,8 +32,9 @@ class _UnconfirmedNote {
 /// Deliberately *not* epoch-based: an in-flight load must still commit its
 /// server data — it just must not erase rows hydration hasn't seen yet.
 class _UnconfirmedNoteLedger {
-  /// Backstop for rows whose write failed silently, or that were deleted on
-  /// another device. Bounded resurrection beats unbounded.
+  /// Age at which a caller should verify the CID with a forced-live lookup.
+  /// Expiry never removes an entry on its own: inability to verify must not
+  /// erase an event whose write already succeeded.
   static const Duration ttl = Duration(minutes: 2);
 
   /// Registration is refused past this point rather than evicting the oldest
@@ -46,22 +47,27 @@ class _UnconfirmedNoteLedger {
   bool get isEmpty => _entries.isEmpty;
   int get length => _entries.length;
 
+  bool containsCid(String clientEventId) {
+    final cid = clientEventId.trim();
+    if (cid.isEmpty) return false;
+    return _entries.any((entry) => entry.note.clientEventId?.trim() == cid);
+  }
+
   @visibleForTesting
   List<_Note> get unconfirmedNotes =>
       _entries.map((e) => e.note).toList(growable: false);
 
-  /// [isSameNote] should be `_sameStandaloneLaneNote`. Registering an identity
-  /// that is already present replaces it, so edit-then-resave and double-add
-  /// paths update in place instead of inflating the ledger and skewing the
-  /// confirmed counts.
-  ///
+  @visibleForTesting
+  List<_UnconfirmedNote> get entries =>
+      List<_UnconfirmedNote>.unmodifiable(_entries);
+
   /// Callers must supply a note carrying a `clientEventId`; without one,
-  /// confirmation matching degrades to title+time and can retire the wrong
-  /// entry. Registration is refused (and logged) rather than accepted blind.
+  /// confirmation cannot be exact. Registration is refused rather than
+  /// degrading to id, reminder identity, or title/time matching.
   bool register({
     required String dayKey,
     required _Note note,
-    required bool Function(_Note a, _Note b) isSameNote,
+    DateTime? createdAt,
   }) {
     final cid = note.clientEventId?.trim();
     if (cid == null || cid.isEmpty) {
@@ -72,16 +78,14 @@ class _UnconfirmedNoteLedger {
       return false;
     }
 
-    _pruneExpired();
-
     final existing = _entries.indexWhere(
-      (entry) => isSameNote(entry.note, note),
+      (entry) => entry.note.clientEventId?.trim() == cid,
     );
     if (existing >= 0) {
       _entries[existing] = _UnconfirmedNote(
         dayKey: dayKey,
         note: note,
-        createdAt: _entries[existing].createdAt,
+        createdAt: createdAt?.toUtc() ?? _entries[existing].createdAt,
       );
       return true;
     }
@@ -94,7 +98,11 @@ class _UnconfirmedNoteLedger {
     }
 
     _entries.add(
-      _UnconfirmedNote(dayKey: dayKey, note: note, createdAt: DateTime.now()),
+      _UnconfirmedNote(
+        dayKey: dayKey,
+        note: note,
+        createdAt: (createdAt ?? DateTime.now()).toUtc(),
+      ),
     );
     return true;
   }
@@ -103,24 +111,45 @@ class _UnconfirmedNoteLedger {
   /// Must be called from every local-removal path — including the direct
   /// `_notes` mutators that bypass `_addNote` — or deleted notes resurrect on
   /// the next commit.
-  int forget(bool Function(_Note note) matches) {
+  int forgetCid(String? clientEventId) {
+    final cid = clientEventId?.trim();
+    if (cid == null || cid.isEmpty) return 0;
     final before = _entries.length;
-    _entries.removeWhere((entry) => matches(entry.note));
+    _entries.removeWhere((entry) => entry.note.clientEventId?.trim() == cid);
     return before - _entries.length;
   }
 
-  List<_UnconfirmedNote> take(bool Function(_Note note) matches) {
+  int forgetCids(Iterable<String> clientEventIds) {
+    final cids = clientEventIds
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    if (cids.isEmpty) return 0;
+    final before = _entries.length;
+    _entries.removeWhere(
+      (entry) => cids.contains(entry.note.clientEventId?.trim()),
+    );
+    return before - _entries.length;
+  }
+
+  List<_UnconfirmedNote> takeCids(Iterable<String> clientEventIds) {
+    final cids = clientEventIds
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet();
+    if (cids.isEmpty) return const <_UnconfirmedNote>[];
     final removed = _entries
-        .where((entry) => matches(entry.note))
+        .where((entry) => cids.contains(entry.note.clientEventId?.trim()))
         .toList(growable: false);
     if (removed.isNotEmpty) {
-      _entries.removeWhere((entry) => matches(entry.note));
+      _entries.removeWhere(
+        (entry) => cids.contains(entry.note.clientEventId?.trim()),
+      );
     }
     return removed;
   }
 
   void restore(Iterable<_UnconfirmedNote> entries) {
-    _pruneExpired();
     for (final entry in entries) {
       final cid = entry.note.clientEventId?.trim();
       final alreadyPresent = _entries.any((candidate) {
@@ -141,30 +170,35 @@ class _UnconfirmedNoteLedger {
   ///   * incoming rows do not          → re-add, so the row survives the commit
   ///
   /// A miss can also mean "outside the hydration window," where re-adding is
-  /// still correct. [ttl] bounds the case where it means "the write never
-  /// landed."
+  /// still correct. TTL is handled by a forced-live verifier outside this
+  /// synchronous commit seam.
   ///
   /// Runs *before* `_dedupeVisibleDayNotes`, so genuine conflicts with incoming
-  /// rows resolve under the existing dedupe rules rather than here. Flow-backed
-  /// unconfirmed rows (maat joins) are matched by cid/id through [isSameNote];
-  /// they must not be routed through `_mergePaintedStandaloneLaneInto`, which
-  /// is scoped to the standalone lane.
-  ({int preserved, int confirmed}) mergeInto(
-    Map<String, List<_Note>> notesByDay, {
-    required bool Function(_Note incoming, _Note pending) isSameNote,
-  }) {
-    _pruneExpired();
-    if (_entries.isEmpty) return (preserved: 0, confirmed: 0);
+  /// rows resolve under the existing dedupe rules rather than here. Exact CID
+  /// confirmation is global across day buckets so a canonical row that moved
+  /// days retires its old pending projection instead of being duplicated.
+  ({int preserved, int confirmed, List<String> confirmedCids}) mergeInto(
+    Map<String, List<_Note>> notesByDay,
+  ) {
+    if (_entries.isEmpty) {
+      return (preserved: 0, confirmed: 0, confirmedCids: const <String>[]);
+    }
 
     var preserved = 0;
     final confirmed = <_UnconfirmedNote>[];
+    final incomingCids = <String>{
+      for (final note in notesByDay.values.expand((notes) => notes))
+        if ((note.clientEventId ?? '').trim().isNotEmpty)
+          note.clientEventId!.trim(),
+    };
 
     for (final entry in _entries) {
-      final bucket = notesByDay.putIfAbsent(entry.dayKey, () => <_Note>[]);
-      if (bucket.any((incoming) => isSameNote(incoming, entry.note))) {
+      final cid = entry.note.clientEventId?.trim();
+      if (cid != null && cid.isNotEmpty && incomingCids.contains(cid)) {
         confirmed.add(entry);
         continue;
       }
+      final bucket = notesByDay.putIfAbsent(entry.dayKey, () => <_Note>[]);
       bucket.add(entry.note);
       preserved++;
     }
@@ -172,11 +206,22 @@ class _UnconfirmedNoteLedger {
     for (final entry in confirmed) {
       _entries.remove(entry);
     }
-    return (preserved: preserved, confirmed: confirmed.length);
+    return (
+      preserved: preserved,
+      confirmed: confirmed.length,
+      confirmedCids: confirmed
+          .map((entry) => entry.note.clientEventId?.trim())
+          .whereType<String>()
+          .where((cid) => cid.isNotEmpty)
+          .toList(growable: false),
+    );
   }
 
-  void _pruneExpired() {
-    final cutoff = DateTime.now().subtract(ttl);
-    _entries.removeWhere((entry) => entry.createdAt.isBefore(cutoff));
+  List<_UnconfirmedNote> dueForVerification({DateTime? now}) {
+    final effectiveNow = (now ?? DateTime.now()).toUtc();
+    final cutoff = effectiveNow.subtract(ttl);
+    return _entries
+        .where((entry) => entry.createdAt.toUtc().isBefore(cutoff))
+        .toList(growable: false);
   }
 }
