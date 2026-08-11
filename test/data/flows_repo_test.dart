@@ -160,10 +160,11 @@ void main() {
     });
 
     test('reports failed activity instead of successful empty', () async {
+      final httpClient = _ActivityClient(fail: true);
       final client = SupabaseClient(
         'https://example.supabase.test',
         'test-anon-key',
-        httpClient: _ActivityClient(fail: true),
+        httpClient: httpClient,
         authOptions: const AuthClientOptions(autoRefreshToken: false),
       );
       try {
@@ -175,6 +176,11 @@ void main() {
         expect(result.status, HydrationFetchStatus.failed);
         expect(result.value.total, isEmpty);
         expect(result.value.remaining, isEmpty);
+        expect(
+          httpClient.requestCount,
+          1,
+          reason: 'an activity timeout must not expand the event filing view',
+        );
       } finally {
         client.dispose();
       }
@@ -198,6 +204,21 @@ void main() {
       } finally {
         client.dispose();
       }
+    });
+
+    test('activity failure has no event-view query fallback', () {
+      final source = File('lib/data/flows_repo.dart').readAsStringSync();
+      final start = source.indexOf(
+        'Future<HydrationFetchResult<FlowEventCounts>> _loadMyEventCounts(',
+      );
+      final end = source.indexOf(
+        'Future<HydrationFetchResult<FlowEventCounts>> loadMyFlowEventCounts(',
+        start,
+      );
+      final body = source.substring(start, end);
+
+      expect(body, isNot(contains("from('user_event_filing_items_client')")));
+      expect(body, isNot(contains('user_event_completions')));
     });
   });
 }

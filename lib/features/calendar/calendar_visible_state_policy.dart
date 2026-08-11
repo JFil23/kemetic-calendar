@@ -15,6 +15,11 @@ bool calendarHydrationIsSemanticallyComplete({
     hydrationFetchSucceeded(flowEvents) &&
     hydrationFetchSucceeded(standalone);
 
+bool shouldApplyHydrationAccountingResult({
+  required HydrationFetchStatus status,
+  required bool hasCachedCounts,
+}) => hydrationFetchSucceeded(status) || hasCachedCounts;
+
 bool shouldPublishVisibleCalendarHydration({
   required CalendarHydrationPublicationPhase phase,
   required bool loadComplete,

@@ -178,6 +178,45 @@ void main() {
     );
   });
 
+  test('accounting failure only applies cached counts', () {
+    expect(
+      shouldApplyHydrationAccountingResult(
+        status: HydrationFetchStatus.successfulEmpty,
+        hasCachedCounts: false,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldApplyHydrationAccountingResult(
+        status: HydrationFetchStatus.failed,
+        hasCachedCounts: true,
+      ),
+      isTrue,
+    );
+    expect(
+      shouldApplyHydrationAccountingResult(
+        status: HydrationFetchStatus.failed,
+        hasCachedCounts: false,
+      ),
+      isFalse,
+    );
+  });
+
+  test('calendar hydration does not issue per-flow fallback requests', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final loadFlowEvents = _sourceBetween(
+      source,
+      'Future<Map<int, List<FlowEventRow>>> loadFlowEvents() async {',
+      'var standaloneWindow = _computeStandaloneHydrationWindow(newFlows);',
+    );
+
+    expect(loadFlowEvents, contains('getEventsForFlowIds('));
+    expect(loadFlowEvents, isNot(contains('getEventsForFlow(')));
+    expect(loadFlowEvents, isNot(contains('flow_fallback_')));
+  });
+
   test('import sync complete commit preserves painted standalone lane', () {
     expect(
       shouldPreservePaintedStandaloneLaneForHydrationCommit(

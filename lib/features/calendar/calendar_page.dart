@@ -29617,48 +29617,12 @@ class CalendarPageState extends State<CalendarPage>
           }
         }
 
-        if (eventsByFlowId.isNotEmpty) {
-          if (kDebugMode) {
-            eventsByFlowId.forEach((fid, events) {
-              _calendarDebugPrint(
-                '[loadFromDisk] flow $fid events (batched) count: ${events.length}',
-              );
-            });
-          }
-          return eventsByFlowId;
-        }
-
-        var fallbackHadError = false;
-        var fallbackIndex = 0;
-        for (final flowId in hydrationFlowIds) {
-          try {
-            final flowEvents = await repo.getEventsForFlow(
-              flowId,
-              startUtc: flowWindow?.startUtc,
-              endUtc: flowWindow?.endUtc,
-              flowEventsOnly: true,
-              diagnosticContext: hydrationContext?.child(
-                'flow_fallback_${fallbackIndex++}',
-              ),
+        if (kDebugMode && eventsByFlowId.isNotEmpty) {
+          eventsByFlowId.forEach((fid, events) {
+            _calendarDebugPrint(
+              '[loadFromDisk] flow $fid events (batched) count: ${events.length}',
             );
-            eventsByFlowId[flowId] = flowEvents;
-            if (kDebugMode) {
-              _calendarDebugPrint(
-                '[loadFromDisk] getEventsForFlow($flowId) count: ${flowEvents.length} (fallback)',
-              );
-            }
-          } catch (err, st) {
-            fallbackHadError = true;
-            if (kDebugMode) {
-              _calendarDebugPrint(
-                '[loadFromDisk] failed to hydrate events for flow $flowId: $err',
-              );
-              _calendarDebugPrint('$st');
-            }
-          }
-        }
-        if (fallbackHadError) {
-          flowHydrationComplete = false;
+          });
         }
 
         return eventsByFlowId;
@@ -30392,36 +30356,54 @@ class CalendarPageState extends State<CalendarPage>
             final flowEventCountsResult = await flowEventCountsFuture;
             if (!postProcessingStillCurrent()) return;
             final flowEventCounts = flowEventCountsResult.value;
+            final hasCachedCounts =
+                flowEventCounts.total.isNotEmpty ||
+                flowEventCounts.remaining.isNotEmpty;
+            final applyCounts = shouldApplyHydrationAccountingResult(
+              status: flowEventCountsResult.status,
+              hasCachedCounts: hasCachedCounts,
+            );
             if (mounted) {
               setState(() {
+                if (applyCounts) {
+                  _flowTotalEventCounts
+                    ..clear()
+                    ..addAll(flowEventCounts.total);
+                  _flowRemainingEventCounts
+                    ..clear()
+                    ..addAll(flowEventCounts.remaining);
+                }
+                if (flowEventCountsResult.succeeded) {
+                  _lastAccountingAuthorityAt = DateTime.now();
+                  _accountingStale = false;
+                } else {
+                  _accountingStale = true;
+                }
+              });
+            } else {
+              if (applyCounts) {
                 _flowTotalEventCounts
                   ..clear()
                   ..addAll(flowEventCounts.total);
                 _flowRemainingEventCounts
                   ..clear()
                   ..addAll(flowEventCounts.remaining);
-              });
-            } else {
-              _flowTotalEventCounts
-                ..clear()
-                ..addAll(flowEventCounts.total);
-              _flowRemainingEventCounts
-                ..clear()
-                ..addAll(flowEventCounts.remaining);
-            }
-            if (flowEventCountsResult.succeeded) {
-              _lastAccountingAuthorityAt = DateTime.now();
-              _accountingStale = false;
-            } else {
-              _accountingStale = true;
+              }
+              if (flowEventCountsResult.succeeded) {
+                _lastAccountingAuthorityAt = DateTime.now();
+                _accountingStale = false;
+              } else {
+                _accountingStale = true;
+              }
             }
             hydrationDiagnostics.recordPostProcessing(
               hydrationContext,
               'flow_counts_applied',
               durationMs: flowCountsStopwatch.elapsedMilliseconds,
-              countsApplied: true,
+              countsApplied: applyCounts,
               fields: <String, Object?>{
                 'status': flowEventCountsResult.status.diagnosticName,
+                'counts_applied': applyCounts,
                 'total_count_entries': flowEventCounts.total.length,
                 'remaining_count_entries': flowEventCounts.remaining.length,
               },

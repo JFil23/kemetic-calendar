@@ -490,68 +490,12 @@ class FlowsRepo {
         );
         return HydrationFetchResult.failed(cachedCounts);
       }
-      _log('get_my_flow_activity unavailable, using query fallback: $e');
-    }
-
-    late final List<dynamic> eventRows;
-    late final List<dynamic> completionRows;
-    try {
-      eventRows =
-          await _client
-                  .from('user_event_filing_items_client')
-                  .select('filed_flow_id, client_event_id')
-                  .eq('user_id', user.id)
-                  .inFilter('filed_flow_id', flowIds)
-              as List<dynamic>;
-      completionRows =
-          await _client
-                  .from('user_event_completions')
-                  .select('flow_id, client_event_id')
-                  .eq('user_id', user.id)
-                  .inFilter('flow_id', flowIds)
-              as List<dynamic>;
-    } catch (e) {
-      _log('flow event count query fallback failed: $e');
+      _log('get_my_flow_activity unavailable, preserving current counts: $e');
       return const HydrationFetchResult.failed((
         total: <int, int>{},
         remaining: <int, int>{},
       ));
     }
-
-    final completedClientIdsByFlow = <int, Set<String>>{};
-    for (final raw in completionRows.cast<Map<String, dynamic>>()) {
-      final flowId = (raw['flow_id'] as num?)?.toInt();
-      final clientEventId = (raw['client_event_id'] as String?)?.trim();
-      if (flowId == null || clientEventId == null || clientEventId.isEmpty) {
-        continue;
-      }
-      completedClientIdsByFlow
-          .putIfAbsent(flowId, () => <String>{})
-          .add(clientEventId);
-    }
-
-    final totalCounts = <int, int>{};
-    final remainingCounts = <int, int>{};
-    for (final raw in eventRows.cast<Map<String, dynamic>>()) {
-      final flowId = (raw['filed_flow_id'] as num?)?.toInt();
-      if (flowId == null) continue;
-
-      totalCounts[flowId] = (totalCounts[flowId] ?? 0) + 1;
-
-      final clientEventId = (raw['client_event_id'] as String?)?.trim();
-      final completed =
-          clientEventId != null &&
-          clientEventId.isNotEmpty &&
-          (completedClientIdsByFlow[flowId]?.contains(clientEventId) ?? false);
-      if (!completed) {
-        remainingCounts[flowId] = (remainingCounts[flowId] ?? 0) + 1;
-      }
-    }
-
-    return HydrationFetchResult.failed((
-      total: totalCounts,
-      remaining: remainingCounts,
-    ));
   }
 
   Future<HydrationFetchResult<FlowEventCounts>> loadMyFlowEventCounts({
