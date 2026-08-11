@@ -29326,7 +29326,7 @@ class CalendarPageState extends State<CalendarPage>
       bool committedVisibleCalendar = false;
 
       void commitVisibleCalendarState(
-        String phase, {
+        CalendarHydrationPublicationPhase phase, {
         bool loadComplete = false,
         HydrationCompletenessResult? diagnosticCompleteness,
       }) {
@@ -29340,15 +29340,13 @@ class CalendarPageState extends State<CalendarPage>
         final hasIncomingEventSnapshot = newNotes.values.any(
           (notes) => notes.isNotEmpty,
         );
-        if (phase == 'complete' &&
-            !shouldPublishCompletedVisibleCalendarSnapshot(
-              loadComplete: loadComplete,
-              hasIncomingEventSnapshot: hasIncomingEventSnapshot,
-              hasPaintedEventSnapshot: hasPaintedEventSnapshotAtLoadStart,
-            )) {
+        if (!shouldPublishVisibleCalendarHydration(
+          phase: phase,
+          loadComplete: loadComplete,
+        )) {
           if (kDebugMode) {
             _calendarDebugPrint(
-              '[loadFromDisk] skipped incomplete complete commit '
+              '[loadFromDisk] skipped non-complete visible commit '
               'source=$source incomingEvents=$hasIncomingEventSnapshot '
               'paintedEvents=$hasPaintedEventSnapshotAtLoadStart '
               'flowComplete=$flowHydrationComplete '
@@ -29360,7 +29358,7 @@ class CalendarPageState extends State<CalendarPage>
         final preservePaintedStandaloneLane =
             shouldPreservePaintedStandaloneLaneForHydrationCommit(
               source: source,
-              commitPhase: phase,
+              commitPhase: phase.name,
               hasPaintedStandaloneLane: hasPaintedStandaloneLaneAtLoadStart,
             );
         final preservedStandaloneCount = preservePaintedStandaloneLane
@@ -29407,7 +29405,7 @@ class CalendarPageState extends State<CalendarPage>
 
         if (kDebugMode) {
           _calendarDebugPrint(
-            '[loadFromDisk] committed phase=$phase '
+            '[loadFromDisk] committed phase=${phase.name} '
             '_flows.length=${_flows.length} _notes keys=${_notes.length} '
             'preservedStandalone=$preservedStandaloneCount '
             'unconfirmedPreserved=${unconfirmedMerge.preserved} '
@@ -29445,22 +29443,20 @@ class CalendarPageState extends State<CalendarPage>
         committedVisibleCalendar = true;
         hydrationDiagnostics.recordVisibleCommit(
           context: hydrationContext,
-          phase: phase,
-          originClass: phase == 'flow_events'
-              ? 'server_partial'
-              : 'server_complete',
+          phase: phase.name,
+          originClass: 'server_complete',
           totalFlows: _flows.length,
           totalEvents: flowAddedCount + standaloneAddedCount,
           totalDayBuckets: _notes.length,
           selectedDay: _hydrationSelectedDaySnapshot(_notes),
-          claimedComplete: phase == 'complete',
+          claimedComplete: phase == CalendarHydrationPublicationPhase.complete,
           completeness: diagnosticCompleteness,
         );
         hydrationDiagnostics.recordPostProcessing(
           hydrationContext,
           'commit_prep_and_apply',
           durationMs: commitPrepStopwatch.elapsedMilliseconds,
-          fields: <String, Object?>{'phase': phase},
+          fields: <String, Object?>{'phase': phase.name},
         );
       }
 
@@ -29701,21 +29697,10 @@ class CalendarPageState extends State<CalendarPage>
           '[loadFromDisk] flow notes added to newNotes: $flowAddedCount',
         );
       }
-      final shouldCommitFlowOnly = shouldCommitFlowOnlyVisibleCalendarState(
-        flowAddedCount: flowAddedCount,
-        keepWarmStartSnapshotVisible: keepWarmStartSnapshotVisible,
-        hasPaintedEventSnapshot: hasPaintedEventSnapshotAtLoadStart,
-      );
-      if (shouldCommitFlowOnly) {
-        // Standalone notes/reminders can be slower or time out. Flow-backed
-        // calendar events should still reach the first useful frame promptly,
-        // but never by replacing an already-painted standalone lane.
-        commitVisibleCalendarState('flow_events');
-      } else if (kDebugMode && flowAddedCount > 0) {
+      if (kDebugMode && flowAddedCount > 0) {
         _calendarDebugPrint(
-          '[loadFromDisk] skipped flow_events partial commit source=$source '
-          'keepWarmStart=$keepWarmStartSnapshotVisible '
-          'hasStandalone=$hasPaintedStandaloneLaneAtLoadStart',
+          '[loadFromDisk] flow events ready internally; '
+          'visible publication waits for complete hydration source=$source',
         );
       }
 
@@ -29971,7 +29956,7 @@ class CalendarPageState extends State<CalendarPage>
         claimedComplete: true,
       );
       commitVisibleCalendarState(
-        'complete',
+        CalendarHydrationPublicationPhase.complete,
         loadComplete: flowHydrationComplete && standaloneHydrationComplete,
         diagnosticCompleteness: diagnosticCompleteness,
       );

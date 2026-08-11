@@ -4,9 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_visible_state_policy.dart';
 
 void main() {
-  const completeCommitMarker =
-      "commitVisibleCalendarState(\n        'complete'";
-
   test('startup restores warm calendar before live sync and hydration', () {
     final source = File(
       'lib/features/calendar/calendar_page.dart',
@@ -50,28 +47,6 @@ void main() {
     );
   });
 
-  test('startup live load can paint flow events before standalone lane', () {
-    final source = File(
-      'lib/features/calendar/calendar_page.dart',
-    ).readAsStringSync();
-    final load = _sourceBetween(
-      source,
-      'Future<void> _loadFromDisk({',
-      '/// Allows other screens (e.g., Settings) to trigger a fresh sync',
-    );
-
-    expect(load, contains("commitVisibleCalendarState('flow_events')"));
-    expect(load, contains(completeCommitMarker));
-    expect(
-      load.indexOf("commitVisibleCalendarState('flow_events')"),
-      lessThan(load.indexOf('final standaloneResult = await standaloneFuture')),
-    );
-    expect(
-      load.indexOf('final standaloneResult = await standaloneFuture'),
-      lessThan(load.indexOf(completeCommitMarker)),
-    );
-  });
-
   test('no-op invite import sync does not publish calendar invalidation', () {
     final source = File(
       'lib/features/calendar/calendar_page.dart',
@@ -91,87 +66,45 @@ void main() {
     expect(sync, contains('CalendarInvalidationReason.calendarImportSynced'));
   });
 
-  test('flow-only visible commit cannot replace painted event snapshot', () {
+  test('warm snapshot remains visible when only flow events are ready', () {
     expect(
-      shouldCommitFlowOnlyVisibleCalendarState(
-        flowAddedCount: 3,
-        keepWarmStartSnapshotVisible: false,
-        hasPaintedEventSnapshot: false,
-      ),
-      isTrue,
-    );
-    expect(
-      shouldCommitFlowOnlyVisibleCalendarState(
-        flowAddedCount: 3,
-        keepWarmStartSnapshotVisible: true,
-        hasPaintedEventSnapshot: false,
+      shouldPublishVisibleCalendarHydration(
+        phase: CalendarHydrationPublicationPhase.flowEvents,
+        loadComplete: false,
       ),
       isFalse,
+      reason: 'a partial server lane cannot replace the painted local state',
     );
+  });
+
+  test('cold startup does not expose a flow-only server snapshot', () {
     expect(
-      shouldCommitFlowOnlyVisibleCalendarState(
-        flowAddedCount: 3,
-        keepWarmStartSnapshotVisible: false,
-        hasPaintedEventSnapshot: true,
-      ),
-      isFalse,
-    );
-    expect(
-      shouldCommitFlowOnlyVisibleCalendarState(
-        flowAddedCount: 0,
-        keepWarmStartSnapshotVisible: false,
-        hasPaintedEventSnapshot: false,
+      shouldPublishVisibleCalendarHydration(
+        phase: CalendarHydrationPublicationPhase.flowEvents,
+        loadComplete: false,
       ),
       isFalse,
     );
   });
 
-  test('completed visible snapshot policy preserves last-good events', () {
+  test('complete flow and standalone hydration publishes atomically', () {
     expect(
-      shouldPublishCompletedVisibleCalendarSnapshot(
+      shouldPublishVisibleCalendarHydration(
+        phase: CalendarHydrationPublicationPhase.complete,
+        loadComplete: true,
+      ),
+      isTrue,
+    );
+  });
+
+  test('an incomplete complete phase preserves warm visible state', () {
+    expect(
+      shouldPublishVisibleCalendarHydration(
+        phase: CalendarHydrationPublicationPhase.complete,
         loadComplete: false,
-        hasIncomingEventSnapshot: false,
-        hasPaintedEventSnapshot: true,
       ),
       isFalse,
       reason: 'transient empty hydration must not erase visible events',
-    );
-    expect(
-      shouldPublishCompletedVisibleCalendarSnapshot(
-        loadComplete: false,
-        hasIncomingEventSnapshot: true,
-        hasPaintedEventSnapshot: true,
-      ),
-      isFalse,
-      reason: 'partial newer data must wait until the snapshot is complete',
-    );
-    expect(
-      shouldPublishCompletedVisibleCalendarSnapshot(
-        loadComplete: true,
-        hasIncomingEventSnapshot: false,
-        hasPaintedEventSnapshot: true,
-      ),
-      isTrue,
-      reason: 'a completed refresh may confirm the true empty state',
-    );
-    expect(
-      shouldPublishCompletedVisibleCalendarSnapshot(
-        loadComplete: true,
-        hasIncomingEventSnapshot: true,
-        hasPaintedEventSnapshot: true,
-      ),
-      isTrue,
-      reason: 'a complete newer snapshot may replace stale event blocks',
-    );
-    expect(
-      shouldPublishCompletedVisibleCalendarSnapshot(
-        loadComplete: false,
-        hasIncomingEventSnapshot: true,
-        hasPaintedEventSnapshot: false,
-      ),
-      isTrue,
-      reason:
-          'first paint may use useful incoming events when no prior state exists',
     );
   });
 
@@ -209,53 +142,6 @@ void main() {
       isFalse,
     );
   });
-
-  test(
-    'load from disk guards flow-only commit with painted standalone lane',
-    () {
-      final source = File(
-        'lib/features/calendar/calendar_page.dart',
-      ).readAsStringSync();
-      final load = _sourceBetween(
-        source,
-        'Future<void> _loadFromDisk({',
-        '/// Allows other screens (e.g., Settings) to trigger a fresh sync',
-      );
-
-      expect(load, contains('final hasPaintedStandaloneLaneAtLoadStart'));
-      expect(load, contains('final hasPaintedEventSnapshotAtLoadStart'));
-      expect(load, contains('shouldCommitFlowOnlyVisibleCalendarState'));
-      expect(load, contains('shouldPublishCompletedVisibleCalendarSnapshot'));
-      expect(
-        load,
-        contains('shouldPreservePaintedStandaloneLaneForHydrationCommit'),
-      );
-      expect(load, contains('_mergePaintedStandaloneLaneInto(newNotes)'));
-      expect(load, contains('hasPaintedStandaloneLaneAtLoadStart'));
-      expect(load, contains("commitVisibleCalendarState('flow_events')"));
-      expect(load, contains(completeCommitMarker));
-      expect(
-        load.indexOf('final hasPaintedStandaloneLaneAtLoadStart'),
-        lessThan(load.indexOf('shouldCommitFlowOnlyVisibleCalendarState')),
-      );
-      expect(
-        load.indexOf('final hasPaintedEventSnapshotAtLoadStart'),
-        lessThan(load.indexOf('shouldPublishCompletedVisibleCalendarSnapshot')),
-      );
-      expect(
-        load.indexOf('shouldCommitFlowOnlyVisibleCalendarState'),
-        lessThan(load.indexOf("commitVisibleCalendarState('flow_events')")),
-      );
-      expect(
-        load.indexOf('shouldPreservePaintedStandaloneLaneForHydrationCommit'),
-        lessThan(load.indexOf(completeCommitMarker)),
-      );
-      expect(
-        load.indexOf("commitVisibleCalendarState('flow_events')"),
-        lessThan(load.indexOf(completeCommitMarker)),
-      );
-    },
-  );
 }
 
 String _sourceBetween(String source, String start, String end) {
