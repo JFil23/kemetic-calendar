@@ -111,6 +111,7 @@ import '../../widgets/recurrence_until_date_picker.dart';
 import '../../utils/external_link_utils.dart';
 import 'calendar_invalidation.dart';
 import 'calendar_hydration_diagnostics.dart';
+import 'calendar_hydration_status_banner.dart';
 import 'calendar_pending_note_store.dart';
 import 'end_flow_diagnostics.dart';
 export 'end_flow_diagnostics.dart';
@@ -9666,6 +9667,8 @@ class CalendarPageState extends State<CalendarPage>
   int _dataVersion = 0;
   final ValueNotifier<int> _dayViewDataVersion = ValueNotifier<int>(0);
   final ValueNotifier<int> _dayViewHydrationActivation = ValueNotifier<int>(0);
+  final ValueNotifier<CalendarHydrationStatus> _dayViewHydrationStatus =
+      ValueNotifier<CalendarHydrationStatus>(CalendarHydrationStatus.current);
   final ValueNotifier<DayViewSheetEventTarget?> _dayViewEventDetailRequest =
       ValueNotifier<DayViewSheetEventTarget?>(null);
   Timer? _warmStartCacheDebounceTimer;
@@ -9694,6 +9697,31 @@ class CalendarPageState extends State<CalendarPage>
     if (scheduleCacheSave) {
       _scheduleWarmStartCacheSave();
     }
+  }
+
+  void _publishHydrationStatus() {
+    if (!mounted) return;
+    final next = CalendarHydrationStatus(
+      calendarAvailability: _calendarHydrationAvailability,
+      accountingStale: _accountingStale,
+    );
+    if (_dayViewHydrationStatus.value == next) return;
+    _dayViewHydrationStatus.value = next;
+  }
+
+  void _markCalendarHydrationIncomplete({required int epoch}) {
+    if (!mounted || !_loadCoordinator.isCurrent(epoch)) return;
+    final hasFallbackSnapshot =
+        _warmStartSnapshotVisible ||
+        _serverHydrationCommittedForUserId != null ||
+        _flows.isNotEmpty ||
+        _notes.isNotEmpty;
+    final next = calendarAvailabilityAfterFailure(
+      hasFallbackSnapshot: hasFallbackSnapshot,
+    );
+    if (_calendarHydrationAvailability == next) return;
+    setState(() => _calendarHydrationAvailability = next);
+    _publishHydrationStatus();
   }
 
   void _handleHydrationLoadObservation(CalendarLoadObservation observation) {
@@ -9932,6 +9960,8 @@ class CalendarPageState extends State<CalendarPage>
   DateTime? _lastAuthoritativeHydrationAt;
   DateTime? _lastAccountingAuthorityAt;
   bool _accountingStale = false;
+  CalendarHydrationAvailability _calendarHydrationAvailability =
+      CalendarHydrationAvailability.current;
   int _calendarAuthorityRevision = 0;
   Timer? _calendarRestorationDebounce;
   double? _lastKnownCalendarScrollOffset;
@@ -10918,6 +10948,7 @@ class CalendarPageState extends State<CalendarPage>
         (json['lastAccountingAuthorityAt'] as String?) ?? '',
       )?.toLocal();
       _accountingStale = (json['accountingStale'] as bool?) ?? false;
+      _publishHydrationStatus();
       final restoredEventCount = notesByDay.values.fold<int>(
         0,
         (sum, notes) => sum + notes.length,
@@ -11254,6 +11285,8 @@ class CalendarPageState extends State<CalendarPage>
     _lastAuthoritativeHydrationAt = null;
     _lastAccountingAuthorityAt = null;
     _accountingStale = false;
+    _calendarHydrationAvailability = CalendarHydrationAvailability.current;
+    _publishHydrationStatus();
     _dataVersion++;
     _notifyDayViewDataChanged(scheduleCacheSave: false);
 
@@ -15179,6 +15212,8 @@ class CalendarPageState extends State<CalendarPage>
         _lastAuthoritativeHydrationAt = null;
         _lastAccountingAuthorityAt = null;
         _accountingStale = false;
+        _calendarHydrationAvailability = CalendarHydrationAvailability.current;
+        _publishHydrationStatus();
         _calendarAuthorityRevision = 0;
         _flows.clear();
         _notes.clear();
@@ -15959,6 +15994,7 @@ class CalendarPageState extends State<CalendarPage>
       activeLedgerFlowIdsBuilder: _buildActiveLedgerFlowIds,
       dataVersion: _dayViewDataVersion,
       hydrationActivation: _dayViewHydrationActivation,
+      hydrationStatus: _dayViewHydrationStatus,
       getMonthName: (km) => getMonthById(km).displayFull,
       initialFirstVisibleMinute: focusEvent == null
           ? null
@@ -18387,6 +18423,7 @@ class CalendarPageState extends State<CalendarPage>
     _scrollCtrl.dispose();
     _dayViewDataVersion.dispose();
     _dayViewHydrationActivation.dispose();
+    _dayViewHydrationStatus.dispose();
     _dayViewEventDetailRequest.dispose();
     GuidedOnboardingController.instance.setExternalOverlaySuppressed(false);
     super.dispose();
@@ -26470,6 +26507,7 @@ class CalendarPageState extends State<CalendarPage>
           activeLedgerFlowIdsBuilder: _buildActiveLedgerFlowIds,
           dataVersion: _dayViewDataVersion,
           hydrationActivation: _dayViewHydrationActivation,
+          hydrationStatus: _dayViewHydrationStatus,
           getMonthName: getMonthName,
           initialFirstVisibleMinute: resolvedInitialFirstVisibleMinute,
           initialScrollOffset: initialScrollOffset,
@@ -29756,6 +29794,8 @@ class CalendarPageState extends State<CalendarPage>
 
         _rebuildReminderRulesFromFlowsIfMissing();
         _lastAuthoritativeHydrationAt = DateTime.now();
+        _calendarHydrationAvailability = CalendarHydrationAvailability.current;
+        _publishHydrationStatus();
         _calendarAuthorityRevision++;
         _bumpDataVersion(scheduleCacheSave: loadComplete);
         _warmStartCacheRestoredForUserId = _activeWarmStartUserId();
@@ -30396,6 +30436,7 @@ class CalendarPageState extends State<CalendarPage>
                 _accountingStale = true;
               }
             }
+            _publishHydrationStatus();
             hydrationDiagnostics.recordPostProcessing(
               hydrationContext,
               'flow_counts_applied',
@@ -30412,6 +30453,14 @@ class CalendarPageState extends State<CalendarPage>
               _scheduleWarmStartCacheSave();
             }
           } catch (err, st) {
+            if (postProcessingStillCurrent()) {
+              if (mounted) {
+                setState(() => _accountingStale = true);
+              } else {
+                _accountingStale = true;
+              }
+              _publishHydrationStatus();
+            }
             hydrationDiagnostics.recordPostProcessing(
               hydrationContext,
               'flow_counts_failed',
@@ -30497,6 +30546,10 @@ class CalendarPageState extends State<CalendarPage>
       hydrationContext,
       succeeded: hydrationPassSucceeded,
     );
+
+    if (!hydrationPassSucceeded) {
+      _markCalendarHydrationIncomplete(epoch: epoch);
+    }
 
     if (kDebugMode) {
       _calendarDebugPrint('=== _loadFromDisk END ($source) ===');
@@ -32330,6 +32383,18 @@ class CalendarPageState extends State<CalendarPage>
       children: [
         content,
         const PendingEventInviteOverlay(),
+        if (_calendarHydrationAvailability !=
+                CalendarHydrationAvailability.current ||
+            _accountingStale)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: CalendarHydrationStatusBanner(
+              calendarAvailability: _calendarHydrationAvailability,
+              accountingStale: _accountingStale,
+            ),
+          ),
         if (_reflectionPrompt != null) _buildReflectionBadge(),
       ],
     );

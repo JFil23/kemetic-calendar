@@ -21,6 +21,7 @@ import 'package:mobile/core/touch_targets.dart';
 import 'package:mobile/features/onboarding/daily_orientation_repo.dart';
 import 'calendar_page.dart';
 import 'calendar_hydration_diagnostics.dart';
+import 'calendar_hydration_status_banner.dart';
 import 'calendar_completion.dart';
 import 'calendar_event_visual_style.dart';
 import 'calendar_reflection_context.dart';
@@ -4948,6 +4949,7 @@ class DayViewPage extends StatefulWidget {
   final Set<int> Function()? activeLedgerFlowIdsBuilder;
   final ValueListenable<int>? dataVersion;
   final ValueListenable<int>? hydrationActivation;
+  final ValueListenable<CalendarHydrationStatus>? hydrationStatus;
   final String Function(int km) getMonthName;
   final int? initialFirstVisibleMinute;
   final double? initialScrollOffset; // optional: jump to a target time on open
@@ -5045,6 +5047,7 @@ class DayViewPage extends StatefulWidget {
     this.activeLedgerFlowIdsBuilder,
     this.dataVersion,
     this.hydrationActivation,
+    this.hydrationStatus,
     required this.getMonthName,
     this.initialFirstVisibleMinute,
     this.initialScrollOffset,
@@ -5777,6 +5780,18 @@ class _DayViewPageState extends State<DayViewPage> {
           },
           child: Scaffold(
             backgroundColor: _dayViewBase,
+            floatingActionButtonLocation:
+                FloatingActionButtonLocation.centerTop,
+            floatingActionButton: widget.hydrationStatus == null
+                ? null
+                : ValueListenableBuilder<CalendarHydrationStatus>(
+                    valueListenable: widget.hydrationStatus!,
+                    builder: (context, status, _) =>
+                        CalendarHydrationStatusBanner(
+                          calendarAvailability: status.calendarAvailability,
+                          accountingStale: status.accountingStale,
+                        ),
+                  ),
             body: OrientationBuilder(
               builder: (context, orientation) {
                 final orient = isTablet ? Orientation.portrait : orientation;
