@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'birthday_calendar.dart';
+import '../features/calendar/calendar_hydration_diagnostics.dart';
 import '../features/calendar/notify.dart';
 import '../features/calendar/end_flow_diagnostics.dart';
 import '../telemetry/telemetry.dart';
@@ -1708,9 +1709,19 @@ class UserEventsRepo {
     required DateTime endUtc,
     int pageSize = 1000,
     Map<int, FlowRecordSnapshot> flowOwnersById = const {},
+    HydrationDiagnosticContext? diagnosticContext,
   }) async {
+    final stopwatch = Stopwatch()..start();
     final user = _client.auth.currentUser;
     if (user == null) {
+      CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
+        context: diagnosticContext,
+        operation: 'standalone',
+        status: HydrationFetchStatus.unauthenticated,
+        durationMs: stopwatch.elapsedMilliseconds,
+        rowCount: 0,
+        requestCount: 0,
+      );
       return (
         events: const <StandaloneEventRow>[],
         ghostEventIds: const <String>[],
@@ -1758,6 +1769,16 @@ class UserEventsRepo {
         'getStandaloneEventsForDateRangeAll ✗ code=${e.code} ${e.message} hint=${e.hint} details=${e.details} '
         '(${startUtc.toUtc().toIso8601String()} → ${endUtc.toUtc().toIso8601String()})',
       );
+      CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
+        context: diagnosticContext,
+        operation: 'standalone',
+        status: HydrationFetchStatus.failed,
+        durationMs: stopwatch.elapsedMilliseconds,
+        rowCount: pages.length,
+        requestCount: pageCount,
+        pageCount: pageCount,
+        safeErrorClass: e.runtimeType.toString(),
+      );
       return (
         events: const <StandaloneEventRow>[],
         ghostEventIds: const <String>[],
@@ -1766,6 +1787,16 @@ class UserEventsRepo {
       );
     } catch (e) {
       _log('getStandaloneEventsForDateRangeAll ✗ $e');
+      CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
+        context: diagnosticContext,
+        operation: 'standalone',
+        status: HydrationFetchStatus.failed,
+        durationMs: stopwatch.elapsedMilliseconds,
+        rowCount: pages.length,
+        requestCount: pageCount,
+        pageCount: pageCount,
+        safeErrorClass: e.runtimeType.toString(),
+      );
       return (
         events: const <StandaloneEventRow>[],
         ghostEventIds: const <String>[],
@@ -1828,9 +1859,21 @@ class UserEventsRepo {
       ));
     }
 
+    final birthdayStopwatch = Stopwatch()..start();
     final birthdayOccurrences = await BirthdayCalendarRepo(
       _client,
     ).getOccurrencesForRange(startUtc: startUtc, endUtc: endUtc);
+    CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
+      context: diagnosticContext,
+      operation: 'birthday_occurrences',
+      status: birthdayOccurrences.isEmpty
+          ? HydrationFetchStatus.successfulEmpty
+          : HydrationFetchStatus.successNonempty,
+      durationMs: birthdayStopwatch.elapsedMilliseconds,
+      rowCount: birthdayOccurrences.length,
+      requestCount: 1,
+      critical: false,
+    );
     for (final occurrence in birthdayOccurrences) {
       final row = _standaloneRowFromBirthdayOccurrence(occurrence);
       final id = row.id;
@@ -1860,6 +1903,18 @@ class UserEventsRepo {
         'getStandaloneEventsForDateRangeAll ✓ pages=$pageCount raw=${pages.length} merged=${events.length} ghosts=${ghostEventIds.length}',
       );
     }
+
+    CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
+      context: diagnosticContext,
+      operation: 'standalone',
+      status: events.isEmpty
+          ? HydrationFetchStatus.successfulEmpty
+          : HydrationFetchStatus.successNonempty,
+      durationMs: stopwatch.elapsedMilliseconds,
+      rowCount: events.length,
+      requestCount: pageCount,
+      pageCount: pageCount,
+    );
 
     return (
       events: events,
@@ -2095,7 +2150,10 @@ class UserEventsRepo {
     DateTime? startUtc,
     DateTime? endUtc,
     bool flowEventsOnly = false,
+    HydrationDiagnosticContext? diagnosticContext,
   }) async {
+    final stopwatch = Stopwatch()..start();
+    final authenticatedAtStart = _client.auth.currentUser != null;
     try {
       var query = _client
           .from(_kReadableEventsTable)
@@ -2115,7 +2173,7 @@ class UserEventsRepo {
 
       final rows = await query.order('starts_at', ascending: true);
 
-      return (rows as List)
+      final events = (rows as List)
           .cast<Map<String, dynamic>>()
           .where(
             (row) =>
@@ -2124,6 +2182,18 @@ class UserEventsRepo {
           )
           .map<FlowEventRow>(_flowEventRowFromFilingRow)
           .toList();
+      CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
+        context: diagnosticContext,
+        operation: diagnosticContext?.operationId ?? 'flow_fallback',
+        status: !authenticatedAtStart
+            ? HydrationFetchStatus.unauthenticated
+            : events.isEmpty
+            ? HydrationFetchStatus.successfulEmpty
+            : HydrationFetchStatus.successNonempty,
+        durationMs: stopwatch.elapsedMilliseconds,
+        rowCount: events.length,
+      );
+      return events;
     } catch (e, st) {
       if (kDebugMode) {
         // keep this so we can see if anything explodes
@@ -2132,6 +2202,16 @@ class UserEventsRepo {
         debugPrint('[UserEventsRepo] getEventsForFlow($flowId) error: $e');
         debugPrint('$st');
       }
+      CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
+        context: diagnosticContext,
+        operation: diagnosticContext?.operationId ?? 'flow_fallback',
+        status: authenticatedAtStart
+            ? HydrationFetchStatus.failed
+            : HydrationFetchStatus.unauthenticated,
+        durationMs: stopwatch.elapsedMilliseconds,
+        rowCount: 0,
+        safeErrorClass: e.runtimeType.toString(),
+      );
       return [];
     }
   }
@@ -2141,10 +2221,32 @@ class UserEventsRepo {
     int pageSize = 1000,
     DateTime? startUtc,
     DateTime? endUtc,
+    HydrationDiagnosticContext? diagnosticContext,
   }) async {
-    if (flowIds.isEmpty) return const [];
+    final stopwatch = Stopwatch()..start();
+    if (flowIds.isEmpty) {
+      CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
+        context: diagnosticContext,
+        operation: 'flow_batch',
+        status: HydrationFetchStatus.successfulEmpty,
+        durationMs: stopwatch.elapsedMilliseconds,
+        rowCount: 0,
+        requestCount: 0,
+      );
+      return const [];
+    }
     final user = _client.auth.currentUser;
-    if (user == null) return const [];
+    if (user == null) {
+      CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
+        context: diagnosticContext,
+        operation: 'flow_batch',
+        status: HydrationFetchStatus.unauthenticated,
+        durationMs: stopwatch.elapsedMilliseconds,
+        rowCount: 0,
+        requestCount: 0,
+      );
+      return const [];
+    }
 
     final ids = flowIds.toList()..sort();
     final events = <FlowEventRow>[];
@@ -2197,14 +2299,46 @@ class UserEventsRepo {
         );
         debugPrint('$st');
       }
+      CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
+        context: diagnosticContext,
+        operation: 'flow_batch',
+        status: HydrationFetchStatus.failed,
+        durationMs: stopwatch.elapsedMilliseconds,
+        rowCount: events.length,
+        requestCount: pageCount,
+        pageCount: pageCount,
+        safeErrorClass: e.runtimeType.toString(),
+      );
       return const [];
     } catch (e, st) {
       if (kDebugMode) {
         debugPrint('[UserEventsRepo] getEventsForFlowIds error: $e');
         debugPrint('$st');
       }
+      CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
+        context: diagnosticContext,
+        operation: 'flow_batch',
+        status: HydrationFetchStatus.failed,
+        durationMs: stopwatch.elapsedMilliseconds,
+        rowCount: events.length,
+        requestCount: pageCount,
+        pageCount: pageCount,
+        safeErrorClass: e.runtimeType.toString(),
+      );
       return const [];
     }
+
+    CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
+      context: diagnosticContext,
+      operation: 'flow_batch',
+      status: events.isEmpty
+          ? HydrationFetchStatus.successfulEmpty
+          : HydrationFetchStatus.successNonempty,
+      durationMs: stopwatch.elapsedMilliseconds,
+      rowCount: events.length,
+      requestCount: pageCount,
+      pageCount: pageCount,
+    );
 
     return events;
   }
@@ -2631,54 +2765,87 @@ class UserEventsRepo {
       })
     >
   >
-  getAllFlows() async {
+  getAllFlows({HydrationDiagnosticContext? diagnosticContext}) async {
+    final stopwatch = Stopwatch()..start();
     final user = _client.auth.currentUser;
-    if (user == null) return [];
-
-    final res = await _client
-        .from('flows_with_calendars')
-        .select()
-        .order('created_at', ascending: false);
-
-    final rows = (res as List).cast<Map<String, dynamic>>();
-    final savedAtByFlowId = await getSavedFlowTimestamps(
-      flowIds: rows
-          .where((row) => (row['is_saved'] as bool?) ?? false)
-          .map((row) => (row['id'] as num).toInt()),
-    );
-
-    return rows.map((row) {
-      final flowId = (row['id'] as num).toInt();
-      final isSaved = (row['is_saved'] as bool?) ?? false;
-      final savedAt =
-          savedAtByFlowId[flowId] ??
-          (isSaved
-              ? (_parseOptionalDateTime(row['updated_at']) ??
-                    _parseOptionalDateTime(row['created_at']))
-              : null);
-      return (
-        id: flowId,
-        userId: row['user_id'] as String?,
-        calendarId: row['calendar_id'] as String?,
-        name: row['name'] as String,
-        color: (row['color'] as num).toInt(),
-        active: row['active'] as bool,
-        isSaved: isSaved,
-        savedAt: savedAt,
-        startDate: row['start_date'] == null
-            ? null
-            : DateTime.parse(row['start_date'] as String),
-        endDate: row['end_date'] == null
-            ? null
-            : DateTime.parse(row['end_date'] as String),
-        notes: row['notes'] as String?,
-        rules: jsonEncode(row['rules']),
-        shareId: row['share_id'] as String?, // NEW: Include share_id
-        isHidden: (row['is_hidden'] as bool?) ?? false,
-        isReminder: (row['is_reminder'] as bool?) ?? false,
-        reminderUuid: row['reminder_uuid'] as String?,
+    if (user == null) {
+      CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
+        context: diagnosticContext,
+        operation: 'flow_catalog',
+        status: HydrationFetchStatus.unauthenticated,
+        durationMs: stopwatch.elapsedMilliseconds,
+        rowCount: 0,
+        requestCount: 0,
       );
-    }).toList();
+      return [];
+    }
+
+    try {
+      final res = await _client
+          .from('flows_with_calendars')
+          .select()
+          .order('created_at', ascending: false);
+
+      final rows = (res as List).cast<Map<String, dynamic>>();
+      final savedAtByFlowId = await getSavedFlowTimestamps(
+        flowIds: rows
+            .where((row) => (row['is_saved'] as bool?) ?? false)
+            .map((row) => (row['id'] as num).toInt()),
+      );
+
+      final flows = rows.map((row) {
+        final flowId = (row['id'] as num).toInt();
+        final isSaved = (row['is_saved'] as bool?) ?? false;
+        final savedAt =
+            savedAtByFlowId[flowId] ??
+            (isSaved
+                ? (_parseOptionalDateTime(row['updated_at']) ??
+                      _parseOptionalDateTime(row['created_at']))
+                : null);
+        return (
+          id: flowId,
+          userId: row['user_id'] as String?,
+          calendarId: row['calendar_id'] as String?,
+          name: row['name'] as String,
+          color: (row['color'] as num).toInt(),
+          active: row['active'] as bool,
+          isSaved: isSaved,
+          savedAt: savedAt,
+          startDate: row['start_date'] == null
+              ? null
+              : DateTime.parse(row['start_date'] as String),
+          endDate: row['end_date'] == null
+              ? null
+              : DateTime.parse(row['end_date'] as String),
+          notes: row['notes'] as String?,
+          rules: jsonEncode(row['rules']),
+          shareId: row['share_id'] as String?, // NEW: Include share_id
+          isHidden: (row['is_hidden'] as bool?) ?? false,
+          isReminder: (row['is_reminder'] as bool?) ?? false,
+          reminderUuid: row['reminder_uuid'] as String?,
+        );
+      }).toList();
+      CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
+        context: diagnosticContext,
+        operation: 'flow_catalog',
+        status: flows.isEmpty
+            ? HydrationFetchStatus.successfulEmpty
+            : HydrationFetchStatus.successNonempty,
+        durationMs: stopwatch.elapsedMilliseconds,
+        rowCount: flows.length,
+      );
+      return flows;
+    } catch (error) {
+      CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
+        context: diagnosticContext,
+        operation: 'flow_catalog',
+        status: HydrationFetchStatus.failed,
+        durationMs: stopwatch.elapsedMilliseconds,
+        rowCount: 0,
+        safeErrorClass: error.runtimeType.toString(),
+      );
+      rethrow;
+    }
   }
 
   Future<Map<int, DateTime>> getSavedFlowTimestamps({

@@ -9,14 +9,19 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   test('page wiring replaces load flag and invalidation flush helpers', () {
-    final source = File('lib/features/calendar/calendar_page.dart').readAsStringSync();
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
     expect(source.contains('_isLoadingFromDisk'), isFalse);
     expect(source.contains('_flushCalendarInvalidationReload'), isFalse);
     expect(source.contains('_handleCalendarInvalidated'), isFalse);
     expect(source.contains('_scheduleCalendarInvalidationReload'), isFalse);
     expect(source.contains('CalendarLoadCoordinator _loadCoordinator'), isTrue);
     expect(source.contains('_loadCoordinator.attach()'), isTrue);
-    expect(source.contains("_loadCoordinator.invalidate(reason: 'signed_out')"), isTrue);
+    expect(
+      source.contains("_loadCoordinator.invalidate(reason: 'signed_out')"),
+      isTrue,
+    );
     expect(source.contains('Future<void> _loadFromDiskInner({'), isTrue);
     expect(
       source.contains(
@@ -44,27 +49,30 @@ void main() {
 
   CalendarLoadCoordinator buildCoordinator({
     Duration debounce = const Duration(milliseconds: 20),
+    CalendarLoadObserver? observer,
   }) {
     return CalendarLoadCoordinator(
       bus: bus,
       isMounted: () => mounted,
       isDeferred: () => deferred,
       debounce: debounce,
-      runner: ({
-        required String source,
-        required bool preserveViewport,
-        required int epoch,
-      }) async {
-        runs.add((
-          source: source,
-          preserveViewport: preserveViewport,
-          epoch: epoch,
-        ));
-        final wait = gate;
-        if (wait != null) await wait.future;
-        final err = throwOnRun;
-        if (err != null) throw err;
-      },
+      observer: observer,
+      runner:
+          ({
+            required String source,
+            required bool preserveViewport,
+            required int epoch,
+          }) async {
+            runs.add((
+              source: source,
+              preserveViewport: preserveViewport,
+              epoch: epoch,
+            ));
+            final wait = gate;
+            if (wait != null) await wait.future;
+            final err = throwOnRun;
+            if (err != null) throw err;
+          },
     );
   }
 
@@ -77,34 +85,37 @@ void main() {
     throwOnRun = null;
   });
 
-  test('1. concurrent request drains queue and resolves waiters together', () async {
-    gate = Completer<void>();
-    final coordinator = buildCoordinator();
+  test(
+    '1. concurrent request drains queue and resolves waiters together',
+    () async {
+      gate = Completer<void>();
+      final coordinator = buildCoordinator();
 
-    final first = coordinator.request(source: 'a');
-    final second = coordinator.request(source: 'b');
+      final first = coordinator.request(source: 'a');
+      final second = coordinator.request(source: 'b');
 
-    await Future<void>.delayed(Duration.zero);
-    expect(runs.length, 1);
-    expect(runs.first.source, 'a');
+      await Future<void>.delayed(Duration.zero);
+      expect(runs.length, 1);
+      expect(runs.first.source, 'a');
 
-    var firstDone = false;
-    var secondDone = false;
-    unawaited(first.then((_) => firstDone = true));
-    unawaited(second.then((_) => secondDone = true));
-    await Future<void>.delayed(Duration.zero);
-    expect(firstDone, isFalse);
-    expect(secondDone, isFalse);
+      var firstDone = false;
+      var secondDone = false;
+      unawaited(first.then((_) => firstDone = true));
+      unawaited(second.then((_) => secondDone = true));
+      await Future<void>.delayed(Duration.zero);
+      expect(firstDone, isFalse);
+      expect(secondDone, isFalse);
 
-    gate!.complete();
-    await Future.wait(<Future<void>>[first, second]);
+      gate!.complete();
+      await Future.wait(<Future<void>>[first, second]);
 
-    expect(runs.length, 2);
-    expect(runs.map((r) => r.source).toList(), <String>['a', 'b']);
-    expect(firstDone, isTrue);
-    expect(secondDone, isTrue);
-    coordinator.dispose();
-  });
+      expect(runs.length, 2);
+      expect(runs.map((r) => r.source).toList(), <String>['a', 'b']);
+      expect(firstDone, isTrue);
+      expect(secondDone, isTrue);
+      coordinator.dispose();
+    },
+  );
 
   test('2a. runner throw sets lastPassSucceeded false', () async {
     throwOnRun = StateError('boom');
@@ -135,7 +146,11 @@ void main() {
     expect(runs, isNotEmpty);
     expect(coordinator.lastPassSucceeded, isFalse);
     final pending = bus.peekPendingAfter(0);
-    expect(pending, isNotNull, reason: 'failed pass must leave revision pending');
+    expect(
+      pending,
+      isNotNull,
+      reason: 'failed pass must leave revision pending',
+    );
     expect(pending!.revision, 1);
     coordinator.dispose();
   });
@@ -193,4 +208,36 @@ void main() {
     expect(runs.first.source, 'explicit');
     coordinator.dispose();
   });
+
+  test(
+    '5. observer reports overwritten request and executed sources',
+    () async {
+      gate = Completer<void>();
+      final observations = <CalendarLoadObservation>[];
+      final coordinator = buildCoordinator(observer: observations.add);
+
+      final first = coordinator.request(source: 'first');
+      await Future<void>.delayed(Duration.zero);
+      final second = coordinator.request(source: 'queued-a');
+      final third = coordinator.request(source: 'queued-b');
+      gate!.complete();
+      await Future.wait(<Future<void>>[first, second, third]);
+
+      final requested = observations
+          .where((event) => event.kind == CalendarLoadObservationKind.requested)
+          .toList(growable: false);
+      expect(requested, hasLength(3));
+      expect(requested.last.source, 'queued-b');
+      expect(requested.last.overwrittenSource, 'queued-a');
+      final started = observations
+          .where(
+            (event) => event.kind == CalendarLoadObservationKind.passStarted,
+          )
+          .map((event) => event.source)
+          .toList(growable: false);
+      expect(started, <String>['first', 'queued-b']);
+      expect(observations.last.kind, CalendarLoadObservationKind.queueIdle);
+      coordinator.dispose();
+    },
+  );
 }
