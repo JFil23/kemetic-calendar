@@ -92,4 +92,103 @@ void main() {
     },
   );
 
+  testWidgets('live data rebuild preserves draft tab and scroll position', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final dataVersion = ValueNotifier<int>(0);
+    final controller = TextEditingController();
+    addTearDown(() {
+      dataVersion.dispose();
+      controller.dispose();
+    });
+
+    await tester.pumpWidget(
+      _LiveDaySheetHarness(dataVersion: dataVersion, controller: controller),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('live-draft')),
+      'unfinished note',
+    );
+    await tester.tap(find.byKey(const ValueKey('live-tab-toggle')));
+    await tester.pump();
+    await tester.drag(
+      find.byKey(daySheetKeyboardSafeScrollViewKey),
+      const Offset(0, -360),
+    );
+    await tester.pumpAndSettle();
+    final scrollable = find
+        .descendant(
+          of: find.byKey(daySheetKeyboardSafeScrollViewKey),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    final before = tester.state<ScrollableState>(scrollable).position.pixels;
+    expect(before, greaterThan(0));
+
+    dataVersion.value = 1;
+    await tester.pump();
+
+    expect(controller.text, 'unfinished note');
+    expect(find.text('Reminders'), findsOneWidget);
+    expect(find.text('server row 1'), findsOneWidget);
+    final after = tester.state<ScrollableState>(scrollable).position.pixels;
+    expect(after, closeTo(before, 0.01));
+    expect(tester.takeException(), isNull);
+  });
+}
+
+class _LiveDaySheetHarness extends StatelessWidget {
+  const _LiveDaySheetHarness({
+    required this.dataVersion,
+    required this.controller,
+  });
+
+  final ValueNotifier<int> dataVersion;
+  final TextEditingController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    var remindersSelected = false;
+    return MaterialApp(
+      home: Scaffold(
+        body: Align(
+          alignment: Alignment.bottomCenter,
+          child: DaySheetLiveDataBuilder(
+            key: const ValueKey('calendar-day-sheet-live-content'),
+            dataVersion: dataVersion,
+            builder: (context, setSheetState) => DaySheetKeyboardSafeFrame(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton(
+                    key: const ValueKey('live-tab-toggle'),
+                    onPressed: () => setSheetState(
+                      () => remindersSelected = !remindersSelected,
+                    ),
+                    child: Text(remindersSelected ? 'Reminders' : 'Notes'),
+                  ),
+                  TextField(
+                    key: const ValueKey('live-draft'),
+                    controller: controller,
+                  ),
+                  Text('server row ${dataVersion.value}'),
+                  const SizedBox(height: 900),
+                  const Text('bottom'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

@@ -29,14 +29,23 @@ void main() {
         "        if (_activeWarmStartUserId() != loadUserId) return;",
       ),
       isTrue,
-      reason: 'both commit and finish sites must share epoch+same-user guards',
+      reason: 'the visible commit keeps the direct epoch+same-user guards',
     );
     expect(
       RegExp(
         r"if \(!_loadCoordinator\.isCurrent\(epoch\)\) return;\n"
         r"\s+if \(_activeWarmStartUserId\(\) != loadUserId\) return;",
       ).allMatches(source).length,
-      2,
+      1,
+    );
+    expect(
+      RegExp(
+        r"bool postProcessingStillCurrent\(\) =>\n"
+        r"\s+_loadCoordinator\.isCurrent\(epoch\) &&\n"
+        r"\s+_activeWarmStartUserId\(\) == loadUserId &&",
+      ).hasMatch(source),
+      isTrue,
+      reason: 'noncritical post-processing shares the same guards',
     );
   });
 

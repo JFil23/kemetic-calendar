@@ -27402,7 +27402,9 @@ class CalendarPageState extends State<CalendarPage>
           bool scheduledFlowsExpanded = false;
           bool dayNotesExpanded = false;
 
-          final daySheetContent = StatefulBuilder(
+          final daySheetContent = DaySheetLiveDataBuilder(
+            key: const ValueKey('calendar-day-sheet-live-content'),
+            dataVersion: _dayViewDataVersion,
             builder: (sheetCtx, setSheetState) {
               // Clamp before any toGregorian
               int dayCount = maxDayFor(selYear, selMonth);
