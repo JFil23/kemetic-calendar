@@ -24,9 +24,9 @@ bool shouldPublishVisibleCalendarHydration({
   required CalendarHydrationPublicationPhase phase,
   required bool loadComplete,
 }) {
-  // Flow and standalone hydration run concurrently, but neither lane owns a
-  // visible server snapshot by itself. Local state remains authoritative until
-  // both required lanes have produced the complete result for this pass.
+  // Neither hydration lane owns a visible server snapshot by itself. Local
+  // state remains authoritative until both required lanes have produced the
+  // complete result for this pass.
   return phase == CalendarHydrationPublicationPhase.complete && loadComplete;
 }
 

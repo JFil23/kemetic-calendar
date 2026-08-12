@@ -29797,7 +29797,11 @@ class CalendarPageState extends State<CalendarPage>
           focusWindow,
         );
       }
-      final flowEventsFuture = loadFlowEvents();
+      // These RPCs are intentionally sequenced. On cold startup each lane can
+      // consume most of the available database budget; overlapping them (and
+      // flow accounting) turns otherwise bounded calls into statement
+      // timeouts on the authenticated API role.
+      final eventsByFlowId = await loadFlowEvents();
       final standaloneFuture = repo.getStandaloneEventsForDateRangeAll(
         startUtc: standaloneWindow.startUtc,
         endUtc: standaloneWindow.endUtc,
@@ -29805,19 +29809,6 @@ class CalendarPageState extends State<CalendarPage>
         flowOwnersById: flowOwnersById,
         diagnosticContext: hydrationContext,
       );
-      final flowCountsStopwatch = Stopwatch()..start();
-      final flowCountsDiagnosticWork = hydrationDiagnostics
-          .markAsyncWorkStarted(hydrationContext, 'flow_counts');
-      final flowEventCountsFuture = _flowsRepo
-          .loadMyFlowEventCounts(flowIds: newFlows.map((flow) => flow.id))
-          .whenComplete(() {
-            hydrationDiagnostics.markAsyncWorkEnded(
-              hydrationContext,
-              'flow_counts',
-              token: flowCountsDiagnosticWork,
-            );
-          });
-      final eventsByFlowId = await flowEventsFuture;
 
       int flowAddedCount = 0;
       int standaloneAddedCount = 0;
@@ -30516,8 +30507,19 @@ class CalendarPageState extends State<CalendarPage>
             );
             return;
           }
+          final flowCountsStopwatch = Stopwatch()..start();
+          final flowCountsDiagnosticWork = hydrationDiagnostics
+              .markAsyncWorkStarted(hydrationContext, 'flow_counts');
           try {
-            final flowEventCountsResult = await flowEventCountsFuture;
+            final flowEventCountsResult = await _flowsRepo
+                .loadMyFlowEventCounts(flowIds: newFlows.map((flow) => flow.id))
+                .whenComplete(() {
+                  hydrationDiagnostics.markAsyncWorkEnded(
+                    hydrationContext,
+                    'flow_counts',
+                    token: flowCountsDiagnosticWork,
+                  );
+                });
             if (!postProcessingStillCurrent()) return;
             final flowEventCounts = flowEventCountsResult.value;
             final hasCachedCounts =

@@ -98,6 +98,36 @@ void main() {
     );
   });
 
+  test('database-heavy startup reads are sequenced', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final hydration = _sourceBetween(
+      source,
+      'Future<void> _loadFromDiskInner({',
+      'if (source.startsWith(\'shared_calendar_event_tap\'))',
+    );
+
+    final flowHydration = hydration.indexOf(
+      'final eventsByFlowId = await loadFlowEvents();',
+    );
+    final standaloneHydration = hydration.indexOf(
+      'final standaloneFuture = repo.getStandaloneEventsForDateRangeAll(',
+    );
+    final standaloneCompletion = hydration.indexOf(
+      'final standaloneFetchResult = await standaloneFuture;',
+    );
+    final flowAccounting = hydration.indexOf(
+      'final flowEventCountsResult = await _flowsRepo',
+    );
+
+    expect(flowHydration, greaterThanOrEqualTo(0));
+    expect(standaloneHydration, greaterThan(flowHydration));
+    expect(standaloneCompletion, greaterThan(standaloneHydration));
+    expect(flowAccounting, greaterThan(standaloneCompletion));
+    expect(hydration, isNot(contains('final flowEventsFuture =')));
+  });
+
   test('an incomplete complete phase preserves warm visible state', () {
     expect(
       shouldPublishVisibleCalendarHydration(
