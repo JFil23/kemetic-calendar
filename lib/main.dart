@@ -14,6 +14,7 @@ import 'package:http/http.dart' as http;
 import 'data/user_events_repo.dart';
 import 'features/calendar/notify.dart';
 import 'features/calendar/calendar_page.dart';
+import 'features/calendar/calendar_hydration_diagnostics.dart';
 import 'features/calendar/daily_cosmic_context_badge.dart';
 import 'features/calendar/ics_preview_card.dart';
 import 'utils/ics_parser.dart';
@@ -109,6 +110,10 @@ const defaultProductionAppSiteUrl = 'https://maat.app';
 const appSiteUrlEnv = String.fromEnvironment(
   'APP_SITE_URL',
   defaultValue: defaultProductionAppSiteUrl,
+);
+const hydrationDiagnosticBuildEnv = String.fromEnvironment(
+  'HYDRATION_DIAGNOSTIC_BUILD',
+  defaultValue: 'unavailable',
 );
 const _kDebugDaySheetSmokeRoute = '/debug/day-sheet-smoke';
 const _debugInitialRouteEnv = String.fromEnvironment('H3W_DEBUG_ROUTE');
@@ -417,6 +422,9 @@ Future<void> main() async {
     _configureLogging();
 
     WidgetsFlutterBinding.ensureInitialized();
+    CalendarHydrationDiagnostics.instance.setBuildLabel(
+      kIsWeb ? hydrationDiagnosticBuildEnv : 'native',
+    );
     debugPrint('[boot] main() executed');
     _debugDaySheetSmokeBootRequested = _debugDaySheetSmokeRequestedAtBoot();
 

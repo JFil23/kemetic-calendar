@@ -146,7 +146,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _copyHydrationDiagnostics() async {
     await _hydrationDiagnosticsReady;
     final copied = await CalendarHydrationDiagnostics.instance
-        .copyLastCompleted(buildOverride: _buildInfo.webBuildVersion);
+        .copyLastCompleted(exportedByBuild: _buildInfo.webBuildVersion);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(

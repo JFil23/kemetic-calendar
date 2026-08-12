@@ -418,6 +418,7 @@ class CalendarHydrationDiagnostics {
     _lastBackfillSummary = <String, Object?>{
       'schema': 1,
       'build': _buildLabel,
+      'trace_id': _active?.traceId,
       'started_at_utc': DateTime.now().toUtc().toIso8601String(),
       'focus_start_utc': focusStartUtc.toUtc().toIso8601String(),
       'focus_end_utc': focusEndUtc.toUtc().toIso8601String(),
@@ -555,8 +556,6 @@ class CalendarHydrationDiagnostics {
     if (trimmed.isEmpty) return;
     _buildLabel = trimmed;
     _active?.build = trimmed;
-    final completed = _lastCompleted;
-    if (completed != null) completed['build'] = trimmed;
   }
 
   void startColdProcess({required String userId, String? firstRoute}) {
@@ -1174,18 +1173,27 @@ class CalendarHydrationDiagnostics {
     return lastCompletedTrace;
   }
 
-  Future<bool> copyLastCompleted({String? buildOverride}) async {
+  Map<String, Object?>? buildLastCompletedExport({String? exportedByBuild}) {
     final trace = _lastCompleted;
-    if (trace == null) return false;
+    if (trace == null) return null;
     final payload = Map<String, Object?>.from(trace);
-    final build = buildOverride?.trim();
-    if (build != null && build.isNotEmpty) payload['build'] = build;
+    final exporterBuild = exportedByBuild?.trim();
+    if (exporterBuild != null && exporterBuild.isNotEmpty) {
+      payload['exported_by_build'] = exporterBuild;
+    }
     if (_lastBackfillSummary != null &&
-        _lastBackfillUserId == _lastCompletedUserId) {
+        _lastBackfillUserId == _lastCompletedUserId &&
+        _lastBackfillSummary!['trace_id'] == trace['trace_id']) {
       payload['backfill_summary'] = Map<String, Object?>.from(
         _lastBackfillSummary!,
       );
     }
+    return _sanitizeMap(payload);
+  }
+
+  Future<bool> copyLastCompleted({String? exportedByBuild}) async {
+    final payload = buildLastCompletedExport(exportedByBuild: exportedByBuild);
+    if (payload == null) return false;
     await Clipboard.setData(
       ClipboardData(text: const JsonEncoder.withIndent('  ').convert(payload)),
     );

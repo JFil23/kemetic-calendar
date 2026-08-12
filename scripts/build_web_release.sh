@@ -61,6 +61,7 @@ build_args=(
   web
   --release
   --dart-define-from-file="$STATE_DIR/runtime-env.json"
+  --dart-define="HYDRATION_DIAGNOSTIC_BUILD=$BUILD_VERSION"
   --no-pub
   --no-wasm-dry-run
   --pwa-strategy=none

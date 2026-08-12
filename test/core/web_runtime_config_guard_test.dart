@@ -145,6 +145,10 @@ void main() {
       expect(buildScriptSource, contains('--dart-define-from-file'));
       expect(
         buildScriptSource,
+        contains('--dart-define="HYDRATION_DIAGNOSTIC_BUILD=\$BUILD_VERSION"'),
+      );
+      expect(
+        buildScriptSource,
         contains('scripts/web_release_pipeline.py prepare'),
       );
       expect(

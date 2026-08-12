@@ -55,6 +55,8 @@ void main() {
     () async {
       const userId = 'user-a';
       final diagnostics = CalendarHydrationDiagnostics();
+      diagnostics.setBuildLabel('staging-current');
+      diagnostics.startColdProcess(userId: userId);
       final chunks = <({DateTime startUtc, DateTime endUtc})>[
         (startUtc: DateTime.utc(2026, 1, 1), endUtc: DateTime.utc(2026, 2, 1)),
       ];
@@ -91,6 +93,7 @@ void main() {
       );
 
       final summary = diagnostics.lastBackfillSummary!;
+      expect(summary['trace_id'], isNotNull);
       expect(summary['full_horizon_complete'], isTrue);
       expect(summary['accounting_status'], 'success_nonempty');
       expect(summary['accounting_duration_ms'], 456);
@@ -106,12 +109,72 @@ void main() {
       expect(chunk['standalone_duration_ms'], 87);
       expect(chunk['lane_overlap_detected'], isFalse);
       expect(chunk['merged'], isTrue);
+      await diagnostics.debugClose(HydrationTraceCloseReason.navigation);
 
       final restored = CalendarHydrationDiagnostics();
       await restored.restoreLastCompletedForUser(userId);
       expect(restored.lastBackfillSummary, summary);
     },
   );
+
+  test(
+    'completed exports preserve trace and backfill build identity',
+    () async {
+      const userId = 'user-a';
+      final diagnostics = CalendarHydrationDiagnostics();
+      diagnostics.setBuildLabel('staging-old');
+      diagnostics.startColdProcess(userId: userId);
+      await diagnostics.startBackfillSummary(
+        userId: userId,
+        focusStartUtc: DateTime.utc(2026, 1, 1),
+        focusEndUtc: DateTime.utc(2026, 2, 1),
+        unionStartUtc: DateTime.utc(2026, 1, 1),
+        unionEndUtc: DateTime.utc(2026, 2, 1),
+        chunks: const <({DateTime startUtc, DateTime endUtc})>[],
+      );
+      final backfillTraceId = diagnostics.lastBackfillSummary!['trace_id'];
+      await diagnostics.debugClose(HydrationTraceCloseReason.navigation);
+
+      final completedTraceId = diagnostics.lastCompletedTrace!['trace_id'];
+      expect(completedTraceId, backfillTraceId);
+      diagnostics.setBuildLabel('staging-new');
+      final payload = diagnostics.buildLastCompletedExport(
+        exportedByBuild: 'staging-new',
+      )!;
+
+      expect(payload['build'], 'staging-old');
+      expect(payload['exported_by_build'], 'staging-new');
+      final backfill = Map<String, Object?>.from(
+        payload['backfill_summary']! as Map,
+      );
+      expect(backfill['build'], 'staging-old');
+      expect(backfill['trace_id'], completedTraceId);
+    },
+  );
+
+  test('export excludes a backfill summary from another trace', () async {
+    const userId = 'user-a';
+    final diagnostics = CalendarHydrationDiagnostics();
+    diagnostics.setBuildLabel('staging-current');
+    diagnostics.startColdProcess(userId: userId);
+    await diagnostics.startBackfillSummary(
+      userId: userId,
+      focusStartUtc: DateTime.utc(2026, 1, 1),
+      focusEndUtc: DateTime.utc(2026, 2, 1),
+      unionStartUtc: DateTime.utc(2026, 1, 1),
+      unionEndUtc: DateTime.utc(2026, 2, 1),
+      chunks: const <({DateTime startUtc, DateTime endUtc})>[],
+    );
+    await diagnostics.debugClose(HydrationTraceCloseReason.navigation);
+
+    diagnostics.startWarmReturn(userId: userId);
+    await diagnostics.debugClose(HydrationTraceCloseReason.navigation);
+    final payload = diagnostics.buildLastCompletedExport(
+      exportedByBuild: 'staging-current',
+    )!;
+
+    expect(payload, isNot(contains('backfill_summary')));
+  });
 
   test('completeness uses the final retrieval path and detects anomalies', () {
     final fallbackRecovered = evaluateHydrationCompleteness(
