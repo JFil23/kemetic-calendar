@@ -25,32 +25,26 @@ void main() {
       startup,
       contains('_syncAcceptedInviteCalendarImportsInBackground(reason)'),
     );
-    expect(startup, contains('final keepWarmStartVisible'));
     expect(startup, contains("source: 'startup:\$reason'"));
-    expect(startup, contains("source: 'startup_backfill:\$reason'"));
+    expect(startup, contains('_runProgressiveStartupBackfill('));
+    expect(startup, isNot(contains('final keepWarmStartVisible')));
     expect(
       startup.indexOf("await _restoreWarmStartCacheIfAvailable"),
-      lessThan(startup.indexOf('final keepWarmStartVisible')),
-    );
-    expect(
-      startup.indexOf('final keepWarmStartVisible'),
       lessThan(startup.indexOf("source: 'startup:\$reason'")),
     );
     expect(
       startup.indexOf("source: 'startup:\$reason'"),
-      lessThan(startup.indexOf("source: 'startup_backfill:\$reason'")),
+      lessThan(startup.indexOf('_runProgressiveStartupBackfill(')),
     );
     expect(
-      startup.indexOf("source: 'startup_backfill:\$reason'"),
+      startup.indexOf('_runProgressiveStartupBackfill('),
       lessThan(
         startup.indexOf('_syncAcceptedInviteCalendarImportsInBackground'),
       ),
       reason: 'invite import must not contend with critical hydration',
     );
     expect(
-      startup.lastIndexOf(
-        "_primeMyFlowsFilingSnapshotCache(reason: 'startup_backfill:\$reason')",
-      ),
+      startup.indexOf('await _loadMyFlowsFilingSnapshot()'),
       lessThan(
         startup.indexOf('_syncAcceptedInviteCalendarImportsInBackground'),
       ),
@@ -136,6 +130,77 @@ void main() {
     expect(standaloneCompletion, greaterThan(standaloneHydration));
     expect(flowAccounting, greaterThan(standaloneCompletion));
     expect(hydration, isNot(contains('final flowEventsFuture =')));
+    expect(hydration, isNot(contains('_clampHydrationWindowToFocus')));
+    expect(
+      hydration,
+      contains(
+        'flowWindow =\n'
+        '            focusWindow ??\n'
+        '            _computeFlowHydrationWindow',
+      ),
+    );
+    expect(
+      hydration,
+      contains(
+        'final standaloneWindow =\n'
+        '          focusWindow ?? _computeStandaloneHydrationWindow(newFlows)',
+      ),
+    );
+    expect(
+      RegExp(
+        r'_loadCoordinator\.hasQueuedRequest',
+      ).allMatches(hydration).length,
+      greaterThanOrEqualTo(3),
+      reason:
+          'backfill must check before flow, between lanes, and before merge',
+    );
+  });
+
+  test('partial authority cannot reach any warm-cache write path', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final schedule = _sourceBetween(
+      source,
+      'void _scheduleWarmStartCacheSave() {',
+      'Future<void> _flushPendingWarmStartCacheSave',
+    );
+    final flush = _sourceBetween(
+      source,
+      'Future<void> _flushPendingWarmStartCacheSave',
+      'Future<void> _persistWarmStartCacheNow',
+    );
+    final persist = _sourceBetween(
+      source,
+      'Future<void> _persistWarmStartCacheNow',
+      'Future<void> _restoreWarmStartCacheIfAvailable',
+    );
+
+    expect(schedule, contains('shouldPersistWarmStartCache'));
+    expect(flush, contains('shouldPersistWarmStartCache'));
+    expect(
+      RegExp(r'shouldPersistWarmStartCache').allMatches(persist).length,
+      greaterThanOrEqualTo(2),
+      reason: 'persistence is checked before and after the prefs await',
+    );
+    expect(source, contains('_warmStartCacheDebounceTimer?.cancel()'));
+  });
+
+  test('Phase B is chunked and owns its coordinator cancellation', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final backfill = _sourceBetween(
+      source,
+      'Future<bool> _runProgressiveStartupBackfill({',
+      'void _syncAcceptedInviteCalendarImportsInBackground',
+    );
+
+    expect(backfill, contains('chunkDays: 75'));
+    expect(backfill, contains('_loadCoordinator.requestRevision'));
+    expect(backfill, contains('_loadCoordinator.hasQueuedRequest'));
+    expect(backfill, contains('await _loadFromDisk(source: source'));
+    expect(backfill, contains("cancellationReason: 'newer_request'"));
   });
 
   test('an incomplete complete phase preserves warm visible state', () {
@@ -211,11 +276,8 @@ void main() {
     expect(snapshot, contains("'lastAuthoritativeHydrationAt'"));
     expect(snapshot, contains("'lastAccountingAuthorityAt'"));
     expect(snapshot, contains("'accountingStale': _accountingStale"));
-    expect(startup, contains('authorityRevisionBefore'));
-    expect(
-      startup,
-      contains('_calendarAuthorityRevision > authorityRevisionBefore'),
-    );
+    expect(startup, contains('CalendarHydrationAuthorityScope.visibleWindow'));
+    expect(source, contains("debugReason: 'startup_backfill_complete'"));
   });
 
   test('accounting failure only applies cached counts', () {
@@ -249,7 +311,7 @@ void main() {
     final loadFlowEvents = _sourceBetween(
       source,
       'Future<Map<int, List<FlowEventRow>>> loadFlowEvents() async {',
-      'var standaloneWindow = _computeStandaloneHydrationWindow(newFlows);',
+      'final standaloneWindow =',
     );
 
     expect(loadFlowEvents, contains('getEventsForFlowIds('));

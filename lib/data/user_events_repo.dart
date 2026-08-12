@@ -23,6 +23,21 @@ void _log(String msg) {
   if (kDebugMode) debugPrint('[user_events] ${redactLogText(msg)}');
 }
 
+String _calendarHydrationSafeErrorClass(Object error) {
+  if (error is PostgrestException) return 'postgrest';
+  if (error is TimeoutException) return 'timeout';
+  if (error is FormatException) return 'decode';
+  final message = error.toString().toLowerCase();
+  if (message.contains('network') ||
+      message.contains('failed to fetch') ||
+      message.contains('xmlhttprequest') ||
+      message.contains('clientexception') ||
+      message.contains('connection')) {
+    return 'network';
+  }
+  return 'unknown';
+}
+
 typedef FlowEventRow = ({
   String? id,
   String? clientEventId,
@@ -2834,33 +2849,77 @@ class UserEventsRepo {
     >
   >
   getAllFlows({HydrationDiagnosticContext? diagnosticContext}) async {
-    final stopwatch = Stopwatch()..start();
+    final diagnostics = CalendarHydrationDiagnostics.instance;
     final user = _client.auth.currentUser;
     if (user == null) {
-      CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
+      diagnostics.recordRepositoryFetch(
+        context: diagnosticContext,
+        operation: 'flow_catalog_view',
+        status: HydrationFetchStatus.unauthenticated,
+        durationMs: 0,
+        rowCount: 0,
+        requestCount: 0,
+      );
+      diagnostics.recordRepositoryFetch(
+        context: diagnosticContext,
+        operation: 'flow_catalog_saved_timestamps',
+        status: HydrationFetchStatus.unauthenticated,
+        durationMs: 0,
+        rowCount: 0,
+        requestCount: 0,
+      );
+      diagnostics.recordDerivedFetchStatus(
         context: diagnosticContext,
         operation: 'flow_catalog',
         status: HydrationFetchStatus.unauthenticated,
-        durationMs: stopwatch.elapsedMilliseconds,
-        rowCount: 0,
-        requestCount: 0,
       );
       return [];
     }
 
+    var viewStatus = HydrationFetchStatus.notRun;
+    var savedTimestampStatus = HydrationFetchStatus.notRun;
+    final viewStopwatch = Stopwatch();
     try {
+      viewStopwatch.start();
       final res = await _client
           .from('flows_with_calendars')
-          .select()
+          .select(
+            'id,user_id,calendar_id,name,color,active,is_saved,start_date,'
+            'end_date,notes,rules,share_id,created_at,updated_at,is_hidden,'
+            'is_reminder,reminder_uuid',
+          )
           .order('created_at', ascending: false);
 
       final rows = (res as List).cast<Map<String, dynamic>>();
-      final savedAtByFlowId = await getSavedFlowTimestamps(
-        flowIds: rows
-            .where((row) => (row['is_saved'] as bool?) ?? false)
-            .map((row) => (row['id'] as num).toInt()),
+      viewStatus = rows.isEmpty
+          ? HydrationFetchStatus.successfulEmpty
+          : HydrationFetchStatus.successNonempty;
+      diagnostics.recordRepositoryFetch(
+        context: diagnosticContext,
+        operation: 'flow_catalog_view',
+        status: viewStatus,
+        durationMs: viewStopwatch.elapsedMilliseconds,
+        rowCount: rows.length,
       );
+      final savedFlowIds = rows
+          .where((row) => (row['is_saved'] as bool?) ?? false)
+          .map((row) => (row['id'] as num).toInt())
+          .toList(growable: false);
+      final Map<int, DateTime> savedAtByFlowId;
+      try {
+        savedAtByFlowId = await getSavedFlowTimestamps(
+          flowIds: savedFlowIds,
+          diagnosticContext: diagnosticContext,
+        );
+      } catch (_) {
+        savedTimestampStatus = HydrationFetchStatus.failed;
+        rethrow;
+      }
+      savedTimestampStatus = savedAtByFlowId.isEmpty
+          ? HydrationFetchStatus.successfulEmpty
+          : HydrationFetchStatus.successNonempty;
 
+      final decodeStopwatch = Stopwatch()..start();
       final flows = rows.map((row) {
         final flowId = (row['id'] as num).toInt();
         final isSaved = (row['is_saved'] as bool?) ?? false;
@@ -2893,24 +2952,56 @@ class UserEventsRepo {
           reminderUuid: row['reminder_uuid'] as String?,
         );
       }).toList();
-      CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
+      diagnostics.recordPostProcessing(
+        diagnosticContext,
+        'flow_catalog_decode',
+        durationMs: decodeStopwatch.elapsedMilliseconds,
+        fields: <String, Object?>{
+          'status': 'success',
+          'row_count': flows.length,
+        },
+      );
+      diagnostics.recordDerivedFetchStatus(
         context: diagnosticContext,
         operation: 'flow_catalog',
         status: flows.isEmpty
             ? HydrationFetchStatus.successfulEmpty
             : HydrationFetchStatus.successNonempty,
-        durationMs: stopwatch.elapsedMilliseconds,
         rowCount: flows.length,
       );
       return flows;
     } catch (error) {
-      CalendarHydrationDiagnostics.instance.recordRepositoryFetch(
+      final safeErrorClass = _calendarHydrationSafeErrorClass(error);
+      if (viewStatus == HydrationFetchStatus.notRun) {
+        diagnostics.recordRepositoryFetch(
+          context: diagnosticContext,
+          operation: 'flow_catalog_view',
+          status: HydrationFetchStatus.failed,
+          durationMs: viewStopwatch.elapsedMilliseconds,
+          rowCount: 0,
+          safeErrorClass: safeErrorClass,
+        );
+        diagnostics.recordDerivedFetchStatus(
+          context: diagnosticContext,
+          operation: 'flow_catalog_saved_timestamps',
+          status: HydrationFetchStatus.notRun,
+        );
+      } else if (savedTimestampStatus != HydrationFetchStatus.failed) {
+        // getSavedFlowTimestamps records its own failures. Reaching this arm
+        // means decoding failed after both network reads completed.
+        diagnostics.recordPostProcessing(
+          diagnosticContext,
+          'flow_catalog_decode',
+          fields: <String, Object?>{
+            'status': 'failed',
+            'safe_error_class': safeErrorClass,
+          },
+        );
+      }
+      diagnostics.recordDerivedFetchStatus(
         context: diagnosticContext,
         operation: 'flow_catalog',
         status: HydrationFetchStatus.failed,
-        durationMs: stopwatch.elapsedMilliseconds,
-        rowCount: 0,
-        safeErrorClass: error.runtimeType.toString(),
       );
       rethrow;
     }
@@ -2918,27 +3009,72 @@ class UserEventsRepo {
 
   Future<Map<int, DateTime>> getSavedFlowTimestamps({
     required Iterable<int> flowIds,
+    HydrationDiagnosticContext? diagnosticContext,
   }) async {
+    final stopwatch = Stopwatch()..start();
+    final diagnostics = CalendarHydrationDiagnostics.instance;
     final user = _client.auth.currentUser;
     final ids = flowIds.toSet().toList(growable: false);
-    if (user == null || ids.isEmpty) return const {};
-
-    final rows =
-        await _client
-                .from('flow_saves')
-                .select('flow_id, saved_at')
-                .eq('user_id', user.id)
-                .inFilter('flow_id', ids)
-            as List<dynamic>;
-
-    final byFlowId = <int, DateTime>{};
-    for (final raw in rows.cast<Map<String, dynamic>>()) {
-      final flowId = (raw['flow_id'] as num?)?.toInt();
-      final savedAt = _parseOptionalDateTime(raw['saved_at']);
-      if (flowId == null || savedAt == null) continue;
-      byFlowId[flowId] = savedAt;
+    if (user == null) {
+      diagnostics.recordRepositoryFetch(
+        context: diagnosticContext,
+        operation: 'flow_catalog_saved_timestamps',
+        status: HydrationFetchStatus.unauthenticated,
+        durationMs: stopwatch.elapsedMilliseconds,
+        rowCount: 0,
+        requestCount: 0,
+      );
+      return const {};
     }
-    return byFlowId;
+    if (ids.isEmpty) {
+      diagnostics.recordRepositoryFetch(
+        context: diagnosticContext,
+        operation: 'flow_catalog_saved_timestamps',
+        status: HydrationFetchStatus.successfulEmpty,
+        durationMs: stopwatch.elapsedMilliseconds,
+        rowCount: 0,
+        requestCount: 0,
+      );
+      return const {};
+    }
+
+    try {
+      final rows =
+          await _client
+                  .from('flow_saves')
+                  .select('flow_id, saved_at')
+                  .eq('user_id', user.id)
+                  .inFilter('flow_id', ids)
+              as List<dynamic>;
+
+      final byFlowId = <int, DateTime>{};
+      for (final raw in rows.cast<Map<String, dynamic>>()) {
+        final flowId = (raw['flow_id'] as num?)?.toInt();
+        final savedAt = _parseOptionalDateTime(raw['saved_at']);
+        if (flowId == null || savedAt == null) continue;
+        byFlowId[flowId] = savedAt;
+      }
+      diagnostics.recordRepositoryFetch(
+        context: diagnosticContext,
+        operation: 'flow_catalog_saved_timestamps',
+        status: byFlowId.isEmpty
+            ? HydrationFetchStatus.successfulEmpty
+            : HydrationFetchStatus.successNonempty,
+        durationMs: stopwatch.elapsedMilliseconds,
+        rowCount: byFlowId.length,
+      );
+      return byFlowId;
+    } catch (error) {
+      diagnostics.recordRepositoryFetch(
+        context: diagnosticContext,
+        operation: 'flow_catalog_saved_timestamps',
+        status: HydrationFetchStatus.failed,
+        durationMs: stopwatch.elapsedMilliseconds,
+        rowCount: 0,
+        safeErrorClass: _calendarHydrationSafeErrorClass(error),
+      );
+      rethrow;
+    }
   }
 
   /// Delete a single flow row.

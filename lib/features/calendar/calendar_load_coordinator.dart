@@ -133,10 +133,21 @@ class CalendarLoadCoordinator {
   bool _queued = false;
   bool _pumping = false;
   bool _lastPassSucceeded = true;
+  int _requestRevision = 0;
   String _queuedSource = 'manual';
   bool _queuedPreserveViewport = false;
 
   bool get isLoading => _inFlight != null;
+
+  /// True when newer work is waiting behind the active pass. Long progressive
+  /// backfills use this as a cooperative cancellation signal so user-driven or
+  /// invalidation work does not wait behind the remaining chunks.
+  bool get hasQueuedRequest => _queued;
+
+  /// Monotonic count of explicit and invalidation-driven requests. Progressive
+  /// startup compares this around each chunk to detect work that arrived while
+  /// the chunk was running, even if the queue drained before the await returns.
+  int get requestRevision => _requestRevision;
 
   /// True when the most recently completed pass finished without throwing.
   /// Invalidation revisions are consumed only when this holds — consuming on
@@ -154,6 +165,7 @@ class CalendarLoadCoordinator {
     String source = 'manual',
     bool preserveViewport = false,
   }) {
+    _requestRevision++;
     final overwrittenSource = _queued ? _queuedSource : null;
     _observe(
       CalendarLoadObservation(

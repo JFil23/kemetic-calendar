@@ -349,6 +349,7 @@ class CalendarHydrationDiagnostics {
       CalendarHydrationDiagnostics();
 
   static const String _keyPrefix = 'calendar:hydration_trace:v1';
+  static const String _backfillKeyPrefix = 'calendar:hydration_backfill:v1';
   static const Set<String> _forbiddenKeys = <String>{
     'title',
     'detail',
@@ -371,6 +372,8 @@ class CalendarHydrationDiagnostics {
   _HydrationTraceState? _active;
   Map<String, Object?>? _lastCompleted;
   String? _lastCompletedUserId;
+  Map<String, Object?>? _lastBackfillSummary;
+  String? _lastBackfillUserId;
   String? _currentUserId;
   String _buildLabel = 'unavailable';
   Timer? _hardCloseTimer;
@@ -381,6 +384,9 @@ class CalendarHydrationDiagnostics {
   Map<String, Object?>? get lastCompletedTrace => _lastCompleted == null
       ? null
       : Map<String, Object?>.unmodifiable(_lastCompleted!);
+  Map<String, Object?>? get lastBackfillSummary => _lastBackfillSummary == null
+      ? null
+      : Map<String, Object?>.unmodifiable(_lastBackfillSummary!);
 
   HydrationDiagnosticContext? contextForExecutedSource(String source) {
     final trace = _active;
@@ -398,6 +404,151 @@ class CalendarHydrationDiagnostics {
   int get nowMs => _clock.elapsedMilliseconds;
 
   String _key(String userId) => '$_keyPrefix:$userId';
+  String _backfillKey(String userId) => '$_backfillKeyPrefix:$userId';
+
+  Future<void> startBackfillSummary({
+    required String userId,
+    required DateTime focusStartUtc,
+    required DateTime focusEndUtc,
+    required DateTime unionStartUtc,
+    required DateTime unionEndUtc,
+    required List<({DateTime startUtc, DateTime endUtc})> chunks,
+  }) async {
+    _lastBackfillUserId = userId;
+    _lastBackfillSummary = <String, Object?>{
+      'schema': 1,
+      'build': _buildLabel,
+      'started_at_utc': DateTime.now().toUtc().toIso8601String(),
+      'focus_start_utc': focusStartUtc.toUtc().toIso8601String(),
+      'focus_end_utc': focusEndUtc.toUtc().toIso8601String(),
+      'union_start_utc': unionStartUtc.toUtc().toIso8601String(),
+      'union_end_utc': unionEndUtc.toUtc().toIso8601String(),
+      'chunk_count': chunks.length,
+      'chunks': <Object?>[
+        for (var index = 0; index < chunks.length; index++)
+          <String, Object?>{
+            'index': index,
+            'start_utc': chunks[index].startUtc.toUtc().toIso8601String(),
+            'end_utc': chunks[index].endUtc.toUtc().toIso8601String(),
+            'flow_status': HydrationFetchStatus.notRun.diagnosticName,
+            'standalone_status': HydrationFetchStatus.notRun.diagnosticName,
+            'merged': false,
+          },
+      ],
+      'full_horizon_complete': false,
+      'accounting_status': HydrationFetchStatus.notRun.diagnosticName,
+      'accounting_duration_ms': 0,
+      'cache_save_ended': false,
+      'cache_save_outcome': null,
+      'cancellation_reason': null,
+    };
+    await _persistBackfillSummary(userId);
+  }
+
+  Future<void> recordBackfillChunk({
+    required String userId,
+    required int index,
+    required HydrationFetchStatus flowStatus,
+    required int flowDurationMs,
+    DateTime? flowStartedAtUtc,
+    DateTime? flowEndedAtUtc,
+    required HydrationFetchStatus standaloneStatus,
+    required int standaloneDurationMs,
+    DateTime? standaloneStartedAtUtc,
+    DateTime? standaloneEndedAtUtc,
+    required bool merged,
+    String? failureReason,
+  }) async {
+    final summary = _lastBackfillUserId == userId ? _lastBackfillSummary : null;
+    final chunks = summary?['chunks'];
+    if (summary == null ||
+        chunks is! List ||
+        index < 0 ||
+        index >= chunks.length) {
+      return;
+    }
+    final raw = chunks[index];
+    if (raw is! Map) return;
+    final chunk = Map<String, Object?>.from(raw);
+    chunk
+      ..['flow_status'] = flowStatus.diagnosticName
+      ..['flow_duration_ms'] = flowDurationMs
+      ..['flow_started_at_utc'] = flowStartedAtUtc?.toUtc().toIso8601String()
+      ..['flow_ended_at_utc'] = flowEndedAtUtc?.toUtc().toIso8601String()
+      ..['standalone_status'] = standaloneStatus.diagnosticName
+      ..['standalone_duration_ms'] = standaloneDurationMs
+      ..['standalone_started_at_utc'] = standaloneStartedAtUtc
+          ?.toUtc()
+          .toIso8601String()
+      ..['standalone_ended_at_utc'] = standaloneEndedAtUtc
+          ?.toUtc()
+          .toIso8601String()
+      ..['lane_overlap_detected'] =
+          flowEndedAtUtc != null &&
+          standaloneStartedAtUtc != null &&
+          standaloneStartedAtUtc.isBefore(flowEndedAtUtc)
+      ..['merged'] = merged
+      ..['failure_reason'] = _safeSource(failureReason);
+    chunks[index] = chunk;
+    await _persistBackfillSummary(userId);
+  }
+
+  Future<void> finishBackfillSummary({
+    required String userId,
+    required bool fullHorizonComplete,
+    required bool cacheSaveEnded,
+    HydrationFetchStatus accountingStatus = HydrationFetchStatus.notRun,
+    int accountingDurationMs = 0,
+    DateTime? accountingStartedAtUtc,
+    DateTime? accountingEndedAtUtc,
+    String? cacheSaveOutcome,
+    String? cancellationReason,
+  }) async {
+    final summary = _lastBackfillUserId == userId ? _lastBackfillSummary : null;
+    if (summary == null) return;
+    DateTime? finalStandaloneEndedAtUtc;
+    final chunks = summary['chunks'];
+    if (chunks is List && chunks.isNotEmpty) {
+      final lastChunk = chunks.last;
+      if (lastChunk is Map) {
+        final raw = lastChunk['standalone_ended_at_utc']?.toString();
+        finalStandaloneEndedAtUtc = raw == null ? null : DateTime.tryParse(raw);
+      }
+    }
+    summary
+      ..['finished_at_utc'] = DateTime.now().toUtc().toIso8601String()
+      ..['full_horizon_complete'] = fullHorizonComplete
+      ..['accounting_status'] = accountingStatus.diagnosticName
+      ..['accounting_duration_ms'] = accountingDurationMs
+      ..['accounting_started_at_utc'] = accountingStartedAtUtc
+          ?.toUtc()
+          .toIso8601String()
+      ..['accounting_ended_at_utc'] = accountingEndedAtUtc
+          ?.toUtc()
+          .toIso8601String()
+      ..['accounting_overlap_detected'] =
+          finalStandaloneEndedAtUtc != null &&
+          accountingStartedAtUtc != null &&
+          accountingStartedAtUtc.isBefore(finalStandaloneEndedAtUtc)
+      ..['cache_save_ended'] = cacheSaveEnded
+      ..['cache_save_outcome'] = _safeSource(cacheSaveOutcome)
+      ..['cancellation_reason'] = _safeSource(cancellationReason);
+    await _persistBackfillSummary(userId);
+  }
+
+  Future<void> _persistBackfillSummary(String userId) async {
+    final summary = _lastBackfillSummary;
+    if (summary == null || _lastBackfillUserId != userId) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        _backfillKey(userId),
+        const JsonEncoder.withIndent(' ').convert(_sanitizeMap(summary)),
+      );
+    } catch (_) {
+      // The in-memory artifact remains available when local persistence fails.
+    }
+  }
 
   void setBuildLabel(String value) {
     final trimmed = value.trim();
@@ -596,6 +747,37 @@ class CalendarHydrationDiagnostics {
     }
   }
 
+  /// Records a semantic status derived from other operations without counting
+  /// it as another network request. The aggregate flow-catalog status uses
+  /// this so completeness remains stable while view and timestamp requests
+  /// are timed independently.
+  void recordDerivedFetchStatus({
+    required HydrationDiagnosticContext? context,
+    required String operation,
+    required HydrationFetchStatus status,
+    int rowCount = 0,
+  }) {
+    final trace = _traceFor(context);
+    if (trace == null || context == null) return;
+    final pass = trace.passes[context.passEpoch];
+    if (pass == null) return;
+    final safeOperation = _safeSource(operation) ?? 'unknown';
+    pass.fetchStatuses[safeOperation] = status;
+    trace.addBounded(trace.requests, <String, Object?>{
+      ...context.child(safeOperation).toJson(),
+      'operation': safeOperation,
+      'status': status.diagnosticName,
+      'duration_ms': 0,
+      'row_count': rowCount,
+      'request_count': 0,
+      'page_count': 0,
+      'safe_error_class': null,
+      'critical': false,
+      'derived': true,
+      't_ms': _elapsed(trace),
+    });
+  }
+
   void recordBatchMapping({
     required HydrationDiagnosticContext? context,
     required HydrationBatchMappingStats stats,
@@ -664,6 +846,7 @@ class CalendarHydrationDiagnostics {
     required HydrationSelectedDaySnapshot selectedDay,
     required bool claimedComplete,
     HydrationCompletenessResult? completeness,
+    String? authorityScope,
   }) {
     final trace = _traceFor(context);
     if (trace == null || context == null) return;
@@ -687,6 +870,7 @@ class CalendarHydrationDiagnostics {
       ...selectedDay.toJson(),
       ...delta,
       'claimed_complete': claimedComplete,
+      'authority_scope': _safeSource(authorityScope),
       if (completeness != null) ...completeness.toJson(),
       'ms_until_next_frame': null,
     };
@@ -955,19 +1139,35 @@ class CalendarHydrationDiagnostics {
     final trimmed = userId?.trim();
     if (trimmed == null || trimmed.isEmpty) return null;
     _currentUserId = trimmed;
-    if (_lastCompleted != null && _lastCompletedUserId == trimmed) {
+    if (_lastCompleted != null &&
+        _lastCompletedUserId == trimmed &&
+        _lastBackfillUserId == trimmed) {
       return lastCompletedTrace;
     }
     _lastCompleted = null;
     _lastCompletedUserId = null;
+    _lastBackfillSummary = null;
+    _lastBackfillUserId = null;
     try {
       final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(_key(trimmed));
-      if (raw == null || raw.trim().isEmpty) return null;
-      final decoded = jsonDecode(raw);
-      if (decoded is! Map) return null;
-      _lastCompleted = _sanitizeMap(Map<String, Object?>.from(decoded));
-      _lastCompletedUserId = trimmed;
+      if (raw != null && raw.trim().isNotEmpty) {
+        final decoded = jsonDecode(raw);
+        if (decoded is Map) {
+          _lastCompleted = _sanitizeMap(Map<String, Object?>.from(decoded));
+          _lastCompletedUserId = trimmed;
+        }
+      }
+      final backfillRaw = prefs.getString(_backfillKey(trimmed));
+      if (backfillRaw != null && backfillRaw.trim().isNotEmpty) {
+        final decoded = jsonDecode(backfillRaw);
+        if (decoded is Map) {
+          _lastBackfillSummary = _sanitizeMap(
+            Map<String, Object?>.from(decoded),
+          );
+          _lastBackfillUserId = trimmed;
+        }
+      }
     } catch (_) {
       return null;
     }
@@ -980,6 +1180,12 @@ class CalendarHydrationDiagnostics {
     final payload = Map<String, Object?>.from(trace);
     final build = buildOverride?.trim();
     if (build != null && build.isNotEmpty) payload['build'] = build;
+    if (_lastBackfillSummary != null &&
+        _lastBackfillUserId == _lastCompletedUserId) {
+      payload['backfill_summary'] = Map<String, Object?>.from(
+        _lastBackfillSummary!,
+      );
+    }
     await Clipboard.setData(
       ClipboardData(text: const JsonEncoder.withIndent('  ').convert(payload)),
     );
@@ -991,12 +1197,15 @@ class CalendarHydrationDiagnostics {
     _active = null;
     _lastCompleted = null;
     _lastCompletedUserId = null;
+    _lastBackfillSummary = null;
+    _lastBackfillUserId = null;
     final previous = previousUserId?.trim();
     _currentUserId = null;
     if (previous == null || previous.isEmpty) return;
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_key(previous));
+      await prefs.remove(_backfillKey(previous));
     } catch (_) {}
   }
 
@@ -1006,6 +1215,8 @@ class CalendarHydrationDiagnostics {
     _active = null;
     _lastCompleted = null;
     _lastCompletedUserId = null;
+    _lastBackfillSummary = null;
+    _lastBackfillUserId = null;
     _currentUserId = null;
     _buildLabel = 'unavailable';
   }

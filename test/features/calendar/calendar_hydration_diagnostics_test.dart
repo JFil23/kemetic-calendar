@@ -50,6 +50,69 @@ void main() {
     expect(_summary(payload)['dropped_event_count'], greaterThan(0));
   });
 
+  test(
+    'backfill summary persists chunk, accounting, and cache proof',
+    () async {
+      const userId = 'user-a';
+      final diagnostics = CalendarHydrationDiagnostics();
+      final chunks = <({DateTime startUtc, DateTime endUtc})>[
+        (startUtc: DateTime.utc(2026, 1, 1), endUtc: DateTime.utc(2026, 2, 1)),
+      ];
+      await diagnostics.startBackfillSummary(
+        userId: userId,
+        focusStartUtc: DateTime.utc(2026, 2, 1),
+        focusEndUtc: DateTime.utc(2026, 3, 1),
+        unionStartUtc: DateTime.utc(2026, 1, 1),
+        unionEndUtc: DateTime.utc(2026, 3, 1),
+        chunks: chunks,
+      );
+      await diagnostics.recordBackfillChunk(
+        userId: userId,
+        index: 0,
+        flowStatus: HydrationFetchStatus.successNonempty,
+        flowDurationMs: 321,
+        flowStartedAtUtc: DateTime.utc(2026, 4, 1, 12),
+        flowEndedAtUtc: DateTime.utc(2026, 4, 1, 12, 0, 1),
+        standaloneStatus: HydrationFetchStatus.successfulEmpty,
+        standaloneDurationMs: 87,
+        standaloneStartedAtUtc: DateTime.utc(2026, 4, 1, 12, 0, 1),
+        standaloneEndedAtUtc: DateTime.utc(2026, 4, 1, 12, 0, 2),
+        merged: true,
+      );
+      await diagnostics.finishBackfillSummary(
+        userId: userId,
+        fullHorizonComplete: true,
+        accountingStatus: HydrationFetchStatus.successNonempty,
+        accountingDurationMs: 456,
+        accountingStartedAtUtc: DateTime.utc(2026, 4, 1, 12, 0, 2),
+        accountingEndedAtUtc: DateTime.utc(2026, 4, 1, 12, 0, 3),
+        cacheSaveEnded: true,
+        cacheSaveOutcome: 'saved',
+      );
+
+      final summary = diagnostics.lastBackfillSummary!;
+      expect(summary['full_horizon_complete'], isTrue);
+      expect(summary['accounting_status'], 'success_nonempty');
+      expect(summary['accounting_duration_ms'], 456);
+      expect(summary['accounting_started_at_utc'], '2026-04-01T12:00:02.000Z');
+      expect(summary['accounting_ended_at_utc'], '2026-04-01T12:00:03.000Z');
+      expect(summary['accounting_overlap_detected'], isFalse);
+      expect(summary['cache_save_ended'], isTrue);
+      expect(summary['cache_save_outcome'], 'saved');
+      final chunk = Map<String, Object?>.from(
+        (summary['chunks']! as List).single as Map,
+      );
+      expect(chunk['flow_duration_ms'], 321);
+      expect(chunk['standalone_duration_ms'], 87);
+      expect(chunk['lane_overlap_detected'], isFalse);
+      expect(chunk['merged'], isTrue);
+
+      final restored = CalendarHydrationDiagnostics();
+      await restored.restoreLastCompletedForUser(userId);
+      expect(restored.lastBackfillSummary, summary);
+    },
+  );
+
   test('completeness uses the final retrieval path and detects anomalies', () {
     final fallbackRecovered = evaluateHydrationCompleteness(
       HydrationCompletenessInput(

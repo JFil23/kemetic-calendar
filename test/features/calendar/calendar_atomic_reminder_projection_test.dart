@@ -346,10 +346,16 @@ void main() {
       expect(completeCommit, greaterThan(projection));
 
       final startupSync = source.substring(
-        source.indexOf("source: 'startup_backfill:\$reason'"),
-        source.indexOf("debugReason: 'startup_backfill_complete'"),
+        source.indexOf(
+          'final backfillComplete = await _runProgressiveStartupBackfill(',
+        ),
+        source.indexOf('int _lastProgressiveBackfillChunkIndex'),
       );
       expect(startupSync, contains('updateLocalCache: false'));
+      expect(
+        startupSync.indexOf('updateLocalCache: false'),
+        lessThan(startupSync.indexOf('await _loadMyFlowsFilingSnapshot()')),
+      );
     },
   );
 

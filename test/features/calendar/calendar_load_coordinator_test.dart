@@ -101,11 +101,14 @@ void main() {
       final coordinator = buildCoordinator();
 
       final first = coordinator.request(source: 'a');
+      expect(coordinator.requestRevision, 1);
       final second = coordinator.request(source: 'b');
+      expect(coordinator.requestRevision, 2);
 
       await Future<void>.delayed(Duration.zero);
       expect(runs.length, 1);
       expect(runs.first.source, 'a');
+      expect(coordinator.hasQueuedRequest, isTrue);
 
       var firstDone = false;
       var secondDone = false;
@@ -120,6 +123,8 @@ void main() {
 
       expect(runs.length, 2);
       expect(runs.map((r) => r.source).toList(), <String>['a', 'b']);
+      expect(coordinator.hasQueuedRequest, isFalse);
+      expect(coordinator.requestRevision, 2);
       expect(firstDone, isTrue);
       expect(secondDone, isTrue);
       coordinator.dispose();

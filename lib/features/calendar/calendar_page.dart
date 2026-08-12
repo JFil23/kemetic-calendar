@@ -9677,6 +9677,22 @@ class CalendarPageState extends State<CalendarPage>
       ValueNotifier<DayViewSheetEventTarget?>(null);
   Timer? _warmStartCacheDebounceTimer;
   String? _warmStartCacheRestoredForUserId;
+  CalendarHydrationAuthorityScope _hydrationAuthorityScope =
+      CalendarHydrationAuthorityScope.none;
+  CalendarHydrationWindow? _lastStartupVisibleHydrationWindow;
+  String? _lastStartupVisibleHydrationUserId;
+  final Map<
+    String,
+    ({
+      CalendarHydrationWindow window,
+      CalendarHydrationWindow union,
+      int chunkIndex,
+      int chunkCount,
+      bool isFinal,
+    })
+  >
+  _startupBackfillPasses = {};
+  String? _lastWarmStartCacheSaveOutcome;
 
   /// Claim slot so concurrent warm-start restores cannot both pass the entry guard.
   String? _warmStartRestoreInFlightForUserId;
@@ -9698,9 +9714,30 @@ class CalendarPageState extends State<CalendarPage>
     if (!mounted) return;
     _dayViewDataVersion.value++;
     _publishWarmStateSnapshot();
-    if (scheduleCacheSave) {
+    if (scheduleCacheSave &&
+        shouldScheduleCacheSaveOnDataBump(_hydrationAuthorityScope)) {
       _scheduleWarmStartCacheSave();
     }
+  }
+
+  void _setHydrationAuthorityScope(
+    CalendarHydrationAuthorityScope scope, {
+    required String reason,
+    HydrationDiagnosticContext? diagnosticContext,
+  }) {
+    if (scope == CalendarHydrationAuthorityScope.visibleWindow) {
+      _warmStartCacheDebounceTimer?.cancel();
+      _warmStartCacheDebounceTimer = null;
+    }
+    _hydrationAuthorityScope = scope;
+    CalendarHydrationDiagnostics.instance.recordPostProcessing(
+      diagnosticContext,
+      'authority_scope_changed',
+      fields: <String, Object?>{
+        'authority_scope': scope.diagnosticName,
+        'reason': reason,
+      },
+    );
   }
 
   void _publishHydrationStatus() {
@@ -9980,7 +10017,6 @@ class CalendarPageState extends State<CalendarPage>
   bool _accountingStale = false;
   CalendarHydrationAvailability _calendarHydrationAvailability =
       CalendarHydrationAvailability.current;
-  int _calendarAuthorityRevision = 0;
   Timer? _calendarRestorationDebounce;
   double? _lastKnownCalendarScrollOffset;
   String? _restoredCalendarAnchorTarget;
@@ -10682,6 +10718,15 @@ class CalendarPageState extends State<CalendarPage>
   void _scheduleWarmStartCacheSave() {
     final userId = _activeWarmStartUserId();
     if (userId == null) return;
+    if (!shouldPersistWarmStartCache(_hydrationAuthorityScope)) {
+      CalendarHydrationDiagnostics.instance
+          .recordCacheEvent('cache_save_skipped', <String, Object?>{
+            'reason': 'partial_authority',
+            'authority_scope': _hydrationAuthorityScope.diagnosticName,
+            'stage': 'schedule',
+          });
+      return;
+    }
     _warmStartCacheDebounceTimer?.cancel();
     _warmStartCacheDebounceTimer = Timer(_warmStartCacheDebounce, () {
       _warmStartCacheDebounceTimer = null;
@@ -10698,6 +10743,16 @@ class CalendarPageState extends State<CalendarPage>
     if (timer.isActive) {
       timer.cancel();
     }
+    if (!shouldPersistWarmStartCache(_hydrationAuthorityScope)) {
+      CalendarHydrationDiagnostics.instance
+          .recordCacheEvent('cache_save_skipped', <String, Object?>{
+            'reason': 'partial_authority',
+            'authority_scope': _hydrationAuthorityScope.diagnosticName,
+            'stage': 'flush',
+            'request_reason': reason,
+          });
+      return;
+    }
     await _persistWarmStartCacheNow(debugReason: reason);
   }
 
@@ -10708,6 +10763,16 @@ class CalendarPageState extends State<CalendarPage>
     final resolvedUserId = userId ?? _activeWarmStartUserId();
     if (resolvedUserId == null) return;
     final diagnostics = CalendarHydrationDiagnostics.instance;
+    _lastWarmStartCacheSaveOutcome = null;
+    if (!shouldPersistWarmStartCache(_hydrationAuthorityScope)) {
+      diagnostics.recordCacheEvent('cache_save_skipped', <String, Object?>{
+        'reason': 'partial_authority',
+        'authority_scope': _hydrationAuthorityScope.diagnosticName,
+        'request_reason': debugReason,
+      });
+      _lastWarmStartCacheSaveOutcome = 'partial_authority';
+      return;
+    }
     final totalStopwatch = Stopwatch()..start();
     final diagnosticWork = diagnostics.markAsyncWorkStarted(
       null,
@@ -10719,6 +10784,7 @@ class CalendarPageState extends State<CalendarPage>
 
     recordCache('cache_save_attempted', <String, Object?>{
       'reason': debugReason,
+      'authority_scope': _hydrationAuthorityScope.diagnosticName,
     });
     try {
       final prefsStopwatch = Stopwatch()..start();
@@ -10739,6 +10805,16 @@ class CalendarPageState extends State<CalendarPage>
           'reason': 'user_mismatch',
           'duration_ms': totalStopwatch.elapsedMilliseconds,
         });
+        _lastWarmStartCacheSaveOutcome = 'user_mismatch';
+        return;
+      }
+      if (!shouldPersistWarmStartCache(_hydrationAuthorityScope)) {
+        recordCache('cache_save_skipped', <String, Object?>{
+          'reason': 'partial_authority',
+          'authority_scope': _hydrationAuthorityScope.diagnosticName,
+          'duration_ms': totalStopwatch.elapsedMilliseconds,
+        });
+        _lastWarmStartCacheSaveOutcome = 'partial_authority';
         return;
       }
       final key = _warmStartCacheKey(resolvedUserId);
@@ -10749,6 +10825,7 @@ class CalendarPageState extends State<CalendarPage>
           'outcome': 'empty_removed',
           'duration_ms': totalStopwatch.elapsedMilliseconds,
         });
+        _lastWarmStartCacheSaveOutcome = 'empty_removed';
         return;
       }
 
@@ -10825,12 +10902,16 @@ class CalendarPageState extends State<CalendarPage>
           'smallest_candidate_chars': smallestCandidateSize,
           'duration_ms': totalStopwatch.elapsedMilliseconds,
         });
+        _lastWarmStartCacheSaveOutcome = 'oversize_skipped';
         return;
       }
 
       await prefs.setString(key, encoded);
+      _lastWarmStartCacheSaveOutcome = selectedLevel == 'full'
+          ? 'saved'
+          : 'compacted_and_saved';
       recordCache('cache_save_ended', <String, Object?>{
-        'outcome': selectedLevel == 'full' ? 'saved' : 'compacted_and_saved',
+        'outcome': _lastWarmStartCacheSaveOutcome,
         'compaction_level': selectedLevel,
         'past_days': selectedPastDays,
         'future_days': selectedFutureDays,
@@ -10845,6 +10926,7 @@ class CalendarPageState extends State<CalendarPage>
         );
       }
     } catch (error) {
+      _lastWarmStartCacheSaveOutcome = 'failed';
       recordCache('cache_save_ended', <String, Object?>{
         'outcome': 'failed',
         'duration_ms': totalStopwatch.elapsedMilliseconds,
@@ -15324,6 +15406,13 @@ class CalendarPageState extends State<CalendarPage>
           ),
         );
         _loadCoordinator.invalidate(reason: 'signed_out');
+        _setHydrationAuthorityScope(
+          CalendarHydrationAuthorityScope.none,
+          reason: 'signed_out',
+        );
+        _lastStartupVisibleHydrationWindow = null;
+        _lastStartupVisibleHydrationUserId = null;
+        _startupBackfillPasses.clear();
         _initialStartupUserId = null;
         _warmStartSnapshotVisible = false;
         _warmStartCacheRestoredForUserId = null;
@@ -15335,7 +15424,6 @@ class CalendarPageState extends State<CalendarPage>
         _accountingStale = false;
         _calendarHydrationAvailability = CalendarHydrationAvailability.current;
         _publishHydrationStatus();
-        _calendarAuthorityRevision = 0;
         _flows.clear();
         _notes.clear();
         _unconfirmed.clear();
@@ -18857,37 +18945,22 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
-  Future<void> _primeReminderRulesFromFlows(Iterable<_Flow> flows) async {
-    try {
-      await _loadEndedReminderIds();
-      var source = flows
-          .where((flow) => flow.isReminder)
-          .map(_reminderRuleFromFlow)
-          .whereType<ReminderRule>()
-          .where((rule) => !_endedReminderIds.contains(rule.id))
-          .toList(growable: false);
-      if (source.isEmpty) {
-        source = await _reminderRuleStore.load();
-      }
-
-      final merged = _dedupeReminderRules(
-        source.where((rule) => !_endedReminderIds.contains(rule.id)).toList(),
-      );
-      _reminderRules
-        ..clear()
-        ..addAll(merged);
-      _reminderRulesLoaded = true;
-
-      if (merged.isNotEmpty) {
-        await _saveReminderRules();
-      } else {
-        await _reminderRuleStore.saveAll(const []);
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        _calendarDebugPrint('[reminders] prime from loaded flows failed: $e');
-      }
+  Future<List<ReminderRule>> _stageReminderRulesFromFlows(
+    Iterable<_Flow> flows,
+  ) async {
+    await _loadEndedReminderIds();
+    var source = flows
+        .where((flow) => flow.isReminder)
+        .map(_reminderRuleFromFlow)
+        .whereType<ReminderRule>()
+        .where((rule) => !_endedReminderIds.contains(rule.id))
+        .toList(growable: false);
+    if (source.isEmpty) {
+      source = await _reminderRuleStore.load();
     }
+    return _dedupeReminderRules(
+      source.where((rule) => !_endedReminderIds.contains(rule.id)).toList(),
+    );
   }
 
   // Load reminder rules from meta events stored in user_events with prefix "reminder:rule:".
@@ -26874,6 +26947,7 @@ class CalendarPageState extends State<CalendarPage>
   static const Duration _flowHydrationPadding = Duration(days: 14);
   static const Duration _startupVisibleHydrationLead = Duration(days: 45);
   static const Duration _startupVisibleHydrationTrail = Duration(days: 60);
+  static const Duration _startupHydrationLaneBudget = Duration(seconds: 4);
 
   ({DateTime startUtc, DateTime endUtc}) _computeFlowHydrationWindow(
     Set<int> activeFlowIds,
@@ -26968,22 +27042,6 @@ class CalendarPageState extends State<CalendarPage>
         .add(_startupVisibleHydrationTrail)
         .add(const Duration(days: 1));
     return (startUtc: start.toUtc(), endUtc: endExclusive.toUtc());
-  }
-
-  ({DateTime startUtc, DateTime endUtc}) _clampHydrationWindowToFocus(
-    ({DateTime startUtc, DateTime endUtc}) base,
-    ({DateTime startUtc, DateTime endUtc}) focus,
-  ) {
-    final startUtc = base.startUtc.isAfter(focus.startUtc)
-        ? base.startUtc
-        : focus.startUtc;
-    final endUtc = base.endUtc.isBefore(focus.endUtc)
-        ? base.endUtc
-        : focus.endUtc;
-    if (!endUtc.isAfter(startUtc)) {
-      return focus;
-    }
-    return (startUtc: startUtc, endUtc: endUtc);
   }
 
   Future<void> _handleCreateTimedEvent(
@@ -29166,63 +29224,181 @@ class CalendarPageState extends State<CalendarPage>
     }
     await _restoreWarmStartCacheIfAvailable(reason: 'startup_gate:$reason');
     await _restoreDurablePendingNotesForUser(user.id);
-    if (!mounted) return;
-    final keepWarmStartVisible = _hasWarmStartSnapshotVisibleForCurrentUser();
-    // If warm-start data is already on screen, keep it stable until the
-    // backfill finishes instead of doing an intermediate visible-window swap.
-    if (!keepWarmStartVisible) {
-      await _loadFromDisk(source: 'startup:$reason');
-    }
     await _restoreMyFlowsFilingSnapshotCache(reason: 'startup:$reason');
-    if (widget.openMyFlowsOnLaunch && _myFlowsFilingSnapshotCache == null) {
-      try {
-        await _loadMyFlowsFilingSnapshot();
-      } catch (e, st) {
-        if (kDebugMode) {
-          _calendarDebugPrint('[MyFlowsFiling] launch prefetch failed: $e');
-          _calendarDebugPrint('$st');
-        }
+    if (!mounted) return;
+    // Phase A always runs, even with a warm snapshot. Both lanes query the
+    // exact same focus interval and publish atomically as visible authority.
+    await _loadFromDisk(source: 'startup:$reason');
+    if (!mounted || _activeWarmStartUserId() != user.id) return;
+    if (_hydrationAuthorityScope !=
+            CalendarHydrationAuthorityScope.visibleWindow ||
+        _lastStartupVisibleHydrationUserId != user.id ||
+        _lastStartupVisibleHydrationWindow == null) {
+      return;
+    }
+
+    final backfillComplete = await _runProgressiveStartupBackfill(
+      userId: user.id,
+      reason: reason,
+      focusWindow: _lastStartupVisibleHydrationWindow!,
+    );
+    if (!backfillComplete || !mounted || _activeWarmStartUserId() != user.id) {
+      return;
+    }
+
+    final diagnostics = CalendarHydrationDiagnostics.instance;
+    final finalBackfillSource = _startupBackfillSource(
+      reason: reason,
+      chunkIndex: _lastProgressiveBackfillChunkIndex,
+    );
+    await _syncReminderEvents(
+      refreshUi: false,
+      updateLocalCache: false,
+      diagnosticContext: diagnostics.contextForExecutedSource(
+        finalBackfillSource,
+      ),
+    );
+    try {
+      await _loadMyFlowsFilingSnapshot();
+    } catch (e, st) {
+      if (kDebugMode) {
+        _calendarDebugPrint('[MyFlowsFiling] deferred refresh failed: $e');
+        _calendarDebugPrint('$st');
       }
-    } else {
-      _primeMyFlowsFilingSnapshotCache(reason: 'startup:$reason');
     }
     await _maybeLoadDecanReflectionPrompt();
-    unawaited(() async {
-      try {
-        final authorityRevisionBefore = _calendarAuthorityRevision;
-        await _loadFromDisk(
-          source: 'startup_backfill:$reason',
-          preserveViewport: true,
+    _scheduleExpiredPendingCidVerification();
+    if (mounted) {
+      _syncAcceptedInviteCalendarImportsInBackground(reason);
+    }
+  }
+
+  int _lastProgressiveBackfillChunkIndex = -1;
+
+  String _startupBackfillSource({
+    required String reason,
+    required int chunkIndex,
+  }) => 'startup_backfill:$reason:$chunkIndex';
+
+  Future<bool> _runProgressiveStartupBackfill({
+    required String userId,
+    required String reason,
+    required CalendarHydrationWindow focusWindow,
+  }) async {
+    final flowIndex = <int, _Flow>{for (final flow in _flows) flow.id: flow};
+    final flowOwnersById = <int, FlowRecordSnapshot>{
+      for (final flow in _flows)
+        flow.id: FlowRecordSnapshot(
+          id: flow.id,
+          active: flow.active,
+          isHidden: flow.isHidden,
+          isReminder: flow.isReminder,
+          isSaved: flow.isSaved,
+          notes: flow.notes,
+        ),
+    };
+    final hydrationFlowIds = _flows
+        .where(
+          (flow) =>
+              !CalendarPage._isFlowEndSuppressed(flow.id) &&
+              shouldHydrateMaterializedUserEvents(flowOwnersById[flow.id]!),
+        )
+        .map((flow) => flow.id)
+        .toSet();
+    final flowWindow = hydrationFlowIds.isEmpty
+        ? focusWindow
+        : _computeFlowHydrationWindow(hydrationFlowIds, flowIndex);
+    final standaloneWindow = _computeStandaloneHydrationWindow(_flows);
+    final unionStart = <DateTime>[
+      flowWindow.startUtc,
+      standaloneWindow.startUtc,
+      focusWindow.startUtc,
+    ].reduce((a, b) => a.isBefore(b) ? a : b);
+    final unionEnd = <DateTime>[
+      flowWindow.endUtc,
+      standaloneWindow.endUtc,
+      focusWindow.endUtc,
+    ].reduce((a, b) => a.isAfter(b) ? a : b);
+    final union = (startUtc: unionStart, endUtc: unionEnd);
+    final chunks = buildBackfillChunks(
+      unionStart: unionStart,
+      unionEnd: unionEnd,
+      excludeWindow: focusWindow,
+      chunkDays: 75,
+    );
+    final diagnostics = CalendarHydrationDiagnostics.instance;
+    _lastWarmStartCacheSaveOutcome = null;
+    await diagnostics.startBackfillSummary(
+      userId: userId,
+      focusStartUtc: focusWindow.startUtc,
+      focusEndUtc: focusWindow.endUtc,
+      unionStartUtc: unionStart,
+      unionEndUtc: unionEnd,
+      chunks: chunks,
+    );
+    _lastProgressiveBackfillChunkIndex = chunks.length - 1;
+
+    if (chunks.isEmpty) {
+      await diagnostics.finishBackfillSummary(
+        userId: userId,
+        fullHorizonComplete: false,
+        cacheSaveEnded: false,
+        cancellationReason: 'no_backfill_chunks',
+      );
+      return false;
+    }
+
+    for (var index = 0; index < chunks.length; index++) {
+      if (!mounted || _activeWarmStartUserId() != userId) {
+        await diagnostics.finishBackfillSummary(
+          userId: userId,
+          fullHorizonComplete: false,
+          cacheSaveEnded: false,
+          cancellationReason: 'user_changed',
         );
-        final diagnosticContext = CalendarHydrationDiagnostics.instance
-            .contextForExecutedSource('startup_backfill:$reason');
-        await _syncReminderEvents(
-          refreshUi: false,
-          updateLocalCache: false,
-          diagnosticContext: diagnosticContext,
-        );
-        if (_calendarAuthorityRevision > authorityRevisionBefore) {
-          await _persistWarmStartCacheNow(
-            debugReason: 'startup_backfill_complete',
-          );
-        }
-        _primeMyFlowsFilingSnapshotCache(reason: 'startup_backfill:$reason');
-      } catch (e, st) {
-        if (kDebugMode) {
-          _calendarDebugPrint(
-            '[startup] backfill/reminder sync failed (async): $e',
-          );
-          _calendarDebugPrint('$st');
-        }
-      } finally {
-        // Invite import is non-critical startup work and can issue several
-        // database reads. Keep it behind the authoritative calendar backfill
-        // so it cannot contend with the flow catalog or hydration lanes.
-        if (mounted) {
-          _syncAcceptedInviteCalendarImportsInBackground(reason);
-        }
+        return false;
       }
-    }());
+      if (_loadCoordinator.hasQueuedRequest) {
+        await diagnostics.finishBackfillSummary(
+          userId: userId,
+          fullHorizonComplete: false,
+          cacheSaveEnded: false,
+          cancellationReason: 'queued_before_chunk',
+        );
+        return false;
+      }
+
+      final source = _startupBackfillSource(reason: reason, chunkIndex: index);
+      _startupBackfillPasses[source] = (
+        window: chunks[index],
+        union: union,
+        chunkIndex: index,
+        chunkCount: chunks.length,
+        isFinal: index == chunks.length - 1,
+      );
+      final requestRevisionBefore = _loadCoordinator.requestRevision;
+      try {
+        await _loadFromDisk(source: source, preserveViewport: true);
+      } finally {
+        _startupBackfillPasses.remove(source);
+      }
+      final expectedRequestRevision = requestRevisionBefore + 1;
+      if (_loadCoordinator.requestRevision != expectedRequestRevision) {
+        await diagnostics.finishBackfillSummary(
+          userId: userId,
+          fullHorizonComplete: false,
+          cacheSaveEnded: false,
+          cancellationReason: 'newer_request',
+        );
+        return false;
+      }
+      if (!_loadCoordinator.lastPassSucceeded) return false;
+    }
+
+    final cacheOutcome = _lastWarmStartCacheSaveOutcome;
+    return _hydrationAuthorityScope ==
+            CalendarHydrationAuthorityScope.fullHorizon &&
+        (cacheOutcome == 'saved' || cacheOutcome == 'compacted_and_saved');
   }
 
   void _syncAcceptedInviteCalendarImportsInBackground(String reason) {
@@ -29516,6 +29692,26 @@ class CalendarPageState extends State<CalendarPage>
     );
     var hydrationPassSucceeded = false;
     final flowEndRevisionAtLoadStart = CalendarPage._flowEndStateRevision;
+    final fastStartupMode = source.startsWith('startup:');
+    final warmStartBackfillMode = source.startsWith('startup_backfill:');
+    final backfillPass = warmStartBackfillMode
+        ? _startupBackfillPasses[source]
+        : null;
+    var flowHydrationStatus = HydrationFetchStatus.notRun;
+    var standaloneHydrationStatus = HydrationFetchStatus.notRun;
+    var flowLaneDurationMs = 0;
+    var standaloneLaneDurationMs = 0;
+    var accountingStatus = HydrationFetchStatus.notRun;
+    var accountingDurationMs = 0;
+    DateTime? flowLaneStartedAtUtc;
+    DateTime? flowLaneEndedAtUtc;
+    DateTime? standaloneLaneStartedAtUtc;
+    DateTime? standaloneLaneEndedAtUtc;
+    DateTime? accountingStartedAtUtc;
+    DateTime? accountingEndedAtUtc;
+    String? progressiveAbortReason;
+    var cacheSaveEnded = false;
+    String? loadUserIdForPass;
     try {
       if (kDebugMode) {
         _calendarDebugPrint('=== _loadFromDisk START ($source) ===');
@@ -29532,12 +29728,14 @@ class CalendarPageState extends State<CalendarPage>
         return;
       }
       final loadUserId = currentUser.id;
+      loadUserIdForPass = loadUserId;
       final preservedScrollOffset = preserveViewport
           ? _calendarScrollOffsetForPreservation()
           : null;
       await _ensureManualDeleteTombstonesLoaded();
-      final fastStartupMode = source.startsWith('startup:');
-      final warmStartBackfillMode = source.startsWith('startup_backfill:');
+      if (warmStartBackfillMode && backfillPass == null) {
+        throw StateError('Missing progressive backfill window for $source');
+      }
       final keepWarmStartSnapshotVisible =
           warmStartBackfillMode && _hasWarmStartSnapshotVisibleForCurrentUser();
       final hasPaintedStandaloneLaneAtLoadStart = _hasPaintedStandaloneLane(
@@ -29548,74 +29746,94 @@ class CalendarPageState extends State<CalendarPage>
       );
       final focusWindow = fastStartupMode
           ? _computeStartupVisibleHydrationWindow()
-          : null;
+          : backfillPass?.window;
       final repo = UserEventsRepo(Supabase.instance.client);
+      hydrationDiagnostics.recordPostProcessing(
+        hydrationContext,
+        'authority_scope_pass_started',
+        fields: <String, Object?>{
+          'authority_scope': _hydrationAuthorityScope.diagnosticName,
+        },
+      );
 
       // Flow-first: load flows, then events; join only to known active flows
       final List<_Flow> newFlows = [];
       final Map<String, List<_Note>> newNotes = {};
       int nextFlowId = _nextFlowId;
 
-      // Load flows into _flows list
-      final serverFlows = await repo.getAllFlows(
-        diagnosticContext: hydrationContext,
-      );
-      if (kDebugMode) {
-        _calendarDebugPrint(
-          '[loadFromDisk] getAllFlows count: ${serverFlows.length}',
+      // Phase A owns the catalog request. Phase B reuses that exact successful
+      // catalog snapshot so each chunk contains only the two hydration lanes.
+      final serverFlows = warmStartBackfillMode
+          ? null
+          : await repo.getAllFlows(diagnosticContext: hydrationContext);
+      if (warmStartBackfillMode) {
+        newFlows.addAll(_flows);
+        hydrationDiagnostics.recordDerivedFetchStatus(
+          context: hydrationContext,
+          operation: 'flow_catalog',
+          status: newFlows.isEmpty
+              ? HydrationFetchStatus.successfulEmpty
+              : HydrationFetchStatus.successNonempty,
+          rowCount: newFlows.length,
         );
-      }
-      for (final f in serverFlows) {
-        final suppressedEnd = CalendarPage._isFlowEndSuppressed(f.id);
-        if (suppressedEnd && !f.isSaved) {
-          continue;
+      } else {
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[loadFromDisk] getAllFlows count: ${serverFlows!.length}',
+          );
         }
-        final repMeta = _decodeRepeatingNoteMetadata(f.notes);
-        final derivedHidden =
-            f.isHidden ||
-            repMeta.detail != null ||
-            repMeta.location != null ||
-            repMeta.category != null;
-        if (kDebugMode && derivedHidden) {
-          final fromDb = f.isHidden;
-          final fromRepMeta =
+        for (final f in serverFlows!) {
+          final suppressedEnd = CalendarPage._isFlowEndSuppressed(f.id);
+          if (suppressedEnd && !f.isSaved) {
+            continue;
+          }
+          final repMeta = _decodeRepeatingNoteMetadata(f.notes);
+          final derivedHidden =
+              f.isHidden ||
               repMeta.detail != null ||
               repMeta.location != null ||
               repMeta.category != null;
-          _calendarDebugPrint(
-            '[loadFromDisk] hidden flow id=${f.id} '
-            'name=<redacted chars=${f.name.length}> '
-            'fromDb=$fromDb fromRepMeta=$fromRepMeta',
+          if (kDebugMode && derivedHidden) {
+            final fromDb = f.isHidden;
+            final fromRepMeta =
+                repMeta.detail != null ||
+                repMeta.location != null ||
+                repMeta.category != null;
+            _calendarDebugPrint(
+              '[loadFromDisk] hidden flow id=${f.id} '
+              'name=<redacted chars=${f.name.length}> '
+              'fromDb=$fromDb fromRepMeta=$fromRepMeta',
+            );
+          }
+          final flow = _Flow(
+            id: f.id,
+            calendarId: f.calendarId,
+            name: f.name,
+            color: Color(rgbToArgb(f.color)),
+            active: suppressedEnd ? false : f.active,
+            isSaved: f.isSaved,
+            savedAt: f.savedAt,
+            rules: _parseRules(f.rules),
+            start: f.startDate,
+            end: f.endDate,
+            notes: f.notes,
+            shareId: f.shareId, // NEW: Load share_id
+            isHidden: derivedHidden,
+            isReminder: f.isReminder,
+            reminderUuid: f.reminderUuid,
           );
+          newFlows.add(flow);
+          // 🔍 DEBUG: Log what color came from database for ALL custom flows
+          // Log flows with ID greater than 156 to catch all user-created flows
+          if (kDebugMode && f.id > 156) {
+            _calendarDebugPrint(
+              '[loadFlows] Flow ${f.id} loaded with '
+              'name=<redacted chars=${f.name.length}> '
+              'color=${f.color} (0x${f.color.toRadixString(16)})',
+            );
+          }
+          if (flow.id >= nextFlowId) nextFlowId = flow.id + 1;
         }
-        final flow = _Flow(
-          id: f.id,
-          calendarId: f.calendarId,
-          name: f.name,
-          color: Color(rgbToArgb(f.color)),
-          active: suppressedEnd ? false : f.active,
-          isSaved: f.isSaved,
-          savedAt: f.savedAt,
-          rules: _parseRules(f.rules),
-          start: f.startDate,
-          end: f.endDate,
-          notes: f.notes,
-          shareId: f.shareId, // NEW: Load share_id
-          isHidden: derivedHidden,
-          isReminder: f.isReminder,
-          reminderUuid: f.reminderUuid,
-        );
-        newFlows.add(flow);
-        // 🔍 DEBUG: Log what color came from database for ALL custom flows
-        // Log flows with ID greater than 156 to catch all user-created flows
-        if (kDebugMode && f.id > 156) {
-          _calendarDebugPrint(
-            '[loadFlows] Flow ${f.id} loaded with '
-            'name=<redacted chars=${f.name.length}> '
-            'color=${f.color} (0x${f.color.toRadixString(16)})',
-          );
-        }
-        if (flow.id >= nextFlowId) nextFlowId = flow.id + 1;
       }
 
       // Ensure reminder rules are present from loaded reminder flows if they didn't load earlier.
@@ -29635,13 +29853,15 @@ class CalendarPageState extends State<CalendarPage>
         );
       }
 
-      // Reuse the just-loaded flow rows for reminder bootstrapping so startup
-      // does not pay for a second full flow fetch before note hydration.
+      // Stage reminder rules without mutating live state. Phase A publishes
+      // them only in the same synchronous commit as both successful lanes.
       final reminderPrimeStopwatch = Stopwatch()..start();
-      await _primeReminderRulesFromFlows(newFlows);
+      final stagedReminderRules = warmStartBackfillMode
+          ? List<ReminderRule>.of(_reminderRules)
+          : await _stageReminderRulesFromFlows(newFlows);
       hydrationDiagnostics.recordPostProcessing(
         hydrationContext,
-        'reminder_rules_primed',
+        'reminder_rules_staged',
         durationMs: reminderPrimeStopwatch.elapsedMilliseconds,
         fields: <String, Object?>{'flow_count': newFlows.length},
       );
@@ -29693,10 +29913,9 @@ class CalendarPageState extends State<CalendarPage>
 
       ({DateTime startUtc, DateTime endUtc})? flowWindow;
       if (hydrationFlowIds.isNotEmpty) {
-        flowWindow = _computeFlowHydrationWindow(hydrationFlowIds, flowIndex);
-        if (focusWindow != null) {
-          flowWindow = _clampHydrationWindowToFocus(flowWindow, focusWindow);
-        }
+        flowWindow =
+            focusWindow ??
+            _computeFlowHydrationWindow(hydrationFlowIds, flowIndex);
         if (kDebugMode) {
           _calendarDebugPrint(
             '[loadFromDisk] flow hydration window '
@@ -29708,10 +29927,9 @@ class CalendarPageState extends State<CalendarPage>
       const catalogHydrationComplete = true;
       var flowHydrationComplete = true;
       var standaloneHydrationComplete = false;
-      var flowHydrationStatus = hydrationFlowIds.isEmpty
+      flowHydrationStatus = hydrationFlowIds.isEmpty
           ? HydrationFetchStatus.successfulEmpty
           : HydrationFetchStatus.notRun;
-      var standaloneHydrationStatus = HydrationFetchStatus.notRun;
 
       Future<Map<int, List<FlowEventRow>>> loadFlowEvents() async {
         final eventsByFlowId = <int, List<FlowEventRow>>{};
@@ -29731,13 +29949,27 @@ class CalendarPageState extends State<CalendarPage>
         }
 
         try {
+          if (warmStartBackfillMode && _loadCoordinator.hasQueuedRequest) {
+            progressiveAbortReason = 'queued_before_flow';
+            throw const _CalendarHydrationLaneUnavailable('queued_before_flow');
+          }
+          final laneStopwatch = Stopwatch()..start();
+          flowLaneStartedAtUtc = DateTime.now().toUtc();
           final batchedResult = await repo.getEventsForFlowIds(
             hydrationFlowIds,
             startUtc: flowWindow!.startUtc,
             endUtc: flowWindow.endUtc,
             diagnosticContext: hydrationContext,
           );
+          flowLaneEndedAtUtc = DateTime.now().toUtc();
+          flowLaneDurationMs = laneStopwatch.elapsedMilliseconds;
           flowHydrationStatus = batchedResult.status;
+          if ((fastStartupMode || warmStartBackfillMode) &&
+              flowLaneDurationMs >=
+                  _startupHydrationLaneBudget.inMilliseconds) {
+            progressiveAbortReason = 'flow_lane_over_budget';
+            flowHydrationComplete = false;
+          }
           if (!batchedResult.succeeded) {
             flowHydrationComplete = false;
           }
@@ -29775,6 +30007,7 @@ class CalendarPageState extends State<CalendarPage>
             );
           }
         } catch (err, st) {
+          flowLaneEndedAtUtc ??= DateTime.now().toUtc();
           flowHydrationStatus = HydrationFetchStatus.failed;
           flowHydrationComplete = false;
           if (kDebugMode) {
@@ -29796,18 +30029,22 @@ class CalendarPageState extends State<CalendarPage>
         return eventsByFlowId;
       }
 
-      var standaloneWindow = _computeStandaloneHydrationWindow(newFlows);
-      if (focusWindow != null) {
-        standaloneWindow = _clampHydrationWindowToFocus(
-          standaloneWindow,
-          focusWindow,
-        );
-      }
+      final standaloneWindow =
+          focusWindow ?? _computeStandaloneHydrationWindow(newFlows);
       // These RPCs are intentionally sequenced. On cold startup each lane can
       // consume most of the available database budget; overlapping them (and
       // flow accounting) turns otherwise bounded calls into statement
       // timeouts on the authenticated API role.
       final eventsByFlowId = await loadFlowEvents();
+      if ((fastStartupMode || warmStartBackfillMode) &&
+          (_loadCoordinator.hasQueuedRequest || !flowHydrationComplete)) {
+        progressiveAbortReason ??= _loadCoordinator.hasQueuedRequest
+            ? 'queued_between_lanes'
+            : 'flow_lane_failed';
+        throw _CalendarHydrationLaneUnavailable(progressiveAbortReason!);
+      }
+      final standaloneLaneStopwatch = Stopwatch()..start();
+      standaloneLaneStartedAtUtc = DateTime.now().toUtc();
       final standaloneFuture = repo.getStandaloneEventsForDateRangeAll(
         startUtc: standaloneWindow.startUtc,
         endUtc: standaloneWindow.endUtc,
@@ -29850,7 +30087,14 @@ class CalendarPageState extends State<CalendarPage>
           }
           return;
         }
+        if (warmStartBackfillMode && _loadCoordinator.hasQueuedRequest) {
+          progressiveAbortReason = 'queued_before_merge';
+          return;
+        }
+        final progressiveScopedCommit =
+            fastStartupMode || warmStartBackfillMode;
         final preservePaintedStandaloneLane =
+            !progressiveScopedCommit &&
             shouldPreservePaintedStandaloneLaneForHydrationCommit(
               source: source,
               commitPhase: phase.name,
@@ -29859,7 +30103,27 @@ class CalendarPageState extends State<CalendarPage>
         final preservedStandaloneCount = preservePaintedStandaloneLane
             ? _mergePaintedStandaloneLaneInto(newNotes)
             : 0;
-        final unconfirmedMerge = _unconfirmed.mergeInto(newNotes);
+        Map<String, List<_Note>> candidateNotes = progressiveScopedCommit
+            ? mergeHydrationWindowIntoNotes<_Note>(
+                existing: _notes,
+                incoming: newNotes,
+                windowStartInclusive: focusWindow!.startUtc,
+                windowEndExclusive: focusWindow.endUtc,
+                parseKeyToDay: _warmStartDateFromKey,
+              )
+            : <String, List<_Note>>{
+                for (final entry in newNotes.entries)
+                  entry.key: List<_Note>.of(entry.value),
+              };
+        if (warmStartBackfillMode && backfillPass!.isFinal) {
+          candidateNotes = retainNotesWithinHydrationWindow<_Note>(
+            notes: candidateNotes,
+            windowStartInclusive: backfillPass.union.startUtc,
+            windowEndExclusive: backfillPass.union.endUtc,
+            parseKeyToDay: _warmStartDateFromKey,
+          );
+        }
+        final unconfirmedMerge = _unconfirmed.mergeInto(candidateNotes);
         if (unconfirmedMerge.confirmedCids.isNotEmpty) {
           unawaited(
             _removePersistedPendingCids(
@@ -29875,7 +30139,7 @@ class CalendarPageState extends State<CalendarPage>
             .toSet();
         final dedupeStopwatch = Stopwatch()..start();
         final dedupedNotes = <String, List<_Note>>{};
-        newNotes.forEach((key, notes) {
+        candidateNotes.forEach((key, notes) {
           final cleaned = _dedupeVisibleDayNotes(
             notes,
             trackSkyFlowIds: hydratedTrackSkyFlowIds,
@@ -29889,10 +30153,31 @@ class CalendarPageState extends State<CalendarPage>
           'visible_snapshot_deduped',
           durationMs: dedupeStopwatch.elapsedMilliseconds,
           fields: <String, Object?>{
-            'input_day_bucket_count': newNotes.length,
+            'input_day_bucket_count': candidateNotes.length,
             'output_day_bucket_count': dedupedNotes.length,
           },
         );
+
+        final publishedScope = warmStartBackfillMode && backfillPass!.isFinal
+            ? CalendarHydrationAuthorityScope.fullHorizon
+            : progressiveScopedCommit
+            ? CalendarHydrationAuthorityScope.visibleWindow
+            : CalendarHydrationAuthorityScope.fullHorizon;
+        if (fastStartupMode) {
+          _lastStartupVisibleHydrationWindow = focusWindow;
+          _lastStartupVisibleHydrationUserId = loadUserId;
+        }
+        if (_hydrationAuthorityScope != publishedScope) {
+          _setHydrationAuthorityScope(
+            publishedScope,
+            reason: fastStartupMode
+                ? 'phase_a_complete'
+                : warmStartBackfillMode
+                ? 'phase_b_complete'
+                : 'full_refresh_complete',
+            diagnosticContext: hydrationContext,
+          );
+        }
 
         _flows
           ..clear()
@@ -29900,6 +30185,12 @@ class CalendarPageState extends State<CalendarPage>
         _notes
           ..clear()
           ..addAll(dedupedNotes);
+        if (!warmStartBackfillMode) {
+          _reminderRules
+            ..clear()
+            ..addAll(stagedReminderRules);
+          _reminderRulesLoaded = true;
+        }
         _nextFlowId = math.max(_nextFlowId, nextFlowId);
         CalendarPage._reconcileRememberedMaatJoinsFromLiveFlows(_flows);
 
@@ -29917,12 +30208,15 @@ class CalendarPageState extends State<CalendarPage>
         _lastAuthoritativeHydrationAt = DateTime.now();
         _calendarHydrationAvailability = CalendarHydrationAvailability.current;
         _publishHydrationStatus();
-        _calendarAuthorityRevision++;
-        _bumpDataVersion(scheduleCacheSave: loadComplete);
+        _bumpDataVersion(scheduleCacheSave: !progressiveScopedCommit);
         _warmStartCacheRestoredForUserId = _activeWarmStartUserId();
-        _serverHydrationCommittedForUserId = _activeWarmStartUserId();
-        _scheduleExpiredPendingCidVerification();
-        if (loadComplete || !hasPaintedEventSnapshotAtLoadStart) {
+        if (shouldSetFullServerHydrationSentinel(publishedScope)) {
+          _serverHydrationCommittedForUserId = _activeWarmStartUserId();
+        }
+        if (!progressiveScopedCommit) {
+          _scheduleExpiredPendingCidVerification();
+        }
+        if (shouldClearWarmStartSnapshotVisible(publishedScope)) {
           _warmStartSnapshotVisible = false;
         }
         if (!committedVisibleCalendar &&
@@ -29955,6 +30249,7 @@ class CalendarPageState extends State<CalendarPage>
           selectedDay: _hydrationSelectedDaySnapshot(_notes),
           claimedComplete: loadComplete,
           completeness: diagnosticCompleteness,
+          authorityScope: publishedScope.diagnosticName,
         );
         hydrationDiagnostics.recordPostProcessing(
           hydrationContext,
@@ -30077,7 +30372,9 @@ class CalendarPageState extends State<CalendarPage>
                 canonicalReadingHouseDetail;
             final cleanedDetail = canonicalDetail ?? storedCleanDetail;
             if (canonicalDetail != null &&
-                canonicalDetail != storedCleanDetail) {
+                canonicalDetail != storedCleanDetail &&
+                !fastStartupMode &&
+                !warmStartBackfillMode) {
               _repairDawnHouseRiteLoadedDetail(
                 repo: repo,
                 event: evt,
@@ -30212,7 +30509,17 @@ class CalendarPageState extends State<CalendarPage>
       // nutrition rows. Flow rows stay in the flow hydration path above.
       try {
         final standaloneFetchResult = await standaloneFuture;
+        standaloneLaneEndedAtUtc = DateTime.now().toUtc();
+        standaloneLaneDurationMs = standaloneLaneStopwatch.elapsedMilliseconds;
         standaloneHydrationStatus = standaloneFetchResult.status;
+        if ((fastStartupMode || warmStartBackfillMode) &&
+            standaloneLaneDurationMs >=
+                _startupHydrationLaneBudget.inMilliseconds) {
+          progressiveAbortReason = 'standalone_lane_over_budget';
+          throw const _CalendarHydrationLaneUnavailable(
+            'standalone_lane_over_budget',
+          );
+        }
         if (!standaloneFetchResult.succeeded) {
           throw const _CalendarHydrationLaneUnavailable('standalone');
         }
@@ -30221,7 +30528,9 @@ class CalendarPageState extends State<CalendarPage>
         final ghostStandaloneIds = standaloneResult.ghostEventIds;
         final standaloneConversionStopwatch = Stopwatch()..start();
 
-        if (ghostStandaloneIds.isNotEmpty) {
+        if (ghostStandaloneIds.isNotEmpty &&
+            !fastStartupMode &&
+            !warmStartBackfillMode) {
           unawaited(() async {
             try {
               await repo.deleteByIds(
@@ -30272,7 +30581,7 @@ class CalendarPageState extends State<CalendarPage>
             if (cid.startsWith('reminder:')) {
               final rid = _reminderRuleIdFromCid(cid);
               final exists =
-                  rid != null && _reminderRules.any((r) => r.id == rid);
+                  rid != null && stagedReminderRules.any((r) => r.id == rid);
               final ended = rid != null && _endedReminderIds.contains(rid);
               if (!exists || ended) {
                 continue;
@@ -30289,7 +30598,7 @@ class CalendarPageState extends State<CalendarPage>
                 final itemId = parts.sublist(1, parts.length - 1).join(':');
                 final rid = 'nutrition:$itemId';
                 final exists =
-                    _reminderRules.any((r) => r.id == rid) &&
+                    stagedReminderRules.any((r) => r.id == rid) &&
                     !_endedReminderIds.contains(rid);
                 if (exists) {
                   isReminderEvent = true;
@@ -30451,6 +30760,7 @@ class CalendarPageState extends State<CalendarPage>
         }
         standaloneHydrationComplete = true;
       } catch (err, st) {
+        standaloneLaneEndedAtUtc ??= DateTime.now().toUtc();
         if (standaloneHydrationStatus == HydrationFetchStatus.notRun) {
           standaloneHydrationStatus = HydrationFetchStatus.failed;
         }
@@ -30479,7 +30789,7 @@ class CalendarPageState extends State<CalendarPage>
         },
       );
 
-      final calendarSemanticComplete =
+      final calendarFetchComplete =
           flowHydrationComplete &&
           standaloneHydrationComplete &&
           calendarHydrationIsSemanticallyComplete(
@@ -30490,8 +30800,10 @@ class CalendarPageState extends State<CalendarPage>
       final diagnosticCompleteness = hydrationDiagnostics.recordCompleteness(
         context: hydrationContext,
         hydrationFlowCount: hydrationFlowIds.length,
-        claimedComplete: calendarSemanticComplete,
+        claimedComplete: calendarFetchComplete,
       );
+      final calendarSemanticComplete =
+          calendarFetchComplete && diagnosticCompleteness.semanticComplete;
       commitVisibleCalendarState(
         CalendarHydrationPublicationPhase.complete,
         loadComplete: calendarSemanticComplete,
@@ -30514,6 +30826,7 @@ class CalendarPageState extends State<CalendarPage>
             return;
           }
           final flowCountsStopwatch = Stopwatch()..start();
+          accountingStartedAtUtc = DateTime.now().toUtc();
           final flowCountsDiagnosticWork = hydrationDiagnostics
               .markAsyncWorkStarted(hydrationContext, 'flow_counts');
           try {
@@ -30526,6 +30839,9 @@ class CalendarPageState extends State<CalendarPage>
                     token: flowCountsDiagnosticWork,
                   );
                 });
+            accountingDurationMs = flowCountsStopwatch.elapsedMilliseconds;
+            accountingEndedAtUtc = DateTime.now().toUtc();
+            accountingStatus = flowEventCountsResult.status;
             if (!postProcessingStillCurrent()) return;
             final flowEventCounts = flowEventCountsResult.value;
             final hasCachedCounts =
@@ -30581,10 +30897,16 @@ class CalendarPageState extends State<CalendarPage>
                 'remaining_count_entries': flowEventCounts.remaining.length,
               },
             );
-            if (calendarSemanticComplete && committedVisibleCalendar) {
+            if (calendarSemanticComplete &&
+                committedVisibleCalendar &&
+                !fastStartupMode &&
+                !warmStartBackfillMode) {
               _scheduleWarmStartCacheSave();
             }
           } catch (err, st) {
+            accountingDurationMs = flowCountsStopwatch.elapsedMilliseconds;
+            accountingEndedAtUtc = DateTime.now().toUtc();
+            accountingStatus = HydrationFetchStatus.failed;
             if (postProcessingStillCurrent()) {
               if (mounted) {
                 setState(() => _accountingStale = true);
@@ -30660,19 +30982,81 @@ class CalendarPageState extends State<CalendarPage>
         }
       }
 
-      if (fastStartupMode) {
-        unawaited(finishNonCriticalPostProcessing());
-      } else {
+      final runPostProcessing =
+          !fastStartupMode && (!warmStartBackfillMode || backfillPass!.isFinal);
+      if (runPostProcessing) {
         await finishNonCriticalPostProcessing();
       }
       hydrationPassSucceeded =
           calendarSemanticComplete && committedVisibleCalendar;
+      if (warmStartBackfillMode &&
+          backfillPass!.isFinal &&
+          hydrationPassSucceeded) {
+        try {
+          await _persistWarmStartCacheNow(
+            userId: loadUserId,
+            debugReason: 'startup_backfill_complete',
+          );
+        } finally {
+          cacheSaveEnded = _lastWarmStartCacheSaveOutcome != null;
+        }
+      }
     } catch (e, stackTrace) {
       if (kDebugMode) {
         _calendarDebugPrint('Supabase sync FAILED: $e');
         _calendarDebugPrint('Stack: $stackTrace');
       }
     }
+
+    if (backfillPass != null && loadUserIdForPass != null) {
+      final failureReason = hydrationPassSucceeded
+          ? null
+          : progressiveAbortReason ??
+                (flowHydrationStatus == HydrationFetchStatus.failed
+                    ? 'flow_lane_failed'
+                    : standaloneHydrationStatus == HydrationFetchStatus.failed
+                    ? 'standalone_lane_failed'
+                    : 'pass_failed');
+      await hydrationDiagnostics.recordBackfillChunk(
+        userId: loadUserIdForPass,
+        index: backfillPass.chunkIndex,
+        flowStatus: flowHydrationStatus,
+        flowDurationMs: flowLaneDurationMs,
+        flowStartedAtUtc: flowLaneStartedAtUtc,
+        flowEndedAtUtc: flowLaneEndedAtUtc,
+        standaloneStatus: standaloneHydrationStatus,
+        standaloneDurationMs: standaloneLaneDurationMs,
+        standaloneStartedAtUtc: standaloneLaneStartedAtUtc,
+        standaloneEndedAtUtc: standaloneLaneEndedAtUtc,
+        merged: hydrationPassSucceeded,
+        failureReason: failureReason,
+      );
+      if (backfillPass.isFinal || !hydrationPassSucceeded) {
+        await hydrationDiagnostics.finishBackfillSummary(
+          userId: loadUserIdForPass,
+          fullHorizonComplete:
+              hydrationPassSucceeded &&
+              _hydrationAuthorityScope ==
+                  CalendarHydrationAuthorityScope.fullHorizon,
+          cacheSaveEnded: cacheSaveEnded,
+          accountingStatus: accountingStatus,
+          accountingDurationMs: accountingDurationMs,
+          accountingStartedAtUtc: accountingStartedAtUtc,
+          accountingEndedAtUtc: accountingEndedAtUtc,
+          cacheSaveOutcome: _lastWarmStartCacheSaveOutcome,
+          cancellationReason: failureReason,
+        );
+      }
+    }
+
+    hydrationDiagnostics.recordPostProcessing(
+      hydrationContext,
+      'authority_scope_pass_ended',
+      fields: <String, Object?>{
+        'authority_scope': _hydrationAuthorityScope.diagnosticName,
+        'succeeded': hydrationPassSucceeded,
+      },
+    );
 
     hydrationDiagnostics.endPass(
       hydrationContext,
@@ -30867,23 +31251,6 @@ class CalendarPageState extends State<CalendarPage>
         _myFlowsFilingSnapshotLoadInFlight = null;
       }
     }
-  }
-
-  void _primeMyFlowsFilingSnapshotCache({String reason = 'prime'}) {
-    if (_myFlowsFilingSnapshotLoadInFlight != null) return;
-    unawaited(() async {
-      try {
-        await _restoreMyFlowsFilingSnapshotCache(reason: reason);
-        await _loadMyFlowsFilingSnapshot();
-      } catch (e, st) {
-        if (kDebugMode) {
-          _calendarDebugPrint(
-            '[MyFlowsFiling] prime failed reason=$reason error=$e',
-          );
-          _calendarDebugPrint('$st');
-        }
-      }
-    }());
   }
 
   Future<int?> _findFlowIdByReminderUuid(String reminderUuid) async {
@@ -33625,6 +33992,7 @@ class CalendarPageState extends State<CalendarPage>
 
   @visibleForTesting
   Future<void> debugPersistWarmStartCacheForTesting(String userId) {
+    _hydrationAuthorityScope = CalendarHydrationAuthorityScope.fullHorizon;
     return _persistWarmStartCacheNow(userId: userId, debugReason: 'test');
   }
 

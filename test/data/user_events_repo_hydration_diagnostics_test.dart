@@ -65,6 +65,11 @@ void main() {
         );
 
         final requests = await _closeAndRequests(context);
+        expect(_status(requests, 'flow_catalog_view'), 'successful_empty');
+        expect(
+          _status(requests, 'flow_catalog_saved_timestamps'),
+          'successful_empty',
+        );
         expect(_status(requests, 'flow_catalog'), 'successful_empty');
         expect(_status(requests, 'flow_batch'), 'successful_empty');
         expect(_status(requests, 'flow_fallback_0'), 'successful_empty');
@@ -120,6 +125,8 @@ void main() {
 
         final requests = await _closeAndRequests(context);
         expect(_status(requests, 'flow_catalog'), 'failed');
+        expect(_status(requests, 'flow_catalog_view'), 'failed');
+        expect(_status(requests, 'flow_catalog_saved_timestamps'), 'not_run');
         expect(_status(requests, 'flow_batch'), 'failed');
         expect(_status(requests, 'flow_fallback_0'), 'failed');
         expect(_status(requests, 'standalone'), 'failed');
@@ -240,6 +247,33 @@ void main() {
     }
   });
 
+  test('flow catalog uses only the startup-consumed projection', () async {
+    final transport = _HydrationClient(fail: false);
+    final client = SupabaseClient(
+      'https://example.supabase.test',
+      'test-anon-key',
+      httpClient: transport,
+      authOptions: const AuthClientOptions(autoRefreshToken: false),
+    );
+    try {
+      await client.auth.recoverSession(_sessionJson());
+      await UserEventsRepo(client).getAllFlows();
+
+      expect(transport.requests, hasLength(1));
+      final select = transport.requests.single.url.queryParameters['select'];
+      expect(
+        select,
+        'id,user_id,calendar_id,name,color,active,is_saved,start_date,'
+        'end_date,notes,rules,share_id,created_at,updated_at,is_hidden,'
+        'is_reminder,reminder_uuid',
+      );
+      expect(select, contains('notes'));
+      expect(select, contains('rules'));
+    } finally {
+      client.dispose();
+    }
+  });
+
   test('a later-page failure discards the accumulated batch', () async {
     final transport = _SecondPageFailureClient();
     final client = SupabaseClient(
@@ -310,6 +344,7 @@ void main() {
       );
       expect(source, contains("'get_calendar_flow_events_v2'"));
       expect(source, contains("'get_calendar_standalone_events_v2'"));
+      expect(source, isNot(contains('SocketException')));
     },
   );
 }
