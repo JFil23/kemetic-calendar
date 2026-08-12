@@ -30,12 +30,6 @@ void main() {
     expect(startup, contains("source: 'startup_backfill:\$reason'"));
     expect(
       startup.indexOf("await _restoreWarmStartCacheIfAvailable"),
-      lessThan(
-        startup.indexOf('_syncAcceptedInviteCalendarImportsInBackground'),
-      ),
-    );
-    expect(
-      startup.indexOf('_syncAcceptedInviteCalendarImportsInBackground'),
       lessThan(startup.indexOf('final keepWarmStartVisible')),
     );
     expect(
@@ -45,6 +39,22 @@ void main() {
     expect(
       startup.indexOf("source: 'startup:\$reason'"),
       lessThan(startup.indexOf("source: 'startup_backfill:\$reason'")),
+    );
+    expect(
+      startup.indexOf("source: 'startup_backfill:\$reason'"),
+      lessThan(
+        startup.indexOf('_syncAcceptedInviteCalendarImportsInBackground'),
+      ),
+      reason: 'invite import must not contend with critical hydration',
+    );
+    expect(
+      startup.lastIndexOf(
+        "_primeMyFlowsFilingSnapshotCache(reason: 'startup_backfill:\$reason')",
+      ),
+      lessThan(
+        startup.indexOf('_syncAcceptedInviteCalendarImportsInBackground'),
+      ),
+      reason: 'invite import starts only after startup database reads finish',
     );
   });
 

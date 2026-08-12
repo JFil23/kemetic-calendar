@@ -29167,7 +29167,6 @@ class CalendarPageState extends State<CalendarPage>
     await _restoreWarmStartCacheIfAvailable(reason: 'startup_gate:$reason');
     await _restoreDurablePendingNotesForUser(user.id);
     if (!mounted) return;
-    _syncAcceptedInviteCalendarImportsInBackground(reason);
     final keepWarmStartVisible = _hasWarmStartSnapshotVisibleForCurrentUser();
     // If warm-start data is already on screen, keep it stable until the
     // backfill finishes instead of doing an intermediate visible-window swap.
@@ -29214,6 +29213,13 @@ class CalendarPageState extends State<CalendarPage>
             '[startup] backfill/reminder sync failed (async): $e',
           );
           _calendarDebugPrint('$st');
+        }
+      } finally {
+        // Invite import is non-critical startup work and can issue several
+        // database reads. Keep it behind the authoritative calendar backfill
+        // so it cannot contend with the flow catalog or hydration lanes.
+        if (mounted) {
+          _syncAcceptedInviteCalendarImportsInBackground(reason);
         }
       }
     }());
