@@ -133,6 +133,16 @@ void main() {
     expect(hydration, isNot(contains('_clampHydrationWindowToFocus')));
     expect(
       hydration,
+      contains('includeSavedTimestamps: !fastStartupMode'),
+      reason: 'exact saved-flow chronology cannot gate Phase A authority',
+    );
+    expect(
+      hydration,
+      contains('evaluatedResult: evaluatedCompleteness'),
+      reason: 'bounded diagnostics cannot decide application completeness',
+    );
+    expect(
+      hydration,
       contains(
         'flowWindow =\n'
         '            focusWindow ??\n'

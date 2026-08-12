@@ -796,25 +796,34 @@ class CalendarHydrationDiagnostics {
     required HydrationDiagnosticContext? context,
     required int hydrationFlowCount,
     required bool claimedComplete,
+    HydrationCompletenessResult? evaluatedResult,
   }) {
     final trace = _traceFor(context);
     final pass = trace == null || context == null
         ? null
         : trace.passes[context.passEpoch];
-    final result = evaluateHydrationCompleteness(
-      HydrationCompletenessInput(
-        catalogStatus:
-            pass?.fetchStatuses['flow_catalog'] ?? HydrationFetchStatus.notRun,
-        hydrationFlowCount: hydrationFlowCount,
-        batchStatus: pass?.batchStatus ?? HydrationFetchStatus.notRun,
-        fallbackRequestCount: pass?.fallbackRequestCount ?? 0,
-        fallbackFailedCount: pass?.fallbackFailedCount ?? 0,
-        fallbackNonemptyCount: pass?.fallbackNonemptyCount ?? 0,
-        standaloneStatus:
-            pass?.fetchStatuses['standalone'] ?? HydrationFetchStatus.notRun,
-        mapping: pass?.mapping,
-      ),
-    );
+    // Diagnostics must never decide whether application state is
+    // authoritative. In-flight work can outlive the bounded trace; callers
+    // supply their independently evaluated result so trace closure cannot turn
+    // a successful hydration into an application failure.
+    final result =
+        evaluatedResult ??
+        evaluateHydrationCompleteness(
+          HydrationCompletenessInput(
+            catalogStatus:
+                pass?.fetchStatuses['flow_catalog'] ??
+                HydrationFetchStatus.notRun,
+            hydrationFlowCount: hydrationFlowCount,
+            batchStatus: pass?.batchStatus ?? HydrationFetchStatus.notRun,
+            fallbackRequestCount: pass?.fallbackRequestCount ?? 0,
+            fallbackFailedCount: pass?.fallbackFailedCount ?? 0,
+            fallbackNonemptyCount: pass?.fallbackNonemptyCount ?? 0,
+            standaloneStatus:
+                pass?.fetchStatuses['standalone'] ??
+                HydrationFetchStatus.notRun,
+            mapping: pass?.mapping,
+          ),
+        );
     if (trace == null || context == null || pass == null) return result;
     pass
       ..claimedComplete = claimedComplete

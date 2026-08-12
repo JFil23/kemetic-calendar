@@ -2848,7 +2848,10 @@ class UserEventsRepo {
       })
     >
   >
-  getAllFlows({HydrationDiagnosticContext? diagnosticContext}) async {
+  getAllFlows({
+    HydrationDiagnosticContext? diagnosticContext,
+    bool includeSavedTimestamps = true,
+  }) async {
     final diagnostics = CalendarHydrationDiagnostics.instance;
     final user = _client.auth.currentUser;
     if (user == null) {
@@ -2906,18 +2909,31 @@ class UserEventsRepo {
           .map((row) => (row['id'] as num).toInt())
           .toList(growable: false);
       final Map<int, DateTime> savedAtByFlowId;
-      try {
-        savedAtByFlowId = await getSavedFlowTimestamps(
-          flowIds: savedFlowIds,
-          diagnosticContext: diagnosticContext,
+      if (includeSavedTimestamps) {
+        try {
+          savedAtByFlowId = await getSavedFlowTimestamps(
+            flowIds: savedFlowIds,
+            diagnosticContext: diagnosticContext,
+          );
+        } catch (_) {
+          savedTimestampStatus = HydrationFetchStatus.failed;
+          rethrow;
+        }
+        savedTimestampStatus = savedAtByFlowId.isEmpty
+            ? HydrationFetchStatus.successfulEmpty
+            : HydrationFetchStatus.successNonempty;
+      } else {
+        // Exact save chronology is presentation metadata, not calendar
+        // authority. Startup uses the catalog timestamps as a stable fallback
+        // and refreshes the filing snapshot after progressive hydration. Do
+        // not let this auxiliary request block visible-window publication.
+        savedAtByFlowId = const <int, DateTime>{};
+        diagnostics.recordDerivedFetchStatus(
+          context: diagnosticContext,
+          operation: 'flow_catalog_saved_timestamps',
+          status: HydrationFetchStatus.notRun,
         );
-      } catch (_) {
-        savedTimestampStatus = HydrationFetchStatus.failed;
-        rethrow;
       }
-      savedTimestampStatus = savedAtByFlowId.isEmpty
-          ? HydrationFetchStatus.successfulEmpty
-          : HydrationFetchStatus.successNonempty;
 
       final decodeStopwatch = Stopwatch()..start();
       final flows = rows.map((row) {

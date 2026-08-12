@@ -29765,7 +29765,14 @@ class CalendarPageState extends State<CalendarPage>
       // catalog snapshot so each chunk contains only the two hydration lanes.
       final serverFlows = warmStartBackfillMode
           ? null
-          : await repo.getAllFlows(diagnosticContext: hydrationContext);
+          : await repo.getAllFlows(
+              diagnosticContext: hydrationContext,
+              // Saved-flow chronology is not needed to classify or hydrate
+              // calendar rows. The post-backfill filing refresh restores the
+              // exact flow_saves timestamps without putting that auxiliary
+              // query on Phase A's authority path.
+              includeSavedTimestamps: !fastStartupMode,
+            );
       if (warmStartBackfillMode) {
         newFlows.addAll(_flows);
         hydrationDiagnostics.recordDerivedFetchStatus(
@@ -29927,6 +29934,14 @@ class CalendarPageState extends State<CalendarPage>
       const catalogHydrationComplete = true;
       var flowHydrationComplete = true;
       var standaloneHydrationComplete = false;
+      var flowMappingStats = const HydrationBatchMappingStats(
+        requestedFlowCount: 0,
+        rawRowCount: 0,
+        mappedRowCount: 0,
+        mappedFlowCount: 0,
+        nullFlowIdRowCount: 0,
+        outsideRequestedSetRowCount: 0,
+      );
       flowHydrationStatus = hydrationFlowIds.isEmpty
           ? HydrationFetchStatus.successfulEmpty
           : HydrationFetchStatus.notRun;
@@ -29936,14 +29951,7 @@ class CalendarPageState extends State<CalendarPage>
         if (hydrationFlowIds.isEmpty) {
           hydrationDiagnostics.recordBatchMapping(
             context: hydrationContext,
-            stats: const HydrationBatchMappingStats(
-              requestedFlowCount: 0,
-              rawRowCount: 0,
-              mappedRowCount: 0,
-              mappedFlowCount: 0,
-              nullFlowIdRowCount: 0,
-              outsideRequestedSetRowCount: 0,
-            ),
+            stats: flowMappingStats,
           );
           return eventsByFlowId;
         }
@@ -29990,16 +29998,17 @@ class CalendarPageState extends State<CalendarPage>
             mappedRowCount++;
             eventsByFlowId.putIfAbsent(fid, () => <FlowEventRow>[]).add(evt);
           }
+          flowMappingStats = HydrationBatchMappingStats(
+            requestedFlowCount: hydrationFlowIds.length,
+            rawRowCount: batchedEvents.length,
+            mappedRowCount: mappedRowCount,
+            mappedFlowCount: eventsByFlowId.length,
+            nullFlowIdRowCount: nullFlowIdRowCount,
+            outsideRequestedSetRowCount: outsideRequestedSetRowCount,
+          );
           hydrationDiagnostics.recordBatchMapping(
             context: hydrationContext,
-            stats: HydrationBatchMappingStats(
-              requestedFlowCount: hydrationFlowIds.length,
-              rawRowCount: batchedEvents.length,
-              mappedRowCount: mappedRowCount,
-              mappedFlowCount: eventsByFlowId.length,
-              nullFlowIdRowCount: nullFlowIdRowCount,
-              outsideRequestedSetRowCount: outsideRequestedSetRowCount,
-            ),
+            stats: flowMappingStats,
           );
           if (kDebugMode) {
             _calendarDebugPrint(
@@ -30797,10 +30806,25 @@ class CalendarPageState extends State<CalendarPage>
             flowEvents: flowHydrationStatus,
             standalone: standaloneHydrationStatus,
           );
+      final evaluatedCompleteness = evaluateHydrationCompleteness(
+        HydrationCompletenessInput(
+          catalogStatus: newFlows.isEmpty
+              ? HydrationFetchStatus.successfulEmpty
+              : HydrationFetchStatus.successNonempty,
+          hydrationFlowCount: hydrationFlowIds.length,
+          batchStatus: flowHydrationStatus,
+          fallbackRequestCount: 0,
+          fallbackFailedCount: 0,
+          fallbackNonemptyCount: 0,
+          standaloneStatus: standaloneHydrationStatus,
+          mapping: flowMappingStats,
+        ),
+      );
       final diagnosticCompleteness = hydrationDiagnostics.recordCompleteness(
         context: hydrationContext,
         hydrationFlowCount: hydrationFlowIds.length,
         claimedComplete: calendarFetchComplete,
+        evaluatedResult: evaluatedCompleteness,
       );
       final calendarSemanticComplete =
           calendarFetchComplete && diagnosticCompleteness.semanticComplete;

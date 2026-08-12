@@ -464,6 +464,38 @@ void main() {
     expect(_summary(payload)['final_rendered_selected_day_key'], '2026-1-1');
   });
 
+  test(
+    'trace closure cannot invalidate independently evaluated completeness',
+    () async {
+      final diagnostics = CalendarHydrationDiagnostics();
+      diagnostics.startColdProcess(userId: 'user-a');
+      final context = diagnostics.beginPass(
+        epoch: 1,
+        requestedSource: 'startup_backfill:test:4',
+        executedSource: 'startup_backfill:test:4',
+      )!;
+      const evaluated = HydrationCompletenessResult(
+        fetchComplete: true,
+        mappingConsistent: true,
+        semanticComplete: true,
+        allAttemptsSucceeded: true,
+        completenessAnomaly: false,
+        reasons: <String>[],
+      );
+
+      await diagnostics.debugClose(HydrationTraceCloseReason.timeout);
+      final afterClose = diagnostics.recordCompleteness(
+        context: context,
+        hydrationFlowCount: 71,
+        claimedComplete: true,
+        evaluatedResult: evaluated,
+      );
+
+      expect(afterClose.semanticComplete, isTrue);
+      expect(afterClose.allAttemptsSucceeded, isTrue);
+    },
+  );
+
   test('same-day stale checksum stays pending without a false stamp', () async {
     final diagnostics = CalendarHydrationDiagnostics();
     diagnostics.startColdProcess(userId: 'user-a');

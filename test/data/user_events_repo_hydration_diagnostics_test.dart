@@ -274,6 +274,40 @@ void main() {
     }
   });
 
+  test(
+    'startup catalog skips exact saved timestamps and uses catalog fallback',
+    () async {
+      final transport = _SavedFlowCatalogClient();
+      final client = SupabaseClient(
+        'https://example.supabase.test',
+        'test-anon-key',
+        httpClient: transport,
+        authOptions: const AuthClientOptions(autoRefreshToken: false),
+      );
+      try {
+        await client.auth.recoverSession(_sessionJson());
+        final context = _startPass();
+        final flows = await UserEventsRepo(client).getAllFlows(
+          diagnosticContext: context,
+          includeSavedTimestamps: false,
+        );
+
+        expect(transport.requests, hasLength(1));
+        expect(
+          transport.requests.single.url.path,
+          '/rest/v1/flows_with_calendars',
+        );
+        expect(flows.single.isSaved, isTrue);
+        expect(flows.single.savedAt, DateTime.parse('2026-08-02T03:04:05Z'));
+        final requests = await _closeAndRequests(context);
+        expect(_status(requests, 'flow_catalog_saved_timestamps'), 'not_run');
+        expect(_status(requests, 'flow_catalog'), 'success_nonempty');
+      } finally {
+        client.dispose();
+      }
+    },
+  );
+
   test('a later-page failure discards the accumulated batch', () async {
     final transport = _SecondPageFailureClient();
     final client = SupabaseClient(
@@ -411,6 +445,42 @@ class _HydrationClient extends http.BaseClient {
     return http.StreamedResponse(
       Stream<List<int>>.value(utf8.encode(jsonEncode(body))),
       statusCode,
+      request: request,
+      headers: const <String, String>{'content-type': 'application/json'},
+    );
+  }
+}
+
+class _SavedFlowCatalogClient extends http.BaseClient {
+  final List<http.BaseRequest> requests = <http.BaseRequest>[];
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    requests.add(request);
+    final rows = <Object?>[
+      <String, Object?>{
+        'id': 42,
+        'user_id': _userId,
+        'calendar_id': null,
+        'name': 'Saved fixture',
+        'color': 123,
+        'active': false,
+        'is_saved': true,
+        'start_date': null,
+        'end_date': null,
+        'notes': null,
+        'rules': const <Object?>[],
+        'share_id': null,
+        'created_at': '2026-08-01T03:04:05Z',
+        'updated_at': '2026-08-02T03:04:05Z',
+        'is_hidden': false,
+        'is_reminder': false,
+        'reminder_uuid': null,
+      },
+    ];
+    return http.StreamedResponse(
+      Stream<List<int>>.value(utf8.encode(jsonEncode(rows))),
+      200,
       request: request,
       headers: const <String, String>{'content-type': 'application/json'},
     );
