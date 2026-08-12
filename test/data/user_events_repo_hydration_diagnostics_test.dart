@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -209,24 +210,20 @@ void main() {
       );
 
       final rpcRequests = transport.requests
-          .where(
-            (request) =>
-                request.url.path ==
-                '/rest/v1/rpc/get_calendar_hydration_events_v1',
-          )
+          .where((request) => request.url.path.startsWith('/rest/v1/rpc/'))
           .toList(growable: false);
       expect(rpcRequests, hasLength(2));
-      expect(
-        rpcRequests.map((request) => request.url.path),
-        everyElement('/rest/v1/rpc/get_calendar_hydration_events_v1'),
-      );
+      expect(rpcRequests.map((request) => request.url.path), <String>[
+        '/rest/v1/rpc/get_calendar_flow_events_v2',
+        '/rest/v1/rpc/get_calendar_standalone_events_v2',
+      ]);
       expect(
         transport.requests.map((request) => request.url.path),
         isNot(contains('/rest/v1/user_event_filing_items_client')),
       );
 
       final flowBody = transport.bodyAt(0);
-      expect(flowBody['p_lane'], 'flow');
+      expect(flowBody, isNot(contains('p_lane')));
       expect(flowBody['p_flow_ids'], <int>[3, 7]);
       expect(flowBody['p_page_limit'], 25);
       expect(flowBody['p_page_offset'], 0);
@@ -234,8 +231,8 @@ void main() {
       expect(flowBody['p_end_utc'], end.toIso8601String());
 
       final standaloneBody = transport.bodyAt(1);
-      expect(standaloneBody['p_lane'], 'standalone');
-      expect(standaloneBody['p_flow_ids'], isNull);
+      expect(standaloneBody, isNot(contains('p_lane')));
+      expect(standaloneBody, isNot(contains('p_flow_ids')));
       expect(standaloneBody['p_page_limit'], 25);
       expect(standaloneBody['p_page_offset'], 0);
     } finally {
@@ -265,7 +262,7 @@ void main() {
       expect(transport.requests, hasLength(2));
       expect(
         transport.requests.map((request) => request.url.path),
-        everyElement('/rest/v1/rpc/get_calendar_hydration_events_v1'),
+        everyElement('/rest/v1/rpc/get_calendar_flow_events_v2'),
       );
       expect(transport.bodyAt(0)['p_page_offset'], 0);
       expect(transport.bodyAt(1)['p_page_offset'], 1);
@@ -273,6 +270,48 @@ void main() {
       client.dispose();
     }
   });
+
+  test('a full flow page advances the offset and preserves all rows', () async {
+    final transport = _TwoPageSuccessClient();
+    final client = SupabaseClient(
+      'https://example.supabase.test',
+      'test-anon-key',
+      httpClient: transport,
+      authOptions: const AuthClientOptions(autoRefreshToken: false),
+    );
+    try {
+      await client.auth.recoverSession(_sessionJson());
+      final result = await UserEventsRepo(client).getEventsForFlowIds(
+        <int>{1},
+        pageSize: 1,
+        startUtc: _hydrationStart,
+        endUtc: _hydrationEnd,
+      );
+
+      expect(result.status, HydrationFetchStatus.successNonempty);
+      expect(result.value, hasLength(1));
+      expect(transport.requests, hasLength(2));
+      expect(transport.bodyAt(0)['p_page_offset'], 0);
+      expect(transport.bodyAt(1)['p_page_offset'], 1);
+    } finally {
+      client.dispose();
+    }
+  });
+
+  test(
+    'legacy filing view remains an explicit off-by-default escape hatch',
+    () {
+      final source = File('lib/data/user_events_repo.dart').readAsStringSync();
+      expect(source, contains("'KEMET_USE_LEGACY_CALENDAR_HYDRATION_VIEW'"));
+      expect(source, contains('defaultValue: false'));
+      expect(
+        RegExp(r'if \(_kUseLegacyCalendarHydrationView\)').allMatches(source),
+        hasLength(greaterThanOrEqualTo(2)),
+      );
+      expect(source, contains("'get_calendar_flow_events_v2'"));
+      expect(source, contains("'get_calendar_standalone_events_v2'"));
+    },
+  );
 }
 
 HydrationDiagnosticContext _startPass() {
@@ -386,6 +425,42 @@ class _SecondPageFailureClient extends http.BaseClient {
     return http.StreamedResponse(
       Stream<List<int>>.value(utf8.encode(jsonEncode(body))),
       statusCode,
+      request: request,
+      headers: const <String, String>{'content-type': 'application/json'},
+    );
+  }
+}
+
+class _TwoPageSuccessClient extends http.BaseClient {
+  int _requestCount = 0;
+  final List<http.BaseRequest> requests = <http.BaseRequest>[];
+
+  Map<String, Object?> bodyAt(int index) {
+    final request = requests[index] as http.Request;
+    return Map<String, Object?>.from(jsonDecode(request.body) as Map);
+  }
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    requests.add(request);
+    _requestCount++;
+    final body = _requestCount == 1
+        ? <Object?>[
+            <String, Object?>{
+              'id': '11111111-1111-4111-8111-111111111111',
+              'client_event_id': 'fixture-page-one',
+              'title': 'Page one',
+              'all_day': false,
+              'starts_at': '2026-01-01T12:00:00.000Z',
+              'ends_at': '2026-01-01T13:00:00.000Z',
+              'filed_flow_id': 1,
+              'item_kind': 'flow',
+            },
+          ]
+        : const <Object?>[];
+    return http.StreamedResponse(
+      Stream<List<int>>.value(utf8.encode(jsonEncode(body))),
+      200,
       request: request,
       headers: const <String, String>{'content-type': 'application/json'},
     );

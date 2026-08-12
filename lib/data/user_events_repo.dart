@@ -12,7 +12,8 @@ import '../utils/flow_filter_engine.dart';
 
 const _kTable = 'user_events';
 const _kReadableEventsTable = 'user_event_filing_items_client';
-const _kCalendarHydrationRpc = 'get_calendar_hydration_events_v1';
+const _kCalendarFlowHydrationRpc = 'get_calendar_flow_events_v2';
+const _kCalendarStandaloneHydrationRpc = 'get_calendar_standalone_events_v2';
 const _kUseLegacyCalendarHydrationView = bool.fromEnvironment(
   'KEMET_USE_LEGACY_CALENDAR_HYDRATION_VIEW',
   defaultValue: false,
@@ -1796,12 +1797,10 @@ class UserEventsRepo {
               .range(offset, offset + effectivePageSize - 1);
         } else {
           rows = await _client.rpc(
-            _kCalendarHydrationRpc,
+            _kCalendarStandaloneHydrationRpc,
             params: <String, Object?>{
               'p_start_utc': startUtc.toUtc().toIso8601String(),
               'p_end_utc': endUtc.toUtc().toIso8601String(),
-              'p_lane': 'standalone',
-              'p_flow_ids': null,
               'p_page_limit': effectivePageSize,
               'p_page_offset': offset,
             },
@@ -2329,11 +2328,10 @@ class UserEventsRepo {
               .range(offset, offset + effectivePageSize - 1);
         } else {
           rows = await _client.rpc(
-            _kCalendarHydrationRpc,
+            _kCalendarFlowHydrationRpc,
             params: <String, Object?>{
               'p_start_utc': startUtc.toUtc().toIso8601String(),
               'p_end_utc': endUtc.toUtc().toIso8601String(),
-              'p_lane': 'flow',
               'p_flow_ids': ids,
               'p_page_limit': effectivePageSize,
               'p_page_offset': offset,

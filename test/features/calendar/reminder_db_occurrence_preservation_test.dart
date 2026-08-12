@@ -275,16 +275,12 @@ class _CalendarFixtureClient extends http.BaseClient {
                     ]),
       );
     }
-    if (path == '/rest/v1/rpc/get_calendar_hydration_events_v1' &&
+    if (path == '/rest/v1/rpc/get_calendar_standalone_events_v2' &&
         request is http.Request) {
-      final body = Map<String, Object?>.from(jsonDecode(request.body) as Map);
-      if (body['p_lane'] == 'standalone') {
-        return _jsonResponse(request, <Object?>[
-          _familyFilingRow(),
-          _journalFilingRow(),
-        ]);
-      }
-      return _jsonResponse(request, const <Object?>[]);
+      return _jsonResponse(request, <Object?>[
+        _familyFilingRow(),
+        _journalFilingRow(),
+      ]);
     }
     if (path == '/rest/v1/user_event_filing_items_client') {
       final itemKind = request.url.queryParameters['item_kind'] ?? '';
