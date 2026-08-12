@@ -9750,9 +9750,22 @@ class CalendarPageState extends State<CalendarPage>
   HydrationSelectedDaySnapshot _hydrationSelectedDaySnapshot(
     Map<String, List<_Note>> notesByDay,
   ) {
-    final ky = _lastViewKy ?? _today.kYear;
-    final km = _lastViewKm ?? _today.kMonth;
-    final kd = _lastViewKd ?? _today.kDay;
+    final fallbackKy = _lastViewKy ?? _today.kYear;
+    final fallbackKm = _lastViewKm ?? _today.kMonth;
+    final fallbackKd = _lastViewKd ?? _today.kDay;
+    final activeDayView = _activeDayViewRestorationState;
+    final selectedDay = selectHydrationDiagnosticDay(
+      fallbackKYear: fallbackKy,
+      fallbackKMonth: fallbackKm,
+      fallbackKDay: fallbackKd,
+      activeDayViewOpen: activeDayView?.isOpen ?? false,
+      activeKYear: activeDayView?.kYear,
+      activeKMonth: activeDayView?.kMonth,
+      activeKDay: activeDayView?.kDay,
+    );
+    final ky = selectedDay.kYear;
+    final km = selectedDay.kMonth;
+    final kd = selectedDay.kDay;
     final notes = notesByDay[_kKey(ky, km, kd)] ?? const <_Note>[];
     var flowBacked = 0;
     var reminders = 0;
@@ -9781,6 +9794,7 @@ class CalendarPageState extends State<CalendarPage>
       }
     }
     return HydrationSelectedDaySnapshot(
+      dayKey: _kKey(ky, km, kd),
       eventCount: notes.length,
       flowBackedCount: flowBacked,
       reminderCount: reminders,
@@ -26751,6 +26765,7 @@ class CalendarPageState extends State<CalendarPage>
                   scrollOffset: scrollOffset,
                   eventDetail: eventDetail,
                 );
+                _activeDayViewRestorationState = state;
                 unawaited(
                   _persistDayViewState(
                     state,

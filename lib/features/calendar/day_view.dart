@@ -5169,6 +5169,7 @@ class _DayViewPageState extends State<DayViewPage> {
       }
     }
     return HydrationSelectedDaySnapshot(
+      dayKey: '$_currentKy-$_currentKm-$_currentKd',
       eventCount: notes.length,
       flowBackedCount: flowBacked,
       reminderCount: reminders,

@@ -286,6 +286,168 @@ void main() {
     expect(frames.last['acknowledged_commit_revisions'], <Object?>[2]);
   });
 
+  test('frame acknowledgement requires the same day and membership', () async {
+    final diagnostics = CalendarHydrationDiagnostics();
+    diagnostics.startColdProcess(userId: 'user-a');
+    final context = diagnostics.beginPass(
+      epoch: 1,
+      requestedSource: 'test',
+      executedSource: 'test',
+    )!;
+    diagnostics.recordVisibleCommit(
+      context: context,
+      phase: 'complete',
+      originClass: 'server_complete',
+      totalFlows: 1,
+      totalEvents: 1,
+      totalDayBuckets: 1,
+      selectedDay: _snapshot(<String>{'a'}, dayKey: '2026-1-1'),
+      claimedComplete: true,
+      completeness: const HydrationCompletenessResult(
+        fetchComplete: true,
+        mappingConsistent: true,
+        semanticComplete: true,
+        allAttemptsSucceeded: true,
+        completenessAnomaly: false,
+        reasons: <String>[],
+      ),
+    );
+
+    for (var index = 0; index < 2; index++) {
+      diagnostics.recordDayViewFrame(
+        selectedDay: _snapshot(<String>{'a'}, dayKey: '2026-1-2'),
+        dataVersion: index + 1,
+      );
+    }
+    diagnostics.recordDayViewFrame(
+      selectedDay: _snapshot(<String>{'a'}, dayKey: '2026-1-1'),
+      dataVersion: 3,
+    );
+    await diagnostics.debugClose(HydrationTraceCloseReason.navigation);
+
+    final payload = diagnostics.lastCompletedTrace!;
+    final frames = _maps(payload['frames']);
+    expect(frames[0]['acknowledged_commit_revisions'], isEmpty);
+    expect(frames[1]['acknowledged_commit_revisions'], isEmpty);
+    expect(frames[2]['acknowledged_commit_revisions'], <Object?>[1]);
+    final mismatches = _maps(payload['events'])
+        .where((event) => event['marker'] == 'frame_commit_day_mismatch')
+        .toList(growable: false);
+    expect(mismatches, hasLength(1));
+    expect(_summary(payload)['final_committed_selected_day_key'], '2026-1-1');
+    expect(_summary(payload)['final_rendered_selected_day_key'], '2026-1-1');
+  });
+
+  test('same-day stale checksum stays pending without a false stamp', () async {
+    final diagnostics = CalendarHydrationDiagnostics();
+    diagnostics.startColdProcess(userId: 'user-a');
+    final context = diagnostics.beginPass(
+      epoch: 1,
+      requestedSource: 'test',
+      executedSource: 'test',
+    )!;
+    diagnostics.recordVisibleCommit(
+      context: context,
+      phase: 'complete',
+      originClass: 'server_complete',
+      totalFlows: 1,
+      totalEvents: 2,
+      totalDayBuckets: 1,
+      selectedDay: _snapshot(<String>{'a', 'b'}),
+      claimedComplete: true,
+      completeness: const HydrationCompletenessResult(
+        fetchComplete: true,
+        mappingConsistent: true,
+        semanticComplete: true,
+        allAttemptsSucceeded: true,
+        completenessAnomaly: false,
+        reasons: <String>[],
+      ),
+    );
+    for (var index = 0; index < 2; index++) {
+      diagnostics.recordDayViewFrame(
+        selectedDay: _snapshot(<String>{'a'}),
+        dataVersion: index + 1,
+      );
+    }
+    await diagnostics.debugClose(HydrationTraceCloseReason.navigation);
+
+    final payload = diagnostics.lastCompletedTrace!;
+    expect(
+      _summary(payload)['time_to_first_server_confirmed_complete_frame_ms'],
+      isNull,
+    );
+    final frames = _maps(payload['frames']);
+    expect(
+      frames,
+      everyElement(containsPair('acknowledged_commit_revisions', isEmpty)),
+    );
+    final mismatches = _maps(payload['events'])
+        .where((event) => event['marker'] == 'frame_commit_checksum_mismatch')
+        .toList(growable: false);
+    expect(mismatches, hasLength(1));
+    final summary = _summary(payload);
+    expect(
+      summary['final_committed_selected_day_multiset_checksum'],
+      isNot(summary['final_rendered_selected_day_multiset_checksum']),
+    );
+  });
+
+  test('different-day frame cannot create a server-confirmed stamp', () async {
+    final diagnostics = CalendarHydrationDiagnostics();
+    diagnostics.startColdProcess(userId: 'user-a');
+    final context = diagnostics.beginPass(
+      epoch: 1,
+      requestedSource: 'test',
+      executedSource: 'test',
+    )!;
+    diagnostics.recordVisibleCommit(
+      context: context,
+      phase: 'complete',
+      originClass: 'server_complete',
+      totalFlows: 1,
+      totalEvents: 1,
+      totalDayBuckets: 1,
+      selectedDay: _snapshot(<String>{'a'}, dayKey: '2026-1-1'),
+      claimedComplete: true,
+      completeness: const HydrationCompletenessResult(
+        fetchComplete: true,
+        mappingConsistent: true,
+        semanticComplete: true,
+        allAttemptsSucceeded: true,
+        completenessAnomaly: false,
+        reasons: <String>[],
+      ),
+    );
+    diagnostics.recordDayViewFrame(
+      selectedDay: _snapshot(<String>{'a'}, dayKey: '2026-1-2'),
+      dataVersion: 1,
+    );
+    await diagnostics.debugClose(HydrationTraceCloseReason.navigation);
+
+    expect(
+      _summary(
+        diagnostics.lastCompletedTrace!,
+      )['time_to_first_server_confirmed_complete_frame_ms'],
+      isNull,
+    );
+  });
+
+  test('open Day View controls the diagnostic day sample', () {
+    expect(
+      selectHydrationDiagnosticDay(
+        fallbackKYear: 2026,
+        fallbackKMonth: 1,
+        fallbackKDay: 1,
+        activeDayViewOpen: true,
+        activeKYear: 2026,
+        activeKMonth: 2,
+        activeKDay: 3,
+      ),
+      (kYear: 2026, kMonth: 2, kDay: 3),
+    );
+  });
+
   test(
     '500ms-equivalent quiet marker does not close before settlement',
     () async {
@@ -337,8 +499,12 @@ void main() {
   });
 }
 
-HydrationSelectedDaySnapshot _snapshot(Set<String> identities) {
+HydrationSelectedDaySnapshot _snapshot(
+  Set<String> identities, {
+  String dayKey = '2026-1-1',
+}) {
   return HydrationSelectedDaySnapshot(
+    dayKey: dayKey,
     eventCount: identities.length,
     flowBackedCount: identities.length,
     reminderCount: 0,

@@ -101,9 +101,28 @@ class HydrationAsyncWorkToken {
   final String label;
 }
 
+({int kYear, int kMonth, int kDay}) selectHydrationDiagnosticDay({
+  required int fallbackKYear,
+  required int fallbackKMonth,
+  required int fallbackKDay,
+  bool activeDayViewOpen = false,
+  int? activeKYear,
+  int? activeKMonth,
+  int? activeKDay,
+}) {
+  if (activeDayViewOpen &&
+      activeKYear != null &&
+      activeKMonth != null &&
+      activeKDay != null) {
+    return (kYear: activeKYear, kMonth: activeKMonth, kDay: activeKDay);
+  }
+  return (kYear: fallbackKYear, kMonth: fallbackKMonth, kDay: fallbackKDay);
+}
+
 @immutable
 class HydrationSelectedDaySnapshot {
   const HydrationSelectedDaySnapshot({
+    required this.dayKey,
     required this.eventCount,
     required this.flowBackedCount,
     required this.reminderCount,
@@ -113,6 +132,7 @@ class HydrationSelectedDaySnapshot {
   });
 
   static const empty = HydrationSelectedDaySnapshot(
+    dayKey: '',
     eventCount: 0,
     flowBackedCount: 0,
     reminderCount: 0,
@@ -121,6 +141,7 @@ class HydrationSelectedDaySnapshot {
     multisetChecksum: 0,
   );
 
+  final String dayKey;
   final int eventCount;
   final int flowBackedCount;
   final int reminderCount;
@@ -129,6 +150,7 @@ class HydrationSelectedDaySnapshot {
   final int multisetChecksum;
 
   Map<String, Object?> toJson() => <String, Object?>{
+    'day_key': dayKey,
     'event_count': eventCount,
     'flow_backed_count': flowBackedCount,
     'reminder_count': reminderCount,
@@ -138,6 +160,7 @@ class HydrationSelectedDaySnapshot {
   };
 
   bool structurallyMatches(HydrationSelectedDaySnapshot other) =>
+      dayKey == other.dayKey &&
       eventCount == other.eventCount &&
       flowBackedCount == other.flowBackedCount &&
       reminderCount == other.reminderCount &&
@@ -669,6 +692,7 @@ class CalendarHydrationDiagnostics {
     };
     trace.addBounded(trace.commits, commit);
     trace.pendingCommitFrames[revision] = commit;
+    trace.pendingCommitSnapshots[revision] = selectedDay;
     _noteMutation();
   }
 
@@ -709,6 +733,7 @@ class CalendarHydrationDiagnostics {
     };
     trace.addBounded(trace.commits, commit);
     trace.pendingCommitFrames[revision] = commit;
+    trace.pendingCommitSnapshots[revision] = selectedDay;
     _noteMutation();
   }
 
@@ -729,6 +754,28 @@ class CalendarHydrationDiagnostics {
     final acknowledgedRevisions = <int>[];
     var acknowledgedSemanticCommit = false;
     for (final entry in trace.pendingCommitFrames.entries) {
+      final committedDay = trace.pendingCommitSnapshots[entry.key];
+      if (committedDay == null ||
+          !committedDay.structurallyMatches(selectedDay)) {
+        final mismatchKey =
+            '${entry.key}|${selectedDay.dayKey}|${selectedDay.multisetChecksum}';
+        if (trace.reportedCommitFrameMismatches.add(mismatchKey)) {
+          final dayMismatch = committedDay?.dayKey != selectedDay.dayKey;
+          _record(
+            dayMismatch
+                ? 'frame_commit_day_mismatch'
+                : 'frame_commit_checksum_mismatch',
+            <String, Object?>{
+              'revision': entry.key,
+              'commit_day_key': committedDay?.dayKey,
+              'frame_day_key': selectedDay.dayKey,
+              'commit_multiset_checksum': committedDay?.multisetChecksum,
+              'frame_multiset_checksum': selectedDay.multisetChecksum,
+            },
+          );
+        }
+        continue;
+      }
       entry.value['ms_until_next_frame'] =
           tMs - ((entry.value['t_ms'] as int?) ?? tMs);
       acknowledgedSemanticCommit =
@@ -738,6 +785,7 @@ class CalendarHydrationDiagnostics {
     }
     for (final revision in acknowledgedRevisions) {
       trace.pendingCommitFrames.remove(revision);
+      trace.pendingCommitSnapshots.remove(revision);
     }
     if (acknowledgedSemanticCommit &&
         trace.timeToFirstServerConfirmedCompleteFrameMs == null) {
@@ -750,6 +798,7 @@ class CalendarHydrationDiagnostics {
       'acknowledged_commit_revisions': acknowledgedRevisions,
       ...selectedDay.toJson(),
     });
+    trace.finalRenderedSelectedDay = selectedDay;
     final previous = trace.lastFrameSelectedDay;
     if (previous == null || !previous.structurallyMatches(selectedDay)) {
       trace.lastFrameSelectedDay = selectedDay;
@@ -870,9 +919,11 @@ class CalendarHydrationDiagnostics {
       trace.warmSnapshotMatchesFinal = warmSelected.structurallyMatches(
         finalSelected,
       );
-      final delta = _selectedDayDelta(warmSelected, finalSelected);
-      trace.warmToFinalAdded = delta['selected_day_added'] as int?;
-      trace.warmToFinalRemoved = delta['selected_day_removed'] as int?;
+      if (warmSelected.dayKey == finalSelected.dayKey) {
+        final delta = _selectedDayDelta(warmSelected, finalSelected);
+        trace.warmToFinalAdded = delta['selected_day_added'] as int?;
+        trace.warmToFinalRemoved = delta['selected_day_removed'] as int?;
+      }
     }
     final closedAt = _elapsed(trace);
     if (reason == HydrationTraceCloseReason.settled) {
@@ -1179,6 +1230,9 @@ class _HydrationTraceState {
   final Map<int, _HydrationPassState> passes = <int, _HydrationPassState>{};
   final Map<int, Map<String, Object?>> pendingCommitFrames =
       <int, Map<String, Object?>>{};
+  final Map<int, HydrationSelectedDaySnapshot> pendingCommitSnapshots =
+      <int, HydrationSelectedDaySnapshot>{};
+  final Set<String> reportedCommitFrameMismatches = <String>{};
   int droppedEventCount = 0;
   int requestedLoadCount = 0;
   int executedLoadCount = 0;
@@ -1203,6 +1257,7 @@ class _HydrationTraceState {
   HydrationSelectedDaySnapshot? lastFrameSelectedDay;
   HydrationSelectedDaySnapshot? warmSelectedDay;
   HydrationSelectedDaySnapshot? finalSelectedDay;
+  HydrationSelectedDaySnapshot? finalRenderedSelectedDay;
   bool? warmSnapshotMatchesFinal;
   int? warmToFinalAdded;
   int? warmToFinalRemoved;
@@ -1305,7 +1360,18 @@ class _HydrationTraceState {
         'warm_to_final_selected_day_added': warmToFinalAdded,
         'warm_to_final_selected_day_removed': warmToFinalRemoved,
         'claimed_semantic_complete_mismatch': claimedSemanticCompleteMismatch,
-        'final_visible_day_event_count': finalSelectedDay?.eventCount ?? 0,
+        'final_committed_selected_day_key': finalSelectedDay?.dayKey,
+        'final_committed_selected_day_event_count':
+            finalSelectedDay?.eventCount ?? 0,
+        'final_committed_selected_day_multiset_checksum':
+            finalSelectedDay?.multisetChecksum,
+        'final_rendered_selected_day_key': finalRenderedSelectedDay?.dayKey,
+        'final_rendered_selected_day_event_count':
+            finalRenderedSelectedDay?.eventCount ?? 0,
+        'final_rendered_selected_day_multiset_checksum':
+            finalRenderedSelectedDay?.multisetChecksum,
+        'final_visible_day_event_count':
+            finalRenderedSelectedDay?.eventCount ?? 0,
         'post_complete_notes_changed': postCompleteNotesChanged,
         'post_complete_counts_applied': postCompleteCountsApplied,
         'cache_hit': cache.any((event) => event['marker'] == 'cache_hit'),
