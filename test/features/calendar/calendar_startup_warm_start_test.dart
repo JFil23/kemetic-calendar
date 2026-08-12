@@ -6,13 +6,11 @@ import 'package:mobile/features/calendar/calendar_visible_state_policy.dart';
 
 void main() {
   test('startup restores warm calendar before live sync and hydration', () {
-    final source = File(
-      'lib/features/calendar/calendar_page.dart',
-    ).readAsStringSync();
+    final source = _calendarHydrationSource();
     final startup = _sourceBetween(
       source,
-      'Future<void> _runStartupPipeline(String reason) async {',
-      'String? _canonicalDawnHouseRiteDetailForLoadedEvent',
+      'Future<void> _startHydrationEngine(String reason) async {',
+      'String _horizonDiagnosticSource',
     );
 
     expect(
@@ -21,44 +19,32 @@ void main() {
         "await _restoreWarmStartCacheIfAvailable(reason: 'startup_gate:\$reason')",
       ),
     );
-    expect(
-      startup,
-      contains('_syncAcceptedInviteCalendarImportsInBackground(reason)'),
-    );
-    expect(startup, contains("source: 'startup:\$reason'"));
-    expect(startup, contains('_runProgressiveStartupBackfill('));
-    expect(startup, isNot(contains('final keepWarmStartVisible')));
+    expect(startup, contains('_CalendarHydrationRequest.provisionalViewport'));
+    expect(startup, contains('_CalendarHydrationRequest.catalogReconcile'));
+    expect(startup, contains('unawaited('));
+    expect(startup, contains('_runBackgroundHydration('));
     expect(
       startup.indexOf("await _restoreWarmStartCacheIfAvailable"),
-      lessThan(startup.indexOf("source: 'startup:\$reason'")),
-    );
-    expect(
-      startup.indexOf("source: 'startup:\$reason'"),
-      lessThan(startup.indexOf('_runProgressiveStartupBackfill(')),
-    );
-    expect(
-      startup.indexOf('_runProgressiveStartupBackfill('),
       lessThan(
-        startup.indexOf('_syncAcceptedInviteCalendarImportsInBackground'),
+        startup.indexOf('_CalendarHydrationRequest.provisionalViewport'),
       ),
-      reason: 'invite import must not contend with critical hydration',
     );
     expect(
-      startup.indexOf('await _loadMyFlowsFilingSnapshot()'),
-      lessThan(
-        startup.indexOf('_syncAcceptedInviteCalendarImportsInBackground'),
-      ),
-      reason: 'invite import starts only after startup database reads finish',
+      startup.indexOf('_CalendarHydrationRequest.provisionalViewport'),
+      lessThan(startup.indexOf('_CalendarHydrationRequest.catalogReconcile')),
+    );
+    expect(
+      startup.indexOf('_CalendarHydrationRequest.catalogReconcile'),
+      lessThan(startup.indexOf('_runBackgroundHydration(')),
+      reason: 'background work begins only after visible authority',
     );
   });
 
   test('no-op invite import sync does not publish calendar invalidation', () {
-    final source = File(
-      'lib/features/calendar/calendar_page.dart',
-    ).readAsStringSync();
+    final source = _calendarHydrationSource();
     final sync = _sourceBetween(
       source,
-      'void _syncAcceptedInviteCalendarImportsInBackground(String reason) {',
+      'Future<void> _syncAcceptedInviteCalendarImports(String reason) async {',
       'String? _canonicalDawnHouseRiteDetailForLoadedEvent',
     );
 
@@ -66,7 +52,7 @@ void main() {
     expect(sync, contains('if (!changed) return;'));
     expect(
       sync.indexOf('if (!changed) return;'),
-      lessThan(sync.indexOf('await _loadCalendarState()')),
+      lessThan(sync.indexOf('await _refreshCalendarStateFromServer()')),
     );
     expect(sync, contains('CalendarInvalidationReason.calendarImportSynced'));
   });
@@ -103,62 +89,32 @@ void main() {
   });
 
   test('database-heavy startup reads are sequenced', () {
-    final source = File(
-      'lib/features/calendar/calendar_page.dart',
+    final hydration = File(
+      'lib/features/calendar/hydration/calendar_hydration_engine.dart',
     ).readAsStringSync();
-    final hydration = _sourceBetween(
-      source,
-      'Future<void> _loadFromDiskInner({',
-      'if (source.startsWith(\'shared_calendar_event_tap\'))',
-    );
 
-    final flowHydration = hydration.indexOf(
-      'final eventsByFlowId = await loadFlowEvents();',
-    );
-    final standaloneHydration = hydration.indexOf(
-      'final standaloneFuture = repo.getStandaloneEventsForDateRangeAll(',
-    );
-    final standaloneCompletion = hydration.indexOf(
-      'final standaloneFetchResult = await standaloneFuture;',
-    );
-    final flowAccounting = hydration.indexOf(
-      'final flowEventCountsResult = await _flowsRepo',
-    );
-
-    expect(flowHydration, greaterThanOrEqualTo(0));
-    expect(standaloneHydration, greaterThan(flowHydration));
-    expect(standaloneCompletion, greaterThan(standaloneHydration));
-    expect(flowAccounting, greaterThan(standaloneCompletion));
-    expect(hydration, isNot(contains('final flowEventsFuture =')));
-    expect(hydration, isNot(contains('_clampHydrationWindowToFocus')));
+    expect(hydration, contains('.fetchWindow('));
     expect(
       hydration,
-      contains('includeSavedTimestamps: !fastStartupMode'),
-      reason: 'exact saved-flow chronology cannot gate Phase A authority',
+      contains('cancellationCheck: jobContext.throwIfCancelled'),
     );
+    expect(hydration, isNot(contains('repo.getEventsForFlowIds(')));
+    expect(
+      hydration,
+      isNot(contains('repo.getStandaloneEventsForDateRangeAll(')),
+    );
+    expect(hydration, isNot(contains('final flowEventsFuture =')));
+    expect(hydration, isNot(contains('_clampHydrationWindowToFocus')));
+    expect(hydration, contains('final focusWindow = ('));
+    expect(hydration, contains('final standaloneWindow = focusWindow'));
     expect(
       hydration,
       contains('evaluatedResult: evaluatedCompleteness'),
       reason: 'bounded diagnostics cannot decide application completeness',
     );
     expect(
-      hydration,
-      contains(
-        'flowWindow =\n'
-        '            focusWindow ??\n'
-        '            _computeFlowHydrationWindow',
-      ),
-    );
-    expect(
-      hydration,
-      contains(
-        'final standaloneWindow =\n'
-        '          focusWindow ?? _computeStandaloneHydrationWindow(newFlows)',
-      ),
-    );
-    expect(
       RegExp(
-        r'_loadCoordinator\.hasQueuedRequest',
+        r'jobContext\.(?:isCurrent|throwIfCancelled)',
       ).allMatches(hydration).length,
       greaterThanOrEqualTo(3),
       reason:
@@ -167,9 +123,7 @@ void main() {
   });
 
   test('partial authority cannot reach any warm-cache write path', () {
-    final source = File(
-      'lib/features/calendar/calendar_page.dart',
-    ).readAsStringSync();
+    final source = _calendarHydrationSource();
     final schedule = _sourceBetween(
       source,
       'void _scheduleWarmStartCacheSave() {',
@@ -196,21 +150,22 @@ void main() {
     expect(source, contains('_warmStartCacheDebounceTimer?.cancel()'));
   });
 
-  test('Phase B is chunked and owns its coordinator cancellation', () {
-    final source = File(
-      'lib/features/calendar/calendar_page.dart',
-    ).readAsStringSync();
+  test('background horizon is chunked and scheduler-owned', () {
+    final source = _calendarHydrationSource();
     final backfill = _sourceBetween(
       source,
-      'Future<bool> _runProgressiveStartupBackfill({',
-      'void _syncAcceptedInviteCalendarImportsInBackground',
+      'Future<bool> _hydrateFullHorizon({',
+      'Future<void> _syncAcceptedInviteCalendarImports',
     );
 
     expect(backfill, contains('chunkDays: 75'));
-    expect(backfill, contains('_loadCoordinator.requestRevision'));
-    expect(backfill, contains('_loadCoordinator.hasQueuedRequest'));
-    expect(backfill, contains('await _loadFromDisk(source: source'));
-    expect(backfill, contains("cancellationReason: 'newer_request'"));
+    expect(backfill, contains('_CalendarHydrationRequest.background('));
+    expect(backfill, contains('CalendarHydrationIntentKind.horizonChunk'));
+    expect(
+      backfill,
+      contains('if (disposition == CalendarHydrationJobDisposition.cancelled)'),
+    );
+    expect(backfill, contains('index--;'));
   });
 
   test('an incomplete complete phase preserves warm visible state', () {
@@ -268,26 +223,20 @@ void main() {
   });
 
   test('warm-cache metadata separates save time from server authority', () {
-    final source = File(
-      'lib/features/calendar/calendar_page.dart',
-    ).readAsStringSync();
+    final source = _calendarHydrationSource();
     final snapshot = _sourceBetween(
       source,
       'Map<String, dynamic> _buildWarmStartSnapshot({',
       'void _scheduleWarmStartCacheSave()',
-    );
-    final startup = _sourceBetween(
-      source,
-      'Future<void> _runStartupPipeline(String reason) async {',
-      'String? _canonicalDawnHouseRiteDetailForLoadedEvent',
     );
 
     expect(snapshot, contains("'cacheSavedAt': cacheSavedAt"));
     expect(snapshot, contains("'lastAuthoritativeHydrationAt'"));
     expect(snapshot, contains("'lastAccountingAuthorityAt'"));
     expect(snapshot, contains("'accountingStale': _accountingStale"));
-    expect(startup, contains('CalendarHydrationAuthorityScope.visibleWindow'));
-    expect(source, contains("debugReason: 'startup_backfill_complete'"));
+    expect(snapshot, contains("'catalogFingerprint'"));
+    expect(source, contains('_hydrationController.validateCacheWrite('));
+    expect(source, contains("debugReason: 'hydration_horizon_complete'"));
   });
 
   test('accounting failure only applies cached counts', () {
@@ -315,18 +264,16 @@ void main() {
   });
 
   test('calendar hydration does not issue per-flow fallback requests', () {
-    final source = File(
-      'lib/features/calendar/calendar_page.dart',
+    final hydration = File(
+      'lib/features/calendar/hydration/calendar_hydration_engine.dart',
     ).readAsStringSync();
-    final loadFlowEvents = _sourceBetween(
-      source,
-      'Future<Map<int, List<FlowEventRow>>> loadFlowEvents() async {',
-      'final standaloneWindow =',
-    );
 
-    expect(loadFlowEvents, contains('getEventsForFlowIds('));
-    expect(loadFlowEvents, isNot(contains('getEventsForFlow(')));
-    expect(loadFlowEvents, isNot(contains('flow_fallback_')));
+    expect(
+      hydration,
+      contains('CalendarHydrationRepository.fromUserEventsRepo'),
+    );
+    expect(hydration, isNot(contains('getEventsForFlow(')));
+    expect(hydration, isNot(contains('flow_fallback_')));
   });
 
   test('import sync complete commit preserves painted standalone lane', () {
@@ -372,3 +319,9 @@ String _sourceBetween(String source, String start, String end) {
   expect(endIndex, isNonNegative, reason: 'Missing end marker: $end');
   return source.substring(startIndex, endIndex);
 }
+
+String _calendarHydrationSource() =>
+    File('lib/features/calendar/calendar_page.dart').readAsStringSync() +
+    File(
+      'lib/features/calendar/hydration/calendar_hydration_engine.dart',
+    ).readAsStringSync();

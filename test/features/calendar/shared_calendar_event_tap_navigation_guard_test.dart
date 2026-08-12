@@ -107,10 +107,10 @@ void main() {
         expect(opener, contains('_sameDayFiledEvents('));
         expect(opener, contains('_seedSameDaySharedCalendarFiledEvents('));
         expect(opener, contains('_seedOneShotSharedCalendarEventSnapshot('));
-        expect(opener, contains('unawaited(mountedHost._loadCalendarState())'));
+        expect(opener, contains('mountedHost._scheduleCalendarStateRefresh('));
         expect(
           opener,
-          contains("source: 'shared_calendar_event_tap_background'"),
+          contains("reason: 'shared_calendar_event_tap_background'"),
         );
         expect(opener, contains('_openDayView('));
         expect(opener, contains('initialEventDetailRestorationState: detail'));
@@ -120,7 +120,7 @@ void main() {
         );
         final mountedOpenIndex = opener.indexOf('_openDayView(');
         final mountedHydrationIndex = opener.indexOf(
-          "source: 'shared_calendar_event_tap_background'",
+          "reason: 'shared_calendar_event_tap_background'",
         );
         expect(mountedOpenIndex, isNonNegative);
         expect(mountedHydrationIndex, isNonNegative);
@@ -339,7 +339,7 @@ void main() {
         );
         expect(
           searchResultBranch,
-          isNot(contains("source: 'shared_calendar_event_tap_background'")),
+          isNot(contains("reason: 'shared_calendar_event_tap_background'")),
         );
         expect(
           searchResultBranch,
@@ -348,31 +348,24 @@ void main() {
         expect(searchResultBranch, isNot(contains('await _loadFromDisk')));
         expect(searchResultBranch, isNot(contains('_openDaySheet(')));
 
-        final loadFromDisk = _sourceBetween(
-          calendar,
-          'Future<void> _loadFromDisk({',
-          '/// Allows other screens',
-        );
-        expect(loadFromDisk, contains('hasPaintedStandaloneLaneAtLoadStart'));
+        final hydration = await File(
+          'lib/features/calendar/hydration/calendar_hydration_engine.dart',
+        ).readAsString();
         expect(
-          loadFromDisk,
+          hydration,
           contains(
             'void commitVisibleCalendarState(\n'
             '        CalendarHydrationPublicationPhase phase',
           ),
         );
-        expect(loadFromDisk, contains('hasPaintedEventSnapshotAtLoadStart'));
-        expect(loadFromDisk, contains('shouldPublishVisibleCalendarHydration'));
-        expect(loadFromDisk, contains('preservePaintedStandaloneLane'));
+        expect(hydration, contains('shouldPublishVisibleCalendarHydration'));
+        expect(hydration, contains('mergeHydrationWindowIntoNotes<_Note>'));
+        expect(hydration, contains('_hydrationController.commitViewport('));
+        expect(hydration, contains('dedupedNotes'));
+        expect(hydration, contains('_notes\n            ..clear()'));
+        expect(hydration, contains('..addAll(dedupedNotes)'));
         expect(
-          loadFromDisk,
-          contains('_mergePaintedStandaloneLaneInto(newNotes)'),
-        );
-        expect(loadFromDisk, contains('dedupedNotes'));
-        expect(loadFromDisk, contains('_notes\n          ..clear()'));
-        expect(loadFromDisk, contains('..addAll(dedupedNotes)'));
-        expect(
-          loadFromDisk,
+          hydration,
           contains(
             '[SharedCalendarEventTap] hydration complete source=\$source',
           ),

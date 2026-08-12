@@ -10,7 +10,6 @@ class CalendarUserScopedPrefs {
   static const String legacyManualDeleteTombstonesKey =
       'calendar:manual_delete_tombstones';
   static const String legacyEndedReminderIdsKey = 'reminder:ended_ids';
-  static const String legacyCidMigrationDoneKey = 'calendar:cid_migration_done';
 
   static const String _userScopedMigrationDonePrefix =
       'calendar:user_scoped_prefs_v1';
@@ -20,9 +19,6 @@ class CalendarUserScopedPrefs {
 
   static String endedReminderIdsKey(String userId) =>
       '$legacyEndedReminderIdsKey:$userId';
-
-  static String cidMigrationDoneKey(String userId) =>
-      '$legacyCidMigrationDoneKey:$userId';
 
   static String userScopedMigrationDoneKey(String userId) =>
       '$_userScopedMigrationDonePrefix:$userId';
@@ -48,12 +44,6 @@ class CalendarUserScopedPrefs {
       userKey: endedReminderIdsKey(trimmed),
       legacyKey: legacyEndedReminderIdsKey,
     );
-    await _copyBoolIfAbsent(
-      prefs: prefs,
-      userKey: cidMigrationDoneKey(trimmed),
-      legacyKey: legacyCidMigrationDoneKey,
-    );
-
     await prefs.setBool(doneKey, true);
   }
 
@@ -69,7 +59,9 @@ class CalendarUserScopedPrefs {
       final scoped = prefs.getStringList(userKey(trimmed));
       if (scoped != null) return List<String>.from(scoped);
     }
-    return List<String>.from(prefs.getStringList(legacyKey) ?? const <String>[]);
+    return List<String>.from(
+      prefs.getStringList(legacyKey) ?? const <String>[],
+    );
   }
 
   static Future<void> writeStringList({
@@ -88,37 +80,6 @@ class CalendarUserScopedPrefs {
     await prefs.setStringList(legacyKey, values);
   }
 
-  static Future<bool> readBool({
-    required SharedPreferences prefs,
-    required String? userId,
-    required String Function(String userId) userKey,
-    required String legacyKey,
-  }) async {
-    final trimmed = userId?.trim();
-    if (trimmed != null && trimmed.isNotEmpty) {
-      await ensureMigrated(prefs: prefs, userId: trimmed);
-      final scoped = prefs.getBool(userKey(trimmed));
-      if (scoped != null) return scoped;
-    }
-    return prefs.getBool(legacyKey) ?? false;
-  }
-
-  static Future<void> writeBool({
-    required SharedPreferences prefs,
-    required String? userId,
-    required String Function(String userId) userKey,
-    required String legacyKey,
-    required bool value,
-  }) async {
-    final trimmed = userId?.trim();
-    if (trimmed != null && trimmed.isNotEmpty) {
-      await ensureMigrated(prefs: prefs, userId: trimmed);
-      await prefs.setBool(userKey(trimmed), value);
-      return;
-    }
-    await prefs.setBool(legacyKey, value);
-  }
-
   static Future<void> _copyStringListIfAbsent({
     required SharedPreferences prefs,
     required String userKey,
@@ -128,16 +89,5 @@ class CalendarUserScopedPrefs {
     final legacy = prefs.getStringList(legacyKey);
     if (legacy == null) return;
     await prefs.setStringList(userKey, List<String>.from(legacy));
-  }
-
-  static Future<void> _copyBoolIfAbsent({
-    required SharedPreferences prefs,
-    required String userKey,
-    required String legacyKey,
-  }) async {
-    if (prefs.containsKey(userKey)) return;
-    final legacy = prefs.getBool(legacyKey);
-    if (legacy == null) return;
-    await prefs.setBool(userKey, legacy);
   }
 }

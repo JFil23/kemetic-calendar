@@ -353,7 +353,9 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     final pageState = _calendarPageState;
     if (pageState == null || pageState._calendarStateLoaded) return;
     try {
-      await pageState._loadCalendarState();
+      await pageState._scheduleCalendarStateRefresh(
+        reason: 'flow_studio_calendar_choices',
+      );
     } catch (e) {
       if (kDebugMode) {
         _calendarDebugPrint('[FlowStudio] calendar choices load failed: $e');

@@ -376,6 +376,7 @@ class CalendarHydrationDiagnostics {
   String? _lastBackfillUserId;
   String? _currentUserId;
   String _buildLabel = 'unavailable';
+  Map<String, Object?> _calendarFrameContext = const <String, Object?>{};
   Timer? _hardCloseTimer;
   Timer? _quiescentTimer;
   Timer? _settleTimer;
@@ -611,6 +612,17 @@ class CalendarHydrationDiagnostics {
   }
 
   void recordDayViewMounted() => _record('day_view_mounted');
+
+  void recordCalendarSurfaceMounted(String surface) => _record(
+    'calendar_surface_mounted',
+    <String, Object?>{'surface': _safeSource(surface)},
+  );
+
+  void setCalendarFrameContext(Map<String, Object?> context) {
+    _calendarFrameContext = Map<String, Object?>.unmodifiable(
+      _sanitizeMap(context),
+    );
+  }
 
   void recordCoordinatorRequest({
     required String source,
@@ -934,6 +946,20 @@ class CalendarHydrationDiagnostics {
     required int dataVersion,
     bool firstFrame = false,
     bool hasLocalSnapshot = true,
+  }) => recordCalendarFrame(
+    surface: 'day',
+    selectedDay: selectedDay,
+    dataVersion: dataVersion,
+    firstFrame: firstFrame,
+    hasLocalSnapshot: hasLocalSnapshot,
+  );
+
+  void recordCalendarFrame({
+    required String surface,
+    required HydrationSelectedDaySnapshot selectedDay,
+    required int dataVersion,
+    bool firstFrame = false,
+    bool hasLocalSnapshot = true,
   }) {
     final trace = _active;
     if (trace == null) return;
@@ -985,9 +1011,11 @@ class CalendarHydrationDiagnostics {
     }
     trace.addBounded(trace.frames, <String, Object?>{
       't_ms': tMs,
+      'surface': _safeSource(surface),
       'first_frame': firstFrame,
       'data_version': dataVersion,
       'acknowledged_commit_revisions': acknowledgedRevisions,
+      ..._calendarFrameContext,
       ...selectedDay.toJson(),
     });
     trace.finalRenderedSelectedDay = selectedDay;
@@ -995,6 +1023,7 @@ class CalendarHydrationDiagnostics {
     if (previous == null || !previous.structurallyMatches(selectedDay)) {
       trace.lastFrameSelectedDay = selectedDay;
       _record('visible_day_changed', <String, Object?>{
+        'surface': _safeSource(surface),
         'data_version': dataVersion,
         ...selectedDay.toJson(),
         ..._selectedDayDelta(previous, selectedDay),

@@ -160,33 +160,28 @@ void main() {
     await disposeCalendar(tester);
   });
 
-  test(
-    '5. mergeInto is after epoch/same-user guards in commitVisibleCalendarState',
-    () {
-      final source = File(
-        'lib/features/calendar/calendar_page.dart',
-      ).readAsStringSync();
-      final commitStart = source.indexOf('void commitVisibleCalendarState(');
-      expect(commitStart, greaterThanOrEqualTo(0));
-      final commitSlice = source.substring(
-        commitStart,
-        source.indexOf(
-          'Future<void> finishNonCriticalPostProcessing()',
-          commitStart,
-        ),
-      );
-      final isCurrentAt = commitSlice.indexOf(
-        'if (!_loadCoordinator.isCurrent(epoch)) return;',
-      );
-      final sameUserAt = commitSlice.indexOf(
-        'if (_activeWarmStartUserId() != loadUserId) return;',
-      );
-      final mergeAt = commitSlice.indexOf('_unconfirmed.mergeInto(');
-      expect(isCurrentAt, greaterThanOrEqualTo(0));
-      expect(sameUserAt, greaterThan(isCurrentAt));
-      expect(mergeAt, greaterThan(sameUserAt));
-    },
-  );
+  test('5. mergeInto is inside the controller-owned commit callback', () {
+    final source = File(
+      'lib/features/calendar/hydration/calendar_hydration_engine.dart',
+    ).readAsStringSync();
+    final commitStart = source.indexOf('void commitVisibleCalendarState(');
+    expect(commitStart, greaterThanOrEqualTo(0));
+    final commitSlice = source.substring(
+      commitStart,
+      source.indexOf('hydrationPassSucceeded =', commitStart),
+    );
+    final isCurrentAt = commitSlice.indexOf('if (!jobContext.isCurrent) {');
+    final sameUserAt = commitSlice.indexOf(
+      'if (_activeWarmStartUserId() != loadUserId) {',
+    );
+    final callbackAt = commitSlice.indexOf('void applyPreparedState()');
+    final mergeAt = commitSlice.indexOf('_unconfirmed.mergeInto(');
+    expect(isCurrentAt, greaterThanOrEqualTo(0));
+    expect(sameUserAt, greaterThan(isCurrentAt));
+    expect(callbackAt, greaterThan(sameUserAt));
+    expect(mergeAt, greaterThan(callbackAt));
+    expect(commitSlice, contains('_hydrationController.commitViewport('));
+  });
 
   testWidgets(
     '6. persisted pending note joins restored warm note and survives omitted complete snapshot',

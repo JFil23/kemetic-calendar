@@ -5187,7 +5187,8 @@ class _DayViewPageState extends State<DayViewPage> {
       if (!mounted) return;
       final firstFrame = !_hydrationFirstFrameRecorded;
       _hydrationFirstFrameRecorded = true;
-      CalendarHydrationDiagnostics.instance.recordDayViewFrame(
+      CalendarHydrationDiagnostics.instance.recordCalendarFrame(
+        surface: 'day',
         selectedDay: _hydrationSelectedDaySnapshot(),
         dataVersion: widget.dataVersion?.value ?? 0,
         firstFrame: firstFrame,

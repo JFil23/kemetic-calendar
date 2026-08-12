@@ -332,11 +332,13 @@ void main() {
   test(
     'hydration projects before complete commit and startup sync is non-mutating',
     () {
-      final source = File(
-        'lib/features/calendar/calendar_page.dart',
-      ).readAsStringSync();
+      final source = _calendarHydrationSource();
+      final hydrationStart = source.indexOf(
+        'Future<_CalendarHydrationPassResult> _executeHydrationRequest({',
+      );
       final projection = source.indexOf(
         'final projectedReminderCount = _projectReminderMembershipForHydration(',
+        hydrationStart,
       );
       final completeCommit = source.indexOf(
         'commitVisibleCalendarState(\n        CalendarHydrationPublicationPhase.complete,',
@@ -346,28 +348,24 @@ void main() {
       expect(completeCommit, greaterThan(projection));
 
       final startupSync = source.substring(
-        source.indexOf(
-          'final backfillComplete = await _runProgressiveStartupBackfill(',
-        ),
-        source.indexOf('int _lastProgressiveBackfillChunkIndex'),
+        source.indexOf('Future<void> _runBackgroundHydration({'),
+        source.indexOf('Future<void> _refreshHydrationAccounting()'),
       );
       expect(startupSync, contains('updateLocalCache: false'));
       expect(
         startupSync.indexOf('updateLocalCache: false'),
-        lessThan(startupSync.indexOf('await _loadMyFlowsFilingSnapshot()')),
+        lessThan(startupSync.indexOf('CalendarHydrationIntentKind.filing')),
       );
     },
   );
 
   test('disk warm restore projects before commit and notification', () {
-    final source = File(
-      'lib/features/calendar/calendar_page.dart',
-    ).readAsStringSync();
+    final source = _calendarHydrationSource();
     final restoreStart = source.indexOf(
       'Future<void> _restoreWarmStartCacheIfAvailable({',
     );
     final restoreEnd = source.indexOf(
-      'Future<void> _loadCalendarState() async {',
+      'Future<void> _refreshCalendarStateFromServer() async {',
       restoreStart,
     );
     final restore = source.substring(restoreStart, restoreEnd);
@@ -390,6 +388,12 @@ void main() {
     expect(notification, greaterThan(diagnostic));
   });
 }
+
+String _calendarHydrationSource() =>
+    File('lib/features/calendar/calendar_page.dart').readAsStringSync() +
+    File(
+      'lib/features/calendar/hydration/calendar_hydration_engine.dart',
+    ).readAsStringSync();
 
 class _RejectingClient extends http.BaseClient {
   @override

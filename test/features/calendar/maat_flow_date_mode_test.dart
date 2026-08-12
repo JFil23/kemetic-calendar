@@ -29,7 +29,7 @@ void main() {
     ).readAsStringSync();
 
     expect(source, contains('_flowMatchesActiveMaatTemplate'));
-    expect(source, contains("source: 'open_maat_flows'"));
+    expect(source, contains("reason: 'open_maat_flows'"));
     expect(source, contains('flowsRepo.refreshMyFiledFlows()'));
     expect(source, contains('isFlowScheduleOpenLocally'));
     expect(listSource, contains('class _MaatFlowsListPageWithSnapshot'));
@@ -317,49 +317,40 @@ void main() {
     final pageSource = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
-    final coordinatorSource = File(
-      'lib/features/calendar/calendar_load_coordinator.dart',
+    final bridgeSource = File(
+      'lib/features/calendar/hydration/calendar_hydration_invalidation_bridge.dart',
     ).readAsStringSync();
 
-    expect(pageSource, contains('_loadCoordinator.attach()'));
-    expect(pageSource, contains('_loadCoordinator.dispose()'));
+    expect(pageSource, contains('_hydrationInvalidationBridge.attach()'));
+    expect(pageSource, contains('_hydrationInvalidationBridge.dispose()'));
     expect(pageSource, isNot(contains('_handleCalendarInvalidated')));
     expect(pageSource, isNot(contains('_flushCalendarInvalidationReload')));
 
     final attach = _sourceBetween(
-      coordinatorSource,
+      bridgeSource,
       'void attach() {',
-      'void _drainBusBacklog()',
+      'void _drain() {',
     );
     expect(attach, contains('_bus.stream.listen'));
-    expect(attach, contains('_drainBusBacklog()'));
+    expect(attach, contains('_drain()'));
 
     final drain = _sourceBetween(
-      coordinatorSource,
-      'void _drainBusBacklog() {',
-      'void _schedule(CalendarInvalidationReason reason',
-    );
-    expect(drain, contains('_bus.peekPendingAfter(_scheduledRevision)'));
-    expect(drain, contains('_schedule(pending.invalidation.reason'));
-
-    final schedule = _sourceBetween(
-      coordinatorSource,
-      'void _schedule(CalendarInvalidationReason reason',
+      bridgeSource,
+      'void _drain() {',
       'void _flush() {',
     );
-    expect(schedule, contains('_pending = true'));
-    expect(schedule, contains('_debounceTimer?.cancel()'));
-    expect(schedule, contains('Timer(_debounce, _flush)'));
+    expect(drain, contains('_bus.peekPendingAfter(_scheduledRevision)'));
+    expect(drain, contains('_pending = next.invalidation'));
+    expect(drain, contains('_timer?.cancel()'));
+    expect(drain, contains('Timer(_debounce, _flush)'));
 
     final flush = _sourceBetween(
-      coordinatorSource,
+      bridgeSource,
       'void _flush() {',
       'void dispose() {',
     );
-    expect(flush, contains('preserveViewport: true'));
     expect(flush, contains('_bus.markConsumed(revision)'));
-    expect(flush, contains("source: 'invalidation:"));
-    expect(flush, isNot(contains('_loadFromDisk(')));
+    expect(flush, contains('_onInvalidation(invalidation)'));
   });
 
   test('all Ma_at service joins call the universal staged completion', () {

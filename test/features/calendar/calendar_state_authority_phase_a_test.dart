@@ -10,9 +10,11 @@ void main() {
   late String calendarPageSource;
 
   setUpAll(() async {
-    calendarPageSource = await File(
-      'lib/features/calendar/calendar_page.dart',
-    ).readAsString();
+    calendarPageSource =
+        await File('lib/features/calendar/calendar_page.dart').readAsString() +
+        await File(
+          'lib/features/calendar/hydration/calendar_hydration_engine.dart',
+        ).readAsString();
   });
 
   test('Phase 0 baseline encoder exists for CI capture', () {
@@ -41,7 +43,7 @@ void main() {
   test('PR2 signedOut clears live maps and tombstone load-once only', () {
     final block = calendarPageSource.substring(
       calendarPageSource.indexOf('if (event == AuthChangeEvent.signedOut) {'),
-      calendarPageSource.indexOf('// Initialize journal controller'),
+      calendarPageSource.indexOf('// Construct the journal controller now'),
     );
     expect(block, contains('_flows.clear()'));
     expect(block, contains('_notes.clear()'));
@@ -79,7 +81,9 @@ void main() {
       calendarPageSource.indexOf(
         'Future<void> _restoreWarmStartCacheIfAvailable({',
       ),
-      calendarPageSource.indexOf('Future<void> _loadCalendarState() async {'),
+      calendarPageSource.indexOf(
+        'Future<void> _refreshCalendarStateFromServer() async {',
+      ),
     );
     expect(
       restore.indexOf('_warmStartRestoreInFlightForUserId = userId'),
@@ -98,66 +102,46 @@ void main() {
     );
   });
 
-  test(
-    'PR5 routes tombstone and reminder prefs through CalendarUserScopedPrefs',
-    () {
-      expect(
-        calendarPageSource,
-        contains('CalendarUserScopedPrefs.readStringList'),
-      );
-      expect(
-        calendarPageSource,
-        contains('CalendarUserScopedPrefs.writeStringList'),
-      );
-      expect(calendarPageSource, contains('CalendarUserScopedPrefs.readBool'));
-      expect(
-        File(
-          'lib/features/calendar/calendar_user_scoped_prefs.dart',
-        ).existsSync(),
-        isTrue,
-      );
-    },
-  );
+  test('PR5 routes tombstone and reminder lists through user-scoped prefs', () {
+    expect(
+      calendarPageSource,
+      contains('CalendarUserScopedPrefs.readStringList'),
+    );
+    expect(
+      calendarPageSource,
+      contains('CalendarUserScopedPrefs.writeStringList'),
+    );
+    expect(
+      File(
+        'lib/features/calendar/calendar_user_scoped_prefs.dart',
+      ).existsSync(),
+      isTrue,
+    );
+  });
 
-  test(
-    'PR6 wires CalendarLoadCoordinator and epoch/same-user commit guards',
-    () {
-      expect(
-        File(
-          'lib/features/calendar/calendar_load_coordinator.dart',
-        ).existsSync(),
-        isTrue,
-      );
-      expect(
-        calendarPageSource,
-        contains('CalendarLoadCoordinator _loadCoordinator'),
-      );
-      expect(calendarPageSource.contains('_isLoadingFromDisk'), isFalse);
-      expect(
-        calendarPageSource.contains('_flushCalendarInvalidationReload'),
-        isFalse,
-      );
-      expect(
-        calendarPageSource,
-        contains("_loadCoordinator.invalidate(reason: 'signed_out')"),
-      );
-      expect(
-        RegExp(
-          r"if \(!_loadCoordinator\.isCurrent\(epoch\)\) return;\n"
-          r"\s+if \(_activeWarmStartUserId\(\) != loadUserId\) return;",
-        ).allMatches(calendarPageSource).length,
-        1,
-      );
-      expect(
-        RegExp(
-          r"bool postProcessingStillCurrent\(\) =>\n"
-          r"\s+_loadCoordinator\.isCurrent\(epoch\) &&\n"
-          r"\s+_activeWarmStartUserId\(\) == loadUserId &&",
-        ).hasMatch(calendarPageSource),
-        isTrue,
-      );
-    },
-  );
+  test('hydration controller and scheduler replace the legacy coordinator', () {
+    expect(
+      File('lib/features/calendar/calendar_load_coordinator.dart').existsSync(),
+      isFalse,
+    );
+    expect(
+      calendarPageSource,
+      contains('CalendarHydrationScheduler _hydrationScheduler'),
+    );
+    expect(
+      calendarPageSource,
+      contains('CalendarHydrationController _hydrationController'),
+    );
+    expect(calendarPageSource, contains('_hydrationController.signOut()'));
+    expect(
+      calendarPageSource,
+      contains('_hydrationController.commitViewport('),
+    );
+    expect(
+      calendarPageSource,
+      contains('_hydrationController.commitBackgroundInterval('),
+    );
+  });
 
   test('PR7 wires unconfirmed ledger after PR6 commit guards', () {
     expect(
@@ -188,16 +172,16 @@ void main() {
     );
     final commitSlice = calendarPageSource.substring(
       commitStart,
-      calendarPageSource.indexOf(
-        'Future<void> finishNonCriticalPostProcessing()',
-        commitStart,
-      ),
+      calendarPageSource.indexOf('hydrationPassSucceeded =', commitStart),
     );
     expect(
       commitSlice.indexOf('_unconfirmed.mergeInto('),
-      greaterThan(
-        commitSlice.indexOf('if (!_loadCoordinator.isCurrent(epoch)) return;'),
-      ),
+      greaterThan(commitSlice.indexOf('void applyPreparedState()')),
+    );
+    expect(
+      commitSlice.indexOf('_unconfirmed.mergeInto('),
+      lessThan(commitSlice.indexOf('_hydrationController.commitViewport(')),
+      reason: 'the ledger mutation lives inside the controller callback',
     );
   });
 
@@ -206,7 +190,7 @@ void main() {
       calendarPageSource.contains("await _loadFromDisk(source: 'delete')"),
       isFalse,
     );
-    expect(calendarPageSource, contains("source: 'repeat_scope_delete_"));
+    expect(calendarPageSource, contains("reason: 'repeat_scope_delete_"));
     final earlySuccessArm = calendarPageSource.substring(
       calendarPageSource.indexOf('[delete-note] ✅ SUCCESS: Deleted by id='),
       calendarPageSource.indexOf(

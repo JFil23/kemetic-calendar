@@ -488,9 +488,12 @@ void main() {
   test(
     'filing-backed shared reminder rows keep reminder identity through hydration',
     () async {
-      final calendarSource = await File(
-        'lib/features/calendar/calendar_page.dart',
-      ).readAsString();
+      final calendarSource = [
+        await File('lib/features/calendar/calendar_page.dart').readAsString(),
+        await File(
+          'lib/features/calendar/hydration/calendar_hydration_engine.dart',
+        ).readAsString(),
+      ].join('\n');
       final repoSource = await File(
         'lib/data/user_events_repo.dart',
       ).readAsString();
