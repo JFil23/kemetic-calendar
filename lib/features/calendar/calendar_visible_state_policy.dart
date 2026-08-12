@@ -26,7 +26,8 @@ bool shouldScheduleCacheSaveOnDataBump(CalendarHydrationAuthorityScope scope) =>
     scope == CalendarHydrationAuthorityScope.fullHorizon;
 
 /// Replaces only the half-open server window while preserving every cached
-/// bucket outside it. Unparseable keys are retained fail-safe.
+/// bucket outside it. Unparseable existing keys are retained fail-safe, while
+/// incoming buckets outside the authoritative window are ignored.
 Map<String, List<T>> mergeHydrationWindowIntoNotes<T>({
   required Map<String, List<T>> existing,
   required Map<String, List<T>> incoming,
@@ -45,7 +46,14 @@ Map<String, List<T>> mergeHydrationWindowIntoNotes<T>({
     if (!insideWindow) merged[key] = List<T>.of(values);
   });
   incoming.forEach((key, values) {
-    if (values.isNotEmpty) merged[key] = List<T>.of(values);
+    final day = parseKeyToDay(key);
+    final insideWindow =
+        day != null &&
+        !day.isBefore(windowStartInclusive) &&
+        day.isBefore(windowEndExclusive);
+    if (insideWindow && values.isNotEmpty) {
+      merged[key] = List<T>.of(values);
+    }
   });
   return merged;
 }

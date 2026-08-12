@@ -40,6 +40,8 @@ void main() {
           },
           incoming: <String, List<int>>{
             '2026-01-03': <int>[30],
+            '2026-01-04': <int>[40],
+            'legacy-incoming': <int>[50],
           },
           windowStartInclusive: start,
           windowEndExclusive: end,
@@ -57,6 +59,41 @@ void main() {
           isNull,
           reason: 'empty incoming removes it',
         );
+        expect(
+          merged['legacy-incoming'],
+          isNull,
+          reason: 'unparseable incoming cannot expand server authority',
+        );
+      },
+    );
+
+    test(
+      'out-of-window reminder projection cannot replace selected-day rows',
+      () {
+        final merged = mergeHydrationWindowIntoNotes<String>(
+          existing: <String, List<String>>{
+            '2025-08-01': <String>['inside-old'],
+            '2026-08-12': <String>[
+              'selected-flow-1',
+              'selected-flow-2',
+              'selected-reminder',
+            ],
+          },
+          incoming: <String, List<String>>{
+            '2025-08-01': <String>['inside-new'],
+            '2026-08-12': <String>['projected-reminder'],
+          },
+          windowStartInclusive: DateTime.utc(2025, 7, 13),
+          windowEndExclusive: DateTime.utc(2025, 9, 26),
+          parseKeyToDay: DateTime.tryParse,
+        );
+
+        expect(merged['2025-08-01'], <String>['inside-new']);
+        expect(merged['2026-08-12'], <String>[
+          'selected-flow-1',
+          'selected-flow-2',
+          'selected-reminder',
+        ]);
       },
     );
   });
