@@ -48,6 +48,19 @@ class CalendarHydrationControllerState {
       authority == CalendarViewportAuthority.fullHorizon &&
       catalogFingerprint != null &&
       catalogFingerprint == freshCatalogFingerprint;
+
+  /// A fresh, atomically committed viewport is safe to checkpoint even while
+  /// the wider horizon continues in the background. The page merge preserves
+  /// every cached bucket outside [viewport], so this cannot turn a bounded
+  /// refresh into destructive replacement.
+  bool get mayPersistServerCurrentViewport =>
+      (authority == CalendarViewportAuthority.serverCurrent ||
+          authority == CalendarViewportAuthority.fullHorizon) &&
+      catalogFingerprint != null &&
+      catalogFingerprint == freshCatalogFingerprint &&
+      viewport != null &&
+      coverage.catalogFingerprint == catalogFingerprint &&
+      coverage.covers(viewport!);
 }
 
 @immutable
@@ -261,12 +274,15 @@ class CalendarHydrationController {
   bool validateCacheWrite({
     required int sessionGeneration,
     required String catalogFingerprint,
+    bool allowServerCurrentViewport = false,
   }) =>
       _userId != null &&
       sessionGeneration == _state.sessionGeneration &&
       catalogFingerprint == _state.freshCatalogFingerprint &&
       catalogFingerprint == _state.catalogFingerprint &&
-      _state.mayPersistWarmCache;
+      (_state.mayPersistWarmCache ||
+          (allowServerCurrentViewport &&
+              _state.mayPersistServerCurrentViewport));
 
   void dispose() => _scheduler.dispose();
 

@@ -122,7 +122,7 @@ void main() {
     );
   });
 
-  test('partial authority cannot reach any warm-cache write path', () {
+  test('generic cache writes remain full-horizon only', () {
     final source = _calendarHydrationSource();
     final schedule = _sourceBetween(
       source,
@@ -142,12 +142,39 @@ void main() {
 
     expect(schedule, contains('shouldPersistWarmStartCache'));
     expect(flush, contains('shouldPersistWarmStartCache'));
+    expect(persist, contains('bool writeIsAuthorized()'));
     expect(
-      RegExp(r'shouldPersistWarmStartCache').allMatches(persist).length,
-      greaterThanOrEqualTo(2),
+      RegExp(r'writeIsAuthorized\(\)').allMatches(persist).length,
+      greaterThanOrEqualTo(3),
       reason: 'persistence is checked before and after the prefs await',
     );
     expect(source, contains('_warmStartCacheDebounceTimer?.cancel()'));
+  });
+
+  test('fresh viewport commit writes one fail-closed healing checkpoint', () {
+    final source = _calendarHydrationSource();
+    final engine = File(
+      'lib/features/calendar/hydration/calendar_hydration_engine.dart',
+    ).readAsStringSync();
+    final persist = _sourceBetween(
+      source,
+      'Future<void> _persistWarmStartCacheNow',
+      'Future<void> _restoreWarmStartCacheIfAvailable',
+    );
+
+    expect(
+      engine,
+      contains("debugReason: 'hydration_viewport_server_current'"),
+    );
+    expect(engine, contains('allowServerCurrentViewport: true'));
+    expect(persist, contains('mayPersistServerCurrentViewport'));
+    expect(
+      RegExp(
+        r'allowServerCurrentViewport: allowServerCurrentViewport',
+      ).allMatches(persist).length,
+      greaterThanOrEqualTo(3),
+      reason: 'authority is revalidated before, during, and after persistence',
+    );
   });
 
   test('background horizon is chunked and scheduler-owned', () {
@@ -235,6 +262,9 @@ void main() {
     expect(snapshot, contains("'lastAccountingAuthorityAt'"));
     expect(snapshot, contains("'accountingStale': _accountingStale"));
     expect(snapshot, contains("'catalogFingerprint'"));
+    expect(snapshot, contains("'cacheAuthority'"));
+    expect(snapshot, contains("'authoritativeViewportStartUtc'"));
+    expect(snapshot, contains("'authoritativeViewportEndUtc'"));
     expect(source, contains('_hydrationController.validateCacheWrite('));
     expect(source, contains("debugReason: 'hydration_horizon_complete'"));
   });

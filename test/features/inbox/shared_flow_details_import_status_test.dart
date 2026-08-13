@@ -111,8 +111,9 @@ void main() {
         'Future<bool> _updateShareRow',
       );
 
-      expect(lookup, contains(".from('flow_filing_items_client')"));
-      expect(lookup, contains(".eq('visible_in_active_list', true)"));
+      expect(lookup, contains("'get_currently_active_imported_flows_v1'"));
+      expect(lookup, contains("'p_share_ids': requested.toList"));
+      expect(lookup, isNot(contains(".from('flow_filing_items_client')")));
       expect(lookup, contains("row['share_id']"));
       expect(lookup, contains("row['origin_share_id']"));
       expect(

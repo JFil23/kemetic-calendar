@@ -130,6 +130,73 @@ void main() {
     },
   );
 
+  test(
+    'fresh server-current viewport permits an explicit cache checkpoint',
+    () {
+      final viewport = interval(1, 4);
+      controller.restoreCache(
+        catalogFingerprint: 'catalog-a',
+        applyPreparedState: () {},
+      );
+      controller.reportViewport(viewport);
+      final token = controller.beginViewportCommit(
+        catalogFingerprint: 'catalog-a',
+        catalogIsFresh: true,
+      );
+      controller.commitViewport(token: token, applyPreparedState: () {});
+
+      expect(
+        controller.state.authority,
+        CalendarViewportAuthority.serverCurrent,
+      );
+      expect(controller.state.mayPersistWarmCache, isFalse);
+      expect(controller.state.mayPersistServerCurrentViewport, isTrue);
+      expect(
+        controller.validateCacheWrite(
+          sessionGeneration: controller.state.sessionGeneration,
+          catalogFingerprint: 'catalog-a',
+        ),
+        isFalse,
+        reason: 'ordinary cache writes remain full-horizon only',
+      );
+      expect(
+        controller.validateCacheWrite(
+          sessionGeneration: controller.state.sessionGeneration,
+          catalogFingerprint: 'catalog-a',
+          allowServerCurrentViewport: true,
+        ),
+        isTrue,
+      );
+    },
+  );
+
+  test('provisional viewport cannot authorize a cache checkpoint', () {
+    controller.restoreCache(
+      catalogFingerprint: 'catalog-a',
+      applyPreparedState: () {},
+    );
+    controller.reportViewport(interval(1, 4));
+    final token = controller.beginViewportCommit(
+      catalogFingerprint: 'catalog-a',
+      catalogIsFresh: false,
+    );
+    controller.commitViewport(token: token, applyPreparedState: () {});
+
+    expect(
+      controller.state.authority,
+      CalendarViewportAuthority.viewportRefreshed,
+    );
+    expect(controller.state.mayPersistServerCurrentViewport, isFalse);
+    expect(
+      controller.validateCacheWrite(
+        sessionGeneration: controller.state.sessionGeneration,
+        catalogFingerprint: 'catalog-a',
+        allowServerCurrentViewport: true,
+      ),
+      isFalse,
+    );
+  });
+
   test('sign-out rejects a prepared commit from the prior user', () {
     controller.restoreCache(
       catalogFingerprint: 'catalog-a',

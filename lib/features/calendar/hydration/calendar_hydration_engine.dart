@@ -69,6 +69,11 @@ extension _CalendarHydrationEngine on CalendarPageState {
                 'fingerprint': stagedCatalog.fingerprint,
               },
             );
+            await _persistWarmStartCacheNow(
+              userId: user.id,
+              debugReason: 'hydration_viewport_server_current',
+              allowServerCurrentViewport: true,
+            );
             return;
           }
         }
@@ -106,6 +111,17 @@ extension _CalendarHydrationEngine on CalendarPageState {
               cacheSaveOutcome: _lastWarmStartCacheSaveOutcome,
             );
           }
+        } else if (request.mode == _CalendarHydrationMode.catalogReconcile &&
+            _hydrationController.state.authority ==
+                CalendarViewportAuthority.serverCurrent) {
+          // Heal the launch cache as soon as the exact viewport and fresh
+          // catalog are atomically authoritative. Full-horizon persistence
+          // still replaces this checkpoint after all background chunks land.
+          await _persistWarmStartCacheNow(
+            userId: user.id,
+            debugReason: 'hydration_viewport_server_current',
+            allowServerCurrentViewport: true,
+          );
         }
       },
     );

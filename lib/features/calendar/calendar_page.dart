@@ -10759,6 +10759,14 @@ class CalendarPageState extends State<CalendarPage>
       'catalogFingerprint':
           _hydrationController.state.catalogFingerprint ??
           _catalogFingerprintForCurrentFlows(),
+      'cacheAuthority': _hydrationController.state.authority.name,
+      'authoritativeViewportStartUtc': _hydrationController
+          .state
+          .viewport
+          ?.startUtc
+          .toIso8601String(),
+      'authoritativeViewportEndUtc': _hydrationController.state.viewport?.endUtc
+          .toIso8601String(),
       'nextFlowId': _nextFlowId,
       'flows': snapshotFlows
           .map(_serializeWarmStartFlow)
@@ -10817,12 +10825,18 @@ class CalendarPageState extends State<CalendarPage>
   Future<void> _persistWarmStartCacheNow({
     String? userId,
     String debugReason = 'debounced',
+    bool allowServerCurrentViewport = false,
   }) async {
     final resolvedUserId = userId ?? _activeWarmStartUserId();
     if (resolvedUserId == null) return;
     final diagnostics = CalendarHydrationDiagnostics.instance;
     _lastWarmStartCacheSaveOutcome = null;
-    if (!shouldPersistWarmStartCache(_hydrationAuthorityScope)) {
+    bool writeIsAuthorized() =>
+        shouldPersistWarmStartCache(_hydrationAuthorityScope) ||
+        (allowServerCurrentViewport &&
+            _hydrationController.state.mayPersistServerCurrentViewport);
+
+    if (!writeIsAuthorized()) {
       diagnostics.recordCacheEvent('cache_save_skipped', <String, Object?>{
         'reason': 'partial_authority',
         'authority_scope': _hydrationAuthorityScope.diagnosticName,
@@ -10837,6 +10851,7 @@ class CalendarPageState extends State<CalendarPage>
         !_hydrationController.validateCacheWrite(
           sessionGeneration: controllerStateAtStart.sessionGeneration,
           catalogFingerprint: cacheCatalogFingerprint,
+          allowServerCurrentViewport: allowServerCurrentViewport,
         )) {
       diagnostics.recordCacheEvent('cache_save_skipped', <String, Object?>{
         'reason': 'controller_authority_mismatch',
@@ -10880,7 +10895,7 @@ class CalendarPageState extends State<CalendarPage>
         _lastWarmStartCacheSaveOutcome = 'user_mismatch';
         return;
       }
-      if (!shouldPersistWarmStartCache(_hydrationAuthorityScope)) {
+      if (!writeIsAuthorized()) {
         recordCache('cache_save_skipped', <String, Object?>{
           'reason': 'partial_authority',
           'authority_scope': _hydrationAuthorityScope.diagnosticName,
@@ -10892,6 +10907,7 @@ class CalendarPageState extends State<CalendarPage>
       if (!_hydrationController.validateCacheWrite(
         sessionGeneration: controllerStateAtStart.sessionGeneration,
         catalogFingerprint: cacheCatalogFingerprint,
+        allowServerCurrentViewport: allowServerCurrentViewport,
       )) {
         recordCache('cache_save_skipped', <String, Object?>{
           'reason': 'controller_changed_after_prefs',
@@ -10993,6 +11009,7 @@ class CalendarPageState extends State<CalendarPage>
       if (!_hydrationController.validateCacheWrite(
         sessionGeneration: controllerStateAtStart.sessionGeneration,
         catalogFingerprint: cacheCatalogFingerprint,
+        allowServerCurrentViewport: allowServerCurrentViewport,
       )) {
         recordCache('cache_save_ended', <String, Object?>{
           'outcome': 'controller_changed_after_write',
