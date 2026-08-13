@@ -41,8 +41,6 @@ void main() {
   testWidgets(
     'production year publishes all 13 sections and mounts Heriu anchors',
     (tester) async {
-      // The pre-existing narrow-phone Heriu header overflow is a separately
-      // tracked paint defect; this geometry test isolates section ownership.
       tester.view.physicalSize = const Size(800, 1200);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -116,6 +114,52 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('Heriu header fits a 390x844 viewport in 5- and 6-day years', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final current = KemeticMath.fromGregorian(DateTime(2026, 8, 13));
+    for (final sixDayYear in <bool>[false, true]) {
+      var year = current.kYear;
+      while (KemeticMath.isLeapKemeticYear(year) != sixDayYear) {
+        year++;
+      }
+      final day = sixDayYear ? 6 : 5;
+      CalendarPage.debugCalendarTodayForTesting = KemeticMath.toGregorian(
+        year,
+        13,
+        day,
+      );
+
+      final pageKey = GlobalKey<CalendarPageState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: CalendarPage(key: pageKey)),
+        ),
+      );
+      pageKey.currentState!.debugShowCalendarShellForTesting();
+      await tester.pump();
+      await tester.pump();
+
+      expect(
+        tester.takeException(),
+        isNull,
+        reason:
+            'Heriu must fit at 390x844 in a ${sixDayYear ? 6 : 5}-day '
+            'year (year=$year, day=$day)',
+      );
+      expect(keyForMonthHeader(year, 13).currentContext, isNotNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 2));
+      expect(tester.takeException(), isNull);
+    }
+  });
 
   test(
     'year section keeps following-month ownership and passive authority',

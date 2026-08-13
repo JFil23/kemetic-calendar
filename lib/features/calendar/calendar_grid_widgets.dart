@@ -2711,41 +2711,54 @@ class _EpagomenalCard extends StatelessWidget {
               // Header row: Kemetic header (left) and Gregorian month (right when present)
               Row(
                 children: [
-                  Visibility(
-                    visible: !showGregorian, // visually removed in Gregorian
-                    maintainState: true,
-                    maintainAnimation: true,
-                    maintainSize: true, // keep height so layout doesn't jump
-                    child: RepaintBoundary(
-                      key: monthHeaderKey,
-                      child: _SoftMonthNameTitle(
-                        shortName: epagomenalMeta.displayShort,
-                        transliteration: epagomenalMeta.displayTransliteration,
-                        fontSize: _CalendarScale.monthTitleMain,
-                        opacity: 0.96,
+                  Expanded(
+                    flex: 3,
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Visibility(
+                        visible: !showGregorian,
+                        maintainState: true,
+                        maintainAnimation: true,
+                        maintainSize: true,
+                        child: RepaintBoundary(
+                          key: monthHeaderKey,
+                          child: _SoftMonthNameTitle(
+                            shortName: epagomenalMeta.displayShort,
+                            transliteration:
+                                epagomenalMeta.displayTransliteration,
+                            fontSize: _CalendarScale.monthTitleMain,
+                            opacity: 0.96,
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                  const Spacer(),
-                  Visibility(
-                    visible: showGregorian && gLabel != null,
-                    maintainState: true,
-                    maintainAnimation: true,
-                    maintainSize: true,
-                    child: Text(
-                      gLabel ?? '',
-                      style: _decanStyle.copyWith(
-                        color: _CalendarTone.gregorianBlue.withValues(
-                          alpha: 0.82,
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Visibility(
+                        visible: showGregorian && gLabel != null,
+                        maintainState: true,
+                        maintainAnimation: true,
+                        maintainSize: true,
+                        child: Text(
+                          gLabel ?? '',
+                          style: _decanStyle.copyWith(
+                            color: _CalendarTone.gregorianBlue.withValues(
+                              alpha: 0.82,
+                            ),
+                            fontSize: _CalendarScale.decanLabelMain,
+                            height: 1.0,
+                            fontFamily: 'GentiumPlus',
+                            fontFamilyFallback: const ['NotoSans', 'Roboto'],
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.fade,
+                          softWrap: false,
+                          textAlign: TextAlign.right,
                         ),
-                        fontSize: _CalendarScale.decanLabelMain,
-                        height: 1.0,
-                        fontFamily: 'GentiumPlus',
-                        fontFamilyFallback: const ['NotoSans', 'Roboto'],
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.fade,
-                      softWrap: false,
                     ),
                   ),
                 ],
