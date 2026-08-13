@@ -98,6 +98,109 @@ void main() {
     );
   });
 
+  group('serialized viewport checkpoint', () {
+    test('replaces visible rows while preserving every outside raw bucket', () {
+      final outsideBefore = <Object?>[
+        <String, Object?>{'clientEventId': 'outside-before', 'legacy': true},
+      ];
+      final outsideAfter = <Object?>[
+        <String, Object?>{'clientEventId': 'outside-after'},
+      ];
+      final invalid = <Object?>[
+        <String, Object?>{'clientEventId': 'legacy-key'},
+      ];
+      final merged = mergeSerializedWarmCacheViewport(
+        previous: <String, dynamic>{
+          'userId': 'user',
+          'compactionLevel': 'bounded',
+          'cacheCenterDay': '2026-01-02T00:00:00.000',
+          'cachePastDays': 30,
+          'cacheFutureDays': 60,
+          'notes': <String, dynamic>{
+            '2026-01-01': outsideBefore,
+            '2026-01-02': <Object?>[
+              <String, Object?>{'clientEventId': 'stale-visible'},
+            ],
+            '2026-01-04': outsideAfter,
+            'legacy-key': invalid,
+          },
+        },
+        fresh: <String, dynamic>{
+          'userId': 'user',
+          'catalogFingerprint': 'fresh',
+          'notes': <String, dynamic>{
+            '2026-01-02': <Object?>[
+              <String, Object?>{'clientEventId': 'fresh-visible'},
+            ],
+            '2026-01-04': <Object?>[
+              <String, Object?>{'clientEventId': 'must-not-expand'},
+            ],
+          },
+        },
+        userId: 'user',
+        viewportStartInclusive: DateTime.utc(2026, 1, 2),
+        viewportEndExclusive: DateTime.utc(2026, 1, 4),
+        parseKeyToDay: DateTime.tryParse,
+      );
+
+      expect(merged, isNotNull);
+      final notes = merged!['notes'] as Map<String, dynamic>;
+      expect(notes['2026-01-01'], same(outsideBefore));
+      expect(notes['2026-01-04'], same(outsideAfter));
+      expect(notes['legacy-key'], same(invalid));
+      expect(
+        ((notes['2026-01-02'] as List).single as Map)['clientEventId'],
+        'fresh-visible',
+      );
+      expect(merged['catalogFingerprint'], 'fresh');
+      expect(merged['compactionLevel'], 'viewport_checkpoint:bounded');
+      expect(merged['cachePastDays'], 30);
+      expect(merged['cacheFutureDays'], 60);
+    });
+
+    test('successful-empty viewport removes stale visible buckets', () {
+      final merged = mergeSerializedWarmCacheViewport(
+        previous: <String, dynamic>{
+          'userId': 'user',
+          'notes': <String, dynamic>{
+            '2026-01-01': <Object?>['outside'],
+            '2026-01-02': <Object?>['stale-visible'],
+          },
+        },
+        fresh: <String, dynamic>{
+          'userId': 'user',
+          'notes': <String, dynamic>{},
+        },
+        userId: 'user',
+        viewportStartInclusive: DateTime.utc(2026, 1, 2),
+        viewportEndExclusive: DateTime.utc(2026, 1, 3),
+        parseKeyToDay: DateTime.tryParse,
+      );
+
+      expect((merged!['notes'] as Map).keys, <String>['2026-01-01']);
+    });
+
+    test('refuses to merge a cache from another user', () {
+      expect(
+        mergeSerializedWarmCacheViewport(
+          previous: <String, dynamic>{
+            'userId': 'other-user',
+            'notes': <String, dynamic>{},
+          },
+          fresh: <String, dynamic>{
+            'userId': 'user',
+            'notes': <String, dynamic>{},
+          },
+          userId: 'user',
+          viewportStartInclusive: DateTime.utc(2026, 1, 2),
+          viewportEndExclusive: DateTime.utc(2026, 1, 3),
+          parseKeyToDay: DateTime.tryParse,
+        ),
+        isNull,
+      );
+    });
+  });
+
   group('backfill chunks', () {
     test('subtracts focus and covers both sides without gaps or overlap', () {
       final unionStart = DateTime.utc(2026, 1, 1);

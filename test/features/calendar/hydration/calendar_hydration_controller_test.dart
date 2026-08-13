@@ -164,11 +164,37 @@ void main() {
           sessionGeneration: controller.state.sessionGeneration,
           catalogFingerprint: 'catalog-a',
           allowServerCurrentViewport: true,
+          requiredViewportRevision: controller.state.viewportRevision,
         ),
         isTrue,
       );
     },
   );
+
+  test('viewport checkpoint rejects a later viewport revision', () {
+    controller.restoreCache(
+      catalogFingerprint: 'catalog-a',
+      applyPreparedState: () {},
+    );
+    controller.reportViewport(interval(1, 4));
+    final token = controller.beginViewportCommit(
+      catalogFingerprint: 'catalog-a',
+      catalogIsFresh: true,
+    );
+    controller.commitViewport(token: token, applyPreparedState: () {});
+    final committedRevision = controller.state.viewportRevision;
+    controller.reportViewport(interval(4, 7));
+
+    expect(
+      controller.validateCacheWrite(
+        sessionGeneration: controller.state.sessionGeneration,
+        catalogFingerprint: 'catalog-a',
+        allowServerCurrentViewport: true,
+        requiredViewportRevision: committedRevision,
+      ),
+      isFalse,
+    );
+  });
 
   test('provisional viewport cannot authorize a cache checkpoint', () {
     controller.restoreCache(
@@ -192,6 +218,7 @@ void main() {
         sessionGeneration: controller.state.sessionGeneration,
         catalogFingerprint: 'catalog-a',
         allowServerCurrentViewport: true,
+        requiredViewportRevision: controller.state.viewportRevision,
       ),
       isFalse,
     );

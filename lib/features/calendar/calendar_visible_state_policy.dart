@@ -25,6 +25,51 @@ bool shouldClearWarmStartSnapshotVisible(
 bool shouldScheduleCacheSaveOnDataBump(CalendarHydrationAuthorityScope scope) =>
     scope == CalendarHydrationAuthorityScope.fullHorizon;
 
+/// Replaces only the serialized viewport buckets in an existing warm cache.
+/// Every outside bucket, including unparseable legacy keys, is retained from
+/// [previous] without reserialization through the live event model.
+Map<String, dynamic>? mergeSerializedWarmCacheViewport({
+  required Map<String, dynamic> previous,
+  required Map<String, dynamic> fresh,
+  required String userId,
+  required DateTime viewportStartInclusive,
+  required DateTime viewportEndExclusive,
+  required DateTime? Function(String key) parseKeyToDay,
+}) {
+  final previousUserId = (previous['userId'] as String?)?.trim();
+  if (previousUserId != null &&
+      previousUserId.isNotEmpty &&
+      previousUserId != userId) {
+    return null;
+  }
+  final mergedNotes = <String, dynamic>{};
+  void copyNotes(Object? raw, {required bool inside}) {
+    if (raw is! Map) return;
+    raw.forEach((key, value) {
+      final stringKey = key.toString();
+      final day = parseKeyToDay(stringKey);
+      final isInside =
+          day != null &&
+          !day.isBefore(viewportStartInclusive) &&
+          day.isBefore(viewportEndExclusive);
+      if (isInside == inside) mergedNotes[stringKey] = value;
+    });
+  }
+
+  copyNotes(previous['notes'], inside: false);
+  copyNotes(fresh['notes'], inside: true);
+  return <String, dynamic>{
+    ...previous,
+    ...fresh,
+    'compactionLevel':
+        'viewport_checkpoint:${previous['compactionLevel'] ?? 'legacy'}',
+    'cacheCenterDay': previous['cacheCenterDay'] ?? fresh['cacheCenterDay'],
+    'cachePastDays': previous['cachePastDays'],
+    'cacheFutureDays': previous['cacheFutureDays'],
+    'notes': mergedNotes,
+  };
+}
+
 /// Replaces only the half-open server window while preserving every cached
 /// bucket outside it. Unparseable existing keys are retained fail-safe, while
 /// incoming buckets outside the authoritative window are ignored.

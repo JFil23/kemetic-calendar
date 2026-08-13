@@ -275,9 +275,12 @@ class CalendarHydrationController {
     required int sessionGeneration,
     required String catalogFingerprint,
     bool allowServerCurrentViewport = false,
+    int? requiredViewportRevision,
   }) =>
       _userId != null &&
       sessionGeneration == _state.sessionGeneration &&
+      (requiredViewportRevision == null ||
+          requiredViewportRevision == _state.viewportRevision) &&
       catalogFingerprint == _state.freshCatalogFingerprint &&
       catalogFingerprint == _state.catalogFingerprint &&
       (_state.mayPersistWarmCache ||

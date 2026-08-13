@@ -9703,6 +9703,7 @@ class CalendarPageState extends State<CalendarPage>
   final ValueNotifier<DayViewSheetEventTarget?> _dayViewEventDetailRequest =
       ValueNotifier<DayViewSheetEventTarget?>(null);
   Timer? _warmStartCacheDebounceTimer;
+  Future<void> _warmStartCacheWriteTail = Future<void>.value();
   String? _warmStartCacheRestoredForUserId;
   CalendarHydrationAuthorityScope get _hydrationAuthorityScope {
     final authority = _hydrationController.state.authority;
@@ -10822,19 +10823,78 @@ class CalendarPageState extends State<CalendarPage>
     await _persistWarmStartCacheNow(debugReason: reason);
   }
 
+  String? _encodeServerCurrentViewportCheckpoint({
+    required String userId,
+    required String? previousEncoded,
+  }) {
+    final viewport = _hydrationController.state.viewport;
+    if (viewport == null) return null;
+    final fresh = _buildWarmStartSnapshot(
+      userId: userId,
+      compactionLevel: 'viewport_checkpoint',
+      pastWindow: null,
+      futureWindow: null,
+      relevantFlowsOnly: false,
+    );
+    if (previousEncoded == null || previousEncoded.trim().isEmpty) {
+      return jsonEncode(fresh);
+    }
+    try {
+      final decoded = jsonDecode(previousEncoded);
+      if (decoded is! Map) return jsonEncode(fresh);
+      final previous = Map<String, dynamic>.from(decoded);
+      final merged = mergeSerializedWarmCacheViewport(
+        previous: previous,
+        fresh: fresh,
+        userId: userId,
+        viewportStartInclusive: viewport.startUtc,
+        viewportEndExclusive: viewport.endUtc,
+        parseKeyToDay: _warmStartDateFromKey,
+      );
+      return merged == null ? null : jsonEncode(merged);
+    } catch (_) {
+      return jsonEncode(fresh);
+    }
+  }
+
   Future<void> _persistWarmStartCacheNow({
     String? userId,
     String debugReason = 'debounced',
     bool allowServerCurrentViewport = false,
+  }) {
+    final operation = _warmStartCacheWriteTail.then(
+      (_) => _persistWarmStartCacheNowSerialized(
+        userId: userId,
+        debugReason: debugReason,
+        allowServerCurrentViewport: allowServerCurrentViewport,
+      ),
+    );
+    _warmStartCacheWriteTail = operation.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace _) {},
+    );
+    return operation;
+  }
+
+  Future<void> _persistWarmStartCacheNowSerialized({
+    String? userId,
+    required String debugReason,
+    required bool allowServerCurrentViewport,
   }) async {
     final resolvedUserId = userId ?? _activeWarmStartUserId();
     if (resolvedUserId == null) return;
     final diagnostics = CalendarHydrationDiagnostics.instance;
     _lastWarmStartCacheSaveOutcome = null;
+    final controllerStateAtStart = _hydrationController.state;
+    final requiredViewportRevision = allowServerCurrentViewport
+        ? controllerStateAtStart.viewportRevision
+        : null;
     bool writeIsAuthorized() =>
         shouldPersistWarmStartCache(_hydrationAuthorityScope) ||
         (allowServerCurrentViewport &&
-            _hydrationController.state.mayPersistServerCurrentViewport);
+            _hydrationController.state.mayPersistServerCurrentViewport &&
+            _hydrationController.state.viewportRevision ==
+                requiredViewportRevision);
 
     if (!writeIsAuthorized()) {
       diagnostics.recordCacheEvent('cache_save_skipped', <String, Object?>{
@@ -10845,13 +10905,13 @@ class CalendarPageState extends State<CalendarPage>
       _lastWarmStartCacheSaveOutcome = 'partial_authority';
       return;
     }
-    final controllerStateAtStart = _hydrationController.state;
     final cacheCatalogFingerprint = controllerStateAtStart.catalogFingerprint;
     if (cacheCatalogFingerprint == null ||
         !_hydrationController.validateCacheWrite(
           sessionGeneration: controllerStateAtStart.sessionGeneration,
           catalogFingerprint: cacheCatalogFingerprint,
           allowServerCurrentViewport: allowServerCurrentViewport,
+          requiredViewportRevision: requiredViewportRevision,
         )) {
       diagnostics.recordCacheEvent('cache_save_skipped', <String, Object?>{
         'reason': 'controller_authority_mismatch',
@@ -10908,6 +10968,7 @@ class CalendarPageState extends State<CalendarPage>
         sessionGeneration: controllerStateAtStart.sessionGeneration,
         catalogFingerprint: cacheCatalogFingerprint,
         allowServerCurrentViewport: allowServerCurrentViewport,
+        requiredViewportRevision: requiredViewportRevision,
       )) {
         recordCache('cache_save_skipped', <String, Object?>{
           'reason': 'controller_changed_after_prefs',
@@ -10917,6 +10978,7 @@ class CalendarPageState extends State<CalendarPage>
         return;
       }
       final key = _warmStartCacheKey(resolvedUserId);
+      final previousEncoded = prefs.getString(key);
 
       if (_flows.isEmpty && _notes.isEmpty) {
         await prefs.remove(key);
@@ -10928,65 +10990,76 @@ class CalendarPageState extends State<CalendarPage>
         return;
       }
 
-      final candidates =
-          <
-            ({
-              String level,
-              Duration? past,
-              Duration? future,
-              bool relevantFlowsOnly,
-            })
-          >[
-            (level: 'full', past: null, future: null, relevantFlowsOnly: false),
-            (
-              level: 'wide',
-              past: _warmStartWidePast,
-              future: _warmStartWideFuture,
-              relevantFlowsOnly: false,
-            ),
-            (
-              level: 'bounded',
-              past: _warmStartBoundedPast,
-              future: _warmStartBoundedFuture,
-              relevantFlowsOnly: false,
-            ),
-            (
-              level: 'near',
-              past: _warmStartNearPast,
-              future: _warmStartNearFuture,
-              relevantFlowsOnly: false,
-            ),
-            (
-              level: 'selected_day',
-              past: Duration.zero,
-              future: Duration.zero,
-              relevantFlowsOnly: true,
-            ),
-          ];
       String? encoded;
       int? untrimmedSize;
       int smallestCandidateSize = 0;
       var selectedLevel = 'none';
       int? selectedPastDays;
       int? selectedFutureDays;
-      for (final candidate in candidates) {
-        final candidateEncoded = jsonEncode(
-          _buildWarmStartSnapshot(
-            userId: resolvedUserId,
-            compactionLevel: candidate.level,
-            pastWindow: candidate.past,
-            futureWindow: candidate.future,
-            relevantFlowsOnly: candidate.relevantFlowsOnly,
-          ),
+      if (allowServerCurrentViewport) {
+        encoded = _encodeServerCurrentViewportCheckpoint(
+          userId: resolvedUserId,
+          previousEncoded: previousEncoded,
         );
-        untrimmedSize ??= candidateEncoded.length;
-        smallestCandidateSize = candidateEncoded.length;
-        if (candidateEncoded.length > _warmStartCacheMaxChars) continue;
-        encoded = candidateEncoded;
-        selectedLevel = candidate.level;
-        selectedPastDays = candidate.past?.inDays;
-        selectedFutureDays = candidate.future?.inDays;
-        break;
+        untrimmedSize = encoded?.length;
+        smallestCandidateSize = encoded?.length ?? 0;
+        if (encoded != null && encoded.length <= _warmStartCacheMaxChars) {
+          selectedLevel = 'viewport_checkpoint';
+        } else {
+          encoded = null;
+        }
+      } else {
+        final candidates = [
+          (
+            level: 'full',
+            past: null as Duration?,
+            future: null as Duration?,
+            relevantFlowsOnly: false,
+          ),
+          (
+            level: 'wide',
+            past: _warmStartWidePast,
+            future: _warmStartWideFuture,
+            relevantFlowsOnly: false,
+          ),
+          (
+            level: 'bounded',
+            past: _warmStartBoundedPast,
+            future: _warmStartBoundedFuture,
+            relevantFlowsOnly: false,
+          ),
+          (
+            level: 'near',
+            past: _warmStartNearPast,
+            future: _warmStartNearFuture,
+            relevantFlowsOnly: false,
+          ),
+          (
+            level: 'selected_day',
+            past: Duration.zero,
+            future: Duration.zero,
+            relevantFlowsOnly: true,
+          ),
+        ];
+        for (final candidate in candidates) {
+          final candidateEncoded = jsonEncode(
+            _buildWarmStartSnapshot(
+              userId: resolvedUserId,
+              compactionLevel: candidate.level,
+              pastWindow: candidate.past,
+              futureWindow: candidate.future,
+              relevantFlowsOnly: candidate.relevantFlowsOnly,
+            ),
+          );
+          untrimmedSize ??= candidateEncoded.length;
+          smallestCandidateSize = candidateEncoded.length;
+          if (candidateEncoded.length > _warmStartCacheMaxChars) continue;
+          encoded = candidateEncoded;
+          selectedLevel = candidate.level;
+          selectedPastDays = candidate.past?.inDays;
+          selectedFutureDays = candidate.future?.inDays;
+          break;
+        }
       }
       if (encoded == null) {
         if (kDebugMode) {
@@ -11005,18 +11078,48 @@ class CalendarPageState extends State<CalendarPage>
         return;
       }
 
-      await prefs.setString(key, encoded);
+      if (!writeIsAuthorized() ||
+          !_hydrationController.validateCacheWrite(
+            sessionGeneration: controllerStateAtStart.sessionGeneration,
+            catalogFingerprint: cacheCatalogFingerprint,
+            allowServerCurrentViewport: allowServerCurrentViewport,
+            requiredViewportRevision: requiredViewportRevision,
+          )) {
+        recordCache('cache_save_skipped', <String, Object?>{
+          'reason': 'controller_changed_before_write',
+          'duration_ms': totalStopwatch.elapsedMilliseconds,
+        });
+        _lastWarmStartCacheSaveOutcome = 'partial_authority';
+        return;
+      }
+      final writeSucceeded = await prefs.setString(key, encoded);
+      if (!writeSucceeded) {
+        recordCache('cache_save_ended', <String, Object?>{
+          'outcome': 'storage_rejected',
+          'duration_ms': totalStopwatch.elapsedMilliseconds,
+        });
+        _lastWarmStartCacheSaveOutcome = 'failed';
+        return;
+      }
       if (!_hydrationController.validateCacheWrite(
         sessionGeneration: controllerStateAtStart.sessionGeneration,
         catalogFingerprint: cacheCatalogFingerprint,
         allowServerCurrentViewport: allowServerCurrentViewport,
+        requiredViewportRevision: requiredViewportRevision,
       )) {
+        final rollbackSucceeded = previousEncoded == null
+            ? await prefs.remove(key)
+            : await prefs.setString(key, previousEncoded);
         recordCache('cache_save_ended', <String, Object?>{
-          'outcome': 'controller_changed_after_write',
+          'outcome': rollbackSucceeded
+              ? 'controller_changed_write_rolled_back'
+              : 'controller_changed_rollback_failed',
           'saved_chars': encoded.length,
           'duration_ms': totalStopwatch.elapsedMilliseconds,
         });
-        _lastWarmStartCacheSaveOutcome = 'controller_changed_after_write';
+        _lastWarmStartCacheSaveOutcome = rollbackSucceeded
+            ? 'controller_changed_write_rolled_back'
+            : 'failed';
         return;
       }
       _lastWarmStartCacheSaveOutcome = selectedLevel == 'full'
@@ -32910,6 +33013,27 @@ class CalendarPageState extends State<CalendarPage>
     );
     _hydrationController.setFullHorizon(interval);
     return _persistWarmStartCacheNow(userId: userId, debugReason: 'test');
+  }
+
+  @visibleForTesting
+  Future<void> debugPersistServerCurrentViewportCacheForTesting(String userId) {
+    _hydrationController.beginSession(userId);
+    final interval = _computeStartupVisibleHydrationInterval();
+    final fingerprint = _catalogFingerprintForCurrentFlows();
+    _hydrationController.reportViewport(interval);
+    final token = _hydrationController.beginViewportCommit(
+      catalogFingerprint: fingerprint,
+      catalogIsFresh: true,
+    );
+    _hydrationController.commitViewport(
+      token: token,
+      applyPreparedState: () {},
+    );
+    return _persistWarmStartCacheNow(
+      userId: userId,
+      debugReason: 'test_viewport_checkpoint',
+      allowServerCurrentViewport: true,
+    );
   }
 
   @visibleForTesting

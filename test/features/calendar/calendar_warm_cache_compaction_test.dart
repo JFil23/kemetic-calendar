@@ -119,6 +119,79 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
     },
   );
+
+  testWidgets(
+    'server-current viewport checkpoint preserves compacted outer buckets',
+    (tester) async {
+      final state = await pumpCalendar(tester);
+      final center = DateUtils.dateOnly(DateTime.now());
+      final largeDetail = List<String>.filled(6000, 'x').join();
+
+      for (var offset = -100; offset <= 100; offset++) {
+        final day = center.add(Duration(days: offset));
+        final kemetic = KemeticMath.fromGregorian(day);
+        expect(
+          state.debugAddNote(
+            kemetic.kYear,
+            kemetic.kMonth,
+            kemetic.kDay,
+            'checkpoint seed $offset',
+            largeDetail,
+            clientEventId: 'checkpoint-seed-$offset',
+            notify: false,
+          ),
+          isTrue,
+        );
+      }
+
+      await state.debugPersistWarmStartCacheForTesting(_userId);
+      final prefs = await SharedPreferences.getInstance();
+      final beforeEncoded = prefs.getString(_cacheKey);
+      expect(beforeEncoded, isNotNull);
+      final before = Map<String, dynamic>.from(
+        jsonDecode(beforeEncoded!) as Map,
+      );
+      final beforeNotes = Map<String, dynamic>.from(before['notes'] as Map);
+      final centerKemetic = KemeticMath.fromGregorian(center);
+      final centerKey =
+          '${centerKemetic.kYear}-${centerKemetic.kMonth}-${centerKemetic.kDay}';
+      final outsideEntry = beforeNotes.entries.firstWhere(
+        (entry) => entry.key != centerKey,
+      );
+      final outsideBefore = jsonEncode(outsideEntry.value);
+
+      expect(
+        state.debugAddNote(
+          centerKemetic.kYear,
+          centerKemetic.kMonth,
+          centerKemetic.kDay,
+          'fresh viewport note',
+          'fresh',
+          clientEventId: 'checkpoint-fresh-visible',
+          notify: false,
+        ),
+        isTrue,
+      );
+      await state.debugPersistServerCurrentViewportCacheForTesting(_userId);
+
+      final afterEncoded = prefs.getString(_cacheKey);
+      expect(afterEncoded, isNotNull);
+      expect(afterEncoded!.length, lessThanOrEqualTo(850000));
+      final after = Map<String, dynamic>.from(jsonDecode(afterEncoded) as Map);
+      final afterNotes = Map<String, dynamic>.from(after['notes'] as Map);
+      expect(after['compactionLevel'], startsWith('viewport_checkpoint:'));
+      expect(jsonEncode(afterNotes[outsideEntry.key]), outsideBefore);
+      expect(
+        (afterNotes[centerKey] as List).whereType<Map>().map(
+          (row) => row['clientEventId'],
+        ),
+        contains('checkpoint-fresh-visible'),
+      );
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 2));
+    },
+  );
 }
 
 String _sessionJson() {

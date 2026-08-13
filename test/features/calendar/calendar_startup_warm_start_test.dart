@@ -168,11 +168,21 @@ void main() {
     );
     expect(engine, contains('allowServerCurrentViewport: true'));
     expect(persist, contains('mayPersistServerCurrentViewport'));
+    expect(persist, contains('requiredViewportRevision'));
+    expect(persist, contains('final previousEncoded = prefs.getString(key)'));
+    expect(persist, contains('controller_changed_write_rolled_back'));
+    expect(source, contains('_warmStartCacheWriteTail'));
+    expect(source, contains('_persistWarmStartCacheNowSerialized('));
+    expect(
+      persist,
+      contains('_encodeServerCurrentViewportCheckpoint('),
+      reason: 'viewport healing must not compact away cached outer rows',
+    );
     expect(
       RegExp(
         r'allowServerCurrentViewport: allowServerCurrentViewport',
       ).allMatches(persist).length,
-      greaterThanOrEqualTo(3),
+      greaterThanOrEqualTo(4),
       reason: 'authority is revalidated before, during, and after persistence',
     );
   });
