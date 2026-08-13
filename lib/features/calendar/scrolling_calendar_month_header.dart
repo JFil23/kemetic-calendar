@@ -6,7 +6,7 @@ import 'kemetic_month_metadata.dart';
 
 /// Persistent month context for the scrolling calendar.
 ///
-/// The calendar page owns which month is centered in the viewport. This widget
+/// The calendar scroll coordinator owns the active top-edge month. This widget
 /// only presents that state, keeping the visual transition independent from
 /// calendar navigation and restoration behavior.
 class ScrollingCalendarMonthHeader extends StatelessWidget {

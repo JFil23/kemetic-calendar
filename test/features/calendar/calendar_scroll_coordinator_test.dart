@@ -11,6 +11,34 @@ void main() {
   final month1 = MonthRef(year: 10, month: 1);
   final month2 = MonthRef(year: 10, month: 2);
 
+  test('publishes only fresh non-null banner resolutions', () {
+    final rig = _CoordinatorRig(
+      snapshot: _snapshot(
+        generation: 1,
+        sections: [_geometry(month1, 0, 100), _geometry(month2, 100, 200)],
+      ),
+      offset: 20,
+      authoritative: month1,
+    );
+    addTearDown(rig.dispose);
+    final published = <MonthRef>[];
+    rig.coordinator.activeBannerMonth.addListener(() {
+      published.add(rig.coordinator.activeBannerMonth.value);
+    });
+
+    expect(rig.coordinator.activeBannerMonth.value, month1);
+    rig.coordinator.noteGeometryPublication();
+    rig.flushOneFrame();
+    expect(published, isEmpty);
+
+    rig.offset = 120;
+    rig.coordinator.noteScroll();
+    rig.flushOneFrame();
+
+    expect(rig.coordinator.activeBannerMonth.value, month2);
+    expect(published, [month2]);
+  });
+
   test('scroll resolves without a new geometry generation', () {
     final rig = _CoordinatorRig(
       snapshot: _snapshot(
@@ -237,14 +265,17 @@ void main() {
     expect(settled.shadowMonth, live.shadowMonth);
   });
 
-  test('coordinator source contains no authoritative mutation writer', () {
+  test('banner authority cannot mutate page or adjacent consumers', () {
     final source = File(
       'lib/features/calendar/calendar_scroll_coordinator.dart',
     ).readAsStringSync();
 
+    expect(source, contains('ValueListenable<MonthRef> get activeBannerMonth'));
     expect(source, isNot(contains('setState(')));
     expect(source, isNot(contains('_setView(')));
     expect(source, isNot(contains('_handlePortraitMonthChanged(')));
+    expect(source, isNot(contains('_scheduleCalendarRestorationSave(')));
+    expect(source, isNot(contains('_scheduleRenderedViewportHydration(')));
     expect(source, isNot(contains('notifyListeners(')));
     expect(source, isNot(contains('print(')));
     expect(source, isNot(contains('debugPrint(')));
@@ -260,6 +291,7 @@ final class _CoordinatorRig {
     int traceCapacity = CalendarScrollCoordinator.defaultTraceCapacity,
   }) : _legacyReader = legacyReader {
     coordinator = CalendarScrollCoordinator(
+      initialBannerMonth: authoritative ?? MonthRef(year: 0, month: 1),
       scheduleAfterFrame: _scheduled.addLast,
       readSnapshot: () => snapshot,
       readScrollOffset: () => offset,

@@ -1,5 +1,6 @@
 import 'dart:collection';
 
+import 'package:flutter/foundation.dart';
 import 'package:mobile/features/calendar/calendar_banner_resolver.dart';
 import 'package:mobile/features/calendar/calendar_geometry_snapshot.dart';
 import 'package:mobile/features/calendar/calendar_section_index.dart';
@@ -56,14 +57,16 @@ final class CalendarShadowTraceEntry {
   bool get isDivergence => divergenceCategory != null;
 }
 
-/// Passive Phase 3 coordinator for the new leading-edge banner policy.
+/// Coordinator for the leading-edge banner policy and passive legacy diffing.
 ///
-/// This object owns no UI state and exposes no authoritative writer. Inputs
-/// are sampled through readers only after a coalesced frame callback. The
-/// result is retained for diagnostics if it is still tagged with the latest
-/// geometry generation and scroll serial.
+/// Inputs are sampled through readers only after a coalesced frame callback.
+/// A fresh non-null result publishes through [activeBannerMonth], whose
+/// listenable is the sole Phase 4 banner writer. Legacy authority is still
+/// observed only for bounded diagnostics; this object does not mutate page,
+/// restoration, hydration, pinch, rotation, or navigation state.
 final class CalendarScrollCoordinator {
   CalendarScrollCoordinator({
+    required MonthRef initialBannerMonth,
     required CalendarShadowFrameScheduler scheduleAfterFrame,
     required CalendarGeometrySnapshotReader readSnapshot,
     required CalendarScrollOffsetReader readScrollOffset,
@@ -72,7 +75,8 @@ final class CalendarScrollCoordinator {
     CalendarBannerResolver? resolver,
     CalendarSectionIndex index = const CalendarSectionIndex(),
     int traceCapacity = defaultTraceCapacity,
-  }) : _scheduleAfterFrame = scheduleAfterFrame,
+  }) : _activeBannerMonth = ValueNotifier<MonthRef>(initialBannerMonth),
+       _scheduleAfterFrame = scheduleAfterFrame,
        _readSnapshot = readSnapshot,
        _readScrollOffset = readScrollOffset,
        _readAuthoritativeMonth = readAuthoritativeMonth,
@@ -109,6 +113,7 @@ final class CalendarScrollCoordinator {
   final CalendarBannerResolver _resolver;
   final CalendarSectionIndex _index;
   final int _traceCapacity;
+  final ValueNotifier<MonthRef> _activeBannerMonth;
 
   final ListQueue<CalendarShadowTraceEntry> _trace = ListQueue();
   final Map<CalendarShadowDivergenceCategory, int> _divergenceCounts = {};
@@ -129,6 +134,12 @@ final class CalendarScrollCoordinator {
 
   List<CalendarShadowTraceEntry> get trace =>
       List<CalendarShadowTraceEntry>.unmodifiable(_trace);
+
+  /// The isolated authoritative state read by the scrolling month banner.
+  ///
+  /// Exposing only [ValueListenable] prevents the page from writing around the
+  /// coordinator or using a banner transition as broader calendar state.
+  ValueListenable<MonthRef> get activeBannerMonth => _activeBannerMonth;
 
   Map<CalendarShadowDivergenceCategory, int> get divergenceCounts =>
       Map<CalendarShadowDivergenceCategory, int>.unmodifiable(
@@ -241,7 +252,12 @@ final class CalendarScrollCoordinator {
     _committedSampleCount++;
     _lastCommittedOffset = scrollOffset;
     _lastCommittedShadow = shadow;
-    if (shadow != null) _shadowIncumbent = shadow;
+    if (shadow != null) {
+      _shadowIncumbent = shadow;
+      if (_activeBannerMonth.value != shadow) {
+        _activeBannerMonth.value = shadow;
+      }
+    }
     if (mode == CalendarBannerResolutionMode.scrollingTowardFuture ||
         mode == CalendarBannerResolutionMode.scrollingTowardPast) {
       _lastDirectionalMode = mode;
@@ -340,5 +356,6 @@ final class CalendarScrollCoordinator {
     _disposed = true;
     _pendingReasons.clear();
     _trace.clear();
+    _activeBannerMonth.dispose();
   }
 }

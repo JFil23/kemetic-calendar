@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/calendar_scroll_coordinator.dart';
+import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
+import 'package:mobile/widgets/month_name_text.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -73,6 +75,17 @@ void main() {
 
     expect(coordinator.debugCommittedSampleCount, greaterThan(0));
     expect(coordinator.trace, isNotEmpty);
+    final activeBannerMonth = coordinator.activeBannerMonth.value;
+    final expectedBannerText = getMonthById(
+      activeBannerMonth.month,
+    ).displayShort;
+    final activeBanner = find.byWidgetPredicate(
+      (widget) =>
+          widget is MonthNameText &&
+          widget.key == const Key('scrolling-calendar-month-name') &&
+          widget.text == expectedBannerText,
+    );
+    expect(activeBanner, findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 2));

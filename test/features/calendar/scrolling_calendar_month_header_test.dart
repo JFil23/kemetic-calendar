@@ -1,11 +1,17 @@
+import 'dart:collection';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/calendar/calendar_geometry_snapshot.dart';
+import 'package:mobile/features/calendar/calendar_scroll_coordinator.dart';
+import 'package:mobile/features/calendar/calendar_section_index.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/scrolling_calendar_month_header.dart';
 import 'package:mobile/widgets/month_name_text.dart';
 
 void main() {
-  testWidgets('shows the centered Kemetic month and its year context', (
+  testWidgets('shows the active leading Kemetic month and its year context', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -34,7 +40,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('cross-fades when the centered month changes', (tester) async {
+  testWidgets('cross-fades when the active leading month changes', (
+    tester,
+  ) async {
     Widget subject(int monthId) => MaterialApp(
       home: Scaffold(
         backgroundColor: Colors.black,
@@ -61,6 +69,73 @@ void main() {
     expect(find.text('Šef-Bedet'), findsOneWidget);
     expect(find.text('Peret 2026'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('switches at the buffered leading edge toward the future', (
+    tester,
+  ) async {
+    final rig = _LeadingHeaderRig(initialMonth: _month12, offset: 90);
+    addTearDown(rig.dispose);
+    await tester.pumpWidget(rig.subject());
+    await rig.publishGeometry(tester);
+
+    await rig.scrollTo(tester, 107.999);
+    expect(rig.coordinator.activeBannerMonth.value, _month12);
+    expect(find.text('Mesut-Ra'), findsOneWidget);
+
+    await rig.scrollTo(tester, 108);
+    expect(rig.coordinator.activeBannerMonth.value, _heriu);
+    expect(find.text('Heriu Renpet'), findsOneWidget);
+
+    await rig.scrollTo(tester, 137.999);
+    expect(rig.coordinator.activeBannerMonth.value, _heriu);
+
+    await rig.scrollTo(tester, 138);
+    expect(rig.coordinator.activeBannerMonth.value, _thoth);
+    expect(find.text('Thoth'), findsOneWidget);
+  });
+
+  testWidgets('switches at the buffered leading edge toward the past', (
+    tester,
+  ) async {
+    final rig = _LeadingHeaderRig(initialMonth: _thoth, offset: 180);
+    addTearDown(rig.dispose);
+    await tester.pumpWidget(rig.subject());
+    await rig.publishGeometry(tester);
+
+    await rig.scrollTo(tester, 122.001);
+    expect(rig.coordinator.activeBannerMonth.value, _thoth);
+    expect(find.text('Thoth'), findsOneWidget);
+
+    await rig.scrollTo(tester, 122);
+    expect(rig.coordinator.activeBannerMonth.value, _heriu);
+    expect(find.text('Heriu Renpet'), findsOneWidget);
+
+    await rig.scrollTo(tester, 92.001);
+    expect(rig.coordinator.activeBannerMonth.value, _heriu);
+
+    await rig.scrollTo(tester, 92);
+    expect(rig.coordinator.activeBannerMonth.value, _month12);
+    expect(find.text('Mesut-Ra'), findsOneWidget);
+  });
+
+  test('production banner binds only to coordinator banner authority', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final start = source.indexOf('ValueListenableBuilder<MonthRef>(');
+    final end = source.indexOf('        Expanded(', start);
+    expect(start, greaterThanOrEqualTo(0));
+    expect(end, greaterThan(start));
+    final binding = source.substring(start, end);
+
+    expect(binding, contains('_calendarScrollCoordinator.activeBannerMonth'));
+    expect(binding, contains('activeBannerMonth.year'));
+    expect(binding, contains('activeBannerMonth.month'));
+    expect(binding, isNot(contains('_lastView')));
+    expect(binding, isNot(contains('setState(')));
+    expect(binding, isNot(contains('Restoration')));
+    expect(binding, isNot(contains('Hydration')));
   });
 
   testWidgets('fits long month names on a narrow calendar viewport', (
@@ -90,4 +165,87 @@ void main() {
     expect(find.text('Peret 2026/2027'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+}
+
+final _month12 = MonthRef(year: 4, month: 12);
+final _heriu = MonthRef(year: 4, month: 13);
+final _thoth = MonthRef(year: 5, month: 1);
+
+final _headerSnapshot = CalendarGeometrySnapshot(
+  generation: 1,
+  sections: [
+    _headerGeometry(_month12, 0, 100),
+    _headerGeometry(_heriu, 100, 130),
+    _headerGeometry(_thoth, 130, 230),
+  ],
+);
+
+final class _LeadingHeaderRig {
+  _LeadingHeaderRig({required MonthRef initialMonth, required this.offset})
+    : authoritative = initialMonth {
+    coordinator = CalendarScrollCoordinator(
+      initialBannerMonth: initialMonth,
+      scheduleAfterFrame: _scheduled.addLast,
+      readSnapshot: () => _headerSnapshot,
+      readScrollOffset: () => offset,
+      readAuthoritativeMonth: () => authoritative,
+      readLegacyCandidate: (_) => authoritative,
+    );
+  }
+
+  final ListQueue<VoidCallback> _scheduled = ListQueue<VoidCallback>();
+  double offset;
+  MonthRef authoritative;
+  late final CalendarScrollCoordinator coordinator;
+
+  Widget subject() {
+    return MaterialApp(
+      home: Scaffold(
+        backgroundColor: Colors.black,
+        body: Align(
+          alignment: Alignment.topCenter,
+          child: ValueListenableBuilder<MonthRef>(
+            valueListenable: coordinator.activeBannerMonth,
+            builder: (context, activeMonth, child) {
+              return ScrollingCalendarMonthHeader(
+                month: getMonthById(activeMonth.month),
+                yearLabel: activeMonth.year.toString(),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> publishGeometry(WidgetTester tester) async {
+    coordinator.noteGeometryPublication();
+    _scheduled.removeFirst()();
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> scrollTo(WidgetTester tester, double nextOffset) async {
+    offset = nextOffset;
+    coordinator.noteScroll();
+    _scheduled.removeFirst()();
+    await tester.pumpAndSettle();
+  }
+
+  void dispose() {
+    coordinator.dispose();
+  }
+}
+
+CalendarSectionGeometry _headerGeometry(
+  MonthRef month,
+  num leading,
+  num trailing,
+) {
+  return CalendarSectionGeometry(
+    month: month,
+    extent: CalendarCanonicalExtent(
+      leading: leading.toDouble(),
+      trailing: trailing.toDouble(),
+    ),
+  );
 }

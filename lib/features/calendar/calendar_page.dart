@@ -15526,6 +15526,7 @@ class CalendarPageState extends State<CalendarPage>
     super.initState();
     EndFlowAuthReadiness.instance.ensureBound(Supabase.instance.client);
     _calendarScrollCoordinator = CalendarScrollCoordinator(
+      initialBannerMonth: MonthRef(year: _today.kYear, month: _today.kMonth),
       scheduleAfterFrame: (callback) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           // Run after the current frame's legacy post-frame writers, while
@@ -31975,16 +31976,20 @@ class CalendarPageState extends State<CalendarPage>
 
     final scrollView = _buildCalendarScrollView();
 
-    final visibleMonth = getMonthById(_lastViewKm ?? _today.kMonth);
-    final visibleMonthYear = _gregYearLabelFor(
-      _lastViewKy ?? _today.kYear,
-      visibleMonth.id,
-    );
     final content = Column(
       children: [
-        ScrollingCalendarMonthHeader(
-          month: visibleMonth,
-          yearLabel: visibleMonthYear,
+        ValueListenableBuilder<MonthRef>(
+          valueListenable: _calendarScrollCoordinator.activeBannerMonth,
+          builder: (context, activeBannerMonth, child) {
+            final visibleMonth = getMonthById(activeBannerMonth.month);
+            return ScrollingCalendarMonthHeader(
+              month: visibleMonth,
+              yearLabel: _gregYearLabelFor(
+                activeBannerMonth.year,
+                activeBannerMonth.month,
+              ),
+            );
+          },
         ),
         Expanded(
           child: PinchGestureSurface(
