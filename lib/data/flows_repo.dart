@@ -417,15 +417,13 @@ class FlowsRepo {
     if (user == null) return const [];
     final cacheGeneration = _filedFlowsCacheGenerations[user.id] ?? 0;
 
-    final rpcResponse = await _client.rpc(
-      'get_my_filed_flows_v1',
-      params: {'p_limit': limit},
-    );
-    final rows = switch (rpcResponse) {
-      List<dynamic>() => rpcResponse,
-      Map() => <dynamic>[rpcResponse],
-      _ => const <dynamic>[],
-    };
+    final query = _client
+        .from('flow_filing_items_client')
+        .select()
+        .eq('user_id', user.id)
+        .order('created_at', ascending: false);
+    final rows =
+        await (limit == null ? query : query.limit(limit)) as List<dynamic>;
     final inflated = await _inflateFlowRows(
       rows.cast<Map<String, dynamic>>(),
       userId: user.id,
@@ -457,13 +455,9 @@ class FlowsRepo {
       ));
     }
     final flowIdSet = flowIds.toSet();
-    final requestedFlowIds = flowIdSet.toList()..sort();
 
     try {
-      final rpcResponse = await _client.rpc(
-        'get_my_flow_activity_v1',
-        params: {'p_flow_ids': requestedFlowIds},
-      );
+      final rpcResponse = await _client.rpc('get_my_flow_activity');
       final rows = switch (rpcResponse) {
         List<dynamic>() => rpcResponse.cast<dynamic>(),
         Map() => [rpcResponse],
@@ -492,13 +486,11 @@ class FlowsRepo {
           : _eventCountsFromFlowRows(cachedRows, onlyFlowIds: flowIdSet);
       if (cachedCounts.total.isNotEmpty || cachedCounts.remaining.isNotEmpty) {
         _log(
-          'get_my_flow_activity_v1 unavailable, using cached filing counts: $e',
+          'get_my_flow_activity unavailable, using cached filing counts: $e',
         );
         return HydrationFetchResult.failed(cachedCounts);
       }
-      _log(
-        'get_my_flow_activity_v1 unavailable, preserving current counts: $e',
-      );
+      _log('get_my_flow_activity unavailable, preserving current counts: $e');
       return const HydrationFetchResult.failed((
         total: <int, int>{},
         remaining: <int, int>{},

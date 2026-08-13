@@ -123,7 +123,7 @@ void main() {
   });
 
   group('flow ledger hydration', () {
-    test('uses filed flow row counts without a second activity RPC', () {
+    test('uses filing view counts without the activity RPC', () {
       final source = File('lib/data/flows_repo.dart').readAsStringSync();
       final match = RegExp(
         r'Future<FlowLedger<FlowRow>> loadMyFlowLedger\(\) async \{([\s\S]*?)\n  \}',
@@ -137,68 +137,12 @@ void main() {
     });
   });
 
-  group('filed flow hydration', () {
-    test(
-      'uses the set-based filed-flows RPC instead of the filing view',
-      () async {
-        final httpClient = _ActivityClient(
-          fail: false,
-          responseBody: <Object?>[
-            <String, Object?>{
-              'id': 7,
-              'user_id': _userId,
-              'calendar_id': null,
-              'name': 'Bounded flow',
-              'color': 0x4DD0E1,
-              'active': true,
-              'is_saved': false,
-              'start_date': null,
-              'end_date': null,
-              'notes': null,
-              'rules': const <Object?>[],
-              'is_hidden': false,
-              'is_reminder': false,
-              'visible_in_active_list': true,
-              'visible_in_saved_list': false,
-              'total_event_count': 12,
-              'remaining_event_count': 4,
-              'remaining_live_event_count': 4,
-            },
-          ],
-        );
-        final client = SupabaseClient(
-          'https://example.supabase.test',
-          'test-anon-key',
-          httpClient: httpClient,
-          authOptions: const AuthClientOptions(autoRefreshToken: false),
-        );
-        try {
-          await client.auth.recoverSession(_sessionJson());
-          final rows = await FlowsRepo(client).refreshMyFiledFlows(limit: 10);
-
-          expect(rows, hasLength(1));
-          expect(rows.single.id, 7);
-          expect(rows.single.remainingLiveEventCount, 4);
-          expect(
-            httpClient.lastRequestPath,
-            '/rest/v1/rpc/get_my_filed_flows_v1',
-          );
-          expect(httpClient.lastRequestBody, <String, Object?>{'p_limit': 10});
-          expect(httpClient.requestCount, 1);
-        } finally {
-          client.dispose();
-        }
-      },
-    );
-  });
-
   group('activity hydration outcomes', () {
     test('reports successful empty activity distinctly', () async {
-      final httpClient = _ActivityClient(fail: false);
       final client = SupabaseClient(
         'https://example.supabase.test',
         'test-anon-key',
-        httpClient: httpClient,
+        httpClient: _ActivityClient(fail: false),
         authOptions: const AuthClientOptions(autoRefreshToken: false),
       );
       try {
@@ -210,48 +154,6 @@ void main() {
         expect(result.status, HydrationFetchStatus.successfulEmpty);
         expect(result.value.total, isEmpty);
         expect(result.value.remaining, isEmpty);
-        expect(
-          httpClient.lastRequestPath,
-          '/rest/v1/rpc/get_my_flow_activity_v1',
-        );
-        expect(httpClient.lastRequestBody, <String, Object?>{
-          'p_flow_ids': <int>[1],
-        });
-      } finally {
-        client.dispose();
-      }
-    });
-
-    test('bounds activity to unique sorted requested flow ids', () async {
-      final httpClient = _ActivityClient(
-        fail: false,
-        responseBody: const <Object?>[
-          <String, Object?>{
-            'flow_id': 7,
-            'total_event_count': 12,
-            'remaining_event_count': 4,
-            'is_counted_active': true,
-          },
-        ],
-      );
-      final client = SupabaseClient(
-        'https://example.supabase.test',
-        'test-anon-key',
-        httpClient: httpClient,
-        authOptions: const AuthClientOptions(autoRefreshToken: false),
-      );
-      try {
-        await client.auth.recoverSession(_sessionJson());
-        final result = await FlowsRepo(
-          client,
-        ).loadMyFlowEventCounts(flowIds: const <int>[7, 3, 7]);
-
-        expect(result.status, HydrationFetchStatus.successNonempty);
-        expect(result.value.total, <int, int>{7: 12});
-        expect(result.value.remaining, <int, int>{7: 4});
-        expect(httpClient.lastRequestBody, <String, Object?>{
-          'p_flow_ids': <int>[3, 7],
-        });
       } finally {
         client.dispose();
       }
@@ -322,23 +224,14 @@ void main() {
 }
 
 class _ActivityClient extends http.BaseClient {
-  _ActivityClient({required this.fail, this.responseBody = const <Object?>[]});
+  _ActivityClient({required this.fail});
 
   final bool fail;
-  final Object? responseBody;
   int requestCount = 0;
-  String? lastRequestPath;
-  Map<String, Object?>? lastRequestBody;
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     requestCount++;
-    lastRequestPath = request.url.path;
-    if (request is http.Request && request.body.isNotEmpty) {
-      lastRequestBody = Map<String, Object?>.from(
-        jsonDecode(request.body) as Map,
-      );
-    }
     if (fail) {
       return _response(request, const <String, Object?>{
         'message': 'fixture failure',
@@ -347,7 +240,7 @@ class _ActivityClient extends http.BaseClient {
         'hint': null,
       }, statusCode: 500);
     }
-    return _response(request, responseBody);
+    return _response(request, const <Object?>[]);
   }
 
   http.StreamedResponse _response(
