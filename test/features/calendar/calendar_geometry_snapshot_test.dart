@@ -123,11 +123,35 @@ void main() {
       expect(snapshot.ownerAt(250), MonthRef(year: 1, month: 3));
     });
 
+    test('canonicalizes only floating-point drift at adjacent boundaries', () {
+      final snapshot = CalendarGeometrySnapshot(
+        generation: 1,
+        sections: [
+          _geometry(1, 1, 0, 100.0000000000003),
+          _geometry(1, 2, 100, 200),
+        ],
+      );
+
+      expect(snapshot.sections[1].extent.leading, 100.0000000000003);
+      expect(
+        snapshot.sections[0].extent.trailing,
+        snapshot.sections[1].extent.leading,
+      );
+      expect(snapshot.ownerAt(100.0000000000003), MonthRef(year: 1, month: 2));
+    });
+
     test('rejects duplicate, reversed, and overlapping entries', () {
       expect(
         () => CalendarGeometrySnapshot(
           generation: 1,
           sections: [_geometry(1, 1, 0, 100), _geometry(1, 1, 100, 200)],
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => CalendarGeometrySnapshot(
+          generation: 1,
+          sections: [_geometry(1, 1, 0, 100), _geometry(1, 2, 99.999, 200)],
         ),
         throwsArgumentError,
       );

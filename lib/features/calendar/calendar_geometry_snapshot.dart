@@ -108,6 +108,8 @@ final class CalendarSectionGeometry {
 
 /// Immutable, generation-tagged geometry published as one atomic value.
 final class CalendarGeometrySnapshot {
+  static const double boundaryTolerance = 0.000001;
+
   factory CalendarGeometrySnapshot({
     required int generation,
     required Iterable<CalendarSectionGeometry> sections,
@@ -117,18 +119,20 @@ final class CalendarGeometrySnapshot {
       throw RangeError.value(generation, 'generation', 'must be non-negative');
     }
 
-    final copied = List<CalendarSectionGeometry>.of(sections);
+    final source = List<CalendarSectionGeometry>.of(sections);
+    final copied = <CalendarSectionGeometry>[];
     final byMonth = <MonthRef, CalendarSectionGeometry>{};
     CalendarSectionGeometry? previous;
 
-    for (final current in copied) {
-      if (byMonth.containsKey(current.month)) {
+    for (final candidate in source) {
+      if (byMonth.containsKey(candidate.month)) {
         throw ArgumentError.value(
-          current.month,
+          candidate.month,
           'sections',
           'contains a duplicate month',
         );
       }
+      var current = candidate;
       if (previous case final prior?) {
         if (index.distance(prior.month, current.month) <= 0) {
           throw ArgumentError.value(
@@ -137,7 +141,16 @@ final class CalendarGeometrySnapshot {
             'logical months must be strictly chronological',
           );
         }
-        if (current.extent.leading < prior.extent.trailing) {
+        final boundaryDelta = current.extent.leading - prior.extent.trailing;
+        if (boundaryDelta.abs() <= boundaryTolerance) {
+          current = CalendarSectionGeometry(
+            month: current.month,
+            extent: CalendarCanonicalExtent(
+              leading: prior.extent.trailing,
+              trailing: current.extent.trailing,
+            ),
+          );
+        } else if (boundaryDelta < 0) {
           throw ArgumentError.value(
             current.extent,
             'sections',
@@ -145,6 +158,7 @@ final class CalendarGeometrySnapshot {
           );
         }
       }
+      copied.add(current);
       byMonth[current.month] = current;
       previous = current;
     }

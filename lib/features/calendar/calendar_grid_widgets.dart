@@ -71,456 +71,107 @@ class _YearSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const _SeasonHeader(title: 'Flood season (Akhet)'),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(1),
-          monthHeaderKey: monthHeaderKeyProvider?.call(1),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 1,
-          seasonShort: 'Akhet',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 1),
-          onDecanTap: onDecanTap == null
-              ? null
-              : (context, decanIndex) => onDecanTap!(context, 1, decanIndex),
-        ),
-        const _GoldDivider(),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(2),
-          monthHeaderKey: monthHeaderKeyProvider?.call(2),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 2,
-          seasonShort: 'Akhet',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 2),
-          onDecanTap: onDecanTap == null
-              ? null
-              : (context, decanIndex) => onDecanTap!(context, 2, decanIndex),
-        ),
-        const _GoldDivider(),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(3),
-          monthHeaderKey: monthHeaderKeyProvider?.call(3),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 3,
-          seasonShort: 'Akhet',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 3),
-          onDecanTap: onDecanTap == null
-              ? null
-              : (context, decanIndex) => onDecanTap!(context, 3, decanIndex),
-        ),
-        const _GoldDivider(),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(4),
-          monthHeaderKey: monthHeaderKeyProvider?.call(4),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 4,
-          seasonShort: 'Akhet',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 4),
-          onDecanTap: onDecanTap == null
-              ? null
-              : (context, decanIndex) => onDecanTap!(context, 4, decanIndex),
-        ),
-        const _GoldDivider(),
-
-        const _SeasonHeader(title: 'Emergence season (Peret)'),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(5),
-          monthHeaderKey: monthHeaderKeyProvider?.call(5),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 5,
-          seasonShort: 'Peret',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 5),
-          onDecanTap: onDecanTap == null
-              ? null
-              : (context, decanIndex) => onDecanTap!(context, 5, decanIndex),
-        ),
-        const _GoldDivider(),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(6),
-          monthHeaderKey: monthHeaderKeyProvider?.call(6),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 6,
-          seasonShort: 'Peret',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 6),
-          onDecanTap: onDecanTap == null
-              ? null
-              : (context, decanIndex) => onDecanTap!(context, 6, decanIndex),
-        ),
-        const _GoldDivider(),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(7),
-          monthHeaderKey: monthHeaderKeyProvider?.call(7),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 7,
-          seasonShort: 'Peret',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 7),
-          onDecanTap: onDecanTap == null
-              ? null
-              : (context, decanIndex) => onDecanTap!(context, 7, decanIndex),
-        ),
-        const _GoldDivider(),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(8),
-          monthHeaderKey: monthHeaderKeyProvider?.call(8),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 8,
-          seasonShort: 'Peret',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 8),
-          onDecanTap: onDecanTap == null
-              ? null
-              : (context, decanIndex) => onDecanTap!(context, 8, decanIndex),
-        ),
-        const _GoldDivider(),
-
-        const _SeasonHeader(title: 'Harvest season (Shemu)'),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(9),
-          monthHeaderKey: monthHeaderKeyProvider?.call(9),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 9,
-          seasonShort: 'Shemu',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 9),
-          onDecanTap: onDecanTap == null
-              ? null
-              : (context, decanIndex) => onDecanTap!(context, 9, decanIndex),
-        ),
-        const _GoldDivider(),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(10),
-          monthHeaderKey: monthHeaderKeyProvider?.call(10),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 10,
-          seasonShort: 'Shemu',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 10),
-          onDecanTap: onDecanTap == null
-              ? null
-              : (context, decanIndex) => onDecanTap!(context, 10, decanIndex),
-        ),
-        const _GoldDivider(),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(11),
-          monthHeaderKey: monthHeaderKeyProvider?.call(11),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 11,
-          seasonShort: 'Shemu',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 11),
-          onDecanTap: onDecanTap == null
-              ? null
-              : (context, decanIndex) => onDecanTap!(context, 11, decanIndex),
-        ),
-        const _GoldDivider(),
-        _MonthCard(
-          anchorKey: monthAnchorKeyProvider?.call(12),
-          monthHeaderKey: monthHeaderKeyProvider?.call(12),
-          dayAnchorKeyProvider: dayAnchorKeyProvider,
-          kYear: kYear,
-          kMonth: 12,
-          seasonShort: 'Shemu',
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: notesGetter,
-          flowColorsGetter: flowColorsGetter,
-          temporalAnchorVisible: temporalAnchorVisible,
-          onDayTap: onDayTap,
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-          onMonthHeaderTap: onMonthHeaderTap == null
-              ? null
-              : (context) => onMonthHeaderTap!(context, 12),
-          onDecanTap: onDecanTap == null
-              ? null
-              : (context, decanIndex) => onDecanTap!(context, 12, decanIndex),
-        ),
-        const _GoldDivider(),
-
-        _EpagomenalCard(
-          kYear: kYear,
-          todayMonth: tm,
-          todayDay: td,
-          todayDayKey: todayDayKey,
-          notesGetter: (m, d) => notesGetter(13, d),
-          flowColorsGetter: flowColorsGetter,
-          onDayTap: (c, m, d) => onDayTap(c, 13, d),
-          showGregorian: showGregorian,
-          expansionLevel: expansionLevel,
-          noteColorResolver: noteColorResolver,
-          flowNameGetter: flowNameGetter,
-          onManageFlows: onManageFlows,
-          onEditNote: onEditNote,
-          onDeleteNote: onDeleteNote,
-          onShareNote: onShareNote,
-          onEditReminder: onEditReminder,
-          onEndReminder: onEndReminder,
-          onShareReminder: onShareReminder,
-          onEndFlow: onEndFlow,
-          onAppendToJournal: onAppendToJournal,
-        ),
-        const _GoldDivider(),
+        for (
+          var kMonth = 1;
+          kMonth <= CalendarSectionIndex.monthsPerYear;
+          kMonth++
+        )
+          _buildMonthSection(kMonth, tm, td),
       ],
+    );
+  }
+
+  Widget _buildMonthSection(int kMonth, int? tm, int? td) {
+    final seasonHeader = switch (kMonth) {
+      1 => 'Flood season (Akhet)',
+      5 => 'Emergence season (Peret)',
+      9 => 'Harvest season (Shemu)',
+      _ => null,
+    };
+
+    return CalendarGeometrySection(
+      month: MonthRef(year: kYear, month: kMonth),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const _GoldDivider(),
+          if (seasonHeader != null) _SeasonHeader(title: seasonHeader),
+          _buildMonthBody(kMonth, tm, td),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMonthBody(int kMonth, int? tm, int? td) {
+    if (kMonth == CalendarSectionIndex.monthsPerYear) {
+      return _EpagomenalCard(
+        anchorKey: monthAnchorKeyProvider?.call(kMonth),
+        monthHeaderKey: monthHeaderKeyProvider?.call(kMonth),
+        dayAnchorKeyProvider: dayAnchorKeyProvider,
+        kYear: kYear,
+        todayMonth: tm,
+        todayDay: td,
+        todayDayKey: todayDayKey,
+        notesGetter: notesGetter,
+        flowColorsGetter: flowColorsGetter,
+        onDayTap: onDayTap,
+        showGregorian: showGregorian,
+        temporalAnchorVisible: temporalAnchorVisible,
+        expansionLevel: expansionLevel,
+        noteColorResolver: noteColorResolver,
+        flowNameGetter: flowNameGetter,
+        onManageFlows: onManageFlows,
+        onEditNote: onEditNote,
+        onDeleteNote: onDeleteNote,
+        onShareNote: onShareNote,
+        onEditReminder: onEditReminder,
+        onEndReminder: onEndReminder,
+        onShareReminder: onShareReminder,
+        onEndFlow: onEndFlow,
+        onAppendToJournal: onAppendToJournal,
+      );
+    }
+
+    final seasonShort = switch (kMonth) {
+      >= 1 && <= 4 => 'Akhet',
+      >= 5 && <= 8 => 'Peret',
+      >= 9 && <= 12 => 'Shemu',
+      _ => throw StateError('Unsupported ordinary month: $kMonth'),
+    };
+
+    return _MonthCard(
+      anchorKey: monthAnchorKeyProvider?.call(kMonth),
+      monthHeaderKey: monthHeaderKeyProvider?.call(kMonth),
+      dayAnchorKeyProvider: dayAnchorKeyProvider,
+      kYear: kYear,
+      kMonth: kMonth,
+      seasonShort: seasonShort,
+      todayMonth: tm,
+      todayDay: td,
+      todayDayKey: todayDayKey,
+      notesGetter: notesGetter,
+      flowColorsGetter: flowColorsGetter,
+      temporalAnchorVisible: temporalAnchorVisible,
+      onDayTap: onDayTap,
+      showGregorian: showGregorian,
+      expansionLevel: expansionLevel,
+      noteColorResolver: noteColorResolver,
+      flowNameGetter: flowNameGetter,
+      onManageFlows: onManageFlows,
+      onEditNote: onEditNote,
+      onDeleteNote: onDeleteNote,
+      onShareNote: onShareNote,
+      onEditReminder: onEditReminder,
+      onEndReminder: onEndReminder,
+      onShareReminder: onShareReminder,
+      onEndFlow: onEndFlow,
+      onAppendToJournal: onAppendToJournal,
+      onMonthHeaderTap: onMonthHeaderTap == null
+          ? null
+          : (context) => onMonthHeaderTap!(context, kMonth),
+      onDecanTap: onDecanTap == null
+          ? null
+          : (context, decanIndex) => onDecanTap!(context, kMonth, decanIndex),
     );
   }
 }
@@ -2893,6 +2544,9 @@ class _MiniEventBlock extends StatelessWidget {
 
 class _EpagomenalCard extends StatelessWidget {
   const _EpagomenalCard({
+    this.anchorKey,
+    this.monthHeaderKey,
+    this.dayAnchorKeyProvider,
     required this.kYear,
     this.todayMonth,
     this.todayDay,
@@ -2900,6 +2554,7 @@ class _EpagomenalCard extends StatelessWidget {
     required this.flowColorsGetter,
     required this.onDayTap,
     required this.showGregorian,
+    this.temporalAnchorVisible = true,
     this.expansionLevel = MonthExpansionLevel.compact,
     this.noteColorResolver = _defaultNoteColor,
     this.flowNameGetter,
@@ -2915,6 +2570,9 @@ class _EpagomenalCard extends StatelessWidget {
     this.todayDayKey,
   });
 
+  final Key? anchorKey;
+  final Key? monthHeaderKey;
+  final Key? Function(int kMonth, int kDay)? dayAnchorKeyProvider;
   final int kYear;
   final int? todayMonth;
   final int? todayDay;
@@ -2923,6 +2581,7 @@ class _EpagomenalCard extends StatelessWidget {
   final void Function(BuildContext, int kMonth, int kDay) onDayTap;
   final Key? todayDayKey;
   final bool showGregorian;
+  final bool temporalAnchorVisible;
   final MonthExpansionLevel expansionLevel;
   final Color Function(_Note) noteColorResolver;
   final String? Function(_Note)? flowNameGetter;
@@ -3026,6 +2685,7 @@ class _EpagomenalCard extends StatelessWidget {
     final double epagomenalHeight = epagomenalHeightForLayout();
 
     return Padding(
+      key: anchorKey,
       padding: EdgeInsets.fromLTRB(
         _kMonthCardHorizontalInset,
         6,
@@ -3052,11 +2712,14 @@ class _EpagomenalCard extends StatelessWidget {
                     maintainState: true,
                     maintainAnimation: true,
                     maintainSize: true, // keep height so layout doesn't jump
-                    child: _SoftMonthNameTitle(
-                      shortName: epagomenalMeta.displayShort,
-                      transliteration: epagomenalMeta.displayTransliteration,
-                      fontSize: _CalendarScale.monthTitleMain,
-                      opacity: 0.96,
+                    child: RepaintBoundary(
+                      key: monthHeaderKey,
+                      child: _SoftMonthNameTitle(
+                        shortName: epagomenalMeta.displayShort,
+                        transliteration: epagomenalMeta.displayTransliteration,
+                        fontSize: _CalendarScale.monthTitleMain,
+                        opacity: 0.96,
+                      ),
                     ),
                   ),
                   const Spacer(),
@@ -3098,6 +2761,10 @@ class _EpagomenalCard extends StatelessWidget {
                         anchorKey: isMonthToday && (todayDay == i + 1)
                             ? todayDayKey
                             : null, // 🔑
+                        highlightAnchorKey: dayAnchorKeyProvider?.call(
+                          13,
+                          i + 1,
+                        ),
                         label: showGregorian
                             ? '${KemeticMath.toGregorian(kYear, 13, i + 1).day}'
                             : '${i + 1}',
@@ -3105,7 +2772,7 @@ class _EpagomenalCard extends StatelessWidget {
                         tone: _calendarDayTone(
                           isToday: isMonthToday && (todayDay == i + 1),
                           isMonthToday: isMonthToday,
-                          temporalAnchorVisible: true,
+                          temporalAnchorVisible: temporalAnchorVisible,
                           day: i + 1,
                           todayDay: todayDay,
                         ),

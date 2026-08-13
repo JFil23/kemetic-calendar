@@ -112,6 +112,8 @@ import '../../utils/external_link_utils.dart';
 import 'calendar_invalidation.dart';
 import 'calendar_hydration_diagnostics.dart';
 import 'calendar_hydration_status_banner.dart';
+import 'calendar_geometry_collector.dart';
+import 'calendar_section_index.dart';
 import 'calendar_pending_note_store.dart';
 import 'scrolling_calendar_month_header.dart';
 import 'end_flow_diagnostics.dart';
@@ -4057,6 +4059,8 @@ class CalendarPage extends StatefulWidget {
   static bool debugDisableTodayNavigationRetry = false;
   @visibleForTesting
   static DateTime? debugReminderSyncTodayForTesting;
+  @visibleForTesting
+  static DateTime? debugCalendarTodayForTesting;
   @visibleForTesting
   static DateTime? debugReminderSyncWindowEndForTesting;
   @visibleForTesting
@@ -10151,8 +10155,9 @@ class CalendarPageState extends State<CalendarPage>
 
   /* ───── today + notes + flows state ───── */
 
-  ({int kYear, int kMonth, int kDay}) get _today =>
-      KemeticMath.fromGregorian(DateTime.now());
+  ({int kYear, int kMonth, int kDay}) get _today => KemeticMath.fromGregorian(
+    CalendarPage.debugCalendarTodayForTesting ?? DateTime.now(),
+  );
 
   final Map<String, List<_Note>> _notes = {};
   // Tracks deletions in flight to prevent hydration from resurrecting notes.
@@ -10175,6 +10180,38 @@ class CalendarPageState extends State<CalendarPage>
   int _nextFlowId = 1;
   // Removed _nextAlarmId; notifications are persisted via Notify.scheduleAlertWithPersistence
   final ScrollController _scrollCtrl = ScrollController();
+  final CalendarGeometryCollector _calendarGeometryCollector =
+      CalendarGeometryCollector();
+  @visibleForTesting
+  CalendarGeometryCollector get debugCalendarGeometryCollector =>
+      _calendarGeometryCollector;
+  @visibleForTesting
+  void debugShowCalendarShellForTesting() {
+    if (_restored) return;
+    setState(() {
+      _lastViewKy = _today.kYear;
+      _lastViewKm = _today.kMonth;
+      _lastViewKd = _today.kDay;
+      _restored = true;
+      _initialViewportSettled = true;
+    });
+  }
+
+  @visibleForTesting
+  void debugHandlePortraitMonthChangedForTesting({
+    required int kYear,
+    required int kMonth,
+    required int currentDay,
+  }) {
+    _lastViewKd = currentDay;
+    _isUpdatingFromLandscape = false;
+    _isUpdatingFromPortrait = false;
+    _handlePortraitMonthChanged(kYear, kMonth);
+  }
+
+  @visibleForTesting
+  int? get debugLastViewDay => _lastViewKd;
+
   MonthExpansionLevel _monthExpansion = MonthExpansionLevel.compact;
   MonthExpansionLevel? _monthExpansionRestorationTarget;
   bool _currentDecanVisibleInViewport = true;
@@ -18805,6 +18842,7 @@ class CalendarPageState extends State<CalendarPage>
       unawaited(_persistDayViewState(dayViewState, reason: 'calendar_dispose'));
     }
     _scrollCtrl.dispose();
+    _calendarGeometryCollector.dispose();
     _dayViewDataVersion.dispose();
     _dayViewHydrationActivation.dispose();
     _dayViewHydrationStatus.dispose();
@@ -32409,175 +32447,180 @@ class CalendarPageState extends State<CalendarPage>
     final kToday = _today;
 
     // ✅ FIX 4: Wrap with NotificationListener to capture scroll-end events
-    return NotificationListener<ScrollNotification>(
-      onNotification: (notification) {
-        if (!_initialViewportSettled) return false;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          _refreshCurrentDecanViewportAnchor();
-        });
-        if (notification is ScrollEndNotification) {
-          if (_scrollCtrl.hasClients) {
-            _lastKnownCalendarScrollOffset = _scrollCtrl.position.pixels;
-          }
-          // ✅ Only update centered month when scrolling STOPS
+    return CalendarGeometryCollectorScope(
+      collector: _calendarGeometryCollector,
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          if (!_initialViewportSettled) return false;
           WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted || !_initialViewportSettled) return;
-
-            final centered = _computeCenteredMonthPrecisely();
-            if (centered.$1 != _lastViewKy || centered.$2 != _lastViewKm) {
-              _handlePortraitMonthChanged(centered.$1, centered.$2);
-            }
-            _scheduleCalendarRestorationSave(reason: 'calendar_scroll_end');
-            _scheduleRenderedViewportHydration(reason: 'scroll_end');
+            _refreshCurrentDecanViewportAnchor();
           });
-        }
-        return false;
-      },
-      child: CustomScrollView(
-        key: const PageStorageKey('calendar_portrait_scroll'),
-        controller: _scrollCtrl,
-        anchor: 0.0, // start the center sliver at the top on cold open
-        center: _centerKey, // current Kemetic year is the center
-        slivers: [
-          // PAST years
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (ctx, i) {
-                final kYear = kToday.kYear - (i + 1);
-                return _YearSection(
-                  kYear: kYear,
-                  todayMonth: null,
-                  todayDay: null,
-                  todayDayKey: null, // no anchor in past/future lists
-                  monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
-                  monthHeaderKeyProvider: (m) => keyForMonthHeader(kYear, m),
-                  dayAnchorKeyProvider: (m, d) =>
-                      _calendarDayAnchorKeyFor(kYear, m, d),
-                  onMonthHeaderTap: (context, kMonth) =>
-                      _handleMonthHeaderTapped(context, kYear, kMonth),
-                  onDecanTap: (context, kMonth, decanIndex) =>
-                      _handleDecanHeaderTapped(
-                        context,
-                        kYear,
-                        kMonth,
-                        decanIndex,
-                      ),
-                  onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
-                  notesGetter: (m, d) => _getNotes(kYear, m, d),
-                  flowColorsGetter: (ky, km, kd) =>
-                      getFlowColorsForDay(ky, km, kd),
-                  showGregorian: _showGregorian,
-                  expansionLevel: _monthExpansion,
-                  noteColorResolver: _noteColor,
-                  flowNameGetter: _flowName,
-                  onManageFlows: _getMyFlowsCallback(),
-                  onEditNote: (ky, km, kd, evt) async =>
-                      _editNoteByEvent(ky, km, kd, evt),
-                  onDeleteNote: (ky, km, kd, evt) async =>
-                      _deleteNoteByEvent(ky, km, kd, evt),
-                  onShareNote: (evt) async => _shareNoteSimple(evt),
-                  onEditReminder: (id) async => _editReminderById(id),
-                  onEndReminder: (id) async => _endReminderRule(id),
-                  onShareReminder: (evt) async => _shareNoteSimple(evt),
-                  onEndFlow: (id) => _endFlow(id),
-                  onAppendToJournal: _appendToJournalAndRefresh,
-                );
-              },
-              childCount: 200, //
-            ),
-          ),
+          if (notification is ScrollEndNotification) {
+            if (_scrollCtrl.hasClients) {
+              _lastKnownCalendarScrollOffset = _scrollCtrl.position.pixels;
+            }
+            // ✅ Only update centered month when scrolling STOPS
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted || !_initialViewportSettled) return;
 
-          // CENTER: current Kemetic year
-          SliverToBoxAdapter(
-            key: _centerKey,
-            child: _YearSection(
-              kYear: kToday.kYear,
-              todayMonth: kToday.kMonth,
-              todayDay: kToday.kDay,
-              temporalAnchorVisible: _currentDecanVisibleInViewport,
-              monthAnchorKeyProvider: (m) => keyForMonth(kToday.kYear, m),
-              monthHeaderKeyProvider: (m) => keyForMonthHeader(kToday.kYear, m),
-              dayAnchorKeyProvider: (m, d) =>
-                  _calendarDayAnchorKeyFor(kToday.kYear, m, d),
-              todayDayKey: _todayDayKey, // 🔑 pass day anchor
-              onMonthHeaderTap: (context, kMonth) =>
-                  _handleMonthHeaderTapped(context, kToday.kYear, kMonth),
-              onDecanTap: (context, kMonth, decanIndex) =>
-                  _handleDecanHeaderTapped(
-                    context,
-                    kToday.kYear,
-                    kMonth,
-                    decanIndex,
-                  ),
-              onDayTap: (c, m, d) => _openDayView(c, kToday.kYear, m, d),
-              notesGetter: (m, d) => _getNotes(kToday.kYear, m, d),
-              flowColorsGetter: (ky, km, kd) => getFlowColorsForDay(ky, km, kd),
-              showGregorian: _showGregorian,
-              expansionLevel: _monthExpansion,
-              noteColorResolver: _noteColor,
-              flowNameGetter: _flowName,
-              onManageFlows: _getMyFlowsCallback(),
-              onEditNote: (ky, km, kd, evt) async =>
-                  _editNoteByEvent(ky, km, kd, evt),
-              onDeleteNote: (ky, km, kd, evt) async =>
-                  _deleteNoteByEvent(ky, km, kd, evt),
-              onShareNote: (evt) async => _shareNoteSimple(evt),
-              onEditReminder: (id) async => _editReminderById(id),
-              onEndReminder: (id) async => _endReminderRule(id),
-              onShareReminder: (evt) async => _shareNoteSimple(evt),
-              onEndFlow: (id) => _endFlow(id),
-              onAppendToJournal: _appendToJournalAndRefresh,
+              final centered = _computeCenteredMonthPrecisely();
+              if (centered.$1 != _lastViewKy || centered.$2 != _lastViewKm) {
+                _handlePortraitMonthChanged(centered.$1, centered.$2);
+              }
+              _scheduleCalendarRestorationSave(reason: 'calendar_scroll_end');
+              _scheduleRenderedViewportHydration(reason: 'scroll_end');
+            });
+          }
+          return false;
+        },
+        child: CustomScrollView(
+          key: const PageStorageKey('calendar_portrait_scroll'),
+          controller: _scrollCtrl,
+          anchor: 0.0, // start the center sliver at the top on cold open
+          center: _centerKey, // current Kemetic year is the center
+          slivers: [
+            // PAST years
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (ctx, i) {
+                  final kYear = kToday.kYear - (i + 1);
+                  return _YearSection(
+                    kYear: kYear,
+                    todayMonth: null,
+                    todayDay: null,
+                    todayDayKey: null, // no anchor in past/future lists
+                    monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
+                    monthHeaderKeyProvider: (m) => keyForMonthHeader(kYear, m),
+                    dayAnchorKeyProvider: (m, d) =>
+                        _calendarDayAnchorKeyFor(kYear, m, d),
+                    onMonthHeaderTap: (context, kMonth) =>
+                        _handleMonthHeaderTapped(context, kYear, kMonth),
+                    onDecanTap: (context, kMonth, decanIndex) =>
+                        _handleDecanHeaderTapped(
+                          context,
+                          kYear,
+                          kMonth,
+                          decanIndex,
+                        ),
+                    onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
+                    notesGetter: (m, d) => _getNotes(kYear, m, d),
+                    flowColorsGetter: (ky, km, kd) =>
+                        getFlowColorsForDay(ky, km, kd),
+                    showGregorian: _showGregorian,
+                    expansionLevel: _monthExpansion,
+                    noteColorResolver: _noteColor,
+                    flowNameGetter: _flowName,
+                    onManageFlows: _getMyFlowsCallback(),
+                    onEditNote: (ky, km, kd, evt) async =>
+                        _editNoteByEvent(ky, km, kd, evt),
+                    onDeleteNote: (ky, km, kd, evt) async =>
+                        _deleteNoteByEvent(ky, km, kd, evt),
+                    onShareNote: (evt) async => _shareNoteSimple(evt),
+                    onEditReminder: (id) async => _editReminderById(id),
+                    onEndReminder: (id) async => _endReminderRule(id),
+                    onShareReminder: (evt) async => _shareNoteSimple(evt),
+                    onEndFlow: (id) => _endFlow(id),
+                    onAppendToJournal: _appendToJournalAndRefresh,
+                  );
+                },
+                childCount: 200, //
+              ),
             ),
-          ),
 
-          // FUTURE years
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (ctx, i) {
-                final kYear = kToday.kYear + (i + 1);
-                return _YearSection(
-                  kYear: kYear,
-                  todayMonth: null,
-                  todayDay: null,
-                  todayDayKey: null,
-                  monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
-                  monthHeaderKeyProvider: (m) => keyForMonthHeader(kYear, m),
-                  dayAnchorKeyProvider: (m, d) =>
-                      _calendarDayAnchorKeyFor(kYear, m, d),
-                  onMonthHeaderTap: (context, kMonth) =>
-                      _handleMonthHeaderTapped(context, kYear, kMonth),
-                  onDecanTap: (context, kMonth, decanIndex) =>
-                      _handleDecanHeaderTapped(
-                        context,
-                        kYear,
-                        kMonth,
-                        decanIndex,
-                      ),
-                  onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
-                  notesGetter: (m, d) => _getNotes(kYear, m, d),
-                  flowColorsGetter: (ky, km, kd) =>
-                      getFlowColorsForDay(ky, km, kd),
-                  showGregorian: _showGregorian,
-                  expansionLevel: _monthExpansion,
-                  noteColorResolver: _noteColor,
-                  flowNameGetter: _flowName,
-                  onManageFlows: _getMyFlowsCallback(),
-                  onEditNote: (ky, km, kd, evt) async =>
-                      _editNoteByEvent(ky, km, kd, evt),
-                  onDeleteNote: (ky, km, kd, evt) async =>
-                      _deleteNoteByEvent(ky, km, kd, evt),
-                  onShareNote: (evt) async => _shareNoteSimple(evt),
-                  onEditReminder: (id) async => _editReminderById(id),
-                  onEndReminder: (id) async => _endReminderRule(id),
-                  onShareReminder: (evt) async => _shareNoteSimple(evt),
-                  onEndFlow: (id) => _endFlow(id),
-                  onAppendToJournal: _appendToJournalAndRefresh,
-                );
-              },
-              childCount: 200, //
+            // CENTER: current Kemetic year
+            SliverToBoxAdapter(
+              key: _centerKey,
+              child: _YearSection(
+                kYear: kToday.kYear,
+                todayMonth: kToday.kMonth,
+                todayDay: kToday.kDay,
+                temporalAnchorVisible: _currentDecanVisibleInViewport,
+                monthAnchorKeyProvider: (m) => keyForMonth(kToday.kYear, m),
+                monthHeaderKeyProvider: (m) =>
+                    keyForMonthHeader(kToday.kYear, m),
+                dayAnchorKeyProvider: (m, d) =>
+                    _calendarDayAnchorKeyFor(kToday.kYear, m, d),
+                todayDayKey: _todayDayKey, // 🔑 pass day anchor
+                onMonthHeaderTap: (context, kMonth) =>
+                    _handleMonthHeaderTapped(context, kToday.kYear, kMonth),
+                onDecanTap: (context, kMonth, decanIndex) =>
+                    _handleDecanHeaderTapped(
+                      context,
+                      kToday.kYear,
+                      kMonth,
+                      decanIndex,
+                    ),
+                onDayTap: (c, m, d) => _openDayView(c, kToday.kYear, m, d),
+                notesGetter: (m, d) => _getNotes(kToday.kYear, m, d),
+                flowColorsGetter: (ky, km, kd) =>
+                    getFlowColorsForDay(ky, km, kd),
+                showGregorian: _showGregorian,
+                expansionLevel: _monthExpansion,
+                noteColorResolver: _noteColor,
+                flowNameGetter: _flowName,
+                onManageFlows: _getMyFlowsCallback(),
+                onEditNote: (ky, km, kd, evt) async =>
+                    _editNoteByEvent(ky, km, kd, evt),
+                onDeleteNote: (ky, km, kd, evt) async =>
+                    _deleteNoteByEvent(ky, km, kd, evt),
+                onShareNote: (evt) async => _shareNoteSimple(evt),
+                onEditReminder: (id) async => _editReminderById(id),
+                onEndReminder: (id) async => _endReminderRule(id),
+                onShareReminder: (evt) async => _shareNoteSimple(evt),
+                onEndFlow: (id) => _endFlow(id),
+                onAppendToJournal: _appendToJournalAndRefresh,
+              ),
             ),
-          ),
-        ],
+
+            // FUTURE years
+            SliverList(
+              delegate: SliverChildBuilderDelegate(
+                (ctx, i) {
+                  final kYear = kToday.kYear + (i + 1);
+                  return _YearSection(
+                    kYear: kYear,
+                    todayMonth: null,
+                    todayDay: null,
+                    todayDayKey: null,
+                    monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
+                    monthHeaderKeyProvider: (m) => keyForMonthHeader(kYear, m),
+                    dayAnchorKeyProvider: (m, d) =>
+                        _calendarDayAnchorKeyFor(kYear, m, d),
+                    onMonthHeaderTap: (context, kMonth) =>
+                        _handleMonthHeaderTapped(context, kYear, kMonth),
+                    onDecanTap: (context, kMonth, decanIndex) =>
+                        _handleDecanHeaderTapped(
+                          context,
+                          kYear,
+                          kMonth,
+                          decanIndex,
+                        ),
+                    onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
+                    notesGetter: (m, d) => _getNotes(kYear, m, d),
+                    flowColorsGetter: (ky, km, kd) =>
+                        getFlowColorsForDay(ky, km, kd),
+                    showGregorian: _showGregorian,
+                    expansionLevel: _monthExpansion,
+                    noteColorResolver: _noteColor,
+                    flowNameGetter: _flowName,
+                    onManageFlows: _getMyFlowsCallback(),
+                    onEditNote: (ky, km, kd, evt) async =>
+                        _editNoteByEvent(ky, km, kd, evt),
+                    onDeleteNote: (ky, km, kd, evt) async =>
+                        _deleteNoteByEvent(ky, km, kd, evt),
+                    onShareNote: (evt) async => _shareNoteSimple(evt),
+                    onEditReminder: (id) async => _editReminderById(id),
+                    onEndReminder: (id) async => _endReminderRule(id),
+                    onShareReminder: (evt) async => _shareNoteSimple(evt),
+                    onEndFlow: (id) => _endFlow(id),
+                    onAppendToJournal: _appendToJournalAndRefresh,
+                  );
+                },
+                childCount: 200, //
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
