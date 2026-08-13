@@ -40,7 +40,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('cross-fades when the active leading month changes', (
+  testWidgets('changes the active leading month without animation', (
     tester,
   ) async {
     Widget subject(int monthId) => MaterialApp(
@@ -60,14 +60,10 @@ void main() {
     expect(find.text('Ka-ḥer-Ka'), findsOneWidget);
 
     await tester.pumpWidget(subject(5));
-    await tester.pump(const Duration(milliseconds: 80));
-    expect(find.text('Ka-ḥer-Ka'), findsOneWidget);
-    expect(find.text('Šef-Bedet'), findsOneWidget);
-
-    await tester.pumpAndSettle();
     expect(find.text('Ka-ḥer-Ka'), findsNothing);
     expect(find.text('Šef-Bedet'), findsOneWidget);
     expect(find.text('Peret 2026'), findsOneWidget);
+    expect(find.byType(AnimatedSwitcher), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

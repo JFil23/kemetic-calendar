@@ -7,8 +7,8 @@ import 'kemetic_month_metadata.dart';
 /// Persistent month context for the scrolling calendar.
 ///
 /// The calendar scroll coordinator owns the active top-edge month. This widget
-/// only presents that state, keeping the visual transition independent from
-/// calendar navigation and restoration behavior.
+/// only presents that state, keeping the banner independent from calendar
+/// navigation and restoration behavior.
 class ScrollingCalendarMonthHeader extends StatelessWidget {
   const ScrollingCalendarMonthHeader({
     super.key,
@@ -23,7 +23,6 @@ class ScrollingCalendarMonthHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final monthIdentity = '${month.id}:$yearLabel';
     final seasonAndYear = '${month.season.label} $yearLabel';
 
     return Semantics(
@@ -42,101 +41,85 @@ class ScrollingCalendarMonthHeader extends StatelessWidget {
             ),
           ),
         ),
-        child: ClipRect(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 160),
-            switchInCurve: Curves.easeOut,
-            switchOutCurve: Curves.easeIn,
-            layoutBuilder: (currentChild, previousChildren) => Stack(
-              alignment: Alignment.centerLeft,
-              children: <Widget>[...previousChildren, ?currentChild],
-            ),
-            child: Row(
-              key: ValueKey<String>(monthIdentity),
-              children: [
-                Expanded(
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    alignment: Alignment.centerLeft,
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.baseline,
-                      textBaseline: TextBaseline.alphabetic,
-                      children: [
-                        ShaderMask(
-                          shaderCallback: KemeticGold.gloss.createShader,
-                          blendMode: BlendMode.srcIn,
-                          child: MonthNameText(
-                            month.displayShort,
-                            key: const Key('scrolling-calendar-month-name'),
-                            maxLines: 1,
-                            softWrap: false,
-                            overflow: TextOverflow.fade,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 29,
-                              height: 1,
-                              fontWeight: FontWeight.w600,
-                              fontFamily: 'CormorantGaramond',
-                              fontFamilyFallback: [
-                                'GentiumPlus',
-                                'NotoSans',
-                                'Roboto',
-                              ],
-                            ),
-                          ),
+        child: Row(
+          children: [
+            Expanded(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    ShaderMask(
+                      shaderCallback: KemeticGold.gloss.createShader,
+                      blendMode: BlendMode.srcIn,
+                      child: MonthNameText(
+                        month.displayShort,
+                        key: const Key('scrolling-calendar-month-name'),
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.fade,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 29,
+                          height: 1,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'CormorantGaramond',
+                          fontFamilyFallback: [
+                            'GentiumPlus',
+                            'NotoSans',
+                            'Roboto',
+                          ],
                         ),
-                        if (month.displayTransliteration.trim().isNotEmpty) ...[
-                          const SizedBox(width: 8),
-                          MonthNameText(
-                            '(${month.displayTransliteration})',
-                            maxLines: 1,
-                            softWrap: false,
-                            overflow: TextOverflow.fade,
-                            style: TextStyle(
-                              color: const Color(
-                                0xFFA08648,
-                              ).withValues(alpha: 0.88),
-                              fontSize: 17,
-                              height: 1,
-                              fontWeight: FontWeight.w400,
-                              fontFamily: 'CormorantGaramond',
-                              fontFamilyFallback: const [
-                                'GentiumPlus',
-                                'NotoSans',
-                                'Roboto',
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  seasonAndYear,
-                  key: const Key('scrolling-calendar-season-year'),
-                  maxLines: 1,
-                  softWrap: false,
-                  overflow: TextOverflow.fade,
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    color: const Color(0xFF927842).withValues(alpha: 0.88),
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
-                    fontStyle: FontStyle.italic,
-                    fontFamily: 'CormorantGaramond',
-                    fontFamilyFallback: const [
-                      'GentiumPlus',
-                      'NotoSans',
-                      'Roboto',
+                    if (month.displayTransliteration.trim().isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      MonthNameText(
+                        '(${month.displayTransliteration})',
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.fade,
+                        style: TextStyle(
+                          color: const Color(
+                            0xFFA08648,
+                          ).withValues(alpha: 0.88),
+                          fontSize: 17,
+                          height: 1,
+                          fontWeight: FontWeight.w400,
+                          fontFamily: 'CormorantGaramond',
+                          fontFamilyFallback: const [
+                            'GentiumPlus',
+                            'NotoSans',
+                            'Roboto',
+                          ],
+                        ),
+                      ),
                     ],
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
-          ),
+            const SizedBox(width: 12),
+            Text(
+              seasonAndYear,
+              key: const Key('scrolling-calendar-season-year'),
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.fade,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: const Color(0xFF927842).withValues(alpha: 0.88),
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                fontStyle: FontStyle.italic,
+                fontFamily: 'CormorantGaramond',
+                fontFamilyFallback: const ['GentiumPlus', 'NotoSans', 'Roboto'],
+              ),
+            ),
+          ],
         ),
       ),
     );
