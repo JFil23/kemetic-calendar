@@ -113,6 +113,7 @@ import 'calendar_invalidation.dart';
 import 'calendar_hydration_diagnostics.dart';
 import 'calendar_hydration_status_banner.dart';
 import 'calendar_pending_note_store.dart';
+import 'scrolling_calendar_month_header.dart';
 import 'end_flow_diagnostics.dart';
 export 'end_flow_diagnostics.dart';
 import 'end_flow_visibility_store.dart';
@@ -31875,13 +31876,28 @@ class CalendarPageState extends State<CalendarPage>
 
     final scrollView = _buildCalendarScrollView();
 
-    final content = PinchGestureSurface(
-      enableTouchPinch: allowTouchPinchGestures,
-      enableGlobalScaleGestures: allowGlobalScaleGestures,
-      onScaleStart: _onScaleStart,
-      onScaleUpdate: _onScaleUpdate,
-      onScaleEnd: _onScaleEnd,
-      child: scrollView,
+    final visibleMonth = getMonthById(_lastViewKm ?? _today.kMonth);
+    final visibleMonthYear = _gregYearLabelFor(
+      _lastViewKy ?? _today.kYear,
+      visibleMonth.id,
+    );
+    final content = Column(
+      children: [
+        ScrollingCalendarMonthHeader(
+          month: visibleMonth,
+          yearLabel: visibleMonthYear,
+        ),
+        Expanded(
+          child: PinchGestureSurface(
+            enableTouchPinch: allowTouchPinchGestures,
+            enableGlobalScaleGestures: allowGlobalScaleGestures,
+            onScaleStart: _onScaleStart,
+            onScaleUpdate: _onScaleUpdate,
+            onScaleEnd: _onScaleEnd,
+            child: scrollView,
+          ),
+        ),
+      ],
     );
 
     return Stack(
