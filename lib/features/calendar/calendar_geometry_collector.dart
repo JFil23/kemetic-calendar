@@ -14,6 +14,8 @@ final class CalendarGeometryCollector extends ChangeNotifier {
       <RenderCalendarGeometrySection>{};
   final Set<RenderCalendarGeometryMonthBody> _mountedBodies =
       <RenderCalendarGeometryMonthBody>{};
+  final Set<RenderCalendarGeometryFinalDayBlock> _mountedFinalDayBlocks =
+      <RenderCalendarGeometryFinalDayBlock>{};
 
   CalendarGeometrySnapshot? _snapshot;
   List<CalendarSectionGeometry> _lastCandidate = const [];
@@ -30,6 +32,8 @@ final class CalendarGeometryCollector extends ChangeNotifier {
   int get debugMountedSectionCount => _mountedSections.length;
 
   int get debugMountedBodyCount => _mountedBodies.length;
+
+  int get debugMountedFinalDayBlockCount => _mountedFinalDayBlocks.length;
 
   int get debugScheduledPublicationCount => _scheduledPublicationCount;
 
@@ -83,6 +87,28 @@ final class CalendarGeometryCollector extends ChangeNotifier {
     _markNeedsPublication();
   }
 
+  void _registerFinalDayBlock(RenderCalendarGeometryFinalDayBlock block) {
+    if (_disposed) return;
+    if (_mountedFinalDayBlocks.add(block)) _markNeedsPublication();
+  }
+
+  void _unregisterFinalDayBlock(RenderCalendarGeometryFinalDayBlock block) {
+    if (_disposed) return;
+    if (_mountedFinalDayBlocks.remove(block)) _markNeedsPublication();
+  }
+
+  void _didLayoutFinalDayBlock(RenderCalendarGeometryFinalDayBlock block) {
+    if (_disposed || !_mountedFinalDayBlocks.contains(block)) return;
+    _markNeedsPublication();
+  }
+
+  void _didChangeFinalDayBlockIdentity(
+    RenderCalendarGeometryFinalDayBlock block,
+  ) {
+    if (_disposed || !_mountedFinalDayBlocks.contains(block)) return;
+    _markNeedsPublication();
+  }
+
   void _markNeedsPublication() {
     if (_disposed || _publicationScheduled) return;
     _publicationScheduled = true;
@@ -105,6 +131,16 @@ final class CalendarGeometryCollector extends ChangeNotifier {
       bodyLeadingByMonth[body.month] = leading;
     }
 
+    final finalDayBlockLeadingByMonth = <MonthRef, double>{};
+    for (final block in _mountedFinalDayBlocks) {
+      if (!block.attached || !block.hasSize || block.size.height <= 0) continue;
+      final viewport = RenderAbstractViewport.maybeOf(block);
+      if (viewport == null) continue;
+      final leading = viewport.getOffsetToReveal(block, 0).offset;
+      if (!leading.isFinite) continue;
+      finalDayBlockLeadingByMonth[block.month] = leading;
+    }
+
     final geometries = <CalendarSectionGeometry>[];
     for (final section in _mountedSections) {
       if (!section.attached || !section.hasSize || section.size.height <= 0) {
@@ -123,6 +159,7 @@ final class CalendarGeometryCollector extends ChangeNotifier {
           month: section.month,
           extent: CalendarCanonicalExtent(leading: leading, trailing: trailing),
           bodyLeading: bodyLeadingByMonth[section.month],
+          finalDayBlockLeading: finalDayBlockLeadingByMonth[section.month],
         ),
       );
     }
@@ -168,8 +205,89 @@ final class CalendarGeometryCollector extends ChangeNotifier {
     _disposed = true;
     _mountedSections.clear();
     _mountedBodies.clear();
+    _mountedFinalDayBlocks.clear();
     _lastCandidate = const [];
     super.dispose();
+  }
+}
+
+/// Marks the measured handoff edge before a month's final visible day block.
+///
+/// For a regular month, the child starts immediately after the third-decan
+/// label and contains the label-to-weekday gap plus the final weekday row. For
+/// Heriu Renpet, the child is its sole weekday row. The collector never treats
+/// this proxy's height as ownership.
+final class CalendarGeometryFinalDayBlock
+    extends SingleChildRenderObjectWidget {
+  const CalendarGeometryFinalDayBlock({
+    super.key,
+    required this.month,
+    required super.child,
+  });
+
+  final MonthRef month;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return RenderCalendarGeometryFinalDayBlock(
+      month: month,
+      collector: CalendarGeometryCollectorScope.maybeOf(context),
+    );
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    RenderCalendarGeometryFinalDayBlock renderObject,
+  ) {
+    renderObject
+      ..collector = CalendarGeometryCollectorScope.maybeOf(context)
+      ..month = month;
+  }
+}
+
+/// Render proxy used by [CalendarGeometryFinalDayBlock].
+final class RenderCalendarGeometryFinalDayBlock extends RenderProxyBox {
+  RenderCalendarGeometryFinalDayBlock({
+    required MonthRef month,
+    required CalendarGeometryCollector? collector,
+  }) : _month = month,
+       _collector = collector;
+
+  MonthRef _month;
+  CalendarGeometryCollector? _collector;
+
+  MonthRef get month => _month;
+
+  set month(MonthRef value) {
+    if (_month == value) return;
+    _month = value;
+    _collector?._didChangeFinalDayBlockIdentity(this);
+  }
+
+  set collector(CalendarGeometryCollector? value) {
+    if (_collector == value) return;
+    if (attached) _collector?._unregisterFinalDayBlock(this);
+    _collector = value;
+    if (attached) _collector?._registerFinalDayBlock(this);
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _collector?._registerFinalDayBlock(this);
+  }
+
+  @override
+  void detach() {
+    _collector?._unregisterFinalDayBlock(this);
+    super.detach();
+  }
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    _collector?._didLayoutFinalDayBlock(this);
   }
 }
 

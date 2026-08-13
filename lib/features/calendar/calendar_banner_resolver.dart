@@ -13,7 +13,7 @@ enum CalendarBannerResolutionMode {
   geometryOnlyAtUnchangedOffset,
 }
 
-/// Pure leading-edge month resolver.
+/// Pure final-day-block handoff resolver.
 ///
 /// The activation coordinate is the top edge inside the scroll viewport. The
 /// fixed banner height is intentionally absent from this API so it cannot be
@@ -58,7 +58,12 @@ final class CalendarBannerResolver {
       return incumbent;
     }
 
-    final directOwner = snapshot.ownerAt(activationCoordinate);
+    final physicalOwner = snapshot.ownerAt(activationCoordinate);
+    final directOwner = _bannerOwnerAt(
+      snapshot: snapshot,
+      activationCoordinate: activationCoordinate,
+      physicalOwner: physicalOwner,
+    );
     if (directOwner == null) {
       final incumbentGeometry = incumbent == null
           ? null
@@ -75,15 +80,16 @@ final class CalendarBannerResolver {
       return directOwner;
     }
 
-    final incumbentGeometry = snapshot.geometryFor(incumbent);
-    if (incumbentGeometry == null || deadband == 0) return directOwner;
+    if (deadband == 0) return directOwner;
 
     if (mode == CalendarBannerResolutionMode.scrollingTowardFuture &&
         index.successor(incumbent) == directOwner) {
-      final incomingBoundary = snapshot
-          .geometryFor(directOwner)!
-          .extent
-          .leading;
+      final incomingBoundary = _handoffBoundary(
+        snapshot: snapshot,
+        outgoing: incumbent,
+        incoming: directOwner,
+      );
+      if (incomingBoundary == null) return directOwner;
       return activationCoordinate >= incomingBoundary + deadband
           ? directOwner
           : incumbent;
@@ -91,8 +97,13 @@ final class CalendarBannerResolver {
 
     if (mode == CalendarBannerResolutionMode.scrollingTowardPast &&
         index.predecessor(incumbent) == directOwner) {
-      final incumbentBoundary = incumbentGeometry.extent.leading;
-      return activationCoordinate <= incumbentBoundary - deadband
+      final outgoingBoundary = _handoffBoundary(
+        snapshot: snapshot,
+        outgoing: directOwner,
+        incoming: incumbent,
+      );
+      if (outgoingBoundary == null) return directOwner;
+      return activationCoordinate <= outgoingBoundary - deadband
           ? directOwner
           : incumbent;
     }
@@ -101,5 +112,27 @@ final class CalendarBannerResolver {
     // samples. Deadband only stabilizes one shared boundary; it must not retain
     // a stale month across a multi-section jump.
     return directOwner;
+  }
+
+  MonthRef? _bannerOwnerAt({
+    required CalendarGeometrySnapshot snapshot,
+    required double activationCoordinate,
+    required MonthRef? physicalOwner,
+  }) {
+    if (physicalOwner == null) return null;
+    final boundary = snapshot.geometryFor(physicalOwner)?.finalDayBlockLeading;
+    return boundary != null && activationCoordinate >= boundary
+        ? index.successor(physicalOwner)
+        : physicalOwner;
+  }
+
+  double? _handoffBoundary({
+    required CalendarGeometrySnapshot snapshot,
+    required MonthRef outgoing,
+    required MonthRef incoming,
+  }) {
+    if (index.successor(outgoing) != incoming) return null;
+    return snapshot.geometryFor(outgoing)?.finalDayBlockLeading ??
+        snapshot.geometryFor(incoming)?.extent.leading;
   }
 }

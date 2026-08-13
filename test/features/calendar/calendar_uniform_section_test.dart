@@ -88,6 +88,18 @@ void main() {
         currentYearSections.map((section) => section.month.month),
         orderedEquals(List<int>.generate(13, (index) => index + 1)),
       );
+      expect(
+        collector.debugMountedFinalDayBlockCount,
+        greaterThanOrEqualTo(13),
+      );
+      for (final section in currentYearSections) {
+        expect(
+          section.finalDayBlockLeading,
+          isNotNull,
+          reason: '${section.month} must publish its banner handoff edge',
+        );
+        expect(section.extent.contains(section.finalDayBlockLeading!), isTrue);
+      }
       expect(keyForMonth(sixDayYear, 13).currentContext, isNotNull);
       expect(keyForMonthHeader(sixDayYear, 13).currentContext, isNotNull);
 
@@ -190,6 +202,10 @@ void main() {
       );
       expect(grid, contains('child: _buildMonthBody(kMonth, tm, td)'));
       expect(grid, isNot(contains('children: const [_GoldDivider()]')));
+      expect(
+        RegExp(r'CalendarGeometryFinalDayBlock\(').allMatches(grid),
+        hasLength(2),
+      );
 
       expect(grid, contains('anchorKey: monthAnchorKeyProvider?.call(kMonth)'));
       expect(

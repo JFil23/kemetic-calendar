@@ -39,6 +39,43 @@ void main() {
     expect(published, [month2]);
   });
 
+  test('publishes successor at the outgoing final-day block deadband', () {
+    final rig = _CoordinatorRig(
+      snapshot: _snapshot(
+        generation: 1,
+        sections: [
+          _geometry(month1, 0, 100, finalDayBlockLeading: 70),
+          _geometry(month2, 100, 200, finalDayBlockLeading: 170),
+        ],
+      ),
+      offset: 60,
+      authoritative: month1,
+    );
+    addTearDown(rig.dispose);
+    rig.coordinator.noteGeometryPublication();
+    rig.flushOneFrame();
+
+    rig.offset = 77.999;
+    rig.coordinator.noteScroll();
+    rig.flushOneFrame();
+    expect(rig.coordinator.activeBannerMonth.value, month1);
+
+    rig.offset = 78;
+    rig.coordinator.noteScroll();
+    rig.flushOneFrame();
+    expect(rig.coordinator.activeBannerMonth.value, month2);
+
+    rig.offset = 62.001;
+    rig.coordinator.noteScroll();
+    rig.flushOneFrame();
+    expect(rig.coordinator.activeBannerMonth.value, month2);
+
+    rig.offset = 62;
+    rig.coordinator.noteScroll();
+    rig.flushOneFrame();
+    expect(rig.coordinator.activeBannerMonth.value, month1);
+  });
+
   test('scroll resolves without a new geometry generation', () {
     final rig = _CoordinatorRig(
       snapshot: _snapshot(
@@ -331,6 +368,7 @@ CalendarSectionGeometry _geometry(
   num leading,
   num trailing, {
   num? bodyLeading,
+  num? finalDayBlockLeading,
 }) {
   return CalendarSectionGeometry(
     month: month,
@@ -339,5 +377,6 @@ CalendarSectionGeometry _geometry(
       trailing: trailing.toDouble(),
     ),
     bodyLeading: bodyLeading?.toDouble(),
+    finalDayBlockLeading: finalDayBlockLeading?.toDouble(),
   );
 }

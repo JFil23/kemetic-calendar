@@ -93,6 +93,7 @@ final class CalendarSectionGeometry {
     required this.month,
     required this.extent,
     this.bodyLeading,
+    this.finalDayBlockLeading,
   });
 
   final MonthRef month;
@@ -105,6 +106,15 @@ final class CalendarSectionGeometry {
   /// geometry, not a second ownership boundary.
   final double? bodyLeading;
 
+  /// Canonical handoff edge before this month's final visible day block.
+  ///
+  /// For ordinary months this is immediately after the third-decan label and
+  /// before the label-to-weekday gap. For Heriu Renpet it is the leading edge
+  /// of the single epagomenal weekday/day block.
+  /// Banner policy may use this physical fact as the handoff to the logical
+  /// successor; section ownership itself remains [extent]-based.
+  final double? finalDayBlockLeading;
+
   bool activationIsInLeadingInterstitial(double coordinate) {
     final body = bodyLeading;
     return body != null && extent.contains(coordinate) && coordinate < body;
@@ -116,11 +126,13 @@ final class CalendarSectionGeometry {
         other is CalendarSectionGeometry &&
             month == other.month &&
             extent == other.extent &&
-            bodyLeading == other.bodyLeading;
+            bodyLeading == other.bodyLeading &&
+            finalDayBlockLeading == other.finalDayBlockLeading;
   }
 
   @override
-  int get hashCode => Object.hash(month, extent, bodyLeading);
+  int get hashCode =>
+      Object.hash(month, extent, bodyLeading, finalDayBlockLeading);
 }
 
 /// Immutable, generation-tagged geometry published as one atomic value.
@@ -151,6 +163,7 @@ final class CalendarGeometrySnapshot {
       }
       var current = candidate;
       final candidateBodyLeading = candidate.bodyLeading;
+      final candidateFinalDayBlockLeading = candidate.finalDayBlockLeading;
       if (candidateBodyLeading != null) {
         _requireFinite(candidateBodyLeading, 'bodyLeading');
         if (candidateBodyLeading <
@@ -168,6 +181,37 @@ final class CalendarGeometrySnapshot {
             month: candidate.month,
             extent: candidate.extent,
             bodyLeading: candidate.extent.leading,
+            finalDayBlockLeading: candidateFinalDayBlockLeading,
+          );
+        }
+      }
+      if (candidateFinalDayBlockLeading != null) {
+        _requireFinite(candidateFinalDayBlockLeading, 'finalDayBlockLeading');
+        if (candidateFinalDayBlockLeading <
+                candidate.extent.leading - boundaryTolerance ||
+            candidateFinalDayBlockLeading >= candidate.extent.trailing) {
+          throw ArgumentError.value(
+            candidateFinalDayBlockLeading,
+            'finalDayBlockLeading',
+            'must lie inside the section extent ${candidate.extent}',
+          );
+        }
+        if (candidateBodyLeading != null &&
+            candidateFinalDayBlockLeading <
+                candidateBodyLeading - boundaryTolerance) {
+          throw ArgumentError.value(
+            candidateFinalDayBlockLeading,
+            'finalDayBlockLeading',
+            'must not precede bodyLeading ($candidateBodyLeading)',
+          );
+        }
+        if ((candidateFinalDayBlockLeading - candidate.extent.leading).abs() <=
+            boundaryTolerance) {
+          current = CalendarSectionGeometry(
+            month: current.month,
+            extent: current.extent,
+            bodyLeading: current.bodyLeading,
+            finalDayBlockLeading: current.extent.leading,
           );
         }
       }
@@ -182,6 +226,7 @@ final class CalendarGeometrySnapshot {
         final boundaryDelta = current.extent.leading - prior.extent.trailing;
         if (boundaryDelta.abs() <= boundaryTolerance) {
           final bodyLeading = current.bodyLeading;
+          final finalDayBlockLeading = current.finalDayBlockLeading;
           current = CalendarSectionGeometry(
             month: current.month,
             extent: CalendarCanonicalExtent(
@@ -192,6 +237,11 @@ final class CalendarGeometrySnapshot {
                 bodyLeading != null && bodyLeading < prior.extent.trailing
                 ? prior.extent.trailing
                 : bodyLeading,
+            finalDayBlockLeading:
+                finalDayBlockLeading != null &&
+                    finalDayBlockLeading < prior.extent.trailing
+                ? prior.extent.trailing
+                : finalDayBlockLeading,
           );
         } else if (boundaryDelta < 0) {
           throw ArgumentError.value(

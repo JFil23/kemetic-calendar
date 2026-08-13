@@ -67,31 +67,31 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('switches at the buffered leading edge toward the future', (
+  testWidgets('switches at the buffered final day block toward the future', (
     tester,
   ) async {
-    final rig = _LeadingHeaderRig(initialMonth: _month12, offset: 90);
+    final rig = _LeadingHeaderRig(initialMonth: _month12, offset: 60);
     addTearDown(rig.dispose);
     await tester.pumpWidget(rig.subject());
     await rig.publishGeometry(tester);
 
-    await rig.scrollTo(tester, 107.999);
+    await rig.scrollTo(tester, 77.999);
     expect(rig.coordinator.activeBannerMonth.value, _month12);
     expect(find.text('Mesut-Ra'), findsOneWidget);
 
-    await rig.scrollTo(tester, 108);
+    await rig.scrollTo(tester, 78);
     expect(rig.coordinator.activeBannerMonth.value, _heriu);
     expect(find.text('Heriu Renpet'), findsOneWidget);
 
-    await rig.scrollTo(tester, 137.999);
+    await rig.scrollTo(tester, 122.999);
     expect(rig.coordinator.activeBannerMonth.value, _heriu);
 
-    await rig.scrollTo(tester, 138);
+    await rig.scrollTo(tester, 123);
     expect(rig.coordinator.activeBannerMonth.value, _thoth);
     expect(find.text('Thoth'), findsOneWidget);
   });
 
-  testWidgets('switches at the buffered leading edge toward the past', (
+  testWidgets('switches at the buffered final day block toward the past', (
     tester,
   ) async {
     final rig = _LeadingHeaderRig(initialMonth: _thoth, offset: 180);
@@ -99,18 +99,18 @@ void main() {
     await tester.pumpWidget(rig.subject());
     await rig.publishGeometry(tester);
 
-    await rig.scrollTo(tester, 122.001);
+    await rig.scrollTo(tester, 107.001);
     expect(rig.coordinator.activeBannerMonth.value, _thoth);
     expect(find.text('Thoth'), findsOneWidget);
 
-    await rig.scrollTo(tester, 122);
+    await rig.scrollTo(tester, 107);
     expect(rig.coordinator.activeBannerMonth.value, _heriu);
     expect(find.text('Heriu Renpet'), findsOneWidget);
 
-    await rig.scrollTo(tester, 92.001);
+    await rig.scrollTo(tester, 62.001);
     expect(rig.coordinator.activeBannerMonth.value, _heriu);
 
-    await rig.scrollTo(tester, 92);
+    await rig.scrollTo(tester, 62);
     expect(rig.coordinator.activeBannerMonth.value, _month12);
     expect(find.text('Mesut-Ra'), findsOneWidget);
   });
@@ -170,9 +170,9 @@ final _thoth = MonthRef(year: 5, month: 1);
 final _headerSnapshot = CalendarGeometrySnapshot(
   generation: 1,
   sections: [
-    _headerGeometry(_month12, 0, 100),
-    _headerGeometry(_heriu, 100, 130),
-    _headerGeometry(_thoth, 130, 230),
+    _headerGeometry(_month12, 0, 100, finalDayBlockLeading: 70),
+    _headerGeometry(_heriu, 100, 130, finalDayBlockLeading: 115),
+    _headerGeometry(_thoth, 130, 230, finalDayBlockLeading: 200),
   ],
 );
 
@@ -235,13 +235,15 @@ final class _LeadingHeaderRig {
 CalendarSectionGeometry _headerGeometry(
   MonthRef month,
   num leading,
-  num trailing,
-) {
+  num trailing, {
+  num? finalDayBlockLeading,
+}) {
   return CalendarSectionGeometry(
     month: month,
     extent: CalendarCanonicalExtent(
       leading: leading.toDouble(),
       trailing: trailing.toDouble(),
     ),
+    finalDayBlockLeading: finalDayBlockLeading?.toDouble(),
   );
 }

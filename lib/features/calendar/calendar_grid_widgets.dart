@@ -969,13 +969,31 @@ class _MonthCard extends StatelessWidget {
                         );
                       },
                     ),
-                    SizedBox(height: gapBeforeRow),
-                    _WeekdayRow(
-                      kYear: kYear,
-                      kMonth: kMonth,
-                      decanIndex: i,
-                      showGregorian: showGregorian,
-                    ),
+                    if (i == 2)
+                      CalendarGeometryFinalDayBlock(
+                        month: MonthRef(year: kYear, month: kMonth),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(height: gapBeforeRow),
+                            _WeekdayRow(
+                              kYear: kYear,
+                              kMonth: kMonth,
+                              decanIndex: i,
+                              showGregorian: showGregorian,
+                            ),
+                          ],
+                        ),
+                      )
+                    else ...[
+                      SizedBox(height: gapBeforeRow),
+                      _WeekdayRow(
+                        kYear: kYear,
+                        kMonth: kMonth,
+                        decanIndex: i,
+                        showGregorian: showGregorian,
+                      ),
+                    ],
                     const SizedBox(height: _kWeekdayToTileGap),
 
                     _DecanRow(
@@ -2767,7 +2785,10 @@ class _EpagomenalCard extends StatelessWidget {
                 height: expansionLevel == MonthExpansionLevel.details ? 0 : 10,
               ),
 
-              _epagomenalWeekdayRow(epiCount),
+              CalendarGeometryFinalDayBlock(
+                month: MonthRef(year: kYear, month: 13),
+                child: _epagomenalWeekdayRow(epiCount),
+              ),
               const SizedBox(height: _kWeekdayToTileGap),
 
               Row(

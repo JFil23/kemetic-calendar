@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_geometry_collector.dart';
+import 'package:mobile/features/calendar/calendar_geometry_snapshot.dart';
 import 'package:mobile/features/calendar/calendar_section_index.dart';
 
 void main() {
@@ -119,6 +120,56 @@ void main() {
     }
   });
 
+  testWidgets('normalizes a past-side final-day handoff monotonically', (
+    tester,
+  ) async {
+    final collector = CalendarGeometryCollector();
+    addTearDown(collector.dispose);
+    final centerKey = GlobalKey();
+    final pastMonth = MonthRef(year: 0, month: 13);
+
+    await tester.pumpWidget(
+      _host(
+        collector: collector,
+        child: SizedBox(
+          height: 300,
+          child: CustomScrollView(
+            center: centerKey,
+            anchor: 0,
+            slivers: [
+              SliverToBoxAdapter(
+                child: CalendarGeometrySection(
+                  month: pastMonth,
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 70),
+                      CalendarGeometryFinalDayBlock(
+                        month: pastMonth,
+                        child: const SizedBox(height: 20),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                key: centerKey,
+                child: CalendarGeometrySection(
+                  month: MonthRef(year: 1, month: 1),
+                  child: const SizedBox(height: 100),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final geometry = collector.snapshot!.geometryFor(pastMonth)!;
+    expect(geometry.extent, _extent(-100, 0));
+    expect(geometry.finalDayBlockLeading, closeTo(-30, 0.001));
+  });
+
   testWidgets('coalesces a layout burst into one atomic generation', (
     tester,
   ) async {
@@ -199,6 +250,56 @@ void main() {
     expect(geometry.bodyLeading, closeTo(30, 0.001));
     expect(geometry.activationIsInLeadingInterstitial(20), isTrue);
     expect(geometry.activationIsInLeadingInterstitial(30), isFalse);
+  });
+
+  testWidgets('publishes final-day handoff in the same atomic snapshot', (
+    tester,
+  ) async {
+    final collector = CalendarGeometryCollector();
+    addTearDown(collector.dispose);
+    final month = MonthRef(year: 1, month: 1);
+
+    await tester.pumpWidget(
+      _host(
+        collector: collector,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: CalendarGeometrySection(
+                month: month,
+                child: Column(
+                  children: [
+                    const SizedBox(height: 30),
+                    CalendarGeometryMonthBody(
+                      month: month,
+                      child: Column(
+                        children: [
+                          const SizedBox(height: 40),
+                          CalendarGeometryFinalDayBlock(
+                            month: month,
+                            child: const SizedBox(height: 20),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final snapshot = collector.snapshot!;
+    final geometry = snapshot.geometryFor(month)!;
+    expect(collector.debugMountedSectionCount, 1);
+    expect(collector.debugMountedBodyCount, 1);
+    expect(collector.debugMountedFinalDayBlockCount, 1);
+    expect(geometry.extent, _extent(0, 100));
+    expect(geometry.bodyLeading, closeTo(30, 0.001));
+    expect(geometry.finalDayBlockLeading, closeTo(70, 0.001));
   });
 
   testWidgets('does not publish or schedule continuously while idle', (
@@ -358,5 +459,12 @@ Widget _host({
     home: Scaffold(
       body: CalendarGeometryCollectorScope(collector: collector, child: child),
     ),
+  );
+}
+
+CalendarCanonicalExtent _extent(num leading, num trailing) {
+  return CalendarCanonicalExtent(
+    leading: leading.toDouble(),
+    trailing: trailing.toDouble(),
   );
 }

@@ -145,6 +145,25 @@ void main() {
       },
     );
 
+    test('retains final-day-block handoff geometry without changing owner', () {
+      final month = MonthRef(year: 1, month: 2);
+      final snapshot = CalendarGeometrySnapshot(
+        generation: 1,
+        sections: [
+          CalendarSectionGeometry(
+            month: month,
+            extent: _extent(100, 200),
+            bodyLeading: 120,
+            finalDayBlockLeading: 170,
+          ),
+        ],
+      );
+      final geometry = snapshot.geometryFor(month)!;
+
+      expect(snapshot.ownerAt(170), month);
+      expect(geometry.finalDayBlockLeading, 170);
+    });
+
     test('canonicalizes only floating-point drift at adjacent boundaries', () {
       final snapshot = CalendarGeometrySnapshot(
         generation: 1,
@@ -202,6 +221,36 @@ void main() {
               month: MonthRef(year: 1, month: 1),
               extent: _extent(0, 100),
               bodyLeading: 101,
+            ),
+          ],
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('rejects an invalid final-day-block handoff edge', () {
+      expect(
+        () => CalendarGeometrySnapshot(
+          generation: 1,
+          sections: [
+            CalendarSectionGeometry(
+              month: MonthRef(year: 1, month: 1),
+              extent: _extent(0, 100),
+              finalDayBlockLeading: 100,
+            ),
+          ],
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => CalendarGeometrySnapshot(
+          generation: 1,
+          sections: [
+            CalendarSectionGeometry(
+              month: MonthRef(year: 1, month: 1),
+              extent: _extent(0, 100),
+              bodyLeading: 30,
+              finalDayBlockLeading: 20,
             ),
           ],
         ),

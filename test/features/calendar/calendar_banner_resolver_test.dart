@@ -11,17 +11,17 @@ void main() {
   final snapshot = CalendarGeometrySnapshot(
     generation: 1,
     sections: [
-      _geometry(month12, 0, 100),
-      _geometry(heriu, 100, 130),
-      _geometry(thoth, 130, 230),
+      _geometry(month12, 0, 100, finalDayBlockLeading: 70),
+      _geometry(heriu, 100, 130, finalDayBlockLeading: 115),
+      _geometry(thoth, 130, 230, finalDayBlockLeading: 200),
     ],
   );
 
-  test('initial selection uses the top-edge owner, including Heriu', () {
+  test('initial selection hands off at the outgoing final day block', () {
     expect(
       resolver.resolve(
         snapshot: snapshot,
-        activationCoordinate: 100,
+        activationCoordinate: 70,
         mode: CalendarBannerResolutionMode.initial,
       ),
       heriu,
@@ -37,7 +37,7 @@ void main() {
     expect(
       resolver.resolve(
         snapshot: snapshot,
-        activationCoordinate: 107.999,
+        activationCoordinate: 77.999,
         incumbent: month12,
         mode: CalendarBannerResolutionMode.scrollingTowardFuture,
       ),
@@ -46,7 +46,7 @@ void main() {
     expect(
       resolver.resolve(
         snapshot: snapshot,
-        activationCoordinate: 108,
+        activationCoordinate: 78,
         incumbent: month12,
         mode: CalendarBannerResolutionMode.scrollingTowardFuture,
       ),
@@ -58,7 +58,7 @@ void main() {
     expect(
       resolver.resolve(
         snapshot: snapshot,
-        activationCoordinate: 95,
+        activationCoordinate: 62.001,
         incumbent: heriu,
         mode: CalendarBannerResolutionMode.scrollingTowardPast,
       ),
@@ -67,7 +67,7 @@ void main() {
     expect(
       resolver.resolve(
         snapshot: snapshot,
-        activationCoordinate: 92,
+        activationCoordinate: 62,
         incumbent: heriu,
         mode: CalendarBannerResolutionMode.scrollingTowardPast,
       ),
@@ -91,9 +91,9 @@ void main() {
     final resized = CalendarGeometrySnapshot(
       generation: 2,
       sections: [
-        _geometry(month12, 0, 95),
-        _geometry(heriu, 95, 125),
-        _geometry(thoth, 125, 225),
+        _geometry(month12, 0, 95, finalDayBlockLeading: 65),
+        _geometry(heriu, 95, 125, finalDayBlockLeading: 110),
+        _geometry(thoth, 125, 225, finalDayBlockLeading: 195),
       ],
     );
 
@@ -153,12 +153,18 @@ void main() {
   });
 }
 
-CalendarSectionGeometry _geometry(MonthRef month, num leading, num trailing) {
+CalendarSectionGeometry _geometry(
+  MonthRef month,
+  num leading,
+  num trailing, {
+  num? finalDayBlockLeading,
+}) {
   return CalendarSectionGeometry(
     month: month,
     extent: CalendarCanonicalExtent(
       leading: leading.toDouble(),
       trailing: trailing.toDouble(),
     ),
+    finalDayBlockLeading: finalDayBlockLeading?.toDouble(),
   );
 }
