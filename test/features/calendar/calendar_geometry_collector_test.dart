@@ -163,6 +163,44 @@ void main() {
     expect(published, orderedEquals(List.generate(published.length, (i) => i)));
   });
 
+  testWidgets('publishes month-body boundary for interstitial diagnostics', (
+    tester,
+  ) async {
+    final collector = CalendarGeometryCollector();
+    addTearDown(collector.dispose);
+    final month = MonthRef(year: 1, month: 1);
+
+    await tester.pumpWidget(
+      _host(
+        collector: collector,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: CalendarGeometrySection(
+                month: month,
+                child: Column(
+                  children: [
+                    const SizedBox(height: 30),
+                    CalendarGeometryMonthBody(
+                      month: month,
+                      child: const SizedBox(height: 70),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final geometry = collector.snapshot!.geometryFor(month)!;
+    expect(collector.debugMountedBodyCount, 1);
+    expect(geometry.bodyLeading, closeTo(30, 0.001));
+    expect(geometry.activationIsInLeadingInterstitial(20), isTrue);
+    expect(geometry.activationIsInLeadingInterstitial(30), isFalse);
+  });
+
   testWidgets('does not publish or schedule continuously while idle', (
     tester,
   ) async {

@@ -113,6 +113,7 @@ import 'calendar_invalidation.dart';
 import 'calendar_hydration_diagnostics.dart';
 import 'calendar_hydration_status_banner.dart';
 import 'calendar_geometry_collector.dart';
+import 'calendar_scroll_coordinator.dart';
 import 'calendar_section_index.dart';
 import 'calendar_pending_note_store.dart';
 import 'scrolling_calendar_month_header.dart';
@@ -10182,9 +10183,13 @@ class CalendarPageState extends State<CalendarPage>
   final ScrollController _scrollCtrl = ScrollController();
   final CalendarGeometryCollector _calendarGeometryCollector =
       CalendarGeometryCollector();
+  late final CalendarScrollCoordinator _calendarScrollCoordinator;
   @visibleForTesting
   CalendarGeometryCollector get debugCalendarGeometryCollector =>
       _calendarGeometryCollector;
+  @visibleForTesting
+  CalendarScrollCoordinator get debugCalendarScrollCoordinator =>
+      _calendarScrollCoordinator;
   @visibleForTesting
   void debugShowCalendarShellForTesting() {
     if (_restored) return;
@@ -14611,6 +14616,8 @@ class CalendarPageState extends State<CalendarPage>
   int? _lastViewKy; // last centered Kemetic year
   int? _lastViewKm; // last centered Kemetic month (1..13)
   int? _lastViewKd; // last viewed Kemetic day (1..30, or 1..5/6 for month 13)
+  MonthRef? _lastLegacyLiveShadowCandidate;
+  MonthRef? _lastLegacyScrollEndShadowCandidate;
 
   Orientation? _lastOrientation; // Tracks functional rotation handoff.
   EventDetailRestorationState? _activeCalendarEventDetailRestoration;
@@ -14645,8 +14652,9 @@ class CalendarPageState extends State<CalendarPage>
   bool _isTablet(BuildContext context) =>
       MediaQuery.of(context).size.shortestSide >= 600;
 
-  // Find the month card whose vertical center is closest to the viewport center.
-  void _updateCenteredMonth() {
+  // Read the month card whose vertical center is closest to the viewport
+  // center without mutating calendar state.
+  (int, int)? _computeCenteredMonthLiveCandidate() {
     final candidates = <(int ky, int km, double dist)>[];
 
     // ✅ OPTIMIZED: Try saved/today month first (most likely mounted)
@@ -14688,11 +14696,11 @@ class CalendarPageState extends State<CalendarPage>
       }
     }
 
-    if (scrollableState == null || viewportBox == null) return;
+    if (scrollableState == null || viewportBox == null) return null;
 
     // ✅ Viewport must be valid and laid out
     final position = scrollableState.position;
-    if (!position.hasPixels || position.viewportDimension <= 0) return;
+    if (!position.hasPixels || position.viewportDimension <= 0) return null;
 
     // ✅ Calculate viewport center in global coordinates
     final viewportTopGlobal = viewportBox.localToGlobal(Offset.zero).dy;
@@ -14723,11 +14731,22 @@ class CalendarPageState extends State<CalendarPage>
       }
     }
 
-    if (candidates.isEmpty) return;
+    if (candidates.isEmpty) return null;
     candidates.sort((a, b) => a.$3.compareTo(b.$3));
 
-    final newKy = candidates.first.$1;
-    final newKm = candidates.first.$2;
+    return (candidates.first.$1, candidates.first.$2);
+  }
+
+  // Find the month card whose vertical center is closest to the viewport center.
+  void _updateCenteredMonth() {
+    final candidate = _computeCenteredMonthLiveCandidate();
+    if (candidate == null) {
+      _lastLegacyLiveShadowCandidate = null;
+      return;
+    }
+    final newKy = candidate.$1;
+    final newKm = candidate.$2;
+    _lastLegacyLiveShadowCandidate = MonthRef(year: newKy, month: newKm);
 
     // ✅ ONLY UPDATE IF CHANGED AND NOT UPDATING FROM LANDSCAPE OR PORTRAIT
     if ((_lastViewKy != newKy || _lastViewKm != newKm) &&
@@ -14860,6 +14879,27 @@ class CalendarPageState extends State<CalendarPage>
         _updateCenteredMonth();
       }
     });
+    _calendarScrollCoordinator.noteScroll();
+  }
+
+  MonthRef? _shadowAuthoritativeMonth() {
+    final year = _lastViewKy;
+    final month = _lastViewKm;
+    if (year == null || month == null || month < 1 || month > 13) return null;
+    return MonthRef(year: year, month: month);
+  }
+
+  MonthRef? _shadowLegacyCandidate(CalendarShadowSampleReason reason) {
+    return switch (reason) {
+      CalendarShadowSampleReason.scroll => _lastLegacyLiveShadowCandidate,
+      CalendarShadowSampleReason.scrollEnd =>
+        _lastLegacyScrollEndShadowCandidate,
+      CalendarShadowSampleReason.geometryPublication => null,
+    };
+  }
+
+  void _handleCalendarGeometryPublicationForShadow() {
+    _calendarScrollCoordinator.noteGeometryPublication();
   }
 
   CalendarHydrationInterval? _measureRenderedMonthViewport() {
@@ -15485,6 +15525,23 @@ class CalendarPageState extends State<CalendarPage>
   void initState() {
     super.initState();
     EndFlowAuthReadiness.instance.ensureBound(Supabase.instance.client);
+    _calendarScrollCoordinator = CalendarScrollCoordinator(
+      scheduleAfterFrame: (callback) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          // Run after the current frame's legacy post-frame writers, while
+          // still coalescing every scroll notification from that frame.
+          scheduleMicrotask(callback);
+        }, debugLabel: 'CalendarScrollCoordinator.shadowSample');
+      },
+      readSnapshot: () => _calendarGeometryCollector.snapshot,
+      readScrollOffset: () =>
+          _scrollCtrl.hasClients ? _scrollCtrl.position.pixels : null,
+      readAuthoritativeMonth: _shadowAuthoritativeMonth,
+      readLegacyCandidate: _shadowLegacyCandidate,
+    );
+    _calendarGeometryCollector.addListener(
+      _handleCalendarGeometryPublicationForShadow,
+    );
     final initialHydrationUserId = Supabase.instance.client.auth.currentUser?.id
         .trim();
     if (initialHydrationUserId != null && initialHydrationUserId.isNotEmpty) {
@@ -18842,6 +18899,10 @@ class CalendarPageState extends State<CalendarPage>
       unawaited(_persistDayViewState(dayViewState, reason: 'calendar_dispose'));
     }
     _scrollCtrl.dispose();
+    _calendarGeometryCollector.removeListener(
+      _handleCalendarGeometryPublicationForShadow,
+    );
+    _calendarScrollCoordinator.dispose();
     _calendarGeometryCollector.dispose();
     _dayViewDataVersion.dispose();
     _dayViewHydrationActivation.dispose();
@@ -32464,9 +32525,14 @@ class CalendarPageState extends State<CalendarPage>
               if (!mounted || !_initialViewportSettled) return;
 
               final centered = _computeCenteredMonthPrecisely();
+              _lastLegacyScrollEndShadowCandidate = MonthRef(
+                year: centered.$1,
+                month: centered.$2,
+              );
               if (centered.$1 != _lastViewKy || centered.$2 != _lastViewKm) {
                 _handlePortraitMonthChanged(centered.$1, centered.$2);
               }
+              _calendarScrollCoordinator.noteScrollEnd();
               _scheduleCalendarRestorationSave(reason: 'calendar_scroll_end');
               _scheduleRenderedViewportHydration(reason: 'scroll_end');
             });

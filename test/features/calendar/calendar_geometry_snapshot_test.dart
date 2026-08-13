@@ -123,6 +123,28 @@ void main() {
       expect(snapshot.ownerAt(250), MonthRef(year: 1, month: 3));
     });
 
+    test(
+      'identifies following-month interstitial without changing ownership',
+      () {
+        final month = MonthRef(year: 1, month: 2);
+        final snapshot = CalendarGeometrySnapshot(
+          generation: 1,
+          sections: [
+            CalendarSectionGeometry(
+              month: month,
+              extent: _extent(100, 200),
+              bodyLeading: 130,
+            ),
+          ],
+        );
+        final geometry = snapshot.geometryFor(month)!;
+
+        expect(snapshot.ownerAt(110), month);
+        expect(geometry.activationIsInLeadingInterstitial(110), isTrue);
+        expect(geometry.activationIsInLeadingInterstitial(130), isFalse);
+      },
+    );
+
     test('canonicalizes only floating-point drift at adjacent boundaries', () {
       final snapshot = CalendarGeometrySnapshot(
         generation: 1,
@@ -166,6 +188,22 @@ void main() {
         () => CalendarGeometrySnapshot(
           generation: 1,
           sections: [_geometry(1, 1, 0, 100), _geometry(1, 2, 99, 200)],
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('rejects a month-body boundary outside its section', () {
+      expect(
+        () => CalendarGeometrySnapshot(
+          generation: 1,
+          sections: [
+            CalendarSectionGeometry(
+              month: MonthRef(year: 1, month: 1),
+              extent: _extent(0, 100),
+              bodyLeading: 101,
+            ),
+          ],
         ),
         throwsArgumentError,
       );

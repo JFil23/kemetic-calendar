@@ -89,21 +89,38 @@ CalendarCanonicalExtent normalizeCenterOrFutureSectionExtent({
 
 /// Physical geometry for one mounted logical month section.
 final class CalendarSectionGeometry {
-  const CalendarSectionGeometry({required this.month, required this.extent});
+  const CalendarSectionGeometry({
+    required this.month,
+    required this.extent,
+    this.bodyLeading,
+  });
 
   final MonthRef month;
   final CalendarCanonicalExtent extent;
+
+  /// Canonical leading edge of the actual month card inside [extent].
+  ///
+  /// Content between [extent.leading] and this coordinate is the divider and
+  /// optional season header owned by this following month. It is diagnostic
+  /// geometry, not a second ownership boundary.
+  final double? bodyLeading;
+
+  bool activationIsInLeadingInterstitial(double coordinate) {
+    final body = bodyLeading;
+    return body != null && extent.contains(coordinate) && coordinate < body;
+  }
 
   @override
   bool operator ==(Object other) {
     return identical(this, other) ||
         other is CalendarSectionGeometry &&
             month == other.month &&
-            extent == other.extent;
+            extent == other.extent &&
+            bodyLeading == other.bodyLeading;
   }
 
   @override
-  int get hashCode => Object.hash(month, extent);
+  int get hashCode => Object.hash(month, extent, bodyLeading);
 }
 
 /// Immutable, generation-tagged geometry published as one atomic value.
@@ -133,6 +150,27 @@ final class CalendarGeometrySnapshot {
         );
       }
       var current = candidate;
+      final candidateBodyLeading = candidate.bodyLeading;
+      if (candidateBodyLeading != null) {
+        _requireFinite(candidateBodyLeading, 'bodyLeading');
+        if (candidateBodyLeading <
+                candidate.extent.leading - boundaryTolerance ||
+            candidateBodyLeading >= candidate.extent.trailing) {
+          throw ArgumentError.value(
+            candidateBodyLeading,
+            'bodyLeading',
+            'must lie inside the section extent ${candidate.extent}',
+          );
+        }
+        if ((candidateBodyLeading - candidate.extent.leading).abs() <=
+            boundaryTolerance) {
+          current = CalendarSectionGeometry(
+            month: candidate.month,
+            extent: candidate.extent,
+            bodyLeading: candidate.extent.leading,
+          );
+        }
+      }
       if (previous case final prior?) {
         if (index.distance(prior.month, current.month) <= 0) {
           throw ArgumentError.value(
@@ -143,12 +181,17 @@ final class CalendarGeometrySnapshot {
         }
         final boundaryDelta = current.extent.leading - prior.extent.trailing;
         if (boundaryDelta.abs() <= boundaryTolerance) {
+          final bodyLeading = current.bodyLeading;
           current = CalendarSectionGeometry(
             month: current.month,
             extent: CalendarCanonicalExtent(
               leading: prior.extent.trailing,
               trailing: current.extent.trailing,
             ),
+            bodyLeading:
+                bodyLeading != null && bodyLeading < prior.extent.trailing
+                ? prior.extent.trailing
+                : bodyLeading,
           );
         } else if (boundaryDelta < 0) {
           throw ArgumentError.value(

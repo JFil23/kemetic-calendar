@@ -12,6 +12,8 @@ import 'package:mobile/features/calendar/calendar_section_index.dart';
 final class CalendarGeometryCollector extends ChangeNotifier {
   final Set<RenderCalendarGeometrySection> _mountedSections =
       <RenderCalendarGeometrySection>{};
+  final Set<RenderCalendarGeometryMonthBody> _mountedBodies =
+      <RenderCalendarGeometryMonthBody>{};
 
   CalendarGeometrySnapshot? _snapshot;
   List<CalendarSectionGeometry> _lastCandidate = const [];
@@ -26,6 +28,8 @@ final class CalendarGeometryCollector extends ChangeNotifier {
   CalendarGeometrySnapshot? get snapshot => _snapshot;
 
   int get debugMountedSectionCount => _mountedSections.length;
+
+  int get debugMountedBodyCount => _mountedBodies.length;
 
   int get debugScheduledPublicationCount => _scheduledPublicationCount;
 
@@ -59,6 +63,26 @@ final class CalendarGeometryCollector extends ChangeNotifier {
     _markNeedsPublication();
   }
 
+  void _registerBody(RenderCalendarGeometryMonthBody body) {
+    if (_disposed) return;
+    if (_mountedBodies.add(body)) _markNeedsPublication();
+  }
+
+  void _unregisterBody(RenderCalendarGeometryMonthBody body) {
+    if (_disposed) return;
+    if (_mountedBodies.remove(body)) _markNeedsPublication();
+  }
+
+  void _didLayoutBody(RenderCalendarGeometryMonthBody body) {
+    if (_disposed || !_mountedBodies.contains(body)) return;
+    _markNeedsPublication();
+  }
+
+  void _didChangeBodyIdentity(RenderCalendarGeometryMonthBody body) {
+    if (_disposed || !_mountedBodies.contains(body)) return;
+    _markNeedsPublication();
+  }
+
   void _markNeedsPublication() {
     if (_disposed || _publicationScheduled) return;
     _publicationScheduled = true;
@@ -71,6 +95,16 @@ final class CalendarGeometryCollector extends ChangeNotifier {
   }
 
   void _publishMountedGeometry() {
+    final bodyLeadingByMonth = <MonthRef, double>{};
+    for (final body in _mountedBodies) {
+      if (!body.attached || !body.hasSize || body.size.height <= 0) continue;
+      final viewport = RenderAbstractViewport.maybeOf(body);
+      if (viewport == null) continue;
+      final leading = viewport.getOffsetToReveal(body, 0).offset;
+      if (!leading.isFinite) continue;
+      bodyLeadingByMonth[body.month] = leading;
+    }
+
     final geometries = <CalendarSectionGeometry>[];
     for (final section in _mountedSections) {
       if (!section.attached || !section.hasSize || section.size.height <= 0) {
@@ -88,6 +122,7 @@ final class CalendarGeometryCollector extends ChangeNotifier {
         CalendarSectionGeometry(
           month: section.month,
           extent: CalendarCanonicalExtent(leading: leading, trailing: trailing),
+          bodyLeading: bodyLeadingByMonth[section.month],
         ),
       );
     }
@@ -132,8 +167,86 @@ final class CalendarGeometryCollector extends ChangeNotifier {
     if (_disposed) return;
     _disposed = true;
     _mountedSections.clear();
+    _mountedBodies.clear();
     _lastCandidate = const [];
     super.dispose();
+  }
+}
+
+/// Marks the month-card boundary inside a complete logical month section.
+///
+/// The collector uses this only to distinguish a following-month divider or
+/// season header from the month body in passive diagnostics.
+final class CalendarGeometryMonthBody extends SingleChildRenderObjectWidget {
+  const CalendarGeometryMonthBody({
+    super.key,
+    required this.month,
+    required super.child,
+  });
+
+  final MonthRef month;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return RenderCalendarGeometryMonthBody(
+      month: month,
+      collector: CalendarGeometryCollectorScope.maybeOf(context),
+    );
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    RenderCalendarGeometryMonthBody renderObject,
+  ) {
+    renderObject
+      ..collector = CalendarGeometryCollectorScope.maybeOf(context)
+      ..month = month;
+  }
+}
+
+/// Render proxy used by [CalendarGeometryMonthBody].
+final class RenderCalendarGeometryMonthBody extends RenderProxyBox {
+  RenderCalendarGeometryMonthBody({
+    required MonthRef month,
+    required CalendarGeometryCollector? collector,
+  }) : _month = month,
+       _collector = collector;
+
+  MonthRef _month;
+  CalendarGeometryCollector? _collector;
+
+  MonthRef get month => _month;
+
+  set month(MonthRef value) {
+    if (_month == value) return;
+    _month = value;
+    _collector?._didChangeBodyIdentity(this);
+  }
+
+  set collector(CalendarGeometryCollector? value) {
+    if (_collector == value) return;
+    if (attached) _collector?._unregisterBody(this);
+    _collector = value;
+    if (attached) _collector?._registerBody(this);
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _collector?._registerBody(this);
+  }
+
+  @override
+  void detach() {
+    _collector?._unregisterBody(this);
+    super.detach();
+  }
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    _collector?._didLayoutBody(this);
   }
 }
 

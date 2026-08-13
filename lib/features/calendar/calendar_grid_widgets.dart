@@ -82,6 +82,7 @@ class _YearSection extends StatelessWidget {
   }
 
   Widget _buildMonthSection(int kMonth, int? tm, int? td) {
+    final month = MonthRef(year: kYear, month: kMonth);
     final seasonHeader = switch (kMonth) {
       1 => 'Flood season (Akhet)',
       5 => 'Emergence season (Peret)',
@@ -90,13 +91,16 @@ class _YearSection extends StatelessWidget {
     };
 
     return CalendarGeometrySection(
-      month: MonthRef(year: kYear, month: kMonth),
+      month: month,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const _GoldDivider(),
           if (seasonHeader != null) _SeasonHeader(title: seasonHeader),
-          _buildMonthBody(kMonth, tm, td),
+          CalendarGeometryMonthBody(
+            month: month,
+            child: _buildMonthBody(kMonth, tm, td),
+          ),
         ],
       ),
     );

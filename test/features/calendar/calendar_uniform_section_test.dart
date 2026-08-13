@@ -128,15 +128,23 @@ void main() {
       ).readAsStringSync();
 
       expect(grid, contains('kMonth <= CalendarSectionIndex.monthsPerYear'));
-      expect(grid, contains('month: MonthRef(year: kYear, month: kMonth)'));
+      expect(
+        grid,
+        contains('final month = MonthRef(year: kYear, month: kMonth)'),
+      );
+      expect(
+        RegExp(r'month: month').allMatches(grid),
+        hasLength(greaterThanOrEqualTo(2)),
+      );
       expect(
         grid.indexOf('const _GoldDivider()'),
         lessThan(grid.indexOf('if (seasonHeader != null)')),
       );
       expect(
         grid.indexOf('if (seasonHeader != null)'),
-        lessThan(grid.indexOf('_buildMonthBody(kMonth, tm, td)')),
+        lessThan(grid.indexOf('CalendarGeometryMonthBody(')),
       );
+      expect(grid, contains('child: _buildMonthBody(kMonth, tm, td)'));
       expect(grid, isNot(contains('children: const [_GoldDivider()]')));
 
       expect(grid, contains('anchorKey: monthAnchorKeyProvider?.call(kMonth)'));
@@ -151,7 +159,8 @@ void main() {
         page,
         contains('final centered = _computeCenteredMonthPrecisely()'),
       );
-      expect(page, isNot(contains('_calendarGeometryCollector.snapshot')));
+      expect(page, contains('_calendarGeometryCollector.snapshot'));
+      expect(page, contains('_calendarScrollCoordinator.noteScroll()'));
     },
   );
 }
