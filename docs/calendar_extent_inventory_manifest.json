@@ -7,7 +7,7 @@
       "file": "lib/features/calendar/calendar_grid_widgets.dart",
       "start": "class _YearSection extends StatelessWidget {",
       "end": "/* ───────────── Detail Page (single-window behavior, flows-aware) ───────────── */",
-      "sha256": "dd50ada06e8f33c957c6b040e4aba5833336cb47830ebbb89d5e2a7ec6c40c5d"
+      "sha256": "f4caee6464355edd82bc8d0bdc0a813551388add2e29ca8f720ae2dd5e98261a"
     },
     {
       "name": "calendar_text_styles",
@@ -35,7 +35,7 @@
       "file": "lib/features/calendar/calendar_page.dart",
       "start": "class _GoldDivider extends StatelessWidget {",
       "end": "String _reminderRepeatLabelForPicker(",
-      "sha256": "a035c543b63e08af2b4cfa897f7cc93e6c1b69b3998ed5b032aa536318d5bd9f"
+      "sha256": "faa98d1355d1c734238f247ff44da2556c5b4c1da61649e7cde30c50dbc6a03f"
     },
     {
       "name": "portrait_body_and_banner",
@@ -49,7 +49,7 @@
       "file": "lib/features/calendar/calendar_page.dart",
       "start": "  Widget _buildCalendarScrollView() {",
       "end": "  Map<int, FlowData> _buildCalendarFlowChromeIndex() {",
-      "sha256": "58b91b67dda6f9d46b75210ce73fd8e32fb26dd91b434b2a323d6c2f645832e3"
+      "sha256": "df239da4de0740543142aa96766a145c1718ea1e4ce977f2e92eb7f4cd8dbb13"
     },
     {
       "name": "pinch_geometry_consumers",
@@ -84,7 +84,7 @@
       "file": "lib/features/calendar/calendar_geometry_collector.dart",
       "start": "final class CalendarGeometryFinalDayBlock",
       "end": null,
-      "sha256": "2f4fc34dc3488ea90785a9e6c043881f81f6436f8ff71512bed879ab83e538f5"
+      "sha256": "ea52c162adcb28864270ac0bb3a1c0d4fe54ab83eeaec56da761dbb0987436ac"
     }
   ]
 }

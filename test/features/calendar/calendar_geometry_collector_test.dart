@@ -333,6 +333,41 @@ void main() {
     expect(tester.binding.hasScheduledFrame, isFalse);
   });
 
+  testWidgets('scroll-only layout does not republish unchanged geometry', (
+    tester,
+  ) async {
+    final collector = CalendarGeometryCollector();
+    final scrollController = ScrollController();
+    addTearDown(collector.dispose);
+    addTearDown(scrollController.dispose);
+    await tester.pumpWidget(
+      _host(
+        collector: collector,
+        child: CustomScrollView(
+          controller: scrollController,
+          slivers: [
+            SliverToBoxAdapter(
+              child: CalendarGeometrySection(
+                month: MonthRef(year: 1, month: 1),
+                child: const SizedBox(height: 3000),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pump();
+    final publications = collector.debugPublicationCount;
+    final scheduled = collector.debugScheduledPublicationCount;
+
+    scrollController.jumpTo(240);
+    await tester.pump();
+    await tester.pump();
+
+    expect(collector.debugPublicationCount, publications);
+    expect(collector.debugScheduledPublicationCount, scheduled);
+  });
+
   testWidgets('rejects an invalid candidate without replacing last snapshot', (
     tester,
   ) async {

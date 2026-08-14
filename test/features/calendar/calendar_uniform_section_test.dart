@@ -200,7 +200,14 @@ void main() {
         grid.indexOf('if (seasonHeader != null)'),
         lessThan(grid.indexOf('CalendarGeometryMonthBody(')),
       );
-      expect(grid, contains('child: _buildMonthBody(kMonth, tm, td)'));
+      expect(
+        grid,
+        contains('child: RepaintBoundary('),
+        reason:
+            'Repeated paint isolation belongs to one month boundary, not '
+            'dozens of day-chip and text layers.',
+      );
+      expect(grid, contains('child: _buildMonthBody('));
       expect(grid, isNot(contains('children: const [_GoldDivider()]')));
       expect(
         RegExp(r'CalendarGeometryFinalDayBlock\(').allMatches(grid),

@@ -30,7 +30,7 @@ class _YearSection extends StatelessWidget {
     this.onMonthHeaderTap,
     this.onDecanTap,
     this.todayDayKey,
-    this.temporalAnchorVisible = true,
+    this.temporalAnchorVisibleListenable,
   });
 
   final int kYear;
@@ -64,7 +64,7 @@ class _YearSection extends StatelessWidget {
   final Key? Function(int kMonth)? monthHeaderKeyProvider;
   final Key? Function(int kMonth, int kDay)? dayAnchorKeyProvider;
   final Key? todayDayKey; // 🔑
-  final bool temporalAnchorVisible;
+  final ValueListenable<bool>? temporalAnchorVisibleListenable;
   final ValueListenable<int> Function(MonthRef month)? monthRevisionListenable;
 
   @override
@@ -85,16 +85,39 @@ class _YearSection extends StatelessWidget {
 
   Widget _buildMonthSection(int kMonth, int? tm, int? td) {
     final month = MonthRef(year: kYear, month: kMonth);
-    final revision = monthRevisionListenable?.call(month);
-    if (revision == null) return _buildMonthSectionContent(month, tm, td);
-    return ValueListenableBuilder<int>(
-      valueListenable: revision,
-      builder: (context, value, child) =>
-          _buildMonthSectionContent(month, tm, td),
-    );
+    Widget buildForVisibility(bool isTemporalAnchorVisible) {
+      final revision = monthRevisionListenable?.call(month);
+      if (revision == null) {
+        return _buildMonthSectionContent(
+          month,
+          tm,
+          td,
+          isTemporalAnchorVisible,
+        );
+      }
+      return ValueListenableBuilder<int>(
+        valueListenable: revision,
+        builder: (context, value, child) =>
+            _buildMonthSectionContent(month, tm, td, isTemporalAnchorVisible),
+      );
+    }
+
+    final visibility = temporalAnchorVisibleListenable;
+    if (visibility != null && kMonth == tm) {
+      return ValueListenableBuilder<bool>(
+        valueListenable: visibility,
+        builder: (context, value, child) => buildForVisibility(value),
+      );
+    }
+    return buildForVisibility(true);
   }
 
-  Widget _buildMonthSectionContent(MonthRef month, int? tm, int? td) {
+  Widget _buildMonthSectionContent(
+    MonthRef month,
+    int? tm,
+    int? td,
+    bool isTemporalAnchorVisible,
+  ) {
     final kMonth = month.month;
     final seasonHeader = switch (kMonth) {
       1 => 'Flood season (Akhet)',
@@ -112,14 +135,21 @@ class _YearSection extends StatelessWidget {
           if (seasonHeader != null) _SeasonHeader(title: seasonHeader),
           CalendarGeometryMonthBody(
             month: month,
-            child: _buildMonthBody(kMonth, tm, td),
+            child: RepaintBoundary(
+              child: _buildMonthBody(kMonth, tm, td, isTemporalAnchorVisible),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMonthBody(int kMonth, int? tm, int? td) {
+  Widget _buildMonthBody(
+    int kMonth,
+    int? tm,
+    int? td,
+    bool isTemporalAnchorVisible,
+  ) {
     if (kMonth == CalendarSectionIndex.monthsPerYear) {
       return _EpagomenalCard(
         anchorKey: monthAnchorKeyProvider?.call(kMonth),
@@ -133,7 +163,7 @@ class _YearSection extends StatelessWidget {
         flowColorsGetter: flowColorsGetter,
         onDayTap: onDayTap,
         showGregorian: showGregorian,
-        temporalAnchorVisible: temporalAnchorVisible,
+        temporalAnchorVisible: isTemporalAnchorVisible,
         expansionLevel: expansionLevel,
         noteColorResolver: noteColorResolver,
         flowNameGetter: flowNameGetter,
@@ -168,7 +198,7 @@ class _YearSection extends StatelessWidget {
       todayDayKey: todayDayKey,
       notesGetter: notesGetter,
       flowColorsGetter: flowColorsGetter,
-      temporalAnchorVisible: temporalAnchorVisible,
+      temporalAnchorVisible: isTemporalAnchorVisible,
       onDayTap: onDayTap,
       showGregorian: showGregorian,
       expansionLevel: expansionLevel,
@@ -499,57 +529,52 @@ class _SoftMonthNameTitle extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final trans = transliteration.trim();
-    return Opacity(
-      opacity: opacity,
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        alignment: Alignment.centerLeft,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.baseline,
-          textBaseline: TextBaseline.alphabetic,
-          children: [
+    return FittedBox(
+      fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          MonthNameText(
+            shortName,
+            maxLines: 1,
+            overflow: TextOverflow.fade,
+            softWrap: false,
+            style: TextStyle(
+              color: Color.lerp(
+                _CalendarTone.antiqueGold,
+                _CalendarTone.dimGold,
+                0.04,
+              )?.withValues(alpha: opacity),
+              fontSize: fontSize,
+              height: 1.02,
+              fontWeight: FontWeight.w600,
+              fontFamily: 'CormorantGaramond',
+              fontFamilyFallback: const ['GentiumPlus', 'NotoSans', 'Roboto'],
+            ),
+          ),
+          if (trans.isNotEmpty) ...[
+            const SizedBox(width: 8),
             MonthNameText(
-              shortName,
+              '($trans)',
               maxLines: 1,
               overflow: TextOverflow.fade,
               softWrap: false,
               style: TextStyle(
-                color: Color.lerp(
-                  _CalendarTone.antiqueGold,
-                  _CalendarTone.dimGold,
-                  0.04,
+                color: _CalendarTone.transliteration.withValues(
+                  alpha: 0.88 * opacity,
                 ),
-                fontSize: fontSize,
+                fontSize: fontSize * _CalendarScale.monthTransliterationRatio,
                 height: 1.02,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.w400,
                 fontFamily: 'CormorantGaramond',
                 fontFamilyFallback: const ['GentiumPlus', 'NotoSans', 'Roboto'],
               ),
             ),
-            if (trans.isNotEmpty) ...[
-              const SizedBox(width: 8),
-              MonthNameText(
-                '($trans)',
-                maxLines: 1,
-                overflow: TextOverflow.fade,
-                softWrap: false,
-                style: TextStyle(
-                  color: _CalendarTone.transliteration.withValues(alpha: 0.88),
-                  fontSize: fontSize * _CalendarScale.monthTransliterationRatio,
-                  height: 1.02,
-                  fontWeight: FontWeight.w400,
-                  fontFamily: 'CormorantGaramond',
-                  fontFamilyFallback: const [
-                    'GentiumPlus',
-                    'NotoSans',
-                    'Roboto',
-                  ],
-                ),
-              ),
-            ],
           ],
-        ),
+        ],
       ),
     );
   }
@@ -872,7 +897,7 @@ class _MonthCard extends StatelessWidget {
                         flex: 3,
                         child: Align(
                           alignment: Alignment.centerLeft,
-                          child: RepaintBoundary(
+                          child: KeyedSubtree(
                             key: monthHeaderKey,
                             child: GestureDetector(
                               onTap: () {
@@ -897,15 +922,13 @@ class _MonthCard extends StatelessWidget {
                       Flexible(
                         child: Align(
                           alignment: Alignment.centerRight,
-                          child: RepaintBoundary(
-                            child: Text(
-                              rightLabel,
-                              style: rightLabelStyle,
-                              maxLines: 1,
-                              overflow: TextOverflow.fade,
-                              softWrap: false,
-                              textAlign: TextAlign.right,
-                            ),
+                          child: Text(
+                            rightLabel,
+                            style: rightLabelStyle,
+                            maxLines: 1,
+                            overflow: TextOverflow.fade,
+                            softWrap: false,
+                            textAlign: TextAlign.right,
                           ),
                         ),
                       ),
@@ -1512,246 +1535,237 @@ class _DayChip extends StatelessWidget {
           key: anchorKey,
           width: double.infinity,
           height: chipHeight,
-          child: RepaintBoundary(
-            child: ClipRRect(
-              borderRadius: tileRadius,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: tileFill,
-                  borderRadius: tileRadius,
-                  border: Border.all(
-                    color: tileBorderColor,
-                    width: isToday
-                        ? _kTodayDayTileBorderWidth
-                        : _kDayTileBorderWidth,
-                  ),
+          child: ClipRRect(
+            borderRadius: tileRadius,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: tileFill,
+                borderRadius: tileRadius,
+                border: Border.all(
+                  color: tileBorderColor,
+                  width: isToday
+                      ? _kTodayDayTileBorderWidth
+                      : _kDayTileBorderWidth,
                 ),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (isToday)
-                      Positioned(
-                        left: 1,
-                        top: 0,
-                        right: 1,
-                        child: IgnorePointer(
-                          child: Container(
-                            height: 1,
-                            decoration: BoxDecoration(
-                              color: _CalendarTone.antiqueGold.withValues(
-                                alpha: 0.62,
-                              ),
-                              borderRadius: const BorderRadius.vertical(
-                                top: Radius.circular(_kDayTileRadius),
-                              ),
+              ),
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (isToday)
+                    Positioned(
+                      left: 1,
+                      top: 0,
+                      right: 1,
+                      child: IgnorePointer(
+                        child: Container(
+                          height: 1,
+                          decoration: BoxDecoration(
+                            color: _CalendarTone.antiqueGold.withValues(
+                              alpha: 0.62,
+                            ),
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(_kDayTileRadius),
                             ),
                           ),
                         ),
                       ),
-                    if (highlightAnchorKey != null)
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          child: KeyedSubtree(
-                            key: highlightAnchorKey,
-                            child: const SizedBox.expand(),
-                          ),
+                    ),
+                  if (highlightAnchorKey != null)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: KeyedSubtree(
+                          key: highlightAnchorKey,
+                          child: const SizedBox.expand(),
                         ),
                       ),
-                    Padding(
-                      padding: tilePadding,
-                      child: isCompact
-                          ? LayoutBuilder(
-                              builder: (context, constraints) {
-                                final maxWidth = constraints.maxWidth.isFinite
-                                    ? constraints.maxWidth
-                                    : 0.0;
-                                return Column(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.stretch,
-                                  children: [
-                                    Flexible(
-                                      child: Align(
-                                        alignment: Alignment.topCenter,
-                                        child: Text(
-                                          label,
-                                          style: numberStyle,
-                                          maxLines: 1,
-                                          overflow: TextOverflow.fade,
-                                          softWrap: false,
-                                        ),
+                    ),
+                  Padding(
+                    padding: tilePadding,
+                    child: isCompact
+                        ? LayoutBuilder(
+                            builder: (context, constraints) {
+                              final maxWidth = constraints.maxWidth.isFinite
+                                  ? constraints.maxWidth
+                                  : 0.0;
+                              return Column(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Flexible(
+                                    child: Align(
+                                      alignment: Alignment.topCenter,
+                                      child: Text(
+                                        label,
+                                        style: numberStyle,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.fade,
+                                        softWrap: false,
                                       ),
                                     ),
-                                    const SizedBox(height: _kCompactMarkerGap),
-                                    KeyedSubtree(
-                                      key: ValueKey<String>(
-                                        'k:$kYear-$kMonth-$kDay-marker|${showGregorian ? "G" : "K"}',
-                                      ),
-                                      child: IgnorePointer(
-                                        child: ClipRect(
-                                          child: ConstrainedBox(
-                                            constraints: BoxConstraints(
+                                  ),
+                                  const SizedBox(height: _kCompactMarkerGap),
+                                  KeyedSubtree(
+                                    key: ValueKey<String>(
+                                      'k:$kYear-$kMonth-$kDay-marker|${showGregorian ? "G" : "K"}',
+                                    ),
+                                    child: IgnorePointer(
+                                      child: ClipRect(
+                                        child: ConstrainedBox(
+                                          constraints: BoxConstraints(
+                                            maxWidth: maxWidth,
+                                          ),
+                                          child: Align(
+                                            alignment: Alignment.bottomCenter,
+                                            child: buildMiniBlocksCompact(
                                               maxWidth: maxWidth,
                                             ),
-                                            child: Align(
-                                              alignment: Alignment.bottomCenter,
-                                              child: buildMiniBlocksCompact(
-                                                maxWidth: maxWidth,
-                                              ),
-                                            ),
                                           ),
                                         ),
                                       ),
                                     ),
-                                  ],
-                                );
-                              },
-                            )
-                          : Column(
-                              mainAxisAlignment: MainAxisAlignment.start,
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                SizedBox(
-                                  height: nonCompactHeaderHeight,
-                                  child: LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      final maxWidth =
-                                          constraints.maxWidth.isFinite
-                                          ? constraints.maxWidth
-                                          : 0.0;
-                                      final canShowTrackSkyMotif =
-                                          trackSkyHeaderNote != null &&
-                                          maxWidth >= 14;
-                                      final motifWidth = canShowTrackSkyMotif
-                                          ? math.min(14.0, maxWidth * 0.4)
-                                          : 0.0;
-                                      final motifOffset = canShowTrackSkyMotif
-                                          ? (motifWidth / 2) + 1.5
-                                          : 0.0;
-                                      final motifOnLeftEdge = kDay % 10 == 0;
-                                      final motifSpec =
-                                          trackSkyHeaderNote == null
-                                          ? null
-                                          : _trackSkyBadgeSpecForNote(
-                                              trackSkyHeaderNote,
-                                            );
+                                  ),
+                                ],
+                              );
+                            },
+                          )
+                        : Column(
+                            mainAxisAlignment: MainAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              SizedBox(
+                                height: nonCompactHeaderHeight,
+                                child: LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    final maxWidth =
+                                        constraints.maxWidth.isFinite
+                                        ? constraints.maxWidth
+                                        : 0.0;
+                                    final canShowTrackSkyMotif =
+                                        trackSkyHeaderNote != null &&
+                                        maxWidth >= 14;
+                                    final motifWidth = canShowTrackSkyMotif
+                                        ? math.min(14.0, maxWidth * 0.4)
+                                        : 0.0;
+                                    final motifOffset = canShowTrackSkyMotif
+                                        ? (motifWidth / 2) + 1.5
+                                        : 0.0;
+                                    final motifOnLeftEdge = kDay % 10 == 0;
+                                    final motifSpec = trackSkyHeaderNote == null
+                                        ? null
+                                        : _trackSkyBadgeSpecForNote(
+                                            trackSkyHeaderNote,
+                                          );
 
-                                      return Stack(
-                                        clipBehavior: Clip.none,
-                                        children: [
-                                          SizedBox(
-                                            width: double.infinity,
-                                            height: nonCompactHeaderHeight,
-                                            child: Center(
-                                              child: Text(
-                                                label,
-                                                style: numberStyle,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.fade,
-                                                softWrap: false,
-                                              ),
+                                    return Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        SizedBox(
+                                          width: double.infinity,
+                                          height: nonCompactHeaderHeight,
+                                          child: Center(
+                                            child: Text(
+                                              label,
+                                              style: numberStyle,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.fade,
+                                              softWrap: false,
                                             ),
                                           ),
-                                          if (canShowTrackSkyMotif &&
-                                              motifSpec != null)
-                                            Positioned(
-                                              top: 10,
-                                              left: motifOnLeftEdge
-                                                  ? -motifOffset
-                                                  : null,
-                                              right: motifOnLeftEdge
-                                                  ? null
-                                                  : -motifOffset,
-                                              child: IgnorePointer(
-                                                child: SizedBox(
-                                                  width: motifWidth,
-                                                  height: 10,
-                                                  child: Stack(
-                                                    alignment: Alignment.center,
-                                                    children: [
-                                                      Align(
-                                                        alignment:
-                                                            Alignment.topCenter,
-                                                        child: SizedBox(
-                                                          height: 6.2,
-                                                          child: FittedBox(
-                                                            fit: BoxFit
-                                                                .scaleDown,
-                                                            alignment: Alignment
-                                                                .topCenter,
-                                                            child: _buildTrackSkyBadgeMotif(
-                                                              spec: motifSpec,
-                                                              title:
-                                                                  trackSkyHeaderNote
-                                                                      .title,
-                                                              dense: false,
-                                                            ),
+                                        ),
+                                        if (canShowTrackSkyMotif &&
+                                            motifSpec != null)
+                                          Positioned(
+                                            top: 10,
+                                            left: motifOnLeftEdge
+                                                ? -motifOffset
+                                                : null,
+                                            right: motifOnLeftEdge
+                                                ? null
+                                                : -motifOffset,
+                                            child: IgnorePointer(
+                                              child: SizedBox(
+                                                width: motifWidth,
+                                                height: 10,
+                                                child: Stack(
+                                                  alignment: Alignment.center,
+                                                  children: [
+                                                    Align(
+                                                      alignment:
+                                                          Alignment.topCenter,
+                                                      child: SizedBox(
+                                                        height: 6.2,
+                                                        child: FittedBox(
+                                                          fit: BoxFit.scaleDown,
+                                                          alignment: Alignment
+                                                              .topCenter,
+                                                          child: _buildTrackSkyBadgeMotif(
+                                                            spec: motifSpec,
+                                                            title:
+                                                                trackSkyHeaderNote
+                                                                    .title,
+                                                            dense: false,
                                                           ),
                                                         ),
                                                       ),
-                                                      Align(
-                                                        alignment: Alignment
-                                                            .bottomCenter,
-                                                        child: Container(
-                                                          height: 1.8,
-                                                          decoration: BoxDecoration(
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  999,
-                                                                ),
-                                                            gradient: LinearGradient(
-                                                              colors: [
-                                                                motifSpec
-                                                                    .accentColor
-                                                                    .withValues(
-                                                                      alpha:
-                                                                          0.0,
-                                                                    ),
-                                                                motifSpec
-                                                                    .accentColor
-                                                                    .withValues(
-                                                                      alpha:
-                                                                          0.75,
-                                                                    ),
-                                                                motifSpec
-                                                                    .secondaryAccentColor
-                                                                    .withValues(
-                                                                      alpha:
-                                                                          0.95,
-                                                                    ),
-                                                              ],
-                                                            ),
+                                                    ),
+                                                    Align(
+                                                      alignment: Alignment
+                                                          .bottomCenter,
+                                                      child: Container(
+                                                        height: 1.8,
+                                                        decoration: BoxDecoration(
+                                                          borderRadius:
+                                                              BorderRadius.circular(
+                                                                999,
+                                                              ),
+                                                          gradient: LinearGradient(
+                                                            colors: [
+                                                              motifSpec
+                                                                  .accentColor
+                                                                  .withValues(
+                                                                    alpha: 0.0,
+                                                                  ),
+                                                              motifSpec
+                                                                  .accentColor
+                                                                  .withValues(
+                                                                    alpha: 0.75,
+                                                                  ),
+                                                              motifSpec
+                                                                  .secondaryAccentColor
+                                                                  .withValues(
+                                                                    alpha: 0.95,
+                                                                  ),
+                                                            ],
                                                           ),
                                                         ),
                                                       ),
-                                                    ],
-                                                  ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ),
                                             ),
-                                        ],
-                                      );
-                                    },
-                                  ),
+                                          ),
+                                      ],
+                                    );
+                                  },
                                 ),
-                                Expanded(
-                                  child: LayoutBuilder(
-                                    builder: (context, constraints) {
-                                      return ClipRect(
-                                        child: buildMiniBlocks(
-                                          availableHeight:
-                                              constraints.maxHeight,
-                                        ),
-                                      );
-                                    },
-                                  ),
+                              ),
+                              Expanded(
+                                child: LayoutBuilder(
+                                  builder: (context, constraints) {
+                                    return ClipRect(
+                                      child: buildMiniBlocks(
+                                        availableHeight: constraints.maxHeight,
+                                      ),
+                                    );
+                                  },
                                 ),
-                              ],
-                            ),
-                    ),
-                  ],
-                ),
+                              ),
+                            ],
+                          ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -1925,19 +1939,16 @@ class _ColorDot extends StatelessWidget {
   const _ColorDot({required this.color});
   @override
   Widget build(BuildContext context) {
-    final softened = _CalendarTone.dot(color);
-    return Opacity(
-      opacity: 0.86,
-      child: Container(
-        width: _CalendarScale.dayDot,
-        height: _CalendarScale.dayDot,
-        decoration: BoxDecoration(
-          color: softened,
-          shape: BoxShape.circle,
-          boxShadow: [
-            BoxShadow(color: softened.withValues(alpha: 0.15), blurRadius: 1.2),
-          ],
-        ),
+    final softened = _CalendarTone.dot(color).withValues(alpha: 0.86);
+    return Container(
+      width: _CalendarScale.dayDot,
+      height: _CalendarScale.dayDot,
+      decoration: BoxDecoration(
+        color: softened,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(color: softened.withValues(alpha: 0.129), blurRadius: 1.2),
+        ],
       ),
     );
   }
@@ -2329,128 +2340,126 @@ class _TrackSkyMiniBadge extends StatelessWidget {
                   ? math.min(24.0, outerConstraints.maxWidth)
                   : 24.0)
             : 0.0;
-        final badge = RepaintBoundary(
-          child: Container(
-            width: expand ? double.infinity : null,
-            height: badgeHeight,
-            constraints: BoxConstraints(minWidth: minW),
-            decoration: BoxDecoration(
-              borderRadius: radius,
-              gradient: spec.background,
-              border: Border.all(
-                color: spec.borderColor.withValues(alpha: dense ? 0.95 : 1.0),
-                width: dense ? 0.95 : 1.0,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.26),
-                  blurRadius: dense ? 2 : 5,
-                  offset: const Offset(0, 1),
-                ),
-              ],
+        final badge = Container(
+          width: expand ? double.infinity : null,
+          height: badgeHeight,
+          constraints: BoxConstraints(minWidth: minW),
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            gradient: spec.background,
+            border: Border.all(
+              color: spec.borderColor.withValues(alpha: dense ? 0.95 : 1.0),
+              width: dense ? 0.95 : 1.0,
             ),
-            child: ClipRRect(
-              borderRadius: radius,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  final canShowMotifWithLabel =
-                      showLabel && constraints.maxWidth >= 44;
-                  final labelStyle = baseLabelStyle.copyWith(
-                    fontSize: _eventPillFontSize(
-                      maxWidth: constraints.maxWidth,
-                      isDetailPill: isDetailPill,
-                    ),
-                  );
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.26),
+                blurRadius: dense ? 2 : 5,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: radius,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final canShowMotifWithLabel =
+                    showLabel && constraints.maxWidth >= 44;
+                final labelStyle = baseLabelStyle.copyWith(
+                  fontSize: _eventPillFontSize(
+                    maxWidth: constraints.maxWidth,
+                    isDetailPill: isDetailPill,
+                  ),
+                );
 
-                  return Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ..._buildTrackSkyStars(
-                        seed: note.title,
-                        showLabel: showLabel,
-                        dense: dense,
-                        tint: spec.accentColor,
-                      ),
-                      if (showLabel)
-                        Positioned.fill(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                                colors: [
-                                  const Color(0xAA04060C),
-                                  const Color(0x7204060C),
-                                  const Color(0x1204060C),
-                                  Colors.transparent,
-                                ],
-                                stops: const [0.0, 0.38, 0.64, 1.0],
-                              ),
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ..._buildTrackSkyStars(
+                      seed: note.title,
+                      showLabel: showLabel,
+                      dense: dense,
+                      tint: spec.accentColor,
+                    ),
+                    if (showLabel)
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [
+                                const Color(0xAA04060C),
+                                const Color(0x7204060C),
+                                const Color(0x1204060C),
+                                Colors.transparent,
+                              ],
+                              stops: const [0.0, 0.38, 0.64, 1.0],
                             ),
                           ),
                         ),
-                      Padding(
-                        padding: padding,
-                        child: showLabel
-                            ? Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  Padding(
-                                    padding: EdgeInsets.only(
-                                      right: canShowMotifWithLabel
-                                          ? motifBoxWidth + 2
-                                          : 0,
-                                    ),
-                                    child: Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        label!,
-                                        maxLines: singleLineLabel
-                                            ? 1
-                                            : (isDetailPill ? 3 : 2),
-                                        overflow: TextOverflow.ellipsis,
-                                        softWrap: !singleLineLabel,
-                                        textAlign: TextAlign.center,
-                                        style: labelStyle,
-                                      ),
+                      ),
+                    Padding(
+                      padding: padding,
+                      child: showLabel
+                          ? Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                Padding(
+                                  padding: EdgeInsets.only(
+                                    right: canShowMotifWithLabel
+                                        ? motifBoxWidth + 2
+                                        : 0,
+                                  ),
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      label!,
+                                      maxLines: singleLineLabel
+                                          ? 1
+                                          : (isDetailPill ? 3 : 2),
+                                      overflow: TextOverflow.ellipsis,
+                                      softWrap: !singleLineLabel,
+                                      textAlign: TextAlign.center,
+                                      style: labelStyle,
                                     ),
                                   ),
-                                  if (canShowMotifWithLabel)
-                                    Positioned(
-                                      right: 0,
-                                      top: 0,
-                                      bottom: 0,
-                                      child: Align(
-                                        alignment: Alignment.centerRight,
-                                        child: SizedBox(
-                                          width: motifBoxWidth,
-                                          height: motifBoxHeight,
-                                          child: FittedBox(
-                                            fit: BoxFit.scaleDown,
-                                            alignment: Alignment.centerRight,
-                                            child: motif,
-                                          ),
+                                ),
+                                if (canShowMotifWithLabel)
+                                  Positioned(
+                                    right: 0,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Align(
+                                      alignment: Alignment.centerRight,
+                                      child: SizedBox(
+                                        width: motifBoxWidth,
+                                        height: motifBoxHeight,
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerRight,
+                                          child: motif,
                                         ),
                                       ),
                                     ),
-                                ],
-                              )
-                            : Center(
-                                child: SizedBox(
-                                  width: motifBoxWidth,
-                                  height: motifBoxHeight,
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    alignment: Alignment.center,
-                                    child: motif,
                                   ),
+                              ],
+                            )
+                          : Center(
+                              child: SizedBox(
+                                width: motifBoxWidth,
+                                height: motifBoxHeight,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.center,
+                                  child: motif,
                                 ),
                               ),
-                      ),
-                    ],
-                  );
-                },
-              ),
+                            ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         );
@@ -2751,7 +2760,7 @@ class _EpagomenalCard extends StatelessWidget {
                         maintainState: true,
                         maintainAnimation: true,
                         maintainSize: true,
-                        child: RepaintBoundary(
+                        child: KeyedSubtree(
                           key: monthHeaderKey,
                           child: _SoftMonthNameTitle(
                             shortName: epagomenalMeta.displayShort,

@@ -182,3 +182,19 @@ closed contributor list and equations must be re-audited first.
 The go/no-go result from source inventory is **go for inert model and shadow
 work**. Production epoch work remains gated on numerical baselines, exact
 spec-versus-render parity, and the layout-coupled correction feasibility proof.
+
+## 2026-08-14 ownership and paint re-audit
+
+The production repair changed four audited fragments without changing any
+extent equation:
+
+- `_YearSection` now localizes temporal-tone publication to the current month
+  and owns one repaint boundary around each complete month body.
+- `_GoldDivider` paints the same fixed `0.65`-pixel gradient directly; the
+  removed opacity/shader/repaint wrappers never contributed layout extent.
+- the scroll notification path no longer performs restoration or hydration
+  work before settle; its sliver topology and `401 * 13` domain are unchanged.
+- geometry marker proxies publish when their laid-out size, identity, mount, or
+  presentation epoch changes. Remembering the prior size adds no layout.
+
+The original completeness trace and equations therefore remain exhaustive.

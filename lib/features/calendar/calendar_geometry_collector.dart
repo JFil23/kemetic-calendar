@@ -6,9 +6,9 @@ import 'package:mobile/features/calendar/calendar_section_index.dart';
 
 /// Owns the passive, mounted-only geometry view of the portrait calendar.
 ///
-/// Render objects only mark this collector dirty during layout. Final
-/// coordinates are read after the frame, when every ancestor has assigned its
-/// child offsets. Publication is atomic and does not schedule another frame.
+/// Render objects mark this collector dirty only when mounted geometry changes.
+/// Final coordinates are read after the frame, when every ancestor has assigned
+/// its child offsets. Publication is atomic and does not schedule another frame.
 final class CalendarGeometryCollector extends ChangeNotifier {
   final Set<RenderCalendarGeometrySection> _mountedSections =
       <RenderCalendarGeometrySection>{};
@@ -274,6 +274,7 @@ final class RenderCalendarGeometryFinalDayBlock extends RenderProxyBox {
 
   MonthRef _month;
   CalendarGeometryCollector? _collector;
+  Size? _lastReportedSize;
 
   MonthRef get month => _month;
 
@@ -298,6 +299,7 @@ final class RenderCalendarGeometryFinalDayBlock extends RenderProxyBox {
 
   @override
   void detach() {
+    _lastReportedSize = null;
     _collector?._unregisterFinalDayBlock(this);
     super.detach();
   }
@@ -305,7 +307,10 @@ final class RenderCalendarGeometryFinalDayBlock extends RenderProxyBox {
   @override
   void performLayout() {
     super.performLayout();
-    _collector?._didLayoutFinalDayBlock(this);
+    if (_lastReportedSize != size) {
+      _lastReportedSize = size;
+      _collector?._didLayoutFinalDayBlock(this);
+    }
   }
 }
 
@@ -351,6 +356,7 @@ final class RenderCalendarGeometryMonthBody extends RenderProxyBox {
 
   MonthRef _month;
   CalendarGeometryCollector? _collector;
+  Size? _lastReportedSize;
 
   MonthRef get month => _month;
 
@@ -375,6 +381,7 @@ final class RenderCalendarGeometryMonthBody extends RenderProxyBox {
 
   @override
   void detach() {
+    _lastReportedSize = null;
     _collector?._unregisterBody(this);
     super.detach();
   }
@@ -382,7 +389,10 @@ final class RenderCalendarGeometryMonthBody extends RenderProxyBox {
   @override
   void performLayout() {
     super.performLayout();
-    _collector?._didLayoutBody(this);
+    if (_lastReportedSize != size) {
+      _lastReportedSize = size;
+      _collector?._didLayoutBody(this);
+    }
   }
 }
 
@@ -450,6 +460,7 @@ final class RenderCalendarGeometrySection extends RenderProxyBox {
 
   MonthRef _month;
   CalendarGeometryCollector? _collector;
+  Size? _lastReportedSize;
 
   MonthRef get month => _month;
 
@@ -474,6 +485,7 @@ final class RenderCalendarGeometrySection extends RenderProxyBox {
 
   @override
   void detach() {
+    _lastReportedSize = null;
     _collector?._unregister(this);
     super.detach();
   }
@@ -481,6 +493,9 @@ final class RenderCalendarGeometrySection extends RenderProxyBox {
   @override
   void performLayout() {
     super.performLayout();
-    _collector?._didLayout(this);
+    if (_lastReportedSize != size) {
+      _lastReportedSize = size;
+      _collector?._didLayout(this);
+    }
   }
 }

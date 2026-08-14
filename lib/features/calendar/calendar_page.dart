@@ -9669,7 +9669,6 @@ class CalendarPageState extends State<CalendarPage>
     with WidgetsBindingObserver, RouteAware {
   static const Duration _foregroundRefreshThreshold = Duration(minutes: 10);
   static const Duration _restorationWriteDebounce = Duration(milliseconds: 150);
-  static const int _calendarProgressSaveIntervalMs = 300;
   late final CalendarHydrationScheduler _hydrationScheduler =
       CalendarHydrationScheduler(
         isMounted: () => mounted,
@@ -10165,8 +10164,6 @@ class CalendarPageState extends State<CalendarPage>
   String? _restoredCalendarAnchorTarget;
   double? _restoredCalendarAnchorAlignment;
   double? _restoredCalendarScrollOffset;
-  int _lastCalendarProgressSaveAtMs = 0;
-  bool _calendarProgressSaveInFlight = false;
   DayViewRestorationState? _activeDayViewRestorationState;
   DayViewRestorationState? _pendingPersistentDayViewState;
   final DayViewRestorationWriteGate _dayViewRestorationWriteGate =
@@ -10369,7 +10366,9 @@ class CalendarPageState extends State<CalendarPage>
 
   MonthExpansionLevel _monthExpansion = MonthExpansionLevel.compact;
   MonthExpansionLevel? _monthExpansionRestorationTarget;
-  bool _currentDecanVisibleInViewport = true;
+  final ValueNotifier<bool> _currentDecanVisibleInViewport =
+      ValueNotifier<bool>(true);
+  bool _currentDecanViewportRefreshScheduled = false;
   double? _scaleGestureAnchor;
   double _pinchExpansionValue = 0.0; // 0=compact,1=stacked,2=labeled,3=details
   bool _isPinching = false;
@@ -14884,7 +14883,7 @@ class CalendarPageState extends State<CalendarPage>
       _lastKnownCalendarScrollOffset = _scrollCtrl.position.pixels;
     }
     _restorationInteractedSinceBoot = true;
-    _maybePersistCalendarRestorationDuringScroll();
+    _scheduleCurrentDecanViewportRefresh();
     _calendarScrollCoordinator.noteScroll();
   }
 
@@ -14894,7 +14893,12 @@ class CalendarPageState extends State<CalendarPage>
     if (_lastViewKy == centered.year && _lastViewKm == centered.month) return;
     final maxDay = _maxDayForMonth(centered.year, centered.month);
     final clampedDay = (_lastViewKd ?? 1).clamp(1, maxDay);
-    _setView(centered.year, centered.month, kd: clampedDay);
+    // A live scroll sample owns semantic position only. Durability and
+    // hydration are settle consumers; scheduling them at every boundary was
+    // timer churn in the frame path and created a second owner for scrolling.
+    _lastViewKy = centered.year;
+    _lastViewKm = centered.month;
+    _lastViewKd = clampedDay;
   }
 
   MonthRef? _shadowAuthoritativeMonth() {
@@ -15059,58 +15063,14 @@ class CalendarPageState extends State<CalendarPage>
   static bool _hasPresentedOnboardingThisLaunch = false;
   static const String _onboardingContinuationStageKeyPrefix =
       'onboarding_v1_continuation_stage';
-  static const List<int> _onboardingAnchorDays = [
-    1,
-    2,
-    3,
-    4,
-    5,
-    6,
-    7,
-    8,
-    9,
-    10,
-    11,
-    12,
-    13,
-    14,
-    15,
-    16,
-    17,
-    18,
-    19,
-    20,
-    21,
-    22,
-    23,
-    24,
-    25,
-    26,
-    27,
-    28,
-    29,
-    30,
-  ];
-
   // for centering and for snapping to today
   final _centerKey = GlobalKey();
   final _todayDayKey = GlobalKey(); // 🔑 individual day chip
-  final _viewDayAnchorKey = GlobalKey(debugLabel: 'calendar_view_day_anchor');
+  final Map<DayRef, GlobalKey> _viewDayAnchorKeys = <DayRef, GlobalKey>{};
   final _calendarToggleKey = GlobalKey(debugLabel: 'calendar_toggle_haw');
   VoidCallback? _landscapeTodayAction;
   int? _calendarMonthCoachmarkKy;
   int? _calendarMonthCoachmarkKm;
-  late final Map<int, GlobalKey> _onboardingHighlightDayKeys = {
-    for (final day in _onboardingAnchorDays)
-      day: GlobalKey(debugLabel: 'onboarding_day_$day'),
-  };
-
-  Key? _onboardingHighlightKeyFor(int kYear, int kMonth, int kDay) {
-    final onboardingKy = _lastViewKy ?? _today.kYear;
-    final onboardingKm = _lastViewKm ?? _today.kMonth;
-    if (kYear != onboardingKy || kMonth != onboardingKm) return null;
-    return _onboardingHighlightDayKeys[kDay];
-  }
 
   bool _matchesFirstMaatFlowEventDate(int kYear, int kMonth, int kDay) {
     final target = _firstMaatFlowEventKDate;
@@ -15138,9 +15098,17 @@ class CalendarPageState extends State<CalendarPage>
         !(kYear == _today.kYear &&
             kMonth == _today.kMonth &&
             kDay == _today.kDay)) {
-      return _viewDayAnchorKey;
+      final day = const CalendarSectionIndex().day(
+        MonthRef(year: kYear, month: kMonth),
+        kDay,
+      );
+      return _viewDayAnchorKeys.putIfAbsent(
+        day,
+        () =>
+            GlobalKey(debugLabel: 'calendar_view_day_${kYear}_${kMonth}_$kDay'),
+      );
     }
-    return _onboardingHighlightKeyFor(kYear, kMonth, kDay);
+    return null;
   }
 
   static final DateTime _debugDaySheetSmokeGregorianDate = DateTime(
@@ -17876,29 +17844,6 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
-  void _maybePersistCalendarRestorationDuringScroll() {
-    if (!_rememberLastView ||
-        !_restored ||
-        _calendarProgressSaveInFlight ||
-        !_scrollCtrl.hasClients) {
-      return;
-    }
-    final nowMs = DateTime.now().millisecondsSinceEpoch;
-    if (nowMs - _lastCalendarProgressSaveAtMs <
-        _calendarProgressSaveIntervalMs) {
-      return;
-    }
-    _lastCalendarProgressSaveAtMs = nowMs;
-    _calendarProgressSaveInFlight = true;
-    unawaited(
-      _saveCalendarRestorationNow(
-        reason: 'calendar_scroll_progress',
-      ).whenComplete(() {
-        _calendarProgressSaveInFlight = false;
-      }),
-    );
-  }
-
   Future<void> _saveCalendarRestorationNow({
     String reason = 'manual',
     int? overrideKy,
@@ -18584,7 +18529,11 @@ class CalendarPageState extends State<CalendarPage>
           viewKd == _today.kDay) {
         return _todayDayKey.currentContext;
       }
-      return _viewDayAnchorKey.currentContext;
+      final day = const CalendarSectionIndex().normalizedDay(
+        MonthRef(year: viewKy, month: viewKm),
+        viewKd,
+      );
+      return _viewDayAnchorKeys[day]?.currentContext;
     }
     return _todayDayKey.currentContext;
   }
@@ -18681,8 +18630,17 @@ class CalendarPageState extends State<CalendarPage>
   void _refreshCurrentDecanViewportAnchor() {
     if (!mounted || !_initialViewportSettled) return;
     final next = _isTodayDayAnchorVisibleInCalendarViewport();
-    if (next == _currentDecanVisibleInViewport) return;
-    setState(() => _currentDecanVisibleInViewport = next);
+    if (next == _currentDecanVisibleInViewport.value) return;
+    _currentDecanVisibleInViewport.value = next;
+  }
+
+  void _scheduleCurrentDecanViewportRefresh() {
+    if (_currentDecanViewportRefreshScheduled) return;
+    _currentDecanViewportRefreshScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _currentDecanViewportRefreshScheduled = false;
+      _refreshCurrentDecanViewportAnchor();
+    }, debugLabel: 'CalendarPage.currentDecanVisibility');
   }
 
   ({BuildContext context, String target, double alignment})?
@@ -18843,6 +18801,72 @@ class CalendarPageState extends State<CalendarPage>
     return true;
   }
 
+  /// Runs one complete Today journey against a stable presentation epoch.
+  ///
+  /// The target render object is often unmounted when the user is years away.
+  /// In that case we first move to the canonical current-year origin, allow
+  /// the real target to mount, and then perform the visible exact animation.
+  /// This avoids render-tree guessing and makes a far-away Today command as
+  /// reliable as a near one.
+  Future<bool> _travelToTodayInActiveEpoch({required bool animate}) async {
+    if (!_scrollCtrl.hasClients) return false;
+
+    double? resolveTarget() {
+      final targetContext =
+          _todayDayKey.currentContext ??
+          keyForMonth(_today.kYear, _today.kMonth).currentContext;
+      return _centeredScrollOffsetForContext(targetContext);
+    }
+
+    var targetPixels = resolveTarget();
+    if (targetPixels == null) {
+      final position = _scrollCtrl.position;
+      final currentYearOrigin = 0.0.clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
+      position.jumpTo(currentYearOrigin.toDouble());
+      await WidgetsBinding.instance.endOfFrame;
+      if (!mounted || !_scrollCtrl.hasClients) return false;
+      targetPixels = resolveTarget();
+    }
+    if (targetPixels == null) return false;
+
+    final position = _scrollCtrl.position;
+    if (!animate) {
+      position.jumpTo(targetPixels);
+      return true;
+    }
+
+    final animation = position.animateTo(
+      targetPixels,
+      duration: const Duration(milliseconds: 320),
+      curve: Curves.easeOutCubic,
+    );
+    if (_calendarBoundaryBenchmarkEnabled) {
+      widget.calendarBoundaryHarnessController?._noteTodayAnimationStarted(
+        animation,
+        targetPixels: targetPixels,
+      );
+    }
+    await animation;
+    if (!mounted || !_scrollCtrl.hasClients) return false;
+
+    // A scroll activity outside the Today authority must not leave the command
+    // stably settled at the wrong destination. Re-resolve from the unchanged
+    // epoch and finish a short exact leg if necessary.
+    final exactTarget = resolveTarget();
+    if (exactTarget != null &&
+        (_scrollCtrl.position.pixels - exactTarget).abs() > 0.5) {
+      await _scrollCtrl.position.animateTo(
+        exactTarget,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOutCubic,
+      );
+    }
+    return true;
+  }
+
   double? _centeredScrollOffsetForContext(BuildContext? targetCtx) {
     return _scrollOffsetForContext(targetCtx, alignment: 0.5);
   }
@@ -18935,6 +18959,7 @@ class CalendarPageState extends State<CalendarPage>
       revision.dispose();
     }
     _calendarMonthProjectionRevisions.clear();
+    _currentDecanVisibleInViewport.dispose();
     _calendarLayoutCorrection.clear();
     _scrollCtrl.dispose();
     _calendarGeometryCollector.removeListener(
@@ -24819,26 +24844,23 @@ class CalendarPageState extends State<CalendarPage>
           ),
         );
         if (!mounted) return;
-        if (!_hydrationController.state.coverage.covers(targetInterval)) {
-          // Target geometry is not authoritative. Do not launch a trip whose
-          // destination can move underneath it when hydration eventually wins.
-          return;
+        // Prefer the freshly resolved target spec. If the network is
+        // unavailable, the existing local projection is still a valid Today
+        // destination; a navigation command must never become a silent no-op.
+        if (_hydrationController.state.coverage.covers(targetInterval)) {
+          await WidgetsBinding.instance.endOfFrame;
         }
-        // The target month projection and its layout complete before travel.
-        await WidgetsBinding.instance.endOfFrame;
       }
       if (!mounted) return;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) {
-          _todayNavigationInFlight = false;
-          return;
-        }
-        _jumpToTodayNow(
-          animate: animate,
-          onComplete: () => _todayNavigationInFlight = false,
-        );
-      });
       travelStarted = true;
+      final presentationTransaction =
+          _beginCalendarTodayPresentationTransaction();
+      try {
+        await _travelToTodayInActiveEpoch(animate: animate);
+      } finally {
+        _settleCalendarTodayPresentationTransaction(presentationTransaction);
+        _todayNavigationInFlight = false;
+      }
     } finally {
       if (!travelStarted) _todayNavigationInFlight = false;
     }
@@ -32638,13 +32660,9 @@ class CalendarPageState extends State<CalendarPage>
       child: NotificationListener<ScrollNotification>(
         onNotification: (notification) {
           if (!_initialViewportSettled) return false;
-          if (notification is ScrollStartNotification &&
-              notification.dragDetails != null) {
+          if (notification is ScrollStartNotification) {
             _beginCalendarGesturePresentationTransaction();
           }
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            _refreshCurrentDecanViewportAnchor();
-          });
           if (notification is ScrollEndNotification) {
             _settleCalendarGesturePresentationTransaction();
             if (_scrollCtrl.hasClients) {
@@ -32727,7 +32745,7 @@ class CalendarPageState extends State<CalendarPage>
                 monthRevisionListenable: _calendarMonthProjectionRevision,
                 todayMonth: kToday.kMonth,
                 todayDay: kToday.kDay,
-                temporalAnchorVisible: _currentDecanVisibleInViewport,
+                temporalAnchorVisibleListenable: _currentDecanVisibleInViewport,
                 monthAnchorKeyProvider: (m) => keyForMonth(kToday.kYear, m),
                 monthHeaderKeyProvider: (m) =>
                     keyForMonthHeader(kToday.kYear, m),
@@ -33609,18 +33627,20 @@ class _GoldDivider extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Center(
-        child: RepaintBoundary(
-          child: Opacity(
-            opacity: 0.42,
-            child: ShaderMask(
-              shaderCallback: (Rect r) => goldGloss.createShader(r),
-              blendMode: BlendMode.srcIn,
-              child: SizedBox(
-                width: w,
-                height: 0.65,
-                child: const DecoratedBox(
-                  decoration: BoxDecoration(color: Color(0xFFFFFFFF)),
-                ),
+        child: SizedBox(
+          width: w,
+          height: 0.65,
+          child: const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Color(0x6BFFE8A3),
+                  Color(0x6BD4AF37),
+                  Color(0x6B8A6B16),
+                ],
+                stops: [0.0, 0.55, 1.0],
               ),
             ),
           ),
