@@ -870,6 +870,32 @@ void main() {
       expect(source, isNot(contains("label: 'Find People'")));
     });
 
+    test('focused month and decan header opens Library', () async {
+      final source = await File(
+        'lib/features/calendar/calendar_month_detail.dart',
+      ).readAsString();
+      final appBar = _sourceBetween(
+        source,
+        'appBar: AppBar(',
+        'body: PageView.builder(',
+      );
+
+      expect(appBar, contains('onPressed: _openLibrary'));
+      expect(appBar, contains('glyph: MeduNeterGlyphs.library'));
+      expect(appBar, contains("'Library'"));
+      expect(appBar, isNot(contains('KemeticAppBarTodayIcon')));
+      expect(appBar, isNot(contains("'Today'")));
+
+      final openLibrary = _sourceBetween(
+        source,
+        'void _openLibrary()',
+        'String? _scrubDetail',
+      );
+      expect(openLibrary, contains('AppSection.library'));
+      expect(openLibrary, contains('Navigator.of(context).pop()'));
+      expect(openLibrary, contains("router.go('/nodes')"));
+    });
+
     test('shared profile helper uses canonical profile route', () async {
       final source = await File(
         'lib/features/calendar/calendar_page.dart',

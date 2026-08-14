@@ -173,23 +173,16 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
     widget.onDayTap(ctx, km, kd);
   }
 
-  Future<void> _jumpToToday() async {
-    final today = KemeticMath.fromGregorian(DateTime.now());
-    final monthOffset =
-        (today.kYear - widget.kYear) * _monthsInYear +
-        (today.kMonth - widget.kMonth);
-    final targetPage = _pageSeed + monthOffset;
-    setState(() {
-      _currentDecanIndex = null;
-      _selectedDay = null;
-      _infoSelectionSerial++;
-    });
-    SpeechService.instance.stop();
-    await _pageController.animateToPage(
-      targetPage,
-      duration: const Duration(milliseconds: 250),
-      curve: Curves.easeInOut,
+  void _openLibrary() {
+    final router = GoRouter.of(context);
+    unawaited(
+      AppNavigationRestorationController.instance.recordPrimaryTabSelection(
+        AppSection.library,
+      ),
     );
+    SpeechService.instance.stop();
+    Navigator.of(context).pop();
+    router.go('/nodes');
   }
 
   String? _scrubDetail(String? detail) {
@@ -292,14 +285,14 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: TextButton.icon(
-          onPressed: _jumpToToday,
-          icon: const KemeticAppBarTodayIcon(
-            boxSize: 20,
-            glyphSize: 16,
-            glyphOffset: Offset(1.5, -1),
+          onPressed: _openLibrary,
+          icon: const GlossyGlyph(
+            glyph: MeduNeterGlyphs.library,
+            gradient: goldGloss,
+            size: 20,
           ),
           label: const Text(
-            'Today',
+            'Library',
             style: TextStyle(
               color: _CalendarTone.antiqueGold,
               fontSize: 15,
