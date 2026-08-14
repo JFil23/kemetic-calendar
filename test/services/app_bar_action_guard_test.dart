@@ -1865,7 +1865,7 @@ void main() {
     });
 
     test(
-      'shared quick add exposes journal and planner before the input',
+      'shared quick add uses a vertical borderless destination list before the input',
       () async {
         final source = await File(
           'lib/features/calendar/calendar_page.dart',
@@ -1887,6 +1887,15 @@ void main() {
         expect(input, greaterThan(plannerButton));
         expect(sheet, contains('widget.onOpenJournal'));
         expect(sheet, contains('widget.onOpenPlanner'));
+        expect(sheet, isNot(contains('OutlinedButton.icon')));
+        expect(sheet, isNot(contains('StadiumBorder')));
+        expect(sheet, contains('width: double.infinity,\n        height: 56'));
+        expect(sheet, contains('fontFamily: DaySheetTokens.ui'));
+        expect(sheet, contains('fontSize: 18'));
+        expect(
+          sheet.substring(journalButton, input),
+          isNot(contains('Expanded(')),
+        );
 
         expect(
           source,

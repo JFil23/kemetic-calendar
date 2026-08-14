@@ -392,6 +392,53 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
     onOpen();
   }
 
+  Widget _buildDestinationRow({
+    required Key key,
+    required String glyph,
+    required String label,
+    required VoidCallback onOpen,
+  }) {
+    final enabled = !_submitting;
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: label,
+      child: SizedBox(
+        key: key,
+        width: double.infinity,
+        height: 56,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: enabled ? () => _handleOpenDestination(onOpen) : null,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 28,
+                  child: Center(child: KemeticGold.glyph(glyph, size: 24)),
+                ),
+                const SizedBox(width: 16),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: enabled
+                        ? const Color(0xFFC7C7CC)
+                        : const Color(0xFF6E6E73),
+                    fontFamily: DaySheetTokens.ui,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w400,
+                    height: 1.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return KemeticKeyboardRevealScope(
@@ -426,52 +473,19 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Row(
+                  Column(
                     children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          key: const ValueKey('quick-add-journal-button'),
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(46),
-                            foregroundColor: Colors.white,
-                            backgroundColor: const Color(0xFF171717),
-                            side: const BorderSide(color: Color(0xFF343434)),
-                            shape: const StadiumBorder(),
-                          ),
-                          onPressed: _submitting
-                              ? null
-                              : () => _handleOpenDestination(
-                                  widget.onOpenJournal,
-                                ),
-                          icon: KemeticGold.glyph(
-                            MeduNeterGlyphs.journal,
-                            size: 19,
-                          ),
-                          label: const Text('Journal'),
-                        ),
+                      _buildDestinationRow(
+                        key: const ValueKey('quick-add-journal-button'),
+                        glyph: MeduNeterGlyphs.journal,
+                        label: 'Journal',
+                        onOpen: widget.onOpenJournal,
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          key: const ValueKey('quick-add-planner-button'),
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(46),
-                            foregroundColor: Colors.white,
-                            backgroundColor: const Color(0xFF171717),
-                            side: const BorderSide(color: Color(0xFF343434)),
-                            shape: const StadiumBorder(),
-                          ),
-                          onPressed: _submitting
-                              ? null
-                              : () => _handleOpenDestination(
-                                  widget.onOpenPlanner,
-                                ),
-                          icon: KemeticGold.glyph(
-                            MeduNeterGlyphs.planner,
-                            size: 19,
-                          ),
-                          label: const Text('Planner'),
-                        ),
+                      _buildDestinationRow(
+                        key: const ValueKey('quick-add-planner-button'),
+                        glyph: MeduNeterGlyphs.planner,
+                        label: 'Planner',
+                        onOpen: widget.onOpenPlanner,
                       ),
                     ],
                   ),
