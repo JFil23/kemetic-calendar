@@ -17761,7 +17761,7 @@ class CalendarPageState extends State<CalendarPage>
 
     return MaterialPageRoute<void>(
       settings: const RouteSettings(name: calendarMonthDetailRouteName),
-      builder: (_) => _MonthDetailPage(
+      builder: (detailContext) => _MonthDetailPage(
         kYear: kYear,
         kMonth: kMonth,
         todayMonth: todayMonth,
@@ -17784,6 +17784,21 @@ class CalendarPageState extends State<CalendarPage>
         onEndFlow: (id) => _endFlow(id),
         onAppendToJournal: _appendToJournalAndRefresh,
         decanIndex: decanIndex,
+        onTodayPressed: () {
+          NavigationTrace.instance.record(
+            'Today floating button tap fired from focused view',
+          );
+          Navigator.of(detailContext).pop();
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted) return;
+            _handleCalendarToday(useLandscapeGrid: false);
+          });
+        },
+        onCalendarsPressed: () => unawaited(_openSharedCalendarsSheet()),
+        onInboxPressed: () {
+          Navigator.of(detailContext).pop();
+          unawaited(_openInboxFromMenu());
+        },
       ),
     );
   }

@@ -569,6 +569,55 @@ Widget buildFocusedCalendarMonthGridForTesting({
   );
 }
 
+@visibleForTesting
+Widget buildFocusedEpagomenalGridForTesting({
+  required int kYear,
+  required List<NoteData> Function(int kDay) notesForDay,
+  int? todayDay,
+  int? selectedDay,
+  bool showGregorian = false,
+  double dayRowHeight = _kFocusedDecanHeight * 3,
+  void Function(int day)? onDayTap,
+}) {
+  _Note convert(NoteData note) {
+    return _Note(
+      id: note.id,
+      clientEventId: note.clientEventId,
+      calendarId: note.calendarId,
+      calendarName: note.calendarName,
+      title: note.title,
+      detail: note.detail,
+      location: note.location,
+      allDay: note.allDay,
+      start: note.start,
+      end: note.end,
+      flowId: note.flowId,
+      manualColor: note.manualColor,
+      category: note.category,
+      isReminder: note.isReminder,
+      reminderId: note.reminderId,
+      behaviorPayload: note.behaviorPayload,
+    );
+  }
+
+  return _FocusedEpagomenalGrid(
+    kYear: kYear,
+    todayMonth: todayDay == null ? null : 13,
+    todayDay: todayDay,
+    selectedDay: selectedDay,
+    notesGetter: (_, day) => notesForDay(day).map(convert).toList(),
+    flowColorsGetter: (_, _, day) => [
+      for (final note in notesForDay(day))
+        if (note.manualColor != null) note.manualColor!,
+    ],
+    onDayTap: (_, _, day) => onDayTap?.call(day),
+    showGregorian: showGregorian,
+    flowNameGetter: (_) => null,
+    onMonthHeaderTap: (_) {},
+    dayRowHeight: dayRowHeight,
+  );
+}
+
 class _SoftMonthNameTitle extends StatelessWidget {
   const _SoftMonthNameTitle({
     required this.shortName,
@@ -1269,6 +1318,157 @@ class _FocusedMonthGrid extends StatelessWidget {
   }
 }
 
+/// The Heriu Renpet counterpart to [_FocusedMonthGrid].
+///
+/// Heriu Renpet has no decans, so its five or six days share one large,
+/// full-width row while keeping the same header, lattice, selection, and event
+/// treatment as the regular focused-month grid.
+class _FocusedEpagomenalGrid extends StatelessWidget {
+  const _FocusedEpagomenalGrid({
+    required this.kYear,
+    required this.todayMonth,
+    required this.todayDay,
+    required this.selectedDay,
+    required this.notesGetter,
+    required this.flowColorsGetter,
+    required this.onDayTap,
+    required this.showGregorian,
+    required this.flowNameGetter,
+    required this.onMonthHeaderTap,
+    required this.dayRowHeight,
+  });
+
+  final int kYear;
+  final int? todayMonth;
+  final int? todayDay;
+  final int? selectedDay;
+  final List<_Note> Function(int kMonth, int kDay) notesGetter;
+  final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
+  final void Function(BuildContext, int kMonth, int kDay) onDayTap;
+  final bool showGregorian;
+  final String? Function(_Note)? flowNameGetter;
+  final void Function(BuildContext context) onMonthHeaderTap;
+  final double dayRowHeight;
+
+  String _rightLabel(int dayCount) {
+    final startYear = KemeticMath.toGregorian(kYear, 13, 1).year;
+    final endYear = KemeticMath.toGregorian(kYear, 13, dayCount).year;
+    final yearLabel = startYear == endYear
+        ? '$startYear'
+        : '$startYear/$endYear';
+    return '${getMonthById(13).season.label} $yearLabel';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final month = getMonthById(13);
+    final dayCount = KemeticMath.isLeapKemeticYear(kYear) ? 6 : 5;
+    final isCurrentMonth = todayMonth == 13;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: _kMonthCardBottomInset),
+      child: DecoratedBox(
+        key: const ValueKey<String>('focused-epagomenal-grid'),
+        decoration: BoxDecoration(
+          color: _CalendarTone.velvetBlack,
+          border: Border.all(
+            color: _CalendarTone.antiqueGold.withValues(alpha: 0.16),
+            width: 0.8,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height: _kFocusedMonthHeaderHeight,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => onMonthHeaderTap(context),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: _SoftMonthNameTitle(
+                            shortName: month.displayShort,
+                            transliteration: month.displayTransliteration,
+                            fontSize: 30.5,
+                            opacity: 0.98,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        _rightLabel(dayCount),
+                        maxLines: 1,
+                        overflow: TextOverflow.fade,
+                        softWrap: false,
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          color: const Color(
+                            0xFF927842,
+                          ).withValues(alpha: 0.92),
+                          fontSize: 15.2,
+                          fontWeight: FontWeight.w500,
+                          fontStyle: FontStyle.italic,
+                          fontFamily: 'CormorantGaramond',
+                          fontFamilyFallback: const [
+                            'GentiumPlus',
+                            'NotoSans',
+                            'Roboto',
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            SizedBox(
+              height: dayRowHeight,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var dayIndex = 0; dayIndex < dayCount; dayIndex++)
+                    Expanded(
+                      child: Builder(
+                        builder: (context) {
+                          final day = dayIndex + 1;
+                          return _FocusedDayCell(
+                            dayKey: 'epagomenal_${day}_$kYear',
+                            kYear: kYear,
+                            kMonth: 13,
+                            kDay: day,
+                            isToday:
+                                isCurrentMonth &&
+                                todayDay != null &&
+                                day == todayDay,
+                            isSelected: day == selectedDay,
+                            notes: notesGetter(13, day),
+                            flowColors: flowColorsGetter(kYear, 13, day),
+                            onTap: () => onDayTap(context, 13, day),
+                            showGregorian: showGregorian,
+                            flowNameGetter: flowNameGetter,
+                            drawRightDivider: dayIndex < dayCount - 1,
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _FocusedDecanBand extends StatelessWidget {
   const _FocusedDecanBand({
     required this.kYear,
@@ -1356,6 +1556,7 @@ class _FocusedDecanBand extends StatelessWidget {
                       builder: (context) {
                         final day = decanIndex * 10 + columnIndex + 1;
                         return _FocusedDayCell(
+                          dayKey: _getKemeticDayKey(kYear, kMonth, day),
                           kYear: kYear,
                           kMonth: kMonth,
                           kDay: day,
@@ -1385,6 +1586,7 @@ class _FocusedDecanBand extends StatelessWidget {
 
 class _FocusedDayCell extends StatelessWidget {
   const _FocusedDayCell({
+    required this.dayKey,
     required this.kYear,
     required this.kMonth,
     required this.kDay,
@@ -1398,6 +1600,7 @@ class _FocusedDayCell extends StatelessWidget {
     required this.drawRightDivider,
   });
 
+  final String dayKey;
   final int kYear;
   final int kMonth;
   final int kDay;
@@ -1472,7 +1675,7 @@ class _FocusedDayCell extends StatelessWidget {
     );
 
     return KemeticDayButton(
-      dayKey: _getKemeticDayKey(kYear, kMonth, kDay),
+      dayKey: dayKey,
       kYear: kYear,
       child: InkWell(
         key: ValueKey<String>(

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/day_view.dart';
+import 'package:mobile/widgets/calendar_floating_shortcuts.dart';
+import 'package:mobile/widgets/kemetic_day_info.dart';
 
 void main() {
   testWidgets('focused month uses three tall decan bands and 30 day columns', (
@@ -116,5 +118,171 @@ void main() {
     final decoration = selected.decoration as BoxDecoration;
     expect(decoration.color, isNot(Colors.transparent));
     expect(decoration.border, isNotNull);
+  });
+
+  testWidgets(
+    'focused Heriu Renpet uses the same full-width lattice and special day keys',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var kYear = 6267;
+      while (KemeticMath.isLeapKemeticYear(kYear)) {
+        kYear++;
+      }
+
+      int? tappedDay;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            backgroundColor: Colors.black,
+            body: SingleChildScrollView(
+              child: buildFocusedEpagomenalGridForTesting(
+                kYear: kYear,
+                todayDay: 2,
+                selectedDay: 4,
+                dayRowHeight: 336,
+                notesForDay: (day) => const <NoteData>[],
+                onDayTap: (day) => tappedDay = day,
+              ),
+            ),
+          ),
+        ),
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Heriu Renpet'), findsOneWidget);
+      expect(find.text('FIRST DECAN'), findsNothing);
+      expect(find.text('SECOND DECAN'), findsNothing);
+      expect(find.text('THIRD DECAN'), findsNothing);
+
+      final grid = tester.getRect(
+        find.byKey(const ValueKey<String>('focused-epagomenal-grid')),
+      );
+      expect(grid.left, 0);
+      expect(grid.right, 390);
+
+      for (var day = 1; day <= 5; day++) {
+        expect(
+          find.byKey(ValueKey<String>('focused-day:$kYear-13-$day|K')),
+          findsOneWidget,
+        );
+        expect(
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is KemeticDayButton &&
+                widget.dayKey == 'epagomenal_${day}_$kYear',
+          ),
+          findsOneWidget,
+        );
+      }
+      expect(
+        find.byKey(ValueKey<String>('focused-day:$kYear-13-6|K')),
+        findsNothing,
+      );
+
+      final first = tester.getRect(
+        find.byKey(ValueKey<String>('focused-day:$kYear-13-1|K')),
+      );
+      final second = tester.getRect(
+        find.byKey(ValueKey<String>('focused-day:$kYear-13-2|K')),
+      );
+      expect(first.height, 336);
+      expect(first.right, closeTo(second.left, 0.01));
+      expect(first.width, closeTo(second.width, 0.01));
+
+      await tester.tap(
+        find.byKey(ValueKey<String>('focused-day:$kYear-13-5|K')),
+      );
+      expect(tappedDay, 5);
+
+      final selected = tester.widget<DecoratedBox>(
+        find
+            .descendant(
+              of: find.byKey(ValueKey<String>('focused-day:$kYear-13-4|K')),
+              matching: find.byType(DecoratedBox),
+            )
+            .first,
+      );
+      final decoration = selected.decoration as BoxDecoration;
+      expect(decoration.color, isNot(Colors.transparent));
+      expect(decoration.border, isNotNull);
+    },
+  );
+
+  testWidgets('focused Heriu Renpet adds the sixth leap-year cell', (
+    tester,
+  ) async {
+    var kYear = 6267;
+    while (!KemeticMath.isLeapKemeticYear(kYear)) {
+      kYear++;
+    }
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: buildFocusedEpagomenalGridForTesting(
+            kYear: kYear,
+            notesForDay: (day) => const <NoteData>[],
+          ),
+        ),
+      ),
+    );
+
+    for (var day = 1; day <= 6; day++) {
+      expect(
+        find.byKey(ValueKey<String>('focused-day:$kYear-13-$day|K')),
+        findsOneWidget,
+      );
+    }
+  });
+
+  testWidgets('focused view includes the three calendar floating shortcuts', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    var todayTaps = 0;
+    var calendarsTaps = 0;
+    var inboxTaps = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: buildFocusedMonthDetailForTesting(
+          kYear: 6267,
+          kMonth: 7,
+          onTodayPressed: () => todayTaps++,
+          onCalendarsPressed: () => calendarsTaps++,
+          onInboxPressed: () => inboxTaps++,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.bySemanticsLabel('Today'), findsOneWidget);
+    expect(find.bySemanticsLabel('Calendars'), findsOneWidget);
+    expect(find.bySemanticsLabel('Inbox'), findsOneWidget);
+
+    final shortcutsRect = tester.getRect(
+      find.byKey(calendarFloatingShortcutsSurfaceKey),
+    );
+    final todayRect = tester.getRect(
+      find.byKey(calendarFloatingTodaySurfaceKey),
+    );
+    expect(shortcutsRect.right, 390 - kCalendarFloatingShortcutsTrailing);
+    expect(shortcutsRect.bottom, 844 - kCalendarFloatingShortcutsBottom);
+    expect(todayRect.left, kCalendarFloatingShortcutsLeading);
+    expect(todayRect.bottom, shortcutsRect.bottom);
+
+    await tester.tap(find.bySemanticsLabel('Today'));
+    await tester.tap(find.byKey(calendarFloatingCalendarsButtonKey));
+    await tester.tap(find.byKey(calendarFloatingInboxButtonKey));
+    expect(todayTaps, 1);
+    expect(calendarsTaps, 1);
+    expect(inboxTaps, 1);
   });
 }

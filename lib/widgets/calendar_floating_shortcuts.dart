@@ -38,6 +38,7 @@ class CalendarFloatingShortcutsLayer extends StatelessWidget {
     required this.onCalendarsPressed,
     required this.onInboxPressed,
     this.unreadInboxCount = 0,
+    this.todayButtonKey,
   });
 
   final Widget child;
@@ -45,6 +46,7 @@ class CalendarFloatingShortcutsLayer extends StatelessWidget {
   final VoidCallback onCalendarsPressed;
   final VoidCallback onInboxPressed;
   final int unreadInboxCount;
+  final Key? todayButtonKey;
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +62,7 @@ class CalendarFloatingShortcutsLayer extends StatelessWidget {
             left: media.padding.left + kCalendarFloatingShortcutsLeading,
             bottom: media.padding.bottom + kCalendarFloatingShortcutsBottom,
             child: CalendarFloatingTodayButton(
-              key: calendarFloatingTodayButtonKey,
+              key: todayButtonKey ?? calendarFloatingTodayButtonKey,
               onPressed: onTodayPressed,
             ),
           ),

@@ -729,6 +729,48 @@ void main() {
       expect(openLibrary, contains("router.go('/nodes')"));
     });
 
+    test('focused view keeps the shared calendar floating shortcuts', () async {
+      final detailSource = await File(
+        'lib/features/calendar/calendar_month_detail.dart',
+      ).readAsString();
+      final floatingLayer = _sourceBetween(
+        detailSource,
+        'return CalendarFloatingShortcutsLayer(',
+        'class _MonthEvent',
+      );
+      expect(
+        floatingLayer,
+        contains('todayButtonKey: _focusedCalendarFloatingTodayButtonKey'),
+      );
+      expect(
+        floatingLayer,
+        contains('onTodayPressed: _handleFocusedTodayPressed'),
+      );
+      expect(
+        floatingLayer,
+        contains('onCalendarsPressed: _handleFocusedCalendarsPressed'),
+      );
+      expect(
+        floatingLayer,
+        contains('onInboxPressed: _handleFocusedInboxPressed'),
+      );
+
+      final pageSource = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final focusedRoute = _sourceBetween(
+        pageSource,
+        'MaterialPageRoute<void> _buildMonthDetailRoute(',
+        'void _openMonthInfo(',
+      );
+      expect(focusedRoute, contains('onTodayPressed: ()'));
+      expect(focusedRoute, contains('_handleCalendarToday('));
+      expect(focusedRoute, contains('onCalendarsPressed: ()'));
+      expect(focusedRoute, contains('_openSharedCalendarsSheet()'));
+      expect(focusedRoute, contains('onInboxPressed: ()'));
+      expect(focusedRoute, contains('_openInboxFromMenu()'));
+    });
+
     test('shared profile helper uses canonical profile route', () async {
       final source = await File(
         'lib/features/calendar/calendar_page.dart',

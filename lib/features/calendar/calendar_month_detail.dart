@@ -1,5 +1,34 @@
 part of 'calendar_page.dart';
 
+const Key _focusedCalendarFloatingTodayButtonKey = ValueKey<String>(
+  'focused-calendar-floating-today-button',
+);
+
+@visibleForTesting
+Widget buildFocusedMonthDetailForTesting({
+  required int kYear,
+  required int kMonth,
+  VoidCallback? onTodayPressed,
+  VoidCallback? onCalendarsPressed,
+  VoidCallback? onInboxPressed,
+}) {
+  return _MonthDetailPage(
+    kYear: kYear,
+    kMonth: kMonth,
+    todayMonth: kMonth,
+    todayDay: 1,
+    showGregorian: false,
+    notesGetter: (_, _) => const <_Note>[],
+    flowColorsGetter: (_, _, _) => const <Color>[],
+    onDayTap: (_, _, _) {},
+    noteColorResolver: (_) => Colors.white,
+    decanIndex: null,
+    onTodayPressed: onTodayPressed ?? () {},
+    onCalendarsPressed: onCalendarsPressed ?? () {},
+    onInboxPressed: onInboxPressed ?? () {},
+  );
+}
+
 class _MonthDetailPage extends StatefulWidget {
   const _MonthDetailPage({
     required this.kYear,
@@ -12,6 +41,9 @@ class _MonthDetailPage extends StatefulWidget {
     required this.onDayTap,
     required this.noteColorResolver,
     required this.decanIndex, // null => month view; 0..2 => specific decan
+    this.onTodayPressed,
+    this.onCalendarsPressed,
+    this.onInboxPressed,
     this.flowNameGetter,
     this.onManageFlows,
     this.onEditNote,
@@ -34,6 +66,9 @@ class _MonthDetailPage extends StatefulWidget {
   final void Function(BuildContext, int kMonth, int kDay) onDayTap;
   final Color Function(_Note) noteColorResolver;
   final int? decanIndex;
+  final VoidCallback? onTodayPressed;
+  final VoidCallback? onCalendarsPressed;
+  final VoidCallback? onInboxPressed;
   final String? Function(_Note)? flowNameGetter;
   final void Function(int?)? onManageFlows;
   final Future<void> Function(int kYear, int kMonth, int kDay, EventItem event)?
@@ -150,6 +185,44 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
       return state.getFlowColorsForDay(ky, km, kd);
     }
     return widget.flowColorsGetter(ky, km, kd);
+  }
+
+  void _handleFocusedTodayPressed() {
+    final callback = widget.onTodayPressed;
+    if (callback != null) {
+      callback();
+      return;
+    }
+    Navigator.of(context).pop();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final state = CalendarPage.globalKey.currentState;
+      if (state == null) return;
+      state._handleCalendarToday(useLandscapeGrid: false);
+    });
+  }
+
+  void _handleFocusedCalendarsPressed() {
+    final callback = widget.onCalendarsPressed;
+    if (callback != null) {
+      callback();
+      return;
+    }
+    final state = CalendarPage.globalKey.currentState;
+    if (state != null) {
+      unawaited(state._openSharedCalendarsSheet());
+    }
+  }
+
+  void _handleFocusedInboxPressed() {
+    final callback = widget.onInboxPressed;
+    if (callback != null) {
+      callback();
+      return;
+    }
+    final state = CalendarPage.globalKey.currentState;
+    if (state == null) return;
+    Navigator.of(context).pop();
+    unawaited(state._openInboxFromMenu());
   }
 
   void _setInfoSelection({
@@ -270,7 +343,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    final scaffold = Scaffold(
       backgroundColor: _CalendarTone.calendarBlack,
       appBar: AppBar(
         backgroundColor: _CalendarTone.calendarBlack,
@@ -349,15 +422,21 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                                     10) /
                                 3)
                             .clamp(84.0, 126.0);
+                    final focusedEpagomenalHeight =
+                        (constraints.maxHeight -
+                                _kFocusedMonthHeaderHeight -
+                                _kMonthCardBottomInset -
+                                10)
+                            .clamp(180.0, 378.0);
                     return ListView(
                       padding: const EdgeInsets.only(top: 10),
                       children: [
                         if (month == 13)
-                          _EpagomenalCard(
+                          _FocusedEpagomenalGrid(
                             kYear: pageYear,
                             todayMonth: widget.todayMonth,
                             todayDay: widget.todayDay,
-                            todayDayKey: null,
+                            selectedDay: isActive ? _selectedDay : null,
                             notesGetter: (m, d) => _notesFor(pageYear, m, d),
                             flowColorsGetter: (ky, km, kd) =>
                                 _flowColorsFor(pageYear, km, kd),
@@ -367,15 +446,11 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                             ),
                             showGregorian: widget.showGregorian,
                             flowNameGetter: widget.flowNameGetter,
-                            onManageFlows: widget.onManageFlows,
-                            onEditNote: widget.onEditNote,
-                            onDeleteNote: widget.onDeleteNote,
-                            onShareNote: widget.onShareNote,
-                            onEditReminder: widget.onEditReminder,
-                            onEndReminder: widget.onEndReminder,
-                            onShareReminder: widget.onShareReminder,
-                            onEndFlow: widget.onEndFlow,
-                            onAppendToJournal: widget.onAppendToJournal,
+                            onMonthHeaderTap: (_) => _setInfoSelection(
+                              decanIndex: null,
+                              selectedDay: null,
+                            ),
+                            dayRowHeight: focusedEpagomenalHeight,
                           )
                         else
                           _FocusedMonthGrid(
@@ -476,6 +551,13 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
           );
         },
       ),
+    );
+    return CalendarFloatingShortcutsLayer(
+      todayButtonKey: _focusedCalendarFloatingTodayButtonKey,
+      onTodayPressed: _handleFocusedTodayPressed,
+      onCalendarsPressed: _handleFocusedCalendarsPressed,
+      onInboxPressed: _handleFocusedInboxPressed,
+      child: scaffold,
     );
   }
 }
