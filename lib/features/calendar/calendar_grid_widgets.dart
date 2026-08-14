@@ -353,6 +353,9 @@ const double _kLabeledPillRadius = 6.0;
 const double _kDetailsPillRadius = 7.0;
 const int _kTextlessPillVisibleCap = 2;
 const int _kLabeledPillVisibleCap = 2;
+const double _kFocusedMonthHeaderHeight = 64.0;
+const double _kFocusedDecanHeight = 112.0;
+const double _kFocusedDecanLabelHeight = 34.0;
 
 bool _usesTabletLandscapeMonthGrid(BuildContext context) {
   final media = MediaQuery.of(context);
@@ -510,6 +513,59 @@ Widget buildCalendarMonthCardLayoutForTesting({
     expansionLevel: expansionLevel,
     noteColorResolver: (note) => note.manualColor ?? _defaultNoteColor(note),
     flowNameGetter: (_) => null,
+  );
+}
+
+@visibleForTesting
+Widget buildFocusedCalendarMonthGridForTesting({
+  required int kYear,
+  required int kMonth,
+  required List<NoteData> Function(int kDay) notesForDay,
+  int? todayDay,
+  int? selectedDay,
+  bool showGregorian = false,
+  double decanHeight = _kFocusedDecanHeight,
+  void Function(int day)? onDayTap,
+}) {
+  _Note convert(NoteData note) {
+    return _Note(
+      id: note.id,
+      clientEventId: note.clientEventId,
+      calendarId: note.calendarId,
+      calendarName: note.calendarName,
+      title: note.title,
+      detail: note.detail,
+      location: note.location,
+      allDay: note.allDay,
+      start: note.start,
+      end: note.end,
+      flowId: note.flowId,
+      manualColor: note.manualColor,
+      category: note.category,
+      isReminder: note.isReminder,
+      reminderId: note.reminderId,
+      behaviorPayload: note.behaviorPayload,
+    );
+  }
+
+  return _FocusedMonthGrid(
+    kYear: kYear,
+    kMonth: kMonth,
+    seasonShort: getMonthById(kMonth).season.label,
+    todayMonth: todayDay == null ? null : kMonth,
+    todayDay: todayDay,
+    selectedDay: selectedDay,
+    notesGetter: (_, day) => notesForDay(day).map(convert).toList(),
+    flowColorsGetter: (_, _, day) => [
+      for (final note in notesForDay(day))
+        if (note.manualColor != null) note.manualColor!,
+    ],
+    onDayTap: (_, _, day) => onDayTap?.call(day),
+    showGregorian: showGregorian,
+    flowNameGetter: (_) => null,
+    onMonthHeaderTap: (_) {},
+    onDecanTap: (_, _) {},
+    decanHeight: decanHeight,
   );
 }
 
@@ -1068,6 +1124,461 @@ class _MonthCard extends StatelessWidget {
         ),
       ),
     ); // Close Padding and return
+  }
+}
+
+/// The month grid used only by the focused month/decan route.
+///
+/// The scrolling calendar deliberately keeps [_MonthCard] and its four event
+/// density modes. Focused view instead gives each decan a full-width band and
+/// each day a tall column, matching the spatial rhythm of a conventional
+/// calendar while retaining the Kemetic labels and compact event signifiers.
+class _FocusedMonthGrid extends StatelessWidget {
+  const _FocusedMonthGrid({
+    required this.kYear,
+    required this.kMonth,
+    required this.seasonShort,
+    required this.todayMonth,
+    required this.todayDay,
+    required this.selectedDay,
+    required this.notesGetter,
+    required this.flowColorsGetter,
+    required this.onDayTap,
+    required this.showGregorian,
+    required this.flowNameGetter,
+    required this.onMonthHeaderTap,
+    required this.onDecanTap,
+    this.decanHeight = _kFocusedDecanHeight,
+  });
+
+  final int kYear;
+  final int kMonth;
+  final String seasonShort;
+  final int? todayMonth;
+  final int? todayDay;
+  final int? selectedDay;
+  final List<_Note> Function(int kMonth, int kDay) notesGetter;
+  final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
+  final void Function(BuildContext, int kMonth, int kDay) onDayTap;
+  final bool showGregorian;
+  final String? Function(_Note)? flowNameGetter;
+  final void Function(BuildContext context) onMonthHeaderTap;
+  final void Function(BuildContext context, int decanIndex) onDecanTap;
+  final double decanHeight;
+
+  static const List<String> _decanOrdinals = [
+    'FIRST DECAN',
+    'SECOND DECAN',
+    'THIRD DECAN',
+  ];
+
+  String _rightLabel() {
+    final startYear = KemeticMath.toGregorian(kYear, kMonth, 1).year;
+    final endYear = KemeticMath.toGregorian(kYear, kMonth, 30).year;
+    return startYear == endYear
+        ? '$seasonShort $startYear'
+        : '$seasonShort $startYear/$endYear';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final month = getMonthById(kMonth);
+    final names =
+        DecanMetadata.decanNames[kMonth] ??
+        const ['Decan A', 'Decan B', 'Decan C'];
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        _kMonthCardHorizontalInset,
+        0,
+        _kMonthCardHorizontalInset,
+        _kMonthCardBottomInset,
+      ),
+      child: DecoratedBox(
+        key: const ValueKey<String>('focused-month-grid'),
+        decoration: BoxDecoration(
+          color: _CalendarTone.velvetBlack,
+          border: Border.all(color: _CalendarTone.softCardBorder, width: 0.7),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SizedBox(
+              height: _kFocusedMonthHeaderHeight,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => onMonthHeaderTap(context),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: _SoftMonthNameTitle(
+                            shortName: month.displayShort,
+                            transliteration: month.displayTransliteration,
+                            fontSize: _CalendarScale.monthTitleMain,
+                            opacity: 0.98,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        _rightLabel(),
+                        maxLines: 1,
+                        overflow: TextOverflow.fade,
+                        softWrap: false,
+                        textAlign: TextAlign.right,
+                        style: TextStyle(
+                          color: const Color(
+                            0xFF927842,
+                          ).withValues(alpha: 0.92),
+                          fontSize: _CalendarScale.rightSeasonMain,
+                          fontWeight: FontWeight.w500,
+                          fontStyle: FontStyle.italic,
+                          fontFamily: 'CormorantGaramond',
+                          fontFamilyFallback: const [
+                            'GentiumPlus',
+                            'NotoSans',
+                            'Roboto',
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            for (var decanIndex = 0; decanIndex < 3; decanIndex++)
+              _FocusedDecanBand(
+                kYear: kYear,
+                kMonth: kMonth,
+                decanIndex: decanIndex,
+                decanName: names[decanIndex],
+                ordinalLabel: _decanOrdinals[decanIndex],
+                todayMonth: todayMonth,
+                todayDay: todayDay,
+                selectedDay: selectedDay,
+                notesGetter: notesGetter,
+                flowColorsGetter: flowColorsGetter,
+                onDayTap: onDayTap,
+                onDecanTap: onDecanTap,
+                showGregorian: showGregorian,
+                flowNameGetter: flowNameGetter,
+                height: decanHeight,
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FocusedDecanBand extends StatelessWidget {
+  const _FocusedDecanBand({
+    required this.kYear,
+    required this.kMonth,
+    required this.decanIndex,
+    required this.decanName,
+    required this.ordinalLabel,
+    required this.todayMonth,
+    required this.todayDay,
+    required this.selectedDay,
+    required this.notesGetter,
+    required this.flowColorsGetter,
+    required this.onDayTap,
+    required this.onDecanTap,
+    required this.showGregorian,
+    required this.flowNameGetter,
+    required this.height,
+  });
+
+  final int kYear;
+  final int kMonth;
+  final int decanIndex;
+  final String decanName;
+  final String ordinalLabel;
+  final int? todayMonth;
+  final int? todayDay;
+  final int? selectedDay;
+  final List<_Note> Function(int kMonth, int kDay) notesGetter;
+  final List<Color> Function(int kYear, int kMonth, int kDay) flowColorsGetter;
+  final void Function(BuildContext, int kMonth, int kDay) onDayTap;
+  final void Function(BuildContext context, int decanIndex) onDecanTap;
+  final bool showGregorian;
+  final String? Function(_Note)? flowNameGetter;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final isCurrentMonth = todayMonth == kMonth;
+    return Container(
+      key: ValueKey<String>('focused-decan-$decanIndex'),
+      height: height,
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: _CalendarTone.softDivider, width: 0.7),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            height: _kFocusedDecanLabelHeight,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => onDecanTap(context, decanIndex),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 7, 10, 5),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        decanName,
+                        maxLines: 1,
+                        overflow: TextOverflow.fade,
+                        softWrap: false,
+                        style: const TextStyle(
+                          color: _CalendarTone.decanLabel,
+                          fontSize: _CalendarScale.decanLabelMain,
+                          height: 1,
+                          fontWeight: FontWeight.w500,
+                          fontFamily: 'GentiumPlus',
+                          fontFamilyFallback: ['NotoSans', 'Roboto'],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      ordinalLabel,
+                      maxLines: 1,
+                      style: TextStyle(
+                        color: _CalendarTone.mutedStone.withValues(alpha: 0.38),
+                        fontSize: 8.5,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 2.1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var columnIndex = 0; columnIndex < 10; columnIndex++)
+                  Expanded(
+                    child: Builder(
+                      builder: (context) {
+                        final day = decanIndex * 10 + columnIndex + 1;
+                        return _FocusedDayCell(
+                          kYear: kYear,
+                          kMonth: kMonth,
+                          kDay: day,
+                          isToday:
+                              isCurrentMonth &&
+                              todayDay != null &&
+                              day == todayDay,
+                          isSelected: day == selectedDay,
+                          notes: notesGetter(kMonth, day),
+                          flowColors: flowColorsGetter(kYear, kMonth, day),
+                          onTap: () => onDayTap(context, kMonth, day),
+                          showGregorian: showGregorian,
+                          flowNameGetter: flowNameGetter,
+                          drawRightDivider: columnIndex < 9,
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FocusedDayCell extends StatelessWidget {
+  const _FocusedDayCell({
+    required this.kYear,
+    required this.kMonth,
+    required this.kDay,
+    required this.isToday,
+    required this.isSelected,
+    required this.notes,
+    required this.flowColors,
+    required this.onTap,
+    required this.showGregorian,
+    required this.flowNameGetter,
+    required this.drawRightDivider,
+  });
+
+  final int kYear;
+  final int kMonth;
+  final int kDay;
+  final bool isToday;
+  final bool isSelected;
+  final List<_Note> notes;
+  final List<Color> flowColors;
+  final VoidCallback onTap;
+  final bool showGregorian;
+  final String? Function(_Note)? flowNameGetter;
+  final bool drawRightDivider;
+
+  static const List<String> _weekdayLetters = [
+    'M',
+    'T',
+    'W',
+    'T',
+    'F',
+    'S',
+    'S',
+  ];
+
+  Widget _eventMarkers() {
+    _Note? trackSkyNote;
+    for (final note in notes) {
+      if (_isTrackSkyFlowName(flowNameGetter?.call(note))) {
+        trackSkyNote = note;
+        break;
+      }
+    }
+    if (trackSkyNote != null) {
+      return _TrackSkyMicroSignifier(note: trackSkyNote);
+    }
+    if (flowColors.isNotEmpty) {
+      final visibleColors = flowColors.take(3).toList(growable: false);
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < visibleColors.length; i++) ...[
+            if (i > 0) const SizedBox(width: 1.8),
+            _ColorDot(color: visibleColors[i]),
+          ],
+        ],
+      );
+    }
+    if (notes.isNotEmpty) {
+      return const _GlossyDot(gradient: silverGloss);
+    }
+    return const SizedBox.shrink();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final gregorian = safeLocalDisplay(
+      KemeticMath.toGregorian(kYear, kMonth, kDay),
+    );
+    final label = showGregorian ? '${gregorian.day}' : '$kDay';
+    final weekday = _weekdayLetters[gregorian.weekday - 1];
+    final neutralNumber = _calendarDayToneSpec(
+      isToday ? _CalendarDayTone.today : _CalendarDayTone.neutral,
+    ).number;
+    final numberColor = showGregorian
+        ? _CalendarTone.gregorianBlue.withValues(alpha: 0.90)
+        : (isSelected ? const Color(0xFFE2C862) : neutralNumber);
+    final verticalDivider = BorderSide(
+      color: _CalendarTone.antiqueGold.withValues(alpha: 0.075),
+      width: 0.7,
+    );
+    final selectedBorder = BorderSide(
+      color: _CalendarTone.antiqueGold.withValues(alpha: 0.84),
+      width: 1.0,
+    );
+
+    return KemeticDayButton(
+      dayKey: _getKemeticDayKey(kYear, kMonth, kDay),
+      kYear: kYear,
+      child: InkWell(
+        key: ValueKey<String>(
+          'focused-day:$kYear-$kMonth-$kDay|${showGregorian ? "G" : "K"}',
+        ),
+        onTap: onTap,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: isSelected
+                ? _CalendarTone.selectedDayFill.withValues(alpha: 0.66)
+                : Colors.transparent,
+            border: Border(
+              left: isSelected ? selectedBorder : BorderSide.none,
+              top: isSelected ? selectedBorder : BorderSide.none,
+              right: isSelected
+                  ? selectedBorder
+                  : (drawRightDivider ? verticalDivider : BorderSide.none),
+              bottom: isSelected ? selectedBorder : BorderSide.none,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(7, 9, 3, 5),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.baseline,
+                  textBaseline: TextBaseline.alphabetic,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        overflow: TextOverflow.fade,
+                        softWrap: false,
+                        style: TextStyle(
+                          color: numberColor,
+                          fontSize: 14.2,
+                          height: 1,
+                          fontWeight: FontWeight.w500,
+                          fontFamily: 'CormorantGaramond',
+                          fontFamilyFallback: const [
+                            'GentiumPlus',
+                            'NotoSans',
+                            'Roboto',
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 3),
+                    Text(
+                      weekday,
+                      style: TextStyle(
+                        color: _CalendarTone.weekday.withValues(alpha: 0.82),
+                        fontSize: 8.5,
+                        height: 1,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                if (isToday) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    width: double.infinity,
+                    height: 1.4,
+                    color: _CalendarTone.antiqueGold,
+                  ),
+                ] else
+                  const SizedBox(height: 5.4),
+                SizedBox(
+                  height: 8,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: _eventMarkers(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

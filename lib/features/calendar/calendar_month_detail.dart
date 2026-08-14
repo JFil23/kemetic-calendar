@@ -340,69 +340,73 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
           return Column(
             children: [
               Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.only(top: 10),
-                  children: [
-                    if (month == 13)
-                      _EpagomenalCard(
-                        kYear: pageYear,
-                        todayMonth: widget.todayMonth,
-                        todayDay: widget.todayDay,
-                        todayDayKey: null,
-                        notesGetter: (m, d) => _notesFor(pageYear, m, d),
-                        flowColorsGetter: (ky, km, kd) =>
-                            _flowColorsFor(pageYear, km, kd),
-                        onDayTap: (c, m, d) =>
-                            _setInfoSelection(decanIndex: null, selectedDay: d),
-                        showGregorian: widget.showGregorian,
-                        flowNameGetter: widget.flowNameGetter,
-                        onManageFlows: widget.onManageFlows,
-                        onEditNote: widget.onEditNote,
-                        onDeleteNote: widget.onDeleteNote,
-                        onShareNote: widget.onShareNote,
-                        onEditReminder: widget.onEditReminder,
-                        onEndReminder: widget.onEndReminder,
-                        onShareReminder: widget.onShareReminder,
-                        onEndFlow: widget.onEndFlow,
-                        onAppendToJournal: widget.onAppendToJournal,
-                      )
-                    else
-                      _MonthCard(
-                        kYear: pageYear,
-                        kMonth: month,
-                        seasonShort: seasonLabel,
-                        todayMonth: widget.todayMonth,
-                        todayDay: widget.todayDay,
-                        todayDayKey: null,
-                        notesGetter: (m, d) => _notesFor(pageYear, m, d),
-                        flowColorsGetter: (ky, km, kd) =>
-                            _flowColorsFor(pageYear, km, kd),
-                        onDayTap: (c, m, d) => _setInfoSelection(
-                          decanIndex: ((d - 1) / 10).floor(),
-                          selectedDay: d,
-                        ),
-                        showGregorian: widget.showGregorian,
-                        framedSurface: true,
-                        flowNameGetter: widget.flowNameGetter,
-                        onManageFlows: widget.onManageFlows,
-                        onEditNote: widget.onEditNote,
-                        onDeleteNote: widget.onDeleteNote,
-                        onShareNote: widget.onShareNote,
-                        onEditReminder: widget.onEditReminder,
-                        onEndReminder: widget.onEndReminder,
-                        onShareReminder: widget.onShareReminder,
-                        onEndFlow: widget.onEndFlow,
-                        onAppendToJournal: widget.onAppendToJournal,
-                        onMonthHeaderTap: (_) => _setInfoSelection(
-                          decanIndex: null,
-                          selectedDay: null,
-                        ),
-                        onDecanTap: (_, idx) => _setInfoSelection(
-                          decanIndex: idx,
-                          selectedDay: null,
-                        ),
-                      ),
-                  ],
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final focusedDecanHeight =
+                        ((constraints.maxHeight -
+                                    _kFocusedMonthHeaderHeight -
+                                    _kMonthCardBottomInset -
+                                    10) /
+                                3)
+                            .clamp(84.0, 126.0);
+                    return ListView(
+                      padding: const EdgeInsets.only(top: 10),
+                      children: [
+                        if (month == 13)
+                          _EpagomenalCard(
+                            kYear: pageYear,
+                            todayMonth: widget.todayMonth,
+                            todayDay: widget.todayDay,
+                            todayDayKey: null,
+                            notesGetter: (m, d) => _notesFor(pageYear, m, d),
+                            flowColorsGetter: (ky, km, kd) =>
+                                _flowColorsFor(pageYear, km, kd),
+                            onDayTap: (c, m, d) => _setInfoSelection(
+                              decanIndex: null,
+                              selectedDay: d,
+                            ),
+                            showGregorian: widget.showGregorian,
+                            flowNameGetter: widget.flowNameGetter,
+                            onManageFlows: widget.onManageFlows,
+                            onEditNote: widget.onEditNote,
+                            onDeleteNote: widget.onDeleteNote,
+                            onShareNote: widget.onShareNote,
+                            onEditReminder: widget.onEditReminder,
+                            onEndReminder: widget.onEndReminder,
+                            onShareReminder: widget.onShareReminder,
+                            onEndFlow: widget.onEndFlow,
+                            onAppendToJournal: widget.onAppendToJournal,
+                          )
+                        else
+                          _FocusedMonthGrid(
+                            kYear: pageYear,
+                            kMonth: month,
+                            seasonShort: seasonLabel,
+                            todayMonth: widget.todayMonth,
+                            todayDay: widget.todayDay,
+                            selectedDay: isActive ? _selectedDay : null,
+                            notesGetter: (m, d) => _notesFor(pageYear, m, d),
+                            flowColorsGetter: (ky, km, kd) =>
+                                _flowColorsFor(pageYear, km, kd),
+                            onDayTap: (c, m, d) => _setInfoSelection(
+                              decanIndex: ((d - 1) / 10).floor(),
+                              selectedDay: d,
+                            ),
+                            showGregorian: widget.showGregorian,
+                            flowNameGetter: widget.flowNameGetter,
+                            onMonthHeaderTap: (_) => _setInfoSelection(
+                              decanIndex: null,
+                              selectedDay: null,
+                            ),
+                            onDecanTap: (_, idx) => _setInfoSelection(
+                              decanIndex: idx,
+                              selectedDay: null,
+                            ),
+                            decanHeight: focusedDecanHeight,
+                          ),
+                      ],
+                    );
+                  },
                 ),
               ),
               const Divider(height: 1, color: Color(0x0FFFFFFF)),
