@@ -1788,6 +1788,14 @@ class _ProfilePageState extends State<ProfilePage>
     await CalendarPage.openQuickAddFromAnyContext(context);
   }
 
+  void _openFindPeople() {
+    unawaited(openDetailRoute<void>(context, '/profile-search'));
+  }
+
+  void _openSettings() {
+    context.go('/settings');
+  }
+
   Future<void> _openMyProfileAction() async {
     NavigationTrace.instance.record('Profile app-bar tap fired');
     if (_isViewingOwnProfile) return;
@@ -1884,11 +1892,9 @@ class _ProfilePageState extends State<ProfilePage>
             },
           ),
           KemeticAppBarAction(
-            tooltip: 'Search notes',
+            tooltip: 'Find People',
             icon: const KemeticAppBarSearchIcon(gradient: _profileGoldGradient),
-            onPressed: () {
-              unawaited(CalendarPage.openSearchFromAnyContext(context));
-            },
+            onPressed: _openFindPeople,
           ),
           KemeticAppBarAction(
             tooltip: 'Today',
@@ -2661,13 +2667,11 @@ class _ProfilePageState extends State<ProfilePage>
     );
   }
 
-  Widget _buildFindPeopleButton({bool fullWidth = false}) {
+  Widget _buildSettingsButton({bool fullWidth = false}) {
     return _buildActionButton(
-      label: 'Find People',
-      icon: Icons.people_outline_rounded,
-      onPressed: () {
-        unawaited(openDetailRoute<void>(context, '/profile-search'));
-      },
+      label: 'Settings',
+      icon: Icons.settings_outlined,
+      onPressed: _openSettings,
       foregroundColor: _profileGoldText,
       borderColor: _profileGoldMid.withValues(alpha: 0.42),
       fullWidth: fullWidth,
@@ -2714,7 +2718,7 @@ class _ProfilePageState extends State<ProfilePage>
         const SizedBox(height: 8),
         Row(
           children: [
-            Expanded(child: _buildFindPeopleButton(fullWidth: true)),
+            Expanded(child: _buildSettingsButton(fullWidth: true)),
             const SizedBox(width: 8),
             Expanded(child: _buildPostFlowButton(fullWidth: true)),
           ],

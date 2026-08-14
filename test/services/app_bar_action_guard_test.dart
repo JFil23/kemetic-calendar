@@ -825,9 +825,9 @@ void main() {
       _expectTooltipAction(appBar, 'New note', <String>[
         '_openCalendarQuickAdd()',
       ]);
-      _expectTooltipAction(appBar, 'Search notes', <String>[
+      _expectTooltipAction(appBar, 'Find People', <String>[
         'KemeticAppBarSearchIcon',
-        'CalendarPage.openSearchFromAnyContext(context)',
+        'onPressed: _openFindPeople',
       ]);
       _expectTooltipAction(appBar, 'Today', <String>[
         'KemeticAppBarTodayIcon',
@@ -838,6 +838,33 @@ void main() {
         'KemeticAppBarProfileIcon',
         '_openMyProfileAction',
       ]);
+
+      final openFindPeople = _sourceBetween(
+        source,
+        'void _openFindPeople()',
+        'void _openSettings()',
+      );
+      expect(
+        openFindPeople,
+        contains("openDetailRoute<void>(context, '/profile-search')"),
+      );
+
+      final openSettings = _sourceBetween(
+        source,
+        'void _openSettings()',
+        'Future<void> _openMyProfileAction()',
+      );
+      expect(openSettings, contains("context.go('/settings')"));
+
+      final settingsButton = _sourceBetween(
+        source,
+        'Widget _buildSettingsButton',
+        'Widget _buildPostFlowButton',
+      );
+      expect(settingsButton, contains("label: 'Settings'"));
+      expect(settingsButton, contains('icon: Icons.settings_outlined'));
+      expect(settingsButton, contains('onPressed: _openSettings'));
+      expect(source, isNot(contains("label: 'Find People'")));
     });
 
     test('shared profile helper uses canonical profile route', () async {
