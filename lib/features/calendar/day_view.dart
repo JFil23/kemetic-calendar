@@ -5794,6 +5794,7 @@ class _DayViewPageState extends State<DayViewPage> {
                     activeLedgerFlowIds: activeLedgerFlowIds,
                     getMonthName: widget.getMonthName,
                     onManageFlows: widget.onManageFlows,
+                    onOpenQuickAdd: widget.onOpenQuickAdd,
                     onAddNote: widget.onAddNote,
                     onDeleteNote: widget.onDeleteNote,
                     onEditNote: widget.onEditNote,
@@ -5878,10 +5879,6 @@ class _DayViewPageState extends State<DayViewPage> {
                       onClose: _closeDayView,
                       onJumpToToday: _jumpToToday,
                       onOpenQuickAdd: (btnCtx) async {
-                        if (widget.onAddNote != null) {
-                          widget.onAddNote!(_currentKy, _currentKm, _currentKd);
-                          return;
-                        }
                         final openQuickAdd = widget.onOpenQuickAdd;
                         if (openQuickAdd != null) {
                           await openQuickAdd(btnCtx);

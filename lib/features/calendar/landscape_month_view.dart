@@ -12,7 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../services/app_haptics.dart';
 import '../../services/app_restoration_service.dart';
 import 'day_view.dart'; // For NoteData, FlowData
-import 'calendar_page.dart' show EndFlowOutcome, KemeticMath;
+import 'calendar_page.dart' show CalendarPage, EndFlowOutcome, KemeticMath;
 import 'maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/kemetic_time_constants.dart';
 import 'dart:math' as math;
@@ -587,6 +587,7 @@ class LandscapeMonthView extends StatelessWidget {
   final Set<int> activeLedgerFlowIds;
   final String Function(int km) getMonthName;
   final void Function(int? flowId)? onManageFlows;
+  final Future<void> Function(BuildContext context)? onOpenQuickAdd;
   final void Function(int ky, int km, int kd)? onAddNote;
   final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
   final void Function(int ky, int km)? onVisibleMonthCommitted;
@@ -638,6 +639,7 @@ class LandscapeMonthView extends StatelessWidget {
     this.activeLedgerFlowIds = const <int>{},
     required this.getMonthName,
     this.onManageFlows,
+    this.onOpenQuickAdd,
     this.onAddNote,
     this.onMonthChanged, // ✅ NEW CALLBACK
     this.onVisibleMonthCommitted,
@@ -675,6 +677,7 @@ class LandscapeMonthView extends StatelessWidget {
       activeLedgerFlowIds: activeLedgerFlowIds,
       getMonthName: getMonthName,
       onManageFlows: onManageFlows,
+      onOpenQuickAdd: onOpenQuickAdd,
       onAddNote: onAddNote,
       onMonthChanged: onMonthChanged, // ✅ PASS CALLBACK DOWN
       onVisibleMonthCommitted: onVisibleMonthCommitted,
@@ -718,6 +721,7 @@ class LandscapeMonthPager extends StatefulWidget {
   final Set<int> activeLedgerFlowIds;
   final String Function(int km) getMonthName;
   final void Function(int? flowId)? onManageFlows;
+  final Future<void> Function(BuildContext context)? onOpenQuickAdd;
   final void Function(int ky, int km, int kd)? onAddNote;
   final void Function(int ky, int km)? onMonthChanged; // ✅ NEW CALLBACK
   final void Function(int ky, int km)? onVisibleMonthCommitted;
@@ -769,6 +773,7 @@ class LandscapeMonthPager extends StatefulWidget {
     this.activeLedgerFlowIds = const <int>{},
     required this.getMonthName,
     this.onManageFlows,
+    this.onOpenQuickAdd,
     this.onAddNote,
     this.onMonthChanged, // ✅ NEW CALLBACK
     this.onVisibleMonthCommitted,
@@ -1114,34 +1119,17 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
                 tooltip: 'New note',
                 icon: KemeticGold.icon(Icons.add),
                 padding: const EdgeInsets.symmetric(horizontal: 4),
-                onPressed: widget.onAddNote != null
-                    ? () {
-                        if (kDebugMode) {
-                          _logLandscape('🔘 [LANDSCAPE] Add Note tapped');
-                        }
-                        final now = DateTime.now();
-                        final today = KemeticMath.fromGregorian(now);
-                        final currentMonth = _monthForPage(_currentPage);
-                        final kd =
-                            (currentMonth.kYear == today.kYear &&
-                                currentMonth.kMonth == today.kMonth)
-                            ? today.kDay
-                            : 1;
-
-                        if (currentMonth.kMonth == 13 && kDebugMode) {
-                          _logLandscape(
-                            '⚠️ [LANDSCAPE] Creating note in sacred Month 13 (Heriu Renpet)',
-                          );
-                          _logLandscape('   Day: $kd');
-                        }
-
-                        widget.onAddNote!(
-                          currentMonth.kYear,
-                          currentMonth.kMonth,
-                          kd,
-                        );
-                      }
-                    : null,
+                onPressed: () async {
+                  if (kDebugMode) {
+                    _logLandscape('🔘 [LANDSCAPE] Quick Add tapped');
+                  }
+                  final openQuickAdd = widget.onOpenQuickAdd;
+                  if (openQuickAdd != null) {
+                    await openQuickAdd(context);
+                    return;
+                  }
+                  await CalendarPage.openQuickAddFromAnyContext(context);
+                },
               ),
               // Today button - OUTSIDE GestureDetector (no gesture interference)
               TextButton(

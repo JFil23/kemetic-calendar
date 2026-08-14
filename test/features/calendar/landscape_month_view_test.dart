@@ -20,6 +20,32 @@ void main() {
   tearDown(CalendarEventDetailSheetCoordinator.debugResetForTests);
 
   group('LandscapeMonthPager rotation handoff', () {
+    testWidgets('header plus opens quick add before the date editor', (
+      tester,
+    ) async {
+      await _setLandscapeViewport(tester);
+      var quickAddOpenCount = 0;
+      var dateEditorOpenCount = 0;
+
+      await tester.pumpWidget(
+        _LandscapePagerHarness(
+          onOpenQuickAdd: (_) async {
+            quickAddOpenCount++;
+          },
+          onAddNote: (_, _, _) {
+            dateEditorOpenCount++;
+          },
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byTooltip('New note'));
+      await tester.pump();
+
+      expect(quickAddOpenCount, 1);
+      expect(dateEditorOpenCount, 0);
+    });
+
     testWidgets(
       'reports the current month when disposed after a settled swipe',
       (tester) async {
@@ -1153,6 +1179,8 @@ class _LandscapePagerHarness extends StatelessWidget {
   const _LandscapePagerHarness({
     this.notesForDay,
     this.flowIndex = const <int, FlowData>{},
+    this.onOpenQuickAdd,
+    this.onAddNote,
     this.onVisibleMonthCommitted,
     this.onShareNote,
     this.onAppendToJournal,
@@ -1163,6 +1191,8 @@ class _LandscapePagerHarness extends StatelessWidget {
 
   final List<NoteData> Function(int ky, int km, int kd)? notesForDay;
   final Map<int, FlowData> flowIndex;
+  final Future<void> Function(BuildContext context)? onOpenQuickAdd;
+  final void Function(int ky, int km, int kd)? onAddNote;
   final void Function(int ky, int km)? onVisibleMonthCommitted;
   final Future<void> Function(EventItem event)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
@@ -1187,6 +1217,8 @@ class _LandscapePagerHarness extends StatelessWidget {
           notesForDay: notesForDay ?? ((_, _, _) => const <NoteData>[]),
           flowIndex: flowIndex,
           getMonthName: (km) => 'Month $km',
+          onOpenQuickAdd: onOpenQuickAdd,
+          onAddNote: onAddNote,
           onVisibleMonthCommitted: onVisibleMonthCommitted,
           onShareNote: onShareNote,
           onAppendToJournal: onAppendToJournal,

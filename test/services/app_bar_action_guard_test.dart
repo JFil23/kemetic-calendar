@@ -1864,6 +1864,70 @@ void main() {
       );
     });
 
+    test(
+      'shared quick add exposes journal and planner before the input',
+      () async {
+        final source = await File(
+          'lib/features/calendar/calendar_page.dart',
+        ).readAsString();
+
+        final sheetStart = source.indexOf(
+          'class _QuickAddSheet extends StatefulWidget',
+        );
+        final sheetEnd = source.indexOf('enum MonthExpansionLevel', sheetStart);
+        expect(sheetStart, greaterThanOrEqualTo(0));
+        expect(sheetEnd, greaterThan(sheetStart));
+
+        final sheet = source.substring(sheetStart, sheetEnd);
+        final journalButton = sheet.indexOf('quick-add-journal-button');
+        final plannerButton = sheet.indexOf('quick-add-planner-button');
+        final input = sheet.indexOf('quick-add-input');
+        expect(journalButton, greaterThanOrEqualTo(0));
+        expect(plannerButton, greaterThan(journalButton));
+        expect(input, greaterThan(plannerButton));
+        expect(sheet, contains('widget.onOpenJournal'));
+        expect(sheet, contains('widget.onOpenPlanner'));
+
+        expect(
+          source,
+          contains(
+            "location: '/journal',\n            section: AppSection.journal",
+          ),
+        );
+        expect(
+          source,
+          contains(
+            "location: '/rhythm/today',\n            section: AppSection.planner",
+          ),
+        );
+        expect(source, contains('onOpenJournal: _openJournalFromAppBar'));
+        expect(source, contains('onOpenPlanner: _openPlannerPage'));
+
+        final dayView = await File(
+          'lib/features/calendar/day_view.dart',
+        ).readAsString();
+        expect(dayView, contains('onOpenQuickAdd: widget.onOpenQuickAdd'));
+        expect(
+          dayView,
+          isNot(
+            contains(
+              'if (widget.onAddNote != null) {\n'
+              '                          widget.onAddNote!(_currentKy',
+            ),
+          ),
+        );
+
+        final landscapeView = await File(
+          'lib/features/calendar/landscape_month_view.dart',
+        ).readAsString();
+        expect(landscapeView, contains("tooltip: 'New note'"));
+        expect(
+          landscapeView,
+          contains('await CalendarPage.openQuickAddFromAnyContext(context);'),
+        );
+      },
+    );
+
     test('shared app bar search actions never route home', () async {
       final files = <String>[
         'lib/features/calendar/calendar_page.dart',

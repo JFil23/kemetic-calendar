@@ -288,12 +288,16 @@ class _QuickAddSheet extends StatefulWidget {
   const _QuickAddSheet({
     required this.parse,
     required this.onSave,
+    required this.onOpenJournal,
+    required this.onOpenPlanner,
     required this.onOpenFullEditor,
     required this.scaffoldMessengerContext,
   });
 
   final QuickAddParse? Function(String raw) parse;
   final Future<void> Function(QuickAddParse parsed) onSave;
+  final VoidCallback onOpenJournal;
+  final VoidCallback onOpenPlanner;
   final VoidCallback onOpenFullEditor;
   final BuildContext scaffoldMessengerContext;
 
@@ -382,9 +386,10 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
     );
   }
 
-  void _handleOpenFullEditor() {
+  void _handleOpenDestination(VoidCallback onOpen) {
+    _focusNode.unfocus();
     Navigator.of(context).pop();
-    widget.onOpenFullEditor();
+    onOpen();
   }
 
   @override
@@ -421,7 +426,58 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                     ),
                   ),
                   const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          key: const ValueKey('quick-add-journal-button'),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(46),
+                            foregroundColor: Colors.white,
+                            backgroundColor: const Color(0xFF171717),
+                            side: const BorderSide(color: Color(0xFF343434)),
+                            shape: const StadiumBorder(),
+                          ),
+                          onPressed: _submitting
+                              ? null
+                              : () => _handleOpenDestination(
+                                  widget.onOpenJournal,
+                                ),
+                          icon: KemeticGold.glyph(
+                            MeduNeterGlyphs.journal,
+                            size: 19,
+                          ),
+                          label: const Text('Journal'),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          key: const ValueKey('quick-add-planner-button'),
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(46),
+                            foregroundColor: Colors.white,
+                            backgroundColor: const Color(0xFF171717),
+                            side: const BorderSide(color: Color(0xFF343434)),
+                            shape: const StadiumBorder(),
+                          ),
+                          onPressed: _submitting
+                              ? null
+                              : () => _handleOpenDestination(
+                                  widget.onOpenPlanner,
+                                ),
+                          icon: KemeticGold.glyph(
+                            MeduNeterGlyphs.planner,
+                            size: 19,
+                          ),
+                          label: const Text('Planner'),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
                   TextField(
+                    key: const ValueKey('quick-add-input'),
                     controller: _textCtrl,
                     scrollPadding: keyboardManagedTextFieldScrollPadding,
                     autofocus: false,
@@ -463,7 +519,11 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                       ),
                       const SizedBox(width: 8),
                       TextButton(
-                        onPressed: _submitting ? null : _handleOpenFullEditor,
+                        onPressed: _submitting
+                            ? null
+                            : () => _handleOpenDestination(
+                                widget.onOpenFullEditor,
+                              ),
                         child: KemeticGold.text(
                           'Open full editor',
                           style: const TextStyle(fontWeight: FontWeight.w600),
@@ -5583,6 +5643,20 @@ class CalendarPage extends StatefulWidget {
     context.go('/');
   }
 
+  static void _openDetachedQuickAddDestination(
+    BuildContext context, {
+    required String location,
+    required AppSection section,
+  }) {
+    unawaited(
+      AppNavigationRestorationController.instance.recordPrimaryTabSelection(
+        section,
+      ),
+    );
+    if (!context.mounted) return;
+    context.go(location);
+  }
+
   static Future<void> _openDetachedQuickAddSheet(BuildContext context) async {
     if (!context.mounted) return;
     if (_detachedQuickAddSheetOpenOrOpening) return;
@@ -5601,6 +5675,16 @@ class CalendarPage extends StatefulWidget {
           parse: parseQuickAddText,
           scaffoldMessengerContext: context,
           onSave: _saveDetachedQuickAddNote,
+          onOpenJournal: () => _openDetachedQuickAddDestination(
+            context,
+            location: '/journal',
+            section: AppSection.journal,
+          ),
+          onOpenPlanner: () => _openDetachedQuickAddDestination(
+            context,
+            location: '/rhythm/today',
+            section: AppSection.planner,
+          ),
           onOpenFullEditor: () => _routeHomeForDetachedDayEditor(context),
         ),
       );
@@ -29661,6 +29745,8 @@ class CalendarPageState extends State<CalendarPage>
               alertMinutesBefore: _alertNoneMinutes,
             );
           },
+          onOpenJournal: _openJournalFromAppBar,
+          onOpenPlanner: _openPlannerPage,
           onOpenFullEditor: () {
             if (!mounted) return;
             _openDaySheet(
