@@ -15,6 +15,8 @@ extension _CalendarHydrationEngine on CalendarPageState {
         request.mode == _CalendarHydrationMode.catalogReconcile) {
       _hydrationController.reportViewport(interval);
     }
+    _latestCalendarRefreshStatus = CalendarRefreshStatus.pending;
+    _publishHydrationStatus();
     final fingerprint =
         request.catalogFingerprint ??
         _hydrationController.state.catalogFingerprint ??
@@ -62,6 +64,10 @@ extension _CalendarHydrationEngine on CalendarPageState {
               _hydrationController.promoteMatchingFreshCatalog(
                 stagedCatalog.fingerprint,
               )) {
+            _activeCalendarCoverage = _hydrationController.state.coverage;
+            _lastAuthoritativeHydrationAt = DateTime.now();
+            _latestCalendarRefreshStatus = CalendarRefreshStatus.succeeded;
+            _publishHydrationStatus();
             diagnostics.recordPostProcessing(
               null,
               'catalog_reconcile_promoted_without_lane_refetch',
@@ -135,6 +141,13 @@ extension _CalendarHydrationEngine on CalendarPageState {
     if (!_hydrationScheduler.hasActiveJob &&
         !_hydrationScheduler.hasQueuedJobs) {
       diagnostics.recordCoordinatorIdle();
+      if (disposition == CalendarHydrationJobDisposition.failed) {
+        _markCalendarHydrationIncomplete();
+      } else if (disposition == CalendarHydrationJobDisposition.cancelled &&
+          _latestCalendarRefreshStatus == CalendarRefreshStatus.pending) {
+        _latestCalendarRefreshStatus = CalendarRefreshStatus.idle;
+        _publishHydrationStatus();
+      }
     }
     return disposition;
   }
@@ -150,7 +163,6 @@ extension _CalendarHydrationEngine on CalendarPageState {
     required int passEpoch,
   }) async {
     final source = request.diagnosticSource;
-    final preserveViewport = request.preserveViewport;
     final hydrationDiagnostics = CalendarHydrationDiagnostics.instance;
     final hydrationContext = hydrationDiagnostics.beginPass(
       epoch: passEpoch,
@@ -208,9 +220,6 @@ extension _CalendarHydrationEngine on CalendarPageState {
       }
       final loadUserId = currentUser.id;
       loadUserIdForPass = loadUserId;
-      final preservedScrollOffset = preserveViewport
-          ? _calendarScrollOffsetForPreservation()
-          : null;
       await _ensureManualDeleteTombstonesLoaded();
       if (backgroundWindowMode && backgroundPass == null) {
         throw StateError('Missing progressive backfill window for $source');
@@ -247,7 +256,7 @@ extension _CalendarHydrationEngine on CalendarPageState {
         effectiveCatalogFingerprint = stagedCatalog!.fingerprint;
       }
       if (reuseCatalog) {
-        newFlows.addAll(_flows);
+        newFlows.addAll(_calendarHydrationBaseFlows);
         hydrationDiagnostics.recordDerivedFetchStatus(
           context: hydrationContext,
           operation: 'flow_catalog',
@@ -497,24 +506,16 @@ extension _CalendarHydrationEngine on CalendarPageState {
       int standaloneAddedCount = 0;
       bool committedVisibleCalendar = false;
 
-      void commitVisibleCalendarState(
+      Future<void> commitVisibleCalendarState(
         CalendarHydrationPublicationPhase phase, {
         bool loadComplete = false,
         HydrationCompletenessResult? diagnosticCompleteness,
-      }) {
-        if (!jobContext.isCurrent) {
+      }) async {
+        if (!jobContext.isCurrent ||
+            _activeWarmStartUserId() != loadUserId ||
+            flowEndRevisionAtLoadStart != CalendarPage._flowEndStateRevision) {
           hydrationPassSuperseded = true;
-          progressiveAbortReason = 'job_superseded_before_commit';
-          return;
-        }
-        if (_activeWarmStartUserId() != loadUserId) {
-          hydrationPassSuperseded = true;
-          progressiveAbortReason = 'user_changed_before_commit';
-          return;
-        }
-        if (flowEndRevisionAtLoadStart != CalendarPage._flowEndStateRevision) {
-          hydrationPassSuperseded = true;
-          progressiveAbortReason = 'flow_revision_changed_before_commit';
+          progressiveAbortReason = 'authority_changed_before_commit';
           return;
         }
         final commitPrepStopwatch = Stopwatch()..start();
@@ -537,158 +538,161 @@ extension _CalendarHydrationEngine on CalendarPageState {
           }
           return;
         }
-        if (backgroundWindowMode && !jobContext.isCurrent) {
-          progressiveAbortReason = 'queued_before_merge';
-          hydrationPassSuperseded = true;
-          return;
-        }
-        const preservedStandaloneCount = 0;
-        Map<String, List<_Note>> candidateNotes =
+        final projectionMutationRevisionAtPrep =
+            _calendarProjectionMutationRevision;
+        Map<String, List<_Note>> authoritativeCandidateNotes =
             mergeHydrationWindowIntoNotes<_Note>(
-              existing: _notes,
+              existing: _calendarHydrationBaseNotes,
               incoming: newNotes,
               windowStartInclusive: focusWindow.startUtc,
               windowEndExclusive: focusWindow.endUtc,
               parseKeyToDay: _warmStartDateFromKey,
             );
         if (backgroundWindowMode && backgroundPass!.isFinal) {
-          candidateNotes = retainNotesWithinHydrationWindow<_Note>(
-            notes: candidateNotes,
+          authoritativeCandidateNotes = retainNotesWithinHydrationWindow<_Note>(
+            notes: authoritativeCandidateNotes,
             windowStartInclusive: backgroundPass.union.startUtc,
             windowEndExclusive: backgroundPass.union.endUtc,
             parseKeyToDay: _warmStartDateFromKey,
           );
         }
-        void applyPreparedState() {
-          final unconfirmedMerge = _unconfirmed.mergeInto(candidateNotes);
-          if (unconfirmedMerge.confirmedCids.isNotEmpty) {
-            unawaited(
-              _removePersistedPendingCids(
-                unconfirmedMerge.confirmedCids,
-                userId: loadUserId,
-              ),
-            );
-          }
-          final hydratedTrackSkyFlowIds = newFlows
-              .where((flow) => _isTrackSkyFlowName(flow.name))
-              .map((flow) => flow.id)
-              .where((flowId) => flowId > 0)
-              .toSet();
-          final dedupeStopwatch = Stopwatch()..start();
-          final dedupedNotes = <String, List<_Note>>{};
-          candidateNotes.forEach((key, notes) {
-            final cleaned = _dedupeVisibleDayNotes(
-              notes,
-              trackSkyFlowIds: hydratedTrackSkyFlowIds,
-            );
-            if (cleaned.isNotEmpty) {
-              dedupedNotes[key] = cleaned;
-            }
-          });
-          hydrationDiagnostics.recordPostProcessing(
-            hydrationContext,
-            'visible_snapshot_deduped',
-            durationMs: dedupeStopwatch.elapsedMilliseconds,
-            fields: <String, Object?>{
-              'input_day_bucket_count': candidateNotes.length,
-              'output_day_bucket_count': dedupedNotes.length,
-            },
+        final candidateNotes = <String, List<_Note>>{
+          for (final entry in authoritativeCandidateNotes.entries)
+            entry.key: List<_Note>.of(entry.value),
+        };
+        final unconfirmedMerge = _unconfirmed.mergeInto(
+          candidateNotes,
+          retireConfirmed: false,
+        );
+        final hydratedTrackSkyFlowIds = newFlows
+            .where((flow) => _isTrackSkyFlowName(flow.name))
+            .map((flow) => flow.id)
+            .where((flowId) => flowId > 0)
+            .toSet();
+        final dedupeStopwatch = Stopwatch()..start();
+        final dedupedNotes = <String, List<_Note>>{};
+        candidateNotes.forEach((key, notes) {
+          final cleaned = _dedupeVisibleDayNotes(
+            notes,
+            trackSkyFlowIds: hydratedTrackSkyFlowIds,
           );
+          if (cleaned.isNotEmpty) dedupedNotes[key] = cleaned;
+        });
+        final authoritativeNotes = <String, List<_Note>>{};
+        authoritativeCandidateNotes.forEach((key, notes) {
+          final cleaned = _dedupeVisibleDayNotes(
+            notes,
+            trackSkyFlowIds: hydratedTrackSkyFlowIds,
+          );
+          if (cleaned.isNotEmpty) authoritativeNotes[key] = cleaned;
+        });
+        hydrationDiagnostics.recordPostProcessing(
+          hydrationContext,
+          'visible_snapshot_deduped',
+          durationMs: dedupeStopwatch.elapsedMilliseconds,
+          fields: <String, Object?>{
+            'input_day_bucket_count': candidateNotes.length,
+            'output_day_bucket_count': dedupedNotes.length,
+          },
+        );
 
-          final publishedScope = backgroundWindowMode && backgroundPass!.isFinal
-              ? CalendarHydrationAuthorityScope.fullHorizon
-              : CalendarHydrationAuthorityScope.visibleWindow;
-          _setHydrationAuthorityScope(
+        final projectedCoverage = backgroundWindowMode
+            ? _hydrationController.previewBackgroundCoverage(
+                sessionGeneration: sessionGeneration,
+                catalogFingerprint: effectiveCatalogFingerprint,
+                interval: resolvedInterval,
+              )
+            : viewportCommitToken == null
+            ? null
+            : _hydrationController.previewViewportCoverage(viewportCommitToken);
+        if (projectedCoverage == null) {
+          hydrationPassSuperseded = true;
+          progressiveAbortReason = 'controller_rejected_before_durable_commit';
+          return;
+        }
+
+        final publishedScope = backgroundWindowMode && backgroundPass!.isFinal
+            ? CalendarHydrationAuthorityScope.fullHorizon
+            : CalendarHydrationAuthorityScope.visibleWindow;
+        final authorityReason = foregroundMode
+            ? 'phase_a_complete'
+            : backgroundWindowMode
+            ? 'phase_b_complete'
+            : 'full_refresh_complete';
+        final commitIsServerCurrent =
+            request.mode == _CalendarHydrationMode.catalogReconcile ||
+            effectiveCatalogFingerprint ==
+                _hydrationController.state.freshCatalogFingerprint;
+        final affectedMonths = _calendarAffectedMonths(dedupedNotes, newFlows);
+        final extentAffecting = _calendarProjectionChangesExtent(
+          dedupedNotes,
+          affectedMonths,
+        );
+        final geometryRevision = _calendarGeometryRevision(
+          dedupedNotes,
+          affectedMonths,
+        );
+        final durable = await _commitCalendarSnapshotCandidate(
+          userId: loadUserId,
+          reason: 'hydration_${request.diagnosticSource}',
+          flows: List<_Flow>.unmodifiable(newFlows),
+          notesByDay: authoritativeNotes,
+          coverage: projectedCoverage.intervals,
+          catalogFingerprint: effectiveCatalogFingerprint,
+          lastSuccessfulRefreshAtUtc: DateTime.now().toUtc(),
+          confirmedOverlayCids: unconfirmedMerge.confirmedCids,
+        );
+        if (durable == null) {
+          progressiveAbortReason = 'snapshot_durable_commit_rejected';
+          return;
+        }
+        if (!mounted ||
+            !jobContext.isCurrent ||
+            _activeWarmStartUserId() != loadUserId ||
+            flowEndRevisionAtLoadStart != CalendarPage._flowEndStateRevision ||
+            projectionMutationRevisionAtPrep !=
+                _calendarProjectionMutationRevision) {
+          hydrationPassSuperseded = true;
+          progressiveAbortReason = 'presentation_changed_during_durable_commit';
+          return;
+        }
+
+        final projection = _CalendarHydrationProjection(
+          flows: List<_Flow>.unmodifiable(newFlows),
+          notesByDay: dedupedNotes,
+          reminderRules: List<ReminderRule>.unmodifiable(stagedReminderRules),
+          replaceReminderRules: !reuseCatalog,
+          nextFlowId: nextFlowId,
+          authorityScope: publishedScope,
+          authorityReason: authorityReason,
+          commitIsServerCurrent: commitIsServerCurrent,
+          coverage: projectedCoverage,
+          lastSuccessfulRefreshAtUtc: durable.commit.lastSuccessfulRefreshAtUtc,
+          fullServerHydration: shouldSetFullServerHydrationSentinel(
             publishedScope,
-            reason: foregroundMode
-                ? 'phase_a_complete'
-                : backgroundWindowMode
-                ? 'phase_b_complete'
-                : 'full_refresh_complete',
-            diagnosticContext: hydrationContext,
-          );
-
-          _flows
-            ..clear()
-            ..addAll(newFlows);
-          _notes
-            ..clear()
-            ..addAll(dedupedNotes);
-          if (!reuseCatalog) {
-            _reminderRules
-              ..clear()
-              ..addAll(stagedReminderRules);
-            _reminderRulesLoaded = true;
-          }
-          _nextFlowId = math.max(_nextFlowId, nextFlowId);
-          CalendarPage._reconcileRememberedMaatJoinsFromLiveFlows(_flows);
-
-          if (kDebugMode) {
-            _calendarDebugPrint(
-              '[hydrationEngine] committed phase=${phase.name} '
-              '_flows.length=${_flows.length} _notes keys=${_notes.length} '
-              'preservedStandalone=$preservedStandaloneCount '
-              'unconfirmedPreserved=${unconfirmedMerge.preserved} '
-              'unconfirmedConfirmed=${unconfirmedMerge.confirmed}',
-            );
-          }
-
-          _rebuildReminderRulesFromFlowsIfMissing();
-          final commitIsServerCurrent =
-              request.mode == _CalendarHydrationMode.catalogReconcile ||
-              effectiveCatalogFingerprint ==
-                  _hydrationController.state.freshCatalogFingerprint;
-          if (commitIsServerCurrent) {
-            _lastAuthoritativeHydrationAt = DateTime.now();
-            _calendarHydrationAvailability =
-                CalendarHydrationAvailability.current;
-          }
-          _publishHydrationStatus();
-          _bumpDataVersion(scheduleCacheSave: false);
-          _warmStartCacheRestoredForUserId = _activeWarmStartUserId();
-          if (shouldSetFullServerHydrationSentinel(publishedScope)) {
-            _serverHydrationCommittedForUserId = _activeWarmStartUserId();
-          }
-          if (shouldClearWarmStartSnapshotVisible(publishedScope)) {
-            _warmStartSnapshotVisible = false;
-          }
-          if (!committedVisibleCalendar &&
-              preserveViewport &&
-              preservedScrollOffset != null) {
-            _lastKnownCalendarScrollOffset = preservedScrollOffset;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              final position = _singleCalendarScrollPosition();
-              if (!mounted ||
-                  position == null ||
-                  !position.hasContentDimensions) {
-                return;
-              }
-              final clamped = preservedScrollOffset.clamp(
-                position.minScrollExtent,
-                position.maxScrollExtent,
-              );
-              position.jumpTo(clamped);
-              _lastKnownCalendarScrollOffset = clamped.toDouble();
-            });
-          }
-          committedVisibleCalendar = true;
-          hydrationDiagnostics.recordVisibleCommit(
-            context: hydrationContext,
-            phase: phase.name,
-            originClass: 'server_complete',
-            totalFlows: _flows.length,
-            totalEvents: flowAddedCount + standaloneAddedCount,
-            totalDayBuckets: _notes.length,
-            selectedDay: _hydrationSelectedDaySnapshot(_notes),
-            claimedComplete: loadComplete,
-            completeness: diagnosticCompleteness,
-            authorityScope: publishedScope.diagnosticName,
-          );
-          hydrationDiagnostics.recordPostProcessing(
-            hydrationContext,
-            'commit_prep_and_apply',
-            durationMs: commitPrepStopwatch.elapsedMilliseconds,
-            fields: <String, Object?>{'phase': phase.name},
+          ),
+          clearWarmSnapshot: shouldClearWarmStartSnapshotVisible(
+            publishedScope,
+          ),
+          affectedMonths: Set<MonthRef>.unmodifiable(affectedMonths),
+          extentAffecting: extentAffecting,
+        );
+        final epoch = CalendarPresentationEpoch<_CalendarHydrationProjection>(
+          userScope: loadUserId,
+          sequence: ++_calendarPresentationSequence,
+          viewRevision:
+              '${durable.commit.serverRevision}:${durable.commit.overlayRevision}',
+          geometryRevision: geometryRevision,
+          extentAffecting: extentAffecting,
+          affectedSections: affectedMonths.map(
+            (month) => '${month.year}-${month.month}',
+          ),
+          projection: projection,
+        );
+        var publishedImmediately = false;
+        void applyPreparedState() {
+          publishedImmediately = _calendarPresentationCoordinator.publish(
+            epoch,
           );
         }
 
@@ -707,7 +711,58 @@ extension _CalendarHydrationEngine on CalendarPageState {
         if (!accepted) {
           progressiveAbortReason = 'controller_rejected_commit';
           hydrationPassSuperseded = true;
+          return;
         }
+        _calendarAuthoritativeFlows = List<_Flow>.unmodifiable(newFlows);
+        _calendarAuthoritativeNotesByDay =
+            Map<String, List<_Note>>.unmodifiable(<String, List<_Note>>{
+              for (final entry in authoritativeNotes.entries)
+                entry.key: List<_Note>.unmodifiable(entry.value),
+            });
+        committedVisibleCalendar = true;
+        if (unconfirmedMerge.confirmedCids.isNotEmpty) {
+          _unconfirmed.forgetCids(unconfirmedMerge.confirmedCids);
+          unawaited(
+            _removePersistedPendingCids(
+              unconfirmedMerge.confirmedCids,
+              userId: loadUserId,
+            ),
+          );
+        }
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[hydrationEngine] committed epoch phase=${phase.name} '
+            'flows=${newFlows.length} notes=${dedupedNotes.length} '
+            'immediate=$publishedImmediately '
+            'unconfirmedPreserved=${unconfirmedMerge.preserved} '
+            'unconfirmedConfirmed=${unconfirmedMerge.confirmed}',
+          );
+        }
+        hydrationDiagnostics.recordVisibleCommit(
+          context: hydrationContext,
+          phase: phase.name,
+          originClass: publishedImmediately
+              ? 'server_complete'
+              : 'server_complete_staged',
+          totalFlows: newFlows.length,
+          totalEvents: flowAddedCount + standaloneAddedCount,
+          totalDayBuckets: dedupedNotes.length,
+          selectedDay: _hydrationSelectedDaySnapshot(dedupedNotes),
+          claimedComplete: loadComplete,
+          completeness: diagnosticCompleteness,
+          authorityScope: publishedScope.diagnosticName,
+        );
+        hydrationDiagnostics.recordPostProcessing(
+          hydrationContext,
+          'durable_commit_and_epoch_publish',
+          durationMs: commitPrepStopwatch.elapsedMilliseconds,
+          fields: <String, Object?>{
+            'phase': phase.name,
+            'published_immediately': publishedImmediately,
+            'extent_affecting': extentAffecting,
+            'affected_month_count': affectedMonths.length,
+          },
+        );
       }
 
       final flowConversionStopwatch = Stopwatch()..start();
@@ -1232,7 +1287,7 @@ extension _CalendarHydrationEngine on CalendarPageState {
       );
       final calendarSemanticComplete =
           calendarFetchComplete && diagnosticCompleteness.semanticComplete;
-      commitVisibleCalendarState(
+      await commitVisibleCalendarState(
         CalendarHydrationPublicationPhase.complete,
         loadComplete: calendarSemanticComplete,
         diagnosticCompleteness: diagnosticCompleteness,

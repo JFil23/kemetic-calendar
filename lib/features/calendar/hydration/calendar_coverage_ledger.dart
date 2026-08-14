@@ -17,6 +17,17 @@ class CalendarCoverageLedger {
         intervals: const <CalendarHydrationInterval>[],
       );
 
+  factory CalendarCoverageLedger.fromIntervals({
+    required String catalogFingerprint,
+    required Iterable<CalendarHydrationInterval> intervals,
+  }) {
+    var ledger = CalendarCoverageLedger.empty(catalogFingerprint);
+    for (final interval in intervals) {
+      ledger = ledger.add(fingerprint: catalogFingerprint, interval: interval);
+    }
+    return ledger;
+  }
+
   final String catalogFingerprint;
   final List<CalendarHydrationInterval> intervals;
 

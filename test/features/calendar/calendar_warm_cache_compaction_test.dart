@@ -1,9 +1,12 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/features/calendar/snapshot/calendar_snapshot_runtime.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -12,8 +15,13 @@ const _cacheKey = 'calendar:warm_start:v1:$_userId';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  late Directory hiveDirectory;
 
   setUpAll(() async {
+    hiveDirectory = await Directory.systemTemp.createTemp(
+      'calendar_warm_cache_compaction_test.',
+    );
+    Hive.init(hiveDirectory.path);
     SharedPreferences.setMockInitialValues(const <String, Object>{});
     await Supabase.initialize(
       url: 'http://127.0.0.1:9',
@@ -26,12 +34,18 @@ void main() {
     );
   });
 
+  tearDownAll(() async {
+    await Hive.close();
+    await hiveDirectory.delete(recursive: true);
+  });
+
   setUp(() async {
     SharedPreferences.setMockInitialValues(<String, Object>{
       'app:has_seen_onboarding': true,
       'app:onboarding:completed': true,
     });
     await Supabase.instance.client.auth.recoverSession(_sessionJson());
+    await calendarSnapshotStore.deleteUserScope(_userId);
   });
 
   Future<CalendarPageState> pumpCalendar(WidgetTester tester) async {
@@ -40,6 +54,10 @@ void main() {
       MaterialApp(
         home: Scaffold(body: CalendarPage(key: key)),
       ),
+    );
+    await tester.pump();
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 500)),
     );
     await tester.pump();
     expect(key.currentState, isNotNull);
@@ -69,8 +87,9 @@ void main() {
           isTrue,
         );
       }
-
-      await state.debugPersistWarmStartCacheForTesting(_userId);
+      await tester.runAsync(
+        () => state.debugPersistWarmStartCacheForTesting(_userId),
+      );
       final prefs = await SharedPreferences.getInstance();
       final encoded = prefs.getString(_cacheKey);
       expect(encoded, isNotNull);
@@ -92,6 +111,9 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
 
       final restored = await pumpCalendar(tester);
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 750)),
+      );
       for (var attempt = 0; attempt < 50; attempt++) {
         await tester.pump(const Duration(milliseconds: 20));
         if (restored
@@ -144,7 +166,9 @@ void main() {
         );
       }
 
-      await state.debugPersistWarmStartCacheForTesting(_userId);
+      await tester.runAsync(
+        () => state.debugPersistWarmStartCacheForTesting(_userId),
+      );
       final prefs = await SharedPreferences.getInstance();
       final beforeEncoded = prefs.getString(_cacheKey);
       expect(beforeEncoded, isNotNull);
@@ -172,7 +196,9 @@ void main() {
         ),
         isTrue,
       );
-      await state.debugPersistServerCurrentViewportCacheForTesting(_userId);
+      await tester.runAsync(
+        () => state.debugPersistServerCurrentViewportCacheForTesting(_userId),
+      );
 
       final afterEncoded = prefs.getString(_cacheKey);
       expect(afterEncoded, isNotNull);

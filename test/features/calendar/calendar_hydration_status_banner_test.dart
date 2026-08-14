@@ -14,6 +14,49 @@ void main() {
     );
   });
 
+  test('completeness freshness and refresh outcome remain independent', () {
+    final refreshedAt = DateTime.utc(2026, 8, 14, 6);
+    final pendingCold = CalendarHydrationStatus(
+      visibleViewportComplete: false,
+      lastSuccessfulRefreshAtUtc: null,
+      latestRefreshStatus: CalendarRefreshStatus.pending,
+      hasUsableSnapshot: false,
+      accountingStale: false,
+    );
+    expect(
+      pendingCold.calendarAvailability,
+      CalendarHydrationAvailability.current,
+    );
+    expect(pendingCold.visibleViewportComplete, isFalse);
+    expect(pendingCold.latestRefreshStatus, CalendarRefreshStatus.pending);
+
+    final failedWarm = CalendarHydrationStatus(
+      visibleViewportComplete: true,
+      lastSuccessfulRefreshAtUtc: refreshedAt,
+      latestRefreshStatus: CalendarRefreshStatus.failed,
+      hasUsableSnapshot: true,
+      accountingStale: false,
+    );
+    expect(
+      failedWarm.calendarAvailability,
+      CalendarHydrationAvailability.stale,
+    );
+    expect(failedWarm.visibleViewportComplete, isTrue);
+    expect(failedWarm.lastSuccessfulRefreshAtUtc, refreshedAt);
+
+    final failedCold = CalendarHydrationStatus(
+      visibleViewportComplete: false,
+      lastSuccessfulRefreshAtUtc: null,
+      latestRefreshStatus: CalendarRefreshStatus.failed,
+      hasUsableSnapshot: false,
+      accountingStale: false,
+    );
+    expect(
+      failedCold.calendarAvailability,
+      CalendarHydrationAvailability.unavailable,
+    );
+  });
+
   testWidgets('current calendar and accounting render no warning', (
     tester,
   ) async {

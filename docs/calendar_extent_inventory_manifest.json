@@ -7,7 +7,7 @@
       "file": "lib/features/calendar/calendar_grid_widgets.dart",
       "start": "class _YearSection extends StatelessWidget {",
       "end": "/* ───────────── Detail Page (single-window behavior, flows-aware) ───────────── */",
-      "sha256": "6dcd905b2e80a21c300b26f2f23db2992f8adad8cf896a003af401c24e3e1387"
+      "sha256": "dd50ada06e8f33c957c6b040e4aba5833336cb47830ebbb89d5e2a7ec6c40c5d"
     },
     {
       "name": "calendar_text_styles",
@@ -42,14 +42,14 @@
       "file": "lib/features/calendar/calendar_page.dart",
       "start": "  Widget _buildBodyWithJournal() {",
       "end": "  /* ───────────── Decan Reflection Badge & Archive ───────────── */",
-      "sha256": "c0596501bae44c8c1facdef345f9d5c76a592de290f7b874ebfe425c4ac1b02d"
+      "sha256": "83aae3bb3dfb65c491845962be739d0a826ceac1c2d5b9956f21a858e79ed157"
     },
     {
       "name": "year_sliver_topology",
       "file": "lib/features/calendar/calendar_page.dart",
       "start": "  Widget _buildCalendarScrollView() {",
       "end": "  Map<int, FlowData> _buildCalendarFlowChromeIndex() {",
-      "sha256": "1ce9c3fa9d04536dac6f22541b794dc731dd06715e0ad04e26790502d1829d4d"
+      "sha256": "58b91b67dda6f9d46b75210ce73fd8e32fb26dd91b434b2a323d6c2f645832e3"
     },
     {
       "name": "pinch_geometry_consumers",

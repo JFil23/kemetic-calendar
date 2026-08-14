@@ -116,6 +116,8 @@ import 'calendar_hydration_diagnostics.dart';
 import 'calendar_hydration_status_banner.dart';
 import 'calendar_geometry_collector.dart';
 import 'calendar_geometry_snapshot.dart';
+import 'calendar_epoch_viewport.dart';
+import 'calendar_presentation_epoch.dart';
 import 'calendar_scroll_coordinator.dart';
 import 'calendar_section_index.dart';
 import 'calendar_pending_note_store.dart';
@@ -126,11 +128,14 @@ import 'end_flow_visibility_store.dart';
 export 'end_flow_visibility_store.dart';
 import 'calendar_visible_state_policy.dart';
 import 'hydration/calendar_hydration_controller.dart';
+import 'hydration/calendar_coverage_ledger.dart';
 import 'hydration/calendar_hydration_invalidation_bridge.dart';
 import 'hydration/calendar_hydration_models.dart';
 import 'hydration/calendar_hydration_repository.dart';
 import 'hydration/calendar_hydration_scheduler.dart';
 import 'hydration/calendar_viewport_geometry.dart';
+import 'snapshot/calendar_snapshot_models.dart';
+import 'snapshot/calendar_snapshot_runtime.dart';
 import 'calendar_completion.dart';
 import 'reminder_sync_idempotence.dart';
 import 'reminder_sync_gate.dart';
@@ -214,6 +219,8 @@ part 'calendar_unconfirmed_notes.dart';
 part 'calendar_boundary_performance_harness.dart';
 part 'hydration/calendar_hydration_page_adapter.dart';
 part 'hydration/calendar_hydration_engine.dart';
+part 'snapshot/calendar_snapshot_page_adapter.dart';
+part 'snapshot/calendar_presentation_page_adapter.dart';
 
 class _MountedFlowEndPatch {
   const _MountedFlowEndPatch({
@@ -9706,6 +9713,7 @@ class CalendarPageState extends State<CalendarPage>
   static const Duration _warmStartNearFuture = Duration(days: 14);
 
   int _dataVersion = 0;
+  int _calendarProjectionMutationRevision = 0;
   bool _monthHydrationFirstFrameRecorded = false;
   bool _monthHydrationFrameScheduled = false;
   Timer? _viewportHydrationDebounce;
@@ -9717,6 +9725,11 @@ class CalendarPageState extends State<CalendarPage>
       ValueNotifier<DayViewSheetEventTarget?>(null);
   Timer? _warmStartCacheDebounceTimer;
   Future<void> _warmStartCacheWriteTail = Future<void>.value();
+  Future<void> _calendarSnapshotWriteTail = Future<void>.value();
+  String? _lastCalendarSnapshotShadowOutcome;
+  @visibleForTesting
+  String? get debugCalendarSnapshotShadowOutcome =>
+      _lastCalendarSnapshotShadowOutcome;
   String? _warmStartCacheRestoredForUserId;
   CalendarHydrationAuthorityScope get _hydrationAuthorityScope {
     final authority = _hydrationController.state.authority;
@@ -9750,6 +9763,7 @@ class CalendarPageState extends State<CalendarPage>
 
   void _notifyDayViewDataChanged({bool scheduleCacheSave = true}) {
     if (!mounted) return;
+    _calendarProjectionMutationRevision++;
     _dayViewDataVersion.value++;
     _publishWarmStateSnapshot();
     _scheduleMonthHydrationFrame();
@@ -9780,8 +9794,23 @@ class CalendarPageState extends State<CalendarPage>
 
   void _publishHydrationStatus() {
     if (!mounted) return;
+    final viewport = _hydrationController.state.viewport;
+    final activeCoverage = _activeCalendarCoverage;
+    final visibleViewportComplete =
+        viewport != null &&
+        activeCoverage != null &&
+        activeCoverage.covers(viewport);
+    final hasUsableSnapshot =
+        activeCoverage != null ||
+        _warmStartSnapshotVisible ||
+        _serverHydrationCommittedForUserId != null ||
+        _flows.isNotEmpty ||
+        _notes.isNotEmpty;
     final next = CalendarHydrationStatus(
-      calendarAvailability: _calendarHydrationAvailability,
+      visibleViewportComplete: visibleViewportComplete,
+      lastSuccessfulRefreshAtUtc: _lastAuthoritativeHydrationAt?.toUtc(),
+      latestRefreshStatus: _latestCalendarRefreshStatus,
+      hasUsableSnapshot: hasUsableSnapshot,
       accountingStale: _accountingStale,
     );
     if (_dayViewHydrationStatus.value == next) return;
@@ -9791,16 +9820,7 @@ class CalendarPageState extends State<CalendarPage>
   void _markCalendarHydrationIncomplete() {
     if (!mounted) return;
     _hydrationController.markFailure();
-    final hasFallbackSnapshot =
-        _warmStartSnapshotVisible ||
-        _serverHydrationCommittedForUserId != null ||
-        _flows.isNotEmpty ||
-        _notes.isNotEmpty;
-    final next = calendarAvailabilityAfterFailure(
-      hasFallbackSnapshot: hasFallbackSnapshot,
-    );
-    if (_calendarHydrationAvailability == next) return;
-    setState(() => _calendarHydrationAvailability = next);
+    _latestCalendarRefreshStatus = CalendarRefreshStatus.failed;
     _publishHydrationStatus();
   }
 
@@ -9845,6 +9865,7 @@ class CalendarPageState extends State<CalendarPage>
         'reason': reason,
       },
     );
+    _publishHydrationStatus();
   }
 
   Future<bool> _handleTypedCalendarInvalidation(
@@ -10136,8 +10157,9 @@ class CalendarPageState extends State<CalendarPage>
   DateTime? _lastAuthoritativeHydrationAt;
   DateTime? _lastAccountingAuthorityAt;
   bool _accountingStale = false;
-  CalendarHydrationAvailability _calendarHydrationAvailability =
-      CalendarHydrationAvailability.current;
+  CalendarCoverageLedger? _activeCalendarCoverage;
+  CalendarRefreshStatus _latestCalendarRefreshStatus =
+      CalendarRefreshStatus.idle;
   Timer? _calendarRestorationDebounce;
   double? _lastKnownCalendarScrollOffset;
   String? _restoredCalendarAnchorTarget;
@@ -10188,15 +10210,65 @@ class CalendarPageState extends State<CalendarPage>
   int _nextFlowId = 1;
   // Removed _nextAlarmId; notifications are persisted via Notify.scheduleAlertWithPersistence
   final ScrollController _scrollCtrl = ScrollController();
+  final CalendarLayoutCorrectionController _calendarLayoutCorrection =
+      CalendarLayoutCorrectionController();
+  final Map<MonthRef, ValueNotifier<int>> _calendarMonthProjectionRevisions =
+      <MonthRef, ValueNotifier<int>>{};
   final CalendarGeometryCollector _calendarGeometryCollector =
       CalendarGeometryCollector();
   late final CalendarScrollCoordinator _calendarScrollCoordinator;
+  late final CalendarPresentationEpochCoordinator<_CalendarHydrationProjection>
+  _calendarPresentationCoordinator;
+  int _calendarPresentationSequence = 0;
+  Map<String, List<_Note>>? _calendarAuthoritativeNotesByDay;
+  List<_Flow>? _calendarAuthoritativeFlows;
+  CalendarPresentationTransaction? _calendarGesturePresentationTransaction;
+  CalendarPresentationTransaction? _calendarTodayPresentationTransaction;
+
+  Map<String, List<_Note>> get _calendarHydrationBaseNotes =>
+      _calendarAuthoritativeNotesByDay ?? _notes;
+  List<_Flow> get _calendarHydrationBaseFlows =>
+      _calendarAuthoritativeFlows ?? _flows;
   @visibleForTesting
   CalendarGeometryCollector get debugCalendarGeometryCollector =>
       _calendarGeometryCollector;
   @visibleForTesting
   CalendarScrollCoordinator get debugCalendarScrollCoordinator =>
       _calendarScrollCoordinator;
+
+  ValueListenable<int> _calendarMonthProjectionRevision(MonthRef month) =>
+      _calendarMonthProjectionRevisions.putIfAbsent(
+        month,
+        () => ValueNotifier<int>(0),
+      );
+
+  void _publishCalendarMonthProjections(Iterable<MonthRef> months) {
+    for (final month in months.toSet()) {
+      final revision = _calendarMonthProjectionRevisions[month];
+      if (revision != null) revision.value++;
+    }
+  }
+
+  RenderObject? _resolveCalendarLayoutCorrectionAnchor() {
+    final visible = _currentViewportCalendarAnchor()?.context
+        .findRenderObject();
+    if (visible != null && visible.attached) return visible;
+    final centered = _calendarScrollCoordinator.activeCenteredMonth.value;
+    final contexts = <BuildContext?>[
+      _currentViewDayAnchorContext(),
+      keyForMonthHeader(centered.year, centered.month).currentContext,
+      keyForMonth(centered.year, centered.month).currentContext,
+      keyForMonth(
+        const CalendarSectionIndex().predecessor(centered).year,
+        const CalendarSectionIndex().predecessor(centered).month,
+      ).currentContext,
+    ];
+    for (final context in contexts) {
+      final candidate = context?.findRenderObject();
+      if (candidate != null && candidate.attached) return candidate;
+    }
+    return null;
+  }
 
   void _configureCalendarBoundaryBenchmark(
     CalendarBoundaryHarnessController controller,
@@ -10626,14 +10698,25 @@ class CalendarPageState extends State<CalendarPage>
     required String dayKey,
     required _Note note,
     required DateTime createdAt,
-  }) {
-    return _pendingNoteStore.write(
+  }) async {
+    final record = _pendingRecordForNote(
+      dayKey: dayKey,
+      note: note,
+      createdAt: createdAt,
+    );
+    await _pendingNoteStore.write(userId: userId, record: record);
+    await _commitCalendarOverlayState(
       userId: userId,
-      record: _pendingRecordForNote(
-        dayKey: dayKey,
-        note: note,
-        createdAt: createdAt,
-      ),
+      reason: 'pending_create_or_edit',
+      additionalRecords: <Map<String, Object?>>[
+        <String, Object?>{
+          'kind': 'create_or_edit',
+          'dayKey': record.dayKey,
+          'clientEventId': record.clientEventId,
+          'createdAtUtc': record.createdAt.toUtc().toIso8601String(),
+          'note': record.notePayload,
+        },
+      ],
     );
   }
 
@@ -10643,9 +10726,18 @@ class CalendarPageState extends State<CalendarPage>
   }) async {
     final resolvedUserId = userId ?? _activeWarmStartUserId();
     if (resolvedUserId == null || resolvedUserId.trim().isEmpty) return;
+    final normalizedCids = clientEventIds
+        .map((value) => value.trim())
+        .where((value) => value.isNotEmpty)
+        .toSet();
     await _pendingNoteStore.removeMany(
       userId: resolvedUserId,
-      clientEventIds: clientEventIds,
+      clientEventIds: normalizedCids,
+    );
+    await _commitCalendarOverlayState(
+      userId: resolvedUserId,
+      reason: 'pending_cid_reconciled',
+      removeCreateCids: normalizedCids,
     );
   }
 
@@ -11283,6 +11375,7 @@ class CalendarPageState extends State<CalendarPage>
   }) async {
     final userId = _activeWarmStartUserId();
     if (userId == null) return;
+    final projectionRevisionAtStart = _calendarProjectionMutationRevision;
     final diagnostics = CalendarHydrationDiagnostics.instance;
     final totalStopwatch = Stopwatch()..start();
     HydrationAsyncWorkToken? diagnosticWork;
@@ -11326,6 +11419,18 @@ class CalendarPageState extends State<CalendarPage>
       recordCache('cache_restore_ended_reminders_ready', <String, Object?>{
         'duration_ms': endedReminderStopwatch.elapsedMilliseconds,
       });
+      final snapshotStoreStopwatch = Stopwatch()..start();
+      final snapshotRestored = await _restoreCalendarSnapshotStoreIfAvailable(
+        userId: userId,
+        reason: reason,
+      );
+      if (snapshotRestored) {
+        recordCache('cache_restore_snapshot_store_won', <String, Object?>{
+          'duration_ms': totalStopwatch.elapsedMilliseconds,
+          'snapshot_store_ms': snapshotStoreStopwatch.elapsedMilliseconds,
+        });
+        return;
+      }
       final prefsStopwatch = Stopwatch()..start();
       final prefs = await SharedPreferences.getInstance();
       recordCache('cache_restore_prefs_ready', <String, Object?>{
@@ -11442,6 +11547,10 @@ class CalendarPageState extends State<CalendarPage>
         recordSkip('server_won_before_commit');
         return;
       }
+      if (_calendarProjectionMutationRevision != projectionRevisionAtStart) {
+        recordSkip('projection_changed_before_commit');
+        return;
+      }
 
       final reminderProjectionStopwatch = Stopwatch()..start();
       final projectedReminderCount = _projectReminderMembershipForHydration(
@@ -11457,33 +11566,59 @@ class CalendarPageState extends State<CalendarPage>
       _hydrationController.beginSession(userId);
       final restoredCatalogFingerprint = (json['catalogFingerprint'] as String?)
           ?.trim();
+      final restoredViewportStart = DateTime.tryParse(
+        json['authoritativeViewportStartUtc']?.toString() ?? '',
+      )?.toUtc();
+      final restoredViewportEnd = DateTime.tryParse(
+        json['authoritativeViewportEndUtc']?.toString() ?? '',
+      )?.toUtc();
+      final restoredCoverage =
+          restoredViewportStart != null &&
+              restoredViewportEnd != null &&
+              restoredViewportEnd.isAfter(restoredViewportStart)
+          ? <CalendarHydrationInterval>[
+              CalendarHydrationInterval(
+                startUtc: restoredViewportStart,
+                endUtc: restoredViewportEnd,
+              ),
+            ]
+          : const <CalendarHydrationInterval>[];
+      final affectedMonths = _calendarAffectedMonths(notesByDay, flows);
       _hydrationController.restoreCache(
         catalogFingerprint:
             restoredCatalogFingerprint != null &&
                 restoredCatalogFingerprint.isNotEmpty
             ? restoredCatalogFingerprint
             : _catalogFingerprintForFlows(flows),
+        coverageIntervals: restoredCoverage,
         applyPreparedState: () {
-          setState(() {
-            _flows
-              ..clear()
-              ..addAll(flows);
-            _notes
-              ..clear()
-              ..addAll(notesByDay);
-            _flowTotalEventCounts
-              ..clear()
-              ..addAll(totalCounts);
-            _flowRemainingEventCounts
-              ..clear()
-              ..addAll(remainingCounts);
-            if (nextFlowId > 0) {
-              _nextFlowId = math.max(_nextFlowId, nextFlowId);
-            }
-          });
+          _flows
+            ..clear()
+            ..addAll(flows);
+          _notes
+            ..clear()
+            ..addAll(notesByDay);
+          _calendarAuthoritativeFlows = List<_Flow>.unmodifiable(flows);
+          _calendarAuthoritativeNotesByDay =
+              Map<String, List<_Note>>.unmodifiable(<String, List<_Note>>{
+                for (final entry in notesByDay.entries)
+                  entry.key: List<_Note>.unmodifiable(entry.value),
+              });
+          _flowTotalEventCounts
+            ..clear()
+            ..addAll(totalCounts);
+          _flowRemainingEventCounts
+            ..clear()
+            ..addAll(remainingCounts);
+          if (nextFlowId > 0) {
+            _nextFlowId = math.max(_nextFlowId, nextFlowId);
+          }
           _rebuildReminderRulesFromFlowsIfMissing();
+          _publishCalendarMonthProjections(affectedMonths);
         },
       );
+      _activeCalendarCoverage = _hydrationController.state.coverage;
+      _latestCalendarRefreshStatus = CalendarRefreshStatus.idle;
       _warmStartCacheRestoredForUserId = userId;
       _warmStartSnapshotVisible = true;
       _lastAuthoritativeHydrationAt = DateTime.tryParse(
@@ -11494,6 +11629,7 @@ class CalendarPageState extends State<CalendarPage>
       )?.toLocal();
       _accountingStale = (json['accountingStale'] as bool?) ?? false;
       _publishHydrationStatus();
+      _notifyDayViewDataChanged(scheduleCacheSave: false);
       final restoredEventCount = notesByDay.values.fold<int>(
         0,
         (sum, notes) => sum + notes.length,
@@ -11848,7 +11984,8 @@ class CalendarPageState extends State<CalendarPage>
     _lastAuthoritativeHydrationAt = null;
     _lastAccountingAuthorityAt = null;
     _accountingStale = false;
-    _calendarHydrationAvailability = CalendarHydrationAvailability.current;
+    _activeCalendarCoverage = null;
+    _latestCalendarRefreshStatus = CalendarRefreshStatus.idle;
     _publishHydrationStatus();
     _dataVersion++;
     _notifyDayViewDataChanged(scheduleCacheSave: false);
@@ -14717,6 +14854,7 @@ class CalendarPageState extends State<CalendarPage>
   bool _initialViewportSettled = false;
   bool _orientationJumpScheduled = false;
   bool _portraitRecenterPending = false;
+  bool _todayNavigationInFlight = false;
 
   // ✅ ADD: Feedback loop prevention flag
   bool _isUpdatingFromLandscape = false;
@@ -15363,6 +15501,11 @@ class CalendarPageState extends State<CalendarPage>
       readAuthoritativeMonth: _shadowAuthoritativeMonth,
       readLegacyCandidate: _shadowLegacyCandidate,
     );
+    _calendarPresentationCoordinator =
+        CalendarPresentationEpochCoordinator<_CalendarHydrationProjection>(
+          activate: _activateCalendarHydrationEpoch,
+          clearUserScope: _clearCalendarPresentationScope,
+        );
     _calendarScrollCoordinator.activeCenteredMonth.addListener(
       _handleCoordinatorCenteredMonth,
     );
@@ -15377,6 +15520,7 @@ class CalendarPageState extends State<CalendarPage>
     final initialHydrationUserId = Supabase.instance.client.auth.currentUser?.id
         .trim();
     if (initialHydrationUserId != null && initialHydrationUserId.isNotEmpty) {
+      _calendarPresentationCoordinator.changeUserScope(initialHydrationUserId);
       _hydrationController.beginSession(initialHydrationUserId);
       _hydrationDiagnosticsUserId = initialHydrationUserId;
       CalendarHydrationDiagnostics.instance.startColdProcess(
@@ -15411,11 +15555,15 @@ class CalendarPageState extends State<CalendarPage>
     });
     // We no longer listen to every change to avoid UI loops; checks happen on load/resume/refresh.
 
-    // ✅ Load persisted state first, fallback to today
-    _loadPersistedViewState();
-    if (!hasSharedCalendarRealDayViewIntent) {
-      unawaited(_restoreWarmStartCacheIfAvailable(reason: 'initState'));
-    }
+    // Keep the calendar surface gated until local data authority has either
+    // composed the durable server snapshot + overlay or proved that no local
+    // snapshot exists. View restoration is deliberately second: `_restored`
+    // is the first-content-paint gate.
+    unawaited(
+      _restoreCalendarLocalStartupState(
+        restoreSnapshot: !hasSharedCalendarRealDayViewIntent,
+      ),
+    );
     unawaited(_restoreMyFlowsFilingSnapshotCache(reason: 'initState'));
     calendarPushOpenIntent.addListener(_handleCalendarPushOpenIntent);
     _hydrationInvalidationBridge.attach();
@@ -15441,6 +15589,13 @@ class CalendarPageState extends State<CalendarPage>
         if (!mounted) return;
         final hydrationUserId = data.session?.user.id.trim();
         if (hydrationUserId != null && hydrationUserId.isNotEmpty) {
+          final previousUserId = _hydrationDiagnosticsUserId;
+          if (previousUserId != null &&
+              previousUserId.isNotEmpty &&
+              previousUserId != hydrationUserId) {
+            unawaited(_deleteCalendarSnapshotForAccountChange(previousUserId));
+          }
+          _calendarPresentationCoordinator.changeUserScope(hydrationUserId);
           _hydrationController.beginSession(hydrationUserId);
           _hydrationDiagnosticsUserId = hydrationUserId;
           CalendarHydrationDiagnostics.instance.startColdProcess(
@@ -15507,6 +15662,7 @@ class CalendarPageState extends State<CalendarPage>
           ),
         );
         _hydrationController.signOut();
+        _calendarPresentationCoordinator.changeUserScope(null);
         _setHydrationAuthorityScope(
           CalendarHydrationAuthorityScope.none,
           reason: 'signed_out',
@@ -15520,17 +15676,20 @@ class CalendarPageState extends State<CalendarPage>
         _lastAuthoritativeHydrationAt = null;
         _lastAccountingAuthorityAt = null;
         _accountingStale = false;
-        _calendarHydrationAvailability = CalendarHydrationAvailability.current;
+        _activeCalendarCoverage = null;
+        _latestCalendarRefreshStatus = CalendarRefreshStatus.idle;
         _publishHydrationStatus();
-        _flows.clear();
-        _notes.clear();
-        _unconfirmed.clear();
         _pendingCidVerificationInFlight.clear();
         _pendingNotesRestoredForUserId = null;
         _pendingNotesRestoreInFlight = null;
         _pendingNotesRestoreInFlightForUserId = null;
         if (previousHydrationUserId != null &&
             previousHydrationUserId.trim().isNotEmpty) {
+          unawaited(
+            _deleteCalendarSnapshotForAccountChange(
+              previousHydrationUserId.trim(),
+            ),
+          );
           unawaited(
             _pendingNoteStore.clearForUser(previousHydrationUserId.trim()),
           );
@@ -15556,6 +15715,16 @@ class CalendarPageState extends State<CalendarPage>
     if (consumedSharedCalendarIntent) {
       return;
     }
+  }
+
+  Future<void> _restoreCalendarLocalStartupState({
+    required bool restoreSnapshot,
+  }) async {
+    if (restoreSnapshot) {
+      await _restoreWarmStartCacheIfAvailable(reason: 'initState');
+      if (!mounted) return;
+    }
+    await _loadPersistedViewState();
   }
 
   void _scheduleDaySheetResumeRestore() {
@@ -18639,20 +18808,31 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
-  bool _jumpToTodayNow({bool animate = true}) {
+  bool _jumpToTodayNow({bool animate = true, VoidCallback? onComplete}) {
     final targetCtx =
         _todayDayKey.currentContext ??
         keyForMonth(_today.kYear, _today.kMonth).currentContext;
     final targetPixels = _centeredScrollOffsetForContext(targetCtx);
-    if (targetPixels == null) return false;
+    if (targetPixels == null) {
+      onComplete?.call();
+      return false;
+    }
 
     final position = _scrollCtrl.position;
 
     if (animate) {
+      final presentationTransaction =
+          _beginCalendarTodayPresentationTransaction();
       final animation = position.animateTo(
         targetPixels,
         duration: const Duration(milliseconds: 320),
         curve: Curves.easeOutCubic,
+      );
+      unawaited(
+        animation.whenComplete(() {
+          _settleCalendarTodayPresentationTransaction(presentationTransaction);
+          onComplete?.call();
+        }),
       );
       if (_calendarBoundaryBenchmarkEnabled) {
         widget.calendarBoundaryHarnessController?._noteTodayAnimationStarted(
@@ -18662,6 +18842,7 @@ class CalendarPageState extends State<CalendarPage>
       }
     } else {
       position.jumpTo(targetPixels);
+      onComplete?.call();
     }
     return true;
   }
@@ -18754,6 +18935,11 @@ class CalendarPageState extends State<CalendarPage>
     _calendarScrollCoordinator.activeCenteredMonth.removeListener(
       _handleCoordinatorCenteredMonth,
     );
+    for (final revision in _calendarMonthProjectionRevisions.values) {
+      revision.dispose();
+    }
+    _calendarMonthProjectionRevisions.clear();
+    _calendarLayoutCorrection.clear();
     _scrollCtrl.dispose();
     _calendarGeometryCollector.removeListener(
       _handleCalendarGeometryPublicationForShadow,
@@ -18872,9 +19058,10 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   bool _shouldRefreshAfterForegroundResume(DateTime now) {
+    final hydrationStatus = _dayViewHydrationStatus.value;
     if (_hydrationController.state.stale ||
-        _calendarHydrationAvailability !=
-            CalendarHydrationAvailability.current) {
+        hydrationStatus.latestRefreshStatus == CalendarRefreshStatus.failed ||
+        !hydrationStatus.visibleViewportComplete) {
       return true;
     }
     final lastHydrationAt = _lastAuthoritativeHydrationAt;
@@ -22158,6 +22345,13 @@ class CalendarPageState extends State<CalendarPage>
     await _removePersistedPendingCids(<String>[trimmed]);
     if (added) {
       await _persistManualDeleteTombstones();
+      final userId = _activeWarmStartUserId();
+      if (userId != null) {
+        await _commitCalendarOverlayState(
+          userId: userId,
+          reason: 'delete_tombstone_added',
+        );
+      }
     }
   }
 
@@ -22168,6 +22362,14 @@ class CalendarPageState extends State<CalendarPage>
     final removed = _manualDeleteTombstones.remove(trimmed);
     if (removed) {
       await _persistManualDeleteTombstones();
+      final userId = _activeWarmStartUserId();
+      if (userId != null) {
+        await _commitCalendarOverlayState(
+          userId: userId,
+          reason: 'delete_tombstone_cleared',
+          removeTombstoneIdentities: <String>{trimmed},
+        );
+      }
     }
   }
 
@@ -24593,10 +24795,57 @@ class CalendarPageState extends State<CalendarPage>
   /* ───── TODAY snap/center ───── */
 
   void _scrollToToday({bool animate = true}) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(_scrollToTodayWithResolvedTarget(animate: animate));
+  }
+
+  Future<void> _scrollToTodayWithResolvedTarget({required bool animate}) async {
+    if (_todayNavigationInFlight) return;
+    _todayNavigationInFlight = true;
+    var travelStarted = false;
+    try {
+      final today = _today;
+      final targetInterval = CalendarHydrationInterval.fromInclusiveLocalDays(
+        firstLocalDay: KemeticMath.toGregorian(today.kYear, today.kMonth, 1),
+        lastLocalDay: KemeticMath.toGregorian(
+          today.kYear,
+          today.kMonth,
+          _maxDayForMonth(today.kYear, today.kMonth),
+        ),
+      );
+      if (animate &&
+          !_hydrationController.state.coverage.covers(targetInterval) &&
+          Supabase.instance.client.auth.currentUser != null) {
+        await _requestHydration(
+          _CalendarHydrationRequest.targeted(
+            reason: 'today_target_spec',
+            intentKind: CalendarHydrationIntentKind.affectedDate,
+            interval: targetInterval,
+          ),
+        );
+        if (!mounted) return;
+        if (!_hydrationController.state.coverage.covers(targetInterval)) {
+          // Target geometry is not authoritative. Do not launch a trip whose
+          // destination can move underneath it when hydration eventually wins.
+          return;
+        }
+        // The target month projection and its layout complete before travel.
+        await WidgetsBinding.instance.endOfFrame;
+      }
       if (!mounted) return;
-      _jumpToTodayNow(animate: animate);
-    });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) {
+          _todayNavigationInFlight = false;
+          return;
+        }
+        _jumpToTodayNow(
+          animate: animate,
+          onComplete: () => _todayNavigationInFlight = false,
+        );
+      });
+      travelStarted = true;
+    } finally {
+      if (!travelStarted) _todayNavigationInFlight = false;
+    }
   }
 
   void _centerMonth(int ky, int km) {
@@ -30024,18 +30273,6 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
-  ScrollPosition? _singleCalendarScrollPosition() {
-    if (!_scrollCtrl.hasClients) return null;
-    final positions = _scrollCtrl.positions;
-    if (positions.length != 1) return null;
-    return positions.single;
-  }
-
-  double? _calendarScrollOffsetForPreservation() {
-    return _singleCalendarScrollPosition()?.pixels ??
-        _lastKnownCalendarScrollOffset;
-  }
-
   /// Allows other screens (e.g., Settings) to trigger a fresh sync of flows/notes.
   Future<void> reloadFromOutside() =>
       _refreshAfterReturn(reason: 'external_request', force: true);
@@ -31895,18 +32132,18 @@ class CalendarPageState extends State<CalendarPage>
       children: [
         content,
         const PendingEventInviteOverlay(),
-        if (_calendarHydrationAvailability !=
-                CalendarHydrationAvailability.current ||
-            _accountingStale)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: CalendarHydrationStatusBanner(
-              calendarAvailability: _calendarHydrationAvailability,
-              accountingStale: _accountingStale,
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: ValueListenableBuilder<CalendarHydrationStatus>(
+            valueListenable: _dayViewHydrationStatus,
+            builder: (context, status, _) => CalendarHydrationStatusBanner(
+              calendarAvailability: status.calendarAvailability,
+              accountingStale: status.accountingStale,
             ),
           ),
+        ),
         if (_reflectionPrompt != null) _buildReflectionBadge(),
       ],
     );
@@ -32405,10 +32642,15 @@ class CalendarPageState extends State<CalendarPage>
       child: NotificationListener<ScrollNotification>(
         onNotification: (notification) {
           if (!_initialViewportSettled) return false;
+          if (notification is ScrollStartNotification &&
+              notification.dragDetails != null) {
+            _beginCalendarGesturePresentationTransaction();
+          }
           WidgetsBinding.instance.addPostFrameCallback((_) {
             _refreshCurrentDecanViewportAnchor();
           });
           if (notification is ScrollEndNotification) {
+            _settleCalendarGesturePresentationTransaction();
             if (_scrollCtrl.hasClients) {
               _lastKnownCalendarScrollOffset = _scrollCtrl.position.pixels;
             }
@@ -32425,9 +32667,10 @@ class CalendarPageState extends State<CalendarPage>
           }
           return false;
         },
-        child: CustomScrollView(
+        child: CalendarEpochScrollView(
           key: const PageStorageKey('calendar_portrait_scroll'),
           controller: _scrollCtrl,
+          correctionController: _calendarLayoutCorrection,
           anchor: 0.0, // start the center sliver at the top on cold open
           center: _centerKey, // current Kemetic year is the center
           slivers: [
@@ -32438,6 +32681,7 @@ class CalendarPageState extends State<CalendarPage>
                   final kYear = kToday.kYear - (i + 1);
                   return _YearSection(
                     kYear: kYear,
+                    monthRevisionListenable: _calendarMonthProjectionRevision,
                     todayMonth: null,
                     todayDay: null,
                     todayDayKey: null, // no anchor in past/future lists
@@ -32484,6 +32728,7 @@ class CalendarPageState extends State<CalendarPage>
               key: _centerKey,
               child: _YearSection(
                 kYear: kToday.kYear,
+                monthRevisionListenable: _calendarMonthProjectionRevision,
                 todayMonth: kToday.kMonth,
                 todayDay: kToday.kDay,
                 temporalAnchorVisible: _currentDecanVisibleInViewport,
@@ -32531,6 +32776,7 @@ class CalendarPageState extends State<CalendarPage>
                   final kYear = kToday.kYear + (i + 1);
                   return _YearSection(
                     kYear: kYear,
+                    monthRevisionListenable: _calendarMonthProjectionRevision,
                     todayMonth: null,
                     todayDay: null,
                     todayDayKey: null,
@@ -33009,7 +33255,7 @@ class CalendarPageState extends State<CalendarPage>
   int get debugUnconfirmedCount => _unconfirmed.length;
 
   @visibleForTesting
-  Future<void> debugPersistWarmStartCacheForTesting(String userId) {
+  Future<void> debugPersistWarmStartCacheForTesting(String userId) async {
     _hydrationController.beginSession(userId);
     final interval = _computeStartupVisibleHydrationInterval();
     final fingerprint = _catalogFingerprintForCurrentFlows();
@@ -33023,11 +33269,38 @@ class CalendarPageState extends State<CalendarPage>
       applyPreparedState: () {},
     );
     _hydrationController.setFullHorizon(interval);
-    return _persistWarmStartCacheNow(userId: userId, debugReason: 'test');
+    final durable = await _commitCalendarSnapshotCandidate(
+      userId: userId,
+      reason: 'test_snapshot',
+      flows: _flows,
+      notesByDay: _notes,
+      coverage: _hydrationController.state.coverage.intervals,
+      catalogFingerprint: fingerprint,
+      lastSuccessfulRefreshAtUtc: DateTime.now().toUtc(),
+    );
+    if (durable == null) {
+      throw StateError('Test snapshot did not become durable');
+    }
+    final mirrorToken = _hydrationController.beginViewportCommit(
+      catalogFingerprint: fingerprint,
+      catalogIsFresh: true,
+    );
+    _hydrationController.commitViewport(
+      token: mirrorToken,
+      applyPreparedState: () {},
+    );
+    _hydrationController.setFullHorizon(interval);
+    await _persistWarmStartCacheNowSerialized(
+      userId: userId,
+      debugReason: 'test',
+      allowServerCurrentViewport: false,
+    );
   }
 
   @visibleForTesting
-  Future<void> debugPersistServerCurrentViewportCacheForTesting(String userId) {
+  Future<void> debugPersistServerCurrentViewportCacheForTesting(
+    String userId,
+  ) async {
     _hydrationController.beginSession(userId);
     final interval = _computeStartupVisibleHydrationInterval();
     final fingerprint = _catalogFingerprintForCurrentFlows();
@@ -33040,7 +33313,27 @@ class CalendarPageState extends State<CalendarPage>
       token: token,
       applyPreparedState: () {},
     );
-    return _persistWarmStartCacheNow(
+    final durable = await _commitCalendarSnapshotCandidate(
+      userId: userId,
+      reason: 'test_viewport_snapshot',
+      flows: _flows,
+      notesByDay: _notes,
+      coverage: _hydrationController.state.coverage.intervals,
+      catalogFingerprint: fingerprint,
+      lastSuccessfulRefreshAtUtc: DateTime.now().toUtc(),
+    );
+    if (durable == null) {
+      throw StateError('Test viewport snapshot did not become durable');
+    }
+    final mirrorToken = _hydrationController.beginViewportCommit(
+      catalogFingerprint: fingerprint,
+      catalogIsFresh: true,
+    );
+    _hydrationController.commitViewport(
+      token: mirrorToken,
+      applyPreparedState: () {},
+    );
+    await _persistWarmStartCacheNowSerialized(
       userId: userId,
       debugReason: 'test_viewport_checkpoint',
       allowServerCurrentViewport: true,

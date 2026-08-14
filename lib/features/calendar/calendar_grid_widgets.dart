@@ -11,6 +11,7 @@ class _YearSection extends StatelessWidget {
     required this.flowColorsGetter,
     required this.onDayTap,
     required this.showGregorian,
+    this.monthRevisionListenable,
     this.expansionLevel = MonthExpansionLevel.compact,
     this.noteColorResolver = _defaultNoteColor,
     this.flowNameGetter,
@@ -64,6 +65,7 @@ class _YearSection extends StatelessWidget {
   final Key? Function(int kMonth, int kDay)? dayAnchorKeyProvider;
   final Key? todayDayKey; // 🔑
   final bool temporalAnchorVisible;
+  final ValueListenable<int> Function(MonthRef month)? monthRevisionListenable;
 
   @override
   Widget build(BuildContext context) {
@@ -83,6 +85,17 @@ class _YearSection extends StatelessWidget {
 
   Widget _buildMonthSection(int kMonth, int? tm, int? td) {
     final month = MonthRef(year: kYear, month: kMonth);
+    final revision = monthRevisionListenable?.call(month);
+    if (revision == null) return _buildMonthSectionContent(month, tm, td);
+    return ValueListenableBuilder<int>(
+      valueListenable: revision,
+      builder: (context, value, child) =>
+          _buildMonthSectionContent(month, tm, td),
+    );
+  }
+
+  Widget _buildMonthSectionContent(MonthRef month, int? tm, int? td) {
+    final kMonth = month.month;
     final seasonHeader = switch (kMonth) {
       1 => 'Flood season (Akhet)',
       5 => 'Emergence season (Peret)',

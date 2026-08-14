@@ -26,6 +26,7 @@ final class CalendarGeometryCollector extends ChangeNotifier {
   int _publicationCount = 0;
   int _rejectedPublicationCount = 0;
   Object? _lastRejection;
+  String? _presentationRevision;
 
   CalendarGeometrySnapshot? get snapshot => _snapshot;
 
@@ -43,6 +44,22 @@ final class CalendarGeometryCollector extends ChangeNotifier {
 
   @visibleForTesting
   Object? get debugLastRejection => _lastRejection;
+
+  String? get presentationRevision => _presentationRevision;
+
+  /// Invalidates the old geometry view before an extent-affecting projection
+  /// is installed. Consumers observe either the previous coherent epoch or no
+  /// geometry until layout publishes the matching revision.
+  void beginPresentationEpoch(String revision) {
+    final normalized = revision.trim();
+    if (normalized.isEmpty) {
+      throw ArgumentError.value(revision, 'revision', 'must not be empty');
+    }
+    _presentationRevision = normalized;
+    _snapshot = null;
+    _lastCandidate = const [];
+    _markNeedsPublication();
+  }
 
   @visibleForTesting
   List<CalendarSectionGeometry> get debugLastCandidate => _lastCandidate;
@@ -172,6 +189,7 @@ final class CalendarGeometryCollector extends ChangeNotifier {
     try {
       next = CalendarGeometrySnapshot(
         generation: _nextGeneration,
+        presentationRevision: _presentationRevision,
         sections: geometries,
       );
     } on ArgumentError catch (error) {

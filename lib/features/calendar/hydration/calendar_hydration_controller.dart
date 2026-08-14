@@ -143,10 +143,14 @@ class CalendarHydrationController {
   void restoreCache({
     required String catalogFingerprint,
     required void Function() applyPreparedState,
+    Iterable<CalendarHydrationInterval> coverageIntervals = const [],
   }) {
     if (_userId == null) return;
     applyPreparedState();
-    final coverage = CalendarCoverageLedger.empty(catalogFingerprint);
+    final coverage = CalendarCoverageLedger.fromIntervals(
+      catalogFingerprint: catalogFingerprint,
+      intervals: coverageIntervals,
+    );
     _state = _copyState(
       cacheVisible: true,
       stale: true,
@@ -194,6 +198,36 @@ class CalendarHydrationController {
       token.sessionGeneration == _state.sessionGeneration &&
       token.viewportRevision == _state.viewportRevision &&
       token.interval == _state.viewport;
+
+  CalendarCoverageLedger? previewViewportCoverage(
+    CalendarHydrationCommitToken token,
+  ) {
+    if (!isCurrent(token)) return null;
+    var coverage = _state.coverage;
+    if (coverage.catalogFingerprint != token.catalogFingerprint) {
+      coverage = CalendarCoverageLedger.empty(token.catalogFingerprint);
+    }
+    return coverage.add(
+      fingerprint: token.catalogFingerprint,
+      interval: token.interval,
+    );
+  }
+
+  CalendarCoverageLedger? previewBackgroundCoverage({
+    required int sessionGeneration,
+    required String catalogFingerprint,
+    required CalendarHydrationInterval interval,
+  }) {
+    if (_userId == null ||
+        sessionGeneration != _state.sessionGeneration ||
+        catalogFingerprint != _state.freshCatalogFingerprint) {
+      return null;
+    }
+    return _state.coverage.add(
+      fingerprint: catalogFingerprint,
+      interval: interval,
+    );
+  }
 
   bool commitViewport({
     required CalendarHydrationCommitToken token,

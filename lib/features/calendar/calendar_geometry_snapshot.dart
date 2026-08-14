@@ -142,6 +142,7 @@ final class CalendarGeometrySnapshot {
   factory CalendarGeometrySnapshot({
     required int generation,
     required Iterable<CalendarSectionGeometry> sections,
+    String? presentationRevision,
     CalendarSectionIndex index = const CalendarSectionIndex(),
   }) {
     if (generation < 0) {
@@ -258,6 +259,7 @@ final class CalendarGeometrySnapshot {
 
     return CalendarGeometrySnapshot._(
       generation: generation,
+      presentationRevision: presentationRevision?.trim(),
       sections: UnmodifiableListView<CalendarSectionGeometry>(copied),
       byMonth: UnmodifiableMapView<MonthRef, CalendarSectionGeometry>(byMonth),
     );
@@ -265,11 +267,13 @@ final class CalendarGeometrySnapshot {
 
   const CalendarGeometrySnapshot._({
     required this.generation,
+    required this.presentationRevision,
     required this.sections,
     required Map<MonthRef, CalendarSectionGeometry> byMonth,
   }) : _byMonth = byMonth;
 
   final int generation;
+  final String? presentationRevision;
   final UnmodifiableListView<CalendarSectionGeometry> sections;
   final Map<MonthRef, CalendarSectionGeometry> _byMonth;
 

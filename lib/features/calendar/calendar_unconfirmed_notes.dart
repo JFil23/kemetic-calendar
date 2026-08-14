@@ -178,8 +178,9 @@ class _UnconfirmedNoteLedger {
   /// confirmation is global across day buckets so a canonical row that moved
   /// days retires its old pending projection instead of being duplicated.
   ({int preserved, int confirmed, List<String> confirmedCids}) mergeInto(
-    Map<String, List<_Note>> notesByDay,
-  ) {
+    Map<String, List<_Note>> notesByDay, {
+    bool retireConfirmed = true,
+  }) {
     if (_entries.isEmpty) {
       return (preserved: 0, confirmed: 0, confirmedCids: const <String>[]);
     }
@@ -203,8 +204,10 @@ class _UnconfirmedNoteLedger {
       preserved++;
     }
 
-    for (final entry in confirmed) {
-      _entries.remove(entry);
+    if (retireConfirmed) {
+      for (final entry in confirmed) {
+        _entries.remove(entry);
+      }
     }
     return (
       preserved: preserved,

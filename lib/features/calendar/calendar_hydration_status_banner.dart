@@ -2,20 +2,50 @@ import 'package:flutter/material.dart';
 
 enum CalendarHydrationAvailability { current, stale, unavailable }
 
+enum CalendarRefreshStatus { idle, pending, succeeded, failed }
+
 @immutable
 class CalendarHydrationStatus {
   const CalendarHydrationStatus({
-    required this.calendarAvailability,
+    this.visibleViewportComplete = true,
+    this.lastSuccessfulRefreshAtUtc,
+    this.latestRefreshStatus = CalendarRefreshStatus.succeeded,
+    this.hasUsableSnapshot = true,
     required this.accountingStale,
-  });
+    CalendarHydrationAvailability? calendarAvailability,
+  }) : _calendarAvailabilityOverride = calendarAvailability;
 
-  static const current = CalendarHydrationStatus(
-    calendarAvailability: CalendarHydrationAvailability.current,
-    accountingStale: false,
-  );
+  static const current = CalendarHydrationStatus(accountingStale: false);
 
-  final CalendarHydrationAvailability calendarAvailability;
+  /// Completeness is about the active viewport, not whether any event rows
+  /// happened to survive a cache compaction.
+  final bool visibleViewportComplete;
+
+  /// Freshness is durable snapshot metadata and remains meaningful when the
+  /// latest network attempt fails.
+  final DateTime? lastSuccessfulRefreshAtUtc;
+
+  /// Refresh outcome is independent from both completeness and freshness.
+  final CalendarRefreshStatus latestRefreshStatus;
+
+  final bool hasUsableSnapshot;
   final bool accountingStale;
+  final CalendarHydrationAvailability? _calendarAvailabilityOverride;
+
+  CalendarHydrationAvailability get calendarAvailability {
+    final override = _calendarAvailabilityOverride;
+    if (override != null) return override;
+    if (!hasUsableSnapshot) {
+      return latestRefreshStatus == CalendarRefreshStatus.failed
+          ? CalendarHydrationAvailability.unavailable
+          : CalendarHydrationAvailability.current;
+    }
+    if (!visibleViewportComplete ||
+        latestRefreshStatus == CalendarRefreshStatus.failed) {
+      return CalendarHydrationAvailability.stale;
+    }
+    return CalendarHydrationAvailability.current;
+  }
 
   bool get hasWarning =>
       calendarAvailability != CalendarHydrationAvailability.current ||
@@ -26,10 +56,21 @@ class CalendarHydrationStatus {
       identical(this, other) ||
       other is CalendarHydrationStatus &&
           other.calendarAvailability == calendarAvailability &&
+          other.visibleViewportComplete == visibleViewportComplete &&
+          other.lastSuccessfulRefreshAtUtc == lastSuccessfulRefreshAtUtc &&
+          other.latestRefreshStatus == latestRefreshStatus &&
+          other.hasUsableSnapshot == hasUsableSnapshot &&
           other.accountingStale == accountingStale;
 
   @override
-  int get hashCode => Object.hash(calendarAvailability, accountingStale);
+  int get hashCode => Object.hash(
+    calendarAvailability,
+    visibleViewportComplete,
+    lastSuccessfulRefreshAtUtc,
+    latestRefreshStatus,
+    hasUsableSnapshot,
+    accountingStale,
+  );
 }
 
 CalendarHydrationAvailability calendarAvailabilityAfterFailure({
