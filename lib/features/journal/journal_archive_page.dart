@@ -18,6 +18,7 @@ import '../../widgets/keyboard_aware.dart';
 import '../calendar/calendar_page.dart' show KemeticMath;
 import '../calendar/kemetic_month_metadata.dart' show getMonthById;
 import '../nodes/kemetic_node_library.dart';
+import '../reflections/decan_reflection_archive_page.dart';
 import '../reflections/decan_reflection_skin.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'journal_badge_utils.dart';
@@ -33,12 +34,22 @@ const Key journalArchiveReflectionSkinKey = ValueKey<String>(
 const Key journalArchiveDateModeToggleKey = ValueKey<String>(
   'journal-archive-date-mode-toggle',
 );
+const Key journalArchiveTabsKey = ValueKey<String>('journal-archive-tabs');
+const Key journalArchiveJournalTabKey = ValueKey<String>(
+  'journal-archive-journal-tab',
+);
+const Key journalArchiveReflectionsTabKey = ValueKey<String>(
+  'journal-archive-reflections-tab',
+);
+
+enum _JournalArchiveTab { journal, reflections }
 
 class JournalArchivePage extends StatefulWidget {
   final JournalRepo repo;
   final JournalController controller;
   final bool isPortrait;
   final VoidCallback onClose;
+  final WidgetBuilder? reflectionsBuilderForTesting;
 
   const JournalArchivePage({
     super.key,
@@ -46,6 +57,7 @@ class JournalArchivePage extends StatefulWidget {
     required this.controller,
     required this.isPortrait,
     required this.onClose,
+    @visibleForTesting this.reflectionsBuilderForTesting,
   });
 
   @override
@@ -64,6 +76,8 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
   List<InsightLink> _entryLinks = [];
   String _entryPrevText = '';
   bool _useKemetic = true; // default to Kemetic
+  _JournalArchiveTab _activeArchiveTab = _JournalArchiveTab.journal;
+  bool _reflectionsMounted = false;
 
   @override
   void initState() {
@@ -444,6 +458,95 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     );
   }
 
+  TextStyle _archiveTabTextStyle({required bool selected}) {
+    return DecanReflectionTokens.bridgeStyle.copyWith(
+      color: selected ? DecanReflectionTokens.base : DecanReflectionTokens.gold,
+      fontSize: 15,
+      fontWeight: FontWeight.w600,
+      letterSpacing: 0,
+    );
+  }
+
+  Widget _buildArchiveTabs() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 4),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 342),
+          child: CupertinoSegmentedControl<_JournalArchiveTab>(
+            key: journalArchiveTabsKey,
+            groupValue: _activeArchiveTab,
+            padding: const EdgeInsets.all(2),
+            selectedColor: DecanReflectionTokens.goldDeep,
+            unselectedColor: const Color.fromRGBO(212, 174, 67, 0.05),
+            borderColor: const Color.fromRGBO(212, 174, 67, 0.34),
+            pressedColor: const Color.fromRGBO(212, 174, 67, 0.14),
+            children: <_JournalArchiveTab, Widget>{
+              _JournalArchiveTab.journal: Padding(
+                key: journalArchiveJournalTabKey,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                child: Text(
+                  'Journal Archive',
+                  style: _archiveTabTextStyle(
+                    selected: _activeArchiveTab == _JournalArchiveTab.journal,
+                  ),
+                ),
+              ),
+              _JournalArchiveTab.reflections: Padding(
+                key: journalArchiveReflectionsTabKey,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 10,
+                ),
+                child: Text(
+                  'Reflections',
+                  style: _archiveTabTextStyle(
+                    selected:
+                        _activeArchiveTab == _JournalArchiveTab.reflections,
+                  ),
+                ),
+              ),
+            },
+            onValueChanged: (tab) {
+              setState(() {
+                _activeArchiveTab = tab;
+                if (tab == _JournalArchiveTab.reflections) {
+                  _reflectionsMounted = true;
+                }
+              });
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildArchiveBody() {
+    final journalArchive = _buildEntryList();
+    if (!_reflectionsMounted) return journalArchive;
+
+    return IndexedStack(
+      index: _activeArchiveTab.index,
+      children: <Widget>[
+        journalArchive,
+        widget.reflectionsBuilderForTesting?.call(context) ??
+            const DecanReflectionArchivePage(embedded: true),
+      ],
+    );
+  }
+
+  Widget _buildArchiveShell() {
+    return Column(
+      children: <Widget>[
+        _buildArchiveTabs(),
+        Expanded(child: _buildArchiveBody()),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final showingEntry = _selectedEntry != null;
@@ -462,7 +565,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
               )
             : null,
       ),
-      child: showingEntry ? _buildEntryDetail() : _buildEntryList(),
+      child: showingEntry ? _buildEntryDetail() : _buildArchiveShell(),
     );
   }
 

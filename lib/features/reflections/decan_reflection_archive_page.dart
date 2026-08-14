@@ -16,11 +16,13 @@ import 'decan_reflection_skin.dart';
 class DecanReflectionArchivePage extends StatefulWidget {
   const DecanReflectionArchivePage({
     super.key,
+    this.embedded = false,
     @visibleForTesting this.reflectionRepoForTesting,
     @visibleForTesting this.maatRepoForTesting,
     @visibleForTesting this.promptStateForTesting,
   });
 
+  final bool embedded;
   final DecanReflectionRepo? reflectionRepoForTesting;
   final MaatGuidanceRepo? maatRepoForTesting;
   final DecanReflectionPromptState? promptStateForTesting;
@@ -93,12 +95,15 @@ class _DecanReflectionArchivePageState
 
   @override
   Widget build(BuildContext context) {
+    final content = _buildContent(context);
+    if (widget.embedded) return content;
+
     return DecanReflectionSkinScaffold(
       navBar: DecanReflectionNavBar(
         title: 'Decan Reflections',
         onBack: () => popOrGo(context, '/'),
       ),
-      child: _buildContent(context),
+      child: content,
     );
   }
 

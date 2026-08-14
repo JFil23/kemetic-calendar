@@ -121,6 +121,56 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('archive tabs switch journal and reflections in one shell', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.reset);
+
+    final repo = _ArchiveRepo(_entry(body: 'Journal archive content'));
+    final controller = JournalController.withRepo(
+      repo,
+      currentUserId: () => 'user-a',
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: JournalArchivePage(
+          repo: repo,
+          controller: controller,
+          isPortrait: true,
+          onClose: () {},
+          reflectionsBuilderForTesting: (_) =>
+              const Center(child: Text('Reflections archive content')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(journalArchiveTabsKey), findsOneWidget);
+    expect(find.byKey(journalArchiveJournalTabKey), findsOneWidget);
+    expect(find.byKey(journalArchiveReflectionsTabKey), findsOneWidget);
+    expect(find.text('Journal archive content'), findsOneWidget);
+    expect(find.text('Reflections archive content'), findsNothing);
+
+    await tester.tap(find.byKey(journalArchiveReflectionsTabKey));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Reflections archive content'), findsOneWidget);
+    expect(find.text('Journal archive content'), findsNothing);
+    expect(find.byKey(journalArchiveDateModeToggleKey), findsNothing);
+
+    await tester.tap(find.byKey(journalArchiveJournalTabKey));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Journal archive content'), findsOneWidget);
+    expect(find.text('Reflections archive content'), findsNothing);
+    expect(find.byKey(journalArchiveDateModeToggleKey), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('archive empty badge section shows receiving-hand glyph only', (
     tester,
   ) async {
