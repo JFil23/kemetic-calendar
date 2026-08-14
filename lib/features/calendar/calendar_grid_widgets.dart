@@ -552,6 +552,7 @@ Widget buildFocusedCalendarMonthGridForTesting({
     kYear: kYear,
     kMonth: kMonth,
     seasonShort: getMonthById(kMonth).season.label,
+    todayYear: todayDay == null ? null : kYear,
     todayMonth: todayDay == null ? null : kMonth,
     todayDay: todayDay,
     selectedDay: selectedDay,
@@ -602,6 +603,7 @@ Widget buildFocusedEpagomenalGridForTesting({
 
   return _FocusedEpagomenalGrid(
     kYear: kYear,
+    todayYear: todayDay == null ? null : kYear,
     todayMonth: todayDay == null ? null : 13,
     todayDay: todayDay,
     selectedDay: selectedDay,
@@ -769,11 +771,12 @@ class _MonthCard extends StatelessWidget {
 
   void _openMonthInfo(BuildContext context) {
     Navigator.of(context).push(
-      MaterialPageRoute(
+      _CalendarDrillInRoute<void>(
         settings: const RouteSettings(name: calendarMonthDetailRouteName),
         builder: (_) => _MonthDetailPage(
           kYear: kYear,
           kMonth: kMonth,
+          todayYear: todayMonth == null ? null : kYear,
           todayMonth: todayMonth,
           todayDay: todayDay,
           showGregorian: showGregorian,
@@ -799,11 +802,12 @@ class _MonthCard extends StatelessWidget {
 
   void _openDecanInfo(BuildContext context, int decanIndex) {
     Navigator.of(context).push(
-      MaterialPageRoute(
+      _CalendarDrillInRoute<void>(
         settings: const RouteSettings(name: calendarMonthDetailRouteName),
         builder: (_) => _MonthDetailPage(
           kYear: kYear,
           kMonth: kMonth,
+          todayYear: todayMonth == null ? null : kYear,
           todayMonth: todayMonth,
           todayDay: todayDay,
           showGregorian: showGregorian,
@@ -1187,6 +1191,7 @@ class _FocusedMonthGrid extends StatelessWidget {
     required this.kYear,
     required this.kMonth,
     required this.seasonShort,
+    required this.todayYear,
     required this.todayMonth,
     required this.todayDay,
     required this.selectedDay,
@@ -1203,6 +1208,7 @@ class _FocusedMonthGrid extends StatelessWidget {
   final int kYear;
   final int kMonth;
   final String seasonShort;
+  final int? todayYear;
   final int? todayMonth;
   final int? todayDay;
   final int? selectedDay;
@@ -1300,6 +1306,7 @@ class _FocusedMonthGrid extends StatelessWidget {
                 kMonth: kMonth,
                 decanIndex: decanIndex,
                 decanName: names[decanIndex],
+                todayYear: todayYear,
                 todayMonth: todayMonth,
                 todayDay: todayDay,
                 selectedDay: selectedDay,
@@ -1326,6 +1333,7 @@ class _FocusedMonthGrid extends StatelessWidget {
 class _FocusedEpagomenalGrid extends StatelessWidget {
   const _FocusedEpagomenalGrid({
     required this.kYear,
+    required this.todayYear,
     required this.todayMonth,
     required this.todayDay,
     required this.selectedDay,
@@ -1339,6 +1347,7 @@ class _FocusedEpagomenalGrid extends StatelessWidget {
   });
 
   final int kYear;
+  final int? todayYear;
   final int? todayMonth;
   final int? todayDay;
   final int? selectedDay;
@@ -1363,7 +1372,7 @@ class _FocusedEpagomenalGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final month = getMonthById(13);
     final dayCount = KemeticMath.isLeapKemeticYear(kYear) ? 6 : 5;
-    final isCurrentMonth = todayMonth == 13;
+    final isCurrentMonth = todayYear == kYear && todayMonth == 13;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: _kMonthCardBottomInset),
@@ -1475,6 +1484,7 @@ class _FocusedDecanBand extends StatelessWidget {
     required this.kMonth,
     required this.decanIndex,
     required this.decanName,
+    required this.todayYear,
     required this.todayMonth,
     required this.todayDay,
     required this.selectedDay,
@@ -1491,6 +1501,7 @@ class _FocusedDecanBand extends StatelessWidget {
   final int kMonth;
   final int decanIndex;
   final String decanName;
+  final int? todayYear;
   final int? todayMonth;
   final int? todayDay;
   final int? selectedDay;
@@ -1504,7 +1515,7 @@ class _FocusedDecanBand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isCurrentMonth = todayMonth == kMonth;
+    final isCurrentMonth = todayYear == kYear && todayMonth == kMonth;
     return Container(
       key: ValueKey<String>('focused-decan-$decanIndex'),
       height: height,

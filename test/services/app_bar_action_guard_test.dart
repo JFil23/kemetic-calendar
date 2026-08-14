@@ -760,15 +760,47 @@ void main() {
       ).readAsString();
       final focusedRoute = _sourceBetween(
         pageSource,
-        'MaterialPageRoute<void> _buildMonthDetailRoute(',
+        'Route<void> _buildMonthDetailRoute(',
         'void _openMonthInfo(',
       );
-      expect(focusedRoute, contains('onTodayPressed: ()'));
-      expect(focusedRoute, contains('_handleCalendarToday('));
+      expect(focusedRoute, contains('_CalendarDrillInRoute<void>('));
+      expect(focusedRoute, contains('todayYear: _today.kYear'));
+      expect(focusedRoute, contains('todayMonth: _today.kMonth'));
+      expect(focusedRoute, contains('todayDay: _today.kDay'));
+      expect(focusedRoute, isNot(contains('onTodayPressed:')));
       expect(focusedRoute, contains('onCalendarsPressed: ()'));
       expect(focusedRoute, contains('_openSharedCalendarsSheet()'));
       expect(focusedRoute, contains('onInboxPressed: ()'));
       expect(focusedRoute, contains('_openInboxFromMenu()'));
+
+      final focusedToday = _sourceBetween(
+        detailSource,
+        'Future<void> _showTodayInFocusedView()',
+        'void _handleFocusedTodayPressed()',
+      );
+      expect(focusedToday, contains('_pageForYearMonth('));
+      expect(focusedToday, contains('_pageController.animateToPage('));
+      expect(focusedToday, contains('_selectedDay = today.kDay'));
+      expect(focusedToday, isNot(contains('Navigator.of(context).pop()')));
+    });
+
+    test('focused and day views share the calendar drill-in route', () async {
+      final pageSource = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final detailSource = await File(
+        'lib/features/calendar/calendar_month_detail.dart',
+      ).readAsString();
+
+      expect(
+        pageSource.split('_CalendarDrillInRoute<void>(').length - 1,
+        greaterThanOrEqualTo(2),
+      );
+      expect(detailSource, contains('Duration(milliseconds: 320)'));
+      expect(detailSource, contains('Duration(milliseconds: 300)'));
+      expect(detailSource, contains('FadeTransition('));
+      expect(detailSource, contains('ScaleTransition('));
+      expect(detailSource, contains('SlideTransition('));
     });
 
     test('shared profile helper uses canonical profile route', () async {

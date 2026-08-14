@@ -1,5 +1,49 @@
 part of 'calendar_page.dart';
 
+const Duration _kCalendarDrillInDuration = Duration(milliseconds: 320);
+const Duration _kCalendarDrillOutDuration = Duration(milliseconds: 300);
+
+class _CalendarDrillInRoute<T> extends PageRouteBuilder<T> {
+  _CalendarDrillInRoute({required WidgetBuilder builder, super.settings})
+    : super(
+        transitionDuration: _kCalendarDrillInDuration,
+        reverseTransitionDuration: _kCalendarDrillOutDuration,
+        pageBuilder: (context, animation, secondaryAnimation) =>
+            builder(context),
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          final fade = CurvedAnimation(
+            parent: animation,
+            curve: const Interval(0, 0.88, curve: Curves.easeOutCubic),
+            reverseCurve: Curves.easeInOutCubic,
+          );
+          final motion = CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInOutCubic,
+          );
+          return FadeTransition(
+            opacity: fade,
+            child: ScaleTransition(
+              alignment: Alignment.topCenter,
+              scale: Tween<double>(begin: 0.982, end: 1).animate(motion),
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0, 0.012),
+                  end: Offset.zero,
+                ).animate(motion),
+                child: child,
+              ),
+            ),
+          );
+        },
+      );
+}
+
+@visibleForTesting
+PageRoute<void> buildCalendarDrillInRouteForTesting(Widget child) {
+  return _CalendarDrillInRoute<void>(builder: (_) => child);
+}
+
 const Key _focusedCalendarFloatingTodayButtonKey = ValueKey<String>(
   'focused-calendar-floating-today-button',
 );
@@ -8,6 +52,9 @@ const Key _focusedCalendarFloatingTodayButtonKey = ValueKey<String>(
 Widget buildFocusedMonthDetailForTesting({
   required int kYear,
   required int kMonth,
+  int? todayYear,
+  int? todayMonth,
+  int? todayDay,
   VoidCallback? onTodayPressed,
   VoidCallback? onCalendarsPressed,
   VoidCallback? onInboxPressed,
@@ -15,8 +62,9 @@ Widget buildFocusedMonthDetailForTesting({
   return _MonthDetailPage(
     kYear: kYear,
     kMonth: kMonth,
-    todayMonth: kMonth,
-    todayDay: 1,
+    todayYear: todayYear ?? kYear,
+    todayMonth: todayMonth ?? kMonth,
+    todayDay: todayDay ?? 1,
     showGregorian: false,
     notesGetter: (_, _) => const <_Note>[],
     flowColorsGetter: (_, _, _) => const <Color>[],
@@ -33,6 +81,7 @@ class _MonthDetailPage extends StatefulWidget {
   const _MonthDetailPage({
     required this.kYear,
     required this.kMonth,
+    this.todayYear,
     required this.todayMonth,
     required this.todayDay,
     required this.showGregorian,
@@ -58,6 +107,7 @@ class _MonthDetailPage extends StatefulWidget {
 
   final int kYear;
   final int kMonth;
+  final int? todayYear;
   final int? todayMonth;
   final int? todayDay;
   final bool showGregorian;
@@ -187,18 +237,56 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
     return widget.flowColorsGetter(ky, km, kd);
   }
 
-  void _handleFocusedTodayPressed() {
-    final callback = widget.onTodayPressed;
-    if (callback != null) {
-      callback();
-      return;
+  ({int kYear, int kMonth, int kDay})? get _focusedToday {
+    final calendarToday = CalendarPage.globalKey.currentState?._today;
+    if (calendarToday != null) {
+      return (
+        kYear: calendarToday.kYear,
+        kMonth: calendarToday.kMonth,
+        kDay: calendarToday.kDay,
+      );
     }
-    Navigator.of(context).pop();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final state = CalendarPage.globalKey.currentState;
-      if (state == null) return;
-      state._handleCalendarToday(useLandscapeGrid: false);
+    final year = widget.todayYear;
+    final month = widget.todayMonth;
+    final day = widget.todayDay;
+    if (year != null && month != null && day != null) {
+      return (kYear: year, kMonth: month, kDay: day);
+    }
+    return null;
+  }
+
+  int _pageForYearMonth(int year, int month) {
+    final initialSerial = widget.kYear * _monthsInYear + widget.kMonth - 1;
+    final targetSerial = year * _monthsInYear + month - 1;
+    return _pageSeed + targetSerial - initialSerial;
+  }
+
+  Future<void> _showTodayInFocusedView() async {
+    widget.onTodayPressed?.call();
+    final today = _focusedToday;
+    if (today == null || !_pageController.hasClients) return;
+
+    final targetPage = _pageForYearMonth(today.kYear, today.kMonth);
+    final distance = (targetPage - _currentPage).abs();
+    if (distance > 0) {
+      await _pageController.animateToPage(
+        targetPage,
+        duration: Duration(milliseconds: math.min(420, 280 + distance * 18)),
+        curve: Curves.easeInOutCubic,
+      );
+    }
+    if (!mounted) return;
+    setState(() {
+      _currentPage = targetPage;
+      _currentDecanIndex = today.kMonth == 13 ? null : (today.kDay - 1) ~/ 10;
+      _selectedDay = today.kDay;
+      _infoSelectionSerial++;
     });
+    SpeechService.instance.stop();
+  }
+
+  void _handleFocusedTodayPressed() {
+    unawaited(_showTodayInFocusedView());
   }
 
   void _handleFocusedCalendarsPressed() {
@@ -343,6 +431,7 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final focusedToday = _focusedToday;
     final scaffold = Scaffold(
       backgroundColor: _CalendarTone.calendarBlack,
       appBar: AppBar(
@@ -434,8 +523,9 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                         if (month == 13)
                           _FocusedEpagomenalGrid(
                             kYear: pageYear,
-                            todayMonth: widget.todayMonth,
-                            todayDay: widget.todayDay,
+                            todayYear: focusedToday?.kYear,
+                            todayMonth: focusedToday?.kMonth,
+                            todayDay: focusedToday?.kDay,
                             selectedDay: isActive ? _selectedDay : null,
                             notesGetter: (m, d) => _notesFor(pageYear, m, d),
                             flowColorsGetter: (ky, km, kd) =>
@@ -457,8 +547,9 @@ class _MonthDetailPageState extends State<_MonthDetailPage> {
                             kYear: pageYear,
                             kMonth: month,
                             seasonShort: seasonLabel,
-                            todayMonth: widget.todayMonth,
-                            todayDay: widget.todayDay,
+                            todayYear: focusedToday?.kYear,
+                            todayMonth: focusedToday?.kMonth,
+                            todayDay: focusedToday?.kDay,
                             selectedDay: isActive ? _selectedDay : null,
                             notesGetter: (m, d) => _notesFor(pageYear, m, d),
                             flowColorsGetter: (ky, km, kd) =>

@@ -17751,21 +17751,15 @@ class CalendarPageState extends State<CalendarPage>
     return keyForMonthHeader(targetKy, targetKm);
   }
 
-  MaterialPageRoute<void> _buildMonthDetailRoute(
-    int kYear,
-    int kMonth, {
-    int? decanIndex,
-  }) {
-    final todayMonth = kYear == _today.kYear ? _today.kMonth : null;
-    final todayDay = kYear == _today.kYear ? _today.kDay : null;
-
-    return MaterialPageRoute<void>(
+  Route<void> _buildMonthDetailRoute(int kYear, int kMonth, {int? decanIndex}) {
+    return _CalendarDrillInRoute<void>(
       settings: const RouteSettings(name: calendarMonthDetailRouteName),
       builder: (detailContext) => _MonthDetailPage(
         kYear: kYear,
         kMonth: kMonth,
-        todayMonth: todayMonth,
-        todayDay: todayDay,
+        todayYear: _today.kYear,
+        todayMonth: _today.kMonth,
+        todayDay: _today.kDay,
         showGregorian: _showGregorian,
         notesGetter: (m, d) => _getNotes(kYear, m, d),
         flowColorsGetter: (ky, km, kd) => getFlowColorsForDay(ky, km, kd),
@@ -17784,16 +17778,6 @@ class CalendarPageState extends State<CalendarPage>
         onEndFlow: (id) => _endFlow(id),
         onAppendToJournal: _appendToJournalAndRefresh,
         decanIndex: decanIndex,
-        onTodayPressed: () {
-          NavigationTrace.instance.record(
-            'Today floating button tap fired from focused view',
-          );
-          Navigator.of(detailContext).pop();
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            _handleCalendarToday(useLandscapeGrid: false);
-          });
-        },
         onCalendarsPressed: () => unawaited(_openSharedCalendarsSheet()),
         onInboxPressed: () {
           Navigator.of(detailContext).pop();
@@ -27310,7 +27294,7 @@ class CalendarPageState extends State<CalendarPage>
     }
     Navigator.push(
       ctx,
-      MaterialPageRoute(
+      _CalendarDrillInRoute<void>(
         builder: (context) => DayViewPage(
           initialKy: kYear,
           initialKm: kMonth,
