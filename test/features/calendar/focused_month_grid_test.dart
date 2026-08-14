@@ -31,6 +31,15 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.byKey(const ValueKey<String>('focused-month-grid')), findsOne);
+    expect(find.text('FIRST DECAN'), findsNothing);
+    expect(find.text('SECOND DECAN'), findsNothing);
+    expect(find.text('THIRD DECAN'), findsNothing);
+
+    final grid = tester.getRect(
+      find.byKey(const ValueKey<String>('focused-month-grid')),
+    );
+    expect(grid.left, 0);
+    expect(grid.right, 390);
     for (var decan = 0; decan < 3; decan++) {
       final band = tester.getRect(
         find.byKey(ValueKey<String>('focused-decan-$decan')),
@@ -57,6 +66,20 @@ void main() {
     expect(first.right, closeTo(second.left, 0.01));
     expect(first.width, closeTo(second.width, 0.01));
     expect(first.bottom, lessThan(eleventh.top));
+
+    final firstCellDecoration = tester.widget<DecoratedBox>(
+      find
+          .descendant(
+            of: find.byKey(const ValueKey<String>('focused-day:6267-7-1|K')),
+            matching: find.byType(DecoratedBox),
+          )
+          .first,
+    );
+    final firstCellBorder =
+        (firstCellDecoration.decoration as BoxDecoration).border as Border;
+    expect(firstCellBorder.top.style, BorderStyle.solid);
+    expect(firstCellBorder.right.style, BorderStyle.solid);
+    expect(firstCellBorder.bottom.style, BorderStyle.solid);
   });
 
   testWidgets('focused day columns preserve selection and tap behavior', (

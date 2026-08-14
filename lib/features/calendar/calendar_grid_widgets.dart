@@ -1166,12 +1166,6 @@ class _FocusedMonthGrid extends StatelessWidget {
   final void Function(BuildContext context, int decanIndex) onDecanTap;
   final double decanHeight;
 
-  static const List<String> _decanOrdinals = [
-    'FIRST DECAN',
-    'SECOND DECAN',
-    'THIRD DECAN',
-  ];
-
   String _rightLabel() {
     final startYear = KemeticMath.toGregorian(kYear, kMonth, 1).year;
     final endYear = KemeticMath.toGregorian(kYear, kMonth, 30).year;
@@ -1188,17 +1182,15 @@ class _FocusedMonthGrid extends StatelessWidget {
         const ['Decan A', 'Decan B', 'Decan C'];
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        _kMonthCardHorizontalInset,
-        0,
-        _kMonthCardHorizontalInset,
-        _kMonthCardBottomInset,
-      ),
+      padding: const EdgeInsets.only(bottom: _kMonthCardBottomInset),
       child: DecoratedBox(
         key: const ValueKey<String>('focused-month-grid'),
         decoration: BoxDecoration(
           color: _CalendarTone.velvetBlack,
-          border: Border.all(color: _CalendarTone.softCardBorder, width: 0.7),
+          border: Border.all(
+            color: _CalendarTone.antiqueGold.withValues(alpha: 0.16),
+            width: 0.8,
+          ),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1207,7 +1199,7 @@ class _FocusedMonthGrid extends StatelessWidget {
             SizedBox(
               height: _kFocusedMonthHeaderHeight,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
                 child: Row(
                   children: [
                     Expanded(
@@ -1219,7 +1211,7 @@ class _FocusedMonthGrid extends StatelessWidget {
                           child: _SoftMonthNameTitle(
                             shortName: month.displayShort,
                             transliteration: month.displayTransliteration,
-                            fontSize: _CalendarScale.monthTitleMain,
+                            fontSize: 30.5,
                             opacity: 0.98,
                           ),
                         ),
@@ -1237,7 +1229,7 @@ class _FocusedMonthGrid extends StatelessWidget {
                           color: const Color(
                             0xFF927842,
                           ).withValues(alpha: 0.92),
-                          fontSize: _CalendarScale.rightSeasonMain,
+                          fontSize: 15.2,
                           fontWeight: FontWeight.w500,
                           fontStyle: FontStyle.italic,
                           fontFamily: 'CormorantGaramond',
@@ -1259,7 +1251,6 @@ class _FocusedMonthGrid extends StatelessWidget {
                 kMonth: kMonth,
                 decanIndex: decanIndex,
                 decanName: names[decanIndex],
-                ordinalLabel: _decanOrdinals[decanIndex],
                 todayMonth: todayMonth,
                 todayDay: todayDay,
                 selectedDay: selectedDay,
@@ -1284,7 +1275,6 @@ class _FocusedDecanBand extends StatelessWidget {
     required this.kMonth,
     required this.decanIndex,
     required this.decanName,
-    required this.ordinalLabel,
     required this.todayMonth,
     required this.todayDay,
     required this.selectedDay,
@@ -1301,7 +1291,6 @@ class _FocusedDecanBand extends StatelessWidget {
   final int kMonth;
   final int decanIndex;
   final String decanName;
-  final String ordinalLabel;
   final int? todayMonth;
   final int? todayDay;
   final int? selectedDay;
@@ -1321,7 +1310,10 @@ class _FocusedDecanBand extends StatelessWidget {
       height: height,
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(color: _CalendarTone.softDivider, width: 0.7),
+          top: BorderSide(
+            color: _CalendarTone.antiqueGold.withValues(alpha: 0.16),
+            width: 0.8,
+          ),
         ),
       ),
       child: Column(
@@ -1332,39 +1324,24 @@ class _FocusedDecanBand extends StatelessWidget {
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () => onDecanTap(context, decanIndex),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 7, 10, 5),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        decanName,
-                        maxLines: 1,
-                        overflow: TextOverflow.fade,
-                        softWrap: false,
-                        style: const TextStyle(
-                          color: _CalendarTone.decanLabel,
-                          fontSize: _CalendarScale.decanLabelMain,
-                          height: 1,
-                          fontWeight: FontWeight.w500,
-                          fontFamily: 'GentiumPlus',
-                          fontFamilyFallback: ['NotoSans', 'Roboto'],
-                        ),
-                      ),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(
+                    decanName,
+                    maxLines: 1,
+                    overflow: TextOverflow.fade,
+                    softWrap: false,
+                    style: const TextStyle(
+                      color: _CalendarTone.decanLabel,
+                      fontSize: 15.5,
+                      height: 1,
+                      fontWeight: FontWeight.w500,
+                      fontFamily: 'GentiumPlus',
+                      fontFamilyFallback: ['NotoSans', 'Roboto'],
                     ),
-                    const SizedBox(width: 12),
-                    Text(
-                      ordinalLabel,
-                      maxLines: 1,
-                      style: TextStyle(
-                        color: _CalendarTone.mutedStone.withValues(alpha: 0.38),
-                        fontSize: 8.5,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 2.1,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
@@ -1485,13 +1462,13 @@ class _FocusedDayCell extends StatelessWidget {
     final numberColor = showGregorian
         ? _CalendarTone.gregorianBlue.withValues(alpha: 0.90)
         : (isSelected ? const Color(0xFFE2C862) : neutralNumber);
-    final verticalDivider = BorderSide(
-      color: _CalendarTone.antiqueGold.withValues(alpha: 0.075),
-      width: 0.7,
+    final gridLine = BorderSide(
+      color: _CalendarTone.antiqueGold.withValues(alpha: 0.18),
+      width: 0.8,
     );
     final selectedBorder = BorderSide(
-      color: _CalendarTone.antiqueGold.withValues(alpha: 0.84),
-      width: 1.0,
+      color: _CalendarTone.antiqueGold.withValues(alpha: 0.92),
+      width: 1.15,
     );
 
     return KemeticDayButton(
@@ -1509,15 +1486,15 @@ class _FocusedDayCell extends StatelessWidget {
                 : Colors.transparent,
             border: Border(
               left: isSelected ? selectedBorder : BorderSide.none,
-              top: isSelected ? selectedBorder : BorderSide.none,
+              top: isSelected ? selectedBorder : gridLine,
               right: isSelected
                   ? selectedBorder
-                  : (drawRightDivider ? verticalDivider : BorderSide.none),
-              bottom: isSelected ? selectedBorder : BorderSide.none,
+                  : (drawRightDivider ? gridLine : BorderSide.none),
+              bottom: isSelected ? selectedBorder : gridLine,
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(7, 9, 3, 5),
+            padding: const EdgeInsets.fromLTRB(7, 10, 2, 6),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -1533,7 +1510,7 @@ class _FocusedDayCell extends StatelessWidget {
                         softWrap: false,
                         style: TextStyle(
                           color: numberColor,
-                          fontSize: 14.2,
+                          fontSize: 16.4,
                           height: 1,
                           fontWeight: FontWeight.w500,
                           fontFamily: 'CormorantGaramond',
@@ -1550,7 +1527,7 @@ class _FocusedDayCell extends StatelessWidget {
                       weekday,
                       style: TextStyle(
                         color: _CalendarTone.weekday.withValues(alpha: 0.82),
-                        fontSize: 8.5,
+                        fontSize: 9.5,
                         height: 1,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1558,19 +1535,23 @@ class _FocusedDayCell extends StatelessWidget {
                   ],
                 ),
                 if (isToday) ...[
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 5),
                   Container(
                     width: double.infinity,
-                    height: 1.4,
+                    height: 1.6,
                     color: _CalendarTone.antiqueGold,
                   ),
                 ] else
-                  const SizedBox(height: 5.4),
+                  const SizedBox(height: 6.6),
                 SizedBox(
-                  height: 8,
+                  height: 10,
                   child: Align(
                     alignment: Alignment.centerLeft,
-                    child: _eventMarkers(),
+                    child: Transform.scale(
+                      scale: 1.22,
+                      alignment: Alignment.centerLeft,
+                      child: _eventMarkers(),
+                    ),
                   ),
                 ),
               ],
