@@ -1881,19 +1881,24 @@ void main() {
         final sheet = source.substring(sheetStart, sheetEnd);
         final journalButton = sheet.indexOf('quick-add-journal-button');
         final plannerButton = sheet.indexOf('quick-add-planner-button');
+        final quickAddLabel = sheet.indexOf("'Quick add (natural language)'");
         final input = sheet.indexOf('quick-add-input');
         expect(journalButton, greaterThanOrEqualTo(0));
         expect(plannerButton, greaterThan(journalButton));
-        expect(input, greaterThan(plannerButton));
+        expect(quickAddLabel, greaterThan(plannerButton));
+        expect(input, greaterThan(quickAddLabel));
         expect(sheet, contains('widget.onOpenJournal'));
         expect(sheet, contains('widget.onOpenPlanner'));
         expect(sheet, isNot(contains('OutlinedButton.icon')));
         expect(sheet, isNot(contains('StadiumBorder')));
-        expect(sheet, contains('width: double.infinity,\n        height: 56'));
-        expect(sheet, contains('fontFamily: DaySheetTokens.ui'));
-        expect(sheet, contains('fontSize: 18'));
+        expect(sheet, contains('width: double.infinity,\n        height: 38'));
+        expect(sheet, contains('width: 24'));
+        expect(sheet, contains('KemeticGold.glyph(glyph, size: 20)'));
+        expect(sheet, contains('const SizedBox(width: 8)'));
+        expect(sheet, contains('inherit: false'));
+        expect(sheet, contains('fontSize: 17'));
         expect(
-          sheet.substring(journalButton, input),
+          sheet.substring(journalButton, quickAddLabel),
           isNot(contains('Expanded(')),
         );
 
@@ -1936,6 +1941,66 @@ void main() {
         );
       },
     );
+
+    testWidgets('quick add destination geometry matches the mobile reference', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1170, 2532);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: TextButton(
+                  onPressed: () => unawaited(
+                    CalendarPage.openQuickAddFromAnyContext(context),
+                  ),
+                  child: const Text('Open quick add'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open quick add'));
+      await tester.pumpAndSettle();
+
+      final journalButton = find.byKey(
+        const ValueKey('quick-add-journal-button'),
+      );
+      final plannerButton = find.byKey(
+        const ValueKey('quick-add-planner-button'),
+      );
+      final journalLabel = find.text('Journal');
+      final quickAddLabel = find.text('Quick add (natural language)');
+      final input = find.byKey(const ValueKey('quick-add-input'));
+
+      final journalRect = tester.getRect(journalButton);
+      final plannerRect = tester.getRect(plannerButton);
+      expect(journalRect.height, 38);
+      expect(plannerRect.height, 38);
+      expect(plannerRect.top - journalRect.top, 38);
+      expect(tester.getTopLeft(journalLabel).dx, 48);
+      expect(plannerRect.bottom, lessThan(tester.getRect(quickAddLabel).top));
+      expect(
+        tester.getRect(quickAddLabel).bottom,
+        lessThan(tester.getRect(input).top),
+      );
+
+      final journalText = tester.widget<Text>(journalLabel);
+      expect(journalText.style?.inherit, isFalse);
+      expect(journalText.style?.fontFamily, isNull);
+      expect(journalText.style?.fontSize, 17);
+      expect(journalText.style?.fontWeight, FontWeight.w400);
+
+      await tester.tapAt(const Offset(4, 4));
+      await tester.pumpAndSettle();
+    });
 
     test('shared app bar search actions never route home', () async {
       final files = <String>[

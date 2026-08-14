@@ -406,33 +406,30 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
       child: SizedBox(
         key: key,
         width: double.infinity,
-        height: 56,
+        height: 38,
         child: InkWell(
           borderRadius: BorderRadius.circular(10),
           onTap: enabled ? () => _handleOpenDestination(onOpen) : null,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 28,
-                  child: Center(child: KemeticGold.glyph(glyph, size: 24)),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 24,
+                child: Center(child: KemeticGold.glyph(glyph, size: 20)),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  inherit: false,
+                  color: enabled
+                      ? const Color(0xFFC7C7CC)
+                      : const Color(0xFF6E6E73),
+                  fontSize: 17,
+                  fontWeight: FontWeight.w400,
+                  height: 1.2,
                 ),
-                const SizedBox(width: 16),
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: enabled
-                        ? const Color(0xFFC7C7CC)
-                        : const Color(0xFF6E6E73),
-                    fontFamily: DaySheetTokens.ui,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w400,
-                    height: 1.2,
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -464,15 +461,6 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Quick add (natural language)',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
                   Column(
                     children: [
                       _buildDestinationRow(
@@ -490,6 +478,15 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                     ],
                   ),
                   const SizedBox(height: 12),
+                  const Text(
+                    'Quick add (natural language)',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   TextField(
                     key: const ValueKey('quick-add-input'),
                     controller: _textCtrl,
