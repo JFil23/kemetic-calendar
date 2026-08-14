@@ -1,7 +1,5 @@
 import 'package:flutter/widgets.dart';
 
-import 'global_side_drawer_metrics.dart';
-
 class AppBottomInsets {
   const AppBottomInsets._();
 
@@ -11,10 +9,7 @@ class AppBottomInsets {
     BuildContext context, {
     double extraSpacing = pageGap,
   }) {
-    return globalMenuBubbleContentBottomPadding(
-      context,
-      extraSpacing: extraSpacing,
-    );
+    return MediaQuery.paddingOf(context).bottom + extraSpacing;
   }
 
   static double scrollBottomPadding(BuildContext context, double basePadding) {

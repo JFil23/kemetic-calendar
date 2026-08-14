@@ -356,14 +356,14 @@ void main() {
   });
 
   testWidgets(
-    'journal text field accepts input under app chrome after menu activity',
+    'journal text field accepts input under app chrome with keyboard visible',
     (tester) async {
       tester.view.devicePixelRatio = 1.0;
       tester.view.physicalSize = const Size(390, 844);
       addTearDown(() async {
         tester.view.resetPhysicalSize();
         tester.view.resetDevicePixelRatio();
-        app.resetGlobalFloatingMenuShellForTesting();
+        app.resetGlobalOverlayShellForTesting();
       });
 
       final controller = JournalController.withRepo(
@@ -401,7 +401,7 @@ void main() {
             ).copyWith(viewInsets: EdgeInsets.only(bottom: bottomInset));
             return MediaQuery(
               data: mediaQuery,
-              child: app.buildGlobalFloatingMenuShellForTesting(
+              child: app.buildGlobalOverlayShellForTesting(
                 router: router,
                 child: child ?? const SizedBox.shrink(),
               ),
@@ -413,10 +413,6 @@ void main() {
       await tester.pumpWidget(buildChrome());
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 300));
-
-      await tester.tap(find.byKey(app.globalMenuButtonKey));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 250));
 
       bottomInset = 320;
       await tester.pumpWidget(buildChrome());
@@ -633,7 +629,7 @@ void main() {
       tester.view.physicalSize = const Size(390, 844);
       addTearDown(() async {
         tester.view.reset();
-        app.resetGlobalFloatingMenuShellForTesting();
+        app.resetGlobalOverlayShellForTesting();
       });
 
       final controller = JournalController.withRepo(
@@ -688,7 +684,7 @@ void main() {
         return MaterialApp.router(
           routerConfig: router,
           builder: (context, child) {
-            return app.buildGlobalFloatingMenuShellForTesting(
+            return app.buildGlobalOverlayShellForTesting(
               router: router,
               child: child ?? const SizedBox.shrink(),
             );

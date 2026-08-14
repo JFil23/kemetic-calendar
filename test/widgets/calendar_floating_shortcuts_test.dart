@@ -14,6 +14,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: CalendarFloatingShortcutsLayer(
+          onTodayPressed: () {},
           onCalendarsPressed: () {},
           onInboxPressed: () {},
           child: const ColoredBox(color: Colors.black),
@@ -24,10 +25,17 @@ void main() {
     final rect = tester.getRect(
       find.byKey(calendarFloatingShortcutsSurfaceKey),
     );
+    final todayRect = tester.getRect(
+      find.byKey(calendarFloatingTodaySurfaceKey),
+    );
     expect(rect.width, kCalendarFloatingShortcutsWidth);
     expect(rect.height, kCalendarFloatingShortcutsHeight);
     expect(rect.right, 390 - kCalendarFloatingShortcutsTrailing);
     expect(rect.bottom, 844 - kCalendarFloatingShortcutsBottom);
+    expect(todayRect.width, kCalendarFloatingTodayWidth);
+    expect(todayRect.height, kCalendarFloatingShortcutsHeight);
+    expect(todayRect.left, kCalendarFloatingShortcutsLeading);
+    expect(todayRect.bottom, rect.bottom);
 
     final surface = tester.widget<DecoratedBox>(
       find.byKey(calendarFloatingShortcutsSurfaceKey),
@@ -77,6 +85,34 @@ void main() {
     expect(inboxTaps, 1);
   });
 
+  testWidgets('Today capsule uses the Apple-sized label and dispatches', (
+    tester,
+  ) async {
+    var todayTaps = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: CalendarFloatingTodayButton(onPressed: () => todayTaps += 1),
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester.getSize(find.byType(CalendarFloatingTodayButton)),
+      const Size(kCalendarFloatingTodayWidth, kCalendarFloatingShortcutsHeight),
+    );
+    expect(find.bySemanticsLabel('Today'), findsOneWidget);
+    final label = tester.widget<Text>(find.text('Today'));
+    expect(label.style?.fontSize, 17);
+    expect(label.style?.fontWeight, FontWeight.w600);
+
+    await tester.tap(find.text('Today'));
+    expect(todayTaps, 1);
+  });
+
   testWidgets('stays out of the way while the keyboard is visible', (
     tester,
   ) async {
@@ -86,6 +122,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: CalendarFloatingShortcutsLayer(
+          onTodayPressed: () {},
           onCalendarsPressed: () {},
           onInboxPressed: () {},
           child: const ColoredBox(color: Colors.black),
@@ -94,5 +131,6 @@ void main() {
     );
 
     expect(find.byKey(calendarFloatingShortcutsKey), findsNothing);
+    expect(find.byKey(calendarFloatingTodaySurfaceKey), findsNothing);
   });
 }

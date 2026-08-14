@@ -49,8 +49,7 @@ Inventory completed before visual implementation.
 - `KemeticNodeListPage`: Library list route and visual target for this refactor.
 - `KemeticNodeReaderPage`: detail route, search-in-reader, internal node history, node open/link telemetry, insight editor hosting.
 - `KemeticNodeSearchDelegate`: search entry point from list and reader.
-- `GlobalSideDrawer` / `_GlobalFloatingMenuShell`: Library drawer item and selected state.
-- Calendar page menu actions and floating shell: open `/nodes`.
+- Calendar page and focused-calendar actions: open `/nodes`.
 - `day_view.dart` Living Text CTA: opens Library root or node insight route.
 - `decan_reflection_detail_page.dart`: opens Library nodes from reflection text, suggested nodes, and CTAs.
 - `calendar_month_detail.dart`: resolves Library nodes inline inside month info.

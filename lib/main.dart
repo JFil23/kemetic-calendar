@@ -43,7 +43,6 @@ import 'utils/hive_local_storage_web.dart';
 import 'core/async_guard.dart';
 import 'core/app_link_intent.dart';
 import 'core/global_menu_routes.dart';
-import 'core/navigation_fallback.dart';
 import 'core/navigation_persistence_policy.dart';
 import 'core/planner_launch_intent.dart';
 import 'core/push_intent_bus.dart';
@@ -83,7 +82,6 @@ import 'features/rhythm/pages/todays_alignment_page.dart';
 import 'features/settings/settings_page.dart';
 import 'features/settings/settings_prefs.dart';
 import 'features/reflections/decan_reflection_detail_page.dart';
-import 'widgets/global_side_drawer.dart';
 import 'widgets/kemetic_keyboard.dart';
 import 'widgets/kemetic_day_info.dart';
 import 'services/app_restoration_service.dart';
@@ -759,28 +757,21 @@ class Events {
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 const Color _launchBackdrop = Color(0xFF171518);
-final ValueNotifier<int> _floatingMenuModalDepth = ValueNotifier<int>(0);
+final ValueNotifier<int> _globalOverlayModalDepth = ValueNotifier<int>(0);
 final ValueNotifier<bool> _launchOverlayDismissed = ValueNotifier<bool>(false);
 final ValueNotifier<int> _maatGuidancePostEnsureRefresh = ValueNotifier<int>(0);
 const MethodChannel _shellBackChannel = MethodChannel(
   'com.kemetic.calendar/shell_back',
 );
-final _FloatingMenuRouteObserver _floatingMenuRouteObserver =
-    _FloatingMenuRouteObserver();
-final GlobalKey globalMenuButtonKey = GlobalKey(
-  debugLabel: 'global_menu_bubble',
-);
-const Duration _floatingMenuModalSettleDelay = Duration(milliseconds: 80);
-const bool _debugForceGlobalFloatingMenu = bool.fromEnvironment(
-  'FORCE_GLOBAL_MENU_FOR_TESTING',
-);
-bool _debugForceGlobalFloatingMenuForTesting = false;
+final _OverlaySuppressionRouteObserver _overlaySuppressionRouteObserver =
+    _OverlaySuppressionRouteObserver();
+const Duration _overlayModalSettleDelay = Duration(milliseconds: 80);
 
-int get globalFloatingMenuModalDepthValue => _floatingMenuModalDepth.value;
+int get globalOverlayModalDepthValue => _globalOverlayModalDepth.value;
 
 @visibleForTesting
-NavigatorObserver get globalFloatingMenuRouteObserverForTesting =>
-    _floatingMenuRouteObserver;
+NavigatorObserver get globalOverlayRouteObserverForTesting =>
+    _overlaySuppressionRouteObserver;
 
 bool get rootNavigatorContextMountedForNavigationTrace =>
     _rootNavigatorKey.currentContext?.mounted ?? false;
@@ -796,7 +787,7 @@ String get rootRouterUriForNavigationTrace {
   }
 }
 
-class _FloatingMenuRouteObserver extends NavigatorObserver {
+class _OverlaySuppressionRouteObserver extends NavigatorObserver {
   bool _isSearchRoute(Route<dynamic> route) {
     if (route is! PageRoute<dynamic>) return false;
     try {
@@ -807,7 +798,7 @@ class _FloatingMenuRouteObserver extends NavigatorObserver {
     }
   }
 
-  bool _suppressesFloatingMenu(Route<dynamic> route) {
+  bool _suppressesGlobalOverlays(Route<dynamic> route) {
     if (route.settings.name == calendarActionsMenuRouteName) return false;
     if (route.settings.name == calendarMonthDetailRouteName) return true;
     if (_isSearchRoute(route)) return true;
@@ -815,15 +806,15 @@ class _FloatingMenuRouteObserver extends NavigatorObserver {
   }
 
   void _adjustDepth(int delta) {
-    final next = _floatingMenuModalDepth.value + delta;
-    _floatingMenuModalDepth.value = next < 0 ? 0 : next;
+    final next = _globalOverlayModalDepth.value + delta;
+    _globalOverlayModalDepth.value = next < 0 ? 0 : next;
   }
 
   void _decrementAfterRouteSettles(Route<dynamic> route) {
     if (route is TransitionRoute<dynamic>) {
       unawaited(
         route.completed.whenComplete(() async {
-          await Future<void>.delayed(_floatingMenuModalSettleDelay);
+          await Future<void>.delayed(_overlayModalSettleDelay);
           _adjustDepth(-1);
         }),
       );
@@ -835,28 +826,28 @@ class _FloatingMenuRouteObserver extends NavigatorObserver {
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPush(route, previousRoute);
-    if (_suppressesFloatingMenu(route)) _adjustDepth(1);
+    if (_suppressesGlobalOverlays(route)) _adjustDepth(1);
   }
 
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPop(route, previousRoute);
-    if (_suppressesFloatingMenu(route)) _decrementAfterRouteSettles(route);
+    if (_suppressesGlobalOverlays(route)) _decrementAfterRouteSettles(route);
   }
 
   @override
   void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didRemove(route, previousRoute);
-    if (_suppressesFloatingMenu(route)) _decrementAfterRouteSettles(route);
+    if (_suppressesGlobalOverlays(route)) _decrementAfterRouteSettles(route);
   }
 
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
     super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
-    if (oldRoute != null && _suppressesFloatingMenu(oldRoute)) {
+    if (oldRoute != null && _suppressesGlobalOverlays(oldRoute)) {
       _decrementAfterRouteSettles(oldRoute);
     }
-    if (newRoute != null && _suppressesFloatingMenu(newRoute)) {
+    if (newRoute != null && _suppressesGlobalOverlays(newRoute)) {
       _adjustDepth(1);
     }
   }
@@ -1532,7 +1523,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
   // here reopens whatever secondary page was active before process restart.
   observers: <NavigatorObserver>[
     routeObserver,
-    _floatingMenuRouteObserver,
+    _overlaySuppressionRouteObserver,
     TelemetryRouteObserver(),
   ],
   redirect: (context, state) => _traceRouterRedirect(
@@ -2287,7 +2278,7 @@ class _AppChromeState extends State<_AppChrome> {
 
     return GuidedOnboardingOverlayHost(
       child: _LaunchShell(
-        child: _GlobalFloatingMenuShell(
+        child: _GlobalOverlayShell(
           router: widget.router,
           child: KemeticKeyboardHost(child: widget.child),
         ),
@@ -2297,7 +2288,7 @@ class _AppChromeState extends State<_AppChrome> {
 }
 
 @visibleForTesting
-Widget buildGlobalFloatingMenuShellForTesting({
+Widget buildGlobalOverlayShellForTesting({
   required GoRouter router,
   required Widget child,
   String? dailyCosmicContextUserId,
@@ -2305,9 +2296,8 @@ Widget buildGlobalFloatingMenuShellForTesting({
   bool? dailyCosmicContextOnboardingComplete,
   DateTime Function()? dailyCosmicContextNow,
 }) {
-  _debugForceGlobalFloatingMenuForTesting = true;
   _launchOverlayDismissed.value = true;
-  return _GlobalFloatingMenuShell(
+  return _GlobalOverlayShell(
     router: router,
     dailyCosmicContextUserIdForTesting: dailyCosmicContextUserId,
     dailyCosmicContextAuthenticatedForTesting: dailyCosmicContextAuthenticated,
@@ -2319,14 +2309,13 @@ Widget buildGlobalFloatingMenuShellForTesting({
 }
 
 @visibleForTesting
-void resetGlobalFloatingMenuShellForTesting() {
-  _debugForceGlobalFloatingMenuForTesting = false;
+void resetGlobalOverlayShellForTesting() {
   _launchOverlayDismissed.value = false;
-  _floatingMenuModalDepth.value = 0;
+  _globalOverlayModalDepth.value = 0;
 }
 
-class _GlobalFloatingMenuShell extends StatefulWidget {
-  const _GlobalFloatingMenuShell({
+class _GlobalOverlayShell extends StatefulWidget {
+  const _GlobalOverlayShell({
     required this.router,
     required this.child,
     this.dailyCosmicContextUserIdForTesting,
@@ -2343,11 +2332,10 @@ class _GlobalFloatingMenuShell extends StatefulWidget {
   final DateTime Function()? dailyCosmicContextNowForTesting;
 
   @override
-  State<_GlobalFloatingMenuShell> createState() =>
-      _GlobalFloatingMenuShellState();
+  State<_GlobalOverlayShell> createState() => _GlobalOverlayShellState();
 }
 
-class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
+class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
     with WidgetsBindingObserver {
   late final MaatGuidanceController _maatGuidanceController =
       MaatGuidanceController(MaatGuidanceRepo(supabase));
@@ -2355,11 +2343,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       DailyCosmicContextController(now: widget.dailyCosmicContextNowForTesting);
   Uri _currentUri = Uri(path: '/');
   StreamSubscription<AuthState>? _authSub;
-  bool _menuMounted = false;
-  bool _menuOpen = false;
-  bool _drawerBackGestureActive = false;
-  bool _drawerBackPopRouteConsumePending = false;
-  Timer? _drawerBackPopRouteConsumeTimer;
   bool _rebuildScheduled = false;
   bool? _lastGuidanceSuppressed;
   int _dailyCosmicContextEvaluationSerial = 0;
@@ -2371,8 +2354,8 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     _currentUri = _readRouterUri();
     widget.router.routerDelegate.addListener(_handleRouteChanged);
     widget.router.routeInformationProvider.addListener(_handleRouteChanged);
-    _floatingMenuModalDepth.addListener(_handleMenuVisibilityChanged);
-    _launchOverlayDismissed.addListener(_handleMenuVisibilityChanged);
+    _globalOverlayModalDepth.addListener(_handleOverlayVisibilityChanged);
+    _launchOverlayDismissed.addListener(_handleOverlayVisibilityChanged);
     _maatGuidancePostEnsureRefresh.addListener(
       _handleMaatGuidancePostEnsureRefresh,
     );
@@ -2384,7 +2367,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     );
     _authSub = supabase.auth.onAuthStateChange.listen((_) {
       if (supabase.auth.currentSession == null) {
-        _resetFloatingMenuState();
         _maatGuidanceController.clearForSignedOut();
       } else {
         unawaited(_maatGuidanceController.refresh(force: true));
@@ -2405,7 +2387,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   }
 
   @override
-  void didUpdateWidget(covariant _GlobalFloatingMenuShell oldWidget) {
+  void didUpdateWidget(covariant _GlobalOverlayShell oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.router == widget.router) return;
     oldWidget.router.routerDelegate.removeListener(_handleRouteChanged);
@@ -2423,8 +2405,8 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     WidgetsBinding.instance.removeObserver(this);
     widget.router.routerDelegate.removeListener(_handleRouteChanged);
     widget.router.routeInformationProvider.removeListener(_handleRouteChanged);
-    _floatingMenuModalDepth.removeListener(_handleMenuVisibilityChanged);
-    _launchOverlayDismissed.removeListener(_handleMenuVisibilityChanged);
+    _globalOverlayModalDepth.removeListener(_handleOverlayVisibilityChanged);
+    _launchOverlayDismissed.removeListener(_handleOverlayVisibilityChanged);
     _maatGuidancePostEnsureRefresh.removeListener(
       _handleMaatGuidancePostEnsureRefresh,
     );
@@ -2436,7 +2418,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     );
     _maatGuidanceController.dispose();
     _dailyCosmicContextController.dispose();
-    _drawerBackPopRouteConsumeTimer?.cancel();
     unawaited(_authSub?.cancel());
     super.dispose();
   }
@@ -2449,26 +2430,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       throw MissingPluginException('No shell back handler for ${call.method}');
     }
     return _handleAndroidBackButton();
-  }
-
-  @override
-  bool handleStartBackGesture(PredictiveBackEvent backEvent) {
-    if (!(_menuMounted && _menuOpen)) return false;
-    _drawerBackGestureActive = true;
-    return true;
-  }
-
-  @override
-  void handleCommitBackGesture() {
-    if (!_drawerBackGestureActive) return;
-    _drawerBackGestureActive = false;
-    _consumeNextPopRouteAfterDrawerBackGesture();
-    unawaited(_closeFloatingMenu());
-  }
-
-  @override
-  void handleCancelBackGesture() {
-    _drawerBackGestureActive = false;
   }
 
   @override
@@ -2503,20 +2464,12 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     unawaited(
       CalendarPage.dismissAppOwnedTransientOverlaysForRouteChange(navContext),
     );
-    if (!_menuMounted || _menuOpen) {
-      _resetFloatingMenuState();
-    }
     unawaited(_maatGuidanceController.refresh());
     _scheduleDailyCosmicContextEvaluation();
     _scheduleRebuild();
   }
 
-  void _handleMenuVisibilityChanged() {
-    if ((!_shouldActivateFloatingMenu(context) ||
-            _floatingMenuModalDepth.value > 0) &&
-        _menuMounted) {
-      _resetFloatingMenuState();
-    }
+  void _handleOverlayVisibilityChanged() {
     _scheduleDailyCosmicContextEvaluation();
     _scheduleRebuild();
   }
@@ -2524,27 +2477,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   void _handleExternalOverlayGateChanged() {
     _scheduleDailyCosmicContextEvaluation();
     _scheduleRebuild();
-  }
-
-  void _resetFloatingMenuState() {
-    _drawerBackGestureActive = false;
-    _drawerBackPopRouteConsumePending = false;
-    _drawerBackPopRouteConsumeTimer?.cancel();
-    _drawerBackPopRouteConsumeTimer = null;
-    _menuMounted = false;
-    _menuOpen = false;
-  }
-
-  void _consumeNextPopRouteAfterDrawerBackGesture() {
-    _drawerBackPopRouteConsumePending = true;
-    _drawerBackPopRouteConsumeTimer?.cancel();
-    _drawerBackPopRouteConsumeTimer = Timer(
-      globalSideDrawerTransitionDuration + const Duration(milliseconds: 250),
-      () {
-        _drawerBackPopRouteConsumePending = false;
-        _drawerBackPopRouteConsumeTimer = null;
-      },
-    );
   }
 
   void _scheduleRebuild() {
@@ -2557,32 +2489,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     });
     WidgetsBinding.instance.ensureVisualUpdate();
   }
-
-  bool get _shouldMountFloatingMenu {
-    if (!_launchOverlayDismissed.value) return false;
-    if (GuidedOnboardingController.instance.suppressExternalOverlays) {
-      return false;
-    }
-    if (supabase.auth.currentSession == null &&
-        !(kDebugMode &&
-            (_debugForceGlobalFloatingMenu ||
-                _debugForceGlobalFloatingMenuForTesting))) {
-      return false;
-    }
-    return true;
-  }
-
-  bool get _shouldSuppressFloatingMenuForCurrentRoute {
-    if (_currentUri.queryParameters['onboarding'] == '1') return true;
-    final path = _currentUri.path.isEmpty ? '/' : _currentUri.path;
-    return path == '/calendars';
-  }
-
-  bool _shouldActivateFloatingMenu(BuildContext context) =>
-      _shouldMountFloatingMenu &&
-      !_shouldSuppressFloatingMenuForCurrentRoute &&
-      _floatingMenuModalDepth.value == 0 &&
-      MediaQuery.viewInsetsOf(context).bottom == 0;
 
   bool get _dailyCosmicContextAuthenticated {
     if (supabase.auth.currentSession != null) return true;
@@ -2601,8 +2507,7 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
   bool _shouldSuppressDailyCosmicContext(BuildContext context) {
     if (!_launchOverlayDismissed.value) return true;
     if (!_dailyCosmicContextAuthenticated) return true;
-    if (_floatingMenuModalDepth.value > 0) return true;
-    if (_menuMounted || _menuOpen) return true;
+    if (_globalOverlayModalDepth.value > 0) return true;
     if (MediaQuery.viewInsetsOf(context).bottom > 0) return true;
     if (GuidedOnboardingController.instance.suppressExternalOverlays) {
       return true;
@@ -2651,19 +2556,11 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     }
   }
 
-  void _resetFloatingMenuStateAfterFrame() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || !_menuMounted) return;
-      setState(_resetFloatingMenuState);
-    });
-  }
-
   bool _shouldSuppressMaatGuidance(BuildContext context) {
     if (!_launchOverlayDismissed.value) return true;
     if (supabase.auth.currentSession == null) return true;
     if (_dailyCosmicContextController.hasVisibleBadge) return true;
-    if (_floatingMenuModalDepth.value > 0) return true;
-    if (_menuMounted || _menuOpen) return true;
+    if (_globalOverlayModalDepth.value > 0) return true;
     if (MediaQuery.viewInsetsOf(context).bottom > 0) return true;
     if (GuidedOnboardingController.instance.suppressExternalOverlays) {
       return true;
@@ -2676,45 +2573,6 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     return false;
   }
 
-  String _traceRouteLabel() {
-    final path = _currentUri.path.isEmpty ? '/' : _currentUri.path;
-    final queryKeys =
-        _currentUri.queryParameters.keys
-            .where((key) => key.trim().isNotEmpty)
-            .toList(growable: false)
-          ..sort();
-    if (queryKeys.isEmpty) return path;
-    return '$path?${queryKeys.map((key) => '$key=<redacted>').join('&')}';
-  }
-
-  Map<String, Object?> _traceOverlayState({BuildContext? mediaContext}) {
-    final mediaQuery = mediaContext == null
-        ? null
-        : MediaQuery.maybeOf(mediaContext);
-    return <String, Object?>{
-      '_menuMounted': _menuMounted,
-      '_menuOpen': _menuOpen,
-      '_floatingMenuModalDepth.value': _floatingMenuModalDepth.value,
-      '_launchOverlayDismissed.value': _launchOverlayDismissed.value,
-      'route': _traceRouteLabel(),
-      'MediaQuery.viewInsets.bottom': mediaQuery?.viewInsets.bottom,
-    };
-  }
-
-  void _traceNavigation(
-    String label, {
-    BuildContext? mediaContext,
-    Map<String, Object?> state = const <String, Object?>{},
-  }) {
-    NavigationTrace.instance.record(
-      label,
-      state: <String, Object?>{
-        ..._traceOverlayState(mediaContext: mediaContext),
-        ...state,
-      },
-    );
-  }
-
   void _syncMaatGuidanceSuppression(bool suppressed) {
     if (_lastGuidanceSuppressed == suppressed) return;
     _lastGuidanceSuppressed = suppressed;
@@ -2724,281 +2582,24 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
     });
   }
 
-  void _handleFloatingMenuPressed() {
-    _traceNavigation('global drawer bubble tapped', mediaContext: context);
-    if (_menuOpen) {
-      unawaited(_closeFloatingMenu());
-      return;
-    }
-    _openFloatingMenu();
-  }
-
-  void _openFloatingMenu() {
-    if (!_shouldActivateFloatingMenu(context)) {
-      _traceNavigation('global drawer open blocked', mediaContext: context);
-      return;
-    }
-    setState(() {
-      _menuMounted = true;
-      _menuOpen = true;
-    });
-    _traceNavigation('global drawer mounted/opened', mediaContext: context);
-  }
-
-  Future<void> _closeFloatingMenu() async {
-    if (!_menuMounted) return;
-    _traceNavigation('menu close started', mediaContext: context);
-    setState(() => _menuOpen = false);
-    await Future<void>.delayed(globalSideDrawerTransitionDuration);
-    if (!mounted || _menuOpen) return;
-    setState(() => _menuMounted = false);
-    _traceNavigation('menu close completed', mediaContext: context);
-  }
-
-  Future<void> _openPrimarySectionFromDrawer(AppSection section) {
-    unawaited(_closeFloatingMenu());
-    openPrimarySection(context, section, router: widget.router);
-    return Future<void>.value();
-  }
-
-  Future<void> _openProfileFromDrawer() {
-    _traceNavigation(
-      '_openProfileFromDrawer entered',
-      mediaContext: context,
-      state: const <String, Object?>{'route': '/profile/me'},
-    );
-    unawaited(_closeFloatingMenu());
-    if (!mounted) return Future<void>.value();
-    final navigationContext = _rootNavigatorKey.currentContext ?? context;
-    if (!navigationContext.mounted) return Future<void>.value();
-    _traceNavigation(
-      "global drawer detail route push('/profile/me') requested",
-      mediaContext: context,
-      state: const <String, Object?>{'route': '/profile/me'},
-    );
-    unawaited(
-      openDetailRoute<void>(
-        navigationContext,
-        '/profile/me',
-        router: widget.router,
-      ),
-    );
-    return Future<void>.value();
-  }
-
-  Future<void> _openFlowsFromDrawer() {
-    _traceNavigation(
-      '_openFlowsFromDrawer entered',
-      mediaContext: context,
-      state: const <String, Object?>{'route': '/flows'},
-    );
-    unawaited(_closeFloatingMenu());
-    if (!mounted) return Future<void>.value();
-    _traceNavigation(
-      "global drawer utility route push('/flows') requested",
-      mediaContext: context,
-      state: const <String, Object?>{'route': '/flows'},
-    );
-    unawaited(
-      openUtilityRoute<void>(
-        context,
-        '/flows',
-        navigationContext: _rootNavigatorKey.currentContext,
-        router: widget.router,
-      ),
-    );
-    return Future<void>.value();
-  }
-
-  Future<void> _openCalendarsFromDrawer() {
-    _traceNavigation(
-      '_openCalendarsFromDrawer entered',
-      mediaContext: context,
-      state: const <String, Object?>{'route': '/calendars'},
-    );
-    unawaited(_closeFloatingMenu());
-    if (!mounted) return Future<void>.value();
-    _traceNavigation(
-      "global drawer utility route push('/calendars') requested",
-      mediaContext: context,
-      state: const <String, Object?>{'route': '/calendars'},
-    );
-    unawaited(
-      openUtilityRoute<void>(
-        context,
-        '/calendars',
-        navigationContext: _rootNavigatorKey.currentContext,
-        router: widget.router,
-      ),
-    );
-    return Future<void>.value();
-  }
-
-  bool _isDrawerDestinationSelected(String destination) {
-    final path = _currentUri.path.isEmpty ? '/' : _currentUri.path;
-    return switch (destination) {
-      '/' => path == '/',
-      '/rhythm/today' => path.startsWith('/rhythm/'),
-      '/nodes' => path == '/nodes' || path.startsWith('/nodes/'),
-      '/journal' => path == '/journal' || path.startsWith('/journal/'),
-      '/inbox' => path == '/inbox' || path.startsWith('/inbox/'),
-      '/calendars' => path == '/calendars',
-      '/flows' => path == '/flows' || path.startsWith('/flows/'),
-      '/reflections' =>
-        path == '/reflections' || path.startsWith('/reflections/'),
-      '/profile/me' => path == '/profile/me' || path.startsWith('/profile/'),
-      '/settings' => path == '/settings',
-      _ => false,
-    };
-  }
-
-  List<GlobalSideDrawerItem> _buildGlobalSideDrawerItems() {
-    return <GlobalSideDrawerItem>[
-      GlobalSideDrawerItem(
-        label: 'Calendar',
-        glyph: MeduNeterGlyphs.home,
-        selected: _isDrawerDestinationSelected('/'),
-        onSelected: () =>
-            unawaited(_openPrimarySectionFromDrawer(AppSection.calendar)),
-      ),
-      GlobalSideDrawerItem(
-        label: 'Planner',
-        glyph: MeduNeterGlyphs.planner,
-        selected: _isDrawerDestinationSelected('/rhythm/today'),
-        onSelected: () =>
-            unawaited(_openPrimarySectionFromDrawer(AppSection.planner)),
-      ),
-      GlobalSideDrawerItem(
-        label: 'Library',
-        glyph: MeduNeterGlyphs.library,
-        glyphSize: 20,
-        selected: _isDrawerDestinationSelected('/nodes'),
-        onSelected: () =>
-            unawaited(_openPrimarySectionFromDrawer(AppSection.library)),
-      ),
-      GlobalSideDrawerItem(
-        label: 'Journal',
-        glyph: MeduNeterGlyphs.journal,
-        selected: _isDrawerDestinationSelected('/journal'),
-        onSelected: () =>
-            unawaited(_openPrimarySectionFromDrawer(AppSection.journal)),
-      ),
-      GlobalSideDrawerItem(
-        label: 'Inbox',
-        glyph: MeduNeterGlyphs.inbox,
-        showNotificationDot: true,
-        selected: _isDrawerDestinationSelected('/inbox'),
-        onSelected: () =>
-            unawaited(_openPrimarySectionFromDrawer(AppSection.inbox)),
-      ),
-      GlobalSideDrawerItem(
-        label: 'Calendars',
-        glyph: MeduNeterGlyphs.calendars,
-        selected: _isDrawerDestinationSelected('/calendars'),
-        onSelected: () => unawaited(_openCalendarsFromDrawer()),
-      ),
-      GlobalSideDrawerItem(
-        label: 'Flows',
-        glyph: MeduNeterGlyphs.flowStudio,
-        glyphSize: 20,
-        selected: _isDrawerDestinationSelected('/flows'),
-        onSelected: () => unawaited(_openFlowsFromDrawer()),
-      ),
-      GlobalSideDrawerItem(
-        label: 'Reflections',
-        glyph: MeduNeterGlyphs.reflections,
-        glyphSize: 18,
-        selected: _isDrawerDestinationSelected('/reflections'),
-        onSelected: () =>
-            unawaited(_openPrimarySectionFromDrawer(AppSection.reflections)),
-      ),
-      GlobalSideDrawerItem(
-        label: 'Profile',
-        glyph: MeduNeterGlyphs.profile,
-        selected: _isDrawerDestinationSelected('/profile/me'),
-        onSelected: () => unawaited(_openProfileFromDrawer()),
-      ),
-      GlobalSideDrawerItem(
-        label: 'Settings',
-        glyph: MeduNeterGlyphs.settings,
-        selected: _isDrawerDestinationSelected('/settings'),
-        onSelected: () =>
-            unawaited(_openPrimarySectionFromDrawer(AppSection.settings)),
-      ),
-    ];
-  }
-
   void _openMaatGuidance(MaatGuidanceDelivery delivery) {
     _router.go('/maat-guidance/${Uri.encodeComponent(delivery.id)}');
   }
 
-  bool get _isDrawerBackToggleRoute {
-    final path = _currentUri.path.isEmpty ? '/' : _currentUri.path;
-    return switch (path) {
-      '/' ||
-      '/rhythm/today' ||
-      '/nodes' ||
-      '/journal' ||
-      '/inbox' ||
-      '/settings' ||
-      '/reflections' => true,
-      _ => false,
-    };
-  }
-
-  bool _shouldOpenDrawerForBack(BuildContext context) {
-    return _isDrawerBackToggleRoute && _shouldActivateFloatingMenu(context);
-  }
-
   Future<bool> _handleBackButton() async {
-    if (_drawerBackPopRouteConsumePending) {
-      _drawerBackPopRouteConsumePending = false;
-      _drawerBackPopRouteConsumeTimer?.cancel();
-      _drawerBackPopRouteConsumeTimer = null;
-      return true;
-    }
     if (_dailyCosmicContextController.hasVisibleBadge) {
       await _dailyCosmicContextController.dismiss();
-      return true;
-    }
-    if (_menuMounted && _menuOpen) {
-      await _closeFloatingMenu();
-      return true;
-    }
-    if (_shouldOpenDrawerForBack(context)) {
-      _openFloatingMenu();
       return true;
     }
     return false;
   }
 
   Future<bool> _handleAndroidBackButton() async {
-    if (_drawerBackPopRouteConsumePending) {
-      _drawerBackPopRouteConsumePending = false;
-      _drawerBackPopRouteConsumeTimer?.cancel();
-      _drawerBackPopRouteConsumeTimer = null;
-      return true;
-    }
-    if (_dailyCosmicContextController.hasVisibleBadge) {
-      await _dailyCosmicContextController.dismiss();
-      return true;
-    }
-    if (_menuMounted && _menuOpen) {
-      await _closeFloatingMenu();
-      return true;
-    }
-    return false;
+    return _handleBackButton();
   }
 
   @override
   Widget build(BuildContext context) {
-    final shouldMountFloatingMenu = _shouldMountFloatingMenu;
-    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
-    final shouldActivateFloatingMenu = _shouldActivateFloatingMenu(context);
-    if (keyboardVisible && _menuMounted) {
-      _resetFloatingMenuStateAfterFrame();
-    }
-    final menuOpenForInteraction = _menuOpen && shouldActivateFloatingMenu;
     final suppressGuidance = _shouldSuppressMaatGuidance(context);
     _syncMaatGuidanceSuppression(suppressGuidance);
 
@@ -3007,58 +2608,15 @@ class _GlobalFloatingMenuShellState extends State<_GlobalFloatingMenuShell>
       child: Stack(
         fit: StackFit.expand,
         children: [
-          if (shouldMountFloatingMenu && _menuMounted)
-            Positioned.fill(
-              child: GlobalSideDrawer(
-                open: menuOpenForInteraction,
-                items: _buildGlobalSideDrawerItems(),
-              ),
-            ),
-          GlobalSideDrawerForeground(
-            open: menuOpenForInteraction,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                widget.child,
-                if (shouldMountFloatingMenu && _menuMounted)
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      ignoring: !menuOpenForInteraction,
-                      child: ExcludeSemantics(
-                        excluding: !menuOpenForInteraction,
-                        child: AnimatedOpacity(
-                          opacity: menuOpenForInteraction ? 1 : 0,
-                          duration: globalSideDrawerTransitionDuration,
-                          curve: globalSideDrawerTransitionCurve,
-                          child: GestureDetector(
-                            key: globalSideDrawerScrimKey,
-                            behavior: HitTestBehavior.opaque,
-                            onTap: () => unawaited(_closeFloatingMenu()),
-                            child: const ColoredBox(color: Colors.transparent),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                if (shouldActivateFloatingMenu || _menuMounted)
-                  GlobalMenuBubble(
-                    key: globalMenuButtonKey,
-                    visible: shouldActivateFloatingMenu,
-                    open: menuOpenForInteraction,
-                    onPressed: _handleFloatingMenuPressed,
-                  ),
-                DailyCosmicContextOverlayHost(
-                  controller: _dailyCosmicContextController,
-                ),
-                MaatGuidanceOverlayHost(
-                  controller: _maatGuidanceController,
-                  onOpen: _openMaatGuidance,
-                  visible:
-                      _maatGuidanceController.hasVisibleDelivery &&
-                      !suppressGuidance,
-                ),
-              ],
-            ),
+          widget.child,
+          DailyCosmicContextOverlayHost(
+            controller: _dailyCosmicContextController,
+          ),
+          MaatGuidanceOverlayHost(
+            controller: _maatGuidanceController,
+            onOpen: _openMaatGuidance,
+            visible:
+                _maatGuidanceController.hasVisibleDelivery && !suppressGuidance,
           ),
         ],
       ),

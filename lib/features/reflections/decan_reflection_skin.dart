@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../shared/candlelit_mahogany_background.dart';
-import '../../widgets/global_side_drawer.dart';
 
 class DecanReflectionTokens {
   const DecanReflectionTokens._();
@@ -235,9 +234,6 @@ class DecanReflectionTokens {
     height: 1.55,
   );
 }
-
-const GlobalMenuBubbleStyle decanReflectionGlobalMenuBubbleStyle =
-    globalTransparentMenuBubbleStyle;
 
 class DecanReflectionSkinScaffold extends StatelessWidget {
   const DecanReflectionSkinScaffold({

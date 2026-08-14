@@ -183,40 +183,41 @@ void main() {
       expect(scrollable.position.pixels, closeTo(8 * 60, 0.001));
     });
 
-    testWidgets('timeline reserves room above the global drawer bubble', (
-      tester,
-    ) async {
-      await _setPhoneViewport(tester);
+    testWidgets(
+      'timeline reserves safe-area bottom room without drawer chrome',
+      (tester) async {
+        await _setPhoneViewport(tester);
 
-      await tester.pumpWidget(
-        const MaterialApp(
-          home: MediaQuery(
-            data: MediaQueryData(
-              size: Size(390, 844),
-              padding: EdgeInsets.only(bottom: 34),
-            ),
-            child: Scaffold(
-              body: DayViewGrid(
-                ky: 1,
-                km: 1,
-                kd: 1,
-                notes: [],
-                showGregorian: false,
-                flowIndex: {},
+        await tester.pumpWidget(
+          const MaterialApp(
+            home: MediaQuery(
+              data: MediaQueryData(
+                size: Size(390, 844),
+                padding: EdgeInsets.only(bottom: 34),
+              ),
+              child: Scaffold(
+                body: DayViewGrid(
+                  ky: 1,
+                  km: 1,
+                  kd: 1,
+                  notes: [],
+                  showGregorian: false,
+                  flowIndex: {},
+                ),
               ),
             ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      final listView = tester.widget<ListView>(
-        find.byKey(const PageStorageKey<String>('day_timeline_list')),
-      );
-      final padding = listView.padding as EdgeInsets;
+        final listView = tester.widget<ListView>(
+          find.byKey(const PageStorageKey<String>('day_timeline_list')),
+        );
+        final padding = listView.padding as EdgeInsets;
 
-      expect(padding.bottom, 130);
-    });
+        expect(padding.bottom, 58);
+      },
+    );
 
     testWidgets(
       'tablet landscape event layout uses constraint width and keeps bottom inset clear',

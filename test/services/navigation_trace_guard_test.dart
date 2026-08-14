@@ -33,16 +33,8 @@ void main() {
           '$mainSource\n$calendarSource\n$profileSource\n$plannerSource';
 
       for (final label in <String>[
-        'global drawer bubble tapped',
-        'global drawer mounted/opened',
         'Flow Studio tile tapped',
         'Calendars tile tapped',
-        '_openFlowsFromDrawer entered',
-        '_openCalendarsFromDrawer entered',
-        'menu close started',
-        'menu close completed',
-        "global drawer utility route push('/flows') requested",
-        "global drawer utility route push('/calendars') requested",
         'calendar overlay state save skipped',
         'detached calendar overlay state save skipped',
         'calendars sheet helper entered',
@@ -82,7 +74,7 @@ void main() {
         'Profile cache hydration done',
         'Profile live load start',
         'Profile live load done',
-        'Today app-bar tap fired',
+        'Today floating button tap fired',
         'openMainCalendarAtToday entered',
         'Today restoration state saved',
         "go('/') issued",
@@ -92,12 +84,8 @@ void main() {
       }
 
       for (final stateKey in <String>[
-        '_menuMounted',
-        '_menuOpen',
-        '_floatingMenuModalDepth.value',
+        '_globalOverlayModalDepth.value',
         '_launchOverlayDismissed.value',
-        'route',
-        'MediaQuery.viewInsets.bottom',
       ]) {
         expect(mainSource, contains(stateKey));
       }
@@ -123,7 +111,7 @@ void main() {
     ) async {
       var tapCount = 0;
       await NavigationTrace.instance.setEnabled(true);
-      NavigationTrace.instance.record('global drawer bubble tapped');
+      NavigationTrace.instance.record('Today floating button tap fired');
 
       await tester.pumpWidget(
         NavigationTraceOverlay(
@@ -145,7 +133,7 @@ void main() {
 
       expect(find.text('Navigation Trace'), findsOneWidget);
       expect(
-        find.textContaining('global drawer bubble tapped'),
+        find.textContaining('Today floating button tap fired'),
         findsOneWidget,
       );
 

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/app_bottom_insets.dart';
-import 'package:mobile/core/global_side_drawer_metrics.dart';
 import 'package:mobile/features/nodes/kemetic_node_library.dart';
 import 'package:mobile/features/nodes/kemetic_node_list_page.dart';
 import 'package:mobile/features/nodes/kemetic_node_reader_page.dart';
@@ -34,7 +33,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('content padding follows the bottom-left drawer bubble', (
+  testWidgets('content padding follows the safe area without drawer chrome', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 600);
@@ -45,22 +44,19 @@ void main() {
     addTearDown(tester.view.resetPadding);
 
     double? contentInset;
-    double? bubbleInset;
 
     await tester.pumpWidget(
       MaterialApp(
         home: Builder(
           builder: (context) {
             contentInset = AppBottomInsets.contentBottomPadding(context);
-            bubbleInset = globalMenuBubbleContentBottomPadding(context);
             return const SizedBox.shrink();
           },
         ),
       ),
     );
 
-    expect(contentInset, bubbleInset);
-    expect(contentInset, 112);
+    expect(contentInset, 40);
   });
 
   testWidgets('route scaffold does not add a full-width bottom bar inset', (
@@ -89,7 +85,7 @@ void main() {
     expect(tester.getBottomLeft(find.byKey(lastKey)).dy, 600);
   });
 
-  testWidgets('scroll pages keep bubble-aware bottom padding', (tester) async {
+  testWidgets('scroll pages keep safe-area bottom padding', (tester) async {
     tester.view.physicalSize = const Size(390, 600);
     tester.view.devicePixelRatio = 1;
     tester.view.padding = const FakeViewPadding(bottom: 24);
@@ -107,7 +103,7 @@ void main() {
       find.byType(SingleChildScrollView),
     );
     final padding = scrollView.padding as EdgeInsets;
-    expect(padding.bottom, 112);
+    expect(padding.bottom, 40);
   });
 
   testWidgets('insight pages still scroll final content into view', (
@@ -141,7 +137,7 @@ void main() {
     expect(find.text('Your Insights'), findsOneWidget);
   });
 
-  testWidgets('library list keeps bubble-aware bottom padding', (tester) async {
+  testWidgets('library list keeps safe-area bottom padding', (tester) async {
     tester.view.physicalSize = const Size(390, 640);
     tester.view.devicePixelRatio = 1;
     tester.view.padding = const FakeViewPadding(bottom: 24);
@@ -161,12 +157,10 @@ void main() {
       padding.bottom,
       AppBottomInsets.scrollBottomPadding(listContext, 180),
     );
-    expect(padding.bottom, greaterThan(kGlobalMenuBubbleSize));
+    expect(padding.bottom, 180);
   });
 
-  testWidgets('library reader keeps bubble-aware bottom padding', (
-    tester,
-  ) async {
+  testWidgets('library reader keeps safe-area bottom padding', (tester) async {
     tester.view.physicalSize = const Size(390, 640);
     tester.view.devicePixelRatio = 1;
     tester.view.padding = const FakeViewPadding(bottom: 24);
@@ -192,7 +186,7 @@ void main() {
       padding.bottom,
       AppBottomInsets.scrollBottomPadding(scrollContext, 28),
     );
-    expect(padding.bottom, greaterThan(kGlobalMenuBubbleSize));
+    expect(padding.bottom, 28);
   });
 
   testWidgets('main calendar route can opt out without special bottom chrome', (

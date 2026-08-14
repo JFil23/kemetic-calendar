@@ -32,8 +32,7 @@ import '../journal/journal_controller.dart';
 import '../../main.dart'
     show
         Events,
-        globalFloatingMenuModalDepthValue,
-        globalMenuButtonKey,
+        globalOverlayModalDepthValue,
         rootNavigatorContextMountedForNavigationTrace,
         rootNavigatorOverlayContextMountedForNavigationTrace,
         rootRouterUriForNavigationTrace,
@@ -13067,7 +13066,7 @@ class CalendarPageState extends State<CalendarPage>
       'mounted': stateMounted,
       'contextMounted': stateMounted ? context.mounted : false,
       'route': stateMounted ? _currentRouteTraceLabel() : '<unmounted>',
-      'modalDepth': globalFloatingMenuModalDepthValue,
+      'modalDepth': globalOverlayModalDepthValue,
       'sharedOpening': _sharedCalendarsSheetOpenOrOpening,
       'flowOpening': _flowStudioSheetOpenOrOpening,
     };
@@ -17312,10 +17311,10 @@ class CalendarPageState extends State<CalendarPage>
         if (!mounted) return;
         GuidedOnboardingController.instance.show(
           CoachmarkTarget(
-            key: globalMenuButtonKey,
-            title: 'Explore the rest of ḥꜣw.',
+            key: calendarFloatingTodayButtonKey,
+            title: 'Return to today anytime.',
             body:
-                'Your calendar, flows, journal, profile, library, and community all connect from here. Tap the menu anytime to move through the app.',
+                'This button brings the calendar back to today from anywhere in the timeline.',
             placement: CoachmarkPlacement.above,
             showNextButton: true,
             nextLabel: 'Enter ḥꜣw',
@@ -25347,7 +25346,7 @@ class CalendarPageState extends State<CalendarPage>
     bool includeNewNote = true,
   }) => _showActionsMenu(context, includeNewNote: includeNewNote);
 
-  void _handleCalendarAppBarToday({required bool useLandscapeGrid}) {
+  void _handleCalendarToday({required bool useLandscapeGrid}) {
     if (useLandscapeGrid) {
       final landscapeTodayAction = _landscapeTodayAction;
       if (landscapeTodayAction != null) {
@@ -25438,14 +25437,6 @@ class CalendarPageState extends State<CalendarPage>
           tooltip: 'Search notes',
           icon: const KemeticAppBarSearchIcon(),
           onPressed: _openSearch,
-        ),
-        KemeticAppBarAction(
-          tooltip: 'Today',
-          icon: const KemeticAppBarTodayIcon(),
-          onPressed: () {
-            NavigationTrace.instance.record('Today app-bar tap fired');
-            _handleCalendarAppBarToday(useLandscapeGrid: useLandscapeGrid);
-          },
         ),
         KemeticAppBarAction(
           tooltip: 'My Profile',
@@ -25623,10 +25614,17 @@ class CalendarPageState extends State<CalendarPage>
     context.go('/inbox');
   }
 
-  Widget _withCalendarFloatingShortcuts(Widget child) {
+  Widget _withCalendarFloatingShortcuts(
+    Widget child, {
+    required bool useLandscapeGrid,
+  }) {
     CalendarFloatingShortcutsLayer buildLayer(int unreadInboxCount) {
       return CalendarFloatingShortcutsLayer(
         unreadInboxCount: unreadInboxCount,
+        onTodayPressed: () {
+          NavigationTrace.instance.record('Today floating button tap fired');
+          _handleCalendarToday(useLandscapeGrid: useLandscapeGrid);
+        },
         onCalendarsPressed: () => unawaited(_openSharedCalendarsSheet()),
         onInboxPressed: () => unawaited(_openInboxFromMenu()),
         child: child,
@@ -32324,7 +32322,10 @@ class CalendarPageState extends State<CalendarPage>
                   .shouldPreserveOverlayForLifecycleClose,
         ),
       );
-      return _withCalendarFloatingShortcuts(landscapeScaffold);
+      return _withCalendarFloatingShortcuts(
+        landscapeScaffold,
+        useLandscapeGrid: true,
+      );
     }
 
     final scaffold = _withCalendarFloatingShortcuts(
@@ -32333,6 +32334,7 @@ class CalendarPageState extends State<CalendarPage>
         appBar: _buildCalendarAppBar(useLandscapeGrid: false),
         body: _buildBodyWithJournal(),
       ),
+      useLandscapeGrid: false,
     );
 
     Widget content = scaffold;
