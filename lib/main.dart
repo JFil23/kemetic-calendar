@@ -43,6 +43,7 @@ import 'utils/hive_local_storage_web.dart';
 import 'core/async_guard.dart';
 import 'core/app_link_intent.dart';
 import 'core/global_menu_routes.dart';
+import 'core/navigation_fallback.dart';
 import 'core/navigation_persistence_policy.dart';
 import 'core/planner_launch_intent.dart';
 import 'core/push_intent_bus.dart';
@@ -56,6 +57,7 @@ import 'services/decan_reflection_scheduler.dart';
 import 'features/journal/journal_controller.dart';
 import 'features/journal/journal_entry_detail_page.dart';
 import 'features/journal/journal_page.dart';
+import 'widgets/utility_sheet_route_scaffold.dart';
 import 'features/calendar/calendar_reflection_context.dart';
 import 'features/maat_guidance/maat_guidance_controller.dart';
 import 'features/maat_guidance/maat_guidance_detail_page.dart';
@@ -1823,7 +1825,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    _calmRoute(
+    _utilitySheetRoute(
       path: '/journal',
       builder: (context, state) {
         final extra = state.extra;
@@ -1922,7 +1924,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         );
       },
     ),
-    _calmRoute(
+    _utilitySheetRoute(
       path: '/rhythm/today',
       builder: (context, state) {
         final launchIntent =
@@ -1930,11 +1932,11 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
             PlannerLaunchIntent.fallbackForRoute('/rhythm/today');
         return SessionTrackedRoute(
           location: launchIntent.sessionLocation,
-          child: TodaysAlignmentPage(launchIntent: launchIntent),
+          child: PlannerSheetRoutePage(launchIntent: launchIntent),
         );
       },
     ),
-    _calmRoute(
+    _utilitySheetRoute(
       path: '/rhythm/todo',
       builder: (context, state) {
         final launchIntent =
@@ -1942,7 +1944,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
             PlannerLaunchIntent.fallbackForRoute('/rhythm/todo');
         return SessionTrackedRoute(
           location: launchIntent.sessionLocation,
-          child: TodaysAlignmentPage(launchIntent: launchIntent),
+          child: PlannerSheetRoutePage(launchIntent: launchIntent),
         );
       },
     ),
@@ -3879,6 +3881,7 @@ class _JournalRoutePageState extends State<JournalRoutePage>
   late final JournalController _controller =
       widget.controllerForTesting ?? JournalController(supabase);
   late final Future<void> _future;
+  bool _closeRequested = false;
 
   @override
   void initState() {
@@ -3892,6 +3895,14 @@ class _JournalRoutePageState extends State<JournalRoutePage>
     final reflectionContext = widget.reflectionContext;
     if (reflectionContext == null) return;
     await _controller.loadDate(reflectionContext.calendarDate);
+  }
+
+  Future<void> _closeRoute() async {
+    if (_closeRequested) return;
+    _closeRequested = true;
+    await _controller.forceSave();
+    if (!mounted) return;
+    closeOrReturn(context, '/');
   }
 
   @override
@@ -3918,19 +3929,25 @@ class _JournalRoutePageState extends State<JournalRoutePage>
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<void>(
-      future: _future,
-      builder: (context, snapshot) {
-        if (widget.reflectionContext == null ||
-            snapshot.connectionState == ConnectionState.done) {
-          return JournalPage(
-            controller: _controller,
-            entryPoint: 'restored_route',
-            reflectionContext: widget.reflectionContext,
-          );
-        }
-        return const _RouteLoadingScaffold();
-      },
+    return UtilitySheetRouteScaffold(
+      semanticLabel: 'Journal',
+      onClose: () => unawaited(_closeRoute()),
+      child: FutureBuilder<void>(
+        future: _future,
+        builder: (context, snapshot) {
+          if (widget.reflectionContext == null ||
+              snapshot.connectionState == ConnectionState.done) {
+            return JournalPage(
+              controller: _controller,
+              entryPoint: 'sheet_route',
+              reflectionContext: widget.reflectionContext,
+              showCloseAction: false,
+              onClose: () => unawaited(_closeRoute()),
+            );
+          }
+          return const _RouteLoadingScaffold();
+        },
+      ),
     );
   }
 }

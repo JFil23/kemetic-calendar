@@ -49,6 +49,7 @@ class JournalOverlay extends StatefulWidget {
   final JournalPresentationMode presentationMode;
   final GlobalKey? badgeAreaKey;
   final CalendarReflectionContext? reflectionContext;
+  final bool showCloseAction;
 
   const JournalOverlay({
     super.key,
@@ -58,6 +59,7 @@ class JournalOverlay extends StatefulWidget {
     this.presentationMode = JournalPresentationMode.overlay,
     this.badgeAreaKey,
     this.reflectionContext,
+    this.showCloseAction = true,
   });
 
   @override
@@ -787,13 +789,14 @@ class _JournalOverlayState extends State<JournalOverlay>
                 constraints: expandedIconButtonConstraints(context),
                 visualDensity: expandedVisualDensity(context),
               ),
-              IconButton(
-                icon: KemeticGold.icon(Icons.close),
-                onPressed: _close,
-                padding: expandedIconButtonPadding(context),
-                constraints: expandedIconButtonConstraints(context),
-                visualDensity: expandedVisualDensity(context),
-              ),
+              if (widget.showCloseAction)
+                IconButton(
+                  icon: KemeticGold.icon(Icons.close),
+                  onPressed: _close,
+                  padding: expandedIconButtonPadding(context),
+                  constraints: expandedIconButtonConstraints(context),
+                  visualDensity: expandedVisualDensity(context),
+                ),
             ],
           ),
         ],
@@ -913,13 +916,15 @@ class _JournalOverlayState extends State<JournalOverlay>
                     tooltip: 'Clear today',
                     onPressed: () => unawaited(_clearToday()),
                   ),
-                  const SizedBox(width: 24),
-                  _buildMastheadAction(
-                    icon: Icons.close,
-                    tooltip: 'Close',
-                    onPressed: _close,
-                    close: true,
-                  ),
+                  if (widget.showCloseAction) ...[
+                    const SizedBox(width: 24),
+                    _buildMastheadAction(
+                      icon: Icons.close,
+                      tooltip: 'Close',
+                      onPressed: _close,
+                      close: true,
+                    ),
+                  ],
                 ],
               ),
             ],

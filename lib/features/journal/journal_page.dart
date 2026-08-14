@@ -15,11 +15,15 @@ class JournalPage extends StatefulWidget {
     required this.controller,
     this.entryPoint = 'page_button',
     this.reflectionContext,
+    this.onClose,
+    this.showCloseAction = true,
   });
 
   final JournalController controller;
   final String entryPoint;
   final CalendarReflectionContext? reflectionContext;
+  final VoidCallback? onClose;
+  final bool showCloseAction;
 
   @override
   State<JournalPage> createState() => _JournalPageState();
@@ -43,7 +47,7 @@ class _JournalPageState extends State<JournalPage> {
       'orientation': orientation == Orientation.portrait
           ? 'portrait'
           : 'landscape',
-      'presentation': 'page',
+      'presentation': widget.onClose == null ? 'page' : 'sheet',
     });
     _trackedOpen = true;
     _maybeShowJournalHelper();
@@ -104,7 +108,8 @@ class _JournalPageState extends State<JournalPage> {
       presentationMode: JournalPresentationMode.page,
       badgeAreaKey: _journalHelperKey,
       reflectionContext: widget.reflectionContext,
-      onClose: () => popOrGo(context, '/'),
+      showCloseAction: widget.showCloseAction,
+      onClose: widget.onClose ?? () => popOrGo(context, '/'),
     );
   }
 }

@@ -934,6 +934,7 @@ void main() {
       'Future<void> _openReflectionForTarget',
       'Future<CompletionStatus> _loadCalendarCompletionStatus',
     );
+    expect(reflectionOpener, contains('await openUtilityRoute<void>'));
     expect(reflectionOpener, contains('extra: reflectionContext'));
     expect(monthGrid, contains('CalendarEventDetailSheet('));
     expect(landscape, contains('CalendarEventDetailSheet('));
@@ -942,6 +943,21 @@ void main() {
       expect(source, isNot(contains("go('/journal?")));
       expect(source, isNot(contains('go("/journal?')));
     }
+  });
+
+  test('Make to-do opens the dated Planner sheet without clearing history', () {
+    final calendar = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final opener = _sourceBetween(
+      calendar,
+      'Future<void> _openPlannerTodoList',
+      'Future<EndFlowOutcome> _endFlow',
+    );
+
+    expect(opener, contains('await openUtilityRoute<void>(context, location)'));
+    expect(opener, isNot(contains('popUntil')));
+    expect(opener, isNot(contains('context.go(location)')));
   });
 
   test('Add reflection opens without recording completion or continuity', () {

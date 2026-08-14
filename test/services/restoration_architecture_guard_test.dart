@@ -397,7 +397,12 @@ void main() {
       expect(main, contains('GoRoute _utilitySheetRoute'));
       expect(main, contains('CustomTransitionPage<dynamic>'));
       expect(_countOccurrences(main, '_calmRoute('), greaterThan(20));
-      expect(_countOccurrences(main, '_utilitySheetRoute('), 3);
+      expect(
+        _countOccurrences(main, '_utilitySheetRoute('),
+        6,
+        reason:
+            'The helper plus Flow Studio, Calendars, Journal, and both Planner routes use sheet pages.',
+      );
       expect(
         main,
         isNot(contains('routes: [\n    GoRoute(')),
@@ -1304,9 +1309,9 @@ void main() {
         expect(libraryCommand, contains('AppSection.library'));
         expect(libraryCommand, contains("context.go('/nodes')"));
 
-        expect(plannerCommand, contains('recordPrimaryTabSelection'));
-        expect(plannerCommand, contains('AppSection.planner'));
-        expect(plannerCommand, contains("navContext.go('/rhythm/today')"));
+        expect(plannerCommand, contains('openUtilityRoute<void>'));
+        expect(plannerCommand, contains("'/rhythm/today'"));
+        expect(plannerCommand, isNot(contains('recordPrimaryTabSelection')));
 
         expect(dayViewRestore, contains('canRestoreSurface'));
         expect(dayViewRestore, contains('claimRestoreSurface'));
@@ -1349,7 +1354,7 @@ void main() {
 
         expect(
           _actionBlock(detachedActions, 'Planner', 'Flow Studio'),
-          contains('AppSection.planner'),
+          contains('openUtilitySheet'),
         );
         expect(
           _actionBlock(detachedActions, 'Library', 'Journal'),
@@ -1357,7 +1362,7 @@ void main() {
         );
         expect(
           _actionBlock(detachedActions, 'Journal', 'Inbox'),
-          contains('AppSection.journal'),
+          contains('openUtilitySheet'),
         );
         expect(
           _actionBlock(detachedActions, 'Inbox', 'Calendars'),

@@ -892,67 +892,91 @@ void main() {
       },
     );
 
-    test(
-      'utility Flow Studio and Calendars routes are sheet-backed pages',
-      () async {
-        final mainSource = await File('lib/main.dart').readAsString();
+    test('utility workspace routes are sheet-backed pages', () async {
+      final mainSource = await File('lib/main.dart').readAsString();
 
-        final utilitySheetRoute = _sourceBetween(
-          mainSource,
-          'GoRoute _utilitySheetRoute({',
-          'GoRouter _createRouter',
-        );
-        expect(utilitySheetRoute, contains('CustomTransitionPage<dynamic>'));
-        expect(utilitySheetRoute, contains('opaque: false'));
-        expect(utilitySheetRoute, contains('barrierColor: Colors.transparent'));
-        expect(utilitySheetRoute, contains('FadeTransition'));
-        expect(utilitySheetRoute, contains('SlideTransition'));
-        expect(utilitySheetRoute, isNot(contains('NoTransitionPage')));
+      final utilitySheetRoute = _sourceBetween(
+        mainSource,
+        'GoRoute _utilitySheetRoute({',
+        'GoRouter _createRouter',
+      );
+      expect(utilitySheetRoute, contains('CustomTransitionPage<dynamic>'));
+      expect(utilitySheetRoute, contains('opaque: false'));
+      expect(utilitySheetRoute, contains('barrierColor: Colors.transparent'));
+      expect(utilitySheetRoute, contains('FadeTransition'));
+      expect(utilitySheetRoute, contains('SlideTransition'));
+      expect(utilitySheetRoute, isNot(contains('NoTransitionPage')));
 
-        expect(
-          mainSource,
-          contains("_utilitySheetRoute(\n      path: '/flows'"),
-        );
-        expect(
-          mainSource,
-          contains("_utilitySheetRoute(\n      path: '/calendars'"),
-        );
-        expect(
-          mainSource,
-          isNot(contains("_calmRoute(\n      path: '/flows'")),
-        );
-        expect(
-          mainSource,
-          isNot(contains("_calmRoute(\n      path: '/calendars'")),
-        );
+      expect(mainSource, contains("_utilitySheetRoute(\n      path: '/flows'"));
+      expect(
+        mainSource,
+        contains("_utilitySheetRoute(\n      path: '/calendars'"),
+      );
+      expect(
+        mainSource,
+        contains("_utilitySheetRoute(\n      path: '/journal'"),
+      );
+      expect(
+        mainSource,
+        contains("_utilitySheetRoute(\n      path: '/rhythm/today'"),
+      );
+      expect(
+        mainSource,
+        contains("_utilitySheetRoute(\n      path: '/rhythm/todo'"),
+      );
+      expect(mainSource, isNot(contains("_calmRoute(\n      path: '/flows'")));
+      expect(
+        mainSource,
+        isNot(contains("_calmRoute(\n      path: '/calendars'")),
+      );
+      expect(
+        mainSource,
+        isNot(contains("_calmRoute(\n      path: '/journal'")),
+      );
+      expect(
+        mainSource,
+        isNot(contains("_calmRoute(\n      path: '/rhythm/today'")),
+      );
+      expect(
+        mainSource,
+        isNot(contains("_calmRoute(\n      path: '/rhythm/todo'")),
+      );
 
-        final routeScaffold = await File(
-          'lib/widgets/utility_sheet_route_scaffold.dart',
-        ).readAsString();
-        expect(routeScaffold, contains('class UtilitySheetRouteScaffold'));
-        expect(routeScaffold, contains('State<UtilitySheetRouteScaffold>'));
-        expect(routeScaffold, contains('dismissDistance = 120'));
-        expect(routeScaffold, contains('dismissVelocity = 700'));
-        expect(routeScaffold, contains('onVerticalDragStart'));
-        expect(routeScaffold, contains('onVerticalDragUpdate'));
-        expect(routeScaffold, contains('onVerticalDragEnd'));
-        expect(routeScaffold, contains('onVerticalDragCancel'));
-        expect(routeScaffold, contains('_dragOffset'));
-        expect(routeScaffold, contains('_snapBack'));
-        expect(routeScaffold, contains('_requestClose'));
-        expect(routeScaffold, contains('utilitySheetRouteDragHandleKey'));
-        expect(routeScaffold, contains('BorderRadius.vertical'));
-        expect(routeScaffold, contains('this.topRadius = 24'));
-        expect(routeScaffold, contains('final double topRadius'));
-        expect(
-          routeScaffold,
-          contains('top: Radius.circular(widget.topRadius)'),
-        );
-        expect(routeScaffold, contains('Close \${widget.semanticLabel}'));
-        expect(routeScaffold, contains('GestureDetector'));
-        expect(routeScaffold, contains('FractionallySizedBox'));
-      },
-    );
+      expect(mainSource, contains("semanticLabel: 'Journal'"));
+      final plannerSource = await File(
+        'lib/features/rhythm/pages/todays_alignment_page.dart',
+      ).readAsString();
+      expect(plannerSource, contains('class PlannerSheetRoutePage'));
+      expect(plannerSource, contains('UtilitySheetRouteScaffold'));
+      expect(plannerSource, contains("semanticLabel: 'Planner'"));
+      expect(plannerSource, contains('sheet: true'));
+      expect(plannerSource, contains('_buildAppBar({bool sheet = false})'));
+      expect(plannerSource, contains('automaticallyImplyLeading: !sheet'));
+      expect(plannerSource, contains('appBar: _buildAppBar(sheet: true)'));
+
+      final routeScaffold = await File(
+        'lib/widgets/utility_sheet_route_scaffold.dart',
+      ).readAsString();
+      expect(routeScaffold, contains('class UtilitySheetRouteScaffold'));
+      expect(routeScaffold, contains('State<UtilitySheetRouteScaffold>'));
+      expect(routeScaffold, contains('dismissDistance = 120'));
+      expect(routeScaffold, contains('dismissVelocity = 700'));
+      expect(routeScaffold, contains('onVerticalDragStart'));
+      expect(routeScaffold, contains('onVerticalDragUpdate'));
+      expect(routeScaffold, contains('onVerticalDragEnd'));
+      expect(routeScaffold, contains('onVerticalDragCancel'));
+      expect(routeScaffold, contains('_dragOffset'));
+      expect(routeScaffold, contains('_snapBack'));
+      expect(routeScaffold, contains('_requestClose'));
+      expect(routeScaffold, contains('utilitySheetRouteDragHandleKey'));
+      expect(routeScaffold, contains('BorderRadius.vertical'));
+      expect(routeScaffold, contains('this.topRadius = 24'));
+      expect(routeScaffold, contains('final double topRadius'));
+      expect(routeScaffold, contains('top: Radius.circular(widget.topRadius)'));
+      expect(routeScaffold, contains('Close \${widget.semanticLabel}'));
+      expect(routeScaffold, contains('GestureDetector'));
+      expect(routeScaffold, contains('FractionallySizedBox'));
+    });
 
     test(
       'CalendarPage sheet helpers expose modal future diagnostics',
@@ -1651,17 +1675,11 @@ void main() {
           isNot(contains('Expanded(')),
         );
 
+        expect(source, contains("location: '/journal'"));
+        expect(source, contains("location: '/rhythm/today'"));
         expect(
           source,
-          contains(
-            "location: '/journal',\n            section: AppSection.journal",
-          ),
-        );
-        expect(
-          source,
-          contains(
-            "location: '/rhythm/today',\n            section: AppSection.planner",
-          ),
+          contains('unawaited(openUtilityRoute<void>(context, location))'),
         );
         expect(source, contains('onOpenJournal: _openJournalFromAppBar'));
         expect(source, contains('onOpenPlanner: _openPlannerPage'));

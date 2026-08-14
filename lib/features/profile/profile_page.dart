@@ -3704,7 +3704,7 @@ class _ProfilePageState extends State<ProfilePage>
   }
 
   void _openJournalForCommonsQuestion() {
-    context.go('/journal');
+    unawaited(openUtilityRoute<void>(context, '/journal'));
   }
 
   void _openFlowsForCommons() {

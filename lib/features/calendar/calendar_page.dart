@@ -5657,15 +5657,9 @@ class CalendarPage extends StatefulWidget {
   static void _openDetachedQuickAddDestination(
     BuildContext context, {
     required String location,
-    required AppSection section,
   }) {
-    unawaited(
-      AppNavigationRestorationController.instance.recordPrimaryTabSelection(
-        section,
-      ),
-    );
     if (!context.mounted) return;
-    context.go(location);
+    unawaited(openUtilityRoute<void>(context, location));
   }
 
   static Future<void> _openDetachedQuickAddSheet(BuildContext context) async {
@@ -5686,15 +5680,11 @@ class CalendarPage extends StatefulWidget {
           parse: parseQuickAddText,
           scaffoldMessengerContext: context,
           onSave: _saveDetachedQuickAddNote,
-          onOpenJournal: () => _openDetachedQuickAddDestination(
-            context,
-            location: '/journal',
-            section: AppSection.journal,
-          ),
+          onOpenJournal: () =>
+              _openDetachedQuickAddDestination(context, location: '/journal'),
           onOpenPlanner: () => _openDetachedQuickAddDestination(
             context,
             location: '/rhythm/today',
-            section: AppSection.planner,
           ),
           onOpenFullEditor: () => _routeHomeForDetachedDayEditor(context),
         ),
@@ -6692,14 +6682,22 @@ class CalendarPage extends StatefulWidget {
       context.go(location);
     }
 
+    Future<void> openUtilitySheet(String location) async {
+      if (onNavigate != null) {
+        onNavigate(location);
+        return;
+      }
+      if (!context.mounted) return;
+      await openUtilityRoute<void>(context, location);
+    }
+
     return [
       _CalendarAction(
         glyph: MeduNeterGlyphs.planner,
         gradient: goldGloss,
         label: 'Planner',
         dispatchBeforeClose: true,
-        onSelected: () =>
-            navigate('/rhythm/today', durableSection: AppSection.planner),
+        onSelected: () => openUtilitySheet('/rhythm/today'),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.flowStudio,
@@ -6727,8 +6725,7 @@ class CalendarPage extends StatefulWidget {
         gradient: goldGloss,
         label: 'Journal',
         dispatchBeforeClose: true,
-        onSelected: () =>
-            navigate('/journal', durableSection: AppSection.journal),
+        onSelected: () => openUtilitySheet('/journal'),
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.inbox,
@@ -25550,23 +25547,8 @@ class CalendarPageState extends State<CalendarPage>
       _scrollToToday(animate: animate);
 
   Future<void> _openJournalFromAppBar() async {
-    if (!_journalInitialized) {
-      try {
-        await _journalController.init();
-        if (mounted) setState(() => _journalInitialized = true);
-      } catch (_) {
-        // If init fails, skip opening rather than throwing.
-        return;
-      }
-    }
-
     if (!mounted) return;
-    unawaited(
-      AppNavigationRestorationController.instance.recordPrimaryTabSelection(
-        AppSection.journal,
-      ),
-    );
-    context.go('/journal');
+    await openUtilityRoute<void>(context, '/journal');
   }
 
   Future<void> _openPlannerPage({BuildContext? navigationContext}) async {
@@ -25575,13 +25557,8 @@ class CalendarPageState extends State<CalendarPage>
     _plannerNavigationInFlight = true;
     try {
       final navContext = navigationContext ?? context;
-      unawaited(
-        AppNavigationRestorationController.instance.recordPrimaryTabSelection(
-          AppSection.planner,
-        ),
-      );
       NavigationTrace.instance.record(
-        'planner route go requested',
+        'planner sheet push requested',
         state: <String, Object?>{
           'timestampMs': DateTime.now().millisecondsSinceEpoch,
           'currentRoute': CalendarPage._routeLocationForNavigationTrace(
@@ -25591,9 +25568,14 @@ class CalendarPageState extends State<CalendarPage>
           'contextMounted': navContext.mounted,
         },
       );
-      navContext.go('/rhythm/today');
+      await openUtilityRoute<void>(
+        navContext,
+        '/rhythm/today',
+        navigationContext: navContext,
+      );
+      if (!navContext.mounted) return;
       NavigationTrace.instance.record(
-        'planner route go returned/current uri',
+        'planner sheet dismissed/current uri',
         state: <String, Object?>{
           'timestampMs': DateTime.now().millisecondsSinceEpoch,
           'currentRoute': CalendarPage._routeLocationForNavigationTrace(
@@ -27145,7 +27127,7 @@ class CalendarPageState extends State<CalendarPage>
       _showMakeTodoError(result.errorMessage ?? 'Could not add to-do.');
       return false;
     }
-    _openPlannerTodoList(result.plannerLocation!);
+    await _openPlannerTodoList(result.plannerLocation!);
     return true;
   }
 
@@ -27161,14 +27143,9 @@ class CalendarPageState extends State<CalendarPage>
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _openPlannerTodoList(String location) {
+  Future<void> _openPlannerTodoList(String location) async {
     if (!mounted) return;
-    final rootNavigator = Navigator.of(context, rootNavigator: true);
-    if (rootNavigator.canPop()) {
-      rootNavigator.popUntil((route) => route.isFirst);
-    }
-    if (!mounted) return;
-    context.go(location);
+    await openUtilityRoute<void>(context, location);
   }
 
   Future<EndFlowOutcome> _endFlow(int flowId, {DateTime? endedAtLocal}) {

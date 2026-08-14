@@ -17,6 +17,7 @@ import 'package:mobile/features/journal/journal_v2_document_model.dart';
 import 'package:mobile/features/journal/journal_v2_toolbar.dart';
 import 'package:mobile/main.dart' as app;
 import 'package:mobile/services/session_resume_service.dart';
+import 'package:mobile/widgets/utility_sheet_route_scaffold.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -536,6 +537,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
+      expect(find.byType(UtilitySheetRouteScaffold), findsOneWidget);
+      expect(find.byKey(utilitySheetRouteDragHandleKey), findsOneWidget);
+      expect(find.byKey(utilitySheetRouteCloseButtonKey), findsOneWidget);
       expect(controller.appendToTodayCalls, 0);
       expect(repo.upsertCalls, 0);
       expect(controller.loadedDate, DateTime(2026, 6, 9));
@@ -621,6 +625,52 @@ void main() {
       await tester.pump(const Duration(milliseconds: 500));
     },
   );
+
+  testWidgets('Journal sheet close saves and returns to the calling route', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.reset);
+
+    final repo = _NoopJournalRepo();
+    final controller = _TrackingJournalController(repo);
+    final router = GoRouter(
+      initialLocation: '/calendar',
+      routes: [
+        GoRoute(
+          path: '/calendar',
+          builder: (context, state) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () => context.push('/journal'),
+                child: const Text('Open Journal'),
+              ),
+            ),
+          ),
+        ),
+        GoRoute(
+          path: '/journal',
+          builder: (context, state) =>
+              app.JournalRoutePage(controllerForTesting: controller),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.tap(find.text('Open Journal'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'Saved from the sheet.');
+    await tester.pump();
+    await tester.tap(find.byKey(utilitySheetRouteCloseButtonKey));
+    await tester.pumpAndSettle();
+
+    expect(repo.upsertCalls, 1);
+    expect(repo.lastSavedBody, contains('Saved from the sheet.'));
+    expect(router.routerDelegate.currentConfiguration.uri.path, '/calendar');
+  });
 
   testWidgets(
     'JournalRoutePage stays stable under app chrome after flow route activity',

@@ -31,6 +31,7 @@ import 'package:mobile/widgets/kemetic_app_bar_action.dart';
 import 'package:mobile/widgets/kemetic_day_info.dart';
 import 'package:mobile/widgets/kemetic_keyboard.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
+import 'package:mobile/widgets/utility_sheet_route_scaffold.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/services/session_resume_service.dart';
 
@@ -59,15 +60,55 @@ class TodaysAlignmentPage extends StatefulWidget {
     this.openedFromCalendar = false,
     this.openDayCardOnLoad = false,
     this.launchIntent,
+    this.sheet = false,
   });
 
   final bool embedded;
   final bool openedFromCalendar;
   final bool openDayCardOnLoad;
   final PlannerLaunchIntent? launchIntent;
+  final bool sheet;
 
   @override
   State<TodaysAlignmentPage> createState() => _TodaysAlignmentPageState();
+}
+
+const Key plannerSheetRouteKey = ValueKey<String>('planner-sheet-route');
+
+class PlannerSheetRoutePage extends StatefulWidget {
+  const PlannerSheetRoutePage({super.key, required this.launchIntent});
+
+  final PlannerLaunchIntent launchIntent;
+
+  @override
+  State<PlannerSheetRoutePage> createState() => _PlannerSheetRoutePageState();
+}
+
+class _PlannerSheetRoutePageState extends State<PlannerSheetRoutePage> {
+  final GlobalKey<_TodaysAlignmentPageState> _plannerKey = GlobalKey();
+  bool _closeRequested = false;
+
+  Future<void> _closeRoute() async {
+    if (_closeRequested) return;
+    _closeRequested = true;
+    await _plannerKey.currentState?._persistSessionState();
+    if (!mounted) return;
+    closeOrReturn(context, '/');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return UtilitySheetRouteScaffold(
+      key: plannerSheetRouteKey,
+      semanticLabel: 'Planner',
+      onClose: () => unawaited(_closeRoute()),
+      child: TodaysAlignmentPage(
+        key: _plannerKey,
+        sheet: true,
+        launchIntent: widget.launchIntent,
+      ),
+    );
+  }
 }
 
 class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
@@ -3063,7 +3104,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     );
   }
 
-  Widget _plannerContent({bool embedded = false}) {
+  Widget _plannerContent({bool embedded = false, bool sheet = false}) {
     final dateLabel = _formatDateLabel(_todayLocal);
     final content = FutureBuilder<void>(
       future: _future,
@@ -3249,7 +3290,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     return Container(
       color: Colors.black,
       child: SafeArea(
-        top: !embedded,
+        top: !embedded && !sheet,
         bottom: true,
         left: true,
         right: true,
@@ -3258,9 +3299,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  PreferredSizeWidget _buildAppBar({bool sheet = false}) {
     return AppBar(
-      automaticallyImplyLeading: true,
+      automaticallyImplyLeading: !sheet,
       backgroundColor: Colors.black,
       elevation: 0.5,
       centerTitle: false,
@@ -3343,10 +3384,21 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         );
       });
     }
-    final content = _plannerContent(embedded: widget.embedded);
+    final content = _plannerContent(
+      embedded: widget.embedded,
+      sheet: widget.sheet,
+    );
 
     if (widget.embedded) {
       return content;
+    }
+
+    if (widget.sheet) {
+      return Scaffold(
+        backgroundColor: Colors.black,
+        appBar: _buildAppBar(sheet: true),
+        body: content,
+      );
     }
 
     return Scaffold(

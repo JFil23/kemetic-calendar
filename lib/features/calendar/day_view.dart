@@ -3420,7 +3420,8 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       sourceType: sourceType,
       completionStatus: record.completionStatus,
     );
-    routeContext.go(
+    await openUtilityRoute<void>(
+      routeContext,
       reflectionContext.journalRouteLocation,
       extra: reflectionContext,
     );
