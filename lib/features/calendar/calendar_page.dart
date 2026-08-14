@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:math' as math;
+import 'dart:ui' show FramePhase, FrameTiming;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -113,6 +115,7 @@ import 'calendar_invalidation.dart';
 import 'calendar_hydration_diagnostics.dart';
 import 'calendar_hydration_status_banner.dart';
 import 'calendar_geometry_collector.dart';
+import 'calendar_geometry_snapshot.dart';
 import 'calendar_scroll_coordinator.dart';
 import 'calendar_section_index.dart';
 import 'calendar_pending_note_store.dart';
@@ -208,6 +211,7 @@ part 'calendar_note_model.dart';
 part 'calendar_custom_repeat_page.dart';
 part 'flow_join_service.dart';
 part 'calendar_unconfirmed_notes.dart';
+part 'calendar_boundary_performance_harness.dart';
 part 'hydration/calendar_hydration_page_adapter.dart';
 part 'hydration/calendar_hydration_engine.dart';
 
@@ -4026,12 +4030,15 @@ class CalendarPage extends StatefulWidget {
   final int? initialFlowIdToEdit;
   final bool openMyFlowsOnLaunch;
   final bool debugDaySheetSmokeOnLaunch;
+  @visibleForTesting
+  final CalendarBoundaryHarnessController? calendarBoundaryHarnessController;
 
   CalendarPage({
     Key? key,
     this.initialFlowIdToEdit,
     this.openMyFlowsOnLaunch = false,
     this.debugDaySheetSmokeOnLaunch = false,
+    this.calendarBoundaryHarnessController,
   }) : super(key: key ?? CalendarPage.globalKey);
 
   // Global key for accessing calendar state from other pages
@@ -10190,6 +10197,77 @@ class CalendarPageState extends State<CalendarPage>
   @visibleForTesting
   CalendarScrollCoordinator get debugCalendarScrollCoordinator =>
       _calendarScrollCoordinator;
+
+  void _configureCalendarBoundaryBenchmark(
+    CalendarBoundaryHarnessController controller,
+  ) {
+    _monthExpansion = controller.expansionLevel;
+    if (controller.content == CalendarBoundaryHarnessContent.eventHeavy) {
+      for (final month in const <int>[2, 3]) {
+        _seedCalendarBoundaryBenchmarkMonth(month);
+      }
+    }
+    _lastViewKy = _today.kYear;
+    _lastViewKm = _today.kMonth;
+    _lastViewKd = _today.kDay;
+    _restored = true;
+    _initialViewportSettled = true;
+    _journalController = JournalController(Supabase.instance.client);
+    _journalController.onCompletionBadgesRemoved =
+        _handleJournalCompletionBadgesRemoved;
+    _scrollCtrl.addListener(_onVerticalScroll);
+    controller._attach(this);
+  }
+
+  void _seedCalendarBoundaryBenchmarkMonth(int month) {
+    for (var day = 1; day <= _maxDayForMonth(_today.kYear, month); day++) {
+      _notes[_kKey(_today.kYear, month, day)] = List<_Note>.unmodifiable(
+        List<_Note>.generate(
+          5,
+          (eventIndex) => _Note(
+            id: 'benchmark-$month-$day-$eventIndex',
+            title: 'Boundary event ${eventIndex + 1}',
+            detail: 'Seeded profile workload',
+            allDay: true,
+            manualColor: const Color(0xFFC4A64A),
+          ),
+        ),
+      );
+    }
+  }
+
+  void _prepareCalendarBoundaryTodayTargetUnhydrated() {
+    if (!_calendarBoundaryBenchmarkEnabled) return;
+    setState(() {
+      final lastDay = _maxDayForMonth(_today.kYear, _today.kMonth);
+      for (var day = 1; day <= lastDay; day++) {
+        _notes.remove(_kKey(_today.kYear, _today.kMonth, day));
+      }
+      _dataVersion++;
+    });
+  }
+
+  void _applyCalendarBoundaryTodayHydrationCommit() {
+    if (!_calendarBoundaryBenchmarkEnabled || !_scrollCtrl.hasClients) return;
+    final preservedScrollOffset = _scrollCtrl.position.pixels;
+    _seedCalendarBoundaryBenchmarkMonth(_today.kMonth);
+    widget.calendarBoundaryHarnessController?._noteTodayHydrationCommit();
+    _bumpDataVersion(scheduleCacheSave: false);
+
+    // Match the current first-visible-hydration preservation behavior. This is
+    // deliberately part of the baseline: the later correction contract must
+    // prove that it can remove this activity-interrupting jump.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollCtrl.hasClients) return;
+      final position = _scrollCtrl.position;
+      final clamped = preservedScrollOffset.clamp(
+        position.minScrollExtent,
+        position.maxScrollExtent,
+      );
+      position.jumpTo(clamped.toDouble());
+    }, debugLabel: 'CalendarBoundaryHarness.todayHydrationPreservation');
+  }
+
   @visibleForTesting
   void debugShowCalendarShellForTesting() {
     if (_restored) return;
@@ -14652,220 +14730,8 @@ class CalendarPageState extends State<CalendarPage>
   bool _isTablet(BuildContext context) =>
       MediaQuery.of(context).size.shortestSide >= 600;
 
-  // Read the month card whose vertical center is closest to the viewport
-  // center without mutating calendar state.
-  (int, int)? _computeCenteredMonthLiveCandidate() {
-    final candidates = <(int ky, int km, double dist)>[];
-
-    // ✅ OPTIMIZED: Try saved/today month first (most likely mounted)
-    final baseKy = _lastViewKy ?? _today.kYear;
-    final baseKm = _lastViewKm ?? _today.kMonth;
-
-    ScrollableState? scrollableState;
-    RenderBox? viewportBox;
-
-    // Try saved/today month first
-    var ctx = keyForMonth(baseKy, baseKm).currentContext;
-    if (ctx != null) {
-      scrollableState = Scrollable.maybeOf(ctx); // ✅ Use CHILD context!
-      if (scrollableState != null) {
-        final vpBox = scrollableState.context.findRenderObject() as RenderBox?;
-        if (vpBox != null && vpBox.hasSize) {
-          viewportBox = vpBox;
-        }
-      }
-    }
-
-    // Fallback: search nearby months if first attempt failed
-    if (viewportBox == null) {
-      for (var dY = -3; dY <= 3 && viewportBox == null; dY++) {
-        final ky = baseKy + dY;
-        for (var km = 1; km <= 13; km++) {
-          ctx = keyForMonth(ky, km).currentContext;
-          if (ctx == null) continue;
-          scrollableState = Scrollable.maybeOf(ctx);
-          if (scrollableState != null) {
-            final vpBox =
-                scrollableState.context.findRenderObject() as RenderBox?;
-            if (vpBox != null && vpBox.hasSize) {
-              viewportBox = vpBox;
-              break;
-            }
-          }
-        }
-      }
-    }
-
-    if (scrollableState == null || viewportBox == null) return null;
-
-    // ✅ Viewport must be valid and laid out
-    final position = scrollableState.position;
-    if (!position.hasPixels || position.viewportDimension <= 0) return null;
-
-    // ✅ Calculate viewport center in global coordinates
-    final viewportTopGlobal = viewportBox.localToGlobal(Offset.zero).dy;
-    final viewportCenterY = viewportTopGlobal + (viewportBox.size.height / 2);
-
-    bool addIfMounted(int ky, int km) {
-      final ctx = keyForMonth(ky, km).currentContext;
-      if (ctx == null) return false;
-
-      final rb = ctx.findRenderObject() as RenderBox?;
-      if (rb == null || !rb.hasSize) return false;
-
-      // ✅ CORRECT: size.center() exists and matches _centerMonth() pattern
-      final monthCenterGlobal = rb
-          .localToGlobal(rb.size.center(Offset.zero))
-          .dy;
-
-      final dist = (monthCenterGlobal - viewportCenterY).abs();
-      candidates.add((ky, km, dist));
-      return true;
-    }
-
-    // Search from saved state (already correct from v3)
-    for (var dY = -3; dY <= 3; dY++) {
-      final ky = baseKy + dY;
-      for (var km = 1; km <= 13; km++) {
-        addIfMounted(ky, km);
-      }
-    }
-
-    if (candidates.isEmpty) return null;
-    candidates.sort((a, b) => a.$3.compareTo(b.$3));
-
-    return (candidates.first.$1, candidates.first.$2);
-  }
-
-  // Find the month card whose vertical center is closest to the viewport center.
-  void _updateCenteredMonth() {
-    final candidate = _computeCenteredMonthLiveCandidate();
-    if (candidate == null) {
-      _lastLegacyLiveShadowCandidate = null;
-      return;
-    }
-    final newKy = candidate.$1;
-    final newKm = candidate.$2;
-    _lastLegacyLiveShadowCandidate = MonthRef(year: newKy, month: newKm);
-
-    // ✅ ONLY UPDATE IF CHANGED AND NOT UPDATING FROM LANDSCAPE OR PORTRAIT
-    if ((_lastViewKy != newKy || _lastViewKm != newKm) &&
-        !_isUpdatingFromLandscape &&
-        !_isUpdatingFromPortrait) {
-      // ✅ HARDENING 1: Clamp day when month changes
-      final maxDay = _maxDayForMonth(newKy, newKm);
-      final clampedKd = (_lastViewKd ?? 1).clamp(1, maxDay);
-
-      _setView(newKy, newKm, kd: clampedKd);
-    }
-  }
-
-  void _updateCenteredMonthWide() {
-    // ✅ ONLY update if we don't already have a valid state
-    // ✅ FIX 2: Removed _lastViewKy! >= 1 check - accept historical years
-    if (_lastViewKy != null &&
-        _lastViewKm != null &&
-        _lastViewKm! >= 1 &&
-        _lastViewKm! <= 13) {
-      if (kDebugMode) {
-        _calendarDebugPrint(
-          '✓ [CALENDAR] Skipping _updateCenteredMonthWide - using existing state: $_lastViewKy-$_lastViewKm',
-        );
-      }
-      return;
-    }
-
-    final candidates = <(int ky, int km, double dist)>[];
-
-    // ✅ OPTIMIZED: Try saved/today month first (most likely mounted)
-    final base = _lastViewKy ?? _today.kYear;
-    final baseMonth = _lastViewKm ?? _today.kMonth;
-
-    ScrollableState? scrollableState;
-    RenderBox? viewportBox;
-
-    // Try saved/today month first
-    var ctx = keyForMonth(base, baseMonth).currentContext;
-    if (ctx != null) {
-      scrollableState = Scrollable.maybeOf(ctx); // ✅ Use CHILD context!
-      if (scrollableState != null) {
-        final vpBox = scrollableState.context.findRenderObject() as RenderBox?;
-        if (vpBox != null && vpBox.hasSize) {
-          viewportBox = vpBox;
-        }
-      }
-    }
-
-    // Fallback: search nearby months if first attempt failed
-    if (viewportBox == null) {
-      for (var dy = -220; dy <= 220; dy++) {
-        final ky = base + dy;
-        for (var km = 1; km <= 13; km++) {
-          ctx = keyForMonth(ky, km).currentContext;
-          if (ctx != null) {
-            scrollableState = Scrollable.maybeOf(ctx);
-            if (scrollableState != null) {
-              final vpBox =
-                  scrollableState.context.findRenderObject() as RenderBox?;
-              if (vpBox != null && vpBox.hasSize) {
-                viewportBox = vpBox;
-                break;
-              }
-            }
-          }
-        }
-        if (viewportBox != null) break;
-      }
-    }
-
-    if (scrollableState == null || viewportBox == null) return;
-
-    // ✅ Calculate viewport center in global coordinates (SAME as _updateCenteredMonth)
-    final viewportTopGlobal = viewportBox.localToGlobal(Offset.zero).dy;
-    final viewportCenterY = viewportTopGlobal + (viewportBox.size.height / 2);
-
-    bool addIfMounted(int ky, int km) {
-      final ctx = keyForMonth(ky, km).currentContext;
-      if (ctx == null) return false;
-      final rb = ctx.findRenderObject() as RenderBox?;
-      if (rb == null || !rb.hasSize) return false;
-
-      // ✅ CORRECT: Use same calculation as _centerMonth() and _updateCenteredMonth()
-      final monthCenterGlobal = rb
-          .localToGlobal(rb.size.center(Offset.zero))
-          .dy;
-      final dist = (monthCenterGlobal - viewportCenterY).abs();
-      candidates.add((ky, km, dist));
-      return true;
-    }
-
-    // Wider search for landscape (±220 years)
-    for (var dy = -220; dy <= 220; dy++) {
-      final ky = base + dy;
-      var foundAny = false;
-      for (var km = 1; km <= 13; km++) {
-        foundAny = addIfMounted(ky, km) || foundAny;
-      }
-      if (foundAny && candidates.length >= 6) break;
-    }
-
-    if (candidates.isEmpty) return;
-    candidates.sort((a, b) => a.$3.compareTo(b.$3));
-
-    // ✅ Only update if not already set
-    if (_lastViewKy == null || _lastViewKm == null) {
-      final newKy = candidates.first.$1;
-      final newKm = candidates.first.$2;
-      final maxDay = _maxDayForMonth(newKy, newKm);
-      final clampedKd = (_lastViewKd ?? 1).clamp(1, maxDay);
-
-      _lastViewKy = newKy;
-      _lastViewKm = newKm;
-      _lastViewKd = clampedKd;
-    }
-  }
-
-  // Call on scroll to keep tracking the centered month.
+  // Scroll input has one frame owner. The coordinator coalesces notifications,
+  // reads one immutable geometry snapshot, and publishes scoped semantic state.
   void _onVerticalScroll() {
     if (!_initialViewportSettled) return;
     if (_scrollCtrl.hasClients) {
@@ -14873,13 +14739,16 @@ class CalendarPageState extends State<CalendarPage>
     }
     _restorationInteractedSinceBoot = true;
     _maybePersistCalendarRestorationDuringScroll();
-    // ✅ Debounce to next frame to avoid stale RenderObjects
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && _initialViewportSettled) {
-        _updateCenteredMonth();
-      }
-    });
     _calendarScrollCoordinator.noteScroll();
+  }
+
+  void _handleCoordinatorCenteredMonth() {
+    if (!_restored || !_initialViewportSettled) return;
+    final centered = _calendarScrollCoordinator.activeCenteredMonth.value;
+    if (_lastViewKy == centered.year && _lastViewKm == centered.month) return;
+    final maxDay = _maxDayForMonth(centered.year, centered.month);
+    final clampedDay = (_lastViewKd ?? 1).clamp(1, maxDay);
+    _setView(centered.year, centered.month, kd: clampedDay);
   }
 
   MonthRef? _shadowAuthoritativeMonth() {
@@ -14957,6 +14826,9 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   void _scheduleRenderedViewportHydration({required String reason}) {
+    if (_calendarBoundaryBenchmarkEnabled) {
+      widget.calendarBoundaryHarnessController?._noteHydrationSchedule();
+    }
     _viewportHydrationDebounce?.cancel();
     _viewportHydrationDebounce = Timer(const Duration(milliseconds: 120), () {
       _viewportHydrationDebounce = null;
@@ -14978,64 +14850,6 @@ class CalendarPageState extends State<CalendarPage>
         );
       });
     });
-  }
-
-  /// ✅ FIX 4: Compute centered month precisely using getOffsetToReveal
-  (int, int) _computeCenteredMonthPrecisely() {
-    final fallback = (
-      _lastViewKy ?? _today.kYear,
-      _lastViewKm ?? _today.kMonth,
-    );
-    if (!_scrollCtrl.hasClients) {
-      return fallback;
-    }
-
-    final box = context.findRenderObject();
-    if (box is! RenderBox || !box.attached) {
-      return fallback;
-    }
-
-    final notificationContext =
-        _scrollCtrl.position.context.notificationContext;
-    final viewportObject = notificationContext?.findRenderObject();
-    final viewportBox = viewportObject is RenderBox && viewportObject.attached
-        ? viewportObject
-        : box;
-    final vp = RenderAbstractViewport.maybeOf(viewportBox);
-    if (vp == null) {
-      return fallback;
-    }
-
-    final viewportCenter = _scrollCtrl.offset + (viewportBox.size.height / 2);
-
-    // Search ±2 years around last known position
-    var bestKy = _lastViewKy ?? _today.kYear;
-    var bestKm = _lastViewKm ?? _today.kMonth;
-    double bestDist = double.infinity;
-
-    for (int dy = -2; dy <= 2; dy++) {
-      final baseKy = (_lastViewKy ?? _today.kYear) + dy;
-      for (int km = 1; km <= 13; km++) {
-        final ctx = keyForMonth(baseKy, km).currentContext;
-        if (ctx == null) continue;
-
-        final ro = ctx.findRenderObject();
-        if (ro == null || ro is! RenderBox || !ro.attached) continue;
-
-        // ✅ Use getOffsetToReveal for precision
-        final revealResult = vp.getOffsetToReveal(ro, 0.5);
-        final revealOffset = revealResult.offset;
-        final dist = (revealOffset - viewportCenter).abs();
-
-        if (dist < bestDist) {
-          bestDist = dist;
-          bestKy = baseKy;
-          bestKm = km;
-        }
-      }
-    }
-
-    return (bestKy, bestKm);
   }
 
   /// ✅ FIX 4: Handle month change from portrait scroll (with feedback loop guard)
@@ -15478,6 +15292,9 @@ class CalendarPageState extends State<CalendarPage>
     _lastViewKy = kDay.kYear;
     _lastViewKm = kDay.kMonth;
     _lastViewKd = kDay.kDay;
+    _calendarScrollCoordinator.publishCenteredMonth(
+      MonthRef(year: kDay.kYear, month: kDay.kMonth),
+    );
     _showGregorian = false;
     _monthExpansion = MonthExpansionLevel.details;
     _pendingPersistentDayViewState = null;
@@ -15537,12 +15354,26 @@ class CalendarPageState extends State<CalendarPage>
       readSnapshot: () => _calendarGeometryCollector.snapshot,
       readScrollOffset: () =>
           _scrollCtrl.hasClients ? _scrollCtrl.position.pixels : null,
+      readViewportExtent: () =>
+          _scrollCtrl.hasClients &&
+              _scrollCtrl.position.hasContentDimensions &&
+              _scrollCtrl.position.viewportDimension > 0
+          ? _scrollCtrl.position.viewportDimension
+          : null,
       readAuthoritativeMonth: _shadowAuthoritativeMonth,
       readLegacyCandidate: _shadowLegacyCandidate,
+    );
+    _calendarScrollCoordinator.activeCenteredMonth.addListener(
+      _handleCoordinatorCenteredMonth,
     );
     _calendarGeometryCollector.addListener(
       _handleCalendarGeometryPublicationForShadow,
     );
+    final boundaryHarness = widget.calendarBoundaryHarnessController;
+    if (_calendarBoundaryBenchmarkEnabled && boundaryHarness != null) {
+      _configureCalendarBoundaryBenchmark(boundaryHarness);
+      return;
+    }
     final initialHydrationUserId = Supabase.instance.client.auth.currentUser?.id
         .trim();
     if (initialHydrationUserId != null && initialHydrationUserId.isNotEmpty) {
@@ -17859,6 +17690,9 @@ class CalendarPageState extends State<CalendarPage>
     CalendarRestorationState state, {
     required String reason,
   }) async {
+    if (_calendarBoundaryBenchmarkEnabled) {
+      widget.calendarBoundaryHarnessController?._noteRestorationWrite();
+    }
     _lastKnownCalendarScrollOffset = state.scrollOffset;
     await AppRestorationService.instance.saveCalendarState(state);
     await SessionResumeService.saveScopedState(_kSessionScopeCalendarView, {
@@ -17931,6 +17765,9 @@ class CalendarPageState extends State<CalendarPage>
 
   void _scheduleCalendarRestorationSave({String reason = 'debounced'}) {
     if (!_rememberLastView || !_restored) return;
+    if (_calendarBoundaryBenchmarkEnabled) {
+      widget.calendarBoundaryHarnessController?._noteRestorationSchedule();
+    }
     _calendarRestorationDebounce?.cancel();
     _calendarRestorationDebounce = Timer(_restorationWriteDebounce, () {
       unawaited(_saveCalendarRestorationNow(reason: reason));
@@ -18306,6 +18143,9 @@ class CalendarPageState extends State<CalendarPage>
           _restorationInteractedSinceBoot = false;
           _restored = true;
         });
+        _calendarScrollCoordinator.publishCenteredMonth(
+          MonthRef(year: savedCalendar.kYear, month: savedCalendar.kMonth),
+        );
       } else {
         if (kDebugMode) {
           _calendarDebugPrint(
@@ -18338,22 +18178,25 @@ class CalendarPageState extends State<CalendarPage>
     return 30;
   }
 
-  /// ✅ Central writer for view state - single source of truth
+  /// Commits semantic view state without invalidating the calendar page.
+  ///
+  /// The coordinator owns publication. Restoration and hydration consume the
+  /// committed value, while visual consumers subscribe to scoped listenables.
   void _setView(int ky, int km, {int? kd}) {
-    if (_lastViewKy == ky &&
-        _lastViewKm == km &&
-        (kd == null || _lastViewKd == kd)) {
+    final month = MonthRef(year: ky, month: km);
+    final nextDay = (kd ?? _lastViewKd ?? 1).clamp(1, _maxDayForMonth(ky, km));
+    if (_lastViewKy == ky && _lastViewKm == km && _lastViewKd == nextDay) {
       return;
     }
 
     _lastViewKy = ky;
     _lastViewKm = km;
-    if (kd != null) _lastViewKd = kd;
+    _lastViewKd = nextDay;
+    _calendarScrollCoordinator.publishCenteredMonth(month);
 
     if (_rememberLastView) {
       _scheduleCalendarRestorationSave(reason: 'centered_month_changed');
     }
-    setState(() {}); // keep headers/UI in sync
     _scheduleMonthHydrationFrame();
   }
 
@@ -18451,18 +18294,18 @@ class CalendarPageState extends State<CalendarPage>
     if (!_scrollCtrl.hasClients) {
       return;
     }
-    final centered = _computeCenteredMonthPrecisely();
+    final centered = _calendarScrollCoordinator.activeCenteredMonth.value;
     _lastKnownCalendarScrollOffset = _scrollCtrl.position.pixels;
-    _lastViewKy = centered.$1;
-    _lastViewKm = centered.$2;
-    _lastViewKd = _sessionDayForMonth(centered.$1, centered.$2);
+    _setView(
+      centered.year,
+      centered.month,
+      kd: _sessionDayForMonth(centered.year, centered.month),
+    );
   }
 
   void _commitLandscapeVisibleMonthForRotation(int ky, int km) {
     _restorationInteractedSinceBoot = true;
-    _lastViewKy = ky;
-    _lastViewKm = km;
-    _lastViewKd = _sessionDayForMonth(ky, km);
+    _setView(ky, km, kd: _sessionDayForMonth(ky, km));
     if (_rememberLastView) {
       _scheduleCalendarRestorationSave(reason: 'landscape_rotation_commit');
     }
@@ -18806,11 +18649,17 @@ class CalendarPageState extends State<CalendarPage>
     final position = _scrollCtrl.position;
 
     if (animate) {
-      position.animateTo(
+      final animation = position.animateTo(
         targetPixels,
         duration: const Duration(milliseconds: 320),
         curve: Curves.easeOutCubic,
       );
+      if (_calendarBoundaryBenchmarkEnabled) {
+        widget.calendarBoundaryHarnessController?._noteTodayAnimationStarted(
+          animation,
+          targetPixels: targetPixels,
+        );
+      }
     } else {
       position.jumpTo(targetPixels);
     }
@@ -18899,6 +18748,12 @@ class CalendarPageState extends State<CalendarPage>
     if (dayViewState != null) {
       unawaited(_persistDayViewState(dayViewState, reason: 'calendar_dispose'));
     }
+    if (_calendarBoundaryBenchmarkEnabled) {
+      widget.calendarBoundaryHarnessController?._detach(this);
+    }
+    _calendarScrollCoordinator.activeCenteredMonth.removeListener(
+      _handleCoordinatorCenteredMonth,
+    );
     _scrollCtrl.dispose();
     _calendarGeometryCollector.removeListener(
       _handleCalendarGeometryPublicationForShadow,
@@ -31731,7 +31586,6 @@ class CalendarPageState extends State<CalendarPage>
       return const SizedBox.shrink();
     }
 
-    final kToday = _today;
     final size = MediaQuery.sizeOf(context);
     final orientation = MediaQuery.orientationOf(context);
     final isLandscape = orientation == Orientation.landscape;
@@ -31783,16 +31637,10 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     if (shouldBuildLandscapeGrid) {
-      // ✅ FIX 5: Only call if state is missing (optimization)
-      // The method already has a guard, but this prevents unnecessary function calls
-      // ✅ FIX 6: Also prevent during landscape updates to avoid side effects
-      if (!_isUpdatingFromLandscape &&
-          (_lastViewKy == null || _lastViewKm == null)) {
-        _updateCenteredMonthWide();
-      }
-
-      final ky = _lastViewKy ?? kToday.kYear;
-      final km = _lastViewKm ?? kToday.kMonth;
+      final semanticMonth =
+          _calendarScrollCoordinator.activeCenteredMonth.value;
+      final ky = _lastViewKy ?? semanticMonth.year;
+      final km = _lastViewKm ?? semanticMonth.month;
 
       if (kDebugMode) {
         _calendarDebugPrint('\n📱 [CALENDAR] Building LandscapeMonthView');
@@ -31806,7 +31654,14 @@ class CalendarPageState extends State<CalendarPage>
         backgroundColor: _bg,
         appBar: _buildCalendarAppBar(
           useLandscapeGrid: true,
-          titleOverride: _buildLandscapeCalendarTitle(ky, km),
+          titleOverride: ValueListenableBuilder<MonthRef>(
+            valueListenable: _calendarScrollCoordinator.activeCenteredMonth,
+            builder: (context, centeredMonth, child) =>
+                _buildLandscapeCalendarTitle(
+                  centeredMonth.year,
+                  centeredMonth.month,
+                ),
+          ),
         ),
         body: LandscapeMonthView(
           embeddedInCalendarScaffold: true,
@@ -31962,7 +31817,18 @@ class CalendarPageState extends State<CalendarPage>
       );
     }
 
-    return content;
+    if (!_calendarBoundaryBenchmarkEnabled) return content;
+    final boundaryHarness = widget.calendarBoundaryHarnessController;
+    if (boundaryHarness == null || !boundaryHarness.probesEnabled) {
+      return content;
+    }
+    return _CalendarBoundaryBuildProbe(
+      counts: boundaryHarness.pageCounts,
+      child: _CalendarBoundaryRenderProbe(
+        counts: boundaryHarness.pageCounts,
+        child: content,
+      ),
+    );
   }
 
   Widget _buildBodyWithJournal() {
@@ -31975,6 +31841,26 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     final scrollView = _buildCalendarScrollView();
+    final boundaryHarness = _calendarBoundaryBenchmarkEnabled
+        ? widget.calendarBoundaryHarnessController
+        : null;
+    Widget body = PinchGestureSurface(
+      enableTouchPinch: allowTouchPinchGestures,
+      enableGlobalScaleGestures: allowGlobalScaleGestures,
+      onScaleStart: _onScaleStart,
+      onScaleUpdate: _onScaleUpdate,
+      onScaleEnd: _onScaleEnd,
+      child: scrollView,
+    );
+    if (boundaryHarness != null && boundaryHarness.probesEnabled) {
+      body = _CalendarBoundaryBuildProbe(
+        counts: boundaryHarness.bodyCounts,
+        child: _CalendarBoundaryRenderProbe(
+          counts: boundaryHarness.bodyCounts,
+          child: body,
+        ),
+      );
+    }
 
     final content = Column(
       children: [
@@ -31982,25 +31868,26 @@ class CalendarPageState extends State<CalendarPage>
           valueListenable: _calendarScrollCoordinator.activeBannerMonth,
           builder: (context, activeBannerMonth, child) {
             final visibleMonth = getMonthById(activeBannerMonth.month);
-            return ScrollingCalendarMonthHeader(
+            final header = ScrollingCalendarMonthHeader(
               month: visibleMonth,
               yearLabel: _gregYearLabelFor(
                 activeBannerMonth.year,
                 activeBannerMonth.month,
               ),
             );
+            if (boundaryHarness == null || !boundaryHarness.probesEnabled) {
+              return header;
+            }
+            return _CalendarBoundaryBuildProbe(
+              counts: boundaryHarness.bannerCounts,
+              child: _CalendarBoundaryRenderProbe(
+                counts: boundaryHarness.bannerCounts,
+                child: header,
+              ),
+            );
           },
         ),
-        Expanded(
-          child: PinchGestureSurface(
-            enableTouchPinch: allowTouchPinchGestures,
-            enableGlobalScaleGestures: allowGlobalScaleGestures,
-            onScaleStart: _onScaleStart,
-            onScaleUpdate: _onScaleUpdate,
-            onScaleEnd: _onScaleEnd,
-            child: scrollView,
-          ),
-        ),
+        Expanded(child: body),
       ],
     );
 
@@ -32529,14 +32416,8 @@ class CalendarPageState extends State<CalendarPage>
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted || !_initialViewportSettled) return;
 
-              final centered = _computeCenteredMonthPrecisely();
-              _lastLegacyScrollEndShadowCandidate = MonthRef(
-                year: centered.$1,
-                month: centered.$2,
-              );
-              if (centered.$1 != _lastViewKy || centered.$2 != _lastViewKm) {
-                _handlePortraitMonthChanged(centered.$1, centered.$2);
-              }
+              _lastLegacyScrollEndShadowCandidate =
+                  _calendarScrollCoordinator.activeCenteredMonth.value;
               _calendarScrollCoordinator.noteScrollEnd();
               _scheduleCalendarRestorationSave(reason: 'calendar_scroll_end');
               _scheduleRenderedViewportHydration(reason: 'scroll_end');

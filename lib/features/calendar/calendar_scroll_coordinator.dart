@@ -8,6 +8,7 @@ import 'package:mobile/features/calendar/calendar_section_index.dart';
 typedef CalendarShadowFrameScheduler = void Function(void Function() callback);
 typedef CalendarGeometrySnapshotReader = CalendarGeometrySnapshot? Function();
 typedef CalendarScrollOffsetReader = double? Function();
+typedef CalendarViewportExtentReader = double? Function();
 typedef CalendarMonthReader = MonthRef? Function();
 typedef CalendarLegacyCandidateReader =
     MonthRef? Function(CalendarShadowSampleReason reason);
@@ -71,14 +72,17 @@ final class CalendarScrollCoordinator {
     required CalendarGeometrySnapshotReader readSnapshot,
     required CalendarScrollOffsetReader readScrollOffset,
     required CalendarMonthReader readAuthoritativeMonth,
+    CalendarViewportExtentReader? readViewportExtent,
     CalendarLegacyCandidateReader? readLegacyCandidate,
     CalendarBannerResolver? resolver,
     CalendarSectionIndex index = const CalendarSectionIndex(),
     int traceCapacity = defaultTraceCapacity,
   }) : _activeBannerMonth = ValueNotifier<MonthRef>(initialBannerMonth),
+       _activeCenteredMonth = ValueNotifier<MonthRef>(initialBannerMonth),
        _scheduleAfterFrame = scheduleAfterFrame,
        _readSnapshot = readSnapshot,
        _readScrollOffset = readScrollOffset,
+       _readViewportExtent = readViewportExtent,
        _readAuthoritativeMonth = readAuthoritativeMonth,
        _readLegacyCandidate = readLegacyCandidate,
        _resolver =
@@ -108,12 +112,14 @@ final class CalendarScrollCoordinator {
   final CalendarShadowFrameScheduler _scheduleAfterFrame;
   final CalendarGeometrySnapshotReader _readSnapshot;
   final CalendarScrollOffsetReader _readScrollOffset;
+  final CalendarViewportExtentReader? _readViewportExtent;
   final CalendarMonthReader _readAuthoritativeMonth;
   final CalendarLegacyCandidateReader? _readLegacyCandidate;
   final CalendarBannerResolver _resolver;
   final CalendarSectionIndex _index;
   final int _traceCapacity;
   final ValueNotifier<MonthRef> _activeBannerMonth;
+  final ValueNotifier<MonthRef> _activeCenteredMonth;
 
   final ListQueue<CalendarShadowTraceEntry> _trace = ListQueue();
   final Map<CalendarShadowDivergenceCategory, int> _divergenceCounts = {};
@@ -140,6 +146,21 @@ final class CalendarScrollCoordinator {
   /// Exposing only [ValueListenable] prevents the page from writing around the
   /// coordinator or using a banner transition as broader calendar state.
   ValueListenable<MonthRef> get activeBannerMonth => _activeBannerMonth;
+
+  /// The centered semantic month used by restoration, hydration, navigation,
+  /// and orientation handoff.
+  ///
+  /// Unlike [activeBannerMonth], this follows physical section ownership at
+  /// the viewport center. It is published from the same coalesced snapshot
+  /// pass, so scroll consumers cannot independently walk the render tree.
+  ValueListenable<MonthRef> get activeCenteredMonth => _activeCenteredMonth;
+
+  /// Publishes a programmatic semantic destination through the same owner.
+  /// Scroll-derived values are written only by [_resolvePendingSample].
+  void publishCenteredMonth(MonthRef month) {
+    if (_disposed || _activeCenteredMonth.value == month) return;
+    _activeCenteredMonth.value = month;
+  }
 
   Map<CalendarShadowDivergenceCategory, int> get divergenceCounts =>
       Map<CalendarShadowDivergenceCategory, int>.unmodifiable(
@@ -220,6 +241,14 @@ final class CalendarScrollCoordinator {
       mode: mode,
       incumbent: _shadowIncumbent,
     );
+    final viewportExtent = _readViewportExtent?.call();
+    final centered = reason == CalendarShadowSampleReason.geometryPublication
+        ? _activeCenteredMonth.value
+        : viewportExtent != null &&
+              viewportExtent.isFinite &&
+              viewportExtent > 0
+        ? snapshot.ownerAt(scrollOffset + (viewportExtent / 2))
+        : null;
     final authoritative = _readAuthoritativeMonth();
     final legacyCandidate = _readLegacyCandidate?.call(reason);
 
@@ -257,6 +286,9 @@ final class CalendarScrollCoordinator {
       if (_activeBannerMonth.value != shadow) {
         _activeBannerMonth.value = shadow;
       }
+    }
+    if (centered != null) {
+      publishCenteredMonth(centered);
     }
     if (mode == CalendarBannerResolutionMode.scrollingTowardFuture ||
         mode == CalendarBannerResolutionMode.scrollingTowardPast) {
@@ -357,5 +389,6 @@ final class CalendarScrollCoordinator {
     _pendingReasons.clear();
     _trace.clear();
     _activeBannerMonth.dispose();
+    _activeCenteredMonth.dispose();
   }
 }

@@ -39,6 +39,43 @@ void main() {
     expect(published, [month2]);
   });
 
+  test(
+    'publishes centered semantic month from the same coalesced snapshot',
+    () {
+      final rig = _CoordinatorRig(
+        snapshot: _snapshot(
+          generation: 1,
+          sections: [_geometry(month1, 0, 100), _geometry(month2, 100, 200)],
+        ),
+        offset: 20,
+        viewportExtent: 80,
+        authoritative: month1,
+      );
+      addTearDown(rig.dispose);
+      final published = <MonthRef>[];
+      rig.coordinator.activeCenteredMonth.addListener(() {
+        published.add(rig.coordinator.activeCenteredMonth.value);
+      });
+
+      rig.coordinator
+        ..noteScroll()
+        ..noteScroll()
+        ..noteScroll();
+      rig.flushOneFrame();
+      expect(published, isEmpty);
+
+      rig.offset = 70;
+      rig.coordinator
+        ..noteScroll()
+        ..noteScroll();
+      rig.flushOneFrame();
+
+      expect(rig.coordinator.activeBannerMonth.value, month1);
+      expect(rig.coordinator.activeCenteredMonth.value, month2);
+      expect(published, [month2]);
+    },
+  );
+
   test('publishes successor at the outgoing final-day block deadband', () {
     final rig = _CoordinatorRig(
       snapshot: _snapshot(
@@ -317,6 +354,21 @@ void main() {
     expect(source, isNot(contains('print(')));
     expect(source, isNot(contains('debugPrint(')));
   });
+
+  test('scroll semantic publication cannot rebuild the calendar page', () {
+    final source = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final setView = RegExp(
+      r'void _setView\([\s\S]*?\n  }\n\n  /// ✅ Save view state',
+    ).firstMatch(source)?.group(0);
+
+    expect(setView, isNotNull);
+    expect(setView, isNot(contains('setState(')));
+    expect(source, isNot(contains('_computeCenteredMonthLiveCandidate')));
+    expect(source, isNot(contains('_computeCenteredMonthPrecisely')));
+    expect(source, isNot(contains('_updateCenteredMonthWide')));
+  });
 }
 
 final class _CoordinatorRig {
@@ -324,6 +376,7 @@ final class _CoordinatorRig {
     required this.snapshot,
     required this.offset,
     required this.authoritative,
+    this.viewportExtent = 80,
     CalendarLegacyCandidateReader? legacyReader,
     int traceCapacity = CalendarScrollCoordinator.defaultTraceCapacity,
   }) : _legacyReader = legacyReader {
@@ -332,6 +385,7 @@ final class _CoordinatorRig {
       scheduleAfterFrame: _scheduled.addLast,
       readSnapshot: () => snapshot,
       readScrollOffset: () => offset,
+      readViewportExtent: () => viewportExtent,
       readAuthoritativeMonth: () => authoritative,
       readLegacyCandidate: _legacyReader ?? (_) => authoritative,
       traceCapacity: traceCapacity,
@@ -340,6 +394,7 @@ final class _CoordinatorRig {
 
   CalendarGeometrySnapshot snapshot;
   double offset;
+  double viewportExtent;
   MonthRef? authoritative;
   final CalendarLegacyCandidateReader? _legacyReader;
   final ListQueue<void Function()> _scheduled = ListQueue();

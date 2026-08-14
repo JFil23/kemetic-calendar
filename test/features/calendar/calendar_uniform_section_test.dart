@@ -217,8 +217,9 @@ void main() {
 
       expect(
         page,
-        contains('final centered = _computeCenteredMonthPrecisely()'),
+        contains('_calendarScrollCoordinator.activeCenteredMonth.value'),
       );
+      expect(page, isNot(contains('_computeCenteredMonthPrecisely()')));
       expect(page, contains('_calendarGeometryCollector.snapshot'));
       expect(page, contains('_calendarScrollCoordinator.noteScroll()'));
     },

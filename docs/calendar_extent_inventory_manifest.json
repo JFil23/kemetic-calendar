@@ -1,0 +1,90 @@
+{
+  "schema": 1,
+  "audited_revision": "5ff66008f6bd083147637ed4962db91f6ecf3f66",
+  "fragments": [
+    {
+      "name": "year_and_month_sections",
+      "file": "lib/features/calendar/calendar_grid_widgets.dart",
+      "start": "class _YearSection extends StatelessWidget {",
+      "end": "/* ───────────── Detail Page (single-window behavior, flows-aware) ───────────── */",
+      "sha256": "6dcd905b2e80a21c300b26f2f23db2992f8adad8cf896a003af401c24e3e1387"
+    },
+    {
+      "name": "calendar_text_styles",
+      "file": "lib/features/calendar/calendar_page.dart",
+      "start": "const TextStyle _seasonStyle = TextStyle(",
+      "end": "const Color _trackSkySignifierBase",
+      "sha256": "6b52dd56c20bedeacfba7117d571719c52f3386dde93952533a2c41ed5048ce7"
+    },
+    {
+      "name": "expansion_heights",
+      "file": "lib/features/calendar/calendar_page.dart",
+      "start": "double _chipHeightFor(MonthExpansionLevel level) {",
+      "end": "MonthExpansionLevel monthExpansionRestorationLevelForTesting(",
+      "sha256": "038d27df5398e48a5b50a57cc8fce6b31ef053d5f22c2f51adf59a8a5da255a0"
+    },
+    {
+      "name": "season_header",
+      "file": "lib/features/calendar/calendar_page.dart",
+      "start": "class _SeasonHeader extends StatelessWidget {",
+      "end": "/* ─────────── Shared dark input (top-level so all pages can use it) ─────────── */",
+      "sha256": "6fef67659547d4ebb979a5fd8c2d7ea615ef4b09bae85e25ad36f4695c228fd6"
+    },
+    {
+      "name": "gold_divider",
+      "file": "lib/features/calendar/calendar_page.dart",
+      "start": "class _GoldDivider extends StatelessWidget {",
+      "end": "String _reminderRepeatLabelForPicker(",
+      "sha256": "a035c543b63e08af2b4cfa897f7cc93e6c1b69b3998ed5b032aa536318d5bd9f"
+    },
+    {
+      "name": "portrait_body_and_banner",
+      "file": "lib/features/calendar/calendar_page.dart",
+      "start": "  Widget _buildBodyWithJournal() {",
+      "end": "  /* ───────────── Decan Reflection Badge & Archive ───────────── */",
+      "sha256": "c0596501bae44c8c1facdef345f9d5c76a592de290f7b874ebfe425c4ac1b02d"
+    },
+    {
+      "name": "year_sliver_topology",
+      "file": "lib/features/calendar/calendar_page.dart",
+      "start": "  Widget _buildCalendarScrollView() {",
+      "end": "  Map<int, FlowData> _buildCalendarFlowChromeIndex() {",
+      "sha256": "1ce9c3fa9d04536dac6f22541b794dc731dd06715e0ad04e26790502d1829d4d"
+    },
+    {
+      "name": "pinch_geometry_consumers",
+      "file": "lib/features/calendar/calendar_page.dart",
+      "start": "  void _setExpansionLevelSmooth(",
+      "end": "  Color _noteColor(_Note note) {",
+      "sha256": "5595472df991f31afd6aaa6e60273af70c63ac2aaf2c14ae11a77a400cb68348"
+    },
+    {
+      "name": "responsive_text_scaler",
+      "file": "lib/main.dart",
+      "start": "  MediaQuery _scaledMediaQuery({",
+      "end": "  Widget _buildLoginApp() {",
+      "sha256": "71575ec1a1dc3b915f99421496cce182ca8b6448829a67a791fe7fcbe08bda16"
+    },
+    {
+      "name": "scrolling_banner_fixed_extent",
+      "file": "lib/features/calendar/scrolling_calendar_month_header.dart",
+      "start": "class ScrollingCalendarMonthHeader extends StatelessWidget {",
+      "end": null,
+      "sha256": "db2c63d7a5133b38d6dbbff0a1f313644b4b6cf02c910251d5a0b50183342fe5"
+    },
+    {
+      "name": "logical_section_domain",
+      "file": "lib/features/calendar/calendar_section_index.dart",
+      "start": "final class CalendarSectionIndex {",
+      "end": null,
+      "sha256": "dc54f6753abdeb91d6fa109c23d750a58c4c46a25b85981bdbc35250ff9c85fc"
+    },
+    {
+      "name": "geometry_marker_proxies",
+      "file": "lib/features/calendar/calendar_geometry_collector.dart",
+      "start": "final class CalendarGeometryFinalDayBlock",
+      "end": null,
+      "sha256": "2f4fc34dc3488ea90785a9e6c043881f81f6436f8ff71512bed879ab83e538f5"
+    }
+  ]
+}
