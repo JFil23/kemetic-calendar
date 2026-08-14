@@ -354,7 +354,7 @@ void main() {
         expect(
           hydration,
           contains(
-            'void commitVisibleCalendarState(\n'
+            'Future<void> commitVisibleCalendarState(\n'
             '        CalendarHydrationPublicationPhase phase',
           ),
         );
@@ -362,8 +362,8 @@ void main() {
         expect(hydration, contains('mergeHydrationWindowIntoNotes<_Note>'));
         expect(hydration, contains('_hydrationController.commitViewport('));
         expect(hydration, contains('dedupedNotes'));
-        expect(hydration, contains('_notes\n            ..clear()'));
-        expect(hydration, contains('..addAll(dedupedNotes)'));
+        expect(hydration, contains('_CalendarHydrationProjection('));
+        expect(hydration, contains('notesByDay: dedupedNotes'));
         expect(
           hydration,
           contains(

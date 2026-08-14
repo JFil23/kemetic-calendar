@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  test('hydration publishes only after a verified durable candidate', () {
+  test('hydration publication cannot be vetoed by snapshot persistence', () {
     final source = File(
       'lib/features/calendar/hydration/calendar_hydration_engine.dart',
     ).readAsStringSync();
@@ -15,57 +15,85 @@ void main() {
     expect(commitEnd, greaterThan(commitStart));
     final commit = source.substring(commitStart, commitEnd);
 
-    final durableAt = commit.indexOf('await _commitCalendarSnapshotCandidate(');
+    final preparedAt = commit.indexOf('_buildCalendarSnapshotCommit(');
     final publishAt = commit.indexOf(
       '_calendarPresentationCoordinator.publish(',
     );
     final controllerAt = commit.indexOf('_hydrationController.commitViewport(');
-    expect(durableAt, greaterThanOrEqualTo(0));
-    expect(publishAt, greaterThan(durableAt));
+    final acceptedAt = commit.indexOf('if (!accepted) {');
+    final persistenceAt = commit.indexOf(
+      '_enqueueCalendarSnapshotPersistence(',
+    );
+    expect(preparedAt, greaterThanOrEqualTo(0));
+    expect(publishAt, greaterThan(preparedAt));
     expect(controllerAt, greaterThan(publishAt));
+    expect(acceptedAt, greaterThan(controllerAt));
+    expect(persistenceAt, greaterThan(acceptedAt));
+    expect(commit, isNot(contains('await _commitCalendarSnapshotCandidate(')));
+    expect(commit, isNot(contains('snapshot_durable_commit_rejected')));
     expect(commit, isNot(contains('_bumpDataVersion')));
     expect(commit, isNot(contains('jumpTo(')));
     expect(commit, isNot(contains('setState(')));
   });
 
-  test('snapshot restore cannot overwrite a newer projection', () {
-    final source = File(
+  test('snapshot store reads remain outside production startup authority', () {
+    final adapter = File(
       'lib/features/calendar/snapshot/calendar_snapshot_page_adapter.dart',
     ).readAsStringSync();
-    expect(source, contains('projectionRevisionAtStart'));
-    expect(source, contains('snapshot_restore_superseded'));
-    expect(source, isNot(contains('setState(')));
-    expect(source, contains('_publishCalendarMonthProjections('));
-    expect(source, contains('_activeCalendarCoverage ='));
+    final page = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    expect(
+      RegExp(
+        r'_restoreCalendarSnapshotStoreIfAvailable\(',
+      ).allMatches(adapter).length,
+      1,
+      reason: 'the store reader may exist for shadow validation only',
+    );
+    expect(page, isNot(contains('_restoreCalendarSnapshotStoreIfAvailable(')));
   });
 
-  test('startup resolves local data authority before opening first paint', () {
+  test('legacy cache failure cannot fail a successful hydration job', () {
+    final page = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final engine = File(
+      'lib/features/calendar/hydration/calendar_hydration_engine.dart',
+    ).readAsStringSync();
+    expect(page, contains('Future<void> _persistWarmStartCacheBestEffort('));
+    expect(
+      page,
+      contains('Persistence is deliberately outside presentation authority'),
+    );
+    expect(engine, contains('_persistWarmStartCacheBestEffort('));
+    expect(engine, isNot(contains('await _persistWarmStartCacheNow(')));
+  });
+
+  test('startup paint is independent from cache backend completion', () {
     final source = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
-    final bootstrapStart = source.indexOf(
-      'Future<void> _restoreCalendarLocalStartupState(',
-    );
-    final bootstrapEnd = source.indexOf(
-      'void _scheduleDaySheetResumeRestore()',
-      bootstrapStart,
-    );
-    expect(bootstrapStart, greaterThanOrEqualTo(0));
-    expect(bootstrapEnd, greaterThan(bootstrapStart));
-    final bootstrap = source.substring(bootstrapStart, bootstrapEnd);
-    final snapshotAt = bootstrap.indexOf(
-      'await _restoreWarmStartCacheIfAvailable(',
-    );
-    final viewAt = bootstrap.indexOf('await _loadPersistedViewState()');
-    expect(snapshotAt, greaterThanOrEqualTo(0));
-    expect(viewAt, greaterThan(snapshotAt));
+    expect(source, contains('_loadPersistedViewState();'));
     expect(
       source,
-      isNot(
-        contains(
-          "unawaited(_restoreWarmStartCacheIfAvailable(reason: 'initState'))",
-        ),
+      contains(
+        "unawaited(_restoreWarmStartCacheIfAvailable(reason: 'initState'))",
       ),
+    );
+    expect(source, isNot(contains('_restoreCalendarLocalStartupState(')));
+
+    final restoreStart = source.indexOf(
+      'Future<void> _restoreWarmStartCacheIfAvailable(',
+    );
+    final restoreEnd = source.indexOf(
+      'Future<void> _refreshCalendarStateFromServer()',
+      restoreStart,
+    );
+    expect(restoreStart, greaterThanOrEqualTo(0));
+    expect(restoreEnd, greaterThan(restoreStart));
+    expect(
+      source.substring(restoreStart, restoreEnd),
+      isNot(contains('_restoreCalendarSnapshotStoreIfAvailable(')),
     );
   });
 
@@ -78,10 +106,10 @@ void main() {
       final notifyStart = page.indexOf(
         'void _notifyDayViewDataChanged({bool scheduleCacheSave = true})',
       );
-    final notifyEnd = page.indexOf(
-      'void _setHydrationAuthorityScope(',
-      notifyStart,
-    );
+      final notifyEnd = page.indexOf(
+        'void _setHydrationAuthorityScope(',
+        notifyStart,
+      );
       expect(notifyStart, greaterThanOrEqualTo(0));
       expect(notifyEnd, greaterThan(notifyStart));
       expect(

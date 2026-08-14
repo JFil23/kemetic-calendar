@@ -161,7 +161,7 @@ void main() {
   });
 
   test(
-    '5. overlay preview is durable before publish and retired after acceptance',
+    '5. overlay is prepared before publish and persisted after acceptance',
     () {
       final source = File(
         'lib/features/calendar/hydration/calendar_hydration_engine.dart',
@@ -180,24 +180,27 @@ void main() {
       );
       final mergeAt = commitSlice.indexOf('_unconfirmed.mergeInto(');
       final previewOnlyAt = commitSlice.indexOf('retireConfirmed: false');
-      final durableAt = commitSlice.indexOf(
-        'await _commitCalendarSnapshotCandidate(',
-      );
+      final preparedAt = commitSlice.indexOf('_buildCalendarSnapshotCommit(');
       final callbackAt = commitSlice.indexOf('void applyPreparedState()');
       final controllerCommitAt = commitSlice.indexOf(
         '_hydrationController.commitViewport(',
       );
       final acceptedAt = commitSlice.indexOf('if (!accepted) {');
       final retireAt = commitSlice.indexOf('_unconfirmed.forgetCids(');
+      final persistenceAt = commitSlice.indexOf(
+        '_enqueueCalendarSnapshotPersistence(',
+      );
       expect(isCurrentAt, greaterThanOrEqualTo(0));
       expect(sameUserAt, greaterThan(isCurrentAt));
       expect(mergeAt, greaterThan(sameUserAt));
       expect(previewOnlyAt, greaterThan(mergeAt));
-      expect(durableAt, greaterThan(previewOnlyAt));
-      expect(callbackAt, greaterThan(durableAt));
+      expect(preparedAt, greaterThan(previewOnlyAt));
+      expect(callbackAt, greaterThan(preparedAt));
       expect(controllerCommitAt, greaterThan(callbackAt));
       expect(acceptedAt, greaterThan(controllerCommitAt));
       expect(retireAt, greaterThan(acceptedAt));
+      expect(persistenceAt, greaterThan(retireAt));
+      expect(commitSlice, isNot(contains('snapshot_durable_commit_rejected')));
     },
   );
 

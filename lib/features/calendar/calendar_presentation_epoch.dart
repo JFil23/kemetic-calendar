@@ -60,7 +60,7 @@ final class CalendarPresentationEpoch<T> {
 typedef CalendarPresentationActivator<T> =
     void Function(CalendarPresentationEpoch<T> epoch);
 
-/// Owns the durable-data → visible-projection handoff.
+/// Owns the authoritative server-data → visible-projection handoff.
 ///
 /// Extent-affecting epochs are staged while a gesture or Today transaction is
 /// active. At settle, only the newest consistent projection/geometry pair is

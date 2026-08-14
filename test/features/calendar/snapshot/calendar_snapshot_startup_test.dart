@@ -5,10 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
-import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/calendar_epoch_viewport.dart';
-import 'package:mobile/features/calendar/calendar_pending_note_store.dart';
-import 'package:mobile/features/calendar/calendar_user_scoped_prefs.dart';
+import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/snapshot/calendar_snapshot_models.dart';
 import 'package:mobile/features/calendar/snapshot/calendar_snapshot_runtime.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -52,7 +50,7 @@ void main() {
   });
 
   testWidgets(
-    'offline startup composes server snapshot and overlay before first data paint',
+    'shadow snapshot cannot delay or replace production startup authority',
     (tester) async {
       final today = KemeticMath.fromGregorian(DateTime.now());
       final dayKey = '${today.kYear}-${today.kMonth}-${today.kDay}';
@@ -60,10 +58,10 @@ void main() {
         await calendarSnapshotStore.commit(
           CalendarSnapshotCommit(
             userScope: _userId,
-            serverRevision: 'server-startup-1',
-            overlayRevision: 'overlay-startup-1',
-            catalogFingerprint: 'catalog-startup-1',
-            origin: 'startup_test',
+            serverRevision: 'shadow-server-1',
+            overlayRevision: 'shadow-overlay-1',
+            catalogFingerprint: 'shadow-catalog-1',
+            origin: 'shadow_startup_test',
             committedAtUtc: DateTime.now().toUtc(),
             lastSuccessfulRefreshAtUtc: DateTime.now().toUtc(),
             coverage: <CalendarSnapshotCoverageInterval>[
@@ -76,7 +74,7 @@ void main() {
             ],
             eventsByDay: <String, List<Map<String, Object?>>>{
               dayKey: <Map<String, Object?>>[
-                _note('server-event', 'Cached server event'),
+                _note('shadow-event', 'Unpromoted snapshot event'),
               ],
             },
             flows: const <Map<String, Object?>>[],
@@ -85,37 +83,8 @@ void main() {
               'hiddenCalendarIds': <String>[],
               'calendars': <Object?>[],
             },
-            overlayRecords: <Map<String, Object?>>[
-              <String, Object?>{
-                'kind': 'create_or_edit',
-                'dayKey': dayKey,
-                'clientEventId': 'pending-event',
-                'createdAtUtc': DateTime.now().toUtc().toIso8601String(),
-                'note': _note('pending-event', 'Pending local event'),
-              },
-            ],
           ),
           requireGenerationMatch: true,
-        );
-        await PendingCalendarNoteStore().write(
-          userId: _userId,
-          record: PendingCalendarNoteRecord(
-            clientEventId: 'mirrored-pending-event',
-            dayKey: dayKey,
-            createdAt: DateTime.now().toUtc(),
-            notePayload: _note(
-              'mirrored-pending-event',
-              'Mirrored pending event',
-            ),
-          ),
-        );
-        final prefs = await SharedPreferences.getInstance();
-        await CalendarUserScopedPrefs.writeStringList(
-          prefs: prefs,
-          userId: _userId,
-          userKey: CalendarUserScopedPrefs.manualDeleteTombstonesKey,
-          legacyKey: CalendarUserScopedPrefs.legacyManualDeleteTombstonesKey,
-          values: const <String>['server-event'],
         );
       });
 
@@ -125,36 +94,21 @@ void main() {
           home: Scaffold(body: CalendarPage(key: key)),
         ),
       );
-      expect(find.byType(CalendarEpochScrollView), findsNothing);
       await tester.runAsync(
         () => Future<void>.delayed(const Duration(milliseconds: 500)),
       );
-      var calendarPainted = false;
       for (var attempt = 0; attempt < 80; attempt++) {
         await tester.pump(const Duration(milliseconds: 25));
-        final state = key.currentState;
-        if (find.byType(CalendarEpochScrollView).evaluate().isNotEmpty) {
-          calendarPainted = true;
-          expect(
-            state!
-                .notesForDayForTesting(today.kYear, today.kMonth, today.kDay)
-                .length,
-            2,
-            reason: 'first calendar paint must already own composed local data',
-          );
-          break;
-        }
+        if (find.byType(CalendarEpochScrollView).evaluate().isNotEmpty) break;
       }
-      expect(calendarPainted, isTrue);
 
-      final notes = key.currentState!.notesForDayForTesting(
-        today.kYear,
-        today.kMonth,
-        today.kDay,
-      );
+      expect(find.byType(CalendarEpochScrollView), findsOneWidget);
       expect(
-        notes.map((note) => note.clientEventId),
-        unorderedEquals(<String>['pending-event', 'mirrored-pending-event']),
+        key.currentState!
+            .notesForDayForTesting(today.kYear, today.kMonth, today.kDay)
+            .map((note) => note.clientEventId),
+        isNot(contains('shadow-event')),
+        reason: 'write-side shadow data is not a startup presentation owner',
       );
 
       await tester.pumpWidget(const SizedBox.shrink());

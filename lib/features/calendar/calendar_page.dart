@@ -11089,6 +11089,26 @@ class CalendarPageState extends State<CalendarPage>
     return operation;
   }
 
+  /// Cache durability is best-effort after live authority has committed.
+  /// Callers may await completion for diagnostics, but this future never
+  /// converts a successful hydration into a failed hydration.
+  Future<void> _persistWarmStartCacheBestEffort({
+    String? userId,
+    String debugReason = 'debounced',
+    bool allowServerCurrentViewport = false,
+  }) async {
+    try {
+      await _persistWarmStartCacheNow(
+        userId: userId,
+        debugReason: debugReason,
+        allowServerCurrentViewport: allowServerCurrentViewport,
+      );
+    } catch (_) {
+      // `_persistWarmStartCacheNowSerialized` already records the safe failure
+      // class. Persistence is deliberately outside presentation authority.
+    }
+  }
+
   Future<void> _persistWarmStartCacheNowSerialized({
     String? userId,
     required String debugReason,
@@ -11419,18 +11439,6 @@ class CalendarPageState extends State<CalendarPage>
       recordCache('cache_restore_ended_reminders_ready', <String, Object?>{
         'duration_ms': endedReminderStopwatch.elapsedMilliseconds,
       });
-      final snapshotStoreStopwatch = Stopwatch()..start();
-      final snapshotRestored = await _restoreCalendarSnapshotStoreIfAvailable(
-        userId: userId,
-        reason: reason,
-      );
-      if (snapshotRestored) {
-        recordCache('cache_restore_snapshot_store_won', <String, Object?>{
-          'duration_ms': totalStopwatch.elapsedMilliseconds,
-          'snapshot_store_ms': snapshotStoreStopwatch.elapsedMilliseconds,
-        });
-        return;
-      }
       final prefsStopwatch = Stopwatch()..start();
       final prefs = await SharedPreferences.getInstance();
       recordCache('cache_restore_prefs_ready', <String, Object?>{
@@ -15555,15 +15563,13 @@ class CalendarPageState extends State<CalendarPage>
     });
     // We no longer listen to every change to avoid UI loops; checks happen on load/resume/refresh.
 
-    // Keep the calendar surface gated until local data authority has either
-    // composed the durable server snapshot + overlay or proved that no local
-    // snapshot exists. View restoration is deliberately second: `_restored`
-    // is the first-content-paint gate.
-    unawaited(
-      _restoreCalendarLocalStartupState(
-        restoreSnapshot: !hasSharedCalendarRealDayViewIntent,
-      ),
-    );
+    // View restoration owns first paint. Cache restoration is an independent
+    // warm-start acceleration and must never hold the calendar shell hostage
+    // to a storage backend.
+    _loadPersistedViewState();
+    if (!hasSharedCalendarRealDayViewIntent) {
+      unawaited(_restoreWarmStartCacheIfAvailable(reason: 'initState'));
+    }
     unawaited(_restoreMyFlowsFilingSnapshotCache(reason: 'initState'));
     calendarPushOpenIntent.addListener(_handleCalendarPushOpenIntent);
     _hydrationInvalidationBridge.attach();
@@ -15715,16 +15721,6 @@ class CalendarPageState extends State<CalendarPage>
     if (consumedSharedCalendarIntent) {
       return;
     }
-  }
-
-  Future<void> _restoreCalendarLocalStartupState({
-    required bool restoreSnapshot,
-  }) async {
-    if (restoreSnapshot) {
-      await _restoreWarmStartCacheIfAvailable(reason: 'initState');
-      if (!mounted) return;
-    }
-    await _loadPersistedViewState();
   }
 
   void _scheduleDaySheetResumeRestore() {

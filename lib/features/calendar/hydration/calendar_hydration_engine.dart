@@ -75,10 +75,12 @@ extension _CalendarHydrationEngine on CalendarPageState {
                 'fingerprint': stagedCatalog.fingerprint,
               },
             );
-            await _persistWarmStartCacheNow(
-              userId: user.id,
-              debugReason: 'hydration_viewport_server_current',
-              allowServerCurrentViewport: true,
+            unawaited(
+              _persistWarmStartCacheBestEffort(
+                userId: user.id,
+                debugReason: 'hydration_viewport_server_current',
+                allowServerCurrentViewport: true,
+              ),
             );
             return;
           }
@@ -104,18 +106,20 @@ extension _CalendarHydrationEngine on CalendarPageState {
         jobContext.throwIfCancelled('before_controller_commit');
         if (request.mode == _CalendarHydrationMode.backgroundWindow) {
           if (request.isFinalChunk) {
-            await _persistWarmStartCacheNow(
-              userId: user.id,
-              debugReason: 'hydration_horizon_complete',
-            );
-            await CalendarHydrationDiagnostics.instance.finishBackfillSummary(
-              userId: user.id,
-              fullHorizonComplete:
-                  _hydrationController.state.authority ==
-                  CalendarViewportAuthority.fullHorizon,
-              cacheSaveEnded: _lastWarmStartCacheSaveOutcome != null,
-              cacheSaveOutcome: _lastWarmStartCacheSaveOutcome,
-            );
+            unawaited(() async {
+              await _persistWarmStartCacheBestEffort(
+                userId: user.id,
+                debugReason: 'hydration_horizon_complete',
+              );
+              await CalendarHydrationDiagnostics.instance.finishBackfillSummary(
+                userId: user.id,
+                fullHorizonComplete:
+                    _hydrationController.state.authority ==
+                    CalendarViewportAuthority.fullHorizon,
+                cacheSaveEnded: _lastWarmStartCacheSaveOutcome != null,
+                cacheSaveOutcome: _lastWarmStartCacheSaveOutcome,
+              );
+            }());
           }
         } else if (request.mode == _CalendarHydrationMode.catalogReconcile &&
             _hydrationController.state.authority ==
@@ -123,10 +127,12 @@ extension _CalendarHydrationEngine on CalendarPageState {
           // Heal the launch cache as soon as the exact viewport and fresh
           // catalog are atomically authoritative. Full-horizon persistence
           // still replaces this checkpoint after all background chunks land.
-          await _persistWarmStartCacheNow(
-            userId: user.id,
-            debugReason: 'hydration_viewport_server_current',
-            allowServerCurrentViewport: true,
+          unawaited(
+            _persistWarmStartCacheBestEffort(
+              userId: user.id,
+              debugReason: 'hydration_viewport_server_current',
+              allowServerCurrentViewport: true,
+            ),
           );
         }
       },
@@ -538,8 +544,6 @@ extension _CalendarHydrationEngine on CalendarPageState {
           }
           return;
         }
-        final projectionMutationRevisionAtPrep =
-            _calendarProjectionMutationRevision;
         Map<String, List<_Note>> authoritativeCandidateNotes =
             mergeHydrationWindowIntoNotes<_Note>(
               existing: _calendarHydrationBaseNotes,
@@ -632,28 +636,26 @@ extension _CalendarHydrationEngine on CalendarPageState {
           dedupedNotes,
           affectedMonths,
         );
-        final durable = await _commitCalendarSnapshotCandidate(
+        final confirmedOverlayCids = Set<String>.unmodifiable(
+          unconfirmedMerge.confirmedCids,
+        );
+        final successfulRefreshAtUtc = DateTime.now().toUtc();
+        final preparedSnapshot = _buildCalendarSnapshotCommit(
           userId: loadUserId,
           reason: 'hydration_${request.diagnosticSource}',
           flows: List<_Flow>.unmodifiable(newFlows),
           notesByDay: authoritativeNotes,
           coverage: projectedCoverage.intervals,
           catalogFingerprint: effectiveCatalogFingerprint,
-          lastSuccessfulRefreshAtUtc: DateTime.now().toUtc(),
-          confirmedOverlayCids: unconfirmedMerge.confirmedCids,
+          lastSuccessfulRefreshAtUtc: successfulRefreshAtUtc,
+          confirmedOverlayCids: confirmedOverlayCids,
         );
-        if (durable == null) {
-          progressiveAbortReason = 'snapshot_durable_commit_rejected';
-          return;
-        }
         if (!mounted ||
             !jobContext.isCurrent ||
             _activeWarmStartUserId() != loadUserId ||
-            flowEndRevisionAtLoadStart != CalendarPage._flowEndStateRevision ||
-            projectionMutationRevisionAtPrep !=
-                _calendarProjectionMutationRevision) {
+            flowEndRevisionAtLoadStart != CalendarPage._flowEndStateRevision) {
           hydrationPassSuperseded = true;
-          progressiveAbortReason = 'presentation_changed_during_durable_commit';
+          progressiveAbortReason = 'authority_changed_before_publication';
           return;
         }
 
@@ -667,7 +669,7 @@ extension _CalendarHydrationEngine on CalendarPageState {
           authorityReason: authorityReason,
           commitIsServerCurrent: commitIsServerCurrent,
           coverage: projectedCoverage,
-          lastSuccessfulRefreshAtUtc: durable.commit.lastSuccessfulRefreshAtUtc,
+          lastSuccessfulRefreshAtUtc: successfulRefreshAtUtc,
           fullServerHydration: shouldSetFullServerHydrationSentinel(
             publishedScope,
           ),
@@ -681,7 +683,7 @@ extension _CalendarHydrationEngine on CalendarPageState {
           userScope: loadUserId,
           sequence: ++_calendarPresentationSequence,
           viewRevision:
-              '${durable.commit.serverRevision}:${durable.commit.overlayRevision}',
+              '${preparedSnapshot.serverRevision}:${preparedSnapshot.overlayRevision}',
           geometryRevision: geometryRevision,
           extentAffecting: extentAffecting,
           affectedSections: affectedMonths.map(
@@ -720,15 +722,21 @@ extension _CalendarHydrationEngine on CalendarPageState {
                 entry.key: List<_Note>.unmodifiable(entry.value),
             });
         committedVisibleCalendar = true;
-        if (unconfirmedMerge.confirmedCids.isNotEmpty) {
-          _unconfirmed.forgetCids(unconfirmedMerge.confirmedCids);
+        if (confirmedOverlayCids.isNotEmpty) {
+          _unconfirmed.forgetCids(confirmedOverlayCids);
           unawaited(
             _removePersistedPendingCids(
-              unconfirmedMerge.confirmedCids,
+              confirmedOverlayCids,
               userId: loadUserId,
             ),
           );
         }
+        _enqueueCalendarSnapshotPersistence(
+          userId: loadUserId,
+          reason: 'hydration_${request.diagnosticSource}',
+          preparedCommit: preparedSnapshot,
+          confirmedOverlayCids: confirmedOverlayCids,
+        );
         if (kDebugMode) {
           _calendarDebugPrint(
             '[hydrationEngine] committed epoch phase=${phase.name} '
@@ -754,7 +762,7 @@ extension _CalendarHydrationEngine on CalendarPageState {
         );
         hydrationDiagnostics.recordPostProcessing(
           hydrationContext,
-          'durable_commit_and_epoch_publish',
+          'epoch_publish_and_snapshot_enqueue',
           durationMs: commitPrepStopwatch.elapsedMilliseconds,
           fields: <String, Object?>{
             'phase': phase.name,

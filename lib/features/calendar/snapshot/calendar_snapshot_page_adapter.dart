@@ -20,6 +20,9 @@ extension _CalendarSnapshotPageAdapter on CalendarPageState {
     }
   }
 
+  // SnapshotStore remains write-side shadow infrastructure until a separate
+  // rollout proves its web backend. The proven warm cache owns startup reads.
+  // ignore: unused_element
   Future<bool> _restoreCalendarSnapshotStoreIfAvailable({
     required String userId,
     required String reason,
@@ -336,6 +339,23 @@ extension _CalendarSnapshotPageAdapter on CalendarPageState {
       lastSuccessfulRefreshAtUtc: lastSuccessfulRefreshAtUtc,
       confirmedOverlayCids: confirmedOverlayCids,
     );
+    return _commitPreparedCalendarSnapshotCandidate(
+      userId: userId,
+      reason: reason,
+      baseCommit: baseCommit,
+      confirmedOverlayCids: confirmedOverlayCids,
+    );
+  }
+
+  Future<
+    ({CalendarSnapshotCommit commit, CalendarSnapshotCommitResult result})?
+  >
+  _commitPreparedCalendarSnapshotCandidate({
+    required String userId,
+    required String reason,
+    required CalendarSnapshotCommit baseCommit,
+    Iterable<String> confirmedOverlayCids = const <String>[],
+  }) {
     final operation = _calendarSnapshotWriteTail.then((_) async {
       final normalizedUserId = userId.trim();
       if (!mounted || _activeWarmStartUserId() != normalizedUserId) {
@@ -394,6 +414,33 @@ extension _CalendarSnapshotPageAdapter on CalendarPageState {
       onError: (Object _, StackTrace _) {},
     );
     return operation;
+  }
+
+  /// Persists an already-published server projection without participating in
+  /// presentation authority. Storage failure is observable and recoverable,
+  /// but it can never turn a successful network hydration into a failed one.
+  void _enqueueCalendarSnapshotPersistence({
+    required String userId,
+    required String reason,
+    required CalendarSnapshotCommit preparedCommit,
+    Iterable<String> confirmedOverlayCids = const <String>[],
+  }) {
+    final operation = _commitPreparedCalendarSnapshotCandidate(
+      userId: userId,
+      reason: reason,
+      baseCommit: preparedCommit,
+      confirmedOverlayCids: confirmedOverlayCids,
+    );
+    unawaited(
+      operation.then((result) {
+        CalendarHydrationDiagnostics.instance.recordCacheEvent(
+          result == null
+              ? 'snapshot_persistence_deferred_or_failed'
+              : 'snapshot_persistence_completed',
+          <String, Object?>{'request_reason': reason},
+        );
+      }),
+    );
   }
 
   Future<bool> _commitCalendarOverlayState({

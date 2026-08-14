@@ -14,6 +14,9 @@ void main() {
         await File('lib/features/calendar/calendar_page.dart').readAsString() +
         await File(
           'lib/features/calendar/hydration/calendar_hydration_engine.dart',
+        ).readAsString() +
+        await File(
+          'lib/features/calendar/snapshot/calendar_presentation_page_adapter.dart',
         ).readAsString();
   });
 
@@ -45,8 +48,15 @@ void main() {
       calendarPageSource.indexOf('if (event == AuthChangeEvent.signedOut) {'),
       calendarPageSource.indexOf('// Construct the journal controller now'),
     );
-    expect(block, contains('_flows.clear()'));
-    expect(block, contains('_notes.clear()'));
+    expect(
+      block,
+      contains('_calendarPresentationCoordinator.changeUserScope(null)'),
+    );
+    final clearScope = calendarPageSource.substring(
+      calendarPageSource.indexOf('void _clearCalendarPresentationScope('),
+    );
+    expect(clearScope, contains('_flows.clear()'));
+    expect(clearScope, contains('_notes.clear()'));
     expect(block, contains('_manualDeleteTombstones.clear()'));
     expect(block, contains('_pendingDeleteKeys.clear()'));
     expect(block, contains('_endedReminderIds.clear()'));
@@ -168,20 +178,22 @@ void main() {
       reason: 'standalone saves and staged Ma_at joins must survive hydration',
     );
     final commitStart = calendarPageSource.indexOf(
-      'void commitVisibleCalendarState(',
+      'Future<void> commitVisibleCalendarState(',
     );
     final commitSlice = calendarPageSource.substring(
       commitStart,
       calendarPageSource.indexOf('hydrationPassSucceeded =', commitStart),
     );
-    expect(
-      commitSlice.indexOf('_unconfirmed.mergeInto('),
-      greaterThan(commitSlice.indexOf('void applyPreparedState()')),
-    );
+    expect(commitSlice.indexOf('_unconfirmed.mergeInto('), isNonNegative);
     expect(
       commitSlice.indexOf('_unconfirmed.mergeInto('),
       lessThan(commitSlice.indexOf('_hydrationController.commitViewport(')),
-      reason: 'the ledger mutation lives inside the controller callback',
+      reason: 'the non-mutating overlay preview precedes controller commit',
+    );
+    expect(
+      commitSlice.indexOf('_unconfirmed.forgetCids('),
+      greaterThan(commitSlice.indexOf('if (!accepted) {')),
+      reason: 'confirmed overlay rows retire only after acceptance',
     );
   });
 

@@ -372,7 +372,10 @@ void main() {
     final projection = restore.indexOf(
       'final projectedReminderCount = _projectReminderMembershipForHydration(',
     );
-    final commit = restore.indexOf('setState(() {', projection);
+    final commit = restore.indexOf(
+      '_hydrationController.restoreCache(',
+      projection,
+    );
     final diagnostic = restore.indexOf(
       'diagnostics.recordWarmCacheCommit(',
       commit,
