@@ -98,18 +98,23 @@ class CalendarFloatingTodayButton extends StatelessWidget {
           child: ExcludeSemantics(
             child: InkWell(
               onTap: onPressed,
-              child: const Center(
-                child: Text(
+              child: Center(
+                child: KemeticGold.text(
                   'Today',
                   style: TextStyle(
-                    color: Color(0xFFF7F7F7),
                     fontSize: 17,
                     fontWeight: FontWeight.w600,
                     height: 1,
-                    letterSpacing: -0.25,
-                    fontFamily: 'Roboto',
-                    fontFamilyFallback: <String>['Arial', 'sans-serif'],
+                    fontFamily: 'CormorantGaramond',
+                    fontFamilyFallback: <String>[
+                      'GentiumPlus',
+                      'Georgia',
+                      'serif',
+                    ],
                   ),
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.visible,
                 ),
               ),
             ),
@@ -211,7 +216,7 @@ class _CalendarFloatingCapsule extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: <Color>[Color(0xF52B2B2E), Color(0xF51B1B1D)],
+          colors: <Color>[Color(0xB32B2B2E), Color(0xB31B1B1D)],
         ),
         borderRadius: borderRadius,
         border: Border.all(color: const Color(0x3DFFFFFF), width: 0.75),

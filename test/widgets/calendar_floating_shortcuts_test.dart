@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/widgets/calendar_floating_shortcuts.dart';
 
 void main() {
@@ -45,6 +46,15 @@ void main() {
       decoration.borderRadius,
       BorderRadius.circular(kCalendarFloatingShortcutsHeight / 2),
     );
+    final gradient = decoration.gradient! as LinearGradient;
+    expect(gradient.colors, const <Color>[
+      Color(0xB32B2B2E),
+      Color(0xB31B1B1D),
+    ]);
+    final todaySurface = tester.widget<DecoratedBox>(
+      find.byKey(calendarFloatingTodaySurfaceKey),
+    );
+    expect(todaySurface.decoration, decoration);
   });
 
   testWidgets('offers two equal tappable actions with live inbox count copy', (
@@ -105,9 +115,17 @@ void main() {
       const Size(kCalendarFloatingTodayWidth, kCalendarFloatingShortcutsHeight),
     );
     expect(find.bySemanticsLabel('Today'), findsOneWidget);
-    final label = tester.widget<Text>(find.text('Today'));
-    expect(label.style?.fontSize, 17);
-    expect(label.style?.fontWeight, FontWeight.w600);
+    final label = tester.widget<GlossyText>(find.byType(GlossyText));
+    expect(label.text, 'Today');
+    expect(label.gradient, KemeticGold.gloss);
+    expect(label.style.fontSize, 17);
+    expect(label.style.fontWeight, FontWeight.w600);
+    expect(label.style.fontFamily, 'CormorantGaramond');
+    expect(label.style.fontFamilyFallback, const <String>[
+      'GentiumPlus',
+      'Georgia',
+      'serif',
+    ]);
 
     await tester.tap(find.text('Today'));
     expect(todayTaps, 1);

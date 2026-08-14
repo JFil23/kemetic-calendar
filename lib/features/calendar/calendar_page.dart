@@ -25398,8 +25398,11 @@ class CalendarPageState extends State<CalendarPage>
     Widget? titleOverride,
   }) {
     return AppBar(
-      backgroundColor: Colors.black,
-      elevation: 0.5,
+      backgroundColor: _bg,
+      surfaceTintColor: Colors.transparent,
+      shadowColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
       centerTitle: false,
       titleSpacing: 12,
       iconTheme: const IconThemeData(color: _gold),

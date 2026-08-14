@@ -531,9 +531,14 @@ void main() {
       ).readAsString();
       final appBar = _sourceBetween(
         source,
-        'return AppBar(\n      backgroundColor: Colors.black,\n      elevation: 0.5,\n      centerTitle: false,',
+        'PreferredSizeWidget _buildCalendarAppBar({',
         'Future<void> _openProfile(',
       );
+
+      expect(appBar, contains('backgroundColor: _bg'));
+      expect(appBar, contains('surfaceTintColor: Colors.transparent'));
+      expect(appBar, contains('shadowColor: Colors.transparent'));
+      expect(appBar, contains('scrolledUnderElevation: 0'));
 
       _expectTooltipAction(appBar, 'New note', <String>[
         'onPressed: _openQuickAddSheet',
