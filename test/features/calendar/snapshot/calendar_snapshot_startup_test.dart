@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 const String _userId = '451ec6cb-d4c1-438e-95e9-a6713849a67a';
+const String _legacyWarmCacheKey = 'calendar:warm_start:v1:$_userId';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -50,18 +51,21 @@ void main() {
   });
 
   testWidgets(
-    'shadow snapshot cannot delay or replace production startup authority',
+    'complete snapshot restores previous-day events before live hydration',
     (tester) async {
-      final today = KemeticMath.fromGregorian(DateTime.now());
-      final dayKey = '${today.kYear}-${today.kMonth}-${today.kDay}';
+      final previousDay = KemeticMath.fromGregorian(
+        DateTime.now().subtract(const Duration(days: 2)),
+      );
+      final dayKey =
+          '${previousDay.kYear}-${previousDay.kMonth}-${previousDay.kDay}';
       await tester.runAsync(() async {
         await calendarSnapshotStore.commit(
           CalendarSnapshotCommit(
             userScope: _userId,
-            serverRevision: 'shadow-server-1',
-            overlayRevision: 'shadow-overlay-1',
-            catalogFingerprint: 'shadow-catalog-1',
-            origin: 'shadow_startup_test',
+            serverRevision: 'warm-server-1',
+            overlayRevision: 'warm-overlay-1',
+            catalogFingerprint: 'warm-catalog-1',
+            origin: 'warm_startup_test',
             committedAtUtc: DateTime.now().toUtc(),
             lastSuccessfulRefreshAtUtc: DateTime.now().toUtc(),
             coverage: <CalendarSnapshotCoverageInterval>[
@@ -74,7 +78,7 @@ void main() {
             ],
             eventsByDay: <String, List<Map<String, Object?>>>{
               dayKey: <Map<String, Object?>>[
-                _note('shadow-event', 'Unpromoted snapshot event'),
+                _note('warm-previous-day-event', 'Previous day event'),
               ],
             },
             flows: const <Map<String, Object?>>[],
@@ -105,16 +109,119 @@ void main() {
       expect(find.byType(CalendarEpochScrollView), findsOneWidget);
       expect(
         key.currentState!
-            .notesForDayForTesting(today.kYear, today.kMonth, today.kDay)
+            .notesForDayForTesting(
+              previousDay.kYear,
+              previousDay.kMonth,
+              previousDay.kDay,
+            )
             .map((note) => note.clientEventId),
-        isNot(contains('shadow-event')),
-        reason: 'write-side shadow data is not a startup presentation owner',
+        contains('warm-previous-day-event'),
+        reason:
+            'the complete durable snapshot must paint before the offline live '
+            'refresh can fill the same day',
       );
 
       await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump(const Duration(seconds: 2));
     },
   );
+
+  testWidgets('overlay-only snapshot falls back to covered legacy cache', (
+    tester,
+  ) async {
+    final previousDay = KemeticMath.fromGregorian(
+      DateTime.now().subtract(const Duration(days: 3)),
+    );
+    final dayKey =
+        '${previousDay.kYear}-${previousDay.kMonth}-${previousDay.kDay}';
+    final nowUtc = DateTime.now().toUtc();
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'app:has_seen_onboarding': true,
+      'app:onboarding:completed': true,
+      _legacyWarmCacheKey: jsonEncode(<String, Object?>{
+        'snapshotSchemaVersion': 2,
+        'userId': _userId,
+        'cacheSavedAt': nowUtc.toIso8601String(),
+        'catalogFingerprint': 'legacy-catalog',
+        'authoritativeViewportStartUtc': nowUtc
+            .subtract(const Duration(days: 30))
+            .toIso8601String(),
+        'authoritativeViewportEndUtc': nowUtc
+            .add(const Duration(days: 30))
+            .toIso8601String(),
+        'flows': <Object?>[],
+        'notes': <String, Object?>{
+          dayKey: <Object?>[
+            _note('legacy-previous-day-event', 'Legacy previous day event'),
+          ],
+        },
+        'nextFlowId': 1,
+        'flowTotalEventCounts': <String, Object?>{},
+        'flowRemainingEventCounts': <String, Object?>{},
+      }),
+    });
+    await Supabase.instance.client.auth.recoverSession(_sessionJson());
+    await tester.runAsync(() async {
+      await calendarSnapshotStore.commit(
+        CalendarSnapshotCommit(
+          userScope: _userId,
+          serverRevision: 'overlay-only-server',
+          overlayRevision: 'overlay-only-overlay',
+          catalogFingerprint: 'overlay-only-catalog',
+          origin: 'overlay_only_startup_test',
+          committedAtUtc: nowUtc,
+          lastSuccessfulRefreshAtUtc: DateTime.fromMillisecondsSinceEpoch(
+            0,
+            isUtc: true,
+          ),
+          coverage: const <CalendarSnapshotCoverageInterval>[],
+          eventsByDay: const <String, List<Map<String, Object?>>>{},
+          flows: const <Map<String, Object?>>[],
+          calendarMetadata: const <String, Object?>{
+            'personalCalendarId': null,
+            'hiddenCalendarIds': <String>[],
+            'calendars': <Object?>[],
+          },
+        ),
+      );
+    });
+
+    final key = GlobalKey<CalendarPageState>();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: CalendarPage(key: key)),
+      ),
+    );
+    await tester.runAsync(
+      () => Future<void>.delayed(const Duration(milliseconds: 500)),
+    );
+    for (var attempt = 0; attempt < 80; attempt++) {
+      await tester.pump(const Duration(milliseconds: 25));
+      if (key.currentState!
+          .notesForDayForTesting(
+            previousDay.kYear,
+            previousDay.kMonth,
+            previousDay.kDay,
+          )
+          .any((note) => note.clientEventId == 'legacy-previous-day-event')) {
+        break;
+      }
+    }
+
+    expect(
+      key.currentState!
+          .notesForDayForTesting(
+            previousDay.kYear,
+            previousDay.kMonth,
+            previousDay.kDay,
+          )
+          .map((note) => note.clientEventId),
+      contains('legacy-previous-day-event'),
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(seconds: 2));
+  });
 }
 
 Map<String, Object?> _note(String cid, String title) => <String, Object?>{

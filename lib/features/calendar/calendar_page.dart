@@ -11435,6 +11435,26 @@ class CalendarPageState extends State<CalendarPage>
       recordCache('cache_restore_ended_reminders_ready', <String, Object?>{
         'duration_ms': endedReminderStopwatch.elapsedMilliseconds,
       });
+
+      // The generational snapshot is the lossless warm-start source. It owns
+      // only cached presentation: live hydration remains free to publish
+      // without waiting for, or depending on, durable persistence. Keep this
+      // inside the existing single-flight restore so the snapshot and the
+      // compacted legacy mirror can never race to paint different projections.
+      final restoredSnapshot = await _restoreCalendarSnapshotStoreIfAvailable(
+        userId: userId,
+        reason: reason,
+      );
+      if (restoredSnapshot) {
+        recordCache('cache_restore_snapshot_selected', <String, Object?>{
+          'duration_ms': totalStopwatch.elapsedMilliseconds,
+        });
+        return;
+      }
+
+      // Snapshot absence/corruption is recoverable. The older compacted mirror
+      // remains a migration fallback, but it is never allowed to overwrite a
+      // complete snapshot or a newer server/local projection.
       final prefsStopwatch = Stopwatch()..start();
       final prefs = await SharedPreferences.getInstance();
       recordCache('cache_restore_prefs_ready', <String, Object?>{

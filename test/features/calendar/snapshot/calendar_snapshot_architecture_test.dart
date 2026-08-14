@@ -36,7 +36,7 @@ void main() {
     expect(commit, isNot(contains('setState(')));
   });
 
-  test('snapshot store reads remain outside production startup authority', () {
+  test('startup prefers the complete snapshot inside one restore flight', () {
     final adapter = File(
       'lib/features/calendar/snapshot/calendar_snapshot_page_adapter.dart',
     ).readAsStringSync();
@@ -48,9 +48,27 @@ void main() {
         r'_restoreCalendarSnapshotStoreIfAvailable\(',
       ).allMatches(adapter).length,
       1,
-      reason: 'the store reader may exist for shadow validation only',
+      reason: 'the lossless reader has one implementation',
     );
-    expect(page, isNot(contains('_restoreCalendarSnapshotStoreIfAvailable(')));
+    final restoreStart = page.indexOf(
+      'Future<void> _restoreWarmStartCacheIfAvailable(',
+    );
+    final restoreEnd = page.indexOf(
+      'Future<void> _refreshCalendarStateFromServer()',
+      restoreStart,
+    );
+    expect(restoreStart, greaterThanOrEqualTo(0));
+    expect(restoreEnd, greaterThan(restoreStart));
+    final restore = page.substring(restoreStart, restoreEnd);
+    final snapshotAt = restore.indexOf(
+      '_restoreCalendarSnapshotStoreIfAvailable(',
+    );
+    final legacyPrefsAt = restore.indexOf(
+      'final prefs = await SharedPreferences.getInstance()',
+    );
+    expect(snapshotAt, greaterThanOrEqualTo(0));
+    expect(legacyPrefsAt, greaterThan(snapshotAt));
+    expect(restore, contains('if (restoredSnapshot)'));
   });
 
   test('legacy cache failure cannot fail a successful hydration job', () {
@@ -69,7 +87,7 @@ void main() {
     expect(engine, isNot(contains('await _persistWarmStartCacheNow(')));
   });
 
-  test('startup paint is independent from cache backend completion', () {
+  test('startup shell is independent while hydration awaits warm restore', () {
     final source = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
@@ -93,7 +111,7 @@ void main() {
     expect(restoreEnd, greaterThan(restoreStart));
     expect(
       source.substring(restoreStart, restoreEnd),
-      isNot(contains('_restoreCalendarSnapshotStoreIfAvailable(')),
+      contains('_restoreCalendarSnapshotStoreIfAvailable('),
     );
   });
 

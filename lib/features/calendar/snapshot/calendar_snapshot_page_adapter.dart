@@ -20,9 +20,9 @@ extension _CalendarSnapshotPageAdapter on CalendarPageState {
     }
   }
 
-  // SnapshotStore remains write-side shadow infrastructure until a separate
-  // rollout proves its web backend. The proven warm cache owns startup reads.
-  // ignore: unused_element
+  // SnapshotStore is the lossless warm-presentation source. It never owns live
+  // hydration: network commits publish before persistence, and any read
+  // failure falls back to the compacted migration mirror.
   Future<bool> _restoreCalendarSnapshotStoreIfAvailable({
     required String userId,
     required String reason,
@@ -37,6 +37,19 @@ extension _CalendarSnapshotPageAdapter on CalendarPageState {
           !mounted ||
           _activeWarmStartUserId() != normalizedUserId ||
           _serverHydrationCommittedForUserId == normalizedUserId) {
+        return false;
+      }
+      if (snapshot.coverage.isEmpty) {
+        // Overlay-only generations are durable, but they are not a complete
+        // server projection. Let the legacy mirror restore its covered base;
+        // pending notes and tombstones are composed by their durable mirrors.
+        CalendarHydrationDiagnostics.instance
+            .recordCacheEvent('snapshot_restore_skipped', <String, Object?>{
+              'request_reason': reason,
+              'reason': 'no_server_coverage',
+              'generation': snapshot.generation,
+              'duration_ms': started.elapsedMilliseconds,
+            });
         return false;
       }
 
