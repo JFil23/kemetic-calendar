@@ -12751,15 +12751,19 @@ class CalendarPageState extends State<CalendarPage>
     Route<T> route, {
     required Map<String, dynamic> visibleState,
     required Map<String, dynamic> returnState,
+    bool persistOverlay = true,
   }) async {
-    await _saveCalendarOverlayState(
-      _kCalendarOverlayKindFlowStudio,
-      visibleState,
-    );
+    if (persistOverlay) {
+      await _saveCalendarOverlayState(
+        _kCalendarOverlayKindFlowStudio,
+        visibleState,
+      );
+    }
     try {
       return await navigator.push<T>(route);
     } finally {
-      if (mounted &&
+      if (persistOverlay &&
+          mounted &&
           navigator.mounted &&
           !RestorationCoordinator
               .instance
@@ -12777,6 +12781,7 @@ class CalendarPageState extends State<CalendarPage>
     int? editFlowId,
     ImportFlowData? importData,
     required Map<String, dynamic> returnState,
+    bool persistOverlay = true,
   }) {
     final readingHouseFlow = importData == null
         ? _readingHouseFlowForEditor(editFlowId)
@@ -12799,6 +12804,7 @@ class CalendarPageState extends State<CalendarPage>
           'templateKey': kReadingHouseFlowKey,
         },
         returnState: returnState,
+        persistOverlay: persistOverlay,
       );
     }
 
@@ -12839,6 +12845,7 @@ class CalendarPageState extends State<CalendarPage>
         if (editFlowId != null) 'editFlowId': editFlowId,
       },
       returnState: returnState,
+      persistOverlay: persistOverlay,
     );
   }
 
@@ -12876,6 +12883,7 @@ class CalendarPageState extends State<CalendarPage>
     NavigatorState navigator,
     _MaatFlowTemplate template, {
     required Map<String, dynamic> returnState,
+    bool persistOverlay = true,
   }) {
     return _pushFlowStudioRoute<int?>(
       navigator,
@@ -12950,6 +12958,7 @@ class CalendarPageState extends State<CalendarPage>
         'templateKey': template.key,
       },
       returnState: returnState,
+      persistOverlay: persistOverlay,
     );
   }
 
@@ -15784,6 +15793,7 @@ class CalendarPageState extends State<CalendarPage>
         editingSourceKYear: (payload['editingSourceKYear'] as num?)?.toInt(),
         editingSourceKMonth: (payload['editingSourceKMonth'] as num?)?.toInt(),
         editingSourceKDay: (payload['editingSourceKDay'] as num?)?.toInt(),
+        initialTab: _daySheetTabFromSession(payload['activeTab']),
       );
     });
   }
@@ -16033,6 +16043,14 @@ class CalendarPageState extends State<CalendarPage>
     final minute = (payload['${prefix}Minute'] as num?)?.toInt();
     if (hour == null || minute == null) return null;
     return TimeOfDay(hour: hour.clamp(0, 23), minute: minute.clamp(0, 59));
+  }
+
+  DaySheetTab? _daySheetTabFromSession(Object? value) {
+    final name = value?.toString().trim();
+    for (final tab in DaySheetTab.values) {
+      if (tab.name == name) return tab;
+    }
+    return null;
   }
 
   Color? _colorFromSessionValue(int? colorValue) {
@@ -26145,7 +26163,10 @@ class CalendarPageState extends State<CalendarPage>
     _openMyFlowsList();
   }
 
-  Widget _buildMaatFlowsListPage(BuildContext listCtx) {
+  Widget _buildMaatFlowsListPage(
+    BuildContext listCtx, {
+    bool persistOverlay = true,
+  }) {
     final navigator = Navigator.of(listCtx);
     return _MaatFlowsListPage(
       title: _kMaatFlowsDisplayTitle,
@@ -26159,6 +26180,7 @@ class CalendarPageState extends State<CalendarPage>
           returnState: const <String, dynamic>{
             'mode': _kFlowStudioModeMaatFlows,
           },
+          persistOverlay: persistOverlay,
         );
         if (importedFlowId != null && importedFlowId > 0 && listCtx.mounted) {
           CalendarPage._rememberJoinedMaatFlowTemplate(
@@ -26193,6 +26215,7 @@ class CalendarPageState extends State<CalendarPage>
           returnState: const <String, dynamic>{
             'mode': _kFlowStudioModeMaatFlows,
           },
+          persistOverlay: persistOverlay,
         );
         if (edited != null) await _persistFlowStudioResult(edited);
       },
@@ -26212,7 +26235,27 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Widget _buildFlowStudioHubPage(BuildContext innerCtx) {
+    return _buildFlowStudioHubPageCore(innerCtx);
+  }
+
+  Widget _buildEmbeddedFlowStudioHubPage(
+    BuildContext innerCtx, {
+    required VoidCallback onClose,
+  }) {
+    return _buildFlowStudioHubPageCore(
+      innerCtx,
+      onClose: onClose,
+      persistOverlay: false,
+    );
+  }
+
+  Widget _buildFlowStudioHubPageCore(
+    BuildContext innerCtx, {
+    VoidCallback? onClose,
+    bool persistOverlay = true,
+  }) {
     return _FlowHubPage(
+      onClose: onClose,
       filingSnapshotProvider: _cachedMyFlowsFilingSnapshot,
       loadFilingSnapshot: _loadMyFlowsFilingSnapshot,
       openMyFlows: () {
@@ -26232,6 +26275,7 @@ class CalendarPageState extends State<CalendarPage>
                     returnState: const <String, dynamic>{
                       'mode': _kFlowStudioModeMyFlows,
                     },
+                    persistOverlay: persistOverlay,
                   );
                   await _persistReturnedFlowStudioResult(edited);
                 },
@@ -26242,6 +26286,7 @@ class CalendarPageState extends State<CalendarPage>
                     returnState: const <String, dynamic>{
                       'mode': _kFlowStudioModeMyFlows,
                     },
+                    persistOverlay: persistOverlay,
                   );
                   await _persistReturnedFlowStudioResult(edited);
                 },
@@ -26263,6 +26308,7 @@ class CalendarPageState extends State<CalendarPage>
               'mode': _kFlowStudioModeMyFlows,
             },
             returnState: const <String, dynamic>{'mode': _kFlowStudioModeHub},
+            persistOverlay: persistOverlay,
           ),
         );
       },
@@ -26277,12 +26323,14 @@ class CalendarPageState extends State<CalendarPage>
           final importedFlowId = await _pushFlowStudioRoute<int?>(
             Navigator.of(innerCtx),
             MaterialPageRoute<int?>(
-              builder: (ctx3) => _buildMaatFlowsListPage(ctx3),
+              builder: (ctx3) =>
+                  _buildMaatFlowsListPage(ctx3, persistOverlay: persistOverlay),
             ),
             visibleState: const <String, dynamic>{
               'mode': _kFlowStudioModeMaatFlows,
             },
             returnState: const <String, dynamic>{'mode': _kFlowStudioModeHub},
+            persistOverlay: persistOverlay,
           );
           if (importedFlowId == null || importedFlowId <= 0) return;
           // List already snackbars when chronological first note is missing.
@@ -26304,6 +26352,7 @@ class CalendarPageState extends State<CalendarPage>
         final edited = await _pushFlowStudioEditor(
           Navigator.of(innerCtx),
           returnState: const <String, dynamic>{'mode': _kFlowStudioModeHub},
+          persistOverlay: persistOverlay,
         );
         if (edited != null) await _persistFlowStudioResult(edited);
       },
@@ -26353,8 +26402,14 @@ class CalendarPageState extends State<CalendarPage>
         return;
       }
 
-      // Otherwise open Flow Hub as before
-      _openFlowStudioSheet(rootBuilder: _buildFlowStudioHubPage);
+      // The hub now lives in the unified Notes / Reminders / Flows sheet.
+      _openDaySheet(
+        _today.kYear,
+        _today.kMonth,
+        _today.kDay,
+        allowDateChange: true,
+        initialTab: DaySheetTab.flows,
+      );
     };
   }
 
@@ -27909,6 +27964,7 @@ class CalendarPageState extends State<CalendarPage>
     int? editingSourceKYear,
     int? editingSourceKMonth,
     int? editingSourceKDay,
+    DaySheetTab? initialTab,
   }) {
     if (_daySheetOpenOrOpening) return;
     _daySheetOpenOrOpening = true;
@@ -28004,6 +28060,13 @@ class CalendarPageState extends State<CalendarPage>
     int endCount = 10;
 
     Color selectedColor = initialColor ?? daySheetColorPalette.first;
+    DaySheetTab activeDaySheetTab =
+        initialTab ??
+        (_noteSheetShowReminders ? DaySheetTab.reminders : DaySheetTab.notes);
+    final flowStudioTabNavigatorKey = GlobalKey<NavigatorState>(
+      debugLabel: 'day_sheet_flow_studio_navigator',
+    );
+    bool flowStudioTabVisited = activeDaySheetTab == DaySheetTab.flows;
     bool sheetClosing = false;
     bool sheetControllersDisposed = false;
 
@@ -28032,6 +28095,7 @@ class CalendarPageState extends State<CalendarPage>
             ? null
             : sourceEditingKMonth,
         'editingSourceKDay': editingIndex == null ? null : sourceEditingKDay,
+        'activeTab': activeDaySheetTab.name,
       };
     }
 
@@ -28083,7 +28147,6 @@ class CalendarPageState extends State<CalendarPage>
           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
         builder: (sheetCtx) {
-          bool showReminders = _noteSheetShowReminders;
           bool scheduledFlowsExpanded = false;
           bool dayNotesExpanded = false;
 
@@ -28237,83 +28300,134 @@ class CalendarPageState extends State<CalendarPage>
 
               const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
 
+              void selectDaySheetTab(DaySheetTab tab) {
+                final leavingFlows =
+                    activeDaySheetTab == DaySheetTab.flows &&
+                    tab != DaySheetTab.flows;
+                setSheetState(() => activeDaySheetTab = tab);
+                if (tab == DaySheetTab.flows) {
+                  flowStudioTabVisited = true;
+                }
+                if (tab == DaySheetTab.notes) {
+                  _noteSheetShowReminders = false;
+                } else if (tab == DaySheetTab.reminders) {
+                  _noteSheetShowReminders = true;
+                  if (!_reminderRulesLoaded) {
+                    _loadReminderRules().then((_) {
+                      if (mounted) setState(() {});
+                    });
+                  }
+                }
+                if (leavingFlows) {
+                  unawaited(CalendarPage._clearFlowStudioTransientState());
+                }
+                persistDaySheetSession();
+              }
+
+              Widget sheetChrome() {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // drag handle + explicit close (prevents getting trapped on tablets)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: SizedBox(
+                        height: 32,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Container(
+                              width: 42,
+                              height: 5,
+                              decoration: BoxDecoration(
+                                color: DaySheetTokens.silverLo.withValues(
+                                  alpha: 0.5,
+                                ),
+                                borderRadius: BorderRadius.circular(3),
+                              ),
+                            ),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: IconButton(
+                                tooltip: 'Close',
+                                onPressed: () {
+                                  Navigator.of(sheetCtx).maybePop();
+                                },
+                                visualDensity: expandedVisualDensity(sheetCtx),
+                                padding: expandedIconButtonPadding(
+                                  sheetCtx,
+                                  fallback: const EdgeInsets.all(4),
+                                ),
+                                constraints: expandedIconButtonConstraints(
+                                  sheetCtx,
+                                ),
+                                icon: const Icon(
+                                  Icons.close,
+                                  color: DaySheetTokens.silverMid,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    DaySheetTabBar(
+                      activeTab: activeDaySheetTab,
+                      accent: selectedColor,
+                      onSelected: selectDaySheetTab,
+                    ),
+                  ],
+                );
+              }
+
+              if (activeDaySheetTab == DaySheetTab.flows) {
+                return DaySheetKeyboardSafeFrame(
+                  scrollable: false,
+                  scrollBottomPadding: 0,
+                  bottomPadding: 0,
+                  child: DefaultTextStyle(
+                    style: const TextStyle(color: Colors.white),
+                    child: Column(
+                      children: [
+                        sheetChrome(),
+                        const SizedBox(height: 4),
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Navigator(
+                              key: flowStudioTabNavigatorKey,
+                              onGenerateInitialRoutes: (_, _) => [
+                                MaterialPageRoute<void>(
+                                  builder: (innerCtx) =>
+                                      _buildEmbeddedFlowStudioHubPage(
+                                        innerCtx,
+                                        onClose: () => selectDaySheetTab(
+                                          DaySheetTab.notes,
+                                        ),
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+
               return DaySheetKeyboardSafeFrame(
                 child: DefaultTextStyle(
                   style: const TextStyle(color: Colors.white),
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // drag handle + explicit close (prevents getting trapped on tablets)
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: SizedBox(
-                          height: 32,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Container(
-                                width: 42,
-                                height: 5,
-                                decoration: BoxDecoration(
-                                  color: DaySheetTokens.silverLo.withValues(
-                                    alpha: 0.5,
-                                  ),
-                                  borderRadius: BorderRadius.circular(3),
-                                ),
-                              ),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: IconButton(
-                                  tooltip: 'Close',
-                                  onPressed: () {
-                                    Navigator.of(sheetCtx).maybePop();
-                                  },
-                                  visualDensity: expandedVisualDensity(
-                                    sheetCtx,
-                                  ),
-                                  padding: expandedIconButtonPadding(
-                                    sheetCtx,
-                                    fallback: const EdgeInsets.all(4),
-                                  ),
-                                  constraints: expandedIconButtonConstraints(
-                                    sheetCtx,
-                                  ),
-                                  icon: const Icon(
-                                    Icons.close,
-                                    color: DaySheetTokens.silverMid,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-
-                      DaySheetTabBar(
-                        activeTab: showReminders
-                            ? DaySheetTab.reminders
-                            : DaySheetTab.notes,
-                        accent: selectedColor,
-                        onSelected: (tab) {
-                          if (tab == DaySheetTab.notes) {
-                            setSheetState(() => showReminders = false);
-                            _noteSheetShowReminders = false;
-                          } else {
-                            setSheetState(() => showReminders = true);
-                            _noteSheetShowReminders = true;
-                            if (!_reminderRulesLoaded) {
-                              _loadReminderRules().then((_) {
-                                if (mounted) setState(() {});
-                              });
-                            }
-                          }
-                        },
-                      ),
+                      sheetChrome(),
                       const SizedBox(height: 12),
                       datePicker(),
                       const SizedBox(height: 12),
 
-                      if (showReminders) ...[
+                      if (activeDaySheetTab == DaySheetTab.reminders) ...[
                         DaySheetSectionHeader(
                           label: 'Reminders',
                           count: dayReminderRules.length,
@@ -28360,7 +28474,7 @@ class CalendarPageState extends State<CalendarPage>
                                   if (!mounted) return;
                                   await _loadReminderRules();
                                   setSheetState(() {
-                                    showReminders = true;
+                                    activeDaySheetTab = DaySheetTab.reminders;
                                     _noteSheetShowReminders = true;
                                   });
                                 },
@@ -28380,7 +28494,8 @@ class CalendarPageState extends State<CalendarPage>
                                       if (saved) {
                                         await _loadReminderRules();
                                         setSheetState(() {
-                                          showReminders = true;
+                                          activeDaySheetTab =
+                                              DaySheetTab.reminders;
                                           _noteSheetShowReminders = true;
                                         });
                                       }
@@ -28440,7 +28555,7 @@ class CalendarPageState extends State<CalendarPage>
                               if (saved) {
                                 await _loadReminderRules();
                                 setSheetState(() {
-                                  showReminders = true;
+                                  activeDaySheetTab = DaySheetTab.reminders;
                                   _noteSheetShowReminders = true;
                                 });
                               }
@@ -29482,6 +29597,9 @@ class CalendarPageState extends State<CalendarPage>
             kind: _kSessionResumeKindDaySheet,
           ),
         );
+        if (flowStudioTabVisited) {
+          unawaited(CalendarPage._clearFlowStudioTransientState());
+        }
       });
 
       _calendarDebugPrint('✅ Modal bottom sheet opened successfully');
@@ -29502,6 +29620,9 @@ class CalendarPageState extends State<CalendarPage>
           kind: _kSessionResumeKindDaySheet,
         ),
       );
+      if (flowStudioTabVisited) {
+        unawaited(CalendarPage._clearFlowStudioTransientState());
+      }
     }
   }
 

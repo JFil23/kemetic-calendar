@@ -4,6 +4,42 @@ import 'package:mobile/widgets/day_sheet_components.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 
 void main() {
+  testWidgets('day sheet tab bar exposes Notes, Reminders, and Flows', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    var selected = DaySheetTab.notes;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: StatefulBuilder(
+            builder: (context, setState) => DaySheetTabBar(
+              activeTab: selected,
+              accent: DaySheetTokens.gold,
+              onSelected: (tab) => setState(() => selected = tab),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Notes'), findsOneWidget);
+    expect(find.text('Reminders'), findsOneWidget);
+    expect(find.text('Flows'), findsOneWidget);
+
+    await tester.tap(find.text('Flows'));
+    await tester.pump();
+
+    expect(selected, DaySheetTab.flows);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'day sheet frame respects keyboard viewInsets and keeps fields scrollable',
     (tester) async {

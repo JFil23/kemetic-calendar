@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'keyboard_aware.dart';
 
-enum DaySheetTab { notes, reminders }
+enum DaySheetTab { notes, reminders, flows }
 
 const List<Color> daySheetColorPalette = <Color>[
   Color(0xFF55DDE0),
@@ -103,6 +103,7 @@ class DaySheetKeyboardSafeFrame extends StatelessWidget {
     this.topPadding = 10,
     this.bottomPadding = 12,
     this.scrollBottomPadding = 180,
+    this.scrollable = true,
   });
 
   final Widget child;
@@ -112,6 +113,7 @@ class DaySheetKeyboardSafeFrame extends StatelessWidget {
   final double topPadding;
   final double bottomPadding;
   final double scrollBottomPadding;
+  final bool scrollable;
 
   @override
   Widget build(BuildContext context) {
@@ -149,14 +151,17 @@ class DaySheetKeyboardSafeFrame extends StatelessWidget {
               top: topPadding,
               bottom: media.padding.bottom + bottomPadding,
             ),
-            child: SingleChildScrollView(
-              key: daySheetKeyboardSafeScrollViewKey,
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: EdgeInsets.only(
-                bottom: media.padding.bottom + scrollBottomPadding,
-              ),
-              child: child,
-            ),
+            child: scrollable
+                ? SingleChildScrollView(
+                    key: daySheetKeyboardSafeScrollViewKey,
+                    keyboardDismissBehavior:
+                        ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: EdgeInsets.only(
+                      bottom: media.padding.bottom + scrollBottomPadding,
+                    ),
+                    child: child,
+                  )
+                : child,
           ),
         ),
       ),
@@ -279,23 +284,38 @@ class DaySheetTabBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(top: 14, bottom: 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _DaySheetTabButton(
-            label: 'Notes',
-            selected: activeTab == DaySheetTab.notes,
-            accent: accent,
-            onTap: () => onSelected(DaySheetTab.notes),
-          ),
-          const SizedBox(width: 10),
-          _DaySheetTabButton(
-            label: 'Reminders',
-            selected: activeTab == DaySheetTab.reminders,
-            accent: accent,
-            onTap: () => onSelected(DaySheetTab.reminders),
-          ),
-        ],
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 370),
+        child: Row(
+          children: [
+            Expanded(
+              child: _DaySheetTabButton(
+                label: 'Notes',
+                selected: activeTab == DaySheetTab.notes,
+                accent: accent,
+                onTap: () => onSelected(DaySheetTab.notes),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _DaySheetTabButton(
+                label: 'Reminders',
+                selected: activeTab == DaySheetTab.reminders,
+                accent: accent,
+                onTap: () => onSelected(DaySheetTab.reminders),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _DaySheetTabButton(
+                label: 'Flows',
+                selected: activeTab == DaySheetTab.flows,
+                accent: accent,
+                onTap: () => onSelected(DaySheetTab.flows),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -323,7 +343,8 @@ class _DaySheetTabButton extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 11),
+          alignment: Alignment.center,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
           decoration: BoxDecoration(
             color: selected
                 ? DaySheetTokens.accentSoft(accent)
@@ -336,20 +357,25 @@ class _DaySheetTabButton extends StatelessWidget {
             ),
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (selected) ...[
                 Icon(Icons.check, size: 14, color: accent),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
               ],
-              Text(
-                label,
-                style: TextStyle(
-                  fontFamily: DaySheetTokens.ui,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.02,
-                  color: selected ? accent : DaySheetTokens.silverMid,
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.fade,
+                  style: TextStyle(
+                    fontFamily: DaySheetTokens.ui,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.02,
+                    color: selected ? accent : DaySheetTokens.silverMid,
+                  ),
                 ),
               ),
             ],

@@ -186,9 +186,7 @@ void main() {
       final controllerIndex = daySheet.indexOf(
         'final controllerTitle = TextEditingController',
       );
-      final tabStateIndex = daySheet.indexOf(
-        'bool showReminders = _noteSheetShowReminders',
-      );
+      final tabStateIndex = daySheet.indexOf('DaySheetTab activeDaySheetTab =');
       final liveBuilderIndex = daySheet.indexOf(
         'final daySheetContent = DaySheetLiveDataBuilder',
       );
@@ -227,7 +225,7 @@ void main() {
     final builder = _sourceBetween(
       daySheet,
       'builder: (sheetCtx, setSheetState)',
-      'return DaySheetKeyboardSafeFrame(',
+      'void selectDaySheetTab(',
     );
     final remindersSection = _sourceBetween(
       daySheet,
@@ -237,7 +235,7 @@ void main() {
     final sharedPickerPlacement = _sourceBetween(
       daySheet,
       'DaySheetTabBar(',
-      'if (showReminders) ...[',
+      'if (activeDaySheetTab == DaySheetTab.reminders) ...[',
     );
     final helper = _sourceBetween(
       source,
