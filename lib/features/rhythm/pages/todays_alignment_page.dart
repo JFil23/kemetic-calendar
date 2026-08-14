@@ -3299,9 +3299,9 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     );
   }
 
-  PreferredSizeWidget _buildAppBar({bool sheet = false}) {
+  PreferredSizeWidget _buildAppBar() {
     return AppBar(
-      automaticallyImplyLeading: !sheet,
+      automaticallyImplyLeading: true,
       backgroundColor: Colors.black,
       elevation: 0.5,
       centerTitle: false,
@@ -3394,11 +3394,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
     }
 
     if (widget.sheet) {
-      return Scaffold(
-        backgroundColor: Colors.black,
-        appBar: _buildAppBar(sheet: true),
-        body: content,
-      );
+      return Material(color: Colors.black, child: content);
     }
 
     return Scaffold(

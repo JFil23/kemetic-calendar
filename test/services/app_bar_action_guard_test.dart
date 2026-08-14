@@ -950,9 +950,13 @@ void main() {
       expect(plannerSource, contains('UtilitySheetRouteScaffold'));
       expect(plannerSource, contains("semanticLabel: 'Planner'"));
       expect(plannerSource, contains('sheet: true'));
-      expect(plannerSource, contains('_buildAppBar({bool sheet = false})'));
-      expect(plannerSource, contains('automaticallyImplyLeading: !sheet'));
-      expect(plannerSource, contains('appBar: _buildAppBar(sheet: true)'));
+      final sheetPresentation = _sourceBetween(
+        plannerSource,
+        'if (widget.sheet) {',
+        'return Scaffold(',
+      );
+      expect(sheetPresentation, contains('return Material('));
+      expect(sheetPresentation, isNot(contains('appBar:')));
 
       final routeScaffold = await File(
         'lib/widgets/utility_sheet_route_scaffold.dart',
