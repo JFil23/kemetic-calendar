@@ -121,7 +121,7 @@ void main() {
       final gridBranch = _sourceBetween(
         calendarSource,
         'if (shouldBuildLandscapeGrid) {',
-        'final scaffold = Scaffold(',
+        'final scaffold = _withCalendarFloatingShortcuts(',
       );
 
       expect(landscapeBranch, contains('final useGrid ='));

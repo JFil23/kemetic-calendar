@@ -579,11 +579,11 @@ void main() {
       );
       expect(
         handleBackButton.indexOf('_dailyCosmicContextController.dismiss()'),
-        lessThan(handleBackButton.indexOf('if (_menuMounted && _menuOpen)')),
+        lessThan(handleBackButton.indexOf('return false;')),
       );
       expect(
-        handleBackButton.indexOf('_dailyCosmicContextController.dismiss()'),
-        lessThan(handleBackButton.indexOf('_shouldOpenDrawerForBack(context)')),
+        handleBackButton,
+        isNot(contains('_shouldOpenDrawerForBack(context)')),
       );
     },
   );

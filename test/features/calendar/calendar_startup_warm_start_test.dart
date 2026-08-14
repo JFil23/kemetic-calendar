@@ -224,6 +224,24 @@ void main() {
     expect(backfill, contains('index--;'));
   });
 
+  test('final horizon cache proof settles before reminder maintenance', () {
+    final engine = File(
+      'lib/features/calendar/hydration/calendar_hydration_engine.dart',
+    ).readAsStringSync();
+    final start = engine.indexOf('if (request.isFinalChunk) {');
+    final end = engine.indexOf(
+      '} else if (request.mode == _CalendarHydrationMode.catalogReconcile',
+      start,
+    );
+    expect(start, isNonNegative);
+    expect(end, greaterThan(start));
+    final finalChunk = engine.substring(start, end);
+
+    expect(finalChunk, contains('await _persistWarmStartCacheBestEffort('));
+    expect(finalChunk, contains('await CalendarHydrationDiagnostics.instance'));
+    expect(finalChunk, isNot(contains('unawaited(')));
+  });
+
   test('an incomplete complete phase preserves warm visible state', () {
     expect(
       shouldPublishVisibleCalendarHydration(

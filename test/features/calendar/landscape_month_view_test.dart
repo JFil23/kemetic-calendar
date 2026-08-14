@@ -765,11 +765,16 @@ void main() {
       for (final tooltip in const [
         "tooltip: 'New note'",
         "tooltip: 'Search notes'",
-        "tooltip: 'Today'",
         "tooltip: 'My Profile'",
       ]) {
         expect(source, contains(tooltip));
       }
+      expect(source, contains('onTodayPressed: () {'));
+      expect(source, contains('_handleCalendarToday('));
+      final floatingShortcutsSource = File(
+        'lib/widgets/calendar_floating_shortcuts.dart',
+      ).readAsStringSync();
+      expect(floatingShortcutsSource, contains("label: 'Today'"));
 
       for (final label in const [
         "label: 'Planner'",

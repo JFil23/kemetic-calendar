@@ -106,20 +106,22 @@ extension _CalendarHydrationEngine on CalendarPageState {
         jobContext.throwIfCancelled('before_controller_commit');
         if (request.mode == _CalendarHydrationMode.backgroundWindow) {
           if (request.isFinalChunk) {
-            unawaited(() async {
-              await _persistWarmStartCacheBestEffort(
-                userId: user.id,
-                debugReason: 'hydration_horizon_complete',
-              );
-              await CalendarHydrationDiagnostics.instance.finishBackfillSummary(
-                userId: user.id,
-                fullHorizonComplete:
-                    _hydrationController.state.authority ==
-                    CalendarViewportAuthority.fullHorizon,
-                cacheSaveEnded: _lastWarmStartCacheSaveOutcome != null,
-                cacheSaveOutcome: _lastWarmStartCacheSaveOutcome,
-              );
-            }());
+            // The post-horizon maintenance pipeline inspects this exact cache
+            // outcome before advancing to reminder sync. Keep persistence
+            // outside presentation authority, but finish its best-effort
+            // boundary before reporting the final chunk as complete.
+            await _persistWarmStartCacheBestEffort(
+              userId: user.id,
+              debugReason: 'hydration_horizon_complete',
+            );
+            await CalendarHydrationDiagnostics.instance.finishBackfillSummary(
+              userId: user.id,
+              fullHorizonComplete:
+                  _hydrationController.state.authority ==
+                  CalendarViewportAuthority.fullHorizon,
+              cacheSaveEnded: _lastWarmStartCacheSaveOutcome != null,
+              cacheSaveOutcome: _lastWarmStartCacheSaveOutcome,
+            );
           }
         } else if (request.mode == _CalendarHydrationMode.catalogReconcile &&
             _hydrationController.state.authority ==

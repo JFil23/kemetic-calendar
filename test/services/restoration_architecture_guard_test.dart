@@ -285,8 +285,6 @@ void main() {
       expect(
         todayGlyphMatches,
         containsAll(<String>[
-          'lib/features/calendar/calendar_page.dart',
-          'lib/features/calendar/calendar_month_detail.dart',
           'lib/features/calendar/day_view_chrome.dart',
           'lib/features/profile/profile_page.dart',
           'lib/features/rhythm/pages/todays_alignment_page.dart',
@@ -1057,11 +1055,20 @@ void main() {
         'static List<Route<dynamic>> _detachedFlowStudioInitialRoutes({',
         'static Future<void> _openDetachedFlowStudioSheet',
       );
+      final rootRouteSeed = _sourceBetween(
+        rootRestore,
+        'initialRoutesBuilder: (navigator) {',
+        'final detailRoute = MaterialPageRoute<int?>(',
+      );
 
       expect(rootRestore, contains('initialRoutesBuilder'));
       expect(rootRestore, contains('hubRoute, listRoute'));
       expect(rootRestore, contains('hubRoute, listRoute, detailRoute'));
-      expect(rootRestore, isNot(contains('addPostFrameCallback')));
+      expect(rootRouteSeed, isNot(contains('addPostFrameCallback')));
+      expect(
+        rootRestore,
+        contains('_openDayViewForStagedFlow(importedFlowId)'),
+      );
       expect(detachedRestore, contains('onReturnToHub'));
       expect(detachedRestore, contains('hubRoute(), listRoute'));
       expect(detachedRestore, contains('hubRoute(), listRoute, detailRoute'));

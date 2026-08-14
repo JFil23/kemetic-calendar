@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile/features/calendar/calendar_hydration_diagnostics.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
@@ -13,8 +16,25 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  late Directory hiveDirectory;
 
   setUpAll(() async {
+    hiveDirectory = await Directory.systemTemp.createTemp(
+      'calendar_atomic_reminder_projection_test.',
+    );
+    Hive.init(hiveDirectory.path);
+    const appLinksMessages = MethodChannel('com.llfbandit.app_links/messages');
+    const appLinksEvents = MethodChannel('com.llfbandit.app_links/events');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(appLinksMessages, (_) async => null);
+    messenger.setMockMethodCallHandler(appLinksEvents, (_) async {
+      scheduleMicrotask(
+        () =>
+            messenger.handlePlatformMessage(appLinksEvents.name, null, (_) {}),
+      );
+      return null;
+    });
     SharedPreferences.setMockInitialValues(<String, Object>{
       'app:has_seen_onboarding': true,
       'app:onboarding:completed': true,
@@ -28,6 +48,10 @@ void main() {
         autoRefreshToken: false,
       ),
     );
+  });
+
+  tearDownAll(() async {
+    await hiveDirectory.delete(recursive: true);
   });
 
   setUp(() {
@@ -285,6 +309,14 @@ void main() {
       List<dynamic> notes = const [];
       for (var attempt = 0; attempt < 100; attempt++) {
         await tester.pump(const Duration(milliseconds: 20));
+        if (attempt % 5 == 4) {
+          // Snapshot-store and SharedPreferences restores cross real async I/O
+          // boundaries. Yield wall time as well as advancing the fake clock so
+          // this test observes the same fallback path as an actual startup.
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 10)),
+          );
+        }
         notes = state.notesForDayForTesting(kDay.kYear, kDay.kMonth, kDay.kDay);
         if (notes.any((note) => note.title == 'journal every day')) break;
       }

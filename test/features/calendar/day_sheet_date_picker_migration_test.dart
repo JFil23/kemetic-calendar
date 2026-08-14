@@ -530,7 +530,7 @@ void main() {
   });
 
   test(
-    'Day View header plus passes the current Day View date to Day sheet',
+    'Day View header plus opens quick add before the dated Day sheet editor',
     () async {
       final dayViewSource = await File(
         'lib/features/calendar/day_view.dart',
@@ -549,16 +549,14 @@ void main() {
         'onCreateTimedEvent: _handleCreateTimedEvent',
       );
 
-      expect(headerWiring, contains('if (widget.onAddNote != null)'));
-      expect(headerWiring, contains('widget.onAddNote!('));
-      expect(headerWiring, contains('_currentKy'));
-      expect(headerWiring, contains('_currentKm'));
-      expect(headerWiring, contains('_currentKd'));
       expect(
-        headerWiring.indexOf('widget.onAddNote!('),
-        lessThan(
-          headerWiring.indexOf('final openQuickAdd = widget.onOpenQuickAdd'),
-        ),
+        headerWiring,
+        contains('final openQuickAdd = widget.onOpenQuickAdd'),
+      );
+      expect(headerWiring, contains('await openQuickAdd(btnCtx)'));
+      expect(
+        headerWiring,
+        contains('CalendarPage.openQuickAddFromAnyContext(btnCtx)'),
       );
       expect(routeWiring, contains('onAddNote: (ky, km, kd) =>'));
       expect(routeWiring, contains('_openDaySheet(ky, km, kd'));

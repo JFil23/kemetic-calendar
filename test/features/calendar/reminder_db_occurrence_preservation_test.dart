@@ -1,7 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:hive/hive.dart';
 import 'package:http/http.dart' as http;
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/reminders/reminder_rule.dart';
@@ -43,6 +47,30 @@ final _syncToday = DateTime(2026, 7, 29, 12);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  late Directory hiveDirectory;
+
+  setUpAll(() async {
+    hiveDirectory = await Directory.systemTemp.createTemp(
+      'reminder_db_occurrence_preservation_test.',
+    );
+    Hive.init(hiveDirectory.path);
+    const appLinksMessages = MethodChannel('com.llfbandit.app_links/messages');
+    const appLinksEvents = MethodChannel('com.llfbandit.app_links/events');
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(appLinksMessages, (_) async => null);
+    messenger.setMockMethodCallHandler(appLinksEvents, (_) async {
+      scheduleMicrotask(
+        () =>
+            messenger.handlePlatformMessage(appLinksEvents.name, null, (_) {}),
+      );
+      return null;
+    });
+  });
+
+  tearDownAll(() async {
+    await hiveDirectory.delete(recursive: true);
+  });
 
   testWidgets(
     'startup reminder sync preserves past and future DB occurrences and local fallback',
@@ -81,8 +109,16 @@ void main() {
 
       var stableSamples = 0;
       String? previousSignature;
-      for (var attempt = 0; attempt < 480; attempt++) {
+      for (var attempt = 0; attempt < 640; attempt++) {
         await tester.pump(const Duration(milliseconds: 25));
+        if (attempt % 4 == 3) {
+          // Startup alternates widget-scheduler work with real storage and
+          // fixture-backed I/O. Yield both clocks while waiting for the
+          // post-horizon reminder maintenance boundary.
+          await tester.runAsync(
+            () => Future<void>.delayed(const Duration(milliseconds: 100)),
+          );
+        }
 
         final state = CalendarPage.globalKey.currentState;
         if (state == null ||
@@ -196,7 +232,7 @@ void main() {
       expect(localNotes.single.start, const TimeOfDay(hour: 8, minute: 15));
 
       await tester.pumpWidget(const SizedBox.shrink());
-      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pump(const Duration(seconds: 2));
     },
   );
 }

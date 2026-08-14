@@ -9845,6 +9845,7 @@ class CalendarPageState extends State<CalendarPage>
   String? _serverHydrationCommittedForUserId;
   bool _warmStartSnapshotVisible = false;
   bool _sharedCalendarRealDayViewOpening = false;
+  bool _pendingInviteOverlayReady = false;
   String? _hydrationDiagnosticsUserId;
   void _bumpDataVersion({bool scheduleCacheSave = true}) {
     // why: force landscape PageView child to reconstruct once when data hydrates
@@ -15686,6 +15687,7 @@ class CalendarPageState extends State<CalendarPage>
               previousUserId.isNotEmpty &&
               previousUserId != hydrationUserId) {
             _cancelStartupRecovery();
+            _pendingInviteOverlayReady = false;
             unawaited(_deleteCalendarSnapshotForAccountChange(previousUserId));
           }
           _calendarPresentationCoordinator.changeUserScope(hydrationUserId);
@@ -15758,6 +15760,7 @@ class CalendarPageState extends State<CalendarPage>
         _warmStartCacheRestoredForUserId = null;
         _warmStartRestoreInFlightForUserId = null;
         _serverHydrationCommittedForUserId = null;
+        _pendingInviteOverlayReady = false;
         _myFlowsFilingSnapshotCache = null;
         _lastAuthoritativeHydrationAt = null;
         _lastAccountingAuthorityAt = null;
@@ -25603,34 +25606,14 @@ class CalendarPageState extends State<CalendarPage>
     Widget child, {
     required bool useLandscapeGrid,
   }) {
-    CalendarFloatingShortcutsLayer buildLayer(int unreadInboxCount) {
-      return CalendarFloatingShortcutsLayer(
-        unreadInboxCount: unreadInboxCount,
-        onTodayPressed: () {
-          NavigationTrace.instance.record('Today floating button tap fired');
-          _handleCalendarToday(useLandscapeGrid: useLandscapeGrid);
-        },
-        onCalendarsPressed: () => unawaited(_openSharedCalendarsSheet()),
-        onInboxPressed: () => unawaited(_openInboxFromMenu()),
-        child: child,
-      );
-    }
-
-    ShareRepo? shareRepo;
-    try {
-      shareRepo = ShareRepo(Supabase.instance.client);
-    } on AssertionError {
-      return buildLayer(0);
-    }
-
-    return StreamBuilder<InboxUnreadState>(
-      initialData: shareRepo.currentUnreadState,
-      stream: shareRepo.watchUnreadState(),
-      builder: (context, snapshot) {
-        final unreadCount =
-            (snapshot.data ?? const InboxUnreadState()).totalUnread;
-        return buildLayer(unreadCount);
+    return CalendarFloatingShortcutsLayer(
+      onTodayPressed: () {
+        NavigationTrace.instance.record('Today floating button tap fired');
+        _handleCalendarToday(useLandscapeGrid: useLandscapeGrid);
       },
+      onCalendarsPressed: () => unawaited(_openSharedCalendarsSheet()),
+      onInboxPressed: () => unawaited(_openInboxFromMenu()),
+      child: child,
     );
   }
 
@@ -30133,6 +30116,11 @@ class CalendarPageState extends State<CalendarPage>
       dedupeKey: 'reminder_sync',
       run: () => _syncReminderEvents(refreshUi: false, updateLocalCache: false),
     );
+    if (mounted &&
+        _activeWarmStartUserId() == userId &&
+        !_pendingInviteOverlayReady) {
+      setState(() => _pendingInviteOverlayReady = true);
+    }
     await _scheduleMaintenanceJob(
       kind: CalendarHydrationIntentKind.filing,
       reason: 'post_horizon_filing:$reason',
@@ -32450,7 +32438,7 @@ class CalendarPageState extends State<CalendarPage>
     return Stack(
       children: [
         content,
-        const PendingEventInviteOverlay(),
+        if (_pendingInviteOverlayReady) const PendingEventInviteOverlay(),
         if (_reflectionPrompt != null) _buildReflectionBadge(),
       ],
     );

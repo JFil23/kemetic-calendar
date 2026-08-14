@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "audited_revision": "5ff66008f6bd083147637ed4962db91f6ecf3f66",
+  "audited_revision": "9bf6d68874f111aeee0a92f0d7fd40571b361411",
   "fragments": [
     {
       "name": "year_and_month_sections",
@@ -42,7 +42,7 @@
       "file": "lib/features/calendar/calendar_page.dart",
       "start": "  Widget _buildBodyWithJournal() {",
       "end": "  /* ───────────── Decan Reflection Badge & Archive ───────────── */",
-      "sha256": "83aae3bb3dfb65c491845962be739d0a826ceac1c2d5b9956f21a858e79ed157"
+      "sha256": "f63eb0ef253d68eb9545e0c0d0f1412d022b2fe465b69ddbf5b0172ca8e13c65"
     },
     {
       "name": "year_sliver_topology",

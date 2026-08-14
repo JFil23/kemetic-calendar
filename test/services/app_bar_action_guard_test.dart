@@ -1300,7 +1300,7 @@ void main() {
       },
     );
 
-    test('community feed distinguishes load errors from empty state', () async {
+    test('For You feed distinguishes load errors from empty state', () async {
       final repo = await File('lib/data/profile_repo.dart').readAsString();
       final page = await File(
         'lib/features/profile/profile_page.dart',
@@ -1318,8 +1318,8 @@ void main() {
       );
       expect(page, contains('String? _feedErrorMessage'));
       expect(page, contains('_feedErrorMessage = result.errorMessage'));
-      expect(page, contains('Community Feed could not load'));
-      expect(page, contains('No feed posts available yet'));
+      expect(page, contains('For You could not load'));
+      expect(page, contains('No discoverable practices yet.'));
     });
 
     test('inbox summary cells stay visible without recent activity', () async {
@@ -1420,11 +1420,6 @@ void main() {
           for (var index = 0; index < lines.length; index += 1) {
             final line = lines[index];
             if (!line.contains('context.push')) continue;
-            final isExplicitPicker =
-                path.endsWith(
-                  'lib/features/calendars/shared_calendars_sheet.dart',
-                ) &&
-                source.contains('&select=picker');
             final isFeedAuthorProfilePush =
                 path.endsWith('lib/features/profile/profile_page.dart') &&
                 line.contains("context.push('/profile/") &&
@@ -1432,15 +1427,35 @@ void main() {
             final start = index > 1 ? index - 2 : 0;
             final end = index + 3 < lines.length ? index + 3 : lines.length;
             final nearbyLines = lines.sublist(start, end).join('\n');
+            final isExplicitPicker =
+                (path.endsWith(
+                      'lib/features/calendars/shared_calendars_sheet.dart',
+                    ) ||
+                    path.endsWith(
+                      'lib/features/calendar/reading_house_authoring_page.dart',
+                    )) &&
+                source.contains("'/profile-search'") &&
+                source.contains("'&select=picker'");
             final isLivingTextLibraryCtaPush =
                 path.endsWith('lib/features/calendar/day_view.dart') &&
                 nearbyLines.contains('/nodes');
+            final isSharedPracticeDetailPush =
+                (path.endsWith('lib/features/calendar/day_view.dart') ||
+                    path.endsWith('lib/features/profile/profile_page.dart')) &&
+                nearbyLines.contains("'/shared-practice/");
+            final isSharedPracticeCalendarChooserPush =
+                path.endsWith(
+                  'lib/features/shared_practice/shared_practice_calendar_chooser_sheet.dart',
+                ) &&
+                nearbyLines.contains("context.push('/calendars')");
             final isSharedNavigationHelper = path.endsWith(
               'lib/core/navigation_fallback.dart',
             );
             if (!isExplicitPicker &&
                 !isFeedAuthorProfilePush &&
                 !isLivingTextLibraryCtaPush &&
+                !isSharedPracticeDetailPush &&
+                !isSharedPracticeCalendarChooserPush &&
                 !isSharedNavigationHelper) {
               offenders.add('$path:${index + 1}: ${line.trim()}');
             }

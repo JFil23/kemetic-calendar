@@ -245,7 +245,7 @@ void main() {
           find.byKey(const PageStorageKey<String>('day_timeline_list')),
         );
         final padding = listView.padding as EdgeInsets;
-        expect(padding.bottom, 96);
+        expect(padding.bottom, 24);
 
         final eventSizedBoxes = tester.widgetList<SizedBox>(
           find.ancestor(
@@ -1319,7 +1319,7 @@ void main() {
     });
 
     testWidgets(
-      'header new-note action opens Day sheet for current Day View date',
+      'header new-note action opens quick add from the current Day View',
       (tester) async {
         await _setPhoneViewport(tester);
         final openedDates = <({int ky, int km, int kd})>[];
@@ -1349,8 +1349,10 @@ void main() {
         await tester.tap(find.byTooltip('New note'));
         await tester.pumpAndSettle();
 
-        expect(openedQuickAdd, isFalse);
-        expect(openedDates, [(ky: 6268, km: 2, kd: 5)]);
+        expect(openedQuickAdd, isTrue);
+        expect(openedDates, isEmpty);
+
+        openedQuickAdd = false;
 
         await tester.pumpWidget(
           MaterialApp(
@@ -1376,11 +1378,8 @@ void main() {
         await tester.tap(find.byTooltip('New note'));
         await tester.pumpAndSettle();
 
-        expect(openedQuickAdd, isFalse);
-        expect(openedDates, [
-          (ky: 6268, km: 2, kd: 5),
-          (ky: 6268, km: 2, kd: 6),
-        ]);
+        expect(openedQuickAdd, isTrue);
+        expect(openedDates, isEmpty);
       },
     );
 

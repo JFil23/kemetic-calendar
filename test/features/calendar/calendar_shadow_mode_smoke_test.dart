@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
+import 'package:mobile/features/calendar/calendar_epoch_viewport.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/calendar_scroll_coordinator.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
@@ -37,6 +40,7 @@ void main() {
   testWidgets('production calendar records an aggregate shadow traversal', (
     tester,
   ) async {
+    await Supabase.instance.client.auth.recoverSession(_sessionJson());
     tester.view.physicalSize = const Size(800, 1200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -52,7 +56,7 @@ void main() {
     await tester.pump();
     await tester.pump();
 
-    final scrollView = find.byType(CustomScrollView).first;
+    final scrollView = find.byType(CalendarEpochScrollView).first;
     for (var index = 0; index < 9; index++) {
       await tester.drag(scrollView, const Offset(0, -420));
       await tester.pump(const Duration(milliseconds: 300));
@@ -90,6 +94,39 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(seconds: 2));
     expect(tester.takeException(), isNull);
+  });
+}
+
+String _sessionJson() {
+  final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+  final header = base64Url.encode(utf8.encode('{"alg":"none","typ":"JWT"}'));
+  final payload = base64Url.encode(
+    utf8.encode(
+      jsonEncode(<String, Object?>{
+        'sub': 'bd3f58ef-efdf-4990-b9a6-42ebf82aa8c8',
+        'email': 'shadow-smoke@example.com',
+        'aud': 'authenticated',
+        'role': 'authenticated',
+        'iat': now,
+        'exp': now + 3600,
+      }),
+    ),
+  );
+  return jsonEncode(<String, Object?>{
+    'access_token': '$header.$payload.',
+    'refresh_token': 'test-refresh-token',
+    'expires_in': 3600,
+    'expires_at': now + 3600,
+    'token_type': 'bearer',
+    'user': <String, Object?>{
+      'id': 'bd3f58ef-efdf-4990-b9a6-42ebf82aa8c8',
+      'email': 'shadow-smoke@example.com',
+      'aud': 'authenticated',
+      'role': 'authenticated',
+      'app_metadata': <String, Object?>{},
+      'user_metadata': <String, Object?>{},
+      'created_at': '2026-01-01T00:00:00.000Z',
+    },
   });
 }
 
