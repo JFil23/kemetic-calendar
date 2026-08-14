@@ -110,6 +110,7 @@ import '../../widgets/maat_flow_date_picker.dart';
 import '../../widgets/gregorian_date_picker.dart' show showGregorianDatePicker;
 import '../../widgets/kemetic_date_picker.dart' show showKemeticDatePicker;
 import '../../widgets/recurrence_until_date_picker.dart';
+import '../../widgets/calendar_floating_shortcuts.dart';
 import '../../utils/external_link_utils.dart';
 import 'calendar_invalidation.dart';
 import 'calendar_hydration_diagnostics.dart';
@@ -25622,6 +25623,34 @@ class CalendarPageState extends State<CalendarPage>
     context.go('/inbox');
   }
 
+  Widget _withCalendarFloatingShortcuts(Widget child) {
+    CalendarFloatingShortcutsLayer buildLayer(int unreadInboxCount) {
+      return CalendarFloatingShortcutsLayer(
+        unreadInboxCount: unreadInboxCount,
+        onCalendarsPressed: () => unawaited(_openSharedCalendarsSheet()),
+        onInboxPressed: () => unawaited(_openInboxFromMenu()),
+        child: child,
+      );
+    }
+
+    ShareRepo? shareRepo;
+    try {
+      shareRepo = ShareRepo(Supabase.instance.client);
+    } on AssertionError {
+      return buildLayer(0);
+    }
+
+    return StreamBuilder<InboxUnreadState>(
+      initialData: shareRepo.currentUnreadState,
+      stream: shareRepo.watchUnreadState(),
+      builder: (context, snapshot) {
+        final unreadCount =
+            (snapshot.data ?? const InboxUnreadState()).totalUnread;
+        return buildLayer(unreadCount);
+      },
+    );
+  }
+
   Future<void> _openReflectionsFromMenu() async {
     await _dismissReflectionPrompt();
     if (!mounted) return;
@@ -32192,7 +32221,7 @@ class CalendarPageState extends State<CalendarPage>
         _calendarDebugPrint('   onAddNote callback: PROVIDED');
       }
 
-      return Scaffold(
+      final landscapeScaffold = Scaffold(
         backgroundColor: _bg,
         appBar: _buildCalendarAppBar(
           useLandscapeGrid: true,
@@ -32295,12 +32324,15 @@ class CalendarPageState extends State<CalendarPage>
                   .shouldPreserveOverlayForLifecycleClose,
         ),
       );
+      return _withCalendarFloatingShortcuts(landscapeScaffold);
     }
 
-    final scaffold = Scaffold(
-      backgroundColor: _bg,
-      appBar: _buildCalendarAppBar(useLandscapeGrid: false),
-      body: _buildBodyWithJournal(),
+    final scaffold = _withCalendarFloatingShortcuts(
+      Scaffold(
+        backgroundColor: _bg,
+        appBar: _buildCalendarAppBar(useLandscapeGrid: false),
+        body: _buildBodyWithJournal(),
+      ),
     );
 
     Widget content = scaffold;
@@ -32453,7 +32485,11 @@ class CalendarPageState extends State<CalendarPage>
 
     return Positioned(
       right: 12,
-      bottom: 16 + media.padding.bottom,
+      bottom:
+          kCalendarFloatingShortcutsBottom +
+          kCalendarFloatingShortcutsHeight +
+          12 +
+          media.padding.bottom,
       child: DecanReflectionLowerThirdBadge(
         prompt: prompt,
         maxWidth: maxWidth,
