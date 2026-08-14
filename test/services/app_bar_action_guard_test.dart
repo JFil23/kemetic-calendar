@@ -862,7 +862,10 @@ void main() {
         'Widget _buildPostFlowButton',
       );
       expect(settingsButton, contains("label: 'Settings'"));
-      expect(settingsButton, contains('icon: Icons.settings_outlined'));
+      expect(settingsButton, contains('leading: const GlossyGlyph('));
+      expect(settingsButton, contains('glyph: MeduNeterGlyphs.settings'));
+      expect(settingsButton, contains('gradient: goldGloss'));
+      expect(settingsButton, contains('size: 22'));
       expect(settingsButton, contains('onPressed: _openSettings'));
       expect(source, isNot(contains("label: 'Find People'")));
     });

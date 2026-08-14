@@ -2670,7 +2670,11 @@ class _ProfilePageState extends State<ProfilePage>
   Widget _buildSettingsButton({bool fullWidth = false}) {
     return _buildActionButton(
       label: 'Settings',
-      icon: Icons.settings_outlined,
+      leading: const GlossyGlyph(
+        glyph: MeduNeterGlyphs.settings,
+        gradient: goldGloss,
+        size: 22,
+      ),
       onPressed: _openSettings,
       foregroundColor: _profileGoldText,
       borderColor: _profileGoldMid.withValues(alpha: 0.42),
@@ -2731,8 +2735,9 @@ class _ProfilePageState extends State<ProfilePage>
 
   Widget _buildActionButton({
     required String label,
-    required IconData icon,
     required VoidCallback? onPressed,
+    IconData? icon,
+    Widget? leading,
     bool filled = false,
     bool busy = false,
     Color foregroundColor = _profileGoldText,
@@ -2740,6 +2745,7 @@ class _ProfilePageState extends State<ProfilePage>
     Color borderColor = _profileGoldMid,
     bool fullWidth = false,
   }) {
+    assert(icon != null || leading != null);
     final buttonHeight = useExpandedTouchTargets(context)
         ? kMinInteractiveDimension
         : 40.0;
@@ -2757,7 +2763,7 @@ class _ProfilePageState extends State<ProfilePage>
             ),
           )
         else
-          Icon(icon, size: 17),
+          leading ?? Icon(icon!, size: 17),
         const SizedBox(width: 8),
         Text(
           label,
