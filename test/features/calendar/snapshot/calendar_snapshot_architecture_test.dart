@@ -129,24 +129,30 @@ void main() {
     },
   );
 
-  test('sync banner is listenable-owned and never page-setState-owned', () {
-    final source = File(
+  test('refresh failure cannot mutate authority or mount calendar chrome', () {
+    final page = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
-    final failureStart = source.indexOf(
-      'void _markCalendarHydrationIncomplete()',
-    );
-    final failureEnd = source.indexOf(
+    final engine = File(
+      'lib/features/calendar/hydration/calendar_hydration_engine.dart',
+    ).readAsStringSync();
+    final failureStart = page.indexOf('void _recordCalendarRefreshFailure()');
+    final failureEnd = page.indexOf(
       'void _handleHydrationControllerStateChanged(',
       failureStart,
     );
     expect(failureStart, greaterThanOrEqualTo(0));
     expect(failureEnd, greaterThan(failureStart));
-    final failure = source.substring(failureStart, failureEnd);
+    final failure = page.substring(failureStart, failureEnd);
     expect(failure, isNot(contains('setState(')));
-    expect(source, contains('ValueListenableBuilder<CalendarHydrationStatus>'));
-    expect(source, contains('visibleViewportComplete:'));
-    expect(source, contains('lastSuccessfulRefreshAtUtc:'));
-    expect(source, contains('latestRefreshStatus:'));
+    expect(failure, isNot(contains('_hydrationController')));
+    expect(page, isNot(contains('CalendarHydrationStatusBanner')));
+    expect(page, isNot(contains('CalendarHydrationAvailability')));
+    expect(engine, isNot(contains('_markCalendarHydrationIncomplete')));
+    expect(
+      RegExp(r'_recordCalendarRefreshFailure\(\)').allMatches(engine),
+      hasLength(1),
+      reason: 'only terminal scheduler failure may publish refresh failure',
+    );
   });
 }

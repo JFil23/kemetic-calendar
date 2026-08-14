@@ -9,7 +9,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/calendar_completion.dart';
-import 'package:mobile/features/calendar/calendar_hydration_status_banner.dart';
 import 'package:mobile/features/calendar/calendar_page.dart'
     show EndFlowFailureKind, EndFlowOutcome, KemeticMath;
 import 'package:mobile/features/calendar/day_view.dart';
@@ -322,48 +321,6 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(LandscapeMonthView), findsOneWidget);
       expect(find.byType(DayViewGrid), findsNothing);
-    });
-
-    testWidgets('Day View surfaces live calendar hydration status', (
-      tester,
-    ) async {
-      await _setPhoneViewport(tester);
-      final status = ValueNotifier<CalendarHydrationStatus>(
-        CalendarHydrationStatus.current,
-      );
-      addTearDown(status.dispose);
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: DayViewPage(
-            initialKy: 1,
-            initialKm: 2,
-            initialKd: 5,
-            showGregorian: false,
-            notesForDay: (_, _, _) => const [],
-            flowIndex: const {},
-            hydrationStatus: status,
-            getMonthName: (month) => 'Month $month',
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('Calendar may'), findsNothing);
-
-      status.value = const CalendarHydrationStatus(
-        calendarAvailability: CalendarHydrationAvailability.stale,
-        accountingStale: false,
-      );
-      await tester.pump();
-
-      expect(
-        find.text(
-          'Calendar may be out of date. It will retry when you return.',
-        ),
-        findsOneWidget,
-      );
-      expect(find.byType(DayViewGrid), findsOneWidget);
     });
 
     test(

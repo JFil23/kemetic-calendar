@@ -272,7 +272,7 @@ extension _CalendarSnapshotPageAdapter on CalendarPageState {
       _lastAuthoritativeHydrationAt = snapshot.lastSuccessfulRefreshAtUtc
           .toLocal();
       _accountingStale = true;
-      _publishHydrationStatus();
+      _publishCalendarRefreshState();
       _notifyDayViewDataChanged(scheduleCacheSave: false);
 
       final restoredEventCount = notesByDay.values.fold<int>(

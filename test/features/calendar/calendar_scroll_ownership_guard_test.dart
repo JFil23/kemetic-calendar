@@ -62,6 +62,18 @@ void main() {
     expect(travel, contains('final exactTarget = resolveTarget()'));
     expect(command, contains('_beginCalendarTodayPresentationTransaction()'));
     expect(command, contains('_settleCalendarTodayPresentationTransaction('));
+    expect(command, contains('unawaited('));
+    expect(command, contains("reason: 'today_target_spec'"));
+    expect(
+      command,
+      isNot(contains('await _requestHydration(')),
+      reason: 'network hydration cannot gate or absorb a Today command',
+    );
+    expect(
+      command.indexOf('_beginCalendarTodayPresentationTransaction()'),
+      lessThan(command.indexOf("reason: 'today_target_spec'")),
+      reason: 'target updates must be staged before hydration can publish',
+    );
     expect(command, isNot(contains('destination can move underneath it')));
   });
 

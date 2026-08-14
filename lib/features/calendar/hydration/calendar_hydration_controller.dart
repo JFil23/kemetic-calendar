@@ -300,11 +300,6 @@ class CalendarHydrationController {
     return true;
   }
 
-  void markFailure() {
-    _state = _copyState(stale: true);
-    _deriveAuthority(reason: 'hydration_failed');
-  }
-
   bool validateCacheWrite({
     required int sessionGeneration,
     required String catalogFingerprint,

@@ -40,6 +40,25 @@ void main() {
     );
   });
 
+  test('failed startup self-recovers without waiting for app resume', () {
+    final source = _calendarHydrationSource();
+    final startup = _sourceBetween(
+      source,
+      'Future<void> _startHydrationEngine(String reason) async {',
+      'String _horizonDiagnosticSource',
+    );
+
+    expect(source, contains('void _scheduleStartupRecovery({'));
+    expect(source, contains('void _retryStartupNow({required String reason})'));
+    expect(startup, contains('_scheduleStartupRecovery('));
+    expect(startup, contains('_cancelStartupRecovery();'));
+    expect(
+      source,
+      contains("_retryStartupNow(reason: 'auth_token_refreshed')"),
+    );
+    expect(source, contains('Duration(seconds: 15)'));
+  });
+
   test('no-op invite import sync does not publish calendar invalidation', () {
     final source = _calendarHydrationSource();
     final sync = _sourceBetween(

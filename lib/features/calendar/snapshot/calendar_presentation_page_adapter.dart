@@ -214,7 +214,7 @@ extension _CalendarPresentationPageAdapter on CalendarPageState {
     if (projection.clearWarmSnapshot) _warmStartSnapshotVisible = false;
     _warmStartCacheRestoredForUserId = _activeWarmStartUserId();
     _dataVersion++;
-    _publishHydrationStatus();
+    _publishCalendarRefreshState();
     _publishCalendarMonthProjections(projection.affectedMonths);
     _notifyDayViewDataChanged(scheduleCacheSave: false);
   }

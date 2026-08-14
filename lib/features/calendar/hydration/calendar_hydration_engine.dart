@@ -16,7 +16,7 @@ extension _CalendarHydrationEngine on CalendarPageState {
       _hydrationController.reportViewport(interval);
     }
     _latestCalendarRefreshStatus = CalendarRefreshStatus.pending;
-    _publishHydrationStatus();
+    _publishCalendarRefreshState();
     final fingerprint =
         request.catalogFingerprint ??
         _hydrationController.state.catalogFingerprint ??
@@ -67,7 +67,7 @@ extension _CalendarHydrationEngine on CalendarPageState {
             _activeCalendarCoverage = _hydrationController.state.coverage;
             _lastAuthoritativeHydrationAt = DateTime.now();
             _latestCalendarRefreshStatus = CalendarRefreshStatus.succeeded;
-            _publishHydrationStatus();
+            _publishCalendarRefreshState();
             diagnostics.recordPostProcessing(
               null,
               'catalog_reconcile_promoted_without_lane_refetch',
@@ -148,11 +148,11 @@ extension _CalendarHydrationEngine on CalendarPageState {
         !_hydrationScheduler.hasQueuedJobs) {
       diagnostics.recordCoordinatorIdle();
       if (disposition == CalendarHydrationJobDisposition.failed) {
-        _markCalendarHydrationIncomplete();
+        _recordCalendarRefreshFailure();
       } else if (disposition == CalendarHydrationJobDisposition.cancelled &&
           _latestCalendarRefreshStatus == CalendarRefreshStatus.pending) {
         _latestCalendarRefreshStatus = CalendarRefreshStatus.idle;
-        _publishHydrationStatus();
+        _publishCalendarRefreshState();
       }
     }
     return disposition;
@@ -1354,10 +1354,6 @@ extension _CalendarHydrationEngine on CalendarPageState {
       hydrationContext,
       succeeded: hydrationPassSucceeded,
     );
-
-    if (!hydrationPassSucceeded && !hydrationPassSuperseded) {
-      _markCalendarHydrationIncomplete();
-    }
 
     if (kDebugMode) {
       _calendarDebugPrint('=== hydrationEngine END ($source) ===');

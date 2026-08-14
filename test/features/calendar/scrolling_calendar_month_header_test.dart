@@ -119,8 +119,10 @@ void main() {
     final source = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
-    final start = source.indexOf('ValueListenableBuilder<MonthRef>(');
-    final end = source.indexOf('        Expanded(', start);
+    final start = source.indexOf(
+      'valueListenable: _calendarScrollCoordinator.activeBannerMonth',
+    );
+    final end = source.indexOf('Expanded(child: body)', start);
     expect(start, greaterThanOrEqualTo(0));
     expect(end, greaterThan(start));
     final binding = source.substring(start, end);
