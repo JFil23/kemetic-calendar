@@ -26246,6 +26246,7 @@ class CalendarPageState extends State<CalendarPage>
       innerCtx,
       onClose: onClose,
       persistOverlay: false,
+      embeddedInDaySheet: true,
     );
   }
 
@@ -26253,9 +26254,11 @@ class CalendarPageState extends State<CalendarPage>
     BuildContext innerCtx, {
     VoidCallback? onClose,
     bool persistOverlay = true,
+    bool embeddedInDaySheet = false,
   }) {
     return _FlowHubPage(
       onClose: onClose,
+      embeddedInDaySheet: embeddedInDaySheet,
       filingSnapshotProvider: _cachedMyFlowsFilingSnapshot,
       loadFilingSnapshot: _loadMyFlowsFilingSnapshot,
       openMyFlows: () {
@@ -28385,29 +28388,29 @@ class CalendarPageState extends State<CalendarPage>
                   scrollable: false,
                   scrollBottomPadding: 0,
                   bottomPadding: 0,
+                  horizontalPadding: 0,
                   child: DefaultTextStyle(
                     style: const TextStyle(color: Colors.white),
                     child: Column(
                       children: [
-                        sheetChrome(),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 22),
+                          child: sheetChrome(),
+                        ),
                         const SizedBox(height: 4),
                         Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Navigator(
-                              key: flowStudioTabNavigatorKey,
-                              onGenerateInitialRoutes: (_, _) => [
-                                MaterialPageRoute<void>(
-                                  builder: (innerCtx) =>
-                                      _buildEmbeddedFlowStudioHubPage(
-                                        innerCtx,
-                                        onClose: () => selectDaySheetTab(
-                                          DaySheetTab.notes,
-                                        ),
-                                      ),
-                                ),
-                              ],
-                            ),
+                          child: Navigator(
+                            key: flowStudioTabNavigatorKey,
+                            onGenerateInitialRoutes: (_, _) => [
+                              MaterialPageRoute<void>(
+                                builder: (innerCtx) =>
+                                    _buildEmbeddedFlowStudioHubPage(
+                                      innerCtx,
+                                      onClose: () =>
+                                          selectDaySheetTab(DaySheetTab.notes),
+                                    ),
+                              ),
+                            ],
                           ),
                         ),
                       ],

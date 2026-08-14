@@ -4783,6 +4783,7 @@ class _FlowHubPage extends StatefulWidget {
     required this.filingSnapshotProvider,
     required this.loadFilingSnapshot,
     this.onClose,
+    this.embeddedInDaySheet = false,
   });
 
   final VoidCallback openMyFlows;
@@ -4791,6 +4792,7 @@ class _FlowHubPage extends StatefulWidget {
   final _MyFlowsFilingSnapshot? Function() filingSnapshotProvider;
   final Future<_MyFlowsFilingSnapshot> Function() loadFilingSnapshot;
   final VoidCallback? onClose;
+  final bool embeddedInDaySheet;
 
   @override
   State<_FlowHubPage> createState() => _FlowHubPageState();
@@ -4967,20 +4969,23 @@ class _FlowHubPageState extends State<_FlowHubPage> {
     return Scaffold(
       backgroundColor: _bg,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        toolbarHeight: 58,
+        backgroundColor: widget.embeddedInDaySheet ? _bg : Colors.black,
+        toolbarHeight: widget.embeddedInDaySheet ? 52 : 58,
         elevation: 0,
+        scrolledUnderElevation: 0,
         surfaceTintColor: Colors.transparent,
         automaticallyImplyLeading: false,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 12),
-          child: IconButton(
-            tooltip: 'Close',
-            iconSize: 24,
-            icon: const Icon(Icons.close, color: _gold),
-            onPressed: _handleClose,
-          ),
-        ),
+        leading: widget.embeddedInDaySheet
+            ? null
+            : Padding(
+                padding: const EdgeInsets.only(left: 12),
+                child: IconButton(
+                  tooltip: 'Close',
+                  iconSize: 24,
+                  icon: const Icon(Icons.close, color: _gold),
+                  onPressed: _handleClose,
+                ),
+              ),
         centerTitle: true,
         title: const Text(
           'Flow Studio',
@@ -4991,14 +4996,16 @@ class _FlowHubPageState extends State<_FlowHubPage> {
             fontFamily: 'GentiumPlus',
           ),
         ),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(1),
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 20),
-            height: 1,
-            color: const Color(0xFF30200D).withValues(alpha: 0.48),
-          ),
-        ),
+        bottom: widget.embeddedInDaySheet
+            ? null
+            : PreferredSize(
+                preferredSize: const Size.fromHeight(1),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  height: 1,
+                  color: const Color(0xFF30200D).withValues(alpha: 0.48),
+                ),
+              ),
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.only(
@@ -5008,11 +5015,18 @@ class _FlowHubPageState extends State<_FlowHubPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 32, 20, 0),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                widget.embeddedInDaySheet ? 18 : 32,
+                20,
+                0,
+              ),
               child: Align(
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 340),
+                  constraints: BoxConstraints(
+                    maxWidth: widget.embeddedInDaySheet ? double.infinity : 340,
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [

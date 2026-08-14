@@ -24,8 +24,31 @@ void main() {
       );
       expect(daySheet, contains('_buildEmbeddedFlowStudioHubPage('));
       expect(daySheet, contains('scrollable: false'));
+      expect(daySheet, contains('horizontalPadding: 0'));
+      expect(source, contains('embeddedInDaySheet: true'));
     },
   );
+
+  test('embedded Flow Studio is full-width with a title-only header', () async {
+    final source = await File(
+      'lib/features/calendar/calendar_flow_pages.dart',
+    ).readAsString();
+    final hubStart = source.indexOf('class _FlowHubPage extends');
+    final hubEnd = source.indexOf('class _FlowHubCardShell', hubStart);
+    final hub = source.substring(hubStart, hubEnd);
+
+    expect(hub, contains('this.embeddedInDaySheet = false'));
+    expect(
+      hub,
+      contains(
+        'backgroundColor: widget.embeddedInDaySheet ? _bg : Colors.black',
+      ),
+    );
+    expect(hub, contains('leading: widget.embeddedInDaySheet'));
+    expect(hub, contains('? null'));
+    expect(hub, contains('maxWidth: widget.embeddedInDaySheet'));
+    expect(hub, contains('? double.infinity'));
+  });
 
   test(
     'the Flow Studio hub shortcut opens the unified sheet on Flows',
