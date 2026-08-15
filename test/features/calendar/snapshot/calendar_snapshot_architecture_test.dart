@@ -185,6 +185,30 @@ void main() {
         hydration,
         contains('for (final entry in authoritativeNotes.entries)'),
       );
+
+      final legacyRestoreStart = page.indexOf(
+        'Future<void> _restoreWarmStartCacheIfAvailable(',
+      );
+      final legacyRestoreEnd = page.indexOf(
+        'Future<void> _refreshCalendarStateFromServer()',
+        legacyRestoreStart,
+      );
+      final legacyRestore = page.substring(
+        legacyRestoreStart,
+        legacyRestoreEnd,
+      );
+      final authorityAt = legacyRestore.indexOf(
+        'final authoritativeNotesByDay =',
+      );
+      final reminderProjectionAt = legacyRestore.indexOf(
+        '_projectReminderMembershipForHydration(',
+      );
+      expect(authorityAt, greaterThanOrEqualTo(0));
+      expect(reminderProjectionAt, greaterThan(authorityAt));
+      expect(
+        legacyRestore,
+        contains('_calendarAuthoritativeNotesByDay = authoritativeNotesByDay'),
+      );
     },
   );
 

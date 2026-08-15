@@ -264,18 +264,25 @@ void main() {
       await disposeCalendar(tester);
 
       state = await pumpCalendar(tester);
-      // This confirmed local row stands in for the separately restored warm
-      // snapshot, whose serialized payload intentionally has no pending flag.
+      // This stale confirmed row stands in for an older warm snapshot. The
+      // separately durable pending payload is newer and owns both content and
+      // day placement until live hydration confirms it.
       state.debugAddNote(
         ky,
         km,
-        kd,
-        'Restart-safe warm event',
+        kd - 1,
+        'Stale warm event',
         null,
         clientEventId: cid,
       );
       await state.debugRestorePendingNotesForTesting(userId);
       expect(state.debugUnconfirmedCount, 1);
+      expect(state.filteredNoteCountForDay(ky, km, kd - 1), 0);
+      expect(state.filteredNoteCountForDay(ky, km, kd), 1);
+      expect(
+        state.notesForDayForTesting(ky, km, kd).single.title,
+        'Restart-safe warm event',
+      );
       expect(
         state.debugPendingNotesDueForVerification(
           createdAt.add(const Duration(minutes: 3)),

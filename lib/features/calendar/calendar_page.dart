@@ -10878,38 +10878,52 @@ class CalendarPageState extends State<CalendarPage>
         return;
       }
       var paintedFallback = false;
+      var restoredRecordCount = 0;
       for (final record in records) {
-        final bucket = _notes.putIfAbsent(record.dayKey, () => <_Note>[]);
-        _Note? note;
-        for (final candidate in bucket) {
-          if (candidate.clientEventId?.trim() == record.clientEventId) {
-            note = candidate;
-            break;
-          }
-        }
-        note ??= _deserializeWarmStartNote(record.notePayload);
+        final note = _deserializeWarmStartNote(record.notePayload);
         if (note == null ||
             note.clientEventId?.trim() != record.clientEventId) {
           continue;
         }
-        final alreadyPainted = bucket.any(
-          (candidate) =>
-              candidate.clientEventId?.trim() == record.clientEventId,
-        );
-        if (!alreadyPainted) {
-          bucket.add(note);
-          paintedFallback = true;
-        }
-        _unconfirmed.register(
+        final registered = _unconfirmed.register(
           dayKey: record.dayKey,
           note: note,
           createdAt: record.createdAt,
         );
+        if (!registered) continue;
+        final alreadyPainted = _notes.values.any(
+          (bucket) => bucket.any(
+            (candidate) =>
+                candidate.clientEventId?.trim() == record.clientEventId,
+          ),
+        );
+        paintedFallback = !alreadyPainted || paintedFallback;
+        restoredRecordCount++;
+      }
+      if (restoredRecordCount > 0) {
+        final trackSkyFlowIds = _flows
+            .where((flow) => _isTrackSkyFlowName(flow.name))
+            .map((flow) => flow.id)
+            .where((flowId) => flowId > 0)
+            .toSet();
+        final projection = deriveVisibleCalendarProjection<_Note>(
+          source: _notes,
+          pendingItems: _unconfirmed.visibleProjectionItems,
+          stableIdentityOf: _calendarNoteStableIdentity,
+          suppressionRules: const <CalendarItemSuppressionRule<_Note>>[],
+          pendingIdentityConflictResolution:
+              CalendarPendingIdentityConflictResolution.pendingReplacesSource,
+          reduceBucket: (_, notes) =>
+              _dedupeVisibleDayNotes(notes, trackSkyFlowIds: trackSkyFlowIds),
+        );
+        _replaceLiveNoteBuckets(projection.buckets);
       }
       _pendingNotesRestoredForUserId = normalizedUserId;
-      if (paintedFallback && mounted) {
-        _warmStartCacheRestoredForUserId = normalizedUserId;
-        _warmStartSnapshotVisible = true;
+      if (restoredRecordCount > 0 && mounted) {
+        if (paintedFallback) {
+          _warmStartCacheRestoredForUserId = normalizedUserId;
+          _warmStartSnapshotVisible = true;
+        }
         _bumpDataVersion();
       }
     }();
@@ -11656,23 +11670,39 @@ class CalendarPageState extends State<CalendarPage>
           .map((flow) => flow.id)
           .where((flowId) => flowId > 0)
           .toSet();
-      final notesByDay = <String, List<_Note>>{};
+      final legacySourceNotesByDay = <String, List<_Note>>{};
       final notesRaw = json['notes'];
       if (notesRaw is Map) {
         notesRaw.forEach((key, value) {
           if (value is! List) return;
-          final notes = _dedupeVisibleDayNotes(
-            value
-                .map(_deserializeWarmStartNote)
-                .whereType<_Note>()
-                .toList(growable: true),
-            trackSkyFlowIds: restoredTrackSkyFlowIds,
-          );
+          final notes = value
+              .map(_deserializeWarmStartNote)
+              .whereType<_Note>()
+              .toList(growable: true);
           if (notes.isNotEmpty) {
-            notesByDay[key.toString()] = notes;
+            legacySourceNotesByDay[key.toString()] = notes;
           }
         });
       }
+      final authoritativeProjection = deriveVisibleCalendarProjection<_Note>(
+        source: legacySourceNotesByDay,
+        pendingItems: const <CalendarPendingVisibleItem<_Note>>[],
+        stableIdentityOf: _calendarNoteStableIdentity,
+        suppressionRules: const <CalendarItemSuppressionRule<_Note>>[],
+        reduceBucket: (_, notes) => _dedupeVisibleDayNotes(
+          notes,
+          trackSkyFlowIds: restoredTrackSkyFlowIds,
+        ),
+      );
+      final authoritativeNotesByDay =
+          Map<String, List<_Note>>.unmodifiable(<String, List<_Note>>{
+            for (final entry in authoritativeProjection.buckets.entries)
+              entry.key: List<_Note>.unmodifiable(entry.value),
+          });
+      final notesByDay = <String, List<_Note>>{
+        for (final entry in authoritativeProjection.buckets.entries)
+          entry.key: List<_Note>.of(entry.value),
+      };
 
       final nextFlowId =
           (json['nextFlowId'] as num?)?.toInt() ??
@@ -11753,11 +11783,7 @@ class CalendarPageState extends State<CalendarPage>
             ..addAll(flows);
           _replaceLiveNoteBuckets(notesByDay);
           _calendarAuthoritativeFlows = List<_Flow>.unmodifiable(flows);
-          _calendarAuthoritativeNotesByDay =
-              Map<String, List<_Note>>.unmodifiable(<String, List<_Note>>{
-                for (final entry in notesByDay.entries)
-                  entry.key: List<_Note>.unmodifiable(entry.value),
-              });
+          _calendarAuthoritativeNotesByDay = authoritativeNotesByDay;
           _flowTotalEventCounts
             ..clear()
             ..addAll(totalCounts);
