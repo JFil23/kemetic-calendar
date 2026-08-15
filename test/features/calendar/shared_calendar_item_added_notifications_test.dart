@@ -60,8 +60,8 @@ void main() {
 
     final reminderSave = _sourceBetween(
       calendarSource,
-      'Future<void> _upsertReminderRule(ReminderRule rule) async',
-      'Future<void> _deleteReminderRule(String id) async',
+      'Future<void> _upsertReminderRuleOnce(ReminderRule rule) async',
+      'void _applyReminderEndIntentLocally',
     );
     expect(reminderSave, contains('isNewReminderFlow'));
     expect(reminderSave, contains("itemType: 'reminder'"));

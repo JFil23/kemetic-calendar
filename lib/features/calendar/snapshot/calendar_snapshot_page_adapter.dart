@@ -1,6 +1,53 @@
 part of '../calendar_page.dart';
 
 extension _CalendarSnapshotPageAdapter on CalendarPageState {
+  Future<void> _invalidateCalendarWarmCachesAfterServerMutation({
+    required String reason,
+  }) async {
+    final userId = _activeWarmStartUserId()?.trim();
+    if (userId == null || userId.isEmpty) return;
+
+    // A cache is allowed to accelerate confirmed account state, never to
+    // survive a newer server mutation as a competing authority. Remove both
+    // warm-cache generations before publishing the confirmed mutation; the
+    // reconciliation hydration will write a fresh server-derived snapshot.
+    Object? invalidationError;
+    try {
+      await calendarSnapshotStore.deleteUserScope(userId);
+    } catch (error) {
+      invalidationError = error;
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await Future.wait<bool>(<Future<bool>>[
+        prefs.remove(_warmStartCacheKey(userId)),
+        prefs.remove('reminder:rules:v1'),
+        prefs.remove('reminder:pending_upserts:v1'),
+        prefs.remove(CalendarUserScopedPrefs.endedReminderIdsKey(userId)),
+        prefs.remove(CalendarUserScopedPrefs.legacyEndedReminderIdsKey),
+      ]);
+    } catch (error) {
+      invalidationError ??= error;
+    }
+
+    if (invalidationError == null) {
+      CalendarHydrationDiagnostics.instance.recordCacheEvent(
+        'cache_invalidated_after_server_mutation',
+        <String, Object?>{'reason': reason},
+      );
+    } else {
+      // Cache invalidation is best-effort after the account write commits.
+      // Failure cannot convert durable server truth back into local intent.
+      CalendarHydrationDiagnostics.instance.recordCacheEvent(
+        'cache_invalidation_after_server_mutation_failed',
+        <String, Object?>{
+          'reason': reason,
+          'safe_error_class': invalidationError.runtimeType.toString(),
+        },
+      );
+    }
+  }
+
   Future<void> _deleteCalendarSnapshotForAccountChange(String userId) async {
     final normalized = userId.trim();
     if (normalized.isEmpty) return;

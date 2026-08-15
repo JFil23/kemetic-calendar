@@ -10,7 +10,6 @@ import 'package:http/http.dart' as http;
 import 'package:mobile/features/calendar/calendar_hydration_diagnostics.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/reminders/reminder_rule.dart';
-import 'package:mobile/features/reminders/reminder_rule_store.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart' as picker;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -244,7 +243,7 @@ void main() {
   );
 
   testWidgets(
-    'pending reminder intent survives a hydration projection before server confirmation',
+    'confirmed reminder projection is stable across repeated hydration work',
     (tester) async {
       final day = DateTime(2026, 8, 15, 2, 15);
       final thirdDay = day.add(const Duration(days: 2));
@@ -266,14 +265,8 @@ void main() {
       );
 
       final state = await pumpCalendar(tester);
-      state.debugStageReminderIntentForTesting(rule: rule, windowEnd: thirdDay);
-
-      expect(state.debugReminderRulesForTesting, hasLength(1));
-      expect(
-        state.debugReminderRulesForTesting.single.repeat.kind,
-        ReminderRepeatKind.everyNDays,
-      );
-      expect(state.debugReplaceWithPendingReminderProjectionForTesting(), 3);
+      expect(state.debugProjectReminderMembershipForTesting(rule: rule), 3);
+      expect(state.debugProjectReminderMembershipForTesting(rule: rule), 0);
       final thirdDayNotes = state.notesForDayForTesting(
         thirdKDay.kYear,
         thirdKDay.kMonth,
@@ -287,7 +280,7 @@ void main() {
   );
 
   testWidgets(
-    'durable reminder intent survives a cold state with other confirmed reminders',
+    'device-only reminder cache cannot join the confirmed account catalog',
     (tester) async {
       final day = DateTime(2026, 8, 15, 2, 30);
       final confirmed = ReminderRule(
@@ -309,40 +302,29 @@ void main() {
         ),
       );
 
-      var state = await pumpCalendar(tester);
-      state.debugStageReminderIntentForTesting(
-        rule: pending,
-        windowEnd: day.add(const Duration(days: 2)),
-      );
-      await state.debugPersistReminderIntentForTesting();
-      await disposeCalendar(tester);
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'app:has_seen_onboarding': true,
+        'app:onboarding:completed': true,
+        'reminder:rules:v1': ReminderRule.encodeList(<ReminderRule>[pending]),
+        'reminder:pending_upserts:v1': ReminderRule.encodeList(<ReminderRule>[
+          pending,
+        ]),
+      });
 
-      state = await pumpCalendar(tester);
+      final state = await pumpCalendar(tester);
       final staged = await state.debugStageConfirmedReminderCatalogForTesting(
         <ReminderRule>[confirmed],
       );
 
-      expect(staged.map((rule) => rule.id), contains(confirmed.id));
-      expect(staged.map((rule) => rule.id), contains(pending.id));
-      expect(
-        (await ReminderRuleStore().loadPendingUpserts()).map((rule) => rule.id),
-        contains(pending.id),
-      );
+      expect(staged.map((rule) => rule.id), <String>[confirmed.id]);
       await disposeCalendar(tester);
     },
   );
 
   testWidgets(
-    'cache-only reminder from the previous RC is promoted into the durable outbox',
+    'device-only reminder cache cannot create an empty account catalog',
     (tester) async {
       final day = DateTime(2026, 8, 15, 2, 30);
-      final confirmed = ReminderRule(
-        id: 'confirmed-before-upgrade',
-        title: 'Journal every day',
-        startLocal: day.add(const Duration(hours: 6)),
-        allDay: false,
-        color: const Color(0xff7bb661),
-      );
       final interrupted = ReminderRule(
         id: 'interrupted-before-upgrade',
         title: 'Daily reminder test',
@@ -358,22 +340,19 @@ void main() {
         'app:has_seen_onboarding': true,
         'app:onboarding:completed': true,
         'reminder:rules:v1': ReminderRule.encodeList(<ReminderRule>[
-          confirmed,
+          interrupted,
+        ]),
+        'reminder:pending_upserts:v1': ReminderRule.encodeList(<ReminderRule>[
           interrupted,
         ]),
       });
 
       final state = await pumpCalendar(tester);
       final staged = await state.debugStageConfirmedReminderCatalogForTesting(
-        <ReminderRule>[confirmed],
+        const <ReminderRule>[],
       );
 
-      expect(staged.map((rule) => rule.id), contains(confirmed.id));
-      expect(staged.map((rule) => rule.id), contains(interrupted.id));
-      expect(
-        (await ReminderRuleStore().loadPendingUpserts()).map((rule) => rule.id),
-        contains(interrupted.id),
-      );
+      expect(staged, isEmpty);
       await disposeCalendar(tester);
     },
   );
@@ -633,10 +612,17 @@ void main() {
         'Legacy expired reminder',
         'Inactive reminder',
         'Hidden reminder',
-        'Ended reminder',
       ]) {
         expect(notes.where((note) => note.title == absentTitle), isEmpty);
       }
+
+      // A device-only ended marker is legacy cache state, not account truth.
+      // If the account catalog still contains an active reminder, a fresh
+      // session must restore it instead of letting this device hide it.
+      expect(
+        notes.where((note) => note.title == 'Ended reminder'),
+        hasLength(1),
+      );
 
       await diagnostics.debugClose(HydrationTraceCloseReason.navigation);
       final commits = (diagnostics.lastCompletedTrace!['commits'] as List)
@@ -646,7 +632,7 @@ void main() {
       final warmCommit = commits.firstWhere(
         (entry) => entry['origin_class'] == 'warm_cache',
       );
-      expect(warmCommit['reminder_count'], 2);
+      expect(warmCommit['reminder_count'], 3);
 
       await disposeCalendar(tester);
     },

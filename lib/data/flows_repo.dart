@@ -740,18 +740,11 @@ class FlowsRepo {
     if (!_isUuid(reminderUuid)) {
       return null;
     }
-    try {
-      final response = await _client
-          .from(_kFlows)
-          .select('id')
-          .eq('reminder_uuid', reminderUuid)
-          .maybeSingle();
-      return response?['id'] as int?;
-    } catch (e) {
-      if (kDebugMode) {
-        debugPrint('[flows] getFlowIdByReminderUuid failed: $e');
-      }
-      return null;
-    }
+    final response = await _client
+        .from(_kFlows)
+        .select('id')
+        .eq('reminder_uuid', reminderUuid)
+        .maybeSingle();
+    return response?['id'] as int?;
   }
 }

@@ -43,7 +43,7 @@ void main() {
     );
   });
 
-  test('PR2 signedOut clears live maps and tombstone load-once only', () {
+  test('PR2 signedOut clears live maps and in-memory end guards', () {
     final block = calendarPageSource.substring(
       calendarPageSource.indexOf('if (event == AuthChangeEvent.signedOut) {'),
       calendarPageSource.indexOf('// Construct the journal controller now'),
@@ -63,9 +63,9 @@ void main() {
     expect(block, contains('_manualTombstonesLoaded = false'));
     expect(block, contains('_manualTombstonesLoad = null'));
     expect(
-      block.contains('_endedReminderIdsLoaded'),
+      calendarPageSource.contains('_loadEndedReminderIds'),
       isFalse,
-      reason: '_loadEndedReminderIds has no load-once guard',
+      reason: 'ended reminder authority belongs to the account-backed flow',
     );
   });
 
@@ -97,7 +97,7 @@ void main() {
     );
     expect(
       restore.indexOf('_warmStartRestoreInFlightForUserId = userId'),
-      lessThan(restore.indexOf('await _loadEndedReminderIds()')),
+      lessThan(restore.indexOf('await _loadOccurrenceExclusions()')),
     );
     expect(restore, contains('_serverHydrationCommittedForUserId == userId'));
     expect(restore, contains('finally {'));

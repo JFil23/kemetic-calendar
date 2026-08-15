@@ -264,8 +264,36 @@ void main() {
         ),
       );
       expect(reminderEditor, contains(': endLocal'));
-      expect(reminderEditor, contains('_previewReminderLocally'));
-      expect(reminderEditor, contains('_upsertReminderRule(rule)'));
+      expect(reminderEditor, isNot(contains('_previewReminderLocally')));
+      expect(reminderEditor, contains('await _upsertReminderRule(rule)'));
+    });
+
+    test('reminder visibility follows confirmed account mutations', () {
+      final reminderSave = _sourceBetween(
+        calendarPage,
+        'Future<void> _upsertReminderRuleOnce(ReminderRule rule) async',
+        'Future<void> _reconcileConfirmedReminderUpsert',
+      );
+      expect(reminderSave, contains('saved = await flowsRepo.upsert'));
+      expect(reminderSave, contains('_publishConfirmedReminderLocally'));
+      expect(
+        reminderSave.indexOf('saved = await flowsRepo.upsert'),
+        lessThan(reminderSave.indexOf('_publishConfirmedReminderLocally')),
+      );
+      expect(reminderSave, isNot(contains('_pendingReminderUpserts')));
+      expect(reminderSave, isNot(contains('_previewReminderLocally')));
+
+      final reminderEnd = _sourceBetween(
+        calendarPage,
+        'Future<void> _deleteReminderRule(String id) async',
+        'Set<int> _monthDayTargets',
+      );
+      expect(reminderEnd, contains('CalendarPage._runEndFlowRemote'));
+      expect(reminderEnd, contains('_applyReminderEndIntentLocally'));
+      expect(
+        reminderEnd.indexOf('CalendarPage._runEndFlowRemote'),
+        lessThan(reminderEnd.indexOf('_applyReminderEndIntentLocally')),
+      );
     });
 
     test('shared calendar update fanout respects selected scope', () {
