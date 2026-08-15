@@ -10,6 +10,7 @@ import 'package:http/http.dart' as http;
 import 'package:mobile/features/calendar/calendar_hydration_diagnostics.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/reminders/reminder_rule.dart';
+import 'package:mobile/features/reminders/reminder_rule_store.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart' as picker;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -281,6 +282,98 @@ void main() {
       expect(thirdDayNotes, hasLength(1));
       expect(thirdDayNotes.single.reminderId, rule.id);
       expect(thirdDayNotes.single.title, rule.title);
+      await disposeCalendar(tester);
+    },
+  );
+
+  testWidgets(
+    'durable reminder intent survives a cold state with other confirmed reminders',
+    (tester) async {
+      final day = DateTime(2026, 8, 15, 2, 30);
+      final confirmed = ReminderRule(
+        id: 'confirmed-daily-reminder',
+        title: 'Journal every day',
+        startLocal: day.add(const Duration(hours: 6)),
+        allDay: false,
+        color: const Color(0xff7bb661),
+      );
+      final pending = ReminderRule(
+        id: 'pending-cold-relaunch-reminder',
+        title: 'Daily reminder test',
+        startLocal: day,
+        allDay: false,
+        color: const Color(0xffd32274),
+        repeat: const ReminderRepeat(
+          kind: ReminderRepeatKind.everyNDays,
+          interval: 1,
+        ),
+      );
+
+      var state = await pumpCalendar(tester);
+      state.debugStageReminderIntentForTesting(
+        rule: pending,
+        windowEnd: day.add(const Duration(days: 2)),
+      );
+      await state.debugPersistReminderIntentForTesting();
+      await disposeCalendar(tester);
+
+      state = await pumpCalendar(tester);
+      final staged = await state.debugStageConfirmedReminderCatalogForTesting(
+        <ReminderRule>[confirmed],
+      );
+
+      expect(staged.map((rule) => rule.id), contains(confirmed.id));
+      expect(staged.map((rule) => rule.id), contains(pending.id));
+      expect(
+        (await ReminderRuleStore().loadPendingUpserts()).map((rule) => rule.id),
+        contains(pending.id),
+      );
+      await disposeCalendar(tester);
+    },
+  );
+
+  testWidgets(
+    'cache-only reminder from the previous RC is promoted into the durable outbox',
+    (tester) async {
+      final day = DateTime(2026, 8, 15, 2, 30);
+      final confirmed = ReminderRule(
+        id: 'confirmed-before-upgrade',
+        title: 'Journal every day',
+        startLocal: day.add(const Duration(hours: 6)),
+        allDay: false,
+        color: const Color(0xff7bb661),
+      );
+      final interrupted = ReminderRule(
+        id: 'interrupted-before-upgrade',
+        title: 'Daily reminder test',
+        startLocal: day,
+        allDay: false,
+        color: const Color(0xffd32274),
+        repeat: const ReminderRepeat(
+          kind: ReminderRepeatKind.everyNDays,
+          interval: 1,
+        ),
+      );
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'app:has_seen_onboarding': true,
+        'app:onboarding:completed': true,
+        'reminder:rules:v1': ReminderRule.encodeList(<ReminderRule>[
+          confirmed,
+          interrupted,
+        ]),
+      });
+
+      final state = await pumpCalendar(tester);
+      final staged = await state.debugStageConfirmedReminderCatalogForTesting(
+        <ReminderRule>[confirmed],
+      );
+
+      expect(staged.map((rule) => rule.id), contains(confirmed.id));
+      expect(staged.map((rule) => rule.id), contains(interrupted.id));
+      expect(
+        (await ReminderRuleStore().loadPendingUpserts()).map((rule) => rule.id),
+        contains(interrupted.id),
+      );
       await disposeCalendar(tester);
     },
   );

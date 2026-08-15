@@ -10527,6 +10527,8 @@ class CalendarPageState extends State<CalendarPage>
   bool _pendingReminderSyncUpdateLocalCache = false;
   final Map<String, ReminderRule> _pendingReminderUpserts =
       <String, ReminderRule>{};
+  final Map<String, Future<void>> _pendingReminderUpsertOperations =
+      <String, Future<void>>{};
   final Map<String, Future<void>> _endingReminderOperations =
       <String, Future<void>>{};
   int _orientationCriticalReminderGeneration = 0;
@@ -15838,6 +15840,7 @@ class CalendarPageState extends State<CalendarPage>
         _occurrenceExclusions.clear();
         _pendingDeletes.clear();
         _pendingReminderUpserts.clear();
+        _pendingReminderUpsertOperations.clear();
         _endedReminderIds.clear();
         _manualTombstonesLoaded = false;
         _manualTombstonesLoad = null;
@@ -19550,15 +19553,40 @@ class CalendarPageState extends State<CalendarPage>
     Iterable<_Flow> flows,
   ) async {
     await _loadEndedReminderIds();
-    var source = flows
+    final confirmed = flows
         .where((flow) => flow.isReminder)
         .map(_reminderRuleFromFlow)
         .whereType<ReminderRule>()
         .where((rule) => !_endedReminderIds.contains(rule.id))
         .toList(growable: false);
-    if (source.isEmpty) {
-      source = await _reminderRuleStore.load();
+
+    final hadPendingSnapshot = await _reminderRuleStore
+        .hasPendingUpsertsSnapshot();
+    final persistedPending = await _reminderRuleStore.loadPendingUpserts();
+    for (final rule in persistedPending) {
+      if (_endedReminderIds.contains(rule.id)) continue;
+      _pendingReminderUpserts.putIfAbsent(rule.id, () => rule);
     }
+
+    final cached = await _reminderRuleStore.load();
+    if (!hadPendingSnapshot && confirmed.isNotEmpty) {
+      // One-time upgrade from the previous cache-only model. A cached rule
+      // absent from a non-empty confirmed catalog is an interrupted local
+      // save, not disposable UI state. Promote it into the durable outbox.
+      final confirmedIds = confirmed.map((rule) => rule.id).toSet();
+      final confirmedSignatures = confirmed.map(_reminderRuleSignature).toSet();
+      for (final rule in cached) {
+        if (_endedReminderIds.contains(rule.id) ||
+            confirmedIds.contains(rule.id) ||
+            confirmedSignatures.contains(_reminderRuleSignature(rule))) {
+          continue;
+        }
+        _pendingReminderUpserts.putIfAbsent(rule.id, () => rule);
+      }
+      await _savePendingReminderUpserts();
+    }
+
+    final source = confirmed.isEmpty ? cached : confirmed;
     return _reminderRulesWithPending(
       source.where((rule) => !_endedReminderIds.contains(rule.id)).toList(),
     );
@@ -19580,6 +19608,19 @@ class CalendarPageState extends State<CalendarPage>
       ..clear()
       ..addAll(deduped);
     await _reminderRuleStore.saveAll(_reminderRules);
+  }
+
+  Future<void> _savePendingReminderUpserts() {
+    return _reminderRuleStore.savePendingUpserts(
+      _pendingReminderUpserts.values.toList(growable: false),
+    );
+  }
+
+  Future<void> _persistReminderIntentLocally() {
+    return Future.wait<void>(<Future<void>>[
+      _saveReminderRules(),
+      _savePendingReminderUpserts(),
+    ]);
   }
 
   void _upsertDebugDaySheetSmokeReminderRule(ReminderRule rule) {
@@ -19650,7 +19691,25 @@ class CalendarPageState extends State<CalendarPage>
     return _isUuid(ruleId) ? ruleId : null;
   }
 
-  Future<void> _upsertReminderRule(ReminderRule rule) async {
+  Future<void> _upsertReminderRule(ReminderRule rule) {
+    final operationKey = rule.id.trim();
+    final existing = _pendingReminderUpsertOperations[operationKey];
+    if (existing != null) return existing;
+
+    late final Future<void> operation;
+    operation = _upsertReminderRuleOnce(rule).whenComplete(() {
+      if (identical(
+        _pendingReminderUpsertOperations[operationKey],
+        operation,
+      )) {
+        _pendingReminderUpsertOperations.remove(operationKey);
+      }
+    });
+    _pendingReminderUpsertOperations[operationKey] = operation;
+    return operation;
+  }
+
+  Future<void> _upsertReminderRuleOnce(ReminderRule rule) async {
     final effectiveCalendarId =
         _normalizeCalendarId(rule.calendarId) ??
         _normalizeCalendarId(_personalCalendarId);
@@ -19756,7 +19815,7 @@ class CalendarPageState extends State<CalendarPage>
         _CalendarHydrationRequest.catalogReconcile(reason: 'reminder_upsert'),
       );
       _pendingReminderUpserts.remove(effectiveRule.id);
-      await _saveReminderRules();
+      await _persistReminderIntentLocally();
       if (effectiveCalendarId != null && isNewReminderFlow) {
         final windowStart = DateUtils.dateOnly(DateTime.now());
         final windowEnd = _reminderWindowEnd(windowStart, [effectiveRule]);
@@ -19799,6 +19858,23 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
+  void _retryPendingReminderUpserts() {
+    for (final rule in _pendingReminderUpserts.values.toList(growable: false)) {
+      if (_pendingReminderUpsertOperations.containsKey(rule.id.trim())) {
+        continue;
+      }
+      unawaited(
+        _upsertReminderRule(rule).catchError((Object error, StackTrace stack) {
+          if (kDebugMode) {
+            _calendarDebugPrint(
+              '[reminders] durable upsert retry deferred: $error\n$stack',
+            );
+          }
+        }),
+      );
+    }
+  }
+
   void _applyReminderEndIntentLocally(Set<String> reminderIds) {
     _endedReminderIds.addAll(reminderIds);
     for (final reminderId in reminderIds) {
@@ -19834,6 +19910,7 @@ class CalendarPageState extends State<CalendarPage>
     await Future.wait<void>(<Future<void>>[
       _saveEndedReminderIds(),
       _saveReminderRules(),
+      _savePendingReminderUpserts(),
     ]);
 
     final eventsRepo = UserEventsRepo(Supabase.instance.client);
@@ -21018,7 +21095,7 @@ class CalendarPageState extends State<CalendarPage>
     }
     if (mounted) setState(() {});
     _bumpDataVersion();
-    unawaited(_saveReminderRules());
+    unawaited(_persistReminderIntentLocally());
   }
 
   Future<bool> _regenReminderNotes({
@@ -21981,6 +22058,23 @@ class CalendarPageState extends State<CalendarPage>
                                   ..._reminderRules,
                                 ]);
                                 _previewReminderLocally(rule, today, windowEnd);
+                                try {
+                                  // The editor closes only after the user's
+                                  // intent and its retry outbox are durable.
+                                  await _persistReminderIntentLocally();
+                                } catch (_) {
+                                  saveInFlight = false;
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text(
+                                          'Could not save this reminder on this device. Please try again.',
+                                        ),
+                                      ),
+                                    );
+                                  }
+                                  return;
+                                }
                                 final saveFuture = _upsertReminderRule(rule);
                                 if (sheetCtx.mounted &&
                                     Navigator.of(sheetCtx).canPop()) {
@@ -34472,6 +34566,34 @@ class CalendarPageState extends State<CalendarPage>
       DateUtils.dateOnly(rule.startLocal),
       DateUtils.dateOnly(windowEnd),
     );
+  }
+
+  @visibleForTesting
+  Future<void> debugPersistReminderIntentForTesting() {
+    return _persistReminderIntentLocally();
+  }
+
+  @visibleForTesting
+  Future<List<ReminderRule>> debugStageConfirmedReminderCatalogForTesting(
+    List<ReminderRule> confirmed,
+  ) {
+    final flows = <_Flow>[
+      for (var index = 0; index < confirmed.length; index++)
+        _Flow(
+          id: 8000 + index,
+          calendarId: confirmed[index].calendarId,
+          name: confirmed[index].title,
+          color: confirmed[index].color,
+          active: confirmed[index].active,
+          rules: const <FlowRule>[],
+          start: confirmed[index].startLocal,
+          end: confirmed[index].endLocal,
+          notes: jsonEncode(confirmed[index].toJson()),
+          isReminder: true,
+          reminderUuid: confirmed[index].id,
+        ),
+    ];
+    return _stageReminderRulesFromFlows(flows);
   }
 
   @visibleForTesting

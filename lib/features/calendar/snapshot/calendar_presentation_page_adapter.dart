@@ -215,6 +215,9 @@ extension _CalendarPresentationPageAdapter on CalendarPageState {
       _lastAuthoritativeHydrationAt = projection.lastSuccessfulRefreshAtUtc
           .toLocal();
       _latestCalendarRefreshStatus = CalendarRefreshStatus.succeeded;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _retryPendingReminderUpserts();
+      });
     }
     _activeCalendarCoverage = projection.coverage;
     if (projection.fullServerHydration) {
