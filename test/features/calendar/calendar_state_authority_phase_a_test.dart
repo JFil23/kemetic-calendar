@@ -58,7 +58,7 @@ void main() {
     expect(clearScope, contains('_flows.clear()'));
     expect(clearScope, contains('_notes.clear()'));
     expect(block, contains('_manualDeleteTombstones.clear()'));
-    expect(block, contains('_pendingDeleteKeys.clear()'));
+    expect(block, contains('_pendingDeletes.clear()'));
     expect(block, contains('_endedReminderIds.clear()'));
     expect(block, contains('_manualTombstonesLoaded = false'));
     expect(block, contains('_manualTombstonesLoad = null'));

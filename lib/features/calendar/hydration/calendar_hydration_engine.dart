@@ -229,6 +229,7 @@ extension _CalendarHydrationEngine on CalendarPageState {
       final loadUserId = currentUser.id;
       loadUserIdForPass = loadUserId;
       await _ensureManualDeleteTombstonesLoaded();
+      await _loadOccurrenceExclusions(refreshServer: true);
       if (backgroundWindowMode && backgroundPass == null) {
         throw StateError('Missing progressive backfill window for $source');
       }
@@ -717,6 +718,12 @@ extension _CalendarHydrationEngine on CalendarPageState {
           hydrationPassSuperseded = true;
           return;
         }
+        final reconciledPendingDeleteCount = _pendingDeletes
+            .reconcileAcceptedHydration(
+              hydrationEpoch: passEpoch,
+              windowStartUtc: focusWindow.startUtc,
+              windowEndUtc: focusWindow.endUtc,
+            );
         _calendarAuthoritativeFlows = List<_Flow>.unmodifiable(newFlows);
         _calendarAuthoritativeNotesByDay =
             Map<String, List<_Note>>.unmodifiable(<String, List<_Note>>{
@@ -745,7 +752,8 @@ extension _CalendarHydrationEngine on CalendarPageState {
             'flows=${newFlows.length} notes=${dedupedNotes.length} '
             'immediate=$publishedImmediately '
             'unconfirmedPreserved=${unconfirmedMerge.preserved} '
-            'unconfirmedConfirmed=${unconfirmedMerge.confirmed}',
+            'unconfirmedConfirmed=${unconfirmedMerge.confirmed} '
+            'pendingDeletesRetired=$reconciledPendingDeleteCount',
           );
         }
         hydrationDiagnostics.recordVisibleCommit(
@@ -901,6 +909,7 @@ extension _CalendarHydrationEngine on CalendarPageState {
               start: startTime,
               end: endTime,
               flowId: flowId,
+              hydrationPassEpoch: passEpoch,
             )) {
               continue;
             }
@@ -1127,6 +1136,7 @@ extension _CalendarHydrationEngine on CalendarPageState {
               start: startTime,
               end: endTime,
               flowId: noteFlowId,
+              hydrationPassEpoch: passEpoch,
             )) {
               continue;
             }

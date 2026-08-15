@@ -54,6 +54,15 @@ class _UnconfirmedNoteLedger {
     return _entries.any((entry) => entry.note.clientEventId?.trim() == cid);
   }
 
+  _UnconfirmedNote? entryForCid(String clientEventId) {
+    final cid = clientEventId.trim();
+    if (cid.isEmpty) return null;
+    for (final entry in _entries) {
+      if (entry.note.clientEventId?.trim() == cid) return entry;
+    }
+    return null;
+  }
+
   @visibleForTesting
   List<_Note> get unconfirmedNotes =>
       _entries.map((e) => e.note).toList(growable: false);

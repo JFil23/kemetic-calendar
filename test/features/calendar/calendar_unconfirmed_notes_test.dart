@@ -187,6 +187,9 @@ void main() {
       );
       final acceptedAt = commitSlice.indexOf('if (!accepted) {');
       final retireAt = commitSlice.indexOf('_unconfirmed.forgetCids(');
+      final deleteRetireAt = commitSlice.indexOf(
+        '.reconcileAcceptedHydration(',
+      );
       final persistenceAt = commitSlice.indexOf(
         '_enqueueCalendarSnapshotPersistence(',
       );
@@ -198,9 +201,28 @@ void main() {
       expect(callbackAt, greaterThan(preparedAt));
       expect(controllerCommitAt, greaterThan(callbackAt));
       expect(acceptedAt, greaterThan(controllerCommitAt));
+      expect(deleteRetireAt, greaterThan(acceptedAt));
       expect(retireAt, greaterThan(acceptedAt));
       expect(persistenceAt, greaterThan(retireAt));
       expect(commitSlice, isNot(contains('snapshot_durable_commit_rejected')));
+    },
+  );
+
+  test(
+    'point lookup cannot retire a pending create before hydration commit',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final foundBranch = source.substring(
+        source.indexOf('case UserEventLookupDisposition.found:'),
+        source.indexOf('case UserEventLookupDisposition.notFound:'),
+      );
+
+      expect(foundBranch, contains('_requestHydration('));
+      expect(foundBranch, contains('verify_pending_cid_found'));
+      expect(foundBranch, isNot(contains('_unconfirmed.forgetCid(')));
+      expect(foundBranch, isNot(contains('_removePersistedPendingCids(')));
     },
   );
 

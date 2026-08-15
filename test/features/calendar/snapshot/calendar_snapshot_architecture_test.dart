@@ -84,9 +84,14 @@ void main() {
 
     expect(page, contains('void _replaceLiveNoteBuckets('));
     expect(page, contains('_replaceLiveNoteBuckets(notesByDay);'));
+    expect(presentation, contains('entry.key: List<_Note>.from(entry.value)'));
     expect(
       presentation,
-      contains('_replaceLiveNoteBuckets(projection.notesByDay);'),
+      contains('_removeExcludedReminderOccurrences(visibleNotesByDay);'),
+    );
+    expect(
+      presentation,
+      contains('_replaceLiveNoteBuckets(visibleNotesByDay);'),
     );
     expect(snapshotRestore, contains('_replaceLiveNoteBuckets(notesByDay);'));
     expect(presentation, isNot(contains('..addAll(projection.notesByDay)')));

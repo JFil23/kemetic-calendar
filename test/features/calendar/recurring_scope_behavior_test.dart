@@ -154,7 +154,7 @@ void main() {
       final deleteRepeatingBranch = _sourceBetween(
         calendarPage,
         'final repeatingFlow = _repeatingNoteFlowForId(flowIdForNote);',
-        'final pendingKey = _buildDeletionKey',
+        'final pendingIdentity = _buildDeletionIdentity',
       );
 
       expect(deleteRepeatingBranch, contains('_showRepeatingEventScopeSheet'));
@@ -181,7 +181,7 @@ void main() {
       final editScope = _sourceBetween(
         calendarPage,
         '_applyRepeatingNoteEditScope({',
-        'String? _buildDeletionKey',
+        'CalendarMutationIdentity? _buildDeletionIdentity',
       );
       final persistFlow = _sourceBetween(
         calendarPage,
@@ -323,7 +323,7 @@ void main() {
         );
         final deleteFallback = _sourceBetween(
           calendarPage,
-          'final pendingKey = _buildDeletionKey',
+          'final pendingIdentity = _buildDeletionIdentity',
           'Future<void> _deleteNoteByEvent',
         );
 

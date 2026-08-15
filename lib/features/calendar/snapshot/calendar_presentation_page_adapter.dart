@@ -186,7 +186,18 @@ extension _CalendarPresentationPageAdapter on CalendarPageState {
     _flows
       ..clear()
       ..addAll(projection.flows);
-    _replaceLiveNoteBuckets(projection.notesByDay);
+    final visibleNotesByDay = <String, List<_Note>>{
+      for (final entry in projection.notesByDay.entries)
+        entry.key: List<_Note>.from(entry.value),
+    };
+    // Exclusions can be recorded while a hydration epoch is in flight. Apply
+    // them again at the final presentation seam so an already-prepared epoch
+    // cannot repaint an occurrence the user just deleted.
+    _removeExcludedReminderOccurrences(visibleNotesByDay);
+    // Pending standalone deletes use the same final seam while waiting for an
+    // accepted hydration pass to observe their absence.
+    _removePendingDeletedNotes(visibleNotesByDay);
+    _replaceLiveNoteBuckets(visibleNotesByDay);
     if (projection.replaceReminderRules) {
       _reminderRules
         ..clear()
@@ -237,7 +248,12 @@ extension _CalendarPresentationPageAdapter on CalendarPageState {
     _personalCalendarId = null;
     _calendarStateLoaded = false;
     _unconfirmed.clear();
+    _pendingDeletes.clear();
     _manualDeleteTombstones.clear();
+    _occurrenceExclusions.clear();
+    _occurrenceExclusionsLoadedForUserId = null;
+    _occurrenceExclusionsLoad = null;
+    _occurrenceExclusionsServerLoadedAt = null;
     _publishCalendarMonthProjections(affected);
     _notifyDayViewDataChanged(scheduleCacheSave: false);
   }

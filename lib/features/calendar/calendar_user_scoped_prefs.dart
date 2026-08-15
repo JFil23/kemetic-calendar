@@ -10,6 +10,8 @@ class CalendarUserScopedPrefs {
   static const String legacyManualDeleteTombstonesKey =
       'calendar:manual_delete_tombstones';
   static const String legacyEndedReminderIdsKey = 'reminder:ended_ids';
+  static const String legacyOccurrenceExclusionsKey =
+      'calendar:occurrence_exclusions';
 
   static const String _userScopedMigrationDonePrefix =
       'calendar:user_scoped_prefs_v1';
@@ -19,6 +21,9 @@ class CalendarUserScopedPrefs {
 
   static String endedReminderIdsKey(String userId) =>
       '$legacyEndedReminderIdsKey:$userId';
+
+  static String occurrenceExclusionsKey(String userId) =>
+      '$legacyOccurrenceExclusionsKey:$userId';
 
   static String userScopedMigrationDoneKey(String userId) =>
       '$_userScopedMigrationDonePrefix:$userId';
@@ -43,6 +48,11 @@ class CalendarUserScopedPrefs {
       prefs: prefs,
       userKey: endedReminderIdsKey(trimmed),
       legacyKey: legacyEndedReminderIdsKey,
+    );
+    await _copyStringListIfAbsent(
+      prefs: prefs,
+      userKey: occurrenceExclusionsKey(trimmed),
+      legacyKey: legacyOccurrenceExclusionsKey,
     );
     await prefs.setBool(doneKey, true);
   }

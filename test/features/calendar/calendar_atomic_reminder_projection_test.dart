@@ -163,6 +163,86 @@ void main() {
   );
 
   testWidgets(
+    'excluded reminder occurrence stays absent when projected again',
+    (tester) async {
+      final day = DateTime(2026, 8, 15, 20);
+      final kDay = picker.KemeticMath.fromGregorian(day);
+      final rule = ReminderRule(
+        id: 'excluded-reminder',
+        title: 'Do not resurrect',
+        startLocal: day,
+        allDay: false,
+        color: const Color(0xff8b6dd8),
+      );
+      CalendarPage.debugReminderSyncTodayForTesting = DateUtils.dateOnly(day);
+      CalendarPage.debugReminderSyncWindowEndForTesting = DateUtils.dateOnly(
+        day,
+      );
+
+      final state = await pumpCalendar(tester);
+      expect(
+        state.debugProjectReminderMembershipForTesting(rule: rule, flowId: 77),
+        1,
+      );
+      final projected = state.notesForDayForTesting(
+        kDay.kYear,
+        kDay.kMonth,
+        kDay.kDay,
+      );
+      expect(projected.single.start, const TimeOfDay(hour: 20, minute: 0));
+      expect(projected.single.end, const TimeOfDay(hour: 20, minute: 30));
+
+      state.debugExcludeReminderOccurrenceForTesting(
+        reminderId: rule.id,
+        localDate: day,
+      );
+      expect(
+        state.debugProjectReminderMembershipForTesting(rule: rule, flowId: 77),
+        0,
+      );
+      expect(
+        state.notesForDayForTesting(kDay.kYear, kDay.kMonth, kDay.kDay),
+        isEmpty,
+      );
+      await disposeCalendar(tester);
+    },
+  );
+
+  testWidgets(
+    'excluded legacy reminder row without a canonical cid stays absent',
+    (tester) async {
+      final day = DateTime(2026, 8, 15, 20);
+      final kDay = picker.KemeticMath.fromGregorian(day);
+      final state = await pumpCalendar(tester);
+
+      expect(
+        state.debugAddNote(
+          kDay.kYear,
+          kDay.kMonth,
+          kDay.kDay,
+          'Legacy reminder row',
+          null,
+          id: 'legacy-db-id',
+          isReminder: true,
+          reminderId: 'legacy-reminder',
+        ),
+        isTrue,
+      );
+
+      state.debugExcludeReminderOccurrenceForTesting(
+        reminderId: 'legacy-reminder',
+        localDate: day,
+      );
+
+      expect(
+        state.notesForDayForTesting(kDay.kYear, kDay.kMonth, kDay.kDay),
+        isEmpty,
+      );
+      await disposeCalendar(tester);
+    },
+  );
+
+  testWidgets(
     'disk warm restore projects reminder membership before its first publication',
     (tester) async {
       const userId = '27d63169-a28a-4550-a0a0-8fee0e8e7b95';

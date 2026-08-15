@@ -9,6 +9,7 @@ import 'package:mobile/core/navigation_fallback.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/event_filing_engine.dart';
 import '../../data/birthday_calendar.dart';
+import '../../data/calendar_occurrence_exclusions_repo.dart';
 import '../../data/user_events_repo.dart';
 import '../../data/flows_repo.dart';
 import '../../data/shared_calendar_models.dart';
@@ -67,6 +68,8 @@ import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/widgets/month_name_text.dart';
 import 'package:mobile/widgets/kemetic_app_bar_action.dart';
 import 'package:mobile/core/day_key.dart';
+import 'package:mobile/core/calendar_occurrence_identity.dart';
+import 'package:mobile/core/calendar_pending_intents.dart';
 import 'package:mobile/core/app_bottom_insets.dart';
 import 'package:mobile/core/global_menu_routes.dart';
 import 'package:mobile/core/navigation_persistence_policy.dart';
@@ -10286,12 +10289,19 @@ class CalendarPageState extends State<CalendarPage>
   );
 
   final Map<String, List<_Note>> _notes = {};
-  // Tracks deletions in flight to prevent hydration from resurrecting notes.
-  final Set<String> _pendingDeleteKeys = <String>{};
+  // Keeps accepted deletes painted until a later authoritative pass observes
+  // their absence. Database ids and CIDs are aliases for the same record.
+  final CalendarPendingDeleteLedger _pendingDeletes =
+      CalendarPendingDeleteLedger();
   // Manual standalone tombstones (persisted) to block resurrection.
   final Set<String> _manualDeleteTombstones = <String>{};
   bool _manualTombstonesLoaded = false;
   Future<void>? _manualTombstonesLoad;
+  final Set<CalendarOccurrenceIdentity> _occurrenceExclusions =
+      <CalendarOccurrenceIdentity>{};
+  String? _occurrenceExclusionsLoadedForUserId;
+  Future<void>? _occurrenceExclusionsLoad;
+  DateTime? _occurrenceExclusionsServerLoadedAt;
 
   /// Prevents duplicate async move operations for the same event row id.
   final Set<String> _eventMoveInProgress = <String>{};
@@ -10494,6 +10504,8 @@ class CalendarPageState extends State<CalendarPage>
   );
   late final DecanReflectionPromptState _decanReflectionPromptState =
       DecanReflectionPromptState(Supabase.instance.client);
+  late final CalendarOccurrenceExclusionsRepo _occurrenceExclusionsRepo =
+      CalendarOccurrenceExclusionsRepo(Supabase.instance.client);
   late final MaatFlowDecanFactCollector _maatFlowDecanFactCollector =
       MaatFlowDecanFactCollector(Supabase.instance.client);
   final DecanReflectionComposer _decanReflectionComposer =
@@ -10952,10 +10964,26 @@ class CalendarPageState extends State<CalendarPage>
       if (!mounted || _activeWarmStartUserId() != userId) return;
       switch (result.disposition) {
         case UserEventLookupDisposition.found:
-          _unconfirmed.forgetCid(clientEventId);
-          await _removePersistedPendingCids(<String>[
-            clientEventId,
-          ], userId: userId);
+          // The lookup proves persistence, but only an accepted calendar
+          // commit may retire the optimistic projection.
+          final entry = _unconfirmed.entryForCid(clientEventId);
+          final localDate = entry == null
+              ? null
+              : _warmStartDateFromKey(entry.dayKey);
+          unawaited(
+            _requestHydration(
+              _CalendarHydrationRequest.targeted(
+                reason: 'verify_pending_cid_found',
+                intentKind: CalendarHydrationIntentKind.affectedDate,
+                interval: localDate == null
+                    ? null
+                    : CalendarHydrationInterval.fromInclusiveLocalDays(
+                        firstLocalDay: localDate,
+                        lastLocalDay: localDate,
+                      ),
+              ),
+            ),
+          );
           return;
         case UserEventLookupDisposition.notFound:
           if (!_unconfirmed.containsCid(clientEventId)) return;
@@ -11534,6 +11562,7 @@ class CalendarPageState extends State<CalendarPage>
     try {
       final endedReminderStopwatch = Stopwatch()..start();
       await _loadEndedReminderIds();
+      await _loadOccurrenceExclusions();
       recordCache('cache_restore_ended_reminders_ready', <String, Object?>{
         'duration_ms': endedReminderStopwatch.elapsedMilliseconds,
       });
@@ -15802,10 +15831,14 @@ class CalendarPageState extends State<CalendarPage>
         _flowTotalEventCounts.clear();
         _flowRemainingEventCounts.clear();
         _manualDeleteTombstones.clear();
-        _pendingDeleteKeys.clear();
+        _occurrenceExclusions.clear();
+        _pendingDeletes.clear();
         _endedReminderIds.clear();
         _manualTombstonesLoaded = false;
         _manualTombstonesLoad = null;
+        _occurrenceExclusionsLoadedForUserId = null;
+        _occurrenceExclusionsLoad = null;
+        _occurrenceExclusionsServerLoadedAt = null;
       }
     });
 
@@ -20289,9 +20322,12 @@ class CalendarPageState extends State<CalendarPage>
     final calendarName = _calendarSummary(rule.calendarId)?.name;
     for (final day in occurrences) {
       final k = KemeticMath.fromGregorian(day);
-      final cidDate =
-          '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
-      final clientEventId = 'reminder:${rule.id}:$cidDate';
+      final identity = CalendarOccurrenceIdentity.reminder(
+        reminderId: rule.id,
+        localDate: day,
+      );
+      if (_isOccurrenceExcluded(identity)) continue;
+      final clientEventId = identity.canonicalKey;
       final startTime = rule.allDay
           ? null
           : TimeOfDay(
@@ -20300,7 +20336,15 @@ class CalendarPageState extends State<CalendarPage>
             );
       final endTime = rule.allDay
           ? null
-          : TimeOfDay.fromDateTime(day.add(const Duration(minutes: 30)));
+          : TimeOfDay.fromDateTime(
+              DateTime(
+                day.year,
+                day.month,
+                day.day,
+                rule.startLocal.hour,
+                rule.startLocal.minute,
+              ).add(const Duration(minutes: 30)),
+            );
       // Skip if a canonical DB-backed note already exists for this flow/time/title.
       if (flowId != null && flowId > 0) {
         final key = _kKey(k.kYear, k.kMonth, k.kDay);
@@ -20356,6 +20400,7 @@ class CalendarPageState extends State<CalendarPage>
     required List<_Flow> flows,
     required Map<String, List<_Note>> notesByDay,
   }) {
+    _removeExcludedReminderOccurrences(notesByDay);
     final rules = <({ReminderRule rule, int flowId})>[];
     for (final flow in flows) {
       if (!flow.isReminder || flow.isHidden) {
@@ -20490,6 +20535,7 @@ class CalendarPageState extends State<CalendarPage>
     bool updateLocalCache = false,
   }) async {
     await _reminderSyncGate.waitForOrientationCriticalSection();
+    await _loadOccurrenceExclusions(refreshServer: true);
     await _loadReminderRules();
     if (_reminderRules.isEmpty) return;
     final repo = UserEventsRepo(Supabase.instance.client);
@@ -20552,10 +20598,18 @@ class CalendarPageState extends State<CalendarPage>
         continue;
       }
 
-      final occurrences = _generateReminderOccurrences(rule, today, windowEnd);
+      final occurrences = _generateReminderOccurrences(rule, today, windowEnd)
+          .where(
+            (day) => !_isOccurrenceExcluded(
+              CalendarOccurrenceIdentity.reminder(
+                reminderId: rule.id,
+                localDate: day,
+              ),
+            ),
+          )
+          .toList(growable: false);
       final desiredDates = <String>{
-        for (final day in occurrences)
-          '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}',
+        for (final day in occurrences) formatCalendarOccurrenceLocalDate(day),
       };
       final staleIdsToDelete = <String>[];
       for (final row in existingRows) {
@@ -20564,6 +20618,10 @@ class CalendarPageState extends State<CalendarPage>
         final datePart = parts.isNotEmpty ? parts.last.trim() : '';
         final hasOverride =
             row.detail?.contains(_kReminderManualOverrideMarker) == true;
+        if (_isReminderOccurrenceClientIdExcluded(cid)) {
+          staleIdsToDelete.add(row.id);
+          continue;
+        }
         if (hasOverride) continue;
         if (datePart.isEmpty || !desiredDates.contains(datePart)) {
           staleIdsToDelete.add(row.id);
@@ -20608,9 +20666,12 @@ class CalendarPageState extends State<CalendarPage>
           final end = rule.allDay
               ? null
               : start.add(const Duration(minutes: 30));
-          final cidDate =
-              '${day.year.toString().padLeft(4, '0')}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
-          final cid = 'reminder:${rule.id}:$cidDate';
+          final identity = CalendarOccurrenceIdentity.reminder(
+            reminderId: rule.id,
+            localDate: day,
+          );
+          final cidDate = identity.localDateKey;
+          final cid = identity.canonicalKey;
           final encodedDetail = _encodeReminderDetail(rule);
           final kDate = KemeticMath.fromGregorian(day);
           final startTod = rule.allDay
@@ -22558,6 +22619,153 @@ class CalendarPageState extends State<CalendarPage>
     return _manualDeleteTombstones.contains(trimmed);
   }
 
+  Future<void> _persistOccurrenceExclusions() async {
+    final values =
+        _occurrenceExclusions
+            .map((identity) => identity.canonicalKey)
+            .toList(growable: false)
+          ..sort();
+    final prefs = await SharedPreferences.getInstance();
+    await CalendarUserScopedPrefs.writeStringList(
+      prefs: prefs,
+      userId: _activeWarmStartUserId(),
+      userKey: CalendarUserScopedPrefs.occurrenceExclusionsKey,
+      legacyKey: CalendarUserScopedPrefs.legacyOccurrenceExclusionsKey,
+      values: values,
+    );
+  }
+
+  Future<void> _loadOccurrenceExclusions({bool refreshServer = false}) async {
+    final userId = _activeWarmStartUserId();
+    if (userId == null || userId.trim().isEmpty) return;
+    final normalizedUserId = userId.trim();
+
+    final activeLoad = _occurrenceExclusionsLoad;
+    if (activeLoad != null) {
+      await activeLoad;
+      if (identical(_occurrenceExclusionsLoad, activeLoad)) {
+        _occurrenceExclusionsLoad = null;
+      }
+      if (refreshServer) {
+        await _loadOccurrenceExclusions(refreshServer: true);
+      }
+      return;
+    }
+
+    final serverCacheFresh =
+        _occurrenceExclusionsLoadedForUserId == normalizedUserId &&
+        _occurrenceExclusionsServerLoadedAt != null &&
+        DateTime.now().difference(_occurrenceExclusionsServerLoadedAt!) <
+            const Duration(seconds: 30);
+    final needsLocalLoad =
+        _occurrenceExclusionsLoadedForUserId != normalizedUserId;
+    final needsServerLoad = refreshServer && !serverCacheFresh;
+    if (!needsLocalLoad && !needsServerLoad) return;
+
+    late final Future<void> load;
+    load = () async {
+      if (needsLocalLoad) {
+        final prefs = await SharedPreferences.getInstance();
+        final stored = await CalendarUserScopedPrefs.readStringList(
+          prefs: prefs,
+          userId: normalizedUserId,
+          userKey: CalendarUserScopedPrefs.occurrenceExclusionsKey,
+          legacyKey: CalendarUserScopedPrefs.legacyOccurrenceExclusionsKey,
+        );
+        if (_activeWarmStartUserId() != normalizedUserId) return;
+        _occurrenceExclusions
+          ..clear()
+          ..addAll(
+            stored
+                .map(CalendarOccurrenceIdentity.tryParse)
+                .whereType<CalendarOccurrenceIdentity>(),
+          );
+        _occurrenceExclusionsLoadedForUserId = normalizedUserId;
+      }
+
+      if (!needsServerLoad || _activeWarmStartUserId() != normalizedUserId) {
+        return;
+      }
+      try {
+        final remote = await _occurrenceExclusionsRepo.listMine();
+        if (_activeWarmStartUserId() != normalizedUserId) return;
+        _occurrenceExclusions.addAll(remote);
+        _occurrenceExclusionsServerLoadedAt = DateTime.now();
+        await _persistOccurrenceExclusions();
+      } catch (error) {
+        // A cached exclusion is safer than resurrecting a deleted occurrence.
+        // Back off briefly so a network outage does not add one failed read to
+        // every progressive hydration chunk.
+        if (_activeWarmStartUserId() == normalizedUserId) {
+          _occurrenceExclusionsServerLoadedAt = DateTime.now();
+        }
+        if (kDebugMode) {
+          _calendarDebugPrint(
+            '[occurrence-exclusions] refresh failed: ${error.runtimeType}',
+          );
+        }
+      }
+    }();
+    _occurrenceExclusionsLoad = load;
+    try {
+      await load;
+    } finally {
+      if (identical(_occurrenceExclusionsLoad, load)) {
+        _occurrenceExclusionsLoad = null;
+      }
+    }
+  }
+
+  Future<void> _recordOccurrenceExclusion(
+    CalendarOccurrenceIdentity identity,
+  ) async {
+    await _loadOccurrenceExclusions();
+    final added = _occurrenceExclusions.add(identity);
+    if (added) await _persistOccurrenceExclusions();
+    try {
+      await _occurrenceExclusionsRepo.exclude(identity);
+      _occurrenceExclusionsServerLoadedAt = DateTime.now();
+    } catch (_) {
+      if (added) {
+        _occurrenceExclusions.remove(identity);
+        await _persistOccurrenceExclusions();
+      }
+      rethrow;
+    }
+  }
+
+  bool _isOccurrenceExcluded(CalendarOccurrenceIdentity identity) =>
+      _occurrenceExclusions.contains(identity);
+
+  bool _isReminderOccurrenceClientIdExcluded(String? clientEventId) {
+    final identity = CalendarOccurrenceIdentity.tryParse(clientEventId);
+    return identity != null && _isOccurrenceExcluded(identity);
+  }
+
+  int _removeExcludedReminderOccurrences(Map<String, List<_Note>> notesByDay) {
+    var removed = 0;
+    for (final key in notesByDay.keys.toList(growable: false)) {
+      final notes = notesByDay[key] ?? const <_Note>[];
+      final localDate = _warmStartDateFromKey(key);
+      final retained = notes
+          .where((note) {
+            final identity = _reminderOccurrenceIdentityForLocalDate(
+              note,
+              localDate,
+            );
+            return identity == null || !_isOccurrenceExcluded(identity);
+          })
+          .toList(growable: true);
+      removed += notes.length - retained.length;
+      if (retained.isEmpty) {
+        notesByDay.remove(key);
+      } else if (retained.length != notes.length) {
+        notesByDay[key] = retained;
+      }
+    }
+    return removed;
+  }
+
   bool _isRepeatingNoteFlow(_Flow? flow) {
     if (flow == null) return false;
     return flow.id > 0 &&
@@ -23273,7 +23481,7 @@ class CalendarPageState extends State<CalendarPage>
     return (clientEventId: resultClientEventId, eventId: resultEventId);
   }
 
-  String? _buildDeletionKey({
+  CalendarMutationIdentity? _buildDeletionIdentity({
     String? id,
     String? clientEventId,
     int? kYear,
@@ -23285,16 +23493,7 @@ class CalendarPageState extends State<CalendarPage>
     TimeOfDay? end,
     int? flowId,
   }) {
-    final trimmedId = id?.trim();
-    if (trimmedId != null && trimmedId.isNotEmpty) {
-      return 'id:$trimmedId';
-    }
-
-    final trimmedCid = clientEventId?.trim();
-    if (trimmedCid != null && trimmedCid.isNotEmpty) {
-      return 'cid:$trimmedCid';
-    }
-
+    String? fallbackKey;
     if (kYear != null &&
         kMonth != null &&
         kDay != null &&
@@ -23305,10 +23504,15 @@ class CalendarPageState extends State<CalendarPage>
       final endMin = end == null ? -1 : (end.hour * 60 + end.minute);
       final fid = flowId ?? -9999;
       final allDayFlag = allDay == true ? '1' : '0';
-      return 'fallback:$kYear-$kMonth-$kDay|$normalizedTitle|$allDayFlag|$startMin|$endMin|$fid';
+      fallbackKey =
+          '$kYear-$kMonth-$kDay|$normalizedTitle|$allDayFlag|$startMin|$endMin|$fid';
     }
-
-    return null;
+    final identity = CalendarMutationIdentity.userEvent(
+      databaseId: id,
+      clientEventId: clientEventId,
+      fallbackKey: fallbackKey,
+    );
+    return identity.isEmpty ? null : identity;
   }
 
   bool _isPendingDelete({
@@ -23322,8 +23526,9 @@ class CalendarPageState extends State<CalendarPage>
     TimeOfDay? start,
     TimeOfDay? end,
     int? flowId,
+    int? hydrationPassEpoch,
   }) {
-    final key = _buildDeletionKey(
+    final identity = _buildDeletionIdentity(
       id: id,
       clientEventId: clientEventId,
       kYear: kYear,
@@ -23335,11 +23540,172 @@ class CalendarPageState extends State<CalendarPage>
       end: end,
       flowId: flowId,
     );
-    final hit = key != null && _pendingDeleteKeys.contains(key);
+    final hit =
+        identity != null &&
+        _pendingDeletes.suppress(
+          identity,
+          observedInHydrationEpoch: hydrationPassEpoch,
+        );
     if (hit && kDebugMode) {
-      _calendarDebugPrint('[hydrationEngine] skip pending delete key=$key');
+      _calendarDebugPrint(
+        '[hydrationEngine] skip pending delete aliases=${identity.aliases.length}',
+      );
     }
     return hit;
+  }
+
+  int _removePendingDeletedNotes(Map<String, List<_Note>> notesByDay) {
+    if (_pendingDeletes.isEmpty) return 0;
+    var removed = 0;
+    for (final key in notesByDay.keys.toList(growable: false)) {
+      final parts = key.split('-');
+      final kYear = parts.length == 3 ? int.tryParse(parts[0]) : null;
+      final kMonth = parts.length == 3 ? int.tryParse(parts[1]) : null;
+      final kDay = parts.length == 3 ? int.tryParse(parts[2]) : null;
+      final notes = notesByDay[key] ?? const <_Note>[];
+      final retained = notes
+          .where((note) {
+            final identity = _buildDeletionIdentity(
+              id: note.id,
+              clientEventId: note.clientEventId,
+              kYear: kYear,
+              kMonth: kMonth,
+              kDay: kDay,
+              title: note.title,
+              allDay: note.allDay,
+              start: note.start,
+              end: note.end,
+              flowId: note.flowId,
+            );
+            return identity == null || !_pendingDeletes.suppress(identity);
+          })
+          .toList(growable: true);
+      removed += notes.length - retained.length;
+      if (retained.isEmpty) {
+        notesByDay.remove(key);
+      } else if (retained.length != notes.length) {
+        notesByDay[key] = retained;
+      }
+    }
+    return removed;
+  }
+
+  void _schedulePendingDeleteReconciliation({
+    required DateTime localDate,
+    required bool deleteAccepted,
+  }) {
+    if (!mounted || Supabase.instance.client.auth.currentUser == null) return;
+    unawaited(
+      _requestHydration(
+        _CalendarHydrationRequest.targeted(
+          reason: deleteAccepted
+              ? 'pending_delete_confirm'
+              : 'pending_delete_rejected',
+          intentKind: CalendarHydrationIntentKind.affectedDate,
+          interval: CalendarHydrationInterval.fromInclusiveLocalDays(
+            firstLocalDay: localDate,
+            lastLocalDay: localDate,
+          ),
+        ),
+      ),
+    );
+  }
+
+  CalendarOccurrenceIdentity? _reminderOccurrenceIdentityForNote(
+    _Note note,
+    int kYear,
+    int kMonth,
+    int kDay,
+  ) {
+    return _reminderOccurrenceIdentityForLocalDate(
+      note,
+      KemeticMath.toGregorian(kYear, kMonth, kDay),
+    );
+  }
+
+  CalendarOccurrenceIdentity? _reminderOccurrenceIdentityForLocalDate(
+    _Note note,
+    DateTime? localDate,
+  ) {
+    final parsed = CalendarOccurrenceIdentity.tryParse(note.clientEventId);
+    if (parsed != null) return parsed;
+    if (!note.isReminder || localDate == null) return null;
+    final reminderId = note.reminderId?.trim();
+    if (reminderId == null || reminderId.isEmpty) return null;
+    return CalendarOccurrenceIdentity.reminder(
+      reminderId: reminderId,
+      localDate: localDate,
+    );
+  }
+
+  Future<bool> _deleteReminderOccurrence({
+    required _Note note,
+    required CalendarOccurrenceIdentity identity,
+  }) async {
+    try {
+      // The exclusion is the durable user command. The user_events delete
+      // below is only cleanup of a replaceable materialized occurrence.
+      await _recordOccurrenceExclusion(identity);
+    } catch (error) {
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[delete-reminder-occurrence] exclusion failed: '
+          '${error.runtimeType}',
+        );
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Could not delete this reminder occurrence.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return false;
+    }
+
+    _removeExcludedReminderOccurrences(_notes);
+    if (mounted) {
+      setState(() {});
+      _notifyDayViewDataChanged();
+    }
+
+    final repo = UserEventsRepo(Supabase.instance.client);
+    try {
+      if (note.id?.trim().isNotEmpty == true) {
+        await repo.delete(
+          note.id!,
+          clientEventId: note.clientEventId ?? identity.canonicalKey,
+        );
+      } else {
+        await repo.deleteByClientId(identity.canonicalKey);
+      }
+    } catch (error) {
+      // The exclusion already owns absence. A later sync will prune the stale
+      // materialized row, so cleanup failure must not resurrect the reminder.
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[delete-reminder-occurrence] cache cleanup deferred: '
+          '${error.runtimeType}',
+        );
+      }
+    }
+    try {
+      await Notify.cancelNotificationForEvent(identity.canonicalKey);
+    } catch (_) {
+      // Notification cleanup is retried by normal reminder reconciliation.
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✓ Deleted: ${note.title}'),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 1),
+        ),
+      );
+    }
+    return true;
   }
 
   Future<bool> _deleteNote(int kYear, int kMonth, int kDay, int index) async {
@@ -23385,7 +23751,19 @@ class CalendarPageState extends State<CalendarPage>
       }
       return deleted;
     }
-    final pendingKey = _buildDeletionKey(
+    final reminderOccurrenceIdentity = _reminderOccurrenceIdentityForNote(
+      note,
+      kYear,
+      kMonth,
+      kDay,
+    );
+    if (reminderOccurrenceIdentity != null) {
+      return _deleteReminderOccurrence(
+        note: note,
+        identity: reminderOccurrenceIdentity,
+      );
+    }
+    final pendingIdentity = _buildDeletionIdentity(
       id: note.id,
       clientEventId: note.clientEventId,
       kYear: kYear,
@@ -23397,15 +23775,23 @@ class CalendarPageState extends State<CalendarPage>
       end: note.end,
       flowId: note.flowId,
     );
-    if (pendingKey != null) {
-      _pendingDeleteKeys.add(pendingKey);
+    final deleteLocalDate = KemeticMath.toGregorian(kYear, kMonth, kDay);
+    final pendingDeleteToken = pendingIdentity == null
+        ? null
+        : _pendingDeletes.register(
+            identity: pendingIdentity,
+            localDate: deleteLocalDate,
+          );
+    if (pendingDeleteToken != null) {
       final cid = note.clientEventId?.trim();
       if (cid != null && cid.isNotEmpty) {
         _unconfirmed.forgetCid(cid);
         await _removePersistedPendingCids(<String>[cid]);
       }
       if (kDebugMode) {
-        _calendarDebugPrint('[delete-note] pending delete key=$pendingKey');
+        _calendarDebugPrint(
+          '[delete-note] pending delete aliases=${pendingIdentity!.aliases.length}',
+        );
       }
     }
 
@@ -23455,7 +23841,7 @@ class CalendarPageState extends State<CalendarPage>
             await cancelNotification(note.clientEventId!);
           }
           removed = deleteResult.isSuccess;
-          if (removed) successfulCid = note.clientEventId ?? note.id;
+          if (removed) successfulCid = note.clientEventId;
           if (removed &&
               note.clientEventId != null &&
               note.clientEventId!.startsWith('native:')) {
@@ -23731,8 +24117,23 @@ class CalendarPageState extends State<CalendarPage>
         }
       }
     } finally {
-      if (pendingKey != null) {
-        _pendingDeleteKeys.remove(pendingKey);
+      if (pendingDeleteToken != null) {
+        if (removed) {
+          _pendingDeletes.acknowledge(
+            pendingDeleteToken,
+            currentHydrationEpoch: _hydrationPassEpoch,
+            additionalIdentity: CalendarMutationIdentity.userEvent(
+              databaseId: note.id,
+              clientEventId: successfulCid ?? note.clientEventId,
+            ),
+          );
+        } else {
+          _pendingDeletes.reject(pendingDeleteToken);
+        }
+        _schedulePendingDeleteReconciliation(
+          localDate: deleteLocalDate,
+          deleteAccepted: removed,
+        );
       }
     }
 
@@ -33841,6 +34242,20 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   @visibleForTesting
+  void debugExcludeReminderOccurrenceForTesting({
+    required String reminderId,
+    required DateTime localDate,
+  }) {
+    _occurrenceExclusions.add(
+      CalendarOccurrenceIdentity.reminder(
+        reminderId: reminderId,
+        localDate: localDate,
+      ),
+    );
+    _removeExcludedReminderOccurrences(_notes);
+  }
+
+  @visibleForTesting
   Future<bool> debugRunPostCompleteReminderRegenForTesting() {
     return _regenReminderNotes(notify: false, allowVisibleMutation: false);
   }
@@ -33890,6 +34305,8 @@ class CalendarPageState extends State<CalendarPage>
     String? id,
     String? clientEventId,
     bool allDay = true,
+    bool isReminder = false,
+    String? reminderId,
     bool notify = false,
     NoteConfirmation confirmation = NoteConfirmation.confirmed,
   }) {
@@ -33902,6 +34319,8 @@ class CalendarPageState extends State<CalendarPage>
       id: id,
       clientEventId: clientEventId,
       allDay: allDay,
+      isReminder: isReminder,
+      reminderId: reminderId,
       notify: notify,
       confirmation: confirmation,
     );
