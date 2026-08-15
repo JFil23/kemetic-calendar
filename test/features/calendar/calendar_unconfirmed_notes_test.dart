@@ -340,6 +340,44 @@ void main() {
       await disposeCalendar(tester);
     },
   );
+
+  testWidgets('9. hydrated read-only buckets remain addable and deletable', (
+    tester,
+  ) async {
+    final state = await pumpCalendar(tester);
+    const ky = 2;
+    const km = 1;
+    const kd = 9;
+
+    state.debugReplaceLiveNotesFromReadOnlyProjectionForTesting(
+      kYear: ky,
+      kMonth: km,
+      kDay: kd,
+      title: 'Hydrated note',
+      clientEventId: 'cid-hydrated-read-only',
+    );
+
+    expect(
+      state.debugAddNote(
+        ky,
+        km,
+        kd,
+        'New local note',
+        null,
+        clientEventId: 'cid-new-local',
+      ),
+      isTrue,
+    );
+    expect(state.filteredNoteCountForDay(ky, km, kd), 2);
+
+    expect(state.debugRemoveLocalNoteOnly(ky, km, kd, 0), isTrue);
+    expect(state.filteredNoteCountForDay(ky, km, kd), 1);
+    expect(
+      state.notesForDayForTesting(ky, km, kd).single.title,
+      'New local note',
+    );
+    await disposeCalendar(tester);
+  });
 }
 
 class _RejectingClient extends http.BaseClient {

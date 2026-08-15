@@ -174,8 +174,10 @@ void main() {
       RegExp(
         r'confirmation:\s*NoteConfirmation\.unconfirmed',
       ).allMatches(calendarPageSource).length,
-      2,
-      reason: 'standalone saves and staged Ma_at joins must survive hydration',
+      3,
+      reason:
+          'optimistic standalone saves, their reconciliation fallback, and '
+          'staged Ma_at joins must survive hydration',
     );
     final commitStart = calendarPageSource.indexOf(
       'Future<void> commitVisibleCalendarState(',

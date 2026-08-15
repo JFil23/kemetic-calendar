@@ -11721,9 +11721,7 @@ class CalendarPageState extends State<CalendarPage>
           _flows
             ..clear()
             ..addAll(flows);
-          _notes
-            ..clear()
-            ..addAll(notesByDay);
+          _replaceLiveNoteBuckets(notesByDay);
           _calendarAuthoritativeFlows = List<_Flow>.unmodifiable(flows);
           _calendarAuthoritativeNotesByDay =
               Map<String, List<_Note>>.unmodifiable(<String, List<_Note>>{
@@ -22195,6 +22193,25 @@ class CalendarPageState extends State<CalendarPage>
     _notifyDayViewDataChanged();
   }
 
+  /// Hydration projections are immutable snapshots, while [_notes] is the
+  /// page's live editing cache. Never retain a projection bucket directly in
+  /// live state and never assume an existing bucket is growable.
+  List<_Note> _mutableNoteBucket(String dayKey) {
+    final mutable = List<_Note>.from(
+      _notes[dayKey] ?? const <_Note>[],
+      growable: true,
+    );
+    _notes[dayKey] = mutable;
+    return mutable;
+  }
+
+  void _replaceLiveNoteBuckets(Map<String, List<_Note>> source) {
+    _notes.clear();
+    for (final entry in source.entries) {
+      _notes[entry.key] = List<_Note>.from(entry.value, growable: true);
+    }
+  }
+
   bool _addNote(
     int kYear,
     int kMonth,
@@ -22245,7 +22262,7 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     final k = _kKey(kYear, kMonth, kDay);
-    final list = _notes.putIfAbsent(k, () => <_Note>[]);
+    final list = _mutableNoteBucket(k);
     final note = _Note(
       id: id,
       clientEventId: clientEventId,
@@ -22357,9 +22374,10 @@ class CalendarPageState extends State<CalendarPage>
 
   _Note? _removeLocalNoteOnly(int kYear, int kMonth, int kDay, int index) {
     final k = _kKey(kYear, kMonth, kDay);
-    final list = _notes[k];
-    if (list == null || index < 0 || index >= list.length) return null;
+    final existing = _notes[k];
+    if (existing == null || index < 0 || index >= existing.length) return null;
 
+    final list = _mutableNoteBucket(k);
     final removed = list.removeAt(index);
     if (list.isEmpty) _notes.remove(k);
     final removedCid = removed.clientEventId?.trim();
@@ -23326,11 +23344,11 @@ class CalendarPageState extends State<CalendarPage>
 
   Future<bool> _deleteNote(int kYear, int kMonth, int kDay, int index) async {
     final k = _kKey(kYear, kMonth, kDay);
-    final list = _notes[k];
-    if (list == null || index < 0 || index >= list.length) return false;
+    final existing = _notes[k];
+    if (existing == null || index < 0 || index >= existing.length) return false;
 
     // Capture note before removal so we know what to delete remotely.
-    final note = list[index];
+    final note = existing[index];
     if (_isBirthdayOccurrence(
       category: note.category,
       clientEventId: note.clientEventId,
@@ -23392,6 +23410,7 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     // Remove locally for responsive UI.
+    final list = _mutableNoteBucket(k);
     list.removeAt(index);
     if (list.isEmpty) _notes.remove(k);
     setState(() {});
@@ -33656,6 +33675,25 @@ class CalendarPageState extends State<CalendarPage>
   int get debugUnconfirmedCount => _unconfirmed.length;
 
   @visibleForTesting
+  void debugReplaceLiveNotesFromReadOnlyProjectionForTesting({
+    required int kYear,
+    required int kMonth,
+    required int kDay,
+    required String title,
+    required String clientEventId,
+  }) {
+    final key = _kKey(kYear, kMonth, kDay);
+    final readOnlyProjection = Map<String, List<_Note>>.unmodifiable(
+      <String, List<_Note>>{
+        key: List<_Note>.unmodifiable(<_Note>[
+          _Note(title: title, clientEventId: clientEventId, allDay: true),
+        ]),
+      },
+    );
+    _replaceLiveNoteBuckets(readOnlyProjection);
+  }
+
+  @visibleForTesting
   Future<void> debugPersistWarmStartCacheForTesting(String userId) async {
     _hydrationController.beginSession(userId);
     final interval = _computeStartupVisibleHydrationInterval();
@@ -33837,9 +33875,7 @@ class CalendarPageState extends State<CalendarPage>
               entry.key: List<_Note>.from(entry.value),
           };
     final result = _unconfirmed.mergeInto(notesByDay);
-    _notes
-      ..clear()
-      ..addAll(notesByDay);
+    _replaceLiveNoteBuckets(notesByDay);
     return (preserved: result.preserved, confirmed: result.confirmed);
   }
 

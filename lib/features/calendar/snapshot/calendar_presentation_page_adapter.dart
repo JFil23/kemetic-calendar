@@ -186,9 +186,7 @@ extension _CalendarPresentationPageAdapter on CalendarPageState {
     _flows
       ..clear()
       ..addAll(projection.flows);
-    _notes
-      ..clear()
-      ..addAll(projection.notesByDay);
+    _replaceLiveNoteBuckets(projection.notesByDay);
     if (projection.replaceReminderRules) {
       _reminderRules
         ..clear()

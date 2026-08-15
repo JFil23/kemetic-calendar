@@ -246,9 +246,7 @@ extension _CalendarSnapshotPageAdapter on CalendarPageState {
           _flows
             ..clear()
             ..addAll(flows);
-          _notes
-            ..clear()
-            ..addAll(notesByDay);
+          _replaceLiveNoteBuckets(notesByDay);
           _calendarAuthoritativeFlows = List<_Flow>.unmodifiable(flows);
           _calendarAuthoritativeNotesByDay = authoritativeNotesByDay;
           _flowTotalEventCounts.clear();

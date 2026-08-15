@@ -71,6 +71,27 @@ void main() {
     expect(restore, contains('if (restoredSnapshot)'));
   });
 
+  test('immutable projections are copied into mutable live note buckets', () {
+    final page = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final presentation = File(
+      'lib/features/calendar/snapshot/calendar_presentation_page_adapter.dart',
+    ).readAsStringSync();
+    final snapshotRestore = File(
+      'lib/features/calendar/snapshot/calendar_snapshot_page_adapter.dart',
+    ).readAsStringSync();
+
+    expect(page, contains('void _replaceLiveNoteBuckets('));
+    expect(page, contains('_replaceLiveNoteBuckets(notesByDay);'));
+    expect(
+      presentation,
+      contains('_replaceLiveNoteBuckets(projection.notesByDay);'),
+    );
+    expect(snapshotRestore, contains('_replaceLiveNoteBuckets(notesByDay);'));
+    expect(presentation, isNot(contains('..addAll(projection.notesByDay)')));
+  });
+
   test('legacy cache failure cannot fail a successful hydration job', () {
     final page = File(
       'lib/features/calendar/calendar_page.dart',
