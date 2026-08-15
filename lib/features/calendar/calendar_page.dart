@@ -22525,8 +22525,30 @@ class CalendarPageState extends State<CalendarPage>
   void _replaceLiveNoteBuckets(Map<String, List<_Note>> source) {
     _notes.clear();
     for (final entry in source.entries) {
-      _notes[entry.key] = List<_Note>.from(entry.value, growable: true);
+      // End Reminder is a newer user command than any already-prepared
+      // hydration or warm-cache projection. Enforce that absence at the one
+      // universal publication seam so stale work can never repaint it.
+      _notes[entry.key] = List<_Note>.from(
+        entry.value.where((note) => !_isEndedReminderNote(note)),
+        growable: true,
+      );
     }
+  }
+
+  bool _isEndedReminderNote(_Note note) {
+    if (note.detail?.contains(_kReminderManualOverrideMarker) == true) {
+      return false;
+    }
+    final reminderId = note.reminderId?.trim();
+    if (reminderId != null &&
+        reminderId.isNotEmpty &&
+        _endedReminderIds.contains(reminderId)) {
+      return true;
+    }
+    final clientEventId = note.clientEventId?.trim();
+    if (clientEventId == null || clientEventId.isEmpty) return false;
+    final cidReminderId = _reminderRuleIdFromCid(clientEventId);
+    return cidReminderId != null && _endedReminderIds.contains(cidReminderId);
   }
 
   bool _addNote(
@@ -34634,6 +34656,37 @@ class CalendarPageState extends State<CalendarPage>
     final ids = _logicalReminderRuleIds(reminderId);
     _applyReminderEndIntentLocally(ids);
     return ids;
+  }
+
+  @visibleForTesting
+  void debugReplayStaleReminderProjectionForTesting({
+    required ReminderRule rule,
+    required DateTime localDate,
+  }) {
+    final date = DateUtils.dateOnly(localDate);
+    final kemetic = KemeticMath.fromGregorian(date);
+    final dateKey =
+        '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
+    _replaceLiveNoteBuckets(<String, List<_Note>>{
+      _kKey(kemetic.kYear, kemetic.kMonth, kemetic.kDay): <_Note>[
+        _Note(
+          clientEventId: 'reminder:${rule.id}:$dateKey',
+          title: rule.title,
+          allDay: rule.allDay,
+          start: rule.allDay ? null : TimeOfDay.fromDateTime(rule.startLocal),
+          end: rule.allDay
+              ? null
+              : TimeOfDay.fromDateTime(
+                  rule.startLocal.add(const Duration(minutes: 30)),
+                ),
+          manualColor: rule.color,
+          isReminder: true,
+          reminderId: rule.id,
+        ),
+      ],
+    });
   }
 
   @visibleForTesting

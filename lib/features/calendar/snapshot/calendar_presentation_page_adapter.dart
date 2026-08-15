@@ -201,7 +201,11 @@ extension _CalendarPresentationPageAdapter on CalendarPageState {
     if (projection.replaceReminderRules) {
       _reminderRules
         ..clear()
-        ..addAll(projection.reminderRules);
+        ..addAll(
+          projection.reminderRules.where(
+            (rule) => !_endedReminderIds.contains(rule.id),
+          ),
+        );
       _reminderRulesLoaded = true;
     }
     _nextFlowId = math.max(_nextFlowId, projection.nextFlowId);

@@ -433,6 +433,22 @@ void main() {
         ),
         isEmpty,
       );
+
+      // A hydration epoch prepared before End Reminder may still arrive
+      // afterward. The final publication seam must preserve the newer absence
+      // command instead of briefly repainting the series.
+      state.debugReplayStaleReminderProjectionForTesting(
+        rule: repeating,
+        localDate: nextDay,
+      );
+      expect(
+        state.notesForDayForTesting(
+          nextDayK.kYear,
+          nextDayK.kMonth,
+          nextDayK.kDay,
+        ),
+        isEmpty,
+      );
       await disposeCalendar(tester);
     },
   );
