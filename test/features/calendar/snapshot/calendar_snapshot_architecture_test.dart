@@ -71,7 +71,7 @@ void main() {
     expect(restore, contains('if (restoredSnapshot)'));
   });
 
-  test('immutable projections are copied into mutable live note buckets', () {
+  test('every projection crosses one reducer-backed publication seam', () {
     final page = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
@@ -83,16 +83,19 @@ void main() {
     ).readAsStringSync();
 
     expect(page, contains('void _replaceLiveNoteBuckets('));
+    expect(page, contains('deriveVisibleCalendarBuckets<_Note>('));
+    expect(page, contains('_isExcludedReminderOccurrenceInBucket,'));
+    expect(page, contains('_isPendingDeletedNoteInBucket,'));
     expect(page, contains('_replaceLiveNoteBuckets(notesByDay);'));
-    expect(presentation, contains('entry.key: List<_Note>.from(entry.value)'));
     expect(
       presentation,
-      contains('_removeExcludedReminderOccurrences(visibleNotesByDay);'),
+      contains('_replaceLiveNoteBuckets(projection.notesByDay);'),
     );
     expect(
       presentation,
-      contains('_replaceLiveNoteBuckets(visibleNotesByDay);'),
+      isNot(contains('_removeExcludedReminderOccurrences(')),
     );
+    expect(presentation, isNot(contains('_removePendingDeletedNotes(')));
     expect(snapshotRestore, contains('_replaceLiveNoteBuckets(notesByDay);'));
     expect(presentation, isNot(contains('..addAll(projection.notesByDay)')));
   });

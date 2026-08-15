@@ -22,6 +22,65 @@ void main() {
     });
   });
 
+  group('visible calendar reducer', () {
+    test('applies one ordered rule stack and stops at the first match', () {
+      final calls = <String>[];
+      final visible = deriveVisibleCalendarBuckets<String>(
+        source: <String, List<String>>{
+          'day-1': <String>['excluded', 'deleted', 'ended', 'visible'],
+          'day-2': <String>['deleted'],
+          'empty': <String>[],
+        },
+        suppressionRules: <CalendarItemSuppressionRule<String>>[
+          (day, item) {
+            calls.add('occurrence:$day:$item');
+            return item == 'excluded';
+          },
+          (day, item) {
+            calls.add('delete:$day:$item');
+            return item == 'deleted';
+          },
+          (day, item) {
+            calls.add('series:$day:$item');
+            return item == 'ended';
+          },
+        ],
+      );
+
+      expect(visible, <String, List<String>>{
+        'day-1': <String>['visible'],
+      });
+      expect(calls, <String>[
+        'occurrence:day-1:excluded',
+        'occurrence:day-1:deleted',
+        'delete:day-1:deleted',
+        'occurrence:day-1:ended',
+        'delete:day-1:ended',
+        'series:day-1:ended',
+        'occurrence:day-1:visible',
+        'delete:day-1:visible',
+        'series:day-1:visible',
+        'occurrence:day-2:deleted',
+        'delete:day-2:deleted',
+      ]);
+    });
+
+    test('copies read-only input into independent mutable buckets', () {
+      final source = Map<String, List<int>>.unmodifiable(<String, List<int>>{
+        'day': List<int>.unmodifiable(<int>[1, 2]),
+      });
+
+      final visible = deriveVisibleCalendarBuckets<int>(
+        source: source,
+        suppressionRules: const <CalendarItemSuppressionRule<int>>[],
+      );
+      visible['day']!.add(3);
+
+      expect(source['day'], <int>[1, 2]);
+      expect(visible['day'], <int>[1, 2, 3]);
+    });
+  });
+
   group('window merge', () {
     final start = DateTime.utc(2026, 1, 2);
     final end = DateTime.utc(2026, 1, 4);

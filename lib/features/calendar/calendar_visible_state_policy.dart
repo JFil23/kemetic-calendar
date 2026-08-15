@@ -11,6 +11,42 @@ enum CalendarHydrationAuthorityScope { none, visibleWindow, fullHorizon }
 
 typedef CalendarHydrationWindow = ({DateTime startUtc, DateTime endUtc});
 
+/// One reason an item must not be published into the visible calendar.
+///
+/// Rules are evaluated in order and stop at the first match. Keeping the
+/// bucket traversal here gives notes, reminders, flows, and future calendar
+/// items one shared publication mechanism while their domain-specific rules
+/// remain small predicates.
+typedef CalendarItemSuppressionRule<T> = bool Function(String dayKey, T item);
+
+/// Derives the mutable day buckets that may be painted from an immutable or
+/// mutable source projection.
+///
+/// The source is never mutated or aliased. Empty buckets are omitted because
+/// they carry no visible state. Given side-effect-free [suppressionRules], this
+/// function is a pure reducer over the source projection.
+Map<String, List<T>> deriveVisibleCalendarBuckets<T>({
+  required Map<String, List<T>> source,
+  required Iterable<CalendarItemSuppressionRule<T>> suppressionRules,
+}) {
+  final rules = suppressionRules.toList(growable: false);
+  final visible = <String, List<T>>{};
+  for (final entry in source.entries) {
+    final retained = <T>[];
+    for (final item in entry.value) {
+      var suppressed = false;
+      for (final rule in rules) {
+        if (!rule(entry.key, item)) continue;
+        suppressed = true;
+        break;
+      }
+      if (!suppressed) retained.add(item);
+    }
+    if (retained.isNotEmpty) visible[entry.key] = retained;
+  }
+  return visible;
+}
+
 bool shouldPersistWarmStartCache(CalendarHydrationAuthorityScope scope) =>
     scope == CalendarHydrationAuthorityScope.fullHorizon;
 

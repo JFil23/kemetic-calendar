@@ -186,18 +186,10 @@ extension _CalendarPresentationPageAdapter on CalendarPageState {
     _flows
       ..clear()
       ..addAll(projection.flows);
-    final visibleNotesByDay = <String, List<_Note>>{
-      for (final entry in projection.notesByDay.entries)
-        entry.key: List<_Note>.from(entry.value),
-    };
-    // Exclusions can be recorded while a hydration epoch is in flight. Apply
-    // them again at the final presentation seam so an already-prepared epoch
-    // cannot repaint an occurrence the user just deleted.
-    _removeExcludedReminderOccurrences(visibleNotesByDay);
-    // Pending standalone deletes use the same final seam while waiting for an
-    // accepted hydration pass to observe their absence.
-    _removePendingDeletedNotes(visibleNotesByDay);
-    _replaceLiveNoteBuckets(visibleNotesByDay);
+    // Every projection crosses the same publication seam. It copies the
+    // prepared state and applies occurrence, delete, and ended-series intent
+    // through one shared reducer before anything can paint.
+    _replaceLiveNoteBuckets(projection.notesByDay);
     if (projection.replaceReminderRules) {
       _reminderRules
         ..clear()

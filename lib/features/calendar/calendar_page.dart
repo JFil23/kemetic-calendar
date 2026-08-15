@@ -22407,19 +22407,51 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   void _replaceLiveNoteBuckets(Map<String, List<_Note>> source) {
+    final visible = deriveVisibleCalendarBuckets<_Note>(
+      source: source,
+      suppressionRules: <CalendarItemSuppressionRule<_Note>>[
+        _isExcludedReminderOccurrenceInBucket,
+        _isPendingDeletedNoteInBucket,
+        (_, note) => _isEndedReminderNote(note),
+      ],
+    );
     _notes.clear();
-    for (final entry in source.entries) {
-      // End Reminder is a newer user command than any already-prepared
-      // hydration or warm-cache projection. Enforce that absence at the one
-      // universal publication seam so stale work can never repaint it.
-      _notes[entry.key] = List<_Note>.from(
-        entry.value.where((note) => !_isEndedReminderNote(note)),
-        growable: true,
-      );
+    for (final entry in visible.entries) {
+      _notes[entry.key] = entry.value;
     }
   }
 
+  bool _isExcludedReminderOccurrenceInBucket(String dayKey, _Note note) {
+    if (_occurrenceExclusions.isEmpty) return false;
+    final identity = _reminderOccurrenceIdentityForLocalDate(
+      note,
+      _warmStartDateFromKey(dayKey),
+    );
+    return identity != null && _isOccurrenceExcluded(identity);
+  }
+
+  bool _isPendingDeletedNoteInBucket(String dayKey, _Note note) {
+    if (_pendingDeletes.isEmpty) return false;
+    final parts = dayKey.split('-');
+    final kYear = parts.length == 3 ? int.tryParse(parts[0]) : null;
+    final kMonth = parts.length == 3 ? int.tryParse(parts[1]) : null;
+    final kDay = parts.length == 3 ? int.tryParse(parts[2]) : null;
+    return _isPendingDelete(
+      id: note.id,
+      clientEventId: note.clientEventId,
+      kYear: kYear,
+      kMonth: kMonth,
+      kDay: kDay,
+      title: note.title,
+      allDay: note.allDay,
+      start: note.start,
+      end: note.end,
+      flowId: note.flowId,
+    );
+  }
+
   bool _isEndedReminderNote(_Note note) {
+    if (_endedReminderIds.isEmpty) return false;
     if (note.detail?.contains(_kReminderManualOverrideMarker) == true) {
       return false;
     }
@@ -22918,27 +22950,22 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   int _removeExcludedReminderOccurrences(Map<String, List<_Note>> notesByDay) {
-    var removed = 0;
-    for (final key in notesByDay.keys.toList(growable: false)) {
-      final notes = notesByDay[key] ?? const <_Note>[];
-      final localDate = _warmStartDateFromKey(key);
-      final retained = notes
-          .where((note) {
-            final identity = _reminderOccurrenceIdentityForLocalDate(
-              note,
-              localDate,
-            );
-            return identity == null || !_isOccurrenceExcluded(identity);
-          })
-          .toList(growable: true);
-      removed += notes.length - retained.length;
-      if (retained.isEmpty) {
-        notesByDay.remove(key);
-      } else if (retained.length != notes.length) {
-        notesByDay[key] = retained;
-      }
+    final before = notesByDay.values.fold<int>(
+      0,
+      (count, notes) => count + notes.length,
+    );
+    final visible = deriveVisibleCalendarBuckets<_Note>(
+      source: notesByDay,
+      suppressionRules: <CalendarItemSuppressionRule<_Note>>[
+        _isExcludedReminderOccurrenceInBucket,
+      ],
+    );
+    notesByDay.clear();
+    for (final entry in visible.entries) {
+      notesByDay[entry.key] = entry.value;
     }
-    return removed;
+    return before -
+        visible.values.fold<int>(0, (count, notes) => count + notes.length);
   }
 
   bool _isRepeatingNoteFlow(_Flow? flow) {
@@ -23729,42 +23756,6 @@ class CalendarPageState extends State<CalendarPage>
     return hit;
   }
 
-  int _removePendingDeletedNotes(Map<String, List<_Note>> notesByDay) {
-    if (_pendingDeletes.isEmpty) return 0;
-    var removed = 0;
-    for (final key in notesByDay.keys.toList(growable: false)) {
-      final parts = key.split('-');
-      final kYear = parts.length == 3 ? int.tryParse(parts[0]) : null;
-      final kMonth = parts.length == 3 ? int.tryParse(parts[1]) : null;
-      final kDay = parts.length == 3 ? int.tryParse(parts[2]) : null;
-      final notes = notesByDay[key] ?? const <_Note>[];
-      final retained = notes
-          .where((note) {
-            final identity = _buildDeletionIdentity(
-              id: note.id,
-              clientEventId: note.clientEventId,
-              kYear: kYear,
-              kMonth: kMonth,
-              kDay: kDay,
-              title: note.title,
-              allDay: note.allDay,
-              start: note.start,
-              end: note.end,
-              flowId: note.flowId,
-            );
-            return identity == null || !_pendingDeletes.suppress(identity);
-          })
-          .toList(growable: true);
-      removed += notes.length - retained.length;
-      if (retained.isEmpty) {
-        notesByDay.remove(key);
-      } else if (retained.length != notes.length) {
-        notesByDay[key] = retained;
-      }
-    }
-    return removed;
-  }
-
   void _schedulePendingDeleteReconciliation({
     required DateTime localDate,
     required bool deleteAccepted,
@@ -23848,7 +23839,7 @@ class CalendarPageState extends State<CalendarPage>
       return false;
     }
 
-    _removeExcludedReminderOccurrences(_notes);
+    _replaceLiveNoteBuckets(_notes);
     if (mounted) {
       setState(() {});
       _notifyDayViewDataChanged();
@@ -34454,7 +34445,7 @@ class CalendarPageState extends State<CalendarPage>
         localDate: localDate,
       ),
     );
-    _removeExcludedReminderOccurrences(_notes);
+    _replaceLiveNoteBuckets(_notes);
   }
 
   @visibleForTesting
