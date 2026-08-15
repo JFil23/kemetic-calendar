@@ -7,10 +7,11 @@ part of 'calendar_page.dart';
 /// If a later pass drops the row, that is authoritative: the row should go.
 ///
 /// [unconfirmed] — no hydration pass has returned this row yet. It may already
-/// be persisted (`_saveSingleNoteOnly` upserts, *then* inserts locally) or the
-/// write may still be in flight (Flow Studio planned notes). Either way a pass
-/// that began before the write landed will not contain it, so dropping it on
-/// commit is a bug rather than authority. These are ledgered.
+/// be persisted or its write may still be in flight (`_saveSingleNoteOnly`
+/// inserts the optimistic projection before awaiting the upsert, as do Flow
+/// Studio planned notes). Either way a pass that began before the write landed
+/// will not contain it, so dropping it on commit is a bug rather than
+/// authority. These are ledgered.
 enum NoteConfirmation { confirmed, unconfirmed }
 
 class _UnconfirmedNote {

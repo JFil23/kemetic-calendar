@@ -10,7 +10,11 @@ import 'package:go_router/go_router.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/calendar_completion.dart';
 import 'package:mobile/features/calendar/calendar_page.dart'
-    show EndFlowFailureKind, EndFlowOutcome, KemeticMath;
+    show
+        EndFlowFailureKind,
+        EndFlowOutcome,
+        KemeticMath,
+        beginOptimisticNoteEditorSave;
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/landscape_month_view.dart';
 import 'package:mobile/features/calendar/living_text_day_one_node_store.dart';
@@ -54,6 +58,111 @@ void main() {
     kMaatFlowResponseDraftStore.clearForTesting();
     CalendarEventDetailSheetCoordinator.debugResetForTests();
   });
+
+  test(
+    'optimistic note save stages and closes before persistence completes',
+    () {
+      final persistence = Completer<String>();
+      final order = <String>[];
+
+      final save = beginOptimisticNoteEditorSave<String>(
+        startSave: () {
+          order.add('staged');
+          return persistence.future;
+        },
+        closeEditor: () => order.add('closed'),
+      );
+
+      expect(order, <String>['staged', 'closed']);
+      expect(persistence.isCompleted, isFalse);
+      persistence.complete('saved');
+      expect(save, completion('saved'));
+    },
+  );
+
+  testWidgets(
+    'optimistic note save closes its editor and paints the event immediately',
+    (tester) async {
+      await _setPhoneViewport(tester);
+      final persistence = Completer<void>();
+      final dataVersion = ValueNotifier<int>(0);
+      addTearDown(dataVersion.dispose);
+      var notes = <NoteData>[];
+      var editorOpen = true;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                return Column(
+                  children: [
+                    if (editorOpen)
+                      ElevatedButton(
+                        key: const ValueKey<String>(
+                          'optimistic-note-save-button',
+                        ),
+                        onPressed: () {
+                          final save = beginOptimisticNoteEditorSave<void>(
+                            startSave: () {
+                              setState(() {
+                                notes = const [
+                                  NoteData(
+                                    title: 'Immediate event block',
+                                    allDay: false,
+                                    start: TimeOfDay(hour: 12, minute: 0),
+                                    end: TimeOfDay(hour: 13, minute: 0),
+                                  ),
+                                ];
+                                dataVersion.value++;
+                              });
+                              return persistence.future;
+                            },
+                            closeEditor: () {
+                              setState(() => editorOpen = false);
+                            },
+                          );
+                          unawaited(save);
+                        },
+                        child: const Text('Save note'),
+                      ),
+                    Expanded(
+                      child: DayViewGrid(
+                        ky: 1,
+                        km: 1,
+                        kd: 1,
+                        notes: notes,
+                        dataVersion: dataVersion,
+                        showGregorian: false,
+                        flowIndex: const {},
+                        initialScrollOffset: 11 * 60,
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('optimistic-note-save-button')),
+      );
+      await tester.pump();
+
+      expect(
+        find.byKey(const ValueKey<String>('optimistic-note-save-button')),
+        findsNothing,
+      );
+      expect(find.text('Immediate event block'), findsOneWidget);
+      expect(persistence.isCompleted, isFalse);
+
+      persistence.complete();
+      await tester.pump();
+    },
+  );
 
   test(
     'Day View timeline does not render a false empty state while hydrating',
@@ -404,6 +513,127 @@ void main() {
       expect(first.leftOffset, 0);
       expect(second.leftOffset, greaterThan(0));
       expect(first.width, closeTo(second.width, 0.001));
+    });
+
+    test('overlap layout caps each carousel page at three event columns', () {
+      final blocks = EventLayoutEngine.layoutEventItems(
+        events: const [
+          EventItem(
+            title: 'First',
+            startMin: 12 * 60,
+            endMin: 13 * 60,
+            color: Colors.red,
+            allDay: false,
+          ),
+          EventItem(
+            title: 'Second',
+            startMin: 12 * 60,
+            endMin: 13 * 60,
+            color: Colors.orange,
+            allDay: false,
+          ),
+          EventItem(
+            title: 'Third',
+            startMin: 12 * 60,
+            endMin: 13 * 60,
+            color: Colors.yellow,
+            allDay: false,
+          ),
+          EventItem(
+            title: 'Fourth',
+            startMin: 12 * 60,
+            endMin: 13 * 60,
+            color: Colors.green,
+            allDay: false,
+          ),
+          EventItem(
+            title: 'Fifth',
+            startMin: 12 * 60,
+            endMin: 13 * 60,
+            color: Colors.blue,
+            allDay: false,
+          ),
+        ],
+        availableWidth: 314,
+        columnGap: 4,
+        textScale: 1.0,
+        day: 1,
+      );
+
+      expect(blocks, hasLength(5));
+      expect(blocks.map((block) => block.totalColumns).toSet(), <int>{5});
+      final blocksByPage = <int, List<PositionedEventBlock>>{};
+      for (final block in blocks) {
+        blocksByPage
+            .putIfAbsent(
+              block.carouselPageIndex,
+              () => <PositionedEventBlock>[],
+            )
+            .add(block);
+      }
+      expect(blocksByPage.keys, <int>{0, 1});
+      expect(blocksByPage[0], hasLength(dayViewMaxVisibleEventColumns));
+      expect(blocksByPage[1], hasLength(2));
+      expect(
+        blocks.every((block) => block.width == blocks.first.width),
+        isTrue,
+      );
+      expect(blocks.first.width, closeTo((314 - 8) / 3, 0.001));
+    });
+
+    testWidgets('more than three overlapping blocks swipe horizontally', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+
+      await tester.pumpWidget(
+        const _DayViewHarness(
+          initialScrollOffset: 11 * 60,
+          notes: [
+            NoteData(
+              title: 'First',
+              allDay: false,
+              start: TimeOfDay(hour: 12, minute: 0),
+              end: TimeOfDay(hour: 13, minute: 0),
+            ),
+            NoteData(
+              title: 'Second',
+              allDay: false,
+              start: TimeOfDay(hour: 12, minute: 0),
+              end: TimeOfDay(hour: 13, minute: 0),
+            ),
+            NoteData(
+              title: 'Third',
+              allDay: false,
+              start: TimeOfDay(hour: 12, minute: 0),
+              end: TimeOfDay(hour: 13, minute: 0),
+            ),
+            NoteData(
+              title: 'Fourth',
+              allDay: false,
+              start: TimeOfDay(hour: 12, minute: 0),
+              end: TimeOfDay(hour: 13, minute: 0),
+            ),
+            NoteData(
+              title: 'Fifth',
+              allDay: false,
+              start: TimeOfDay(hour: 12, minute: 0),
+              end: TimeOfDay(hour: 13, minute: 0),
+            ),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final carousel = find.byKey(dayViewEventCarouselKey(0));
+      expect(carousel, findsOneWidget);
+      final controller = tester.widget<PageView>(carousel).controller!;
+      expect(controller.page, closeTo(0, 0.001));
+
+      await tester.drag(carousel, const Offset(-260, 0));
+      await tester.pumpAndSettle();
+
+      expect(controller.page, closeTo(1, 0.001));
     });
 
     test(

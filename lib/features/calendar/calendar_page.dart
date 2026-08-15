@@ -284,6 +284,16 @@ typedef QuickAddParse = ({
   String title,
 });
 
+@visibleForTesting
+Future<T> beginOptimisticNoteEditorSave<T>({
+  required Future<T> Function() startSave,
+  required VoidCallback closeEditor,
+}) {
+  final save = startSave();
+  closeEditor();
+  return save;
+}
+
 class _QuickAddSheet extends StatefulWidget {
   const _QuickAddSheet({
     required this.parse,
@@ -333,13 +343,6 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
     _focusNode.requestFocus();
   }
 
-  void _showSnackBar(SnackBar snackBar) {
-    final messenger = ScaffoldMessenger.maybeOf(
-      widget.scaffoldMessengerContext,
-    );
-    messenger?.showSnackBar(snackBar);
-  }
-
   Future<void> _handleSubmit() async {
     if (_submitting) return;
 
@@ -356,34 +359,34 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
       _submitting = true;
     });
 
-    try {
-      await widget.onSave(parsed);
-    } catch (e, st) {
-      if (kDebugMode) {
-        _calendarDebugPrint('[QuickAdd] Failed to save note: $e');
-        _calendarDebugPrint('$st');
-      }
-      if (!mounted) return;
-      setState(() {
-        _submitting = false;
-      });
-      _showSnackBar(
-        SnackBar(
-          content: Text('Failed to save note: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-
-    if (!mounted) return;
-    Navigator.of(context).pop();
-    _showSnackBar(
+    final messenger = ScaffoldMessenger.maybeOf(
+      widget.scaffoldMessengerContext,
+    );
+    final save = beginOptimisticNoteEditorSave<void>(
+      startSave: () => widget.onSave(parsed),
+      closeEditor: () => Navigator.of(context).pop(),
+    );
+    messenger?.showSnackBar(
       SnackBar(
         content: Text('Added "${parsed.title}"'),
         backgroundColor: const Color(0xFF1E1E1E),
       ),
     );
+
+    try {
+      await save;
+    } catch (e, st) {
+      if (kDebugMode) {
+        _calendarDebugPrint('[QuickAdd] Failed to save note: $e');
+        _calendarDebugPrint('$st');
+      }
+      messenger?.showSnackBar(
+        SnackBar(
+          content: Text('Failed to save note: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _handleOpenDestination(VoidCallback onOpen) {
@@ -13475,8 +13478,8 @@ class CalendarPageState extends State<CalendarPage>
                       isSaving = true;
                       errorText = null;
                     });
-                    try {
-                      await _saveSingleNoteOnly(
+                    final save = beginOptimisticNoteEditorSave(
+                      startSave: () => _saveSingleNoteOnly(
                         selYear: selYear,
                         selMonth: selMonth,
                         selDay: selDay,
@@ -13491,15 +13494,22 @@ class CalendarPageState extends State<CalendarPage>
                         color: _flowPalette[selectedColorIndex],
                         category: selectedCategory,
                         alertMinutesBefore: alertMinutesBefore,
-                      );
-                      if (!dialogCtx.mounted) return;
-                      Navigator.of(dialogCtx).pop(true);
-                      if (!mounted) return;
+                      ),
+                      closeEditor: () {
+                        if (dialogCtx.mounted) {
+                          Navigator.of(dialogCtx).pop(true);
+                        }
+                      },
+                    );
+                    if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text('Added to ${lockedCalendar.name}'),
                         ),
                       );
+                    }
+                    try {
+                      await save;
                     } catch (e, stackTrace) {
                       if (kDebugMode) {
                         _calendarDebugPrint(
@@ -13507,11 +13517,13 @@ class CalendarPageState extends State<CalendarPage>
                         );
                         _calendarDebugPrint('$stackTrace');
                       }
-                      if (!dialogCtx.mounted) return;
-                      setDialogState(() {
-                        isSaving = false;
-                        errorText = 'Failed to save note: $e';
-                      });
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to save note: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
                     }
                   }
 
@@ -29560,24 +29572,33 @@ class CalendarPageState extends State<CalendarPage>
                                       alertMinutesBefore: alertMinutesBefore,
                                     );
                                   } else {
-                                    saveResult = await _saveSingleNoteOnly(
-                                      selYear: selYear,
-                                      selMonth: selMonth,
-                                      selDay: selDay,
-                                      title: t,
-                                      detail: detailForSave.isEmpty
-                                          ? null
-                                          : detailForSave,
-                                      location: loc.isEmpty ? null : loc,
-                                      calendarId: selectedCalendarId,
-                                      calendarName: selectedCalendarLabel,
-                                      allDay: allDay,
-                                      startTime: startTime,
-                                      endTime: endTime,
-                                      color: selectedColor,
-                                      category: selectedCategory,
-                                      alertMinutesBefore: alertMinutesBefore,
+                                    final save = beginOptimisticNoteEditorSave(
+                                      startSave: () => _saveSingleNoteOnly(
+                                        selYear: selYear,
+                                        selMonth: selMonth,
+                                        selDay: selDay,
+                                        title: t,
+                                        detail: detailForSave.isEmpty
+                                            ? null
+                                            : detailForSave,
+                                        location: loc.isEmpty ? null : loc,
+                                        calendarId: selectedCalendarId,
+                                        calendarName: selectedCalendarLabel,
+                                        allDay: allDay,
+                                        startTime: startTime,
+                                        endTime: endTime,
+                                        color: selectedColor,
+                                        category: selectedCategory,
+                                        alertMinutesBefore: alertMinutesBefore,
+                                      ),
+                                      closeEditor: () {
+                                        if (sheetCtx.mounted) {
+                                          Navigator.pop(sheetCtx);
+                                        }
+                                      },
                                     );
+                                    _observeOptimisticNoteSave(save);
+                                    return;
                                   }
                                 } else {
                                   // Repeating note - create hidden flow
@@ -29720,6 +29741,27 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   /* ───── Natural language quick add ───── */
+
+  void _observeOptimisticNoteSave<T>(Future<T> save) {
+    unawaited(() async {
+      try {
+        await save;
+      } catch (e, stackTrace) {
+        if (kDebugMode) {
+          _calendarDebugPrint('[SaveNote] optimistic save failed: $e');
+          _calendarDebugPrint('$stackTrace');
+        }
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to save note: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    }());
+  }
 
   Future<void> _openQuickAddSheet() async {
     if (_quickAddSheetOpenOrOpening) return;
@@ -31334,6 +31376,28 @@ class CalendarPageState extends State<CalendarPage>
       calendarScopeToken: _calendarScopeToken(calendarId),
     );
 
+    final pendingCreatedAt = DateTime.now().toUtc();
+    _manualDeleteTombstones.remove(unifiedCid);
+    final optimisticAdded = _addNote(
+      selYear,
+      selMonth,
+      selDay,
+      title,
+      detail,
+      clientEventId: unifiedCid,
+      calendarId: calendarId,
+      calendarName: calendarName,
+      location: location,
+      allDay: allDay,
+      start: startTime,
+      end: endTime,
+      manualColor: color,
+      category: category,
+      alertOffsetMinutes: alertMinutesBefore,
+      confirmation: NoteConfirmation.unconfirmed,
+      unconfirmedCreatedAt: pendingCreatedAt,
+    );
+
     await _ensureManualDeleteTombstonesLoaded();
     await _clearManualTombstone(unifiedCid);
 
@@ -31345,6 +31409,7 @@ class CalendarPageState extends State<CalendarPage>
 
     // Sync to Supabase and persist id/clientEventId
     final repo = UserEventsRepo(Supabase.instance.client);
+    var writeSucceeded = false;
     try {
       final endsAtUtc = (allDay || endTime == null)
           ? null
@@ -31372,9 +31437,9 @@ class CalendarPageState extends State<CalendarPage>
       if (updated.id.isEmpty) {
         throw StateError('Supabase upsert returned empty id for $unifiedCid');
       }
+      writeSucceeded = true;
 
       final savedClientEventId = updated.clientEventId ?? unifiedCid;
-      final pendingCreatedAt = DateTime.now().toUtc();
       final savedNote = note.copyWith(
         id: updated.id,
         clientEventId: savedClientEventId,
@@ -31386,32 +31451,51 @@ class CalendarPageState extends State<CalendarPage>
       if (pendingUserId == null) {
         throw StateError('Cannot persist pending note without a user');
       }
+
+      final optimisticBucket = _notes[pendingDayKey];
+      final optimisticIndex = optimisticBucket?.indexWhere(
+        (candidate) => candidate.clientEventId?.trim() == unifiedCid,
+      );
+      if (optimisticBucket != null &&
+          optimisticIndex != null &&
+          optimisticIndex >= 0) {
+        optimisticBucket[optimisticIndex] = savedNote;
+        if (savedClientEventId != unifiedCid) {
+          _unconfirmed.forgetCid(unifiedCid);
+        }
+        _unconfirmed.register(
+          dayKey: pendingDayKey,
+          note: savedNote,
+          createdAt: pendingCreatedAt,
+        );
+        _refreshNoteCacheUi();
+      } else {
+        _addNote(
+          selYear,
+          selMonth,
+          selDay,
+          title,
+          detail,
+          id: updated.id,
+          clientEventId: savedClientEventId,
+          calendarId: updated.calendarId ?? calendarId,
+          calendarName: calendarName,
+          location: location,
+          allDay: allDay,
+          start: startTime,
+          end: endTime,
+          manualColor: color,
+          category: category,
+          alertOffsetMinutes: alertMinutesBefore,
+          confirmation: NoteConfirmation.unconfirmed,
+          unconfirmedCreatedAt: pendingCreatedAt,
+        );
+      }
       await _persistPendingNote(
         userId: pendingUserId,
         dayKey: pendingDayKey,
         note: savedNote,
         createdAt: pendingCreatedAt,
-      );
-
-      _addNote(
-        selYear,
-        selMonth,
-        selDay,
-        title,
-        detail,
-        id: updated.id,
-        clientEventId: savedClientEventId,
-        calendarId: calendarId,
-        calendarName: calendarName,
-        location: location,
-        allDay: allDay,
-        start: startTime,
-        end: endTime,
-        manualColor: color,
-        category: category,
-        alertOffsetMinutes: alertMinutesBefore,
-        confirmation: NoteConfirmation.unconfirmed,
-        unconfirmedCreatedAt: pendingCreatedAt,
       );
 
       final scheduleResult = await _scheduleAlertForEvent(
@@ -31461,6 +31545,23 @@ class CalendarPageState extends State<CalendarPage>
       }
       return (clientEventId: savedClientEventId, eventId: updated.id);
     } catch (e, st) {
+      if (!writeSucceeded && optimisticAdded) {
+        final pendingDayKey = _kKey(selYear, selMonth, selDay);
+        final bucket = _notes[pendingDayKey];
+        final before = bucket?.length ?? 0;
+        bucket?.removeWhere(
+          (candidate) =>
+              candidate.id == null &&
+              candidate.clientEventId?.trim() == unifiedCid,
+        );
+        if (bucket != null && bucket.isEmpty) {
+          _notes.remove(pendingDayKey);
+        }
+        _unconfirmed.forgetCid(unifiedCid);
+        if ((bucket?.length ?? 0) != before) {
+          _refreshNoteCacheUi();
+        }
+      }
       try {
         await Notify.cancelNotificationForEvent(unifiedCid);
       } catch (cancelErr) {

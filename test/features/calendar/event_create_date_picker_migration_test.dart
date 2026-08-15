@@ -56,6 +56,38 @@ void main() {
       expect(saveNote, contains('color: _flowPalette[selectedColorIndex]'));
       expect(saveNote, contains('category: selectedCategory'));
       expect(saveNote, contains('alertMinutesBefore: alertMinutesBefore'));
+      expect(saveNote, contains('beginOptimisticNoteEditorSave('));
+      expect(
+        saveNote.indexOf('beginOptimisticNoteEditorSave('),
+        lessThan(saveNote.indexOf('await save;')),
+      );
+    },
+  );
+
+  test(
+    'manual note projection is inserted before the first persistence await',
+    () async {
+      final source = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final save = _sourceBetween(
+        source,
+        'Future<({String clientEventId, String eventId})> _saveSingleNoteOnly',
+        'Future<({String clientEventId, String eventId})> _updateSingleNoteOnly',
+      );
+
+      final optimisticInsert = save.indexOf(
+        'final optimisticAdded = _addNote(',
+      );
+      final firstPersistenceAwait = save.indexOf(
+        'await _ensureManualDeleteTombstonesLoaded()',
+      );
+      expect(optimisticInsert, isNonNegative);
+      expect(firstPersistenceAwait, isNonNegative);
+      expect(optimisticInsert, lessThan(firstPersistenceAwait));
+      expect(save, contains('confirmation: NoteConfirmation.unconfirmed'));
+      expect(save, contains('if (!writeSucceeded && optimisticAdded)'));
+      expect(save, contains('_refreshNoteCacheUi();'));
     },
   );
 

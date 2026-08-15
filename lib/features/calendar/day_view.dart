@@ -84,6 +84,8 @@ const double _kTimelineLabelWidth = 60.0;
 const double _kTimelineRightPadding = 16.0;
 const double _kEventColumnGap = 4.0;
 const double _kSingleEventWidthFactor = 0.8;
+@visibleForTesting
+const int dayViewMaxVisibleEventColumns = 3;
 const double _kDayViewHourHeight = 60.0;
 const double _kDayViewTimelineHeight = _kDayViewHourHeight * 24;
 const double _kDayViewPixelsPerMinute = _kDayViewHourHeight / 60.0;
@@ -123,6 +125,9 @@ const ValueKey<String> dayViewTimelinePreviewLayerKey = ValueKey<String>(
 const ValueKey<String> dayViewTimelineOverlayLayerKey = ValueKey<String>(
   'day_view_timeline_overlay_layer',
 );
+@visibleForTesting
+ValueKey<String> dayViewEventCarouselKey(int overlapGroupIndex) =>
+    ValueKey<String>('day-view-event-carousel-$overlapGroupIndex');
 typedef DayViewRestorationCallback =
     void Function({
       required int kYear,
@@ -2127,25 +2132,34 @@ class EventLayoutEngine {
     );
     final blocks = <PositionedEventBlock>[];
 
-    for (final group in overlapGroups) {
+    for (var groupIndex = 0; groupIndex < overlapGroups.length; groupIndex++) {
+      final group = overlapGroups[groupIndex];
       final columnAssignments = _assignColumns(group, textScale: textScale);
       final highestColumn = columnAssignments.values.fold<int>(0, math.max);
       final totalColumns = highestColumn + 1;
+      final visibleColumns = math.min(
+        totalColumns,
+        dayViewMaxVisibleEventColumns,
+      );
       final columnWidth = _columnWidthForGroup(
         availableWidth: availableWidth,
         columnGap: columnGap,
-        totalColumns: totalColumns,
+        totalColumns: visibleColumns,
         singleEventWidthFactor: singleEventWidthFactor,
       );
 
       for (final event in group) {
         final column = columnAssignments[event] ?? 0;
-        final leftOffset = column * (columnWidth + columnGap);
+        final visibleColumn = column % dayViewMaxVisibleEventColumns;
+        final leftOffset = visibleColumn * (columnWidth + columnGap);
         blocks.add(
           PositionedEventBlock(
             event: event,
             leftOffset: leftOffset,
             width: columnWidth,
+            overlapGroupIndex: groupIndex,
+            columnIndex: column,
+            totalColumns: totalColumns,
           ),
         );
       }
@@ -4908,12 +4922,154 @@ class PositionedEventBlock {
   final EventItem event;
   final double leftOffset;
   final double width;
+  final int overlapGroupIndex;
+  final int columnIndex;
+  final int totalColumns;
 
   const PositionedEventBlock({
     required this.event,
     required this.leftOffset,
     required this.width,
+    required this.overlapGroupIndex,
+    required this.columnIndex,
+    required this.totalColumns,
   });
+
+  int get carouselPageIndex => columnIndex ~/ dayViewMaxVisibleEventColumns;
+
+  bool get usesCarousel => totalColumns > dayViewMaxVisibleEventColumns;
+}
+
+class _DayViewOverlapCarousel extends StatefulWidget {
+  const _DayViewOverlapCarousel({
+    super.key,
+    required this.overlapGroupIndex,
+    required this.groupTop,
+    required this.blocks,
+    required this.eventBuilder,
+    required this.onPageChanged,
+  });
+
+  final int overlapGroupIndex;
+  final double groupTop;
+  final List<PositionedEventBlock> blocks;
+  final Widget Function(PositionedEventBlock block) eventBuilder;
+  final ValueChanged<int> onPageChanged;
+
+  int get pageCount {
+    final totalColumns = blocks.fold<int>(
+      0,
+      (highest, block) => math.max(highest, block.totalColumns),
+    );
+    return math.max(1, (totalColumns / dayViewMaxVisibleEventColumns).ceil());
+  }
+
+  @override
+  State<_DayViewOverlapCarousel> createState() =>
+      _DayViewOverlapCarouselState();
+}
+
+class _DayViewOverlapCarouselState extends State<_DayViewOverlapCarousel> {
+  late final PageController _controller = PageController();
+  int _page = 0;
+
+  @override
+  void didUpdateWidget(covariant _DayViewOverlapCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final lastPage = widget.pageCount - 1;
+    if (_page <= lastPage) return;
+    _page = lastPage;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_controller.hasClients) return;
+      _controller.jumpToPage(_page);
+      widget.onPageChanged(_page);
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pageCount = widget.pageCount;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(
+          child: PageView.builder(
+            key: dayViewEventCarouselKey(widget.overlapGroupIndex),
+            controller: _controller,
+            physics: const PageScrollPhysics(),
+            itemCount: pageCount,
+            onPageChanged: (page) {
+              setState(() => _page = page);
+              widget.onPageChanged(page);
+              unawaited(AppHaptics.selection());
+            },
+            itemBuilder: (context, page) {
+              final pageBlocks = widget.blocks
+                  .where((block) => block.carouselPageIndex == page)
+                  .toList(growable: false);
+              return Semantics(
+                label: 'Event carousel page ${page + 1} of $pageCount',
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    for (final block in pageBlocks)
+                      Positioned(
+                        left: block.leftOffset,
+                        top: block.event.startMin - widget.groupTop,
+                        child: widget.eventBuilder(block),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+        Positioned(
+          right: 4,
+          bottom: 3,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: const Color(0xD9090806),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color: _dayGold.withValues(alpha: 0.38),
+                  width: 0.7,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var page = 0; page < pageCount; page++) ...[
+                      if (page > 0) const SizedBox(width: 4),
+                      Container(
+                        width: page == _page ? 12 : 5,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: page == _page
+                              ? _dayGold
+                              : _dayViewSilverDim.withValues(alpha: 0.72),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _ConstantIntListenable implements ValueListenable<int> {
@@ -6214,6 +6370,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   double? _cachedTextScale;
   double? _cachedSingleEventWidthFactor;
   List<PositionedEventBlock> _displayBlocks = const [];
+  final Map<int, int> _eventCarouselPageByGroup = <int, int>{};
   final Map<TrackSkyTimeZone, TrackSkyFlowData> _trackSkyDataByTimeZone =
       <TrackSkyTimeZone, TrackSkyFlowData>{};
   final Set<TrackSkyTimeZone> _trackSkyLoadingTimeZones = <TrackSkyTimeZone>{};
@@ -6551,6 +6708,11 @@ class _DayViewGridState extends State<DayViewGrid> {
 
   bool _isPointOverEventBlockInTimeline(Offset eventAreaPosition) {
     for (final block in _displayBlocks.where((b) => !_isPreviewBlock(b))) {
+      if (block.usesCarousel &&
+          block.carouselPageIndex !=
+              (_eventCarouselPageByGroup[block.overlapGroupIndex] ?? 0)) {
+        continue;
+      }
       final visualStart = block.event.startMin.toDouble();
       final visualEnd = visualStart + _eventVisualHeight(block.event);
       final height = visualEnd - visualStart;
@@ -7098,10 +7260,13 @@ class _DayViewGridState extends State<DayViewGrid> {
                                 blocks: _displayBlocks.where(
                                   (block) => !_isPreviewBlock(block),
                                 ),
+                                availableWidth: availableWidth,
                               ),
                               _buildTimelineEventLayer(
                                 key: dayViewTimelinePreviewLayerKey,
                                 blocks: _displayBlocks.where(_isPreviewBlock),
+                                availableWidth: availableWidth,
+                                enableCarousels: false,
                               ),
                               _buildTimelineOverlayLayer(),
                             ],
@@ -7318,6 +7483,8 @@ class _DayViewGridState extends State<DayViewGrid> {
   Widget _buildTimelineEventLayer({
     required Key key,
     required Iterable<PositionedEventBlock> blocks,
+    required double availableWidth,
+    bool enableCarousels = true,
   }) {
     final sortedBlocks = blocks.toList()
       ..sort((a, b) {
@@ -7327,13 +7494,27 @@ class _DayViewGridState extends State<DayViewGrid> {
         if (leftCmp != 0) return leftCmp;
         return _compareEventItemsBySchedule(a.event, b.event);
       });
+    final carouselGroups = <int, List<PositionedEventBlock>>{};
+    final directBlocks = <PositionedEventBlock>[];
+    for (final block in sortedBlocks) {
+      if (enableCarousels && block.usesCarousel) {
+        carouselGroups
+            .putIfAbsent(
+              block.overlapGroupIndex,
+              () => <PositionedEventBlock>[],
+            )
+            .add(block);
+      } else {
+        directBlocks.add(block);
+      }
+    }
 
     return Positioned.fill(
       key: key,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          for (final block in sortedBlocks)
+          for (final block in directBlocks)
             Positioned(
               left: _kTimelineLabelWidth + block.leftOffset,
               top: block.event.startMin.toDouble(),
@@ -7342,7 +7523,53 @@ class _DayViewGridState extends State<DayViewGrid> {
                 hitHeight: _overlapHitHeightForBlock(block),
               ),
             ),
+          for (final entry in carouselGroups.entries)
+            _buildOverlapCarousel(
+              overlapGroupIndex: entry.key,
+              blocks: entry.value,
+              availableWidth: availableWidth,
+            ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildOverlapCarousel({
+    required int overlapGroupIndex,
+    required List<PositionedEventBlock> blocks,
+    required double availableWidth,
+  }) {
+    final groupTop = blocks
+        .map((block) => block.event.startMin.toDouble())
+        .reduce(math.min);
+    final groupBottom = blocks
+        .map(
+          (block) =>
+              block.event.startMin.toDouble() +
+              _overlapHitHeightForBlock(block),
+        )
+        .reduce(math.max);
+    final height = math.max(groupBottom - groupTop, _kMinEventBlockHeight);
+
+    return Positioned(
+      left: _kTimelineLabelWidth,
+      top: groupTop,
+      width: availableWidth,
+      height: height,
+      child: _DayViewOverlapCarousel(
+        key: ValueKey<String>(
+          'day-view-event-carousel-host-$overlapGroupIndex',
+        ),
+        overlapGroupIndex: overlapGroupIndex,
+        groupTop: groupTop,
+        blocks: blocks,
+        onPageChanged: (page) {
+          _eventCarouselPageByGroup[overlapGroupIndex] = page;
+        },
+        eventBuilder: (block) => _buildInteractiveEvent(
+          block,
+          hitHeight: _overlapHitHeightForBlock(block),
+        ),
       ),
     );
   }
