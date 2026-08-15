@@ -6733,7 +6733,13 @@ class CalendarPage extends StatefulWidget {
         label: 'Inbox',
         showNotificationDot: hasUnreadInbox,
         dispatchBeforeClose: true,
-        onSelected: () => navigate('/inbox', durableSection: AppSection.inbox),
+        onSelected: () async {
+          unawaited(
+            AppNavigationRestorationController.instance
+                .recordPrimaryTabSelection(AppSection.inbox),
+          );
+          await openUtilitySheet('/inbox');
+        },
       ),
       _CalendarAction(
         glyph: MeduNeterGlyphs.calendars,
@@ -25598,7 +25604,7 @@ class CalendarPageState extends State<CalendarPage>
         AppSection.inbox,
       ),
     );
-    context.go('/inbox');
+    await openUtilityRoute<void>(context, '/inbox');
   }
 
   Widget _withCalendarFloatingShortcuts(

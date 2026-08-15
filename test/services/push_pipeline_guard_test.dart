@@ -130,10 +130,9 @@ void main() {
       );
       expect(
         pushNavigationSource,
-        contains(
-          "_router.go('/inbox/dm/\${Uri.encodeComponent(conversationId)}')",
-        ),
+        contains("'/inbox/dm/\${Uri.encodeComponent(conversationId)}'"),
       );
+      expect(pushNavigationSource, contains('_openNotificationDetailRoute('));
       expect(
         pushNavigationSource.indexOf("notificationType == 'dm_message_v2'"),
         lessThan(pushNavigationSource.indexOf("if (kind == 'dm')")),
@@ -156,8 +155,32 @@ void main() {
       expect(sendPushSource, contains('kind === "follow"'));
       expect(sendPushSource, contains('push_kind: "follow"'));
       expect(mainSource, contains("if (kind == 'follow')"));
-      expect(mainSource, contains("_router.go('/inbox')"));
+      expect(mainSource, contains('_openInboxSheetFromNotification();'));
     });
+
+    test(
+      'active inbox notifications preserve sheet and detail history',
+      () async {
+        final mainSource = await File('lib/main.dart').readAsString();
+        final inboxHelper = _sourceBetween(
+          mainSource,
+          "void _openInboxSheetFromNotification([String location = '/inbox']) {",
+          'void _openNotificationDetailRoute(',
+        );
+        final detailHelper = _sourceBetween(
+          mainSource,
+          'void _openNotificationDetailRoute(',
+          'void _openSharedFlow(String shareId)',
+        );
+
+        expect(inboxHelper, contains('openUtilityRoute<void>('));
+        expect(inboxHelper, contains('router: _router'));
+        expect(inboxHelper, contains('NavigationSource.notificationTap'));
+        expect(detailHelper, contains('openDetailRoute<void>('));
+        expect(detailHelper, contains('router: _router'));
+        expect(detailHelper, contains('NavigationSource.notificationTap'));
+      },
+    );
 
     test('notification taps remain explicit navigation commands', () async {
       final mainSource = await File('lib/main.dart').readAsString();

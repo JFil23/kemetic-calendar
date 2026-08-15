@@ -26,6 +26,7 @@ import '../../services/session_resume_service.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
 import '../../widgets/kemetic_heart_icon.dart';
 import '../../widgets/profile_avatar.dart';
+import '../../widgets/utility_sheet_route_scaffold.dart';
 import '../calendar/calendar_page.dart' show CalendarPage;
 import '../calendar/calendar_invalidation.dart';
 import '../calendars/shared_calendars_sheet.dart';
@@ -34,6 +35,35 @@ import 'inbox_threading.dart';
 void _logInboxImport(String message) {
   if (kDebugMode) {
     debugPrint(message);
+  }
+}
+
+const Key inboxSheetRouteKey = ValueKey<String>('inbox-sheet-route');
+
+class InboxSheetRoutePage extends StatelessWidget {
+  const InboxSheetRoutePage({
+    super.key,
+    this.initialSharedCalendarId,
+    this.childForTesting,
+  });
+
+  final String? initialSharedCalendarId;
+  @visibleForTesting
+  final Widget? childForTesting;
+
+  @override
+  Widget build(BuildContext context) {
+    return UtilitySheetRouteScaffold(
+      key: inboxSheetRouteKey,
+      semanticLabel: 'Inbox',
+      onClose: () => closeOrReturn(context, '/'),
+      child:
+          childForTesting ??
+          InboxPage(
+            initialSharedCalendarId: initialSharedCalendarId,
+            sheet: true,
+          ),
+    );
   }
 }
 
@@ -46,6 +76,7 @@ class InboxPage extends StatefulWidget {
     this.onInboxItemsAppliedForTesting,
     this.flowLifecycleStreamForTesting,
     this.disableAuxiliarySubscriptionsForTesting = false,
+    this.sheet = false,
   });
 
   final String? initialSharedCalendarId;
@@ -60,6 +91,7 @@ class InboxPage extends StatefulWidget {
   final Stream<CalendarInvalidated>? flowLifecycleStreamForTesting;
   @visibleForTesting
   final bool disableAuxiliarySubscriptionsForTesting;
+  final bool sheet;
 
   @override
   State<InboxPage> createState() => _InboxPageState();
@@ -406,13 +438,15 @@ class _InboxPageState extends State<InboxPage> {
                 width: 48,
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: IconButton(
-                    tooltip: 'Close inbox',
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                    icon: KemeticGold.icon(Icons.close, size: 27),
-                    onPressed: () => popOrGo(context, '/'),
-                  ),
+                  child: widget.sheet
+                      ? const SizedBox.shrink()
+                      : IconButton(
+                          tooltip: 'Close inbox',
+                          padding: EdgeInsets.zero,
+                          visualDensity: VisualDensity.compact,
+                          icon: KemeticGold.icon(Icons.close, size: 27),
+                          onPressed: () => popOrGo(context, '/'),
+                        ),
                 ),
               ),
               Expanded(
@@ -527,7 +561,7 @@ class _InboxPageState extends State<InboxPage> {
           sharedCalendarInboxRouteLocation(calendarId),
         )) {
       _openedInitialSharedCalendarId = null;
-      context.go('/inbox');
+      context.replace('/inbox');
     }
   }
 
@@ -2500,7 +2534,7 @@ class _InboxPageState extends State<InboxPage> {
     if (notification.isCalendarEventNotification &&
         calendarId != null &&
         calendarId.isNotEmpty) {
-      context.go(sharedCalendarInboxRouteLocation(calendarId));
+      await _openSharedCalendarById(calendarId);
       return;
     }
 
@@ -2537,7 +2571,7 @@ class _InboxPageState extends State<InboxPage> {
       return;
     }
 
-    context.go(sharedCalendarInboxRouteLocation(calendarId));
+    await _openSharedCalendarById(calendarId);
   }
 }
 

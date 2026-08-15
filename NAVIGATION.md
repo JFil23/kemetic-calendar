@@ -63,9 +63,20 @@ Utility routes are not primary selection state. They are durable surfaces while
 they are real routes. From inside the app they should be pushed so back/close
 returns to the previous real surface. Direct loads fall back cleanly to `/`.
 
-Flow Studio and Calendars currently use route-backed sheet presentation: `/flows`
-and `/calendars` remain real durable utility routes, but the route page renders
-as a temporary sheet-shaped surface. This is different from contextual
+Inbox, Flow Studio, and Calendars currently use route-backed sheet presentation.
+`/flows` and `/calendars` remain real durable utility routes. `/inbox` remains a
+durable primary section, but its visible route page is also presented as a
+temporary sheet-shaped surface. Opening any of these from an existing surface
+must push so dismissal returns to that surface. A direct or restored `/inbox`
+load dismisses to `/`.
+
+Inbox details, including conversations, shared flows, event invites, profiles,
+and search results, push above the Inbox sheet. Their back/close actions return
+to the sheet; closing the sheet then returns to the page that opened it. Active
+notification taps follow the same stack. Cold-start notification routes remain
+direct-loadable and use `/inbox` as their safe fallback.
+
+Route-backed sheet presentation is different from contextual
 `showModalBottomSheet` ownership. The route-backed sheet chrome owns its
 outside-tap, close-button, and handle pull-down dismissal; the sheet body must
 not dismiss on scroll unless scroll-position coordination is added explicitly.

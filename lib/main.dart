@@ -1545,7 +1545,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
           );
         },
       ),
-    _calmRoute(
+    _utilitySheetRoute(
       path: '/inbox',
       builder: (context, state) {
         traceRestoration('router build /inbox uri=${state.uri}');
@@ -1565,7 +1565,9 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
             state.uri.queryParameters['calendar_id'];
         return SessionTrackedRoute(
           location: state.uri.toString(),
-          child: InboxPage(initialSharedCalendarId: initialSharedCalendarId),
+          child: InboxSheetRoutePage(
+            initialSharedCalendarId: initialSharedCalendarId,
+          ),
         );
       },
     ),
@@ -2922,9 +2924,11 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
         data['conversation_id'] ?? data['conversationId'],
       );
       if (conversationId != null) {
-        _router.go('/inbox/dm/${Uri.encodeComponent(conversationId)}');
+        _openNotificationDetailRoute(
+          '/inbox/dm/${Uri.encodeComponent(conversationId)}',
+        );
       } else {
-        _router.go('/inbox');
+        _openInboxSheetFromNotification();
       }
       return true;
     }
@@ -2934,7 +2938,7 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
       if (shareId != null) {
         _openSharedFlow(shareId);
       } else {
-        _router.go('/inbox');
+        _openInboxSheetFromNotification();
       }
       return true;
     }
@@ -2949,13 +2953,13 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
       if (senderId != null) {
         await _openDmConversation(senderId);
       } else {
-        _router.go('/inbox');
+        _openInboxSheetFromNotification();
       }
       return true;
     }
 
     if (kind == 'follow') {
-      _router.go('/inbox');
+      _openInboxSheetFromNotification();
       return true;
     }
 
@@ -2967,20 +2971,20 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
       } else if (senderId != null) {
         await _openDmConversation(senderId);
       } else {
-        _router.go('/inbox');
+        _openInboxSheetFromNotification();
       }
       return true;
     }
 
     if (kind == 'calendar_invite' || kind == 'calendar_invite_response') {
-      _router.go('/inbox');
+      _openInboxSheetFromNotification();
       return true;
     }
 
     final sharedCalendarInboxRoute =
         sharedCalendarInboxRouteLocationFromPushData(data);
     if (sharedCalendarInboxRoute != null) {
-      _router.go(sharedCalendarInboxRoute);
+      _openInboxSheetFromNotification(sharedCalendarInboxRoute);
       return true;
     }
 
@@ -2997,7 +3001,7 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
           openCommentsOnLoad: kind != 'flow_like',
         );
       } else {
-        _router.go('/inbox');
+        _openInboxSheetFromNotification();
       }
       return true;
     }
@@ -3036,8 +3040,43 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     return false;
   }
 
+  void _openInboxSheetFromNotification([String location = '/inbox']) {
+    final navigationContext = _rootNavigatorKey.currentContext;
+    if (navigationContext == null || !navigationContext.mounted) {
+      _router.go(location);
+      return;
+    }
+    unawaited(
+      openUtilityRoute<void>(
+        navigationContext,
+        location,
+        router: _router,
+        source: NavigationSource.notificationTap,
+      ),
+    );
+  }
+
+  void _openNotificationDetailRoute(String location, {Object? extra}) {
+    final navigationContext = _rootNavigatorKey.currentContext;
+    if (navigationContext == null || !navigationContext.mounted) {
+      _router.go(location, extra: extra);
+      return;
+    }
+    unawaited(
+      openDetailRoute<void>(
+        navigationContext,
+        location,
+        extra: extra,
+        router: _router,
+        source: NavigationSource.notificationTap,
+      ),
+    );
+  }
+
   void _openSharedFlow(String shareId) {
-    _router.go('/shared-flow/${Uri.encodeComponent(shareId)}');
+    _openNotificationDetailRoute(
+      '/shared-flow/${Uri.encodeComponent(shareId)}',
+    );
   }
 
   Future<void> _openDmConversation(String senderId) async {
@@ -3066,12 +3105,12 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
         avatarGlyphIds: parseProfileAvatarGlyphIds(profile?['avatar_glyphs']),
       );
 
-      _router.go(
+      _openNotificationDetailRoute(
         '/inbox/conversation/${Uri.encodeComponent(senderId)}',
         extra: otherProfile,
       );
     } catch (_) {
-      _router.go('/inbox');
+      _openInboxSheetFromNotification();
     }
   }
 
@@ -3100,7 +3139,7 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
             .maybeSingle();
         if (row != null) {
           final share = InboxShareItem.fromJson(row);
-          _router.go(
+          _openNotificationDetailRoute(
             '/event-invite/${Uri.encodeComponent(shareId)}',
             extra: share,
           );
@@ -3113,7 +3152,7 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
 
     final directShare = await _loadEventInviteShare(shareId);
     if (directShare != null) {
-      _router.go(
+      _openNotificationDetailRoute(
         '/event-invite/${Uri.encodeComponent(shareId)}',
         extra: directShare,
       );
@@ -3124,7 +3163,7 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
       await _openDmConversation(senderId);
       return;
     }
-    _router.go('/inbox');
+    _openInboxSheetFromNotification();
   }
 
   Map<String, dynamic>? _coerceJsonMap(Object? raw) {
@@ -3220,7 +3259,7 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
     try {
       final post = await ProfileRepo(supabase).getFlowPostById(flowPostId);
       if (post != null) {
-        _router.go(
+        _openNotificationDetailRoute(
           '/flow-post/${Uri.encodeComponent(flowPostId)}'
           '${openCommentsOnLoad ? '?comments=1' : ''}',
           extra: post,
@@ -3231,7 +3270,7 @@ class _PushIntentBridgeState extends State<PushIntentBridge> {
       // Fall back below.
     }
 
-    _router.go('/inbox');
+    _openInboxSheetFromNotification();
   }
 
   Future<void> _openCalendarEventFromPush(CalendarPushOpenIntent intent) async {

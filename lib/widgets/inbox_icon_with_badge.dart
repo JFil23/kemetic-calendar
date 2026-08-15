@@ -1,8 +1,10 @@
 // lib/widgets/inbox_icon_with_badge.dart
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/navigation_fallback.dart';
 import '../core/navigation_persistence_policy.dart';
 import '../data/share_repo.dart';
 import '../services/app_navigation_restoration_controller.dart';
@@ -114,7 +116,7 @@ class InboxIconWithBadge extends StatelessWidget {
           await AppNavigationRestorationController.instance
               .recordPrimaryTabSelection(AppSection.inbox);
           if (!context.mounted) return;
-          context.go('/inbox');
+          unawaited(openUtilityRoute<void>(context, '/inbox'));
           if (onRefreshAsync != null) {
             await onRefreshAsync!(null);
           } else if (onRefreshSync != null) {
@@ -142,7 +144,7 @@ class InboxIconWithBadge extends StatelessWidget {
                 await AppNavigationRestorationController.instance
                     .recordPrimaryTabSelection(AppSection.inbox);
                 if (!context.mounted) return;
-                context.go('/inbox');
+                unawaited(openUtilityRoute<void>(context, '/inbox'));
                 if (onRefreshAsync != null) {
                   await onRefreshAsync!(null);
                 } else if (onRefreshSync != null) {

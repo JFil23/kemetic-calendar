@@ -982,6 +982,7 @@ void main() {
       expect(utilitySheetRoute, isNot(contains('NoTransitionPage')));
 
       expect(mainSource, contains("_utilitySheetRoute(\n      path: '/flows'"));
+      expect(mainSource, contains("_utilitySheetRoute(\n      path: '/inbox'"));
       expect(
         mainSource,
         contains("_utilitySheetRoute(\n      path: '/calendars'"),
@@ -999,6 +1000,7 @@ void main() {
         contains("_utilitySheetRoute(\n      path: '/rhythm/todo'"),
       );
       expect(mainSource, isNot(contains("_calmRoute(\n      path: '/flows'")));
+      expect(mainSource, isNot(contains("_calmRoute(\n      path: '/inbox'")));
       expect(
         mainSource,
         isNot(contains("_calmRoute(\n      path: '/calendars'")),
@@ -1017,6 +1019,51 @@ void main() {
       );
 
       expect(mainSource, contains("semanticLabel: 'Journal'"));
+      final inboxSource = await File(
+        'lib/features/inbox/inbox_page.dart',
+      ).readAsString();
+      final inboxRoute = _sourceBetween(
+        inboxSource,
+        'class InboxSheetRoutePage extends StatelessWidget',
+        'class InboxPage extends StatefulWidget',
+      );
+      expect(inboxRoute, contains('UtilitySheetRouteScaffold'));
+      expect(inboxRoute, contains("semanticLabel: 'Inbox'"));
+      expect(inboxRoute, contains("closeOrReturn(context, '/')"));
+      expect(inboxRoute, contains('sheet: true'));
+      expect(inboxSource, contains('widget.sheet'));
+
+      final calendarSource = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final openInbox = _sourceBetween(
+        calendarSource,
+        'Future<void> _openInboxFromMenu() async {',
+        'Widget _withCalendarFloatingShortcuts(',
+      );
+      expect(openInbox, contains("openUtilityRoute<void>(context, '/inbox')"));
+      expect(openInbox, isNot(contains("context.go('/inbox')")));
+
+      final inboxIconSource = await File(
+        'lib/widgets/inbox_icon_with_badge.dart',
+      ).readAsString();
+      expect(
+        inboxIconSource
+                .split("openUtilityRoute<void>(context, '/inbox')")
+                .length -
+            1,
+        2,
+      );
+      final eventInviteSource = await File(
+        'lib/features/invites/event_invite_details_page.dart',
+      ).readAsString();
+      final eventInviteConversation = _sourceBetween(
+        eventInviteSource,
+        'void _openConversation() {',
+        '@override\n  Widget build(BuildContext context)',
+      );
+      expect(eventInviteConversation, contains('openDetailRoute<void>('));
+      expect(eventInviteConversation, isNot(contains('context.go(')));
       final plannerSource = await File(
         'lib/features/rhythm/pages/todays_alignment_page.dart',
       ).readAsString();

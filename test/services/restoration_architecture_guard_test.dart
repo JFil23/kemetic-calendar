@@ -397,9 +397,9 @@ void main() {
       expect(_countOccurrences(main, '_calmRoute('), greaterThan(20));
       expect(
         _countOccurrences(main, '_utilitySheetRoute('),
-        6,
+        7,
         reason:
-            'The helper plus Flow Studio, Calendars, Journal, and both Planner routes use sheet pages.',
+            'The helper plus Inbox, Flow Studio, Calendars, Journal, and both Planner routes use sheet pages.',
       );
       expect(
         main,

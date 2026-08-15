@@ -500,21 +500,17 @@ void main() {
 
           expect(
             openNotification,
-            contains(
-              'context.go(sharedCalendarInboxRouteLocation(calendarId))',
-            ),
+            contains('await _openSharedCalendarById(calendarId)'),
           );
           expect(
             openThread,
-            contains(
-              'context.go(sharedCalendarInboxRouteLocation(calendarId))',
-            ),
+            contains('await _openSharedCalendarById(calendarId)'),
           );
           expect(
             initialFocus,
             contains('shouldPreserveOverlayForLifecycleClose'),
           );
-          expect(initialFocus, contains("context.go('/inbox')"));
+          expect(initialFocus, contains("context.replace('/inbox')"));
         },
       );
     },

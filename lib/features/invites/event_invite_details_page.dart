@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/navigation_fallback.dart';
@@ -115,19 +114,22 @@ class _EventInviteDetailsPageState extends State<EventInviteDetailsPage> {
     final otherUserId = openingSentInvite
         ? _share.recipientId
         : _share.senderId;
-    context.go(
-      '/inbox/conversation/${Uri.encodeComponent(otherUserId)}',
-      extra: ConversationUser(
-        id: otherUserId,
-        displayName: openingSentInvite
-            ? _share.recipientDisplayName
-            : _share.senderName,
-        handle: openingSentInvite
-            ? _share.recipientHandle
-            : _share.senderHandle,
-        avatarUrl: openingSentInvite
-            ? _share.recipientAvatarUrl
-            : _share.senderAvatar,
+    unawaited(
+      openDetailRoute<void>(
+        context,
+        '/inbox/conversation/${Uri.encodeComponent(otherUserId)}',
+        extra: ConversationUser(
+          id: otherUserId,
+          displayName: openingSentInvite
+              ? _share.recipientDisplayName
+              : _share.senderName,
+          handle: openingSentInvite
+              ? _share.recipientHandle
+              : _share.senderHandle,
+          avatarUrl: openingSentInvite
+              ? _share.recipientAvatarUrl
+              : _share.senderAvatar,
+        ),
       ),
     );
   }
