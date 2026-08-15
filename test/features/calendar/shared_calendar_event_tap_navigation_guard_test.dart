@@ -300,15 +300,37 @@ void main() {
           seed,
           contains('_noteFromSharedCalendarEventSnapshot(snapshot)'),
         );
-        expect(seed, contains('_notes.putIfAbsent'));
+        expect(seed, contains('_notes[key] ?? const <_Note>[]'));
         expect(seed, contains('bucket.any'));
         expect(seed, contains('using cached real detail note'));
-        expect(seed, contains('bucket.removeWhere'));
+        expect(seed, contains('_publishSharedCalendarSeedNotes('));
         expect(seed, contains('_noteMatchesEventDetailRestorationState'));
-        expect(seed, contains('_visibleDayNoteBaseKey'));
-        expect(seed, contains('_standaloneDedupeKey'));
+        expect(seed, isNot(contains('bucket.removeWhere')));
+        expect(seed, isNot(contains('bucket.add(')));
         expect(seed, isNot(contains('_notifyDayViewDataChanged')));
         expect(seed, isNot(contains('_scheduleWarmStartCacheSave')));
+
+        final sharedSeedPublisher = _sourceBetween(
+          calendar,
+          'void _publishSharedCalendarSeedNotes({',
+          'void _seedSameDaySharedCalendarFiledEvents({',
+        );
+        expect(
+          sharedSeedPublisher,
+          contains('deriveVisibleCalendarProjection<_Note>('),
+        );
+        expect(
+          sharedSeedPublisher,
+          contains(
+            'CalendarPendingIdentityConflictResolution.pendingReplacesSource',
+          ),
+        );
+        expect(
+          sharedSeedPublisher,
+          contains('pendingSourceConflictRule: _sharedCalendarSeedConflict'),
+        );
+        expect(sharedSeedPublisher, contains('_replaceLiveNoteBuckets('));
+        expect(sharedSeedPublisher, isNot(contains('_notes[')));
 
         final sameDaySeed = _sourceBetween(
           calendar,
@@ -317,8 +339,9 @@ void main() {
         );
         expect(sameDaySeed, contains('required List<FiledEvent> filedEvents'));
         expect(sameDaySeed, contains('_noteFromSharedCalendarFiledEvent('));
-        expect(sameDaySeed, contains('_noteMatchesFiledEventIdentity'));
-        expect(sameDaySeed, contains('_dedupeVisibleDayNotes('));
+        expect(sameDaySeed, contains('_publishSharedCalendarSeedNotes('));
+        expect(sameDaySeed, isNot(contains('bucket.removeWhere')));
+        expect(sameDaySeed, isNot(contains('bucket.add(')));
         expect(sameDaySeed, contains('seeded same-day filed events'));
 
         final pendingLaunch = _sourceBetween(

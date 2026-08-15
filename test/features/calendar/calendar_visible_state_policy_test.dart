@@ -84,6 +84,45 @@ void main() {
       expect(projection.confirmedPendingItems, 0);
     });
 
+    test('pending conflict rule is restricted by source and pending day', () {
+      final projection = deriveVisibleCalendarProjection<String>(
+        source: <String, List<String>>{
+          'day-1': <String>['same|old', 'old-id|logical', 'keep|value'],
+          'day-2': <String>['other-id|logical'],
+        },
+        pendingItems: const <CalendarPendingVisibleItem<String>>[
+          CalendarPendingVisibleItem<String>(dayKey: 'day-1', item: 'same|new'),
+          CalendarPendingVisibleItem<String>(
+            dayKey: 'day-1',
+            item: 'new-id|logical',
+          ),
+        ],
+        stableIdentityOf: (item) => item.split('|').first,
+        suppressionRules: const <CalendarItemSuppressionRule<String>>[],
+        pendingIdentityConflictResolution:
+            CalendarPendingIdentityConflictResolution.pendingReplacesSource,
+        pendingSourceConflictRule: (sourceDay, source, pendingDay, pending) =>
+            sourceDay == pendingDay &&
+            source.split('|').last == 'logical' &&
+            pending.split('|').last == 'logical',
+      );
+
+      expect(projection.buckets, <String, List<String>>{
+        'day-1': <String>['keep|value', 'same|new', 'new-id|logical'],
+        'day-2': <String>['other-id|logical'],
+      });
+    });
+
+    test('catalog merge is identity-stable and incoming-last-wins', () {
+      final merged = mergeCalendarCatalogByIdentity<String, int>(
+        source: <String>['1:old', '1:duplicate', '2:keep', 'local'],
+        incoming: <String>['1:new', '3:first', '3:last'],
+        identityOf: (item) => int.tryParse(item.split(':').first),
+      );
+
+      expect(merged, <String>['1:new', '2:keep', 'local', '3:last']);
+    });
+
     test('applies one ordered rule stack and stops at the first match', () {
       final calls = <String>[];
       final visible = deriveVisibleCalendarBuckets<String>(

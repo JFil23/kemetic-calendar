@@ -11915,29 +11915,28 @@ class CalendarPageState extends State<CalendarPage>
     Iterable<_Flow> flows, {
     bool publishWarmState = false,
   }) {
-    var changed = false;
-    for (final flow in flows) {
-      if (flow.id <= 0) continue;
-      final existingIndex = _flows.indexWhere((existing) {
-        return existing.id == flow.id;
-      });
-      final nextFlow = _CalendarWarmStateStore._copyFlow(flow);
-      if (existingIndex >= 0) {
-        _flows[existingIndex] = nextFlow;
-      } else {
-        _flows.add(nextFlow);
-      }
+    final incoming = flows
+        .where((flow) => flow.id > 0)
+        .map(_CalendarWarmStateStore._copyFlow)
+        .toList(growable: false);
+    if (incoming.isEmpty) return;
+    final nextCatalog = mergeCalendarCatalogByIdentity<_Flow, int>(
+      source: _flows,
+      incoming: incoming,
+      identityOf: (flow) => flow.id > 0 ? flow.id : null,
+    );
+    _flows
+      ..clear()
+      ..addAll(nextCatalog);
+    for (final flow in incoming) {
       if (flow.id >= _nextFlowId) {
         _nextFlowId = flow.id + 1;
       }
-      changed = true;
     }
-    if (changed) {
-      _rebuildReminderRulesFromFlowsIfMissing();
-      _bumpDataVersion();
-      if (publishWarmState) {
-        _publishWarmStateSnapshot();
-      }
+    _rebuildReminderRulesFromFlowsIfMissing();
+    _bumpDataVersion();
+    if (publishWarmState) {
+      _publishWarmStateSnapshot();
     }
   }
 
@@ -11982,15 +11981,57 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
-  bool _noteMatchesFiledEventIdentity(_Note note, FiledEvent filedEvent) {
-    final clientEventId = filedEvent.event.clientEventId?.trim();
-    if (clientEventId != null &&
-        clientEventId.isNotEmpty &&
-        note.clientEventId?.trim() == clientEventId) {
+  String? _calendarNoteSeedIdentity(_Note note) {
+    final clientEventId = note.clientEventId?.trim();
+    if (clientEventId != null && clientEventId.isNotEmpty) {
+      return 'cid:$clientEventId';
+    }
+    final eventId = note.id?.trim();
+    if (eventId != null && eventId.isNotEmpty) return 'id:$eventId';
+    return null;
+  }
+
+  bool _sharedCalendarSeedConflict(
+    String sourceDayKey,
+    _Note source,
+    String pendingDayKey,
+    _Note pending,
+  ) {
+    if (sourceDayKey != pendingDayKey) return false;
+    if (_visibleDayNoteBaseKey(source) == _visibleDayNoteBaseKey(pending)) {
       return true;
     }
-    final eventId = filedEvent.event.id.trim();
-    return eventId.isNotEmpty && note.id?.trim() == eventId;
+    return (source.flowId ?? -1) <= 0 &&
+        (pending.flowId ?? -1) <= 0 &&
+        _standaloneDedupeKey(source) == _standaloneDedupeKey(pending);
+  }
+
+  void _publishSharedCalendarSeedNotes({
+    required String dayKey,
+    required Iterable<_Note> notes,
+  }) {
+    final incoming = notes.toList(growable: false);
+    if (incoming.isEmpty) return;
+    final trackSkyFlowIds = _flows
+        .where((flow) => _isTrackSkyFlowName(flow.name))
+        .map((flow) => flow.id)
+        .where((flowId) => flowId > 0)
+        .toSet();
+    final projection = deriveVisibleCalendarProjection<_Note>(
+      source: _notes,
+      pendingItems: <CalendarPendingVisibleItem<_Note>>[
+        for (final note in incoming)
+          CalendarPendingVisibleItem<_Note>(dayKey: dayKey, item: note),
+      ],
+      stableIdentityOf: _calendarNoteSeedIdentity,
+      suppressionRules: const <CalendarItemSuppressionRule<_Note>>[],
+      pendingIdentityConflictResolution:
+          CalendarPendingIdentityConflictResolution.pendingReplacesSource,
+      pendingSourceConflictRule: _sharedCalendarSeedConflict,
+      reduceBucket: (_, bucket) =>
+          _dedupeVisibleDayNotes(bucket, trackSkyFlowIds: trackSkyFlowIds),
+    );
+    _replaceLiveNoteBuckets(projection.buckets);
   }
 
   void _seedSameDaySharedCalendarFiledEvents({
@@ -12002,40 +12043,14 @@ class CalendarPageState extends State<CalendarPage>
   }) {
     if (filedEvents.isEmpty) return;
     final key = _kKey(kYear, kMonth, kDay);
-    final bucket = _notes.putIfAbsent(key, () => <_Note>[]);
-    for (final filedEvent in filedEvents) {
-      final note = _noteFromSharedCalendarFiledEvent(
-        calendar: calendar,
-        filedEvent: filedEvent,
-      );
-      final incomingBaseKey = _visibleDayNoteBaseKey(note);
-      final incomingStandaloneKey = _standaloneDedupeKey(note);
-      bucket.removeWhere((existing) {
-        if (_noteMatchesFiledEventIdentity(existing, filedEvent)) {
-          return true;
-        }
-        if (_visibleDayNoteBaseKey(existing) == incomingBaseKey) {
-          return true;
-        }
-        if ((existing.flowId ?? -1) <= 0 &&
-            (note.flowId ?? -1) <= 0 &&
-            _standaloneDedupeKey(existing) == incomingStandaloneKey) {
-          return true;
-        }
-        return false;
-      });
-      bucket.add(note);
-    }
-    final trackSkyFlowIds = _flows
-        .where((flow) => _isTrackSkyFlowName(flow.name))
-        .map((flow) => flow.id)
-        .where((flowId) => flowId > 0)
-        .toSet();
-    final deduped = _dedupeVisibleDayNotes(
-      bucket,
-      trackSkyFlowIds: trackSkyFlowIds,
-    );
-    _notes[key] = List<_Note>.from(deduped);
+    final incoming = <_Note>[
+      for (final filedEvent in filedEvents)
+        _noteFromSharedCalendarFiledEvent(
+          calendar: calendar,
+          filedEvent: filedEvent,
+        ),
+    ];
+    _publishSharedCalendarSeedNotes(dayKey: key, notes: incoming);
 
     if (kDebugMode) {
       _calendarDebugPrint(
@@ -12070,7 +12085,7 @@ class CalendarPageState extends State<CalendarPage>
   }) {
     final note = _noteFromSharedCalendarEventSnapshot(snapshot);
     final key = _kKey(kYear, kMonth, kDay);
-    final bucket = _notes.putIfAbsent(key, () => <_Note>[]);
+    final bucket = _notes[key] ?? const <_Note>[];
     if (bucket.any(
       (existing) => _noteMatchesEventDetailRestorationState(existing, detail),
     )) {
@@ -12082,23 +12097,7 @@ class CalendarPageState extends State<CalendarPage>
       }
       return;
     }
-    final incomingBaseKey = _visibleDayNoteBaseKey(note);
-    final incomingStandaloneKey = _standaloneDedupeKey(note);
-    bucket.removeWhere((existing) {
-      if (_noteMatchesEventDetailRestorationState(existing, detail)) {
-        return true;
-      }
-      if (_visibleDayNoteBaseKey(existing) == incomingBaseKey) {
-        return true;
-      }
-      if ((existing.flowId ?? -1) <= 0 &&
-          (note.flowId ?? -1) <= 0 &&
-          _standaloneDedupeKey(existing) == incomingStandaloneKey) {
-        return true;
-      }
-      return false;
-    });
-    bucket.add(note);
+    _publishSharedCalendarSeedNotes(dayKey: key, notes: <_Note>[note]);
 
     if (kDebugMode) {
       _calendarDebugPrint(

@@ -22,6 +22,14 @@ typedef CalendarItemSuppressionRule<T> = bool Function(String dayKey, T item);
 typedef CalendarBucketReducer<T> =
     List<T> Function(String dayKey, List<T> items);
 
+typedef CalendarPendingSourceConflictRule<T> =
+    bool Function(
+      String sourceDayKey,
+      T sourceItem,
+      String pendingDayKey,
+      T pendingItem,
+    );
+
 /// Resolves an exact stable-identity match between a source row and a pending
 /// row according to the authority represented by the source projection.
 enum CalendarPendingIdentityConflictResolution {
@@ -71,6 +79,7 @@ CalendarVisibleProjection<T> deriveVisibleCalendarProjection<T>({
   required Iterable<CalendarItemSuppressionRule<T>> suppressionRules,
   CalendarPendingIdentityConflictResolution pendingIdentityConflictResolution =
       CalendarPendingIdentityConflictResolution.sourceConfirmsPending,
+  CalendarPendingSourceConflictRule<T>? pendingSourceConflictRule,
   CalendarBucketReducer<T>? reduceBucket,
 }) {
   final pending = pendingItems.toList(growable: false);
@@ -106,12 +115,27 @@ CalendarVisibleProjection<T> deriveVisibleCalendarProjection<T>({
       combined.removeWhere((_, items) {
         items.removeWhere((item) {
           final candidateIdentity = stableIdentityOf(item)?.trim();
-          return candidateIdentity != null &&
+          final exactIdentityMatch =
+              candidateIdentity != null &&
               candidateIdentity.isNotEmpty &&
               candidateIdentity == identity;
+          return exactIdentityMatch;
         });
         return items.isEmpty;
       });
+      if (pendingSourceConflictRule != null) {
+        combined.removeWhere((sourceDayKey, items) {
+          items.removeWhere(
+            (item) => pendingSourceConflictRule(
+              sourceDayKey,
+              item,
+              pendingItem.dayKey,
+              pendingItem.item,
+            ),
+          );
+          return items.isEmpty;
+        });
+      }
     }
     combined.putIfAbsent(pendingItem.dayKey, () => <T>[]).add(pendingItem.item);
     preservedPendingItems++;
@@ -157,6 +181,42 @@ Map<String, List<T>> deriveVisibleCalendarBuckets<T>({
   stableIdentityOf: (_) => null,
   suppressionRules: suppressionRules,
 ).buckets;
+
+/// Merges catalog items by stable identity while preserving source order.
+///
+/// Duplicate source identities collapse in place, incoming rows replace the
+/// matching position, and new incoming identities append in input order.
+List<T> mergeCalendarCatalogByIdentity<T, I extends Object>({
+  required Iterable<T> source,
+  required Iterable<T> incoming,
+  required I? Function(T item) identityOf,
+}) {
+  final merged = <T>[];
+  final indexByIdentity = <I, int>{};
+
+  void merge(T item, {required bool retainWithoutIdentity}) {
+    final identity = identityOf(item);
+    if (identity == null) {
+      if (retainWithoutIdentity) merged.add(item);
+      return;
+    }
+    final existingIndex = indexByIdentity[identity];
+    if (existingIndex == null) {
+      indexByIdentity[identity] = merged.length;
+      merged.add(item);
+      return;
+    }
+    merged[existingIndex] = item;
+  }
+
+  for (final item in source) {
+    merge(item, retainWithoutIdentity: true);
+  }
+  for (final item in incoming) {
+    merge(item, retainWithoutIdentity: false);
+  }
+  return merged;
+}
 
 bool shouldPersistWarmStartCache(CalendarHydrationAuthorityScope scope) =>
     scope == CalendarHydrationAuthorityScope.fullHorizon;
