@@ -388,6 +388,7 @@ void main() {
         oneTime,
         repeating,
       ], windowEnd: nextDay);
+      expect(state.debugReminderFlowCountForTesting, 2);
       expect(
         state.notesForDayForTesting(dayK.kYear, dayK.kMonth, dayK.kDay),
         hasLength(2),
@@ -400,6 +401,7 @@ void main() {
       expect(endedIds, <String>{oneTime.id, repeating.id});
       expect(state.debugEndedReminderIdsForTesting, containsAll(endedIds));
       expect(state.debugReminderRulesForTesting, isEmpty);
+      expect(state.debugReminderFlowCountForTesting, 0);
       expect(
         state.notesForDayForTesting(dayK.kYear, dayK.kMonth, dayK.kDay),
         isEmpty,
@@ -454,9 +456,11 @@ void main() {
       state.debugSeedReminderRulesForTesting(<ReminderRule>[
         rule,
       ], windowEnd: nextDay);
+      expect(state.debugReminderFlowCountForTesting, 1);
 
       final rollback = state.debugBeginReminderEndIntentForTesting(rule.id);
       expect(state.debugReminderRulesForTesting, isEmpty);
+      expect(state.debugReminderFlowCountForTesting, 0);
       expect(
         state.notesForDayForTesting(dayK.kYear, dayK.kMonth, dayK.kDay),
         isEmpty,
@@ -474,6 +478,7 @@ void main() {
       rollback();
       expect(state.debugEndedReminderIdsForTesting, isNot(contains(rule.id)));
       expect(state.debugReminderRulesForTesting, <ReminderRule>[rule]);
+      expect(state.debugReminderFlowCountForTesting, 1);
       expect(
         state.notesForDayForTesting(dayK.kYear, dayK.kMonth, dayK.kDay),
         hasLength(1),

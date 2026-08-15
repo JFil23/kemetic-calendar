@@ -19421,6 +19421,21 @@ class CalendarPageState extends State<CalendarPage>
     };
   }
 
+  bool _flowMatchesReminderIds(_Flow flow, Set<String> reminderIds) {
+    if (!flow.isReminder || reminderIds.isEmpty) return false;
+    final flowReminderId = flow.reminderUuid?.trim();
+    if (flowReminderId != null &&
+        flowReminderId.isNotEmpty &&
+        reminderIds.contains(flowReminderId)) {
+      return true;
+    }
+    final ruleId = _reminderRuleFromFlow(flow)?.id.trim();
+    return ruleId != null && ruleId.isNotEmpty && reminderIds.contains(ruleId);
+  }
+
+  bool _isEndedReminderFlow(_Flow flow) =>
+      _flowMatchesReminderIds(flow, _endedReminderIds);
+
   List<ReminderRule> _dedupeReminderRules(List<ReminderRule> rules) {
     final byId = <String, ReminderRule>{};
     for (final r in rules) {
@@ -19737,6 +19752,7 @@ class CalendarPageState extends State<CalendarPage>
   void _applyReminderEndIntentLocally(Set<String> reminderIds) {
     _endedReminderIds.addAll(reminderIds);
     _reminderRules.removeWhere((rule) => reminderIds.contains(rule.id));
+    _flows.removeWhere((flow) => _flowMatchesReminderIds(flow, reminderIds));
     var visibleMembershipChanged = false;
     for (final reminderId in reminderIds) {
       visibleMembershipChanged =
@@ -19755,6 +19771,7 @@ class CalendarPageState extends State<CalendarPage>
   ({
     List<ReminderRule> removedRules,
     Map<String, List<_Note>> removedNotesByDay,
+    List<({int index, _Flow flow})> removedFlows,
   })
   _captureReminderEndRollback(Set<String> reminderIds) {
     final removedRules = _reminderRules
@@ -19774,13 +19791,23 @@ class CalendarPageState extends State<CalendarPage>
         removedNotesByDay[entry.key] = removed;
       }
     }
-    return (removedRules: removedRules, removedNotesByDay: removedNotesByDay);
+    final removedFlows = <({int index, _Flow flow})>[
+      for (var index = 0; index < _flows.length; index++)
+        if (_flowMatchesReminderIds(_flows[index], reminderIds))
+          (index: index, flow: _flows[index]),
+    ];
+    return (
+      removedRules: removedRules,
+      removedNotesByDay: removedNotesByDay,
+      removedFlows: removedFlows,
+    );
   }
 
   void _rollbackReminderEndLocally(
     Set<String> reminderIds, {
     required List<ReminderRule> removedRules,
     required Map<String, List<_Note>> removedNotesByDay,
+    required List<({int index, _Flow flow})> removedFlows,
   }) {
     _endedReminderIds.removeAll(reminderIds);
     for (final rule in removedRules) {
@@ -19806,6 +19833,10 @@ class CalendarPageState extends State<CalendarPage>
         });
         if (!alreadyPresent) bucket.add(note);
       }
+    }
+    for (final removed in removedFlows) {
+      if (_flows.any((candidate) => candidate.id == removed.flow.id)) continue;
+      _flows.insert(removed.index.clamp(0, _flows.length), removed.flow);
     }
     _reminderRulesLoaded = true;
     if (mounted) {
@@ -19837,7 +19868,9 @@ class CalendarPageState extends State<CalendarPage>
     _applyReminderEndIntentLocally(reminderIds);
 
     try {
-      final flowIds = <int>{};
+      final flowIds = <int>{
+        for (final removed in rollback.removedFlows) removed.flow.id,
+      };
       for (final reminderId in reminderIds) {
         final dbUuid = _dbReminderUuidFromRuleId(reminderId);
         if (dbUuid == null) continue;
@@ -19857,6 +19890,7 @@ class CalendarPageState extends State<CalendarPage>
           reminderIds,
           removedRules: rollback.removedRules,
           removedNotesByDay: rollback.removedNotesByDay,
+          removedFlows: rollback.removedFlows,
         );
         _showReminderEndFailure(
           'Could not find this reminder in your account. Nothing was deleted.',
@@ -19875,6 +19909,7 @@ class CalendarPageState extends State<CalendarPage>
             reminderIds,
             removedRules: rollback.removedRules,
             removedNotesByDay: rollback.removedNotesByDay,
+            removedFlows: rollback.removedFlows,
           );
           _showReminderEndFailure(
             'Could not end this reminder in your account. Nothing was deleted.',
@@ -19896,6 +19931,7 @@ class CalendarPageState extends State<CalendarPage>
         reminderIds,
         removedRules: rollback.removedRules,
         removedNotesByDay: rollback.removedNotesByDay,
+        removedFlows: rollback.removedFlows,
       );
       if (kDebugMode) {
         _calendarDebugPrint(
@@ -21170,12 +21206,14 @@ class CalendarPageState extends State<CalendarPage>
         context: context,
         isScrollControlled: true,
         backgroundColor: Colors.transparent,
+        useSafeArea: true,
+        isDismissible: true,
+        enableDrag: true,
         shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
         builder: (ctx) {
           return DaySheetKeyboardSafeFrame(
-            maxHeightFactor: 0.85,
             child: StatefulBuilder(
               builder: (sheetCtx, setModalState) {
                 final selectedCalendar = _calendarSummary(selectedCalendarId);
@@ -28969,12 +29007,26 @@ class CalendarPageState extends State<CalendarPage>
 
               Future<bool> openReminderEditorForSelectedDay({
                 ReminderRule? existing,
-              }) {
+              }) async {
+                final initialReminderDate = titleG;
+                final initialReminderStart = existing == null
+                    ? startTime
+                    : null;
+                final initialReminderAllDay = existing == null ? allDay : null;
+
+                // Notes edit in the day sheet itself. Give reminders the same
+                // single-sheet keyboard geometry by closing this list sheet
+                // before opening the editor instead of stacking two sheets.
+                if (sheetCtx.mounted && Navigator.of(sheetCtx).canPop()) {
+                  Navigator.of(sheetCtx).pop();
+                  await WidgetsBinding.instance.endOfFrame;
+                }
+                if (!mounted) return false;
                 return _openReminderEditor(
                   existing: existing,
-                  initialDate: titleG,
-                  initialStartTime: existing == null ? startTime : null,
-                  initialAllDay: existing == null ? allDay : null,
+                  initialDate: initialReminderDate,
+                  initialStartTime: initialReminderStart,
+                  initialAllDay: initialReminderAllDay,
                 );
               }
 
@@ -29151,12 +29203,6 @@ class CalendarPageState extends State<CalendarPage>
                                   await openReminderEditorForSelectedDay(
                                     existing: r,
                                   );
-                                  if (!mounted) return;
-                                  await _loadReminderRules();
-                                  setSheetState(() {
-                                    activeDaySheetTab = DaySheetTab.reminders;
-                                    _noteSheetShowReminders = true;
-                                  });
                                 },
                                 menu: PopupMenuButton<String>(
                                   icon: const Icon(
@@ -29166,19 +29212,10 @@ class CalendarPageState extends State<CalendarPage>
                                   color: DaySheetTokens.bgRaise,
                                   onSelected: (v) async {
                                     if (v == 'edit') {
-                                      final saved =
-                                          await openReminderEditorForSelectedDay(
-                                            existing: r,
-                                          );
-                                      if (!mounted) return;
-                                      if (saved) {
-                                        await _loadReminderRules();
-                                        setSheetState(() {
-                                          activeDaySheetTab =
-                                              DaySheetTab.reminders;
-                                          _noteSheetShowReminders = true;
-                                        });
-                                      }
+                                      await openReminderEditorForSelectedDay(
+                                        existing: r,
+                                      );
+                                      return;
                                     } else if (v == 'end' &&
                                         canManageReminderRule) {
                                       await _endReminderRule(r.id);
@@ -29186,6 +29223,7 @@ class CalendarPageState extends State<CalendarPage>
                                         canManageReminderRule) {
                                       await _deleteReminderRule(r.id);
                                     }
+                                    if (!sheetCtx.mounted) return;
                                     setSheetState(() {});
                                   },
                                   itemBuilder: (context) => [
@@ -29229,16 +29267,7 @@ class CalendarPageState extends State<CalendarPage>
                           child: DaySheetFab.pill(
                             label: 'Add reminder',
                             onPressed: () async {
-                              final saved =
-                                  await openReminderEditorForSelectedDay();
-                              if (!mounted) return;
-                              if (saved) {
-                                await _loadReminderRules();
-                                setSheetState(() {
-                                  activeDaySheetTab = DaySheetTab.reminders;
-                                  _noteSheetShowReminders = true;
-                                });
-                              }
+                              await openReminderEditorForSelectedDay();
                             },
                           ),
                         ),
@@ -34459,8 +34488,25 @@ class CalendarPageState extends State<CalendarPage>
     _reminderRules
       ..clear()
       ..addAll(rules);
+    _flows.removeWhere((flow) => flow.isReminder);
     _reminderRulesLoaded = true;
-    for (final rule in rules) {
+    for (var index = 0; index < rules.length; index++) {
+      final rule = rules[index];
+      _flows.add(
+        _Flow(
+          id: 8100 + index,
+          calendarId: rule.calendarId,
+          name: rule.title,
+          color: rule.color,
+          active: rule.active,
+          rules: const <FlowRule>[],
+          start: rule.startLocal,
+          end: rule.endLocal,
+          notes: jsonEncode(rule.toJson()),
+          isReminder: true,
+          reminderUuid: rule.id,
+        ),
+      );
       _materializeReminderLocally(
         rule: rule,
         occurrences: _generateReminderOccurrences(
@@ -34481,6 +34527,10 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   @visibleForTesting
+  int get debugReminderFlowCountForTesting =>
+      _flows.where((flow) => flow.isReminder).length;
+
+  @visibleForTesting
   void Function() debugBeginReminderEndIntentForTesting(String reminderId) {
     final ids = _logicalReminderRuleIds(reminderId);
     final rollback = _captureReminderEndRollback(ids);
@@ -34489,6 +34539,7 @@ class CalendarPageState extends State<CalendarPage>
       ids,
       removedRules: rollback.removedRules,
       removedNotesByDay: rollback.removedNotesByDay,
+      removedFlows: rollback.removedFlows,
     );
   }
 

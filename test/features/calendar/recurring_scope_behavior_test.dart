@@ -264,6 +264,8 @@ void main() {
       expect(reminderEditor, contains(': endLocal'));
       expect(reminderEditor, isNot(contains('_previewReminderLocally')));
       expect(reminderEditor, contains('DaySheetKeyboardSafeFrame('));
+      expect(reminderEditor, contains('useSafeArea: true'));
+      expect(reminderEditor, isNot(contains('maxHeightFactor: 0.85')));
       expect(
         reminderEditor,
         contains('accountSave = _upsertReminderRule(rule)'),
@@ -272,6 +274,22 @@ void main() {
       expect(
         reminderEditor.indexOf('Navigator.of(ctx).pop(true)'),
         lessThan(reminderEditor.indexOf('await accountSave')),
+      );
+
+      final daySheetReminderLauncher = _sourceBetween(
+        calendarPage,
+        'Future<bool> openReminderEditorForSelectedDay',
+        'const fieldScrollPadding = keyboardManagedTextFieldScrollPadding',
+      );
+      expect(
+        daySheetReminderLauncher,
+        contains('Navigator.of(sheetCtx).pop()'),
+      );
+      expect(
+        daySheetReminderLauncher.indexOf('Navigator.of(sheetCtx).pop()'),
+        lessThan(
+          daySheetReminderLauncher.indexOf('return _openReminderEditor'),
+        ),
       );
     });
 
@@ -298,6 +316,7 @@ void main() {
       expect(reminderEnd, contains('CalendarPage._runEndFlowRemote'));
       expect(reminderEnd, contains('_applyReminderEndIntentLocally'));
       expect(reminderEnd, contains('_rollbackReminderEndLocally'));
+      expect(reminderEnd, contains('rollback.removedFlows'));
       expect(
         reminderEnd.indexOf('_applyReminderEndIntentLocally'),
         lessThan(reminderEnd.indexOf('CalendarPage._runEndFlowRemote')),

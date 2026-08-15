@@ -7,6 +7,16 @@ extension _CalendarSnapshotPageAdapter on CalendarPageState {
     final userId = _activeWarmStartUserId()?.trim();
     if (userId == null || userId.isEmpty) return;
 
+    // Invalidation is the final operation in both cache write queues. A
+    // pre-mutation snapshot must never be allowed to finish after deletion
+    // and become the next relaunch paint.
+    _warmStartCacheDebounceTimer?.cancel();
+    _warmStartCacheDebounceTimer = null;
+    await Future.wait<void>(<Future<void>>[
+      _calendarSnapshotWriteTail,
+      _warmStartCacheWriteTail,
+    ]);
+
     // A cache is allowed to accelerate confirmed account state, never to
     // survive a newer server mutation as a competing authority. Remove both
     // warm-cache generations before publishing the confirmed mutation; the
@@ -697,6 +707,7 @@ extension _CalendarSnapshotPageAdapter on CalendarPageState {
       final rows = entry.value
           .where(
             (note) =>
+                !_isEndedReminderNote(note) &&
                 !unconfirmedCids.contains(note.clientEventId?.trim() ?? ''),
           )
           .map(
@@ -706,6 +717,7 @@ extension _CalendarSnapshotPageAdapter on CalendarPageState {
       if (rows.isNotEmpty) serverEvents[entry.key] = rows;
     }
     final flowRows = flows
+        .where((flow) => !_isEndedReminderFlow(flow))
         .map((flow) => Map<String, Object?>.from(_serializeWarmStartFlow(flow)))
         .toList(growable: false);
     final overlayRows = _calendarOverlayRows(confirmedCids: confirmedCids);
