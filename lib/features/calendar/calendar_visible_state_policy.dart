@@ -22,6 +22,18 @@ typedef CalendarItemSuppressionRule<T> = bool Function(String dayKey, T item);
 typedef CalendarBucketReducer<T> =
     List<T> Function(String dayKey, List<T> items);
 
+/// Resolves an exact stable-identity match between a source row and a pending
+/// row according to the authority represented by the source projection.
+enum CalendarPendingIdentityConflictResolution {
+  /// Live server hydration has observed the row, so the pending intent is
+  /// confirmed and no longer needs to be overlaid.
+  sourceConfirmsPending,
+
+  /// A restored snapshot can be older than its separately durable overlay, so
+  /// the pending row replaces every matching source row and remains pending.
+  pendingReplacesSource,
+}
+
 final class CalendarPendingVisibleItem<T> {
   const CalendarPendingVisibleItem({required this.dayKey, required this.item});
 
@@ -48,14 +60,17 @@ final class CalendarVisibleProjection<T> {
 /// Composes one visible projection from server-owned buckets and optimistic
 /// creates, then runs the shared per-day reducer and final suppression rules.
 ///
-/// A stable identity observed anywhere in [source] confirms the corresponding
-/// pending item. Otherwise the pending item remains visible in its local day
-/// bucket. Nothing in the source or pending collections is mutated.
+/// By default, a stable identity observed anywhere in [source] confirms the
+/// corresponding pending item. Snapshot restoration can instead declare its
+/// separately durable pending overlay newer than the source. Nothing in the
+/// source or pending collections is mutated.
 CalendarVisibleProjection<T> deriveVisibleCalendarProjection<T>({
   required Map<String, List<T>> source,
   required Iterable<CalendarPendingVisibleItem<T>> pendingItems,
   required String? Function(T item) stableIdentityOf,
   required Iterable<CalendarItemSuppressionRule<T>> suppressionRules,
+  CalendarPendingIdentityConflictResolution pendingIdentityConflictResolution =
+      CalendarPendingIdentityConflictResolution.sourceConfirmsPending,
   CalendarBucketReducer<T>? reduceBucket,
 }) {
   final pending = pendingItems.toList(growable: false);
@@ -78,8 +93,25 @@ CalendarVisibleProjection<T> deriveVisibleCalendarProjection<T>({
     if (identity != null &&
         identity.isNotEmpty &&
         sourceIdentities.contains(identity)) {
-      confirmedPendingIdentities.add(identity);
-      continue;
+      if (pendingIdentityConflictResolution ==
+          CalendarPendingIdentityConflictResolution.sourceConfirmsPending) {
+        confirmedPendingIdentities.add(identity);
+        continue;
+      }
+    }
+    if (identity != null &&
+        identity.isNotEmpty &&
+        pendingIdentityConflictResolution ==
+            CalendarPendingIdentityConflictResolution.pendingReplacesSource) {
+      combined.removeWhere((_, items) {
+        items.removeWhere((item) {
+          final candidateIdentity = stableIdentityOf(item)?.trim();
+          return candidateIdentity != null &&
+              candidateIdentity.isNotEmpty &&
+              candidateIdentity == identity;
+        });
+        return items.isEmpty;
+      });
     }
     combined.putIfAbsent(pendingItem.dayKey, () => <T>[]).add(pendingItem.item);
     preservedPendingItems++;

@@ -97,6 +97,18 @@ void main() {
     );
     expect(presentation, isNot(contains('_removePendingDeletedNotes(')));
     expect(snapshotRestore, contains('_replaceLiveNoteBuckets(notesByDay);'));
+    expect(
+      snapshotRestore,
+      contains('deriveVisibleCalendarProjection<_Note>('),
+    );
+    expect(
+      snapshotRestore,
+      contains(
+        'CalendarPendingIdentityConflictResolution.pendingReplacesSource',
+      ),
+    );
+    expect(snapshotRestore, isNot(contains('notesByDay.removeWhere(')));
+    expect(snapshotRestore, isNot(contains('notesByDay.putIfAbsent(')));
     expect(presentation, isNot(contains('..addAll(projection.notesByDay)')));
   });
 

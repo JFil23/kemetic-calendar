@@ -59,6 +59,31 @@ void main() {
       },
     );
 
+    test('restored pending identity replaces stale source across days', () {
+      final projection = deriveVisibleCalendarProjection<String>(
+        source: <String, List<String>>{
+          'stale-day': <String>['pending-cid', 'server-only'],
+        },
+        pendingItems: const <CalendarPendingVisibleItem<String>>[
+          CalendarPendingVisibleItem<String>(
+            dayKey: 'restored-day',
+            item: 'pending-cid',
+          ),
+        ],
+        stableIdentityOf: (item) => item,
+        suppressionRules: const <CalendarItemSuppressionRule<String>>[],
+        pendingIdentityConflictResolution:
+            CalendarPendingIdentityConflictResolution.pendingReplacesSource,
+      );
+
+      expect(projection.buckets, <String, List<String>>{
+        'stale-day': <String>['server-only'],
+        'restored-day': <String>['pending-cid'],
+      });
+      expect(projection.preservedPendingItems, 1);
+      expect(projection.confirmedPendingItems, 0);
+    });
+
     test('applies one ordered rule stack and stops at the first match', () {
       final calls = <String>[];
       final visible = deriveVisibleCalendarBuckets<String>(

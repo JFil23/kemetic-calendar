@@ -147,25 +147,30 @@ extension _CalendarSnapshotPageAdapter on CalendarPageState {
           .map((flow) => flow.id)
           .where((flowId) => flowId > 0)
           .toSet();
-      final notesByDay = <String, List<_Note>>{};
+      final snapshotNotesByDay = <String, List<_Note>>{};
       for (final entry in snapshot.eventsByDay.entries) {
-        final notes = _dedupeVisibleDayNotes(
-          entry.value
-              .map(_deserializeWarmStartNote)
-              .whereType<_Note>()
-              .toList(growable: true),
-          trackSkyFlowIds: trackSkyFlowIds,
-        );
-        if (notes.isNotEmpty) notesByDay[entry.key] = notes;
+        final notes = entry.value
+            .map(_deserializeWarmStartNote)
+            .whereType<_Note>()
+            .toList(growable: true);
+        if (notes.isNotEmpty) snapshotNotesByDay[entry.key] = notes;
       }
+      final authoritativeProjection = deriveVisibleCalendarProjection<_Note>(
+        source: snapshotNotesByDay,
+        pendingItems: const <CalendarPendingVisibleItem<_Note>>[],
+        stableIdentityOf: _calendarNoteStableIdentity,
+        suppressionRules: const <CalendarItemSuppressionRule<_Note>>[],
+        reduceBucket: (_, notes) =>
+            _dedupeVisibleDayNotes(notes, trackSkyFlowIds: trackSkyFlowIds),
+      );
       final authoritativeNotesByDay =
           Map<String, List<_Note>>.unmodifiable(<String, List<_Note>>{
-            for (final entry in notesByDay.entries)
+            for (final entry in authoritativeProjection.buckets.entries)
               entry.key: List<_Note>.unmodifiable(entry.value),
           });
 
       final restoredTombstones = <String>{};
-      final restoredPending = <_UnconfirmedNote>[];
+      final restoredPendingLedger = _UnconfirmedNoteLedger();
       for (final record in snapshot.overlayRecords) {
         final kind = record['kind']?.toString();
         if (kind == 'delete_tombstone') {
@@ -187,23 +192,14 @@ extension _CalendarSnapshotPageAdapter on CalendarPageState {
             note.clientEventId?.trim() != cid) {
           continue;
         }
-        notesByDay.removeWhere((_, notes) {
-          notes.removeWhere(
-            (candidate) => candidate.clientEventId?.trim() == cid,
-          );
-          return notes.isEmpty;
-        });
-        notesByDay.putIfAbsent(dayKey, () => <_Note>[]).add(note);
-        restoredPending.add(
-          _UnconfirmedNote(
-            dayKey: dayKey,
-            note: note,
-            createdAt:
-                DateTime.tryParse(
-                  record['createdAtUtc']?.toString() ?? '',
-                )?.toUtc() ??
-                snapshot.committedAtUtc,
-          ),
+        restoredPendingLedger.register(
+          dayKey: dayKey,
+          note: note,
+          createdAt:
+              DateTime.tryParse(
+                record['createdAtUtc']?.toString() ?? '',
+              )?.toUtc() ??
+              snapshot.committedAtUtc,
         );
       }
       for (final record in mirroredPending) {
@@ -212,40 +208,30 @@ extension _CalendarSnapshotPageAdapter on CalendarPageState {
             note.clientEventId?.trim() != record.clientEventId.trim()) {
           continue;
         }
-        final cid = record.clientEventId.trim();
-        notesByDay.removeWhere((_, notes) {
-          notes.removeWhere(
-            (candidate) => candidate.clientEventId?.trim() == cid,
-          );
-          return notes.isEmpty;
-        });
-        notesByDay.putIfAbsent(record.dayKey, () => <_Note>[]).add(note);
-        restoredPending.removeWhere(
-          (entry) => entry.note.clientEventId?.trim() == cid,
-        );
-        restoredPending.add(
-          _UnconfirmedNote(
-            dayKey: record.dayKey,
-            note: note,
-            createdAt: record.createdAt,
-          ),
+        restoredPendingLedger.register(
+          dayKey: record.dayKey,
+          note: note,
+          createdAt: record.createdAt,
         );
       }
       restoredTombstones.addAll(mirroredTombstones);
-      if (restoredTombstones.isNotEmpty) {
-        notesByDay.removeWhere((_, notes) {
-          notes.removeWhere(
-            (note) =>
-                restoredTombstones.contains(note.clientEventId?.trim() ?? ''),
-          );
-          return notes.isEmpty;
-        });
-        restoredPending.removeWhere(
-          (entry) => restoredTombstones.contains(
-            entry.note.clientEventId?.trim() ?? '',
+      restoredPendingLedger.forgetCids(restoredTombstones);
+      final visibleProjection = deriveVisibleCalendarProjection<_Note>(
+        source: snapshotNotesByDay,
+        pendingItems: restoredPendingLedger.visibleProjectionItems,
+        stableIdentityOf: _calendarNoteStableIdentity,
+        suppressionRules: <CalendarItemSuppressionRule<_Note>>[
+          (_, note) => restoredTombstones.contains(
+            _calendarNoteStableIdentity(note) ?? '',
           ),
-        );
-      }
+        ],
+        pendingIdentityConflictResolution:
+            CalendarPendingIdentityConflictResolution.pendingReplacesSource,
+        reduceBucket: (_, notes) =>
+            _dedupeVisibleDayNotes(notes, trackSkyFlowIds: trackSkyFlowIds),
+      );
+      final notesByDay = visibleProjection.buckets;
+      final restoredPending = restoredPendingLedger.entries;
 
       final calendarsById = <String, SharedCalendarSummary>{};
       final calendarsRaw = snapshot.calendarMetadata['calendars'];

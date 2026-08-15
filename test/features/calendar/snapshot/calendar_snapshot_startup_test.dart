@@ -126,6 +126,121 @@ void main() {
     },
   );
 
+  testWidgets(
+    'snapshot overlay replaces stale source and applies tombstones in first paint',
+    (tester) async {
+      final staleDay = KemeticMath.fromGregorian(
+        DateTime.now().subtract(const Duration(days: 4)),
+      );
+      final restoredDay = KemeticMath.fromGregorian(
+        DateTime.now().subtract(const Duration(days: 5)),
+      );
+      final staleDayKey =
+          '${staleDay.kYear}-${staleDay.kMonth}-${staleDay.kDay}';
+      final restoredDayKey =
+          '${restoredDay.kYear}-${restoredDay.kMonth}-${restoredDay.kDay}';
+      final nowUtc = DateTime.now().toUtc();
+      await tester.runAsync(() async {
+        await calendarSnapshotStore.commit(
+          CalendarSnapshotCommit(
+            userScope: _userId,
+            serverRevision: 'overlay-server-1',
+            overlayRevision: 'overlay-intents-1',
+            catalogFingerprint: 'overlay-catalog-1',
+            origin: 'overlay_startup_test',
+            committedAtUtc: nowUtc,
+            lastSuccessfulRefreshAtUtc: nowUtc,
+            coverage: <CalendarSnapshotCoverageInterval>[
+              CalendarSnapshotCoverageInterval(
+                startUtc: nowUtc.subtract(const Duration(days: 30)),
+                endUtc: nowUtc.add(const Duration(days: 30)),
+              ),
+            ],
+            eventsByDay: <String, List<Map<String, Object?>>>{
+              staleDayKey: <Map<String, Object?>>[
+                _note('moved-pending-cid', 'Stale source title'),
+                _note('deleted-cid', 'Deleted source event'),
+              ],
+            },
+            flows: const <Map<String, Object?>>[],
+            calendarMetadata: const <String, Object?>{
+              'personalCalendarId': null,
+              'hiddenCalendarIds': <String>[],
+              'calendars': <Object?>[],
+            },
+            overlayRecords: <Map<String, Object?>>[
+              <String, Object?>{
+                'kind': 'create_or_edit',
+                'dayKey': restoredDayKey,
+                'clientEventId': 'moved-pending-cid',
+                'createdAtUtc': nowUtc.toIso8601String(),
+                'note': _note('moved-pending-cid', 'Restored pending title'),
+              },
+              <String, Object?>{
+                'kind': 'delete_tombstone',
+                'identity': 'deleted-cid',
+              },
+            ],
+          ),
+          requireGenerationMatch: true,
+        );
+      });
+
+      final key = GlobalKey<CalendarPageState>();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(body: CalendarPage(key: key)),
+        ),
+      );
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 500)),
+      );
+      for (var attempt = 0; attempt < 80; attempt++) {
+        await tester.pump(const Duration(milliseconds: 25));
+        final restored = key.currentState?.notesForDayForTesting(
+          restoredDay.kYear,
+          restoredDay.kMonth,
+          restoredDay.kDay,
+        );
+        if (restored?.any(
+              (note) => note.clientEventId == 'moved-pending-cid',
+            ) ==
+            true) {
+          break;
+        }
+      }
+
+      final staleNotes = key.currentState!.notesForDayForTesting(
+        staleDay.kYear,
+        staleDay.kMonth,
+        staleDay.kDay,
+      );
+      final restoredNotes = key.currentState!.notesForDayForTesting(
+        restoredDay.kYear,
+        restoredDay.kMonth,
+        restoredDay.kDay,
+      );
+      expect(
+        staleNotes.map((note) => note.clientEventId),
+        isNot(contains('moved-pending-cid')),
+      );
+      expect(
+        staleNotes.map((note) => note.clientEventId),
+        isNot(contains('deleted-cid')),
+      );
+      expect(
+        restoredNotes
+            .singleWhere((note) => note.clientEventId == 'moved-pending-cid')
+            .title,
+        'Restored pending title',
+      );
+      expect(key.currentState!.debugUnconfirmedCount, 1);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 2));
+    },
+  );
+
   testWidgets('overlay-only snapshot falls back to covered legacy cache', (
     tester,
   ) async {
