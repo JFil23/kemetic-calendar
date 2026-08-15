@@ -275,6 +275,18 @@ void main() {
   });
 
   test('calendar note mutations publish through one reducer authority', () {
+    String sourceSlice(String startMarker, String endMarker) {
+      final start = calendarPageSource.indexOf(startMarker);
+      expect(start, isNonNegative, reason: 'missing $startMarker');
+      final end = calendarPageSource.indexOf(endMarker, start + 1);
+      expect(
+        end,
+        isNonNegative,
+        reason: 'missing $endMarker after $startMarker',
+      );
+      return calendarPageSource.substring(start, end);
+    }
+
     expect(calendarPageSource, contains('void _publishCalendarNoteMutation({'));
     final publication = calendarPageSource.substring(
       calendarPageSource.indexOf('void _publishCalendarNoteMutation({'),
@@ -324,5 +336,81 @@ void main() {
     expect(standaloneSave, contains('_removeCalendarNotesWhere('));
     expect(standaloneSave, isNot(contains('optimisticBucket')));
     expect(standaloneSave, isNot(contains('bucket?.removeWhere')));
+
+    final pendingVerification = sourceSlice(
+      'Future<void> _verifyPendingCid({',
+      'Map<String, dynamic> _buildWarmStartSnapshot({',
+    );
+    expect(pendingVerification, contains('_removeCalendarNotesWhere('));
+    expect(pendingVerification, isNot(contains('_notes.removeWhere')));
+
+    final detailCalendarUpdate = sourceSlice(
+      'void _applyDetailSheetCalendarToCache(',
+      'bool _canReassignDetailTargetCalendar(',
+    );
+    expect(detailCalendarUpdate, contains('_publishCalendarNoteMutation('));
+    expect(detailCalendarUpdate, isNot(contains('bucket[i] =')));
+
+    final reminderRollback = sourceSlice(
+      'void _rollbackReminderEndLocally(',
+      'void _showReminderEndFailure(',
+    );
+    expect(reminderRollback, contains('_publishCalendarNoteMutation('));
+    expect(reminderRollback, isNot(contains('_notes.putIfAbsent')));
+
+    final reminderPrune = sourceSlice(
+      'bool _pruneReminderNotes(',
+      'bool _materializeReminderLocally({',
+    );
+    expect(reminderPrune, contains('_removeCalendarNotesWhere('));
+    expect(reminderPrune, isNot(contains('_notes.forEach')));
+    expect(reminderPrune, isNot(contains('.removeWhere')));
+
+    final reminderMaterialization = sourceSlice(
+      'bool _materializeReminderLocally({',
+      'List<CalendarPendingVisibleItem<_Note>>',
+    );
+    expect(reminderMaterialization, contains('_publishCalendarNoteMutation('));
+
+    final addNote = sourceSlice(
+      'bool _addNote(',
+      'Future<void> _rollbackStagedFlowLocally(',
+    );
+    expect(addNote, contains('_publishCalendarNoteMutation('));
+    expect(addNote, isNot(contains('_notes.putIfAbsent')));
+
+    final localRemoval = sourceSlice(
+      '_Note? _removeLocalNoteOnly(',
+      'String _standaloneDedupeKey(',
+    );
+    expect(localRemoval, contains('_removeCalendarNotesWhere('));
+    expect(localRemoval, isNot(contains('.removeAt(')));
+
+    final deleteStart = calendarPageSource.indexOf(
+      'Future<bool> _deleteNote(int kYear, int kMonth, int kDay, int index)',
+    );
+    final deletePublicationEnd = calendarPageSource.indexOf(
+      'final repo = UserEventsRepo(',
+      deleteStart,
+    );
+    final responsiveDelete = calendarPageSource.substring(
+      deleteStart,
+      deletePublicationEnd,
+    );
+    expect(responsiveDelete, contains('_removeCalendarNotesWhere('));
+    expect(responsiveDelete, isNot(contains('.removeAt(')));
+
+    final persistedIdentity = sourceSlice(
+      'void _attachPersistedEventIdentity({',
+      'int? _findNoteIndexByEvent(',
+    );
+    expect(persistedIdentity, contains('_publishCalendarNoteMutation('));
+    expect(persistedIdentity, isNot(contains('bucket[i] =')));
+
+    expect(
+      calendarPageSource,
+      isNot(contains('_mutableNoteBucket')),
+      reason: 'production mutations must not retain a mutable bucket alias',
+    );
   });
 }

@@ -11004,12 +11004,9 @@ class CalendarPageState extends State<CalendarPage>
         case UserEventLookupDisposition.notFound:
           if (!_unconfirmed.containsCid(clientEventId)) return;
           _unconfirmed.forgetCid(clientEventId);
-          _notes.removeWhere((_, notes) {
-            notes.removeWhere(
-              (note) => note.clientEventId?.trim() == clientEventId,
-            );
-            return notes.isEmpty;
-          });
+          _removeCalendarNotesWhere(
+            (_, note) => note.clientEventId?.trim() == clientEventId,
+          );
           await _removePersistedPendingCids(<String>[
             clientEventId,
           ], userId: userId);
@@ -14159,8 +14156,9 @@ class CalendarPageState extends State<CalendarPage>
     String calendarId,
   ) {
     final calendarName = _detailSheetCalendarEventName(calendarId);
-    var changed = false;
-    for (final bucket in _notes.values) {
+    final upserts = <CalendarPendingVisibleItem<_Note>>[];
+    for (final entry in _notes.entries) {
+      final bucket = entry.value;
       for (int i = 0; i < bucket.length; i++) {
         final note = bucket[i];
         if (!_noteMatchesDetailSheetTarget(note, target)) continue;
@@ -14168,14 +14166,19 @@ class CalendarPageState extends State<CalendarPage>
             note.calendarName == calendarName) {
           continue;
         }
-        bucket[i] = note.copyWith(
-          calendarId: calendarId,
-          calendarName: calendarName,
+        upserts.add(
+          CalendarPendingVisibleItem(
+            dayKey: entry.key,
+            item: note.copyWith(
+              calendarId: calendarId,
+              calendarName: calendarName,
+            ),
+          ),
         );
-        changed = true;
       }
     }
-    if (changed) {
+    if (upserts.isNotEmpty) {
+      _publishCalendarNoteMutation(upserts: upserts);
       _bumpDataVersion();
     }
   }
@@ -19809,25 +19812,13 @@ class CalendarPageState extends State<CalendarPage>
         _reminderRules.add(rule);
       }
     }
-    for (final entry in removedNotesByDay.entries) {
-      final bucket = _mutableNoteBucket(entry.key);
-      for (final note in entry.value) {
-        final noteId = note.id?.trim();
-        final noteCid = note.clientEventId?.trim();
-        final alreadyPresent = bucket.any((candidate) {
-          final candidateId = candidate.id?.trim();
-          final candidateCid = candidate.clientEventId?.trim();
-          return (noteId != null &&
-                  noteId.isNotEmpty &&
-                  candidateId == noteId) ||
-              (noteCid != null &&
-                  noteCid.isNotEmpty &&
-                  candidateCid == noteCid) ||
-              identical(candidate, note);
-        });
-        if (!alreadyPresent) bucket.add(note);
-      }
-    }
+    _publishCalendarNoteMutation(
+      upserts: <CalendarPendingVisibleItem<_Note>>[
+        for (final entry in removedNotesByDay.entries)
+          for (final note in entry.value)
+            CalendarPendingVisibleItem<_Note>(dayKey: entry.key, item: note),
+      ],
+    );
     for (final removed in removedFlows) {
       if (_flows.any((candidate) => candidate.id == removed.flow.id)) continue;
       _flows.insert(removed.index.clamp(0, _flows.length), removed.flow);
@@ -20385,55 +20376,30 @@ class CalendarPageState extends State<CalendarPage>
     DateTime? fromDate,
     bool preserveDatabaseBacked = false,
   }) {
-    var changed = false;
-    final keysToRemove = <String>[];
-    final removedPendingCids = <String>{};
-    _notes.forEach((k, list) {
-      final before = list.length;
-      list.removeWhere((n) {
-        final isTarget = n.isReminder && n.reminderId == ruleId;
-        final isOverride =
-            n.detail?.contains(_kReminderManualOverrideMarker) == true;
-        if (isOverride) return false;
-        if (!isTarget) return false;
-        if (preserveDatabaseBacked) {
-          if ((n.id ?? '').trim().isNotEmpty) return false;
-        }
-        if (fromDate == null) {
-          final cid = n.clientEventId?.trim();
-          if (cid != null && cid.isNotEmpty) removedPendingCids.add(cid);
-          return true;
-        }
-        final parts = k.split('-');
-        if (parts.length != 3) return true;
-        final ky = int.tryParse(parts[0]) ?? 0;
-        final km = int.tryParse(parts[1]) ?? 0;
-        final kd = int.tryParse(parts[2]) ?? 0;
-        try {
-          final g = KemeticMath.toGregorian(ky, km, kd);
-          final remove = !g.isBefore(fromDate);
-          if (remove) {
-            final cid = n.clientEventId?.trim();
-            if (cid != null && cid.isNotEmpty) removedPendingCids.add(cid);
-          }
-          return remove;
-        } catch (_) {
-          return true;
-        }
-      });
-      if (list.length != before) {
-        changed = true;
+    bool matches(String dayKey, _Note note) {
+      final isTarget = note.isReminder && note.reminderId == ruleId;
+      final isOverride =
+          note.detail?.contains(_kReminderManualOverrideMarker) == true;
+      if (isOverride || !isTarget) return false;
+      if (preserveDatabaseBacked && (note.id ?? '').trim().isNotEmpty) {
+        return false;
       }
-      if (list.isEmpty) keysToRemove.add(k);
-    });
-    for (final k in keysToRemove) {
-      _notes.remove(k);
+      if (fromDate == null) return true;
+      final parts = dayKey.split('-');
+      if (parts.length != 3) return true;
+      final ky = int.tryParse(parts[0]) ?? 0;
+      final km = int.tryParse(parts[1]) ?? 0;
+      final kd = int.tryParse(parts[2]) ?? 0;
+      try {
+        return !KemeticMath.toGregorian(ky, km, kd).isBefore(fromDate);
+      } catch (_) {
+        return true;
+      }
     }
-    if (keysToRemove.isNotEmpty) {
-      changed = true;
-    }
-    _unconfirmed.forgetCids(removedPendingCids);
-    return changed;
+
+    final removed = _removeCalendarNotesWhere(matches);
+    _unconfirmed.forgetCids(removed.clientEventIds);
+    return removed.notesByDay.isNotEmpty;
   }
 
   bool _materializeReminderLocally({
@@ -20442,27 +20408,33 @@ class CalendarPageState extends State<CalendarPage>
     int? flowId,
     bool notify = true,
   }) {
-    final changed =
-        _materializeReminderIntoNotes(
-          notesByDay: _notes,
-          rule: rule,
-          occurrences: occurrences,
-          flowId: flowId,
-        ) >
-        0;
+    final pendingItems = _buildReminderMaterializationItems(
+      notesByDay: _notes,
+      rule: rule,
+      occurrences: occurrences,
+      flowId: flowId,
+    );
+    final changed = pendingItems.isNotEmpty;
+    if (changed) {
+      _publishCalendarNoteMutation(upserts: pendingItems);
+    }
     if (changed && notify) {
       _refreshNoteCacheUi();
     }
     return changed;
   }
 
-  int _materializeReminderIntoNotes({
+  List<CalendarPendingVisibleItem<_Note>> _buildReminderMaterializationItems({
     required Map<String, List<_Note>> notesByDay,
     required ReminderRule rule,
     required List<DateTime> occurrences,
     int? flowId,
   }) {
-    var added = 0;
+    final working = <String, List<_Note>>{
+      for (final entry in notesByDay.entries)
+        entry.key: List<_Note>.from(entry.value),
+    };
+    final pendingItems = <CalendarPendingVisibleItem<_Note>>[];
     final calendarName = _calendarSummary(rule.calendarId)?.name;
     for (final day in occurrences) {
       final k = KemeticMath.fromGregorian(day);
@@ -20492,7 +20464,7 @@ class CalendarPageState extends State<CalendarPage>
       // Skip if a canonical DB-backed note already exists for this flow/time/title.
       if (flowId != null && flowId > 0) {
         final key = _kKey(k.kYear, k.kMonth, k.kDay);
-        final bucket = notesByDay[key];
+        final bucket = working[key];
         if (bucket != null) {
           final targetTitle = rule.title.trim().toLowerCase();
           final hasCanonical = bucket.any((n) {
@@ -20514,30 +20486,52 @@ class CalendarPageState extends State<CalendarPage>
         }
       }
       final key = _kKey(k.kYear, k.kMonth, k.kDay);
-      final bucket = notesByDay.putIfAbsent(key, () => <_Note>[]);
+      final bucket = working.putIfAbsent(key, () => <_Note>[]);
       if (bucket.any((note) => note.clientEventId?.trim() == clientEventId)) {
         continue;
       }
-      bucket.add(
-        _Note(
-          clientEventId: clientEventId,
-          calendarId: rule.calendarId,
-          calendarName: calendarName,
-          title: rule.title,
-          allDay: rule.allDay,
-          start: startTime,
-          end: endTime,
-          flowId: flowId,
-          manualColor: rule.color,
-          category: rule.category,
-          isReminder: true,
-          reminderId: rule.id,
-          alertOffsetMinutes: rule.alertOffsetMinutes,
-        ),
+      final note = _Note(
+        clientEventId: clientEventId,
+        calendarId: rule.calendarId,
+        calendarName: calendarName,
+        title: rule.title,
+        allDay: rule.allDay,
+        start: startTime,
+        end: endTime,
+        flowId: flowId,
+        manualColor: rule.color,
+        category: rule.category,
+        isReminder: true,
+        reminderId: rule.id,
+        alertOffsetMinutes: rule.alertOffsetMinutes,
       );
-      added++;
+      bucket.add(note);
+      pendingItems.add(
+        CalendarPendingVisibleItem<_Note>(dayKey: key, item: note),
+      );
     }
-    return added;
+    return pendingItems;
+  }
+
+  int _materializeReminderIntoNotes({
+    required Map<String, List<_Note>> notesByDay,
+    required ReminderRule rule,
+    required List<DateTime> occurrences,
+    int? flowId,
+  }) {
+    final pendingItems = _buildReminderMaterializationItems(
+      notesByDay: notesByDay,
+      rule: rule,
+      occurrences: occurrences,
+      flowId: flowId,
+    );
+    for (final pending in pendingItems) {
+      final bucket = List<_Note>.from(
+        notesByDay[pending.dayKey] ?? const <_Note>[],
+      )..add(pending.item);
+      notesByDay[pending.dayKey] = bucket;
+    }
+    return pendingItems.length;
   }
 
   int _projectReminderMembershipForHydration({
@@ -22388,18 +22382,6 @@ class CalendarPageState extends State<CalendarPage>
     _notifyDayViewDataChanged();
   }
 
-  /// Hydration projections are immutable snapshots, while [_notes] is the
-  /// page's live editing cache. Never retain a projection bucket directly in
-  /// live state and never assume an existing bucket is growable.
-  List<_Note> _mutableNoteBucket(String dayKey) {
-    final mutable = List<_Note>.from(
-      _notes[dayKey] ?? const <_Note>[],
-      growable: true,
-    );
-    _notes[dayKey] = mutable;
-    return mutable;
-  }
-
   void _replaceLiveNoteBuckets(Map<String, List<_Note>> source) {
     final visible = deriveVisibleCalendarBuckets<_Note>(
       source: source,
@@ -22603,7 +22585,6 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     final k = _kKey(kYear, kMonth, kDay);
-    final list = _mutableNoteBucket(k);
     final note = _Note(
       id: id,
       clientEventId: clientEventId,
@@ -22628,7 +22609,11 @@ class CalendarPageState extends State<CalendarPage>
           ? null
           : Map<String, dynamic>.from(behaviorPayload),
     );
-    list.add(note);
+    _publishCalendarNoteMutation(
+      upserts: <CalendarPendingVisibleItem<_Note>>[
+        CalendarPendingVisibleItem<_Note>(dayKey: k, item: note),
+      ],
+    );
     if (confirmation == NoteConfirmation.unconfirmed) {
       _unconfirmed.register(
         dayKey: k,
@@ -22693,9 +22678,10 @@ class CalendarPageState extends State<CalendarPage>
     final existing = _notes[k];
     if (existing == null || index < 0 || index >= existing.length) return null;
 
-    final list = _mutableNoteBucket(k);
-    final removed = list.removeAt(index);
-    if (list.isEmpty) _notes.remove(k);
+    final removed = existing[index];
+    _removeCalendarNotesWhere(
+      (dayKey, note) => dayKey == k && identical(note, removed),
+    );
     final removedCid = removed.clientEventId?.trim();
     _unconfirmed.forgetCid(removedCid);
     if (removedCid != null && removedCid.isNotEmpty) {
@@ -24031,9 +24017,9 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     // Remove locally for responsive UI.
-    final list = _mutableNoteBucket(k);
-    list.removeAt(index);
-    if (list.isEmpty) _notes.remove(k);
+    _removeCalendarNotesWhere(
+      (dayKey, candidate) => dayKey == k && identical(candidate, note),
+    );
     setState(() {});
     _notifyDayViewDataChanged();
 
@@ -24501,18 +24487,22 @@ class CalendarPageState extends State<CalendarPage>
   }) {
     if (!mounted) return;
 
-    var changed = false;
-    for (final bucket in _notes.values) {
-      for (var i = 0; i < bucket.length; i++) {
-        final note = bucket[i];
+    final upserts = <CalendarPendingVisibleItem<_Note>>[];
+    for (final entry in _notes.entries) {
+      for (final note in entry.value) {
         if ((note.clientEventId?.trim() ?? '') != clientEventId) continue;
         if (note.id?.trim().isNotEmpty ?? false) continue;
-        bucket[i] = note.copyWith(id: eventId, clientEventId: clientEventId);
-        changed = true;
+        upserts.add(
+          CalendarPendingVisibleItem<_Note>(
+            dayKey: entry.key,
+            item: note.copyWith(id: eventId, clientEventId: clientEventId),
+          ),
+        );
       }
     }
 
-    if (changed) {
+    if (upserts.isNotEmpty) {
+      _publishCalendarNoteMutation(upserts: upserts);
       setState(() {});
       _notifyDayViewDataChanged();
     }
