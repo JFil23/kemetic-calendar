@@ -145,6 +145,44 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('ignores stale focus while a focused input is deactivated', (
+      tester,
+    ) async {
+      var showInput = true;
+      late StateSetter updateChild;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) =>
+              KemeticKeyboardHost(child: child ?? const SizedBox.shrink()),
+          home: StatefulBuilder(
+            builder: (context, setState) {
+              updateChild = setState;
+              return Scaffold(
+                body: showInput
+                    ? const TextField(
+                        key: ValueKey('deactivated-focused-input'),
+                        autofocus: true,
+                      )
+                    : const SizedBox.shrink(),
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+
+      updateChild(() => showInput = false);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+
+      expect(
+        find.byKey(const ValueKey('deactivated-focused-input')),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets(
       'closes cleanly from the quick add modal sheet when returning to the system keyboard',
       (tester) async {

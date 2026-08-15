@@ -81,8 +81,19 @@ class KemeticKeyboardController extends ChangeNotifier {
 
   EditableTextState? _findEditableFromFocus() {
     final focus = FocusManager.instance.primaryFocus;
-    if (focus?.context == null) return null;
-    return focus!.context!.findAncestorStateOfType<EditableTextState>();
+    final focusContext = focus?.context;
+    if (focusContext == null || !focusContext.mounted || !focus!.hasFocus) {
+      return null;
+    }
+    try {
+      return focusContext.findAncestorStateOfType<EditableTextState>();
+    } on FlutterError {
+      // A route replacement can leave primaryFocus pointing at an element
+      // that is mounted but already deactivated for the remainder of this
+      // frame. Treat that transient focus as absent; the next focus event
+      // will attach the new route's editable.
+      return null;
+    }
   }
 
   void ensureEditableFromFocus() {
@@ -573,11 +584,7 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
     // Ignore transient focus churn while swapping keyboards.
     if (_opening) return;
 
-    final focus = FocusManager.instance.primaryFocus;
-    EditableTextState? editable;
-    if (focus?.context != null) {
-      editable = focus!.context!.findAncestorStateOfType<EditableTextState>();
-    }
+    final editable = _controller._findEditableFromFocus();
 
     // Custom mode: keep last target, prevent system keyboard from re-opening.
     if (_controller.isCustomMode) {
