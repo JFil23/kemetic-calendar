@@ -243,6 +243,108 @@ void main() {
   );
 
   testWidgets(
+    'pending reminder intent survives a hydration projection before server confirmation',
+    (tester) async {
+      final day = DateTime(2026, 8, 15, 2, 15);
+      final thirdDay = day.add(const Duration(days: 2));
+      final thirdKDay = picker.KemeticMath.fromGregorian(thirdDay);
+      final rule = ReminderRule(
+        id: 'pending-daily-reminder',
+        title: 'Test reminder',
+        startLocal: day,
+        allDay: false,
+        color: const Color(0xff7bb661),
+        repeat: const ReminderRepeat(
+          kind: ReminderRepeatKind.everyNDays,
+          interval: 1,
+        ),
+      );
+      CalendarPage.debugReminderSyncTodayForTesting = DateUtils.dateOnly(day);
+      CalendarPage.debugReminderSyncWindowEndForTesting = DateUtils.dateOnly(
+        thirdDay,
+      );
+
+      final state = await pumpCalendar(tester);
+      state.debugStageReminderIntentForTesting(rule: rule, windowEnd: thirdDay);
+
+      expect(state.debugReminderRulesForTesting, hasLength(1));
+      expect(
+        state.debugReminderRulesForTesting.single.repeat.kind,
+        ReminderRepeatKind.everyNDays,
+      );
+      expect(state.debugReplaceWithPendingReminderProjectionForTesting(), 3);
+      final thirdDayNotes = state.notesForDayForTesting(
+        thirdKDay.kYear,
+        thirdKDay.kMonth,
+        thirdKDay.kDay,
+      );
+      expect(thirdDayNotes, hasLength(1));
+      expect(thirdDayNotes.single.reminderId, rule.id);
+      expect(thirdDayNotes.single.title, rule.title);
+      await disposeCalendar(tester);
+    },
+  );
+
+  testWidgets(
+    'ending a logical reminder removes legacy aliases and every occurrence immediately',
+    (tester) async {
+      final day = DateTime(2026, 8, 15, 2, 15);
+      final nextDay = day.add(const Duration(days: 1));
+      final dayK = picker.KemeticMath.fromGregorian(day);
+      final nextDayK = picker.KemeticMath.fromGregorian(nextDay);
+      final oneTime = ReminderRule(
+        id: 'legacy-one-time-copy',
+        title: 'Test reminder',
+        startLocal: day,
+        allDay: false,
+        color: const Color(0xff7bb661),
+      );
+      final repeating = ReminderRule(
+        id: 'legacy-repeating-copy',
+        title: 'Test reminder',
+        startLocal: day,
+        allDay: false,
+        color: const Color(0xff7bb661),
+        repeat: const ReminderRepeat(
+          kind: ReminderRepeatKind.everyNDays,
+          interval: 1,
+        ),
+      );
+
+      final state = await pumpCalendar(tester);
+      state.debugSeedReminderRulesForTesting(<ReminderRule>[
+        oneTime,
+        repeating,
+      ], windowEnd: nextDay);
+      expect(
+        state.notesForDayForTesting(dayK.kYear, dayK.kMonth, dayK.kDay),
+        hasLength(2),
+      );
+
+      final endedIds = state.debugApplyReminderEndIntentForTesting(
+        repeating.id,
+      );
+
+      expect(endedIds, <String>{oneTime.id, repeating.id});
+      expect(state.debugEndedReminderIdsForTesting, containsAll(endedIds));
+      expect(state.debugReminderRulesForTesting, isEmpty);
+      expect(
+        state.notesForDayForTesting(dayK.kYear, dayK.kMonth, dayK.kDay),
+        isEmpty,
+      );
+      expect(
+        state.notesForDayForTesting(
+          nextDayK.kYear,
+          nextDayK.kMonth,
+          nextDayK.kDay,
+        ),
+        isEmpty,
+      );
+      await disposeCalendar(tester);
+    },
+  );
+
+  testWidgets(
     'disk warm restore projects reminder membership before its first publication',
     (tester) async {
       const userId = '27d63169-a28a-4550-a0a0-8fee0e8e7b95';
