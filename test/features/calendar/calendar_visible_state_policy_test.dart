@@ -113,6 +113,53 @@ void main() {
       });
     });
 
+    test('identity-changing move and rollback remain idempotent', () {
+      String identityOf(String item) => item.split('|').first;
+      bool sameLogicalEvent(
+        String sourceDay,
+        String source,
+        String pendingDay,
+        String pending,
+      ) =>
+          sourceDay == pendingDay &&
+          source.split('|').last == pending.split('|').last;
+
+      CalendarVisibleProjection<String> publish(
+        Map<String, List<String>> source,
+        String pending,
+      ) => deriveVisibleCalendarProjection<String>(
+        source: source,
+        pendingItems: <CalendarPendingVisibleItem<String>>[
+          CalendarPendingVisibleItem<String>(dayKey: 'day-1', item: pending),
+        ],
+        stableIdentityOf: identityOf,
+        suppressionRules: const <CalendarItemSuppressionRule<String>>[],
+        pendingIdentityConflictResolution:
+            CalendarPendingIdentityConflictResolution.pendingReplacesSource,
+        pendingSourceConflictRule: sameLogicalEvent,
+      );
+
+      final moved = publish(<String, List<String>>{
+        'day-1': <String>['cid-old|event', 'keep|other'],
+        'day-2': <String>['cid-old|event'],
+      }, 'cid-new|event');
+      final movedAgain = publish(moved.buckets, 'cid-new|event');
+      const expectedMoved = <String, List<String>>{
+        'day-1': <String>['keep|other', 'cid-new|event'],
+        'day-2': <String>['cid-old|event'],
+      };
+      expect(moved.buckets, expectedMoved);
+      expect(movedAgain.buckets, expectedMoved);
+
+      final rolledBack = publish(moved.buckets, 'cid-old|event');
+      final rolledBackAgain = publish(rolledBack.buckets, 'cid-old|event');
+      const expectedRollback = <String, List<String>>{
+        'day-1': <String>['keep|other', 'cid-old|event'],
+      };
+      expect(rolledBack.buckets, expectedRollback);
+      expect(rolledBackAgain.buckets, expectedRollback);
+    });
+
     test('catalog merge is identity-stable and incoming-last-wins', () {
       final merged = mergeCalendarCatalogByIdentity<String, int>(
         source: <String>['1:old', '1:duplicate', '2:keep', 'local'],

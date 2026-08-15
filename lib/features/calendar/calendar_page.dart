@@ -22425,6 +22425,21 @@ class CalendarPageState extends State<CalendarPage>
     return null;
   }
 
+  bool _calendarNoteMatchesIdentityAliases(
+    _Note note, {
+    Iterable<String?> eventIds = const <String?>[],
+    Iterable<String?> clientEventIds = const <String?>[],
+  }) {
+    bool matches(String? value, Iterable<String?> aliases) {
+      final candidate = value?.trim();
+      if (candidate == null || candidate.isEmpty) return false;
+      return aliases.any((alias) => alias?.trim() == candidate);
+    }
+
+    return matches(note.id, eventIds) ||
+        matches(note.clientEventId, clientEventIds);
+  }
+
   /// The single publication path for local calendar-note mutations.
   ///
   /// Flow staging, replacement, optimistic removal, rollback, and shared
@@ -24881,9 +24896,8 @@ class CalendarPageState extends State<CalendarPage>
     _eventMoveInProgress.add(moveKey);
 
     final key = _kKey(ky, km, kd);
-    int localIdx = -1;
     _Note? previousNote;
-    bool updatedLocalNote = false;
+    _Note? publishedNote;
     final bool isReminderOccurrence =
         rawClientId != null && rawClientId.startsWith('reminder:');
     String? detailWithOverrideMarker;
@@ -25143,7 +25157,7 @@ class CalendarPageState extends State<CalendarPage>
       final cleanedDetail = _cleanDetail(updatedMeta.detail);
 
       _Note reminderNote;
-      localIdx = _findNoteIndexByIdOrClientId(
+      final localIdx = _findNoteIndexByIdOrClientId(
         key,
         eventId: updated.id,
         clientEventId: updated.clientEventId,
@@ -25168,10 +25182,7 @@ class CalendarPageState extends State<CalendarPage>
               updatedMeta.alertMinutes ??
               _alertNoneMinutes,
         );
-        _notes[key]![localIdx] = replacement;
-        updatedLocalNote = true;
         reminderNote = replacement;
-        logBucket('move: updated _notes (in-place)');
       } else {
         if (kDebugMode) {
           _calendarDebugPrint(
@@ -25202,46 +25213,41 @@ class CalendarPageState extends State<CalendarPage>
           reminderId: evt.reminderId,
           alertOffsetMinutes: updatedMeta.alertMinutes ?? _alertNoneMinutes,
         );
-        final bucket = _notes.putIfAbsent(key, () => <_Note>[]);
-        bucket.add(reminderNote);
-        bucket.removeWhere((n) {
-          if (identical(n, reminderNote)) return false;
-          final noteId = n.id?.trim() ?? '';
-          final noteCid = n.clientEventId?.trim() ?? '';
-          final updatedIdMatch =
-              reminderNote.id != null &&
-              reminderNote.id!.isNotEmpty &&
-              noteId == reminderNote.id;
-          final updatedCidMatch =
-              reminderNote.clientEventId != null &&
-              reminderNote.clientEventId!.isNotEmpty &&
-              noteCid == reminderNote.clientEventId;
-          final incomingIdMatch =
-              rawId != null && rawId.isNotEmpty && noteId == rawId;
-          final incomingCidMatch =
-              rawClientId != null &&
-              rawClientId.isNotEmpty &&
-              noteCid == rawClientId;
-          final titleStartMatch =
-              n.title.trim().toLowerCase() ==
-                  reminderNote.title.trim().toLowerCase() &&
-              n.start != null &&
-              reminderNote.start != null &&
-              n.start!.hour == reminderNote.start!.hour &&
-              n.start!.minute == reminderNote.start!.minute;
-          return updatedIdMatch ||
-              updatedCidMatch ||
-              incomingIdMatch ||
-              incomingCidMatch ||
-              titleStartMatch;
-        });
         _unconfirmed.forgetCids(<String>{
           if ((reminderNote.clientEventId ?? '').trim().isNotEmpty)
             reminderNote.clientEventId!.trim(),
           if ((rawClientId ?? '').trim().isNotEmpty) rawClientId!.trim(),
         });
-        logBucket('move: reconciled _notes (fallback)');
       }
+
+      _publishCalendarNoteMutation(
+        upserts: <CalendarPendingVisibleItem<_Note>>[
+          CalendarPendingVisibleItem<_Note>(dayKey: key, item: reminderNote),
+        ],
+        sourceConflictRule: (sourceDayKey, source, pendingDayKey, pending) {
+          if (sourceDayKey != pendingDayKey) return false;
+          if (_calendarNoteMatchesIdentityAliases(
+            source,
+            eventIds: <String?>[pending.id, rawId],
+            clientEventIds: <String?>[pending.clientEventId, rawClientId],
+          )) {
+            return true;
+          }
+          if (previousNote != null) return identical(source, previousNote);
+          return source.title.trim().toLowerCase() ==
+                  pending.title.trim().toLowerCase() &&
+              source.start != null &&
+              pending.start != null &&
+              source.start!.hour == pending.start!.hour &&
+              source.start!.minute == pending.start!.minute;
+        },
+      );
+      publishedNote = reminderNote;
+      logBucket(
+        previousNote == null
+            ? 'move: reconciled note publication (fallback)'
+            : 'move: replaced note publication',
+      );
 
       final alertMinutes = _effectiveAlertMinutes(
         reminderNote.alertOffsetMinutes,
@@ -25300,11 +25306,21 @@ class CalendarPageState extends State<CalendarPage>
 
       _notifyDayViewDataChanged();
     } catch (e, st) {
-      if (updatedLocalNote && previousNote != null) {
-        final list = _notes[key];
-        if (list != null && localIdx >= 0 && localIdx < list.length) {
-          list[localIdx] = previousNote;
-        }
+      final rollbackNote = previousNote;
+      final failedNote = publishedNote;
+      if (rollbackNote != null && failedNote != null) {
+        _publishCalendarNoteMutation(
+          upserts: <CalendarPendingVisibleItem<_Note>>[
+            CalendarPendingVisibleItem<_Note>(dayKey: key, item: rollbackNote),
+          ],
+          sourceConflictRule: (sourceDayKey, source, pendingDayKey, _) =>
+              sourceDayKey == pendingDayKey &&
+              _calendarNoteMatchesIdentityAliases(
+                source,
+                eventIds: <String?>[failedNote.id],
+                clientEventIds: <String?>[failedNote.clientEventId],
+              ),
+        );
       }
       if (kDebugMode) {
         _calendarDebugPrint('[DayView] move failed for $moveKey: $e');
@@ -32048,45 +32064,29 @@ class CalendarPageState extends State<CalendarPage>
         throw StateError('Cannot persist pending note without a user');
       }
 
-      final optimisticBucket = _notes[pendingDayKey];
-      final optimisticIndex = optimisticBucket?.indexWhere(
-        (candidate) => candidate.clientEventId?.trim() == unifiedCid,
-      );
-      if (optimisticBucket != null &&
-          optimisticIndex != null &&
-          optimisticIndex >= 0) {
-        optimisticBucket[optimisticIndex] = savedNote;
-        if (savedClientEventId != unifiedCid) {
-          _unconfirmed.forgetCid(unifiedCid);
-        }
-        _unconfirmed.register(
-          dayKey: pendingDayKey,
-          note: savedNote,
-          createdAt: pendingCreatedAt,
-        );
-        _refreshNoteCacheUi();
-      } else {
-        _addNote(
-          selYear,
-          selMonth,
-          selDay,
-          title,
-          detail,
-          id: updated.id,
-          clientEventId: savedClientEventId,
-          calendarId: updated.calendarId ?? calendarId,
-          calendarName: calendarName,
-          location: location,
-          allDay: allDay,
-          start: startTime,
-          end: endTime,
-          manualColor: color,
-          category: category,
-          alertOffsetMinutes: alertMinutesBefore,
-          confirmation: NoteConfirmation.unconfirmed,
-          unconfirmedCreatedAt: pendingCreatedAt,
-        );
+      if (savedClientEventId != unifiedCid) {
+        _unconfirmed.forgetCid(unifiedCid);
       }
+      _unconfirmed.register(
+        dayKey: pendingDayKey,
+        note: savedNote,
+        createdAt: pendingCreatedAt,
+      );
+      _publishCalendarNoteMutation(
+        upserts: <CalendarPendingVisibleItem<_Note>>[
+          CalendarPendingVisibleItem<_Note>(
+            dayKey: pendingDayKey,
+            item: savedNote,
+          ),
+        ],
+        sourceConflictRule: (sourceDayKey, source, pendingDayKey, _) =>
+            sourceDayKey == pendingDayKey &&
+            _calendarNoteMatchesIdentityAliases(
+              source,
+              clientEventIds: <String?>[unifiedCid],
+            ),
+      );
+      _refreshNoteCacheUi();
       await _persistPendingNote(
         userId: pendingUserId,
         dayKey: pendingDayKey,
@@ -32143,18 +32143,14 @@ class CalendarPageState extends State<CalendarPage>
     } catch (e, st) {
       if (!writeSucceeded && optimisticAdded) {
         final pendingDayKey = _kKey(selYear, selMonth, selDay);
-        final bucket = _notes[pendingDayKey];
-        final before = bucket?.length ?? 0;
-        bucket?.removeWhere(
-          (candidate) =>
+        final removed = _removeCalendarNotesWhere(
+          (dayKey, candidate) =>
+              dayKey == pendingDayKey &&
               candidate.id == null &&
               candidate.clientEventId?.trim() == unifiedCid,
         );
-        if (bucket != null && bucket.isEmpty) {
-          _notes.remove(pendingDayKey);
-        }
         _unconfirmed.forgetCid(unifiedCid);
-        if ((bucket?.length ?? 0) != before) {
+        if (removed.notesByDay.isNotEmpty) {
           _refreshNoteCacheUi();
         }
       }

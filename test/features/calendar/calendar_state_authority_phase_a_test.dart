@@ -174,10 +174,23 @@ void main() {
       RegExp(
         r'confirmation:\s*NoteConfirmation\.unconfirmed',
       ).allMatches(calendarPageSource).length,
-      2,
+      1,
       reason:
-          'optimistic standalone saves and their reconciliation fallback '
-          'must survive hydration',
+          'standalone save inserts one optimistic projection before persistence',
+    );
+    final standaloneSave = calendarPageSource.substring(
+      calendarPageSource.indexOf(
+        'Future<({String clientEventId, String eventId})> _saveSingleNoteOnly',
+      ),
+      calendarPageSource.indexOf(
+        'Future<({String clientEventId, String eventId})> _updateSingleNoteOnly',
+      ),
+    );
+    expect(
+      RegExp(r'_unconfirmed\.register\(').allMatches(standaloneSave).length,
+      1,
+      reason:
+          'server confirmation replaces the optimistic ledger entry in place',
     );
     final stagedApply = calendarPageSource.substring(
       calendarPageSource.indexOf('void _applyPendingStagedFlow(int flowId)'),
@@ -261,39 +274,55 @@ void main() {
     );
   });
 
-  test(
-    'flow note mutations publish through one calendar reducer authority',
-    () {
-      expect(
-        calendarPageSource,
-        contains('void _publishCalendarNoteMutation({'),
-      );
-      final publication = calendarPageSource.substring(
-        calendarPageSource.indexOf('void _publishCalendarNoteMutation({'),
-        calendarPageSource.indexOf(
-          'String? _calendarNoteStableIdentity(_Note note)',
-        ),
-      );
-      expect(publication, contains('deriveVisibleCalendarProjection<_Note>('));
-      expect(publication, contains('_replaceLiveNoteBuckets('));
+  test('calendar note mutations publish through one reducer authority', () {
+    expect(calendarPageSource, contains('void _publishCalendarNoteMutation({'));
+    final publication = calendarPageSource.substring(
+      calendarPageSource.indexOf('void _publishCalendarNoteMutation({'),
+      calendarPageSource.indexOf(
+        'String? _calendarNoteStableIdentity(_Note note)',
+      ),
+    );
+    expect(publication, contains('deriveVisibleCalendarProjection<_Note>('));
+    expect(publication, contains('_replaceLiveNoteBuckets('));
 
-      final stagedApply = calendarPageSource.substring(
-        calendarPageSource.indexOf('void _applyPendingStagedFlow(int flowId)'),
-        calendarPageSource.indexOf(
-          'bool _schedulePendingStagedFlowDayViewIfAny()',
-        ),
-      );
-      expect(stagedApply, contains('_publishCalendarNoteMutation('));
-      expect(stagedApply, isNot(contains('_addNote(')));
+    final stagedApply = calendarPageSource.substring(
+      calendarPageSource.indexOf('void _applyPendingStagedFlow(int flowId)'),
+      calendarPageSource.indexOf(
+        'bool _schedulePendingStagedFlowDayViewIfAny()',
+      ),
+    );
+    expect(stagedApply, contains('_publishCalendarNoteMutation('));
+    expect(stagedApply, isNot(contains('_addNote(')));
 
-      final flowEndRollback = calendarPageSource.substring(
-        calendarPageSource.indexOf(
-          'void _rollbackOptimisticEndedFlow(int flowId',
-        ),
-        calendarPageSource.indexOf('Future<bool> _makeTodoFromEventTarget('),
-      );
-      expect(flowEndRollback, contains('_publishCalendarNoteMutation('));
-      expect(flowEndRollback, isNot(contains('_notes.putIfAbsent')));
-    },
-  );
+    final flowEndRollback = calendarPageSource.substring(
+      calendarPageSource.indexOf(
+        'void _rollbackOptimisticEndedFlow(int flowId',
+      ),
+      calendarPageSource.indexOf('Future<bool> _makeTodoFromEventTarget('),
+    );
+    expect(flowEndRollback, contains('_publishCalendarNoteMutation('));
+    expect(flowEndRollback, isNot(contains('_notes.putIfAbsent')));
+
+    final dayViewMove = calendarPageSource.substring(
+      calendarPageSource.indexOf('Future<void> _moveEventInDayView('),
+      calendarPageSource.indexOf('Future<int?> _saveNewFlow('),
+    );
+    expect(dayViewMove, contains('_publishCalendarNoteMutation('));
+    expect(dayViewMove, isNot(contains('_notes[key]![localIdx] =')));
+    expect(dayViewMove, isNot(contains('_notes.putIfAbsent')));
+    expect(dayViewMove, isNot(contains('bucket.removeWhere')));
+
+    final standaloneSave = calendarPageSource.substring(
+      calendarPageSource.indexOf(
+        'Future<({String clientEventId, String eventId})> _saveSingleNoteOnly',
+      ),
+      calendarPageSource.indexOf(
+        'Future<({String clientEventId, String eventId})> _updateSingleNoteOnly',
+      ),
+    );
+    expect(standaloneSave, contains('_publishCalendarNoteMutation('));
+    expect(standaloneSave, contains('_removeCalendarNotesWhere('));
+    expect(standaloneSave, isNot(contains('optimisticBucket')));
+    expect(standaloneSave, isNot(contains('bucket?.removeWhere')));
+  });
 }
