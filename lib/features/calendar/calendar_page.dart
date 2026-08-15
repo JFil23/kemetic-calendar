@@ -22421,6 +22421,13 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
+  String? _calendarNoteStableIdentity(_Note note) {
+    final clientEventId = note.clientEventId?.trim();
+    return clientEventId == null || clientEventId.isEmpty
+        ? null
+        : clientEventId;
+  }
+
   bool _isExcludedReminderOccurrenceInBucket(String dayKey, _Note note) {
     if (_occurrenceExclusions.isEmpty) return false;
     final identity = _reminderOccurrenceIdentityForLocalDate(
@@ -34593,7 +34600,7 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
-  /// Runs the commit-seam merge and writes the result into `_notes`.
+  /// Runs the shared optimistic-create projection and writes it into `_notes`.
   ///
   /// When [emptyIncoming] is true, merges against an empty hydration map
   /// (preserve path). Otherwise copies live `_notes` as incoming (confirm path).
@@ -34607,9 +34614,18 @@ class CalendarPageState extends State<CalendarPage>
             for (final entry in _notes.entries)
               entry.key: List<_Note>.from(entry.value),
           };
-    final result = _unconfirmed.mergeInto(notesByDay);
-    _replaceLiveNoteBuckets(notesByDay);
-    return (preserved: result.preserved, confirmed: result.confirmed);
+    final projection = deriveVisibleCalendarProjection<_Note>(
+      source: notesByDay,
+      pendingItems: _unconfirmed.visibleProjectionItems,
+      stableIdentityOf: _calendarNoteStableIdentity,
+      suppressionRules: const <CalendarItemSuppressionRule<_Note>>[],
+    );
+    _unconfirmed.forgetCids(projection.confirmedPendingIdentities);
+    _replaceLiveNoteBuckets(projection.buckets);
+    return (
+      preserved: projection.preservedPendingItems,
+      confirmed: projection.confirmedPendingItems,
+    );
   }
 
   /// Test access to production `_addNote` (library-private).

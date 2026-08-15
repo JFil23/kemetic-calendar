@@ -23,6 +23,42 @@ void main() {
   });
 
   group('visible calendar reducer', () {
+    test(
+      'composes pending creates and confirms stable identities globally',
+      () {
+        final source = <String, List<String>>{
+          'server-day': <String>['server', 'confirmed', 'hidden'],
+        };
+        final projection = deriveVisibleCalendarProjection<String>(
+          source: source,
+          pendingItems: const <CalendarPendingVisibleItem<String>>[
+            CalendarPendingVisibleItem<String>(
+              dayKey: 'old-local-day',
+              item: 'confirmed',
+            ),
+            CalendarPendingVisibleItem<String>(
+              dayKey: 'local-day',
+              item: 'pending',
+            ),
+          ],
+          stableIdentityOf: (item) => item,
+          suppressionRules: <CalendarItemSuppressionRule<String>>[
+            (_, item) => item == 'hidden',
+          ],
+          reduceBucket: (_, items) => items.toSet().toList(growable: false),
+        );
+
+        expect(projection.buckets, <String, List<String>>{
+          'server-day': <String>['server', 'confirmed'],
+          'local-day': <String>['pending'],
+        });
+        expect(projection.preservedPendingItems, 1);
+        expect(projection.confirmedPendingItems, 1);
+        expect(projection.confirmedPendingIdentities, <String>['confirmed']);
+        expect(source['server-day'], <String>['server', 'confirmed', 'hidden']);
+      },
+    );
+
     test('applies one ordered rule stack and stops at the first match', () {
       final calls = <String>[];
       final visible = deriveVisibleCalendarBuckets<String>(

@@ -175,60 +175,18 @@ class _UnconfirmedNoteLedger {
 
   void clear() => _entries.clear();
 
-  /// Single pass over the ledger during commit:
-  ///   * incoming rows contain a match → hydration confirmed it; retire
-  ///   * incoming rows do not          → re-add, so the row survives the commit
-  ///
-  /// A miss can also mean "outside the hydration window," where re-adding is
-  /// still correct. TTL is handled by a forced-live verifier outside this
-  /// synchronous commit seam.
-  ///
-  /// Runs *before* `_dedupeVisibleDayNotes`, so genuine conflicts with incoming
-  /// rows resolve under the existing dedupe rules rather than here. Exact CID
-  /// confirmation is global across day buckets so a canonical row that moved
-  /// days retires its old pending projection instead of being duplicated.
-  ({int preserved, int confirmed, List<String> confirmedCids}) mergeInto(
-    Map<String, List<_Note>> notesByDay, {
-    bool retireConfirmed = true,
-  }) {
-    if (_entries.isEmpty) {
-      return (preserved: 0, confirmed: 0, confirmedCids: const <String>[]);
-    }
-
-    var preserved = 0;
-    final confirmed = <_UnconfirmedNote>[];
-    final incomingCids = <String>{
-      for (final note in notesByDay.values.expand((notes) => notes))
-        if ((note.clientEventId ?? '').trim().isNotEmpty)
-          note.clientEventId!.trim(),
-    };
-
-    for (final entry in _entries) {
-      final cid = entry.note.clientEventId?.trim();
-      if (cid != null && cid.isNotEmpty && incomingCids.contains(cid)) {
-        confirmed.add(entry);
-        continue;
-      }
-      final bucket = notesByDay.putIfAbsent(entry.dayKey, () => <_Note>[]);
-      bucket.add(entry.note);
-      preserved++;
-    }
-
-    if (retireConfirmed) {
-      for (final entry in confirmed) {
-        _entries.remove(entry);
-      }
-    }
-    return (
-      preserved: preserved,
-      confirmed: confirmed.length,
-      confirmedCids: confirmed
-          .map((entry) => entry.note.clientEventId?.trim())
-          .whereType<String>()
-          .where((cid) => cid.isNotEmpty)
-          .toList(growable: false),
-    );
-  }
+  /// Pure reducer inputs for the next calendar publication. Confirmation and
+  /// retirement are decided by the shared visible-state reducer and applied
+  /// only after the owning hydration transaction commits.
+  List<CalendarPendingVisibleItem<_Note>> get visibleProjectionItems =>
+      List<CalendarPendingVisibleItem<_Note>>.unmodifiable(
+        _entries.map(
+          (entry) => CalendarPendingVisibleItem<_Note>(
+            dayKey: entry.dayKey,
+            item: entry.note,
+          ),
+        ),
+      );
 
   List<_UnconfirmedNote> dueForVerification({DateTime? now}) {
     final effectiveNow = (now ?? DateTime.now()).toUtc();

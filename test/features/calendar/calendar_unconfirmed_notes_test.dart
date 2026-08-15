@@ -178,8 +178,12 @@ void main() {
       final sameUserAt = commitSlice.indexOf(
         '_activeWarmStartUserId() != loadUserId',
       );
-      final mergeAt = commitSlice.indexOf('_unconfirmed.mergeInto(');
-      final previewOnlyAt = commitSlice.indexOf('retireConfirmed: false');
+      final pendingAt = commitSlice.indexOf(
+        '_unconfirmed.visibleProjectionItems',
+      );
+      final projectionAt = commitSlice.indexOf(
+        'deriveVisibleCalendarProjection<_Note>(',
+      );
       final preparedAt = commitSlice.indexOf('_buildCalendarSnapshotCommit(');
       final callbackAt = commitSlice.indexOf('void applyPreparedState()');
       final controllerCommitAt = commitSlice.indexOf(
@@ -195,9 +199,9 @@ void main() {
       );
       expect(isCurrentAt, greaterThanOrEqualTo(0));
       expect(sameUserAt, greaterThan(isCurrentAt));
-      expect(mergeAt, greaterThan(sameUserAt));
-      expect(previewOnlyAt, greaterThan(mergeAt));
-      expect(preparedAt, greaterThan(previewOnlyAt));
+      expect(pendingAt, greaterThan(sameUserAt));
+      expect(projectionAt, greaterThan(pendingAt));
+      expect(preparedAt, greaterThan(projectionAt));
       expect(callbackAt, greaterThan(preparedAt));
       expect(controllerCommitAt, greaterThan(callbackAt));
       expect(acceptedAt, greaterThan(controllerCommitAt));

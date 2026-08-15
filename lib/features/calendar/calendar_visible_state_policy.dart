@@ -19,21 +19,80 @@ typedef CalendarHydrationWindow = ({DateTime startUtc, DateTime endUtc});
 /// remain small predicates.
 typedef CalendarItemSuppressionRule<T> = bool Function(String dayKey, T item);
 
-/// Derives the mutable day buckets that may be painted from an immutable or
-/// mutable source projection.
+typedef CalendarBucketReducer<T> =
+    List<T> Function(String dayKey, List<T> items);
+
+final class CalendarPendingVisibleItem<T> {
+  const CalendarPendingVisibleItem({required this.dayKey, required this.item});
+
+  final String dayKey;
+  final T item;
+}
+
+final class CalendarVisibleProjection<T> {
+  CalendarVisibleProjection._({
+    required this.buckets,
+    required this.preservedPendingItems,
+    required Iterable<String> confirmedPendingIdentities,
+  }) : confirmedPendingIdentities = List<String>.unmodifiable(
+         confirmedPendingIdentities,
+       );
+
+  final Map<String, List<T>> buckets;
+  final int preservedPendingItems;
+  final List<String> confirmedPendingIdentities;
+
+  int get confirmedPendingItems => confirmedPendingIdentities.length;
+}
+
+/// Composes one visible projection from server-owned buckets and optimistic
+/// creates, then runs the shared per-day reducer and final suppression rules.
 ///
-/// The source is never mutated or aliased. Empty buckets are omitted because
-/// they carry no visible state. Given side-effect-free [suppressionRules], this
-/// function is a pure reducer over the source projection.
-Map<String, List<T>> deriveVisibleCalendarBuckets<T>({
+/// A stable identity observed anywhere in [source] confirms the corresponding
+/// pending item. Otherwise the pending item remains visible in its local day
+/// bucket. Nothing in the source or pending collections is mutated.
+CalendarVisibleProjection<T> deriveVisibleCalendarProjection<T>({
   required Map<String, List<T>> source,
+  required Iterable<CalendarPendingVisibleItem<T>> pendingItems,
+  required String? Function(T item) stableIdentityOf,
   required Iterable<CalendarItemSuppressionRule<T>> suppressionRules,
+  CalendarBucketReducer<T>? reduceBucket,
 }) {
+  final pending = pendingItems.toList(growable: false);
+  final combined = <String, List<T>>{
+    for (final entry in source.entries) entry.key: List<T>.of(entry.value),
+  };
+  final sourceIdentities = <String>{};
+  if (pending.isNotEmpty) {
+    for (final item in source.values.expand((items) => items)) {
+      final identity = stableIdentityOf(item)?.trim();
+      if (identity != null && identity.isNotEmpty) {
+        sourceIdentities.add(identity);
+      }
+    }
+  }
+  final confirmedPendingIdentities = <String>[];
+  var preservedPendingItems = 0;
+  for (final pendingItem in pending) {
+    final identity = stableIdentityOf(pendingItem.item)?.trim();
+    if (identity != null &&
+        identity.isNotEmpty &&
+        sourceIdentities.contains(identity)) {
+      confirmedPendingIdentities.add(identity);
+      continue;
+    }
+    combined.putIfAbsent(pendingItem.dayKey, () => <T>[]).add(pendingItem.item);
+    preservedPendingItems++;
+  }
+
   final rules = suppressionRules.toList(growable: false);
   final visible = <String, List<T>>{};
-  for (final entry in source.entries) {
+  for (final entry in combined.entries) {
+    final reduced = reduceBucket == null
+        ? entry.value
+        : reduceBucket(entry.key, List<T>.of(entry.value));
     final retained = <T>[];
-    for (final item in entry.value) {
+    for (final item in reduced) {
       var suppressed = false;
       for (final rule in rules) {
         if (!rule(entry.key, item)) continue;
@@ -44,8 +103,28 @@ Map<String, List<T>> deriveVisibleCalendarBuckets<T>({
     }
     if (retained.isNotEmpty) visible[entry.key] = retained;
   }
-  return visible;
+  return CalendarVisibleProjection<T>._(
+    buckets: visible,
+    preservedPendingItems: preservedPendingItems,
+    confirmedPendingIdentities: confirmedPendingIdentities,
+  );
 }
+
+/// Derives the mutable day buckets that may be painted from an immutable or
+/// mutable source projection.
+///
+/// The source is never mutated or aliased. Empty buckets are omitted because
+/// they carry no visible state. Given side-effect-free [suppressionRules], this
+/// function is a pure reducer over the source projection.
+Map<String, List<T>> deriveVisibleCalendarBuckets<T>({
+  required Map<String, List<T>> source,
+  required Iterable<CalendarItemSuppressionRule<T>> suppressionRules,
+}) => deriveVisibleCalendarProjection<T>(
+  source: source,
+  pendingItems: <CalendarPendingVisibleItem<T>>[],
+  stableIdentityOf: (_) => null,
+  suppressionRules: suppressionRules,
+).buckets;
 
 bool shouldPersistWarmStartCache(CalendarHydrationAuthorityScope scope) =>
     scope == CalendarHydrationAuthorityScope.fullHorizon;

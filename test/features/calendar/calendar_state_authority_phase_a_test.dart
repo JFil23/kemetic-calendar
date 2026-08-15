@@ -186,9 +186,12 @@ void main() {
       commitStart,
       calendarPageSource.indexOf('hydrationPassSucceeded =', commitStart),
     );
-    expect(commitSlice.indexOf('_unconfirmed.mergeInto('), isNonNegative);
     expect(
-      commitSlice.indexOf('_unconfirmed.mergeInto('),
+      commitSlice.indexOf('deriveVisibleCalendarProjection<_Note>('),
+      isNonNegative,
+    );
+    expect(
+      commitSlice.indexOf('deriveVisibleCalendarProjection<_Note>('),
       lessThan(commitSlice.indexOf('_hydrationController.commitViewport(')),
       reason: 'the non-mutating overlay preview precedes controller commit',
     );

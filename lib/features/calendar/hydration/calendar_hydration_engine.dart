@@ -563,42 +563,43 @@ extension _CalendarHydrationEngine on CalendarPageState {
             parseKeyToDay: _warmStartDateFromKey,
           );
         }
-        final candidateNotes = <String, List<_Note>>{
-          for (final entry in authoritativeCandidateNotes.entries)
-            entry.key: List<_Note>.of(entry.value),
-        };
-        final unconfirmedMerge = _unconfirmed.mergeInto(
-          candidateNotes,
-          retireConfirmed: false,
-        );
+        final pendingCreates = _unconfirmed.visibleProjectionItems;
         final hydratedTrackSkyFlowIds = newFlows
             .where((flow) => _isTrackSkyFlowName(flow.name))
             .map((flow) => flow.id)
             .where((flowId) => flowId > 0)
             .toSet();
         final dedupeStopwatch = Stopwatch()..start();
-        final dedupedNotes = <String, List<_Note>>{};
-        candidateNotes.forEach((key, notes) {
-          final cleaned = _dedupeVisibleDayNotes(
+        final visibleProjection = deriveVisibleCalendarProjection<_Note>(
+          source: authoritativeCandidateNotes,
+          pendingItems: pendingCreates,
+          stableIdentityOf: _calendarNoteStableIdentity,
+          suppressionRules: const <CalendarItemSuppressionRule<_Note>>[],
+          reduceBucket: (_, notes) => _dedupeVisibleDayNotes(
             notes,
             trackSkyFlowIds: hydratedTrackSkyFlowIds,
-          );
-          if (cleaned.isNotEmpty) dedupedNotes[key] = cleaned;
-        });
-        final authoritativeNotes = <String, List<_Note>>{};
-        authoritativeCandidateNotes.forEach((key, notes) {
-          final cleaned = _dedupeVisibleDayNotes(
+          ),
+        );
+        final dedupedNotes = visibleProjection.buckets;
+        final authoritativeNotes = deriveVisibleCalendarProjection<_Note>(
+          source: authoritativeCandidateNotes,
+          pendingItems: const <CalendarPendingVisibleItem<_Note>>[],
+          stableIdentityOf: _calendarNoteStableIdentity,
+          suppressionRules: const <CalendarItemSuppressionRule<_Note>>[],
+          reduceBucket: (_, notes) => _dedupeVisibleDayNotes(
             notes,
             trackSkyFlowIds: hydratedTrackSkyFlowIds,
-          );
-          if (cleaned.isNotEmpty) authoritativeNotes[key] = cleaned;
-        });
+          ),
+        ).buckets;
         hydrationDiagnostics.recordPostProcessing(
           hydrationContext,
           'visible_snapshot_deduped',
           durationMs: dedupeStopwatch.elapsedMilliseconds,
           fields: <String, Object?>{
-            'input_day_bucket_count': candidateNotes.length,
+            'input_day_bucket_count': <String>{
+              ...authoritativeCandidateNotes.keys,
+              ...pendingCreates.map((item) => item.dayKey),
+            }.length,
             'output_day_bucket_count': dedupedNotes.length,
           },
         );
@@ -640,7 +641,7 @@ extension _CalendarHydrationEngine on CalendarPageState {
           affectedMonths,
         );
         final confirmedOverlayCids = Set<String>.unmodifiable(
-          unconfirmedMerge.confirmedCids,
+          visibleProjection.confirmedPendingIdentities,
         );
         final successfulRefreshAtUtc = DateTime.now().toUtc();
         final preparedSnapshot = _buildCalendarSnapshotCommit(
@@ -751,8 +752,10 @@ extension _CalendarHydrationEngine on CalendarPageState {
             '[hydrationEngine] committed epoch phase=${phase.name} '
             'flows=${newFlows.length} notes=${dedupedNotes.length} '
             'immediate=$publishedImmediately '
-            'unconfirmedPreserved=${unconfirmedMerge.preserved} '
-            'unconfirmedConfirmed=${unconfirmedMerge.confirmed} '
+            'unconfirmedPreserved='
+            '${visibleProjection.preservedPendingItems} '
+            'unconfirmedConfirmed='
+            '${visibleProjection.confirmedPendingItems} '
             'pendingDeletesRetired=$reconciledPendingDeleteCount',
           );
         }
