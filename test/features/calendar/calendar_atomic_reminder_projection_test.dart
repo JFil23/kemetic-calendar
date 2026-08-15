@@ -433,6 +433,56 @@ void main() {
   );
 
   testWidgets(
+    'failed optimistic reminder end restores the exact local projection',
+    (tester) async {
+      final day = DateTime(2026, 8, 15, 6, 30);
+      final nextDay = day.add(const Duration(days: 1));
+      final dayK = picker.KemeticMath.fromGregorian(day);
+      final rule = ReminderRule(
+        id: 'optimistic-end-rollback',
+        title: 'Restore if account end fails',
+        startLocal: day,
+        allDay: false,
+        color: const Color(0xff22a6d3),
+        repeat: const ReminderRepeat(
+          kind: ReminderRepeatKind.everyNDays,
+          interval: 1,
+        ),
+      );
+
+      final state = await pumpCalendar(tester);
+      state.debugSeedReminderRulesForTesting(<ReminderRule>[
+        rule,
+      ], windowEnd: nextDay);
+
+      final rollback = state.debugBeginReminderEndIntentForTesting(rule.id);
+      expect(state.debugReminderRulesForTesting, isEmpty);
+      expect(
+        state.notesForDayForTesting(dayK.kYear, dayK.kMonth, dayK.kDay),
+        isEmpty,
+      );
+
+      state.debugReplayStaleReminderProjectionForTesting(
+        rule: rule,
+        localDate: day,
+      );
+      expect(
+        state.notesForDayForTesting(dayK.kYear, dayK.kMonth, dayK.kDay),
+        isEmpty,
+      );
+
+      rollback();
+      expect(state.debugEndedReminderIdsForTesting, isNot(contains(rule.id)));
+      expect(state.debugReminderRulesForTesting, <ReminderRule>[rule]);
+      expect(
+        state.notesForDayForTesting(dayK.kYear, dayK.kMonth, dayK.kDay),
+        hasLength(1),
+      );
+      await disposeCalendar(tester);
+    },
+  );
+
+  testWidgets(
     'disk warm restore projects reminder membership before its first publication',
     (tester) async {
       const userId = '27d63169-a28a-4550-a0a0-8fee0e8e7b95';

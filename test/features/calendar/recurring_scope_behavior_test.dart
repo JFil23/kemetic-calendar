@@ -259,13 +259,20 @@ void main() {
 
       expect(
         reminderEditor,
-        contains(
-          'endLocal:\n                                      repeat.kind',
-        ),
+        contains('endLocal: repeat.kind == ReminderRepeatKind.none'),
       );
       expect(reminderEditor, contains(': endLocal'));
       expect(reminderEditor, isNot(contains('_previewReminderLocally')));
-      expect(reminderEditor, contains('await _upsertReminderRule(rule)'));
+      expect(reminderEditor, contains('DaySheetKeyboardSafeFrame('));
+      expect(
+        reminderEditor,
+        contains('accountSave = _upsertReminderRule(rule)'),
+      );
+      expect(reminderEditor, contains('await accountSave'));
+      expect(
+        reminderEditor.indexOf('Navigator.of(ctx).pop(true)'),
+        lessThan(reminderEditor.indexOf('await accountSave')),
+      );
     });
 
     test('reminder visibility follows confirmed account mutations', () {
@@ -290,9 +297,10 @@ void main() {
       );
       expect(reminderEnd, contains('CalendarPage._runEndFlowRemote'));
       expect(reminderEnd, contains('_applyReminderEndIntentLocally'));
+      expect(reminderEnd, contains('_rollbackReminderEndLocally'));
       expect(
-        reminderEnd.indexOf('CalendarPage._runEndFlowRemote'),
-        lessThan(reminderEnd.indexOf('_applyReminderEndIntentLocally')),
+        reminderEnd.indexOf('_applyReminderEndIntentLocally'),
+        lessThan(reminderEnd.indexOf('CalendarPage._runEndFlowRemote')),
       );
     });
 

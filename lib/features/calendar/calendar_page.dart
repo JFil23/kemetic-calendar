@@ -19752,6 +19752,75 @@ class CalendarPageState extends State<CalendarPage>
     }
   }
 
+  ({
+    List<ReminderRule> removedRules,
+    Map<String, List<_Note>> removedNotesByDay,
+  })
+  _captureReminderEndRollback(Set<String> reminderIds) {
+    final removedRules = _reminderRules
+        .where((rule) => reminderIds.contains(rule.id))
+        .toList(growable: false);
+    final removedNotesByDay = <String, List<_Note>>{};
+    for (final entry in _notes.entries) {
+      final removed = entry.value
+          .where(
+            (note) =>
+                note.isReminder &&
+                reminderIds.contains(note.reminderId) &&
+                note.detail?.contains(_kReminderManualOverrideMarker) != true,
+          )
+          .toList(growable: false);
+      if (removed.isNotEmpty) {
+        removedNotesByDay[entry.key] = removed;
+      }
+    }
+    return (removedRules: removedRules, removedNotesByDay: removedNotesByDay);
+  }
+
+  void _rollbackReminderEndLocally(
+    Set<String> reminderIds, {
+    required List<ReminderRule> removedRules,
+    required Map<String, List<_Note>> removedNotesByDay,
+  }) {
+    _endedReminderIds.removeAll(reminderIds);
+    for (final rule in removedRules) {
+      if (_reminderRules.every((candidate) => candidate.id != rule.id)) {
+        _reminderRules.add(rule);
+      }
+    }
+    for (final entry in removedNotesByDay.entries) {
+      final bucket = _mutableNoteBucket(entry.key);
+      for (final note in entry.value) {
+        final noteId = note.id?.trim();
+        final noteCid = note.clientEventId?.trim();
+        final alreadyPresent = bucket.any((candidate) {
+          final candidateId = candidate.id?.trim();
+          final candidateCid = candidate.clientEventId?.trim();
+          return (noteId != null &&
+                  noteId.isNotEmpty &&
+                  candidateId == noteId) ||
+              (noteCid != null &&
+                  noteCid.isNotEmpty &&
+                  candidateCid == noteCid) ||
+              identical(candidate, note);
+        });
+        if (!alreadyPresent) bucket.add(note);
+      }
+    }
+    _reminderRulesLoaded = true;
+    if (mounted) {
+      setState(() {});
+      _bumpDataVersion();
+    }
+  }
+
+  void _showReminderEndFailure(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   Future<void> _deleteReminderRule(String id) async {
     if (_debugDaySheetSmokeEnabled) {
       _deleteDebugDaySheetSmokeReminderRule(id);
@@ -19759,63 +19828,84 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     final reminderIds = _logicalReminderRuleIds(id);
-    final flowIds = <int>{};
-    for (final reminderId in reminderIds) {
-      final dbUuid = _dbReminderUuidFromRuleId(reminderId);
-      if (dbUuid == null) continue;
-      flowIds.addAll(
-        _flows
-            .where((flow) => flow.isReminder && flow.reminderUuid == dbUuid)
-            .map((flow) => flow.id),
-      );
-      final serverFlowId = await _findFlowIdByReminderUuid(
-        dbUuid,
-        rethrowErrors: true,
-      );
-      if (serverFlowId != null) flowIds.add(serverFlowId);
-    }
-    if (flowIds.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              'Could not find this reminder in your account. Nothing was deleted.',
-            ),
-          ),
-        );
-      }
-      return;
-    }
+    final rollback = _captureReminderEndRollback(reminderIds);
 
-    for (final flowId in flowIds) {
-      final outcome = await CalendarPage._runEndFlowRemote(
-        flowId,
-        endedAtLocal: DateTime.now(),
-        initiatorOwner: EndFlowOperationOwner.calendar,
-      );
-      if (outcome.result != EndFlowActionResult.success) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Could not end this reminder in your account. Nothing was deleted.',
-              ),
-            ),
-          );
-        }
+    // Match standalone-note deletion: hide the user's target immediately and
+    // keep the command in the in-memory publication guard while the atomic
+    // account operation runs. Any hydration already in flight is therefore
+    // unable to repaint this reminder.
+    _applyReminderEndIntentLocally(reminderIds);
+
+    try {
+      final flowIds = <int>{};
+      for (final reminderId in reminderIds) {
+        final dbUuid = _dbReminderUuidFromRuleId(reminderId);
+        if (dbUuid == null) continue;
+        flowIds.addAll(
+          _flows
+              .where((flow) => flow.isReminder && flow.reminderUuid == dbUuid)
+              .map((flow) => flow.id),
+        );
+        final serverFlowId = await _findFlowIdByReminderUuid(
+          dbUuid,
+          rethrowErrors: true,
+        );
+        if (serverFlowId != null) flowIds.add(serverFlowId);
+      }
+      if (flowIds.isEmpty) {
+        _rollbackReminderEndLocally(
+          reminderIds,
+          removedRules: rollback.removedRules,
+          removedNotesByDay: rollback.removedNotesByDay,
+        );
+        _showReminderEndFailure(
+          'Could not find this reminder in your account. Nothing was deleted.',
+        );
         return;
       }
-    }
 
-    await _invalidateCalendarWarmCachesAfterServerMutation(
-      reason: 'reminder_end',
-    );
-    _applyReminderEndIntentLocally(reminderIds);
-    unawaited(
-      _requestHydration(
-        _CalendarHydrationRequest.catalogReconcile(reason: 'reminder_end'),
-      ),
-    );
+      for (final flowId in flowIds) {
+        final outcome = await CalendarPage._runEndFlowRemote(
+          flowId,
+          endedAtLocal: DateTime.now(),
+          initiatorOwner: EndFlowOperationOwner.calendar,
+        );
+        if (outcome.result != EndFlowActionResult.success) {
+          _rollbackReminderEndLocally(
+            reminderIds,
+            removedRules: rollback.removedRules,
+            removedNotesByDay: rollback.removedNotesByDay,
+          );
+          _showReminderEndFailure(
+            'Could not end this reminder in your account. Nothing was deleted.',
+          );
+          return;
+        }
+      }
+
+      await _invalidateCalendarWarmCachesAfterServerMutation(
+        reason: 'reminder_end',
+      );
+      unawaited(
+        _requestHydration(
+          _CalendarHydrationRequest.catalogReconcile(reason: 'reminder_end'),
+        ),
+      );
+    } catch (error, stack) {
+      _rollbackReminderEndLocally(
+        reminderIds,
+        removedRules: rollback.removedRules,
+        removedNotesByDay: rollback.removedNotesByDay,
+      );
+      if (kDebugMode) {
+        _calendarDebugPrint(
+          '[reminders] optimistic account-backed end failed: $error\n$stack',
+        );
+      }
+      _showReminderEndFailure(
+        'Could not end this reminder in your account. Nothing was deleted.',
+      );
+    }
   }
 
   Set<int> _monthDayTargets(ReminderRepeat repeat, DateTime startLocal) {
@@ -21073,6 +21163,7 @@ class CalendarPageState extends State<CalendarPage>
 
     bool saved = false;
     bool saveInFlight = false;
+    Future<void>? accountSave;
 
     try {
       final result = await showModalBottomSheet<bool>(
@@ -21083,843 +21174,768 @@ class CalendarPageState extends State<CalendarPage>
           borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
         ),
         builder: (ctx) {
-          final media = MediaQuery.of(ctx);
-          final keyboardInset = keyboardInsetOf(ctx);
-          final sheetHeight = keyboardInset > 0
-              ? math.min(
-                  media.size.height * 0.85,
-                  math.max(
-                    280.0,
-                    media.size.height - keyboardInset - media.padding.top - 12,
-                  ),
-                )
-              : media.size.height * 0.85;
-          return Container(
-            height: sheetHeight,
-            decoration: const BoxDecoration(
-              color: DaySheetTokens.bg,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-              border: Border(
-                top: BorderSide(color: DaySheetTokens.hair, width: 1),
-              ),
-            ),
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: 22,
-                  right: 22,
-                  bottom: media.padding.bottom + 12,
-                  top: 10,
-                ),
-                child: StatefulBuilder(
-                  builder: (sheetCtx, setModalState) {
-                    final selectedCalendar = _calendarSummary(
-                      selectedCalendarId,
-                    );
-                    final selectedCalendarLabel = _calendarDisplayName(
-                      selectedCalendarId,
-                    );
-                    final canEditSelectedCalendar =
-                        selectedCalendar?.canEdit ?? true;
-                    const fieldScrollPadding =
-                        keyboardManagedTextFieldScrollPadding;
+          return DaySheetKeyboardSafeFrame(
+            maxHeightFactor: 0.85,
+            child: StatefulBuilder(
+              builder: (sheetCtx, setModalState) {
+                final selectedCalendar = _calendarSummary(selectedCalendarId);
+                final selectedCalendarLabel = _calendarDisplayName(
+                  selectedCalendarId,
+                );
+                final canEditSelectedCalendar =
+                    selectedCalendar?.canEdit ?? true;
+                const fieldScrollPadding =
+                    keyboardManagedTextFieldScrollPadding;
 
-                    String dateLabel(DateTime d) =>
-                        '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}/${d.year}';
-                    String endDateLabel() =>
-                        endLocal == null ? 'Never' : dateLabel(endLocal!);
-                    String timeLabel(TimeOfDay t) {
-                      final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
-                      final m = t.minute.toString().padLeft(2, '0');
-                      final ap = t.period == DayPeriod.am ? 'AM' : 'PM';
-                      return '$h:$m $ap';
-                    }
+                String dateLabel(DateTime d) =>
+                    '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}/${d.year}';
+                String endDateLabel() =>
+                    endLocal == null ? 'Never' : dateLabel(endLocal!);
+                String timeLabel(TimeOfDay t) {
+                  final h = t.hourOfPeriod == 0 ? 12 : t.hourOfPeriod;
+                  final m = t.minute.toString().padLeft(2, '0');
+                  final ap = t.period == DayPeriod.am ? 'AM' : 'PM';
+                  return '$h:$m $ap';
+                }
 
-                    Widget repeatField() {
-                      final kind = repeat.kind;
-                      switch (kind) {
-                        case ReminderRepeatKind.everyNDays:
-                          return TextFormField(
-                            keyboardType: TextInputType.number,
-                            initialValue: repeat.interval.toString(),
-                            scrollPadding: fieldScrollPadding,
-                            decoration: const InputDecoration(
-                              labelText: 'Every N days',
-                              labelStyle: TextStyle(color: Colors.white70),
-                              enabledBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: Colors.white24),
-                              ),
-                              focusedBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: _gold),
-                              ),
-                            ),
-                            style: const TextStyle(color: Colors.white),
-                            onChanged: (v) {
-                              final n = int.tryParse(v) ?? 1;
-                              setModalState(() {
-                                repeat = repeat.copyWith(
-                                  interval: n.clamp(1, 365),
-                                );
-                              });
-                            },
-                          );
-
-                        case ReminderRepeatKind.weekly:
-                          const labels = [
-                            'Mon',
-                            'Tue',
-                            'Wed',
-                            'Thu',
-                            'Fri',
-                            'Sat',
-                            'Sun',
-                          ];
-                          return Wrap(
-                            spacing: 8,
-                            children: List.generate(7, (i) {
-                              final wd = i + 1;
-                              final selected = repeat.weekdays.contains(wd);
-                              return ChoiceChip(
-                                label: Text(labels[i]),
-                                selected: selected,
-                                onSelected: (_) {
-                                  final next = {...repeat.weekdays};
-                                  if (selected) {
-                                    next.remove(wd);
-                                  } else {
-                                    next.add(wd);
-                                  }
-                                  setModalState(() {
-                                    repeat = repeat.copyWith(weekdays: next);
-                                  });
-                                },
-                              );
-                            }),
-                          );
-
-                        case ReminderRepeatKind.monthlyDay:
-                          return TextFormField(
-                            keyboardType: TextInputType.text,
-                            initialValue: (_monthDayTargets(
-                              repeat,
-                              startLocal,
-                            ).toList()..sort()).join(', '),
-                            scrollPadding: fieldScrollPadding,
-                            decoration: const InputDecoration(
-                              labelText: 'Day of month (1-31, comma-separated)',
-                              labelStyle: TextStyle(color: Colors.white70),
-                              enabledBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: Colors.white24),
-                              ),
-                              focusedBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: _gold),
-                              ),
-                            ),
-                            style: const TextStyle(color: Colors.white),
-                            onChanged: (v) {
-                              final values = _parseDayCsv(v, min: 1, max: 31);
-                              setModalState(() {
-                                repeat = repeat.copyWith(monthDays: values);
-                              });
-                            },
-                          );
-
-                        case ReminderRepeatKind.kemeticEveryNDecans:
-                          return TextFormField(
-                            keyboardType: TextInputType.number,
-                            initialValue: repeat.interval.toString(),
-                            scrollPadding: fieldScrollPadding,
-                            decoration: const InputDecoration(
-                              labelText: 'Every N decans',
-                              labelStyle: TextStyle(color: Colors.white70),
-                              enabledBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: Colors.white24),
-                              ),
-                              focusedBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: _gold),
-                              ),
-                            ),
-                            style: const TextStyle(color: Colors.white),
-                            onChanged: (v) {
-                              final n = int.tryParse(v) ?? 1;
-                              setModalState(() {
-                                repeat = repeat.copyWith(
-                                  interval: n.clamp(1, 36),
-                                );
-                              });
-                            },
-                          );
-
-                        case ReminderRepeatKind.kemeticDecanDay:
-                          return TextFormField(
-                            keyboardType: TextInputType.text,
-                            initialValue: (_decanDayTargets(
-                              repeat,
-                              startLocal,
-                            ).toList()..sort()).join(', '),
-                            scrollPadding: fieldScrollPadding,
-                            decoration: const InputDecoration(
-                              labelText: 'Day of decan (1-10, comma-separated)',
-                              labelStyle: TextStyle(color: Colors.white70),
-                              enabledBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: Colors.white24),
-                              ),
-                              focusedBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: _gold),
-                              ),
-                            ),
-                            style: const TextStyle(color: Colors.white),
-                            onChanged: (v) {
-                              final values = _parseDayCsv(v, min: 1, max: 10);
-                              setModalState(() {
-                                repeat = repeat.copyWith(decanDays: values);
-                              });
-                            },
-                          );
-
-                        case ReminderRepeatKind.kemeticMonthDay:
-                          return TextFormField(
-                            keyboardType: TextInputType.text,
-                            initialValue: (_kemeticMonthDayTargets(
-                              repeat,
-                              startLocal,
-                            ).toList()..sort()).join(', '),
-                            scrollPadding: fieldScrollPadding,
-                            decoration: const InputDecoration(
-                              labelText:
-                                  'Day of Kemetic month (1-30, comma-separated)',
-                              labelStyle: TextStyle(color: Colors.white70),
-                              enabledBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: Colors.white24),
-                              ),
-                              focusedBorder: UnderlineInputBorder(
-                                borderSide: BorderSide(color: _gold),
-                              ),
-                            ),
-                            style: const TextStyle(color: Colors.white),
-                            onChanged: (v) {
-                              final values = _parseDayCsv(v, min: 1, max: 30);
-                              setModalState(() {
-                                repeat = repeat.copyWith(
-                                  kemeticMonthDays: values,
-                                );
-                              });
-                            },
-                          );
-
-                        case ReminderRepeatKind.none:
-                          return const SizedBox.shrink();
-                      }
-                    }
-
-                    return SingleChildScrollView(
-                      padding: EdgeInsets.only(
-                        bottom: keyboardInset + media.padding.bottom + 180,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Center(
-                            child: Container(
-                              width: 42,
-                              height: 5,
-                              margin: const EdgeInsets.only(bottom: 14),
-                              decoration: BoxDecoration(
-                                color: DaySheetTokens.silverLo.withValues(
-                                  alpha: 0.5,
-                                ),
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                            ),
+                Widget repeatField() {
+                  final kind = repeat.kind;
+                  switch (kind) {
+                    case ReminderRepeatKind.everyNDays:
+                      return TextFormField(
+                        keyboardType: TextInputType.number,
+                        initialValue: repeat.interval.toString(),
+                        scrollPadding: fieldScrollPadding,
+                        decoration: const InputDecoration(
+                          labelText: 'Every N days',
+                          labelStyle: TextStyle(color: Colors.white70),
+                          enabledBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: Colors.white24),
                           ),
-                          Row(
-                            children: [
-                              IconButton(
-                                tooltip: 'Back',
-                                onPressed: () {
-                                  if (Navigator.of(sheetCtx).canPop()) {
-                                    Navigator.of(sheetCtx).pop(false);
-                                  }
-                                },
-                                icon: const Icon(
-                                  Icons.chevron_left,
-                                  color: DaySheetTokens.silverMid,
-                                  size: 24,
-                                ),
-                              ),
-                              Expanded(
-                                child: Text(
-                                  existing == null
-                                      ? 'New reminder'
-                                      : 'Edit reminder',
-                                  style: const TextStyle(
-                                    fontFamily: DaySheetTokens.serif,
-                                    color: DaySheetTokens.silverHi,
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ),
-                              DaySheetSwitch(
-                                value: active,
-                                accent: selectedColor,
-                                onChanged: (v) =>
-                                    setModalState(() => active = v),
-                              ),
-                            ],
+                          focusedBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: _gold),
                           ),
-                          DaySheetTextField(
-                            controller: titleCtrl,
-                            hint: 'Title',
-                            scrollPadding: fieldScrollPadding,
-                          ),
-                          const SizedBox(height: 20),
-                          DaySheetMetaRow(
-                            label: 'Calendar',
-                            value: selectedCalendarLabel,
-                            valueColor:
-                                selectedCalendar?.color ?? DaySheetTokens.gold,
-                            onTap:
-                                availableCalendars.isEmpty ||
-                                    !canEditSelectedCalendar
-                                ? null
-                                : () async {
-                                    final chosenId =
-                                        await showCupertinoModalPopup<String>(
-                                          context: sheetCtx,
-                                          builder: (popupCtx) {
-                                            return CupertinoActionSheet(
-                                              title: const GlossyText(
-                                                text: 'Calendar',
-                                                gradient: silverGloss,
-                                                style: TextStyle(fontSize: 18),
-                                              ),
-                                              actions: [
-                                                for (final calendar
-                                                    in availableCalendars)
-                                                  CupertinoActionSheetAction(
-                                                    onPressed: () {
-                                                      Navigator.of(
-                                                        popupCtx,
-                                                      ).pop(calendar.id);
-                                                    },
-                                                    child: Text(
-                                                      calendar.name,
-                                                      style: TextStyle(
-                                                        color: calendar.color,
-                                                        fontSize: 17,
-                                                        fontWeight:
-                                                            FontWeight.w600,
-                                                      ),
-                                                    ),
-                                                  ),
-                                              ],
-                                              cancelButton:
-                                                  CupertinoActionSheetAction(
-                                                    isDestructiveAction: true,
-                                                    onPressed: () =>
-                                                        Navigator.of(
-                                                          popupCtx,
-                                                        ).pop(),
-                                                    child: const Text('Cancel'),
-                                                  ),
-                                            );
-                                          },
-                                        );
-                                    if (chosenId == null) return;
-                                    setModalState(() {
-                                      selectedCalendarId = chosenId;
-                                    });
-                                  },
-                          ),
-                          if (!canEditSelectedCalendar) ...[
-                            const SizedBox(height: 6),
-                            const Text(
-                              'You can view this calendar, but you cannot edit it.',
-                              style: TextStyle(
-                                color: Colors.white54,
-                                fontSize: 12,
-                              ),
-                            ),
-                          ],
-                          Builder(
-                            builder: (_) {
-                              final seed = DateUtils.dateOnly(startLocal);
-                              final kSeed = KemeticMath.fromGregorian(seed);
-                              final stoneMode =
-                                  reminderDateMode ==
-                                      EventCreateDatePickerMode.gregorian
-                                  ? StoneDatePickerCalendarMode.gregorian
-                                  : StoneDatePickerCalendarMode.kemetic;
-                              return Padding(
-                                padding: const EdgeInsets.only(
-                                  top: 18,
-                                  bottom: 4,
-                                ),
-                                child:
-                                    StoneRegisterDateField<
-                                      EventCreateDatePickerValue
-                                    >(
-                                      key: const ValueKey<String>(
-                                        'day_sheet_reminder_date_picker_field',
-                                      ),
-                                      value: EventCreateDatePickerValue(
-                                        date: seed,
-                                        mode: reminderDateMode,
-                                      ),
-                                      adapter: EventCreateDatePickerAdapter(
-                                        gregorianYearStart: seed.year - 200,
-                                        kemeticYearStart: kSeed.kYear - 200,
-                                      ),
-                                      mode: stoneMode,
-                                      label: 'Date',
-                                      title: 'Reminder date',
-                                      showCalendarIcon: false,
-                                      onChanged: (picked) {
-                                        setModalState(() {
-                                          reminderDateMode = picked.mode;
-                                          startLocal = DateTime(
-                                            picked.date.year,
-                                            picked.date.month,
-                                            picked.date.day,
-                                            startLocal.hour,
-                                            startLocal.minute,
-                                          );
-                                          if (repeat.kind ==
-                                                  ReminderRepeatKind
-                                                      .monthlyDay &&
-                                              repeat.monthDay == null) {
-                                            repeat = repeat.copyWith(
-                                              monthDay: startLocal.day,
-                                            );
-                                          }
-                                          if (endLocal != null &&
-                                              DateUtils.dateOnly(
-                                                startLocal,
-                                              ).isAfter(endLocal!)) {
-                                            endLocal = DateUtils.dateOnly(
-                                              startLocal,
-                                            );
-                                          }
-                                        });
-                                      },
-                                    ),
-                              );
-                            },
-                          ),
-                          const SizedBox(height: 18),
-                          DaySheetTimePill(
-                            caption: 'Time',
-                            label: allDay
-                                ? 'All day'
-                                : timeLabel(TimeOfDay.fromDateTime(startLocal)),
-                            icon: Icons.access_time,
-                            enabled: !allDay,
-                            onTap: () async {
-                              final picked = await showTimePicker(
-                                context: context,
-                                initialTime: TimeOfDay.fromDateTime(startLocal),
-                                builder: (c, w) => Theme(
-                                  data: Theme.of(c).copyWith(
-                                    colorScheme: const ColorScheme.dark(
-                                      primary: _gold,
-                                      surface: _bg,
-                                      onSurface: Colors.white,
-                                    ),
-                                  ),
-                                  child: w ?? const SizedBox.shrink(),
-                                ),
-                              );
-                              if (picked != null) {
-                                setModalState(() {
-                                  startLocal = DateTime(
-                                    startLocal.year,
-                                    startLocal.month,
-                                    startLocal.day,
-                                    picked.hour,
-                                    picked.minute,
-                                  );
-                                });
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                        onChanged: (v) {
+                          final n = int.tryParse(v) ?? 1;
+                          setModalState(() {
+                            repeat = repeat.copyWith(interval: n.clamp(1, 365));
+                          });
+                        },
+                      );
+
+                    case ReminderRepeatKind.weekly:
+                      const labels = [
+                        'Mon',
+                        'Tue',
+                        'Wed',
+                        'Thu',
+                        'Fri',
+                        'Sat',
+                        'Sun',
+                      ];
+                      return Wrap(
+                        spacing: 8,
+                        children: List.generate(7, (i) {
+                          final wd = i + 1;
+                          final selected = repeat.weekdays.contains(wd);
+                          return ChoiceChip(
+                            label: Text(labels[i]),
+                            selected: selected,
+                            onSelected: (_) {
+                              final next = {...repeat.weekdays};
+                              if (selected) {
+                                next.remove(wd);
+                              } else {
+                                next.add(wd);
                               }
+                              setModalState(() {
+                                repeat = repeat.copyWith(weekdays: next);
+                              });
                             },
+                          );
+                        }),
+                      );
+
+                    case ReminderRepeatKind.monthlyDay:
+                      return TextFormField(
+                        keyboardType: TextInputType.text,
+                        initialValue: (_monthDayTargets(
+                          repeat,
+                          startLocal,
+                        ).toList()..sort()).join(', '),
+                        scrollPadding: fieldScrollPadding,
+                        decoration: const InputDecoration(
+                          labelText: 'Day of month (1-31, comma-separated)',
+                          labelStyle: TextStyle(color: Colors.white70),
+                          enabledBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: Colors.white24),
                           ),
-                          DaySheetToggleRow(
-                            label: 'All-day',
-                            value: allDay,
-                            accent: selectedColor,
-                            onChanged: (v) => setModalState(() => allDay = v),
+                          focusedBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: _gold),
                           ),
-                          const SizedBox(height: 22),
-                          const Text(
-                            'Repeat',
-                            style: TextStyle(
-                              color: Colors.white,
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                        onChanged: (v) {
+                          final values = _parseDayCsv(v, min: 1, max: 31);
+                          setModalState(() {
+                            repeat = repeat.copyWith(monthDays: values);
+                          });
+                        },
+                      );
+
+                    case ReminderRepeatKind.kemeticEveryNDecans:
+                      return TextFormField(
+                        keyboardType: TextInputType.number,
+                        initialValue: repeat.interval.toString(),
+                        scrollPadding: fieldScrollPadding,
+                        decoration: const InputDecoration(
+                          labelText: 'Every N decans',
+                          labelStyle: TextStyle(color: Colors.white70),
+                          enabledBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: Colors.white24),
+                          ),
+                          focusedBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: _gold),
+                          ),
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                        onChanged: (v) {
+                          final n = int.tryParse(v) ?? 1;
+                          setModalState(() {
+                            repeat = repeat.copyWith(interval: n.clamp(1, 36));
+                          });
+                        },
+                      );
+
+                    case ReminderRepeatKind.kemeticDecanDay:
+                      return TextFormField(
+                        keyboardType: TextInputType.text,
+                        initialValue: (_decanDayTargets(
+                          repeat,
+                          startLocal,
+                        ).toList()..sort()).join(', '),
+                        scrollPadding: fieldScrollPadding,
+                        decoration: const InputDecoration(
+                          labelText: 'Day of decan (1-10, comma-separated)',
+                          labelStyle: TextStyle(color: Colors.white70),
+                          enabledBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: Colors.white24),
+                          ),
+                          focusedBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: _gold),
+                          ),
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                        onChanged: (v) {
+                          final values = _parseDayCsv(v, min: 1, max: 10);
+                          setModalState(() {
+                            repeat = repeat.copyWith(decanDays: values);
+                          });
+                        },
+                      );
+
+                    case ReminderRepeatKind.kemeticMonthDay:
+                      return TextFormField(
+                        keyboardType: TextInputType.text,
+                        initialValue: (_kemeticMonthDayTargets(
+                          repeat,
+                          startLocal,
+                        ).toList()..sort()).join(', '),
+                        scrollPadding: fieldScrollPadding,
+                        decoration: const InputDecoration(
+                          labelText:
+                              'Day of Kemetic month (1-30, comma-separated)',
+                          labelStyle: TextStyle(color: Colors.white70),
+                          enabledBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: Colors.white24),
+                          ),
+                          focusedBorder: UnderlineInputBorder(
+                            borderSide: BorderSide(color: _gold),
+                          ),
+                        ),
+                        style: const TextStyle(color: Colors.white),
+                        onChanged: (v) {
+                          final values = _parseDayCsv(v, min: 1, max: 30);
+                          setModalState(() {
+                            repeat = repeat.copyWith(kemeticMonthDays: values);
+                          });
+                        },
+                      );
+
+                    case ReminderRepeatKind.none:
+                      return const SizedBox.shrink();
+                  }
+                }
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 42,
+                        height: 5,
+                        margin: const EdgeInsets.only(bottom: 14),
+                        decoration: BoxDecoration(
+                          color: DaySheetTokens.silverLo.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(3),
+                        ),
+                      ),
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          tooltip: 'Back',
+                          onPressed: () {
+                            if (Navigator.of(sheetCtx).canPop()) {
+                              Navigator.of(sheetCtx).pop(false);
+                            }
+                          },
+                          icon: const Icon(
+                            Icons.chevron_left,
+                            color: DaySheetTokens.silverMid,
+                            size: 24,
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            existing == null ? 'New reminder' : 'Edit reminder',
+                            style: const TextStyle(
+                              fontFamily: DaySheetTokens.serif,
+                              color: DaySheetTokens.silverHi,
+                              fontSize: 24,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                          const SizedBox(height: 6),
-                          InkWell(
-                            onTap: () async {
-                              final selected =
-                                  await showModalBottomSheet<
-                                    ReminderRepeatKind
-                                  >(
-                                    context: context,
-                                    backgroundColor: Colors.black,
-                                    shape: const RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.vertical(
-                                        top: Radius.circular(16),
-                                      ),
-                                    ),
-                                    builder: (_) {
-                                      const opts = [
-                                        (ReminderRepeatKind.none, 'Never'),
-                                        (
-                                          ReminderRepeatKind.everyNDays,
-                                          'Every X days',
+                        ),
+                        DaySheetSwitch(
+                          value: active,
+                          accent: selectedColor,
+                          onChanged: (v) => setModalState(() => active = v),
+                        ),
+                      ],
+                    ),
+                    DaySheetTextField(
+                      controller: titleCtrl,
+                      hint: 'Title',
+                      scrollPadding: fieldScrollPadding,
+                    ),
+                    const SizedBox(height: 20),
+                    DaySheetMetaRow(
+                      label: 'Calendar',
+                      value: selectedCalendarLabel,
+                      valueColor:
+                          selectedCalendar?.color ?? DaySheetTokens.gold,
+                      onTap:
+                          availableCalendars.isEmpty || !canEditSelectedCalendar
+                          ? null
+                          : () async {
+                              final chosenId =
+                                  await showCupertinoModalPopup<String>(
+                                    context: sheetCtx,
+                                    builder: (popupCtx) {
+                                      return CupertinoActionSheet(
+                                        title: const GlossyText(
+                                          text: 'Calendar',
+                                          gradient: silverGloss,
+                                          style: TextStyle(fontSize: 18),
                                         ),
-                                        (
-                                          ReminderRepeatKind.weekly,
-                                          'Weekly on…',
-                                        ),
-                                        (
-                                          ReminderRepeatKind.monthlyDay,
-                                          'Monthly on date',
-                                        ),
-                                        (
-                                          ReminderRepeatKind
-                                              .kemeticEveryNDecans,
-                                          'Every X decans',
-                                        ),
-                                        (
-                                          ReminderRepeatKind.kemeticDecanDay,
-                                          'Same day each decan',
-                                        ),
-                                        (
-                                          ReminderRepeatKind.kemeticMonthDay,
-                                          'Same date each Kemetic month',
-                                        ),
-                                      ];
-                                      return SafeArea(
-                                        child: ListView.separated(
-                                          shrinkWrap: true,
-                                          itemCount: opts.length,
-                                          separatorBuilder: (_, _) =>
-                                              const Divider(
-                                                height: 1,
-                                                color: Colors.white12,
-                                              ),
-                                          itemBuilder: (_, i) {
-                                            final (kind, label) = opts[i];
-                                            return ListTile(
-                                              title: Text(
-                                                label,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
+                                        actions: [
+                                          for (final calendar
+                                              in availableCalendars)
+                                            CupertinoActionSheetAction(
+                                              onPressed: () {
+                                                Navigator.of(
+                                                  popupCtx,
+                                                ).pop(calendar.id);
+                                              },
+                                              child: Text(
+                                                calendar.name,
+                                                style: TextStyle(
+                                                  color: calendar.color,
+                                                  fontSize: 17,
+                                                  fontWeight: FontWeight.w600,
                                                 ),
                                               ),
-                                              trailing: kind == repeat.kind
-                                                  ? const Icon(
-                                                      Icons.check,
-                                                      color: _gold,
-                                                    )
-                                                  : null,
-                                              onTap: () =>
-                                                  Navigator.pop(context, kind),
-                                            );
-                                          },
-                                        ),
+                                            ),
+                                        ],
+                                        cancelButton:
+                                            CupertinoActionSheetAction(
+                                              isDestructiveAction: true,
+                                              onPressed: () =>
+                                                  Navigator.of(popupCtx).pop(),
+                                              child: const Text('Cancel'),
+                                            ),
                                       );
                                     },
                                   );
-                              if (selected != null) {
-                                setModalState(() {
-                                  switch (selected) {
-                                    case ReminderRepeatKind.monthlyDay:
-                                      repeat = repeat.copyWith(
-                                        kind: selected,
-                                        monthDays: _monthDayTargets(
-                                          repeat,
-                                          startLocal,
-                                        ),
-                                      );
-                                      break;
-                                    case ReminderRepeatKind.weekly:
-                                      final wd = startLocal.weekday;
-                                      final current = repeat.weekdays.isEmpty
-                                          ? {wd}
-                                          : repeat.weekdays;
-                                      repeat = repeat.copyWith(
-                                        kind: selected,
-                                        weekdays: current,
-                                      );
-                                      break;
-                                    case ReminderRepeatKind.everyNDays:
-                                      repeat = repeat.copyWith(
-                                        kind: selected,
-                                        interval: repeat.interval <= 0
-                                            ? 1
-                                            : repeat.interval,
-                                      );
-                                      break;
-                                    case ReminderRepeatKind.kemeticEveryNDecans:
-                                      repeat = repeat.copyWith(
-                                        kind: selected,
-                                        interval: repeat.interval <= 0
-                                            ? 1
-                                            : repeat.interval,
-                                      );
-                                      break;
-                                    case ReminderRepeatKind.kemeticDecanDay:
-                                      repeat = repeat.copyWith(
-                                        kind: selected,
-                                        decanDays: _decanDayTargets(
-                                          repeat,
-                                          startLocal,
-                                        ),
-                                      );
-                                      break;
-                                    case ReminderRepeatKind.kemeticMonthDay:
-                                      repeat = repeat.copyWith(
-                                        kind: selected,
-                                        kemeticMonthDays:
-                                            _kemeticMonthDayTargets(
-                                              repeat,
-                                              startLocal,
-                                            ),
-                                      );
-                                      break;
-                                    case ReminderRepeatKind.none:
-                                      repeat = repeat.copyWith(kind: selected);
-                                      break;
-                                  }
-                                });
-                              }
+                              if (chosenId == null) return;
+                              setModalState(() {
+                                selectedCalendarId = chosenId;
+                              });
                             },
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 12,
-                                horizontal: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.white24),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    _reminderRepeatLabelForPicker(repeat.kind),
-                                    style: const TextStyle(color: Colors.white),
-                                  ),
-                                  const Icon(
-                                    Icons.chevron_right,
-                                    color: Colors.white54,
-                                    size: 20,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          DaySheetMetaRow(
-                            label: 'Alert',
-                            value: _alertLabelFor(alertMinutesBefore),
-                            onTap: () async {
-                              final picked = await _pickAlertMinutes(
-                                context,
-                                alertMinutesBefore,
-                              );
-                              if (picked != null) {
-                                setModalState(() {
-                                  alertMinutesBefore = picked;
-                                });
-                              }
-                            },
-                          ),
-                          const SizedBox(height: 8),
-                          repeatField(),
-                          if (repeat.kind != ReminderRepeatKind.none) ...[
-                            const SizedBox(height: 12),
-                            InkWell(
-                              onTap: () async {
-                                final action =
-                                    await showCupertinoModalPopup<String>(
-                                      context: sheetCtx,
-                                      builder: (popupCtx) {
-                                        return CupertinoActionSheet(
-                                          title: const GlossyText(
-                                            text: 'End date',
-                                            gradient: silverGloss,
-                                            style: TextStyle(fontSize: 18),
-                                          ),
-                                          actions: [
-                                            CupertinoActionSheetAction(
-                                              onPressed: () => Navigator.of(
-                                                popupCtx,
-                                              ).pop('pick'),
-                                              child: Text(
-                                                endLocal == null
-                                                    ? 'Choose end date'
-                                                    : 'Change end date',
-                                              ),
-                                            ),
-                                            if (endLocal != null)
-                                              CupertinoActionSheetAction(
-                                                onPressed: () => Navigator.of(
-                                                  popupCtx,
-                                                ).pop('clear'),
-                                                child: const Text(
-                                                  'Clear end date',
-                                                ),
-                                              ),
-                                          ],
-                                          cancelButton:
-                                              CupertinoActionSheetAction(
-                                                onPressed: () => Navigator.of(
-                                                  popupCtx,
-                                                ).pop(),
-                                                child: const Text('Cancel'),
-                                              ),
-                                        );
-                                      },
-                                    );
-                                if (action == 'clear') {
-                                  setModalState(() => endLocal = null);
-                                  return;
-                                }
-                                if (action != 'pick') return;
-                                if (!sheetCtx.mounted) return;
-                                final picked =
-                                    await RecurrenceUntilDatePicker.show(
-                                      sheetCtx,
-                                      initialDate: endLocal ?? startLocal,
-                                      allowPast: true,
-                                    );
-                                if (picked == null) return;
-                                if (!sheetCtx.mounted) return;
-                                setModalState(() {
-                                  final normalized = DateUtils.dateOnly(picked);
-                                  final minEnd = DateUtils.dateOnly(startLocal);
-                                  endLocal = normalized.isBefore(minEnd)
-                                      ? minEnd
-                                      : normalized;
-                                });
-                              },
-                              child: DaySheetMetaRow(
-                                label: 'End repeat',
-                                value: endDateLabel(),
-                                valueColor: endLocal == null
-                                    ? DaySheetTokens.silverLo
-                                    : DaySheetTokens.gold,
-                              ),
-                            ),
-                          ] else
-                            DaySheetMetaRow(
-                              label: 'End repeat',
-                              value: 'Never',
-                              valueColor: DaySheetTokens.silverLo,
-                              onTap: () {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Choose a repeat rule before setting an end date.',
-                                    ),
-                                    duration: Duration(seconds: 2),
-                                  ),
-                                );
-                              },
-                            ),
-                          DaySheetCategoryChips(
-                            categories: NoteCategory.all,
-                            selected: category,
-                            accent: selectedColor,
-                            onSelected: (value) =>
-                                setModalState(() => category = value),
-                          ),
-                          DaySheetSpectrumColorPicker(
-                            selectedColor: selectedColor,
-                            onChanged: (color) =>
-                                setModalState(() => selectedColor = color),
-                          ),
-                          const SizedBox(height: 20),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: DaySheetSaveButton(
-                              label: 'Save',
-                              accent: selectedColor,
-                              onPressed: () async {
-                                if (saveInFlight) return;
-                                final title = titleCtrl.text.trim();
-                                if (title.isEmpty) return;
-                                if (!canEditSelectedCalendar) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text(
-                                        'You can view this calendar, but you cannot edit it.',
-                                      ),
-                                    ),
-                                  );
-                                  return;
-                                }
-                                saveInFlight = true;
-                                final id = existing?.id ?? const Uuid().v4();
-                                final rule = ReminderRule(
-                                  id: id,
-                                  calendarId: selectedCalendarId,
-                                  title: title,
-                                  startLocal: startLocal,
-                                  allDay: allDay,
-                                  color: selectedColor,
-                                  category: category,
-                                  active: active,
-                                  repeat: repeat,
-                                  endLocal:
-                                      repeat.kind == ReminderRepeatKind.none
-                                      ? null
-                                      : endLocal,
-                                  alertOffsetMinutes: alertMinutesBefore,
-                                );
-                                try {
-                                  // Match standalone events: the account write
-                                  // must commit before the editor closes or the
-                                  // reminder becomes visible.
-                                  await _upsertReminderRule(rule);
-                                } catch (error) {
-                                  saveInFlight = false;
-                                  if (sheetCtx.mounted) {
-                                    ScaffoldMessenger.of(sheetCtx).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                          'Could not save this reminder to your account. Nothing was saved.',
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                  return;
-                                }
-                                if (sheetCtx.mounted &&
-                                    Navigator.of(sheetCtx).canPop()) {
-                                  Navigator.of(sheetCtx).pop(true);
-                                }
-                              },
-                            ),
-                          ),
-                        ],
+                    ),
+                    if (!canEditSelectedCalendar) ...[
+                      const SizedBox(height: 6),
+                      const Text(
+                        'You can view this calendar, but you cannot edit it.',
+                        style: TextStyle(color: Colors.white54, fontSize: 12),
                       ),
-                    );
-                  },
-                ),
-              ),
+                    ],
+                    Builder(
+                      builder: (_) {
+                        final seed = DateUtils.dateOnly(startLocal);
+                        final kSeed = KemeticMath.fromGregorian(seed);
+                        final stoneMode =
+                            reminderDateMode ==
+                                EventCreateDatePickerMode.gregorian
+                            ? StoneDatePickerCalendarMode.gregorian
+                            : StoneDatePickerCalendarMode.kemetic;
+                        return Padding(
+                          padding: const EdgeInsets.only(top: 18, bottom: 4),
+                          child:
+                              StoneRegisterDateField<
+                                EventCreateDatePickerValue
+                              >(
+                                key: const ValueKey<String>(
+                                  'day_sheet_reminder_date_picker_field',
+                                ),
+                                value: EventCreateDatePickerValue(
+                                  date: seed,
+                                  mode: reminderDateMode,
+                                ),
+                                adapter: EventCreateDatePickerAdapter(
+                                  gregorianYearStart: seed.year - 200,
+                                  kemeticYearStart: kSeed.kYear - 200,
+                                ),
+                                mode: stoneMode,
+                                label: 'Date',
+                                title: 'Reminder date',
+                                showCalendarIcon: false,
+                                onChanged: (picked) {
+                                  setModalState(() {
+                                    reminderDateMode = picked.mode;
+                                    startLocal = DateTime(
+                                      picked.date.year,
+                                      picked.date.month,
+                                      picked.date.day,
+                                      startLocal.hour,
+                                      startLocal.minute,
+                                    );
+                                    if (repeat.kind ==
+                                            ReminderRepeatKind.monthlyDay &&
+                                        repeat.monthDay == null) {
+                                      repeat = repeat.copyWith(
+                                        monthDay: startLocal.day,
+                                      );
+                                    }
+                                    if (endLocal != null &&
+                                        DateUtils.dateOnly(
+                                          startLocal,
+                                        ).isAfter(endLocal!)) {
+                                      endLocal = DateUtils.dateOnly(startLocal);
+                                    }
+                                  });
+                                },
+                              ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 18),
+                    DaySheetTimePill(
+                      caption: 'Time',
+                      label: allDay
+                          ? 'All day'
+                          : timeLabel(TimeOfDay.fromDateTime(startLocal)),
+                      icon: Icons.access_time,
+                      enabled: !allDay,
+                      onTap: () async {
+                        final picked = await showTimePicker(
+                          context: context,
+                          initialTime: TimeOfDay.fromDateTime(startLocal),
+                          builder: (c, w) => Theme(
+                            data: Theme.of(c).copyWith(
+                              colorScheme: const ColorScheme.dark(
+                                primary: _gold,
+                                surface: _bg,
+                                onSurface: Colors.white,
+                              ),
+                            ),
+                            child: w ?? const SizedBox.shrink(),
+                          ),
+                        );
+                        if (picked != null) {
+                          setModalState(() {
+                            startLocal = DateTime(
+                              startLocal.year,
+                              startLocal.month,
+                              startLocal.day,
+                              picked.hour,
+                              picked.minute,
+                            );
+                          });
+                        }
+                      },
+                    ),
+                    DaySheetToggleRow(
+                      label: 'All-day',
+                      value: allDay,
+                      accent: selectedColor,
+                      onChanged: (v) => setModalState(() => allDay = v),
+                    ),
+                    const SizedBox(height: 22),
+                    const Text(
+                      'Repeat',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    InkWell(
+                      onTap: () async {
+                        final selected =
+                            await showModalBottomSheet<ReminderRepeatKind>(
+                              context: context,
+                              backgroundColor: Colors.black,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.vertical(
+                                  top: Radius.circular(16),
+                                ),
+                              ),
+                              builder: (_) {
+                                const opts = [
+                                  (ReminderRepeatKind.none, 'Never'),
+                                  (
+                                    ReminderRepeatKind.everyNDays,
+                                    'Every X days',
+                                  ),
+                                  (ReminderRepeatKind.weekly, 'Weekly on…'),
+                                  (
+                                    ReminderRepeatKind.monthlyDay,
+                                    'Monthly on date',
+                                  ),
+                                  (
+                                    ReminderRepeatKind.kemeticEveryNDecans,
+                                    'Every X decans',
+                                  ),
+                                  (
+                                    ReminderRepeatKind.kemeticDecanDay,
+                                    'Same day each decan',
+                                  ),
+                                  (
+                                    ReminderRepeatKind.kemeticMonthDay,
+                                    'Same date each Kemetic month',
+                                  ),
+                                ];
+                                return SafeArea(
+                                  child: ListView.separated(
+                                    shrinkWrap: true,
+                                    itemCount: opts.length,
+                                    separatorBuilder: (_, _) => const Divider(
+                                      height: 1,
+                                      color: Colors.white12,
+                                    ),
+                                    itemBuilder: (_, i) {
+                                      final (kind, label) = opts[i];
+                                      return ListTile(
+                                        title: Text(
+                                          label,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        trailing: kind == repeat.kind
+                                            ? const Icon(
+                                                Icons.check,
+                                                color: _gold,
+                                              )
+                                            : null,
+                                        onTap: () =>
+                                            Navigator.pop(context, kind),
+                                      );
+                                    },
+                                  ),
+                                );
+                              },
+                            );
+                        if (selected != null) {
+                          setModalState(() {
+                            switch (selected) {
+                              case ReminderRepeatKind.monthlyDay:
+                                repeat = repeat.copyWith(
+                                  kind: selected,
+                                  monthDays: _monthDayTargets(
+                                    repeat,
+                                    startLocal,
+                                  ),
+                                );
+                                break;
+                              case ReminderRepeatKind.weekly:
+                                final wd = startLocal.weekday;
+                                final current = repeat.weekdays.isEmpty
+                                    ? {wd}
+                                    : repeat.weekdays;
+                                repeat = repeat.copyWith(
+                                  kind: selected,
+                                  weekdays: current,
+                                );
+                                break;
+                              case ReminderRepeatKind.everyNDays:
+                                repeat = repeat.copyWith(
+                                  kind: selected,
+                                  interval: repeat.interval <= 0
+                                      ? 1
+                                      : repeat.interval,
+                                );
+                                break;
+                              case ReminderRepeatKind.kemeticEveryNDecans:
+                                repeat = repeat.copyWith(
+                                  kind: selected,
+                                  interval: repeat.interval <= 0
+                                      ? 1
+                                      : repeat.interval,
+                                );
+                                break;
+                              case ReminderRepeatKind.kemeticDecanDay:
+                                repeat = repeat.copyWith(
+                                  kind: selected,
+                                  decanDays: _decanDayTargets(
+                                    repeat,
+                                    startLocal,
+                                  ),
+                                );
+                                break;
+                              case ReminderRepeatKind.kemeticMonthDay:
+                                repeat = repeat.copyWith(
+                                  kind: selected,
+                                  kemeticMonthDays: _kemeticMonthDayTargets(
+                                    repeat,
+                                    startLocal,
+                                  ),
+                                );
+                                break;
+                              case ReminderRepeatKind.none:
+                                repeat = repeat.copyWith(kind: selected);
+                                break;
+                            }
+                          });
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 12,
+                          horizontal: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.white24),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              _reminderRepeatLabelForPicker(repeat.kind),
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                            const Icon(
+                              Icons.chevron_right,
+                              color: Colors.white54,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DaySheetMetaRow(
+                      label: 'Alert',
+                      value: _alertLabelFor(alertMinutesBefore),
+                      onTap: () async {
+                        final picked = await _pickAlertMinutes(
+                          context,
+                          alertMinutesBefore,
+                        );
+                        if (picked != null) {
+                          setModalState(() {
+                            alertMinutesBefore = picked;
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 8),
+                    repeatField(),
+                    if (repeat.kind != ReminderRepeatKind.none) ...[
+                      const SizedBox(height: 12),
+                      InkWell(
+                        onTap: () async {
+                          final action = await showCupertinoModalPopup<String>(
+                            context: sheetCtx,
+                            builder: (popupCtx) {
+                              return CupertinoActionSheet(
+                                title: const GlossyText(
+                                  text: 'End date',
+                                  gradient: silverGloss,
+                                  style: TextStyle(fontSize: 18),
+                                ),
+                                actions: [
+                                  CupertinoActionSheetAction(
+                                    onPressed: () =>
+                                        Navigator.of(popupCtx).pop('pick'),
+                                    child: Text(
+                                      endLocal == null
+                                          ? 'Choose end date'
+                                          : 'Change end date',
+                                    ),
+                                  ),
+                                  if (endLocal != null)
+                                    CupertinoActionSheetAction(
+                                      onPressed: () =>
+                                          Navigator.of(popupCtx).pop('clear'),
+                                      child: const Text('Clear end date'),
+                                    ),
+                                ],
+                                cancelButton: CupertinoActionSheetAction(
+                                  onPressed: () => Navigator.of(popupCtx).pop(),
+                                  child: const Text('Cancel'),
+                                ),
+                              );
+                            },
+                          );
+                          if (action == 'clear') {
+                            setModalState(() => endLocal = null);
+                            return;
+                          }
+                          if (action != 'pick') return;
+                          if (!sheetCtx.mounted) return;
+                          final picked = await RecurrenceUntilDatePicker.show(
+                            sheetCtx,
+                            initialDate: endLocal ?? startLocal,
+                            allowPast: true,
+                          );
+                          if (picked == null) return;
+                          if (!sheetCtx.mounted) return;
+                          setModalState(() {
+                            final normalized = DateUtils.dateOnly(picked);
+                            final minEnd = DateUtils.dateOnly(startLocal);
+                            endLocal = normalized.isBefore(minEnd)
+                                ? minEnd
+                                : normalized;
+                          });
+                        },
+                        child: DaySheetMetaRow(
+                          label: 'End repeat',
+                          value: endDateLabel(),
+                          valueColor: endLocal == null
+                              ? DaySheetTokens.silverLo
+                              : DaySheetTokens.gold,
+                        ),
+                      ),
+                    ] else
+                      DaySheetMetaRow(
+                        label: 'End repeat',
+                        value: 'Never',
+                        valueColor: DaySheetTokens.silverLo,
+                        onTap: () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Choose a repeat rule before setting an end date.',
+                              ),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                      ),
+                    DaySheetCategoryChips(
+                      categories: NoteCategory.all,
+                      selected: category,
+                      accent: selectedColor,
+                      onSelected: (value) =>
+                          setModalState(() => category = value),
+                    ),
+                    DaySheetSpectrumColorPicker(
+                      selectedColor: selectedColor,
+                      onChanged: (color) =>
+                          setModalState(() => selectedColor = color),
+                    ),
+                    const SizedBox(height: 20),
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: DaySheetSaveButton(
+                        label: 'Save',
+                        accent: selectedColor,
+                        onPressed: () async {
+                          if (saveInFlight) return;
+                          final title = titleCtrl.text.trim();
+                          if (title.isEmpty) return;
+                          if (!canEditSelectedCalendar) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'You can view this calendar, but you cannot edit it.',
+                                ),
+                              ),
+                            );
+                            return;
+                          }
+                          saveInFlight = true;
+                          final id = existing?.id ?? const Uuid().v4();
+                          final rule = ReminderRule(
+                            id: id,
+                            calendarId: selectedCalendarId,
+                            title: title,
+                            startLocal: startLocal,
+                            allDay: allDay,
+                            color: selectedColor,
+                            category: category,
+                            active: active,
+                            repeat: repeat,
+                            endLocal: repeat.kind == ReminderRepeatKind.none
+                                ? null
+                                : endLocal,
+                            alertOffsetMinutes: alertMinutesBefore,
+                          );
+                          accountSave = _upsertReminderRule(rule);
+                          // Dismiss the editor and keyboard immediately.
+                          // The caller still awaits [accountSave] before
+                          // treating the reminder as saved or refreshing
+                          // the underlying day sheet.
+                          FocusManager.instance.primaryFocus?.unfocus();
+                          if (ctx.mounted && Navigator.of(ctx).canPop()) {
+                            Navigator.of(ctx).pop(true);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
           );
         },
       );
-      saved = result == true;
-    } finally {}
+      if (result == true && accountSave != null) {
+        try {
+          await accountSave;
+          saved = true;
+        } catch (error) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Could not save this reminder to your account. Nothing was saved.',
+                ),
+              ),
+            );
+          }
+        }
+      }
+    } finally {
+      titleCtrl.dispose();
+    }
 
     return saved;
   }
@@ -34462,6 +34478,18 @@ class CalendarPageState extends State<CalendarPage>
     final ids = _logicalReminderRuleIds(reminderId);
     _applyReminderEndIntentLocally(ids);
     return ids;
+  }
+
+  @visibleForTesting
+  void Function() debugBeginReminderEndIntentForTesting(String reminderId) {
+    final ids = _logicalReminderRuleIds(reminderId);
+    final rollback = _captureReminderEndRollback(ids);
+    _applyReminderEndIntentLocally(ids);
+    return () => _rollbackReminderEndLocally(
+      ids,
+      removedRules: rollback.removedRules,
+      removedNotesByDay: rollback.removedNotesByDay,
+    );
   }
 
   @visibleForTesting
