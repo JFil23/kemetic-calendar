@@ -4132,6 +4132,16 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           if (reminderId != null && onEndReminder != null) {
             await onEndReminder(reminderId);
           }
+        } else if (value == 'delete_reminder_occurrence') {
+          Navigator.pop(sheetContext);
+          if (widget.onDeleteNote != null) {
+            await widget.onDeleteNote!(
+              target.ky,
+              target.km,
+              target.kd,
+              currentEvent,
+            );
+          }
         } else if (value == 'end_note') {
           Navigator.pop(sheetContext);
           if (widget.onDeleteNote != null) {
@@ -4274,6 +4284,23 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                 const Text(
                   'Edit Reminder',
                   style: TextStyle(color: Colors.white),
+                ),
+              ],
+            ),
+          ),
+        if (isReminder && widget.onDeleteNote != null)
+          PopupMenuItem(
+            value: 'delete_reminder_occurrence',
+            child: Row(
+              children: [
+                KemeticGold.icon(Icons.delete_outline),
+                const SizedBox(width: 12),
+                const Flexible(
+                  child: Text(
+                    'Delete Occurrence',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
               ],
             ),
@@ -4695,9 +4722,14 @@ List<NoteData> _dedupeDayNotesForUi(List<NoteData> notes) {
   final flowLogicalIndexByKey = <String, int>{};
   final output = <NoteData>[];
 
-  bool hasIdentity(NoteData n) =>
-      (n.id != null && n.id!.trim().isNotEmpty) ||
-      (n.clientEventId != null && n.clientEventId!.trim().isNotEmpty);
+  int identityPriority(NoteData note) {
+    var score = 0;
+    if (note.clientEventId?.trim().isNotEmpty ?? false) score += 4;
+    if (note.id?.trim().isNotEmpty ?? false) score += 8;
+    if (note.reminderId?.trim().isNotEmpty ?? false) score += 2;
+    if (note.flowId != null && note.flowId! > 0) score += 1;
+    return score;
+  }
 
   for (final note in notes) {
     final flowKey = note.flowId?.toString() ?? 'NO_FLOW';
@@ -4717,12 +4749,21 @@ List<NoteData> _dedupeDayNotesForUi(List<NoteData> notes) {
     }
 
     final titleKey = note.title.trim().toLowerCase();
-    final key = '$flowKey|$startKey|$endKey|$titleKey';
+    final clientEventId = note.clientEventId?.trim();
+    final reminderId = note.reminderId?.trim();
+    final eventId = note.id?.trim();
+    final key = clientEventId != null && clientEventId.isNotEmpty
+        ? 'cid:$clientEventId'
+        : reminderId != null && reminderId.isNotEmpty
+        ? 'reminder:$reminderId|$startKey|$endKey'
+        : eventId != null && eventId.isNotEmpty
+        ? 'event:$eventId'
+        : '$flowKey|$startKey|$endKey|$titleKey';
 
     final exactExistingIndex = exactIndexByKey[key];
     if (exactExistingIndex != null) {
       final exactExisting = output[exactExistingIndex];
-      if (!hasIdentity(exactExisting) && hasIdentity(note)) {
+      if (identityPriority(note) > identityPriority(exactExisting)) {
         output[exactExistingIndex] = note;
       }
       continue;

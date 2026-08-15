@@ -164,6 +164,56 @@ void main() {
     },
   );
 
+  testWidgets(
+    'day view collapses optimistic and server reminder projections by occurrence identity',
+    (tester) async {
+      await _setPhoneViewport(tester);
+
+      await tester.pumpWidget(
+        const _DayViewHarness(
+          flowIndex: <int, FlowData>{
+            42: FlowData(
+              id: 42,
+              name: 'Delete test',
+              color: Colors.blue,
+              active: true,
+            ),
+          },
+          notes: <NoteData>[
+            NoteData(
+              clientEventId:
+                  'reminder:11111111-1111-1111-1111-111111111111:2026-08-15',
+              title: 'Delete test',
+              allDay: false,
+              start: TimeOfDay(hour: 2, minute: 15),
+              end: TimeOfDay(hour: 2, minute: 45),
+              manualColor: Colors.purple,
+              isReminder: true,
+              reminderId: '11111111-1111-1111-1111-111111111111',
+            ),
+            NoteData(
+              id: 'server-event-row',
+              clientEventId:
+                  'reminder:11111111-1111-1111-1111-111111111111:2026-08-15',
+              title: 'Delete test',
+              allDay: false,
+              start: TimeOfDay(hour: 2, minute: 15),
+              end: TimeOfDay(hour: 2, minute: 45),
+              flowId: 42,
+              manualColor: Colors.blue,
+              isReminder: true,
+              reminderId: '11111111-1111-1111-1111-111111111111',
+            ),
+          ],
+          initialScrollOffset: 60,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Delete test'), findsOneWidget);
+    },
+  );
+
   test(
     'Day View timeline does not render a false empty state while hydrating',
     () async {
@@ -1514,6 +1564,54 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('Stretch'), findsOneWidget);
         expect(find.text('New Event'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'reminder detail separates occurrence deletion from ending the rule',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        EventItem? deletedOccurrence;
+
+        await tester.pumpWidget(
+          _RestoredDetailGridHarness(
+            notes: [
+              _timedReminderNote(
+                clientEventId: 'reminder:reminder-delete-one:2026-08-15',
+                reminderId: 'reminder-delete-one',
+                title: 'Journal every day',
+                startHour: 9,
+              ),
+            ],
+            restoration: const EventDetailRestorationState(
+              kYear: 1,
+              kMonth: 1,
+              kDay: 1,
+              identityType: eventDetailIdentityReminderId,
+              identityValue: 'reminder-delete-one',
+            ),
+            onDeleteNote: (_, _, _, event) async {
+              deletedOccurrence = event;
+            },
+            onEndReminder: (_) async {},
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.byIcon(Icons.more_vert));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Delete Occurrence'), findsOneWidget);
+        expect(find.text('End Reminder'), findsOneWidget);
+
+        await tester.tap(find.text('Delete Occurrence'));
+        await tester.pumpAndSettle();
+
+        expect(deletedOccurrence, isNotNull);
+        expect(
+          deletedOccurrence!.clientEventId,
+          'reminder:reminder-delete-one:2026-08-15',
+        );
       },
     );
 

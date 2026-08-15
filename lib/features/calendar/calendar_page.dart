@@ -10525,6 +10525,8 @@ class CalendarPageState extends State<CalendarPage>
   final ReminderSyncGate _reminderSyncGate = ReminderSyncGate();
   bool _pendingReminderSyncRefreshUi = false;
   bool _pendingReminderSyncUpdateLocalCache = false;
+  final Map<String, Future<void>> _endingReminderOperations =
+      <String, Future<void>>{};
   int _orientationCriticalReminderGeneration = 0;
   bool _noteSheetShowReminders = false;
   bool _debugDaySheetSmokeScheduled = false;
@@ -20980,16 +20982,20 @@ class CalendarPageState extends State<CalendarPage>
   Future<bool> _openReminderEditor({
     ReminderRule? existing,
     DateTime? initialDate,
+    TimeOfDay? initialStartTime,
+    bool? initialAllDay,
   }) async {
     await _loadReminderRules();
     final now = DateTime.now();
     final defaultDate = DateUtils.dateOnly(initialDate ?? now);
+    final defaultTime =
+        initialStartTime ?? TimeOfDay(hour: now.hour, minute: 0);
     final defaultStart = DateTime(
       defaultDate.year,
       defaultDate.month,
       defaultDate.day,
-      now.hour,
-      0,
+      defaultTime.hour,
+      defaultTime.minute,
     );
     final availableCalendars =
         _calendarSummariesById.values
@@ -21009,7 +21015,7 @@ class CalendarPageState extends State<CalendarPage>
     if (endLocal != null) {
       endLocal = DateUtils.dateOnly(endLocal);
     }
-    bool allDay = existing?.allDay ?? false;
+    bool allDay = existing?.allDay ?? initialAllDay ?? false;
     Color selectedColor = existing?.color ?? daySheetColorPalette.first;
     String? category = existing?.category;
     ReminderRepeat repeat = existing?.repeat ?? const ReminderRepeat();
@@ -21027,6 +21033,7 @@ class CalendarPageState extends State<CalendarPage>
     }
 
     bool saved = false;
+    bool saveInFlight = false;
 
     try {
       final result = await showModalBottomSheet<bool>(
@@ -21806,6 +21813,7 @@ class CalendarPageState extends State<CalendarPage>
                               label: 'Save',
                               accent: selectedColor,
                               onPressed: () async {
+                                if (saveInFlight) return;
                                 final title = titleCtrl.text.trim();
                                 if (title.isEmpty) return;
                                 if (!canEditSelectedCalendar) {
@@ -21818,6 +21826,7 @@ class CalendarPageState extends State<CalendarPage>
                                   );
                                   return;
                                 }
+                                saveInFlight = true;
                                 final id = existing?.id ?? const Uuid().v4();
                                 final rule = ReminderRule(
                                   id: id,
@@ -21889,9 +21898,29 @@ class CalendarPageState extends State<CalendarPage>
     await _openReminderEditor(existing: rule);
   }
 
-  Future<void> _endReminderRule(String id) async {
+  Future<void> _endReminderRule(String id) {
+    final normalizedId = id.trim();
+    if (normalizedId.isEmpty || _endedReminderIds.contains(normalizedId)) {
+      return Future<void>.value();
+    }
+    final inFlight = _endingReminderOperations[normalizedId];
+    if (inFlight != null) return inFlight;
+
+    final operation = _endReminderRuleOnce(normalizedId);
+    late final Future<void> tracked;
+    tracked = operation.whenComplete(() {
+      if (identical(_endingReminderOperations[normalizedId], tracked)) {
+        _endingReminderOperations.remove(normalizedId);
+      }
+    });
+    _endingReminderOperations[normalizedId] = tracked;
+    return tracked;
+  }
+
+  Future<void> _endReminderRuleOnce(String id) async {
     // End = remove the reminder entirely (rule + scheduled instances + cached notes).
     await _loadReminderRules();
+    if (_endedReminderIds.contains(id)) return;
     await _deleteReminderRule(id);
   }
 
@@ -28820,6 +28849,8 @@ class CalendarPageState extends State<CalendarPage>
                 return _openReminderEditor(
                   existing: existing,
                   initialDate: titleG,
+                  initialStartTime: existing == null ? startTime : null,
+                  initialAllDay: existing == null ? allDay : null,
                 );
               }
 
@@ -33756,8 +33787,6 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   String _visibleDayNoteBaseKey(_Note note) {
-    final flowKey = note.flowId?.toString() ?? 'NO_FLOW';
-
     String startKey;
     String endKey;
 
@@ -33772,6 +33801,22 @@ class CalendarPageState extends State<CalendarPage>
       endKey = 'NO_END';
     }
 
+    final clientEventId = note.clientEventId?.trim();
+    if (clientEventId != null && clientEventId.isNotEmpty) {
+      return 'cid:$clientEventId';
+    }
+
+    final reminderId = note.reminderId?.trim();
+    if (reminderId != null && reminderId.isNotEmpty) {
+      return 'reminder:$reminderId|$startKey|$endKey';
+    }
+
+    final eventId = note.id?.trim();
+    if (eventId != null && eventId.isNotEmpty) {
+      return 'event:$eventId';
+    }
+
+    final flowKey = note.flowId?.toString() ?? 'NO_FLOW';
     final titleKey = note.title.trim().toLowerCase();
     return '$flowKey|$startKey|$endKey|$titleKey';
   }

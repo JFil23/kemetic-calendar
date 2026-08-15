@@ -635,14 +635,58 @@ void main() {
       );
 
       expect(reminderEditor, contains('DateTime? initialDate'));
+      expect(reminderEditor, contains('TimeOfDay? initialStartTime'));
+      expect(reminderEditor, contains('bool? initialAllDay'));
       expect(
         reminderEditor,
         contains('final defaultDate = DateUtils.dateOnly(initialDate ?? now)'),
       );
+      expect(
+        reminderEditor,
+        contains('initialStartTime ?? TimeOfDay(hour: now.hour, minute: 0)'),
+      );
       expect(daySheet, contains('openReminderEditorForSelectedDay'));
       expect(daySheet, contains('initialDate: titleG'));
+      expect(
+        daySheet,
+        contains('initialStartTime: existing == null ? startTime : null'),
+      );
+      expect(
+        daySheet,
+        contains('initialAllDay: existing == null ? allDay : null'),
+      );
       expect(daySheet, contains('await openReminderEditorForSelectedDay()'));
       expect(daySheet, contains('await openReminderEditorForSelectedDay('));
+    },
+  );
+
+  test(
+    'reminder save and end commands are guarded against duplicate work',
+    () async {
+      final source = await File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsString();
+      final reminderEditor = _sourceBetween(
+        source,
+        'Future<bool> _openReminderEditor',
+        'Future<void> _editReminderById',
+      );
+      final endReminder = _sourceBetween(
+        source,
+        'Future<void> _endReminderRule(String id)',
+        'void _beginOrientationCriticalReminderSyncDeferral',
+      );
+
+      expect(reminderEditor, contains('bool saveInFlight = false'));
+      expect(reminderEditor, contains('if (saveInFlight) return'));
+      expect(reminderEditor, contains('saveInFlight = true'));
+      expect(source, contains('_endingReminderOperations'));
+      expect(
+        endReminder,
+        contains('final inFlight = _endingReminderOperations'),
+      );
+      expect(endReminder, contains('if (inFlight != null) return inFlight'));
+      expect(endReminder, contains('_endedReminderIds.contains'));
     },
   );
 
