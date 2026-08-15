@@ -123,6 +123,54 @@ void main() {
       expect(merged, <String>['1:new', '2:keep', 'local', '3:last']);
     });
 
+    test('flow removal and rollback are immutable and identity-idempotent', () {
+      final source = <String, List<String>>{
+        'day-1': <String>['7|cid-a', 'keep|cid-k'],
+        'day-2': <String>['7|cid-b'],
+      };
+      final removed = deriveVisibleCalendarProjection<String>(
+        source: source,
+        pendingItems: const <CalendarPendingVisibleItem<String>>[],
+        stableIdentityOf: (item) => item.split('|').last,
+        suppressionRules: <CalendarItemSuppressionRule<String>>[
+          (_, item) => item.startsWith('7|'),
+        ],
+      );
+
+      expect(removed.buckets, <String, List<String>>{
+        'day-1': <String>['keep|cid-k'],
+      });
+      expect(source['day-1'], <String>['7|cid-a', 'keep|cid-k']);
+
+      const rollback = <CalendarPendingVisibleItem<String>>[
+        CalendarPendingVisibleItem<String>(dayKey: 'day-1', item: '7|cid-a'),
+        CalendarPendingVisibleItem<String>(dayKey: 'day-2', item: '7|cid-b'),
+      ];
+      final restored = deriveVisibleCalendarProjection<String>(
+        source: removed.buckets,
+        pendingItems: rollback,
+        stableIdentityOf: (item) => item.split('|').last,
+        suppressionRules: const <CalendarItemSuppressionRule<String>>[],
+        pendingIdentityConflictResolution:
+            CalendarPendingIdentityConflictResolution.pendingReplacesSource,
+      );
+      final restoredAgain = deriveVisibleCalendarProjection<String>(
+        source: restored.buckets,
+        pendingItems: rollback,
+        stableIdentityOf: (item) => item.split('|').last,
+        suppressionRules: const <CalendarItemSuppressionRule<String>>[],
+        pendingIdentityConflictResolution:
+            CalendarPendingIdentityConflictResolution.pendingReplacesSource,
+      );
+
+      final expectedRestored = <String, List<String>>{
+        'day-1': <String>['keep|cid-k', '7|cid-a'],
+        'day-2': <String>['7|cid-b'],
+      };
+      expect(restored.buckets, expectedRestored);
+      expect(restoredAgain.buckets, expectedRestored);
+    });
+
     test('applies one ordered rule stack and stops at the first match', () {
       final calls = <String>[];
       final visible = deriveVisibleCalendarBuckets<String>(

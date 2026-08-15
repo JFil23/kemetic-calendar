@@ -315,22 +315,29 @@ void main() {
           'void _publishSharedCalendarSeedNotes({',
           'void _seedSameDaySharedCalendarFiledEvents({',
         );
+        expect(sharedSeedPublisher, contains('_publishCalendarNoteMutation('));
+        expect(sharedSeedPublisher, isNot(contains('_notes[')));
+
+        final mutationPublisher = _sourceBetween(
+          calendar,
+          'void _publishCalendarNoteMutation({',
+          'String? _calendarNoteStableIdentity(_Note note)',
+        );
         expect(
-          sharedSeedPublisher,
+          mutationPublisher,
           contains('deriveVisibleCalendarProjection<_Note>('),
         );
         expect(
-          sharedSeedPublisher,
+          mutationPublisher,
           contains(
             'CalendarPendingIdentityConflictResolution.pendingReplacesSource',
           ),
         );
         expect(
-          sharedSeedPublisher,
-          contains('pendingSourceConflictRule: _sharedCalendarSeedConflict'),
+          mutationPublisher,
+          contains('pendingSourceConflictRule: sourceConflictRule'),
         );
-        expect(sharedSeedPublisher, contains('_replaceLiveNoteBuckets('));
-        expect(sharedSeedPublisher, isNot(contains('_notes[')));
+        expect(mutationPublisher, contains('_replaceLiveNoteBuckets('));
 
         final sameDaySeed = _sourceBetween(
           calendar,

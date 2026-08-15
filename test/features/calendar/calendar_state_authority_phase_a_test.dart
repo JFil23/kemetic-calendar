@@ -174,11 +174,19 @@ void main() {
       RegExp(
         r'confirmation:\s*NoteConfirmation\.unconfirmed',
       ).allMatches(calendarPageSource).length,
-      3,
+      2,
       reason:
-          'optimistic standalone saves, their reconciliation fallback, and '
-          'staged Ma_at joins must survive hydration',
+          'optimistic standalone saves and their reconciliation fallback '
+          'must survive hydration',
     );
+    final stagedApply = calendarPageSource.substring(
+      calendarPageSource.indexOf('void _applyPendingStagedFlow(int flowId)'),
+      calendarPageSource.indexOf(
+        'bool _schedulePendingStagedFlowDayViewIfAny()',
+      ),
+    );
+    expect(stagedApply, contains('_unconfirmed.register('));
+    expect(stagedApply, contains('_publishCalendarNoteMutation('));
     final commitStart = calendarPageSource.indexOf(
       'Future<void> commitVisibleCalendarState(',
     );
@@ -235,10 +243,7 @@ void main() {
       ),
     );
     expect(helper, contains('_flows.removeWhere'));
-    expect(
-      helper,
-      contains('notes.removeWhere((note) => note.flowId == serverFlowId)'),
-    );
+    expect(helper, contains('_removeCalendarNotesWhere('));
     expect(helper, contains('await repo.deleteFlow(serverFlowId)'));
     expect(helper, contains('await repo.deleteByFlowId('));
     expect(
@@ -255,4 +260,40 @@ void main() {
       reason: 'inline maat rollback bodies must be gone',
     );
   });
+
+  test(
+    'flow note mutations publish through one calendar reducer authority',
+    () {
+      expect(
+        calendarPageSource,
+        contains('void _publishCalendarNoteMutation({'),
+      );
+      final publication = calendarPageSource.substring(
+        calendarPageSource.indexOf('void _publishCalendarNoteMutation({'),
+        calendarPageSource.indexOf(
+          'String? _calendarNoteStableIdentity(_Note note)',
+        ),
+      );
+      expect(publication, contains('deriveVisibleCalendarProjection<_Note>('));
+      expect(publication, contains('_replaceLiveNoteBuckets('));
+
+      final stagedApply = calendarPageSource.substring(
+        calendarPageSource.indexOf('void _applyPendingStagedFlow(int flowId)'),
+        calendarPageSource.indexOf(
+          'bool _schedulePendingStagedFlowDayViewIfAny()',
+        ),
+      );
+      expect(stagedApply, contains('_publishCalendarNoteMutation('));
+      expect(stagedApply, isNot(contains('_addNote(')));
+
+      final flowEndRollback = calendarPageSource.substring(
+        calendarPageSource.indexOf(
+          'void _rollbackOptimisticEndedFlow(int flowId',
+        ),
+        calendarPageSource.indexOf('Future<bool> _makeTodoFromEventTarget('),
+      );
+      expect(flowEndRollback, contains('_publishCalendarNoteMutation('));
+      expect(flowEndRollback, isNot(contains('_notes.putIfAbsent')));
+    },
+  );
 }
