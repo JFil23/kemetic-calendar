@@ -38,6 +38,7 @@ Future<NodeLinkPickerResult?> showNodeLinkPickerSheet({
           final query = controller.text.trim().toLowerCase();
           final media = MediaQuery.of(ctx);
           final closedHeight = media.size.height * 0.72;
+          final keyboardInset = MediaQuery.viewInsetsOf(ctx).bottom;
           final filtered = nodes
               .where(
                 (node) =>
@@ -49,9 +50,8 @@ Future<NodeLinkPickerResult?> showNodeLinkPickerSheet({
               )
               .toList();
 
-          return KeyboardSafeViewport(
-            maxHeightFactor: 0.72,
-            topClearance: 16,
+          return Padding(
+            padding: EdgeInsets.only(bottom: keyboardInset),
             child: Padding(
               padding: EdgeInsets.only(
                 left: 16,

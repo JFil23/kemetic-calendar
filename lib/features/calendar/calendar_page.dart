@@ -7846,6 +7846,7 @@ class CalendarPage extends StatefulWidget {
             sharedCalendarsRepo: sharedCalendarsRepo,
             onCalendarChanged: onCalendarChanged,
             onSave: handleResult,
+            resizeToAvoidBottomInset: false,
           ),
         ),
         parentRoute: parentRoute,
@@ -7865,6 +7866,7 @@ class CalendarPage extends StatefulWidget {
           existingFlows: cachedFlows,
           editFlowId: editFlowId,
           importData: importData,
+          resizeToAvoidBottomInset: false,
           onRouteResult: handleResult,
           onContinuityChanged: (state) {
             unawaited(
@@ -7932,6 +7934,7 @@ class CalendarPage extends StatefulWidget {
             template.key,
           ),
           addInstance: _addMaatFlowInstanceHeadlessWithCompletion,
+          resizeToAvoidBottomInset: false,
           onJoined: (flowId) => _completeDetachedMaatJoinWithDayView(
             navigator: navigator,
             template: template,
@@ -8167,6 +8170,7 @@ class CalendarPage extends StatefulWidget {
             _cachedDetachedMyFlowsFilingSnapshot(flowsRepo)?.flows ??
             const <_Flow>[],
         editFlowId: editFlowId,
+        resizeToAvoidBottomInset: false,
         onRouteClose: onClose,
         onRouteResult: (result) async {
           final opensDayView = _shouldOpenDayViewAfterFlowStudioAdd(result);
@@ -8421,6 +8425,7 @@ class CalendarPage extends StatefulWidget {
           resolvedTemplate.key,
         ),
         addInstance: _addMaatFlowInstanceHeadlessWithCompletion,
+        resizeToAvoidBottomInset: false,
         onJoined: (flowId) => _completeDetachedMaatJoinWithDayView(
           navigator: Navigator.of(detailContext),
           template: resolvedTemplate,
@@ -12924,6 +12929,7 @@ class CalendarPageState extends State<CalendarPage>
             personalCalendarId: _personalCalendarId,
             sharedCalendarsRepo: _sharedCalendarsRepo,
             onCalendarChanged: _moveReadingHouseFlowToCalendar,
+            resizeToAvoidBottomInset: persistOverlay,
           ),
         ),
         visibleState: <String, dynamic>{
@@ -13020,6 +13026,7 @@ class CalendarPageState extends State<CalendarPage>
         builder: (_) => _MaatFlowTemplateDetailPage(
           template: template,
           alreadyJoined: _hasActiveMaatInstanceFor(template.key),
+          resizeToAvoidBottomInset: persistOverlay,
           addInstance:
               ({
                 required _MaatFlowTemplate template,
@@ -13557,237 +13564,284 @@ class CalendarPageState extends State<CalendarPage>
                   const fieldScrollPadding =
                       keyboardManagedTextFieldScrollPadding;
 
-                  return KeyboardSafeViewport(
-                    maxHeightFactor: 0.66,
-                    topClearance: 48,
-                    child: Dialog(
-                      backgroundColor: Colors.transparent,
-                      insetPadding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 24,
+                  return Dialog(
+                    backgroundColor: Colors.transparent,
+                    insetPadding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 24,
+                    ),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: 560,
+                        maxHeight: media.size.height * 0.66,
                       ),
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: 560,
-                          maxHeight: media.size.height * 0.66,
-                        ),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: Colors.black,
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(
-                              color: KemeticGold.base.withValues(alpha: 0.72),
-                              width: 1.2,
-                            ),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black,
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: KemeticGold.base.withValues(alpha: 0.72),
+                            width: 1.2,
                           ),
-                          child: SingleChildScrollView(
-                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-                            child: DefaultTextStyle(
-                              style: const TextStyle(color: Colors.white),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Row(
+                        ),
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                          child: DefaultTextStyle(
+                            style: const TextStyle(color: Colors.white),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: KemeticGold.text(
+                                        'Add note',
+                                        style: const TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                        maxLines: 1,
+                                        softWrap: false,
+                                        overflow: TextOverflow.fade,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      tooltip: 'Close',
+                                      onPressed: isSaving
+                                          ? null
+                                          : () => Navigator.of(dialogCtx).pop(),
+                                      icon: const Icon(
+                                        Icons.close,
+                                        color: Colors.white70,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                datePicker(),
+                                const Divider(
+                                  height: 24,
+                                  color: Colors.white12,
+                                ),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: const GlossyText(
+                                    text: 'Add note',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 16,
+                                    ),
+                                    gradient: silverGloss,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                TextField(
+                                  controller: controllerTitle,
+                                  scrollPadding: fieldScrollPadding,
+                                  enabled: !isSaving,
+                                  style: const TextStyle(color: Colors.white),
+                                  decoration: _darkInput('Title'),
+                                ),
+                                const SizedBox(height: 8),
+                                TextField(
+                                  controller: controllerLocation,
+                                  scrollPadding: fieldScrollPadding,
+                                  enabled: !isSaving,
+                                  style: const TextStyle(color: Colors.white),
+                                  decoration: _darkInput(
+                                    'Location or Video Call',
+                                    hint: 'e.g., Home • Zoom • https://meet…',
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                TextField(
+                                  controller: controllerDetail,
+                                  scrollPadding: fieldScrollPadding,
+                                  enabled: !isSaving,
+                                  style: const TextStyle(color: Colors.white),
+                                  maxLines: 3,
+                                  decoration: _darkInput('Details (optional)'),
+                                ),
+                                const SizedBox(height: 12),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    'Category (optional)',
+                                    style:
+                                        Theme.of(
+                                          context,
+                                        ).textTheme.bodyMedium?.copyWith(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                        ) ??
+                                        const TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
                                     children: [
-                                      Expanded(
-                                        child: KemeticGold.text(
-                                          'Add note',
-                                          style: const TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                          maxLines: 1,
-                                          softWrap: false,
-                                          overflow: TextOverflow.fade,
-                                        ),
-                                      ),
-                                      IconButton(
-                                        tooltip: 'Close',
-                                        onPressed: isSaving
-                                            ? null
-                                            : () =>
-                                                  Navigator.of(dialogCtx).pop(),
-                                        icon: const Icon(
-                                          Icons.close,
-                                          color: Colors.white70,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  datePicker(),
-                                  const Divider(
-                                    height: 24,
-                                    color: Colors.white12,
-                                  ),
-                                  Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: const GlossyText(
-                                      text: 'Add note',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 16,
-                                      ),
-                                      gradient: silverGloss,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  TextField(
-                                    controller: controllerTitle,
-                                    scrollPadding: fieldScrollPadding,
-                                    enabled: !isSaving,
-                                    style: const TextStyle(color: Colors.white),
-                                    decoration: _darkInput('Title'),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  TextField(
-                                    controller: controllerLocation,
-                                    scrollPadding: fieldScrollPadding,
-                                    enabled: !isSaving,
-                                    style: const TextStyle(color: Colors.white),
-                                    decoration: _darkInput(
-                                      'Location or Video Call',
-                                      hint: 'e.g., Home • Zoom • https://meet…',
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  TextField(
-                                    controller: controllerDetail,
-                                    scrollPadding: fieldScrollPadding,
-                                    enabled: !isSaving,
-                                    style: const TextStyle(color: Colors.white),
-                                    maxLines: 3,
-                                    decoration: _darkInput(
-                                      'Details (optional)',
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      'Category (optional)',
-                                      style:
-                                          Theme.of(
-                                            context,
-                                          ).textTheme.bodyMedium?.copyWith(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w600,
-                                          ) ??
-                                          const TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: [
-                                        for (final cat in NoteCategory.all)
-                                          ChoiceChip(
-                                            label: Text(cat),
-                                            selected: selectedCategory == cat,
-                                            onSelected: isSaving
-                                                ? null
-                                                : (_) {
-                                                    setDialogState(() {
-                                                      selectedCategory = cat;
-                                                    });
-                                                  },
-                                            selectedColor: const Color(
-                                              0xFFD4AF37,
-                                            ).withValues(alpha: 0.2),
-                                            labelStyle: TextStyle(
-                                              color: selectedCategory == cat
-                                                  ? KemeticGold.base
-                                                  : Colors.white,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                            backgroundColor: const Color(
-                                              0xFF1A1A1A,
-                                            ),
-                                            side: BorderSide(
-                                              color: selectedCategory == cat
-                                                  ? KemeticGold.base
-                                                  : Colors.white24,
-                                            ),
-                                          ),
-                                        ActionChip(
-                                          label: const Text(
-                                            'Clear',
-                                            style: TextStyle(
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                          avatar: const Icon(
-                                            Icons.close,
-                                            size: 18,
-                                            color: Colors.white70,
-                                          ),
-                                          onPressed:
-                                              selectedCategory == null ||
-                                                  isSaving
+                                      for (final cat in NoteCategory.all)
+                                        ChoiceChip(
+                                          label: Text(cat),
+                                          selected: selectedCategory == cat,
+                                          onSelected: isSaving
                                               ? null
-                                              : () {
+                                              : (_) {
                                                   setDialogState(() {
-                                                    selectedCategory = null;
+                                                    selectedCategory = cat;
                                                   });
                                                 },
+                                          selectedColor: const Color(
+                                            0xFFD4AF37,
+                                          ).withValues(alpha: 0.2),
+                                          labelStyle: TextStyle(
+                                            color: selectedCategory == cat
+                                                ? KemeticGold.base
+                                                : Colors.white,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                           backgroundColor: const Color(
                                             0xFF1A1A1A,
                                           ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  SwitchListTile(
-                                    contentPadding: EdgeInsets.zero,
-                                    value: allDay,
-                                    onChanged: isSaving
-                                        ? null
-                                        : (v) =>
-                                              setDialogState(() => allDay = v),
-                                    title: const GlossyText(
-                                      text: 'All-day',
-                                      style: TextStyle(fontSize: 14),
-                                      gradient: silverGloss,
-                                    ),
-                                    activeThumbColor: _gold,
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: timeButton(
-                                          label: 'Starts',
-                                          value: startTime,
-                                          onTap: () => pickStart(
-                                            dialogCtx,
-                                            setDialogState,
+                                          side: BorderSide(
+                                            color: selectedCategory == cat
+                                                ? KemeticGold.base
+                                                : Colors.white24,
                                           ),
-                                          enabled: !allDay && !isSaving,
                                         ),
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: timeButton(
-                                          label: 'Ends',
-                                          value: endTime,
-                                          onTap: () => pickEnd(
-                                            dialogCtx,
-                                            setDialogState,
-                                          ),
-                                          enabled: !allDay && !isSaving,
+                                      ActionChip(
+                                        label: const Text(
+                                          'Clear',
+                                          style: TextStyle(color: Colors.white),
+                                        ),
+                                        avatar: const Icon(
+                                          Icons.close,
+                                          size: 18,
+                                          color: Colors.white70,
+                                        ),
+                                        onPressed:
+                                            selectedCategory == null || isSaving
+                                            ? null
+                                            : () {
+                                                setDialogState(() {
+                                                  selectedCategory = null;
+                                                });
+                                              },
+                                        backgroundColor: const Color(
+                                          0xFF1A1A1A,
                                         ),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 12),
-                                  Container(
+                                ),
+                                const SizedBox(height: 10),
+                                SwitchListTile(
+                                  contentPadding: EdgeInsets.zero,
+                                  value: allDay,
+                                  onChanged: isSaving
+                                      ? null
+                                      : (v) => setDialogState(() => allDay = v),
+                                  title: const GlossyText(
+                                    text: 'All-day',
+                                    style: TextStyle(fontSize: 14),
+                                    gradient: silverGloss,
+                                  ),
+                                  activeThumbColor: _gold,
+                                ),
+                                const SizedBox(height: 6),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: timeButton(
+                                        label: 'Starts',
+                                        value: startTime,
+                                        onTap: () => pickStart(
+                                          dialogCtx,
+                                          setDialogState,
+                                        ),
+                                        enabled: !allDay && !isSaving,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: timeButton(
+                                        label: 'Ends',
+                                        value: endTime,
+                                        onTap: () =>
+                                            pickEnd(dialogCtx, setDialogState),
+                                        enabled: !allDay && !isSaving,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const GlossyText(
+                                        text: 'Calendar',
+                                        gradient: silverGloss,
+                                        style: TextStyle(fontSize: 14),
+                                      ),
+                                      Flexible(
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Flexible(
+                                              child: Text(
+                                                lockedCalendar.name,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.fade,
+                                                softWrap: false,
+                                                style: TextStyle(
+                                                  color: lockedCalendar.color,
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Icon(
+                                              Icons.lock_outline,
+                                              size: 16,
+                                              color: lockedCalendar.color,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                InkWell(
+                                  onTap: isSaving
+                                      ? null
+                                      : () async {
+                                          final picked =
+                                              await _pickAlertMinutes(
+                                                dialogCtx,
+                                                alertMinutesBefore,
+                                              );
+                                          if (picked != null &&
+                                              dialogCtx.mounted) {
+                                            setDialogState(() {
+                                              alertMinutesBefore = picked;
+                                            });
+                                          }
+                                        },
+                                  child: Container(
                                     padding: const EdgeInsets.symmetric(
                                       vertical: 12,
                                     ),
@@ -13796,182 +13850,119 @@ class CalendarPageState extends State<CalendarPage>
                                           MainAxisAlignment.spaceBetween,
                                       children: [
                                         const GlossyText(
-                                          text: 'Calendar',
+                                          text: 'Alert',
                                           gradient: silverGloss,
                                           style: TextStyle(fontSize: 14),
                                         ),
-                                        Flexible(
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Flexible(
-                                                child: Text(
-                                                  lockedCalendar.name,
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.fade,
-                                                  softWrap: false,
-                                                  style: TextStyle(
-                                                    color: lockedCalendar.color,
-                                                    fontSize: 14,
-                                                    fontWeight: FontWeight.w600,
-                                                  ),
-                                                ),
+                                        Row(
+                                          children: [
+                                            GlossyText(
+                                              text: _alertLabelFor(
+                                                alertMinutesBefore,
                                               ),
-                                              const SizedBox(width: 4),
-                                              Icon(
-                                                Icons.lock_outline,
-                                                size: 16,
-                                                color: lockedCalendar.color,
+                                              gradient: goldGloss,
+                                              style: const TextStyle(
+                                                fontSize: 14,
                                               ),
-                                            ],
-                                          ),
+                                            ),
+                                            const SizedBox(width: 4),
+                                            const Icon(
+                                              Icons.chevron_right,
+                                              size: 18,
+                                              color: Colors.white54,
+                                            ),
+                                          ],
                                         ),
                                       ],
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
-                                  InkWell(
-                                    onTap: isSaving
-                                        ? null
-                                        : () async {
-                                            final picked =
-                                                await _pickAlertMinutes(
-                                                  dialogCtx,
-                                                  alertMinutesBefore,
-                                                );
-                                            if (picked != null &&
-                                                dialogCtx.mounted) {
-                                              setDialogState(() {
-                                                alertMinutesBefore = picked;
-                                              });
-                                            }
-                                          },
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          const GlossyText(
-                                            text: 'Alert',
-                                            gradient: silverGloss,
-                                            style: TextStyle(fontSize: 14),
-                                          ),
-                                          Row(
-                                            children: [
-                                              GlossyText(
-                                                text: _alertLabelFor(
-                                                  alertMinutesBefore,
-                                                ),
-                                                gradient: goldGloss,
-                                                style: const TextStyle(
-                                                  fontSize: 14,
-                                                ),
-                                              ),
-                                              const SizedBox(width: 4),
-                                              const Icon(
-                                                Icons.chevron_right,
-                                                size: 18,
-                                                color: Colors.white54,
-                                              ),
-                                            ],
-                                          ),
-                                        ],
-                                      ),
+                                ),
+                                const SizedBox(height: 12),
+                                const Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: GlossyText(
+                                    text: 'Color',
+                                    gradient: silverGloss,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
                                     ),
                                   ),
-                                  const SizedBox(height: 12),
-                                  const Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: GlossyText(
-                                      text: 'Color',
-                                      gradient: silverGloss,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  SizedBox(
-                                    height: 36,
-                                    child: ListView.builder(
-                                      scrollDirection: Axis.horizontal,
-                                      itemCount: _flowPalette.length,
-                                      itemBuilder: (_, i) {
-                                        final selected =
-                                            i == selectedColorIndex;
-                                        final color = _flowPalette[i];
-                                        return InkWell(
-                                          onTap: isSaving
-                                              ? null
-                                              : () {
-                                                  setDialogState(() {
-                                                    selectedColorIndex = i;
-                                                  });
-                                                },
-                                          borderRadius: BorderRadius.circular(
-                                            18,
+                                ),
+                                const SizedBox(height: 8),
+                                SizedBox(
+                                  height: 36,
+                                  child: ListView.builder(
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: _flowPalette.length,
+                                    itemBuilder: (_, i) {
+                                      final selected = i == selectedColorIndex;
+                                      final color = _flowPalette[i];
+                                      return InkWell(
+                                        onTap: isSaving
+                                            ? null
+                                            : () {
+                                                setDialogState(() {
+                                                  selectedColorIndex = i;
+                                                });
+                                              },
+                                        borderRadius: BorderRadius.circular(18),
+                                        child: Container(
+                                          width: 30,
+                                          height: 30,
+                                          margin: const EdgeInsets.only(
+                                            right: 10,
                                           ),
-                                          child: Container(
-                                            width: 30,
-                                            height: 30,
-                                            margin: const EdgeInsets.only(
-                                              right: 10,
-                                            ),
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              gradient: _glossFromColor(color),
-                                              border: Border.all(
-                                                color: selected
-                                                    ? _gold
-                                                    : Colors.white24,
-                                                width: selected ? 2.0 : 1.0,
-                                              ),
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            gradient: _glossFromColor(color),
+                                            border: Border.all(
+                                              color: selected
+                                                  ? _gold
+                                                  : Colors.white24,
+                                              width: selected ? 2.0 : 1.0,
                                             ),
                                           ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                  if (errorText != null) ...[
-                                    const SizedBox(height: 10),
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: Text(
-                                        errorText!,
-                                        style: const TextStyle(
-                                          color: Colors.redAccent,
-                                          fontSize: 12,
                                         ),
-                                      ),
-                                    ),
-                                  ],
-                                  const SizedBox(height: 14),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                if (errorText != null) ...[
+                                  const SizedBox(height: 10),
                                   Align(
-                                    alignment: Alignment.centerRight,
-                                    child: ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: _gold,
-                                        foregroundColor: Colors.black,
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      errorText!,
+                                      style: const TextStyle(
+                                        color: Colors.redAccent,
+                                        fontSize: 12,
                                       ),
-                                      onPressed: isSaving ? null : saveNote,
-                                      child: isSaving
-                                          ? const SizedBox(
-                                              width: 18,
-                                              height: 18,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
-                                                color: Colors.black,
-                                              ),
-                                            )
-                                          : const Text('Save'),
                                     ),
                                   ),
                                 ],
-                              ),
+                                const SizedBox(height: 14),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: _gold,
+                                      foregroundColor: Colors.black,
+                                    ),
+                                    onPressed: isSaving ? null : saveNote,
+                                    child: isSaving
+                                        ? const SizedBox(
+                                            width: 18,
+                                            height: 18,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Colors.black,
+                                            ),
+                                          )
+                                        : const Text('Save'),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
@@ -16502,6 +16493,7 @@ class CalendarPageState extends State<CalendarPage>
       template: template,
       showBackButton: false,
       embeddedInOnboarding: true,
+      resizeToAvoidBottomInset: false,
       addInstance:
           ({
             required _MaatFlowTemplate template,

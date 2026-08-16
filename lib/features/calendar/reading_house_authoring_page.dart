@@ -8,6 +8,7 @@ class _ReadingHouseAuthoringPage extends StatefulWidget {
     this.personalCalendarId,
     this.sharedCalendarsRepo,
     this.onCalendarChanged,
+    this.resizeToAvoidBottomInset = true,
   });
 
   final _Flow flow;
@@ -17,6 +18,7 @@ class _ReadingHouseAuthoringPage extends StatefulWidget {
   final SharedCalendarsRepo? sharedCalendarsRepo;
   final Future<_Flow> Function(_Flow flow, SharedCalendarSummary calendar)?
   onCalendarChanged;
+  final bool resizeToAvoidBottomInset;
 
   @override
   State<_ReadingHouseAuthoringPage> createState() =>
@@ -506,6 +508,7 @@ class _ReadingHouseAuthoringPageState
         flowDayForDate: _flowDayForDate,
         accentColor: const Color(0xFF76CBB2),
         borderColor: const Color(0x664FA58D),
+        manageKeyboardInset: widget.resizeToAvoidBottomInset,
       ),
     );
     if (edited == null || !mounted) return;
@@ -954,6 +957,7 @@ class _ReadingHouseAuthoringPageState
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
       backgroundColor: MaatFlowListTokens.pageBg,
       appBar: AppBar(
         backgroundColor: MaatFlowListTokens.pageBg,
@@ -1043,6 +1047,7 @@ class _ReadingHouseSittingDraftSheet extends StatefulWidget {
     required this.flowDayForDate,
     required this.accentColor,
     required this.borderColor,
+    this.manageKeyboardInset = true,
   });
 
   final ReadingHouseSitting sitting;
@@ -1051,6 +1056,7 @@ class _ReadingHouseSittingDraftSheet extends StatefulWidget {
   final int Function(DateTime date) flowDayForDate;
   final Color accentColor;
   final Color borderColor;
+  final bool manageKeyboardInset;
 
   @override
   State<_ReadingHouseSittingDraftSheet> createState() =>
@@ -1199,8 +1205,11 @@ class _ReadingHouseSittingDraftSheetState
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    return KeyboardSafeViewport(
-      topClearance: 18,
+    final keyboardInset = widget.manageKeyboardInset
+        ? media.viewInsets.bottom
+        : 0.0;
+    return Padding(
+      padding: EdgeInsets.only(bottom: keyboardInset),
       child: Padding(
         padding: EdgeInsets.only(
           left: 18,

@@ -17,6 +17,7 @@ class JournalPage extends StatefulWidget {
     this.reflectionContext,
     this.onClose,
     this.showCloseAction = true,
+    this.resizeToAvoidBottomInset = true,
   });
 
   final JournalController controller;
@@ -24,6 +25,7 @@ class JournalPage extends StatefulWidget {
   final CalendarReflectionContext? reflectionContext;
   final VoidCallback? onClose;
   final bool showCloseAction;
+  final bool resizeToAvoidBottomInset;
 
   @override
   State<JournalPage> createState() => _JournalPageState();
@@ -109,6 +111,7 @@ class _JournalPageState extends State<JournalPage> {
       badgeAreaKey: _journalHelperKey,
       reflectionContext: widget.reflectionContext,
       showCloseAction: widget.showCloseAction,
+      resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
       onClose: widget.onClose ?? () => popOrGo(context, '/'),
     );
   }

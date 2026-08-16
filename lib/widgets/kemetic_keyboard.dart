@@ -36,35 +36,6 @@ class KemeticKeyboardScope extends InheritedWidget {
   }
 }
 
-/// Marks a subtree whose viewport already owns keyboard avoidance.
-///
-/// App surfaces should not place this scope directly. `KeyboardSafeViewport`
-/// installs it so the global keyboard host and the local viewport never
-/// compete to reveal the same field.
-class KemeticKeyboardViewportScope extends InheritedWidget {
-  final bool managesKeyboardGeometry;
-
-  const KemeticKeyboardViewportScope({
-    super.key,
-    required super.child,
-    required this.managesKeyboardGeometry,
-  });
-
-  static bool isManagedFor(BuildContext context) {
-    final element = context
-        .getElementForInheritedWidgetOfExactType<
-          KemeticKeyboardViewportScope
-        >();
-    final scope = element?.widget as KemeticKeyboardViewportScope?;
-    return scope?.managesKeyboardGeometry ?? false;
-  }
-
-  @override
-  bool updateShouldNotify(covariant KemeticKeyboardViewportScope oldWidget) {
-    return managesKeyboardGeometry != oldWidget.managesKeyboardGeometry;
-  }
-}
-
 /// ChangeNotifier that tracks the currently focused editable field and whether
 /// the Medu Neter keyboard is open.
 class KemeticKeyboardController extends ChangeNotifier {
@@ -476,8 +447,6 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
     if (!_controller._isUsable(target)) return;
     final editable = target;
     if (editable == null) return;
-    if (KemeticKeyboardViewportScope.isManagedFor(editable.context)) return;
-
     final media = MediaQuery.maybeOf(context);
     if (media == null) return;
     final customKeyboardVisible = _controller.shouldShowPanel;

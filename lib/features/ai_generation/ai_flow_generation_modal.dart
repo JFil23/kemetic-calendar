@@ -17,6 +17,10 @@ import 'flow_prompt_classifier.dart';
 import 'flow_duration_parser.dart';
 import 'itinerary_prompt_parser.dart';
 
+const ValueKey<String> aiFlowGenerationModalFrameKey = ValueKey<String>(
+  'ai-flow-generation-modal-frame',
+);
+
 // Your flow palette from Flow Studio
 const _flowPalette = [
   Color(0xFF4DD0E1),
@@ -184,12 +188,14 @@ class AIFlowGenerationModal extends StatefulWidget {
     this.initialStartDate,
     this.initialEndDate,
     this.initialDateRangeIsManual = false,
+    this.manageKeyboardInset = true,
     this.generateFlowForTesting,
   });
 
   final DateTime? initialStartDate;
   final DateTime? initialEndDate;
   final bool initialDateRangeIsManual;
+  final bool manageKeyboardInset;
   final AIFlowGenerateCallback? generateFlowForTesting;
 
   @override
@@ -674,11 +680,15 @@ class _AIFlowGenerationModalState extends State<AIFlowGenerationModal> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final closedHeight = media.size.height * 0.85;
+    final keyboardInset = widget.manageKeyboardInset
+        ? MediaQuery.viewInsetsOf(context).bottom
+        : 0.0;
     const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
 
-    return KeyboardSafeViewport(
-      maxHeightFactor: 0.85,
+    return Padding(
+      padding: EdgeInsets.only(bottom: keyboardInset),
       child: Container(
+        key: aiFlowGenerationModalFrameKey,
         height: closedHeight,
         decoration: const BoxDecoration(
           color: Color(0xFF000000),

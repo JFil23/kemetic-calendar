@@ -36,7 +36,7 @@ void main() {
       final saveNote = _sourceBetween(
         dialog,
         'Future<void> saveNote()',
-        'final keyboardInset = keyboardInsetOf(dialogCtx);',
+        'const fieldScrollPadding =',
       );
       expect(saveNote, contains('_saveSingleNoteOnly'));
       expect(saveNote, contains('selYear: selYear'));

@@ -126,189 +126,196 @@ class _SharedPracticeCompletionSheetState
   @override
   Widget build(BuildContext context) {
     final title = widget.stepTitle?.trim();
-    return KeyboardSafeViewport(
-      maxHeightFactor: 0.9,
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: _panel,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border(top: BorderSide(color: Color(0x55D4AE43))),
-        ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 42,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(99),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Record completion',
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.96),
-                          fontFamily: _serif,
-                          fontSize: 27,
-                          fontWeight: FontWeight.w600,
-                          height: 1.05,
-                        ),
+    final media = MediaQuery.of(context);
+    return Padding(
+      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: media.size.height * 0.9),
+        child: DecoratedBox(
+          decoration: const BoxDecoration(
+            color: _panel,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            border: Border(top: BorderSide(color: Color(0x55D4AE43))),
+          ),
+          child: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.18),
+                        borderRadius: BorderRadius.circular(99),
                       ),
                     ),
-                    IconButton(
-                      onPressed: _saving
-                          ? null
-                          : () => Navigator.of(context).pop(false),
-                      icon: const Icon(Icons.close, color: _gold),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Record completion',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.96),
+                            fontFamily: _serif,
+                            fontSize: 27,
+                            fontWeight: FontWeight.w600,
+                            height: 1.05,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: _saving
+                            ? null
+                            : () => Navigator.of(context).pop(false),
+                        icon: const Icon(Icons.close, color: _gold),
+                      ),
+                    ],
+                  ),
+                  if (title != null && title.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.62),
+                        fontFamily: _serif,
+                        fontStyle: FontStyle.italic,
+                        fontSize: 17,
+                        height: 1.2,
+                      ),
                     ),
                   ],
-                ),
-                if (title != null && title.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.62),
+                  const SizedBox(height: 18),
+                  _SectionLabel('Completion'),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _StatusButton(
+                        label: 'Observed',
+                        status: CompletionStatus.observed,
+                        selected: _status,
+                        enabled: !_saving,
+                        onSelected: (status) =>
+                            setState(() => _status = status),
+                      ),
+                      const SizedBox(width: 8),
+                      _StatusButton(
+                        label: 'Partly',
+                        status: CompletionStatus.partial,
+                        selected: _status,
+                        enabled: !_saving,
+                        onSelected: (status) =>
+                            setState(() => _status = status),
+                      ),
+                      const SizedBox(width: 8),
+                      _StatusButton(
+                        label: 'Skipped',
+                        status: CompletionStatus.skipped,
+                        selected: _status,
+                        enabled: !_saving,
+                        onSelected: (status) =>
+                            setState(() => _status = status),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _SectionLabel('Entry'),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _noteController,
+                    enabled: !_saving,
+                    scrollPadding: keyboardManagedTextFieldScrollPadding,
+                    minLines: 3,
+                    maxLines: 5,
+                    style: const TextStyle(
+                      color: Colors.white,
                       fontFamily: _serif,
-                      fontStyle: FontStyle.italic,
-                      fontSize: 17,
-                      height: 1.2,
+                      fontSize: 18,
+                      height: 1.3,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Optional note',
+                      hintStyle: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.36),
+                        fontFamily: _serif,
+                        fontStyle: FontStyle.italic,
+                      ),
+                      filled: true,
+                      fillColor: Colors.black.withValues(alpha: 0.28),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(
+                          color: Colors.white.withValues(alpha: 0.12),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: _gold),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _SectionLabel('Visibility'),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      _VisibilityButton(
+                        visibility: SharedPracticeVisibility.private,
+                        selected: _visibility,
+                        calendarName: widget.calendarName,
+                        enabled: !_saving,
+                        onSelected: (visibility) =>
+                            setState(() => _visibility = visibility),
+                      ),
+                      const SizedBox(width: 10),
+                      _VisibilityButton(
+                        visibility: SharedPracticeVisibility.sharedWithCalendar,
+                        selected: _visibility,
+                        calendarName: widget.calendarName,
+                        enabled: !_saving,
+                        onSelected: (visibility) =>
+                            setState(() => _visibility = visibility),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: _saving ? null : () => unawaited(_save()),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _gold,
+                        foregroundColor: const Color(0xFF181106),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _saving
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Color(0xFF181106),
+                              ),
+                            )
+                          : const Text(
+                              'Save completion',
+                              style: TextStyle(fontWeight: FontWeight.w700),
+                            ),
                     ),
                   ),
                 ],
-                const SizedBox(height: 18),
-                _SectionLabel('Completion'),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    _StatusButton(
-                      label: 'Observed',
-                      status: CompletionStatus.observed,
-                      selected: _status,
-                      enabled: !_saving,
-                      onSelected: (status) => setState(() => _status = status),
-                    ),
-                    const SizedBox(width: 8),
-                    _StatusButton(
-                      label: 'Partly',
-                      status: CompletionStatus.partial,
-                      selected: _status,
-                      enabled: !_saving,
-                      onSelected: (status) => setState(() => _status = status),
-                    ),
-                    const SizedBox(width: 8),
-                    _StatusButton(
-                      label: 'Skipped',
-                      status: CompletionStatus.skipped,
-                      selected: _status,
-                      enabled: !_saving,
-                      onSelected: (status) => setState(() => _status = status),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _SectionLabel('Entry'),
-                const SizedBox(height: 8),
-                TextField(
-                  controller: _noteController,
-                  enabled: !_saving,
-                  scrollPadding: keyboardManagedTextFieldScrollPadding,
-                  minLines: 3,
-                  maxLines: 5,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontFamily: _serif,
-                    fontSize: 18,
-                    height: 1.3,
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Optional note',
-                    hintStyle: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.36),
-                      fontFamily: _serif,
-                      fontStyle: FontStyle.italic,
-                    ),
-                    filled: true,
-                    fillColor: Colors.black.withValues(alpha: 0.28),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.12),
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: const BorderSide(color: _gold),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _SectionLabel('Visibility'),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    _VisibilityButton(
-                      visibility: SharedPracticeVisibility.private,
-                      selected: _visibility,
-                      calendarName: widget.calendarName,
-                      enabled: !_saving,
-                      onSelected: (visibility) =>
-                          setState(() => _visibility = visibility),
-                    ),
-                    const SizedBox(width: 10),
-                    _VisibilityButton(
-                      visibility: SharedPracticeVisibility.sharedWithCalendar,
-                      selected: _visibility,
-                      calendarName: widget.calendarName,
-                      enabled: !_saving,
-                      onSelected: (visibility) =>
-                          setState(() => _visibility = visibility),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _saving ? null : () => unawaited(_save()),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _gold,
-                      foregroundColor: const Color(0xFF181106),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: _saving
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Color(0xFF181106),
-                            ),
-                          )
-                        : const Text(
-                            'Save completion',
-                            style: TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),

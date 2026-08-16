@@ -49,6 +49,7 @@ class JournalArchivePage extends StatefulWidget {
   final JournalController controller;
   final bool isPortrait;
   final VoidCallback onClose;
+  final bool resizeToAvoidBottomInset;
   final WidgetBuilder? reflectionsBuilderForTesting;
 
   const JournalArchivePage({
@@ -57,6 +58,7 @@ class JournalArchivePage extends StatefulWidget {
     required this.controller,
     required this.isPortrait,
     required this.onClose,
+    this.resizeToAvoidBottomInset = true,
     @visibleForTesting this.reflectionsBuilderForTesting,
   });
 
@@ -552,6 +554,7 @@ class _JournalArchivePageState extends State<JournalArchivePage> {
     final showingEntry = _selectedEntry != null;
     return DecanReflectionSkinScaffold(
       key: journalArchiveReflectionSkinKey,
+      resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
       navBar: DecanReflectionNavBar(
         title: showingEntry ? 'Journal Entry' : 'Journal Archive',
         leadingIcon: showingEntry ? Icons.chevron_left : Icons.close,

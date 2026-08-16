@@ -44,6 +44,47 @@ void main() {
     expect(find.text('Color'), findsNothing);
   });
 
+  testWidgets('AI generator stays above the keyboard without typing hops', (
+    tester,
+  ) async {
+    _useSmallPhoneSurface(tester);
+    addTearDown(tester.view.resetViewInsets);
+
+    await _openAiFlowModal(tester);
+    final modalFrame = find.byKey(aiFlowGenerationModalFrameKey);
+    final field = find.byType(TextFormField).first;
+
+    await tester.tap(field);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+    await tester.pump();
+    await tester.pump();
+
+    final keyboardTop = 844 - 320;
+    final modalRectBeforeTyping = tester.getRect(modalFrame);
+    expect(modalRectBeforeTyping.bottom, lessThanOrEqualTo(keyboardTop));
+    expect(tester.getRect(field).bottom, lessThanOrEqualTo(keyboardTop));
+
+    await tester.enterText(field, 'Build a calm seven day practice.');
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final modalRectAfterTyping = tester.getRect(modalFrame);
+    expect(modalRectAfterTyping.top, closeTo(modalRectBeforeTyping.top, 0.01));
+    expect(
+      modalRectAfterTyping.bottom,
+      closeTo(modalRectBeforeTyping.bottom, 0.01),
+    );
+
+    tester.view.physicalSize = const Size(844, 390);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 180);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    final landscapeModalRect = tester.getRect(modalFrame);
+    expect(landscapeModalRect.top, greaterThanOrEqualTo(0));
+    expect(landscapeModalRect.bottom, lessThanOrEqualTo(390 - 180));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('AI generator toggle uses Flow Studio segmented styling', (
     tester,
   ) async {

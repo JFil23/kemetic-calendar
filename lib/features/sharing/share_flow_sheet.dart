@@ -89,10 +89,11 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final closedHeight = media.size.height * 0.9;
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
 
-    return KeyboardSafeViewport(
-      maxHeightFactor: 0.9,
+    return Padding(
+      padding: EdgeInsets.only(bottom: keyboardInset),
       child: Container(
         height: closedHeight,
         decoration: const BoxDecoration(

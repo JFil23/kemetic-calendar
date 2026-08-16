@@ -4455,7 +4455,10 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         widget.onboardingClosingBannerBuilder != null;
     final media = MediaQuery.of(context);
     final keyboardInset = keyboardInsetOf(context);
-    final availableSheetHeight = keyboardSafeAvailableHeightOf(context);
+    final availableSheetHeight = math.max(
+      0.0,
+      media.size.height - keyboardInset - media.padding.top - 12,
+    );
     final maxSheetHeight = keyboardInset > 0
         ? availableSheetHeight
         : math.min(media.size.height * 0.68, 520.0);
@@ -4554,7 +4557,8 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       ],
     );
 
-    return KeyboardSafeViewport(
+    return Padding(
+      padding: EdgeInsets.only(bottom: keyboardInset),
       child: SafeArea(
         top: false,
         child: hasOnboardingClosingBanner

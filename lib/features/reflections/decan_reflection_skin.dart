@@ -240,14 +240,17 @@ class DecanReflectionSkinScaffold extends StatelessWidget {
     super.key,
     required this.navBar,
     required this.child,
+    this.resizeToAvoidBottomInset = true,
   });
 
   final Widget navBar;
   final Widget child;
+  final bool resizeToAvoidBottomInset;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: resizeToAvoidBottomInset,
       backgroundColor: DecanReflectionTokens.base,
       body: CandlelitMahoganyBackground(
         child: SafeArea(

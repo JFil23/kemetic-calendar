@@ -49,6 +49,7 @@ class JournalOverlay extends StatefulWidget {
   final GlobalKey? badgeAreaKey;
   final CalendarReflectionContext? reflectionContext;
   final bool showCloseAction;
+  final bool resizeToAvoidBottomInset;
 
   const JournalOverlay({
     super.key,
@@ -59,6 +60,7 @@ class JournalOverlay extends StatefulWidget {
     this.badgeAreaKey,
     this.reflectionContext,
     this.showCloseAction = true,
+    this.resizeToAvoidBottomInset = true,
   });
 
   @override
@@ -634,6 +636,7 @@ class _JournalOverlayState extends State<JournalOverlay>
         controller: widget.controller,
         isPortrait: widget.isPortrait,
         onClose: _closeArchive, // FIXED: Add callback to close archive
+        resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
       );
     }
 
@@ -844,7 +847,7 @@ class _JournalOverlayState extends State<JournalOverlay>
   Widget _buildJournalPageSkin({required bool showJournalToolbar}) {
     return Scaffold(
       backgroundColor: JournalSkinTokens.black,
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
       body: GestureDetector(
         behavior: HitTestBehavior.translucent,
         onTap: _dismissKeyboard,

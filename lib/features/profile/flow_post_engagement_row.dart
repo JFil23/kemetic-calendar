@@ -1082,54 +1082,62 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    return KeyboardSafeViewport(
-      maxHeightFactor: 0.72,
-      closedHeightFactor: 0.46,
-      openHeightFactor: 0.72,
-      child: SafeArea(
-        top: false,
-        child: SizedBox.expand(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + media.padding.bottom),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 12),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      borderRadius: BorderRadius.circular(12),
+    final keyboardInset = media.viewInsets.bottom;
+    final heightFactor = keyboardInset > 0 ? 0.72 : 0.46;
+    return Padding(
+      padding: EdgeInsets.only(bottom: keyboardInset),
+      child: SizedBox(
+        height: media.size.height * heightFactor,
+        child: SafeArea(
+          top: false,
+          child: SizedBox.expand(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                12,
+                16,
+                12 + media.padding.bottom,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                   ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Comments',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.9),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Comments',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
-                    Text(
-                      '${_comments.length} total',
-                      style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
-                        fontSize: 13,
+                      Text(
+                        '${_comments.length} total',
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.6),
+                          fontSize: 13,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Expanded(child: _buildCommentsBody()),
-                const SizedBox(height: 12),
-                _buildCommentComposer(),
-              ],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Expanded(child: _buildCommentsBody()),
+                  const SizedBox(height: 12),
+                  _buildCommentComposer(),
+                ],
+              ),
             ),
           ),
         ),

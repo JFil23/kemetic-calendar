@@ -3981,6 +3981,7 @@ class _JournalRoutePageState extends State<JournalRoutePage>
               entryPoint: 'sheet_route',
               reflectionContext: widget.reflectionContext,
               showCloseAction: false,
+              resizeToAvoidBottomInset: false,
               onClose: () => unawaited(_closeRoute()),
             );
           }

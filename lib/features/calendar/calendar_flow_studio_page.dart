@@ -1377,8 +1377,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       ),
       builder: (sheetCtx) {
         final media = MediaQuery.of(sheetCtx);
-        return KeyboardSafeViewport(
-          maxHeightFactor: 0.72,
+        final keyboardInset = widget.resizeToAvoidBottomInset
+            ? MediaQuery.viewInsetsOf(sheetCtx).bottom
+            : 0.0;
+        return Padding(
+          padding: EdgeInsets.only(bottom: keyboardInset),
           child: SafeArea(
             top: false,
             child: ConstrainedBox(
@@ -1786,6 +1789,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         initialStartDate: seedCurrentStart ? _startDate : null,
         initialEndDate: seedManualRange ? _endDate : null,
         initialDateRangeIsManual: seedManualRange,
+        manageKeyboardInset: widget.resizeToAvoidBottomInset,
       ),
     );
 
@@ -1800,6 +1804,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
           builder: (_) => _FlowStudioPage(
             existingFlows: widget.existingFlows,
             editFlowId: result.flowId,
+            resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
           ),
         ),
       );
@@ -1816,6 +1821,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
             existingFlows: widget.existingFlows,
             editFlowId: null,
             importData: importData,
+            resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
           ),
         ),
       );
@@ -2145,8 +2151,11 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         return StatefulBuilder(
           builder: (sheetCtx, setSheetState) {
             final media = MediaQuery.of(sheetCtx);
-            return KeyboardSafeViewport(
-              maxHeightFactor: 0.72,
+            final keyboardInset = widget.resizeToAvoidBottomInset
+                ? MediaQuery.viewInsetsOf(sheetCtx).bottom
+                : 0.0;
+            return Padding(
+              padding: EdgeInsets.only(bottom: keyboardInset),
               child: SafeArea(
                 top: false,
                 child: ConstrainedBox(

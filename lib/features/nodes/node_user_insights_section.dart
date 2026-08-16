@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -18,21 +16,6 @@ import '../../widgets/insight_link_text.dart';
 import 'kemetic_node_library.dart';
 import 'node_link_picker_sheet.dart';
 import 'kemetic_node_model.dart';
-
-@visibleForTesting
-double insightEntryEditorSheetHeight({
-  required MediaQueryData media,
-  required double keyboardInset,
-}) {
-  if (keyboardInset <= 0) {
-    return media.size.height * 0.82;
-  }
-  final keyboardSafeHeight = math.max(
-    0.0,
-    media.size.height - keyboardInset - media.padding.top - 8,
-  );
-  return math.min(media.size.height * 0.82, keyboardSafeHeight);
-}
 
 const nodeUserInsightsEmptyCardKey = ValueKey<String>(
   'node-user-insights-empty-card',
@@ -628,10 +611,10 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
-    return KeyboardSafeViewport(
-      maxHeightFactor: 0.82,
-      topClearance: 8,
+    return Padding(
+      padding: EdgeInsets.only(bottom: keyboardInset),
       child: SafeArea(
         top: false,
         child: SizedBox(

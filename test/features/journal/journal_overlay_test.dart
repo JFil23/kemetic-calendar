@@ -768,6 +768,34 @@ void main() {
       expect(field.focusNode?.hasFocus, isTrue);
       expect(controller.initRunCount, 1);
       expect(controller.reloadTodayRunCount, 1);
+      final keyboardTop = 844 - 320;
+      final fieldRectBeforeTyping = tester.getRect(fieldFinder);
+      final editable = tester.state<EditableTextState>(
+        find.byType(EditableText),
+      );
+      final caretRect = editable.renderEditable.getLocalRectForCaret(
+        editable.widget.controller.selection.extent,
+      );
+      final caretBottom = editable.renderEditable
+          .localToGlobal(caretRect.bottomLeft)
+          .dy;
+      expect(caretBottom, lessThanOrEqualTo(keyboardTop));
+
+      await tester.enterText(
+        fieldFinder,
+        'Route chrome input remains stable while typing.',
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+
+      final fieldRectAfterTyping = tester.getRect(fieldFinder);
+      expect(
+        fieldRectAfterTyping.top,
+        closeTo(fieldRectBeforeTyping.top, 0.01),
+      );
+      expect(
+        fieldRectAfterTyping.bottom,
+        closeTo(fieldRectBeforeTyping.bottom, 0.01),
+      );
 
       await controller.forceSave();
       await tester.pumpWidget(const SizedBox.shrink());

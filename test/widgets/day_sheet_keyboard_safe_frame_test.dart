@@ -103,7 +103,6 @@ void main() {
       await tester.pumpAndSettle();
 
       final keyboardTop = 844 - keyboardInset;
-      expect(find.byType(KeyboardSafeViewport), findsNothing);
       expect(
         tester.getRect(find.byKey(daySheetKeyboardSafeFrameKey)).bottom,
         lessThanOrEqualTo(keyboardTop),

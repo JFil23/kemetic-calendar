@@ -352,40 +352,6 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('keyboard-safe viewports own reveal without global scrolling', (
-      tester,
-    ) async {
-      tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
-      addTearDown(tester.view.reset);
-
-      final controller = TextEditingController();
-      final scrollController = ScrollController();
-      addTearDown(controller.dispose);
-      addTearDown(scrollController.dispose);
-
-      await tester.pumpWidget(
-        _SystemKeyboardInsetHarness(
-          controller: controller,
-          scrollController: scrollController,
-          viewportManaged: true,
-        ),
-      );
-      await tester.tap(find.byKey(const ValueKey('system-keyboard-input')));
-      await tester.pump();
-
-      controller.value = const TextEditingValue(
-        text: 'Scoped cursor',
-        selection: TextSelection.collapsed(offset: 13),
-      );
-      await tester.pump(const Duration(milliseconds: 250));
-      await tester.pump(const Duration(milliseconds: 150));
-
-      expect(scrollController.offset, 0);
-      expect(tester.takeException(), isNull);
-    });
-
     testWidgets('typing does not animate the surrounding scroll position', (
       tester,
     ) async {
@@ -899,12 +865,10 @@ class _SystemKeyboardInsetHarness extends StatelessWidget {
   const _SystemKeyboardInsetHarness({
     required this.controller,
     this.scrollController,
-    this.viewportManaged = false,
   });
 
   final TextEditingController controller;
   final ScrollController? scrollController;
-  final bool viewportManaged;
 
   @override
   Widget build(BuildContext context) {
@@ -926,10 +890,7 @@ class _SystemKeyboardInsetHarness extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 720),
-                if (viewportManaged)
-                  KeyboardSafeViewport(liftAboveKeyboard: false, child: field)
-                else
-                  field,
+                field,
                 const SizedBox(height: 360),
               ],
             ),
@@ -1012,7 +973,8 @@ class _QuickAddSheetHarnessContentState
 
   @override
   Widget build(BuildContext context) {
-    return KeyboardSafeViewport(
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: SafeArea(
         top: false,
         child: SingleChildScrollView(

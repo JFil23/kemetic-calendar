@@ -2142,6 +2142,7 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
     this.alreadyJoined = false,
     this.showBackButton = true,
     this.embeddedInOnboarding = false,
+    this.resizeToAvoidBottomInset = true,
   });
 
   final _MaatFlowTemplate template;
@@ -2175,6 +2176,7 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
   final bool alreadyJoined;
   final bool showBackButton;
   final bool embeddedInOnboarding;
+  final bool resizeToAvoidBottomInset;
 
   @override
   State<_MaatFlowTemplateDetailPage> createState() =>
@@ -4790,6 +4792,7 @@ class _MaatFlowTemplateDetailPageState
         ? const EdgeInsets.fromLTRB(14, 10, 14, 14)
         : const EdgeInsets.fromLTRB(18, 14, 18, 22);
     return Scaffold(
+      resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
       backgroundColor: MaatFlowListTokens.pageBg,
       appBar: embedded ? null : _buildMaatFlowDetailAppBar(context),
       body: SafeArea(
@@ -8227,6 +8230,7 @@ class _MaatFlowTemplateDetailPageState
         flowDayForDate: (date) => _readingHouseFlowDayForDate(firstStart, date),
         accentColor: _palette.accent,
         borderColor: _palette.accent.withValues(alpha: 0.35),
+        manageKeyboardInset: widget.resizeToAvoidBottomInset,
       ),
     );
 
