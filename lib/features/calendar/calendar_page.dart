@@ -15941,8 +15941,17 @@ class CalendarPageState extends State<CalendarPage>
   void initState() {
     super.initState();
     EndFlowAuthReadiness.instance.ensureBound(Supabase.instance.client);
+    final initialGregorianDate = KemeticMath.toGregorian(
+      _today.kYear,
+      _today.kMonth,
+      _today.kDay,
+    );
     _calendarScrollCoordinator = CalendarScrollCoordinator(
       initialBannerMonth: MonthRef(year: _today.kYear, month: _today.kMonth),
+      initialGregorianBannerMonth: GregorianMonthRef(
+        year: initialGregorianDate.year,
+        month: initialGregorianDate.month,
+      ),
       scheduleAfterFrame: (callback) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           // Run after the current frame's legacy post-frame writers, while
@@ -33420,30 +33429,32 @@ class CalendarPageState extends State<CalendarPage>
           valueListenable: _calendarScrollCoordinator.activeBannerMonth,
           builder: (context, activeBannerMonth, child) {
             final visibleMonth = getMonthById(activeBannerMonth.month);
-            final gregorianMonthStart = KemeticMath.toGregorian(
-              activeBannerMonth.year,
-              activeBannerMonth.month,
-              1,
-            );
-            final header = ScrollingCalendarMonthHeader(
-              month: visibleMonth,
-              yearLabel: _gregYearLabelFor(
-                activeBannerMonth.year,
-                activeBannerMonth.month,
-              ),
-              showGregorian: _showGregorian,
-              gregorianMonthName: _gregMonthNames[gregorianMonthStart.month],
-              gregorianYearLabel: '${gregorianMonthStart.year}',
-            );
-            if (boundaryHarness == null || !boundaryHarness.probesEnabled) {
-              return header;
-            }
-            return _CalendarBoundaryBuildProbe(
-              counts: boundaryHarness.bannerCounts,
-              child: _CalendarBoundaryRenderProbe(
-                counts: boundaryHarness.bannerCounts,
-                child: header,
-              ),
+            return ValueListenableBuilder<GregorianMonthRef>(
+              valueListenable:
+                  _calendarScrollCoordinator.activeGregorianBannerMonth,
+              builder: (context, activeGregorianMonth, child) {
+                final header = ScrollingCalendarMonthHeader(
+                  month: visibleMonth,
+                  yearLabel: _gregYearLabelFor(
+                    activeBannerMonth.year,
+                    activeBannerMonth.month,
+                  ),
+                  showGregorian: _showGregorian,
+                  gregorianMonthName:
+                      _gregMonthNames[activeGregorianMonth.month],
+                  gregorianYearLabel: '${activeGregorianMonth.year}',
+                );
+                if (boundaryHarness == null || !boundaryHarness.probesEnabled) {
+                  return header;
+                }
+                return _CalendarBoundaryBuildProbe(
+                  counts: boundaryHarness.bannerCounts,
+                  child: _CalendarBoundaryRenderProbe(
+                    counts: boundaryHarness.bannerCounts,
+                    child: header,
+                  ),
+                );
+              },
             );
           },
         ),

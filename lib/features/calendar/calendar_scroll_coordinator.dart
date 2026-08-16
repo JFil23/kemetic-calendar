@@ -68,6 +68,7 @@ final class CalendarShadowTraceEntry {
 final class CalendarScrollCoordinator {
   CalendarScrollCoordinator({
     required MonthRef initialBannerMonth,
+    required GregorianMonthRef initialGregorianBannerMonth,
     required CalendarShadowFrameScheduler scheduleAfterFrame,
     required CalendarGeometrySnapshotReader readSnapshot,
     required CalendarScrollOffsetReader readScrollOffset,
@@ -78,6 +79,9 @@ final class CalendarScrollCoordinator {
     CalendarSectionIndex index = const CalendarSectionIndex(),
     int traceCapacity = defaultTraceCapacity,
   }) : _activeBannerMonth = ValueNotifier<MonthRef>(initialBannerMonth),
+       _activeGregorianBannerMonth = ValueNotifier<GregorianMonthRef>(
+         initialGregorianBannerMonth,
+       ),
        _activeCenteredMonth = ValueNotifier<MonthRef>(initialBannerMonth),
        _scheduleAfterFrame = scheduleAfterFrame,
        _readSnapshot = readSnapshot,
@@ -119,6 +123,7 @@ final class CalendarScrollCoordinator {
   final CalendarSectionIndex _index;
   final int _traceCapacity;
   final ValueNotifier<MonthRef> _activeBannerMonth;
+  final ValueNotifier<GregorianMonthRef> _activeGregorianBannerMonth;
   final ValueNotifier<MonthRef> _activeCenteredMonth;
 
   final ListQueue<CalendarShadowTraceEntry> _trace = ListQueue();
@@ -146,6 +151,13 @@ final class CalendarScrollCoordinator {
   /// Exposing only [ValueListenable] prevents the page from writing around the
   /// coordinator or using a banner transition as broader calendar state.
   ValueListenable<MonthRef> get activeBannerMonth => _activeBannerMonth;
+
+  /// The Gregorian month at the same leading-edge activation line.
+  ///
+  /// This state follows measured inline Gregorian transition rows rather than
+  /// Kemetic section handoffs, so the two calendar modes remain independent.
+  ValueListenable<GregorianMonthRef> get activeGregorianBannerMonth =>
+      _activeGregorianBannerMonth;
 
   /// The centered semantic month used by restoration, hydration, navigation,
   /// and orientation handoff.
@@ -241,6 +253,7 @@ final class CalendarScrollCoordinator {
       mode: mode,
       incumbent: _shadowIncumbent,
     );
+    final gregorianBannerMonth = snapshot.gregorianMonthAt(scrollOffset);
     final viewportExtent = _readViewportExtent?.call();
     final centered = reason == CalendarShadowSampleReason.geometryPublication
         ? _activeCenteredMonth.value
@@ -286,6 +299,10 @@ final class CalendarScrollCoordinator {
       if (_activeBannerMonth.value != shadow) {
         _activeBannerMonth.value = shadow;
       }
+    }
+    if (gregorianBannerMonth != null &&
+        _activeGregorianBannerMonth.value != gregorianBannerMonth) {
+      _activeGregorianBannerMonth.value = gregorianBannerMonth;
     }
     if (centered != null) {
       publishCenteredMonth(centered);
@@ -389,6 +406,7 @@ final class CalendarScrollCoordinator {
     _pendingReasons.clear();
     _trace.clear();
     _activeBannerMonth.dispose();
+    _activeGregorianBannerMonth.dispose();
     _activeCenteredMonth.dispose();
   }
 }

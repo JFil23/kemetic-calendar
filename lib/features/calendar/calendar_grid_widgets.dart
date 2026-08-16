@@ -778,13 +778,13 @@ class _MonthCard extends StatelessWidget {
 
   // monthNames removed - use getMonthById(kMonth).displayFull instead
 
-  String? _gregLabelForDecanRow(int ky, int km, int decanIndex) {
+  DateTime? _gregorianMonthBoundaryForDecanRow(int ky, int km, int decanIndex) {
     final start = decanIndex * 10 + 1;
     final end = start + 9;
     for (int d = start; d <= end; d++) {
       final g = KemeticMath.toGregorian(ky, km, d);
       if (g.day == 1) {
-        return _gregMonthNames[g.month];
+        return g;
       }
     }
     return null;
@@ -1027,23 +1027,29 @@ class _MonthCard extends StatelessWidget {
                         flex: 3,
                         child: Align(
                           alignment: Alignment.centerLeft,
-                          child: KeyedSubtree(
-                            key: monthHeaderKey,
-                            child: GestureDetector(
-                              onTap: () {
-                                if (onMonthHeaderTap != null) {
-                                  onMonthHeaderTap!(context);
-                                } else {
-                                  _openMonthInfo(context);
-                                }
-                              },
-                              child: _SoftMonthNameTitle(
-                                shortName: monthMeta.displayShort,
-                                transliteration:
-                                    monthMeta.displayTransliteration,
-                                fontSize: monthTitleSize,
-                                opacity: framedSurface ? 0.98 : 0.96,
-                                showTransliteration: false,
+                          child: Visibility(
+                            visible: !showGregorian,
+                            maintainState: true,
+                            maintainAnimation: true,
+                            maintainSize: true,
+                            child: KeyedSubtree(
+                              key: monthHeaderKey,
+                              child: GestureDetector(
+                                onTap: () {
+                                  if (onMonthHeaderTap != null) {
+                                    onMonthHeaderTap!(context);
+                                  } else {
+                                    _openMonthInfo(context);
+                                  }
+                                },
+                                child: _SoftMonthNameTitle(
+                                  shortName: monthMeta.displayShort,
+                                  transliteration:
+                                      monthMeta.displayTransliteration,
+                                  fontSize: monthTitleSize,
+                                  opacity: framedSurface ? 0.98 : 0.96,
+                                  showTransliteration: false,
+                                ),
                               ),
                             ),
                           ),
@@ -1072,40 +1078,39 @@ class _MonthCard extends StatelessWidget {
                     // Label row: decan on left (Kemetic), Gregorian month on right when needed
                     Builder(
                       builder: (context) {
-                        final gregDecanLabel = _gregLabelForDecanRow(
-                          kYear,
-                          kMonth,
-                          i,
-                        );
-                        return SizedBox(
+                        final gregorianBoundary =
+                            _gregorianMonthBoundaryForDecanRow(
+                              kYear,
+                              kMonth,
+                              i,
+                            );
+                        final gregDecanLabel = gregorianBoundary == null
+                            ? null
+                            : _gregMonthNames[gregorianBoundary.month];
+                        final labelRow = SizedBox(
                           height: decanLabelRowHeight,
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              if (!showGregorian)
-                                KeyedSubtree(
-                                  key: currentDecanIndex == i
-                                      ? keyForCurrentDecanHeader(
-                                          kYear,
-                                          kMonth,
-                                          i,
-                                        )
-                                      : null,
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      if (onDecanTap != null) {
-                                        onDecanTap!(context, i);
-                                      } else {
-                                        _openDecanInfo(context, i);
-                                      }
-                                    },
-                                    child: decanLabelText(
-                                      names[i],
-                                      decanLabelStyle,
-                                    ),
+                              KeyedSubtree(
+                                key: currentDecanIndex == i
+                                    ? keyForCurrentDecanHeader(kYear, kMonth, i)
+                                    : null,
+                                child: GestureDetector(
+                                  onTap: () {
+                                    if (onDecanTap != null) {
+                                      onDecanTap!(context, i);
+                                    } else {
+                                      _openDecanInfo(context, i);
+                                    }
+                                  },
+                                  child: decanLabelText(
+                                    names[i],
+                                    decanLabelStyle,
                                   ),
                                 ),
-                              if (!showGregorian) const SizedBox(width: 8),
+                              ),
+                              const SizedBox(width: 8),
                               Expanded(
                                 child: Container(
                                   height: 0.5,
@@ -1133,6 +1138,14 @@ class _MonthCard extends StatelessWidget {
                               ],
                             ],
                           ),
+                        );
+                        if (gregorianBoundary == null) return labelRow;
+                        return CalendarGeometryGregorianMonthBoundary(
+                          month: GregorianMonthRef(
+                            year: gregorianBoundary.year,
+                            month: gregorianBoundary.month,
+                          ),
+                          child: labelRow,
                         );
                       },
                     ),

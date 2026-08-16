@@ -53,6 +53,65 @@ final class CalendarCanonicalExtent {
   String toString() => 'CalendarCanonicalExtent([$leading, $trailing))';
 }
 
+/// One Gregorian calendar month, independent of the Kemetic section domain.
+final class GregorianMonthRef implements Comparable<GregorianMonthRef> {
+  const GregorianMonthRef({required this.year, required this.month})
+    : assert(month >= 1 && month <= 12);
+
+  final int year;
+  final int month;
+
+  GregorianMonthRef get predecessor => month == 1
+      ? GregorianMonthRef(year: year - 1, month: 12)
+      : GregorianMonthRef(year: year, month: month - 1);
+
+  GregorianMonthRef get successor => month == 12
+      ? GregorianMonthRef(year: year + 1, month: 1)
+      : GregorianMonthRef(year: year, month: month + 1);
+
+  @override
+  int compareTo(GregorianMonthRef other) {
+    final yearOrder = year.compareTo(other.year);
+    return yearOrder != 0 ? yearOrder : month.compareTo(other.month);
+  }
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is GregorianMonthRef &&
+            year == other.year &&
+            month == other.month;
+  }
+
+  @override
+  int get hashCode => Object.hash(year, month);
+
+  @override
+  String toString() => 'GregorianMonthRef($year-$month)';
+}
+
+/// Physical leading edge of an inline Gregorian month transition row.
+final class CalendarGregorianMonthBoundary {
+  const CalendarGregorianMonthBoundary({
+    required this.month,
+    required this.leading,
+  });
+
+  final GregorianMonthRef month;
+  final double leading;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is CalendarGregorianMonthBoundary &&
+            month == other.month &&
+            leading == other.leading;
+  }
+
+  @override
+  int get hashCode => Object.hash(month, leading);
+}
+
 /// Normalizes a sliver before `CustomScrollView.center`.
 ///
 /// Before-center slivers report a non-negative [precedingScrollExtent] that
@@ -142,6 +201,8 @@ final class CalendarGeometrySnapshot {
   factory CalendarGeometrySnapshot({
     required int generation,
     required Iterable<CalendarSectionGeometry> sections,
+    Iterable<CalendarGregorianMonthBoundary> gregorianMonthBoundaries =
+        const <CalendarGregorianMonthBoundary>[],
     String? presentationRevision,
     CalendarSectionIndex index = const CalendarSectionIndex(),
   }) {
@@ -257,10 +318,49 @@ final class CalendarGeometrySnapshot {
       previous = current;
     }
 
+    final copiedGregorianBoundaries = <CalendarGregorianMonthBoundary>[];
+    CalendarGregorianMonthBoundary? previousGregorianBoundary;
+    for (final boundary in gregorianMonthBoundaries) {
+      _requireFinite(boundary.leading, 'gregorianMonthBoundary.leading');
+      final prior = previousGregorianBoundary;
+      if (prior != null) {
+        if (prior.month.compareTo(boundary.month) >= 0) {
+          throw ArgumentError.value(
+            boundary.month,
+            'gregorianMonthBoundaries',
+            'months must be strictly chronological',
+          );
+        }
+        if (boundary.leading <= prior.leading) {
+          throw ArgumentError.value(
+            boundary.leading,
+            'gregorianMonthBoundaries',
+            'physical boundaries must be strictly increasing',
+          );
+        }
+      }
+      final isInsideMountedSection = copied.any(
+        (section) => section.extent.contains(boundary.leading),
+      );
+      if (!isInsideMountedSection) {
+        throw ArgumentError.value(
+          boundary.leading,
+          'gregorianMonthBoundaries',
+          'must lie inside a mounted section extent',
+        );
+      }
+      copiedGregorianBoundaries.add(boundary);
+      previousGregorianBoundary = boundary;
+    }
+
     return CalendarGeometrySnapshot._(
       generation: generation,
       presentationRevision: presentationRevision?.trim(),
       sections: UnmodifiableListView<CalendarSectionGeometry>(copied),
+      gregorianMonthBoundaries:
+          UnmodifiableListView<CalendarGregorianMonthBoundary>(
+            copiedGregorianBoundaries,
+          ),
       byMonth: UnmodifiableMapView<MonthRef, CalendarSectionGeometry>(byMonth),
     );
   }
@@ -269,12 +369,15 @@ final class CalendarGeometrySnapshot {
     required this.generation,
     required this.presentationRevision,
     required this.sections,
+    required this.gregorianMonthBoundaries,
     required Map<MonthRef, CalendarSectionGeometry> byMonth,
   }) : _byMonth = byMonth;
 
   final int generation;
   final String? presentationRevision;
   final UnmodifiableListView<CalendarSectionGeometry> sections;
+  final UnmodifiableListView<CalendarGregorianMonthBoundary>
+  gregorianMonthBoundaries;
   final Map<MonthRef, CalendarSectionGeometry> _byMonth;
 
   CalendarSectionGeometry? geometryFor(MonthRef month) => _byMonth[month];
@@ -295,6 +398,36 @@ final class CalendarGeometrySnapshot {
       }
     }
     return null;
+  }
+
+  /// Gregorian month owning the activation line at [coordinate].
+  ///
+  /// Each boundary is the leading edge of the inline row that introduces a
+  /// new Gregorian month. Before the first mounted boundary, its immediate
+  /// predecessor owns the line. This also covers the short Heriu Renpet
+  /// section, which normally contains no Gregorian day one.
+  GregorianMonthRef? gregorianMonthAt(double coordinate) {
+    _requireFinite(coordinate, 'coordinate');
+    if (ownerAt(coordinate) == null || gregorianMonthBoundaries.isEmpty) {
+      return null;
+    }
+
+    var lower = 0;
+    var upper = gregorianMonthBoundaries.length - 1;
+    var precedingIndex = -1;
+    while (lower <= upper) {
+      final middle = lower + ((upper - lower) >> 1);
+      final candidate = gregorianMonthBoundaries[middle];
+      if (candidate.leading <= coordinate) {
+        precedingIndex = middle;
+        lower = middle + 1;
+      } else {
+        upper = middle - 1;
+      }
+    }
+    return precedingIndex < 0
+        ? gregorianMonthBoundaries.first.month.predecessor
+        : gregorianMonthBoundaries[precedingIndex].month;
   }
 }
 
