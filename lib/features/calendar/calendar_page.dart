@@ -306,7 +306,7 @@ class _QuickAddSheet extends StatefulWidget {
   });
 
   final QuickAddParse? Function(String raw) parse;
-  final Future<void> Function(QuickAddParse parsed) onSave;
+  final Future<void> Function(QuickAddParse parsed, Color color) onSave;
   final VoidCallback onOpenJournal;
   final VoidCallback onOpenPlanner;
   final VoidCallback onOpenFullEditor;
@@ -322,6 +322,7 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
   final ScrollController _scrollCtrl = ScrollController();
   String? _error;
   bool _submitting = false;
+  Color _selectedColor = daySheetColorPalette.first;
 
   @override
   void dispose() {
@@ -351,7 +352,7 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
       widget.scaffoldMessengerContext,
     );
     final save = beginOptimisticNoteEditorSave<void>(
-      startSave: () => widget.onSave(parsed),
+      startSave: () => widget.onSave(parsed, _selectedColor),
       closeEditor: () => Navigator.of(context).pop(),
     );
     messenger?.showSnackBar(
@@ -397,27 +398,29 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
       child: SizedBox(
         key: key,
         width: double.infinity,
-        height: 38,
+        height: 34,
         child: InkWell(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
           onTap: enabled ? () => _handleOpenDestination(onOpen) : null,
           child: Row(
             children: [
               SizedBox(
-                width: 24,
-                child: Center(child: KemeticGold.glyph(glyph, size: 20)),
+                width: 18,
+                child: Center(child: KemeticGold.glyph(glyph, size: 16)),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 12),
               Text(
-                label,
+                label.toUpperCase(),
                 style: TextStyle(
                   inherit: false,
                   color: enabled
-                      ? const Color(0xFFC7C7CC)
-                      : const Color(0xFF6E6E73),
-                  fontSize: 17,
+                      ? const Color(0xFFD8D1C4)
+                      : const Color(0xFF5A5449),
+                  fontSize: 14.5,
                   fontWeight: FontWeight.w400,
-                  height: 1.2,
+                  fontFamily: DaySheetTokens.serif,
+                  letterSpacing: 2.68,
+                  height: 1,
                 ),
               ),
             ],
@@ -429,108 +432,405 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final tone = _FlowStudioTone.resolve(_selectedColor);
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: Material(
-        color: Colors.black,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      child: AnimatedContainer(
+        key: const ValueKey('quick-add-sheet-surface'),
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        decoration: BoxDecoration(
+          color: DaySheetTokens.bg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border(
+            top: BorderSide(color: tone.softenedAccent.withValues(alpha: 0.18)),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: tone.softenedAccent.withValues(alpha: 0.06),
+              blurRadius: 30,
+              offset: const Offset(0, -8),
+            ),
+            const BoxShadow(
+              color: Color(0xB3000000),
+              blurRadius: 60,
+              offset: Offset(0, -30),
+            ),
+          ],
         ),
         clipBehavior: Clip.antiAlias,
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            controller: _scrollCtrl,
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
-                  children: [
-                    _buildDestinationRow(
-                      key: const ValueKey('quick-add-journal-button'),
-                      glyph: MeduNeterGlyphs.journal,
-                      label: 'Journal',
-                      onOpen: widget.onOpenJournal,
+        child: Material(
+          color: Colors.transparent,
+          child: SafeArea(
+            top: false,
+            child: SingleChildScrollView(
+              controller: _scrollCtrl,
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: double.infinity,
+                    height: 34,
+                    child: Stack(
+                      alignment: Alignment.topCenter,
+                      children: [
+                        Container(
+                          key: const ValueKey('quick-add-handle'),
+                          width: 48,
+                          height: 4,
+                          margin: const EdgeInsets.only(top: 9),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF403B34),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        Positioned(
+                          right: -4,
+                          top: 4,
+                          child: IconButton(
+                            key: const ValueKey('quick-add-close'),
+                            tooltip: 'Close',
+                            constraints: const BoxConstraints.tightFor(
+                              width: 28,
+                              height: 28,
+                            ),
+                            padding: EdgeInsets.zero,
+                            splashRadius: 16,
+                            onPressed: _submitting
+                                ? null
+                                : () => Navigator.of(context).pop(),
+                            icon: const Icon(Icons.close, size: 17),
+                            color: const Color(0xFF9A948A),
+                            disabledColor: const Color(0xFF5A5449),
+                          ),
+                        ),
+                      ],
                     ),
-                    _buildDestinationRow(
-                      key: const ValueKey('quick-add-planner-button'),
-                      glyph: MeduNeterGlyphs.planner,
-                      label: 'Planner',
-                      onOpen: widget.onOpenPlanner,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6, top: 2),
+                    child: Column(
+                      children: [
+                        _buildDestinationRow(
+                          key: const ValueKey('quick-add-journal-button'),
+                          glyph: MeduNeterGlyphs.journal,
+                          label: 'Journal',
+                          onOpen: widget.onOpenJournal,
+                        ),
+                        _buildDestinationRow(
+                          key: const ValueKey('quick-add-planner-button'),
+                          glyph: MeduNeterGlyphs.planner,
+                          label: 'Planner',
+                          onOpen: widget.onOpenPlanner,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 20, bottom: 9),
+                    child: Row(
+                      children: [
+                        const Text(
+                          'QUICK ADD',
+                          key: ValueKey('quick-add-section-label'),
+                          style: TextStyle(
+                            color: DaySheetTokens.gold,
+                            fontFamily: DaySheetTokens.ui,
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: 2.1,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        const Flexible(
+                          child: Text(
+                            'natural language',
+                            maxLines: 1,
+                            softWrap: false,
+                            overflow: TextOverflow.fade,
+                            style: TextStyle(
+                              color: Color(0xFF5A5449),
+                              fontFamily: DaySheetTokens.serif,
+                              fontSize: 15,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 180),
+                            height: 1,
+                            color: tone.softenedAccent.withValues(alpha: 0.18),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  TextField(
+                    key: const ValueKey('quick-add-input'),
+                    controller: _textCtrl,
+                    scrollPadding: keyboardManagedTextFieldScrollPadding,
+                    autofocus: false,
+                    focusNode: _focusNode,
+                    cursorColor: _selectedColor,
+                    style: const TextStyle(
+                      color: Color(0xFFF2ECE0),
+                      fontFamily: DaySheetTokens.serif,
+                      fontSize: 18,
+                      height: 1.4,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Fri 3pm–4pm coffee with Amara',
+                      hintStyle: const TextStyle(
+                        color: Color(0xFF5A5449),
+                        fontFamily: DaySheetTokens.serif,
+                        fontSize: 18,
+                        fontStyle: FontStyle.italic,
+                        height: 1.4,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
+                      filled: true,
+                      fillColor: Color.alphaBlend(
+                        tone.softenedAccent.withValues(alpha: 0.035),
+                        DaySheetTokens.bg,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(18),
+                        borderSide: BorderSide(color: tone.fieldBorder),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(18),
+                        borderSide: BorderSide(color: tone.fieldBorder),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(18),
+                        borderSide: BorderSide(
+                          color: tone.softenedAccent.withValues(alpha: 0.42),
+                          width: 1.25,
+                        ),
+                      ),
+                    ),
+                    minLines: 2,
+                    maxLines: 3,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _handleSubmit(),
+                  ),
+                  if (_error != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      _error!,
+                      style: const TextStyle(color: Colors.redAccent),
                     ),
                   ],
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Quick add (natural language)',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                TextField(
-                  key: const ValueKey('quick-add-input'),
-                  controller: _textCtrl,
-                  scrollPadding: keyboardManagedTextFieldScrollPadding,
-                  autofocus: false,
-                  focusNode: _focusNode,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    hintText: 'e.g., “Fri 3pm-4pm coffee with Amara”',
-                    hintStyle: const TextStyle(color: Colors.white54),
-                    filled: true,
-                    fillColor: const Color(0xFF111111),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(color: Colors.white24),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16, bottom: 2),
+                    child: _QuickAddSpectrumBar(
+                      selectedColor: _selectedColor,
+                      onHueChanged: (hue) {
+                        setState(() {
+                          _selectedColor =
+                              DaySheetSpectrumColorPicker.colorFromHue(hue);
+                        });
+                      },
                     ),
                   ),
-                  minLines: 1,
-                  maxLines: 3,
-                  onSubmitted: (_) => _handleSubmit(),
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    _error!,
-                    style: const TextStyle(color: Colors.redAccent),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Opacity(
+                          opacity: _submitting ? 0.55 : 1,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(26),
+                              gradient: const LinearGradient(
+                                begin: Alignment.topCenter,
+                                end: Alignment.bottomCenter,
+                                colors: [
+                                  Color(0xFFE7C763),
+                                  DaySheetTokens.gold,
+                                ],
+                              ),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x2ED4AE43),
+                                  blurRadius: 26,
+                                ),
+                              ],
+                            ),
+                            child: Material(
+                              color: Colors.transparent,
+                              child: Semantics(
+                                button: true,
+                                enabled: !_submitting,
+                                label: 'Quick add',
+                                child: ExcludeSemantics(
+                                  child: InkWell(
+                                    key: const ValueKey(
+                                      'quick-add-submit-button',
+                                    ),
+                                    borderRadius: BorderRadius.circular(26),
+                                    onTap: _submitting ? null : _handleSubmit,
+                                    child: const SizedBox(
+                                      height: 50,
+                                      child: Center(
+                                        child: Text(
+                                          'Quick add',
+                                          style: TextStyle(
+                                            color: Color(0xFF15110A),
+                                            fontFamily: DaySheetTokens.serif,
+                                            fontSize: 20,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 14),
+                      TextButton(
+                        key: const ValueKey('quick-add-full-editor-button'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: DaySheetTokens.gold,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 2,
+                            vertical: 6,
+                          ),
+                          textStyle: const TextStyle(
+                            fontFamily: DaySheetTokens.serif,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                        onPressed: _submitting
+                            ? null
+                            : () => _handleOpenDestination(
+                                widget.onOpenFullEditor,
+                              ),
+                        child: const Text('Open full editor'),
+                      ),
+                    ],
                   ),
                 ],
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: KemeticGold.base,
-                          foregroundColor: Colors.black,
-                        ),
-                        onPressed: _submitting ? null : _handleSubmit,
-                        child: const Text('Quick add'),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: _submitting
-                          ? null
-                          : () =>
-                                _handleOpenDestination(widget.onOpenFullEditor),
-                      child: KemeticGold.text(
-                        'Open full editor',
-                        style: const TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+              ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _QuickAddSpectrumBar extends StatelessWidget {
+  const _QuickAddSpectrumBar({
+    required this.selectedColor,
+    required this.onHueChanged,
+  });
+
+  final Color selectedColor;
+  final ValueChanged<double> onHueChanged;
+
+  void _updateHue(Offset localPosition, double width) {
+    final t = (localPosition.dx / width).clamp(0.0, 1.0);
+    onHueChanged(t * 360.0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const trackHeight = 10.0;
+    const thumbSize = 22.0;
+    const hitHeight = 22.0;
+    final hue = DaySheetSpectrumColorPicker.hueForColor(selectedColor);
+    final colors = <Color>[
+      for (final hue in const [
+        0.0,
+        28.0,
+        56.0,
+        105.0,
+        165.0,
+        210.0,
+        245.0,
+        280.0,
+        320.0,
+        360.0,
+      ])
+        DaySheetSpectrumColorPicker.colorFromHue(hue),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = math.max(1.0, constraints.maxWidth);
+        final left = ((hue % 360) / 360) * width;
+        return Semantics(
+          label: 'Quick add color',
+          slider: true,
+          value: hue.round().toString(),
+          child: GestureDetector(
+            key: const ValueKey('quick-add-color-spectrum'),
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (details) => _updateHue(details.localPosition, width),
+            onHorizontalDragStart: (details) =>
+                _updateHue(details.localPosition, width),
+            onHorizontalDragUpdate: (details) =>
+                _updateHue(details.localPosition, width),
+            child: SizedBox(
+              height: hitHeight,
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.centerLeft,
+                children: [
+                  Positioned.fill(
+                    top: (hitHeight - trackHeight) / 2,
+                    bottom: (hitHeight - trackHeight) / 2,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(trackHeight / 2),
+                        gradient: LinearGradient(colors: colors),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: (left - thumbSize / 2).clamp(
+                      0.0,
+                      math.max(0.0, width - thumbSize),
+                    ),
+                    child: AnimatedContainer(
+                      key: const ValueKey('quick-add-color-spectrum-thumb'),
+                      duration: const Duration(milliseconds: 120),
+                      width: thumbSize,
+                      height: thumbSize,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: selectedColor,
+                        border: Border.all(
+                          color: const Color(0xFFEFE9DC),
+                          width: 2.5,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: selectedColor.withValues(alpha: 0.6),
+                            blurRadius: 14,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -5561,7 +5861,10 @@ class CalendarPage extends StatefulWidget {
     return (date: date, allDay: allDay, start: start, end: end, title: title);
   }
 
-  static Future<void> _saveDetachedQuickAddNote(QuickAddParse parsed) async {
+  static Future<void> _saveDetachedQuickAddNote(
+    QuickAddParse parsed,
+    Color color,
+  ) async {
     final k = KemeticMath.fromGregorian(parsed.date);
     final gDay = parsed.date;
     final allDay = parsed.allDay;
@@ -5592,6 +5895,7 @@ class CalendarPage extends StatefulWidget {
 
     final encodedDetail = _encodeDetailWithMeta(
       null,
+      color: color,
       alertMinutes: _alertNoneMinutes,
     );
 
@@ -30347,7 +30651,7 @@ class CalendarPageState extends State<CalendarPage>
         builder: (_) => _QuickAddSheet(
           parse: CalendarPage.parseQuickAddText,
           scaffoldMessengerContext: context,
-          onSave: (parsed) async {
+          onSave: (parsed, color) async {
             final k = KemeticMath.fromGregorian(parsed.date);
             await _saveSingleNoteOnly(
               selYear: k.kYear,
@@ -30359,7 +30663,7 @@ class CalendarPageState extends State<CalendarPage>
               allDay: parsed.allDay,
               startTime: parsed.allDay ? null : parsed.start,
               endTime: parsed.allDay ? null : parsed.end,
-              color: null,
+              color: color,
               alertMinutesBefore: _alertNoneMinutes,
             );
           },
