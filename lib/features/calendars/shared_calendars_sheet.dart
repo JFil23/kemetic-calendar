@@ -2720,7 +2720,7 @@ class _BirthdayEditorDialogState extends State<_BirthdayEditorDialog> {
               TextField(
                 key: const ValueKey<String>('birthday-name-field'),
                 controller: _nameCtrl,
-                autofocus: true,
+                autofocus: false,
                 cursorColor: H3wCalendarSheetTokens.gold,
                 scrollPadding: keyboardManagedTextFieldScrollPadding,
                 style: const TextStyle(
@@ -2918,7 +2918,7 @@ class _CalendarEditorDialogState extends State<_CalendarEditorDialog> {
               const SizedBox(height: 7),
               TextField(
                 controller: _nameCtrl,
-                autofocus: true,
+                autofocus: false,
                 cursorColor: H3wCalendarSheetTokens.sharedAccent,
                 scrollPadding: keyboardManagedTextFieldScrollPadding,
                 style: const TextStyle(

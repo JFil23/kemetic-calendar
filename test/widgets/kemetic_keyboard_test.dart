@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -210,6 +208,25 @@ void main() {
     );
 
     testWidgets(
+      'opens quick add settled and waits for the user to focus the field',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(390, 844));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        await tester.pumpWidget(const _QuickAddSheetHarness());
+        await tester.tap(find.byKey(const ValueKey('open-quick-add-sheet')));
+        await tester.pumpAndSettle();
+
+        final field = tester.widget<TextField>(
+          find.byKey(const ValueKey('quick-add-input')),
+        );
+        expect(field.focusNode?.hasFocus, isFalse);
+        expect(find.byKey(const ValueKey('quick-add-input')), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
       'keeps quick add input visible on first system keyboard inset',
       (tester) async {
         tester.view.devicePixelRatio = 1;
@@ -218,8 +235,9 @@ void main() {
 
         await tester.pumpWidget(const _QuickAddSheetHarness());
         await tester.tap(find.byKey(const ValueKey('open-quick-add-sheet')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('quick-add-input')));
         await tester.pump();
-        await tester.pump(const Duration(milliseconds: 16));
 
         tester.view.viewInsets = const FakeViewPadding(bottom: 320);
         await tester.pump();
@@ -951,24 +969,11 @@ class _QuickAddSheetHarnessContentState
   final ScrollController _scrollCtrl = ScrollController();
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_requestInitialFocus());
-    });
-  }
-
-  @override
   void dispose() {
     _focusNode.dispose();
     _textCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
-  }
-
-  Future<void> _requestInitialFocus() async {
-    if (!mounted) return;
-    _focusNode.requestFocus();
   }
 
   @override

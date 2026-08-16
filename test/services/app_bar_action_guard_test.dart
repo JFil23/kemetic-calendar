@@ -1898,6 +1898,7 @@ void main() {
         tester.getRect(quickAddLabel).bottom,
         lessThan(tester.getRect(input).top),
       );
+      expect(tester.widget<TextField>(input).focusNode?.hasFocus, isFalse);
 
       final journalText = tester.widget<Text>(journalLabel);
       expect(journalText.style?.inherit, isFalse);

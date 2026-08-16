@@ -324,24 +324,11 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
   bool _submitting = false;
 
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_requestInitialFocus());
-    });
-  }
-
-  @override
   void dispose() {
     _focusNode.dispose();
     _textCtrl.dispose();
     _scrollCtrl.dispose();
     super.dispose();
-  }
-
-  Future<void> _requestInitialFocus() async {
-    if (!mounted) return;
-    _focusNode.requestFocus();
   }
 
   Future<void> _handleSubmit() async {

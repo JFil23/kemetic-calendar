@@ -1998,7 +1998,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
             scrollPadding: keyboardManagedTextFieldScrollPadding,
             maxLines: 4,
             minLines: 2,
-            autofocus: true,
+            autofocus: false,
             style: const TextStyle(color: Colors.white),
             decoration: const InputDecoration(
               hintText: 'Update your note',

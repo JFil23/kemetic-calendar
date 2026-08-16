@@ -90,7 +90,7 @@ void main() {
       expect(source, isNot(contains('return KeyboardSafeViewport(')));
     });
 
-    test('quick add has one direct keyboard lift without a second clamp', () {
+    test('quick add settles before focus and has one direct keyboard lift', () {
       final source = File(
         'lib/features/calendar/calendar_page.dart',
       ).readAsStringSync();
@@ -99,8 +99,37 @@ void main() {
       final quickAdd = source.substring(start, end);
 
       expect(quickAdd, contains('MediaQuery.viewInsetsOf(context).bottom'));
+      expect(quickAdd, contains('autofocus: false'));
+      expect(quickAdd, isNot(contains('_requestInitialFocus')));
+      expect(quickAdd, isNot(contains('requestFocus()')));
       expect(quickAdd, isNot(contains('KeyboardSafeViewport(')));
       expect(quickAdd, isNot(contains('AnimatedPadding(')));
+    });
+
+    test('modal text editors wait for an explicit user focus', () {
+      final calendarSource = File(
+        'lib/features/calendars/shared_calendars_sheet.dart',
+      ).readAsStringSync();
+      final birthdayEditor = calendarSource.substring(
+        calendarSource.indexOf('class _BirthdayEditorDialogState'),
+        calendarSource.indexOf('class _CalendarEditorResult'),
+      );
+      final calendarEditor = calendarSource.substring(
+        calendarSource.indexOf('class _CalendarEditorDialogState'),
+      );
+
+      final rhythmSource = File(
+        'lib/features/rhythm/pages/todays_alignment_page.dart',
+      ).readAsStringSync();
+      final noteEditor = rhythmSource.substring(
+        rhythmSource.indexOf('  Future<void> _editNote('),
+        rhythmSource.indexOf('  Future<void> _deleteNote('),
+      );
+
+      for (final editor in [birthdayEditor, calendarEditor, noteEditor]) {
+        expect(editor, contains('autofocus: false'));
+        expect(editor, isNot(contains('autofocus: true')));
+      }
     });
 
     test('editor sheets use direct non-animated keyboard ownership', () {
