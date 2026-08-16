@@ -14,21 +14,35 @@ class ScrollingCalendarMonthHeader extends StatelessWidget {
     super.key,
     required this.month,
     required this.yearLabel,
+    required this.showGregorian,
+    required this.gregorianMonthName,
+    required this.gregorianYearLabel,
   });
 
   static const double height = 58;
 
   final KemeticMonth month;
   final String yearLabel;
+  final bool showGregorian;
+  final String gregorianMonthName;
+  final String gregorianYearLabel;
 
   @override
   Widget build(BuildContext context) {
     final seasonAndYear = '${month.season.label} $yearLabel';
+    final primaryMonthName = showGregorian
+        ? gregorianMonthName
+        : month.displayShort;
+    final contextLabel = showGregorian ? gregorianYearLabel : seasonAndYear;
+    final monthGradient = showGregorian ? blueGloss : KemeticGold.gloss;
+    final semanticsLabel = showGregorian
+        ? '$gregorianMonthName, Gregorian calendar, $gregorianYearLabel'
+        : '${month.displayFull}, $seasonAndYear';
 
     return Semantics(
       container: true,
       header: true,
-      label: '${month.displayFull}, $seasonAndYear',
+      label: semanticsLabel,
       child: Container(
         height: height,
         padding: const EdgeInsets.fromLTRB(18, 6, 18, 7),
@@ -53,10 +67,10 @@ class ScrollingCalendarMonthHeader extends StatelessWidget {
                   textBaseline: TextBaseline.alphabetic,
                   children: [
                     ShaderMask(
-                      shaderCallback: KemeticGold.gloss.createShader,
+                      shaderCallback: monthGradient.createShader,
                       blendMode: BlendMode.srcIn,
                       child: MonthNameText(
-                        month.displayShort,
+                        primaryMonthName,
                         key: const Key('scrolling-calendar-month-name'),
                         maxLines: 1,
                         softWrap: false,
@@ -75,7 +89,8 @@ class ScrollingCalendarMonthHeader extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (month.displayTransliteration.trim().isNotEmpty) ...[
+                    if (!showGregorian &&
+                        month.displayTransliteration.trim().isNotEmpty) ...[
                       const SizedBox(width: 8),
                       MonthNameText(
                         '(${month.displayTransliteration})',
@@ -104,14 +119,15 @@ class ScrollingCalendarMonthHeader extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Text(
-              seasonAndYear,
+              contextLabel,
               key: const Key('scrolling-calendar-season-year'),
               maxLines: 1,
               softWrap: false,
               overflow: TextOverflow.fade,
               textAlign: TextAlign.right,
               style: TextStyle(
-                color: const Color(0xFF927842).withValues(alpha: 0.88),
+                color: (showGregorian ? blue : const Color(0xFF927842))
+                    .withValues(alpha: 0.88),
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
                 fontStyle: FontStyle.italic,

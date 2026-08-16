@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_geometry_snapshot.dart';
+import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/calendar_scroll_coordinator.dart';
 import 'package:mobile/features/calendar/calendar_section_index.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
@@ -23,6 +24,9 @@ void main() {
             child: ScrollingCalendarMonthHeader(
               month: getMonthById(4),
               yearLabel: '2026',
+              showGregorian: false,
+              gregorianMonthName: 'June',
+              gregorianYearLabel: '2026',
             ),
           ),
         ),
@@ -51,6 +55,9 @@ void main() {
           child: ScrollingCalendarMonthHeader(
             month: getMonthById(monthId),
             yearLabel: '2026',
+            showGregorian: false,
+            gregorianMonthName: 'June',
+            gregorianYearLabel: '2026',
           ),
         ),
       ),
@@ -66,6 +73,67 @@ void main() {
     expect(find.byType(AnimatedSwitcher), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('shows the Gregorian month in Gregorian mode', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          backgroundColor: Colors.black,
+          body: Align(
+            alignment: Alignment.topCenter,
+            child: ScrollingCalendarMonthHeader(
+              month: getMonthById(5),
+              yearLabel: '2026',
+              showGregorian: true,
+              gregorianMonthName: 'July',
+              gregorianYearLabel: '2026',
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('July'), findsOneWidget);
+    expect(find.text('2026'), findsOneWidget);
+    expect(find.text('Šef-Bedet'), findsNothing);
+    expect(find.text('(Šf-bdt)'), findsNothing);
+    expect(find.text('Peret 2026'), findsNothing);
+    expect(find.byType(MonthNameText), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'keeps parenthetical month names out of the main calendar scroll',
+    (tester) async {
+      Future<void> pumpMonth(int kMonth) => tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            backgroundColor: Colors.black,
+            body: SingleChildScrollView(
+              child: buildCalendarMonthCardLayoutForTesting(
+                kYear: 6267,
+                kMonth: kMonth,
+                notesForDay: (_) => const [],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await pumpMonth(5);
+      expect(find.text('Šef-Bedet'), findsOneWidget);
+      expect(find.text('(Šf-bdt)'), findsNothing);
+      expect(tester.takeException(), isNull);
+
+      await pumpMonth(13);
+      expect(find.text('Heriu Renpet'), findsOneWidget);
+      expect(
+        find.text('(${getMonthById(13).displayTransliteration})'),
+        findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('switches at the buffered final day block toward the future', (
     tester,
@@ -130,6 +198,9 @@ void main() {
     expect(binding, contains('_calendarScrollCoordinator.activeBannerMonth'));
     expect(binding, contains('activeBannerMonth.year'));
     expect(binding, contains('activeBannerMonth.month'));
+    expect(binding, contains('showGregorian: _showGregorian'));
+    expect(binding, contains('KemeticMath.toGregorian('));
+    expect(binding, contains('_gregMonthNames[gregorianMonthStart.month]'));
     expect(binding, isNot(contains('_lastView')));
     expect(binding, isNot(contains('setState(')));
     expect(binding, isNot(contains('Restoration')));
@@ -153,6 +224,9 @@ void main() {
             child: ScrollingCalendarMonthHeader(
               month: getMonthById(7),
               yearLabel: '2026/2027',
+              showGregorian: false,
+              gregorianMonthName: 'September',
+              gregorianYearLabel: '2026',
             ),
           ),
         ),
@@ -208,6 +282,9 @@ final class _LeadingHeaderRig {
               return ScrollingCalendarMonthHeader(
                 month: getMonthById(activeMonth.month),
                 yearLabel: activeMonth.year.toString(),
+                showGregorian: false,
+                gregorianMonthName: 'January',
+                gregorianYearLabel: '2026',
               );
             },
           ),

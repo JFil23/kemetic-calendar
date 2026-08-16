@@ -475,6 +475,7 @@ Widget buildCalendarMonthCardLayoutForTesting({
   required int kMonth,
   required List<NoteData> Function(int kDay) notesForDay,
   MonthExpansionLevel expansionLevel = MonthExpansionLevel.details,
+  bool showGregorian = false,
 }) {
   _Note convert(NoteData note) {
     return _Note(
@@ -497,19 +498,37 @@ Widget buildCalendarMonthCardLayoutForTesting({
     );
   }
 
+  List<_Note> notesGetter(int _, int day) =>
+      notesForDay(day).map(convert).toList();
+
+  List<Color> flowColorsGetter(int _, int _, int day) => [
+    for (final note in notesForDay(day))
+      if (note.manualColor != null) note.manualColor!,
+  ];
+
+  if (kMonth == CalendarSectionIndex.monthsPerYear) {
+    return _EpagomenalCard(
+      kYear: kYear,
+      notesGetter: notesGetter,
+      flowColorsGetter: flowColorsGetter,
+      onDayTap: (_, _, _) {},
+      showGregorian: showGregorian,
+      expansionLevel: expansionLevel,
+      noteColorResolver: (note) => note.manualColor ?? _defaultNoteColor(note),
+      flowNameGetter: (_) => null,
+    );
+  }
+
   return _MonthCard(
     kYear: kYear,
     kMonth: kMonth,
     seasonShort: 'Akhet',
     todayMonth: null,
     todayDay: null,
-    notesGetter: (_, d) => notesForDay(d).map(convert).toList(),
-    flowColorsGetter: (_, _, d) => [
-      for (final note in notesForDay(d))
-        if (note.manualColor != null) note.manualColor!,
-    ],
+    notesGetter: notesGetter,
+    flowColorsGetter: flowColorsGetter,
     onDayTap: (_, _, _) {},
-    showGregorian: false,
+    showGregorian: showGregorian,
     expansionLevel: expansionLevel,
     noteColorResolver: (note) => note.manualColor ?? _defaultNoteColor(note),
     flowNameGetter: (_) => null,
@@ -626,12 +645,14 @@ class _SoftMonthNameTitle extends StatelessWidget {
     required this.transliteration,
     required this.fontSize,
     required this.opacity,
+    this.showTransliteration = true,
   });
 
   final String shortName;
   final String transliteration;
   final double fontSize;
   final double opacity;
+  final bool showTransliteration;
 
   @override
   Widget build(BuildContext context) {
@@ -662,7 +683,7 @@ class _SoftMonthNameTitle extends StatelessWidget {
               fontFamilyFallback: const ['GentiumPlus', 'NotoSans', 'Roboto'],
             ),
           ),
-          if (trans.isNotEmpty) ...[
+          if (showTransliteration && trans.isNotEmpty) ...[
             const SizedBox(width: 8),
             MonthNameText(
               '($trans)',
@@ -1022,6 +1043,7 @@ class _MonthCard extends StatelessWidget {
                                     monthMeta.displayTransliteration,
                                 fontSize: monthTitleSize,
                                 opacity: framedSurface ? 0.98 : 0.96,
+                                showTransliteration: false,
                               ),
                             ),
                           ),
@@ -3474,6 +3496,7 @@ class _EpagomenalCard extends StatelessWidget {
                                 epagomenalMeta.displayTransliteration,
                             fontSize: _CalendarScale.monthTitleMain,
                             opacity: 0.96,
+                            showTransliteration: false,
                           ),
                         ),
                       ),
