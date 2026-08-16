@@ -630,14 +630,17 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                   ],
                   Padding(
                     padding: const EdgeInsets.only(top: 16, bottom: 2),
-                    child: _QuickAddSpectrumBar(
-                      selectedColor: _selectedColor,
-                      onHueChanged: (hue) {
-                        setState(() {
-                          _selectedColor =
-                              DaySheetSpectrumColorPicker.colorFromHue(hue);
-                        });
-                      },
+                    child: TextFieldTapRegion(
+                      debugLabel: 'quick-add-color-control',
+                      child: _QuickAddSpectrumBar(
+                        selectedColor: _selectedColor,
+                        onHueChanged: (hue) {
+                          setState(() {
+                            _selectedColor =
+                                DaySheetSpectrumColorPicker.colorFromHue(hue);
+                          });
+                        },
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -1811,6 +1812,7 @@ void main() {
         expect(sheet, contains('inherit: false'));
         expect(sheet, contains('fontSize: 14.5'));
         expect(sheet, contains('quick-add-color-spectrum'));
+        expect(sheet, contains('TextFieldTapRegion('));
         expect(
           sheet,
           contains('DaySheetSpectrumColorPicker.colorFromHue(hue)'),
@@ -1925,19 +1927,35 @@ void main() {
 
       final spectrum = find.byKey(const ValueKey('quick-add-color-spectrum'));
       final spectrumRect = tester.getRect(spectrum);
+      await tester.tap(input);
+      await tester.pump();
+
       final fieldBefore = tester.widget<TextField>(input);
-      await tester.tapAt(
+      final sheetTopBefore = tester.getTopLeft(sheet).dy;
+      expect(fieldBefore.focusNode?.hasFocus, isTrue);
+
+      final sliderGesture = await tester.startGesture(
+        Offset(
+          spectrumRect.left + spectrumRect.width * 0.25,
+          spectrumRect.center.dy,
+        ),
+        kind: PointerDeviceKind.mouse,
+      );
+      await sliderGesture.moveTo(
         Offset(
           spectrumRect.left + spectrumRect.width * 0.75,
           spectrumRect.center.dy,
         ),
       );
+      await sliderGesture.up();
       await tester.pumpAndSettle();
 
       final expectedColor = HSLColor.fromAHSL(1, 270, 0.72, 0.48).toColor();
       final fieldAfter = tester.widget<TextField>(input);
       expect(fieldAfter.cursorColor, expectedColor);
       expect(fieldAfter.cursorColor, isNot(fieldBefore.cursorColor));
+      expect(fieldAfter.focusNode?.hasFocus, isTrue);
+      expect(tester.getTopLeft(sheet).dy, sheetTopBefore);
 
       await tester.tapAt(const Offset(4, 4));
       await tester.pumpAndSettle();
