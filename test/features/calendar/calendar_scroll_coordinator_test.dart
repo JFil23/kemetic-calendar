@@ -39,6 +39,51 @@ void main() {
     expect(published, [month2]);
   });
 
+  test('tracks Gregorian boundaries independently of Kemetic handoffs', () {
+    const april = GregorianMonthRef(year: 2026, month: 4);
+    const may = GregorianMonthRef(year: 2026, month: 5);
+    const june = GregorianMonthRef(year: 2026, month: 6);
+    final rig = _CoordinatorRig(
+      snapshot: _snapshot(
+        generation: 1,
+        sections: [
+          _geometry(month1, 0, 100, finalDayBlockLeading: 70),
+          _geometry(month2, 100, 200, finalDayBlockLeading: 170),
+        ],
+        gregorianMonthBoundaries: const [
+          CalendarGregorianMonthBoundary(month: may, leading: 40),
+          CalendarGregorianMonthBoundary(month: june, leading: 140),
+        ],
+      ),
+      offset: 39.999,
+      authoritative: month1,
+      initialGregorianBannerMonth: april,
+    );
+    addTearDown(rig.dispose);
+
+    rig.coordinator.noteScroll();
+    rig.flushOneFrame();
+    expect(rig.coordinator.activeBannerMonth.value, month1);
+    expect(rig.coordinator.activeGregorianBannerMonth.value, april);
+
+    rig.offset = 40;
+    rig.coordinator.noteScroll();
+    rig.flushOneFrame();
+    expect(rig.coordinator.activeBannerMonth.value, month1);
+    expect(rig.coordinator.activeGregorianBannerMonth.value, may);
+
+    rig.offset = 78;
+    rig.coordinator.noteScroll();
+    rig.flushOneFrame();
+    expect(rig.coordinator.activeBannerMonth.value, month2);
+    expect(rig.coordinator.activeGregorianBannerMonth.value, may);
+
+    rig.offset = 140;
+    rig.coordinator.noteScroll();
+    rig.flushOneFrame();
+    expect(rig.coordinator.activeGregorianBannerMonth.value, june);
+  });
+
   test(
     'publishes centered semantic month from the same coalesced snapshot',
     () {
@@ -345,6 +390,12 @@ void main() {
     ).readAsStringSync();
 
     expect(source, contains('ValueListenable<MonthRef> get activeBannerMonth'));
+    expect(
+      source,
+      contains(
+        'ValueListenable<GregorianMonthRef> get activeGregorianBannerMonth',
+      ),
+    );
     expect(source, isNot(contains('setState(')));
     expect(source, isNot(contains('_setView(')));
     expect(source, isNot(contains('_handlePortraitMonthChanged(')));
@@ -377,11 +428,16 @@ final class _CoordinatorRig {
     required this.offset,
     required this.authoritative,
     this.viewportExtent = 80,
+    this.initialGregorianBannerMonth = const GregorianMonthRef(
+      year: 2026,
+      month: 1,
+    ),
     CalendarLegacyCandidateReader? legacyReader,
     int traceCapacity = CalendarScrollCoordinator.defaultTraceCapacity,
   }) : _legacyReader = legacyReader {
     coordinator = CalendarScrollCoordinator(
       initialBannerMonth: authoritative ?? MonthRef(year: 0, month: 1),
+      initialGregorianBannerMonth: initialGregorianBannerMonth,
       scheduleAfterFrame: _scheduled.addLast,
       readSnapshot: () => snapshot,
       readScrollOffset: () => offset,
@@ -395,6 +451,7 @@ final class _CoordinatorRig {
   CalendarGeometrySnapshot snapshot;
   double offset;
   double viewportExtent;
+  final GregorianMonthRef initialGregorianBannerMonth;
   MonthRef? authoritative;
   final CalendarLegacyCandidateReader? _legacyReader;
   final ListQueue<void Function()> _scheduled = ListQueue();
@@ -414,8 +471,13 @@ final class _CoordinatorRig {
 CalendarGeometrySnapshot _snapshot({
   required int generation,
   required List<CalendarSectionGeometry> sections,
+  List<CalendarGregorianMonthBoundary> gregorianMonthBoundaries = const [],
 }) {
-  return CalendarGeometrySnapshot(generation: generation, sections: sections);
+  return CalendarGeometrySnapshot(
+    generation: generation,
+    sections: sections,
+    gregorianMonthBoundaries: gregorianMonthBoundaries,
+  );
 }
 
 CalendarSectionGeometry _geometry(

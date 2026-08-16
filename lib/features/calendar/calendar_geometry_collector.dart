@@ -16,9 +16,14 @@ final class CalendarGeometryCollector extends ChangeNotifier {
       <RenderCalendarGeometryMonthBody>{};
   final Set<RenderCalendarGeometryFinalDayBlock> _mountedFinalDayBlocks =
       <RenderCalendarGeometryFinalDayBlock>{};
+  final Set<RenderCalendarGeometryGregorianMonthBoundary>
+  _mountedGregorianMonthBoundaries =
+      <RenderCalendarGeometryGregorianMonthBoundary>{};
 
   CalendarGeometrySnapshot? _snapshot;
   List<CalendarSectionGeometry> _lastCandidate = const [];
+  List<CalendarGregorianMonthBoundary> _lastGregorianMonthBoundaryCandidate =
+      const [];
   bool _publicationScheduled = false;
   bool _disposed = false;
   int _nextGeneration = 0;
@@ -35,6 +40,9 @@ final class CalendarGeometryCollector extends ChangeNotifier {
   int get debugMountedBodyCount => _mountedBodies.length;
 
   int get debugMountedFinalDayBlockCount => _mountedFinalDayBlocks.length;
+
+  int get debugMountedGregorianMonthBoundaryCount =>
+      _mountedGregorianMonthBoundaries.length;
 
   int get debugScheduledPublicationCount => _scheduledPublicationCount;
 
@@ -58,6 +66,7 @@ final class CalendarGeometryCollector extends ChangeNotifier {
     _presentationRevision = normalized;
     _snapshot = null;
     _lastCandidate = const [];
+    _lastGregorianMonthBoundaryCandidate = const [];
     _markNeedsPublication();
   }
 
@@ -126,6 +135,42 @@ final class CalendarGeometryCollector extends ChangeNotifier {
     _markNeedsPublication();
   }
 
+  void _registerGregorianMonthBoundary(
+    RenderCalendarGeometryGregorianMonthBoundary boundary,
+  ) {
+    if (_disposed) return;
+    if (_mountedGregorianMonthBoundaries.add(boundary)) {
+      _markNeedsPublication();
+    }
+  }
+
+  void _unregisterGregorianMonthBoundary(
+    RenderCalendarGeometryGregorianMonthBoundary boundary,
+  ) {
+    if (_disposed) return;
+    if (_mountedGregorianMonthBoundaries.remove(boundary)) {
+      _markNeedsPublication();
+    }
+  }
+
+  void _didLayoutGregorianMonthBoundary(
+    RenderCalendarGeometryGregorianMonthBoundary boundary,
+  ) {
+    if (_disposed || !_mountedGregorianMonthBoundaries.contains(boundary)) {
+      return;
+    }
+    _markNeedsPublication();
+  }
+
+  void _didChangeGregorianMonthBoundaryIdentity(
+    RenderCalendarGeometryGregorianMonthBoundary boundary,
+  ) {
+    if (_disposed || !_mountedGregorianMonthBoundaries.contains(boundary)) {
+      return;
+    }
+    _markNeedsPublication();
+  }
+
   void _markNeedsPublication() {
     if (_disposed || _publicationScheduled) return;
     _publicationScheduled = true;
@@ -158,6 +203,22 @@ final class CalendarGeometryCollector extends ChangeNotifier {
       finalDayBlockLeadingByMonth[block.month] = leading;
     }
 
+    final gregorianMonthBoundaries = <CalendarGregorianMonthBoundary>[];
+    for (final boundary in _mountedGregorianMonthBoundaries) {
+      if (!boundary.attached ||
+          !boundary.hasSize ||
+          boundary.size.height <= 0) {
+        continue;
+      }
+      final viewport = RenderAbstractViewport.maybeOf(boundary);
+      if (viewport == null) continue;
+      final leading = viewport.getOffsetToReveal(boundary, 0).offset;
+      if (!leading.isFinite) continue;
+      gregorianMonthBoundaries.add(
+        CalendarGregorianMonthBoundary(month: boundary.month, leading: leading),
+      );
+    }
+
     final geometries = <CalendarSectionGeometry>[];
     for (final section in _mountedSections) {
       if (!section.attached || !section.hasSize || section.size.height <= 0) {
@@ -182,8 +243,21 @@ final class CalendarGeometryCollector extends ChangeNotifier {
     }
 
     geometries.sort((left, right) => left.month.compareTo(right.month));
-    if (_sameGeometry(_lastCandidate, geometries)) return;
+    gregorianMonthBoundaries.sort(
+      (left, right) => left.leading.compareTo(right.leading),
+    );
+    if (_sameGeometry(_lastCandidate, geometries) &&
+        _sameGregorianMonthBoundaries(
+          _lastGregorianMonthBoundaryCandidate,
+          gregorianMonthBoundaries,
+        )) {
+      return;
+    }
     _lastCandidate = List<CalendarSectionGeometry>.unmodifiable(geometries);
+    _lastGregorianMonthBoundaryCandidate =
+        List<CalendarGregorianMonthBoundary>.unmodifiable(
+          gregorianMonthBoundaries,
+        );
 
     late final CalendarGeometrySnapshot next;
     try {
@@ -191,6 +265,7 @@ final class CalendarGeometryCollector extends ChangeNotifier {
         generation: _nextGeneration,
         presentationRevision: _presentationRevision,
         sections: geometries,
+        gregorianMonthBoundaries: gregorianMonthBoundaries,
       );
     } on ArgumentError catch (error) {
       // Never replace the last coherent snapshot with a mixed or invalid
@@ -217,6 +292,17 @@ final class CalendarGeometryCollector extends ChangeNotifier {
     return true;
   }
 
+  bool _sameGregorianMonthBoundaries(
+    List<CalendarGregorianMonthBoundary> previous,
+    List<CalendarGregorianMonthBoundary> next,
+  ) {
+    if (previous.length != next.length) return false;
+    for (var index = 0; index < next.length; index++) {
+      if (previous[index] != next[index]) return false;
+    }
+    return true;
+  }
+
   @override
   void dispose() {
     if (_disposed) return;
@@ -224,7 +310,9 @@ final class CalendarGeometryCollector extends ChangeNotifier {
     _mountedSections.clear();
     _mountedBodies.clear();
     _mountedFinalDayBlocks.clear();
+    _mountedGregorianMonthBoundaries.clear();
     _lastCandidate = const [];
+    _lastGregorianMonthBoundaryCandidate = const [];
     super.dispose();
   }
 }
@@ -310,6 +398,90 @@ final class RenderCalendarGeometryFinalDayBlock extends RenderProxyBox {
     if (_lastReportedSize != size) {
       _lastReportedSize = size;
       _collector?._didLayoutFinalDayBlock(this);
+    }
+  }
+}
+
+/// Marks the row that introduces a Gregorian month inside a Kemetic section.
+///
+/// The marker is mounted in both date modes so toggling modes never needs a
+/// second render-tree walk or a delayed geometry repair.
+final class CalendarGeometryGregorianMonthBoundary
+    extends SingleChildRenderObjectWidget {
+  const CalendarGeometryGregorianMonthBoundary({
+    super.key,
+    required this.month,
+    required super.child,
+  });
+
+  final GregorianMonthRef month;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return RenderCalendarGeometryGregorianMonthBoundary(
+      month: month,
+      collector: CalendarGeometryCollectorScope.maybeOf(context),
+    );
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    RenderCalendarGeometryGregorianMonthBoundary renderObject,
+  ) {
+    renderObject
+      ..collector = CalendarGeometryCollectorScope.maybeOf(context)
+      ..month = month;
+  }
+}
+
+/// Render proxy used by [CalendarGeometryGregorianMonthBoundary].
+final class RenderCalendarGeometryGregorianMonthBoundary
+    extends RenderProxyBox {
+  RenderCalendarGeometryGregorianMonthBoundary({
+    required GregorianMonthRef month,
+    required CalendarGeometryCollector? collector,
+  }) : _month = month,
+       _collector = collector;
+
+  GregorianMonthRef _month;
+  CalendarGeometryCollector? _collector;
+  Size? _lastReportedSize;
+
+  GregorianMonthRef get month => _month;
+
+  set month(GregorianMonthRef value) {
+    if (_month == value) return;
+    _month = value;
+    _collector?._didChangeGregorianMonthBoundaryIdentity(this);
+  }
+
+  set collector(CalendarGeometryCollector? value) {
+    if (_collector == value) return;
+    if (attached) _collector?._unregisterGregorianMonthBoundary(this);
+    _collector = value;
+    if (attached) _collector?._registerGregorianMonthBoundary(this);
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _collector?._registerGregorianMonthBoundary(this);
+  }
+
+  @override
+  void detach() {
+    _lastReportedSize = null;
+    _collector?._unregisterGregorianMonthBoundary(this);
+    super.detach();
+  }
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    if (_lastReportedSize != size) {
+      _lastReportedSize = size;
+      _collector?._didLayoutGregorianMonthBoundary(this);
     }
   }
 }

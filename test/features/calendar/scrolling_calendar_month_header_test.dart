@@ -7,6 +7,7 @@ import 'package:mobile/features/calendar/calendar_geometry_snapshot.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/calendar_scroll_coordinator.dart';
 import 'package:mobile/features/calendar/calendar_section_index.dart';
+import 'package:mobile/features/calendar/decan_metadata.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/scrolling_calendar_month_header.dart';
 import 'package:mobile/widgets/month_name_text.dart';
@@ -135,6 +136,41 @@ void main() {
     },
   );
 
+  testWidgets(
+    'Gregorian mode hides Kemetic month titles but keeps decan names',
+    (tester) async {
+      const month = 5;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            backgroundColor: Colors.black,
+            body: SingleChildScrollView(
+              child: buildCalendarMonthCardLayoutForTesting(
+                kYear: 6267,
+                kMonth: month,
+                showGregorian: true,
+                notesForDay: (_) => const [],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      final kemeticTitle = find.text(getMonthById(month).displayShort);
+      final titleVisibility = find.ancestor(
+        of: kemeticTitle,
+        matching: find.byType(Visibility),
+      );
+      expect(kemeticTitle, findsOneWidget);
+      expect(titleVisibility, findsOneWidget);
+      expect(tester.widget<Visibility>(titleVisibility).visible, isFalse);
+      for (final decanName in DecanMetadata.decanNames[month]!) {
+        expect(find.text(decanName), findsOneWidget);
+      }
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('switches at the buffered final day block toward the future', (
     tester,
   ) async {
@@ -196,11 +232,16 @@ void main() {
     final binding = source.substring(start, end);
 
     expect(binding, contains('_calendarScrollCoordinator.activeBannerMonth'));
+    expect(
+      binding,
+      contains('_calendarScrollCoordinator.activeGregorianBannerMonth'),
+    );
     expect(binding, contains('activeBannerMonth.year'));
     expect(binding, contains('activeBannerMonth.month'));
     expect(binding, contains('showGregorian: _showGregorian'));
-    expect(binding, contains('KemeticMath.toGregorian('));
-    expect(binding, contains('_gregMonthNames[gregorianMonthStart.month]'));
+    expect(binding, contains('_gregMonthNames[activeGregorianMonth.month]'));
+    expect(binding, contains(r"'${activeGregorianMonth.year}'"));
+    expect(binding, isNot(contains('gregorianMonthStart')));
     expect(binding, isNot(contains('_lastView')));
     expect(binding, isNot(contains('setState(')));
     expect(binding, isNot(contains('Restoration')));
@@ -257,6 +298,10 @@ final class _LeadingHeaderRig {
     : authoritative = initialMonth {
     coordinator = CalendarScrollCoordinator(
       initialBannerMonth: initialMonth,
+      initialGregorianBannerMonth: const GregorianMonthRef(
+        year: 2026,
+        month: 1,
+      ),
       scheduleAfterFrame: _scheduled.addLast,
       readSnapshot: () => _headerSnapshot,
       readScrollOffset: () => offset,

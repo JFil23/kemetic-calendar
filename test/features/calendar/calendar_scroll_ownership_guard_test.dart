@@ -117,11 +117,13 @@ void main() {
 
     expect(
       RegExp(r'if \(_lastReportedSize != size\)').allMatches(source),
-      hasLength(3),
+      hasLength(4),
+      reason: 'section, body, final-day, and Gregorian-boundary proxies',
     );
     expect(
       RegExp(r'_lastReportedSize = null;').allMatches(source),
-      hasLength(3),
+      hasLength(4),
+      reason: 'every structural geometry proxy resets on detach',
     );
   });
 }

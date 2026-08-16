@@ -302,6 +302,50 @@ void main() {
     expect(geometry.finalDayBlockLeading, closeTo(70, 0.001));
   });
 
+  testWidgets('publishes inline Gregorian month boundaries atomically', (
+    tester,
+  ) async {
+    final collector = CalendarGeometryCollector();
+    addTearDown(collector.dispose);
+    final month = MonthRef(year: 1, month: 1);
+    const may = GregorianMonthRef(year: 2026, month: 5);
+
+    await tester.pumpWidget(
+      _host(
+        collector: collector,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: CalendarGeometrySection(
+                month: month,
+                child: Column(
+                  children: [
+                    const SizedBox(height: 30),
+                    CalendarGeometryGregorianMonthBoundary(
+                      month: may,
+                      child: const SizedBox(height: 20),
+                    ),
+                    const SizedBox(height: 50),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final snapshot = collector.snapshot!;
+    expect(collector.debugMountedGregorianMonthBoundaryCount, 1);
+    expect(snapshot.gregorianMonthBoundaries, hasLength(1));
+    expect(
+      snapshot.gregorianMonthBoundaries.single.leading,
+      closeTo(30, 0.001),
+    );
+    expect(snapshot.gregorianMonthAt(29.999), may.predecessor);
+    expect(snapshot.gregorianMonthAt(30), may);
+  });
+
   testWidgets('does not publish or schedule continuously while idle', (
     tester,
   ) async {

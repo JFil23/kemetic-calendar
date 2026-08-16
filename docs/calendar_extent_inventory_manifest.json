@@ -7,7 +7,7 @@
       "file": "lib/features/calendar/calendar_grid_widgets.dart",
       "start": "class _YearSection extends StatelessWidget {",
       "end": "/* ───────────── Detail Page (single-window behavior, flows-aware) ───────────── */",
-      "sha256": "f4caee6464355edd82bc8d0bdc0a813551388add2e29ca8f720ae2dd5e98261a"
+      "sha256": "11d7531b6e64dfa1a879692f08e93c686ee94465599d21300c3037439dd82847"
     },
     {
       "name": "calendar_text_styles",
@@ -42,7 +42,7 @@
       "file": "lib/features/calendar/calendar_page.dart",
       "start": "  Widget _buildBodyWithJournal() {",
       "end": "  /* ───────────── Decan Reflection Badge & Archive ───────────── */",
-      "sha256": "f63eb0ef253d68eb9545e0c0d0f1412d022b2fe465b69ddbf5b0172ca8e13c65"
+      "sha256": "95d839fdd756bda1a4f2b553b3002814266ab628b808b610b8adba20a38ae8ae"
     },
     {
       "name": "year_sliver_topology",
@@ -70,7 +70,7 @@
       "file": "lib/features/calendar/scrolling_calendar_month_header.dart",
       "start": "class ScrollingCalendarMonthHeader extends StatelessWidget {",
       "end": null,
-      "sha256": "db2c63d7a5133b38d6dbbff0a1f313644b4b6cf02c910251d5a0b50183342fe5"
+      "sha256": "43dae848889653134e3e62fe74e3a9e85f04c7872b737024cb3e4912ae217c3b"
     },
     {
       "name": "logical_section_domain",
@@ -84,7 +84,7 @@
       "file": "lib/features/calendar/calendar_geometry_collector.dart",
       "start": "final class CalendarGeometryFinalDayBlock",
       "end": null,
-      "sha256": "ea52c162adcb28864270ac0bb3a1c0d4fe54ab83eeaec56da761dbb0987436ac"
+      "sha256": "fbbca375036c4346f6172286bfce83d316f5fde4450496053647a1a5080ca572"
     }
   ]
 }

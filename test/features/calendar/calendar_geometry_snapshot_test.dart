@@ -123,6 +123,71 @@ void main() {
       expect(snapshot.ownerAt(250), MonthRef(year: 1, month: 3));
     });
 
+    test('resolves Gregorian months at their measured inline boundaries', () {
+      const may = GregorianMonthRef(year: 2026, month: 5);
+      const june = GregorianMonthRef(year: 2026, month: 6);
+      final snapshot = CalendarGeometrySnapshot(
+        generation: 1,
+        sections: [_geometry(1, 1, 0, 100), _geometry(1, 2, 100, 200)],
+        gregorianMonthBoundaries: const [
+          CalendarGregorianMonthBoundary(month: may, leading: 40),
+          CalendarGregorianMonthBoundary(month: june, leading: 140),
+        ],
+      );
+
+      expect(
+        snapshot.gregorianMonthAt(0),
+        const GregorianMonthRef(year: 2026, month: 4),
+      );
+      expect(snapshot.gregorianMonthAt(39.999), may.predecessor);
+      expect(snapshot.gregorianMonthAt(40), may);
+      expect(snapshot.gregorianMonthAt(139.999), may);
+      expect(snapshot.gregorianMonthAt(140), june);
+    });
+
+    test('does not invent a Gregorian month inside an unmounted gap', () {
+      final snapshot = CalendarGeometrySnapshot(
+        generation: 1,
+        sections: [_geometry(1, 1, 0, 100), _geometry(1, 3, 200, 300)],
+        gregorianMonthBoundaries: const [
+          CalendarGregorianMonthBoundary(
+            month: GregorianMonthRef(year: 2026, month: 5),
+            leading: 40,
+          ),
+        ],
+      );
+
+      expect(snapshot.gregorianMonthAt(150), isNull);
+    });
+
+    test('rejects invalid Gregorian boundary order and placement', () {
+      const may = GregorianMonthRef(year: 2026, month: 5);
+      const june = GregorianMonthRef(year: 2026, month: 6);
+      final sections = [_geometry(1, 1, 0, 100)];
+
+      expect(
+        () => CalendarGeometrySnapshot(
+          generation: 1,
+          sections: sections,
+          gregorianMonthBoundaries: const [
+            CalendarGregorianMonthBoundary(month: june, leading: 20),
+            CalendarGregorianMonthBoundary(month: may, leading: 40),
+          ],
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => CalendarGeometrySnapshot(
+          generation: 1,
+          sections: sections,
+          gregorianMonthBoundaries: const [
+            CalendarGregorianMonthBoundary(month: may, leading: 100),
+          ],
+        ),
+        throwsArgumentError,
+      );
+    });
+
     test(
       'identifies following-month interstitial without changing ownership',
       () {
