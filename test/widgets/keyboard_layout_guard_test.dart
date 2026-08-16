@@ -23,9 +23,12 @@ void main() {
       },
     );
 
-    test('flow studio avoids stacked scaffold and manual keyboard padding', () {
+    test('embedded flow studio lets the day sheet own keyboard resizing', () {
       final source = File(
         'lib/features/calendar/calendar_flow_studio_page.dart',
+      ).readAsStringSync();
+      final calendarSource = File(
+        'lib/features/calendar/calendar_page.dart',
       ).readAsStringSync();
 
       expect(source, contains('final bodyPadding = EdgeInsets.fromLTRB('));
@@ -34,7 +37,14 @@ void main() {
         source,
         contains('body: ListView(\n        padding: bodyPadding,'),
       );
-      expect(source, contains('resizeToAvoidBottomInset: true'));
+      expect(
+        source,
+        contains('resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset'),
+      );
+      expect(
+        calendarSource,
+        contains('resizeToAvoidBottomInset: persistOverlay'),
+      );
       expect(source, contains('return KeyboardSafeViewport('));
       expect(
         source,
@@ -43,6 +53,30 @@ void main() {
         ),
       );
       expect(source, isNot(contains('AnimatedPadding(')));
+    });
+
+    test('day sheet repeats the planner scaffold and scroll approach', () {
+      final source = File(
+        'lib/widgets/day_sheet_components.dart',
+      ).readAsStringSync();
+
+      expect(source, contains('child: Scaffold('));
+      expect(source, contains('resizeToAvoidBottomInset: true'));
+      expect(source, contains('SingleChildScrollView('));
+      expect(source, isNot(contains('return KeyboardSafeViewport(')));
+    });
+
+    test('quick add has one direct keyboard lift without a second clamp', () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final start = source.indexOf('class _QuickAddSheetState');
+      final end = source.indexOf('enum MonthExpansionLevel', start);
+      final quickAdd = source.substring(start, end);
+
+      expect(quickAdd, contains('MediaQuery.viewInsetsOf(context).bottom'));
+      expect(quickAdd, isNot(contains('KeyboardSafeViewport(')));
+      expect(quickAdd, isNot(contains('AnimatedPadding(')));
     });
 
     test('today planner lets the surrounding viewport own keyboard geometry', () {

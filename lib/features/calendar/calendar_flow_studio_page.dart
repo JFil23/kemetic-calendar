@@ -209,6 +209,7 @@ class _FlowStudioPage extends StatefulWidget {
     this.debugInitialDraftJson,
     this.debugDisableDraftPersistence = false,
     this.debugTimePicker,
+    this.resizeToAvoidBottomInset = true,
   });
 
   final List<_Flow> existingFlows;
@@ -220,6 +221,7 @@ class _FlowStudioPage extends StatefulWidget {
   final FutureOr<void> Function()? onRouteClose;
   final Map<String, dynamic>? debugInitialDraftJson;
   final bool debugDisableDraftPersistence;
+  final bool resizeToAvoidBottomInset;
   final Future<TimeOfDay?> Function(
     BuildContext context,
     TimeOfDay initialTime,
@@ -4639,7 +4641,7 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
     );
 
     return Scaffold(
-      resizeToAvoidBottomInset: true,
+      resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
       backgroundColor: _bg,
       appBar: AppBar(
         toolbarHeight: 48,

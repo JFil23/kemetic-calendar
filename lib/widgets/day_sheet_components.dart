@@ -3,8 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import 'keyboard_aware.dart';
-
 enum DaySheetTab { notes, reminders, flows }
 
 const List<Color> daySheetColorPalette = <Color>[
@@ -116,37 +114,42 @@ class DaySheetKeyboardSafeFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    return KeyboardSafeViewport(
+    return SizedBox(
       key: daySheetKeyboardSafePaddingKey,
-      maxHeightFactor: maxHeightFactor,
-      child: Container(
-        key: daySheetKeyboardSafeFrameKey,
-        height: media.size.height * maxHeightFactor,
-        decoration: const BoxDecoration(
-          color: DaySheetTokens.bg,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-          border: Border(top: BorderSide(color: DaySheetTokens.hair, width: 1)),
-        ),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: EdgeInsets.only(
-              left: horizontalPadding,
-              right: horizontalPadding,
-              top: topPadding,
-              bottom: media.padding.bottom + bottomPadding,
+      height: media.size.height * maxHeightFactor,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        resizeToAvoidBottomInset: true,
+        body: Container(
+          key: daySheetKeyboardSafeFrameKey,
+          decoration: const BoxDecoration(
+            color: DaySheetTokens.bg,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            border: Border(
+              top: BorderSide(color: DaySheetTokens.hair, width: 1),
             ),
-            child: scrollable
-                ? SingleChildScrollView(
-                    key: daySheetKeyboardSafeScrollViewKey,
-                    keyboardDismissBehavior:
-                        ScrollViewKeyboardDismissBehavior.onDrag,
-                    padding: EdgeInsets.only(
-                      bottom: media.padding.bottom + scrollBottomPadding,
-                    ),
-                    child: child,
-                  )
-                : child,
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: horizontalPadding,
+                right: horizontalPadding,
+                top: topPadding,
+                bottom: media.padding.bottom + bottomPadding,
+              ),
+              child: scrollable
+                  ? SingleChildScrollView(
+                      key: daySheetKeyboardSafeScrollViewKey,
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: EdgeInsets.only(
+                        bottom: media.padding.bottom + scrollBottomPadding,
+                      ),
+                      child: child,
+                    )
+                  : child,
+            ),
           ),
         ),
       ),

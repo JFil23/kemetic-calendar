@@ -442,7 +442,8 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return KeyboardSafeViewport(
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Material(
         color: Colors.black,
         shape: const RoundedRectangleBorder(
@@ -12965,6 +12966,7 @@ class CalendarPageState extends State<CalendarPage>
           editFlowId: editFlowId,
           importData: importData,
           onRouteResult: handleResult,
+          resizeToAvoidBottomInset: persistOverlay,
         ),
       ),
       visibleState: <String, dynamic>{
