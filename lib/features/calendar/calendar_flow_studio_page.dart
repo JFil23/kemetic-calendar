@@ -1375,22 +1375,12 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
       ),
       builder: (sheetCtx) {
         final media = MediaQuery.of(sheetCtx);
-        final keyboardInset = keyboardInsetOf(sheetCtx);
-        final sheetMaxHeight = math.max(
-          280.0,
-          math.min(
-            media.size.height * 0.72,
-            media.size.height - keyboardInset - media.padding.top - 12,
-          ),
-        );
-        return AnimatedPadding(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          padding: EdgeInsets.only(bottom: keyboardInset),
+        return KeyboardSafeViewport(
+          maxHeightFactor: 0.72,
           child: SafeArea(
             top: false,
             child: ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: sheetMaxHeight),
+              constraints: BoxConstraints(maxHeight: media.size.height * 0.72),
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                 child: Column(
@@ -2153,22 +2143,14 @@ class _FlowStudioPageState extends State<_FlowStudioPage>
         return StatefulBuilder(
           builder: (sheetCtx, setSheetState) {
             final media = MediaQuery.of(sheetCtx);
-            final keyboardInset = keyboardInsetOf(sheetCtx);
-            final sheetMaxHeight = math.max(
-              280.0,
-              math.min(
-                media.size.height * 0.72,
-                media.size.height - keyboardInset - media.padding.top - 12,
-              ),
-            );
-            return AnimatedPadding(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-              padding: EdgeInsets.only(bottom: keyboardInset),
+            return KeyboardSafeViewport(
+              maxHeightFactor: 0.72,
               child: SafeArea(
                 top: false,
                 child: ConstrainedBox(
-                  constraints: BoxConstraints(maxHeight: sheetMaxHeight),
+                  constraints: BoxConstraints(
+                    maxHeight: media.size.height * 0.72,
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
                     child: Column(

@@ -98,7 +98,6 @@ class DaySheetKeyboardSafeFrame extends StatelessWidget {
     super.key,
     required this.child,
     this.maxHeightFactor = 0.90,
-    this.minHeight = 300,
     this.horizontalPadding = 22,
     this.topPadding = 10,
     this.bottomPadding = 12,
@@ -108,7 +107,6 @@ class DaySheetKeyboardSafeFrame extends StatelessWidget {
 
   final Widget child;
   final double maxHeightFactor;
-  final double minHeight;
   final double horizontalPadding;
   final double topPadding;
   final double bottomPadding;
@@ -118,25 +116,12 @@ class DaySheetKeyboardSafeFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final viewInsetsBottom = MediaQuery.viewInsetsOf(context).bottom;
-    final keyboardInset = math.max(viewInsetsBottom, keyboardInsetOf(context));
-    final availableHeight = math.max(
-      minHeight,
-      media.size.height - keyboardInset - media.padding.top - 12,
-    );
-    final sheetHeight = math.min(
-      media.size.height * maxHeightFactor,
-      availableHeight,
-    );
-
-    return AnimatedPadding(
+    return KeyboardSafeViewport(
       key: daySheetKeyboardSafePaddingKey,
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutCubic,
-      padding: EdgeInsets.only(bottom: keyboardInset),
+      maxHeightFactor: maxHeightFactor,
       child: Container(
         key: daySheetKeyboardSafeFrameKey,
-        height: sheetHeight,
+        height: media.size.height * maxHeightFactor,
         decoration: const BoxDecoration(
           color: DaySheetTokens.bg,
           borderRadius: BorderRadius.vertical(top: Radius.circular(22)),

@@ -44,6 +44,7 @@ class FlowEnrollmentInputField extends StatelessWidget {
     final theme = Theme.of(context);
     return TextField(
       controller: controller,
+      scrollPadding: keyboardManagedTextFieldScrollPadding,
       enabled: enabled,
       autofocus: autofocus,
       maxLength: maxCharacters,

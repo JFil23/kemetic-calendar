@@ -26,6 +26,7 @@ import '../../utils/kemetic_date_format.dart';
 import '../../services/app_haptics.dart';
 import '../../services/navigation_trace.dart';
 import '../../services/restoration_coordinator.dart';
+import '../../widgets/keyboard_aware.dart';
 import '_post_glossy_helper.dart';
 import 'follow_list_page.dart';
 import '../calendar/calendar_page.dart';
@@ -1233,6 +1234,7 @@ class _ProfilePageState extends State<ProfilePage>
         title: const Text('Ask to join', style: TextStyle(color: Colors.white)),
         content: TextField(
           controller: controller,
+          scrollPadding: keyboardManagedTextFieldScrollPadding,
           maxLines: 3,
           maxLength: 500,
           style: const TextStyle(color: Colors.white),
@@ -4112,6 +4114,7 @@ class _ProfilePageState extends State<ProfilePage>
         children: [
           TextField(
             controller: _commonsAnswerController,
+            scrollPadding: keyboardManagedTextFieldScrollPadding,
             enabled: !_commonsAnswerSaving,
             minLines: 3,
             maxLines: 5,

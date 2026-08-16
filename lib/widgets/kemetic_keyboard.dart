@@ -36,25 +36,32 @@ class KemeticKeyboardScope extends InheritedWidget {
   }
 }
 
-class KemeticKeyboardRevealScope extends InheritedWidget {
-  final bool enabled;
+/// Marks a subtree whose viewport already owns keyboard avoidance.
+///
+/// App surfaces should not place this scope directly. `KeyboardSafeViewport`
+/// installs it so the global keyboard host and the local viewport never
+/// compete to reveal the same field.
+class KemeticKeyboardViewportScope extends InheritedWidget {
+  final bool managesKeyboardGeometry;
 
-  const KemeticKeyboardRevealScope({
+  const KemeticKeyboardViewportScope({
     super.key,
     required super.child,
-    required this.enabled,
+    required this.managesKeyboardGeometry,
   });
 
-  static bool isEnabledFor(BuildContext context) {
+  static bool isManagedFor(BuildContext context) {
     final element = context
-        .getElementForInheritedWidgetOfExactType<KemeticKeyboardRevealScope>();
-    final scope = element?.widget as KemeticKeyboardRevealScope?;
-    return scope?.enabled ?? true;
+        .getElementForInheritedWidgetOfExactType<
+          KemeticKeyboardViewportScope
+        >();
+    final scope = element?.widget as KemeticKeyboardViewportScope?;
+    return scope?.managesKeyboardGeometry ?? false;
   }
 
   @override
-  bool updateShouldNotify(covariant KemeticKeyboardRevealScope oldWidget) {
-    return enabled != oldWidget.enabled;
+  bool updateShouldNotify(covariant KemeticKeyboardViewportScope oldWidget) {
+    return managesKeyboardGeometry != oldWidget.managesKeyboardGeometry;
   }
 }
 
@@ -362,7 +369,9 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
   final KemeticKeyboardController _controller = KemeticKeyboardController();
   final GlobalKey _panelRegionKey = GlobalKey();
   final GlobalKey _toggleRegionKey = GlobalKey();
-  TextEditingController? _revealedController;
+  TextEditingController? _selectionController;
+  String _observedText = '';
+  TextSelection _observedSelection = const TextSelection.collapsed(offset: -1);
   double _lastKeyboardHeight = 300;
   double _lastSystemKeyboardInset = 0;
   bool _opening = false;
@@ -385,7 +394,7 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
   void dispose() {
     deactivateWebCustomKeyboardInput();
     WidgetsBinding.instance.removeObserver(this);
-    _revealedController?.removeListener(_handleEditableValueChanged);
+    _selectionController?.removeListener(_handleSelectionChanged);
     _controller.removeListener(_handleControllerChanged);
     FocusManager.instance.removeListener(_handleFocusChange);
     _controller.dispose();
@@ -414,24 +423,34 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
     if (mounted) {
       setState(() {});
     }
-    _syncEditableValueListener(
-      _controller.editable ?? _controller.lastEditable,
-    );
+    _syncSelectionObserver(_controller.editable);
     _scheduleRevealFocusedEditable();
   }
 
-  void _handleEditableValueChanged() {
-    _scheduleRevealFocusedEditable(includeDelayedPass: true);
+  void _handleSelectionChanged() {
+    final controller = _selectionController;
+    if (controller == null) return;
+    final value = controller.value;
+    final textChanged = value.text != _observedText;
+    final selectionChanged = value.selection != _observedSelection;
+    _observedText = value.text;
+    _observedSelection = value.selection;
+    if (textChanged || !selectionChanged) return;
+    _scheduleRevealFocusedEditable();
   }
 
-  void _syncEditableValueListener(EditableTextState? editable) {
+  void _syncSelectionObserver(EditableTextState? editable) {
     final nextController = _controller._isUsable(editable)
         ? editable!.widget.controller
         : null;
-    if (identical(_revealedController, nextController)) return;
-    _revealedController?.removeListener(_handleEditableValueChanged);
-    _revealedController = nextController;
-    _revealedController?.addListener(_handleEditableValueChanged);
+    if (identical(_selectionController, nextController)) return;
+    _selectionController?.removeListener(_handleSelectionChanged);
+    _selectionController = nextController;
+    final value = nextController?.value;
+    _observedText = value?.text ?? '';
+    _observedSelection =
+        value?.selection ?? const TextSelection.collapsed(offset: -1);
+    _selectionController?.addListener(_handleSelectionChanged);
   }
 
   void _scheduleRevealFocusedEditable({bool includeDelayedPass = false}) {
@@ -457,7 +476,7 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
     if (!_controller._isUsable(target)) return;
     final editable = target;
     if (editable == null) return;
-    if (!KemeticKeyboardRevealScope.isEnabledFor(editable.context)) return;
+    if (KemeticKeyboardViewportScope.isManagedFor(editable.context)) return;
 
     final media = MediaQuery.maybeOf(context);
     if (media == null) return;
@@ -603,9 +622,7 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
         _controller.attachEditable(null);
         _dismissCustomKeyboard(unfocusTarget: false);
       }
-      _syncEditableValueListener(
-        _controller.editable ?? _controller.lastEditable,
-      );
+      _syncSelectionObserver(editable);
       _scheduleRevealAfterFocusChange();
       return;
     }
@@ -615,14 +632,12 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
       // Keep last usable editable so cursor state is preserved while focus
       // briefly leaves the field (e.g., during long-press gestures).
       _controller.attachEditable(null);
-      _syncEditableValueListener(
-        _controller.editable ?? _controller.lastEditable,
-      );
+      _syncSelectionObserver(null);
       return;
     }
 
     _controller.attachEditable(editable);
-    _syncEditableValueListener(editable);
+    _syncSelectionObserver(editable);
     _scheduleRevealAfterFocusChange();
     // If the system keyboard was explicitly hidden (e.g., after custom mode),
     // restore it once a field regains focus so cursor gestures keep working.

@@ -6953,6 +6953,7 @@ class _MaatFlowTemplateDetailPageState
             const _MaatFlowDetailSectionLabel('WHAT DO YOU CARRY TODAY?'),
             TextField(
               controller: _eveningThresholdInitialCarryController,
+              scrollPadding: keyboardManagedTextFieldScrollPadding,
               maxLines: 3,
               minLines: 2,
               textInputAction: TextInputAction.newline,

@@ -65,9 +65,10 @@ void main() {
 
     expect(daySheet, contains('return DaySheetKeyboardSafeFrame('));
     expect(daySheetFrame, contains('class DaySheetKeyboardSafeFrame'));
-    expect(daySheetFrame, contains('final viewInsetsBottom'));
-    expect(daySheetFrame, contains('MediaQuery.viewInsetsOf(context).bottom'));
-    expect(daySheetFrame, contains('keyboardInsetOf(context)'));
+    expect(daySheetFrame, contains('return KeyboardSafeViewport('));
+    expect(daySheetFrame, contains('maxHeightFactor: maxHeightFactor'));
+    expect(daySheetFrame, isNot(contains('AnimatedPadding(')));
+    expect(daySheetFrame, isNot(contains('viewInsetsBottom')));
     expect(daySheetFrame, contains('SingleChildScrollView('));
   });
 
@@ -345,7 +346,8 @@ void main() {
     expect(picker, contains('selDay = selected.kDay'));
     expect(picker, contains('persistDaySheetSession()'));
 
-    expect(reminderEditor, contains('initialDate: titleG'));
+    expect(reminderEditor, contains('final initialReminderDate = titleG'));
+    expect(reminderEditor, contains('initialDate: initialReminderDate'));
     expect(daySheet, contains('return DaySheetKeyboardSafeFrame('));
     expect(builder, isNot(contains('DateTime.now')));
     expect(builder, isNot(contains('_today')));
@@ -646,15 +648,18 @@ void main() {
         contains('initialStartTime ?? TimeOfDay(hour: now.hour, minute: 0)'),
       );
       expect(daySheet, contains('openReminderEditorForSelectedDay'));
-      expect(daySheet, contains('initialDate: titleG'));
+      expect(daySheet, contains('final initialReminderDate = titleG'));
+      expect(daySheet, contains('initialDate: initialReminderDate'));
       expect(
         daySheet,
-        contains('initialStartTime: existing == null ? startTime : null'),
+        contains('final initialReminderStart = existing == null'),
       );
+      expect(daySheet, contains('initialStartTime: initialReminderStart'));
       expect(
         daySheet,
-        contains('initialAllDay: existing == null ? allDay : null'),
+        contains('final initialReminderAllDay = existing == null'),
       );
+      expect(daySheet, contains('initialAllDay: initialReminderAllDay'));
       expect(daySheet, contains('await openReminderEditorForSelectedDay()'));
       expect(daySheet, contains('await openReminderEditorForSelectedDay('));
     },

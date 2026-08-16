@@ -10,7 +10,6 @@ import '../../data/insight_link_utils.dart';
 import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/shared/kemetic_text.dart';
 import '../../widgets/insight_link_text.dart';
-import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/keyboard_aware.dart';
 import 'journal_v2_document_model.dart';
 import 'journal_event_badge.dart';
@@ -928,45 +927,38 @@ class RichTextEditorState extends State<RichTextEditor> {
         placeholderText.isNotEmpty &&
         _controller.text.trim().isEmpty &&
         !widget.readOnly;
-    return KemeticKeyboardRevealScope(
-      enabled: false,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          TextField(
-            controller: _controller,
-            focusNode: _focusNode,
-            maxLines: null,
-            expands: true,
-            scrollController: _textScrollController,
-            scrollPadding: keyboardManagedTextFieldScrollPadding,
-            readOnly: widget.readOnly,
-            keyboardType: TextInputType.multiline,
-            textInputAction: TextInputAction.newline,
-            scrollPhysics: const BouncingScrollPhysics(),
-            enableInteractiveSelection: !widget.readOnly,
-            onTapAlwaysCalled: true,
-            textAlignVertical: TextAlignVertical.top,
-            style: textStyle,
-            inputFormatters: _formatters,
-            cursorColor: widget.cursorColor ?? KemeticGold.base,
-            decoration: InputDecoration(
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
-              filled: widget.transparentDecoration ? false : null,
-              fillColor: widget.transparentDecoration
-                  ? Colors.transparent
-                  : null,
-            ),
-            onTap: _handleEditableTap,
-            onChanged: _handleTextChanged,
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        TextField(
+          controller: _controller,
+          focusNode: _focusNode,
+          maxLines: null,
+          expands: true,
+          scrollController: _textScrollController,
+          scrollPadding: keyboardManagedTextFieldScrollPadding,
+          readOnly: widget.readOnly,
+          keyboardType: TextInputType.multiline,
+          textInputAction: TextInputAction.newline,
+          scrollPhysics: const BouncingScrollPhysics(),
+          enableInteractiveSelection: !widget.readOnly,
+          onTapAlwaysCalled: true,
+          textAlignVertical: TextAlignVertical.top,
+          style: textStyle,
+          inputFormatters: _formatters,
+          cursorColor: widget.cursorColor ?? KemeticGold.base,
+          decoration: InputDecoration(
+            border: InputBorder.none,
+            contentPadding: EdgeInsets.zero,
+            filled: widget.transparentDecoration ? false : null,
+            fillColor: widget.transparentDecoration ? Colors.transparent : null,
           ),
-          if (showPlaceholder)
-            IgnorePointer(
-              child: Text(placeholderText, style: placeholderStyle),
-            ),
-        ],
-      ),
+          onTap: _handleEditableTap,
+          onChanged: _handleTextChanged,
+        ),
+        if (showPlaceholder)
+          IgnorePointer(child: Text(placeholderText, style: placeholderStyle)),
+      ],
     );
   }
 

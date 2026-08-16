@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../shared/glossy_text.dart';
 import '../../utils/external_link_utils.dart';
+import '../../widgets/keyboard_aware.dart';
 
 const String emailConfirmationRequiredMessage =
     'Check your email to confirm your account, then sign in.';
@@ -433,6 +434,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 28),
                           TextField(
                             controller: _emailController,
+                            scrollPadding:
+                                keyboardManagedTextFieldScrollPadding,
                             enabled: !_busy,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
@@ -445,6 +448,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 12),
                           TextField(
                             controller: _passwordController,
+                            scrollPadding:
+                                keyboardManagedTextFieldScrollPadding,
                             enabled: !_busy,
                             obscureText: true,
                             textInputAction: TextInputAction.done,
@@ -732,6 +737,7 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
                         const SizedBox(height: 28),
                         TextField(
                           controller: _passwordController,
+                          scrollPadding: keyboardManagedTextFieldScrollPadding,
                           enabled: !_busy && !_passwordUpdated,
                           obscureText: true,
                           textInputAction: TextInputAction.next,
@@ -743,6 +749,7 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
                         const SizedBox(height: 12),
                         TextField(
                           controller: _confirmPasswordController,
+                          scrollPadding: keyboardManagedTextFieldScrollPadding,
                           enabled: !_busy && !_passwordUpdated,
                           obscureText: true,
                           textInputAction: TextInputAction.done,

@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/completion_status.dart';
 import '../../data/shared_practice_models.dart';
 import '../../data/shared_practice_repo.dart';
+import '../../widgets/keyboard_aware.dart';
 
 const Color _gold = Color(0xFFD4AE43);
 const Color _panel = Color(0xFF15110B);
@@ -124,10 +125,9 @@ class _SharedPracticeCompletionSheetState
 
   @override
   Widget build(BuildContext context) {
-    final inset = MediaQuery.viewInsetsOf(context).bottom;
     final title = widget.stepTitle?.trim();
-    return Padding(
-      padding: EdgeInsets.only(bottom: inset),
+    return KeyboardSafeViewport(
+      maxHeightFactor: 0.9,
       child: DecoratedBox(
         decoration: const BoxDecoration(
           color: _panel,
@@ -226,6 +226,7 @@ class _SharedPracticeCompletionSheetState
                 TextField(
                   controller: _noteController,
                   enabled: !_saving,
+                  scrollPadding: keyboardManagedTextFieldScrollPadding,
                   minLines: 3,
                   maxLines: 5,
                   style: const TextStyle(

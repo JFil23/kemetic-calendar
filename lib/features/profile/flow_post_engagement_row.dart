@@ -1082,25 +1082,13 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final keyboardInset = keyboardInsetOf(context);
-    final availableHeight = math.max(
-      0.0,
-      media.size.height - keyboardInset - media.padding.top - 12,
-    );
-    final sheetHeight = keyboardInset > 0
-        ? math.min(media.size.height * 0.72, availableHeight)
-        : media.size.height * 0.46;
-
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOut,
-      padding: EdgeInsets.only(bottom: keyboardInset),
+    return KeyboardSafeViewport(
+      maxHeightFactor: 0.72,
+      closedHeightFactor: 0.46,
+      openHeightFactor: 0.72,
       child: SafeArea(
         top: false,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          height: sheetHeight,
+        child: SizedBox.expand(
           child: Padding(
             padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + media.padding.bottom),
             child: Column(

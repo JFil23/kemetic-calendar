@@ -1198,13 +1198,15 @@ class _ReadingHouseSittingDraftSheetState
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
-    return SafeArea(
-      top: false,
-      child: AnimatedPadding(
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOut,
-        padding: EdgeInsets.only(left: 18, right: 18, bottom: bottomInset + 18),
+    final media = MediaQuery.of(context);
+    return KeyboardSafeViewport(
+      topClearance: 18,
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 18,
+          right: 18,
+          bottom: media.padding.bottom + 18,
+        ),
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: const Color(0xFF090907),

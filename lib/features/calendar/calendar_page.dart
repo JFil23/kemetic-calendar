@@ -54,7 +54,6 @@ import '../../data/decan_reflection_prompt_state.dart';
 import '../../widgets/kemetic_day_info.dart';
 import '../../widgets/insight_link_text.dart';
 import '../../widgets/keyboard_aware.dart';
-import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/pronounce_icon_button.dart';
 import '../../widgets/utility_sheet_route_scaffold.dart';
 import '../../services/speech/speech_service.dart';
@@ -443,112 +442,103 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return KemeticKeyboardRevealScope(
-      enabled: false,
-      child: AnimatedPadding(
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(context).bottom,
+    return KeyboardSafeViewport(
+      child: Material(
+        color: Colors.black,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
         ),
-        child: Material(
-          color: Colors.black,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: SafeArea(
-            top: false,
-            child: SingleChildScrollView(
-              controller: _scrollCtrl,
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Column(
-                    children: [
-                      _buildDestinationRow(
-                        key: const ValueKey('quick-add-journal-button'),
-                        glyph: MeduNeterGlyphs.journal,
-                        label: 'Journal',
-                        onOpen: widget.onOpenJournal,
-                      ),
-                      _buildDestinationRow(
-                        key: const ValueKey('quick-add-planner-button'),
-                        glyph: MeduNeterGlyphs.planner,
-                        label: 'Planner',
-                        onOpen: widget.onOpenPlanner,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Quick add (natural language)',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+        clipBehavior: Clip.antiAlias,
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            controller: _scrollCtrl,
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Column(
+                  children: [
+                    _buildDestinationRow(
+                      key: const ValueKey('quick-add-journal-button'),
+                      glyph: MeduNeterGlyphs.journal,
+                      label: 'Journal',
+                      onOpen: widget.onOpenJournal,
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    key: const ValueKey('quick-add-input'),
-                    controller: _textCtrl,
-                    scrollPadding: keyboardManagedTextFieldScrollPadding,
-                    autofocus: false,
-                    focusNode: _focusNode,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      hintText: 'e.g., “Fri 3pm-4pm coffee with Amara”',
-                      hintStyle: const TextStyle(color: Colors.white54),
-                      filled: true,
-                      fillColor: const Color(0xFF111111),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.white24),
-                      ),
-                    ),
-                    minLines: 1,
-                    maxLines: 3,
-                    onSubmitted: (_) => _handleSubmit(),
-                  ),
-                  if (_error != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      _error!,
-                      style: const TextStyle(color: Colors.redAccent),
+                    _buildDestinationRow(
+                      key: const ValueKey('quick-add-planner-button'),
+                      glyph: MeduNeterGlyphs.planner,
+                      label: 'Planner',
+                      onOpen: widget.onOpenPlanner,
                     ),
                   ],
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: KemeticGold.base,
-                            foregroundColor: Colors.black,
-                          ),
-                          onPressed: _submitting ? null : _handleSubmit,
-                          child: const Text('Quick add'),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      TextButton(
-                        onPressed: _submitting
-                            ? null
-                            : () => _handleOpenDestination(
-                                widget.onOpenFullEditor,
-                              ),
-                        child: KemeticGold.text(
-                          'Open full editor',
-                          style: const TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ],
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Quick add (natural language)',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  key: const ValueKey('quick-add-input'),
+                  controller: _textCtrl,
+                  scrollPadding: keyboardManagedTextFieldScrollPadding,
+                  autofocus: false,
+                  focusNode: _focusNode,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'e.g., “Fri 3pm-4pm coffee with Amara”',
+                    hintStyle: const TextStyle(color: Colors.white54),
+                    filled: true,
+                    fillColor: const Color(0xFF111111),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Colors.white24),
+                    ),
+                  ),
+                  minLines: 1,
+                  maxLines: 3,
+                  onSubmitted: (_) => _handleSubmit(),
+                ),
+                if (_error != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.redAccent),
                   ),
                 ],
-              ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: KemeticGold.base,
+                          foregroundColor: Colors.black,
+                        ),
+                        onPressed: _submitting ? null : _handleSubmit,
+                        child: const Text('Quick add'),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    TextButton(
+                      onPressed: _submitting
+                          ? null
+                          : () =>
+                                _handleOpenDestination(widget.onOpenFullEditor),
+                      child: KemeticGold.text(
+                        'Open full editor',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
@@ -13562,24 +13552,12 @@ class CalendarPageState extends State<CalendarPage>
                     }
                   }
 
-                  final keyboardInset = keyboardInsetOf(dialogCtx);
-                  final dialogMaxHeight = math.max(
-                    280.0,
-                    math.min(
-                      media.size.height * 0.66,
-                      media.size.height -
-                          keyboardInset -
-                          media.padding.top -
-                          48,
-                    ),
-                  );
                   const fieldScrollPadding =
                       keyboardManagedTextFieldScrollPadding;
 
-                  return AnimatedPadding(
-                    duration: const Duration(milliseconds: 160),
-                    curve: Curves.easeOut,
-                    padding: EdgeInsets.only(bottom: keyboardInset),
+                  return KeyboardSafeViewport(
+                    maxHeightFactor: 0.66,
+                    topClearance: 48,
                     child: Dialog(
                       backgroundColor: Colors.transparent,
                       insetPadding: const EdgeInsets.symmetric(
@@ -13589,7 +13567,7 @@ class CalendarPageState extends State<CalendarPage>
                       child: ConstrainedBox(
                         constraints: BoxConstraints(
                           maxWidth: 560,
-                          maxHeight: dialogMaxHeight,
+                          maxHeight: media.size.height * 0.66,
                         ),
                         child: Container(
                           decoration: BoxDecoration(
@@ -21218,7 +21196,7 @@ class CalendarPageState extends State<CalendarPage>
                 );
                 final canEditSelectedCalendar =
                     selectedCalendar?.canEdit ?? true;
-                const fieldScrollPadding =
+                const reminderFieldScrollPadding =
                     keyboardManagedTextFieldScrollPadding;
 
                 String dateLabel(DateTime d) =>
@@ -21239,7 +21217,7 @@ class CalendarPageState extends State<CalendarPage>
                       return TextFormField(
                         keyboardType: TextInputType.number,
                         initialValue: repeat.interval.toString(),
-                        scrollPadding: fieldScrollPadding,
+                        scrollPadding: reminderFieldScrollPadding,
                         decoration: const InputDecoration(
                           labelText: 'Every N days',
                           labelStyle: TextStyle(color: Colors.white70),
@@ -21299,7 +21277,7 @@ class CalendarPageState extends State<CalendarPage>
                           repeat,
                           startLocal,
                         ).toList()..sort()).join(', '),
-                        scrollPadding: fieldScrollPadding,
+                        scrollPadding: reminderFieldScrollPadding,
                         decoration: const InputDecoration(
                           labelText: 'Day of month (1-31, comma-separated)',
                           labelStyle: TextStyle(color: Colors.white70),
@@ -21323,7 +21301,7 @@ class CalendarPageState extends State<CalendarPage>
                       return TextFormField(
                         keyboardType: TextInputType.number,
                         initialValue: repeat.interval.toString(),
-                        scrollPadding: fieldScrollPadding,
+                        scrollPadding: reminderFieldScrollPadding,
                         decoration: const InputDecoration(
                           labelText: 'Every N decans',
                           labelStyle: TextStyle(color: Colors.white70),
@@ -21350,7 +21328,7 @@ class CalendarPageState extends State<CalendarPage>
                           repeat,
                           startLocal,
                         ).toList()..sort()).join(', '),
-                        scrollPadding: fieldScrollPadding,
+                        scrollPadding: reminderFieldScrollPadding,
                         decoration: const InputDecoration(
                           labelText: 'Day of decan (1-10, comma-separated)',
                           labelStyle: TextStyle(color: Colors.white70),
@@ -21377,7 +21355,7 @@ class CalendarPageState extends State<CalendarPage>
                           repeat,
                           startLocal,
                         ).toList()..sort()).join(', '),
-                        scrollPadding: fieldScrollPadding,
+                        scrollPadding: reminderFieldScrollPadding,
                         decoration: const InputDecoration(
                           labelText:
                               'Day of Kemetic month (1-30, comma-separated)',
@@ -21454,7 +21432,7 @@ class CalendarPageState extends State<CalendarPage>
                     DaySheetTextField(
                       controller: titleCtrl,
                       hint: 'Title',
-                      scrollPadding: fieldScrollPadding,
+                      scrollPadding: reminderFieldScrollPadding,
                     ),
                     const SizedBox(height: 20),
                     DaySheetMetaRow(

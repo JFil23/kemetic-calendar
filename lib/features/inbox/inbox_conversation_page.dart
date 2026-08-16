@@ -799,54 +799,47 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
   }
 
   Widget _buildComposer() {
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 150),
-      curve: Curves.easeOut,
-      padding: EdgeInsets.zero,
-      child: Container(
-        color: const Color(0xFF000000),
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-        child: Row(
-          children: [
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0D0D0F),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: Colors.white.withValues(alpha: 0.1),
-                  ),
+    return Container(
+      color: const Color(0xFF000000),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0D0D0F),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+              ),
+              child: TextField(
+                controller: _messageController,
+                scrollPadding: keyboardManagedTextFieldScrollPadding,
+                style: const TextStyle(color: Colors.white),
+                maxLines: 4,
+                minLines: 1,
+                textInputAction: TextInputAction.send,
+                decoration: const InputDecoration(
+                  hintText: 'Send a message…',
+                  hintStyle: TextStyle(color: Colors.white54),
+                  border: InputBorder.none,
                 ),
-                child: TextField(
-                  controller: _messageController,
-                  scrollPadding: keyboardManagedTextFieldScrollPadding,
-                  style: const TextStyle(color: Colors.white),
-                  maxLines: 4,
-                  minLines: 1,
-                  textInputAction: TextInputAction.send,
-                  decoration: const InputDecoration(
-                    hintText: 'Send a message…',
-                    hintStyle: TextStyle(color: Colors.white54),
-                    border: InputBorder.none,
-                  ),
-                  onSubmitted: (_) => _sendMessage(),
-                ),
+                onSubmitted: (_) => _sendMessage(),
               ),
             ),
-            const SizedBox(width: 12),
-            ElevatedButton(
-              onPressed: _sendMessage,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: KemeticGold.base,
-                foregroundColor: Colors.black,
-                minimumSize: const Size(52, 48),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-              ),
-              child: const Icon(Icons.send),
+          ),
+          const SizedBox(width: 12),
+          ElevatedButton(
+            onPressed: _sendMessage,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: KemeticGold.base,
+              foregroundColor: Colors.black,
+              minimumSize: const Size(52, 48),
+              padding: const EdgeInsets.symmetric(horizontal: 12),
             ),
-          ],
-        ),
+            child: const Icon(Icons.send),
+          ),
+        ],
       ),
     );
   }

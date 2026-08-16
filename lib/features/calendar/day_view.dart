@@ -3983,15 +3983,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       ],
     );
 
-    final keyboardBottomPadding =
-        math.max(
-              MediaQuery.viewInsetsOf(context).bottom,
-              keyboardInsetOf(context),
-            ) >
-            0
-        ? 120.0
-        : 0.0;
-
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: DayViewRitualCompletionFeedbackCard._withVisual(
@@ -4002,7 +3993,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                 physics: const BouncingScrollPhysics(),
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
-                padding: EdgeInsets.only(bottom: keyboardBottomPadding),
                 child: body,
               )
             : body,
@@ -4464,20 +4454,15 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         _isOnboardingTargetEvent(target.event) &&
         widget.onboardingClosingBannerBuilder != null;
     final media = MediaQuery.of(context);
-    final keyboardInset = math.max(
-      MediaQuery.viewInsetsOf(context).bottom,
-      keyboardInsetOf(context),
-    );
-    final availableSheetHeight = math.max(
-      260.0,
-      media.size.height - keyboardInset - media.padding.top - 12,
-    );
+    final keyboardInset = keyboardInsetOf(context);
+    final availableSheetHeight = keyboardSafeAvailableHeightOf(context);
     final maxSheetHeight = keyboardInset > 0
         ? availableSheetHeight
         : math.min(media.size.height * 0.68, 520.0);
     final reservedChromeHeight = hasOnboardingClosingBanner ? 250.0 : 120.0;
+    final maxPageHeight = math.max(0.0, maxSheetHeight - reservedChromeHeight);
     final sheetHeight = (_measuredHeights[currentKey] ?? 200.0)
-        .clamp(0.0, math.max(180.0, maxSheetHeight - reservedChromeHeight))
+        .clamp(0.0, maxPageHeight)
         .toDouble();
 
     final content = Column(
@@ -4569,10 +4554,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       ],
     );
 
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutCubic,
-      padding: EdgeInsets.only(bottom: keyboardInset),
+    return KeyboardSafeViewport(
       child: SafeArea(
         top: false,
         child: hasOnboardingClosingBanner
@@ -9200,6 +9182,7 @@ class _DecanWatchLocalNotesPanelState
           else ...[
             TextField(
               controller: _skyController,
+              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines: 2,
               maxLines: 4,
               style: const TextStyle(color: Colors.white, fontSize: 13.5),
@@ -9210,6 +9193,7 @@ class _DecanWatchLocalNotesPanelState
             const SizedBox(height: 10),
             TextField(
               controller: _intentionController,
+              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines: 2,
               maxLines: 4,
               style: const TextStyle(color: Colors.white, fontSize: 13.5),
@@ -11215,6 +11199,7 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         const SizedBox(height: 12),
         TextField(
           controller: _eveningThresholdReleaseCarryController,
+          scrollPadding: keyboardManagedTextFieldScrollPadding,
           maxLines: 3,
           minLines: 2,
           onChanged: (_) => setState(() {}),
@@ -13206,6 +13191,7 @@ class _TheTendingLocalNotesPanelState
           else
             TextField(
               controller: _controller,
+              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines: _minLines,
               maxLines: 8,
               style: const TextStyle(color: Colors.white, fontSize: 13.5),
@@ -13522,6 +13508,7 @@ class _KeptWordLocalNotesPanelState extends State<_KeptWordLocalNotesPanel> {
           else
             TextField(
               controller: _controller,
+              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines: _minLines,
               maxLines: 8,
               style: const TextStyle(color: Colors.white, fontSize: 13.5),
@@ -13768,6 +13755,7 @@ class _TheWagLocalNotesPanelState extends State<_TheWagLocalNotesPanel> {
           else
             TextField(
               controller: _controller,
+              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines: _minLines,
               maxLines: 8,
               style: const TextStyle(color: Colors.white, fontSize: 13.5),
@@ -13985,6 +13973,7 @@ class _DaysOutsideYearLocalNotesPanelState
           else
             TextField(
               controller: _controller,
+              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines: _minLines,
               maxLines: 8,
               style: const TextStyle(color: Colors.white, fontSize: 13.5),
@@ -14251,6 +14240,7 @@ class _OpenHandLocalNotesPanelState extends State<_OpenHandLocalNotesPanel> {
           else
             TextField(
               controller: _controller,
+              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines:
                   widget.event.eventNumber == 4 ||
                       widget.event.eventNumber == 6 ||
@@ -14278,6 +14268,7 @@ class _OpenHandLocalNotesPanelState extends State<_OpenHandLocalNotesPanel> {
             const SizedBox(height: 10),
             TextField(
               controller: _deferredController,
+              scrollPadding: keyboardManagedTextFieldScrollPadding,
               style: const TextStyle(color: Colors.white, fontSize: 13.5),
               decoration: InputDecoration(
                 filled: true,
@@ -14583,6 +14574,7 @@ class _DjedLocalNotesPanelState extends State<_DjedLocalNotesPanel> {
           else
             TextField(
               controller: _controller,
+              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines:
                   widget.event.eventNumber == 1 ||
                       widget.event.eventNumber == 4 ||

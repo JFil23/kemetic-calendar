@@ -29,7 +29,6 @@ import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/shared/kemetic_text.dart';
 import 'package:mobile/widgets/kemetic_app_bar_action.dart';
 import 'package:mobile/widgets/kemetic_day_info.dart';
-import 'package:mobile/widgets/kemetic_keyboard.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:mobile/widgets/utility_sheet_route_scaffold.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -3162,11 +3161,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         final progressPercent = (progress * 100).round();
         final plannerAction = _todayPlannerAction();
         final listBottomPadding = bottomPaddingAboveGlobalChrome(context, 32);
-        final keyboardInset = keyboardInsetOf(context);
-        final effectiveListBottomPadding = math.max(
-          listBottomPadding,
-          keyboardInset + 32,
-        );
 
         final question = plannerAction == null
             ? null
@@ -3252,7 +3246,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                     key: todoCenterKey,
                     child: PlannerWall(
                       topPadding: PlannerVisualTokens.plateGap,
-                      bottomPadding: effectiveListBottomPadding,
+                      bottomPadding: listBottomPadding,
                       children: [todoSection, completedSection],
                     ),
                   ),
@@ -3267,7 +3261,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
                   ),
                   SliverToBoxAdapter(
                     child: PlannerWall(
-                      bottomPadding: effectiveListBottomPadding,
+                      bottomPadding: listBottomPadding,
                       children: [
                         _buildNotesSection(),
                         _buildNutritionSection(),
@@ -3294,7 +3288,7 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
         bottom: true,
         left: true,
         right: true,
-        child: KemeticKeyboardRevealScope(enabled: false, child: content),
+        child: content,
       ),
     );
   }

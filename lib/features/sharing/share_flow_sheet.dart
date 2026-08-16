@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
@@ -89,23 +88,13 @@ class _ShareFlowSheetState extends State<ShareFlowSheet> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final keyboardInset = keyboardInsetOf(context);
     final closedHeight = media.size.height * 0.9;
-    final openMaxHeight = math.max(
-      280.0,
-      media.size.height - keyboardInset - media.padding.top - 12,
-    );
-    final sheetHeight = keyboardInset > 0
-        ? math.min(closedHeight, openMaxHeight)
-        : closedHeight;
     const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
 
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOut,
-      padding: EdgeInsets.only(bottom: keyboardInset),
+    return KeyboardSafeViewport(
+      maxHeightFactor: 0.9,
       child: Container(
-        height: sheetHeight,
+        height: closedHeight,
         decoration: const BoxDecoration(
           color: Color(0xFF000000),
           borderRadius: BorderRadius.vertical(top: Radius.circular(20)),

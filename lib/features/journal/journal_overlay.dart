@@ -30,7 +30,6 @@ import '../../data/insight_link_model.dart';
 import '../../data/insight_link_repo.dart';
 import '../../data/insight_link_utils.dart';
 import '../../widgets/insight_link_text.dart';
-import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../nodes/kemetic_node_library.dart';
 import '../nodes/node_link_picker_sheet.dart';
@@ -1316,32 +1315,29 @@ class _JournalOverlayState extends State<JournalOverlay>
     final hintStyle = journalSkin
         ? JournalSkinTokens.entryPlaceholderStyle
         : const TextStyle(color: Color(0xFF666666), fontSize: 16);
-    return KemeticKeyboardRevealScope(
-      enabled: false,
-      child: TextField(
-        controller: _textController,
-        focusNode: _focusNode,
-        scrollController: _scrollController,
-        scrollPadding: keyboardManagedTextFieldScrollPadding,
-        maxLines: null,
-        expands: true,
-        textAlignVertical: TextAlignVertical.top,
-        style: textStyle,
-        cursorColor: journalSkin ? JournalSkinTokens.gold : KemeticGold.base,
-        decoration: InputDecoration(
-          hintText: placeholderText,
-          hintStyle: hintStyle,
-          border: InputBorder.none,
-          contentPadding: EdgeInsets.zero,
-          filled: journalSkin ? false : null,
-          fillColor: journalSkin ? Colors.transparent : null,
-        ),
-        keyboardType: TextInputType.multiline,
-        textInputAction: TextInputAction.newline,
-        scrollPhysics: const BouncingScrollPhysics(),
-        enableInteractiveSelection: true,
-        onChanged: _handleTextChanged,
+    return TextField(
+      controller: _textController,
+      focusNode: _focusNode,
+      scrollController: _scrollController,
+      scrollPadding: keyboardManagedTextFieldScrollPadding,
+      maxLines: null,
+      expands: true,
+      textAlignVertical: TextAlignVertical.top,
+      style: textStyle,
+      cursorColor: journalSkin ? JournalSkinTokens.gold : KemeticGold.base,
+      decoration: InputDecoration(
+        hintText: placeholderText,
+        hintStyle: hintStyle,
+        border: InputBorder.none,
+        contentPadding: EdgeInsets.zero,
+        filled: journalSkin ? false : null,
+        fillColor: journalSkin ? Colors.transparent : null,
       ),
+      keyboardType: TextInputType.multiline,
+      textInputAction: TextInputAction.newline,
+      scrollPhysics: const BouncingScrollPhysics(),
+      enableInteractiveSelection: true,
+      onChanged: _handleTextChanged,
     );
   }
 

@@ -13,7 +13,6 @@ import '../../shared/glossy_text.dart';
 import '../../shared/kemetic_text.dart';
 import '../../utils/kemetic_date_format.dart';
 import '../../widgets/kemetic_date_picker.dart';
-import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../../widgets/insight_link_text.dart';
 import 'kemetic_node_library.dart';
@@ -28,9 +27,11 @@ double insightEntryEditorSheetHeight({
   if (keyboardInset <= 0) {
     return media.size.height * 0.82;
   }
-  final keyboardSafeHeight =
-      media.size.height - keyboardInset - media.padding.top - 8;
-  return keyboardSafeHeight.clamp(180.0, media.size.height * 0.96).toDouble();
+  final keyboardSafeHeight = math.max(
+    0.0,
+    media.size.height - keyboardInset - media.padding.top - 8,
+  );
+  return math.min(media.size.height * 0.82, keyboardSafeHeight);
 }
 
 const nodeUserInsightsEmptyCardKey = ValueKey<String>(
@@ -627,24 +628,14 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final keyboardScope = KemeticKeyboardScope.maybeOf(context);
-    final outerBottomInset =
-        keyboardScope?.keyboardInset ?? media.viewInsets.bottom;
-    final sheetHeight = insightEntryEditorSheetHeight(
-      media: media,
-      keyboardInset: outerBottomInset,
-    );
     const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOut,
-      padding: EdgeInsets.only(bottom: outerBottomInset),
+    return KeyboardSafeViewport(
+      maxHeightFactor: 0.82,
+      topClearance: 8,
       child: SafeArea(
         top: false,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          curve: Curves.easeOut,
-          height: math.max(180.0, sheetHeight),
+        child: SizedBox(
+          height: media.size.height * 0.82,
           child: Padding(
             padding: EdgeInsets.fromLTRB(16, 12, 16, 16 + media.padding.bottom),
             child: _loading

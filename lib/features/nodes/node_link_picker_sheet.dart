@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../shared/glossy_text.dart';
 import '../../shared/kemetic_text.dart';
-import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/keyboard_aware.dart';
 import 'kemetic_node_library.dart';
 import 'kemetic_node_model.dart';
@@ -37,16 +36,8 @@ Future<NodeLinkPickerResult?> showNodeLinkPickerSheet({
       return StatefulBuilder(
         builder: (context, setSheet) {
           final query = controller.text.trim().toLowerCase();
-          final keyboardInset = keyboardInsetOf(context);
           final media = MediaQuery.of(ctx);
           final closedHeight = media.size.height * 0.72;
-          final availableHeight =
-              media.size.height - keyboardInset - media.padding.top - 16;
-          final sheetHeight = keyboardInset > 0 && availableHeight > 280
-              ? (availableHeight < closedHeight
-                    ? availableHeight
-                    : closedHeight)
-              : closedHeight;
           final filtered = nodes
               .where(
                 (node) =>
@@ -58,17 +49,18 @@ Future<NodeLinkPickerResult?> showNodeLinkPickerSheet({
               )
               .toList();
 
-          return KemeticKeyboardRevealScope(
-            enabled: false,
+          return KeyboardSafeViewport(
+            maxHeightFactor: 0.72,
+            topClearance: 16,
             child: Padding(
               padding: EdgeInsets.only(
                 left: 16,
                 right: 16,
                 top: 12,
-                bottom: keyboardInset + 16,
+                bottom: 16,
               ),
               child: SizedBox(
-                height: sheetHeight,
+                height: closedHeight,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

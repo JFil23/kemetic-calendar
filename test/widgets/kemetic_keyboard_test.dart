@@ -352,7 +352,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('lets scoped fields opt out of the global reveal pass', (
+    testWidgets('keyboard-safe viewports own reveal without global scrolling', (
       tester,
     ) async {
       tester.view.devicePixelRatio = 1;
@@ -369,7 +369,7 @@ void main() {
         _SystemKeyboardInsetHarness(
           controller: controller,
           scrollController: scrollController,
-          revealEnabled: false,
+          viewportManaged: true,
         ),
       );
       await tester.tap(find.byKey(const ValueKey('system-keyboard-input')));
@@ -383,6 +383,39 @@ void main() {
       await tester.pump(const Duration(milliseconds: 150));
 
       expect(scrollController.offset, 0);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('typing does not animate the surrounding scroll position', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      addTearDown(tester.view.reset);
+
+      final controller = TextEditingController();
+      final scrollController = ScrollController();
+      addTearDown(controller.dispose);
+      addTearDown(scrollController.dispose);
+
+      await tester.pumpWidget(
+        _SystemKeyboardInsetHarness(
+          controller: controller,
+          scrollController: scrollController,
+        ),
+      );
+      await tester.tap(find.byKey(const ValueKey('system-keyboard-input')));
+      await tester.pumpAndSettle();
+      final focusedOffset = scrollController.offset;
+
+      await tester.enterText(
+        find.byKey(const ValueKey('system-keyboard-input')),
+        'Typing should stay still',
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(scrollController.offset, closeTo(focusedOffset, 0.01));
       expect(tester.takeException(), isNull);
     });
 
@@ -866,15 +899,20 @@ class _SystemKeyboardInsetHarness extends StatelessWidget {
   const _SystemKeyboardInsetHarness({
     required this.controller,
     this.scrollController,
-    this.revealEnabled = true,
+    this.viewportManaged = false,
   });
 
   final TextEditingController controller;
   final ScrollController? scrollController;
-  final bool revealEnabled;
+  final bool viewportManaged;
 
   @override
   Widget build(BuildContext context) {
+    final field = TextField(
+      key: const ValueKey('system-keyboard-input'),
+      controller: controller,
+      scrollPadding: keyboardManagedTextFieldScrollPadding,
+    );
     return MaterialApp(
       builder: (context, child) =>
           KemeticKeyboardHost(child: child ?? const SizedBox.shrink()),
@@ -888,13 +926,10 @@ class _SystemKeyboardInsetHarness extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 720),
-                KemeticKeyboardRevealScope(
-                  enabled: revealEnabled,
-                  child: TextField(
-                    key: const ValueKey('system-keyboard-input'),
-                    controller: controller,
-                  ),
-                ),
+                if (viewportManaged)
+                  KeyboardSafeViewport(liftAboveKeyboard: false, child: field)
+                else
+                  field,
                 const SizedBox(height: 360),
               ],
             ),
@@ -977,59 +1012,51 @@ class _QuickAddSheetHarnessContentState
 
   @override
   Widget build(BuildContext context) {
-    return KemeticKeyboardRevealScope(
-      enabled: false,
-      child: AnimatedPadding(
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOut,
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(context).bottom,
-        ),
-        child: SafeArea(
-          top: false,
-          child: SingleChildScrollView(
-            controller: _scrollCtrl,
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Quick add (natural language)',
-                  style: TextStyle(color: Colors.white),
+    return KeyboardSafeViewport(
+      child: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          controller: _scrollCtrl,
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Quick add (natural language)',
+                style: TextStyle(color: Colors.white),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                key: const ValueKey('quick-add-input'),
+                controller: _textCtrl,
+                scrollPadding: keyboardManagedTextFieldScrollPadding,
+                autofocus: false,
+                focusNode: _focusNode,
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  hintText: 'e.g., Fri 3pm-4pm coffee',
                 ),
-                const SizedBox(height: 8),
-                TextField(
-                  key: const ValueKey('quick-add-input'),
-                  controller: _textCtrl,
-                  scrollPadding: keyboardManagedTextFieldScrollPadding,
-                  autofocus: false,
-                  focusNode: _focusNode,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: const InputDecoration(
-                    hintText: 'e.g., Fri 3pm-4pm coffee',
+                minLines: 1,
+                maxLines: 3,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Close'),
                   ),
-                  minLines: 1,
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      child: const Text('Close'),
-                    ),
-                    const SizedBox(width: 8),
-                    TextButton(
-                      onPressed: () {
-                        setState(() {});
-                      },
-                      child: const Text('Refresh'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () {
+                      setState(() {});
+                    },
+                    child: const Text('Refresh'),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),

@@ -13,7 +13,6 @@ import '../../data/shared_calendars_repo.dart';
 import '../../shared/date_picker/stone_register_date_picker.dart';
 import '../../shared/glossy_text.dart';
 import '../../widgets/gregorian_date_picker.dart';
-import '../../widgets/kemetic_keyboard.dart';
 import '../../widgets/keyboard_aware.dart';
 import '../calendar/notify.dart';
 import '../reminders/reminder_rule.dart';
@@ -2682,157 +2681,151 @@ class _BirthdayEditorDialogState extends State<_BirthdayEditorDialog> {
         ? 'Choose date'
         : DateFormat.yMMMMd().format(_birthday!);
 
-    return KemeticKeyboardRevealScope(
-      enabled: false,
-      child: Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 26),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
-          decoration: BoxDecoration(
-            color: const Color(0xFF16130D),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Color(
-                kBirthdaysCalendarColorValue,
-              ).withValues(alpha: 0.35),
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x99000000),
-                blurRadius: 60,
-                offset: Offset(0, 20),
-              ),
-            ],
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 26),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+        decoration: BoxDecoration(
+          color: const Color(0xFF16130D),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: Color(kBirthdaysCalendarColorValue).withValues(alpha: 0.35),
           ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Add Birthday',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 25,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: H3wCalendarSheetTokens.serif,
-                    fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x99000000),
+              blurRadius: 60,
+              offset: Offset(0, 20),
+            ),
+          ],
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Add Birthday',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 25,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: H3wCalendarSheetTokens.serif,
+                  fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                ),
+              ),
+              const SizedBox(height: 18),
+              TextField(
+                key: const ValueKey<String>('birthday-name-field'),
+                controller: _nameCtrl,
+                autofocus: true,
+                cursorColor: H3wCalendarSheetTokens.gold,
+                scrollPadding: keyboardManagedTextFieldScrollPadding,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w400,
+                  fontFamily: H3wCalendarSheetTokens.serif,
+                  fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                ),
+                decoration: _inputDecoration('Name'),
+              ),
+              const SizedBox(height: 12),
+              InkWell(
+                key: const ValueKey<String>('birthday-date-picker'),
+                borderRadius: BorderRadius.circular(12),
+                onTap: _pickBirthday,
+                child: InputDecorator(
+                  decoration: _inputDecoration('Birthday'),
+                  child: Text(
+                    birthdayLabel,
+                    style: TextStyle(
+                      color: _birthday == null
+                          ? H3wCalendarSheetTokens.silverMid
+                          : Colors.white,
+                      fontSize: 17,
+                      fontFamily: H3wCalendarSheetTokens.serif,
+                      fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 18),
-                TextField(
-                  key: const ValueKey<String>('birthday-name-field'),
-                  controller: _nameCtrl,
-                  autofocus: true,
-                  cursorColor: H3wCalendarSheetTokens.gold,
-                  scrollPadding: keyboardManagedTextFieldScrollPadding,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w400,
-                    fontFamily: H3wCalendarSheetTokens.serif,
-                    fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
-                  ),
-                  decoration: _inputDecoration('Name'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<int>(
+                key: const ValueKey<String>('birthday-alert-picker'),
+                initialValue: _alertOffsetMinutes,
+                dropdownColor: const Color(0xFF211C14),
+                iconEnabledColor: H3wCalendarSheetTokens.gold,
+                decoration: _inputDecoration('Alert'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontFamily: H3wCalendarSheetTokens.serif,
+                  fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
                 ),
+                items: [
+                  for (final option in kBirthdayAlertOptions)
+                    DropdownMenuItem<int>(
+                      value: option,
+                      child: Text(birthdayAlertLabel(option)),
+                    ),
+                ],
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() => _alertOffsetMinutes = value);
+                },
+              ),
+              if (_error != null) ...[
                 const SizedBox(height: 12),
-                InkWell(
-                  key: const ValueKey<String>('birthday-date-picker'),
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: _pickBirthday,
-                  child: InputDecorator(
-                    decoration: _inputDecoration('Birthday'),
-                    child: Text(
-                      birthdayLabel,
-                      style: TextStyle(
-                        color: _birthday == null
-                            ? H3wCalendarSheetTokens.silverMid
-                            : Colors.white,
+                Text(
+                  _error!,
+                  style: const TextStyle(
+                    color: H3wCalendarSheetTokens.repeatPinkLight,
+                    fontSize: 13,
+                    fontFamily: H3wCalendarSheetTokens.serif,
+                    fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: TextButton.styleFrom(
+                      foregroundColor: H3wCalendarSheetTokens.silverMid,
+                      textStyle: const TextStyle(
                         fontSize: 17,
+                        fontWeight: FontWeight.w400,
                         fontFamily: H3wCalendarSheetTokens.serif,
                         fontFamilyFallback:
                             H3wCalendarSheetTokens.serifFallback,
                       ),
                     ),
+                    child: const Text('Cancel'),
                   ),
-                ),
-                const SizedBox(height: 12),
-                DropdownButtonFormField<int>(
-                  key: const ValueKey<String>('birthday-alert-picker'),
-                  initialValue: _alertOffsetMinutes,
-                  dropdownColor: const Color(0xFF211C14),
-                  iconEnabledColor: H3wCalendarSheetTokens.gold,
-                  decoration: _inputDecoration('Alert'),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontFamily: H3wCalendarSheetTokens.serif,
-                    fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
-                  ),
-                  items: [
-                    for (final option in kBirthdayAlertOptions)
-                      DropdownMenuItem<int>(
-                        value: option,
-                        child: Text(birthdayAlertLabel(option)),
+                  const SizedBox(width: 22),
+                  TextButton(
+                    key: const ValueKey<String>('birthday-save-button'),
+                    onPressed: _save,
+                    style: TextButton.styleFrom(
+                      foregroundColor: Color(kBirthdaysCalendarColorValue),
+                      textStyle: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                        fontFamily: H3wCalendarSheetTokens.serif,
+                        fontFamilyFallback:
+                            H3wCalendarSheetTokens.serifFallback,
                       ),
-                  ],
-                  onChanged: (value) {
-                    if (value == null) return;
-                    setState(() => _alertOffsetMinutes = value);
-                  },
-                ),
-                if (_error != null) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    _error!,
-                    style: const TextStyle(
-                      color: H3wCalendarSheetTokens.repeatPinkLight,
-                      fontSize: 13,
-                      fontFamily: H3wCalendarSheetTokens.serif,
-                      fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
                     ),
+                    child: const Text('Save'),
                   ),
                 ],
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: TextButton.styleFrom(
-                        foregroundColor: H3wCalendarSheetTokens.silverMid,
-                        textStyle: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w400,
-                          fontFamily: H3wCalendarSheetTokens.serif,
-                          fontFamilyFallback:
-                              H3wCalendarSheetTokens.serifFallback,
-                        ),
-                      ),
-                      child: const Text('Cancel'),
-                    ),
-                    const SizedBox(width: 22),
-                    TextButton(
-                      key: const ValueKey<String>('birthday-save-button'),
-                      onPressed: _save,
-                      style: TextButton.styleFrom(
-                        foregroundColor: Color(kBirthdaysCalendarColorValue),
-                        textStyle: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: H3wCalendarSheetTokens.serif,
-                          fontFamilyFallback:
-                              H3wCalendarSheetTokens.serifFallback,
-                        ),
-                      ),
-                      child: const Text('Save'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
@@ -2876,178 +2869,173 @@ class _CalendarEditorDialogState extends State<_CalendarEditorDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return KemeticKeyboardRevealScope(
-      enabled: false,
-      child: Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 26),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
-          decoration: BoxDecoration(
-            color: const Color(0xFF16130D),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: H3wCalendarSheetTokens.gold.withValues(alpha: 0.25),
-            ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x99000000),
-                blurRadius: 60,
-                offset: Offset(0, 20),
-              ),
-            ],
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 26),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(22, 24, 22, 20),
+        decoration: BoxDecoration(
+          color: const Color(0xFF16130D),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: H3wCalendarSheetTokens.gold.withValues(alpha: 0.25),
           ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.initialName.isEmpty ? 'New Calendar' : 'Edit Calendar',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 25,
-                    fontWeight: FontWeight.w600,
-                    fontFamily: H3wCalendarSheetTokens.serif,
-                    fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
-                  ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x99000000),
+              blurRadius: 60,
+              offset: Offset(0, 20),
+            ),
+          ],
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.initialName.isEmpty ? 'New Calendar' : 'Edit Calendar',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 25,
+                  fontWeight: FontWeight.w600,
+                  fontFamily: H3wCalendarSheetTokens.serif,
+                  fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
                 ),
-                const SizedBox(height: 18),
-                const Text(
-                  'Name',
-                  style: TextStyle(
-                    color: H3wCalendarSheetTokens.silverMid,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w400,
-                    fontFamily: H3wCalendarSheetTokens.serif,
-                    fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
-                  ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Name',
+                style: TextStyle(
+                  color: H3wCalendarSheetTokens.silverMid,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                  fontFamily: H3wCalendarSheetTokens.serif,
+                  fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
                 ),
-                const SizedBox(height: 7),
-                TextField(
-                  controller: _nameCtrl,
-                  autofocus: true,
-                  cursorColor: H3wCalendarSheetTokens.sharedAccent,
-                  scrollPadding: keyboardManagedTextFieldScrollPadding,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w400,
-                    fontFamily: H3wCalendarSheetTokens.serif,
-                    fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+              ),
+              const SizedBox(height: 7),
+              TextField(
+                controller: _nameCtrl,
+                autofocus: true,
+                cursorColor: H3wCalendarSheetTokens.sharedAccent,
+                scrollPadding: keyboardManagedTextFieldScrollPadding,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w400,
+                  fontFamily: H3wCalendarSheetTokens.serif,
+                  fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
+                ),
+                decoration: InputDecoration(
+                  isDense: true,
+                  filled: true,
+                  fillColor: const Color(0xFF211C14),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 13,
                   ),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    filled: true,
-                    fillColor: const Color(0xFF211C14),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 13,
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: Colors.white.withValues(alpha: 0.08),
                     ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: BorderSide(
-                        color: Colors.white.withValues(alpha: 0.08),
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      borderSide: const BorderSide(
-                        color: H3wCalendarSheetTokens.sharedAccent,
-                      ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(
+                      color: H3wCalendarSheetTokens.sharedAccent,
                     ),
                   ),
                 ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Color',
-                  style: TextStyle(
-                    color: H3wCalendarSheetTokens.silverMid,
-                    fontSize: 15,
-                    fontWeight: FontWeight.w400,
-                    fontFamily: H3wCalendarSheetTokens.serif,
-                    fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
-                  ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Color',
+                style: TextStyle(
+                  color: H3wCalendarSheetTokens.silverMid,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                  fontFamily: H3wCalendarSheetTokens.serif,
+                  fontFamilyFallback: H3wCalendarSheetTokens.serifFallback,
                 ),
-                const SizedBox(height: 14),
-                Wrap(
-                  spacing: 14,
-                  runSpacing: 14,
-                  children: widget.palette
-                      .map((colorValue) {
-                        final selected = colorValue == _selectedColor;
-                        return InkWell(
-                          onTap: () {
-                            setState(() => _selectedColor = colorValue);
-                          },
-                          borderRadius: BorderRadius.circular(23),
-                          child: Container(
-                            width: 46,
-                            height: 46,
-                            decoration: BoxDecoration(
-                              color: Color(colorValue),
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: selected
-                                    ? Colors.white
-                                    : Colors.transparent,
-                                width: 3,
-                              ),
+              ),
+              const SizedBox(height: 14),
+              Wrap(
+                spacing: 14,
+                runSpacing: 14,
+                children: widget.palette
+                    .map((colorValue) {
+                      final selected = colorValue == _selectedColor;
+                      return InkWell(
+                        onTap: () {
+                          setState(() => _selectedColor = colorValue);
+                        },
+                        borderRadius: BorderRadius.circular(23),
+                        child: Container(
+                          width: 46,
+                          height: 46,
+                          decoration: BoxDecoration(
+                            color: Color(colorValue),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: selected
+                                  ? Colors.white
+                                  : Colors.transparent,
+                              width: 3,
                             ),
                           ),
-                        );
-                      })
-                      .toList(growable: false),
-                ),
-                const SizedBox(height: 24),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: TextButton.styleFrom(
-                        foregroundColor:
-                            H3wCalendarSheetTokens.sharedAccentLight,
-                        textStyle: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w400,
-                          fontFamily: H3wCalendarSheetTokens.serif,
-                          fontFamilyFallback:
-                              H3wCalendarSheetTokens.serifFallback,
                         ),
+                      );
+                    })
+                    .toList(growable: false),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: TextButton.styleFrom(
+                      foregroundColor: H3wCalendarSheetTokens.sharedAccentLight,
+                      textStyle: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w400,
+                        fontFamily: H3wCalendarSheetTokens.serif,
+                        fontFamilyFallback:
+                            H3wCalendarSheetTokens.serifFallback,
                       ),
-                      child: const Text('Cancel'),
                     ),
-                    const SizedBox(width: 26),
-                    TextButton(
-                      onPressed: () {
-                        final name = _nameCtrl.text.trim();
-                        if (name.isEmpty) return;
-                        Navigator.of(context).pop(
-                          _CalendarEditorResult(
-                            name: name,
-                            colorValue: _selectedColor,
-                          ),
-                        );
-                      },
-                      style: TextButton.styleFrom(
-                        foregroundColor:
-                            H3wCalendarSheetTokens.sharedAccentLight,
-                        textStyle: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w500,
-                          fontFamily: H3wCalendarSheetTokens.serif,
-                          fontFamilyFallback:
-                              H3wCalendarSheetTokens.serifFallback,
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 26),
+                  TextButton(
+                    onPressed: () {
+                      final name = _nameCtrl.text.trim();
+                      if (name.isEmpty) return;
+                      Navigator.of(context).pop(
+                        _CalendarEditorResult(
+                          name: name,
+                          colorValue: _selectedColor,
                         ),
+                      );
+                    },
+                    style: TextButton.styleFrom(
+                      foregroundColor: H3wCalendarSheetTokens.sharedAccentLight,
+                      textStyle: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w500,
+                        fontFamily: H3wCalendarSheetTokens.serif,
+                        fontFamilyFallback:
+                            H3wCalendarSheetTokens.serifFallback,
                       ),
-                      child: const Text('Save'),
                     ),
-                  ],
-                ),
-              ],
-            ),
+                    child: const Text('Save'),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
