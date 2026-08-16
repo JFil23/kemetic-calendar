@@ -33383,12 +33383,20 @@ class CalendarPageState extends State<CalendarPage>
           valueListenable: _calendarScrollCoordinator.activeBannerMonth,
           builder: (context, activeBannerMonth, child) {
             final visibleMonth = getMonthById(activeBannerMonth.month);
+            final gregorianMonthStart = KemeticMath.toGregorian(
+              activeBannerMonth.year,
+              activeBannerMonth.month,
+              1,
+            );
             final header = ScrollingCalendarMonthHeader(
               month: visibleMonth,
               yearLabel: _gregYearLabelFor(
                 activeBannerMonth.year,
                 activeBannerMonth.month,
               ),
+              showGregorian: _showGregorian,
+              gregorianMonthName: _gregMonthNames[gregorianMonthStart.month],
+              gregorianYearLabel: '${gregorianMonthStart.year}',
             );
             if (boundaryHarness == null || !boundaryHarness.probesEnabled) {
               return header;
