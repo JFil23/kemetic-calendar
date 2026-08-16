@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -31,6 +32,11 @@ void main() {
       'app:has_seen_onboarding': true,
       'app:onboarding:completed': true,
     });
+    CalendarPage.debugBeforePersistedPendingCidRemovalForTesting = null;
+  });
+
+  tearDown(() {
+    CalendarPage.debugBeforePersistedPendingCidRemovalForTesting = null;
   });
 
   Future<CalendarPageState> pumpCalendar(WidgetTester tester) async {
@@ -411,6 +417,54 @@ void main() {
     );
     await disposeCalendar(tester);
   });
+
+  testWidgets(
+    '10. standalone delete paints before durable pending cleanup completes',
+    (tester) async {
+      final state = await pumpCalendar(tester);
+      const ky = 2;
+      const km = 1;
+      const kd = 10;
+      const cid = 'cid-delete-before-durable-cleanup';
+      final cleanupEntered = Completer<void>();
+      final releaseCleanup = Completer<void>();
+      CalendarPage.debugBeforePersistedPendingCidRemovalForTesting = (cids) {
+        expect(cids, <String>{cid});
+        if (!cleanupEntered.isCompleted) cleanupEntered.complete();
+        return releaseCleanup.future;
+      };
+
+      expect(
+        state.debugAddNote(
+          ky,
+          km,
+          kd,
+          'Delete without paint delay',
+          null,
+          clientEventId: cid,
+        ),
+        isTrue,
+      );
+      expect(state.filteredNoteCountForDay(ky, km, kd), 1);
+
+      var deleteCompleted = false;
+      final deletion = state
+          .debugDeleteNoteForTesting(ky, km, kd, 0)
+          .whenComplete(() => deleteCompleted = true);
+      await cleanupEntered.future;
+
+      expect(deleteCompleted, isFalse);
+      expect(
+        state.filteredNoteCountForDay(ky, km, kd),
+        0,
+        reason: 'the visible row must be gone while durable cleanup is held',
+      );
+
+      releaseCleanup.complete();
+      await deletion;
+      await disposeCalendar(tester);
+    },
+  );
 }
 
 class _RejectingClient extends http.BaseClient {

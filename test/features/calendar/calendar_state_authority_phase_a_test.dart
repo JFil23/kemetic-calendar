@@ -384,6 +384,7 @@ void main() {
       'String _standaloneDedupeKey(',
     );
     expect(localRemoval, contains('_removeCalendarNotesWhere('));
+    expect(localRemoval, contains('identical(note, removed)'));
     expect(localRemoval, isNot(contains('.removeAt(')));
 
     final deleteStart = calendarPageSource.indexOf(
@@ -399,6 +400,11 @@ void main() {
     );
     expect(responsiveDelete, contains('_removeCalendarNotesWhere('));
     expect(responsiveDelete, isNot(contains('.removeAt(')));
+    expect(
+      responsiveDelete.indexOf('_removeCalendarNotesWhere('),
+      lessThan(responsiveDelete.indexOf('await _removePersistedPendingCids(')),
+      reason: 'standalone delete must paint before durable CID cleanup yields',
+    );
 
     final persistedIdentity = sourceSlice(
       'void _attachPersistedEventIdentity({',

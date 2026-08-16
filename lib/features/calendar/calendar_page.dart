@@ -4157,6 +4157,9 @@ class CalendarPage extends StatefulWidget {
   @visibleForTesting
   static VoidCallback? debugReminderSyncCompletedForTesting;
   @visibleForTesting
+  static Future<void> Function(Set<String> clientEventIds)?
+  debugBeforePersistedPendingCidRemovalForTesting;
+  @visibleForTesting
   static Future<void> Function(BuildContext context)?
   debugOpenSharedCalendarsFromAnyContext;
   @visibleForTesting
@@ -10836,12 +10839,17 @@ class CalendarPageState extends State<CalendarPage>
     Iterable<String> clientEventIds, {
     String? userId,
   }) async {
-    final resolvedUserId = userId ?? _activeWarmStartUserId();
-    if (resolvedUserId == null || resolvedUserId.trim().isEmpty) return;
     final normalizedCids = clientEventIds
         .map((value) => value.trim())
         .where((value) => value.isNotEmpty)
         .toSet();
+    final debugBarrier =
+        CalendarPage.debugBeforePersistedPendingCidRemovalForTesting;
+    if (debugBarrier != null) {
+      await debugBarrier(Set<String>.unmodifiable(normalizedCids));
+    }
+    final resolvedUserId = userId ?? _activeWarmStartUserId();
+    if (resolvedUserId == null || resolvedUserId.trim().isEmpty) return;
     await _pendingNoteStore.removeMany(
       userId: resolvedUserId,
       clientEventIds: normalizedCids,
@@ -24003,11 +24011,12 @@ class CalendarPageState extends State<CalendarPage>
             identity: pendingIdentity,
             localDate: deleteLocalDate,
           );
+    String? pendingCidForCleanup;
     if (pendingDeleteToken != null) {
       final cid = note.clientEventId?.trim();
       if (cid != null && cid.isNotEmpty) {
         _unconfirmed.forgetCid(cid);
-        await _removePersistedPendingCids(<String>[cid]);
+        pendingCidForCleanup = cid;
       }
       if (kDebugMode) {
         _calendarDebugPrint(
@@ -24022,6 +24031,10 @@ class CalendarPageState extends State<CalendarPage>
     );
     setState(() {});
     _notifyDayViewDataChanged();
+
+    if (pendingCidForCleanup != null) {
+      await _removePersistedPendingCids(<String>[pendingCidForCleanup]);
+    }
 
     final repo = UserEventsRepo(Supabase.instance.client);
     final Set<int> candidateFlowIds = <int>{};
@@ -34640,6 +34653,17 @@ class CalendarPageState extends State<CalendarPage>
   @visibleForTesting
   bool debugRemoveLocalNoteOnly(int kYear, int kMonth, int kDay, int index) {
     return _removeLocalNoteOnly(kYear, kMonth, kDay, index) != null;
+  }
+
+  /// Test access to production `_deleteNote` (library-private).
+  @visibleForTesting
+  Future<bool> debugDeleteNoteForTesting(
+    int kYear,
+    int kMonth,
+    int kDay,
+    int index,
+  ) {
+    return _deleteNote(kYear, kMonth, kDay, index);
   }
 
   @visibleForTesting
