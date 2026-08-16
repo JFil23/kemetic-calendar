@@ -1794,7 +1794,7 @@ void main() {
         final sheet = source.substring(sheetStart, sheetEnd);
         final journalButton = sheet.indexOf('quick-add-journal-button');
         final plannerButton = sheet.indexOf('quick-add-planner-button');
-        final quickAddLabel = sheet.indexOf("'Quick add (natural language)'");
+        final quickAddLabel = sheet.indexOf("'QUICK ADD'");
         final input = sheet.indexOf('quick-add-input');
         expect(journalButton, greaterThanOrEqualTo(0));
         expect(plannerButton, greaterThan(journalButton));
@@ -1804,12 +1804,18 @@ void main() {
         expect(sheet, contains('widget.onOpenPlanner'));
         expect(sheet, isNot(contains('OutlinedButton.icon')));
         expect(sheet, isNot(contains('StadiumBorder')));
-        expect(sheet, contains('width: double.infinity,\n        height: 38'));
-        expect(sheet, contains('width: 24'));
-        expect(sheet, contains('KemeticGold.glyph(glyph, size: 20)'));
-        expect(sheet, contains('const SizedBox(width: 8)'));
+        expect(sheet, contains('width: double.infinity,\n        height: 34'));
+        expect(sheet, contains('width: 18'));
+        expect(sheet, contains('KemeticGold.glyph(glyph, size: 16)'));
+        expect(sheet, contains('const SizedBox(width: 12)'));
         expect(sheet, contains('inherit: false'));
-        expect(sheet, contains('fontSize: 17'));
+        expect(sheet, contains('fontSize: 14.5'));
+        expect(sheet, contains('quick-add-color-spectrum'));
+        expect(
+          sheet,
+          contains('DaySheetSpectrumColorPicker.colorFromHue(hue)'),
+        );
+        expect(sheet, contains('widget.onSave(parsed, _selectedColor)'));
         expect(
           sheet.substring(journalButton, quickAddLabel),
           isNot(contains('Expanded(')),
@@ -1883,27 +1889,54 @@ void main() {
       final plannerButton = find.byKey(
         const ValueKey('quick-add-planner-button'),
       );
-      final journalLabel = find.text('Journal');
-      final quickAddLabel = find.text('Quick add (natural language)');
+      final journalLabel = find.text('JOURNAL');
+      final quickAddLabel = find.text('QUICK ADD');
       final input = find.byKey(const ValueKey('quick-add-input'));
+      final sheet = find.byKey(const ValueKey('quick-add-sheet-surface'));
+      final handle = find.byKey(const ValueKey('quick-add-handle'));
+      final close = find.byKey(const ValueKey('quick-add-close'));
 
       final journalRect = tester.getRect(journalButton);
       final plannerRect = tester.getRect(plannerButton);
-      expect(journalRect.height, 38);
-      expect(plannerRect.height, 38);
-      expect(plannerRect.top - journalRect.top, 38);
-      expect(tester.getTopLeft(journalLabel).dx, 48);
+      expect(journalRect.height, 34);
+      expect(plannerRect.height, 34);
+      expect(plannerRect.top - journalRect.top, 34);
+      expect(tester.getTopLeft(journalLabel).dx, 56);
       expect(plannerRect.bottom, lessThan(tester.getRect(quickAddLabel).top));
       expect(
         tester.getRect(quickAddLabel).bottom,
         lessThan(tester.getRect(input).top),
       );
+      expect(
+        tester.getCenter(handle).dx,
+        closeTo(tester.getCenter(sheet).dx, 0.01),
+      );
+      expect(
+        tester.getRect(close).right,
+        closeTo(tester.getRect(sheet).right - 16, 0.01),
+      );
 
       final journalText = tester.widget<Text>(journalLabel);
       expect(journalText.style?.inherit, isFalse);
-      expect(journalText.style?.fontFamily, isNull);
-      expect(journalText.style?.fontSize, 17);
+      expect(journalText.style?.fontFamily, 'CormorantGaramond');
+      expect(journalText.style?.fontSize, 14.5);
       expect(journalText.style?.fontWeight, FontWeight.w400);
+
+      final spectrum = find.byKey(const ValueKey('quick-add-color-spectrum'));
+      final spectrumRect = tester.getRect(spectrum);
+      final fieldBefore = tester.widget<TextField>(input);
+      await tester.tapAt(
+        Offset(
+          spectrumRect.left + spectrumRect.width * 0.75,
+          spectrumRect.center.dy,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final expectedColor = HSLColor.fromAHSL(1, 270, 0.72, 0.48).toColor();
+      final fieldAfter = tester.widget<TextField>(input);
+      expect(fieldAfter.cursorColor, expectedColor);
+      expect(fieldAfter.cursorColor, isNot(fieldBefore.cursorColor));
 
       await tester.tapAt(const Offset(4, 4));
       await tester.pumpAndSettle();
