@@ -36,7 +36,6 @@ class KemeticDayViewHeader extends StatelessWidget {
     this.onMiniCalendarManualScrollStart,
     this.onToggleDateDisplay,
     this.onClose,
-    this.onJumpToToday,
     this.onOpenQuickAdd,
     this.onOpenSearch,
     this.onOpenProfile,
@@ -54,7 +53,6 @@ class KemeticDayViewHeader extends StatelessWidget {
   final VoidCallback? onMiniCalendarManualScrollStart;
   final VoidCallback? onToggleDateDisplay;
   final VoidCallback? onClose;
-  final VoidCallback? onJumpToToday;
   final Future<void> Function(BuildContext context)? onOpenQuickAdd;
   final Future<void> Function(BuildContext context)? onOpenSearch;
   final Future<void> Function(BuildContext context)? onOpenProfile;
@@ -148,14 +146,6 @@ class KemeticDayViewHeader extends StatelessWidget {
                         await onOpenSearch!(context);
                       },
                     ),
-                  IconButton(
-                    tooltip: 'Today',
-                    icon: const KemeticAppBarTodayIcon(),
-                    constraints: actionButtonConstraints,
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                    onPressed: onJumpToToday ?? () {},
-                  ),
                   IconButton(
                     tooltip: 'My Profile',
                     icon: const KemeticAppBarProfileIcon(),

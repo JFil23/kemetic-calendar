@@ -16,6 +16,7 @@ import 'package:mobile/features/calendar/calendar_page.dart'
         KemeticMath,
         beginOptimisticNoteEditorSave;
 import 'package:mobile/features/calendar/day_view.dart';
+import 'package:mobile/features/calendar/day_view_chrome.dart';
 import 'package:mobile/features/calendar/landscape_month_view.dart';
 import 'package:mobile/features/calendar/living_text_day_one_node_store.dart';
 import 'package:mobile/features/calendar/maat_decan_flow.dart';
@@ -26,6 +27,7 @@ import 'package:mobile/features/journal/journal_badge_utils.dart';
 import 'package:mobile/features/journal/journal_event_badge.dart';
 import 'package:mobile/services/app_restoration_service.dart';
 import 'package:mobile/shared/glossy_text.dart';
+import 'package:mobile/widgets/calendar_floating_shortcuts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -481,6 +483,9 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(LandscapeMonthView), findsOneWidget);
       expect(find.byType(DayViewGrid), findsNothing);
+      expect(find.byKey(calendarFloatingTodaySurfaceKey), findsOneWidget);
+      expect(find.byKey(calendarFloatingCalendarsButtonKey), findsOneWidget);
+      expect(find.byKey(calendarFloatingInboxButtonKey), findsOneWidget);
     });
 
     test(
@@ -2717,31 +2722,72 @@ void main() {
       expect(lateRestorationReports, 0);
     });
 
-    testWidgets('header omits duplicate global menu action', (tester) async {
-      await _setPhoneViewport(tester);
+    testWidgets(
+      'day view uses floating shortcuts without a header Today action',
+      (tester) async {
+        await _setPhoneViewport(tester);
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: DayViewPage(
-            initialKy: 1,
-            initialKm: 2,
-            initialKd: 5,
-            showGregorian: false,
-            notesForDay: (ky, km, kd) => const [],
-            flowIndex: const {},
-            getMonthName: (month) => 'Month $month',
+        var calendarTaps = 0;
+        var inboxTaps = 0;
+        final priorDay = KemeticMath.fromGregorian(
+          DateUtils.dateOnly(DateTime.now()).subtract(const Duration(days: 2)),
+        );
+        final today = KemeticMath.fromGregorian(
+          DateUtils.dateOnly(DateTime.now()),
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            home: DayViewPage(
+              initialKy: priorDay.kYear,
+              initialKm: priorDay.kMonth,
+              initialKd: priorDay.kDay,
+              showGregorian: false,
+              notesForDay: (ky, km, kd) => const [],
+              flowIndex: const {},
+              getMonthName: (month) => 'Month $month',
+              onOpenCalendars: () => calendarTaps += 1,
+              onOpenInbox: () => inboxTaps += 1,
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byTooltip('Menu'), findsNothing);
-      expect(find.byIcon(Icons.more_vert), findsNothing);
-      expect(find.byTooltip('New note'), findsOneWidget);
-      expect(find.byTooltip('Search notes'), findsOneWidget);
-      expect(find.byTooltip('Today'), findsOneWidget);
-      expect(find.byTooltip('My Profile'), findsOneWidget);
-    });
+        expect(find.byTooltip('Menu'), findsNothing);
+        expect(find.byIcon(Icons.more_vert), findsNothing);
+        expect(find.byTooltip('New note'), findsOneWidget);
+        expect(find.byTooltip('Search notes'), findsOneWidget);
+        expect(find.byTooltip('Today'), findsNothing);
+        expect(find.bySemanticsLabel('Today'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(KemeticDayViewHeader),
+            matching: find.byTooltip('Today'),
+          ),
+          findsNothing,
+        );
+        expect(find.byTooltip('My Profile'), findsOneWidget);
+        expect(find.byKey(calendarFloatingTodaySurfaceKey), findsOneWidget);
+        expect(find.byKey(calendarFloatingCalendarsButtonKey), findsOneWidget);
+        expect(find.byKey(calendarFloatingInboxButtonKey), findsOneWidget);
+
+        await tester.tap(find.byKey(calendarFloatingCalendarsButtonKey));
+        await tester.tap(find.byKey(calendarFloatingInboxButtonKey));
+        expect(calendarTaps, 1);
+        expect(inboxTaps, 1);
+
+        await tester.tap(find.byKey(calendarFloatingTodaySurfaceKey));
+        await tester.pumpAndSettle();
+
+        final header = tester.widget<KemeticDayViewHeader>(
+          find.byType(KemeticDayViewHeader),
+        );
+        expect(header.currentKy, today.kYear);
+        expect(header.currentKm, today.kMonth);
+        expect(header.currentKd, today.kDay);
+        expect(find.byType(DayViewPage), findsOneWidget);
+      },
+    );
 
     testWidgets('system back reports user close for restoration clearing', (
       tester,

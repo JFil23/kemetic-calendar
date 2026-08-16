@@ -163,7 +163,6 @@ void main() {
             getMonthName: (_) => 'Paopi (Mnht)',
             dateButtonBuilder: (_, _) => const SizedBox.shrink(),
             onClose: () {},
-            onJumpToToday: () {},
             onOpenQuickAdd: (_) async {},
             onOpenSearch: (_) async {
               searchCount += 1;
@@ -177,7 +176,8 @@ void main() {
 
     expect(find.byTooltip('Search notes'), findsOneWidget);
     expect(find.byType(KemeticAppBarSearchIcon), findsOneWidget);
-    expect(find.byType(KemeticAppBarTodayIcon), findsOneWidget);
+    expect(find.byType(KemeticAppBarTodayIcon), findsNothing);
+    expect(find.byTooltip('Today'), findsNothing);
 
     await tester.tap(find.byTooltip('Search notes'));
     await tester.pump();

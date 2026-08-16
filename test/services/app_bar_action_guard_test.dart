@@ -1704,10 +1704,8 @@ void main() {
         'KemeticAppBarSearchIcon',
         'await onOpenSearch!(context)',
       ]);
-      _expectTooltipAction(header, 'Today', <String>[
-        'KemeticAppBarTodayIcon',
-        'onPressed: onJumpToToday ?? () {}',
-      ]);
+      expect(header, isNot(contains("tooltip: 'Today'")));
+      expect(header, isNot(contains('KemeticAppBarTodayIcon')));
       _expectTooltipAction(header, 'My Profile', <String>[
         'KemeticAppBarProfileIcon',
         'await onOpenProfile!(context)',
@@ -1724,7 +1722,12 @@ void main() {
       );
       expect(
         dayView,
-        contains('await CalendarPage.openSearchFromAnyContext(btnCtx);'),
+        contains('CalendarPage.openSearchFromAnyContext('),
+      );
+      expect(dayView, contains('CalendarFloatingShortcutsLayer('));
+      expect(
+        dayView,
+        contains('onTodayPressed: () => unawaited(_jumpToToday())'),
       );
 
       final calendarPage = await File(
