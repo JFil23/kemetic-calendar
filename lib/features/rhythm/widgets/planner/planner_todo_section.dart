@@ -68,6 +68,10 @@ class PlannerTodoSection extends StatelessWidget {
                     ),
                   ),
                 ),
+                if (activeDayIsToday) ...[
+                  const PlannerPillButton(label: 'Today', active: true),
+                  const SizedBox(width: 10),
+                ],
                 ValueListenableBuilder<TextEditingValue>(
                   valueListenable: commitmentInputController,
                   builder: (context, value, child) {
@@ -79,10 +83,6 @@ class PlannerTodoSection extends StatelessWidget {
                     );
                   },
                 ),
-                if (activeDayIsToday) ...[
-                  const SizedBox(width: 10),
-                  const PlannerPillButton(label: 'Today', active: true),
-                ],
               ],
             ),
           ),
