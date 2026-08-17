@@ -1673,16 +1673,18 @@ List<Widget> _buildTrackSkyAccentWidgets({
   }
 }
 
+const double _scrollingCalendarDayTileHeightScale = 2.0;
+
 double _chipHeightFor(MonthExpansionLevel level) {
   switch (level) {
     case MonthExpansionLevel.compact:
-      return 32.0;
+      return 32.0 * _scrollingCalendarDayTileHeightScale;
     case MonthExpansionLevel.stacked:
-      return 62.0;
+      return 62.0 * _scrollingCalendarDayTileHeightScale;
     case MonthExpansionLevel.labeled:
-      return 98.0;
+      return 98.0 * _scrollingCalendarDayTileHeightScale;
     case MonthExpansionLevel.details:
-      return 250.0;
+      return 250.0 * _scrollingCalendarDayTileHeightScale;
   }
 }
 

@@ -402,6 +402,10 @@ void main() {
         heights[MonthExpansionLevel.labeled]!,
         lessThan(heights[MonthExpansionLevel.details]!),
       );
+      expect(heights[MonthExpansionLevel.compact], closeTo(64.0, 0.1));
+      expect(heights[MonthExpansionLevel.stacked], closeTo(124.0, 0.1));
+      expect(heights[MonthExpansionLevel.labeled], closeTo(196.0, 0.1));
+      expect(heights[MonthExpansionLevel.details], closeTo(320.0, 0.1));
     });
 
     testWidgets('non-compact event pills match mockup sizing steps', (

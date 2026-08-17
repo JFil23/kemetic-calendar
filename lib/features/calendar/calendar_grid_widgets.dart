@@ -899,7 +899,8 @@ class _MonthCard extends StatelessWidget {
       }
 
       final double estimated = labelAreaHeight + pillsHeight;
-      return estimated.clamp(minHeight, maxHeight);
+      return estimated.clamp(minHeight, maxHeight) *
+          _scrollingCalendarDayTileHeightScale;
     }
 
     final decanHeights = List<double>.generate(3, (i) => decanHeightFor(i));
@@ -3367,7 +3368,8 @@ class _EpagomenalCard extends StatelessWidget {
       }
 
       final double estimated = labelAreaHeight + pillsHeight;
-      return estimated.clamp(minHeight, maxHeight);
+      return estimated.clamp(minHeight, maxHeight) *
+          _scrollingCalendarDayTileHeightScale;
     }
 
     final double epagomenalHeight = epagomenalHeightForLayout();
