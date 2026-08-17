@@ -914,11 +914,6 @@ const TextStyle _decanStyle = TextStyle(
   fontWeight: FontWeight.w400,
   color: Colors.white,
 );
-const TextStyle _weekdayLabelStyle = TextStyle(
-  fontSize: 11,
-  fontWeight: FontWeight.w600,
-  letterSpacing: 0.2,
-);
 
 const Color _trackSkySignifierBase = Color(0xFF6876D8);
 const Color _trackSkySignifierLight = Color(0xFFDFE6FF);

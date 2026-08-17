@@ -308,6 +308,29 @@ void main() {
     expect(binding, isNot(contains('Hydration')));
   });
 
+  test('pinned banner is the scrolling calendar weekday display', () {
+    final gridSource = File(
+      'lib/features/calendar/calendar_grid_widgets.dart',
+    ).readAsStringSync();
+    final headerSource = File(
+      'lib/features/calendar/scrolling_calendar_month_header.dart',
+    ).readAsStringSync();
+
+    expect(gridSource, isNot(contains('class _WeekdayRow')));
+    expect(gridSource, isNot(contains('_epagomenalWeekdayRow')));
+    expect(gridSource, isNot(contains('_weekdayLabelStyle')));
+    expect(
+      RegExp(r'CalendarGeometryWeekdayRowBoundary\(').allMatches(gridSource),
+      hasLength(2),
+      reason: 'Regular decans and Heriu still publish banner handoff markers.',
+    );
+    expect(
+      headerSource,
+      contains("key: const Key('scrolling-calendar-weekday-row')"),
+    );
+    expect(headerSource, contains('weekdayLabels[index]'));
+  });
+
   testWidgets('fits long month names on a narrow calendar viewport', (
     tester,
   ) async {

@@ -324,15 +324,13 @@ class _CalendarScale {
 
 const Color _kSoftGridBackground = _CalendarTone.previewCardBase;
 final Color _kSoftDayTileFill = _CalendarTone.dayCellFill;
-const Color _kSoftDayTileLabel = _CalendarTone.weekday;
 const double _kMonthCardHorizontalInset = 16.0;
 const double _kMonthCardTopInset = 8.0;
 const double _kMonthCardBottomInset = 14.0;
 const double _kMonthCardInnerPadding = 10.0;
 const double _kMonthCardRadius = 18.0;
 const double _kDecanColumnGap = 3.0;
-const double _kDecanLabelToWeekdayGap = 4.0;
-const double _kWeekdayToTileGap = 3.0;
+const double _kDecanLabelToDayGridGap = 7.0;
 const double _kDecanRowGap = 6.0;
 const double _kDayTileRadius = 3.0;
 const double _kDayTileBorderWidth = 0.45;
@@ -372,8 +370,6 @@ double _detailsMonthMaxDecanHeight(BuildContext _) {
 }
 
 Color _softDayTileFill() => _kSoftDayTileFill;
-
-Color _softDayTileLabel() => _kSoftDayTileLabel;
 
 enum _CalendarDayTone { neutral, pastFar, pastNear, today, future }
 
@@ -916,9 +912,9 @@ class _MonthCard extends StatelessWidget {
     final monthMeta = getMonthById(kMonth);
 
     final isMonthToday = (todayMonth != null && todayMonth == kMonth);
-    final gapBeforeRow = expansionLevel == MonthExpansionLevel.details
-        ? 0.0
-        : _kDecanLabelToWeekdayGap;
+    final gapBeforeDayGrid = expansionLevel == MonthExpansionLevel.details
+        ? 3.0
+        : _kDecanLabelToDayGridGap;
     final monthTitleSize = framedSurface
         ? _CalendarScale.monthTitleFramed
         : _CalendarScale.monthTitleMain;
@@ -1160,29 +1156,10 @@ class _MonthCard extends StatelessWidget {
                     if (i == 2)
                       CalendarGeometryFinalDayBlock(
                         month: MonthRef(year: kYear, month: kMonth),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(height: gapBeforeRow),
-                            _WeekdayRow(
-                              kYear: kYear,
-                              kMonth: kMonth,
-                              decanIndex: i,
-                              showGregorian: showGregorian,
-                            ),
-                          ],
-                        ),
+                        child: SizedBox(height: gapBeforeDayGrid),
                       )
-                    else ...[
-                      SizedBox(height: gapBeforeRow),
-                      _WeekdayRow(
-                        kYear: kYear,
-                        kMonth: kMonth,
-                        decanIndex: i,
-                        showGregorian: showGregorian,
-                      ),
-                    ],
-                    const SizedBox(height: _kWeekdayToTileGap),
+                    else
+                      SizedBox(height: gapBeforeDayGrid),
 
                     _DecanRow(
                       kYear: kYear,
@@ -1832,59 +1809,6 @@ String _getKemeticDayKey(int kYear, int kMonth, int kDay) {
   // final key format must match kemetic_day_info.dart exactly
   // e.g. thoth_11_2
   return kemeticDayKey(kMonth, kDay);
-}
-
-class _WeekdayRow extends StatelessWidget {
-  const _WeekdayRow({
-    required this.kYear,
-    required this.kMonth,
-    required this.decanIndex,
-    required this.showGregorian,
-  });
-
-  final int kYear;
-  final int kMonth;
-  final int decanIndex; // 0..2
-  final bool showGregorian;
-
-  static const List<String> _weekdayLetters = [
-    'M',
-    'T',
-    'W',
-    'T',
-    'F',
-    'S',
-    'S',
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final labelColor = _softDayTileLabel();
-    final labels = List<String>.generate(10, (i) {
-      final day = decanIndex * 10 + i + 1;
-      final gregorian = safeLocalDisplay(
-        KemeticMath.toGregorian(kYear, kMonth, day),
-      );
-      final idx = gregorian.weekday - 1; // Monday = 1
-      return _weekdayLetters[idx];
-    });
-
-    return Row(
-      children: [
-        for (int i = 0; i < labels.length; i++) ...[
-          Expanded(
-            child: Center(
-              child: Text(
-                labels[i],
-                style: _weekdayLabelStyle.copyWith(color: labelColor),
-              ),
-            ),
-          ),
-          if (i < labels.length - 1) const SizedBox(width: _kDecanColumnGap),
-        ],
-      ],
-    );
-  }
 }
 
 class _DecanRow extends StatelessWidget {
@@ -3390,35 +3314,6 @@ class _EpagomenalCard extends StatelessWidget {
   final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
   final Future<void> Function(String text)? onAppendToJournal;
 
-  // Weekday labels row for epagomenal days (5 or 6 days)
-  Widget _epagomenalWeekdayRow(int dayCount) {
-    final labelColor = _softDayTileLabel();
-    const letters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    final labels = List<String>.generate(dayCount, (i) {
-      final gregorian = safeLocalDisplay(
-        KemeticMath.toGregorian(kYear, 13, i + 1),
-      );
-      final idx = gregorian.weekday - 1; // Monday = 1
-      return letters[idx];
-    });
-
-    return Row(
-      children: [
-        for (int i = 0; i < labels.length; i++) ...[
-          Expanded(
-            child: Center(
-              child: Text(
-                labels[i],
-                style: _weekdayLabelStyle.copyWith(color: labelColor),
-              ),
-            ),
-          ),
-          if (i < labels.length - 1) const SizedBox(width: _kDecanColumnGap),
-        ],
-      ],
-    );
-  }
-
   String? _gregMonthForEpagomenal(int ky, int epiCount) {
     for (int d = 1; d <= epiCount; d++) {
       final g = KemeticMath.toGregorian(ky, 13, d);
@@ -3564,62 +3459,59 @@ class _EpagomenalCard extends StatelessWidget {
                     month: MonthRef(year: kYear, month: 13),
                     rowIndex: 0,
                   ),
-                  child: _epagomenalWeekdayRow(epiCount),
+                  child: Row(
+                    children: [
+                      for (int i = 0; i < epiCount; i++) ...[
+                        Expanded(
+                          child: _DayChip(
+                            anchorKey: isMonthToday && (todayDay == i + 1)
+                                ? todayDayKey
+                                : null, // 🔑
+                            highlightAnchorKey: dayAnchorKeyProvider?.call(
+                              13,
+                              i + 1,
+                            ),
+                            label: showGregorian
+                                ? '${KemeticMath.toGregorian(kYear, 13, i + 1).day}'
+                                : '${i + 1}',
+                            isToday: isMonthToday && (todayDay == i + 1),
+                            tone: _calendarDayTone(
+                              isToday: isMonthToday && (todayDay == i + 1),
+                              isMonthToday: isMonthToday,
+                              temporalAnchorVisible: temporalAnchorVisible,
+                              day: i + 1,
+                              todayDay: todayDay,
+                            ),
+                            notes: notesGetter(13, i + 1),
+                            flowColors: flowColorsGetter(kYear, 13, i + 1),
+                            onTap: () => onDayTap(context, 13, i + 1),
+                            showGregorian: showGregorian,
+                            dayKey:
+                                'epagomenal_${i + 1}_$kYear', // Epagomenal days use their own key format
+                            expansionLevel: expansionLevel,
+                            noteColorResolver: noteColorResolver,
+                            flowNameGetter: flowNameGetter,
+                            decanHeight: epagomenalHeight,
+                            kYear: kYear,
+                            kMonth: 13,
+                            kDay: i + 1,
+                            onManageFlows: onManageFlows,
+                            onEditNote: onEditNote,
+                            onDeleteNote: onDeleteNote,
+                            onShareNote: onShareNote,
+                            onEditReminder: onEditReminder,
+                            onEndReminder: onEndReminder,
+                            onShareReminder: onShareReminder,
+                            onEndFlow: onEndFlow,
+                            onAppendToJournal: onAppendToJournal,
+                          ),
+                        ),
+                        if (i < epiCount - 1)
+                          const SizedBox(width: _kDecanColumnGap),
+                      ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: _kWeekdayToTileGap),
-
-              Row(
-                children: [
-                  for (int i = 0; i < epiCount; i++) ...[
-                    Expanded(
-                      child: _DayChip(
-                        anchorKey: isMonthToday && (todayDay == i + 1)
-                            ? todayDayKey
-                            : null, // 🔑
-                        highlightAnchorKey: dayAnchorKeyProvider?.call(
-                          13,
-                          i + 1,
-                        ),
-                        label: showGregorian
-                            ? '${KemeticMath.toGregorian(kYear, 13, i + 1).day}'
-                            : '${i + 1}',
-                        isToday: isMonthToday && (todayDay == i + 1),
-                        tone: _calendarDayTone(
-                          isToday: isMonthToday && (todayDay == i + 1),
-                          isMonthToday: isMonthToday,
-                          temporalAnchorVisible: temporalAnchorVisible,
-                          day: i + 1,
-                          todayDay: todayDay,
-                        ),
-                        notes: notesGetter(13, i + 1),
-                        flowColors: flowColorsGetter(kYear, 13, i + 1),
-                        onTap: () => onDayTap(context, 13, i + 1),
-                        showGregorian: showGregorian,
-                        dayKey:
-                            'epagomenal_${i + 1}_$kYear', // Epagomenal days use their own key format
-                        expansionLevel: expansionLevel,
-                        noteColorResolver: noteColorResolver,
-                        flowNameGetter: flowNameGetter,
-                        decanHeight: epagomenalHeight,
-                        kYear: kYear,
-                        kMonth: 13,
-                        kDay: i + 1,
-                        onManageFlows: onManageFlows,
-                        onEditNote: onEditNote,
-                        onDeleteNote: onDeleteNote,
-                        onShareNote: onShareNote,
-                        onEditReminder: onEditReminder,
-                        onEndReminder: onEndReminder,
-                        onShareReminder: onShareReminder,
-                        onEndFlow: onEndFlow,
-                        onAppendToJournal: onAppendToJournal,
-                      ),
-                    ),
-                    if (i < epiCount - 1)
-                      const SizedBox(width: _kDecanColumnGap),
-                  ],
-                ],
               ),
             ],
           ), // Close Column
