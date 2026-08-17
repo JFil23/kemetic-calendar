@@ -309,7 +309,7 @@ class _CalendarScale {
   static const double rightSeasonFramed = 13.2;
   static const double decanLabelMain = 12.3;
   static const double decanLabelFramed = 11.6;
-  static const double dayNumber = 24.8;
+  static const double dayNumber = 12.4;
   static const double dayDot = 2.35;
   static const double trackSkyDot = 4.2;
   static const double infoHeading = 23.0;
@@ -899,8 +899,7 @@ class _MonthCard extends StatelessWidget {
       }
 
       final double estimated = labelAreaHeight + pillsHeight;
-      return estimated.clamp(minHeight, maxHeight) *
-          _scrollingCalendarDayTileHeightScale;
+      return estimated.clamp(minHeight, maxHeight);
     }
 
     final decanHeights = List<double>.generate(3, (i) => decanHeightFor(i));
@@ -3368,8 +3367,7 @@ class _EpagomenalCard extends StatelessWidget {
       }
 
       final double estimated = labelAreaHeight + pillsHeight;
-      return estimated.clamp(minHeight, maxHeight) *
-          _scrollingCalendarDayTileHeightScale;
+      return estimated.clamp(minHeight, maxHeight);
     }
 
     final double epagomenalHeight = epagomenalHeightForLayout();
