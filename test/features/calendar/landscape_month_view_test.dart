@@ -380,7 +380,7 @@ void main() {
         final dayNumber = tester.widget<Text>(
           find.descendant(of: dayCell, matching: find.text('4')),
         );
-        expect(dayNumber.style?.fontSize, closeTo(24.8, 0.01));
+        expect(dayNumber.style?.fontSize, closeTo(12.4, 0.01));
 
         switch (level) {
           case MonthExpansionLevel.compact:
@@ -406,10 +406,10 @@ void main() {
         heights[MonthExpansionLevel.labeled]!,
         lessThan(heights[MonthExpansionLevel.details]!),
       );
-      expect(heights[MonthExpansionLevel.compact], closeTo(64.0, 0.1));
-      expect(heights[MonthExpansionLevel.stacked], closeTo(124.0, 0.1));
-      expect(heights[MonthExpansionLevel.labeled], closeTo(196.0, 0.1));
-      expect(heights[MonthExpansionLevel.details], closeTo(320.0, 0.1));
+      expect(heights[MonthExpansionLevel.compact], closeTo(32.0, 0.1));
+      expect(heights[MonthExpansionLevel.stacked], closeTo(62.0, 0.1));
+      expect(heights[MonthExpansionLevel.labeled], closeTo(98.0, 0.1));
+      expect(heights[MonthExpansionLevel.details], closeTo(160.0, 0.1));
     });
 
     testWidgets('non-compact event pills match mockup sizing steps', (
