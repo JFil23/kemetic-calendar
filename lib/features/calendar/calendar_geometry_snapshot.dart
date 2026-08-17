@@ -112,6 +112,51 @@ final class CalendarGregorianMonthBoundary {
   int get hashCode => Object.hash(month, leading);
 }
 
+/// Identity of one weekday/day row in the scrolling Kemetic calendar.
+///
+/// Regular months expose three ten-day rows. Heriu Renpet has one shorter row,
+/// represented by index zero so the pinned weekday strip can use the same
+/// geometry path across the year boundary.
+final class CalendarWeekdayRowRef {
+  const CalendarWeekdayRowRef({required this.month, required this.rowIndex});
+
+  final MonthRef month;
+  final int rowIndex;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is CalendarWeekdayRowRef &&
+            month == other.month &&
+            rowIndex == other.rowIndex;
+  }
+
+  @override
+  int get hashCode => Object.hash(month, rowIndex);
+
+  @override
+  String toString() => 'CalendarWeekdayRowRef($month, row $rowIndex)';
+}
+
+/// Physical leading edge of a decan label (or Heriu's sole weekday row).
+final class CalendarWeekdayRowBoundary {
+  const CalendarWeekdayRowBoundary({required this.row, required this.leading});
+
+  final CalendarWeekdayRowRef row;
+  final double leading;
+
+  @override
+  bool operator ==(Object other) {
+    return identical(this, other) ||
+        other is CalendarWeekdayRowBoundary &&
+            row == other.row &&
+            leading == other.leading;
+  }
+
+  @override
+  int get hashCode => Object.hash(row, leading);
+}
+
 /// Normalizes a sliver before `CustomScrollView.center`.
 ///
 /// Before-center slivers report a non-negative [precedingScrollExtent] that
@@ -203,6 +248,8 @@ final class CalendarGeometrySnapshot {
     required Iterable<CalendarSectionGeometry> sections,
     Iterable<CalendarGregorianMonthBoundary> gregorianMonthBoundaries =
         const <CalendarGregorianMonthBoundary>[],
+    Iterable<CalendarWeekdayRowBoundary> weekdayRowBoundaries =
+        const <CalendarWeekdayRowBoundary>[],
     String? presentationRevision,
     CalendarSectionIndex index = const CalendarSectionIndex(),
   }) {
@@ -353,6 +400,55 @@ final class CalendarGeometrySnapshot {
       previousGregorianBoundary = boundary;
     }
 
+    final copiedWeekdayRowBoundaries = <CalendarWeekdayRowBoundary>[];
+    CalendarWeekdayRowBoundary? previousWeekdayRowBoundary;
+    for (final boundary in weekdayRowBoundaries) {
+      _requireFinite(boundary.leading, 'weekdayRowBoundary.leading');
+      final row = boundary.row;
+      final maxRowIndex = row.month.month == CalendarSectionIndex.monthsPerYear
+          ? 0
+          : 2;
+      if (row.rowIndex < 0 || row.rowIndex > maxRowIndex) {
+        throw RangeError.range(
+          row.rowIndex,
+          0,
+          maxRowIndex,
+          'weekdayRowBoundary.rowIndex',
+        );
+      }
+      final owner = byMonth[row.month];
+      if (owner == null || !owner.extent.contains(boundary.leading)) {
+        throw ArgumentError.value(
+          boundary.leading,
+          'weekdayRowBoundaries',
+          'must lie inside its mounted month section ${row.month}',
+        );
+      }
+      final prior = previousWeekdayRowBoundary;
+      if (prior != null) {
+        final monthDistance = index.distance(prior.row.month, row.month);
+        final identityIsChronological =
+            monthDistance > 0 ||
+            (monthDistance == 0 && prior.row.rowIndex < row.rowIndex);
+        if (!identityIsChronological) {
+          throw ArgumentError.value(
+            row,
+            'weekdayRowBoundaries',
+            'rows must be strictly chronological',
+          );
+        }
+        if (boundary.leading <= prior.leading) {
+          throw ArgumentError.value(
+            boundary.leading,
+            'weekdayRowBoundaries',
+            'physical boundaries must be strictly increasing',
+          );
+        }
+      }
+      copiedWeekdayRowBoundaries.add(boundary);
+      previousWeekdayRowBoundary = boundary;
+    }
+
     return CalendarGeometrySnapshot._(
       generation: generation,
       presentationRevision: presentationRevision?.trim(),
@@ -361,6 +457,9 @@ final class CalendarGeometrySnapshot {
           UnmodifiableListView<CalendarGregorianMonthBoundary>(
             copiedGregorianBoundaries,
           ),
+      weekdayRowBoundaries: UnmodifiableListView<CalendarWeekdayRowBoundary>(
+        copiedWeekdayRowBoundaries,
+      ),
       byMonth: UnmodifiableMapView<MonthRef, CalendarSectionGeometry>(byMonth),
     );
   }
@@ -370,6 +469,7 @@ final class CalendarGeometrySnapshot {
     required this.presentationRevision,
     required this.sections,
     required this.gregorianMonthBoundaries,
+    required this.weekdayRowBoundaries,
     required Map<MonthRef, CalendarSectionGeometry> byMonth,
   }) : _byMonth = byMonth;
 
@@ -378,6 +478,7 @@ final class CalendarGeometrySnapshot {
   final UnmodifiableListView<CalendarSectionGeometry> sections;
   final UnmodifiableListView<CalendarGregorianMonthBoundary>
   gregorianMonthBoundaries;
+  final UnmodifiableListView<CalendarWeekdayRowBoundary> weekdayRowBoundaries;
   final Map<MonthRef, CalendarSectionGeometry> _byMonth;
 
   CalendarSectionGeometry? geometryFor(MonthRef month) => _byMonth[month];
@@ -428,6 +529,36 @@ final class CalendarGeometrySnapshot {
     return precedingIndex < 0
         ? gregorianMonthBoundaries.first.month.predecessor
         : gregorianMonthBoundaries[precedingIndex].month;
+  }
+
+  /// Weekday row whose label has most recently crossed the activation line.
+  ///
+  /// Holding the previous row until the next rendered label reaches the line
+  /// mirrors the pinned-strip behavior. At the leading edge of the mounted
+  /// geometry, the first row is a safe bootstrap when no predecessor exists.
+  CalendarWeekdayRowRef? weekdayRowAt(double coordinate) {
+    _requireFinite(coordinate, 'coordinate');
+    final owner = ownerAt(coordinate);
+    if (owner == null || weekdayRowBoundaries.isEmpty) {
+      return null;
+    }
+
+    var lower = 0;
+    var upper = weekdayRowBoundaries.length - 1;
+    var precedingIndex = -1;
+    while (lower <= upper) {
+      final middle = lower + ((upper - lower) >> 1);
+      final candidate = weekdayRowBoundaries[middle];
+      if (candidate.leading <= coordinate) {
+        precedingIndex = middle;
+        lower = middle + 1;
+      } else {
+        upper = middle - 1;
+      }
+    }
+    if (precedingIndex >= 0) return weekdayRowBoundaries[precedingIndex].row;
+    final firstMountedRow = weekdayRowBoundaries.first.row;
+    return firstMountedRow.month == owner ? firstMountedRow : null;
   }
 }
 

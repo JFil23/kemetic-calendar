@@ -346,6 +346,56 @@ void main() {
     expect(snapshot.gregorianMonthAt(30), may);
   });
 
+  testWidgets('publishes decan weekday boundaries atomically', (tester) async {
+    final collector = CalendarGeometryCollector();
+    addTearDown(collector.dispose);
+    final month = MonthRef(year: 1, month: 1);
+
+    await tester.pumpWidget(
+      _host(
+        collector: collector,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: CalendarGeometrySection(
+                month: month,
+                child: Column(
+                  children: [
+                    const SizedBox(height: 20),
+                    CalendarGeometryWeekdayRowBoundary(
+                      row: CalendarWeekdayRowRef(month: month, rowIndex: 0),
+                      child: const SizedBox(height: 20),
+                    ),
+                    const SizedBox(height: 20),
+                    CalendarGeometryWeekdayRowBoundary(
+                      row: CalendarWeekdayRowRef(month: month, rowIndex: 1),
+                      child: const SizedBox(height: 20),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    final snapshot = collector.snapshot!;
+    expect(collector.debugMountedWeekdayRowBoundaryCount, 2);
+    expect(snapshot.weekdayRowBoundaries, hasLength(2));
+    expect(snapshot.weekdayRowBoundaries[0].leading, closeTo(20, 0.001));
+    expect(snapshot.weekdayRowBoundaries[1].leading, closeTo(60, 0.001));
+    expect(
+      snapshot.weekdayRowAt(59.999),
+      CalendarWeekdayRowRef(month: month, rowIndex: 0),
+    );
+    expect(
+      snapshot.weekdayRowAt(60),
+      CalendarWeekdayRowRef(month: month, rowIndex: 1),
+    );
+  });
+
   testWidgets('does not publish or schedule continuously while idle', (
     tester,
   ) async {

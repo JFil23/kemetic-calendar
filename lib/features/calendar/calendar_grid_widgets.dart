@@ -1139,13 +1139,21 @@ class _MonthCard extends StatelessWidget {
                             ],
                           ),
                         );
-                        if (gregorianBoundary == null) return labelRow;
-                        return CalendarGeometryGregorianMonthBoundary(
-                          month: GregorianMonthRef(
-                            year: gregorianBoundary.year,
-                            month: gregorianBoundary.month,
+                        final measuredLabelRow = gregorianBoundary == null
+                            ? labelRow
+                            : CalendarGeometryGregorianMonthBoundary(
+                                month: GregorianMonthRef(
+                                  year: gregorianBoundary.year,
+                                  month: gregorianBoundary.month,
+                                ),
+                                child: labelRow,
+                              );
+                        return CalendarGeometryWeekdayRowBoundary(
+                          row: CalendarWeekdayRowRef(
+                            month: MonthRef(year: kYear, month: kMonth),
+                            rowIndex: i,
                           ),
-                          child: labelRow,
+                          child: measuredLabelRow,
                         );
                       },
                     ),
@@ -3551,7 +3559,13 @@ class _EpagomenalCard extends StatelessWidget {
 
               CalendarGeometryFinalDayBlock(
                 month: MonthRef(year: kYear, month: 13),
-                child: _epagomenalWeekdayRow(epiCount),
+                child: CalendarGeometryWeekdayRowBoundary(
+                  row: CalendarWeekdayRowRef(
+                    month: MonthRef(year: kYear, month: 13),
+                    rowIndex: 0,
+                  ),
+                  child: _epagomenalWeekdayRow(epiCount),
+                ),
               ),
               const SizedBox(height: _kWeekdayToTileGap),
 

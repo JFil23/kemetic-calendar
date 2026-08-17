@@ -12,6 +12,8 @@ import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/scrolling_calendar_month_header.dart';
 import 'package:mobile/widgets/month_name_text.dart';
 
+const _testWeekdayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S', 'M', 'T', 'W'];
+
 void main() {
   testWidgets('shows the active leading Kemetic month and its year context', (
     tester,
@@ -28,6 +30,7 @@ void main() {
               showGregorian: false,
               gregorianMonthName: 'June',
               gregorianYearLabel: '2026',
+              weekdayLabels: _testWeekdayLabels,
             ),
           ),
         ),
@@ -39,9 +42,59 @@ void main() {
     expect(find.text('Akhet 2026'), findsOneWidget);
     expect(find.byType(MonthNameText), findsNWidgets(2));
     expect(
+      find.byKey(const Key('scrolling-calendar-weekday-row')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('scrolling-calendar-weekday-9')),
+      findsOneWidget,
+    );
+    expect(
       tester.getSize(find.byType(ScrollingCalendarMonthHeader)).height,
       ScrollingCalendarMonthHeader.height,
     );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('replaces the fixed weekday sequence without animation', (
+    tester,
+  ) async {
+    Widget subject(List<String> labels) => MaterialApp(
+      home: Scaffold(
+        backgroundColor: Colors.black,
+        body: ScrollingCalendarMonthHeader(
+          month: getMonthById(4),
+          yearLabel: '2026',
+          showGregorian: false,
+          gregorianMonthName: 'June',
+          gregorianYearLabel: '2026',
+          weekdayLabels: labels,
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(subject(_testWeekdayLabels));
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(const ValueKey('scrolling-calendar-weekday-0')),
+          )
+          .data,
+      'M',
+    );
+
+    const next = ['F', 'S', 'S', 'M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    await tester.pumpWidget(subject(next));
+
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(const ValueKey('scrolling-calendar-weekday-0')),
+          )
+          .data,
+      'F',
+    );
+    expect(find.byType(AnimatedSwitcher), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -59,6 +112,7 @@ void main() {
             showGregorian: false,
             gregorianMonthName: 'June',
             gregorianYearLabel: '2026',
+            weekdayLabels: _testWeekdayLabels,
           ),
         ),
       ),
@@ -88,6 +142,7 @@ void main() {
               showGregorian: true,
               gregorianMonthName: 'July',
               gregorianYearLabel: '2026',
+              weekdayLabels: _testWeekdayLabels,
             ),
           ),
         ),
@@ -236,6 +291,11 @@ void main() {
       binding,
       contains('_calendarScrollCoordinator.activeGregorianBannerMonth'),
     );
+    expect(binding, contains('_calendarScrollCoordinator.activeWeekdayRow'));
+    expect(
+      binding,
+      contains('weekdayLabels: _weekdayLabelsFor(activeWeekdayRow)'),
+    );
     expect(binding, contains('activeBannerMonth.year'));
     expect(binding, contains('activeBannerMonth.month'));
     expect(binding, contains('showGregorian: _showGregorian'));
@@ -268,6 +328,7 @@ void main() {
               showGregorian: false,
               gregorianMonthName: 'September',
               gregorianYearLabel: '2026',
+              weekdayLabels: _testWeekdayLabels,
             ),
           ),
         ),
@@ -330,6 +391,7 @@ final class _LeadingHeaderRig {
                 showGregorian: false,
                 gregorianMonthName: 'January',
                 gregorianYearLabel: '2026',
+                weekdayLabels: _testWeekdayLabels,
               );
             },
           ),

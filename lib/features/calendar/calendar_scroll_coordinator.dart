@@ -69,6 +69,7 @@ final class CalendarScrollCoordinator {
   CalendarScrollCoordinator({
     required MonthRef initialBannerMonth,
     required GregorianMonthRef initialGregorianBannerMonth,
+    CalendarWeekdayRowRef? initialWeekdayRow,
     required CalendarShadowFrameScheduler scheduleAfterFrame,
     required CalendarGeometrySnapshotReader readSnapshot,
     required CalendarScrollOffsetReader readScrollOffset,
@@ -81,6 +82,10 @@ final class CalendarScrollCoordinator {
   }) : _activeBannerMonth = ValueNotifier<MonthRef>(initialBannerMonth),
        _activeGregorianBannerMonth = ValueNotifier<GregorianMonthRef>(
          initialGregorianBannerMonth,
+       ),
+       _activeWeekdayRow = ValueNotifier<CalendarWeekdayRowRef>(
+         initialWeekdayRow ??
+             CalendarWeekdayRowRef(month: initialBannerMonth, rowIndex: 0),
        ),
        _activeCenteredMonth = ValueNotifier<MonthRef>(initialBannerMonth),
        _scheduleAfterFrame = scheduleAfterFrame,
@@ -124,6 +129,7 @@ final class CalendarScrollCoordinator {
   final int _traceCapacity;
   final ValueNotifier<MonthRef> _activeBannerMonth;
   final ValueNotifier<GregorianMonthRef> _activeGregorianBannerMonth;
+  final ValueNotifier<CalendarWeekdayRowRef> _activeWeekdayRow;
   final ValueNotifier<MonthRef> _activeCenteredMonth;
 
   final ListQueue<CalendarShadowTraceEntry> _trace = ListQueue();
@@ -158,6 +164,11 @@ final class CalendarScrollCoordinator {
   /// Kemetic section handoffs, so the two calendar modes remain independent.
   ValueListenable<GregorianMonthRef> get activeGregorianBannerMonth =>
       _activeGregorianBannerMonth;
+
+  /// The weekday sequence whose rendered decan label most recently crossed
+  /// the activation line beneath the fixed calendar header.
+  ValueListenable<CalendarWeekdayRowRef> get activeWeekdayRow =>
+      _activeWeekdayRow;
 
   /// The centered semantic month used by restoration, hydration, navigation,
   /// and orientation handoff.
@@ -254,6 +265,7 @@ final class CalendarScrollCoordinator {
       incumbent: _shadowIncumbent,
     );
     final gregorianBannerMonth = snapshot.gregorianMonthAt(scrollOffset);
+    final weekdayRow = snapshot.weekdayRowAt(scrollOffset);
     final viewportExtent = _readViewportExtent?.call();
     final centered = reason == CalendarShadowSampleReason.geometryPublication
         ? _activeCenteredMonth.value
@@ -303,6 +315,9 @@ final class CalendarScrollCoordinator {
     if (gregorianBannerMonth != null &&
         _activeGregorianBannerMonth.value != gregorianBannerMonth) {
       _activeGregorianBannerMonth.value = gregorianBannerMonth;
+    }
+    if (weekdayRow != null && _activeWeekdayRow.value != weekdayRow) {
+      _activeWeekdayRow.value = weekdayRow;
     }
     if (centered != null) {
       publishCenteredMonth(centered);
@@ -407,6 +422,7 @@ final class CalendarScrollCoordinator {
     _trace.clear();
     _activeBannerMonth.dispose();
     _activeGregorianBannerMonth.dispose();
+    _activeWeekdayRow.dispose();
     _activeCenteredMonth.dispose();
   }
 }
