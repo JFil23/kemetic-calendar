@@ -5960,6 +5960,7 @@ class CalendarPage extends StatefulWidget {
         context: context,
         useRootNavigator: true,
         isScrollControlled: true,
+        enableDrag: false,
         backgroundColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -30659,6 +30660,7 @@ class CalendarPageState extends State<CalendarPage>
       await showModalBottomSheet(
         context: context,
         isScrollControlled: true,
+        enableDrag: false,
         backgroundColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(top: Radius.circular(16)),

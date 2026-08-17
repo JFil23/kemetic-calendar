@@ -1834,6 +1834,13 @@ void main() {
         );
         expect(source, contains('onOpenJournal: _openJournalFromAppBar'));
         expect(source, contains('onOpenPlanner: _openPlannerPage'));
+        expect(
+          RegExp(r'enableDrag: false').allMatches(source),
+          hasLength(2),
+          reason:
+              'Both mounted and detached Quick Add routes must isolate the '
+              'color slider from modal drag gestures.',
+        );
 
         final dayView = await File(
           'lib/features/calendar/day_view.dart',
@@ -1936,6 +1943,20 @@ void main() {
       final fieldBefore = tester.widget<TextField>(input);
       final sheetTopBefore = tester.getTopLeft(sheet).dy;
       expect(fieldBefore.focusNode?.hasFocus, isTrue);
+
+      final verticalJitterGesture = await tester.startGesture(
+        spectrumRect.center,
+        kind: PointerDeviceKind.touch,
+      );
+      await verticalJitterGesture.moveBy(const Offset(0, 18));
+      await tester.pump();
+
+      expect(tester.getTopLeft(sheet).dy, sheetTopBefore);
+      expect(tester.widget<TextField>(input).focusNode?.hasFocus, isTrue);
+
+      await verticalJitterGesture.up();
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(sheet).dy, sheetTopBefore);
 
       final sliderGesture = await tester.startGesture(
         Offset(
