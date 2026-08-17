@@ -145,6 +145,78 @@ void main() {
       expect(snapshot.gregorianMonthAt(140), june);
     });
 
+    test('resolves weekday rows at measured decan-label boundaries', () {
+      final month1 = MonthRef(year: 1, month: 1);
+      final month2 = MonthRef(year: 1, month: 2);
+      final snapshot = CalendarGeometrySnapshot(
+        generation: 1,
+        sections: [_geometry(1, 1, 0, 100), _geometry(1, 2, 100, 200)],
+        weekdayRowBoundaries: [
+          _weekdayBoundary(month1, 0, 20),
+          _weekdayBoundary(month1, 1, 50),
+          _weekdayBoundary(month1, 2, 80),
+          _weekdayBoundary(month2, 0, 120),
+          _weekdayBoundary(month2, 1, 150),
+          _weekdayBoundary(month2, 2, 180),
+        ],
+      );
+
+      expect(
+        snapshot.weekdayRowAt(0),
+        CalendarWeekdayRowRef(month: month1, rowIndex: 0),
+      );
+      expect(
+        snapshot.weekdayRowAt(49.999),
+        CalendarWeekdayRowRef(month: month1, rowIndex: 0),
+      );
+      expect(
+        snapshot.weekdayRowAt(50),
+        CalendarWeekdayRowRef(month: month1, rowIndex: 1),
+      );
+      expect(
+        snapshot.weekdayRowAt(119.999),
+        CalendarWeekdayRowRef(month: month1, rowIndex: 2),
+      );
+      expect(
+        snapshot.weekdayRowAt(120),
+        CalendarWeekdayRowRef(month: month2, rowIndex: 0),
+      );
+    });
+
+    test('rejects invalid weekday row identity and placement', () {
+      final month = MonthRef(year: 1, month: 1);
+      final heriu = MonthRef(year: 1, month: 13);
+      final sections = [_geometry(1, 1, 0, 100), _geometry(1, 13, 100, 130)];
+
+      expect(
+        () => CalendarGeometrySnapshot(
+          generation: 1,
+          sections: sections,
+          weekdayRowBoundaries: [_weekdayBoundary(month, 0, 100)],
+        ),
+        throwsArgumentError,
+      );
+      expect(
+        () => CalendarGeometrySnapshot(
+          generation: 1,
+          sections: sections,
+          weekdayRowBoundaries: [_weekdayBoundary(heriu, 1, 110)],
+        ),
+        throwsRangeError,
+      );
+      expect(
+        () => CalendarGeometrySnapshot(
+          generation: 1,
+          sections: sections,
+          weekdayRowBoundaries: [
+            _weekdayBoundary(month, 1, 40),
+            _weekdayBoundary(month, 0, 60),
+          ],
+        ),
+        throwsArgumentError,
+      );
+    });
+
     test('does not invent a Gregorian month inside an unmounted gap', () {
       final snapshot = CalendarGeometrySnapshot(
         generation: 1,
@@ -348,5 +420,16 @@ CalendarSectionGeometry _geometry(
   return CalendarSectionGeometry(
     month: MonthRef(year: year, month: month),
     extent: _extent(leading, trailing),
+  );
+}
+
+CalendarWeekdayRowBoundary _weekdayBoundary(
+  MonthRef month,
+  int rowIndex,
+  num leading,
+) {
+  return CalendarWeekdayRowBoundary(
+    row: CalendarWeekdayRowRef(month: month, rowIndex: rowIndex),
+    leading: leading.toDouble(),
   );
 }

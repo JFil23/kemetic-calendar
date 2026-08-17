@@ -19,11 +19,14 @@ final class CalendarGeometryCollector extends ChangeNotifier {
   final Set<RenderCalendarGeometryGregorianMonthBoundary>
   _mountedGregorianMonthBoundaries =
       <RenderCalendarGeometryGregorianMonthBoundary>{};
+  final Set<RenderCalendarGeometryWeekdayRowBoundary>
+  _mountedWeekdayRowBoundaries = <RenderCalendarGeometryWeekdayRowBoundary>{};
 
   CalendarGeometrySnapshot? _snapshot;
   List<CalendarSectionGeometry> _lastCandidate = const [];
   List<CalendarGregorianMonthBoundary> _lastGregorianMonthBoundaryCandidate =
       const [];
+  List<CalendarWeekdayRowBoundary> _lastWeekdayRowBoundaryCandidate = const [];
   bool _publicationScheduled = false;
   bool _disposed = false;
   int _nextGeneration = 0;
@@ -43,6 +46,9 @@ final class CalendarGeometryCollector extends ChangeNotifier {
 
   int get debugMountedGregorianMonthBoundaryCount =>
       _mountedGregorianMonthBoundaries.length;
+
+  int get debugMountedWeekdayRowBoundaryCount =>
+      _mountedWeekdayRowBoundaries.length;
 
   int get debugScheduledPublicationCount => _scheduledPublicationCount;
 
@@ -67,6 +73,7 @@ final class CalendarGeometryCollector extends ChangeNotifier {
     _snapshot = null;
     _lastCandidate = const [];
     _lastGregorianMonthBoundaryCandidate = const [];
+    _lastWeekdayRowBoundaryCandidate = const [];
     _markNeedsPublication();
   }
 
@@ -171,6 +178,38 @@ final class CalendarGeometryCollector extends ChangeNotifier {
     _markNeedsPublication();
   }
 
+  void _registerWeekdayRowBoundary(
+    RenderCalendarGeometryWeekdayRowBoundary boundary,
+  ) {
+    if (_disposed) return;
+    if (_mountedWeekdayRowBoundaries.add(boundary)) {
+      _markNeedsPublication();
+    }
+  }
+
+  void _unregisterWeekdayRowBoundary(
+    RenderCalendarGeometryWeekdayRowBoundary boundary,
+  ) {
+    if (_disposed) return;
+    if (_mountedWeekdayRowBoundaries.remove(boundary)) {
+      _markNeedsPublication();
+    }
+  }
+
+  void _didLayoutWeekdayRowBoundary(
+    RenderCalendarGeometryWeekdayRowBoundary boundary,
+  ) {
+    if (_disposed || !_mountedWeekdayRowBoundaries.contains(boundary)) return;
+    _markNeedsPublication();
+  }
+
+  void _didChangeWeekdayRowBoundaryIdentity(
+    RenderCalendarGeometryWeekdayRowBoundary boundary,
+  ) {
+    if (_disposed || !_mountedWeekdayRowBoundaries.contains(boundary)) return;
+    _markNeedsPublication();
+  }
+
   void _markNeedsPublication() {
     if (_disposed || _publicationScheduled) return;
     _publicationScheduled = true;
@@ -219,6 +258,22 @@ final class CalendarGeometryCollector extends ChangeNotifier {
       );
     }
 
+    final weekdayRowBoundaries = <CalendarWeekdayRowBoundary>[];
+    for (final boundary in _mountedWeekdayRowBoundaries) {
+      if (!boundary.attached ||
+          !boundary.hasSize ||
+          boundary.size.height <= 0) {
+        continue;
+      }
+      final viewport = RenderAbstractViewport.maybeOf(boundary);
+      if (viewport == null) continue;
+      final leading = viewport.getOffsetToReveal(boundary, 0).offset;
+      if (!leading.isFinite) continue;
+      weekdayRowBoundaries.add(
+        CalendarWeekdayRowBoundary(row: boundary.row, leading: leading),
+      );
+    }
+
     final geometries = <CalendarSectionGeometry>[];
     for (final section in _mountedSections) {
       if (!section.attached || !section.hasSize || section.size.height <= 0) {
@@ -246,10 +301,17 @@ final class CalendarGeometryCollector extends ChangeNotifier {
     gregorianMonthBoundaries.sort(
       (left, right) => left.leading.compareTo(right.leading),
     );
+    weekdayRowBoundaries.sort(
+      (left, right) => left.leading.compareTo(right.leading),
+    );
     if (_sameGeometry(_lastCandidate, geometries) &&
         _sameGregorianMonthBoundaries(
           _lastGregorianMonthBoundaryCandidate,
           gregorianMonthBoundaries,
+        ) &&
+        _sameWeekdayRowBoundaries(
+          _lastWeekdayRowBoundaryCandidate,
+          weekdayRowBoundaries,
         )) {
       return;
     }
@@ -258,6 +320,8 @@ final class CalendarGeometryCollector extends ChangeNotifier {
         List<CalendarGregorianMonthBoundary>.unmodifiable(
           gregorianMonthBoundaries,
         );
+    _lastWeekdayRowBoundaryCandidate =
+        List<CalendarWeekdayRowBoundary>.unmodifiable(weekdayRowBoundaries);
 
     late final CalendarGeometrySnapshot next;
     try {
@@ -266,6 +330,7 @@ final class CalendarGeometryCollector extends ChangeNotifier {
         presentationRevision: _presentationRevision,
         sections: geometries,
         gregorianMonthBoundaries: gregorianMonthBoundaries,
+        weekdayRowBoundaries: weekdayRowBoundaries,
       );
     } on ArgumentError catch (error) {
       // Never replace the last coherent snapshot with a mixed or invalid
@@ -303,6 +368,17 @@ final class CalendarGeometryCollector extends ChangeNotifier {
     return true;
   }
 
+  bool _sameWeekdayRowBoundaries(
+    List<CalendarWeekdayRowBoundary> previous,
+    List<CalendarWeekdayRowBoundary> next,
+  ) {
+    if (previous.length != next.length) return false;
+    for (var index = 0; index < next.length; index++) {
+      if (previous[index] != next[index]) return false;
+    }
+    return true;
+  }
+
   @override
   void dispose() {
     if (_disposed) return;
@@ -311,9 +387,91 @@ final class CalendarGeometryCollector extends ChangeNotifier {
     _mountedBodies.clear();
     _mountedFinalDayBlocks.clear();
     _mountedGregorianMonthBoundaries.clear();
+    _mountedWeekdayRowBoundaries.clear();
     _lastCandidate = const [];
     _lastGregorianMonthBoundaryCandidate = const [];
+    _lastWeekdayRowBoundaryCandidate = const [];
     super.dispose();
+  }
+}
+
+/// Marks the rendered label that activates one pinned weekday sequence.
+final class CalendarGeometryWeekdayRowBoundary
+    extends SingleChildRenderObjectWidget {
+  const CalendarGeometryWeekdayRowBoundary({
+    super.key,
+    required this.row,
+    required super.child,
+  });
+
+  final CalendarWeekdayRowRef row;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) {
+    return RenderCalendarGeometryWeekdayRowBoundary(
+      row: row,
+      collector: CalendarGeometryCollectorScope.maybeOf(context),
+    );
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    RenderCalendarGeometryWeekdayRowBoundary renderObject,
+  ) {
+    renderObject
+      ..collector = CalendarGeometryCollectorScope.maybeOf(context)
+      ..row = row;
+  }
+}
+
+/// Render proxy used by [CalendarGeometryWeekdayRowBoundary].
+final class RenderCalendarGeometryWeekdayRowBoundary extends RenderProxyBox {
+  RenderCalendarGeometryWeekdayRowBoundary({
+    required CalendarWeekdayRowRef row,
+    required CalendarGeometryCollector? collector,
+  }) : _row = row,
+       _collector = collector;
+
+  CalendarWeekdayRowRef _row;
+  CalendarGeometryCollector? _collector;
+  Size? _lastReportedSize;
+
+  CalendarWeekdayRowRef get row => _row;
+
+  set row(CalendarWeekdayRowRef value) {
+    if (_row == value) return;
+    _row = value;
+    _collector?._didChangeWeekdayRowBoundaryIdentity(this);
+  }
+
+  set collector(CalendarGeometryCollector? value) {
+    if (_collector == value) return;
+    if (attached) _collector?._unregisterWeekdayRowBoundary(this);
+    _collector = value;
+    if (attached) _collector?._registerWeekdayRowBoundary(this);
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _collector?._registerWeekdayRowBoundary(this);
+  }
+
+  @override
+  void detach() {
+    _lastReportedSize = null;
+    _collector?._unregisterWeekdayRowBoundary(this);
+    super.detach();
+  }
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    if (_lastReportedSize != size) {
+      _lastReportedSize = size;
+      _collector?._didLayoutWeekdayRowBoundary(this);
+    }
   }
 }
 

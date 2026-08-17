@@ -84,6 +84,61 @@ void main() {
     expect(rig.coordinator.activeGregorianBannerMonth.value, june);
   });
 
+  test('switches the weekday strip at measured decan labels', () {
+    final row0 = CalendarWeekdayRowRef(month: month1, rowIndex: 0);
+    final row1 = CalendarWeekdayRowRef(month: month1, rowIndex: 1);
+    final row2 = CalendarWeekdayRowRef(month: month1, rowIndex: 2);
+    final nextRow0 = CalendarWeekdayRowRef(month: month2, rowIndex: 0);
+    final rig = _CoordinatorRig(
+      snapshot: _snapshot(
+        generation: 1,
+        sections: [
+          _geometry(month1, 0, 100, finalDayBlockLeading: 70),
+          _geometry(month2, 100, 200, finalDayBlockLeading: 170),
+        ],
+        weekdayRowBoundaries: [
+          CalendarWeekdayRowBoundary(row: row0, leading: 20),
+          CalendarWeekdayRowBoundary(row: row1, leading: 50),
+          CalendarWeekdayRowBoundary(row: row2, leading: 80),
+          CalendarWeekdayRowBoundary(row: nextRow0, leading: 120),
+        ],
+      ),
+      offset: 49.999,
+      authoritative: month1,
+    );
+    addTearDown(rig.dispose);
+
+    rig.coordinator.noteScroll();
+    rig.flushOneFrame();
+    expect(rig.coordinator.activeWeekdayRow.value, row0);
+
+    rig.offset = 50;
+    rig.coordinator.noteScroll();
+    rig.flushOneFrame();
+    expect(rig.coordinator.activeWeekdayRow.value, row1);
+
+    rig.offset = 78;
+    rig.coordinator.noteScroll();
+    rig.flushOneFrame();
+    expect(rig.coordinator.activeBannerMonth.value, month2);
+    expect(rig.coordinator.activeWeekdayRow.value, row1);
+
+    rig.offset = 80;
+    rig.coordinator.noteScroll();
+    rig.flushOneFrame();
+    expect(rig.coordinator.activeWeekdayRow.value, row2);
+
+    rig.offset = 120;
+    rig.coordinator.noteScroll();
+    rig.flushOneFrame();
+    expect(rig.coordinator.activeWeekdayRow.value, nextRow0);
+
+    rig.offset = 79.999;
+    rig.coordinator.noteScroll();
+    rig.flushOneFrame();
+    expect(rig.coordinator.activeWeekdayRow.value, row1);
+  });
+
   test(
     'publishes centered semantic month from the same coalesced snapshot',
     () {
@@ -472,11 +527,13 @@ CalendarGeometrySnapshot _snapshot({
   required int generation,
   required List<CalendarSectionGeometry> sections,
   List<CalendarGregorianMonthBoundary> gregorianMonthBoundaries = const [],
+  List<CalendarWeekdayRowBoundary> weekdayRowBoundaries = const [],
 }) {
   return CalendarGeometrySnapshot(
     generation: generation,
     sections: sections,
     gregorianMonthBoundaries: gregorianMonthBoundaries,
+    weekdayRowBoundaries: weekdayRowBoundaries,
   );
 }
 

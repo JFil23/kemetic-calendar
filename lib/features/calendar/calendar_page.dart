@@ -15952,6 +15952,10 @@ class CalendarPageState extends State<CalendarPage>
         year: initialGregorianDate.year,
         month: initialGregorianDate.month,
       ),
+      initialWeekdayRow: CalendarWeekdayRowRef(
+        month: MonthRef(year: _today.kYear, month: _today.kMonth),
+        rowIndex: _today.kMonth == 13 ? 0 : (_today.kDay - 1) ~/ 10,
+      ),
       scheduleAfterFrame: (callback) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           // Run after the current frame's legacy post-frame writers, while
@@ -33433,26 +33437,33 @@ class CalendarPageState extends State<CalendarPage>
               valueListenable:
                   _calendarScrollCoordinator.activeGregorianBannerMonth,
               builder: (context, activeGregorianMonth, child) {
-                final header = ScrollingCalendarMonthHeader(
-                  month: visibleMonth,
-                  yearLabel: _gregYearLabelFor(
-                    activeBannerMonth.year,
-                    activeBannerMonth.month,
-                  ),
-                  showGregorian: _showGregorian,
-                  gregorianMonthName:
-                      _gregMonthNames[activeGregorianMonth.month],
-                  gregorianYearLabel: '${activeGregorianMonth.year}',
-                );
-                if (boundaryHarness == null || !boundaryHarness.probesEnabled) {
-                  return header;
-                }
-                return _CalendarBoundaryBuildProbe(
-                  counts: boundaryHarness.bannerCounts,
-                  child: _CalendarBoundaryRenderProbe(
-                    counts: boundaryHarness.bannerCounts,
-                    child: header,
-                  ),
+                return ValueListenableBuilder<CalendarWeekdayRowRef>(
+                  valueListenable: _calendarScrollCoordinator.activeWeekdayRow,
+                  builder: (context, activeWeekdayRow, child) {
+                    final header = ScrollingCalendarMonthHeader(
+                      month: visibleMonth,
+                      yearLabel: _gregYearLabelFor(
+                        activeBannerMonth.year,
+                        activeBannerMonth.month,
+                      ),
+                      showGregorian: _showGregorian,
+                      gregorianMonthName:
+                          _gregMonthNames[activeGregorianMonth.month],
+                      gregorianYearLabel: '${activeGregorianMonth.year}',
+                      weekdayLabels: _weekdayLabelsFor(activeWeekdayRow),
+                    );
+                    if (boundaryHarness == null ||
+                        !boundaryHarness.probesEnabled) {
+                      return header;
+                    }
+                    return _CalendarBoundaryBuildProbe(
+                      counts: boundaryHarness.bannerCounts,
+                      child: _CalendarBoundaryRenderProbe(
+                        counts: boundaryHarness.bannerCounts,
+                        child: header,
+                      ),
+                    );
+                  },
                 );
               },
             );
@@ -33469,6 +33480,25 @@ class CalendarPageState extends State<CalendarPage>
         if (_reflectionPrompt != null) _buildReflectionBadge(),
       ],
     );
+  }
+
+  List<String> _weekdayLabelsFor(CalendarWeekdayRowRef row) {
+    const letters = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+    final isHeriu = row.month.month == 13;
+    final dayCount = isHeriu
+        ? (KemeticMath.isLeapKemeticYear(row.month.year) ? 6 : 5)
+        : 10;
+    final firstDay = isHeriu ? 1 : (row.rowIndex * 10) + 1;
+    return List<String>.generate(dayCount, (index) {
+      final gregorian = safeLocalDisplay(
+        KemeticMath.toGregorian(
+          row.month.year,
+          row.month.month,
+          firstDay + index,
+        ),
+      );
+      return letters[gregorian.weekday - 1];
+    }, growable: false);
   }
 
   /* ───────────── Decan Reflection Badge & Archive ───────────── */
