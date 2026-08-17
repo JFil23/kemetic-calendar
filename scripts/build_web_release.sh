@@ -21,6 +21,10 @@ export LC_ALL=C
 export COPYFILE_DISABLE=1
 umask 022
 
+python3 scripts/web_release_pipeline.py assert-canonical-source \
+  "$ENVIRONMENT" \
+  --repo-root "$AUTHORITY_ROOT"
+
 python3 scripts/web_release_pipeline.py prepare \
   "$ENVIRONMENT" \
   --repo-root "$AUTHORITY_ROOT" \

@@ -58,6 +58,11 @@ python3 scripts/web_release_pipeline.py verify \
   --expected-archive-sha256 "$EXPECTED_ARCHIVE_SHA256" \
   --extract-to "$EXTRACT_DIR"
 
+python3 scripts/web_release_pipeline.py assert-canonical-source \
+  "$ENVIRONMENT" \
+  --repo-root "$PWD" \
+  --release-dir "$RELEASE_DIR"
+
 CMD=(
   npx
   --yes

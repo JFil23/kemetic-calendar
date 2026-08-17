@@ -432,6 +432,79 @@ def require_clean_paired_repositories(repo_root: Path) -> dict[str, Any]:
     }
 
 
+def git_is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
+    completed = subprocess.run(
+        (
+            "git",
+            "-C",
+            str(repo),
+            "merge-base",
+            "--is-ancestor",
+            ancestor,
+            descendant,
+        ),
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    if completed.returncode not in (0, 1):
+        detail = completed.stderr.strip() or "git merge-base failed"
+        raise ReleaseInputError(detail)
+    return completed.returncode == 0
+
+
+def require_canonical_release_source(
+    repo_root: Path,
+    *,
+    environment: str,
+    expected_source: Mapping[str, Any] | None = None,
+) -> dict[str, str]:
+    if environment not in ENVIRONMENT_CONFIGS:
+        raise ReleaseInputError("Release environment must be staging or production.")
+
+    repo_root = repo_root.resolve()
+    parent_root = repo_root.parent
+    source = require_clean_paired_repositories(repo_root)
+    if expected_source is not None:
+        for key in ("mobile_commit", "parent_commit", "parent_mobile_gitlink"):
+            if expected_source.get(key) != source[key]:
+                raise ReleaseInputError(
+                    "Release artifact source does not match the checked-out paired "
+                    f"repositories: {key}."
+                )
+
+    canonical: dict[str, str] = {}
+    for label, root, source_key in (
+        ("mobile", repo_root, "mobile_commit"),
+        ("parent", parent_root, "parent_commit"),
+    ):
+        git(
+            root,
+            "fetch",
+            "--quiet",
+            "--no-tags",
+            "origin",
+            "+refs/heads/main:refs/remotes/origin/main",
+        )
+        main_commit = git(root, "rev-parse", "refs/remotes/origin/main^{commit}")
+        source_commit = source[source_key]
+        if environment == "production":
+            accepted = source_commit == main_commit
+            requirement = "exactly match"
+        else:
+            accepted = git_is_ancestor(root, main_commit, source_commit)
+            requirement = "descend from"
+        if not accepted:
+            raise ReleaseInputError(
+                f"{label.capitalize()} release source {source_commit} must "
+                f"{requirement} current origin/main {main_commit}."
+            )
+        canonical[f"{label}_source_commit"] = source_commit
+        canonical[f"{label}_main_commit"] = main_commit
+    return canonical
+
+
 def combined_file_digest(repo_root: Path, paths: Sequence[str]) -> str:
     digest = hashlib.sha256()
     for relative in sorted(paths):
@@ -2141,6 +2214,29 @@ def command_verify(arguments: argparse.Namespace) -> None:
     print(f"verified_payload_files={receipt['payload']['file_count']}")
 
 
+def command_assert_canonical_source(arguments: argparse.Namespace) -> None:
+    expected_source = None
+    if arguments.release_dir is not None:
+        receipt = load_json(arguments.release_dir / "release-receipt.json")
+        if not isinstance(receipt, Mapping):
+            raise ReleaseInputError("Release receipt must be a JSON object.")
+        validate_release_receipt(receipt)
+        if receipt["environment"] != arguments.environment:
+            raise ReleaseInputError(
+                "Release receipt environment does not match the deployment lane."
+            )
+        expected_source = receipt["source"]
+    result = require_canonical_release_source(
+        arguments.repo_root,
+        environment=arguments.environment,
+        expected_source=expected_source,
+    )
+    print(f"canonical_mobile_source={result['mobile_source_commit']}")
+    print(f"canonical_mobile_main={result['mobile_main_commit']}")
+    print(f"canonical_parent_source={result['parent_source_commit']}")
+    print(f"canonical_parent_main={result['parent_main_commit']}")
+
+
 def command_compare(arguments: argparse.Namespace) -> None:
     print(
         json.dumps(
@@ -2202,6 +2298,14 @@ def build_parser() -> argparse.ArgumentParser:
     verify.add_argument("--expected-archive-sha256")
     verify.add_argument("--extract-to", type=Path)
     verify.set_defaults(handler=command_verify)
+
+    assert_canonical_source = subparsers.add_parser("assert-canonical-source")
+    assert_canonical_source.add_argument(
+        "environment", choices=tuple(ENVIRONMENT_CONFIGS)
+    )
+    assert_canonical_source.add_argument("--repo-root", type=Path, required=True)
+    assert_canonical_source.add_argument("--release-dir", type=Path)
+    assert_canonical_source.set_defaults(handler=command_assert_canonical_source)
 
     compare = subparsers.add_parser("compare")
     compare.add_argument("first", type=Path)

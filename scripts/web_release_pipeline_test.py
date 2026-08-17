@@ -406,6 +406,7 @@ class BuildOrchestrationTest(unittest.TestCase):
         self.assertIn('PUB_CACHE="$STATE_DIR/pub-cache"', build_script)
         self.assertIn('PUB_HOSTED_URL="https://pub.dev"', build_script)
         self.assertIn("verify-lockfile", build_script)
+        self.assertIn("assert-canonical-source", build_script)
         self.assertIn("dist/web-releases", pipeline_source)
         self.assertIn("require_prepared_current", pipeline_source)
         self.assertIn("flutter_tools_snapshot", pipeline_source)
@@ -428,6 +429,7 @@ class BuildOrchestrationTest(unittest.TestCase):
         ).read_text(encoding="utf-8")
         self.assertIn("served_artifact_verifier.py verify", deploy)
         self.assertIn("served_artifact_verifier.py preflight-target", deploy)
+        self.assertIn("assert-canonical-source", deploy)
         self.assertLess(
             deploy.index("served_artifact_verifier.py preflight-target"),
             deploy.index('"${CMD[@]}"'),
@@ -480,6 +482,97 @@ class BuildOrchestrationTest(unittest.TestCase):
                         state_dir=state,
                         prepared=prepared,
                     )
+
+
+class CanonicalReleaseSourceTest(unittest.TestCase):
+    def source(self) -> dict[str, object]:
+        return {
+            "mobile_commit": "a" * 40,
+            "parent_commit": "b" * 40,
+            "parent_mobile_gitlink": "a" * 40,
+        }
+
+    def git_result(self, repo: Path, *arguments: str) -> str:
+        if arguments[0] == "fetch":
+            return ""
+        if arguments == ("rev-parse", "refs/remotes/origin/main^{commit}"):
+            return "a" * 40 if repo == REPO_ROOT else "b" * 40
+        raise AssertionError((repo, arguments))
+
+    def test_production_requires_both_sources_to_exactly_match_main(self) -> None:
+        source = self.source()
+        with mock.patch.object(
+            pipeline, "require_clean_paired_repositories", return_value=source
+        ), mock.patch.object(pipeline, "git", side_effect=self.git_result):
+            result = pipeline.require_canonical_release_source(
+                REPO_ROOT,
+                environment="production",
+                expected_source=source,
+            )
+        self.assertEqual(result["mobile_main_commit"], "a" * 40)
+        self.assertEqual(result["parent_main_commit"], "b" * 40)
+
+    def test_production_rejects_source_behind_main(self) -> None:
+        source = self.source()
+        source["mobile_commit"] = "c" * 40
+        with mock.patch.object(
+            pipeline, "require_clean_paired_repositories", return_value=source
+        ), mock.patch.object(pipeline, "git", side_effect=self.git_result):
+            with self.assertRaisesRegex(
+                pipeline.ReleaseInputError, "must exactly match current origin/main"
+            ):
+                pipeline.require_canonical_release_source(
+                    REPO_ROOT,
+                    environment="production",
+                )
+
+    def test_staging_requires_both_sources_to_descend_from_main(self) -> None:
+        source = self.source()
+        source["mobile_commit"] = "c" * 40
+        source["parent_commit"] = "d" * 40
+        with mock.patch.object(
+            pipeline, "require_clean_paired_repositories", return_value=source
+        ), mock.patch.object(
+            pipeline, "git", side_effect=self.git_result
+        ), mock.patch.object(pipeline, "git_is_ancestor", return_value=True) as check:
+            pipeline.require_canonical_release_source(
+                REPO_ROOT,
+                environment="staging",
+            )
+        self.assertEqual(check.call_count, 2)
+
+    def test_staging_rejects_source_that_forked_before_main(self) -> None:
+        source = self.source()
+        source["mobile_commit"] = "c" * 40
+        with mock.patch.object(
+            pipeline, "require_clean_paired_repositories", return_value=source
+        ), mock.patch.object(
+            pipeline, "git", side_effect=self.git_result
+        ), mock.patch.object(pipeline, "git_is_ancestor", return_value=False):
+            with self.assertRaisesRegex(
+                pipeline.ReleaseInputError, "must descend from current origin/main"
+            ):
+                pipeline.require_canonical_release_source(
+                    REPO_ROOT,
+                    environment="staging",
+                )
+
+    def test_artifact_must_match_checked_out_source(self) -> None:
+        source = self.source()
+        artifact_source = dict(source)
+        artifact_source["parent_commit"] = "c" * 40
+        with mock.patch.object(
+            pipeline, "require_clean_paired_repositories", return_value=source
+        ):
+            with self.assertRaisesRegex(
+                pipeline.ReleaseInputError,
+                "artifact source does not match",
+            ):
+                pipeline.require_canonical_release_source(
+                    REPO_ROOT,
+                    environment="staging",
+                    expected_source=artifact_source,
+                )
 
 
 class PreCompilationMaterializationTest(unittest.TestCase):
