@@ -377,6 +377,10 @@ void main() {
 
         final dayCell = find.byKey(const ValueKey<String>('k:6267-1-4|K'));
         heights[level] = tester.getSize(dayCell).height;
+        final dayNumber = tester.widget<Text>(
+          find.descendant(of: dayCell, matching: find.text('4')),
+        );
+        expect(dayNumber.style?.fontSize, closeTo(24.8, 0.01));
 
         switch (level) {
           case MonthExpansionLevel.compact:

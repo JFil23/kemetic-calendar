@@ -309,7 +309,7 @@ class _CalendarScale {
   static const double rightSeasonFramed = 13.2;
   static const double decanLabelMain = 12.3;
   static const double decanLabelFramed = 11.6;
-  static const double dayNumber = 12.4;
+  static const double dayNumber = 24.8;
   static const double dayDot = 2.35;
   static const double trackSkyDot = 4.2;
   static const double infoHeading = 23.0;
