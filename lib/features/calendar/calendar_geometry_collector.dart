@@ -395,7 +395,7 @@ final class CalendarGeometryCollector extends ChangeNotifier {
   }
 }
 
-/// Marks the rendered label that activates one pinned weekday sequence.
+/// Marks the rendered edge that activates one pinned weekday sequence.
 final class CalendarGeometryWeekdayRowBoundary
     extends SingleChildRenderObjectWidget {
   const CalendarGeometryWeekdayRowBoundary({
@@ -478,8 +478,8 @@ final class RenderCalendarGeometryWeekdayRowBoundary extends RenderProxyBox {
 /// Marks the measured handoff edge before a month's final visible day block.
 ///
 /// For a regular month, the child starts immediately after the third-decan
-/// label and contains the label-to-weekday gap plus the final weekday row. For
-/// Heriu Renpet, the child is its sole weekday row. The collector never treats
+/// label and contains the label-to-day-grid gap. For Heriu Renpet, the child is
+/// its sole day row. The collector never treats
 /// this proxy's height as ownership.
 final class CalendarGeometryFinalDayBlock
     extends SingleChildRenderObjectWidget {

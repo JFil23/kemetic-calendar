@@ -524,21 +524,14 @@ void main() {
       expect(markerRect.center.dy, greaterThan(numberRect.center.dy));
     });
 
-    testWidgets('kemetic weekday labels use the warm mockup grid color', (
+    testWidgets('scroll month card omits inline weekday labels', (
       tester,
     ) async {
       await _setViewport(tester, const Size(430, 932));
       await _pumpMonthCard(tester, expansionLevel: MonthExpansionLevel.compact);
 
       final dayCell = find.byKey(const ValueKey<String>('k:6267-1-1|K'));
-      final tileBox = tester.widget<DecoratedBox>(
-        find.descendant(of: dayCell, matching: find.byType(DecoratedBox)).first,
-      );
-      final tileDecoration = tileBox.decoration as BoxDecoration;
-      final tileFill = tileDecoration.color!;
-
-      expect(tileFill.computeLuminance(), lessThan(0.006));
-      expect(tileFill.computeLuminance(), greaterThan(0));
+      expect(dayCell, findsOneWidget);
 
       final weekdayLabels = tester
           .widgetList<Text>(find.byType(Text))
@@ -549,14 +542,7 @@ void main() {
           )
           .toList();
 
-      expect(weekdayLabels, isNotEmpty);
-      for (final label in weekdayLabels) {
-        expect(label.style?.color, const Color(0xFF756238));
-        expect(
-          label.style!.color!.computeLuminance(),
-          greaterThan(tileFill.computeLuminance()),
-        );
-      }
+      expect(weekdayLabels, isEmpty);
     });
 
     testWidgets('month card does not add an expansion control', (tester) async {
@@ -829,7 +815,6 @@ void main() {
         'const TextStyle _monthTitleGold = TextStyle(',
         'const TextStyle _seasonStyle = TextStyle(',
         'const TextStyle _decanStyle = TextStyle(',
-        'const TextStyle _weekdayLabelStyle = TextStyle(',
       ]) {
         expect(pageSource, contains(styleDefinition));
       }
@@ -905,30 +890,8 @@ void main() {
         contains('fontFamilyFallback: _transliterationFontFallback'),
       );
 
-      final weekdayBlock = _sourceBetween(
-        gridSource,
-        'class _WeekdayRow extends StatelessWidget',
-        'class _DecanRow extends StatelessWidget',
-      );
-      expect(weekdayBlock, contains('final labelColor = _softDayTileLabel();'));
-      expect(weekdayBlock, contains('_weekdayLabelStyle.copyWith('));
-      expect(weekdayBlock, contains('color: labelColor'));
-      expect(weekdayBlock, isNot(contains('_blueLight')));
-      expect(weekdayBlock, isNot(contains('_goldLight')));
-
-      final epagomenalWeekdayBlock = _sourceBetween(
-        gridSource,
-        'Widget _epagomenalWeekdayRow',
-        'String? _gregMonthForEpagomenal',
-      );
-      expect(
-        epagomenalWeekdayBlock,
-        contains('final labelColor = _softDayTileLabel();'),
-      );
-      expect(epagomenalWeekdayBlock, contains('_weekdayLabelStyle.copyWith('));
-      expect(epagomenalWeekdayBlock, contains('color: labelColor'));
-      expect(epagomenalWeekdayBlock, isNot(contains('_blueLight')));
-      expect(epagomenalWeekdayBlock, isNot(contains('_goldLight')));
+      expect(monthCardBlock, isNot(contains('_WeekdayRow(')));
+      expect(epagomenalBlock, isNot(contains('_epagomenalWeekdayRow')));
 
       final dayChipBlock = _sourceBetween(
         gridSource,
@@ -958,7 +921,6 @@ void main() {
 
       expect(constantsBlock, contains('_kSoftGridBackground'));
       expect(constantsBlock, contains('_kSoftDayTileFill'));
-      expect(constantsBlock, contains('_kSoftDayTileLabel'));
       expect(constantsBlock, contains('_kDayTileRadius'));
       expect(constantsBlock, contains('_kLabeledPillVisibleCap'));
       expect(constantsBlock, contains('_kTextlessPillHeight'));
@@ -974,10 +936,6 @@ void main() {
         constantsBlock,
         contains('final Color _kSoftDayTileFill = _CalendarTone.dayCellFill;'),
       );
-      expect(
-        constantsBlock,
-        contains('const Color _kSoftDayTileLabel = _CalendarTone.weekday;'),
-      );
       expect(constantsBlock, contains('const double _kDayTileRadius = 3.0;'));
       expect(
         constantsBlock,
@@ -992,6 +950,10 @@ void main() {
         contains('const double _kMonthCardInnerPadding = 10.0;'),
       );
       expect(constantsBlock, contains('const double _kDecanColumnGap = 3.0;'));
+      expect(
+        constantsBlock,
+        contains('const double _kDecanLabelToDayGridGap = 7.0;'),
+      );
       expect(
         constantsBlock,
         contains('const double _kDayTileCompactPadding = 4.0;'),
@@ -1035,23 +997,12 @@ void main() {
       final sharedTileFillBlock = _sourceBetween(
         source,
         'Color _softDayTileFill()',
-        'Color _softDayTileLabel()',
+        'enum _CalendarDayTone',
       );
       expect(sharedTileFillBlock, contains('=> _kSoftDayTileFill'));
       expect(sharedTileFillBlock, isNot(contains('Colors.')));
       expect(sharedTileFillBlock, isNot(contains('TextStyle(')));
       expect(sharedTileFillBlock, isNot(contains('ThemeData(')));
-
-      final sharedTileLabelBlock = _sourceBetween(
-        source,
-        'Color _softDayTileLabel()',
-        'enum _CalendarDayTone',
-      );
-      expect(sharedTileLabelBlock, contains('=> _kSoftDayTileLabel'));
-      expect(sharedTileLabelBlock, isNot(contains('Colors.')));
-      expect(sharedTileLabelBlock, isNot(contains('Color(0x')));
-      expect(sharedTileLabelBlock, isNot(contains('TextStyle(')));
-      expect(sharedTileLabelBlock, isNot(contains('ThemeData(')));
 
       final tileColorBlock = _sourceBetween(
         dayChipBlock,

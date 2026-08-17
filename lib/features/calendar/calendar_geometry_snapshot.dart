@@ -112,11 +112,11 @@ final class CalendarGregorianMonthBoundary {
   int get hashCode => Object.hash(month, leading);
 }
 
-/// Identity of one weekday/day row in the scrolling Kemetic calendar.
+/// Identity of the pinned weekday sequence for one scrolling-calendar row.
 ///
-/// Regular months expose three ten-day rows. Heriu Renpet has one shorter row,
-/// represented by index zero so the pinned weekday strip can use the same
-/// geometry path across the year boundary.
+/// Regular months expose three ten-day decan rows. Heriu Renpet has one shorter
+/// day row, represented by index zero so the pinned weekday strip can use the
+/// same geometry path across the year boundary.
 final class CalendarWeekdayRowRef {
   const CalendarWeekdayRowRef({required this.month, required this.rowIndex});
 
@@ -138,7 +138,7 @@ final class CalendarWeekdayRowRef {
   String toString() => 'CalendarWeekdayRowRef($month, row $rowIndex)';
 }
 
-/// Physical leading edge of a decan label (or Heriu's sole weekday row).
+/// Physical leading edge of a decan label (or Heriu's sole day row).
 final class CalendarWeekdayRowBoundary {
   const CalendarWeekdayRowBoundary({required this.row, required this.leading});
 
@@ -213,8 +213,8 @@ final class CalendarSectionGeometry {
   /// Canonical handoff edge before this month's final visible day block.
   ///
   /// For ordinary months this is immediately after the third-decan label and
-  /// before the label-to-weekday gap. For Heriu Renpet it is the leading edge
-  /// of the single epagomenal weekday/day block.
+  /// before the label-to-day-grid gap. For Heriu Renpet it is the leading edge
+  /// of the single epagomenal day block.
   /// Banner policy may use this physical fact as the handoff to the logical
   /// successor; section ownership itself remains [extent]-based.
   final double? finalDayBlockLeading;
