@@ -285,7 +285,6 @@ void main() {
       expect(
         todayGlyphMatches,
         containsAll(<String>[
-          'lib/features/calendar/day_view_chrome.dart',
           'lib/features/profile/profile_page.dart',
           'lib/features/rhythm/pages/todays_alignment_page.dart',
           'lib/widgets/kemetic_app_bar_action.dart',

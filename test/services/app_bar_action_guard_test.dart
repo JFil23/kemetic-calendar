@@ -1233,7 +1233,9 @@ void main() {
         expect(body, contains('const listBottomPadding = 24.0;'));
         expect(body, contains('listBottomPadding'));
         expect(body, isNot(contains('bottomPaddingAboveGlobalChrome(')));
-        expect(composer, contains('padding: EdgeInsets.zero'));
+        expect(composer, isNot(contains('AnimatedPadding(')));
+        expect(composer, isNot(contains('MediaQuery.viewInsetsOf')));
+        expect(composer, isNot(contains('keyboardInsetOf(context)')));
         expect(composer, isNot(contains('globalBottomMenuHeight(context)')));
         expect(composer, isNot(contains('bottomPaddingAboveGlobalChrome')));
       },
@@ -1350,7 +1352,8 @@ void main() {
           contains('bottomPaddingAboveGlobalChrome(context, 32)'),
         );
         expect(planner, isNot(contains('final listBottomPadding = embedded')));
-        expect(planner, contains('keyboardInsetOf(context)'));
+        expect(planner, contains('UtilitySheetRouteScaffold('));
+        expect(planner, isNot(contains('keyboardInsetOf(context)')));
         expect(reflections, contains('final bottomPadding ='));
         expect(
           reflections,
@@ -1720,10 +1723,7 @@ void main() {
           'final Future<void> Function(BuildContext context)? onOpenSearch;',
         ),
       );
-      expect(
-        dayView,
-        contains('CalendarPage.openSearchFromAnyContext('),
-      );
+      expect(dayView, contains('CalendarPage.openSearchFromAnyContext('));
       expect(dayView, contains('CalendarFloatingShortcutsLayer('));
       expect(
         dayView,
