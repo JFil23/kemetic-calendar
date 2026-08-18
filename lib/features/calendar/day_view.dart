@@ -5771,6 +5771,10 @@ class _DayViewPageState extends State<DayViewPage> {
         _scheduleHydrationFrame();
         _centerMiniCalendarOnDay(_currentKd, force: true);
       }
+      if (alreadyToday && mounted) {
+        // Refresh the now-line's position without replacing the existing DayViewGrid.
+        setState(() {});
+      }
       await _centerCurrentTime();
       if (!mounted) return;
       _reportRestorationState(immediate: true);
