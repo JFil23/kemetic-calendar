@@ -26160,26 +26160,31 @@ class CalendarPageState extends State<CalendarPage>
     _pinchStartLevel = null;
   }
 
+  _Flow? _visualFlowForNote(_Note note) {
+    final id = note.flowId;
+    if (id == null || id == -1) return null;
+
+    for (final flow in _flows) {
+      if (flow.id == id) return flow;
+    }
+
+    return CalendarPage._pendingStagedFlows[id]?.localFlow;
+  }
+
   Color _noteColor(_Note note) {
     if (note.manualColor != null) return note.manualColor!;
-    if (note.flowId != null && note.flowId != -1) {
-      try {
-        final flow = _flows.firstWhere((f) => f.id == note.flowId);
-        return _displayFlowColor(flow.name, flow.color);
-      } catch (_) {}
+
+    final flow = _visualFlowForNote(note);
+    if (flow != null) {
+      return _displayFlowColor(flow.name, flow.color);
     }
+
     if (note.isReminder) return _blue;
     return _silver;
   }
 
   String? _flowName(_Note note) {
-    if (note.flowId != null && note.flowId != -1) {
-      try {
-        final flow = _flows.firstWhere((f) => f.id == note.flowId);
-        return flow.name;
-      } catch (_) {}
-    }
-    return null;
+    return _visualFlowForNote(note)?.name;
   }
 
   List<_CalendarAction> _calendarActions(
