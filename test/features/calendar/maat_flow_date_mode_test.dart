@@ -401,6 +401,45 @@ void main() {
     expect(mounted, isNot(contains('upsertManyDeterministic')));
   });
 
+  test(
+    'Day View flow visuals fall back to pending staged flow when catalog misses',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+
+      final helper = _sourceBetween(
+        source,
+        '_Flow? _visualFlowForNote(_Note note)',
+        'Color _noteColor(_Note note)',
+      );
+      expect(helper, contains('for (final flow in _flows)'));
+      expect(
+        helper,
+        contains('CalendarPage._pendingStagedFlows[id]?.localFlow'),
+      );
+      expect(helper, isNot(contains('firstWhere')));
+
+      final noteColor = _sourceBetween(
+        source,
+        'Color _noteColor(_Note note)',
+        'String? _flowName(_Note note)',
+      );
+      expect(noteColor, contains('_visualFlowForNote(note)'));
+      expect(noteColor, contains('note.manualColor'));
+      expect(noteColor, contains('note.isReminder'));
+      expect(noteColor, isNot(contains('firstWhere')));
+
+      final flowName = _sourceBetween(
+        source,
+        'String? _flowName(_Note note)',
+        'List<_CalendarAction> _calendarActions',
+      );
+      expect(flowName, contains('_visualFlowForNote(note)?.name'));
+      expect(flowName, isNot(contains('firstWhere')));
+    },
+  );
+
   test('Ma_at join completion never hydrates to rediscover staged notes', () {
     final source = File(
       'lib/features/calendar/calendar_page.dart',
