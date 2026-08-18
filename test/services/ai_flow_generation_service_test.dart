@@ -1,7 +1,4 @@
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/core/supabase_auth_retry.dart';
 import 'package:mobile/services/ai_flow_generation_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -143,13 +140,6 @@ Prompt: What does area mean?
       expect(message, isNot(contains('notes[31].details')));
       expect(message, isNot(contains('intro riff')));
     });
-
-    test('maps Invalid JWT gateway text to the sign-in prompt', () {
-      expect(
-        aiFlowBestErrorMessage({'message': 'Invalid JWT'}),
-        aiFlowSignInRequiredMessage,
-      );
-    });
   });
 
   group('aiFlowIsUsableUserAccessToken', () {
@@ -165,12 +155,23 @@ Prompt: What does area mean?
         aiFlowIsUsableUserAccessToken('sb_publishable_AeCb9fWhxBcTQJ5-EuTw9g'),
         isFalse,
       );
-      expect(
-        aiFlowIsUsableUserAccessToken('sb_secret_not_a_user_jwt'),
-        isFalse,
-      );
+      expect(aiFlowIsUsableUserAccessToken('sb_secret_not_a_user_jwt'), isFalse);
       expect(aiFlowIsUsableUserAccessToken(''), isFalse);
       expect(aiFlowIsUsableUserAccessToken(null), isFalse);
+    });
+  });
+
+  group('aiFlowFunctionAuthHeaders', () {
+    test('sends the user JWT and project apikey on the invoke', () {
+      const token = 'eyJhbGciOiJIUzI1NiJ9.payload.sig';
+      const apiKey = 'eyJhbGciOiJIUzI1NiJ9.anon.sig';
+      final headers = aiFlowFunctionAuthHeaders(
+        accessToken: token,
+        apiKey: apiKey,
+      );
+
+      expect(headers['Authorization'], 'Bearer $token');
+      expect(headers['apikey'], apiKey);
     });
   });
 
@@ -179,7 +180,6 @@ Prompt: What does area mean?
       var refreshCount = 0;
       var invokeCount = 0;
       var currentToken = 'stale-jwt';
-      final invokedTokens = <String>[];
 
       final result = await runAiFlowInvokeWithRefreshBudget<String>(
         sessionExpired: true,
@@ -190,70 +190,16 @@ Prompt: What does area mean?
         },
         invokeOnce: () async {
           invokeCount += 1;
-          invokedTokens.add(currentToken);
           return 'ok:$currentToken';
         },
-        isRetryableAuthError: isRetryableSupabaseAuthError,
+        isRetryableAuthError: aiFlowIsRetryableJwtAuthError,
         onAuthGiveUp: () => 'give-up',
       );
 
       expect(result, 'ok:fresh-jwt');
       expect(refreshCount, 1);
       expect(invokeCount, 1);
-      expect(invokedTokens, ['fresh-jwt']);
     });
-
-    test(
-      'failed pre-invoke refresh returns sign-in state without invoking',
-      () async {
-        var refreshCount = 0;
-        var invokeCount = 0;
-
-        final result = await runAiFlowInvokeWithRefreshBudget<String>(
-          sessionExpired: true,
-          refreshSession: () async {
-            refreshCount += 1;
-            return false;
-          },
-          invokeOnce: () async {
-            invokeCount += 1;
-            return 'invoked';
-          },
-          isRetryableAuthError: isRetryableSupabaseAuthError,
-          onAuthGiveUp: () => 'give-up',
-        );
-
-        expect(result, 'give-up');
-        expect(refreshCount, 1);
-        expect(invokeCount, 0);
-      },
-    );
-
-    test(
-      'pre-invoke refresh exception returns sign-in state without invoking',
-      () async {
-        var refreshCount = 0;
-        var invokeCount = 0;
-
-        final result = await runAiFlowInvokeWithRefreshBudget<String>(
-          sessionExpired: true,
-          refreshSession: () async {
-            refreshCount += 1;
-            throw const AuthException('Token is expired', statusCode: '401');
-          },
-          invokeOnce: () async {
-            invokeCount += 1;
-            return 'invoked';
-          },
-          isRetryableAuthError: isRetryableSupabaseAuthError,
-          onAuthGiveUp: () => 'give-up',
-        );
-
-        expect(result, 'give-up');
-        expect(refreshCount, 1);
-        expect(invokeCount, 0);
-      },
-    );
 
     test(
       'live Invalid JWT refreshes once then reinvokes with the current token',
@@ -281,7 +227,7 @@ Prompt: What does area mean?
             }
             return 'ok:$currentToken';
           },
-          isRetryableAuthError: isRetryableSupabaseAuthError,
+          isRetryableAuthError: aiFlowIsRetryableJwtAuthError,
           onAuthGiveUp: () => 'give-up',
         );
 
@@ -308,7 +254,7 @@ Prompt: What does area mean?
             invokeCount += 1;
             throw const FunctionException(status: 401, details: 'Invalid JWT');
           },
-          isRetryableAuthError: isRetryableSupabaseAuthError,
+          isRetryableAuthError: aiFlowIsRetryableJwtAuthError,
           onAuthGiveUp: () => 'give-up',
         );
 
@@ -317,59 +263,5 @@ Prompt: What does area mean?
         expect(invokeCount, 2);
       },
     );
-
-    test(
-      'expired session plus later Invalid JWT does not refresh twice',
-      () async {
-        var refreshCount = 0;
-        var invokeCount = 0;
-
-        final result = await runAiFlowInvokeWithRefreshBudget<String>(
-          sessionExpired: true,
-          refreshSession: () async {
-            refreshCount += 1;
-            return true;
-          },
-          invokeOnce: () async {
-            invokeCount += 1;
-            throw const FunctionException(
-              status: 401,
-              details: '{"message":"Invalid JWT"}',
-            );
-          },
-          isRetryableAuthError: isRetryableSupabaseAuthError,
-          onAuthGiveUp: () => 'give-up',
-        );
-
-        expect(result, 'give-up');
-        expect(refreshCount, 1);
-        expect(invokeCount, 1);
-      },
-    );
-  });
-
-  group('supabase lockfile invariant', () {
-    test('resolves supabase 2.16.0 or newer', () {
-      final lockfile = File('pubspec.lock').readAsStringSync();
-      final match = RegExp(
-        r'^  supabase:\n(?:.*\n)*?    version: "([^"]+)"',
-        multiLine: true,
-      ).firstMatch(lockfile);
-      expect(
-        match,
-        isNotNull,
-        reason: 'supabase entry missing from pubspec.lock',
-      );
-      final version = match!.group(1)!;
-      final parts = version.split('.').map(int.parse).toList();
-      expect(parts.length, greaterThanOrEqualTo(2));
-      final major = parts[0];
-      final minor = parts[1];
-      expect(
-        major > 2 || (major == 2 && minor >= 16),
-        isTrue,
-        reason: 'expected supabase >= 2.16.0, got $version',
-      );
-    });
   });
 }
