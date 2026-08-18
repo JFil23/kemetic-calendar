@@ -260,7 +260,7 @@ class _RejectingClient extends http.BaseClient {
       Stream<List<int>>.value(
         utf8.encode(jsonEncode(<String, Object?>{'message': 'offline'})),
       ),
-      503,
+      500,
       request: request,
       headers: const <String, String>{'content-type': 'application/json'},
     );

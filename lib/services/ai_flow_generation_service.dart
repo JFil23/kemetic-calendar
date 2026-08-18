@@ -113,6 +113,24 @@ bool aiFlowIsUsableUserAccessToken(String? token) {
   return !value.startsWith('sb_');
 }
 
+/// Headers for `functions.invoke` after supabase 2.16.1.
+///
+/// The Functions client no longer copies session JWT or `apikey` onto
+/// `functions.headers`. New publishable keys must stay on `apikey` and must
+/// never be sent as `Authorization: Bearer`.
+@visibleForTesting
+Map<String, String> aiFlowFunctionAuthHeaders({
+  required String accessToken,
+  String? apiKey,
+}) {
+  final token = accessToken.trim();
+  final key = apiKey?.trim() ?? '';
+  return <String, String>{
+    'Authorization': 'Bearer $token',
+    if (key.isNotEmpty) 'apikey': key,
+  };
+}
+
 @visibleForTesting
 Future<T> runAiFlowInvokeWithRefreshBudget<T>({
   required bool sessionExpired,
@@ -272,11 +290,21 @@ class AIFlowGenerationService {
         );
       }
 
+      final token = accessToken!.trim();
+      final apiKey = _sb.auth.headers['apikey'] ?? _sb.auth.headers['Apikey'];
+      _sb.functions.setAuth(token);
+      if (apiKey != null && apiKey.trim().isNotEmpty) {
+        _sb.functions.headers['apikey'] = apiKey.trim();
+      }
+
       try {
         return await _sb.functions.invoke(
           'ai_generate_flow',
           body: payload,
-          headers: {'Authorization': 'Bearer $accessToken'},
+          headers: aiFlowFunctionAuthHeaders(
+            accessToken: token,
+            apiKey: apiKey,
+          ),
         );
       } on FunctionException catch (e) {
         final msg = _fnErrorMessage(e);

@@ -91,7 +91,7 @@ Future<bool> ensureWebPushServiceWorkerReady() async {
         .toDart;
     registration ??= await container
         .register(
-          _messagingWorkerUrl(),
+          _messagingWorkerUrl().toJS,
           web.RegistrationOptions(scope: Uri.base.resolve('/').path),
         )
         .toDart;

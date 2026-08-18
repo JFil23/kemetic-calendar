@@ -174,6 +174,34 @@ Prompt: What does area mean?
     });
   });
 
+  group('aiFlowFunctionAuthHeaders', () {
+    test(
+      'puts the user JWT on Authorization and the publishable key on apikey',
+      () {
+        final headers = aiFlowFunctionAuthHeaders(
+          accessToken: 'eyJhbGciOiJIUzI1NiJ9.payload.sig',
+          apiKey: 'sb_publishable_AeCb9fWhxBcTQJ5-EuTw9g',
+        );
+
+        expect(
+          headers['Authorization'],
+          'Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig',
+        );
+        expect(headers['apikey'], 'sb_publishable_AeCb9fWhxBcTQJ5-EuTw9g');
+        expect(headers['Authorization'], isNot(contains('sb_')));
+      },
+    );
+
+    test('omits apikey when the client has not supplied one', () {
+      expect(
+        aiFlowFunctionAuthHeaders(
+          accessToken: 'eyJhbGciOiJIUzI1NiJ9.payload.sig',
+        ),
+        {'Authorization': 'Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig'},
+      );
+    });
+  });
+
   group('runAiFlowInvokeWithRefreshBudget', () {
     test('expired session refreshes once before the first invoke', () async {
       var refreshCount = 0;

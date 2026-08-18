@@ -84,7 +84,7 @@ Future<web.ServiceWorkerRegistration?> _ensureRegistration() async {
   var registration = await container.getRegistration(_workerScopeUrl()).toDart;
   registration ??= await container
       .register(
-        _workerUrl(),
+        _workerUrl().toJS,
         web.RegistrationOptions(scope: _workerScopePath()),
       )
       .toDart;
