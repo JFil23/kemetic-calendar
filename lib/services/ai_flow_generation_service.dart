@@ -113,6 +113,24 @@ bool aiFlowIsUsableUserAccessToken(String? token) {
   return !value.startsWith('sb_');
 }
 
+/// Per-invoke Functions headers for supabase 2.10.
+///
+/// `functions_client` 2.5.0 merges these over client defaults. AuthHttpClient
+/// then uses `putIfAbsent`, so explicit `Authorization` and `apikey` are not
+/// replaced by the anon-key fallback.
+@visibleForTesting
+Map<String, String> aiFlowFunctionAuthHeaders({
+  required String accessToken,
+  String? apiKey,
+}) {
+  final token = accessToken.trim();
+  final key = apiKey?.trim() ?? '';
+  return <String, String>{
+    'Authorization': 'Bearer $token',
+    if (key.isNotEmpty) 'apikey': key,
+  };
+}
+
 @visibleForTesting
 Future<T> runAiFlowInvokeWithRefreshBudget<T>({
   required bool sessionExpired,
@@ -171,6 +189,10 @@ class AIFlowGenerationService {
   String _fmt(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}'; // YYYY-MM-DD
 
+  /// Last headers passed to `functions.invoke`. Do not read
+  /// `_sb.functions.headers` — request headers are not written back there.
+  Map<String, String> _lastInvokeAuthHeaders = const {};
+
   // #region agent log
   String _withDebugAuthFingerprint(String message) {
     final sess = _sb.auth.currentSession;
@@ -178,8 +200,8 @@ class AIFlowGenerationService {
     return '$message | dbg session=${sess != null} expired=${sess?.isExpired} '
         'kind=${token['kind']} alg=${token['alg']} hasKid=${token['hasKid']} '
         'expS=${token['secondsUntilExp']} '
-        'fnAuth=${_agentAuthHeaderKind(_sb.functions.headers['Authorization'])} '
-        'apiKey=${_agentTokenKind(_sb.functions.headers['apikey'] ?? _sb.functions.headers['Apikey'])}';
+        'fnAuth=${_agentAuthHeaderKind(_lastInvokeAuthHeaders['Authorization'])} '
+        'apiKey=${_agentTokenKind(_lastInvokeAuthHeaders['apikey'])}';
   }
   // #endregion
 
@@ -272,11 +294,19 @@ class AIFlowGenerationService {
         );
       }
 
+      final token = accessToken!.trim();
+      final apiKey = _sb.auth.headers['apikey'] ?? _sb.auth.headers['Apikey'];
+      final headers = aiFlowFunctionAuthHeaders(
+        accessToken: token,
+        apiKey: apiKey,
+      );
+      _lastInvokeAuthHeaders = headers;
+
       try {
         return await _sb.functions.invoke(
           'ai_generate_flow',
           body: payload,
-          headers: {'Authorization': 'Bearer $accessToken'},
+          headers: headers,
         );
       } on FunctionException catch (e) {
         final msg = _fnErrorMessage(e);

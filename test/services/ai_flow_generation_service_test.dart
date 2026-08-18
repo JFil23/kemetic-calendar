@@ -348,28 +348,54 @@ Prompt: What does area mean?
     );
   });
 
+  group('aiFlowFunctionAuthHeaders', () {
+    test('sends the user JWT and project apikey on the invoke', () {
+      const token = 'eyJhbGciOiJIUzI1NiJ9.payload.sig';
+      const apiKey = 'eyJhbGciOiJIUzI1NiJ9.anon.sig';
+      final headers = aiFlowFunctionAuthHeaders(
+        accessToken: token,
+        apiKey: apiKey,
+      );
+
+      expect(headers['Authorization'], 'Bearer $token');
+      expect(headers['apikey'], apiKey);
+    });
+
+    test('omits an empty apikey rather than sending a blank header', () {
+      final headers = aiFlowFunctionAuthHeaders(
+        accessToken: 'eyJhbGciOiJIUzI1NiJ9.payload.sig',
+        apiKey: '  ',
+      );
+
+      expect(headers.containsKey('apikey'), isFalse);
+      expect(
+        headers['Authorization'],
+        'Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig',
+      );
+    });
+  });
+
   group('supabase lockfile invariant', () {
-    test('resolves supabase 2.16.0 or newer', () {
+    test('restores the production supabase 2.10 stack', () {
       final lockfile = File('pubspec.lock').readAsStringSync();
-      final match = RegExp(
-        r'^  supabase:\n(?:.*\n)*?    version: "([^"]+)"',
-        multiLine: true,
-      ).firstMatch(lockfile);
-      expect(
-        match,
-        isNotNull,
-        reason: 'supabase entry missing from pubspec.lock',
-      );
-      final version = match!.group(1)!;
-      final parts = version.split('.').map(int.parse).toList();
-      expect(parts.length, greaterThanOrEqualTo(2));
-      final major = parts[0];
-      final minor = parts[1];
-      expect(
-        major > 2 || (major == 2 && minor >= 16),
-        isTrue,
-        reason: 'expected supabase >= 2.16.0, got $version',
-      );
+
+      String versionOf(String package) {
+        final match = RegExp(
+          '^  ${RegExp.escape(package)}:\\n(?:.*\\n)*?    version: "([^"]+)"',
+          multiLine: true,
+        ).firstMatch(lockfile);
+        expect(
+          match,
+          isNotNull,
+          reason: '$package entry missing from pubspec.lock',
+        );
+        return match!.group(1)!;
+      }
+
+      expect(versionOf('supabase_flutter'), startsWith('2.10.'));
+      expect(versionOf('supabase'), startsWith('2.10.'));
+      expect(versionOf('functions_client'), '2.5.0');
+      expect(versionOf('web'), startsWith('0.5.'));
     });
   });
 }
