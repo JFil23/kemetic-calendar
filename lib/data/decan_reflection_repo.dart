@@ -412,7 +412,7 @@ class DecanReflectionRepo {
   }
 
   String _friendlyReadError(Object error) {
-    if (isRetryableSupabaseAuthError(error)) {
+    if (isExpiredSupabaseJwtError(error)) {
       return 'Your session expired. Sign in again, then reopen Decan Reflections.';
     }
     if (error is PostgrestException) {

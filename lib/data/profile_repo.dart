@@ -1919,7 +1919,7 @@ class ProfileRepo {
   }
 
   String _friendlyFeedError(Object error) {
-    if (isRetryableSupabaseAuthError(error)) {
+    if (isExpiredSupabaseJwtError(error)) {
       return 'Your session expired. Sign in again, then reopen Community Feed.';
     }
     if (error is PostgrestException) {
