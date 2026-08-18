@@ -2789,6 +2789,132 @@ void main() {
       },
     );
 
+    testWidgets(
+      'Today on the current day centers now without replacing the grid',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        final today = KemeticMath.fromGregorian(
+          DateUtils.dateOnly(DateTime.now()),
+        );
+        await _pumpDayViewPage(
+          tester,
+          ky: today.kYear,
+          km: today.kMonth,
+          kd: today.kDay,
+        );
+
+        final gridState = tester.state(_todayGridFinder());
+        final timeline = _todayTimelineScrollable(tester);
+        final awayOffset = timeline.position.pixels < 200
+            ? timeline.position.maxScrollExtent
+            : 0.0;
+        timeline.position.jumpTo(awayOffset);
+        await tester.pump();
+        expect(timeline.position.pixels, closeTo(awayOffset, 0.5));
+
+        await tester.tap(find.byKey(calendarFloatingTodaySurfaceKey));
+        await tester.pumpAndSettle();
+
+        expect(identical(tester.state(_todayGridFinder()), gridState), isTrue);
+        final header = tester.widget<KemeticDayViewHeader>(
+          find.byType(KemeticDayViewHeader),
+        );
+        expect(header.currentKy, today.kYear);
+        expect(header.currentKm, today.kMonth);
+        expect(header.currentKd, today.kDay);
+        _expectTimelineCenteredOnNow(tester);
+      },
+    );
+
+    testWidgets(
+      'explicit Today tap ignores a stale initialFirstVisibleMinute',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        final today = KemeticMath.fromGregorian(
+          DateUtils.dateOnly(DateTime.now()),
+        );
+        final staleMinute = _staleMinuteFarFromNow();
+        await _pumpDayViewPage(
+          tester,
+          ky: today.kYear,
+          km: today.kMonth,
+          kd: today.kDay,
+          initialFirstVisibleMinute: staleMinute,
+        );
+
+        expect(
+          _todayTimelineScrollable(tester).position.pixels,
+          closeTo(staleMinute.toDouble(), 0.5),
+        );
+
+        await tester.tap(find.byKey(calendarFloatingTodaySurfaceKey));
+        await tester.pumpAndSettle();
+        await tester.pump(const Duration(milliseconds: 600));
+
+        final pixels = _todayTimelineScrollable(tester).position.pixels;
+        expect(pixels, isNot(closeTo(staleMinute.toDouble(), 30)));
+        _expectTimelineCenteredOnNow(tester);
+      },
+    );
+
+    testWidgets('opening Day View still restores initialFirstVisibleMinute', (
+      tester,
+    ) async {
+      await _setPhoneViewport(tester);
+      final today = KemeticMath.fromGregorian(
+        DateUtils.dateOnly(DateTime.now()),
+      );
+      const restoredMinute = 3 * 60;
+      await _pumpDayViewPage(
+        tester,
+        ky: today.kYear,
+        km: today.kMonth,
+        kd: today.kDay,
+        initialFirstVisibleMinute: restoredMinute,
+      );
+
+      expect(
+        _todayTimelineScrollable(tester).position.pixels,
+        closeTo(restoredMinute.toDouble(), 0.5),
+      );
+      final header = tester.widget<KemeticDayViewHeader>(
+        find.byType(KemeticDayViewHeader),
+      );
+      expect(header.currentKy, today.kYear);
+      expect(header.currentKm, today.kMonth);
+      expect(header.currentKd, today.kDay);
+    });
+
+    testWidgets(
+      'Today from another day reaches today and centers current time',
+      (tester) async {
+        await _setPhoneViewport(tester);
+        final priorDay = KemeticMath.fromGregorian(
+          DateUtils.dateOnly(DateTime.now()).subtract(const Duration(days: 2)),
+        );
+        final today = KemeticMath.fromGregorian(
+          DateUtils.dateOnly(DateTime.now()),
+        );
+        await _pumpDayViewPage(
+          tester,
+          ky: priorDay.kYear,
+          km: priorDay.kMonth,
+          kd: priorDay.kDay,
+        );
+
+        await tester.tap(find.byKey(calendarFloatingTodaySurfaceKey));
+        await tester.pumpAndSettle();
+
+        final header = tester.widget<KemeticDayViewHeader>(
+          find.byType(KemeticDayViewHeader),
+        );
+        expect(header.currentKy, today.kYear);
+        expect(header.currentKm, today.kMonth);
+        expect(header.currentKd, today.kDay);
+        _expectTimelineCenteredOnNow(tester);
+      },
+    );
+
     testWidgets('system back reports user close for restoration clearing', (
       tester,
     ) async {
@@ -3147,6 +3273,67 @@ Future<void> _setPhoneViewport(WidgetTester tester) async {
     tester.view.resetPhysicalSize();
     tester.view.resetDevicePixelRatio();
   });
+}
+
+Future<void> _pumpDayViewPage(
+  WidgetTester tester, {
+  required int ky,
+  required int km,
+  required int kd,
+  int? initialFirstVisibleMinute,
+}) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: DayViewPage(
+        initialKy: ky,
+        initialKm: km,
+        initialKd: kd,
+        showGregorian: false,
+        notesForDay: (ky, km, kd) => const [],
+        flowIndex: const {},
+        getMonthName: (month) => 'Month $month',
+        initialFirstVisibleMinute: initialFirstVisibleMinute,
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Finder _todayGridFinder() {
+  final today = KemeticMath.fromGregorian(DateUtils.dateOnly(DateTime.now()));
+  return find.byWidgetPredicate(
+    (widget) =>
+        widget is DayViewGrid &&
+        widget.ky == today.kYear &&
+        widget.km == today.kMonth &&
+        widget.kd == today.kDay,
+  );
+}
+
+ScrollableState _todayTimelineScrollable(WidgetTester tester) {
+  return tester.state<ScrollableState>(
+    find
+        .descendant(of: _todayGridFinder(), matching: find.byType(Scrollable))
+        .first,
+  );
+}
+
+int _staleMinuteFarFromNow() {
+  final nowMin = DateTime.now().hour * 60 + DateTime.now().minute;
+  const earlyMorning = 3 * 60;
+  if ((earlyMorning - nowMin).abs() >= 3 * 60) return earlyMorning;
+  return 15 * 60;
+}
+
+void _expectTimelineCenteredOnNow(WidgetTester tester) {
+  final position = _todayTimelineScrollable(tester).position;
+  final now = DateTime.now();
+  final nowMin = now.hour * 60 + now.minute + now.second / 60.0;
+  final expected = (nowMin - position.viewportDimension * 0.5 + 0.5).clamp(
+    0.0,
+    position.maxScrollExtent,
+  );
+  expect(position.pixels, closeTo(expected, 16));
 }
 
 Future<void> _setPhoneLandscapeViewport(WidgetTester tester) async {
