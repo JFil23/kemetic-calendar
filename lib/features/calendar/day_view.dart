@@ -130,6 +130,10 @@ const ValueKey<String> dayViewTimelineOverlayLayerKey = ValueKey<String>(
   'day_view_timeline_overlay_layer',
 );
 @visibleForTesting
+const ValueKey<String> dayViewCurrentTimeLineKey = ValueKey<String>(
+  'day_view_current_time_line',
+);
+@visibleForTesting
 ValueKey<String> dayViewEventCarouselKey(int overlapGroupIndex) =>
     ValueKey<String>('day-view-event-carousel-$overlapGroupIndex');
 typedef DayViewRestorationCallback =
@@ -5325,6 +5329,9 @@ class _DayViewPageState extends State<DayViewPage> {
   final GlobalKey _dayCardRevealTargetKey = GlobalKey(
     debugLabel: 'day_view_date_reveal_target',
   );
+  final GlobalKey _currentTimeLineKey = GlobalKey(
+    debugLabel: 'day_view_current_time_line',
+  );
   Timer? _restorationDebounce;
   bool _hydrationFrameScheduled = false;
   bool _hydrationFirstFrameRecorded = false;
@@ -5702,11 +5709,41 @@ class _DayViewPageState extends State<DayViewPage> {
     widget.onEventDetailRequestHandled?.call();
   }
 
+  Future<void> _centerCurrentTime() async {
+    const duration = Duration(milliseconds: 400);
+    const curve = Curves.easeInOutCubic;
+    var sawLine = false;
+
+    for (var attempt = 0; attempt < 12; attempt++) {
+      if (!mounted) return;
+      final lineContext = _currentTimeLineKey.currentContext;
+      if (lineContext != null && lineContext.mounted) {
+        if (!sawLine) {
+          sawLine = true;
+          await WidgetsBinding.instance.endOfFrame;
+          continue;
+        }
+        await Scrollable.ensureVisible(
+          lineContext,
+          alignment: 0.5,
+          duration: duration,
+          curve: curve,
+        );
+        return;
+      }
+      await WidgetsBinding.instance.endOfFrame;
+    }
+  }
+
   Future<void> _jumpToToday() async {
     if (_isJumpingToToday || !_pageController.hasClients) return;
 
     final now = DateTime.now();
     final today = KemeticMath.fromGregorian(now);
+    final alreadyToday =
+        _currentKy == today.kYear &&
+        _currentKm == today.kMonth &&
+        _currentKd == today.kDay;
     final targetGregorian = KemeticMath.toGregorian(
       today.kYear,
       today.kMonth,
@@ -5715,26 +5752,31 @@ class _DayViewPageState extends State<DayViewPage> {
     final diffDays = targetGregorian.difference(_initialGregorian).inDays;
     final targetPage = _centerPage + diffDays;
 
-    // Reset saved scroll so the timeline recenters on the current time.
-    _savedScrollOffset = null;
     _isJumpingToToday = true;
     _autoCenterMiniCalendar = true;
 
     try {
-      await _pageController.animateToPage(
-        targetPage,
-        duration: const Duration(milliseconds: 320),
-        curve: Curves.easeOut,
-      );
+      if (!alreadyToday) {
+        await _pageController.animateToPage(
+          targetPage,
+          duration: const Duration(milliseconds: 320),
+          curve: Curves.easeOut,
+        );
+        if (!mounted) return;
+        setState(() {
+          _currentKy = today.kYear;
+          _currentKm = today.kMonth;
+          _currentKd = today.kDay;
+        });
+        _scheduleHydrationFrame();
+        _centerMiniCalendarOnDay(_currentKd, force: true);
+      }
+      if (alreadyToday && mounted) {
+        // Refresh the now-line's position without replacing the existing DayViewGrid.
+        setState(() {});
+      }
+      await _centerCurrentTime();
       if (!mounted) return;
-      setState(() {
-        _currentKy = today.kYear;
-        _currentKm = today.kMonth;
-        _currentKd = today.kDay;
-        _gridInstance++; // rebuild grid to honor cleared scroll offset
-      });
-      _scheduleHydrationFrame();
-      _centerMiniCalendarOnDay(_currentKd, force: true);
       _reportRestorationState(immediate: true);
     } finally {
       _isJumpingToToday = false;
@@ -6172,6 +6214,7 @@ class _DayViewPageState extends State<DayViewPage> {
                               initialScrollOffset: _savedScrollOffset, // 🔧 NEW
                               initialFirstVisibleMinute:
                                   widget.initialFirstVisibleMinute,
+                              currentTimeLineKey: _currentTimeLineKey,
                               focusStartMin: widget.focusStartMin,
                               focusFlowId: widget.focusFlowId,
                               focusTitle: widget.focusTitle,
@@ -6267,6 +6310,7 @@ class DayViewGrid extends StatefulWidget {
   final Set<int> activeLedgerFlowIds;
   final int? initialFirstVisibleMinute;
   final double? initialScrollOffset; // 🔧 NEW
+  final GlobalKey? currentTimeLineKey;
   final int? focusStartMin; // minutes since midnight
   final int? focusFlowId;
   final String? focusTitle;
@@ -6360,6 +6404,7 @@ class DayViewGrid extends StatefulWidget {
     this.activeLedgerFlowIds = const <int>{},
     this.initialFirstVisibleMinute,
     this.initialScrollOffset, // 🔧 NEW
+    this.currentTimeLineKey,
     this.focusStartMin,
     this.focusFlowId,
     this.focusTitle,
@@ -7630,6 +7675,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           children: [
             if (_isToday())
               Positioned(
+                key: widget.currentTimeLineKey,
                 left: 0,
                 right: 0,
                 top: (now.hour * 60 + now.minute).toDouble(),
@@ -8595,7 +8641,11 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   Widget _buildNowLine() {
-    return Container(height: 1, color: _dayGold.withValues(alpha: 0.42));
+    return Container(
+      key: dayViewCurrentTimeLineKey,
+      height: 1,
+      color: _dayGold.withValues(alpha: 0.42),
+    );
   }
 
   bool _isToday() {
