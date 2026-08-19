@@ -899,6 +899,8 @@ void main() {
       );
 
       expect(monthCardBlock, isNot(contains('_WeekdayRow(')));
+      expect(monthCardBlock, contains('CalendarGeometryWeekdayRowBoundary('));
+      expect(monthCardBlock, contains('child: _DecanRow('));
       expect(epagomenalBlock, isNot(contains('_epagomenalWeekdayRow')));
 
       final dayChipBlock = _sourceBetween(
