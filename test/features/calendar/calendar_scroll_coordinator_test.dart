@@ -84,7 +84,7 @@ void main() {
     expect(rig.coordinator.activeGregorianBannerMonth.value, june);
   });
 
-  test('switches the weekday strip at measured decan labels', () {
+  test('switches the weekday strip at measured day-row trailing edges', () {
     final row0 = CalendarWeekdayRowRef(month: month1, rowIndex: 0);
     final row1 = CalendarWeekdayRowRef(month: month1, rowIndex: 1);
     final row2 = CalendarWeekdayRowRef(month: month1, rowIndex: 2);
@@ -97,43 +97,55 @@ void main() {
           _geometry(month2, 100, 200, finalDayBlockLeading: 170),
         ],
         weekdayRowBoundaries: [
-          CalendarWeekdayRowBoundary(row: row0, leading: 20),
-          CalendarWeekdayRowBoundary(row: row1, leading: 50),
-          CalendarWeekdayRowBoundary(row: row2, leading: 80),
-          CalendarWeekdayRowBoundary(row: nextRow0, leading: 120),
+          CalendarWeekdayRowBoundary(row: row0, trailing: 40),
+          CalendarWeekdayRowBoundary(row: row1, trailing: 62),
+          CalendarWeekdayRowBoundary(row: row2, trailing: 95),
+          CalendarWeekdayRowBoundary(row: nextRow0, trailing: 150),
         ],
       ),
-      offset: 49.999,
+      offset: 61.999,
       authoritative: month1,
     );
     addTearDown(rig.dispose);
 
     rig.coordinator.noteScroll();
     rig.flushOneFrame();
-    expect(rig.coordinator.activeWeekdayRow.value, row0);
+    expect(rig.coordinator.activeWeekdayRow.value, row1);
+    expect(rig.coordinator.activeBannerMonth.value, month1);
 
-    rig.offset = 50;
+    rig.offset = 62;
     rig.coordinator.noteScroll();
     rig.flushOneFrame();
-    expect(rig.coordinator.activeWeekdayRow.value, row1);
+    expect(rig.coordinator.activeWeekdayRow.value, row2);
+    expect(rig.coordinator.activeBannerMonth.value, month1);
 
     rig.offset = 78;
     rig.coordinator.noteScroll();
     rig.flushOneFrame();
     expect(rig.coordinator.activeBannerMonth.value, month2);
-    expect(rig.coordinator.activeWeekdayRow.value, row1);
+    expect(rig.coordinator.activeWeekdayRow.value, row2);
 
-    rig.offset = 80;
+    rig.offset = 94.999;
     rig.coordinator.noteScroll();
     rig.flushOneFrame();
     expect(rig.coordinator.activeWeekdayRow.value, row2);
 
-    rig.offset = 120;
+    rig.offset = 95;
     rig.coordinator.noteScroll();
     rig.flushOneFrame();
     expect(rig.coordinator.activeWeekdayRow.value, nextRow0);
 
-    rig.offset = 79.999;
+    rig.offset = 94.999;
+    rig.coordinator.noteScroll();
+    rig.flushOneFrame();
+    expect(rig.coordinator.activeWeekdayRow.value, row2);
+
+    rig.offset = 62;
+    rig.coordinator.noteScroll();
+    rig.flushOneFrame();
+    expect(rig.coordinator.activeWeekdayRow.value, row2);
+
+    rig.offset = 61.999;
     rig.coordinator.noteScroll();
     rig.flushOneFrame();
     expect(rig.coordinator.activeWeekdayRow.value, row1);

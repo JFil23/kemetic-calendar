@@ -165,8 +165,9 @@ final class CalendarScrollCoordinator {
   ValueListenable<GregorianMonthRef> get activeGregorianBannerMonth =>
       _activeGregorianBannerMonth;
 
-  /// The weekday sequence whose rendered decan label most recently crossed
-  /// the activation line beneath the fixed calendar header.
+  /// The weekday sequence of the day-number row currently entering the
+  /// viewport. It changes at the measured trailing edge of the preceding
+  /// day-number row beneath the fixed calendar header.
   ValueListenable<CalendarWeekdayRowRef> get activeWeekdayRow =>
       _activeWeekdayRow;
 

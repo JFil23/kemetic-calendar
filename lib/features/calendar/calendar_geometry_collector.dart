@@ -268,9 +268,12 @@ final class CalendarGeometryCollector extends ChangeNotifier {
       final viewport = RenderAbstractViewport.maybeOf(boundary);
       if (viewport == null) continue;
       final leading = viewport.getOffsetToReveal(boundary, 0).offset;
-      if (!leading.isFinite) continue;
+      final trailing = leading + boundary.size.height;
+      if (!leading.isFinite || !trailing.isFinite || trailing <= leading) {
+        continue;
+      }
       weekdayRowBoundaries.add(
-        CalendarWeekdayRowBoundary(row: boundary.row, leading: leading),
+        CalendarWeekdayRowBoundary(row: boundary.row, trailing: trailing),
       );
     }
 
@@ -302,7 +305,7 @@ final class CalendarGeometryCollector extends ChangeNotifier {
       (left, right) => left.leading.compareTo(right.leading),
     );
     weekdayRowBoundaries.sort(
-      (left, right) => left.leading.compareTo(right.leading),
+      (left, right) => left.trailing.compareTo(right.trailing),
     );
     if (_sameGeometry(_lastCandidate, geometries) &&
         _sameGregorianMonthBoundaries(
@@ -395,7 +398,8 @@ final class CalendarGeometryCollector extends ChangeNotifier {
   }
 }
 
-/// Marks the rendered edge that activates one pinned weekday sequence.
+/// Marks the rendered day-number row whose trailing edge activates one pinned
+/// weekday sequence.
 final class CalendarGeometryWeekdayRowBoundary
     extends SingleChildRenderObjectWidget {
   const CalendarGeometryWeekdayRowBoundary({
