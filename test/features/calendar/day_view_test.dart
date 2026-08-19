@@ -3245,6 +3245,46 @@ void main() {
       },
     );
   });
+
+  testWidgets('Event Workspace respects the iOS bottom safe area', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    tester.view.padding = const FakeViewPadding(bottom: 34);
+    addTearDown(tester.view.resetPadding);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: CalendarEventDetailSheet(
+              hostContext: context,
+              initialTarget: const DayViewSheetEventTarget(
+                ky: 1,
+                km: 1,
+                kd: 1,
+                event: EventItem(
+                  clientEventId: 'safe-area-workspace',
+                  title: 'Safe Area Workspace',
+                  location: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+                  startMin: 10 * 60,
+                  endMin: 11 * 60,
+                  flowId: -1,
+                  color: Colors.blue,
+                  allDay: false,
+                ),
+              ),
+              initialPresentation: 'workspace',
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Safe Area Workspace'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 String _gregorianMonthName(int month) {

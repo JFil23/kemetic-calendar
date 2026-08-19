@@ -4429,7 +4429,11 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final keyboardInset = keyboardInsetOf(context);
     final availableSheetHeight = math.max(
       0.0,
-      media.size.height - keyboardInset - media.padding.top - 12,
+      media.size.height -
+          keyboardInset -
+          media.padding.top -
+          media.padding.bottom -
+          12,
     );
     final maxSheetHeight = _isWorkspacePresentation
         ? availableSheetHeight
