@@ -311,4 +311,38 @@ void main() {
     expect(source, isNot(contains('_dayViewCollectPayloadTargets')));
     expect(source, isNot(contains('_dayViewExternalActionForRaw')));
   });
+
+  test(
+    'parseYouTubeVideoId extracts watch, short, embed, and youtu.be ids',
+    () {
+      expect(
+        parseYouTubeVideoId('https://www.youtube.com/watch?v=dQw4w9wgGcQ'),
+        'dQw4w9wgGcQ',
+      );
+      expect(
+        parseYouTubeVideoId('https://youtu.be/dQw4w9wgGcQ?t=30'),
+        'dQw4w9wgGcQ',
+      );
+      expect(
+        parseYouTubeVideoId('https://www.youtube.com/shorts/dQw4w9wgGcQ'),
+        'dQw4w9wgGcQ',
+      );
+      expect(
+        parseYouTubeVideoId('https://www.youtube.com/embed/dQw4w9wgGcQ'),
+        'dQw4w9wgGcQ',
+      );
+      expect(
+        parseYouTubeVideoId('https://www.youtube.com/playlist?list=PLtest'),
+        isNull,
+      );
+      expect(
+        parseYouTubeVideoId('https://example.com/watch?v=dQw4w9wgGcQ'),
+        isNull,
+      );
+      expect(
+        youtubeEmbedUrlForVideoId('dQw4w9wgGcQ'),
+        contains('youtube.com/embed/dQw4w9wgGcQ'),
+      );
+    },
+  );
 }

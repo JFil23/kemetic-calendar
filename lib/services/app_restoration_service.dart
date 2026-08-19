@@ -346,6 +346,7 @@ class EventDetailRestorationState {
     required this.identityValue,
     this.parentSurface,
     this.updatedAtMs,
+    this.presentation,
   });
 
   final int kYear;
@@ -355,6 +356,7 @@ class EventDetailRestorationState {
   final String identityValue;
   final String? parentSurface;
   final int? updatedAtMs;
+  final String? presentation;
 
   EventDetailRestorationState copyWith({
     int? kYear,
@@ -364,8 +366,10 @@ class EventDetailRestorationState {
     String? identityValue,
     String? parentSurface,
     int? updatedAtMs,
+    String? presentation,
     bool clearParentSurface = false,
     bool clearUpdatedAtMs = false,
+    bool clearPresentation = false,
   }) {
     return EventDetailRestorationState(
       kYear: kYear ?? this.kYear,
@@ -377,6 +381,9 @@ class EventDetailRestorationState {
           ? null
           : (parentSurface ?? this.parentSurface),
       updatedAtMs: clearUpdatedAtMs ? null : (updatedAtMs ?? this.updatedAtMs),
+      presentation: clearPresentation
+          ? null
+          : (presentation ?? this.presentation),
     );
   }
 
@@ -390,6 +397,8 @@ class EventDetailRestorationState {
       if (parentSurface != null && parentSurface!.trim().isNotEmpty)
         'parentSurface': parentSurface!.trim(),
       if (updatedAtMs != null) 'updatedAtMs': updatedAtMs,
+      if (presentation != null && presentation!.trim().isNotEmpty)
+        'presentation': presentation!.trim(),
     };
   }
 
@@ -406,6 +415,12 @@ class EventDetailRestorationState {
     final identityValue = (json['identityValue'] as String?)?.trim();
     final parentSurface = (json['parentSurface'] as String?)?.trim();
     final updatedAtMs = _asInt(json['updatedAtMs']);
+    final presentationRaw = (json['presentation'] as String?)?.trim();
+    final String? presentation = presentationRaw == 'workspace'
+        ? 'workspace'
+        : (presentationRaw == null || presentationRaw.isEmpty
+              ? null
+              : 'detail');
 
     if (kYear == null ||
         kMonth == null ||
@@ -431,6 +446,7 @@ class EventDetailRestorationState {
           ? null
           : parentSurface,
       updatedAtMs: updatedAtMs,
+      presentation: presentation,
     );
   }
 }

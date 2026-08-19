@@ -114,6 +114,50 @@ bool _eventResourceIsYouTube(Uri uri) {
   return host.contains('youtube.com') || host.contains('youtu.be');
 }
 
+final RegExp _youtubeVideoIdPattern = RegExp(r'^[\w-]{11}$');
+
+String? parseYouTubeVideoId(String raw) {
+  final target = normalizeExternalLinkToken(raw);
+  if (target.isEmpty) return null;
+  final uri = Uri.tryParse(target);
+  if (uri == null || !_eventResourceIsYouTube(uri)) return null;
+
+  String? take(String? value) {
+    final id = value?.trim();
+    if (id == null || !_youtubeVideoIdPattern.hasMatch(id)) return null;
+    return id;
+  }
+
+  final host = uri.host.toLowerCase();
+  if (host == 'youtu.be' || host.endsWith('.youtu.be')) {
+    return take(uri.pathSegments.isEmpty ? null : uri.pathSegments.first);
+  }
+
+  final fromQuery = take(uri.queryParameters['v']);
+  if (fromQuery != null) return fromQuery;
+
+  final segments = uri.pathSegments;
+  for (var i = 0; i < segments.length - 1; i++) {
+    switch (segments[i].toLowerCase()) {
+      case 'embed':
+      case 'shorts':
+      case 'live':
+      case 'v':
+        final id = take(segments[i + 1]);
+        if (id != null) return id;
+    }
+  }
+  return null;
+}
+
+String youtubeEmbedUrlForVideoId(String videoId) {
+  return 'https://www.youtube.com/embed/$videoId?playsinline=1&rel=0&modestbranding=1';
+}
+
+bool eventResourceIsYouTubeWorkspaceCandidate(String raw) {
+  return parseYouTubeVideoId(raw) != null;
+}
+
 EventResource? resolveEventResource(EventResourceSource source) {
   final structuredTargets = <String>[];
   _collectEventResourcePayloadTargets(

@@ -2533,6 +2533,13 @@ class _DayChip extends StatelessWidget {
       isReminder: note.isReminder,
       reminderId: note.reminderId,
       behaviorPayload: note.behaviorPayload,
+      hasCanonicalSchedule: noteHasCanonicalSchedule(
+        allDay: note.allDay,
+        startHour: note.start?.hour,
+        startMinute: note.start?.minute,
+        endHour: note.end?.hour,
+        endMinute: note.end?.minute,
+      ),
     );
   }
 
@@ -2575,6 +2582,17 @@ class _DayChip extends StatelessWidget {
               currentState?._saveCalendarEventDetailOverlayForTarget(target),
             );
           },
+          onPresentationChanged: (presentation) {
+            final currentState = CalendarPage.globalKey.currentState;
+            final current = currentState?._activeCalendarEventDetailRestoration;
+            if (current == null || currentState == null) return;
+            unawaited(
+              currentState._saveCalendarEventDetailOverlayState(
+                current.copyWith(presentation: presentation),
+              ),
+            );
+          },
+          onRequestEndChange: state?.requestEndChange,
           onManageFlows: onManageFlows,
           onEditNote: onEditNote,
           onDeleteNote: onDeleteNote,

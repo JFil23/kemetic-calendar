@@ -608,6 +608,14 @@ class LandscapeMonthView extends StatelessWidget {
     int newStartMin,
   )?
   onMoveEventTime;
+  final Future<bool> Function({
+    required int ky,
+    required int km,
+    required int kd,
+    required EventItem event,
+    required Duration extension,
+  })?
+  onRequestEndChange;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
   final MaatJournalResponseBlockWriter? onWriteJournalResponse;
@@ -651,6 +659,7 @@ class LandscapeMonthView extends StatelessWidget {
     this.onEndReminder,
     this.onShareReminder,
     this.onMoveEventTime,
+    this.onRequestEndChange,
     this.onShareNote,
     this.onAppendToJournal,
     this.onWriteJournalResponse,
@@ -689,6 +698,7 @@ class LandscapeMonthView extends StatelessWidget {
       onEndReminder: onEndReminder,
       onShareReminder: onShareReminder,
       onMoveEventTime: onMoveEventTime,
+      onRequestEndChange: onRequestEndChange,
       onShareNote: onShareNote,
       onAppendToJournal: onAppendToJournal,
       onWriteJournalResponse: onWriteJournalResponse,
@@ -742,6 +752,14 @@ class LandscapeMonthPager extends StatefulWidget {
     int newStartMin,
   )?
   onMoveEventTime;
+  final Future<bool> Function({
+    required int ky,
+    required int km,
+    required int kd,
+    required EventItem event,
+    required Duration extension,
+  })?
+  onRequestEndChange;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
   final MaatJournalResponseBlockWriter? onWriteJournalResponse;
@@ -785,6 +803,7 @@ class LandscapeMonthPager extends StatefulWidget {
     this.onEndReminder,
     this.onShareReminder,
     this.onMoveEventTime,
+    this.onRequestEndChange,
     this.onShareNote,
     this.onAppendToJournal,
     this.onWriteJournalResponse,
@@ -1225,6 +1244,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
           onEndReminder: widget.onEndReminder,
           onShareReminder: widget.onShareReminder,
           onMoveEventTime: widget.onMoveEventTime,
+          onRequestEndChange: widget.onRequestEndChange,
           onShareNote: widget.onShareNote,
           onAppendToJournal: widget.onAppendToJournal,
           onWriteJournalResponse: widget.onWriteJournalResponse,
@@ -1277,6 +1297,14 @@ class LandscapeMonthGridBody extends StatefulWidget {
     int newStartMin,
   )?
   onMoveEventTime;
+  final Future<bool> Function({
+    required int ky,
+    required int km,
+    required int kd,
+    required EventItem event,
+    required Duration extension,
+  })?
+  onRequestEndChange;
   final Future<void> Function(EventItem evt)? onShareNote;
   final Future<void> Function(String text)? onAppendToJournal;
   final MaatJournalResponseBlockWriter? onWriteJournalResponse;
@@ -1315,6 +1343,7 @@ class LandscapeMonthGridBody extends StatefulWidget {
     this.onEndReminder,
     this.onShareReminder,
     this.onMoveEventTime,
+    this.onRequestEndChange,
     this.onShareNote,
     this.onAppendToJournal,
     this.onWriteJournalResponse,
@@ -1364,6 +1393,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   final int _buttonTapCount = 0;
   bool _isDisposed = false;
   String? _initialEventDetailRestoreKey;
+  String _eventDetailPresentation = eventWorkspacePresentationDetail;
   bool _initialEventDetailRestoreInFlight = false;
 
   @override
@@ -1531,7 +1561,10 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
   EventDetailRestorationState? _detailRestorationStateForTarget(
     DayViewSheetEventTarget target,
   ) {
-    return eventDetailRestorationStateForTarget(target);
+    return eventDetailRestorationStateForTarget(
+      target,
+      presentation: _eventDetailPresentation,
+    );
   }
 
   void _publishEventDetailRestorationTarget(DayViewSheetEventTarget target) {
@@ -1606,7 +1639,12 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     _initialEventDetailRestoreKey = key;
     _initialEventDetailRestoreInFlight = false;
     _scrollToDay(state.kDay);
-    _showEventDetail(target.event, state.kDay, initialTarget: target);
+    _showEventDetail(
+      target.event,
+      state.kDay,
+      initialTarget: target,
+      initialPresentation: state.presentation,
+    );
   }
 
   @override
@@ -1971,6 +2009,13 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
       category: note.category,
       isReminder: note.isReminder,
       reminderId: note.reminderId,
+      hasCanonicalSchedule: noteHasCanonicalSchedule(
+        allDay: note.allDay,
+        startHour: note.start?.hour,
+        startMinute: note.start?.minute,
+        endHour: note.end?.hour,
+        endMinute: note.end?.minute,
+      ),
     );
   }
 
@@ -2495,10 +2540,14 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
     EventItem event,
     int day, {
     DayViewSheetEventTarget? initialTarget,
+    String? initialPresentation,
   }) {
     if (!CalendarEventDetailSheetCoordinator.tryMarkOpenOrOpening()) {
       return;
     }
+    _eventDetailPresentation = normalizeEventWorkspacePresentation(
+      initialPresentation,
+    );
     final rootContext = context;
     final sheetTarget =
         initialTarget ??
@@ -2542,6 +2591,14 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
           resolveCurrentEventTarget: _resolveCurrentEventTarget,
           resolveAdjacentEventTarget: _resolveAdjacentEventTarget,
           onTargetChanged: moveToTarget,
+          onRequestEndChange: widget.onRequestEndChange,
+          initialPresentation: _eventDetailPresentation,
+          onPresentationChanged: (presentation) {
+            _eventDetailPresentation = normalizeEventWorkspacePresentation(
+              presentation,
+            );
+            _publishEventDetailRestorationTarget(activeTarget);
+          },
           onManageFlows: widget.onManageFlows,
           onEditNote: widget.onEditNote,
           onDeleteNote: widget.onDeleteNote,

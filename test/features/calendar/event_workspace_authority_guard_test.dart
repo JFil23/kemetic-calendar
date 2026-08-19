@@ -95,8 +95,8 @@ void main() {
         'EventResource? resolveEventResource(EventResourceSource source) {',
         'bool eventResourceCameFromLocation(',
       );
-    expect(extractor, contains('_collectEventResourcePayloadTargets'));
-    expect(extractor, contains('source.behaviorPayload'));
+      expect(extractor, contains('_collectEventResourcePayloadTargets'));
+      expect(extractor, contains('source.behaviorPayload'));
       expect(extractor, contains('externalLinkPattern.allMatches(detail)'));
       expect(
         extractor,
@@ -122,6 +122,8 @@ void main() {
     );
     expect(button, contains('launchExternalTarget('));
     expect(button, contains('action.target'));
+    expect(button, contains('FeatureFlags.enableEventWorkspace'));
+    expect(button, contains('eventResourceIsYouTubeWorkspaceCandidate'));
   });
 
   test('YouTube remains a native-preferred launch host', () {
@@ -130,14 +132,16 @@ void main() {
     expect(externalLinks, contains('Future<bool> launchExternalTarget('));
   });
 
-  test('EventDetailRestorationState has no overlay mode field', () {
+  test('EventDetailRestorationState uses presentation, not overlay mode', () {
     final state = _sourceBetween(
       restoration,
       'class EventDetailRestorationState {',
       'class DayViewRestorationState {',
     );
     expect(state, isNot(contains('this.mode')));
-    expect(state, isNot(contains('this.presentation')));
+    expect(state, contains('this.presentation'));
+    expect(state, isNot(contains('remainingSeconds')));
+    expect(state, isNot(contains('expired')));
     expect(state, contains('identityType'));
     expect(state, contains('identityValue'));
   });
@@ -156,18 +160,24 @@ void main() {
     },
   );
 
-  test('end-only silent mutation API is still absent', () {
+  test('end-only requestEndChange exists on calendar authority', () {
     expect(calendarPage, contains('Future<void> _moveEventInDayView('));
+    expect(calendarPage, contains('Future<bool> requestEndChange('));
     final move = _sourceBetween(
       calendarPage,
       'Future<void> _moveEventInDayView(',
-      'Future<void> _handleJournalCompletionBadgesRemoved(',
+      'Future<bool> requestEndChange(',
     );
     expect(move, contains('durationMin = evt.endMin - evt.startMin'));
     expect(move, contains('if (evt.allDay)'));
     expect(move, contains('if (evt.isReminder)'));
-    expect(calendarPage, isNot(contains('requestEndChange')));
-    expect(dayView, isNot(contains('requestEndChange')));
+    expect(dayView, contains('onRequestEndChange'));
+    expect(
+      File(
+        'lib/features/calendar/event_workspace/event_workspace_surface.dart',
+      ).readAsStringSync(),
+      isNot(contains('requestEndChange')),
+    );
   });
 
   test('paint all-day range is 9:00-17:00 and is not schedule authority', () {
@@ -182,20 +192,21 @@ void main() {
     expect(authorityMap, contains('Not a deadline'));
   });
 
-  test('resume has no listenable on RestorationCoordinator yet', () {
+  test('resume listenable lives on RestorationCoordinator', () {
     final note = _sourceBetween(
       restorationCoordinator,
       'void noteLifecycleState(AppLifecycleState state) {',
       'bool get shouldPreserveOverlayForLifecycleClose {',
     );
-    expect(note, isNot(contains('notifyListeners')));
-    expect(note, isNot(contains('value =')));
-    expect(restorationCoordinator, isNot(contains('resumeListenable')));
+    expect(restorationCoordinator, contains('resumeListenable'));
+    expect(note, contains('resumeListenable.value++'));
+    expect(note, isNot(contains('WidgetsBindingObserver')));
   });
 
-  test('PR 0 does not add enableEventWorkspace or a runtime flag service', () {
-    expect(featureFlags, isNot(contains('enableEventWorkspace')));
+  test('RC enables enableEventWorkspace without a runtime flag service', () {
+    expect(featureFlags, contains('enableEventWorkspace'));
     expect(featureFlags, contains('static const bool enableV2DocumentModel'));
+    expect(featureFlags, isNot(contains('FeatureFlagService')));
   });
 
   test(
