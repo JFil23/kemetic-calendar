@@ -16,8 +16,13 @@ void main() {
   late String authorityMap;
   late String releaseCutover;
 
+  late String eventResource;
+
   setUpAll(() {
     dayView = File('lib/features/calendar/day_view.dart').readAsStringSync();
+    eventResource = File(
+      'lib/features/calendar/event_resource.dart',
+    ).readAsStringSync();
     calendarPage = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
@@ -82,29 +87,32 @@ void main() {
     },
   );
 
-  test('resource extractor precedence is payload then detail then location', () {
-    final extractor = _sourceBetween(
-      dayView,
-      '_DayViewExternalAction? _dayViewExternalActionForEvent(EventItem event) {',
-      'bool _dayViewShouldShowDetailLocation(',
-    );
-    expect(
-      extractor,
-      contains('_dayViewCollectPayloadTargets(event.behaviorPayload'),
-    );
-    expect(extractor, contains('externalLinkPattern.allMatches(detail)'));
-    expect(
-      extractor,
-      contains('_dayViewExternalActionForRaw(location, fallbackToMaps: true)'),
-    );
-    final payloadIndex = extractor.indexOf('_dayViewCollectPayloadTargets');
-    final detailIndex = extractor.indexOf(
-      'externalLinkPattern.allMatches(detail)',
-    );
-    final locationIndex = extractor.indexOf('event.location');
-    expect(payloadIndex, lessThan(detailIndex));
-    expect(detailIndex, lessThan(locationIndex));
-  });
+  test(
+    'resource extractor precedence is payload then detail then location',
+    () {
+      final extractor = _sourceBetween(
+        eventResource,
+        'EventResource? resolveEventResource(EventResourceSource source) {',
+        'bool eventResourceCameFromLocation(',
+      );
+    expect(extractor, contains('_collectEventResourcePayloadTargets'));
+    expect(extractor, contains('source.behaviorPayload'));
+      expect(extractor, contains('externalLinkPattern.allMatches(detail)'));
+      expect(
+        extractor,
+        contains('resolveEventResourceFromRaw(location, fallbackToMaps: true)'),
+      );
+      final payloadIndex = extractor.indexOf(
+        '_collectEventResourcePayloadTargets',
+      );
+      final detailIndex = extractor.indexOf(
+        'externalLinkPattern.allMatches(detail)',
+      );
+      final locationIndex = extractor.indexOf('source.location');
+      expect(payloadIndex, lessThan(detailIndex));
+      expect(detailIndex, lessThan(locationIndex));
+    },
+  );
 
   test('flag-off / current detail action still launches externally', () {
     final button = _sourceBetween(

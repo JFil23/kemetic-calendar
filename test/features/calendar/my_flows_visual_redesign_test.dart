@@ -441,6 +441,21 @@ void main() {
     expect(manageCount, 1);
   });
 
+  testWidgets('Dashboard YouTube location still uses Watch on YouTube', (
+    tester,
+  ) async {
+    await _pumpMyFlowDetail(tester, saved: true);
+
+    await _scrollToText(tester, 'Why Does Fermat’s Last Theorem Matter?');
+    await tester.tap(
+      find.byKey(const ValueKey<String>('my_flow_day_tap_71:preview-71-2')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Watch on YouTube'), findsOneWidget);
+    expect(find.text('https://www.youtube.com/watch?v=example'), findsNothing);
+  });
+
   testWidgets('Saved detail starts at Day 1 and keeps import CTA', (
     tester,
   ) async {

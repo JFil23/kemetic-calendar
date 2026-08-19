@@ -79,6 +79,8 @@ import '../../utils/external_link_utils.dart';
 import '../../utils/flow_filter_engine.dart';
 import '../../utils/text_editing_controller_sync.dart';
 import '../shared_practice/shared_practice_completion_sheet.dart';
+import 'event_resource.dart';
+export 'event_resource.dart';
 
 const double _kMinEventBlockHeight = 56.0;
 const double _kTimelineLabelWidth = 60.0;
@@ -264,156 +266,35 @@ String _dayViewTimelineFlowLabel(
   );
 }
 
-const Set<String> _dayViewExternalPayloadKeys = {
-  'url',
-  'uri',
-  'href',
-  'link',
-  'external_url',
-  'externalurl',
-  'external_link',
-  'externallink',
-  'action_url',
-  'actionurl',
-  'meeting_url',
-  'meetingurl',
-  'video_url',
-  'videourl',
-  'watch_url',
-  'watchurl',
-  'document_url',
-  'documenturl',
-  'map_url',
-  'mapurl',
-};
-
-void _dayViewCollectPayloadTargets(
-  Object? node,
-  List<String> targets, [
-  int depth = 0,
-]) {
-  if (node == null || depth > 4) return;
-  if (node is Map) {
-    for (final entry in node.entries) {
-      final key = entry.key.toString().trim().toLowerCase();
-      final normalizedKey = key.replaceAll(RegExp(r'[\s-]'), '_');
-      final compactKey = normalizedKey.replaceAll('_', '');
-      final value = entry.value;
-      final isTargetKey =
-          _dayViewExternalPayloadKeys.contains(normalizedKey) ||
-          _dayViewExternalPayloadKeys.contains(compactKey);
-      if (isTargetKey) {
-        if (value is String) {
-          targets.add(value);
-        } else if (value is Iterable) {
-          for (final item in value) {
-            if (item is String) targets.add(item);
-          }
-        }
-      }
-      if (value is Map || value is Iterable) {
-        _dayViewCollectPayloadTargets(value, targets, depth + 1);
-      }
-    }
-  } else if (node is Iterable) {
-    for (final item in node) {
-      _dayViewCollectPayloadTargets(item, targets, depth + 1);
-    }
-  }
-}
-
-String _dayViewExternalActionLabel(Uri uri, {required bool fallbackToMaps}) {
-  final scheme = uri.scheme.toLowerCase();
-  final host = uri.host.toLowerCase();
-  if (scheme == 'mailto') return 'Email';
-  if (scheme == 'tel') return 'Call';
-  if (host.contains('youtube.com') || host.contains('youtu.be')) {
-    return 'Watch on YouTube';
-  }
-  if (host.contains('zoom.us') ||
-      host.contains('meet.google') ||
-      host.contains('teams.microsoft')) {
-    return 'Join meeting';
-  }
-  if (fallbackToMaps ||
-      host.contains('maps.google') ||
-      host.contains('apple.com/maps')) {
-    return 'Open map';
-  }
-  if (host.contains('docs.google') ||
-      host.contains('notion.') ||
-      uri.path.toLowerCase().endsWith('.pdf')) {
-    return 'Open document';
-  }
-  return 'Open link';
-}
-
-IconData _dayViewExternalActionIcon(Uri uri, {required bool fallbackToMaps}) {
-  final scheme = uri.scheme.toLowerCase();
-  final host = uri.host.toLowerCase();
-  if (scheme == 'mailto') return Icons.mail_outline_rounded;
-  if (scheme == 'tel') return Icons.call_outlined;
-  if (host.contains('youtube.com') || host.contains('youtu.be')) {
-    return Icons.play_arrow_rounded;
-  }
-  if (host.contains('zoom.us') ||
-      host.contains('meet.google') ||
-      host.contains('teams.microsoft')) {
-    return Icons.videocam_outlined;
-  }
-  if (fallbackToMaps ||
-      host.contains('maps.google') ||
-      host.contains('apple.com/maps')) {
-    return Icons.map_outlined;
-  }
-  if (host.contains('docs.google') ||
-      host.contains('notion.') ||
-      uri.path.toLowerCase().endsWith('.pdf')) {
-    return Icons.description_outlined;
-  }
-  return Icons.open_in_new_rounded;
-}
-
-_DayViewExternalAction? _dayViewExternalActionForRaw(
-  String raw, {
-  bool fallbackToMaps = false,
+_DayViewExternalAction? _dayViewExternalActionFromResource(
+  EventResource resource, {
+  required bool fallbackToMaps,
 }) {
-  final target = normalizeExternalLinkToken(raw);
-  if (target.isEmpty) return null;
-  final uri = buildExternalLaunchUri(target, fallbackToMaps: fallbackToMaps);
+  final uri = buildExternalLaunchUri(
+    resource.target,
+    fallbackToMaps: fallbackToMaps,
+  );
   if (uri == null) return null;
   return _DayViewExternalAction(
-    label: _dayViewExternalActionLabel(uri, fallbackToMaps: fallbackToMaps),
-    target: target,
-    icon: _dayViewExternalActionIcon(uri, fallbackToMaps: fallbackToMaps),
+    label: eventResourceActionLabel(uri, fallbackToMaps: fallbackToMaps),
+    target: resource.target,
+    icon: eventResourceActionIcon(uri, fallbackToMaps: fallbackToMaps),
     fallbackToMaps: fallbackToMaps,
   );
 }
 
 _DayViewExternalAction? _dayViewExternalActionForEvent(EventItem event) {
-  final structuredTargets = <String>[];
-  _dayViewCollectPayloadTargets(event.behaviorPayload, structuredTargets);
-  for (final raw in structuredTargets) {
-    final action = _dayViewExternalActionForRaw(raw);
-    if (action != null) return action;
-  }
-
-  final detail = event.detail;
-  if (detail != null && detail.trim().isNotEmpty) {
-    for (final match in externalLinkPattern.allMatches(detail)) {
-      final raw = match.group(0);
-      if (raw == null || !looksLikeLaunchTarget(raw)) continue;
-      final action = _dayViewExternalActionForRaw(raw);
-      if (action != null) return action;
-    }
-  }
-
-  final location = event.location?.trim();
-  if (location != null && location.isNotEmpty) {
-    return _dayViewExternalActionForRaw(location, fallbackToMaps: true);
-  }
-
-  return null;
+  final source = EventResourceSource(
+    behaviorPayload: event.behaviorPayload,
+    detail: event.detail,
+    location: event.location,
+  );
+  final resource = resolveEventResource(source);
+  if (resource == null) return null;
+  return _dayViewExternalActionFromResource(
+    resource,
+    fallbackToMaps: eventResourceCameFromLocation(source),
+  );
 }
 
 bool _dayViewShouldShowDetailLocation(
