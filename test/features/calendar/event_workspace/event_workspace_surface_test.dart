@@ -24,6 +24,23 @@ void main() {
       isFalse,
     );
 
+    expect(
+      formatEventWorkspaceRemaining(const Duration(minutes: 5, seconds: 4)),
+      '5:04 remaining',
+    );
+    expect(
+      formatEventWorkspaceRemaining(const Duration(hours: 1, minutes: 2)),
+      '1:02:00 remaining',
+    );
+    expect(
+      eventWorkspacePurposeFromDetail('  Draw from life.  '),
+      'Draw from life.',
+    );
+    expect(
+      eventWorkspacePurposeFromDetail('flowLocalId=12; Keep the line honest.'),
+      'Keep the line honest.',
+    );
+
     final source = File(
       'lib/features/calendar/event_workspace/event_workspace_surface.dart',
     ).readAsStringSync();
@@ -123,6 +140,50 @@ void main() {
     expect(closed, isFalse);
     expect(find.byKey(eventWorkspaceExpiredKey), findsNothing);
   });
+
+  testWidgets('player keeps a 16:9 frame and workspace body below it', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: EventWorkspaceSurface(
+          title: 'Draw the Idea',
+          sourceUrl: 'https://www.youtube.com/watch?v=dQw4w9wgGcQ',
+          purpose: 'Keep the line honest.',
+          canonicalEnd: DateTime.now().add(
+            const Duration(minutes: 5, seconds: 4),
+          ),
+          onMinimize: () {},
+          onClose: () {},
+        ),
+      ),
+    );
+
+    final player = tester.widget<AspectRatio>(
+      find.byKey(eventWorkspacePlayerFrameKey),
+    );
+    expect(player.aspectRatio, closeTo(16 / 9, 0.0001));
+    expect(find.byKey(eventWorkspaceBodyKey), findsOneWidget);
+    expect(find.byKey(eventWorkspaceRemainingKey), findsOneWidget);
+    expect(find.text('Keep the line honest.'), findsOneWidget);
+    expect(
+      tester.getRect(find.byKey(eventWorkspacePlayerFrameKey)).height,
+      lessThan(tester.getRect(find.byKey(eventWorkspaceSurfaceKey)).height),
+    );
+  });
+
+  test(
+    'YouTube renderer covers the platform-view flash with the workspace canvas',
+    () {
+      final renderer = File(
+        'lib/features/calendar/event_workspace/youtube_workspace_renderer.dart',
+      ).readAsStringSync();
+      expect(renderer, contains('youtubeWorkspaceLoaderKey'));
+      expect(renderer, contains("iframe.style.backgroundColor = '#060504'"));
+      expect(renderer, contains('Color(0xFF060504)'));
+      expect(renderer, isNot(contains('Color(0xFF111111)')));
+    },
+  );
 
   testWidgets('expired workspace shows Close and Extend without completing', (
     tester,

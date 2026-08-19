@@ -66,3 +66,31 @@ bool eventWorkspaceIsSessionGovernable({
 }) {
   return presentable && !allDay && hasCanonicalSchedule;
 }
+
+const double eventWorkspacePlayerAspectRatio = 16 / 9;
+
+String formatEventWorkspaceRemaining(Duration remaining) {
+  final clamped = remaining.isNegative ? Duration.zero : remaining;
+  final total = clamped.inSeconds;
+  final hours = total ~/ 3600;
+  final minutes = (total % 3600) ~/ 60;
+  final seconds = total % 60;
+  if (hours > 0) {
+    return '$hours:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')} remaining';
+  }
+  return '$minutes:${seconds.toString().padLeft(2, '0')} remaining';
+}
+
+String? eventWorkspacePurposeFromDetail(String? detail) {
+  var text = detail?.trim() ?? '';
+  if (text.startsWith('flowLocalId=')) {
+    final semi = text.indexOf(';');
+    if (semi >= 0 && semi < text.length - 1) {
+      text = text.substring(semi + 1).trim();
+    } else {
+      text = '';
+    }
+  }
+  if (text.isEmpty) return null;
+  return text;
+}

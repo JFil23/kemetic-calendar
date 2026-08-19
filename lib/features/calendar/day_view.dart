@@ -4508,6 +4508,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                                   target.event,
                                 )?.target ??
                                 '',
+                            purpose: eventWorkspacePurposeFromDetail(
+                              target.event.detail,
+                            ),
                             canonicalEnd: _canonicalEndForTarget(target),
                             onMinimize: () => _setPresentation(
                               eventWorkspacePresentationDetail,
