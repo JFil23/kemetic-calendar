@@ -346,7 +346,7 @@ void main() {
     expect(snapshot.gregorianMonthAt(30), may);
   });
 
-  testWidgets('publishes decan weekday trailing edges atomically', (
+  testWidgets('publishes decan weekday boundaries atomically', (
     tester,
   ) async {
     final collector = CalendarGeometryCollector();

@@ -1,13 +1,13 @@
 {
   "schema": 1,
-  "audited_revision": "89e11276e14e6feb6637c381957a4b23e43c73d3",
+  "audited_revision": "14f67d5f23af7c1ddeff0523c9619253f8f21201",
   "fragments": [
     {
       "name": "year_and_month_sections",
       "file": "lib/features/calendar/calendar_grid_widgets.dart",
       "start": "class _YearSection extends StatelessWidget {",
       "end": "/* ───────────── Detail Page (single-window behavior, flows-aware) ───────────── */",
-      "sha256": "c723e7c6d419458f585a979141c14f3755ab08da0240c669b5a4bd6866214375"
+      "sha256": "d4dc07de6587a93b34e11b2ddfd18adfbcb6bac71e172ac947f6f65f5247415a"
     },
     {
       "name": "calendar_text_styles",
