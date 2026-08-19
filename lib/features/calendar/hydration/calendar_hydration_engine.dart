@@ -928,6 +928,7 @@ extension _CalendarHydrationEngine on CalendarPageState {
               allDay: allDay,
               start: startTime,
               end: endTime,
+              canonicalEnd: allDay ? null : localEnd,
               flowId: flowId,
               category: evt.category,
               isReminder: owningFlow.isReminder,
@@ -1155,6 +1156,7 @@ extension _CalendarHydrationEngine on CalendarPageState {
               allDay: evt.allDay,
               start: startTime,
               end: endTime,
+              canonicalEnd: evt.allDay ? null : evt.endsAtUtc?.toLocal(),
               flowId: noteFlowId,
               manualColor:
                   decoded.color ??

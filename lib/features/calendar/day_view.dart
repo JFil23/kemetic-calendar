@@ -2164,6 +2164,7 @@ class NoteData {
   final bool allDay;
   final TimeOfDay? start;
   final TimeOfDay? end;
+  final DateTime? canonicalEnd;
   final int? flowId;
   final Color? manualColor;
   final String? category;
@@ -2182,6 +2183,7 @@ class NoteData {
     required this.allDay,
     this.start,
     this.end,
+    this.canonicalEnd,
     this.flowId,
     this.manualColor,
     this.category,
@@ -2300,6 +2302,7 @@ class EventItem {
   final String? location;
   final int startMin;
   final int endMin;
+  final DateTime? canonicalEnd;
   final int? flowId;
   final Color color;
   final Color? manualColor;
@@ -2320,6 +2323,7 @@ class EventItem {
     this.location,
     required this.startMin,
     required this.endMin,
+    this.canonicalEnd,
     this.flowId,
     required this.color,
     this.manualColor,
@@ -2766,6 +2770,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     )) {
       return null;
     }
+    if (event.canonicalEnd != null) return event.canonicalEnd;
     final day = KemeticMath.toGregorian(target.ky, target.km, target.kd);
     return canonicalEventDateTime(
       day: DateTime(day.year, day.month, day.day),
@@ -4831,6 +4836,7 @@ EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {
     location: note.location,
     startMin: startMin,
     endMin: endMin,
+    canonicalEnd: note.canonicalEnd,
     flowId: note.flowId,
     color: eventColor,
     manualColor: note.manualColor,

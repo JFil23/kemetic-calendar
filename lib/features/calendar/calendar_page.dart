@@ -4334,6 +4334,7 @@ class _CalendarWarmStateStore {
       allDay: note.allDay,
       start: note.start,
       end: note.end,
+      canonicalEnd: note.canonicalEnd,
       flowId: note.flowId,
       manualColor: note.manualColor,
       category: note.category,
@@ -6245,6 +6246,9 @@ class CalendarPage extends StatefulWidget {
         allDay: allDay,
         start: _timeOfDayFromWarmStartMinutes(json['startMinutes']),
         end: _timeOfDayFromWarmStartMinutes(json['endMinutes']),
+        canonicalEnd: _parseWarmStartSearchDateTime(
+          json['canonicalEnd'],
+        )?.toLocal(),
         flowId: flowId,
         manualColor: warmStartColorValue == null
             ? null
@@ -10447,6 +10451,7 @@ class CalendarPageState extends State<CalendarPage>
       allDay: n.allDay,
       start: n.start,
       end: n.end,
+      canonicalEnd: n.canonicalEnd,
       flowId: n.flowId,
       manualColor: n.manualColor,
       category: n.category,
@@ -11023,6 +11028,7 @@ class CalendarPageState extends State<CalendarPage>
       'allDay': note.allDay,
       'startMinutes': _timeOfDayToMinutes(note.start),
       'endMinutes': _timeOfDayToMinutes(note.end),
+      'canonicalEnd': note.canonicalEnd?.toIso8601String(),
       'flowId': note.flowId,
       'manualColor': note.manualColor?.toARGB32(),
       'resolvedColor': _noteColor(note).toARGB32(),
@@ -11059,6 +11065,7 @@ class CalendarPageState extends State<CalendarPage>
         allDay: allDay,
         start: _timeOfDayFromMinutes(json['startMinutes']),
         end: _timeOfDayFromMinutes(json['endMinutes']),
+        canonicalEnd: _parseWarmStartDateTime(json['canonicalEnd'])?.toLocal(),
         flowId: flowId,
         manualColor: warmStartColorValue == null
             ? null
@@ -12249,6 +12256,7 @@ class CalendarPageState extends State<CalendarPage>
       end: snapshot.allDay || snapshot.endsAtLocal == null
           ? null
           : TimeOfDay.fromDateTime(snapshot.endsAtLocal!),
+      canonicalEnd: snapshot.allDay ? null : snapshot.endsAtLocal,
       flowId: snapshot.flowId ?? -1,
       manualColor: snapshot.calendarColor,
       category: snapshot.category,
@@ -25678,14 +25686,6 @@ class CalendarPageState extends State<CalendarPage>
       return false;
     }
 
-    final currentEndMin = existing.end!.hour * 60 + existing.end!.minute;
-    final nextEndMin = currentEndMin + extension.inMinutes;
-    if (nextEndMin > (23 * 60 + 59)) return false;
-
-    final updatedEnd = TimeOfDay(
-      hour: nextEndMin ~/ 60,
-      minute: nextEndMin % 60,
-    );
     final gregorian = KemeticMath.toGregorian(ky, km, kd);
     final startLocal = DateTime(
       gregorian.year,
@@ -25694,13 +25694,24 @@ class CalendarPageState extends State<CalendarPage>
       existing.start!.hour,
       existing.start!.minute,
     );
-    final endLocal = DateTime(
+    final fallbackCanonicalEnd = DateTime(
       gregorian.year,
       gregorian.month,
       gregorian.day,
-      updatedEnd.hour,
-      updatedEnd.minute,
+      existing.end!.hour,
+      existing.end!.minute,
     );
+    final wallClockNow = DateTime.now();
+    final endLocal = eventWorkspaceExtendedCanonicalEnd(
+      canonicalStart: startLocal,
+      canonicalEnd:
+          existing.canonicalEnd?.toLocal() ??
+          event.canonicalEnd?.toLocal() ??
+          fallbackCanonicalEnd,
+      wallClockNow: wallClockNow,
+      extension: extension,
+    );
+    if (endLocal == null) return false;
 
     final moveKey = (rawId != null && rawId.isNotEmpty) ? rawId : rawClientId!;
     if (_eventMoveInProgress.contains(moveKey)) return false;
@@ -25729,10 +25740,12 @@ class CalendarPageState extends State<CalendarPage>
       }
 
       previousNote = existing;
+      final persistedEnd = updated.endsAt?.toLocal() ?? endLocal;
       final reminderNote = existing.copyWith(
         id: updated.id,
         clientEventId: updated.clientEventId,
-        end: updatedEnd,
+        end: TimeOfDay.fromDateTime(persistedEnd),
+        canonicalEnd: persistedEnd,
       );
       publishedNote = reminderNote;
       _publishCalendarNoteMutation(
@@ -33382,6 +33395,7 @@ class CalendarPageState extends State<CalendarPage>
                     allDay: n.allDay,
                     start: n.start,
                     end: n.end,
+                    canonicalEnd: n.canonicalEnd,
                     flowId: n.flowId,
                     manualColor: n.manualColor,
                     category: n.category,

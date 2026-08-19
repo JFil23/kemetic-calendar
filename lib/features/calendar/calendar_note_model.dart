@@ -13,6 +13,7 @@ class _Note {
   final bool allDay;
   final TimeOfDay? start;
   final TimeOfDay? end;
+  final DateTime? canonicalEnd;
 
   /// which flow created this note (for Ma'at flow cleanup). null for normal notes.
   final int? flowId;
@@ -38,6 +39,7 @@ class _Note {
     required this.allDay,
     this.start,
     this.end,
+    this.canonicalEnd,
     this.flowId,
     this.manualColor,
     this.category,
@@ -59,6 +61,7 @@ class _Note {
     bool? allDay,
     TimeOfDay? start,
     TimeOfDay? end,
+    DateTime? canonicalEnd,
     int? flowId,
     Color? manualColor,
     String? category,
@@ -79,6 +82,7 @@ class _Note {
       allDay: allDay ?? this.allDay,
       start: start ?? this.start,
       end: end ?? this.end,
+      canonicalEnd: canonicalEnd ?? this.canonicalEnd,
       flowId: flowId ?? this.flowId,
       manualColor: manualColor ?? this.manualColor,
       category: category ?? this.category,

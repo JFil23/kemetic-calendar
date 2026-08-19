@@ -3285,6 +3285,113 @@ void main() {
     expect(find.text('Safe Area Workspace'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('Extend publishes the next-day canonical end and clears expiry', (
+    tester,
+  ) async {
+    await _setPhoneViewport(tester);
+    final revision = ValueNotifier<int>(0);
+    addTearDown(revision.dispose);
+    final initialEnd = DateTime.now().subtract(const Duration(minutes: 1));
+    late EventItem liveEvent;
+    liveEvent = EventItem(
+      id: 'extend-next-day',
+      clientEventId: 'extend-next-day-cid',
+      title: 'Extend Next Day',
+      location: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      startMin: 23 * 60 + 30,
+      endMin: 23 * 60 + 58,
+      canonicalEnd: initialEnd,
+      flowId: -1,
+      color: Colors.blue,
+      allDay: false,
+      hasCanonicalSchedule: true,
+    );
+    DateTime? capturedNow;
+    DateTime? persistedEnd;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: CalendarEventDetailSheet(
+              hostContext: context,
+              initialTarget: DayViewSheetEventTarget(
+                ky: 1,
+                km: 1,
+                kd: 1,
+                event: liveEvent,
+              ),
+              resolveCurrentEventTarget: (target) => DayViewSheetEventTarget(
+                ky: target.ky,
+                km: target.km,
+                kd: target.kd,
+                event: liveEvent,
+              ),
+              dataVersion: revision,
+              initialPresentation: eventWorkspacePresentationWorkspace,
+              onRequestEndChange:
+                  ({
+                    required ky,
+                    required km,
+                    required kd,
+                    required event,
+                    required extension,
+                  }) async {
+                    final today = DateTime.now();
+                    capturedNow = DateTime(
+                      today.year,
+                      today.month,
+                      today.day,
+                      23,
+                      59,
+                    );
+                    persistedEnd = eventWorkspaceExtendedCanonicalEnd(
+                      canonicalStart: DateTime(
+                        today.year,
+                        today.month,
+                        today.day,
+                        23,
+                        30,
+                      ),
+                      canonicalEnd: event.canonicalEnd!,
+                      wallClockNow: capturedNow!,
+                      extension: extension,
+                    );
+                    liveEvent = EventItem(
+                      id: event.id,
+                      clientEventId: event.clientEventId,
+                      title: event.title,
+                      location: event.location,
+                      startMin: event.startMin,
+                      endMin: persistedEnd!.hour * 60 + persistedEnd!.minute,
+                      canonicalEnd: persistedEnd,
+                      flowId: event.flowId,
+                      color: event.color,
+                      allDay: event.allDay,
+                      hasCanonicalSchedule: event.hasCanonicalSchedule,
+                    );
+                    revision.value += 1;
+                    return true;
+                  },
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('This event has ended.'), findsOneWidget);
+    await tester.tap(find.text('+5 min'));
+    await tester.pumpAndSettle();
+
+    expect(persistedEnd, isNotNull);
+    expect(persistedEnd!.difference(capturedNow!), const Duration(minutes: 5));
+    expect(persistedEnd!.day, capturedNow!.add(const Duration(days: 1)).day);
+    expect(liveEvent.canonicalEnd, persistedEnd);
+    expect(find.text('This event has ended.'), findsNothing);
+    expect(find.textContaining('remaining'), findsOneWidget);
+  });
 }
 
 String _gregorianMonthName(int month) {

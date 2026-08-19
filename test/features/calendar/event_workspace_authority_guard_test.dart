@@ -180,6 +180,26 @@ void main() {
     );
   });
 
+  test('Extend persists one date-aware canonical end without completion', () {
+    final mutation = _sourceBetween(
+      calendarPage,
+      'Future<bool> requestEndChange(',
+      '// Flows — add/remove/toggle',
+    );
+    expect(mutation, contains('final wallClockNow = DateTime.now();'));
+    expect(mutation, contains('eventWorkspaceExtendedCanonicalEnd('));
+    expect(mutation, contains('endsAt: endLocal.toUtc()'));
+    expect(mutation, contains('canonicalEnd: persistedEnd'));
+    expect(
+      mutation,
+      contains('event.allDay || event.isReminder || !event.hasCanonicalSchedule'),
+    );
+    expect(mutation, contains('_repeatingNoteFlowForId(event.flowId)'));
+    expect(mutation, isNot(contains('23 * 60 + 59')));
+    expect(mutation, isNot(contains('delete')));
+    expect(mutation, isNot(contains('completion')));
+  });
+
   test('paint all-day range is 9:00-17:00 and is not schedule authority', () {
     expect(dayView, contains('_eventItemFromNote'));
     final paint = _sourceBetween(

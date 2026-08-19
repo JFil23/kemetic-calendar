@@ -8,6 +8,82 @@ import 'package:mobile/services/app_restoration_service.dart';
 import 'package:mobile/services/restoration_coordinator.dart';
 
 void main() {
+  group('canonical Extend end', () {
+    DateTime extend({
+      required DateTime start,
+      required DateTime end,
+      required DateTime now,
+      required Duration by,
+    }) {
+      return eventWorkspaceExtendedCanonicalEnd(
+        canonicalStart: start,
+        canonicalEnd: end,
+        wallClockNow: now,
+        extension: by,
+      )!;
+    }
+
+    test('active event extends from its future canonical end', () {
+      expect(
+        extend(
+          start: DateTime(2026, 8, 19, 9, 30),
+          end: DateTime(2026, 8, 19, 10, 30),
+          now: DateTime(2026, 8, 19, 10),
+          by: const Duration(minutes: 5),
+        ),
+        DateTime(2026, 8, 19, 10, 35),
+      );
+    });
+
+    test('recently expired event extends from captured wall clock', () {
+      expect(
+        extend(
+          start: DateTime(2026, 8, 19, 9, 30),
+          end: DateTime(2026, 8, 19, 10, 30),
+          now: DateTime(2026, 8, 19, 10, 32),
+          by: const Duration(minutes: 5),
+        ),
+        DateTime(2026, 8, 19, 10, 37),
+      );
+    });
+
+    test('long-expired event extends across midnight and becomes active', () {
+      final now = DateTime(2026, 8, 19, 23, 59);
+      final extended = extend(
+        start: DateTime(2026, 8, 19, 23, 30),
+        end: DateTime(2026, 8, 19, 23, 43),
+        now: now,
+        by: const Duration(minutes: 5),
+      );
+      expect(extended, DateTime(2026, 8, 20, 0, 4));
+      expect(eventWorkspaceHasEnded(canonicalEnd: extended, now: now), isFalse);
+    });
+
+    test('cross-midnight extension preserves the full next-day end', () {
+      expect(
+        extend(
+          start: DateTime(2026, 8, 19, 23, 30),
+          end: DateTime(2026, 8, 19, 23, 58),
+          now: DateTime(2026, 8, 19, 23, 59),
+          by: const Duration(minutes: 10),
+        ),
+        DateTime(2026, 8, 20, 0, 9),
+      );
+    });
+
+    test('invalid extension refuses cleanly', () {
+      expect(
+        eventWorkspaceExtendedCanonicalEnd(
+          canonicalStart: DateTime(2026, 8, 19, 10),
+          canonicalEnd: DateTime(2026, 8, 19, 10, 30),
+          wallClockNow: DateTime(2026, 8, 19, 10),
+          extension: Duration.zero,
+        ),
+        isNull,
+      );
+    });
+  });
+
   test('remaining time is canonical end minus now and is never persisted', () {
     final end = DateTime(2026, 8, 19, 8, 10);
     final now = DateTime(2026, 8, 19, 8, 5);

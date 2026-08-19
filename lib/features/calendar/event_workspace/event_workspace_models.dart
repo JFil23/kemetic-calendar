@@ -43,6 +43,20 @@ DateTime? canonicalEventDateTime({
   );
 }
 
+DateTime? eventWorkspaceExtendedCanonicalEnd({
+  required DateTime canonicalStart,
+  required DateTime canonicalEnd,
+  required DateTime wallClockNow,
+  required Duration extension,
+}) {
+  if (extension <= Duration.zero) return null;
+  final extensionBase = canonicalEnd.isAfter(wallClockNow)
+      ? canonicalEnd
+      : wallClockNow;
+  final newEnd = extensionBase.add(extension);
+  return newEnd.isAfter(canonicalStart) ? newEnd : null;
+}
+
 Duration? eventWorkspaceRemaining({
   required DateTime canonicalEnd,
   required DateTime now,
