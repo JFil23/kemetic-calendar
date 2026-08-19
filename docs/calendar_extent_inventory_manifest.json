@@ -1,20 +1,20 @@
 {
   "schema": 1,
-  "audited_revision": "9bf6d68874f111aeee0a92f0d7fd40571b361411",
+  "audited_revision": "89e11276e14e6feb6637c381957a4b23e43c73d3",
   "fragments": [
     {
       "name": "year_and_month_sections",
       "file": "lib/features/calendar/calendar_grid_widgets.dart",
       "start": "class _YearSection extends StatelessWidget {",
       "end": "/* ───────────── Detail Page (single-window behavior, flows-aware) ───────────── */",
-      "sha256": "11d7531b6e64dfa1a879692f08e93c686ee94465599d21300c3037439dd82847"
+      "sha256": "c723e7c6d419458f585a979141c14f3755ab08da0240c669b5a4bd6866214375"
     },
     {
       "name": "calendar_text_styles",
       "file": "lib/features/calendar/calendar_page.dart",
       "start": "const TextStyle _seasonStyle = TextStyle(",
       "end": "const Color _trackSkySignifierBase",
-      "sha256": "6b52dd56c20bedeacfba7117d571719c52f3386dde93952533a2c41ed5048ce7"
+      "sha256": "9d84a45c448f986278b758e7a8c155e68b09704b9fe8f30ccfddb82a4ccbc859"
     },
     {
       "name": "expansion_heights",
@@ -42,7 +42,7 @@
       "file": "lib/features/calendar/calendar_page.dart",
       "start": "  Widget _buildBodyWithJournal() {",
       "end": "  /* ───────────── Decan Reflection Badge & Archive ───────────── */",
-      "sha256": "95d839fdd756bda1a4f2b553b3002814266ab628b808b610b8adba20a38ae8ae"
+      "sha256": "fb5a595b6ddfa709fd95f1f61be82f2ac8035d972938d9622e5ea9facb734a60"
     },
     {
       "name": "year_sliver_topology",
@@ -56,7 +56,7 @@
       "file": "lib/features/calendar/calendar_page.dart",
       "start": "  void _setExpansionLevelSmooth(",
       "end": "  Color _noteColor(_Note note) {",
-      "sha256": "5595472df991f31afd6aaa6e60273af70c63ac2aaf2c14ae11a77a400cb68348"
+      "sha256": "53c9dadc9479eadfb4e60c77ccd294e78c2f9e87c3d8a3fe924a60cfbe385550"
     },
     {
       "name": "responsive_text_scaler",
@@ -70,7 +70,7 @@
       "file": "lib/features/calendar/scrolling_calendar_month_header.dart",
       "start": "class ScrollingCalendarMonthHeader extends StatelessWidget {",
       "end": null,
-      "sha256": "43dae848889653134e3e62fe74e3a9e85f04c7872b737024cb3e4912ae217c3b"
+      "sha256": "fa535225073349df60c7a49471ffdae3b4101a5971e4e6789a4295b5e0108273"
     },
     {
       "name": "logical_section_domain",

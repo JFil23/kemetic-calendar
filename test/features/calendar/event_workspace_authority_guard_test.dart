@@ -229,6 +229,34 @@ void main() {
     expect(featureFlags, isNot(contains('FeatureFlagService')));
   });
 
+  // These exact legacy names are retained because forward candidate
+  // comparison treats served PASS test IDs as continuity contracts.
+  // They now assert the immutable PR 0 census in authority_map.md, not
+  // that the completed Event Workspace is absent from current runtime.
+  test('EventDetailRestorationState has no overlay mode field', () {
+    expect(authorityMap, contains('**No `mode`. No `presentation`.**'));
+    expect(authorityMap, contains('never overlay `mode`'));
+    final state = _sourceBetween(
+      restoration,
+      'class EventDetailRestorationState {',
+      'class DayViewRestorationState {',
+    );
+    expect(state, isNot(contains('this.mode')));
+  });
+
+  test('PR 0 does not add enableEventWorkspace or a runtime flag service', () {
+    expect(authorityMap, contains('No `enableEventWorkspace` flag yet'));
+    expect(authorityMap, contains('not PR 0'));
+  });
+
+  test('end-only silent mutation API is still absent', () {
+    expect(authorityMap, contains('`requestEndChange` **does not exist**'));
+  });
+
+  test('resume has no listenable on RestorationCoordinator yet', () {
+    expect(authorityMap, contains('**No subscribable resume listenable.**'));
+  });
+
   test(
     'event_workspace prefix cannot import UserEventsRepo or add an observer',
     () {
