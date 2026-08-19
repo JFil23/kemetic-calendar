@@ -222,6 +222,7 @@ part 'hydration/calendar_hydration_page_adapter.dart';
 part 'hydration/calendar_hydration_engine.dart';
 part 'snapshot/calendar_snapshot_page_adapter.dart';
 part 'snapshot/calendar_presentation_page_adapter.dart';
+part 'quick_add_parser.dart';
 
 class _MountedFlowEndPatch {
   const _MountedFlowEndPatch({
@@ -283,6 +284,7 @@ typedef QuickAddParse = ({
   TimeOfDay? start,
   TimeOfDay? end,
   String title,
+  String? location,
 });
 
 @visibleForTesting
@@ -5689,175 +5691,8 @@ class CalendarPage extends StatefulWidget {
     return DateUtils.dateOnly(base.add(Duration(days: add)));
   }
 
-  static QuickAddParse? parseQuickAddText(String raw) {
-    final input = raw.trim();
-    if (input.isEmpty) return null;
-
-    final now = DateTime.now();
-    DateTime date = DateUtils.dateOnly(now);
-    bool hasDate = false;
-    final lower = input.toLowerCase();
-    final removals = <String>[];
-
-    final mmdd = RegExp(
-      r'(\d{1,2})/(\d{1,2})(?:/(\d{2,4}))?',
-    ).firstMatch(lower);
-    if (mmdd != null) {
-      int m = int.parse(mmdd.group(1)!);
-      int d = int.parse(mmdd.group(2)!);
-      int y = mmdd.group(3) != null ? int.parse(mmdd.group(3)!) : now.year;
-      if (y < 100) y += 2000;
-      date = DateUtils.dateOnly(DateTime(y, m, d));
-      hasDate = true;
-      removals.add(mmdd.group(0)!);
-    } else {
-      final months = {
-        'jan': 1,
-        'january': 1,
-        'feb': 2,
-        'february': 2,
-        'mar': 3,
-        'march': 3,
-        'apr': 4,
-        'april': 4,
-        'may': 5,
-        'jun': 6,
-        'june': 6,
-        'jul': 7,
-        'july': 7,
-        'aug': 8,
-        'august': 8,
-        'sep': 9,
-        'sept': 9,
-        'september': 9,
-        'oct': 10,
-        'october': 10,
-        'nov': 11,
-        'november': 11,
-        'dec': 12,
-        'december': 12,
-      };
-      final monthMatch = RegExp(
-        r'(jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\s+(\d{1,2})(?:,\s*(\d{2,4}))?',
-      ).firstMatch(lower);
-      if (monthMatch != null) {
-        final m = months[monthMatch.group(1)!]!;
-        final d = int.parse(monthMatch.group(2)!);
-        int y = monthMatch.group(3) != null
-            ? int.parse(monthMatch.group(3)!)
-            : now.year;
-        if (y < 100) y += 2000;
-        date = DateUtils.dateOnly(DateTime(y, m, d));
-        hasDate = true;
-        removals.add(monthMatch.group(0)!);
-      }
-    }
-
-    if (!hasDate) {
-      if (lower.contains('today')) {
-        date = DateUtils.dateOnly(now);
-        hasDate = true;
-        removals.add('today');
-      } else if (lower.contains('tomorrow')) {
-        date = DateUtils.dateOnly(now.add(const Duration(days: 1)));
-        hasDate = true;
-        removals.add('tomorrow');
-      }
-
-      final inDays = RegExp(r'in\s+(\d+)\s+day').firstMatch(lower);
-      if (!hasDate && inDays != null) {
-        final n = int.parse(inDays.group(1)!);
-        date = DateUtils.dateOnly(now.add(Duration(days: n)));
-        hasDate = true;
-        removals.add(inDays.group(0)!);
-      }
-
-      if (!hasDate) {
-        final weekdays = {
-          'mon': DateTime.monday,
-          'tue': DateTime.tuesday,
-          'tues': DateTime.tuesday,
-          'wed': DateTime.wednesday,
-          'thu': DateTime.thursday,
-          'thur': DateTime.thursday,
-          'thurs': DateTime.thursday,
-          'fri': DateTime.friday,
-          'sat': DateTime.saturday,
-          'sun': DateTime.sunday,
-        };
-        final wdMatch = RegExp(
-          r'(next\s+)?(mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)',
-        ).firstMatch(lower);
-        if (wdMatch != null) {
-          final wd = weekdays[wdMatch.group(2)!]!;
-          date = _nextWeekdayForQuickAdd(now, wd);
-          hasDate = true;
-          removals.add(wdMatch.group(0)!);
-        }
-      }
-    }
-
-    if (hasDate && date.isBefore(DateUtils.dateOnly(now))) {
-      date = DateUtils.dateOnly(DateTime(date.year + 1, date.month, date.day));
-    }
-
-    TimeOfDay? start;
-    TimeOfDay? end;
-    bool allDay = true;
-
-    int toHour(int h, String? ap) {
-      if (ap == null) return h;
-      final l = ap.toLowerCase();
-      if (l == 'am') {
-        return h == 12 ? 0 : h;
-      } else {
-        return h == 12 ? 12 : h + 12;
-      }
-    }
-
-    final range = RegExp(
-      r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)?\s*(?:-|–|to)\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)?',
-      caseSensitive: false,
-    ).firstMatch(lower);
-    if (range != null) {
-      final h1 = int.parse(range.group(1)!);
-      final m1 = range.group(2) != null ? int.parse(range.group(2)!) : 0;
-      final ap1 = range.group(3);
-      final h2 = int.parse(range.group(4)!);
-      final m2 = range.group(5) != null ? int.parse(range.group(5)!) : 0;
-      final ap2 = range.group(6);
-      start = TimeOfDay(hour: toHour(h1, ap1), minute: m1);
-      end = TimeOfDay(hour: toHour(h2, ap2 ?? ap1), minute: m2);
-      allDay = false;
-      removals.add(range.group(0)!);
-    } else {
-      final timeMatch = RegExp(
-        r'(\d{1,2})(?::(\d{2}))?\s*(am|pm)?',
-        caseSensitive: false,
-      ).firstMatch(lower);
-      if (timeMatch != null) {
-        final h = int.parse(timeMatch.group(1)!);
-        final m = timeMatch.group(2) != null
-            ? int.parse(timeMatch.group(2)!)
-            : 0;
-        final ap = timeMatch.group(3);
-        start = TimeOfDay(hour: toHour(h, ap), minute: m);
-        end = TimeOfDay(hour: (start.hour + 1) % 24, minute: start.minute);
-        allDay = false;
-        removals.add(timeMatch.group(0)!);
-      }
-    }
-
-    final title = () {
-      var t = input;
-      for (final r in removals) {
-        t = t.replaceFirst(RegExp(RegExp.escape(r), caseSensitive: false), '');
-      }
-      t = t.replaceAll(RegExp(r'\s+'), ' ').trim();
-      return t.isEmpty ? input : t;
-    }();
-
-    return (date: date, allDay: allDay, start: start, end: end, title: title);
+  static QuickAddParse? parseQuickAddText(String raw, {DateTime? now}) {
+    return _QuickAddParser(raw, now ?? DateTime.now()).parse();
   }
 
   static Future<void> _saveDetachedQuickAddNote(
@@ -5914,6 +5749,7 @@ class CalendarPage extends StatefulWidget {
       title: title,
       startsAtUtc: startLocal.toUtc(),
       detail: encodedDetail,
+      location: parsed.location,
       allDay: allDay,
       endsAtUtc: endsAtUtc,
       caller: 'save_single_detached',
@@ -30868,7 +30704,7 @@ class CalendarPageState extends State<CalendarPage>
               selDay: k.kDay,
               title: parsed.title,
               detail: null,
-              location: null,
+              location: parsed.location,
               allDay: parsed.allDay,
               startTime: parsed.allDay ? null : parsed.start,
               endTime: parsed.allDay ? null : parsed.end,
