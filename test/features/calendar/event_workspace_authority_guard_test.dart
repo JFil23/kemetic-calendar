@@ -9,7 +9,6 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   late String dayView;
   late String calendarPage;
-  late String calendarFlowPages;
   late String externalLinks;
   late String restoration;
   late String restorationCoordinator;
@@ -21,9 +20,6 @@ void main() {
     dayView = File('lib/features/calendar/day_view.dart').readAsStringSync();
     calendarPage = File(
       'lib/features/calendar/calendar_page.dart',
-    ).readAsStringSync();
-    calendarFlowPages = File(
-      'lib/features/calendar/calendar_flow_pages.dart',
     ).readAsStringSync();
     externalLinks = File(
       'lib/utils/external_link_utils.dart',
