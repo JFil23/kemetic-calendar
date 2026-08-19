@@ -84,7 +84,7 @@ void main() {
     expect(rig.coordinator.activeGregorianBannerMonth.value, june);
   });
 
-  test('switches the weekday strip at measured day-row trailing edges', () {
+  test('switches the weekday strip at measured decan labels', () {
     final row0 = CalendarWeekdayRowRef(month: month1, rowIndex: 0);
     final row1 = CalendarWeekdayRowRef(month: month1, rowIndex: 1);
     final row2 = CalendarWeekdayRowRef(month: month1, rowIndex: 2);

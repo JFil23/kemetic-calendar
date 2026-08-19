@@ -145,7 +145,7 @@ void main() {
       expect(snapshot.gregorianMonthAt(140), june);
     });
 
-    test('resolves weekday rows at measured day-row trailing edges', () {
+    test('resolves weekday rows at measured decan-label boundaries', () {
       final month1 = MonthRef(year: 1, month: 1);
       final month2 = MonthRef(year: 1, month: 2);
       final snapshot = CalendarGeometrySnapshot(
