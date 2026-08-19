@@ -1641,13 +1641,14 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
         ? detailText
         : null;
     final location = (event.location ?? '').trim();
+    final resource = resolveEventResourceForDashboard(event.location);
     final normalizedLocation = location.isEmpty
         ? ''
         : normalizeExternalLinkToken(location);
-    final externalLabel = normalizedLocation.isEmpty
+    final externalLabel = resource != null
+        ? eventResourceDashboardLabel(resource)
+        : normalizedLocation.isEmpty
         ? (location.isEmpty ? null : 'Open Location')
-        : normalizedLocation.toLowerCase().contains('youtu')
-        ? 'Watch on YouTube'
         : 'Open Link';
 
     return _FlowDayContent(

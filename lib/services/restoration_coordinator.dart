@@ -23,6 +23,7 @@ class RestorationCoordinator {
 
   AppLifecycleState _lastLifecycleState = AppLifecycleState.resumed;
   DateTime? _lastExitLifecycleAt;
+  final ValueNotifier<int> resumeListenable = ValueNotifier<int>(0);
   RestorationRestoreReason _restoreReason = RestorationRestoreReason.coldLaunch;
   String? _restoreTargetLocation = '/';
   final Set<String> _consumedRestoreSurfaces = <String>{};
@@ -206,6 +207,7 @@ class RestorationCoordinator {
         _lastExitLifecycleAt = DateTime.now();
         break;
       case AppLifecycleState.resumed:
+        resumeListenable.value++;
         break;
     }
   }

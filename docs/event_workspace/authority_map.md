@@ -185,3 +185,15 @@ Prefix: `lib/features/calendar/event_workspace/` expiry predicate + renderer pau
 ### Activation
 
 Runtime: `lib/core/feature_flags.dart` only (`enableEventWorkspace = true`). RC-test the compiled artifact.
+
+## Event Workspace RC implementation (this branch)
+
+Integrated on `codex/event-workspace-youtube-rc` from PR 1 (`3159b9b`). Census above remains the PR 0 snapshot.
+
+- `enableEventWorkspace` gates inset YouTube. Flag-off still uses `launchExternalTarget`.
+- Presentation field on `EventDetailRestorationState` is `presentation` (`detail` | `workspace`), never overlay `mode`.
+- `RestorationCoordinator.resumeListenable` is the resume seam. No new `WidgetsBindingObserver`.
+- `CalendarPageState.requestEndChange` is the end-only request seam. Workspace does not call `UserEventsRepo`.
+- `HtmlElementView` lives only under `lib/features/calendar/event_workspace/`.
+- Session deadline uses canonical timed start/end, never all-day paint `EventItem.endMin`.
+

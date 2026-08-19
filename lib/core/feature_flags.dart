@@ -42,6 +42,17 @@ class FeatureFlags {
   static const bool enableCompositionalDecanReflections = true;
 
   // =========================================================================
+  // EVENT WORKSPACE (RC)
+  // =========================================================================
+
+  /// In-app Event Workspace for supported resources (YouTube first).
+  /// RC builds on this branch enable it. Flag-off keeps external launch.
+  static const bool enableEventWorkspace = bool.fromEnvironment(
+    'ENABLE_EVENT_WORKSPACE',
+    defaultValue: true,
+  );
+
+  // =========================================================================
   // DEBUG FLAGS
   // =========================================================================
 
@@ -75,6 +86,7 @@ class FeatureFlags {
     if (enableCompositionalDecanReflections) {
       features.add('compositional_decan_reflections');
     }
+    if (enableEventWorkspace) features.add('event_workspace');
     return features;
   }
 }

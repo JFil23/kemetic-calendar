@@ -4334,6 +4334,7 @@ class _CalendarWarmStateStore {
       allDay: note.allDay,
       start: note.start,
       end: note.end,
+      canonicalEnd: note.canonicalEnd,
       flowId: note.flowId,
       manualColor: note.manualColor,
       category: note.category,
@@ -6245,6 +6246,9 @@ class CalendarPage extends StatefulWidget {
         allDay: allDay,
         start: _timeOfDayFromWarmStartMinutes(json['startMinutes']),
         end: _timeOfDayFromWarmStartMinutes(json['endMinutes']),
+        canonicalEnd: _parseWarmStartSearchDateTime(
+          json['canonicalEnd'],
+        )?.toLocal(),
         flowId: flowId,
         manualColor: warmStartColorValue == null
             ? null
@@ -10447,6 +10451,7 @@ class CalendarPageState extends State<CalendarPage>
       allDay: n.allDay,
       start: n.start,
       end: n.end,
+      canonicalEnd: n.canonicalEnd,
       flowId: n.flowId,
       manualColor: n.manualColor,
       category: n.category,
@@ -11023,6 +11028,7 @@ class CalendarPageState extends State<CalendarPage>
       'allDay': note.allDay,
       'startMinutes': _timeOfDayToMinutes(note.start),
       'endMinutes': _timeOfDayToMinutes(note.end),
+      'canonicalEnd': note.canonicalEnd?.toIso8601String(),
       'flowId': note.flowId,
       'manualColor': note.manualColor?.toARGB32(),
       'resolvedColor': _noteColor(note).toARGB32(),
@@ -11059,6 +11065,7 @@ class CalendarPageState extends State<CalendarPage>
         allDay: allDay,
         start: _timeOfDayFromMinutes(json['startMinutes']),
         end: _timeOfDayFromMinutes(json['endMinutes']),
+        canonicalEnd: _parseWarmStartDateTime(json['canonicalEnd'])?.toLocal(),
         flowId: flowId,
         manualColor: warmStartColorValue == null
             ? null
@@ -12249,6 +12256,7 @@ class CalendarPageState extends State<CalendarPage>
       end: snapshot.allDay || snapshot.endsAtLocal == null
           ? null
           : TimeOfDay.fromDateTime(snapshot.endsAtLocal!),
+      canonicalEnd: snapshot.allDay ? null : snapshot.endsAtLocal,
       flowId: snapshot.flowId ?? -1,
       manualColor: snapshot.calendarColor,
       category: snapshot.category,
@@ -12626,11 +12634,14 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _saveCalendarEventDetailOverlayForTarget(
-    DayViewSheetEventTarget target,
-  ) async {
+    DayViewSheetEventTarget target, {
+    String? presentation,
+  }) async {
     final state = eventDetailRestorationStateForTarget(
       target,
       parentSurface: _kCalendarParentSurfaceRoot,
+      presentation:
+          presentation ?? _activeCalendarEventDetailRestoration?.presentation,
     );
     if (state == null) {
       await _clearCalendarEventDetailOverlayState();
@@ -12678,8 +12689,9 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<void> _openCalendarEventDetailSheet(
-    DayViewSheetEventTarget initialTarget,
-  ) async {
+    DayViewSheetEventTarget initialTarget, {
+    String? presentation,
+  }) async {
     if (!mounted) return;
     if (!CalendarEventDetailSheetCoordinator.tryMarkOpenOrOpening()) {
       return;
@@ -12703,6 +12715,19 @@ class CalendarPageState extends State<CalendarPage>
           onTargetChanged: (target) {
             unawaited(_saveCalendarEventDetailOverlayForTarget(target));
           },
+          onPresentationChanged: (nextPresentation) {
+            final current = _activeCalendarEventDetailRestoration;
+            if (current == null) return;
+            unawaited(
+              _saveCalendarEventDetailOverlayState(
+                current.copyWith(presentation: nextPresentation),
+              ),
+            );
+          },
+          onRequestEndChange: requestEndChange,
+          initialPresentation: normalizeEventWorkspacePresentation(
+            presentation,
+          ),
           onManageFlows: _getMyFlowsCallback(),
           onEditNote: _editNoteByEvent,
           onDeleteNote: _deleteNoteByEvent,
@@ -12758,7 +12783,10 @@ class CalendarPageState extends State<CalendarPage>
       return true;
     }
 
-    await _openCalendarEventDetailSheet(target);
+    await _openCalendarEventDetailSheet(
+      target,
+      presentation: state.presentation,
+    );
     return true;
   }
 
@@ -14358,6 +14386,7 @@ class CalendarPageState extends State<CalendarPage>
       isReminder: event.isReminder,
       reminderId: event.reminderId,
       behaviorPayload: event.behaviorPayload,
+      hasCanonicalSchedule: event.hasCanonicalSchedule,
     );
   }
 
@@ -16915,6 +16944,7 @@ class CalendarPageState extends State<CalendarPage>
         await _editNoteByEvent(ky, km, kd, evt);
       },
       onMoveEventTime: _moveEventInDayView,
+      onRequestEndChange: requestEndChange,
       onShareNote: (evt) async {
         await _shareNoteSimple(evt);
       },
@@ -18926,7 +18956,10 @@ class CalendarPageState extends State<CalendarPage>
               !CalendarEventDetailSheetCoordinator.isOpenOrOpening) {
             final target = _calendarEventDetailTargetFromState(preservedState);
             if (target != null) {
-              await _openCalendarEventDetailSheet(target);
+              await _openCalendarEventDetailSheet(
+                target,
+                presentation: preservedState.presentation,
+              );
             }
           }
         } else {
@@ -25107,6 +25140,13 @@ class CalendarPageState extends State<CalendarPage>
       isReminder: note.isReminder,
       reminderId: note.reminderId,
       behaviorPayload: note.behaviorPayload,
+      hasCanonicalSchedule: noteHasCanonicalSchedule(
+        allDay: note.allDay,
+        startHour: note.start?.hour,
+        startMinute: note.start?.minute,
+        endHour: note.end?.hour,
+        endMinute: note.end?.minute,
+      ),
     );
   }
 
@@ -25611,6 +25651,152 @@ class CalendarPageState extends State<CalendarPage>
           context,
         ).showSnackBar(const SnackBar(content: Text("Couldn't move event.")));
       }
+    } finally {
+      _eventMoveInProgress.remove(moveKey);
+    }
+  }
+
+  Future<bool> requestEndChange({
+    required int ky,
+    required int km,
+    required int kd,
+    required EventItem event,
+    required Duration extension,
+  }) async {
+    if (extension.inMinutes <= 0) return false;
+    if (event.allDay || event.isReminder || !event.hasCanonicalSchedule) {
+      return false;
+    }
+    if (_repeatingNoteFlowForId(event.flowId) != null) {
+      return false;
+    }
+
+    final rawId = event.id?.trim();
+    final rawClientId = event.clientEventId?.trim();
+    if ((rawId == null || rawId.isEmpty) &&
+        (rawClientId == null || rawClientId.isEmpty)) {
+      return false;
+    }
+
+    final key = _kKey(ky, km, kd);
+    final idx = _findNoteIndexByEvent(ky, km, kd, event);
+    if (idx == null) return false;
+    final existing = _notes[key]![idx];
+    if (existing.allDay || existing.start == null || existing.end == null) {
+      return false;
+    }
+
+    final gregorian = KemeticMath.toGregorian(ky, km, kd);
+    final startLocal = DateTime(
+      gregorian.year,
+      gregorian.month,
+      gregorian.day,
+      existing.start!.hour,
+      existing.start!.minute,
+    );
+    final fallbackCanonicalEnd = DateTime(
+      gregorian.year,
+      gregorian.month,
+      gregorian.day,
+      existing.end!.hour,
+      existing.end!.minute,
+    );
+    final wallClockNow = DateTime.now();
+    final endLocal = eventWorkspaceExtendedCanonicalEnd(
+      canonicalStart: startLocal,
+      canonicalEnd:
+          existing.canonicalEnd?.toLocal() ??
+          event.canonicalEnd?.toLocal() ??
+          fallbackCanonicalEnd,
+      wallClockNow: wallClockNow,
+      extension: extension,
+    );
+    if (endLocal == null) return false;
+
+    final moveKey = (rawId != null && rawId.isNotEmpty) ? rawId : rawClientId!;
+    if (_eventMoveInProgress.contains(moveKey)) return false;
+    _eventMoveInProgress.add(moveKey);
+
+    _Note? previousNote;
+    _Note? publishedNote;
+    try {
+      final repo = UserEventsRepo(Supabase.instance.client);
+      final UserEvent updated;
+      if (rawId != null && rawId.isNotEmpty) {
+        updated = await repo.update(id: rawId, endsAt: endLocal.toUtc());
+      } else {
+        updated = await repo.upsertByClientId(
+          clientEventId: rawClientId!,
+          title: event.title,
+          startsAtUtc: startLocal.toUtc(),
+          detail: event.detail,
+          location: event.location,
+          allDay: false,
+          endsAtUtc: endLocal.toUtc(),
+          flowLocalId: event.flowId,
+          category: event.category,
+          caller: 'request_end_change',
+        );
+      }
+
+      previousNote = existing;
+      final persistedEnd = updated.endsAt?.toLocal() ?? endLocal;
+      final reminderNote = existing.copyWith(
+        id: updated.id,
+        clientEventId: updated.clientEventId,
+        end: TimeOfDay.fromDateTime(persistedEnd),
+        canonicalEnd: persistedEnd,
+      );
+      publishedNote = reminderNote;
+      _publishCalendarNoteMutation(
+        upserts: <CalendarPendingVisibleItem<_Note>>[
+          CalendarPendingVisibleItem<_Note>(dayKey: key, item: reminderNote),
+        ],
+        sourceConflictRule: (sourceDayKey, source, pendingDayKey, pending) {
+          if (sourceDayKey != pendingDayKey) return false;
+          return _calendarNoteMatchesIdentityAliases(
+            source,
+            eventIds: <String?>[pending.id, rawId],
+            clientEventIds: <String?>[pending.clientEventId, rawClientId],
+          );
+        },
+      );
+
+      final clientEventId = (updated.clientEventId ?? rawClientId ?? '').trim();
+      if (clientEventId.isNotEmpty) {
+        await _scheduleAlertForEvent(
+          note: reminderNote,
+          ky: ky,
+          km: km,
+          kd: kd,
+          clientEventId: clientEventId,
+          eventId: updated.id,
+        );
+      }
+      _notifyDayViewDataChanged();
+      return true;
+    } catch (e, st) {
+      final rollbackNote = previousNote;
+      final failedNote = publishedNote;
+      if (rollbackNote != null && failedNote != null) {
+        _publishCalendarNoteMutation(
+          upserts: <CalendarPendingVisibleItem<_Note>>[
+            CalendarPendingVisibleItem<_Note>(dayKey: key, item: rollbackNote),
+          ],
+          sourceConflictRule: (sourceDayKey, source, pendingDayKey, _) =>
+              sourceDayKey == pendingDayKey &&
+              _calendarNoteMatchesIdentityAliases(
+                source,
+                eventIds: <String?>[failedNote.id],
+                clientEventIds: <String?>[failedNote.clientEventId],
+              ),
+        );
+      }
+      if (kDebugMode) {
+        _calendarDebugPrint('[EventWorkspace] requestEndChange failed: $e');
+        _calendarDebugPrint('$st');
+      }
+      return false;
     } finally {
       _eventMoveInProgress.remove(moveKey);
     }
@@ -28254,6 +28440,7 @@ class CalendarPageState extends State<CalendarPage>
             await _editNoteByEvent(ky, km, kd, evt);
           },
           onMoveEventTime: _moveEventInDayView,
+          onRequestEndChange: requestEndChange,
           onShareNote: (evt) async {
             await _shareNoteSimple(evt);
           },
@@ -33208,6 +33395,7 @@ class CalendarPageState extends State<CalendarPage>
                     allDay: n.allDay,
                     start: n.start,
                     end: n.end,
+                    canonicalEnd: n.canonicalEnd,
                     flowId: n.flowId,
                     manualColor: n.manualColor,
                     category: n.category,
@@ -34232,6 +34420,13 @@ class CalendarPageState extends State<CalendarPage>
       isReminder: note.isReminder,
       reminderId: note.reminderId,
       behaviorPayload: note.behaviorPayload,
+      hasCanonicalSchedule: noteHasCanonicalSchedule(
+        allDay: note.allDay,
+        startHour: note.start?.hour,
+        startMinute: note.start?.minute,
+        endHour: note.end?.hour,
+        endMinute: note.end?.minute,
+      ),
     );
   }
 

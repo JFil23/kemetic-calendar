@@ -79,6 +79,12 @@ import '../../utils/external_link_utils.dart';
 import '../../utils/flow_filter_engine.dart';
 import '../../utils/text_editing_controller_sync.dart';
 import '../shared_practice/shared_practice_completion_sheet.dart';
+import '../../core/feature_flags.dart';
+import 'event_resource.dart';
+import 'event_workspace/event_workspace_models.dart';
+import 'event_workspace/event_workspace_surface.dart';
+export 'event_resource.dart';
+export 'event_workspace/event_workspace_models.dart';
 
 const double _kMinEventBlockHeight = 56.0;
 const double _kTimelineLabelWidth = 60.0;
@@ -264,156 +270,35 @@ String _dayViewTimelineFlowLabel(
   );
 }
 
-const Set<String> _dayViewExternalPayloadKeys = {
-  'url',
-  'uri',
-  'href',
-  'link',
-  'external_url',
-  'externalurl',
-  'external_link',
-  'externallink',
-  'action_url',
-  'actionurl',
-  'meeting_url',
-  'meetingurl',
-  'video_url',
-  'videourl',
-  'watch_url',
-  'watchurl',
-  'document_url',
-  'documenturl',
-  'map_url',
-  'mapurl',
-};
-
-void _dayViewCollectPayloadTargets(
-  Object? node,
-  List<String> targets, [
-  int depth = 0,
-]) {
-  if (node == null || depth > 4) return;
-  if (node is Map) {
-    for (final entry in node.entries) {
-      final key = entry.key.toString().trim().toLowerCase();
-      final normalizedKey = key.replaceAll(RegExp(r'[\s-]'), '_');
-      final compactKey = normalizedKey.replaceAll('_', '');
-      final value = entry.value;
-      final isTargetKey =
-          _dayViewExternalPayloadKeys.contains(normalizedKey) ||
-          _dayViewExternalPayloadKeys.contains(compactKey);
-      if (isTargetKey) {
-        if (value is String) {
-          targets.add(value);
-        } else if (value is Iterable) {
-          for (final item in value) {
-            if (item is String) targets.add(item);
-          }
-        }
-      }
-      if (value is Map || value is Iterable) {
-        _dayViewCollectPayloadTargets(value, targets, depth + 1);
-      }
-    }
-  } else if (node is Iterable) {
-    for (final item in node) {
-      _dayViewCollectPayloadTargets(item, targets, depth + 1);
-    }
-  }
-}
-
-String _dayViewExternalActionLabel(Uri uri, {required bool fallbackToMaps}) {
-  final scheme = uri.scheme.toLowerCase();
-  final host = uri.host.toLowerCase();
-  if (scheme == 'mailto') return 'Email';
-  if (scheme == 'tel') return 'Call';
-  if (host.contains('youtube.com') || host.contains('youtu.be')) {
-    return 'Watch on YouTube';
-  }
-  if (host.contains('zoom.us') ||
-      host.contains('meet.google') ||
-      host.contains('teams.microsoft')) {
-    return 'Join meeting';
-  }
-  if (fallbackToMaps ||
-      host.contains('maps.google') ||
-      host.contains('apple.com/maps')) {
-    return 'Open map';
-  }
-  if (host.contains('docs.google') ||
-      host.contains('notion.') ||
-      uri.path.toLowerCase().endsWith('.pdf')) {
-    return 'Open document';
-  }
-  return 'Open link';
-}
-
-IconData _dayViewExternalActionIcon(Uri uri, {required bool fallbackToMaps}) {
-  final scheme = uri.scheme.toLowerCase();
-  final host = uri.host.toLowerCase();
-  if (scheme == 'mailto') return Icons.mail_outline_rounded;
-  if (scheme == 'tel') return Icons.call_outlined;
-  if (host.contains('youtube.com') || host.contains('youtu.be')) {
-    return Icons.play_arrow_rounded;
-  }
-  if (host.contains('zoom.us') ||
-      host.contains('meet.google') ||
-      host.contains('teams.microsoft')) {
-    return Icons.videocam_outlined;
-  }
-  if (fallbackToMaps ||
-      host.contains('maps.google') ||
-      host.contains('apple.com/maps')) {
-    return Icons.map_outlined;
-  }
-  if (host.contains('docs.google') ||
-      host.contains('notion.') ||
-      uri.path.toLowerCase().endsWith('.pdf')) {
-    return Icons.description_outlined;
-  }
-  return Icons.open_in_new_rounded;
-}
-
-_DayViewExternalAction? _dayViewExternalActionForRaw(
-  String raw, {
-  bool fallbackToMaps = false,
+_DayViewExternalAction? _dayViewExternalActionFromResource(
+  EventResource resource, {
+  required bool fallbackToMaps,
 }) {
-  final target = normalizeExternalLinkToken(raw);
-  if (target.isEmpty) return null;
-  final uri = buildExternalLaunchUri(target, fallbackToMaps: fallbackToMaps);
+  final uri = buildExternalLaunchUri(
+    resource.target,
+    fallbackToMaps: fallbackToMaps,
+  );
   if (uri == null) return null;
   return _DayViewExternalAction(
-    label: _dayViewExternalActionLabel(uri, fallbackToMaps: fallbackToMaps),
-    target: target,
-    icon: _dayViewExternalActionIcon(uri, fallbackToMaps: fallbackToMaps),
+    label: eventResourceActionLabel(uri, fallbackToMaps: fallbackToMaps),
+    target: resource.target,
+    icon: eventResourceActionIcon(uri, fallbackToMaps: fallbackToMaps),
     fallbackToMaps: fallbackToMaps,
   );
 }
 
 _DayViewExternalAction? _dayViewExternalActionForEvent(EventItem event) {
-  final structuredTargets = <String>[];
-  _dayViewCollectPayloadTargets(event.behaviorPayload, structuredTargets);
-  for (final raw in structuredTargets) {
-    final action = _dayViewExternalActionForRaw(raw);
-    if (action != null) return action;
-  }
-
-  final detail = event.detail;
-  if (detail != null && detail.trim().isNotEmpty) {
-    for (final match in externalLinkPattern.allMatches(detail)) {
-      final raw = match.group(0);
-      if (raw == null || !looksLikeLaunchTarget(raw)) continue;
-      final action = _dayViewExternalActionForRaw(raw);
-      if (action != null) return action;
-    }
-  }
-
-  final location = event.location?.trim();
-  if (location != null && location.isNotEmpty) {
-    return _dayViewExternalActionForRaw(location, fallbackToMaps: true);
-  }
-
-  return null;
+  final source = EventResourceSource(
+    behaviorPayload: event.behaviorPayload,
+    detail: event.detail,
+    location: event.location,
+  );
+  final resource = resolveEventResource(source);
+  if (resource == null) return null;
+  return _dayViewExternalActionFromResource(
+    resource,
+    fallbackToMaps: eventResourceCameFromLocation(source),
+  );
 }
 
 bool _dayViewShouldShowDetailLocation(
@@ -2279,6 +2164,7 @@ class NoteData {
   final bool allDay;
   final TimeOfDay? start;
   final TimeOfDay? end;
+  final DateTime? canonicalEnd;
   final int? flowId;
   final Color? manualColor;
   final String? category;
@@ -2297,6 +2183,7 @@ class NoteData {
     required this.allDay,
     this.start,
     this.end,
+    this.canonicalEnd,
     this.flowId,
     this.manualColor,
     this.category,
@@ -2415,6 +2302,7 @@ class EventItem {
   final String? location;
   final int startMin;
   final int endMin;
+  final DateTime? canonicalEnd;
   final int? flowId;
   final Color color;
   final Color? manualColor;
@@ -2423,6 +2311,7 @@ class EventItem {
   final bool isReminder;
   final String? reminderId;
   final Map<String, dynamic>? behaviorPayload;
+  final bool hasCanonicalSchedule;
 
   const EventItem({
     this.id,
@@ -2434,6 +2323,7 @@ class EventItem {
     this.location,
     required this.startMin,
     required this.endMin,
+    this.canonicalEnd,
     this.flowId,
     required this.color,
     this.manualColor,
@@ -2442,6 +2332,7 @@ class EventItem {
     this.isReminder = false,
     this.reminderId,
     this.behaviorPayload,
+    this.hasCanonicalSchedule = false,
   });
 
   @override
@@ -2596,6 +2487,9 @@ class CalendarEventDetailSheet extends StatefulWidget {
     this.onboardingJournalKey,
     this.onOnboardingObservedJournalNext,
     this.onboardingClosingBannerBuilder,
+    this.onRequestEndChange,
+    this.onPresentationChanged,
+    this.initialPresentation = eventWorkspacePresentationDetail,
   });
 
   final BuildContext hostContext;
@@ -2648,6 +2542,16 @@ class CalendarEventDetailSheet extends StatefulWidget {
   final GlobalKey? onboardingJournalKey;
   final VoidCallback? onOnboardingObservedJournalNext;
   final WidgetBuilder? onboardingClosingBannerBuilder;
+  final Future<bool> Function({
+    required int ky,
+    required int km,
+    required int kd,
+    required EventItem event,
+    required Duration extension,
+  })?
+  onRequestEndChange;
+  final ValueChanged<String>? onPresentationChanged;
+  final String initialPresentation;
 
   @override
   State<CalendarEventDetailSheet> createState() =>
@@ -2657,6 +2561,7 @@ class CalendarEventDetailSheet extends StatefulWidget {
 class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   late DayViewSheetEventTarget _currentTarget;
   late PageController _pageController;
+  late String _presentation;
   final Map<TrackSkyTimeZone, TrackSkyFlowData> _trackSkyDataByTimeZone =
       <TrackSkyTimeZone, TrackSkyFlowData>{};
   final Set<TrackSkyTimeZone> _trackSkyLoadingTimeZones = <TrackSkyTimeZone>{};
@@ -2673,11 +2578,15 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     _currentTarget =
         widget.resolveCurrentEventTarget?.call(widget.initialTarget) ??
         widget.initialTarget;
+    _presentation = normalizeEventWorkspacePresentation(
+      widget.initialPresentation,
+    );
     final initialPages = _detailSheetPagesForTarget(_currentTarget);
     _pageController = PageController(initialPage: initialPages.currentIndex);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       widget.onTargetChanged?.call(_currentTarget);
+      widget.onPresentationChanged?.call(_presentation);
     });
     _primeTrackSkyFlowDataForEvent(_currentTarget.event);
   }
@@ -2813,10 +2722,21 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   void _moveToTarget(DayViewSheetEventTarget nextTarget) {
     if (!mounted) return;
     final previousTarget = _currentTarget;
+    final identityChanged =
+        previousTarget.ky != nextTarget.ky ||
+        previousTarget.km != nextTarget.km ||
+        previousTarget.kd != nextTarget.kd ||
+        !_eventsShareStableIdentity(previousTarget.event, nextTarget.event);
     setState(() {
       _currentTarget = nextTarget;
+      if (identityChanged) {
+        _presentation = eventWorkspacePresentationDetail;
+      }
     });
     widget.onTargetChanged?.call(nextTarget);
+    if (identityChanged) {
+      widget.onPresentationChanged?.call(_presentation);
+    }
     _primeTrackSkyFlowDataForEvent(nextTarget.event);
     if (widget.onNavigateToDay != null &&
         (nextTarget.ky != previousTarget.ky ||
@@ -2827,6 +2747,50 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       );
     }
     unawaited(AppHaptics.selection());
+  }
+
+  void _setPresentation(String next) {
+    final presentation = normalizeEventWorkspacePresentation(next);
+    if (_presentation == presentation) return;
+    setState(() {
+      _presentation = presentation;
+    });
+    widget.onPresentationChanged?.call(_presentation);
+  }
+
+  bool get _isWorkspacePresentation =>
+      _presentation == eventWorkspacePresentationWorkspace;
+
+  DateTime? _canonicalEndForTarget(DayViewSheetEventTarget target) {
+    final event = target.event;
+    if (!eventWorkspaceIsSessionGovernable(
+      presentable: true,
+      allDay: event.allDay,
+      hasCanonicalSchedule: event.hasCanonicalSchedule,
+    )) {
+      return null;
+    }
+    if (event.canonicalEnd != null) return event.canonicalEnd;
+    final day = KemeticMath.toGregorian(target.ky, target.km, target.kd);
+    return canonicalEventDateTime(
+      day: DateTime(day.year, day.month, day.day),
+      minutesSinceMidnight: event.endMin,
+    );
+  }
+
+  Future<bool> _requestWorkspaceExtend(
+    DayViewSheetEventTarget target,
+    Duration extension,
+  ) async {
+    final request = widget.onRequestEndChange;
+    if (request == null) return false;
+    return request(
+      ky: target.ky,
+      km: target.km,
+      kd: target.kd,
+      event: target.event,
+      extension: extension,
+    );
   }
 
   TrackSkyTimeZone? _trackSkyTimeZoneForFlow(FlowData? flow) {
@@ -3228,6 +3192,11 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     return InkWell(
       borderRadius: BorderRadius.circular(999),
       onTap: () async {
+        if (FeatureFlags.enableEventWorkspace &&
+            eventResourceIsYouTubeWorkspaceCandidate(action.target)) {
+          _setPresentation(eventWorkspacePresentationWorkspace);
+          return;
+        }
         final handled = await launchExternalTarget(
           action.target,
           fallbackToMaps: action.fallbackToMaps,
@@ -4465,16 +4434,28 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final keyboardInset = keyboardInsetOf(context);
     final availableSheetHeight = math.max(
       0.0,
-      media.size.height - keyboardInset - media.padding.top - 12,
+      media.size.height -
+          keyboardInset -
+          media.padding.top -
+          media.padding.bottom -
+          12,
     );
-    final maxSheetHeight = keyboardInset > 0
+    final maxSheetHeight = _isWorkspacePresentation
+        ? availableSheetHeight
+        : keyboardInset > 0
         ? availableSheetHeight
         : math.min(media.size.height * 0.68, 520.0);
-    final reservedChromeHeight = hasOnboardingClosingBanner ? 250.0 : 120.0;
+    final reservedChromeHeight = _isWorkspacePresentation
+        ? 24.0
+        : hasOnboardingClosingBanner
+        ? 250.0
+        : 120.0;
     final maxPageHeight = math.max(0.0, maxSheetHeight - reservedChromeHeight);
-    final sheetHeight = (_measuredHeights[currentKey] ?? 200.0)
-        .clamp(0.0, maxPageHeight)
-        .toDouble();
+    final sheetHeight = _isWorkspacePresentation
+        ? maxPageHeight
+        : (_measuredHeights[currentKey] ?? 200.0)
+              .clamp(0.0, maxPageHeight)
+              .toDouble();
 
     final content = Column(
       mainAxisSize: MainAxisSize.min,
@@ -4514,50 +4495,79 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                _buildEventDetailTopActionRow(
-                  rootContext: widget.hostContext,
-                  sheetContext: context,
-                  target: target,
-                ),
-                const SizedBox(height: 8),
+                if (!_isWorkspacePresentation) ...[
+                  _buildEventDetailTopActionRow(
+                    rootContext: widget.hostContext,
+                    sheetContext: context,
+                    target: target,
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 AnimatedSize(
                   duration: const Duration(milliseconds: 180),
                   curve: Curves.easeOutCubic,
                   alignment: Alignment.bottomCenter,
                   child: SizedBox(
                     height: sheetHeight,
-                    child: PageView.builder(
-                      key: pageViewKey,
-                      controller: _pageController,
-                      physics: const BouncingScrollPhysics(),
-                      itemCount: pages.pages.length,
-                      onPageChanged: (index) {
-                        if (index == pages.currentIndex) return;
-                        final nextTarget = pages.pages[index];
-                        final nextPages = _detailSheetPagesForTarget(
-                          nextTarget,
-                        );
-                        _resetPageController(nextPages.currentIndex);
-                        _moveToTarget(nextTarget);
-                      },
-                      itemBuilder: (context, index) {
-                        return _buildEventDetailSheetPage(
-                          target: pages.pages[index],
-                          completionReloadSignal: completionReloadSignal,
-                        );
-                      },
+                    child: _isWorkspacePresentation
+                        ? EventWorkspaceSurface(
+                            title: target.event.title,
+                            sourceUrl:
+                                _dayViewExternalActionForEvent(
+                                  target.event,
+                                )?.target ??
+                                '',
+                            purpose: eventWorkspacePurposeFromDetail(
+                              target.event.detail,
+                            ),
+                            canonicalEnd: _canonicalEndForTarget(target),
+                            onMinimize: () => _setPresentation(
+                              eventWorkspacePresentationDetail,
+                            ),
+                            onClose: () {
+                              Navigator.of(context).maybePop();
+                            },
+                            onRequestExtend: widget.onRequestEndChange == null
+                                ? null
+                                : (extension) => _requestWorkspaceExtend(
+                                    target,
+                                    extension,
+                                  ),
+                          )
+                        : PageView.builder(
+                            key: pageViewKey,
+                            controller: _pageController,
+                            physics: const BouncingScrollPhysics(),
+                            itemCount: pages.pages.length,
+                            onPageChanged: (index) {
+                              if (index == pages.currentIndex) return;
+                              final nextTarget = pages.pages[index];
+                              final nextPages = _detailSheetPagesForTarget(
+                                nextTarget,
+                              );
+                              _resetPageController(nextPages.currentIndex);
+                              _moveToTarget(nextTarget);
+                            },
+                            itemBuilder: (context, index) {
+                              return _buildEventDetailSheetPage(
+                                target: pages.pages[index],
+                                completionReloadSignal: completionReloadSignal,
+                              );
+                            },
+                          ),
+                  ),
+                ),
+                if (!_isWorkspacePresentation) ...[
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: 46,
+                    child: _buildEventDetailBottomActionRow(
+                      rootContext: widget.hostContext,
+                      sheetContext: context,
+                      target: target,
                     ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: 46,
-                  child: _buildEventDetailBottomActionRow(
-                    rootContext: widget.hostContext,
-                    sheetContext: context,
-                    target: target,
-                  ),
-                ),
+                ],
               ],
             ),
           ),
@@ -4635,8 +4645,12 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
 EventDetailRestorationState? eventDetailRestorationStateForTarget(
   DayViewSheetEventTarget target, {
   String? parentSurface,
+  String? presentation,
 }) {
   final event = target.event;
+  final normalizedPresentation = presentation == null
+      ? null
+      : normalizeEventWorkspacePresentation(presentation);
   final clientEventId = event.clientEventId?.trim();
   if (clientEventId != null &&
       clientEventId.isNotEmpty &&
@@ -4648,6 +4662,7 @@ EventDetailRestorationState? eventDetailRestorationStateForTarget(
       identityType: eventDetailIdentityClientEventId,
       identityValue: clientEventId,
       parentSurface: parentSurface,
+      presentation: normalizedPresentation,
     );
   }
 
@@ -4660,6 +4675,7 @@ EventDetailRestorationState? eventDetailRestorationStateForTarget(
       identityType: eventDetailIdentityEventId,
       identityValue: eventId,
       parentSurface: parentSurface,
+      presentation: normalizedPresentation,
     );
   }
 
@@ -4672,6 +4688,7 @@ EventDetailRestorationState? eventDetailRestorationStateForTarget(
       identityType: eventDetailIdentityReminderId,
       identityValue: reminderId,
       parentSurface: parentSurface,
+      presentation: normalizedPresentation,
     );
   }
 
@@ -4819,6 +4836,7 @@ EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {
     location: note.location,
     startMin: startMin,
     endMin: endMin,
+    canonicalEnd: note.canonicalEnd,
     flowId: note.flowId,
     color: eventColor,
     manualColor: note.manualColor,
@@ -4827,6 +4845,13 @@ EventItem _eventItemFromNote(NoteData note, Map<int, FlowData> flowIndex) {
     isReminder: note.isReminder,
     reminderId: note.reminderId,
     behaviorPayload: note.behaviorPayload,
+    hasCanonicalSchedule: noteHasCanonicalSchedule(
+      allDay: note.allDay,
+      startHour: note.start?.hour,
+      startMinute: note.start?.minute,
+      endHour: note.end?.hour,
+      endMinute: note.end?.minute,
+    ),
   );
 }
 
@@ -5170,6 +5195,14 @@ class DayViewPage extends StatefulWidget {
     int newStartMin,
   )?
   onMoveEventTime;
+  final Future<bool> Function({
+    required int ky,
+    required int km,
+    required int kd,
+    required EventItem event,
+    required Duration extension,
+  })?
+  onRequestEndChange;
   final Future<void> Function(EventItem event)? onShareNote;
   final Future<void> Function(String reminderId)? onEditReminder;
   final Future<void> Function(String reminderId)? onEndReminder;
@@ -5260,6 +5293,7 @@ class DayViewPage extends StatefulWidget {
     this.onDeleteNote,
     this.onEditNote,
     this.onMoveEventTime,
+    this.onRequestEndChange,
     this.onShareNote,
     this.onEditReminder,
     this.onEndReminder,
@@ -6038,6 +6072,7 @@ class _DayViewPageState extends State<DayViewPage> {
                       onDeleteNote: widget.onDeleteNote,
                       onEditNote: widget.onEditNote,
                       onMoveEventTime: widget.onMoveEventTime,
+                      onRequestEndChange: widget.onRequestEndChange,
                       onMonthChanged: (ky, km) {
                         // ✅ HANDLE MONTH CHANGE IN DAY VIEW
                         if (kDebugMode) {
@@ -6225,6 +6260,7 @@ class _DayViewPageState extends State<DayViewPage> {
                               onDeleteNote: widget.onDeleteNote,
                               onEditNote: widget.onEditNote,
                               onMoveEventTime: widget.onMoveEventTime,
+                              onRequestEndChange: widget.onRequestEndChange,
                               onShareNote: widget.onShareNote,
                               onEditReminder: widget.onEditReminder,
                               onEndReminder: widget.onEndReminder,
@@ -6329,6 +6365,14 @@ class DayViewGrid extends StatefulWidget {
     int newStartMin,
   )?
   onMoveEventTime;
+  final Future<bool> Function({
+    required int ky,
+    required int km,
+    required int kd,
+    required EventItem event,
+    required Duration extension,
+  })?
+  onRequestEndChange;
   final Future<void> Function(EventItem event)? onShareNote;
   final Future<void> Function(String reminderId)? onEditReminder;
   final Future<void> Function(String reminderId)? onEndReminder;
@@ -6414,6 +6458,7 @@ class DayViewGrid extends StatefulWidget {
     this.onDeleteNote,
     this.onEditNote,
     this.onMoveEventTime,
+    this.onRequestEndChange,
     this.onShareNote,
     this.onEditReminder,
     this.onEndReminder,
@@ -6473,6 +6518,8 @@ class _DayViewGridState extends State<DayViewGrid> {
   int? _lastDragSnappedMinute; // backup of last snapped minute during drag
   String? _initialEventDetailRestoreKey;
   bool _initialEventDetailRestoreInFlight = false;
+  DayViewSheetEventTarget? _openDetailTarget;
+  String _eventDetailPresentation = eventWorkspacePresentationDetail;
   int? get _focusStartMin => widget.focusStartMin;
 
   bool _isOnboardingTargetEvent(EventItem event) {
@@ -6608,10 +6655,14 @@ class _DayViewGridState extends State<DayViewGrid> {
   EventDetailRestorationState? _detailRestorationStateForTarget(
     DayViewSheetEventTarget target,
   ) {
-    return eventDetailRestorationStateForTarget(target);
+    return eventDetailRestorationStateForTarget(
+      target,
+      presentation: _eventDetailPresentation,
+    );
   }
 
   void _publishEventDetailRestorationTarget(DayViewSheetEventTarget target) {
+    _openDetailTarget = target;
     final state = _detailRestorationStateForTarget(target);
     final key = _eventDetailRestoreKey(state);
     if (key != null) {
@@ -6619,6 +6670,16 @@ class _DayViewGridState extends State<DayViewGrid> {
       _initialEventDetailRestoreInFlight = false;
     }
     widget.onEventDetailRestorationChanged?.call(state);
+  }
+
+  void _handleEventDetailPresentationChanged(String presentation) {
+    _eventDetailPresentation = normalizeEventWorkspacePresentation(
+      presentation,
+    );
+    final target = _openDetailTarget;
+    if (target != null) {
+      _publishEventDetailRestorationTarget(target);
+    }
   }
 
   void _clearEventDetailRestorationIfAllowed() {
@@ -6692,7 +6753,11 @@ class _DayViewGridState extends State<DayViewGrid> {
         'key=$key title=<redacted chars=${target.event.title.length}>',
       );
     }
-    _showEventDetail(target.event, initialTarget: target);
+    _showEventDetail(
+      target.event,
+      initialTarget: target,
+      initialPresentation: state.presentation,
+    );
   }
 
   RenderBox? _findTimelineBox() {
@@ -6929,6 +6994,7 @@ class _DayViewGridState extends State<DayViewGrid> {
           isReminder: dragPreview.isReminder,
           reminderId: dragPreview.reminderId,
           behaviorPayload: dragPreview.behaviorPayload,
+          hasCanonicalSchedule: dragPreview.hasCanonicalSchedule,
         ),
       );
     }
@@ -8667,10 +8733,14 @@ class _DayViewGridState extends State<DayViewGrid> {
   void _showEventDetail(
     EventItem event, {
     DayViewSheetEventTarget? initialTarget,
+    String? initialPresentation,
   }) {
     if (!CalendarEventDetailSheetCoordinator.tryMarkOpenOrOpening()) {
       return;
     }
+    _eventDetailPresentation = normalizeEventWorkspacePresentation(
+      initialPresentation,
+    );
     final rootContext = context;
     final sheetTarget =
         initialTarget ??
@@ -8720,6 +8790,9 @@ class _DayViewGridState extends State<DayViewGrid> {
           resolveAdjacentEventTarget: widget.resolveAdjacentEvent,
           resolveEndFlowSuccessor: _resolveEndFlowSuccessor,
           onTargetChanged: _publishEventDetailRestorationTarget,
+          onPresentationChanged: _handleEventDetailPresentationChanged,
+          onRequestEndChange: widget.onRequestEndChange,
+          initialPresentation: _eventDetailPresentation,
           onEndFlowOptimisticDismiss: _handleEndFlowOptimisticDismiss,
           onNavigateToDay: widget.onNavigateToDay,
           onManageFlows: widget.onManageFlows,
