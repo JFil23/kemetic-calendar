@@ -2833,7 +2833,7 @@ void main() {
         final today = KemeticMath.fromGregorian(
           DateUtils.dateOnly(DateTime.now()),
         );
-        final staleMinute = _staleMinuteFarFromNow();
+        final staleMinute = _staleMinuteFarFromTodayTarget();
         await _pumpDayViewPage(
           tester,
           ky: today.kYear,
@@ -3465,11 +3465,12 @@ ScrollableState _todayTimelineScrollable(WidgetTester tester) {
   );
 }
 
-int _staleMinuteFarFromNow() {
+int _staleMinuteFarFromTodayTarget() {
   final nowMin = DateTime.now().hour * 60 + DateTime.now().minute;
-  const earlyMorning = 3 * 60;
-  if ((earlyMorning - nowMin).abs() >= 3 * 60) return earlyMorning;
-  return 15 * 60;
+  // Today centers the current time in the viewport, so comparing the stale
+  // minute directly with wall-clock minutes can accidentally select the same
+  // scroll offset. Pick the opposite half-day instead.
+  return nowMin < 12 * 60 ? 12 * 60 : 3 * 60;
 }
 
 void _expectTimelineCenteredOnNow(WidgetTester tester) {
