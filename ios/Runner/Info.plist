@@ -70,7 +70,9 @@
     <string>Fonts/GentiumPlus-Bold.ttf</string>
   </array>
 	<key>NSCalendarsUsageDescription</key>
-	<string>Allow Kemetic Calendar to read and write your calendar so your Kemetic events stay in sync with Apple Calendar.</string>
+	<string>Allow HAw to read external calendar events for one-way import. HAw will not create, update, export, or delete Apple Calendar events.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Allow HAw to read external calendar events for one-way import. HAw will not create, update, export, or delete Apple Calendar events.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Allow Kemetic Calendar to access your photo library to set your profile picture.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>

@@ -18,7 +18,7 @@ class SettingsPrefs {
   }
 
   static bool autoCalendarSyncEnabledFrom(SharedPreferences prefs) {
-    return prefs.getBool(autoCalendarSyncKey) ?? true;
+    return prefs.getBool(autoCalendarSyncKey) ?? false;
   }
 
   static bool usHolidaysEnabledFrom(SharedPreferences prefs) {

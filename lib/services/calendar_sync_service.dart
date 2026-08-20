@@ -126,18 +126,13 @@ class CalendarSyncRunResult {
 class CalendarSyncResetResult {
   const CalendarSyncResetResult({
     required this.removedImportedEvents,
-    required this.removedNativeEvents,
-    required this.permissionGranted,
     required this.completed,
   });
 
   final int removedImportedEvents;
-  final int removedNativeEvents;
-  final bool permissionGranted;
   final bool completed;
 
-  bool get changedAnything =>
-      removedImportedEvents > 0 || removedNativeEvents > 0;
+  bool get changedAnything => removedImportedEvents > 0;
 }
 
 bool _isLikelyHolidayTitle(String title) {
@@ -448,32 +443,6 @@ class CalendarPlatformBridge {
       return const [];
     }
   }
-
-  Future<bool> deleteEvent(String nativeId) async {
-    if (kIsWeb) return false;
-    try {
-      final deleted = await _channel.invokeMethod<bool>('deleteEvent', {
-        'eventId': nativeId,
-      });
-      return deleted ?? false;
-    } catch (e) {
-      debugPrint('[calendar-sync] deleteEvent error: ${_calendarSyncError(e)}');
-      return false;
-    }
-  }
-
-  Future<int> purgeKemeticEvents() async {
-    if (kIsWeb) return 0;
-    try {
-      final deleted = await _channel.invokeMethod<int>('purgeKemeticEvents');
-      return deleted ?? 0;
-    } catch (e) {
-      debugPrint(
-        '[calendar-sync] purgeKemeticEvents error: ${_calendarSyncError(e)}',
-      );
-      return 0;
-    }
-  }
 }
 
 // Shared instance helper so multiple screens reuse the same sync engine/timer.
@@ -608,9 +577,7 @@ class CalendarSyncService {
     }
 
     await ensureInitialized();
-    final resetResult = await _maybeRunLegacyUnlinkResetIfNeeded(
-      interactive: interactive,
-    );
+    final resetResult = await _maybeRunLegacyUnlinkResetIfNeeded();
     if (resetResult != null) {
       return const CalendarSyncRunResult.unlinked();
     }
@@ -681,9 +648,7 @@ class CalendarSyncService {
     if (_started) return;
 
     await ensureInitialized();
-    final resetResult = await _maybeRunLegacyUnlinkResetIfNeeded(
-      interactive: false,
-    );
+    final resetResult = await _maybeRunLegacyUnlinkResetIfNeeded();
     if (resetResult != null) {
       return;
     }
@@ -809,9 +774,7 @@ class CalendarSyncService {
 
   /* ───────────────────────── Utilities ───────────────────────── */
 
-  Future<CalendarSyncResetResult?> _maybeRunLegacyUnlinkResetIfNeeded({
-    required bool interactive,
-  }) async {
+  Future<CalendarSyncResetResult?> _maybeRunLegacyUnlinkResetIfNeeded() async {
     final user = _client.auth.currentUser;
     if (user == null) return null;
 
@@ -825,7 +788,7 @@ class CalendarSyncService {
       return null;
     }
 
-    return unlinkAndPurge(interactive: interactive, markResetCompleted: true);
+    return unlinkImportedCalendarData(markResetCompleted: true);
   }
 
   String _resetKeyForUser(String userId) =>
@@ -870,15 +833,12 @@ class CalendarSyncService {
     return false;
   }
 
-  Future<CalendarSyncResetResult> unlinkAndPurge({
-    bool interactive = true,
+  Future<CalendarSyncResetResult> unlinkImportedCalendarData({
     bool markResetCompleted = false,
   }) async {
     if (kIsWeb) {
       return const CalendarSyncResetResult(
         removedImportedEvents: 0,
-        removedNativeEvents: 0,
-        permissionGranted: false,
         completed: false,
       );
     }
@@ -890,92 +850,62 @@ class CalendarSyncService {
     if (user == null) {
       return const CalendarSyncResetResult(
         removedImportedEvents: 0,
-        removedNativeEvents: 0,
-        permissionGranted: false,
         completed: false,
       );
     }
 
-    int removedImported = 0;
-    int removedNative = 0;
-    bool permissionGranted = false;
-
-    removedImported = await _purgeImportedNativeEventsFromSupabase();
-    permissionGranted = await _platform.requestPermissions();
-    if (permissionGranted) {
-      removedNative = await _platform.purgeKemeticEvents();
-    }
-
-    await _clearSyncState();
     await SettingsPrefs.setAutoCalendarSyncEnabled(false);
+    final removedImported = await _removeImportedNativeEventsFromHaw();
+    await _clearSyncState();
+    await _stateBox?.put(_lastResetKey, _now().toIso8601String());
 
-    if (removedImported > 0 || removedNative > 0 || permissionGranted) {
-      await _stateBox?.put(_lastResetKey, _now().toIso8601String());
-    }
-
-    final completed = permissionGranted;
-    if (markResetCompleted && completed) {
+    if (markResetCompleted) {
       await _stateBox?.put(_resetKeyForUser(user.id), true);
     }
 
     return CalendarSyncResetResult(
       removedImportedEvents: removedImported,
-      removedNativeEvents: removedNative,
-      permissionGranted: permissionGranted,
-      completed: completed,
+      completed: true,
     );
   }
 
-  Future<int> _purgeImportedNativeEventsFromSupabase() async {
+  Future<int> _removeImportedNativeEventsFromHaw() async {
     final user = _client.auth.currentUser;
     if (user == null) return 0;
 
-    var deleted = 0;
-    try {
-      final rowsByCid = await _client
-          .from('user_events')
-          .select('id')
-          .eq('user_id', user.id)
-          .like('client_event_id', 'native:%');
-      await _eventsRepo.deleteByClientIdPrefix(
-        'native:',
-        semantic: 'native_calendar_unlink',
-        suppressesClient: true,
-        sourceFeature:
-            'CalendarSyncService._purgeImportedNativeEventsFromSupabase',
-        deleteScope: 'native_client_id_prefix',
-      );
-      deleted += (rowsByCid as List).length;
-    } catch (e) {
-      debugPrint(
-        '[calendar-sync] purge imported native rows by cid failed: '
-        '${_calendarSyncError(e)}',
-      );
-    }
+    final rowsByCid = await _client
+        .from('user_events')
+        .select('id')
+        .eq('user_id', user.id)
+        .like('client_event_id', 'native:%');
+    final rowsByCategory = await _client
+        .from('user_events')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('category', 'native_sync');
+    final removedIds = <String>{
+      for (final row in rowsByCid as List)
+        if (row is Map && row['id'] != null) row['id'].toString(),
+      for (final row in rowsByCategory as List)
+        if (row is Map && row['id'] != null) row['id'].toString(),
+    };
 
-    try {
-      final rowsByCategory = await _client
-          .from('user_events')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('category', 'native_sync');
-      await _eventsRepo.deleteByCategory(
-        'native_sync',
-        semantic: 'native_calendar_unlink',
-        suppressesClient: true,
-        sourceFeature:
-            'CalendarSyncService._purgeImportedNativeEventsFromSupabase',
-        deleteScope: 'native_sync_category',
-      );
-      deleted += (rowsByCategory as List).length;
-    } catch (e) {
-      debugPrint(
-        '[calendar-sync] purge imported native rows by category failed: '
-        '${_calendarSyncError(e)}',
-      );
-    }
+    await _eventsRepo.deleteByClientIdPrefix(
+      'native:',
+      semantic: 'native_calendar_unlink',
+      suppressesClient: false,
+      sourceFeature: 'CalendarSyncService._removeImportedNativeEventsFromHaw',
+      deleteScope: 'native_client_id_prefix',
+    );
+    await _eventsRepo.deleteByCategory(
+      'native_sync',
+      semantic: 'native_calendar_unlink',
+      suppressesClient: false,
+      sourceFeature: 'CalendarSyncService._removeImportedNativeEventsFromHaw',
+      deleteScope: 'native_sync_category',
+    );
 
-    return deleted;
+    return removedIds.length;
   }
 
   Future<void> _clearSyncState() async {
@@ -1079,17 +1009,6 @@ class CalendarSyncService {
       return 'native:${e.source}:${e.nativeId}';
     }
     return 'native:${e.source}:${e.fingerprint}';
-  }
-
-  Future<void> recordDeletedInApp(String cid) async {
-    if (cid.isEmpty || kIsWeb) return;
-    await ensureInitialized();
-    _deletedCids.add(cid);
-    await _stateBox?.put(_deletedCidsKey, _deletedCids.toList());
-    debugPrint(
-      '[calendar-sync] recorded deleted-in-app '
-      'cid=${_calendarSyncCidSummary(cid)}',
-    );
   }
 }
 

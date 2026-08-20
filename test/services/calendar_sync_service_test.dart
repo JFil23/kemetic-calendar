@@ -1,9 +1,31 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/settings/settings_prefs.dart';
 import 'package:mobile/services/calendar_sync_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('calendar sync preference', () {
+    test(
+      'defaults OFF until access succeeds and remembers explicit toggles',
+      () async {
+        SharedPreferences.setMockInitialValues(<String, Object>{});
+        final prefs = await SharedPreferences.getInstance();
+
+        expect(SettingsPrefs.autoCalendarSyncEnabledFrom(prefs), isFalse);
+
+        await SettingsPrefs.setAutoCalendarSyncEnabled(true, prefs);
+        expect(SettingsPrefs.autoCalendarSyncEnabledFrom(prefs), isTrue);
+
+        await SettingsPrefs.setAutoCalendarSyncEnabled(false, prefs);
+        expect(SettingsPrefs.autoCalendarSyncEnabledFrom(prefs), isFalse);
+      },
+    );
+  });
+
   group('isImportedDeviceCalendarEvent', () {
     test('detects native cid imports', () {
       expect(
