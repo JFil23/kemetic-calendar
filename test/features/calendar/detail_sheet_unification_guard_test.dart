@@ -161,7 +161,8 @@ void main() {
       'enum MonthExpansionLevel',
     );
     expect(quickAddSheet, contains('Material('));
-    expect(quickAddSheet, contains('color: Colors.black'));
+    expect(quickAddSheet, contains('color: DaySheetTokens.bg'));
+    expect(quickAddSheet, contains('color: Colors.transparent'));
     expect(quickAddSheet, contains('clipBehavior: Clip.antiAlias'));
   });
 }
