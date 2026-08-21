@@ -1544,7 +1544,9 @@ void main() {
           final lines = source.split('\n');
           for (var index = 0; index < lines.length; index += 1) {
             final line = lines[index];
-            if (!line.contains('context.push')) continue;
+            if (!RegExp(r'\bcontext\.push(?:<[^>]+>)?\s*\(').hasMatch(line)) {
+              continue;
+            }
             final isFeedAuthorProfilePush =
                 path.endsWith('lib/features/profile/profile_page.dart') &&
                 line.contains("context.push('/profile/") &&

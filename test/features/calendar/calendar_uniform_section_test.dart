@@ -207,7 +207,8 @@ void main() {
             'Repeated paint isolation belongs to one month boundary, not '
             'dozens of day-chip and text layers.',
       );
-      expect(grid, contains('child: _buildMonthBody('));
+      expect(grid, contains('final endpointBody = _buildMonthBody('));
+      expect(grid, contains('child: endpointBody'));
       expect(grid, isNot(contains('children: const [_GoldDivider()]')));
       expect(
         RegExp(r'CalendarGeometryFinalDayBlock\(').allMatches(grid),
