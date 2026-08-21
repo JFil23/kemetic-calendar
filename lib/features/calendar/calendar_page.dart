@@ -842,6 +842,100 @@ class _QuickAddSpectrumBar extends StatelessWidget {
 
 enum MonthExpansionLevel { compact, stacked, labeled, details }
 
+/// Fractional visual geometry used only while a pinch is active or settling.
+///
+/// Persisted calendar state remains one of [MonthExpansionLevel]'s four exact
+/// endpoints. This model makes the rendered geometry continuous between those
+/// endpoints without inventing a fractional restoration state.
+@immutable
+class CalendarExpansionGeometry {
+  CalendarExpansionGeometry(double progress)
+    : progress = progress.clamp(
+        0.0,
+        (MonthExpansionLevel.values.length - 1).toDouble(),
+      );
+
+  final double progress;
+
+  double get compactToStacked => _segment(0);
+  double get stackedToLabeled => _segment(1);
+  double get labeledToDetails => _segment(2);
+
+  double get compactMarkerOpacity => 1.0 - compactToStacked;
+  double get eventPillOpacity => compactToStacked;
+  double get labelOpacity => stackedToLabeled;
+  double get detailsProgress => labeledToDetails;
+
+  bool get isCompactEndpoint => progress == 0.0;
+  bool get isDetailsEndpoint => progress == 3.0;
+
+  double dayHeight({required double detailsHeight}) => _stops(
+    compact: _chipHeightFor(MonthExpansionLevel.compact),
+    stacked: _chipHeightFor(MonthExpansionLevel.stacked),
+    labeled: _chipHeightFor(MonthExpansionLevel.labeled),
+    details: detailsHeight,
+  );
+
+  double get pillHeight => _stops(
+    compact: _CalendarScale.dayDot,
+    stacked: _kTextlessPillHeight,
+    labeled: _kLabeledPillHeight,
+    details: _kDetailsPillHeight,
+  );
+
+  double get pillGap => _stops(
+    compact: 0.0,
+    stacked: _kTextlessPillGap,
+    labeled: _kLabeledPillGap,
+    details: _kDetailsPillGap,
+  );
+
+  double get pillRadius => _stops(
+    compact: _CalendarScale.dayDot / 2,
+    stacked: _kTextlessPillRadius,
+    labeled: _kLabeledPillRadius,
+    details: _kDetailsPillRadius,
+  );
+
+  double get tileHorizontalPadding => _stops(
+    compact: _kDayTileCompactPadding,
+    stacked: _kDayTileExpandedHorizontalPadding,
+    labeled: _kDayTileExpandedHorizontalPadding,
+    details: _kDayTileExpandedHorizontalPadding,
+  );
+
+  double get compactMarkerGap =>
+      _lerp(_kCompactMarkerGap, 0.0, compactToStacked);
+
+  double ordinaryDayGridGap({
+    required double labeledGap,
+    required double detailsGap,
+  }) => _lerp(labeledGap, detailsGap, detailsProgress);
+
+  double get heriuBottomPadding => _lerp(24.0, 6.0, detailsProgress);
+  double get heriuHeaderGap => _lerp(10.0, 0.0, detailsProgress);
+
+  double _segment(int index) => (progress - index).clamp(0.0, 1.0);
+
+  double _stops({
+    required double compact,
+    required double stacked,
+    required double labeled,
+    required double details,
+  }) {
+    if (progress <= 1.0) {
+      return _lerp(compact, stacked, compactToStacked);
+    }
+    if (progress <= 2.0) {
+      return _lerp(stacked, labeled, stackedToLabeled);
+    }
+    return _lerp(labeled, details, labeledToDetails);
+  }
+
+  static double _lerp(double begin, double end, double t) =>
+      begin + ((end - begin) * t);
+}
+
 enum _OnboardingContinuationStage {
   none,
   awaitingCalendarReturnToggle,
@@ -9898,7 +9992,7 @@ class _FlowEditorRoutePageState extends State<_FlowEditorRoutePage> {
 }
 
 class CalendarPageState extends State<CalendarPage>
-    with WidgetsBindingObserver, RouteAware {
+    with WidgetsBindingObserver, RouteAware, SingleTickerProviderStateMixin {
   static const Duration _foregroundRefreshThreshold = Duration(minutes: 10);
   static const Duration _restorationWriteDebounce = Duration(milliseconds: 150);
   late final CalendarHydrationScheduler _hydrationScheduler =
@@ -10635,15 +10729,21 @@ class CalendarPageState extends State<CalendarPage>
 
   MonthExpansionLevel _monthExpansion = MonthExpansionLevel.compact;
   MonthExpansionLevel? _monthExpansionRestorationTarget;
+  final ValueNotifier<double?> _transientMonthExpansionProgress =
+      ValueNotifier<double?>(null);
+  late final AnimationController _pinchExpansionSettleController;
   final ValueNotifier<bool> _currentDecanVisibleInViewport =
       ValueNotifier<bool>(true);
   bool _currentDecanViewportRefreshScheduled = false;
-  double? _scaleGestureAnchor;
   double _pinchExpansionValue = 0.0; // 0=compact,1=stacked,2=labeled,3=details
+  double _pinchGestureStartValue = 0.0;
   bool _isPinching = false;
-  DateTime? _lastPinchUpdate;
-  static const Duration _pinchUpdateThrottle = Duration(milliseconds: 16);
-  Offset? _pinchAnchorPoint;
+  bool _isPinchSettling = false;
+  double? _pendingPinchExpansionValue;
+  int? _pinchFrameScheduledGeneration;
+  int _pinchFrameGeneration = 0;
+  int _pinchSettleGeneration = 0;
+  RenderCalendarPinchDayAnchor? _pinchAnchorDay;
   (int, int)? _pinchAnchorMonth;
   MonthExpansionLevel? _pinchStartLevel;
 
@@ -15790,6 +15890,12 @@ class CalendarPageState extends State<CalendarPage>
   @override
   void initState() {
     super.initState();
+    _pinchExpansionSettleController = AnimationController(
+      vsync: this,
+      lowerBound: 0.0,
+      upperBound: (MonthExpansionLevel.values.length - 1).toDouble(),
+      duration: const Duration(milliseconds: 180),
+    )..addListener(_handlePinchSettleTick);
     EndFlowAuthReadiness.instance.ensureBound(Supabase.instance.client);
     final initialGregorianDate = KemeticMath.toGregorian(
       _today.kYear,
@@ -19322,6 +19428,8 @@ class CalendarPageState extends State<CalendarPage>
       revision.dispose();
     }
     _calendarMonthProjectionRevisions.clear();
+    _pinchExpansionSettleController.dispose();
+    _transientMonthExpansionProgress.dispose();
     _currentDecanVisibleInViewport.dispose();
     _calendarLayoutCorrection.clear();
     _scrollCtrl.dispose();
@@ -25964,80 +26072,117 @@ class CalendarPageState extends State<CalendarPage>
     await _persistCalendarRestorationState(state, reason: 'expansion_changed');
   }
 
-  void _setExpansionLevelSmooth(
-    MonthExpansionLevel level, {
-    String entryPoint = 'pinch',
+  RenderCalendarPinchDayAnchor? _findPinchDayAnchorAtPoint(Offset globalPoint) {
+    final result = HitTestResult();
+    RendererBinding.instance.hitTestInView(
+      result,
+      globalPoint,
+      View.of(context).viewId,
+    );
+    for (final entry in result.path) {
+      final target = entry.target;
+      if (target is RenderCalendarPinchDayAnchor) return target;
+    }
+    return null;
+  }
+
+  RenderObject? _resolvePinchLayoutAnchor() {
+    final day = _pinchAnchorDay;
+    if (day != null && day.attached) return day;
+    final month = _pinchAnchorMonth;
+    if (month == null) return _resolveCalendarLayoutCorrectionAnchor();
+    return keyForMonth(month.$1, month.$2).currentContext?.findRenderObject();
+  }
+
+  void _applyPinchExpansionProgress(double value) {
+    if (!mounted) return;
+    final next = value.clamp(
+      0.0,
+      (MonthExpansionLevel.values.length - 1).toDouble(),
+    );
+    final previous =
+        _transientMonthExpansionProgress.value ??
+        _monthExpansion.index.toDouble();
+    if ((next - previous).abs() <= 0.000001) return;
+
+    // Bind one render object to the entire correction transaction. The final
+    // settle callback may clear the mutable pinch fields before the viewport
+    // consumes this request; resolving through those fields again could then
+    // compare two different anchors and move by an entire month section.
+    final correctionAnchor = _resolvePinchLayoutAnchor();
+    _calendarLayoutCorrection.request(
+      geometryRevision: 'pinch-expansion-v1:${next.toStringAsFixed(5)}',
+      resolveAnchor: () => correctionAnchor,
+    );
+    _transientMonthExpansionProgress.value = next;
+  }
+
+  void _schedulePinchExpansionProgress(double value) {
+    _pendingPinchExpansionValue = value;
+    final generation = _pinchFrameGeneration;
+    if (_pinchFrameScheduledGeneration == generation) return;
+    _pinchFrameScheduledGeneration = generation;
+    WidgetsBinding.instance.scheduleFrameCallback((_) {
+      if (_pinchFrameScheduledGeneration == generation) {
+        _pinchFrameScheduledGeneration = null;
+      }
+      if (!mounted || generation != _pinchFrameGeneration) return;
+      final pending = _pendingPinchExpansionValue;
+      _pendingPinchExpansionValue = null;
+      if (pending != null && (_isPinching || _isPinchSettling)) {
+        _applyPinchExpansionProgress(pending);
+      }
+    });
+  }
+
+  void _handlePinchSettleTick() {
+    if (!_isPinchSettling) return;
+    _applyPinchExpansionProgress(_pinchExpansionSettleController.value);
+  }
+
+  void _commitPinchExpansionEndpoint(
+    MonthExpansionLevel targetLevel, {
+    bool persistAndTrack = true,
   }) {
-    if (_monthExpansion == level && !_isPinching) return;
-    _monthExpansionRestorationTarget = level;
-    if (_isPinching && _pinchAnchorMonth != null && _pinchAnchorPoint != null) {
-      setState(() => _monthExpansion = level);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _maintainAnchorPoint();
-        _monthExpansionRestorationTarget = null;
-      });
-    } else {
-      final double? offset = _scrollCtrl.hasClients
-          ? _scrollCtrl.position.pixels
-          : null;
-
-      setState(() => _monthExpansion = level);
+    final changed = targetLevel != _monthExpansion;
+    setState(() {
+      _monthExpansion = targetLevel;
       _monthExpansionRestorationTarget = null;
+    });
+    _isPinchSettling = false;
+    _pinchExpansionValue = targetLevel.index.toDouble();
+    _transientMonthExpansionProgress.value = null;
+    _pinchAnchorDay = null;
+    _pinchAnchorMonth = null;
+    _pinchStartLevel = null;
 
-      if (!_isPinching) {
-        _persistExpansionLevel(level);
-        Events.trackIfAuthed('calendar_expansion_changed', {
-          'level': _expansionToString(level),
-          'entry_point': entryPoint,
-        });
-      }
-
-      if (offset != null && _scrollCtrl.hasClients) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!_scrollCtrl.hasClients) return;
-          final pos = _scrollCtrl.position;
-          final target = offset.clamp(pos.minScrollExtent, pos.maxScrollExtent);
-          pos.animateTo(
-            target,
-            duration: const Duration(milliseconds: 200),
-            curve: Curves.easeOutCubic,
-          );
-        });
-      }
+    if (changed && persistAndTrack) {
+      _persistExpansionLevel(targetLevel);
+      Events.trackIfAuthed('calendar_expansion_changed', {
+        'level': _expansionToString(targetLevel),
+        'entry_point': 'pinch',
+      });
     }
   }
 
-  void _maintainAnchorPoint() {
-    if (_pinchAnchorMonth == null || _pinchAnchorPoint == null) return;
-    if (!_scrollCtrl.hasClients) return;
+  void _startPinchSettle(MonthExpansionLevel targetLevel) {
+    final generation = ++_pinchSettleGeneration;
+    _monthExpansionRestorationTarget = targetLevel;
+    _isPinchSettling = true;
 
-    final (anchorKy, anchorKm) = _pinchAnchorMonth!;
-    final anchorScreenY = _pinchAnchorPoint!.dy;
-
-    final box = context.findRenderObject() as RenderBox?;
-    if (box == null) return;
-
-    final monthCtx = keyForMonth(anchorKy, anchorKm).currentContext;
-    if (monthCtx == null) return;
-
-    final monthBox = monthCtx.findRenderObject();
-    if (monthBox == null || monthBox is! RenderBox) return;
-
-    final monthGlobalTop = monthBox.localToGlobal(Offset.zero);
-    final boxGlobalTop = box.localToGlobal(Offset.zero);
-    final currentScroll = _scrollCtrl.position.pixels;
-
-    final monthTopInContent =
-        monthGlobalTop.dy - boxGlobalTop.dy + currentScroll;
-
-    final targetScroll = monthTopInContent + boxGlobalTop.dy - anchorScreenY;
-
-    final pos = _scrollCtrl.position;
-    final clamped = targetScroll.clamp(
-      pos.minScrollExtent,
-      pos.maxScrollExtent,
-    );
-    pos.jumpTo(clamped);
+    _pinchExpansionSettleController
+      ..stop()
+      ..value = _pinchExpansionValue;
+    _pinchExpansionSettleController
+        .animateTo(
+          targetLevel.index.toDouble(),
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOutCubic,
+        )
+        .then((_) {
+          if (!mounted || generation != _pinchSettleGeneration) return;
+          _commitPinchExpansionEndpoint(targetLevel);
+        });
   }
 
   (int, int)? _findMonthAtPoint(Offset globalPoint) {
@@ -26076,83 +26221,56 @@ class CalendarPageState extends State<CalendarPage>
 
   void _onScaleStart(ScaleStartDetails details) {
     if (details.pointerCount < 2) return;
+    ++_pinchSettleGeneration;
+    ++_pinchFrameGeneration;
+    _pinchExpansionSettleController.stop();
+    _isPinchSettling = false;
     _monthExpansionRestorationTarget = null;
-    _scaleGestureAnchor = 1.0;
     _isPinching = true;
-    _lastPinchUpdate = null;
     _pinchStartLevel = _monthExpansion;
-    _pinchExpansionValue = _monthExpansion.index.toDouble();
-    _pinchAnchorPoint = details.focalPoint;
-    _pinchAnchorMonth = _findMonthAtPoint(details.focalPoint);
+    _pinchExpansionValue =
+        _transientMonthExpansionProgress.value ??
+        _monthExpansion.index.toDouble();
+    _pinchGestureStartValue = _pinchExpansionValue;
+    _pendingPinchExpansionValue = null;
+    _pinchAnchorDay = _findPinchDayAnchorAtPoint(details.focalPoint);
+    final dayAnchor = _pinchAnchorDay;
+    _pinchAnchorMonth = dayAnchor == null
+        ? _findMonthAtPoint(details.focalPoint)
+        : (dayAnchor.year, dayAnchor.month);
+    _transientMonthExpansionProgress.value = _pinchExpansionValue;
   }
 
   void _onScaleUpdate(ScaleUpdateDetails details) {
-    if (_scaleGestureAnchor == null || details.pointerCount < 2) return;
-
-    final now = DateTime.now();
-    if (_lastPinchUpdate != null &&
-        now.difference(_lastPinchUpdate!) < _pinchUpdateThrottle) {
+    if (!_isPinching || details.pointerCount < 2 || !details.scale.isFinite) {
       return;
     }
-    _lastPinchUpdate = now;
 
-    final scaleDelta = details.scale - _scaleGestureAnchor!;
     const scaleSensitivity = 0.15;
-    final expansionDelta = scaleDelta / scaleSensitivity;
     final maxExpansionIndex = MonthExpansionLevel.values.length - 1;
-    final newValue = (_pinchExpansionValue + expansionDelta).clamp(
-      0.0,
-      maxExpansionIndex.toDouble(),
-    );
+    final newValue =
+        (_pinchGestureStartValue + ((details.scale - 1.0) / scaleSensitivity))
+            .clamp(0.0, maxExpansionIndex.toDouble());
 
-    if ((newValue - _pinchExpansionValue).abs() > 0.05) {
-      _pinchExpansionValue = newValue;
-      _scaleGestureAnchor = details.scale;
-
-      final nearestLevel = _pinchExpansionValue.round().clamp(
-        0,
-        maxExpansionIndex,
-      );
-      final targetLevel = MonthExpansionLevel.values[nearestLevel];
-      if (targetLevel != _monthExpansion) {
-        _setExpansionLevelSmooth(targetLevel, entryPoint: 'pinch');
-      }
-    }
+    if ((newValue - _pinchExpansionValue).abs() <= 0.001) return;
+    _pinchExpansionValue = newValue;
+    _schedulePinchExpansionProgress(newValue);
   }
 
   void _onScaleEnd(ScaleEndDetails details) {
-    if (_scaleGestureAnchor == null && !_isPinching) return;
+    if (!_isPinching) return;
+    ++_pinchFrameGeneration;
+    _pendingPinchExpansionValue = null;
+    _applyPinchExpansionProgress(_pinchExpansionValue);
+    _isPinching = false;
 
-    final startLevel = _pinchStartLevel ?? _monthExpansion;
     final maxExpansionIndex = MonthExpansionLevel.values.length - 1;
     final nearestLevel = _pinchExpansionValue.round().clamp(
       0,
       maxExpansionIndex,
     );
     final targetLevel = MonthExpansionLevel.values[nearestLevel];
-    _setExpansionLevelSmooth(targetLevel, entryPoint: 'pinch');
-    _pinchExpansionValue = targetLevel.index.toDouble();
-    _lastPinchUpdate = null;
-    _isPinching = false;
-    _scaleGestureAnchor = null;
-
-    if (_pinchAnchorMonth != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _maintainAnchorPoint();
-        _pinchAnchorPoint = null;
-        _pinchAnchorMonth = null;
-      });
-    }
-
-    if (targetLevel != startLevel) {
-      _persistExpansionLevel(targetLevel);
-      Events.trackIfAuthed('calendar_expansion_changed', {
-        'level': _expansionToString(targetLevel),
-        'entry_point': 'pinch',
-      });
-    }
-
-    _pinchStartLevel = null;
+    _startPinchSettle(targetLevel);
   }
 
   _Flow? _visualFlowForNote(_Note note) {
@@ -33988,43 +34106,102 @@ class CalendarPageState extends State<CalendarPage>
           }
           return false;
         },
-        child: CalendarEpochScrollView(
-          key: const PageStorageKey('calendar_portrait_scroll'),
-          controller: _scrollCtrl,
-          correctionController: _calendarLayoutCorrection,
-          anchor: 0.0, // start the center sliver at the top on cold open
-          center: _centerKey, // current Kemetic year is the center
-          slivers: [
-            // PAST years
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (ctx, i) {
-                  final kYear = kToday.kYear - (i + 1);
-                  return _YearSection(
-                    kYear: kYear,
+        child: ValueListenableBuilder<double?>(
+          valueListenable: _transientMonthExpansionProgress,
+          builder: (context, transientExpansionProgress, child) {
+            final expansionProgress =
+                transientExpansionProgress ?? _monthExpansion.index.toDouble();
+            return CalendarEpochScrollView(
+              key: const PageStorageKey('calendar_portrait_scroll'),
+              controller: _scrollCtrl,
+              correctionController: _calendarLayoutCorrection,
+              anchor: 0.0, // start the center sliver at the top on cold open
+              center: _centerKey, // current Kemetic year is the center
+              slivers: [
+                // PAST years
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (ctx, i) {
+                      final kYear = kToday.kYear - (i + 1);
+                      return _YearSection(
+                        kYear: kYear,
+                        monthRevisionListenable:
+                            _calendarMonthProjectionRevision,
+                        todayMonth: null,
+                        todayDay: null,
+                        todayDayKey: null, // no anchor in past/future lists
+                        monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
+                        monthHeaderKeyProvider: (m) =>
+                            keyForMonthHeader(kYear, m),
+                        dayAnchorKeyProvider: (m, d) =>
+                            _calendarDayAnchorKeyFor(kYear, m, d),
+                        onMonthHeaderTap: (context, kMonth) =>
+                            _handleMonthHeaderTapped(context, kYear, kMonth),
+                        onDecanTap: (context, kMonth, decanIndex) =>
+                            _handleDecanHeaderTapped(
+                              context,
+                              kYear,
+                              kMonth,
+                              decanIndex,
+                            ),
+                        onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
+                        notesGetter: (m, d) => _getNotes(kYear, m, d),
+                        flowColorsGetter: (ky, km, kd) =>
+                            getFlowColorsForDay(ky, km, kd),
+                        showGregorian: _showGregorian,
+                        expansionLevel: _monthExpansion,
+                        expansionProgress: expansionProgress,
+                        noteColorResolver: _noteColor,
+                        flowNameGetter: _flowName,
+                        onManageFlows: _getMyFlowsCallback(),
+                        onEditNote: (ky, km, kd, evt) async =>
+                            _editNoteByEvent(ky, km, kd, evt),
+                        onDeleteNote: (ky, km, kd, evt) async =>
+                            _deleteNoteByEvent(ky, km, kd, evt),
+                        onShareNote: (evt) async => _shareNoteSimple(evt),
+                        onEditReminder: (id) async => _editReminderById(id),
+                        onEndReminder: (id) async => _endReminderRule(id),
+                        onShareReminder: (evt) async => _shareNoteSimple(evt),
+                        onEndFlow: (id) => _endFlow(id),
+                        onAppendToJournal: _appendToJournalAndRefresh,
+                      );
+                    },
+                    childCount: 200, //
+                  ),
+                ),
+
+                // CENTER: current Kemetic year
+                SliverToBoxAdapter(
+                  key: _centerKey,
+                  child: _YearSection(
+                    kYear: kToday.kYear,
                     monthRevisionListenable: _calendarMonthProjectionRevision,
-                    todayMonth: null,
-                    todayDay: null,
-                    todayDayKey: null, // no anchor in past/future lists
-                    monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
-                    monthHeaderKeyProvider: (m) => keyForMonthHeader(kYear, m),
+                    todayMonth: kToday.kMonth,
+                    todayDay: kToday.kDay,
+                    temporalAnchorVisibleListenable:
+                        _currentDecanVisibleInViewport,
+                    monthAnchorKeyProvider: (m) => keyForMonth(kToday.kYear, m),
+                    monthHeaderKeyProvider: (m) =>
+                        keyForMonthHeader(kToday.kYear, m),
                     dayAnchorKeyProvider: (m, d) =>
-                        _calendarDayAnchorKeyFor(kYear, m, d),
+                        _calendarDayAnchorKeyFor(kToday.kYear, m, d),
+                    todayDayKey: _todayDayKey, // 🔑 pass day anchor
                     onMonthHeaderTap: (context, kMonth) =>
-                        _handleMonthHeaderTapped(context, kYear, kMonth),
+                        _handleMonthHeaderTapped(context, kToday.kYear, kMonth),
                     onDecanTap: (context, kMonth, decanIndex) =>
                         _handleDecanHeaderTapped(
                           context,
-                          kYear,
+                          kToday.kYear,
                           kMonth,
                           decanIndex,
                         ),
-                    onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
-                    notesGetter: (m, d) => _getNotes(kYear, m, d),
+                    onDayTap: (c, m, d) => _openDayView(c, kToday.kYear, m, d),
+                    notesGetter: (m, d) => _getNotes(kToday.kYear, m, d),
                     flowColorsGetter: (ky, km, kd) =>
                         getFlowColorsForDay(ky, km, kd),
                     showGregorian: _showGregorian,
                     expansionLevel: _monthExpansion,
+                    expansionProgress: expansionProgress,
                     noteColorResolver: _noteColor,
                     flowNameGetter: _flowName,
                     onManageFlows: _getMyFlowsCallback(),
@@ -34038,107 +34215,63 @@ class CalendarPageState extends State<CalendarPage>
                     onShareReminder: (evt) async => _shareNoteSimple(evt),
                     onEndFlow: (id) => _endFlow(id),
                     onAppendToJournal: _appendToJournalAndRefresh,
-                  );
-                },
-                childCount: 200, //
-              ),
-            ),
+                  ),
+                ),
 
-            // CENTER: current Kemetic year
-            SliverToBoxAdapter(
-              key: _centerKey,
-              child: _YearSection(
-                kYear: kToday.kYear,
-                monthRevisionListenable: _calendarMonthProjectionRevision,
-                todayMonth: kToday.kMonth,
-                todayDay: kToday.kDay,
-                temporalAnchorVisibleListenable: _currentDecanVisibleInViewport,
-                monthAnchorKeyProvider: (m) => keyForMonth(kToday.kYear, m),
-                monthHeaderKeyProvider: (m) =>
-                    keyForMonthHeader(kToday.kYear, m),
-                dayAnchorKeyProvider: (m, d) =>
-                    _calendarDayAnchorKeyFor(kToday.kYear, m, d),
-                todayDayKey: _todayDayKey, // 🔑 pass day anchor
-                onMonthHeaderTap: (context, kMonth) =>
-                    _handleMonthHeaderTapped(context, kToday.kYear, kMonth),
-                onDecanTap: (context, kMonth, decanIndex) =>
-                    _handleDecanHeaderTapped(
-                      context,
-                      kToday.kYear,
-                      kMonth,
-                      decanIndex,
-                    ),
-                onDayTap: (c, m, d) => _openDayView(c, kToday.kYear, m, d),
-                notesGetter: (m, d) => _getNotes(kToday.kYear, m, d),
-                flowColorsGetter: (ky, km, kd) =>
-                    getFlowColorsForDay(ky, km, kd),
-                showGregorian: _showGregorian,
-                expansionLevel: _monthExpansion,
-                noteColorResolver: _noteColor,
-                flowNameGetter: _flowName,
-                onManageFlows: _getMyFlowsCallback(),
-                onEditNote: (ky, km, kd, evt) async =>
-                    _editNoteByEvent(ky, km, kd, evt),
-                onDeleteNote: (ky, km, kd, evt) async =>
-                    _deleteNoteByEvent(ky, km, kd, evt),
-                onShareNote: (evt) async => _shareNoteSimple(evt),
-                onEditReminder: (id) async => _editReminderById(id),
-                onEndReminder: (id) async => _endReminderRule(id),
-                onShareReminder: (evt) async => _shareNoteSimple(evt),
-                onEndFlow: (id) => _endFlow(id),
-                onAppendToJournal: _appendToJournalAndRefresh,
-              ),
-            ),
-
-            // FUTURE years
-            SliverList(
-              delegate: SliverChildBuilderDelegate(
-                (ctx, i) {
-                  final kYear = kToday.kYear + (i + 1);
-                  return _YearSection(
-                    kYear: kYear,
-                    monthRevisionListenable: _calendarMonthProjectionRevision,
-                    todayMonth: null,
-                    todayDay: null,
-                    todayDayKey: null,
-                    monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
-                    monthHeaderKeyProvider: (m) => keyForMonthHeader(kYear, m),
-                    dayAnchorKeyProvider: (m, d) =>
-                        _calendarDayAnchorKeyFor(kYear, m, d),
-                    onMonthHeaderTap: (context, kMonth) =>
-                        _handleMonthHeaderTapped(context, kYear, kMonth),
-                    onDecanTap: (context, kMonth, decanIndex) =>
-                        _handleDecanHeaderTapped(
-                          context,
-                          kYear,
-                          kMonth,
-                          decanIndex,
-                        ),
-                    onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
-                    notesGetter: (m, d) => _getNotes(kYear, m, d),
-                    flowColorsGetter: (ky, km, kd) =>
-                        getFlowColorsForDay(ky, km, kd),
-                    showGregorian: _showGregorian,
-                    expansionLevel: _monthExpansion,
-                    noteColorResolver: _noteColor,
-                    flowNameGetter: _flowName,
-                    onManageFlows: _getMyFlowsCallback(),
-                    onEditNote: (ky, km, kd, evt) async =>
-                        _editNoteByEvent(ky, km, kd, evt),
-                    onDeleteNote: (ky, km, kd, evt) async =>
-                        _deleteNoteByEvent(ky, km, kd, evt),
-                    onShareNote: (evt) async => _shareNoteSimple(evt),
-                    onEditReminder: (id) async => _editReminderById(id),
-                    onEndReminder: (id) async => _endReminderRule(id),
-                    onShareReminder: (evt) async => _shareNoteSimple(evt),
-                    onEndFlow: (id) => _endFlow(id),
-                    onAppendToJournal: _appendToJournalAndRefresh,
-                  );
-                },
-                childCount: 200, //
-              ),
-            ),
-          ],
+                // FUTURE years
+                SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (ctx, i) {
+                      final kYear = kToday.kYear + (i + 1);
+                      return _YearSection(
+                        kYear: kYear,
+                        monthRevisionListenable:
+                            _calendarMonthProjectionRevision,
+                        todayMonth: null,
+                        todayDay: null,
+                        todayDayKey: null,
+                        monthAnchorKeyProvider: (m) => keyForMonth(kYear, m),
+                        monthHeaderKeyProvider: (m) =>
+                            keyForMonthHeader(kYear, m),
+                        dayAnchorKeyProvider: (m, d) =>
+                            _calendarDayAnchorKeyFor(kYear, m, d),
+                        onMonthHeaderTap: (context, kMonth) =>
+                            _handleMonthHeaderTapped(context, kYear, kMonth),
+                        onDecanTap: (context, kMonth, decanIndex) =>
+                            _handleDecanHeaderTapped(
+                              context,
+                              kYear,
+                              kMonth,
+                              decanIndex,
+                            ),
+                        onDayTap: (c, m, d) => _openDayView(c, kYear, m, d),
+                        notesGetter: (m, d) => _getNotes(kYear, m, d),
+                        flowColorsGetter: (ky, km, kd) =>
+                            getFlowColorsForDay(ky, km, kd),
+                        showGregorian: _showGregorian,
+                        expansionLevel: _monthExpansion,
+                        expansionProgress: expansionProgress,
+                        noteColorResolver: _noteColor,
+                        flowNameGetter: _flowName,
+                        onManageFlows: _getMyFlowsCallback(),
+                        onEditNote: (ky, km, kd, evt) async =>
+                            _editNoteByEvent(ky, km, kd, evt),
+                        onDeleteNote: (ky, km, kd, evt) async =>
+                            _deleteNoteByEvent(ky, km, kd, evt),
+                        onShareNote: (evt) async => _shareNoteSimple(evt),
+                        onEditReminder: (id) async => _editReminderById(id),
+                        onEndReminder: (id) async => _endReminderRule(id),
+                        onShareReminder: (evt) async => _shareNoteSimple(evt),
+                        onEndFlow: (id) => _endFlow(id),
+                        onAppendToJournal: _appendToJournalAndRefresh,
+                      );
+                    },
+                    childCount: 200, //
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );

@@ -118,6 +118,191 @@ void main() {
   });
 
   testWidgets(
+    'integer pinch seams and settle commits preserve one day anchor',
+    (tester) async {
+      tester.view.physicalSize = const Size(1170, 2532);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      var scrollNotifications = 0;
+      final controller = CalendarBoundaryHarnessController(
+        expansionLevel: MonthExpansionLevel.compact,
+        content: CalendarBoundaryHarnessContent.eventHeavy,
+        instrumentation: CalendarBoundaryInstrumentation.fullProbe,
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: NotificationListener<ScrollNotification>(
+            onNotification: (_) {
+              scrollNotifications++;
+              return false;
+            },
+            child: CalendarPage(
+              key: GlobalKey<CalendarPageState>(),
+              calendarBoundaryHarnessController: controller,
+            ),
+          ),
+        ),
+      );
+      await _pumpFrames(tester, 8);
+
+      final anchorMonth = controller.outgoingMonth;
+      final anchorGeometry = controller.snapshot!.geometryFor(anchorMonth)!;
+      controller.scrollController.position.jumpTo(
+        anchorGeometry.extent.leading + 1,
+      );
+      await _pumpFrames(tester, 4);
+      const anchorDay = 5;
+      var anchorRect = controller.dayViewportRect(
+        anchorMonth.year,
+        anchorMonth.month,
+        anchorDay,
+      );
+      final correctionsBefore = controller.layoutCorrectionCount;
+      final missingBefore = controller.layoutMissingAnchorCount;
+      scrollNotifications = 0;
+
+      const seamGroups = <List<double>>[
+        <double>[0.95, 0.99, 1, 1.01, 1.05],
+        <double>[1.05, 1.01, 1, 0.99, 0.95],
+        <double>[1.95, 1.99, 2, 2.01, 2.05],
+        <double>[2.05, 2.01, 2, 1.99, 1.95],
+        <double>[2.95, 2.99, 3],
+        <double>[3, 2.99, 2.95],
+      ];
+
+      for (final samples in seamGroups) {
+        double? previousHeight;
+        double? previousMonthHeight;
+        for (final progress in samples) {
+          controller.drivePinchExpansionProgress(
+            progress,
+            anchorMonth: anchorMonth,
+            anchorDay: anchorDay,
+          );
+          await tester.pump(const Duration(milliseconds: 16));
+          expect(tester.takeException(), isNull, reason: 'progress=$progress');
+
+          final nextRect = controller.dayViewportRect(
+            anchorMonth.year,
+            anchorMonth.month,
+            anchorDay,
+          );
+          expect(
+            nextRect.top,
+            closeTo(anchorRect.top, 1 / tester.view.devicePixelRatio),
+            reason: 'day anchor at progress=$progress',
+          );
+          anchorRect = nextRect;
+
+          if (previousHeight != null) {
+            final increasing = samples.last >= samples.first;
+            expect(
+              nextRect.height,
+              increasing
+                  ? greaterThanOrEqualTo(previousHeight)
+                  : lessThanOrEqualTo(previousHeight),
+              reason: 'day height at progress=$progress',
+            );
+          }
+          previousHeight = nextRect.height;
+
+          final nextMonthHeight = controller.monthHeight(anchorMonth);
+          if (previousMonthHeight != null) {
+            expect(
+              (nextMonthHeight - previousMonthHeight).abs(),
+              lessThan(25),
+              reason: 'month extent seam at progress=$progress',
+            );
+          }
+          previousMonthHeight = nextMonthHeight;
+
+          if (progress == 1) expect(nextRect.height, closeTo(62, 0.01));
+          if (progress == 2) expect(nextRect.height, closeTo(98, 0.01));
+        }
+      }
+
+      // A rendered fractional endpoint and its committed enum endpoint must
+      // be geometrically identical in both directions.
+      for (final target in <MonthExpansionLevel>[
+        MonthExpansionLevel.stacked,
+        MonthExpansionLevel.labeled,
+        MonthExpansionLevel.details,
+        MonthExpansionLevel.labeled,
+        MonthExpansionLevel.stacked,
+        MonthExpansionLevel.compact,
+      ]) {
+        controller.drivePinchExpansionProgress(
+          target.index.toDouble(),
+          anchorMonth: anchorMonth,
+          anchorDay: anchorDay,
+        );
+        await tester.pump(const Duration(milliseconds: 16));
+        final transientRect = controller.dayViewportRect(
+          anchorMonth.year,
+          anchorMonth.month,
+          anchorDay,
+        );
+        final transientMonthHeight = controller.monthHeight(anchorMonth);
+
+        controller.commitPinchExpansionEndpoint(target);
+        await tester.pump(const Duration(milliseconds: 16));
+        final committedRect = controller.dayViewportRect(
+          anchorMonth.year,
+          anchorMonth.month,
+          anchorDay,
+        );
+        expect(
+          committedRect.top,
+          closeTo(transientRect.top, 1 / tester.view.devicePixelRatio),
+          reason: 'commit anchor for ${target.name}',
+        );
+        expect(
+          committedRect.height,
+          closeTo(transientRect.height, 0.01),
+          reason: 'commit day extent for ${target.name}',
+        );
+        expect(
+          controller.monthHeight(anchorMonth),
+          closeTo(transientMonthHeight, 0.01),
+          reason: 'commit month extent for ${target.name}',
+        );
+        anchorRect = committedRect;
+      }
+
+      // Reproduce the race from a final animation tick: commit and clear the
+      // mutable pinch fields before the viewport consumes its pending layout
+      // correction. The request must still resolve the original day object.
+      controller.drivePinchExpansionProgress(
+        1,
+        anchorMonth: anchorMonth,
+        anchorDay: anchorDay,
+      );
+      controller.commitPinchExpansionEndpoint(MonthExpansionLevel.stacked);
+      await tester.pump(const Duration(milliseconds: 16));
+      final sameFrameCommitRect = controller.dayViewportRect(
+        anchorMonth.year,
+        anchorMonth.month,
+        anchorDay,
+      );
+      expect(
+        sameFrameCommitRect.top,
+        closeTo(anchorRect.top, 1 / tester.view.devicePixelRatio),
+      );
+
+      expect(scrollNotifications, 0);
+      expect(controller.layoutCorrectionCount, greaterThan(correctionsBefore));
+      expect(controller.layoutMissingAnchorCount, missingBefore);
+      controller.finishPinchExpansionHarness();
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump(const Duration(seconds: 2));
+      controller.dispose();
+    },
+  );
+
+  testWidgets(
     'Today records controlled early and late hydration transactions',
     (tester) async {
       tester.view.physicalSize = const Size(780, 1688);

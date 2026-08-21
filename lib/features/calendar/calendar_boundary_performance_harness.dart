@@ -179,6 +179,94 @@ final class CalendarBoundaryHarnessController {
   MonthRef? get activeCenteredMonth =>
       _state?._calendarScrollCoordinator.activeCenteredMonth.value;
 
+  int get layoutCorrectionCount =>
+      _state?._calendarLayoutCorrection.debugCompletedCount ?? 0;
+
+  int get layoutMissingAnchorCount =>
+      _state?._calendarLayoutCorrection.debugMissingAnchorCount ?? 0;
+
+  double get lastLayoutCorrection =>
+      _state?._calendarLayoutCorrection.debugLastCorrection ?? 0;
+
+  double monthViewportTop(MonthRef month) {
+    final context = keyForMonth(month.year, month.month).currentContext;
+    final renderObject = context?.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.attached) {
+      throw StateError('Month $month is not mounted.');
+    }
+    return renderObject.localToGlobal(Offset.zero).dy;
+  }
+
+  double monthHeight(MonthRef month) {
+    final context = keyForMonth(month.year, month.month).currentContext;
+    final renderObject = context?.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.attached) {
+      throw StateError('Month $month is not mounted.');
+    }
+    return renderObject.size.height;
+  }
+
+  RenderCalendarPinchDayAnchor _pinchDayAnchor(int year, int month, int day) {
+    final context = keyForMonth(year, month).currentContext;
+    final monthRenderObject = context?.findRenderObject();
+    RenderCalendarPinchDayAnchor? match;
+
+    void visit(RenderObject child) {
+      if (match != null) return;
+      if (child is RenderCalendarPinchDayAnchor &&
+          child.year == year &&
+          child.month == month &&
+          child.day == day) {
+        match = child;
+        return;
+      }
+      child.visitChildren(visit);
+    }
+
+    monthRenderObject?.visitChildren(visit);
+    final result = match;
+    if (result == null || !result.attached) {
+      throw StateError('Day $year/$month/$day is not mounted.');
+    }
+    return result;
+  }
+
+  Rect dayViewportRect(int year, int month, int day) {
+    final anchor = _pinchDayAnchor(year, month, day);
+    final origin = anchor.localToGlobal(Offset.zero);
+    return origin & anchor.size;
+  }
+
+  void drivePinchExpansionProgress(
+    double progress, {
+    MonthRef? anchorMonth,
+    int? anchorDay,
+  }) {
+    final state = _requireState();
+    final anchor =
+        anchorMonth ??
+        state._calendarScrollCoordinator.activeCenteredMonth.value;
+    state._pinchAnchorMonth = (anchor.year, anchor.month);
+    state._pinchAnchorDay = anchorDay == null
+        ? null
+        : _pinchDayAnchor(anchor.year, anchor.month, anchorDay);
+    state._applyPinchExpansionProgress(progress);
+  }
+
+  void commitPinchExpansionEndpoint(MonthExpansionLevel targetLevel) {
+    _requireState()._commitPinchExpansionEndpoint(
+      targetLevel,
+      persistAndTrack: false,
+    );
+  }
+
+  void finishPinchExpansionHarness() {
+    final state = _requireState();
+    state._transientMonthExpansionProgress.value = null;
+    state._pinchAnchorMonth = null;
+    state._pinchAnchorDay = null;
+  }
+
   List<CalendarBoundaryFrameSample> get samples =>
       List<CalendarBoundaryFrameSample>.unmodifiable(_samples);
 

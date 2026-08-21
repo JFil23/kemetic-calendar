@@ -1,6 +1,52 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
+/// Stable render marker for the calendar day currently under a pinch focal
+/// point. Keeping this render object alive across fractional layout updates
+/// lets the viewport preserve a day anchor instead of repairing a month-level
+/// jump after paint.
+class CalendarPinchDayAnchor extends SingleChildRenderObjectWidget {
+  const CalendarPinchDayAnchor({
+    super.key,
+    required this.year,
+    required this.month,
+    required this.day,
+    required super.child,
+  });
+
+  final int year;
+  final int month;
+  final int day;
+
+  @override
+  RenderCalendarPinchDayAnchor createRenderObject(BuildContext context) {
+    return RenderCalendarPinchDayAnchor(year: year, month: month, day: day);
+  }
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    RenderCalendarPinchDayAnchor renderObject,
+  ) {
+    renderObject
+      ..year = year
+      ..month = month
+      ..day = day;
+  }
+}
+
+class RenderCalendarPinchDayAnchor extends RenderProxyBox {
+  RenderCalendarPinchDayAnchor({
+    required this.year,
+    required this.month,
+    required this.day,
+  });
+
+  int year;
+  int month;
+  int day;
+}
+
 typedef CalendarLayoutAnchorResolver = RenderObject? Function();
 
 /// One layout-coupled semantic-anchor correction request.

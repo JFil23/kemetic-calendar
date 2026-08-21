@@ -88,4 +88,98 @@ void main() {
     expect(correction.debugMissingAnchorCount, 1);
     expect(correction.debugLastCorrection, 0);
   });
+
+  testWidgets(
+    'fractional day-row updates keep the pinched day within one pixel',
+    (tester) async {
+      final correction = CalendarLayoutCorrectionController();
+      final scroll = ScrollController(initialScrollOffset: 50);
+      final dayAnchor = GlobalKey();
+      final rowHeight = ValueNotifier<double>(36);
+      var scrollNotifications = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: SizedBox(
+            height: 500,
+            child: NotificationListener<ScrollNotification>(
+              onNotification: (_) {
+                scrollNotifications++;
+                return false;
+              },
+              child: ValueListenableBuilder<double>(
+                valueListenable: rowHeight,
+                builder: (context, height, child) => CalendarEpochScrollView(
+                  controller: scroll,
+                  correctionController: correction,
+                  slivers: <Widget>[
+                    SliverToBoxAdapter(
+                      child: Column(
+                        children: <Widget>[
+                          for (var index = 0; index < 6; index++)
+                            SizedBox(height: height),
+                        ],
+                      ),
+                    ),
+                    SliverToBoxAdapter(
+                      child: CalendarPinchDayAnchor(
+                        key: dayAnchor,
+                        year: 6267,
+                        month: 1,
+                        day: 5,
+                        child: SizedBox(
+                          height: height,
+                          child: const ColoredBox(color: Colors.amber),
+                        ),
+                      ),
+                    ),
+                    const SliverToBoxAdapter(child: SizedBox(height: 1200)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final anchoredTop = tester.getTopLeft(find.byKey(dayAnchor)).dy;
+      scrollNotifications = 0;
+
+      for (final height in const <double>[
+        42.5,
+        49,
+        55.5,
+        62,
+        71,
+        80,
+        89,
+        98,
+        136,
+        174,
+        212,
+        250,
+      ]) {
+        correction.request(
+          geometryRevision: 'pinch-$height',
+          resolveAnchor: () => dayAnchor.currentContext?.findRenderObject(),
+        );
+        rowHeight.value = height;
+        await tester.pump();
+        expect(
+          tester.getTopLeft(find.byKey(dayAnchor)).dy,
+          closeTo(anchoredTop, 1),
+        );
+      }
+
+      final renderAnchor = dayAnchor.currentContext!.findRenderObject();
+      expect(renderAnchor, isA<RenderCalendarPinchDayAnchor>());
+      final semanticDay = renderAnchor! as RenderCalendarPinchDayAnchor;
+      expect(
+        (semanticDay.year, semanticDay.month, semanticDay.day),
+        (6267, 1, 5),
+      );
+      expect(scrollNotifications, 0);
+      expect(correction.pending, isNull);
+    },
+  );
 }
