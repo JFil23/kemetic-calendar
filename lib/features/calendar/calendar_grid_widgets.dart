@@ -13,7 +13,6 @@ class _YearSection extends StatelessWidget {
     required this.showGregorian,
     this.monthRevisionListenable,
     this.expansionLevel = MonthExpansionLevel.compact,
-    this.expansionProgress,
     this.expansionProgressListenable,
     this.fractionalPresentationMonthsListenable,
     this.noteColorResolver = _defaultNoteColor,
@@ -41,7 +40,6 @@ class _YearSection extends StatelessWidget {
   final int? todayDay;
   final bool showGregorian;
   final MonthExpansionLevel expansionLevel;
-  final double? expansionProgress;
   final ValueListenable<double?>? expansionProgressListenable;
   final ValueListenable<Set<MonthRef>>? fractionalPresentationMonthsListenable;
   final Color Function(_Note) noteColorResolver;
@@ -160,7 +158,7 @@ class _YearSection extends StatelessWidget {
             tm,
             td,
             isTemporalAnchorVisible,
-            effectiveExpansionProgress: expansionProgress,
+            effectiveExpansionProgress: null,
           )
         : _FractionalMonthPresentation(
             month: month,

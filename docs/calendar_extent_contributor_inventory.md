@@ -389,3 +389,8 @@ seam and settle tests confirm the day and month extents at progress `0`, `1`,
 `2`, and `3` are unchanged, including a zero-delta transition from the final
 fractional frame to its committed endpoint. Calendar restoration layout
 revision 2 therefore remains current.
+
+The LOCK-GATE follow-up removes the never-supplied fixed
+`expansionProgress` constructor parameter. Its fallback was already the
+committed endpoint path, so the removal changes neither rendered output nor
+any extent term.
