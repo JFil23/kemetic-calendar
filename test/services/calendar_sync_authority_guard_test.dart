@@ -114,7 +114,7 @@ void main() {
       );
     });
 
-    test('pins the exact served-production violation inventory', () async {
+    test('removes every served-production write violation', () async {
       final sources = <String, String>{
         for (final path in _guardedSourcePaths)
           path: await File(path).readAsString(),
@@ -167,10 +167,10 @@ void main() {
           'calendar:import-delete-suppression',
       };
 
-      expect(violations, _servedProductionViolations);
+      expect(violations, isEmpty);
     });
 
-    test('does not allow an un-inventoried native write primitive', () async {
+    test('native bridges contain no calendar write primitive', () async {
       final android = await File(_androidBridge).readAsString();
       final ios = await File(_iosBridge).readAsString();
 
@@ -181,8 +181,133 @@ void main() {
         r'eventStore\.(save|remove)\s*\(',
       ).allMatches(ios).map((match) => match.group(1)!).toSet();
 
-      expect(androidWritePrimitives, <String>{'insert', 'update', 'delete'});
-      expect(iosWritePrimitives, <String>{'save', 'remove'});
+      expect(androidWritePrimitives, isEmpty);
+      expect(iosWritePrimitives, isEmpty);
+    });
+
+    test('unlink clears only imported HAw rows without suppression', () async {
+      final service = await File(_syncService).readAsString();
+      final settings = await File(_settingsPage).readAsString();
+      final unlink = _section(
+        service,
+        'Future<CalendarSyncResetResult> unlinkImportedCalendarData(',
+        'Future<int> _removeImportedNativeEventsFromHaw()',
+      );
+      final removeImports = _section(
+        service,
+        'Future<int> _removeImportedNativeEventsFromHaw()',
+        'Future<void> _clearSyncState()',
+      );
+
+      expect(settings, contains('sync.unlinkImportedCalendarData('));
+      expect(settings, isNot(contains('sync.unlinkAndPurge(')));
+      expect(
+        unlink,
+        contains('SettingsPrefs.setAutoCalendarSyncEnabled(false)'),
+      );
+      expect(unlink, isNot(contains('_platform.')));
+      expect(unlink, isNot(contains('requestPermissions')));
+      expect(
+        removeImports,
+        contains("deleteByClientIdPrefix(\n      'native:'"),
+      );
+      expect(removeImports, contains("deleteByCategory(\n      'native_sync'"));
+      expect(
+        RegExp(r'suppressesClient:\s*false').allMatches(removeImports),
+        hasLength(2),
+      );
+      expect(removeImports, isNot(contains('_platform.')));
+      expect(removeImports, isNot(contains('MethodChannel')));
+    });
+
+    test('OFF preserves imports and failed enable stays visibly OFF', () async {
+      final settings = await File(_settingsPage).readAsString();
+      final prefs = await File(_settingsPrefs).readAsString();
+      final toggle = _section(
+        settings,
+        'Future<void> _setAutoCalendarSync(bool enabled)',
+        'Future<void> _toggleUsHolidays(bool enabled)',
+      );
+      final offBranch = toggle.substring(
+        toggle.indexOf('if (!enabled)'),
+        toggle.indexOf('if (!_hasSession)'),
+      );
+
+      expect(offBranch, contains('sync.stop()'));
+      expect(offBranch, contains('_autoCalendarSync = false'));
+      expect(offBranch, contains('Events already imported into HAw remain'));
+      expect(offBranch, isNot(contains('unlinkImportedCalendarData')));
+      expect(offBranch, isNot(contains('deleteBy')));
+      expect(
+        toggle,
+        contains('final result = await sync.sync(interactive: true)'),
+      );
+      expect(toggle, contains('if (!result.didSync)'));
+      expect(toggle, contains('await sync.start()'));
+      expect(
+        toggle.indexOf(
+          '_autoCalendarSync = false',
+          toggle.indexOf('if (!result.didSync)'),
+        ),
+        lessThan(toggle.indexOf('await sync.start()')),
+      );
+      expect(
+        prefs,
+        contains('return prefs.getBool(autoCalendarSyncKey) ?? false;'),
+      );
+    });
+
+    test('imported projections cannot edit, move, detach, or suppress', () async {
+      final calendar = await File(_calendarPage).readAsString();
+      final service = await File(_syncService).readAsString();
+      final delete = _section(
+        calendar,
+        'Future<bool> _deleteNote(',
+        'Future<void> _deleteNoteByEvent(',
+      );
+      final move = _section(
+        calendar,
+        'Future<void> _moveEventInDayView(',
+        'Future<bool> requestEndChange(',
+      );
+      final update = _section(
+        calendar,
+        'Future<({String clientEventId, String eventId})> _updateSingleNoteOnly(',
+        'Future<void> _saveRepeatingNoteAsHiddenFlow(',
+      );
+
+      expect(calendar, isNot(contains('detachImportedDeviceEvent')));
+      expect(calendar, isNot(contains('move_event_detach')));
+      expect(calendar, isNot(contains('.recordDeletedInApp(')));
+      expect(service, isNot(contains('recordDeletedInApp(')));
+      expect(
+        delete.indexOf('isImportedDeviceCalendarEvent('),
+        lessThan(delete.indexOf('_removeCalendarNotesWhere(')),
+      );
+      expect(
+        move.indexOf('isImportedDeviceCalendarEvent('),
+        lessThan(move.indexOf('_eventMoveInProgress.add(')),
+      );
+      expect(
+        update.indexOf('isImportedDeviceCalendarEvent('),
+        lessThan(update.indexOf('UserEventsRepo(')),
+      );
+      expect(
+        calendar,
+        contains('Imported device-calendar events are read-only in HAw.'),
+      );
+    });
+
+    test('permission declarations describe a read-only import', () async {
+      final manifest = await File(_androidManifest).readAsString();
+      final plist = await File(_iosPlist).readAsString();
+
+      expect(manifest, contains('android.permission.READ_CALENDAR'));
+      expect(manifest, isNot(contains('android.permission.WRITE_CALENDAR')));
+      expect(plist, contains('NSCalendarsFullAccessUsageDescription'));
+      expect(plist, contains('one-way import'));
+      expect(plist, contains('will not create, update, export, or delete'));
+      expect(plist, isNot(contains('read and write your calendar')));
     });
   });
 }
@@ -200,8 +325,10 @@ const _androidManifest = 'android/app/src/main/AndroidManifest.xml';
 const _androidBridge =
     'android/app/src/main/kotlin/com/jaralephillips/hawcalendar/MainActivity.kt';
 const _iosBridge = 'ios/Runner/AppDelegate.swift';
+const _iosPlist = 'ios/Runner/Info.plist';
 const _syncService = 'lib/services/calendar_sync_service.dart';
 const _settingsPage = 'lib/features/settings/settings_page.dart';
+const _settingsPrefs = 'lib/features/settings/settings_prefs.dart';
 const _calendarPage = 'lib/features/calendar/calendar_page.dart';
 
 const _guardedSourcePaths = <String>[
@@ -212,26 +339,3 @@ const _guardedSourcePaths = <String>[
   _settingsPage,
   _calendarPage,
 ];
-
-const _servedProductionViolations = <String>{
-  'android:write-permission',
-  'android:write-permission-request',
-  'android:upsert-channel',
-  'android:delete-channel',
-  'android:purge-channel',
-  'android:native-insert',
-  'android:native-update',
-  'android:native-delete',
-  'ios:upsert-channel',
-  'ios:delete-channel',
-  'ios:purge-channel',
-  'ios:native-save',
-  'ios:native-remove',
-  'dart:native-delete-bridge',
-  'dart:native-purge-bridge',
-  'dart:unlink-purges-native',
-  'dart:haw-delete-suppresses-native',
-  'settings:unlink-calls-native-purge-path',
-  'calendar:import-detach-mutation',
-  'calendar:import-delete-suppression',
-};

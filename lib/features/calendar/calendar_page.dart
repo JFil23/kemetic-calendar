@@ -22865,27 +22865,6 @@ class CalendarPageState extends State<CalendarPage>
     return 2;
   }
 
-  String? _editableStandaloneCategory({
-    required bool detachImportedDeviceEvent,
-    String? category,
-  }) {
-    final trimmed = category?.trim();
-    if (trimmed == null || trimmed.isEmpty) return null;
-    if (detachImportedDeviceEvent && trimmed.toLowerCase() == 'native_sync') {
-      return null;
-    }
-    return trimmed;
-  }
-
-  Future<void> _suppressImportedDeviceEventSource(String? clientEventId) async {
-    final trimmed = clientEventId?.trim();
-    if (trimmed == null || trimmed.isEmpty) return;
-    if (!isImportedDeviceCalendarEvent(clientEventId: trimmed)) return;
-    await sharedCalendarSyncService(
-      Supabase.instance.client,
-    ).recordDeletedInApp(trimmed);
-  }
-
   bool _isManualCid(String? cid, {int? flowId}) {
     final trimmed = cid?.trim() ?? '';
     if (trimmed.startsWith('reminder:') ||
@@ -24097,6 +24076,13 @@ class CalendarPageState extends State<CalendarPage>
       _showBirthdayReadOnlyMessage();
       return false;
     }
+    if (isImportedDeviceCalendarEvent(
+      clientEventId: note.clientEventId,
+      category: note.category,
+    )) {
+      _showImportedDeviceEventReadOnlyMessage();
+      return false;
+    }
     final String deletedTitle = note.title;
     final manualCid = _manualCidForNote(note, kYear, kMonth, kDay);
     final int? flowIdForNote = note.flowId;
@@ -24222,13 +24208,6 @@ class CalendarPageState extends State<CalendarPage>
           }
           removed = deleteResult.isSuccess;
           if (removed) successfulCid = note.clientEventId;
-          if (removed &&
-              note.clientEventId != null &&
-              note.clientEventId!.startsWith('native:')) {
-            await sharedCalendarSyncService(
-              Supabase.instance.client,
-            ).recordDeletedInApp(note.clientEventId!);
-          }
           if (kDebugMode) {
             _calendarDebugPrint(
               '[delete-note] ✅ SUCCESS: Deleted by id=${note.id} cid=${note.clientEventId}',
@@ -24241,11 +24220,6 @@ class CalendarPageState extends State<CalendarPage>
           if (removed) {
             await cancelNotification(note.clientEventId!);
             successfulCid = note.clientEventId;
-          }
-          if (removed && note.clientEventId!.startsWith('native:')) {
-            await sharedCalendarSyncService(
-              Supabase.instance.client,
-            ).recordDeletedInApp(note.clientEventId!);
           }
           if (kDebugMode) {
             _calendarDebugPrint(
@@ -24749,6 +24723,13 @@ class CalendarPageState extends State<CalendarPage>
       _showBirthdayReadOnlyMessage();
       return;
     }
+    if (isImportedDeviceCalendarEvent(
+      clientEventId: evt.clientEventId,
+      category: evt.category,
+    )) {
+      _showImportedDeviceEventReadOnlyMessage();
+      return;
+    }
     final idx = _findNoteIndexByEvent(ky, km, kd, evt);
     if (idx != null) {
       await _deleteNote(ky, km, kd, idx);
@@ -24761,6 +24742,13 @@ class CalendarPageState extends State<CalendarPage>
       clientEventId: evt.clientEventId,
     )) {
       _showBirthdayReadOnlyMessage();
+      return;
+    }
+    if (isImportedDeviceCalendarEvent(
+      clientEventId: evt.clientEventId,
+      category: evt.category,
+    )) {
+      _showImportedDeviceEventReadOnlyMessage();
       return;
     }
     final idx = _findNoteIndexByEvent(ky, km, kd, evt);
@@ -24802,6 +24790,17 @@ class CalendarPageState extends State<CalendarPage>
       const SnackBar(
         content: Text(
           'Birthday editing is managed from the Birthdays calendar.',
+        ),
+      ),
+    );
+  }
+
+  void _showImportedDeviceEventReadOnlyMessage() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'This event mirrors your device calendar. Edit or delete it in Apple or Google Calendar.',
         ),
       ),
     );
@@ -25026,6 +25025,13 @@ class CalendarPageState extends State<CalendarPage>
       }
       return;
     }
+    if (isImportedDeviceCalendarEvent(
+      clientEventId: rawClientId,
+      category: evt.category,
+    )) {
+      _showImportedDeviceEventReadOnlyMessage();
+      return;
+    }
 
     if ((rawId == null || rawId.isEmpty) &&
         (rawClientId == null || rawClientId.isEmpty)) {
@@ -25184,86 +25190,15 @@ class CalendarPageState extends State<CalendarPage>
       }
 
       final repo = UserEventsRepo(Supabase.instance.client);
-      final importedDeviceEvent = isImportedDeviceCalendarEvent(
-        clientEventId: rawClientId,
-        category: evt.category,
-      );
-      final effectiveCategory = _editableStandaloneCategory(
-        detachImportedDeviceEvent: importedDeviceEvent,
-        category: evt.category,
-      );
+      final normalizedCategory = evt.category?.trim();
+      final effectiveCategory = normalizedCategory?.isEmpty == true
+          ? null
+          : normalizedCategory;
       final detailToPersist = isReminderOccurrence
           ? detailWithOverrideMarker
           : evt.detail;
       UserEvent updated;
-      if (importedDeviceEvent) {
-        final detachedCid = _buildCid(
-          ky: ky,
-          km: km,
-          kd: kd,
-          title: evt.title,
-          startHour: clampedStart ~/ 60,
-          startMinute: clampedStart % 60,
-          allDay: evt.allDay,
-          flowId: -1,
-        );
-        if (kDebugMode) {
-          _calendarDebugPrint(
-            '[DayView] move persist: detaching imported device event oldCid=$rawClientId newCid=$detachedCid start=${startLocal.toUtc()} end=${endLocal.toUtc()}',
-          );
-        }
-        if (rawId != null && rawId.isNotEmpty) {
-          updated = await repo.replace(
-            id: rawId,
-            clientEventId: detachedCid,
-            title: evt.title,
-            detail: detailToPersist,
-            location: evt.location,
-            allDay: evt.allDay,
-            startsAt: startLocal,
-            endsAt: endLocal,
-            category: effectiveCategory,
-          );
-        } else {
-          final persisted = rawClientId == null
-              ? null
-              : await repo.getEventByClientEventId(rawClientId);
-          if (persisted != null) {
-            updated = await repo.replace(
-              id: persisted.id,
-              clientEventId: detachedCid,
-              title: evt.title,
-              detail: detailToPersist,
-              location: evt.location,
-              allDay: evt.allDay,
-              startsAt: startLocal,
-              endsAt: endLocal,
-              category: effectiveCategory,
-            );
-          } else {
-            updated = await repo.upsertByClientId(
-              clientEventId: detachedCid,
-              title: evt.title,
-              startsAtUtc: startLocal.toUtc(),
-              detail: detailToPersist,
-              location: evt.location,
-              allDay: evt.allDay,
-              endsAtUtc: endLocal.toUtc(),
-              flowLocalId: null,
-              category: effectiveCategory,
-              caller: 'move_event_detach',
-            );
-          }
-          if (rawClientId != null && rawClientId != detachedCid) {
-            try {
-              await repo.deleteByClientId(rawClientId);
-            } catch (_) {
-              // Best-effort cleanup for a stale imported row.
-            }
-          }
-        }
-        await _suppressImportedDeviceEventSource(rawClientId);
-      } else if (rawId != null && rawId.isNotEmpty) {
+      if (rawId != null && rawId.isNotEmpty) {
         if (kDebugMode) {
           _calendarDebugPrint(
             '[DayView] move persist: update by id=$rawId start=${startLocal.toUtc()} end=${endLocal.toUtc()}',
@@ -30407,6 +30342,15 @@ class CalendarPageState extends State<CalendarPage>
                                         )
                                       : null);
 
+                              if (existingNote != null &&
+                                  isImportedDeviceCalendarEvent(
+                                    clientEventId: existingNote.clientEventId,
+                                    category: existingNote.category,
+                                  )) {
+                                _showImportedDeviceEventReadOnlyMessage();
+                                return;
+                              }
+
                               try {
                                 ({String clientEventId, String eventId})?
                                 saveResult;
@@ -32500,6 +32444,12 @@ class CalendarPageState extends State<CalendarPage>
     String? category,
     int alertMinutesBefore = _alertNoneMinutes,
   }) async {
+    if (isImportedDeviceCalendarEvent(
+      clientEventId: previousClientEventId,
+      category: category,
+    )) {
+      throw StateError('Imported device-calendar events are read-only in HAw.');
+    }
     final gDay = KemeticMath.toGregorian(selYear, selMonth, selDay);
     final startLocal = allDay
         ? DateTime(gDay.year, gDay.month, gDay.day, 9, 0)
@@ -32553,14 +32503,10 @@ class CalendarPageState extends State<CalendarPage>
     );
 
     final repo = UserEventsRepo(Supabase.instance.client);
-    final importedDeviceEvent = isImportedDeviceCalendarEvent(
-      clientEventId: previousClientEventId,
-      category: category,
-    );
-    final effectiveCategory = _editableStandaloneCategory(
-      detachImportedDeviceEvent: importedDeviceEvent,
-      category: category,
-    );
+    final normalizedCategory = category?.trim();
+    final effectiveCategory = normalizedCategory?.isEmpty == true
+        ? null
+        : normalizedCategory;
     final endsAtUtc = (allDay || endTime == null)
         ? null
         : DateTime(
@@ -32591,10 +32537,6 @@ class CalendarPageState extends State<CalendarPage>
         await Notify.cancelNotificationForEvent(previousClientEventId);
       } catch (_) {}
     }
-    if (importedDeviceEvent) {
-      await _suppressImportedDeviceEventSource(previousClientEventId);
-    }
-
     _addNote(
       selYear,
       selMonth,
