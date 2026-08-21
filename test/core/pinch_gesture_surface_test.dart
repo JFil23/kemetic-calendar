@@ -10,6 +10,8 @@ void main() {
     GestureScaleUpdateCallback? onScaleUpdate,
     GestureScaleEndCallback? onScaleEnd,
     VoidCallback? onTap,
+    double touchScaleSlop = 12.0,
+    double touchScaleRatioSlop = 0.04,
   }) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -20,6 +22,8 @@ void main() {
               height: 260,
               child: PinchGestureSurface(
                 enableTouchPinch: true,
+                touchScaleSlop: touchScaleSlop,
+                touchScaleRatioSlop: touchScaleRatioSlop,
                 onScaleStart: onScaleStart,
                 onScaleUpdate: onScaleUpdate,
                 onScaleEnd: onScaleEnd,
@@ -113,5 +117,41 @@ void main() {
     expect(pinchEnds, 1);
     expect(scales, isNotEmpty);
     expect(scales.any((scale) => scale > 1.0), isTrue);
+  });
+
+  testWidgets('activation rebases the first emitted scale to one', (
+    tester,
+  ) async {
+    final scales = <double>[];
+    await pumpSurface(
+      tester,
+      touchScaleSlop: 3.0,
+      touchScaleRatioSlop: 0.01,
+      onScaleUpdate: (details) => scales.add(details.scale),
+    );
+    final center = tester.getCenter(find.byType(PinchGestureSurface));
+
+    final gestureA = await tester.createGesture(kind: PointerDeviceKind.touch);
+    final gestureB = await tester.createGesture(kind: PointerDeviceKind.touch);
+    await gestureA.down(center + const Offset(-30, 0));
+    await gestureB.down(center + const Offset(30, 0));
+    await tester.pump();
+
+    await gestureA.moveTo(center + const Offset(-34, 0));
+    await gestureB.moveTo(center + const Offset(34, 0));
+    await tester.pump();
+
+    expect(scales, hasLength(1));
+    expect(scales.single, closeTo(1.0, 0.000001));
+
+    await gestureA.moveTo(center + const Offset(-36, 0));
+    await gestureB.moveTo(center + const Offset(36, 0));
+    await tester.pump();
+
+    expect(scales.last, closeTo(36 / 34, 0.000001));
+
+    await gestureA.up();
+    await gestureB.up();
+    await tester.pumpAndSettle();
   });
 }

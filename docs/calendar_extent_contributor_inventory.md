@@ -350,3 +350,19 @@ pinches continue to use the existing discrete restoration policy and settle
 target. The closed contributor list remains complete with the fractional
 projection, transient ordinary/Heriu spacing, and layout-transparent day
 anchor now included in the audited fragments.
+
+## 2026-08-21 pinch input-calibration re-audit
+
+The Calendar touch recognizer now activates after 3 logical pixels and a 1%
+span-ratio change. When recognition activates, that position becomes the live
+scale baseline, so the first rendered update is scale `1.0`; the recognition
+dead zone is not replayed into layout. These thresholds and baseline semantics
+change only when fractional updates begin and do not contribute an extent.
+
+Calendar maps live scale to expansion progress with the reciprocal relation
+`start + log(scale) / log(1.15)`, clamped to the existing `0.0..3.0` domain.
+Thus `1.15` and `1 / 1.15` move one level in opposite directions. The mapping
+does not change `CalendarExpansionGeometry`, the four committed endpoint
+heights, intermediate height equations, frame coalescing, layout-time day
+anchor correction, settle endpoint, section topology, or any outer padding.
+Calendar restoration layout revision 2 therefore remains current.

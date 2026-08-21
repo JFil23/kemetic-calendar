@@ -49,7 +49,7 @@
       "file": "lib/features/calendar/calendar_page.dart",
       "start": "  Widget _buildBodyWithJournal() {",
       "end": "  /* ───────────── Decan Reflection Badge & Archive ───────────── */",
-      "sha256": "fb5a595b6ddfa709fd95f1f61be82f2ac8035d972938d9622e5ea9facb734a60"
+      "sha256": "57cffa110374c6bf9d11e4732f8d8b6c66e53e06a24f9ea47809fddedeb5f511"
     },
     {
       "name": "year_sliver_topology",
@@ -63,7 +63,7 @@
       "file": "lib/features/calendar/calendar_page.dart",
       "start": "  RenderCalendarPinchDayAnchor? _findPinchDayAnchorAtPoint(",
       "end": "  Color _noteColor(_Note note) {",
-      "sha256": "bddb61ff217242130e9aa15843567403ab126e9da0b9e58659381d08f061f9e5"
+      "sha256": "ca577d24ea576d276eeae405f70120ef9db43e0dd652cf40b839625c0f0af0d2"
     },
     {
       "name": "pinch_day_anchor_marker",

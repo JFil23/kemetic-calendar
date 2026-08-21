@@ -70,7 +70,7 @@ class _PinchGestureSurfaceState extends State<PinchGestureSurface> {
     _touchBaselineMetrics ??= metrics;
     final baseline = _touchBaselineMetrics!;
     final spanDelta = (metrics.span - baseline.span).abs();
-    final scale = baseline.span > 0 ? metrics.span / baseline.span : 1.0;
+    var scale = baseline.span > 0 ? metrics.span / baseline.span : 1.0;
     final scaleDelta = (scale - 1.0).abs();
 
     if (!_touchPinchActive) {
@@ -80,6 +80,11 @@ class _PinchGestureSurfaceState extends State<PinchGestureSurface> {
       }
 
       _touchPinchActive = true;
+      // Recognition movement only decides when the gesture becomes active.
+      // Rebase here so the first rendered update starts at scale 1 instead of
+      // replaying the entire activation dead zone in one frame.
+      _touchBaselineMetrics = metrics;
+      scale = 1.0;
       _lastFocalPoint = metrics.focalPoint;
       widget.onScaleStart?.call(
         ScaleStartDetails(
