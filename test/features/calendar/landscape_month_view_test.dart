@@ -636,6 +636,60 @@ void main() {
       expect(markerRect.center.dy, greaterThan(numberRect.center.dy));
     });
 
+    testWidgets('compact Today markers clear the selected-cell bottom border', (
+      tester,
+    ) async {
+      await _setViewport(tester, const Size(430, 932));
+      await _pumpMonthCard(
+        tester,
+        expansionLevel: MonthExpansionLevel.compact,
+        todayDay: 4,
+        notesForDay: (day) => day == 4
+            ? const [
+                NoteData(
+                  title: 'First marker',
+                  allDay: true,
+                  manualColor: Colors.purple,
+                ),
+                NoteData(
+                  title: 'Second marker',
+                  allDay: true,
+                  manualColor: Colors.green,
+                ),
+                NoteData(
+                  title: 'Third marker',
+                  allDay: true,
+                  manualColor: Colors.blue,
+                ),
+              ]
+            : const <NoteData>[],
+      );
+
+      final dayCell = find.byKey(const ValueKey<String>('k:6267-1-4|K'));
+      final marker = find.byKey(const ValueKey<String>('k:6267-1-4-marker|K'));
+      final decoration =
+          tester
+                  .widget<DecoratedBox>(
+                    find
+                        .descendant(
+                          of: dayCell,
+                          matching: find.byType(DecoratedBox),
+                        )
+                        .first,
+                  )
+                  .decoration
+              as BoxDecoration;
+      final selectedBorder = decoration.border! as Border;
+      final dayRect = tester.getRect(dayCell);
+      final markerRect = tester.getRect(marker);
+      final insideBorderClearance =
+          dayRect.bottom - selectedBorder.bottom.width - markerRect.bottom;
+
+      expect(selectedBorder.bottom.width, closeTo(1.0, 0.01));
+      expect(markerRect.height, closeTo(2.35, 0.1));
+      expect(insideBorderClearance, greaterThan(0.5));
+    });
+
     testWidgets('scroll month card omits inline weekday labels', (
       tester,
     ) async {
@@ -1157,6 +1211,7 @@ Future<void> _pumpMonthCard(
   WidgetTester tester, {
   required MonthExpansionLevel expansionLevel,
   List<NoteData> Function(int day)? notesForDay,
+  int? todayDay,
   TextScaler textScaler = TextScaler.noScaling,
   String? Function(NoteData note)? flowNameForNote,
 }) async {
@@ -1172,6 +1227,7 @@ Future<void> _pumpMonthCard(
             kYear: 6267,
             kMonth: 1,
             expansionLevel: expansionLevel,
+            todayDay: todayDay,
             notesForDay: notesForDay ?? ((_) => const <NoteData>[]),
             flowNameForNote: flowNameForNote,
           ),
