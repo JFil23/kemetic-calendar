@@ -7,7 +7,7 @@
       "file": "lib/features/calendar/calendar_grid_widgets.dart",
       "start": "class _YearSection extends StatelessWidget {",
       "end": "/* ───────────── Detail Page (single-window behavior, flows-aware) ───────────── */",
-      "sha256": "0e74b77cbe4761ec1df928e686ea21e6d50871a23ae3531a53bdd28b22e266d1"
+      "sha256": "37293219226a2a4643825fb430ce0c8a8ab57b1191f8009503e6a2f7478f22c5"
     },
     {
       "name": "calendar_text_styles",
@@ -56,14 +56,14 @@
       "file": "lib/features/calendar/calendar_page.dart",
       "start": "  Widget _buildCalendarScrollView() {",
       "end": "  Map<int, FlowData> _buildCalendarFlowChromeIndex() {",
-      "sha256": "008c10a6a8a9f1c551697141dc2824c7c8be31d2e71fdbe6cffd7282b320d261"
+      "sha256": "1f3d08f37ed6f92bec134250eec24c193416e5250ca2679cdf45f6e2e3ed6d9e"
     },
     {
       "name": "pinch_geometry_consumers",
       "file": "lib/features/calendar/calendar_page.dart",
       "start": "  RenderCalendarPinchDayAnchor? _findPinchDayAnchorAtPoint(",
       "end": "  Color _noteColor(_Note note) {",
-      "sha256": "ca577d24ea576d276eeae405f70120ef9db43e0dd652cf40b839625c0f0af0d2"
+      "sha256": "087da2dc62a7377006bed53bd820c333f16600a6c99343c4b30af35b7592441d"
     },
     {
       "name": "pinch_day_anchor_marker",

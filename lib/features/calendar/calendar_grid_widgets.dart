@@ -14,6 +14,8 @@ class _YearSection extends StatelessWidget {
     this.monthRevisionListenable,
     this.expansionLevel = MonthExpansionLevel.compact,
     this.expansionProgress,
+    this.expansionProgressListenable,
+    this.fractionalPresentationMonthsListenable,
     this.noteColorResolver = _defaultNoteColor,
     this.flowNameGetter,
     this.onManageFlows,
@@ -40,6 +42,8 @@ class _YearSection extends StatelessWidget {
   final bool showGregorian;
   final MonthExpansionLevel expansionLevel;
   final double? expansionProgress;
+  final ValueListenable<double?>? expansionProgressListenable;
+  final ValueListenable<Set<MonthRef>>? fractionalPresentationMonthsListenable;
   final Color Function(_Note) noteColorResolver;
   final String? Function(_Note)? flowNameGetter;
   final void Function(int?)? onManageFlows;
@@ -80,17 +84,23 @@ class _YearSection extends StatelessWidget {
           kMonth <= CalendarSectionIndex.monthsPerYear;
           kMonth++
         )
-          _buildMonthSection(kMonth, tm, td),
+          _buildMonthSection(context, kMonth, tm, td),
       ],
     );
   }
 
-  Widget _buildMonthSection(int kMonth, int? tm, int? td) {
+  Widget _buildMonthSection(
+    BuildContext context,
+    int kMonth,
+    int? tm,
+    int? td,
+  ) {
     final month = MonthRef(year: kYear, month: kMonth);
     Widget buildForVisibility(bool isTemporalAnchorVisible) {
       final revision = monthRevisionListenable?.call(month);
       if (revision == null) {
         return _buildMonthSectionContent(
+          context,
           month,
           tm,
           td,
@@ -99,8 +109,13 @@ class _YearSection extends StatelessWidget {
       }
       return ValueListenableBuilder<int>(
         valueListenable: revision,
-        builder: (context, value, child) =>
-            _buildMonthSectionContent(month, tm, td, isTemporalAnchorVisible),
+        builder: (context, value, child) => _buildMonthSectionContent(
+          context,
+          month,
+          tm,
+          td,
+          isTemporalAnchorVisible,
+        ),
       );
     }
 
@@ -115,6 +130,7 @@ class _YearSection extends StatelessWidget {
   }
 
   Widget _buildMonthSectionContent(
+    BuildContext context,
     MonthRef month,
     int? tm,
     int? td,
@@ -128,6 +144,40 @@ class _YearSection extends StatelessWidget {
       _ => null,
     };
 
+    final endpointBody = _buildMonthBody(
+      kMonth,
+      tm,
+      td,
+      isTemporalAnchorVisible,
+      effectiveExpansionProgress: null,
+    );
+    final progressListenable = expansionProgressListenable;
+    final presentationMonthsListenable = fractionalPresentationMonthsListenable;
+    final monthBody =
+        progressListenable == null || presentationMonthsListenable == null
+        ? _buildMonthBody(
+            kMonth,
+            tm,
+            td,
+            isTemporalAnchorVisible,
+            effectiveExpansionProgress: expansionProgress,
+          )
+        : _FractionalMonthPresentation(
+            month: month,
+            progressListenable: progressListenable,
+            presentationMonthsListenable: presentationMonthsListenable,
+            extentDeltaForProgress: (progress) =>
+                _monthExtentDelta(context, kMonth, progress),
+            fractionalBuilder: (progress) => _buildMonthBody(
+              kMonth,
+              tm,
+              td,
+              isTemporalAnchorVisible,
+              effectiveExpansionProgress: progress,
+            ),
+            child: endpointBody,
+          );
+
     return CalendarGeometrySection(
       month: month,
       child: Column(
@@ -137,9 +187,7 @@ class _YearSection extends StatelessWidget {
           if (seasonHeader != null) _SeasonHeader(title: seasonHeader),
           CalendarGeometryMonthBody(
             month: month,
-            child: RepaintBoundary(
-              child: _buildMonthBody(kMonth, tm, td, isTemporalAnchorVisible),
-            ),
+            child: RepaintBoundary(child: monthBody),
           ),
         ],
       ),
@@ -150,8 +198,9 @@ class _YearSection extends StatelessWidget {
     int kMonth,
     int? tm,
     int? td,
-    bool isTemporalAnchorVisible,
-  ) {
+    bool isTemporalAnchorVisible, {
+    required double? effectiveExpansionProgress,
+  }) {
     if (kMonth == CalendarSectionIndex.monthsPerYear) {
       return _EpagomenalCard(
         anchorKey: monthAnchorKeyProvider?.call(kMonth),
@@ -167,7 +216,7 @@ class _YearSection extends StatelessWidget {
         showGregorian: showGregorian,
         temporalAnchorVisible: isTemporalAnchorVisible,
         expansionLevel: expansionLevel,
-        expansionProgress: expansionProgress,
+        expansionProgress: effectiveExpansionProgress,
         noteColorResolver: noteColorResolver,
         flowNameGetter: flowNameGetter,
         onManageFlows: onManageFlows,
@@ -205,7 +254,7 @@ class _YearSection extends StatelessWidget {
       onDayTap: onDayTap,
       showGregorian: showGregorian,
       expansionLevel: expansionLevel,
-      expansionProgress: expansionProgress,
+      expansionProgress: effectiveExpansionProgress,
       noteColorResolver: noteColorResolver,
       flowNameGetter: flowNameGetter,
       onManageFlows: onManageFlows,
@@ -223,6 +272,183 @@ class _YearSection extends StatelessWidget {
       onDecanTap: onDecanTap == null
           ? null
           : (context, decanIndex) => onDecanTap!(context, kMonth, decanIndex),
+    );
+  }
+
+  double _monthExtentDelta(BuildContext context, int kMonth, double progress) {
+    final endpoint = CalendarExpansionGeometry(expansionLevel.index.toDouble());
+    final fractional = CalendarExpansionGeometry(progress);
+
+    if (kMonth == CalendarSectionIndex.monthsPerYear) {
+      final detailsHeight = _detailsEpagomenalHeight(context);
+      double dynamicExtent(CalendarExpansionGeometry geometry) =>
+          geometry.dayHeight(detailsHeight: detailsHeight) +
+          geometry.heriuHeaderGap +
+          geometry.heriuBottomPadding;
+      return dynamicExtent(fractional) - dynamicExtent(endpoint);
+    }
+
+    double dynamicExtent(CalendarExpansionGeometry geometry) {
+      var extent = 0.0;
+      for (var decanIndex = 0; decanIndex < 3; decanIndex++) {
+        extent += geometry.dayHeight(
+          detailsHeight: _detailsDecanHeight(context, kMonth, decanIndex),
+        );
+        extent += geometry.ordinaryDayGridGap(
+          labeledGap: _kDecanLabelToDayGridGap,
+          detailsGap: 3.0,
+        );
+      }
+      return extent;
+    }
+
+    return dynamicExtent(fractional) - dynamicExtent(endpoint);
+  }
+
+  double _detailsDecanHeight(BuildContext context, int kMonth, int decanIndex) {
+    const labelAreaHeight = 50.0;
+    const firstPillHeight = _kDetailsPillHeight;
+    const subsequentPillHeight = _kDetailsPillHeight + _kDetailsPillGap;
+    const overflowIndicatorHeight = 19.0;
+    const minHeight = 80.0;
+    final maxHeight = _detailsMonthMaxDecanHeight(context);
+    final maxVisibleEvents = _detailsMonthVisibleEventCap(context);
+    final startDay = decanIndex * 10 + 1;
+    var maxVisible = 0;
+    var hasHiddenEvents = false;
+    for (var day = startDay; day < startDay + 10; day++) {
+      final notes = notesGetter(kMonth, day);
+      final visible = math.min(notes.length, maxVisibleEvents);
+      maxVisible = math.max(maxVisible, visible);
+      hasHiddenEvents = hasHiddenEvents || notes.length > visible;
+    }
+    var pillsHeight = maxVisible == 0
+        ? 0.0
+        : firstPillHeight + subsequentPillHeight * (maxVisible - 1);
+    if (hasHiddenEvents) pillsHeight += overflowIndicatorHeight;
+    return (labelAreaHeight + pillsHeight).clamp(minHeight, maxHeight);
+  }
+
+  double _detailsEpagomenalHeight(BuildContext context) {
+    const labelAreaHeight = 50.0;
+    const firstPillHeight = _kDetailsPillHeight;
+    const subsequentPillHeight = _kDetailsPillHeight + _kDetailsPillGap;
+    const overflowIndicatorHeight = 19.0;
+    const minHeight = 80.0;
+    final maxHeight = _detailsMonthMaxDecanHeight(context);
+    final maxVisibleEvents = _detailsMonthVisibleEventCap(context);
+    final epiCount = KemeticMath.isLeapKemeticYear(kYear) ? 6 : 5;
+    var maxVisible = 0;
+    var hasHiddenEvents = false;
+    for (var day = 1; day <= epiCount; day++) {
+      final notes = notesGetter(13, day);
+      final visible = math.min(notes.length, maxVisibleEvents);
+      maxVisible = math.max(maxVisible, visible);
+      hasHiddenEvents = hasHiddenEvents || notes.length > visible;
+    }
+    var pillsHeight = maxVisible == 0
+        ? 0.0
+        : firstPillHeight + subsequentPillHeight * (maxVisible - 1);
+    if (hasHiddenEvents) pillsHeight += overflowIndicatorHeight;
+    return (labelAreaHeight + pillsHeight).clamp(minHeight, maxHeight);
+  }
+}
+
+/// Keeps endpoint month content dormant during a pinch while still publishing
+/// the exact fractional outer extent needed by the scroll viewport. Only
+/// months intersecting the viewport build the continuous event presentation.
+class _FractionalMonthPresentation extends StatelessWidget {
+  const _FractionalMonthPresentation({
+    required this.month,
+    required this.progressListenable,
+    required this.presentationMonthsListenable,
+    required this.extentDeltaForProgress,
+    required this.fractionalBuilder,
+    required this.child,
+  });
+
+  final MonthRef month;
+  final ValueListenable<double?> progressListenable;
+  final ValueListenable<Set<MonthRef>> presentationMonthsListenable;
+  final double Function(double progress) extentDeltaForProgress;
+  final Widget Function(double progress) fractionalBuilder;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        progressListenable,
+        presentationMonthsListenable,
+      ]),
+      child: child,
+      builder: (context, endpointChild) {
+        final progress = progressListenable.value;
+        if (progress == null) return endpointChild!;
+        if (presentationMonthsListenable.value.contains(month)) {
+          return fractionalBuilder(progress);
+        }
+        return _FractionalMonthExtent(
+          extentDelta: extentDeltaForProgress(progress),
+          child: endpointChild!,
+        );
+      },
+    );
+  }
+}
+
+class _FractionalMonthExtent extends SingleChildRenderObjectWidget {
+  const _FractionalMonthExtent({
+    required this.extentDelta,
+    required super.child,
+  });
+
+  final double extentDelta;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderFractionalMonthExtent(extentDelta);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderFractionalMonthExtent renderObject,
+  ) {
+    renderObject.extentDelta = extentDelta;
+  }
+}
+
+class _RenderFractionalMonthExtent extends RenderProxyBox {
+  _RenderFractionalMonthExtent(this._extentDelta);
+
+  double _extentDelta;
+  set extentDelta(double value) {
+    if (value == _extentDelta) return;
+    _extentDelta = value;
+    markNeedsLayout();
+  }
+
+  @override
+  void performLayout() {
+    final child = this.child;
+    if (child == null) {
+      size = constraints.smallest;
+      return;
+    }
+    child.layout(constraints, parentUsesSize: true);
+    size = constraints.constrain(
+      Size(child.size.width, math.max(0.0, child.size.height + _extentDelta)),
+    );
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (child == null || size.isEmpty) return;
+    context.pushClipRect(
+      needsCompositing,
+      offset,
+      Offset.zero & size,
+      super.paint,
     );
   }
 }
@@ -1203,7 +1429,7 @@ class _MonthCard extends StatelessWidget {
                         onDayTap: onDayTap,
                         showGregorian: showGregorian,
                         expansionLevel: expansionLevel,
-                        expansionProgress: expansion.progress,
+                        expansionProgress: expansionProgress,
                         noteColorResolver: noteColorResolver,
                         flowNameGetter: flowNameGetter,
                         decanHeight: decanHeights[i],
@@ -1944,8 +2170,8 @@ class _DecanRow extends StatelessWidget {
                   onTap: () => onDayTap(context, kMonth, day),
                   showGregorian: showGregorian,
                   dayKey: _getKemeticDayKey(kYear, kMonth, day),
-                  expansionProgress:
-                      expansionProgress ?? expansionLevel.index.toDouble(),
+                  expansionLevel: expansionLevel,
+                  expansionProgress: expansionProgress,
                   noteColorResolver: noteColorResolver,
                   flowNameGetter: flowNameGetter,
                   decanHeight: decanHeight,
@@ -1983,7 +2209,8 @@ class _DayChip extends StatelessWidget {
   final Key? highlightAnchorKey;
   final bool showGregorian;
   final String dayKey;
-  final double expansionProgress;
+  final MonthExpansionLevel expansionLevel;
+  final double? expansionProgress;
   final Color Function(_Note) noteColorResolver;
   final String? Function(_Note)? flowNameGetter;
   final double? decanHeight;
@@ -2014,6 +2241,7 @@ class _DayChip extends StatelessWidget {
     this.anchorKey,
     this.highlightAnchorKey,
     required this.dayKey,
+    required this.expansionLevel,
     required this.expansionProgress,
     required this.noteColorResolver,
     this.flowNameGetter,
@@ -2034,7 +2262,10 @@ class _DayChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final expansion = CalendarExpansionGeometry(expansionProgress);
+    final isTransientPresentation = expansionProgress != null;
+    final expansion = CalendarExpansionGeometry(
+      expansionProgress ?? expansionLevel.index.toDouble(),
+    );
     final textStyle = const TextStyle(
       color: Colors.white,
       fontWeight: FontWeight.w500,
@@ -2057,14 +2288,29 @@ class _DayChip extends StatelessWidget {
         break;
       }
     }
-    final chipHeight = decanHeight ?? expansion.dayHeight(detailsHeight: 250.0);
+    final isCompact = expansionLevel == MonthExpansionLevel.compact;
+    final isTextlessPill = expansionLevel == MonthExpansionLevel.stacked;
+    final isLabeledPill = expansionLevel == MonthExpansionLevel.labeled;
+    final isDetailsPill = expansionLevel == MonthExpansionLevel.details;
+    final chipHeight =
+        decanHeight ??
+        (isTransientPresentation
+            ? expansion.dayHeight(detailsHeight: 250.0)
+            : _chipHeightFor(expansionLevel));
     final tileRadius = BorderRadius.circular(_kDayTileRadius);
     final tileFill = toneSpec.fill;
     final tileBorderColor = toneSpec.border;
-    final tilePadding = EdgeInsets.symmetric(
-      horizontal: expansion.tileHorizontalPadding,
-      vertical: _kDayTileVerticalPadding,
-    );
+    final tilePadding = isTransientPresentation
+        ? EdgeInsets.symmetric(
+            horizontal: expansion.tileHorizontalPadding,
+            vertical: _kDayTileVerticalPadding,
+          )
+        : EdgeInsets.symmetric(
+            horizontal: isCompact
+                ? _kDayTileCompactPadding
+                : _kDayTileExpandedHorizontalPadding,
+            vertical: _kDayTileVerticalPadding,
+          );
 
     Widget buildDayNumberHeader({required double trackSkyMotifOpacity}) {
       return SizedBox(
@@ -2074,11 +2320,10 @@ class _DayChip extends StatelessWidget {
             final maxWidth = constraints.maxWidth.isFinite
                 ? constraints.maxWidth
                 : 0.0;
-            // Keep the header subtree stable for the full fractional pinch.
-            // Opacity reveals the motif; crossing compact/stacked must not
-            // insert a new render subtree at an expansion boundary.
             final canShowTrackSkyMotif =
-                trackSkyHeaderNote != null && maxWidth >= 14;
+                trackSkyHeaderNote != null &&
+                maxWidth >= 14 &&
+                (isTransientPresentation || !isCompact);
             final motifWidth = canShowTrackSkyMotif
                 ? math.min(14.0, maxWidth * 0.4)
                 : 0.0;
@@ -2131,39 +2376,46 @@ class _DayChip extends StatelessWidget {
                       key: ValueKey<String>(
                         'k:$kYear-$kMonth-$kDay-track-sky-header',
                       ),
-                      child: Opacity(
-                        opacity: trackSkyMotifOpacity,
-                        child: SizedBox(
-                          width: motifWidth,
-                          height: 10,
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Align(
-                                alignment: Alignment.topCenter,
-                                child: SizedBox(
-                                  height: 6.2,
-                                  child: FittedBox(
-                                    fit: BoxFit.scaleDown,
-                                    alignment: Alignment.topCenter,
-                                    child: _buildTrackSkyBadgeMotif(
-                                      spec: motifSpec,
-                                      title: trackSkyHeaderNote.title,
-                                      dense: false,
+                      child: Builder(
+                        builder: (context) {
+                          final motif = SizedBox(
+                            width: motifWidth,
+                            height: 10,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Align(
+                                  alignment: Alignment.topCenter,
+                                  child: SizedBox(
+                                    height: 6.2,
+                                    child: FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      alignment: Alignment.topCenter,
+                                      child: _buildTrackSkyBadgeMotif(
+                                        spec: motifSpec,
+                                        title: trackSkyHeaderNote!.title,
+                                        dense: false,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              Align(
-                                alignment: Alignment.bottomCenter,
-                                child: Container(
-                                  height: 1.8,
-                                  decoration: motifBarDecoration,
+                                Align(
+                                  alignment: Alignment.bottomCenter,
+                                  child: Container(
+                                    height: 1.8,
+                                    decoration: motifBarDecoration,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
+                              ],
+                            ),
+                          );
+                          return isTransientPresentation
+                              ? Opacity(
+                                  opacity: trackSkyMotifOpacity,
+                                  child: motif,
+                                )
+                              : motif;
+                        },
                       ),
                     ),
                   ),
@@ -2232,6 +2484,105 @@ class _DayChip extends StatelessWidget {
       }
 
       return const SizedBox.shrink();
+    }
+
+    Widget buildMiniBlocksEndpoint({double? availableHeight}) {
+      if (isCompact) return const SizedBox.shrink();
+
+      final sorted = [...notes]
+        ..sort((a, b) {
+          if (a.allDay != b.allDay) return a.allDay ? -1 : 1;
+          final aStart = a.start;
+          final bStart = b.start;
+          if (aStart != null && bStart != null) {
+            final cmpH = aStart.hour.compareTo(bStart.hour);
+            if (cmpH != 0) return cmpH;
+            final cmpM = aStart.minute.compareTo(bStart.minute);
+            if (cmpM != 0) return cmpM;
+          } else if (aStart != null || bStart != null) {
+            return aStart != null ? -1 : 1;
+          }
+          return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+        });
+      final maxBlocks = isTextlessPill
+          ? _kTextlessPillVisibleCap
+          : (isLabeledPill
+                ? _kLabeledPillVisibleCap
+                : _detailsMonthVisibleEventCap(context));
+
+      var visibleCount = maxBlocks;
+      if (isDetailsPill &&
+          availableHeight != null &&
+          availableHeight.isFinite) {
+        const overflowIndicatorHeight = 19.0;
+        final safeAvailableHeight = math.max(0.0, availableHeight - 2.0);
+        var used = 0.0;
+        var count = 0;
+        while (count < sorted.length && count < maxBlocks) {
+          final next =
+              _kDetailsPillHeight + (count == 0 ? 0 : _kDetailsPillGap);
+          if (used + next > safeAvailableHeight) break;
+          used += next;
+          count++;
+        }
+        if (count < sorted.length &&
+            count > 0 &&
+            used + overflowIndicatorHeight > safeAvailableHeight) {
+          count = (count - 1).clamp(0, maxBlocks);
+        }
+        visibleCount = count.clamp(0, maxBlocks);
+      }
+
+      final visible = sorted.take(visibleCount).toList(growable: false);
+      final remaining = sorted.length - visible.length;
+      final pillHeight = isDetailsPill
+          ? _kDetailsPillHeight
+          : (isLabeledPill ? _kLabeledPillHeight : _kTextlessPillHeight);
+      final pillRadius = isDetailsPill
+          ? _kDetailsPillRadius
+          : (isLabeledPill ? _kLabeledPillRadius : _kTextlessPillRadius);
+      final pillGap = isDetailsPill
+          ? _kDetailsPillGap
+          : (isLabeledPill ? _kLabeledPillGap : _kTextlessPillGap);
+
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var index = 0; index < visible.length; index++) ...[
+            _MiniEventBlock(
+              note: visible[index],
+              color: noteColorResolver(visible[index]),
+              isTrackSky: _isTrackSkyFlowName(
+                flowNameGetter?.call(visible[index]),
+              ),
+              label: isTextlessPill ? '' : _labelFor(visible[index]),
+              heightOverride: pillHeight,
+              radiusOverride: pillRadius,
+              labelOpacity: isTextlessPill ? 0.0 : 1.0,
+              detailsProgress: isDetailsPill ? 1.0 : 0.0,
+              endpointPresentation: true,
+              onTap: isDetailsPill
+                  ? () => _showEventDetailFromNote(context, visible[index])
+                  : null,
+            ),
+            if (index != visible.length - 1) SizedBox(height: pillGap),
+          ],
+          if (remaining > 0 && isDetailsPill)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text(
+                '+$remaining',
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+        ],
+      );
     }
 
     Widget buildMiniBlocks({double? availableHeight}) {
@@ -2462,56 +2813,96 @@ class _DayChip extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           buildDayNumberHeader(
-                            trackSkyMotifOpacity: expansion.eventPillOpacity,
+                            trackSkyMotifOpacity: isTransientPresentation
+                                ? expansion.eventPillOpacity
+                                : (isCompact ? 0.0 : 1.0),
                           ),
-                          SizedBox(height: expansion.compactMarkerGap),
-                          Expanded(
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                final maxWidth = constraints.maxWidth.isFinite
-                                    ? constraints.maxWidth
-                                    : 0.0;
-                                return Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    IgnorePointer(
-                                      child: ExcludeSemantics(
-                                        child: Opacity(
-                                          opacity:
-                                              expansion.compactMarkerOpacity,
-                                          child: ClipRect(
-                                            child: Align(
-                                              alignment: Alignment.center,
-                                              child: KeyedSubtree(
-                                                key: ValueKey<String>(
-                                                  'k:$kYear-$kMonth-$kDay-marker|${showGregorian ? "G" : "K"}',
-                                                ),
-                                                child: buildMiniBlocksCompact(
-                                                  maxWidth: maxWidth,
+                          if (!isTransientPresentation && isCompact) ...[
+                            const SizedBox(height: _kCompactMarkerGap),
+                            Expanded(
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final maxWidth = constraints.maxWidth.isFinite
+                                      ? constraints.maxWidth
+                                      : 0.0;
+                                  return IgnorePointer(
+                                    child: ClipRect(
+                                      child: Align(
+                                        alignment: Alignment.center,
+                                        child: KeyedSubtree(
+                                          key: ValueKey<String>(
+                                            'k:$kYear-$kMonth-$kDay-marker|${showGregorian ? "G" : "K"}',
+                                          ),
+                                          child: buildMiniBlocksCompact(
+                                            maxWidth: maxWidth,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ] else if (!isTransientPresentation)
+                            Expanded(
+                              child: LayoutBuilder(
+                                builder: (context, constraints) => ClipRect(
+                                  child: buildMiniBlocksEndpoint(
+                                    availableHeight: constraints.maxHeight,
+                                  ),
+                                ),
+                              ),
+                            )
+                          else ...[
+                            SizedBox(height: expansion.compactMarkerGap),
+                            Expanded(
+                              child: LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final maxWidth = constraints.maxWidth.isFinite
+                                      ? constraints.maxWidth
+                                      : 0.0;
+                                  return Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      IgnorePointer(
+                                        child: ExcludeSemantics(
+                                          child: Opacity(
+                                            opacity:
+                                                expansion.compactMarkerOpacity,
+                                            child: ClipRect(
+                                              child: Align(
+                                                alignment: Alignment.center,
+                                                child: KeyedSubtree(
+                                                  key: ValueKey<String>(
+                                                    'k:$kYear-$kMonth-$kDay-marker|${showGregorian ? "G" : "K"}',
+                                                  ),
+                                                  child: buildMiniBlocksCompact(
+                                                    maxWidth: maxWidth,
+                                                  ),
                                                 ),
                                               ),
                                             ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                    IgnorePointer(
-                                      ignoring: !expansion.isDetailsEndpoint,
-                                      child: Opacity(
-                                        opacity: expansion.eventPillOpacity,
-                                        child: ClipRect(
-                                          child: buildMiniBlocks(
-                                            availableHeight:
-                                                constraints.maxHeight,
+                                      IgnorePointer(
+                                        ignoring: !expansion.isDetailsEndpoint,
+                                        child: Opacity(
+                                          opacity: expansion.eventPillOpacity,
+                                          child: ClipRect(
+                                            child: buildMiniBlocks(
+                                              availableHeight:
+                                                  constraints.maxHeight,
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                  ],
-                                );
-                              },
+                                    ],
+                                  );
+                                },
+                              ),
                             ),
-                          ),
+                          ],
                         ],
                       ),
                     ),
@@ -3021,7 +3412,7 @@ Widget _buildTrackSkyBadgeMotif({
   }
 }
 
-class _TrackSkyMiniBadge extends StatelessWidget {
+class _TrackSkyMiniBadge extends StatefulWidget {
   final _Note note;
   final String label;
   final VoidCallback? onTap;
@@ -3029,6 +3420,7 @@ class _TrackSkyMiniBadge extends StatelessWidget {
   final double? radiusOverride;
   final double labelOpacity;
   final double detailsProgress;
+  final bool endpointPresentation;
 
   const _TrackSkyMiniBadge({
     required this.note,
@@ -3038,21 +3430,70 @@ class _TrackSkyMiniBadge extends StatelessWidget {
     this.radiusOverride,
     this.labelOpacity = 1.0,
     this.detailsProgress = 0.0,
+    this.endpointPresentation = false,
   });
 
   @override
-  Widget build(BuildContext context) {
-    final spec = _trackSkyBadgeSpecForNote(note);
-    final denseMotif = _buildTrackSkyBadgeMotif(
-      spec: spec,
-      title: note.title,
+  State<_TrackSkyMiniBadge> createState() => _TrackSkyMiniBadgeState();
+}
+
+class _TrackSkyMiniBadgeState extends State<_TrackSkyMiniBadge> {
+  _Note get note => widget.note;
+  String get label => widget.label;
+  VoidCallback? get onTap => widget.onTap;
+  double? get heightOverride => widget.heightOverride;
+  double? get radiusOverride => widget.radiusOverride;
+  double get labelOpacity => widget.labelOpacity;
+  double get detailsProgress => widget.detailsProgress;
+  bool get endpointPresentation => widget.endpointPresentation;
+
+  late _TrackSkyBadgeSpec _cachedSpec;
+  late Widget _cachedDenseMotif;
+  late Widget _cachedExpandedMotif;
+  late List<Widget> _cachedExpandedStars;
+
+  @override
+  void initState() {
+    super.initState();
+    _cacheStaticContent();
+  }
+
+  @override
+  void didUpdateWidget(covariant _TrackSkyMiniBadge oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.note.title != widget.note.title ||
+        oldWidget.note.behaviorPayload != widget.note.behaviorPayload) {
+      _cacheStaticContent();
+    }
+  }
+
+  void _cacheStaticContent() {
+    _cachedSpec = _trackSkyBadgeSpecForNote(widget.note);
+    _cachedDenseMotif = _buildTrackSkyBadgeMotif(
+      spec: _cachedSpec,
+      title: widget.note.title,
       dense: true,
     );
-    final expandedMotif = _buildTrackSkyBadgeMotif(
-      spec: spec,
-      title: note.title,
+    _cachedExpandedMotif = _buildTrackSkyBadgeMotif(
+      spec: _cachedSpec,
+      title: widget.note.title,
       dense: false,
     );
+    _cachedExpandedStars = _buildTrackSkyStars(
+      seed: widget.note.title,
+      showLabel: true,
+      dense: false,
+      tint: _cachedSpec.accentColor,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (endpointPresentation) return _buildEndpoint(context);
+
+    final spec = _cachedSpec;
+    final denseMotif = _cachedDenseMotif;
+    final expandedMotif = _cachedExpandedMotif;
     final double badgeHeight =
         heightOverride ??
         CalendarExpansionGeometry._lerp(
@@ -3162,12 +3603,7 @@ class _TrackSkyMiniBadge extends StatelessWidget {
                 return Stack(
                   fit: StackFit.expand,
                   children: [
-                    ..._buildTrackSkyStars(
-                      seed: note.title,
-                      showLabel: true,
-                      dense: false,
-                      tint: spec.accentColor,
-                    ),
+                    ..._cachedExpandedStars,
                     Positioned.fill(
                       child: Opacity(
                         opacity: labelOpacity,
@@ -3257,9 +3693,189 @@ class _TrackSkyMiniBadge extends StatelessWidget {
       },
     );
   }
+
+  Widget _buildEndpoint(BuildContext context) {
+    final dense = labelOpacity <= 0.001;
+    final isDetailPill = !dense && detailsProgress >= 0.999;
+    final spec = _trackSkyBadgeSpecForNote(note);
+    final motif = _buildTrackSkyBadgeMotif(
+      spec: spec,
+      title: note.title,
+      dense: dense,
+    );
+    final badgeHeight =
+        heightOverride ??
+        (isDetailPill
+            ? _kDetailsPillHeight
+            : (dense ? _kTextlessPillHeight : _kLabeledPillHeight));
+    final motifBoxWidth = dense ? 12.0 : (isDetailPill ? 18.0 : 15.0);
+    final motifBoxHeight = dense ? 10.0 : 14.0;
+    final padding = dense
+        ? const EdgeInsets.symmetric(horizontal: 4, vertical: 2)
+        : EdgeInsets.symmetric(horizontal: 3, vertical: isDetailPill ? 6 : 4);
+    final radius = BorderRadius.circular(
+      radiusOverride ??
+          (isDetailPill
+              ? _kDetailsPillRadius
+              : (dense ? _kTextlessPillRadius : _kLabeledPillRadius)),
+    );
+    final baseLabelStyle = TextStyle(
+      color: spec.textColor,
+      fontSize: isDetailPill ? 10.2 : 9.8,
+      height: isDetailPill ? 1.13 : 1.16,
+      fontWeight: isDetailPill ? FontWeight.w600 : FontWeight.w500,
+      shadows: [
+        Shadow(
+          color: Colors.black.withValues(alpha: 0.68),
+          offset: const Offset(0, 1.2),
+          blurRadius: 2.8,
+        ),
+        Shadow(
+          color: spec.glowColor.withValues(alpha: 0.36),
+          offset: Offset.zero,
+          blurRadius: 5,
+        ),
+      ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, outerConstraints) {
+        final minWidth = dense && outerConstraints.maxWidth.isFinite
+            ? math.min(24.0, outerConstraints.maxWidth)
+            : (dense ? 24.0 : 0.0);
+        final badge = Container(
+          width: isDetailPill ? double.infinity : null,
+          height: badgeHeight,
+          constraints: BoxConstraints(minWidth: minWidth),
+          decoration: BoxDecoration(
+            borderRadius: radius,
+            gradient: spec.background,
+            border: Border.all(
+              color: spec.borderColor.withValues(alpha: dense ? 0.95 : 1.0),
+              width: dense ? 0.95 : 1.0,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.26),
+                blurRadius: dense ? 2 : 5,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: radius,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final canShowMotifWithLabel =
+                    !dense && constraints.maxWidth >= 44;
+                final labelStyle = baseLabelStyle.copyWith(
+                  fontSize: _eventPillFontSize(
+                    maxWidth: constraints.maxWidth,
+                    detailsProgress: isDetailPill ? 1.0 : 0.0,
+                  ),
+                );
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ..._buildTrackSkyStars(
+                      seed: note.title,
+                      showLabel: !dense,
+                      dense: dense,
+                      tint: spec.accentColor,
+                    ),
+                    if (!dense)
+                      const Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [
+                                Color(0xAA04060C),
+                                Color(0x7204060C),
+                                Color(0x1204060C),
+                                Colors.transparent,
+                              ],
+                              stops: [0.0, 0.38, 0.64, 1.0],
+                            ),
+                          ),
+                        ),
+                      ),
+                    Padding(
+                      padding: padding,
+                      child: dense
+                          ? Center(
+                              child: SizedBox(
+                                width: motifBoxWidth,
+                                height: motifBoxHeight,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: motif,
+                                ),
+                              ),
+                            )
+                          : Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                Padding(
+                                  padding: EdgeInsets.only(
+                                    right: canShowMotifWithLabel
+                                        ? motifBoxWidth + 2
+                                        : 0,
+                                  ),
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      label,
+                                      maxLines: isDetailPill ? 3 : 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      softWrap: isDetailPill,
+                                      textAlign: TextAlign.center,
+                                      style: labelStyle,
+                                    ),
+                                  ),
+                                ),
+                                if (canShowMotifWithLabel)
+                                  Positioned(
+                                    right: 0,
+                                    top: 0,
+                                    bottom: 0,
+                                    child: Align(
+                                      alignment: Alignment.centerRight,
+                                      child: SizedBox(
+                                        width: motifBoxWidth,
+                                        height: motifBoxHeight,
+                                        child: FittedBox(
+                                          fit: BoxFit.scaleDown,
+                                          alignment: Alignment.centerRight,
+                                          child: motif,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        );
+        if (isDetailPill && onTap != null) {
+          return GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: onTap,
+            child: badge,
+          );
+        }
+        return IgnorePointer(child: badge);
+      },
+    );
+  }
 }
 
-class _ContinuousEventLabel extends StatelessWidget {
+class _ContinuousEventLabel extends StatefulWidget {
   const _ContinuousEventLabel({
     required this.label,
     required this.style,
@@ -3273,27 +3889,57 @@ class _ContinuousEventLabel extends StatelessWidget {
   final Alignment alignment;
 
   @override
-  Widget build(BuildContext context) {
+  State<_ContinuousEventLabel> createState() => _ContinuousEventLabelState();
+}
+
+class _ContinuousEventLabelState extends State<_ContinuousEventLabel> {
+  late Widget _singleLine;
+  late Widget _multiLine;
+
+  @override
+  void initState() {
+    super.initState();
+    _cacheText();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ContinuousEventLabel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Fractional typography deltas are deliberately absorbed by the cached
+    // label pair. Endpoint rendering still owns the exact 9.8/10.2 styles;
+    // during a pinch only opacity and container geometry should update.
+    if (oldWidget.label != widget.label ||
+        oldWidget.alignment != widget.alignment) {
+      _cacheText();
+    }
+  }
+
+  void _cacheText() {
     Widget text({required bool multiline}) => Align(
-      alignment: alignment,
+      alignment: widget.alignment,
       child: Text(
         key: ValueKey<String>(
-          'calendar-event-label-${multiline ? "multi" : "single"}:$label',
+          'calendar-event-label-${multiline ? "multi" : "single"}:${widget.label}',
         ),
-        label,
+        widget.label,
         maxLines: multiline ? 3 : 1,
         overflow: TextOverflow.ellipsis,
         softWrap: multiline,
         textAlign: TextAlign.center,
-        style: style,
+        style: widget.style,
       ),
     );
+    _singleLine = text(multiline: false);
+    _multiLine = text(multiline: true);
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Opacity(opacity: 1.0 - detailsProgress, child: text(multiline: false)),
-        Opacity(opacity: detailsProgress, child: text(multiline: true)),
+        Opacity(opacity: 1.0 - widget.detailsProgress, child: _singleLine),
+        Opacity(opacity: widget.detailsProgress, child: _multiLine),
       ],
     );
   }
@@ -3308,6 +3954,7 @@ class _MiniEventBlock extends StatelessWidget {
   final double? radiusOverride;
   final double labelOpacity;
   final double detailsProgress;
+  final bool endpointPresentation;
   const _MiniEventBlock({
     required this.note,
     required this.color,
@@ -3318,6 +3965,7 @@ class _MiniEventBlock extends StatelessWidget {
     this.radiusOverride,
     this.labelOpacity = 1.0,
     this.detailsProgress = 0.0,
+    this.endpointPresentation = false,
   });
 
   final VoidCallback? onTap;
@@ -3333,8 +3981,11 @@ class _MiniEventBlock extends StatelessWidget {
         radiusOverride: radiusOverride,
         labelOpacity: labelOpacity,
         detailsProgress: detailsProgress,
+        endpointPresentation: endpointPresentation,
       );
     }
+
+    if (endpointPresentation) return _buildEndpoint(context);
 
     final bg = color.withValues(
       alpha: CalendarExpansionGeometry._lerp(0.32, 0.26, labelOpacity),
@@ -3430,6 +4081,75 @@ class _MiniEventBlock extends StatelessWidget {
         );
 
         return GestureDetector(onTap: onTap, child: container);
+      },
+    );
+  }
+
+  Widget _buildEndpoint(BuildContext context) {
+    final dense = labelOpacity <= 0.001;
+    final isDetailPill = !dense && detailsProgress >= 0.999;
+    final bg = color.withValues(alpha: dense ? 0.32 : 0.26);
+    final border = color.withValues(alpha: 0.95);
+    final badgeHeight =
+        heightOverride ??
+        (isDetailPill
+            ? _kDetailsPillHeight
+            : (dense ? _kTextlessPillHeight : _kLabeledPillHeight));
+    final radius = BorderRadius.circular(
+      radiusOverride ??
+          (isDetailPill
+              ? _kDetailsPillRadius
+              : (dense ? _kTextlessPillRadius : _kLabeledPillRadius)),
+    );
+    final baseLabelStyle = TextStyle(
+      color: Colors.white,
+      fontSize: isDetailPill ? 10.2 : 9.8,
+      height: isDetailPill ? 1.13 : 1.16,
+      fontWeight: isDetailPill ? FontWeight.w600 : FontWeight.w500,
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final minWidth = dense && constraints.maxWidth.isFinite
+            ? math.min(24.0, constraints.maxWidth)
+            : (dense ? 24.0 : 0.0);
+        final labelHorizontalPadding = constraints.maxWidth < 42 ? 2.0 : 4.0;
+        final labelStyle = baseLabelStyle.copyWith(
+          fontSize: _eventPillFontSize(
+            maxWidth: constraints.maxWidth,
+            detailsProgress: isDetailPill ? 1.0 : 0.0,
+          ),
+        );
+        final container = Container(
+          width: isDetailPill ? double.infinity : null,
+          height: badgeHeight,
+          padding: dense
+              ? EdgeInsets.zero
+              : EdgeInsets.symmetric(
+                  horizontal: labelHorizontalPadding,
+                  vertical: isDetailPill ? 6 : 4,
+                ),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: radius,
+            border: Border.all(color: border, width: dense ? 1.15 : 1.1),
+          ),
+          constraints: BoxConstraints(minWidth: minWidth),
+          alignment: Alignment.center,
+          child: dense
+              ? null
+              : Text(
+                  label,
+                  maxLines: isDetailPill ? 3 : 1,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: isDetailPill,
+                  textAlign: TextAlign.center,
+                  style: labelStyle,
+                ),
+        );
+        if (isDetailPill && onTap != null) {
+          return GestureDetector(onTap: onTap, child: container);
+        }
+        return container;
       },
     );
   }
@@ -3668,7 +4388,8 @@ class _EpagomenalCard extends StatelessWidget {
                             showGregorian: showGregorian,
                             dayKey:
                                 'epagomenal_${i + 1}_$kYear', // Epagomenal days use their own key format
-                            expansionProgress: expansion.progress,
+                            expansionLevel: expansionLevel,
+                            expansionProgress: expansionProgress,
                             noteColorResolver: noteColorResolver,
                             flowNameGetter: flowNameGetter,
                             decanHeight: epagomenalHeight,

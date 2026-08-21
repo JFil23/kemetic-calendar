@@ -366,3 +366,26 @@ does not change `CalendarExpansionGeometry`, the four committed endpoint
 heights, intermediate height equations, frame coalescing, layout-time day
 anchor correction, settle endpoint, section topology, or any outer padding.
 Calendar restoration layout revision 2 therefore remains current.
+
+## 2026-08-21 active-pinch cost re-audit
+
+The normal committed endpoint renderer is again the direct month body. Only
+months intersecting the viewport, plus the semantic anchor month, switch to
+the fractional renderer while a pinch or settle is active. Other mounted
+months retain their endpoint subtree and project the same fractional extent
+delta with a layout-only proxy, so the `401 * 13` section domain and sliver
+topology are unchanged.
+
+Inside the active fractional subtree, event-label text and Track the Sky motif
+content are retained while only their opacity and enclosing geometry update.
+Those cached widgets remain children of the existing clipped day-card stack;
+they add no padding, fixed height, or other outer extent term. The fractional
+height still comes exclusively from `CalendarExpansionGeometry`, and exact
+committed endpoint trees still use `_chipHeightFor`.
+
+The visible-month selector and the benchmark harness's explicit presentation
+month affect only which renderer consumes the already-audited height. Focused
+seam and settle tests confirm the day and month extents at progress `0`, `1`,
+`2`, and `3` are unchanged, including a zero-delta transition from the final
+fractional frame to its committed endpoint. Calendar restoration layout
+revision 2 therefore remains current.
