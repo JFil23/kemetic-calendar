@@ -351,6 +351,7 @@ void main() {
       await _setViewport(tester, const Size(430, 932));
 
       final heights = <MonthExpansionLevel, double>{};
+      final numberCenterOffsets = <MonthExpansionLevel, double>{};
       for (final level in MonthExpansionLevel.values) {
         await _pumpMonthCard(
           tester,
@@ -377,10 +378,15 @@ void main() {
 
         final dayCell = find.byKey(const ValueKey<String>('k:6267-1-4|K'));
         heights[level] = tester.getSize(dayCell).height;
-        final dayNumber = tester.widget<Text>(
-          find.descendant(of: dayCell, matching: find.text('4')),
+        final dayNumberFinder = find.descendant(
+          of: dayCell,
+          matching: find.text('4'),
         );
-        expect(dayNumber.style?.fontSize, closeTo(12.4, 0.01));
+        final dayNumber = tester.widget<Text>(dayNumberFinder);
+        expect(dayNumber.style?.fontSize, closeTo(23.0, 0.01));
+        numberCenterOffsets[level] =
+            tester.getRect(dayNumberFinder).center.dy -
+            tester.getRect(dayCell).top;
 
         switch (level) {
           case MonthExpansionLevel.compact:
@@ -406,10 +412,108 @@ void main() {
         heights[MonthExpansionLevel.labeled]!,
         lessThan(heights[MonthExpansionLevel.details]!),
       );
-      expect(heights[MonthExpansionLevel.compact], closeTo(32.0, 0.1));
+      expect(heights[MonthExpansionLevel.compact], closeTo(36.0, 0.1));
       expect(heights[MonthExpansionLevel.stacked], closeTo(62.0, 0.1));
       expect(heights[MonthExpansionLevel.labeled], closeTo(98.0, 0.1));
       expect(heights[MonthExpansionLevel.details], closeTo(160.0, 0.1));
+      for (final offset in numberCenterOffsets.values) {
+        expect(
+          offset,
+          closeTo(numberCenterOffsets[MonthExpansionLevel.compact]!, 0.1),
+        );
+      }
+    });
+
+    testWidgets(
+      'day headers and event pills stay contained at production tablet text scale',
+      (tester) async {
+        await _setViewport(tester, const Size(834, 1194));
+        List<NoteData> notesForDay(int day) => day == 4
+            ? const [
+                NoteData(
+                  title: 'Alpha event',
+                  allDay: true,
+                  manualColor: Colors.purple,
+                ),
+                NoteData(
+                  title: 'Beta event',
+                  allDay: true,
+                  manualColor: Colors.green,
+                ),
+              ]
+            : const <NoteData>[];
+
+        for (final level in MonthExpansionLevel.values) {
+          await _pumpMonthCard(
+            tester,
+            expansionLevel: level,
+            notesForDay: notesForDay,
+            textScaler: const TextScaler.linear(1.5),
+          );
+
+          final dayCell = find.byKey(const ValueKey<String>('k:6267-1-4|K'));
+          final dayCellRect = tester.getRect(dayCell);
+          final dayNumberFinder = find.descendant(
+            of: dayCell,
+            matching: find.text('4'),
+          );
+          final dayNumber = tester.widget<Text>(dayNumberFinder);
+
+          expect(dayNumber.textScaler, TextScaler.noScaling);
+          _expectRectInside(
+            tester.getRect(dayNumberFinder),
+            dayCellRect,
+            reason: '${level.name}: day number',
+          );
+
+          if (level != MonthExpansionLevel.compact) {
+            final pills = _eventPillContainersInDay(dayCell);
+            expect(pills, findsNWidgets(2), reason: level.name);
+            for (final element in pills.evaluate()) {
+              final box = element.renderObject! as RenderBox;
+              _expectRectInside(
+                box.localToGlobal(Offset.zero) & box.size,
+                dayCellRect,
+                reason: '${level.name}: event pill',
+              );
+            }
+          }
+
+          expect(tester.takeException(), isNull, reason: level.name);
+        }
+      },
+    );
+
+    testWidgets('Track Sky header motif stays in the fixed tablet day header', (
+      tester,
+    ) async {
+      await _setViewport(tester, const Size(834, 1194));
+      await _pumpMonthCard(
+        tester,
+        expansionLevel: MonthExpansionLevel.details,
+        textScaler: const TextScaler.linear(1.5),
+        notesForDay: (day) => day == 4
+            ? const [
+                NoteData(
+                  title: 'Observe the moon',
+                  allDay: true,
+                  manualColor: Colors.blue,
+                ),
+              ]
+            : const <NoteData>[],
+        flowNameForNote: (_) => 'Track the Sky',
+      );
+
+      final dayCell = find.byKey(const ValueKey<String>('k:6267-1-4|K'));
+      final dayCellRect = tester.getRect(dayCell);
+      final motif = find.byKey(
+        const ValueKey<String>('k:6267-1-4-track-sky-header'),
+      );
+      expect(motif, findsOneWidget);
+      final motifRect = tester.getRect(motif);
+      expect(motifRect.top, greaterThan(dayCellRect.top));
+      expect(motifRect.bottom, lessThan(dayCellRect.top + 29));
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('non-compact event pills match mockup sizing steps', (
@@ -912,6 +1016,7 @@ void main() {
       expect(dayChipBlock, contains('fontWeight: FontWeight.w500,'));
       expect(dayChipBlock, contains('fontSize: _CalendarScale.dayNumber,'));
       expect(dayChipBlock, contains('letterSpacing: 0.0,'));
+      expect(dayChipBlock, contains('textScaler: TextScaler.noScaling,'));
       expect(dayChipBlock, contains('final numberColor = showGregorian'));
       expect(dayChipBlock, contains('_CalendarTone.gregorianBlue.withValues'));
       expect(dayChipBlock, contains('style: labelStyle'));
@@ -974,7 +1079,11 @@ void main() {
       );
       expect(
         constantsBlock,
-        contains('const double _kDayTileExpandedVerticalPadding = 4.0;'),
+        contains('const double _kDayTileVerticalPadding = 1.0;'),
+      );
+      expect(
+        constantsBlock,
+        contains('const double _kDayNumberHeaderHeight = 28.0;'),
       );
       expect(
         constantsBlock,
@@ -1048,9 +1157,15 @@ Future<void> _pumpMonthCard(
   WidgetTester tester, {
   required MonthExpansionLevel expansionLevel,
   List<NoteData> Function(int day)? notesForDay,
+  TextScaler textScaler = TextScaler.noScaling,
+  String? Function(NoteData note)? flowNameForNote,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(textScaler: textScaler),
+        child: child ?? const SizedBox.shrink(),
+      ),
       home: Scaffold(
         body: SingleChildScrollView(
           child: buildCalendarMonthCardLayoutForTesting(
@@ -1058,6 +1173,7 @@ Future<void> _pumpMonthCard(
             kMonth: 1,
             expansionLevel: expansionLevel,
             notesForDay: notesForDay ?? ((_) => const <NoteData>[]),
+            flowNameForNote: flowNameForNote,
           ),
         ),
       ),
