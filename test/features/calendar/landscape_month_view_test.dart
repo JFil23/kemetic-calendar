@@ -388,29 +388,19 @@ void main() {
             tester.getRect(dayNumberFinder).center.dy -
             tester.getRect(dayCell).top;
 
-        // Labels stay mounted at every endpoint so integer crossings cannot
-        // replace the event subtree. Their opacity supplies the presentation
-        // transition instead.
+        // Persisted endpoints use the lightweight endpoint renderer. The
+        // separate fractional seam tests own crossfade-tree continuity.
         final alphaLabel = find.descendant(
           of: dayCell,
-          matching: find.byKey(
-            const ValueKey<String>('calendar-event-label:Alpha event'),
-          ),
+          matching: find.text('Alpha event'),
         );
         final betaLabel = find.descendant(
           of: dayCell,
-          matching: find.byKey(
-            const ValueKey<String>('calendar-event-label:Beta event'),
-          ),
+          matching: find.text('Beta event'),
         );
-        expect(alphaLabel, findsOneWidget);
-        expect(betaLabel, findsOneWidget);
-        final expectedLabelOpacity = level.index >= 2 ? 1.0 : 0.0;
-        expect(
-          tester.widget<Opacity>(alphaLabel).opacity,
-          expectedLabelOpacity,
-        );
-        expect(tester.widget<Opacity>(betaLabel).opacity, expectedLabelOpacity);
+        final labelsAreVisible = level.index >= 2;
+        expect(alphaLabel, labelsAreVisible ? findsOneWidget : findsNothing);
+        expect(betaLabel, labelsAreVisible ? findsOneWidget : findsNothing);
       }
 
       expect(
@@ -562,14 +552,11 @@ void main() {
       final stackedPills = _eventPillContainersInDay(find.byKey(dayCellKey));
       expect(stackedPills, findsNWidgets(2));
       expect(
-        tester
-            .widget<Opacity>(
-              find.byKey(
-                const ValueKey<String>('calendar-event-label:Alpha event'),
-              ),
-            )
-            .opacity,
-        0,
+        find.descendant(
+          of: find.byKey(dayCellKey),
+          matching: find.text('Alpha event'),
+        ),
+        findsNothing,
       );
       for (final size in _eventPillSizes(tester, stackedPills)) {
         expect(size.height, closeTo(12.0, 0.1));
@@ -588,8 +575,9 @@ void main() {
         expect(size.width, greaterThanOrEqualTo(27.0));
       }
       final labeledText = tester.widget<Text>(
-        find.byKey(
-          const ValueKey<String>('calendar-event-label-single:Alpha event'),
+        find.descendant(
+          of: find.byKey(dayCellKey),
+          matching: find.text('Alpha event'),
         ),
       );
       expect(labeledText.maxLines, 1);
@@ -607,8 +595,9 @@ void main() {
         expect(size.width, greaterThanOrEqualTo(27.0));
       }
       final detailText = tester.widget<Text>(
-        find.byKey(
-          const ValueKey<String>('calendar-event-label-multi:Alpha event'),
+        find.descendant(
+          of: find.byKey(dayCellKey),
+          matching: find.text('Alpha event'),
         ),
       );
       expect(detailText.maxLines, 3);
@@ -798,11 +787,8 @@ void main() {
             of: find.byKey(const ValueKey<String>('k:6267-1-4|K')),
             matching: find.byWidgetPredicate(
               (widget) =>
-                  widget is Opacity &&
-                  widget.key is ValueKey<String> &&
-                  ((widget.key! as ValueKey<String>).value.startsWith(
-                    'calendar-event-label:Contained event',
-                  )),
+                  widget is Text &&
+                  (widget.data?.startsWith('Contained event') ?? false),
             ),
           );
           expect(eventLabels, findsWidgets, reason: viewport.name);
@@ -817,11 +803,16 @@ void main() {
             );
           }
 
-          final overflowCount = find.byKey(
-            const ValueKey<String>('calendar-event-overflow:6267-1-4'),
+          final overflowCounts = find.descendant(
+            of: find.byKey(const ValueKey<String>('k:6267-1-4|K')),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Text && (widget.data?.startsWith('+') ?? false),
+            ),
           );
-          if (tester.widget<Opacity>(overflowCount).opacity > 0) {
-            final countRect = tester.getRect(overflowCount);
+          for (final element in overflowCounts.evaluate()) {
+            final box = element.renderObject! as RenderBox;
+            final countRect = box.localToGlobal(Offset.zero) & box.size;
             _expectRectInside(countRect, dayCell, reason: viewport.name);
           }
         }
@@ -860,10 +851,10 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(tester.takeException(), isNull);
-        expect(find.text('Tablet event 1'), findsNWidgets(2));
-        expect(find.text('Tablet event 2'), findsNWidgets(2));
-        expect(find.text('Tablet event 3'), findsNWidgets(2));
-        expect(find.text('Tablet event 4'), findsNWidgets(2));
+        expect(find.text('Tablet event 1'), findsOneWidget);
+        expect(find.text('Tablet event 2'), findsOneWidget);
+        expect(find.text('Tablet event 3'), findsOneWidget);
+        expect(find.text('Tablet event 4'), findsOneWidget);
         expect(find.text('Tablet event 5'), findsNothing);
         expect(find.text('Tablet event 6'), findsNothing);
         expect(find.text('+2'), findsOneWidget);
@@ -880,9 +871,7 @@ void main() {
         ]) {
           final rect = label == '+2'
               ? tester.getRect(find.text(label))
-              : tester.getRect(
-                  find.byKey(ValueKey<String>('calendar-event-label:$label')),
-                );
+              : tester.getRect(find.text(label));
           expect(rect.top, greaterThanOrEqualTo(dayCell.top));
           expect(rect.bottom, lessThanOrEqualTo(dayCell.bottom));
         }
@@ -1507,7 +1496,7 @@ void main() {
       final tileColorBlock = _sourceBetween(
         dayChipBlock,
         'final toneSpec = _calendarDayToneSpec(tone);',
-        'final tilePadding = EdgeInsets.symmetric',
+        'final tilePadding = isTransientPresentation',
       );
       expect(tileColorBlock, contains('final tileFill = toneSpec.fill;'));
       expect(
