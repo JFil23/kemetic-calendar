@@ -62,7 +62,7 @@ class _SettingsPageState extends State<SettingsPage> {
       'push.lastSelfTestDeliveryKey';
 
   bool _realTimeAlerts = false;
-  bool _autoCalendarSync = true;
+  bool _autoCalendarSync = false;
   bool _usHolidaysEnabled = false;
   bool _dailyCosmicContextBadgeEnabled = true;
   bool _seedingHolidays = false;
@@ -744,22 +744,18 @@ class _SettingsPageState extends State<SettingsPage> {
     final messenger = ScaffoldMessenger.of(context);
     final sync = sharedCalendarSyncService(Supabase.instance.client);
 
-    setState(() {
-      _autoCalendarSync = enabled;
-      _syncingCalendar = enabled;
-    });
-    await _save();
-
     if (!enabled) {
-      sync.stop();
-      if (!mounted) return;
       setState(() {
+        _autoCalendarSync = false;
         _syncingCalendar = false;
       });
+      await _save();
+      sync.stop();
+      if (!mounted) return;
       messenger.showSnackBar(
         SnackBar(
           content: const Text(
-            'Automatic calendar sync turned off. You can still sync manually.',
+            'Automatic calendar sync is paused. Imported events remain in HAw.',
           ),
           backgroundColor: Colors.green.shade700,
         ),
@@ -769,13 +765,10 @@ class _SettingsPageState extends State<SettingsPage> {
 
     if (!_hasSession) {
       if (!mounted) return;
-      setState(() {
-        _syncingCalendar = false;
-      });
       messenger.showSnackBar(
         SnackBar(
           content: const Text(
-            'Automatic calendar sync will start after you sign in.',
+            'Sign in before turning on automatic calendar sync.',
           ),
           backgroundColor: Colors.orange.shade700,
         ),
@@ -783,18 +776,43 @@ class _SettingsPageState extends State<SettingsPage> {
       return;
     }
 
+    setState(() {
+      _syncingCalendar = true;
+    });
+
     try {
+      final result = await sync.sync(interactive: true);
+      if (!result.didSync) {
+        await SettingsPrefs.setAutoCalendarSyncEnabled(false);
+        if (!mounted) return;
+        setState(() {
+          _autoCalendarSync = false;
+        });
+        _showCalendarSyncResult(result);
+        return;
+      }
+
+      await SettingsPrefs.setAutoCalendarSyncEnabled(true);
       await sync.start();
       await _refreshCalendarStatus();
       if (!mounted) return;
+      setState(() {
+        _autoCalendarSync = true;
+      });
       messenger.showSnackBar(
         SnackBar(
-          content: const Text('Automatic calendar sync turned on.'),
+          content: const Text(
+            'Automatic calendar sync is on and HAw is up to date.',
+          ),
           backgroundColor: Colors.green.shade700,
         ),
       );
     } catch (e) {
       if (!mounted) return;
+      await SettingsPrefs.setAutoCalendarSyncEnabled(false);
+      setState(() {
+        _autoCalendarSync = false;
+      });
       messenger.showSnackBar(
         SnackBar(
           content: Text('Could not start automatic calendar sync: $e'),
@@ -977,7 +995,7 @@ class _SettingsPageState extends State<SettingsPage> {
             style: TextStyle(color: Colors.white),
           ),
           content: const Text(
-            'This removes imported Apple/Google calendar events from Kemetic, clears sync state, and turns automatic calendar sync off until you re-enable it. If older hAw exports still exist on the device calendar, the cleanup also removes those legacy copies.',
+            'This removes imported Apple and Google calendar events from HAw, clears local sync state, and turns automatic sync off. Your Apple and Google calendars will not be changed.',
             style: TextStyle(color: Colors.white70, height: 1.4),
           ),
           actions: [
@@ -1005,10 +1023,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
     try {
       final sync = sharedCalendarSyncService(client);
-      final result = await sync.unlinkAndPurge(
-        interactive: true,
-        markResetCompleted: true,
-      );
+      final result = await sync.unlinkImportedCalendarData();
 
       final calendarState = CalendarPage.globalKey.currentState;
       if (calendarState != null) {
@@ -1025,23 +1040,15 @@ class _SettingsPageState extends State<SettingsPage> {
 
       final parts = <String>[
         if (result.removedImportedEvents > 0)
-          'removed ${result.removedImportedEvents} imported device-calendar events from Kemetic',
-        if (result.removedNativeEvents > 0)
-          'removed ${result.removedNativeEvents} legacy hAw exports from the device calendar',
+          'removed ${result.removedImportedEvents} imported device-calendar events from HAw',
       ];
       final summary = parts.isEmpty
           ? 'Calendar import state was cleared and automatic sync was turned off.'
           : '${parts.join('; ')}. Automatic sync is now off.';
-      final suffix = result.permissionGranted
-          ? ''
-          : ' Grant calendar access and run this again if older exported hAw copies still remain on the device calendar.';
-
       messenger.showSnackBar(
         SnackBar(
-          content: Text('$summary$suffix'),
-          backgroundColor: result.permissionGranted
-              ? Colors.green.shade700
-              : Colors.orange.shade700,
+          content: Text(summary),
+          backgroundColor: Colors.green.shade700,
         ),
       );
     } catch (e) {
@@ -1076,7 +1083,7 @@ class _SettingsPageState extends State<SettingsPage> {
         messenger.showSnackBar(
           SnackBar(
             content: const Text(
-              'Imported device-calendar data was cleared. Re-enable sync when you want Kemetic to import again.',
+              'Imported device-calendar data was cleared. Re-enable sync when you want HAw to import again.',
             ),
             backgroundColor: Colors.orange.shade700,
           ),
@@ -1357,7 +1364,7 @@ class _SettingsPageState extends State<SettingsPage> {
     lines.add(
       _autoCalendarSync
           ? 'Automatic sync is on. The app keeps importing device-calendar changes after sign-in.'
-          : 'Automatic sync is off. Use Sync now whenever you want to import again.',
+          : 'Automatic sync is paused. Imported events remain in HAw; turn it back on to catch up.',
     );
 
     final lastSync = _calendarSyncStatus?.lastSyncAt?.toLocal();
@@ -1863,12 +1870,12 @@ class _SettingsPageState extends State<SettingsPage> {
             _sectionCard(
               title: 'Calendar Sync',
               description:
-                  'Device calendar sync only imports external events into Kemetic. Events you create in Kemetic stay in Kemetic.',
+                  'HAw mirrors Apple and Google calendar events one way. Events you create in HAw stay in HAw.',
               children: [
                 _settingSwitch(
                   title: 'Keep device calendar synced automatically',
                   subtitle: _nativeCalendarSyncAvailable
-                      ? 'Runs after sign-in and keeps importing device-calendar changes in the background.'
+                      ? 'Turn off to pause updates without removing events already imported into HAw.'
                       : 'Native calendar sync is not available in web builds.',
                   value: _autoCalendarSync,
                   onChanged: !_nativeCalendarSyncAvailable || _calendarBusy

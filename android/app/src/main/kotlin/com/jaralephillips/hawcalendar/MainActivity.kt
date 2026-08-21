@@ -2,10 +2,12 @@ package com.jaralephillips.hawcalendar
 
 import android.Manifest
 import android.content.ContentUris
-import android.content.ContentValues
 import android.content.pm.PackageManager
+import android.database.ContentObserver
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.CalendarContract
 import android.provider.Settings
 import android.window.OnBackInvokedCallback
@@ -22,6 +24,8 @@ class MainActivity : FlutterActivity() {
   private val shellBackChannelName = "com.kemetic.calendar/shell_back"
   private val permissionRequest = 9910
   private var pendingPermissionResult: MethodChannel.Result? = null
+  private var calendarChannel: MethodChannel? = null
+  private var calendarObserver: ContentObserver? = null
   private var shellBackChannel: MethodChannel? = null
   private var shellBackCallback: OnBackInvokedCallback? = null
 
@@ -31,9 +35,19 @@ class MainActivity : FlutterActivity() {
     shellBackChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, shellBackChannelName)
     registerShellBackCallback()
 
-    MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName).setMethodCallHandler { call, result ->
+    calendarChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channelName)
+    calendarChannel?.setMethodCallHandler { call, result ->
       when (call.method) {
         "requestPermissions" -> handleRequestPermissions(result)
+        "hasPermissions" -> result.success(hasCalendarPermission())
+        "startMonitoring" -> {
+          startCalendarMonitoring()
+          result.success(null)
+        }
+        "stopMonitoring" -> {
+          stopCalendarMonitoring()
+          result.success(null)
+        }
         "getStableDeviceId" -> result.success(getStableDeviceId())
         "fetchEvents" -> {
           val args = call.arguments as? Map<*, *>
@@ -49,44 +63,15 @@ class MainActivity : FlutterActivity() {
           val end = (args["end"] as Number).toLong()
           result.success(fetchEvents(start, end))
         }
-        "upsertEvent" -> {
-          val args = call.arguments as? Map<*, *>
-          if (args == null) {
-            result.error("bad_args", "Missing arguments", null)
-            return@setMethodCallHandler
-          }
-          if (!hasCalendarPermission()) {
-            result.error("no_permission", "Calendar permission not granted", null)
-            return@setMethodCallHandler
-          }
-          result.success(upsertEvent(args))
-        }
-        "deleteEvent" -> {
-          val args = call.arguments as? Map<*, *>
-          val eventId = args?.get("eventId") as? String
-          if (eventId == null) {
-            result.error("bad_args", "Missing eventId", null)
-            return@setMethodCallHandler
-          }
-          if (!hasCalendarPermission()) {
-            result.success(false)
-            return@setMethodCallHandler
-          }
-          result.success(deleteEvent(eventId))
-        }
-        "purgeKemeticEvents" -> {
-          if (!hasCalendarPermission()) {
-            result.success(0)
-            return@setMethodCallHandler
-          }
-          result.success(purgeKemeticEvents())
-        }
         else -> result.notImplemented()
       }
     }
   }
 
   override fun onDestroy() {
+    stopCalendarMonitoring()
+    calendarChannel?.setMethodCallHandler(null)
+    calendarChannel = null
     unregisterShellBackCallback()
     shellBackChannel = null
     super.onDestroy()
@@ -147,8 +132,7 @@ class MainActivity : FlutterActivity() {
   }
 
   private fun hasCalendarPermission(): Boolean {
-    val perms = arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)
-    return perms.all { ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED }
+    return ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
   }
 
   private fun getStableDeviceId(): String? {
@@ -164,7 +148,7 @@ class MainActivity : FlutterActivity() {
       return
     }
     pendingPermissionResult = result
-    val perms = arrayOf(Manifest.permission.READ_CALENDAR, Manifest.permission.WRITE_CALENDAR)
+    val perms = arrayOf(Manifest.permission.READ_CALENDAR)
     ActivityCompat.requestPermissions(this, perms, permissionRequest)
   }
 
@@ -175,6 +159,32 @@ class MainActivity : FlutterActivity() {
       pendingPermissionResult?.success(granted)
       pendingPermissionResult = null
     }
+  }
+
+  private fun startCalendarMonitoring() {
+    if (!hasCalendarPermission() || calendarObserver != null) return
+    val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+      override fun onChange(selfChange: Boolean) {
+        super.onChange(selfChange)
+        calendarChannel?.invokeMethod("calendarChanged", null)
+      }
+
+      override fun onChange(selfChange: Boolean, uri: Uri?) {
+        super.onChange(selfChange, uri)
+        calendarChannel?.invokeMethod("calendarChanged", null)
+      }
+    }
+    contentResolver.registerContentObserver(
+      CalendarContract.CONTENT_URI,
+      true,
+      observer
+    )
+    calendarObserver = observer
+  }
+
+  private fun stopCalendarMonitoring() {
+    calendarObserver?.let { contentResolver.unregisterContentObserver(it) }
+    calendarObserver = null
   }
 
   private fun fetchEvents(startMillis: Long, endMillis: Long): List<Map<String, Any?>> {
@@ -210,18 +220,22 @@ class MainActivity : FlutterActivity() {
 
       while (it.moveToNext()) {
         val eventId = it.getLong(idxEventId)
+        val begin = it.getLong(idxBegin)
+        val calendarId = it.getLong(idxCalendarId)
         val description = it.getString(idxDescription)
         val cid = extractCid(description)
         results.add(
           mapOf(
-            "eventId" to eventId.toString(),
+            // Recurring instances share EVENT_ID. Calendar + occurrence start
+            // keeps every projected instance distinct inside HAw.
+            "eventId" to "$eventId:$calendarId:$begin",
             "title" to (it.getString(idxTitle) ?: ""),
             "description" to (description ?: ""),
             "location" to (it.getString(idxLocation) ?: ""),
-            "start" to it.getLong(idxBegin),
+            "start" to begin,
             "end" to it.getLong(idxEnd),
             "allDay" to (it.getInt(idxAllDay) == 1),
-            "calendarId" to it.getLong(idxCalendarId).toString(),
+            "calendarId" to calendarId.toString(),
             "timeZone" to (it.getString(idxTimezone) ?: TimeZone.getDefault().id),
             "lastModified" to System.currentTimeMillis(),
             "clientEventId" to cid
@@ -233,125 +247,6 @@ class MainActivity : FlutterActivity() {
     return results
   }
 
-  private fun upsertEvent(args: Map<*, *>): String? {
-    val title = (args["title"] as? String) ?: "Untitled event"
-    val description = args["description"] as? String
-    val location = args["location"] as? String
-    val allDay = args["allDay"] as? Boolean ?: false
-    val start = (args["start"] as Number).toLong()
-    val endArg = args["end"] as? Number
-    val end = endArg?.toLong() ?: (start + 60 * 60 * 1000)
-    val timeZone = (args["timeZone"] as? String) ?: TimeZone.getDefault().id
-    val clientEventId = args["clientEventId"] as? String
-    val calendarId = (args["calendarId"] as? String)?.toLongOrNull() ?: selectCalendarId()
-    val existingId = (args["eventId"] as? String)?.toLongOrNull()
-
-    if (calendarId == null) {
-      return null
-    }
-
-    val values = ContentValues().apply {
-      put(CalendarContract.Events.TITLE, title)
-      put(CalendarContract.Events.DESCRIPTION, injectCid(description, clientEventId))
-      put(CalendarContract.Events.EVENT_LOCATION, location)
-      put(CalendarContract.Events.ALL_DAY, if (allDay) 1 else 0)
-      put(CalendarContract.Events.DTSTART, start)
-      put(CalendarContract.Events.DTEND, end)
-      put(CalendarContract.Events.CALENDAR_ID, calendarId)
-      put(CalendarContract.Events.EVENT_TIMEZONE, timeZone)
-      put(CalendarContract.Events.EVENT_END_TIMEZONE, timeZone)
-      put(CalendarContract.Events.HAS_ALARM, 0)
-    }
-
-    val cr = contentResolver
-    val savedId = if (existingId == null) {
-      val uri = cr.insert(CalendarContract.Events.CONTENT_URI, values)
-      uri?.lastPathSegment
-    } else {
-      val updateUri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, existingId)
-      val updated = cr.update(updateUri, values, null, null)
-      if (updated > 0) existingId.toString() else null
-    }
-    savedId?.toLongOrNull()?.let { clearReminders(it) }
-    return savedId
-  }
-
-  private fun deleteEvent(eventId: String): Boolean {
-    val parsed = eventId.toLongOrNull() ?: return false
-    val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, parsed)
-    val rows = contentResolver.delete(uri, null, null)
-    return rows > 0
-  }
-
-  private fun purgeKemeticEvents(): Int {
-    val projection = arrayOf(CalendarContract.Events._ID)
-    val selection = "${CalendarContract.Events.DESCRIPTION} LIKE ?"
-    val args = arrayOf("%kemet_cid:%")
-    val ids = mutableListOf<Long>()
-
-    val cursor = contentResolver.query(
-      CalendarContract.Events.CONTENT_URI,
-      projection,
-      selection,
-      args,
-      null
-    )
-
-    cursor?.use {
-      val idxId = it.getColumnIndex(CalendarContract.Events._ID)
-      while (it.moveToNext()) {
-        ids.add(it.getLong(idxId))
-      }
-    }
-    cursor?.close()
-
-    var deleted = 0
-    for (id in ids) {
-      val uri = ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, id)
-      deleted += contentResolver.delete(uri, null, null)
-    }
-    return deleted
-  }
-
-  private fun clearReminders(eventId: Long) {
-    contentResolver.delete(
-      CalendarContract.Reminders.CONTENT_URI,
-      "${CalendarContract.Reminders.EVENT_ID} = ?",
-      arrayOf(eventId.toString())
-    )
-  }
-
-  private fun selectCalendarId(): Long? {
-    val projection = arrayOf(
-      CalendarContract.Calendars._ID,
-      CalendarContract.Calendars.IS_PRIMARY,
-      CalendarContract.Calendars.VISIBLE
-    )
-    val cursor = contentResolver.query(
-      CalendarContract.Calendars.CONTENT_URI,
-      projection,
-      "${CalendarContract.Calendars.VISIBLE} = 1",
-      null,
-      null
-    )
-    var fallback: Long? = null
-    cursor?.use {
-      val idxId = it.getColumnIndex(CalendarContract.Calendars._ID)
-      val idxPrimary = it.getColumnIndex(CalendarContract.Calendars.IS_PRIMARY)
-      while (it.moveToNext()) {
-        val id = it.getLong(idxId)
-        val primary = it.getInt(idxPrimary) == 1
-        if (fallback == null) fallback = id
-        if (primary) {
-          fallback = id
-          break
-        }
-      }
-    }
-    cursor?.close()
-    return fallback
-  }
-
   private fun extractCid(text: String?): String? {
     if (text == null) return null
     val regex = Regex("kemet_cid:([^\\s]+)", RegexOption.IGNORE_CASE)
@@ -359,18 +254,4 @@ class MainActivity : FlutterActivity() {
     return match?.groupValues?.getOrNull(1)
   }
 
-  private fun injectCid(description: String?, cid: String?): String? {
-    if (cid.isNullOrEmpty()) return description
-    val base = description ?: ""
-    val cleaned = Regex("kemet_cid:[^\\s]+", RegexOption.IGNORE_CASE).replace(base, "").trim()
-    return if (cleaned.isEmpty()) {
-      "kemet_cid:$cid"
-    } else {
-      if (cleaned.contains("kemet_cid:$cid", ignoreCase = true)) {
-        cleaned
-      } else {
-        "$cleaned\n\nkemet_cid:$cid"
-      }
-    }
-  }
 }

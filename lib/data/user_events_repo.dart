@@ -1243,6 +1243,31 @@ class UserEventsRepo {
     }
   }
 
+  /// Imported native events are authoritative projections. A historical HAw
+  /// delete must not permanently suppress an event that still exists in the
+  /// user's Apple or Google calendar.
+  Future<void> clearNativeCalendarImportSuppression(
+    String clientEventId,
+  ) async {
+    final trimmed = clientEventId.trim();
+    if (!trimmed.toLowerCase().startsWith('native:')) return;
+    try {
+      await _client.rpc(
+        'clear_native_calendar_import_tombstone',
+        params: {'p_client_event_id': trimmed},
+      );
+    } catch (e) {
+      // Forward-compatible with clients briefly running before the migration
+      // reaches their Supabase project. The ordinary upsert remains safe.
+      if (kDebugMode) {
+        debugPrint(
+          '[user_events] native import tombstone clear unavailable: '
+          '${redactLogText('$e')}',
+        );
+      }
+    }
+  }
+
   /// Delete events by client_event_id prefix (e.g., 'nutrition:item-id:').
   /// Useful for bulk deletion of related events.
   Future<void> deleteByClientIdPrefix(

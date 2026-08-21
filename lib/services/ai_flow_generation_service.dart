@@ -4,9 +4,154 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/supabase_auth_retry.dart';
 import '../models/ai_flow_generation_response.dart';
+import 'agent_debug_log_stub.dart'
+    if (dart.library.html) 'agent_debug_log_web.dart'
+    if (dart.library.io) 'agent_debug_log_io.dart'
+    as agent_debug;
+
+// #region agent log
+void _agentDebugLog({
+  required String location,
+  required String message,
+  required String hypothesisId,
+  Map<String, Object?> data = const {},
+}) {
+  final payload = <String, Object?>{
+    'sessionId': 'bdbad5',
+    'runId': 'pre-fix',
+    'hypothesisId': hypothesisId,
+    'location': location,
+    'message': message,
+    'data': data,
+    'timestamp': DateTime.now().millisecondsSinceEpoch,
+  };
+  final encoded = jsonEncode(payload);
+  try {
+    agent_debug.agentPlatformIngest(encoded);
+  } catch (_) {}
+  try {
+    unawaited(
+      http
+          .post(
+            Uri.parse(
+              'http://127.0.0.1:7754/ingest/55b4db24-649f-4229-be73-6a2b8bba0263',
+            ),
+            headers: {'Content-Type': 'text/plain'},
+            body: encoded,
+          )
+          .catchError((_) => http.Response('', 599)),
+    );
+  } catch (_) {}
+  debugPrint('[agent-dbg] $encoded');
+}
+
+String _agentTokenKind(String? token) {
+  final value = token?.trim() ?? '';
+  if (value.isEmpty) return 'empty';
+  if (value.startsWith('sb_publishable_')) return 'publishable_key';
+  if (value.startsWith('sb_secret_')) return 'secret_key';
+  if (value.startsWith('eyJ')) return 'jwt';
+  return 'other';
+}
+
+Map<String, dynamic>? _agentDecodeJwtPart(String part) {
+  try {
+    var normalized = part.replaceAll('-', '+').replaceAll('_', '/');
+    final pad = (4 - normalized.length % 4) % 4;
+    if (pad != 0) normalized += '=' * pad;
+    final decoded = json.decode(utf8.decode(base64.decode(normalized)));
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+  } catch (_) {}
+  return null;
+}
+
+Map<String, Object?> _agentJwtSafeMeta(String? token) {
+  final value = token?.trim() ?? '';
+  final parts = value.split('.');
+  final header = parts.isNotEmpty ? _agentDecodeJwtPart(parts.first) : null;
+  final payload = parts.length >= 2 ? _agentDecodeJwtPart(parts[1]) : null;
+  final exp = payload?['exp'];
+  final expSeconds = exp is int ? exp : int.tryParse('$exp');
+  final nowSeconds = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+  return {
+    'kind': _agentTokenKind(value),
+    'parts': value.isEmpty ? 0 : parts.length,
+    'alg': header?['alg'],
+    'typ': header?['typ'],
+    'hasKid': header?['kid'] != null,
+    'role': payload?['role'],
+    'tokenType': payload?['token_type'] ?? payload?['typ'],
+    'issHost': Uri.tryParse('${payload?['iss'] ?? ''}')?.host,
+    'secondsUntilExp': expSeconds == null ? null : expSeconds - nowSeconds,
+    'hasSub':
+        payload?['sub'] is String && (payload?['sub'] as String).isNotEmpty,
+  };
+}
+
+String _agentAuthHeaderKind(String? raw) {
+  final value = (raw ?? '').trim();
+  if (value.isEmpty) return 'missing';
+  if (value.startsWith('Bearer ')) {
+    return 'bearer_${_agentTokenKind(value.substring(7))}';
+  }
+  return _agentTokenKind(value);
+}
+// #endregion
+
+const String aiFlowSignInRequiredMessage =
+    'You need to sign in before generating a flow.';
+
+@visibleForTesting
+bool aiFlowIsUsableUserAccessToken(String? token) {
+  final value = token?.trim() ?? '';
+  if (value.isEmpty) return false;
+  return !value.startsWith('sb_');
+}
+
+@visibleForTesting
+Future<T> runAiFlowInvokeWithRefreshBudget<T>({
+  required bool sessionExpired,
+  required Future<bool> Function() refreshSession,
+  required Future<T> Function() invokeOnce,
+  required bool Function(Object error) isRetryableAuthError,
+  required T Function() onAuthGiveUp,
+}) async {
+  var refreshUsed = false;
+
+  Future<bool> consumeRefresh() async {
+    if (refreshUsed) return false;
+    refreshUsed = true;
+    try {
+      return await refreshSession();
+    } catch (_) {
+      return false;
+    }
+  }
+
+  if (sessionExpired) {
+    final refreshed = await consumeRefresh();
+    if (!refreshed) return onAuthGiveUp();
+  }
+
+  try {
+    return await invokeOnce();
+  } catch (error) {
+    if (!isRetryableAuthError(error)) rethrow;
+    final refreshed = await consumeRefresh();
+    if (!refreshed) return onAuthGiveUp();
+    try {
+      return await invokeOnce();
+    } catch (retryError) {
+      if (isRetryableAuthError(retryError)) return onAuthGiveUp();
+      rethrow;
+    }
+  }
+}
 
 class AIFlowGenerationService {
   final SupabaseClient _sb;
@@ -26,16 +171,17 @@ class AIFlowGenerationService {
   String _fmt(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}'; // YYYY-MM-DD
 
-  Future<T> _withAuthRetry<T>(Future<T> Function() run) async {
-    try {
-      return await run();
-    } on AuthException {
-      // Token likely expired — refresh then retry once
-      final refreshed = await _sb.auth.refreshSession();
-      if (refreshed.session == null) rethrow;
-      return await run();
-    }
+  // #region agent log
+  String _withDebugAuthFingerprint(String message) {
+    final sess = _sb.auth.currentSession;
+    final token = _agentJwtSafeMeta(sess?.accessToken);
+    return '$message | dbg session=${sess != null} expired=${sess?.isExpired} '
+        'kind=${token['kind']} alg=${token['alg']} hasKid=${token['hasKid']} '
+        'expS=${token['secondsUntilExp']} '
+        'fnAuth=${_agentAuthHeaderKind(_sb.functions.headers['Authorization'])} '
+        'apiKey=${_agentTokenKind(_sb.functions.headers['apikey'] ?? _sb.functions.headers['Apikey'])}';
   }
+  // #endregion
 
   Future<AIFlowGenerationResponse> generate({
     required String description,
@@ -50,8 +196,26 @@ class AIFlowGenerationService {
   }) async {
     // 1) Session precheck
     final sess = _sb.auth.currentSession;
-    if (sess == null) {
-      // Return error response instead of throwing
+    // #region agent log
+    _agentDebugLog(
+      location: 'ai_flow_generation_service.dart:generate:precheck',
+      message: 'Flow generate session/token snapshot',
+      hypothesisId: 'A',
+      data: {
+        'hasSession': sess != null,
+        'isExpired': sess?.isExpired,
+        'token': _agentJwtSafeMeta(sess?.accessToken),
+        'functionsAuthKind': _agentAuthHeaderKind(
+          _sb.functions.headers['Authorization'],
+        ),
+        'functionsApiKeyKind': _agentTokenKind(
+          _sb.functions.headers['apikey'] ?? _sb.functions.headers['Apikey'],
+        ),
+      },
+    );
+    // #endregion
+    if (sess == null ||
+        (!sess.isExpired && !aiFlowIsUsableUserAccessToken(sess.accessToken))) {
       return const AIFlowGenerationResponse(
         success: false,
         flowId: null,
@@ -62,7 +226,7 @@ class AIFlowGenerationService {
         events: null,
         modelUsed: null,
         cached: null,
-        errorMessage: 'You need to sign in before generating a flow.',
+        errorMessage: aiFlowSignInRequiredMessage,
       );
     }
 
@@ -96,39 +260,95 @@ class AIFlowGenerationService {
       'range=${payload['startDate']}..${payload['endDate']}',
     );
 
-    // 3) Auth-retry wrapped invoke (SDK auto-attaches JWT)
+    Future<FunctionResponse> invokeOnce() async {
+      final accessToken = _sb.auth.currentSession?.accessToken;
+      if (!aiFlowIsUsableUserAccessToken(accessToken)) {
+        return FunctionResponse(
+          data: <String, dynamic>{
+            'success': false,
+            'message': aiFlowSignInRequiredMessage,
+          },
+          status: 401,
+        );
+      }
+
+      try {
+        return await _sb.functions.invoke(
+          'ai_generate_flow',
+          body: payload,
+          headers: {'Authorization': 'Bearer $accessToken'},
+        );
+      } on FunctionException catch (e) {
+        final msg = _fnErrorMessage(e);
+        // #region agent log
+        _agentDebugLog(
+          location:
+              'ai_flow_generation_service.dart:generate:functionException',
+          message: 'functions.invoke FunctionException',
+          hypothesisId: 'C',
+          data: {
+            'status': e.status,
+            'reasonPhrase': e.reasonPhrase,
+            'detailsType': e.details?.runtimeType.toString(),
+            'extractedMessage': msg,
+          },
+        );
+        // #endregion
+        if (isRetryableSupabaseAuthError(e)) rethrow;
+        return FunctionResponse(
+          data: {
+            'success': false,
+            'message': msg,
+            'error_code': 'FunctionException',
+          },
+          status: e.status,
+        );
+      } catch (e) {
+        final msg = aiFlowBestErrorMessage(
+          e,
+          fallback: 'Unable to reach flow generation.',
+        );
+        // #region agent log
+        _agentDebugLog(
+          location: 'ai_flow_generation_service.dart:generate:clientError',
+          message: 'functions.invoke non-FunctionException',
+          hypothesisId: 'E',
+          data: {
+            'errorType': e.runtimeType.toString(),
+            'extractedMessage': msg,
+          },
+        );
+        // #endregion
+        if (isRetryableSupabaseAuthError(e)) rethrow;
+        return FunctionResponse(
+          data: {
+            'success': false,
+            'message': msg,
+            'error_code': 'client_error',
+          },
+          status: 500,
+        );
+      }
+    }
+
     final FunctionResponse res =
-        await _withAuthRetry(() async {
-          try {
-            return await _sb.functions.invoke(
-              'ai_generate_flow',
-              body: payload,
-            );
-          } on FunctionException catch (e) {
-            final msg = _fnErrorMessage(e);
-            return FunctionResponse(
-              data: {
-                'success': false,
-                'message': msg,
-                'error_code': 'FunctionException',
-              },
-              status: e.status,
-            );
-          } catch (e) {
-            final msg = aiFlowBestErrorMessage(
-              e,
-              fallback: 'Unable to reach flow generation.',
-            );
-            return FunctionResponse(
-              data: {
-                'success': false,
-                'message': msg,
-                'error_code': 'client_error',
-              },
-              status: 500,
-            );
-          }
-        }).timeout(
+        await runAiFlowInvokeWithRefreshBudget<FunctionResponse>(
+          sessionExpired: sess.isExpired,
+          refreshSession: () async {
+            final refreshed = await _sb.auth.refreshSession();
+            return refreshed.session != null &&
+                aiFlowIsUsableUserAccessToken(refreshed.session!.accessToken);
+          },
+          invokeOnce: invokeOnce,
+          isRetryableAuthError: isRetryableSupabaseAuthError,
+          onAuthGiveUp: () => FunctionResponse(
+            data: <String, dynamic>{
+              'success': false,
+              'message': aiFlowSignInRequiredMessage,
+            },
+            status: 401,
+          ),
+        ).timeout(
           const Duration(minutes: 4),
           onTimeout: () => FunctionResponse(
             data: <String, dynamic>{
@@ -143,14 +363,26 @@ class AIFlowGenerationService {
         );
 
     // Fail fast on HTTP error status
+    // #region agent log
+    _agentDebugLog(
+      location: 'ai_flow_generation_service.dart:generate:response',
+      message: 'ai_generate_flow invoke finished',
+      hypothesisId: 'C',
+      data: {
+        'status': res.status,
+        'dataType': res.data?.runtimeType.toString(),
+        'extractedMessage': aiFlowBestErrorMessage(res.data),
+        'successFlag': res.data is Map ? (res.data as Map)['success'] : null,
+      },
+    );
+    // #endregion
     if (res.status != 200) {
-      final msg = aiFlowBestErrorMessage(
-        res.data,
-        fallback: 'Generation failed (HTTP ${res.status}).',
-      );
+      final fallback = 'Generation failed (HTTP ${res.status}).';
+      final msg =
+          aiFlowBestErrorMessage(res.data, fallback: fallback) ?? fallback;
       return AIFlowGenerationResponse(
         success: false,
-        errorMessage: msg,
+        errorMessage: _withDebugAuthFingerprint(msg),
         flowId: null,
         flowName: null,
         flowColor: null,
@@ -171,24 +403,12 @@ class AIFlowGenerationService {
 
       final parsed = AIFlowGenerationResponse.fromJson(map);
       // If backend returned success=false but no message, add a friendly one
-      if (parsed.success != true && parsed.errorMessage == null) {
-        return AIFlowGenerationResponse(
-          success: parsed.success,
-          flowId: parsed.flowId,
-          flowName: parsed.flowName,
-          flowColor: parsed.flowColor,
-          overviewTitle: parsed.overviewTitle,
-          overviewSummary: parsed.overviewSummary,
-          notes: parsed.notes,
-          notesCount: parsed.notesCount,
-          events: parsed.events,
-          modelUsed: parsed.modelUsed,
-          cached: parsed.cached,
-          generationId: parsed.generationId,
-          schemaVersion: parsed.schemaVersion,
-          policyVersion: parsed.policyVersion,
-          snapshotVersion: parsed.snapshotVersion,
-          errorMessage: 'Generation failed. Please try again in a moment.',
+      if (parsed.success != true) {
+        final rawError =
+            parsed.errorMessage ??
+            'Generation failed. Please try again in a moment.';
+        return parsed.copyWith(
+          errorMessage: _withDebugAuthFingerprint(rawError),
         );
       }
       return parsed;
@@ -383,6 +603,12 @@ bool _isGenericAiFlowErrorLabel(String value) {
 String _friendlyAiFlowGenerationError(String message) {
   final trimmed = message.trim();
   final lower = trimmed.toLowerCase();
+  if (lower.contains('invalid jwt') ||
+      lower.contains('jwt expired') ||
+      lower.contains('expired jwt') ||
+      lower.contains('token is expired')) {
+    return aiFlowSignInRequiredMessage;
+  }
   final isRawValidationPath = RegExp(
     r'\bnotes\[\d+\]\.(?:details|title|day_index|start_time|end_time)\b',
   ).hasMatch(lower);

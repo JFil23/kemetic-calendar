@@ -346,7 +346,9 @@ void main() {
     expect(snapshot.gregorianMonthAt(30), may);
   });
 
-  testWidgets('publishes decan weekday boundaries atomically', (tester) async {
+  testWidgets('publishes decan weekday trailing edges atomically', (
+    tester,
+  ) async {
     final collector = CalendarGeometryCollector();
     addTearDown(collector.dispose);
     final month = MonthRef(year: 1, month: 1);
@@ -384,17 +386,133 @@ void main() {
     final snapshot = collector.snapshot!;
     expect(collector.debugMountedWeekdayRowBoundaryCount, 2);
     expect(snapshot.weekdayRowBoundaries, hasLength(2));
-    expect(snapshot.weekdayRowBoundaries[0].leading, closeTo(20, 0.001));
-    expect(snapshot.weekdayRowBoundaries[1].leading, closeTo(60, 0.001));
+    expect(snapshot.weekdayRowBoundaries[0].trailing, closeTo(40, 0.001));
+    expect(snapshot.weekdayRowBoundaries[1].trailing, closeTo(80, 0.001));
     expect(
-      snapshot.weekdayRowAt(59.999),
+      snapshot.weekdayRowAt(39.999),
       CalendarWeekdayRowRef(month: month, rowIndex: 0),
     );
     expect(
-      snapshot.weekdayRowAt(60),
+      snapshot.weekdayRowAt(40),
       CalendarWeekdayRowRef(month: month, rowIndex: 1),
     );
+    expect(
+      snapshot.weekdayRowAt(39.999),
+      CalendarWeekdayRowRef(month: month, rowIndex: 0),
+    );
   });
+
+  testWidgets(
+    'measures weekday trailing edges from rendered row bottoms of any height',
+    (tester) async {
+      final collector = CalendarGeometryCollector();
+      addTearDown(collector.dispose);
+      final month1 = MonthRef(year: 1, month: 1);
+      final month2 = MonthRef(year: 1, month: 2);
+      const compactEmptyHeight = 24.0;
+      const compactHeavyHeight = 80.0;
+      const detailsEmptyHeight = 88.0;
+      const detailsHeavyHeight = 160.0;
+
+      await tester.pumpWidget(
+        _host(
+          collector: collector,
+          child: CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: CalendarGeometrySection(
+                  month: month1,
+                  child: Column(
+                    children: [
+                      CalendarGeometryWeekdayRowBoundary(
+                        row: CalendarWeekdayRowRef(month: month1, rowIndex: 0),
+                        child: const SizedBox(height: compactEmptyHeight),
+                      ),
+                      const SizedBox(height: 6),
+                      CalendarGeometryWeekdayRowBoundary(
+                        row: CalendarWeekdayRowRef(month: month1, rowIndex: 1),
+                        child: const SizedBox(height: compactHeavyHeight),
+                      ),
+                      const SizedBox(height: 6),
+                      CalendarGeometryWeekdayRowBoundary(
+                        row: CalendarWeekdayRowRef(month: month1, rowIndex: 2),
+                        child: const SizedBox(height: detailsEmptyHeight),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              SliverToBoxAdapter(
+                child: CalendarGeometrySection(
+                  month: month2,
+                  child: CalendarGeometryWeekdayRowBoundary(
+                    row: CalendarWeekdayRowRef(month: month2, rowIndex: 0),
+                    child: const SizedBox(height: detailsHeavyHeight),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      final snapshot = collector.snapshot!;
+      final compactEmptyBottom = compactEmptyHeight;
+      final compactHeavyBottom = compactEmptyBottom + 6 + compactHeavyHeight;
+      final detailsEmptyBottom = compactHeavyBottom + 6 + detailsEmptyHeight;
+      final detailsHeavyBottom = detailsEmptyBottom + detailsHeavyHeight;
+
+      expect(snapshot.weekdayRowBoundaries, hasLength(4));
+      expect(
+        snapshot.weekdayRowBoundaries[0].trailing,
+        closeTo(compactEmptyBottom, 0.001),
+      );
+      expect(
+        snapshot.weekdayRowBoundaries[1].trailing,
+        closeTo(compactHeavyBottom, 0.001),
+      );
+      expect(
+        snapshot.weekdayRowBoundaries[2].trailing,
+        closeTo(detailsEmptyBottom, 0.001),
+      );
+      expect(
+        snapshot.weekdayRowBoundaries[3].trailing,
+        closeTo(detailsHeavyBottom, 0.001),
+      );
+      expect(
+        snapshot.weekdayRowAt(compactEmptyBottom - 0.001),
+        CalendarWeekdayRowRef(month: month1, rowIndex: 0),
+      );
+      expect(
+        snapshot.weekdayRowAt(compactEmptyBottom),
+        CalendarWeekdayRowRef(month: month1, rowIndex: 1),
+      );
+      expect(
+        snapshot.weekdayRowAt(compactHeavyBottom - 0.001),
+        CalendarWeekdayRowRef(month: month1, rowIndex: 1),
+      );
+      expect(
+        snapshot.weekdayRowAt(compactHeavyBottom),
+        CalendarWeekdayRowRef(month: month1, rowIndex: 2),
+      );
+      expect(
+        snapshot.weekdayRowAt(detailsEmptyBottom - 0.001),
+        CalendarWeekdayRowRef(month: month1, rowIndex: 2),
+      );
+      expect(
+        snapshot.weekdayRowAt(detailsEmptyBottom),
+        CalendarWeekdayRowRef(month: month2, rowIndex: 0),
+      );
+      expect(
+        snapshot.weekdayRowAt(detailsEmptyBottom - 0.001),
+        CalendarWeekdayRowRef(month: month1, rowIndex: 2),
+      );
+      expect(
+        snapshot.weekdayRowAt(compactEmptyBottom - 0.001),
+        CalendarWeekdayRowRef(month: month1, rowIndex: 0),
+      );
+    },
+  );
 
   testWidgets('does not publish or schedule continuously while idle', (
     tester,

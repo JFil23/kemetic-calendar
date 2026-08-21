@@ -4447,10 +4447,22 @@ class _AuthGateState extends State<AuthGate> with WidgetsBindingObserver {
       return;
     }
     unawaited(
-      _refreshSessionIfNeeded('resume').whenComplete(
-        () => _ensureDecanSchedules(scope: 'decan schedule resume'),
-      ),
+      _refreshSessionIfNeeded('resume').whenComplete(() {
+        _ensureDecanSchedules(scope: 'decan schedule resume');
+        fireAndForgetGuarded(
+          'calendar sync resume catch-up',
+          _resumeCalendarSyncIfEnabled(),
+          onError: _logAuthGateError,
+        );
+      }),
     );
+  }
+
+  Future<void> _resumeCalendarSyncIfEnabled() async {
+    if (supabase.auth.currentSession == null) return;
+    if (!await SettingsPrefs.autoCalendarSyncEnabled()) return;
+    await _calendarSync?.start();
+    await _calendarSync?.sync();
   }
 
   // -- Keep a profiles row (id/email) for the user

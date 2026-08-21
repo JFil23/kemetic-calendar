@@ -1,0 +1,405 @@
+{
+  "harness_reverted": {
+    "benchmark": "calendar_dormant_observer",
+    "revision": "harness-reverted-canvaskit",
+    "platform": "web",
+    "repetitions": 5,
+    "refresh_rate_hz": 60.0,
+    "device_pixel_ratio": 1,
+    "physical_width": 390,
+    "physical_height": 844,
+    "web_renderer_use_skia": true,
+    "web_renderer_use_skwasm": false,
+    "frame_budget_ms": 16.666666666666668,
+    "runs": [
+      {
+        "frame_count": 286,
+        "build": {
+          "mean_ms": 5.068881118881119,
+          "p50_ms": 2.3,
+          "p95_ms": 6.5,
+          "p99_ms": 121.1,
+          "max_ms": 158.4
+        },
+        "raster": {
+          "mean_ms": 10.575174825174825,
+          "p50_ms": 7.5,
+          "p95_ms": 17.9,
+          "p99_ms": 49.9,
+          "max_ms": 61.8
+        },
+        "frame_budget_miss_count": 23,
+        "janky_frame_percentage": 8.041958041958042,
+        "new_gen_gc_count": -1,
+        "old_gen_gc_count": -1
+      },
+      {
+        "frame_count": 293,
+        "build": {
+          "mean_ms": 3.9699658703071674,
+          "p50_ms": 3.0,
+          "p95_ms": 5.6,
+          "p99_ms": 106.8,
+          "max_ms": 145.5
+        },
+        "raster": {
+          "mean_ms": 7.304095563139931,
+          "p50_ms": 7.0,
+          "p95_ms": 11.6,
+          "p99_ms": 44.6,
+          "max_ms": 62.5
+        },
+        "frame_budget_miss_count": 8,
+        "janky_frame_percentage": 2.7303754266211606,
+        "new_gen_gc_count": -1,
+        "old_gen_gc_count": -1
+      },
+      {
+        "frame_count": 294,
+        "build": {
+          "mean_ms": 4.01156462585034,
+          "p50_ms": 1.2,
+          "p95_ms": 4.8,
+          "p99_ms": 106.7,
+          "max_ms": 140.5
+        },
+        "raster": {
+          "mean_ms": 7.120748299319728,
+          "p50_ms": 6.6,
+          "p95_ms": 11.6,
+          "p99_ms": 44.5,
+          "max_ms": 58.9
+        },
+        "frame_budget_miss_count": 8,
+        "janky_frame_percentage": 2.7210884353741496,
+        "new_gen_gc_count": -1,
+        "old_gen_gc_count": -1
+      },
+      {
+        "frame_count": 293,
+        "build": {
+          "mean_ms": 5.2870307167235495,
+          "p50_ms": 3.0,
+          "p95_ms": 5.5,
+          "p99_ms": 112.6,
+          "max_ms": 145.6
+        },
+        "raster": {
+          "mean_ms": 8.204778156996587,
+          "p50_ms": 7.0,
+          "p95_ms": 15.3,
+          "p99_ms": 47.0,
+          "max_ms": 70.9
+        },
+        "frame_budget_miss_count": 15,
+        "janky_frame_percentage": 5.1194539249146755,
+        "new_gen_gc_count": -1,
+        "old_gen_gc_count": -1
+      },
+      {
+        "frame_count": 301,
+        "build": {
+          "mean_ms": 3.572093023255814,
+          "p50_ms": 0.8,
+          "p95_ms": 5.9,
+          "p99_ms": 99.4,
+          "max_ms": 119.2
+        },
+        "raster": {
+          "mean_ms": 8.761129568106313,
+          "p50_ms": 6.7,
+          "p95_ms": 18.9,
+          "p99_ms": 44.3,
+          "max_ms": 55.2
+        },
+        "frame_budget_miss_count": 23,
+        "janky_frame_percentage": 7.641196013289036,
+        "new_gen_gc_count": -1,
+        "old_gen_gc_count": -1
+      }
+    ],
+    "build": {
+      "mean_ms": 4.01156462585034,
+      "mean_ms_range": [
+        3.572093023255814,
+        5.2870307167235495
+      ],
+      "p50_ms": 2.3,
+      "p50_ms_range": [
+        0.8,
+        3.0
+      ],
+      "p95_ms": 5.6,
+      "p95_ms_range": [
+        4.8,
+        6.5
+      ],
+      "p99_ms": 106.8,
+      "p99_ms_range": [
+        99.4,
+        121.1
+      ],
+      "max_ms": 145.5,
+      "max_ms_range": [
+        119.2,
+        158.4
+      ]
+    },
+    "raster": {
+      "mean_ms": 8.204778156996587,
+      "mean_ms_range": [
+        7.120748299319728,
+        10.575174825174825
+      ],
+      "p50_ms": 7.0,
+      "p50_ms_range": [
+        6.6,
+        7.5
+      ],
+      "p95_ms": 15.3,
+      "p95_ms_range": [
+        11.6,
+        18.9
+      ],
+      "p99_ms": 44.6,
+      "p99_ms_range": [
+        44.3,
+        49.9
+      ],
+      "max_ms": 61.8,
+      "max_ms_range": [
+        55.2,
+        70.9
+      ]
+    },
+    "frame_budget_miss_count": 15.0,
+    "frame_budget_miss_count_range": [
+      8,
+      23
+    ],
+    "janky_frame_percentage": 5.1194539249146755,
+    "janky_frame_percentage_range": [
+      2.7210884353741496,
+      8.041958041958042
+    ],
+    "frame_count": 293.0,
+    "frame_count_range": [
+      286,
+      301
+    ]
+  },
+  "harness_present": {
+    "benchmark": "calendar_dormant_observer",
+    "revision": "harness-present-canvaskit",
+    "platform": "web",
+    "repetitions": 5,
+    "refresh_rate_hz": 60.0,
+    "device_pixel_ratio": 1,
+    "physical_width": 390,
+    "physical_height": 844,
+    "web_renderer_use_skia": true,
+    "web_renderer_use_skwasm": false,
+    "frame_budget_ms": 16.666666666666668,
+    "runs": [
+      {
+        "frame_count": 282,
+        "build": {
+          "mean_ms": 4.635124113475177,
+          "p50_ms": 3.099,
+          "p95_ms": 6.0,
+          "p99_ms": 112.901,
+          "max_ms": 141.701
+        },
+        "raster": {
+          "mean_ms": 9.891797872340426,
+          "p50_ms": 7.301,
+          "p95_ms": 17.401,
+          "p99_ms": 40.599,
+          "max_ms": 55.099
+        },
+        "frame_budget_miss_count": 20,
+        "janky_frame_percentage": 7.092198581560284,
+        "new_gen_gc_count": -1,
+        "old_gen_gc_count": -1
+      },
+      {
+        "frame_count": 293,
+        "build": {
+          "mean_ms": 3.853941979522184,
+          "p50_ms": 2.3,
+          "p95_ms": 5.5,
+          "p99_ms": 103.7,
+          "max_ms": 149.399
+        },
+        "raster": {
+          "mean_ms": 7.1255255972696245,
+          "p50_ms": 6.799,
+          "p95_ms": 11.399,
+          "p99_ms": 43.7,
+          "max_ms": 62.601
+        },
+        "frame_budget_miss_count": 8,
+        "janky_frame_percentage": 2.7303754266211606,
+        "new_gen_gc_count": -1,
+        "old_gen_gc_count": -1
+      },
+      {
+        "frame_count": 290,
+        "build": {
+          "mean_ms": 4.0199827586206895,
+          "p50_ms": 2.401,
+          "p95_ms": 5.0,
+          "p99_ms": 104.3,
+          "max_ms": 143.6
+        },
+        "raster": {
+          "mean_ms": 7.14973448275862,
+          "p50_ms": 6.5,
+          "p95_ms": 10.5,
+          "p99_ms": 44.7,
+          "max_ms": 62.899
+        },
+        "frame_budget_miss_count": 9,
+        "janky_frame_percentage": 3.103448275862069,
+        "new_gen_gc_count": -1,
+        "old_gen_gc_count": -1
+      },
+      {
+        "frame_count": 297,
+        "build": {
+          "mean_ms": 5.290225589225589,
+          "p50_ms": 2.3,
+          "p95_ms": 5.5,
+          "p99_ms": 115.4,
+          "max_ms": 146.601
+        },
+        "raster": {
+          "mean_ms": 8.284808080808082,
+          "p50_ms": 6.601,
+          "p95_ms": 18.099,
+          "p99_ms": 62.399,
+          "max_ms": 69.3
+        },
+        "frame_budget_miss_count": 23,
+        "janky_frame_percentage": 7.744107744107744,
+        "new_gen_gc_count": -1,
+        "old_gen_gc_count": -1
+      },
+      {
+        "frame_count": 297,
+        "build": {
+          "mean_ms": 3.59696632996633,
+          "p50_ms": 0.701,
+          "p95_ms": 5.901,
+          "p99_ms": 99.699,
+          "max_ms": 131.399
+        },
+        "raster": {
+          "mean_ms": 8.724589225589225,
+          "p50_ms": 6.7,
+          "p95_ms": 19.5,
+          "p99_ms": 42.9,
+          "max_ms": 50.799
+        },
+        "frame_budget_miss_count": 26,
+        "janky_frame_percentage": 8.754208754208754,
+        "new_gen_gc_count": -1,
+        "old_gen_gc_count": -1
+      }
+    ],
+    "build": {
+      "mean_ms": 4.0199827586206895,
+      "mean_ms_range": [
+        3.59696632996633,
+        5.290225589225589
+      ],
+      "p50_ms": 2.3,
+      "p50_ms_range": [
+        0.701,
+        3.099
+      ],
+      "p95_ms": 5.5,
+      "p95_ms_range": [
+        5.0,
+        6.0
+      ],
+      "p99_ms": 104.3,
+      "p99_ms_range": [
+        99.699,
+        115.4
+      ],
+      "max_ms": 143.6,
+      "max_ms_range": [
+        131.399,
+        149.399
+      ]
+    },
+    "raster": {
+      "mean_ms": 8.284808080808082,
+      "mean_ms_range": [
+        7.1255255972696245,
+        9.891797872340426
+      ],
+      "p50_ms": 6.7,
+      "p50_ms_range": [
+        6.5,
+        7.301
+      ],
+      "p95_ms": 17.401,
+      "p95_ms_range": [
+        10.5,
+        19.5
+      ],
+      "p99_ms": 43.7,
+      "p99_ms_range": [
+        40.599,
+        62.399
+      ],
+      "max_ms": 62.601,
+      "max_ms_range": [
+        50.799,
+        69.3
+      ]
+    },
+    "frame_budget_miss_count": 20.0,
+    "frame_budget_miss_count_range": [
+      8,
+      26
+    ],
+    "janky_frame_percentage": 7.092198581560284,
+    "janky_frame_percentage_range": [
+      2.7303754266211606,
+      8.754208754208754
+    ],
+    "frame_count": 293.0,
+    "frame_count_range": [
+      282,
+      297
+    ]
+  },
+  "comparison": {
+    "platform_match": true,
+    "refresh_rate_match": true,
+    "viewport_match": true,
+    "build_mean_ms_change_percent": 0.2098466198476059,
+    "build_p50_ms_change_percent": 0.0,
+    "build_p95_ms_change_percent": -1.7857142857142794,
+    "build_p99_ms_change_percent": -2.3408239700374533,
+    "build_max_ms_change_percent": -1.3058419243986292,
+    "build_paired_p95_ms_change_percent": 0.0,
+    "build_p95_ms_nonoverlap_ms": -1.5,
+    "build_p99_ms_nonoverlap_ms": -21.400999999999996,
+    "raster_mean_ms_change_percent": 0.9754063093497461,
+    "raster_p50_ms_change_percent": -4.285714285714283,
+    "raster_p95_ms_change_percent": 13.732026143790844,
+    "raster_p99_ms_change_percent": -2.0179372197309386,
+    "raster_max_ms_change_percent": 1.2961165048543721,
+    "raster_paired_p95_ms_change_percent": -1.7327586206896597,
+    "raster_p95_ms_nonoverlap_ms": -8.399999999999999,
+    "raster_p99_ms_nonoverlap_ms": -9.301000000000002,
+    "janky_frame_percentage_delta": 1.9727446566456086,
+    "paired_janky_frame_percentage_delta": 0.3823598404879194,
+    "meaningful_observer_effects": [],
+    "observer_check_passed": true
+  }
+}

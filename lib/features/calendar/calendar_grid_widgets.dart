@@ -1135,21 +1135,13 @@ class _MonthCard extends StatelessWidget {
                             ],
                           ),
                         );
-                        final measuredLabelRow = gregorianBoundary == null
-                            ? labelRow
-                            : CalendarGeometryGregorianMonthBoundary(
-                                month: GregorianMonthRef(
-                                  year: gregorianBoundary.year,
-                                  month: gregorianBoundary.month,
-                                ),
-                                child: labelRow,
-                              );
-                        return CalendarGeometryWeekdayRowBoundary(
-                          row: CalendarWeekdayRowRef(
-                            month: MonthRef(year: kYear, month: kMonth),
-                            rowIndex: i,
+                        if (gregorianBoundary == null) return labelRow;
+                        return CalendarGeometryGregorianMonthBoundary(
+                          month: GregorianMonthRef(
+                            year: gregorianBoundary.year,
+                            month: gregorianBoundary.month,
                           ),
-                          child: measuredLabelRow,
+                          child: labelRow,
                         );
                       },
                     ),
@@ -1161,32 +1153,38 @@ class _MonthCard extends StatelessWidget {
                     else
                       SizedBox(height: gapBeforeDayGrid),
 
-                    _DecanRow(
-                      kYear: kYear,
-                      kMonth: kMonth,
-                      decanIndex: i,
-                      todayMonth: todayMonth,
-                      todayDay: todayDay,
-                      todayDayKey: isMonthToday ? todayDayKey : null,
-                      highlightDayKeyProvider: dayAnchorKeyProvider,
-                      notesGetter: notesGetter,
-                      flowColorsGetter: flowColorsGetter,
-                      temporalAnchorVisible: temporalAnchorVisible,
-                      onDayTap: onDayTap,
-                      showGregorian: showGregorian,
-                      expansionLevel: expansionLevel,
-                      noteColorResolver: noteColorResolver,
-                      flowNameGetter: flowNameGetter,
-                      decanHeight: decanHeights[i],
-                      onManageFlows: onManageFlows,
-                      onEditNote: onEditNote,
-                      onDeleteNote: onDeleteNote,
-                      onShareNote: onShareNote,
-                      onEditReminder: onEditReminder,
-                      onEndReminder: onEndReminder,
-                      onShareReminder: onShareReminder,
-                      onEndFlow: onEndFlow,
-                      onAppendToJournal: onAppendToJournal,
+                    CalendarGeometryWeekdayRowBoundary(
+                      row: CalendarWeekdayRowRef(
+                        month: MonthRef(year: kYear, month: kMonth),
+                        rowIndex: i,
+                      ),
+                      child: _DecanRow(
+                        kYear: kYear,
+                        kMonth: kMonth,
+                        decanIndex: i,
+                        todayMonth: todayMonth,
+                        todayDay: todayDay,
+                        todayDayKey: isMonthToday ? todayDayKey : null,
+                        highlightDayKeyProvider: dayAnchorKeyProvider,
+                        notesGetter: notesGetter,
+                        flowColorsGetter: flowColorsGetter,
+                        temporalAnchorVisible: temporalAnchorVisible,
+                        onDayTap: onDayTap,
+                        showGregorian: showGregorian,
+                        expansionLevel: expansionLevel,
+                        noteColorResolver: noteColorResolver,
+                        flowNameGetter: flowNameGetter,
+                        decanHeight: decanHeights[i],
+                        onManageFlows: onManageFlows,
+                        onEditNote: onEditNote,
+                        onDeleteNote: onDeleteNote,
+                        onShareNote: onShareNote,
+                        onEditReminder: onEditReminder,
+                        onEndReminder: onEndReminder,
+                        onShareReminder: onShareReminder,
+                        onEndFlow: onEndFlow,
+                        onAppendToJournal: onAppendToJournal,
+                      ),
                     ),
                     if (i < 2) const SizedBox(height: _kDecanRowGap),
                   ],

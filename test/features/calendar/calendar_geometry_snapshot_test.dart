@@ -145,19 +145,19 @@ void main() {
       expect(snapshot.gregorianMonthAt(140), june);
     });
 
-    test('resolves weekday rows at measured decan-label boundaries', () {
+    test('resolves weekday rows at measured day-row trailing edges', () {
       final month1 = MonthRef(year: 1, month: 1);
       final month2 = MonthRef(year: 1, month: 2);
       final snapshot = CalendarGeometrySnapshot(
         generation: 1,
         sections: [_geometry(1, 1, 0, 100), _geometry(1, 2, 100, 200)],
         weekdayRowBoundaries: [
-          _weekdayBoundary(month1, 0, 20),
-          _weekdayBoundary(month1, 1, 50),
-          _weekdayBoundary(month1, 2, 80),
-          _weekdayBoundary(month2, 0, 120),
-          _weekdayBoundary(month2, 1, 150),
-          _weekdayBoundary(month2, 2, 180),
+          _weekdayBoundary(month1, 0, 40),
+          _weekdayBoundary(month1, 1, 70),
+          _weekdayBoundary(month1, 2, 95),
+          _weekdayBoundary(month2, 0, 140),
+          _weekdayBoundary(month2, 1, 170),
+          _weekdayBoundary(month2, 2, 195),
         ],
       );
 
@@ -166,21 +166,162 @@ void main() {
         CalendarWeekdayRowRef(month: month1, rowIndex: 0),
       );
       expect(
-        snapshot.weekdayRowAt(49.999),
+        snapshot.weekdayRowAt(39.999),
         CalendarWeekdayRowRef(month: month1, rowIndex: 0),
       );
       expect(
-        snapshot.weekdayRowAt(50),
+        snapshot.weekdayRowAt(40),
         CalendarWeekdayRowRef(month: month1, rowIndex: 1),
       );
       expect(
-        snapshot.weekdayRowAt(119.999),
+        snapshot.weekdayRowAt(69.999),
+        CalendarWeekdayRowRef(month: month1, rowIndex: 1),
+      );
+      expect(
+        snapshot.weekdayRowAt(70),
         CalendarWeekdayRowRef(month: month1, rowIndex: 2),
       );
       expect(
-        snapshot.weekdayRowAt(120),
+        snapshot.weekdayRowAt(94.999),
+        CalendarWeekdayRowRef(month: month1, rowIndex: 2),
+      );
+      expect(
+        snapshot.weekdayRowAt(95),
         CalendarWeekdayRowRef(month: month2, rowIndex: 0),
       );
+      expect(
+        snapshot.weekdayRowAt(139.999),
+        CalendarWeekdayRowRef(month: month2, rowIndex: 0),
+      );
+      expect(
+        snapshot.weekdayRowAt(140),
+        CalendarWeekdayRowRef(month: month2, rowIndex: 1),
+      );
+
+      expect(
+        snapshot.weekdayRowAt(140),
+        CalendarWeekdayRowRef(month: month2, rowIndex: 1),
+      );
+      expect(
+        snapshot.weekdayRowAt(139.999),
+        CalendarWeekdayRowRef(month: month2, rowIndex: 0),
+      );
+      expect(
+        snapshot.weekdayRowAt(70),
+        CalendarWeekdayRowRef(month: month1, rowIndex: 2),
+      );
+      expect(
+        snapshot.weekdayRowAt(69.999),
+        CalendarWeekdayRowRef(month: month1, rowIndex: 1),
+      );
+      expect(
+        snapshot.weekdayRowAt(40),
+        CalendarWeekdayRowRef(month: month1, rowIndex: 1),
+      );
+      expect(
+        snapshot.weekdayRowAt(39.999),
+        CalendarWeekdayRowRef(month: month1, rowIndex: 0),
+      );
+    });
+
+    test(
+      'hands weekday rows from month 12 through Heriu into the next year',
+      () {
+        final month12 = MonthRef(year: 1, month: 12);
+        final heriu = MonthRef(year: 1, month: 13);
+        final nextYear = MonthRef(year: 2, month: 1);
+        final fiveDayHeriu = CalendarGeometrySnapshot(
+          generation: 1,
+          sections: [
+            _geometry(1, 12, 0, 100),
+            _geometry(1, 13, 100, 130),
+            _geometry(2, 1, 130, 230),
+          ],
+          weekdayRowBoundaries: [
+            _weekdayBoundary(month12, 0, 30),
+            _weekdayBoundary(month12, 1, 60),
+            _weekdayBoundary(month12, 2, 90),
+            _weekdayBoundary(heriu, 0, 125),
+            _weekdayBoundary(nextYear, 0, 170),
+          ],
+        );
+        final sixDayHeriu = CalendarGeometrySnapshot(
+          generation: 2,
+          sections: [
+            _geometry(1, 12, 0, 100),
+            _geometry(1, 13, 100, 140),
+            _geometry(2, 1, 140, 240),
+          ],
+          weekdayRowBoundaries: [
+            _weekdayBoundary(month12, 0, 30),
+            _weekdayBoundary(month12, 1, 60),
+            _weekdayBoundary(month12, 2, 90),
+            _weekdayBoundary(heriu, 0, 135),
+            _weekdayBoundary(nextYear, 0, 180),
+          ],
+        );
+
+        expect(
+          fiveDayHeriu.weekdayRowAt(89.999),
+          CalendarWeekdayRowRef(month: month12, rowIndex: 2),
+        );
+        expect(
+          fiveDayHeriu.weekdayRowAt(90),
+          CalendarWeekdayRowRef(month: heriu, rowIndex: 0),
+        );
+        expect(
+          fiveDayHeriu.weekdayRowAt(124.999),
+          CalendarWeekdayRowRef(month: heriu, rowIndex: 0),
+        );
+        expect(
+          fiveDayHeriu.weekdayRowAt(125),
+          CalendarWeekdayRowRef(month: nextYear, rowIndex: 0),
+        );
+        expect(
+          fiveDayHeriu.weekdayRowAt(124.999),
+          CalendarWeekdayRowRef(month: heriu, rowIndex: 0),
+        );
+        expect(
+          fiveDayHeriu.weekdayRowAt(89.999),
+          CalendarWeekdayRowRef(month: month12, rowIndex: 2),
+        );
+
+        expect(
+          sixDayHeriu.weekdayRowAt(89.999),
+          CalendarWeekdayRowRef(month: month12, rowIndex: 2),
+        );
+        expect(
+          sixDayHeriu.weekdayRowAt(90),
+          CalendarWeekdayRowRef(month: heriu, rowIndex: 0),
+        );
+        expect(
+          sixDayHeriu.weekdayRowAt(134.999),
+          CalendarWeekdayRowRef(month: heriu, rowIndex: 0),
+        );
+        expect(
+          sixDayHeriu.weekdayRowAt(135),
+          CalendarWeekdayRowRef(month: nextYear, rowIndex: 0),
+        );
+        expect(
+          sixDayHeriu.weekdayRowAt(134.999),
+          CalendarWeekdayRowRef(month: heriu, rowIndex: 0),
+        );
+      },
+    );
+
+    test('accepts a weekday trailing edge on the section trailing bound', () {
+      final month = MonthRef(year: 1, month: 1);
+      final snapshot = CalendarGeometrySnapshot(
+        generation: 1,
+        sections: [_geometry(1, 1, 0, 100)],
+        weekdayRowBoundaries: [_weekdayBoundary(month, 0, 100)],
+      );
+
+      expect(
+        snapshot.weekdayRowAt(99.999),
+        CalendarWeekdayRowRef(month: month, rowIndex: 0),
+      );
+      expect(snapshot.weekdayRowAt(100), isNull);
     });
 
     test('rejects invalid weekday row identity and placement', () {
@@ -192,7 +333,7 @@ void main() {
         () => CalendarGeometrySnapshot(
           generation: 1,
           sections: sections,
-          weekdayRowBoundaries: [_weekdayBoundary(month, 0, 100)],
+          weekdayRowBoundaries: [_weekdayBoundary(month, 0, 200)],
         ),
         throwsArgumentError,
       );
@@ -426,10 +567,10 @@ CalendarSectionGeometry _geometry(
 CalendarWeekdayRowBoundary _weekdayBoundary(
   MonthRef month,
   int rowIndex,
-  num leading,
+  num trailing,
 ) {
   return CalendarWeekdayRowBoundary(
     row: CalendarWeekdayRowRef(month: month, rowIndex: rowIndex),
-    leading: leading.toDouble(),
+    trailing: trailing.toDouble(),
   );
 }
