@@ -891,6 +891,56 @@ void main() {
   });
 
   group('Continuous calendar pinch expansion', () {
+    test('maps reciprocal finger travel symmetrically across levels', () {
+      const perLevelScale = 1.15;
+
+      final expanded = calendarPinchProgressForScale(
+        startProgress: 0,
+        scale: perLevelScale,
+      );
+      final returned = calendarPinchProgressForScale(
+        startProgress: expanded,
+        scale: 1 / perLevelScale,
+      );
+
+      expect(expanded, closeTo(1, 0.000001));
+      expect(returned, closeTo(0, 0.000001));
+      expect(
+        calendarPinchProgressForScale(
+          startProgress: 3,
+          scale: 1 / perLevelScale,
+        ),
+        closeTo(2, 0.000001),
+      );
+    });
+
+    test('logarithmic pinch progress stays monotonic in both directions', () {
+      const perLevelScale = 1.15;
+      final outward = <double>[
+        for (var level = 0; level <= 3; level++)
+          calendarPinchProgressForScale(
+            startProgress: 0,
+            scale: math.pow(perLevelScale, level).toDouble(),
+          ),
+      ];
+      final inward = <double>[
+        for (var level = 0; level <= 3; level++)
+          calendarPinchProgressForScale(
+            startProgress: 3,
+            scale: math.pow(1 / perLevelScale, level).toDouble(),
+          ),
+      ];
+
+      for (var level = 0; level <= 3; level++) {
+        expect(outward[level], closeTo(level, 0.000001));
+        expect(inward[level], closeTo(3 - level, 0.000001));
+        if (level > 0) {
+          expect(outward[level], greaterThan(outward[level - 1]));
+          expect(inward[level], lessThan(inward[level - 1]));
+        }
+      }
+    });
+
     test('interpolates every endpoint and fractional frame continuously', () {
       const samples = <double>[
         0,

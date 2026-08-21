@@ -842,6 +842,28 @@ class _QuickAddSpectrumBar extends StatelessWidget {
 
 enum MonthExpansionLevel { compact, stacked, labeled, details }
 
+const double _kCalendarPinchPerLevelScale = 1.15;
+
+@visibleForTesting
+double calendarPinchProgressForScale({
+  required double startProgress,
+  required double scale,
+  double perLevelScale = _kCalendarPinchPerLevelScale,
+}) {
+  final maxProgress = (MonthExpansionLevel.values.length - 1).toDouble();
+  final boundedStart = startProgress.clamp(0.0, maxProgress);
+  if (!scale.isFinite ||
+      scale <= 0 ||
+      !perLevelScale.isFinite ||
+      perLevelScale <= 1) {
+    return boundedStart;
+  }
+  return (boundedStart + (math.log(scale) / math.log(perLevelScale))).clamp(
+    0.0,
+    maxProgress,
+  );
+}
+
 /// Fractional visual geometry used only while a pinch is active or settling.
 ///
 /// Persisted calendar state remains one of [MonthExpansionLevel]'s four exact
@@ -26246,11 +26268,10 @@ class CalendarPageState extends State<CalendarPage>
       return;
     }
 
-    const scaleSensitivity = 0.15;
-    final maxExpansionIndex = MonthExpansionLevel.values.length - 1;
-    final newValue =
-        (_pinchGestureStartValue + ((details.scale - 1.0) / scaleSensitivity))
-            .clamp(0.0, maxExpansionIndex.toDouble());
+    final newValue = calendarPinchProgressForScale(
+      startProgress: _pinchGestureStartValue,
+      scale: details.scale,
+    );
 
     if ((newValue - _pinchExpansionValue).abs() <= 0.001) return;
     _pinchExpansionValue = newValue;
@@ -33499,6 +33520,10 @@ class CalendarPageState extends State<CalendarPage>
     Widget body = PinchGestureSurface(
       enableTouchPinch: allowTouchPinchGestures,
       enableGlobalScaleGestures: allowGlobalScaleGestures,
+      // Calendar already requires two fingers, so recognition can engage
+      // promptly without replaying a large dead zone into expansion progress.
+      touchScaleSlop: 3.0,
+      touchScaleRatioSlop: 0.01,
       onScaleStart: _onScaleStart,
       onScaleUpdate: _onScaleUpdate,
       onScaleEnd: _onScaleEnd,
