@@ -1,13 +1,13 @@
 {
   "schema": 1,
-  "audited_revision": "14f67d5f23af7c1ddeff0523c9619253f8f21201",
+  "audited_revision": "948a291df5c4f3e5292a33ff6dbf87a7193607c4",
   "fragments": [
     {
       "name": "year_and_month_sections",
       "file": "lib/features/calendar/calendar_grid_widgets.dart",
       "start": "class _YearSection extends StatelessWidget {",
       "end": "/* ───────────── Detail Page (single-window behavior, flows-aware) ───────────── */",
-      "sha256": "d4dc07de6587a93b34e11b2ddfd18adfbcb6bac71e172ac947f6f65f5247415a"
+      "sha256": "fc260c596e8236c65038f8821fb09039906f7ef65f1ac8223ed3d2c2082d64dc"
     },
     {
       "name": "calendar_text_styles",
@@ -21,7 +21,7 @@
       "file": "lib/features/calendar/calendar_page.dart",
       "start": "double _chipHeightFor(MonthExpansionLevel level) {",
       "end": "MonthExpansionLevel monthExpansionRestorationLevelForTesting(",
-      "sha256": "038d27df5398e48a5b50a57cc8fce6b31ef053d5f22c2f51adf59a8a5da255a0"
+      "sha256": "7f0532b8a8c4d7b6be2b35ef5878887dc6c5b136083a36b327d786fc0a1c7b67"
     },
     {
       "name": "season_header",

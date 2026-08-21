@@ -4,7 +4,7 @@ Status: closed source inventory for the Extent Model feasibility gate. This is
 not renderer or production-consumer authority.
 
 Audited implementation parent:
-`5ff66008f6bd083147637ed4962db91f6ecf3f66`.
+`948a291df5c4f3e5292a33ff6dbf87a7193607c4`.
 
 ## Scope and conclusion
 
@@ -79,7 +79,20 @@ allocation, but the day count does not directly add a row.
 ## Chip-height projection
 
 For compact, stacked, and labeled modes every day chip in a row has a fixed
-height of 32, 62, and 98 respectively.
+height of 36, 62, and 98 respectively.
+
+All four expansion modes share a fixed 28-pixel day-number header inside the
+chip. The 23-pixel number opts out of ambient text scaling so the application's
+1.5x tablet scaler cannot make that internal header overflow. This does not
+remove `TextScaler` from the section environment: month, season, decan, and
+weekday text remain scale-sensitive extent contributors.
+
+The shared tile padding is 1 pixel vertically. After the header, stacked mode
+has 32 pixels for its two 12-pixel pills and 3-pixel gap; labeled mode has 68
+pixels for its two 30-pixel pills and 4-pixel gap. Their required content
+heights are 27 and 64 pixels, respectively, so neither internal `ClipRect`
+truncates a pill. These internal allocations do not alter the outer fixed chip
+extent.
 
 Details mode is content-derived. For each ordinary decan, summarize the maximum
 visible event count on any of its ten days and whether any day exceeds the
@@ -198,3 +211,36 @@ extent equation:
   presentation epoch changes. Remembering the prior size adds no layout.
 
 The original completeness trace and equations therefore remain exhaustive.
+
+## 2026-08-21 day-number header and compact-height re-audit
+
+The day-number hierarchy change modifies one extent term: compact day chips
+are now 36 rather than 32 logical pixels. Each ordinary month contains three
+decan rows, so its compact extent increases by 12 pixels. Heriu Renpet contains
+one day row and increases by 4 pixels. A complete 12-month-plus-Heriu year is
+therefore 148 pixels taller in compact mode. Stacked, labeled, and details
+outer extents are unchanged; the details content-derived projection and caps
+remain unchanged.
+
+The render-path trace was repeated from `_MonthCard` and `_EpagomenalCard`
+through `_DecanRow` and `_DayChip`. The day number, Track the Sky motif, compact
+markers, event pills, and overflow count all remain children of the fixed
+outer `_DayChip` `SizedBox`; none can add section extent. The day number uses a
+fixed 28-pixel internal header and `TextScaler.noScaling`, while all
+scale-sensitive headings already identified in the environment inventory
+continue to inherit the responsive application scaler.
+
+The measured-geometry path requires no formula update. Section, month-body,
+weekday-row, and final-day marker proxies publish their laid-out boundaries,
+so the extra compact height is included in snapshots and semantic scroll
+ownership. Restoration, Today navigation, past/center/future normalization,
+and the Heriu-to-new-year handoff consume those measured boundaries rather
+than assuming the previous 32-pixel compact height. The closed contributor
+list remains complete with the revised compact-height term above.
+
+Calendar restoration layout revision 2 records the new geometry. Revision-1
+states remain compatible because their raw compact offset is used only as a
+provisional hint to mount an off-screen saved date; the persisted semantic
+anchor then establishes the final viewport alignment under revision-2
+geometry. The cross-version widget regression covers a next-year day target,
+including the 148-pixel full-year delta and the target row's center shift.

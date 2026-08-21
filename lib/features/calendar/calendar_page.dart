@@ -1678,7 +1678,7 @@ List<Widget> _buildTrackSkyAccentWidgets({
 double _chipHeightFor(MonthExpansionLevel level) {
   switch (level) {
     case MonthExpansionLevel.compact:
-      return 32.0;
+      return 36.0;
     case MonthExpansionLevel.stacked:
       return 62.0;
     case MonthExpansionLevel.labeled:
@@ -10602,6 +10602,37 @@ class CalendarPageState extends State<CalendarPage>
   @visibleForTesting
   int? get debugLastViewDay => _lastViewKd;
 
+  @visibleForTesting
+  int? get debugLastViewYear => _lastViewKy;
+
+  @visibleForTesting
+  int? get debugLastViewMonth => _lastViewKm;
+
+  @visibleForTesting
+  bool get debugInitialViewportSettled => _initialViewportSettled;
+
+  @visibleForTesting
+  int get debugCalendarRestorationLayoutRevision =>
+      _kCalendarRestorationLayoutRevision;
+
+  @visibleForTesting
+  double? get debugCalendarScrollOffset =>
+      _scrollCtrl.hasClients ? _scrollCtrl.position.pixels : null;
+
+  @visibleForTesting
+  void debugSetCurrentViewForTesting({
+    required int kYear,
+    required int kMonth,
+    required int kDay,
+  }) {
+    setState(() => _setView(kYear, kMonth, kd: kDay));
+  }
+
+  @visibleForTesting
+  bool debugJumpToCurrentViewAtAlignmentForTesting(double alignment) {
+    return _jumpToCurrentViewAtAlignmentNow(alignment, animate: false);
+  }
+
   MonthExpansionLevel _monthExpansion = MonthExpansionLevel.compact;
   MonthExpansionLevel? _monthExpansionRestorationTarget;
   final ValueNotifier<bool> _currentDecanVisibleInViewport =
@@ -15156,7 +15187,7 @@ class CalendarPageState extends State<CalendarPage>
   static const String _kSessionResumeKindDaySheet = 'calendar_day_sheet';
   static const String _kSessionResumeKindPushEvent = 'calendar_push_event';
   static const int _kCalendarViewStateSchemaVersion = 2;
-  static const int _kCalendarRestorationLayoutRevision = 1;
+  static const int _kCalendarRestorationLayoutRevision = 2;
   static const String _kCalendarAnchorTargetDayChip = 'dayChip';
   static const String _kCalendarAnchorTargetMonthHeader = 'monthHeader';
   static const String _kCalendarAnchorTargetMonthBody = 'monthBody';
@@ -18693,9 +18724,16 @@ class CalendarPageState extends State<CalendarPage>
           );
           _scrollCtrl.jumpTo(clamped);
           _lastKnownCalendarScrollOffset = clamped.toDouble();
+          _restoredCalendarScrollOffset = null;
+          if (restoredAlignment != null && tries < 20) {
+            // A raw offset from an older layout can mount an off-screen saved
+            // date, but it is never the final authority when a semantic anchor
+            // is available. Retry next frame after the target has been built.
+            attemptRestore(tries + 1);
+            return;
+          }
           _restoredCalendarAnchorTarget = null;
           _restoredCalendarAnchorAlignment = null;
-          _restoredCalendarScrollOffset = null;
           ok = true;
         }
         ok = ok || _jumpToCurrentViewNow(animate: false);

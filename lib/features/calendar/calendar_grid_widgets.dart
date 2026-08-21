@@ -309,7 +309,7 @@ class _CalendarScale {
   static const double rightSeasonFramed = 13.2;
   static const double decanLabelMain = 12.3;
   static const double decanLabelFramed = 11.6;
-  static const double dayNumber = 12.4;
+  static const double dayNumber = 23.0;
   static const double dayDot = 2.35;
   static const double trackSkyDot = 4.2;
   static const double infoHeading = 23.0;
@@ -338,7 +338,8 @@ const double _kTodayDayTileBorderWidth = 1.0;
 const double _kTodayDayTileStrokeAlpha = 0.54;
 const double _kDayTileCompactPadding = 4.0;
 const double _kDayTileExpandedHorizontalPadding = 1.5;
-const double _kDayTileExpandedVerticalPadding = 4.0;
+const double _kDayTileVerticalPadding = 1.0;
+const double _kDayNumberHeaderHeight = 28.0;
 const double _kCompactMarkerGap = 1.0;
 const double _kTextlessPillGap = 3.0;
 const double _kLabeledPillGap = 4.0;
@@ -472,9 +473,12 @@ Widget buildCalendarMonthCardLayoutForTesting({
   required List<NoteData> Function(int kDay) notesForDay,
   MonthExpansionLevel expansionLevel = MonthExpansionLevel.details,
   bool showGregorian = false,
+  String? Function(NoteData note)? flowNameForNote,
 }) {
+  final flowNamesByNote = <_Note, String?>{};
+
   _Note convert(NoteData note) {
-    return _Note(
+    final converted = _Note(
       id: note.id,
       clientEventId: note.clientEventId,
       calendarId: note.calendarId,
@@ -492,6 +496,8 @@ Widget buildCalendarMonthCardLayoutForTesting({
       reminderId: note.reminderId,
       behaviorPayload: note.behaviorPayload,
     );
+    flowNamesByNote[converted] = flowNameForNote?.call(note);
+    return converted;
   }
 
   List<_Note> notesGetter(int _, int day) =>
@@ -511,7 +517,7 @@ Widget buildCalendarMonthCardLayoutForTesting({
       showGregorian: showGregorian,
       expansionLevel: expansionLevel,
       noteColorResolver: (note) => note.manualColor ?? _defaultNoteColor(note),
-      flowNameGetter: (_) => null,
+      flowNameGetter: (note) => flowNamesByNote[note],
     );
   }
 
@@ -527,7 +533,7 @@ Widget buildCalendarMonthCardLayoutForTesting({
     showGregorian: showGregorian,
     expansionLevel: expansionLevel,
     noteColorResolver: (note) => note.manualColor ?? _defaultNoteColor(note),
-    flowNameGetter: (_) => null,
+    flowNameGetter: (note) => flowNamesByNote[note],
   );
 }
 
@@ -2006,6 +2012,7 @@ class _DayChip extends StatelessWidget {
       fontFamily: 'CormorantGaramond',
       fontFamilyFallback: ['GentiumPlus', 'NotoSans', 'Roboto', 'Arial'],
       letterSpacing: 0.0,
+      height: 1.0,
     );
 
     final toneSpec = _calendarDayToneSpec(tone);
@@ -2025,16 +2032,122 @@ class _DayChip extends StatelessWidget {
     final isLabeledPill = expansionLevel == MonthExpansionLevel.labeled;
     final isDetailsPill = expansionLevel == MonthExpansionLevel.details;
     final chipHeight = decanHeight ?? _chipHeightFor(expansionLevel);
-    final nonCompactHeaderHeight = 24.0;
     final tileRadius = BorderRadius.circular(_kDayTileRadius);
     final tileFill = toneSpec.fill;
     final tileBorderColor = toneSpec.border;
     final tilePadding = isCompact
-        ? const EdgeInsets.all(_kDayTileCompactPadding)
+        ? const EdgeInsets.symmetric(
+            horizontal: _kDayTileCompactPadding,
+            vertical: _kDayTileVerticalPadding,
+          )
         : const EdgeInsets.symmetric(
             horizontal: _kDayTileExpandedHorizontalPadding,
-            vertical: _kDayTileExpandedVerticalPadding,
+            vertical: _kDayTileVerticalPadding,
           );
+
+    Widget buildDayNumberHeader({required bool showTrackSkyMotif}) {
+      return SizedBox(
+        height: _kDayNumberHeaderHeight,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final maxWidth = constraints.maxWidth.isFinite
+                ? constraints.maxWidth
+                : 0.0;
+            final canShowTrackSkyMotif =
+                showTrackSkyMotif &&
+                trackSkyHeaderNote != null &&
+                maxWidth >= 14;
+            final motifWidth = canShowTrackSkyMotif
+                ? math.min(14.0, maxWidth * 0.4)
+                : 0.0;
+            final motifOffset = canShowTrackSkyMotif
+                ? (motifWidth / 2) + 1.5
+                : 0.0;
+            final motifOnLeftEdge = kDay % 10 == 0;
+            final motifSpec = trackSkyHeaderNote == null
+                ? null
+                : _trackSkyBadgeSpecForNote(trackSkyHeaderNote);
+            final motifBarDecoration = motifSpec == null
+                ? null
+                : BoxDecoration(
+                    borderRadius: BorderRadius.circular(999),
+                    gradient: LinearGradient(
+                      colors: [
+                        motifSpec.accentColor.withValues(alpha: 0.0),
+                        motifSpec.accentColor.withValues(alpha: 0.75),
+                        motifSpec.secondaryAccentColor.withValues(alpha: 0.95),
+                      ],
+                    ),
+                  );
+
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  height: _kDayNumberHeaderHeight,
+                  child: Center(
+                    child: Text(
+                      label,
+                      style: numberStyle,
+                      // Day numerals are fixed calendar geometry. Inheriting
+                      // the app's 1.5x tablet scaler would overflow the shared
+                      // 28-pixel header and break compact/expanded continuity.
+                      textScaler: TextScaler.noScaling,
+                      maxLines: 1,
+                      overflow: TextOverflow.fade,
+                      softWrap: false,
+                    ),
+                  ),
+                ),
+                if (canShowTrackSkyMotif && motifSpec != null)
+                  Positioned(
+                    top: 14,
+                    left: motifOnLeftEdge ? -motifOffset : null,
+                    right: motifOnLeftEdge ? null : -motifOffset,
+                    child: IgnorePointer(
+                      key: ValueKey<String>(
+                        'k:$kYear-$kMonth-$kDay-track-sky-header',
+                      ),
+                      child: SizedBox(
+                        width: motifWidth,
+                        height: 10,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            Align(
+                              alignment: Alignment.topCenter,
+                              child: SizedBox(
+                                height: 6.2,
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.topCenter,
+                                  child: _buildTrackSkyBadgeMotif(
+                                    spec: motifSpec,
+                                    title: trackSkyHeaderNote.title,
+                                    dense: false,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            Align(
+                              alignment: Alignment.bottomCenter,
+                              child: Container(
+                                height: 1.8,
+                                decoration: motifBarDecoration,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      );
+    }
 
     Widget buildMiniBlocksCompact({required double maxWidth}) {
       const spacing = 1.8;
@@ -2252,189 +2365,51 @@ class _DayChip extends StatelessWidget {
                     ),
                   Padding(
                     padding: tilePadding,
-                    child: isCompact
-                        ? LayoutBuilder(
-                            builder: (context, constraints) {
-                              final maxWidth = constraints.maxWidth.isFinite
-                                  ? constraints.maxWidth
-                                  : 0.0;
-                              return Column(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Flexible(
-                                    child: Align(
-                                      alignment: Alignment.topCenter,
-                                      child: Text(
-                                        label,
-                                        style: numberStyle,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.fade,
-                                        softWrap: false,
-                                      ),
-                                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        buildDayNumberHeader(showTrackSkyMotif: !isCompact),
+                        if (isCompact) ...[
+                          const SizedBox(height: _kCompactMarkerGap),
+                          Expanded(
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                final maxWidth = constraints.maxWidth.isFinite
+                                    ? constraints.maxWidth
+                                    : 0.0;
+                                return KeyedSubtree(
+                                  key: ValueKey<String>(
+                                    'k:$kYear-$kMonth-$kDay-marker|${showGregorian ? "G" : "K"}',
                                   ),
-                                  const SizedBox(height: _kCompactMarkerGap),
-                                  KeyedSubtree(
-                                    key: ValueKey<String>(
-                                      'k:$kYear-$kMonth-$kDay-marker|${showGregorian ? "G" : "K"}',
-                                    ),
-                                    child: IgnorePointer(
-                                      child: ClipRect(
-                                        child: ConstrainedBox(
-                                          constraints: BoxConstraints(
-                                            maxWidth: maxWidth,
-                                          ),
-                                          child: Align(
-                                            alignment: Alignment.bottomCenter,
-                                            child: buildMiniBlocksCompact(
-                                              maxWidth: maxWidth,
-                                            ),
-                                          ),
+                                  child: IgnorePointer(
+                                    child: ClipRect(
+                                      child: Align(
+                                        alignment: Alignment.bottomCenter,
+                                        child: buildMiniBlocksCompact(
+                                          maxWidth: maxWidth,
                                         ),
                                       ),
                                     ),
                                   ),
-                                ],
-                              );
-                            },
-                          )
-                        : Column(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              SizedBox(
-                                height: nonCompactHeaderHeight,
-                                child: LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    final maxWidth =
-                                        constraints.maxWidth.isFinite
-                                        ? constraints.maxWidth
-                                        : 0.0;
-                                    final canShowTrackSkyMotif =
-                                        trackSkyHeaderNote != null &&
-                                        maxWidth >= 14;
-                                    final motifWidth = canShowTrackSkyMotif
-                                        ? math.min(14.0, maxWidth * 0.4)
-                                        : 0.0;
-                                    final motifOffset = canShowTrackSkyMotif
-                                        ? (motifWidth / 2) + 1.5
-                                        : 0.0;
-                                    final motifOnLeftEdge = kDay % 10 == 0;
-                                    final motifSpec = trackSkyHeaderNote == null
-                                        ? null
-                                        : _trackSkyBadgeSpecForNote(
-                                            trackSkyHeaderNote,
-                                          );
-
-                                    return Stack(
-                                      clipBehavior: Clip.none,
-                                      children: [
-                                        SizedBox(
-                                          width: double.infinity,
-                                          height: nonCompactHeaderHeight,
-                                          child: Center(
-                                            child: Text(
-                                              label,
-                                              style: numberStyle,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.fade,
-                                              softWrap: false,
-                                            ),
-                                          ),
-                                        ),
-                                        if (canShowTrackSkyMotif &&
-                                            motifSpec != null)
-                                          Positioned(
-                                            top: 10,
-                                            left: motifOnLeftEdge
-                                                ? -motifOffset
-                                                : null,
-                                            right: motifOnLeftEdge
-                                                ? null
-                                                : -motifOffset,
-                                            child: IgnorePointer(
-                                              child: SizedBox(
-                                                width: motifWidth,
-                                                height: 10,
-                                                child: Stack(
-                                                  alignment: Alignment.center,
-                                                  children: [
-                                                    Align(
-                                                      alignment:
-                                                          Alignment.topCenter,
-                                                      child: SizedBox(
-                                                        height: 6.2,
-                                                        child: FittedBox(
-                                                          fit: BoxFit.scaleDown,
-                                                          alignment: Alignment
-                                                              .topCenter,
-                                                          child: _buildTrackSkyBadgeMotif(
-                                                            spec: motifSpec,
-                                                            title:
-                                                                trackSkyHeaderNote
-                                                                    .title,
-                                                            dense: false,
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                    Align(
-                                                      alignment: Alignment
-                                                          .bottomCenter,
-                                                      child: Container(
-                                                        height: 1.8,
-                                                        decoration: BoxDecoration(
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                999,
-                                                              ),
-                                                          gradient: LinearGradient(
-                                                            colors: [
-                                                              motifSpec
-                                                                  .accentColor
-                                                                  .withValues(
-                                                                    alpha: 0.0,
-                                                                  ),
-                                                              motifSpec
-                                                                  .accentColor
-                                                                  .withValues(
-                                                                    alpha: 0.75,
-                                                                  ),
-                                                              motifSpec
-                                                                  .secondaryAccentColor
-                                                                  .withValues(
-                                                                    alpha: 0.95,
-                                                                  ),
-                                                            ],
-                                                          ),
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                          ),
-                                      ],
-                                    );
-                                  },
-                                ),
-                              ),
-                              Expanded(
-                                child: LayoutBuilder(
-                                  builder: (context, constraints) {
-                                    return ClipRect(
-                                      child: buildMiniBlocks(
-                                        availableHeight: constraints.maxHeight,
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ],
+                                );
+                              },
+                            ),
                           ),
+                        ] else
+                          Expanded(
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                return ClipRect(
+                                  child: buildMiniBlocks(
+                                    availableHeight: constraints.maxHeight,
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),
