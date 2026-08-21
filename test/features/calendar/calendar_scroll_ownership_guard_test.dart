@@ -78,7 +78,7 @@ void main() {
   });
 
   test(
-    'repeated month paint has one boundary and no manual save-layer stack',
+    'repeated month paint has one boundary and no save-layer stack',
     () {
       final page = File(
         'lib/features/calendar/calendar_page.dart',
