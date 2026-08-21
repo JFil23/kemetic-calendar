@@ -244,3 +244,20 @@ provisional hint to mount an off-screen saved date; the persisted semantic
 anchor then establishes the final viewport alignment under revision-2
 geometry. The cross-version widget regression covers a next-year day target,
 including the 148-pixel full-year delta and the target row's center shift.
+
+## 2026-08-21 compact marker clearance re-audit
+
+The compact event-marker row now uses `Alignment.center` instead of
+`Alignment.bottomCenter` inside its existing `Expanded` marker region. This
+moves the 2.35-pixel marker content away from the selected-day bottom border
+without changing the 36-pixel compact chip, 28-pixel day-number header,
+1-pixel header-to-marker gap, padding, border widths, row spacing, or any
+expanded-state geometry.
+
+The render-path trace was repeated from `_MonthCard` and `_EpagomenalCard`
+through `_DecanRow` and `_DayChip`. The marker remains clipped inside the same
+fixed outer `_DayChip` `SizedBox`; only its alignment within already allocated
+space changed. Section boundaries, geometry marker publications, scroll
+ownership, Today navigation, and semantic restoration therefore retain the
+same extents and equations. Calendar restoration layout revision 2 remains
+current because rendered outer geometry did not change.

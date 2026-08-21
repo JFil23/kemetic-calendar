@@ -472,6 +472,7 @@ Widget buildCalendarMonthCardLayoutForTesting({
   required int kMonth,
   required List<NoteData> Function(int kDay) notesForDay,
   MonthExpansionLevel expansionLevel = MonthExpansionLevel.details,
+  int? todayDay,
   bool showGregorian = false,
   String? Function(NoteData note)? flowNameForNote,
 }) {
@@ -511,6 +512,8 @@ Widget buildCalendarMonthCardLayoutForTesting({
   if (kMonth == CalendarSectionIndex.monthsPerYear) {
     return _EpagomenalCard(
       kYear: kYear,
+      todayMonth: todayDay == null ? null : kMonth,
+      todayDay: todayDay,
       notesGetter: notesGetter,
       flowColorsGetter: flowColorsGetter,
       onDayTap: (_, _, _) {},
@@ -525,8 +528,8 @@ Widget buildCalendarMonthCardLayoutForTesting({
     kYear: kYear,
     kMonth: kMonth,
     seasonShort: 'Akhet',
-    todayMonth: null,
-    todayDay: null,
+    todayMonth: todayDay == null ? null : kMonth,
+    todayDay: todayDay,
     notesGetter: notesGetter,
     flowColorsGetter: flowColorsGetter,
     onDayTap: (_, _, _) {},
@@ -2378,14 +2381,14 @@ class _DayChip extends StatelessWidget {
                                 final maxWidth = constraints.maxWidth.isFinite
                                     ? constraints.maxWidth
                                     : 0.0;
-                                return KeyedSubtree(
-                                  key: ValueKey<String>(
-                                    'k:$kYear-$kMonth-$kDay-marker|${showGregorian ? "G" : "K"}',
-                                  ),
-                                  child: IgnorePointer(
-                                    child: ClipRect(
-                                      child: Align(
-                                        alignment: Alignment.bottomCenter,
+                                return IgnorePointer(
+                                  child: ClipRect(
+                                    child: Align(
+                                      alignment: Alignment.center,
+                                      child: KeyedSubtree(
+                                        key: ValueKey<String>(
+                                          'k:$kYear-$kMonth-$kDay-marker|${showGregorian ? "G" : "K"}',
+                                        ),
                                         child: buildMiniBlocksCompact(
                                           maxWidth: maxWidth,
                                         ),
