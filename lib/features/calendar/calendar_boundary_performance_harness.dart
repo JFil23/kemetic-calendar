@@ -246,6 +246,11 @@ final class CalendarBoundaryHarnessController {
     final anchor =
         anchorMonth ??
         state._calendarScrollCoordinator.activeCenteredMonth.value;
+    if (!state._fractionalPresentationMonths.value.contains(anchor)) {
+      state._fractionalPresentationMonths.value = Set<MonthRef>.unmodifiable(
+        <MonthRef>{...state._fractionalPresentationMonths.value, anchor},
+      );
+    }
     state._pinchAnchorMonth = (anchor.year, anchor.month);
     state._pinchAnchorDay = anchorDay == null
         ? null

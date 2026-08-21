@@ -3412,7 +3412,7 @@ Widget _buildTrackSkyBadgeMotif({
   }
 }
 
-class _TrackSkyMiniBadge extends StatelessWidget {
+class _TrackSkyMiniBadge extends StatefulWidget {
   final _Note note;
   final String label;
   final VoidCallback? onTap;
@@ -3434,20 +3434,66 @@ class _TrackSkyMiniBadge extends StatelessWidget {
   });
 
   @override
+  State<_TrackSkyMiniBadge> createState() => _TrackSkyMiniBadgeState();
+}
+
+class _TrackSkyMiniBadgeState extends State<_TrackSkyMiniBadge> {
+  _Note get note => widget.note;
+  String get label => widget.label;
+  VoidCallback? get onTap => widget.onTap;
+  double? get heightOverride => widget.heightOverride;
+  double? get radiusOverride => widget.radiusOverride;
+  double get labelOpacity => widget.labelOpacity;
+  double get detailsProgress => widget.detailsProgress;
+  bool get endpointPresentation => widget.endpointPresentation;
+
+  late _TrackSkyBadgeSpec _cachedSpec;
+  late Widget _cachedDenseMotif;
+  late Widget _cachedExpandedMotif;
+  late List<Widget> _cachedExpandedStars;
+
+  @override
+  void initState() {
+    super.initState();
+    _cacheStaticContent();
+  }
+
+  @override
+  void didUpdateWidget(covariant _TrackSkyMiniBadge oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.note.title != widget.note.title ||
+        oldWidget.note.behaviorPayload != widget.note.behaviorPayload) {
+      _cacheStaticContent();
+    }
+  }
+
+  void _cacheStaticContent() {
+    _cachedSpec = _trackSkyBadgeSpecForNote(widget.note);
+    _cachedDenseMotif = _buildTrackSkyBadgeMotif(
+      spec: _cachedSpec,
+      title: widget.note.title,
+      dense: true,
+    );
+    _cachedExpandedMotif = _buildTrackSkyBadgeMotif(
+      spec: _cachedSpec,
+      title: widget.note.title,
+      dense: false,
+    );
+    _cachedExpandedStars = _buildTrackSkyStars(
+      seed: widget.note.title,
+      showLabel: true,
+      dense: false,
+      tint: _cachedSpec.accentColor,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     if (endpointPresentation) return _buildEndpoint(context);
 
-    final spec = _trackSkyBadgeSpecForNote(note);
-    final denseMotif = _buildTrackSkyBadgeMotif(
-      spec: spec,
-      title: note.title,
-      dense: true,
-    );
-    final expandedMotif = _buildTrackSkyBadgeMotif(
-      spec: spec,
-      title: note.title,
-      dense: false,
-    );
+    final spec = _cachedSpec;
+    final denseMotif = _cachedDenseMotif;
+    final expandedMotif = _cachedExpandedMotif;
     final double badgeHeight =
         heightOverride ??
         CalendarExpansionGeometry._lerp(
@@ -3557,12 +3603,7 @@ class _TrackSkyMiniBadge extends StatelessWidget {
                 return Stack(
                   fit: StackFit.expand,
                   children: [
-                    ..._buildTrackSkyStars(
-                      seed: note.title,
-                      showLabel: true,
-                      dense: false,
-                      tint: spec.accentColor,
-                    ),
+                    ..._cachedExpandedStars,
                     Positioned.fill(
                       child: Opacity(
                         opacity: labelOpacity,
@@ -3834,7 +3875,7 @@ class _TrackSkyMiniBadge extends StatelessWidget {
   }
 }
 
-class _ContinuousEventLabel extends StatelessWidget {
+class _ContinuousEventLabel extends StatefulWidget {
   const _ContinuousEventLabel({
     required this.label,
     required this.style,
@@ -3848,27 +3889,57 @@ class _ContinuousEventLabel extends StatelessWidget {
   final Alignment alignment;
 
   @override
-  Widget build(BuildContext context) {
+  State<_ContinuousEventLabel> createState() => _ContinuousEventLabelState();
+}
+
+class _ContinuousEventLabelState extends State<_ContinuousEventLabel> {
+  late Widget _singleLine;
+  late Widget _multiLine;
+
+  @override
+  void initState() {
+    super.initState();
+    _cacheText();
+  }
+
+  @override
+  void didUpdateWidget(covariant _ContinuousEventLabel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Fractional typography deltas are deliberately absorbed by the cached
+    // label pair. Endpoint rendering still owns the exact 9.8/10.2 styles;
+    // during a pinch only opacity and container geometry should update.
+    if (oldWidget.label != widget.label ||
+        oldWidget.alignment != widget.alignment) {
+      _cacheText();
+    }
+  }
+
+  void _cacheText() {
     Widget text({required bool multiline}) => Align(
-      alignment: alignment,
+      alignment: widget.alignment,
       child: Text(
         key: ValueKey<String>(
-          'calendar-event-label-${multiline ? "multi" : "single"}:$label',
+          'calendar-event-label-${multiline ? "multi" : "single"}:${widget.label}',
         ),
-        label,
+        widget.label,
         maxLines: multiline ? 3 : 1,
         overflow: TextOverflow.ellipsis,
         softWrap: multiline,
         textAlign: TextAlign.center,
-        style: style,
+        style: widget.style,
       ),
     );
+    _singleLine = text(multiline: false);
+    _multiLine = text(multiline: true);
+  }
 
+  @override
+  Widget build(BuildContext context) {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Opacity(opacity: 1.0 - detailsProgress, child: text(multiline: false)),
-        Opacity(opacity: detailsProgress, child: text(multiline: true)),
+        Opacity(opacity: 1.0 - widget.detailsProgress, child: _singleLine),
+        Opacity(opacity: widget.detailsProgress, child: _multiLine),
       ],
     );
   }
