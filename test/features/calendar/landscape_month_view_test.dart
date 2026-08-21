@@ -388,16 +388,29 @@ void main() {
             tester.getRect(dayNumberFinder).center.dy -
             tester.getRect(dayCell).top;
 
-        switch (level) {
-          case MonthExpansionLevel.compact:
-          case MonthExpansionLevel.stacked:
-            expect(find.text('Alpha event'), findsNothing);
-            expect(find.text('Beta event'), findsNothing);
-          case MonthExpansionLevel.labeled:
-          case MonthExpansionLevel.details:
-            expect(find.text('Alpha event'), findsOneWidget);
-            expect(find.text('Beta event'), findsOneWidget);
-        }
+        // Labels stay mounted at every endpoint so integer crossings cannot
+        // replace the event subtree. Their opacity supplies the presentation
+        // transition instead.
+        final alphaLabel = find.descendant(
+          of: dayCell,
+          matching: find.byKey(
+            const ValueKey<String>('calendar-event-label:Alpha event'),
+          ),
+        );
+        final betaLabel = find.descendant(
+          of: dayCell,
+          matching: find.byKey(
+            const ValueKey<String>('calendar-event-label:Beta event'),
+          ),
+        );
+        expect(alphaLabel, findsOneWidget);
+        expect(betaLabel, findsOneWidget);
+        final expectedLabelOpacity = level.index >= 2 ? 1.0 : 0.0;
+        expect(
+          tester.widget<Opacity>(alphaLabel).opacity,
+          expectedLabelOpacity,
+        );
+        expect(tester.widget<Opacity>(betaLabel).opacity, expectedLabelOpacity);
       }
 
       expect(
@@ -548,7 +561,16 @@ void main() {
       );
       final stackedPills = _eventPillContainersInDay(find.byKey(dayCellKey));
       expect(stackedPills, findsNWidgets(2));
-      expect(find.text('Alpha event'), findsNothing);
+      expect(
+        tester
+            .widget<Opacity>(
+              find.byKey(
+                const ValueKey<String>('calendar-event-label:Alpha event'),
+              ),
+            )
+            .opacity,
+        0,
+      );
       for (final size in _eventPillSizes(tester, stackedPills)) {
         expect(size.height, closeTo(12.0, 0.1));
         expect(size.width, greaterThanOrEqualTo(27.0));
@@ -565,7 +587,11 @@ void main() {
         expect(size.height, closeTo(30.0, 0.1));
         expect(size.width, greaterThanOrEqualTo(27.0));
       }
-      final labeledText = tester.widget<Text>(find.text('Alpha event'));
+      final labeledText = tester.widget<Text>(
+        find.byKey(
+          const ValueKey<String>('calendar-event-label-single:Alpha event'),
+        ),
+      );
       expect(labeledText.maxLines, 1);
       expect(labeledText.textAlign, TextAlign.center);
 
@@ -580,7 +606,11 @@ void main() {
         expect(size.height, closeTo(52.0, 0.1));
         expect(size.width, greaterThanOrEqualTo(27.0));
       }
-      final detailText = tester.widget<Text>(find.text('Alpha event'));
+      final detailText = tester.widget<Text>(
+        find.byKey(
+          const ValueKey<String>('calendar-event-label-multi:Alpha event'),
+        ),
+      );
       expect(detailText.maxLines, 3);
       expect(detailText.textAlign, TextAlign.center);
     });
@@ -764,27 +794,34 @@ void main() {
           final dayCell = tester.getRect(
             find.byKey(const ValueKey<String>('k:6267-1-4|K')),
           );
-          final eventTexts = find.byWidgetPredicate(
-            (widget) =>
-                widget is Text &&
-                (widget.data?.startsWith('Contained event') ?? false),
+          final eventLabels = find.descendant(
+            of: find.byKey(const ValueKey<String>('k:6267-1-4|K')),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Opacity &&
+                  widget.key is ValueKey<String> &&
+                  ((widget.key! as ValueKey<String>).value.startsWith(
+                    'calendar-event-label:Contained event',
+                  )),
+            ),
           );
-          expect(eventTexts, findsWidgets, reason: viewport.name);
+          expect(eventLabels, findsWidgets, reason: viewport.name);
 
-          for (final element in tester.elementList(eventTexts)) {
+          for (final element in tester.elementList(eventLabels)) {
             final box = element.renderObject! as RenderBox;
             final rect = box.localToGlobal(Offset.zero) & box.size;
             _expectRectInside(
               rect,
               dayCell,
-              reason:
-                  '${viewport.name}: ${tester.widget<Text>(find.byWidget(element.widget)).data}',
+              reason: '${viewport.name}: event label region',
             );
           }
 
-          final overflowCount = find.textContaining('+');
-          if (overflowCount.evaluate().isNotEmpty) {
-            final countRect = tester.getRect(overflowCount.first);
+          final overflowCount = find.byKey(
+            const ValueKey<String>('calendar-event-overflow:6267-1-4'),
+          );
+          if (tester.widget<Opacity>(overflowCount).opacity > 0) {
+            final countRect = tester.getRect(overflowCount);
             _expectRectInside(countRect, dayCell, reason: viewport.name);
           }
         }
@@ -823,10 +860,10 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(tester.takeException(), isNull);
-        expect(find.text('Tablet event 1'), findsOneWidget);
-        expect(find.text('Tablet event 2'), findsOneWidget);
-        expect(find.text('Tablet event 3'), findsOneWidget);
-        expect(find.text('Tablet event 4'), findsOneWidget);
+        expect(find.text('Tablet event 1'), findsNWidgets(2));
+        expect(find.text('Tablet event 2'), findsNWidgets(2));
+        expect(find.text('Tablet event 3'), findsNWidgets(2));
+        expect(find.text('Tablet event 4'), findsNWidgets(2));
         expect(find.text('Tablet event 5'), findsNothing);
         expect(find.text('Tablet event 6'), findsNothing);
         expect(find.text('+2'), findsOneWidget);
@@ -841,12 +878,217 @@ void main() {
           'Tablet event 4',
           '+2',
         ]) {
-          final rect = tester.getRect(find.text(label));
+          final rect = label == '+2'
+              ? tester.getRect(find.text(label))
+              : tester.getRect(
+                  find.byKey(ValueKey<String>('calendar-event-label:$label')),
+                );
           expect(rect.top, greaterThanOrEqualTo(dayCell.top));
           expect(rect.bottom, lessThanOrEqualTo(dayCell.bottom));
         }
       },
     );
+  });
+
+  group('Continuous calendar pinch expansion', () {
+    test('interpolates every endpoint and fractional frame continuously', () {
+      const samples = <double>[
+        0,
+        0.25,
+        0.5,
+        0.75,
+        1,
+        1.25,
+        1.5,
+        1.75,
+        2,
+        2.01,
+        2.25,
+        2.5,
+        2.75,
+        3,
+      ];
+      final heights = <double>[
+        for (final sample in samples)
+          CalendarExpansionGeometry(sample).dayHeight(detailsHeight: 250),
+      ];
+
+      expect(heights.first, 36);
+      expect(heights[4], 62);
+      expect(heights[8], 98);
+      expect(heights.last, 250);
+      for (var index = 1; index < heights.length; index++) {
+        expect(heights[index], greaterThan(heights[index - 1]));
+      }
+
+      expect(CalendarExpansionGeometry(0).compactMarkerOpacity, 1);
+      expect(CalendarExpansionGeometry(1).eventPillOpacity, 1);
+      expect(CalendarExpansionGeometry(1).labelOpacity, 0);
+      expect(CalendarExpansionGeometry(2).labelOpacity, 1);
+      expect(CalendarExpansionGeometry(2).detailsProgress, 0);
+      expect(CalendarExpansionGeometry(3).detailsProgress, 1);
+      expect(CalendarExpansionGeometry(2.5).heriuBottomPadding, 15);
+      expect(CalendarExpansionGeometry(2.5).heriuHeaderGap, 5);
+    });
+
+    testWidgets('fractional frames keep numbers and dense events contained', (
+      tester,
+    ) async {
+      const samples = <double>[
+        0,
+        0.25,
+        0.5,
+        0.75,
+        1,
+        1.25,
+        1.5,
+        1.75,
+        2,
+        2.01,
+        2.25,
+        2.5,
+        2.75,
+        3,
+      ];
+      final heights = <double>[];
+
+      for (final progress in samples) {
+        await _pumpMonthCard(
+          tester,
+          expansionLevel: MonthExpansionLevel.compact,
+          expansionProgress: progress,
+          todayDay: 4,
+          notesForDay: _denseNotesForLayoutGuard,
+        );
+
+        expect(tester.takeException(), isNull, reason: 'progress=$progress');
+        final dayFinder = find.byKey(const ValueKey<String>('k:6267-1-4|K'));
+        final dayRect = tester.getRect(dayFinder);
+        heights.add(dayRect.height);
+
+        final numeral = tester.widget<Text>(
+          find.descendant(of: dayFinder, matching: find.text('4')),
+        );
+        expect(numeral.style?.fontSize, 23);
+        expect(numeral.textScaler, TextScaler.noScaling);
+
+        final eventLabels = find.descendant(
+          of: dayFinder,
+          matching: find.byWidgetPredicate(
+            (widget) =>
+                widget is Opacity &&
+                widget.key is ValueKey<String> &&
+                ((widget.key! as ValueKey<String>).value.startsWith(
+                  'calendar-event-label:Contained event',
+                )),
+          ),
+        );
+        if (progress >= 2 && progress < 3) {
+          expect(
+            eventLabels.evaluate().length,
+            greaterThanOrEqualTo(2),
+            reason: 'labeled cards must not disappear at progress=$progress',
+          );
+        }
+        for (final element in eventLabels.evaluate()) {
+          final box = element.renderObject! as RenderBox;
+          final eventRect = box.localToGlobal(Offset.zero) & box.size;
+          expect(
+            eventRect.top,
+            greaterThanOrEqualTo(dayRect.top - 0.01),
+            reason: 'event top at progress=$progress',
+          );
+          expect(
+            eventRect.bottom,
+            lessThanOrEqualTo(dayRect.bottom + 0.01),
+            reason: 'event bottom at progress=$progress',
+          );
+        }
+      }
+
+      expect(heights[0], closeTo(36, 0.01));
+      expect(heights[4], closeTo(62, 0.01));
+      expect(heights[8], closeTo(98, 0.01));
+      for (var index = 1; index < heights.length; index++) {
+        expect(heights[index], greaterThan(heights[index - 1]));
+      }
+    });
+
+    testWidgets('event subtree stays stable across every integer seam', (
+      tester,
+    ) async {
+      const seamGroups = <List<double>>[
+        <double>[0.95, 0.99, 1, 1.01, 1.05],
+        <double>[1.05, 1.01, 1, 0.99, 0.95],
+        <double>[1.95, 1.99, 2, 2.01, 2.05],
+        <double>[2.05, 2.01, 2, 1.99, 1.95],
+        <double>[2.95, 2.99, 3],
+        <double>[3, 2.99, 2.95],
+      ];
+
+      int? stableCardCount;
+      for (final samples in seamGroups) {
+        double? previousHeight;
+        for (final progress in samples) {
+          await _pumpMonthCard(
+            tester,
+            expansionLevel: MonthExpansionLevel.compact,
+            expansionProgress: progress,
+            notesForDay: _denseNotesForLayoutGuard,
+          );
+
+          final day = find.byKey(const ValueKey<String>('k:6267-1-4|K'));
+          final eventCards = find.descendant(
+            of: day,
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Opacity &&
+                  widget.key is ValueKey<String> &&
+                  ((widget.key! as ValueKey<String>).value.startsWith(
+                    'calendar-event-card:6267-1-4-',
+                  )),
+            ),
+          );
+          final eventLabels = find.descendant(
+            of: day,
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Opacity &&
+                  widget.key is ValueKey<String> &&
+                  ((widget.key! as ValueKey<String>).value.startsWith(
+                    'calendar-event-label:Contained event',
+                  )),
+            ),
+          );
+          stableCardCount ??= eventCards.evaluate().length;
+          expect(stableCardCount, greaterThanOrEqualTo(2));
+          expect(
+            eventCards,
+            findsNWidgets(stableCardCount),
+            reason: 'progress=$progress',
+          );
+          expect(
+            eventLabels,
+            findsNWidgets(stableCardCount),
+            reason: 'progress=$progress',
+          );
+          expect(tester.takeException(), isNull, reason: 'progress=$progress');
+
+          final height = tester.getSize(day).height;
+          if (previousHeight != null) {
+            final increasing = samples.last >= samples.first;
+            expect(
+              height,
+              increasing
+                  ? greaterThanOrEqualTo(previousHeight)
+                  : lessThanOrEqualTo(previousHeight),
+              reason: 'progress=$progress',
+            );
+          }
+          previousHeight = height;
+        }
+      }
+    });
   });
 
   group('Calendar month grid source guards', () {
@@ -866,6 +1108,41 @@ void main() {
       expect(source, contains('onScaleStart: _onScaleStart'));
       expect(source, contains('onScaleUpdate: _onScaleUpdate'));
       expect(source, contains('onScaleEnd: _onScaleEnd'));
+
+      final pinchProgression = _sourceBetween(
+        source,
+        'void _applyPinchExpansionProgress',
+        '_Flow? _visualFlowForNote',
+      );
+      expect(pinchProgression, contains('_schedulePinchExpansionProgress'));
+      expect(pinchProgression, contains('_calendarLayoutCorrection.request'));
+      expect(
+        pinchProgression,
+        contains('final correctionAnchor = _resolvePinchLayoutAnchor();'),
+      );
+      expect(
+        pinchProgression,
+        contains('resolveAnchor: () => correctionAnchor'),
+      );
+      expect(pinchProgression, isNot(contains('.jumpTo(')));
+      expect(pinchProgression, isNot(contains('position.animateTo(')));
+      expect(pinchProgression, isNot(contains('_scrollCtrl.animateTo(')));
+
+      final gridSource = File(
+        'lib/features/calendar/calendar_grid_widgets.dart',
+      ).readAsStringSync();
+      final fractionalEventTree = _sourceBetween(
+        gridSource,
+        'Widget buildMiniBlocks({double? availableHeight})',
+        'return CalendarPinchDayAnchor(',
+      );
+      expect(fractionalEventTree, contains('return Stack('));
+      expect(fractionalEventTree, contains('final maxBlocks ='));
+      expect(fractionalEventTree, isNot(contains('expansion.progress <=')));
+      expect(
+        fractionalEventTree,
+        isNot(contains('expansion.detailsProgress >')),
+      );
 
       final appBar = _sourceBetween(
         source,
@@ -1180,7 +1457,7 @@ void main() {
       final tileColorBlock = _sourceBetween(
         dayChipBlock,
         'final toneSpec = _calendarDayToneSpec(tone);',
-        'final tilePadding = isCompact',
+        'final tilePadding = EdgeInsets.symmetric',
       );
       expect(tileColorBlock, contains('final tileFill = toneSpec.fill;'));
       expect(
@@ -1210,6 +1487,7 @@ void main() {
 Future<void> _pumpMonthCard(
   WidgetTester tester, {
   required MonthExpansionLevel expansionLevel,
+  double? expansionProgress,
   List<NoteData> Function(int day)? notesForDay,
   int? todayDay,
   TextScaler textScaler = TextScaler.noScaling,
@@ -1227,6 +1505,7 @@ Future<void> _pumpMonthCard(
             kYear: 6267,
             kMonth: 1,
             expansionLevel: expansionLevel,
+            expansionProgress: expansionProgress,
             todayDay: todayDay,
             notesForDay: notesForDay ?? ((_) => const <NoteData>[]),
             flowNameForNote: flowNameForNote,

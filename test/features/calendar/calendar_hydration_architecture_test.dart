@@ -70,8 +70,7 @@ void main() {
       page,
       '  @override\n'
           '  void initState() {\n'
-          '    super.initState();\n'
-          '    EndFlowAuthReadiness.instance',
+          '    super.initState();',
       '  void _scheduleDaySheetResumeRestore()',
     );
     final background = _sourceBetween(

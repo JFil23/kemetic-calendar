@@ -77,38 +77,50 @@ void main() {
     expect(command, isNot(contains('destination can move underneath it')));
   });
 
-  test('repeated month paint has one boundary and no save-layer stack', () {
-    final page = File(
-      'lib/features/calendar/calendar_page.dart',
-    ).readAsStringSync();
-    final grid = File(
-      'lib/features/calendar/calendar_grid_widgets.dart',
-    ).readAsStringSync();
-    final divider = _between(
-      page,
-      'class _GoldDivider',
-      'String _reminderRepeatLabelForPicker',
-    );
-    final title = _between(
-      grid,
-      'class _SoftMonthNameTitle',
-      'class _MonthCard',
-    );
-    final dayChip = _between(grid, 'class _DayChip', 'class _ColorDot');
+  test(
+    'repeated month paint has one boundary and no manual save-layer stack',
+    () {
+      final page = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final grid = File(
+        'lib/features/calendar/calendar_grid_widgets.dart',
+      ).readAsStringSync();
+      final divider = _between(
+        page,
+        'class _GoldDivider',
+        'String _reminderRepeatLabelForPicker',
+      );
+      final title = _between(
+        grid,
+        'class _SoftMonthNameTitle',
+        'class _MonthCard',
+      );
+      final dayChip = _between(grid, 'class _DayChip', 'class _ColorDot');
 
-    for (final repeatedPath in <String>[divider, title, dayChip]) {
-      expect(repeatedPath, isNot(contains('ShaderMask(')));
-      expect(repeatedPath, isNot(contains('Opacity(')));
-    }
-    expect(divider, isNot(contains('RepaintBoundary(')));
-    expect(dayChip, isNot(contains('RepaintBoundary(')));
-    expect(divider, contains('gradient: LinearGradient('));
-    expect(
-      RegExp(r'RepaintBoundary\(').allMatches(grid),
-      hasLength(1),
-      reason: 'The month body is the sole repeated-paint layer owner.',
-    );
-  });
+      for (final repeatedPath in <String>[divider, title, dayChip]) {
+        expect(repeatedPath, isNot(contains('ShaderMask(')));
+        expect(repeatedPath, isNot(contains('saveLayer(')));
+      }
+      expect(divider, isNot(contains('Opacity(')));
+      expect(title, isNot(contains('Opacity(')));
+      expect(
+        RegExp(r'Opacity\(').allMatches(dayChip),
+        hasLength(5),
+        reason:
+            'Only the bounded fractional header/card/marker cross-fades are '
+            'allowed in the repeated day path.',
+      );
+      expect(divider, isNot(contains('RepaintBoundary(')));
+      expect(dayChip, isNot(contains('RepaintBoundary(')));
+      expect(divider, contains('gradient: LinearGradient('));
+      expect(
+        RegExp(r'RepaintBoundary\(').allMatches(grid),
+        hasLength(1),
+        reason: 'The month body is the sole repeated-paint layer owner.',
+      );
+    },
+  );
 
   test('geometry publishes on structural layout changes, not every layout', () {
     final source = File(

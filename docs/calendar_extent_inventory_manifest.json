@@ -7,7 +7,7 @@
       "file": "lib/features/calendar/calendar_grid_widgets.dart",
       "start": "class _YearSection extends StatelessWidget {",
       "end": "/* ───────────── Detail Page (single-window behavior, flows-aware) ───────────── */",
-      "sha256": "ab41e4ce4ad9fd6a866a512e7bb766e88f2d0b2e2f55cbd57ea4d73b61c9be26"
+      "sha256": "0e74b77cbe4761ec1df928e686ea21e6d50871a23ae3531a53bdd28b22e266d1"
     },
     {
       "name": "calendar_text_styles",
@@ -15,6 +15,13 @@
       "start": "const TextStyle _seasonStyle = TextStyle(",
       "end": "const Color _trackSkySignifierBase",
       "sha256": "9d84a45c448f986278b758e7a8c155e68b09704b9fe8f30ccfddb82a4ccbc859"
+    },
+    {
+      "name": "fractional_expansion_geometry",
+      "file": "lib/features/calendar/calendar_page.dart",
+      "start": "class CalendarExpansionGeometry {",
+      "end": "enum _OnboardingContinuationStage {",
+      "sha256": "abd5b4af4981f6c6fcf34af86ff49a116d8c1c074d118e1ed01088da4c757723"
     },
     {
       "name": "expansion_heights",
@@ -49,14 +56,21 @@
       "file": "lib/features/calendar/calendar_page.dart",
       "start": "  Widget _buildCalendarScrollView() {",
       "end": "  Map<int, FlowData> _buildCalendarFlowChromeIndex() {",
-      "sha256": "df239da4de0740543142aa96766a145c1718ea1e4ce977f2e92eb7f4cd8dbb13"
+      "sha256": "008c10a6a8a9f1c551697141dc2824c7c8be31d2e71fdbe6cffd7282b320d261"
     },
     {
       "name": "pinch_geometry_consumers",
       "file": "lib/features/calendar/calendar_page.dart",
-      "start": "  void _setExpansionLevelSmooth(",
+      "start": "  RenderCalendarPinchDayAnchor? _findPinchDayAnchorAtPoint(",
       "end": "  Color _noteColor(_Note note) {",
-      "sha256": "53c9dadc9479eadfb4e60c77ccd294e78c2f9e87c3d8a3fe924a60cfbe385550"
+      "sha256": "bddb61ff217242130e9aa15843567403ab126e9da0b9e58659381d08f061f9e5"
+    },
+    {
+      "name": "pinch_day_anchor_marker",
+      "file": "lib/features/calendar/calendar_epoch_viewport.dart",
+      "start": "class CalendarPinchDayAnchor extends SingleChildRenderObjectWidget {",
+      "end": "typedef CalendarLayoutAnchorResolver",
+      "sha256": "743e058ef1dd533cd05cf21073ae25c4ca15dcd651a20efed19914761a6a4a7a"
     },
     {
       "name": "responsive_text_scaler",
