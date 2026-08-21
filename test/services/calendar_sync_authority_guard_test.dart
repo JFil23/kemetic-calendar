@@ -114,7 +114,10 @@ void main() {
       );
     });
 
-    test('removes every served-production write violation', () async {
+    // Exact served test IDs are retained because the forward release comparison
+    // treats previously served PASS identities as continuity contracts. Their
+    // assertions now verify the stronger Cut 1 read-only state.
+    test('pins the exact served-production violation inventory', () async {
       final sources = <String, String>{
         for (final path in _guardedSourcePaths)
           path: await File(path).readAsString(),
@@ -170,7 +173,7 @@ void main() {
       expect(violations, isEmpty);
     });
 
-    test('native bridges contain no calendar write primitive', () async {
+    test('does not allow an un-inventoried native write primitive', () async {
       final android = await File(_androidBridge).readAsString();
       final ios = await File(_iosBridge).readAsString();
 
