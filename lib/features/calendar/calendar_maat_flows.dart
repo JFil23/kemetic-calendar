@@ -8994,7 +8994,31 @@ class _MaatFlowTemplateDetailPageState
       _maatEventTapStartedWhileScrolling.clear();
     }
     if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
-      return _buildTrackSkyScaffold(context);
+      // Cut 2/3: V2 is production. Debug can still open the retired V1 scaffold.
+      if (!FollowSkyV2Flags.useV2Production) {
+        return _buildTrackSkyScaffold(context);
+      }
+      return FollowSkyDetailPage(
+        isJoined: widget.alreadyJoined,
+        timezone: FollowSkyTimeZoneX.tryParse(
+              _previewTrackSkyTimeZone.key,
+            ) ??
+            FollowSkyTimeZone.pacific,
+        onJoin: (draft) async {
+          final result = await FlowJoinService().joinTrackSkyV2Headless(
+            templateKey: widget.template.key,
+            templateTitle: widget.template.title,
+            templateOverview: widget.template.overview,
+            templateColor: widget.template.color,
+            personalCalendarId: null,
+            draft: draft,
+          );
+          final id = result.flowIdOrNegativeOne;
+          if (id > 0) {
+            await _completeJoin(id);
+          }
+        },
+      );
     }
     if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
       return _buildDawnHouseRiteScaffold(context);
