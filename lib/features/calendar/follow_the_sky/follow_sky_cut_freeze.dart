@@ -13,7 +13,7 @@ class FollowSkyCutFreeze {
 
   /// Current approved brain after lunar-eclipse override → Reconsider.
   /// Placeholder filled by freeze commit / post-commit update.
-  static const String cut11FrozenSha = 'PENDING_CUT_1_1_FREEZE';
+  static const String cut11FrozenSha = '23093cf0b7133168f1ac37f695b3c107148947c7';
 
   static const String cut11Summary =
       '70 canonical events → 65 observing nights; '
