@@ -50,6 +50,58 @@ void main() {
         isTrue,
       );
     });
+
+    test('eclipse Full Moon nights resolve to Reconsider not Reveal', () {
+      const merged = <(String eclipseId, String fullMoonId, String title)>[
+        (
+          'lunar-eclipse-2026-08-28',
+          'full-moon-2026-08-28',
+          'Full Moon + Partial Lunar Eclipse',
+        ),
+        (
+          'lunar-eclipse-2027-02-20',
+          'full-moon-2027-02-20',
+          'Full Moon + Penumbral Lunar Eclipse',
+        ),
+        (
+          'lunar-eclipse-2027-07-18',
+          'full-moon-2027-07-18',
+          'Full Moon + Slight Penumbral Lunar Eclipse',
+        ),
+        (
+          'lunar-eclipse-2027-08-17',
+          'full-moon-2027-08-17',
+          'Full Moon + Penumbral Lunar Eclipse',
+        ),
+        (
+          'lunar-eclipse-2028-01-12',
+          'full-moon-2028-01-12',
+          'Full Moon + Partial Lunar Eclipse',
+        ),
+      ];
+      expect(catalog.events.length, 70);
+      expect(catalog.observingNightCount, 65);
+      expect(catalog.eclipseFullMoonNightCount, 5);
+
+      for (final row in merged) {
+        final anchor = catalog.byId(row.$2)!;
+        // Raw catalog fact still Reveal — that is the defect without resolution.
+        expect(anchor.function, SkyEventFunction.reveal);
+
+        final night = catalog.observingNight(anchor);
+        expect(night.companion?.id, row.$1);
+        expect(night.function, SkyEventFunction.reconsider);
+        expect(night.serviceKind, SkyEventKind.lunarEclipse);
+        expect(night.displayName, row.$3);
+        expect(night.skyEventId, row.$2);
+      }
+
+      // Ordinary Full Moon stays Reveal.
+      final plain = catalog.observingNight(catalog.byId('full-moon-2026-09-26')!);
+      expect(plain.companion, isNull);
+      expect(plain.function, SkyEventFunction.reveal);
+      expect(plain.displayName, 'Full Moon');
+    });
   });
 
   group('SkyVisibilityService', () {

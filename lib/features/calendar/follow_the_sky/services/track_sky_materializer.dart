@@ -1,6 +1,7 @@
 import '../domain/sky_event.dart';
 import '../domain/sky_event_function.dart';
 import '../domain/sky_event_kind.dart';
+import '../domain/sky_observing_night.dart';
 import '../domain/sky_visibility.dart';
 
 /// Ownership metadata stamped on V2-generated (or migrated) calendar events.
@@ -11,12 +12,22 @@ class TrackSkyEventOwnership {
   static Map<String, dynamic> behaviorPayload({
     required String skyEventId,
     bool legacyPreserved = false,
+    List<String> mergedCompanionSkyEventIds = const [],
+    String? resolvedFunction,
+    String? displayName,
   }) {
     return <String, dynamic>{
       'kind': behaviorKind,
       'skyEventId': skyEventId,
       'trackSkySchemaVersion': schemaVersion,
       if (legacyPreserved) 'legacyPreserved': true,
+      if (mergedCompanionSkyEventIds.isNotEmpty)
+        'mergedCompanionSkyEventIds':
+            List<String>.from(mergedCompanionSkyEventIds),
+      if (resolvedFunction != null && resolvedFunction.isNotEmpty)
+        'resolvedFunction': resolvedFunction,
+      if (displayName != null && displayName.isNotEmpty)
+        'displayName': displayName,
     };
   }
 
@@ -27,9 +38,38 @@ class TrackSkyEventOwnership {
     return id is String ? id : null;
   }
 
+  static List<String> companionIdsFromPayload(Map<String, dynamic>? payload) {
+    if (payload == null) return const [];
+    if (payload['kind'] != behaviorKind) return const [];
+    final raw = payload['mergedCompanionSkyEventIds'];
+    if (raw is! List) return const [];
+    return [
+      for (final item in raw)
+        if (item is String && item.isNotEmpty) item,
+    ];
+  }
+
+  static String? resolvedFunctionFromPayload(Map<String, dynamic>? payload) {
+    if (payload == null) return null;
+    if (payload['kind'] != behaviorKind) return null;
+    final v = payload['resolvedFunction'];
+    return v is String && v.isNotEmpty ? v : null;
+  }
+
+  static String? displayNameFromPayload(Map<String, dynamic>? payload) {
+    if (payload == null) return null;
+    if (payload['kind'] != behaviorKind) return null;
+    final v = payload['displayName'];
+    return v is String && v.isNotEmpty ? v : null;
+  }
+
   static bool isLegacyPreserved(Map<String, dynamic>? payload) {
     if (payload == null) return false;
     return payload['legacyPreserved'] == true;
+  }
+
+  static bool isEclipseObservingNight(Map<String, dynamic>? payload) {
+    return companionIdsFromPayload(payload).isNotEmpty;
   }
 
   static String categoryFor(SkyEvent event) {
@@ -96,27 +136,41 @@ class TrackSkyMaterializer {
     required SkyEvent event,
     required String ianaTimeZone,
     String? visibilityNote,
+    SkyObservingNight? night,
   }) {
-    final window = windowBuilder(event: event, ianaTimeZone: ianaTimeZone, toLocal: toLocal);
+    final resolved = night ?? SkyObservingNight(anchor: event);
+    final windowEvent = resolved.windowSource;
+    final window = windowBuilder(
+      event: windowEvent,
+      ianaTimeZone: ianaTimeZone,
+      toLocal: toLocal,
+    );
     final detailParts = <String>[
       if (visibilityNote != null && visibilityNote.trim().isNotEmpty)
         visibilityNote.trim(),
-      'skyEventId=${event.id}',
-      'Function: ${event.function.displayLabel}',
-      if (event.precision.wireName == 'approximate') 'Best tonight',
-      if (event.provisional) 'Provisional — source may update',
+      'skyEventId=${resolved.skyEventId}',
+      'Function: ${resolved.function.displayLabel}',
+      if (resolved.isEclipseFullMoon)
+        'Merged companion: ${resolved.companion!.id}',
+      if (windowEvent.precision.wireName == 'approximate') 'Best tonight',
+      if (resolved.provisional) 'Provisional — source may update',
     ];
     return MaterializedSkyOccurrence(
-      skyEventId: event.id,
-      title: event.name,
-      category: TrackSkyEventOwnership.categoryFor(event),
+      skyEventId: resolved.skyEventId,
+      title: resolved.displayName,
+      category: TrackSkyEventOwnership.categoryFor(windowEvent),
       startsAtUtc: toUtc(window.startLocal, ianaTimeZone),
       startsAtLocal: window.startLocal,
       endsAtUtc: toUtc(window.endLocal, ianaTimeZone),
       endsAtLocal: window.endLocal,
       allDay: window.allDay,
       behaviorPayload: TrackSkyEventOwnership.behaviorPayload(
-        skyEventId: event.id,
+        skyEventId: resolved.skyEventId,
+        mergedCompanionSkyEventIds: [
+          if (resolved.companion != null) resolved.companion!.id,
+        ],
+        resolvedFunction: resolved.function.wireName,
+        displayName: resolved.displayName,
       ),
       detail: detailParts.join('\n'),
     );

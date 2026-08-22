@@ -27,7 +27,7 @@ class FollowSkyHeadlessBrain {
     String? locationLabel,
   }) {
     final candidates = candidateEngine.suggest(signals, now: nowUtc);
-    final next = catalog.nextTurning(nowUtc: nowUtc);
+    final next = catalog.nextObservingNight(nowUtc: nowUtc);
     final measurement = measurementService.measure(
       course: selectedCourse,
       now: nowUtc,
@@ -53,7 +53,7 @@ class FollowSkyHeadlessBrain {
     if (next == null) {
       buf.writeln('(none)');
     } else {
-      buf.writeln('${next.name} ${next.primaryInstantUtc.year}');
+      buf.writeln('${next.displayName} ${next.primaryInstantUtc.year}');
       buf.writeln('Function: ${next.function.displayLabel.toUpperCase()}');
     }
     buf.writeln();

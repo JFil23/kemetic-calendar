@@ -1,5 +1,6 @@
 import '../domain/sky_catalog.dart';
 import '../domain/sky_event.dart';
+import '../domain/sky_event_function.dart';
 import 'track_sky_materializer.dart';
 
 enum TrackSkyReconcileActionType {
@@ -160,9 +161,25 @@ extension TrackSkyReconcilerMaterialize on TrackSkyReconcilePlan {
 Map<String, dynamic> ownershipAfterReconcile({
   required String skyEventId,
   required bool legacyPreserved,
+  SkyCatalog? catalog,
 }) {
+  final companions = <String>[];
+  String? resolvedFunction;
+  String? displayName;
+  if (catalog != null) {
+    final event = catalog.byId(skyEventId);
+    if (event != null && event.mergedIntoId == null) {
+      final night = catalog.observingNight(event);
+      if (night.companion != null) companions.add(night.companion!.id);
+      resolvedFunction = night.function.wireName;
+      displayName = night.displayName;
+    }
+  }
   return TrackSkyEventOwnership.behaviorPayload(
     skyEventId: skyEventId,
     legacyPreserved: legacyPreserved,
+    mergedCompanionSkyEventIds: companions,
+    resolvedFunction: resolvedFunction,
+    displayName: displayName,
   );
 }

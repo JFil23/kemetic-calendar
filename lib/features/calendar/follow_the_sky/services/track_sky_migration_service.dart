@@ -79,10 +79,15 @@ class TrackSkyMigrationService {
     };
   }
 
-  Map<String, dynamic> stampPayload(String skyEventId, {required bool edited}) {
-    return TrackSkyEventOwnership.behaviorPayload(
+  Map<String, dynamic> stampPayload(
+    String skyEventId, {
+    required bool edited,
+    SkyCatalog? catalog,
+  }) {
+    return ownershipAfterReconcile(
       skyEventId: skyEventId,
       legacyPreserved: edited,
+      catalog: catalog,
     );
   }
 }

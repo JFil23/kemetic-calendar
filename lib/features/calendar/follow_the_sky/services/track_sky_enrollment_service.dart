@@ -154,16 +154,17 @@ class TrackSkyEnrollmentService {
     TrackSkyCourse? course,
     bool hasObservingLocation = false,
   }) {
-    final upcoming = catalog.upcoming(nowUtc: nowUtc);
+    final nights = catalog.upcomingNights(nowUtc: nowUtc);
     final occurrences = <MaterializedSkyOccurrence>[];
-    for (final event in upcoming) {
+    for (final night in nights) {
       final decision = visibilityService.decide(
-        event,
+        night.windowSource,
         hasObservingLocation: hasObservingLocation,
       );
       occurrences.add(
         materializer.materialize(
-          event: event,
+          event: night.anchor,
+          night: night,
           ianaTimeZone: ianaTimeZone,
           visibilityNote: decision.userFacingNote,
         ),

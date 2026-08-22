@@ -127,9 +127,11 @@ Future<TrackSkyFlowData> _loadV2(TrackSkyTimeZone timezone) async {
   const visibility = SkyVisibilityService();
   final events = <TrackSkyEvent>[];
   for (final sky in catalog.materializableEvents) {
-    final decision = visibility.decide(sky);
+    final night = catalog.observingNight(sky);
+    final decision = visibility.decide(night.windowSource);
     final occ = materializer.materialize(
       event: sky,
+      night: night,
       ianaTimeZone: timezone.ianaName,
       visibilityNote: decision.userFacingNote,
     );
