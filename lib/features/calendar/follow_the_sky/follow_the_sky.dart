@@ -13,6 +13,7 @@ export 'services/course_activity_aggregator.dart';
 export 'services/course_candidate_engine.dart';
 export 'services/course_function_service.dart';
 export 'services/course_measurement_service.dart';
+export 'services/follow_sky_course_attribution.dart';
 export 'services/follow_sky_course_ownership.dart';
 export 'services/follow_sky_day_detail.dart';
 export 'services/follow_sky_headless_brain.dart';

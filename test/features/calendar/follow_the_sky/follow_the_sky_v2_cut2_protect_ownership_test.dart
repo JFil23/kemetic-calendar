@@ -64,19 +64,20 @@ void main() {
       createdAt: DateTime.utc(2026, 8, 1),
     );
     final owned = UserEvent.fromRow(protectRow(carryStamps: true));
-    final ownedCourseId = FollowSkyCourseOwnership.courseIdOf(
-      owned.behaviorPayload,
-    );
 
-    // Mirrors CalendarPage._followSkyLiveInputs attribution.
-    final intervals = <CourseMeasurementInterval>[
-      if (ownedCourseId == course.courseId)
-        CourseMeasurementInterval(
+    // The same attribution rule production runs, not a restatement of it.
+    final intervals = const FollowSkyCourseAttribution().intervalsFor(
+      course: course,
+      blocks: [
+        FollowSkyCalendarBlock(
           start: owned.startsAt,
-          end: owned.endsAt!,
-          minutes: owned.endsAt!.difference(owned.startsAt).inMinutes,
+          end: owned.endsAt,
+          flowId: owned.flowLocalId,
+          actionId: owned.actionId,
+          behaviorPayload: owned.behaviorPayload,
         ),
-    ];
+      ],
+    );
 
     expect(intervals, hasLength(1));
     const service = CourseFunctionService();

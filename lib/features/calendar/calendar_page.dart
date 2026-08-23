@@ -28055,17 +28055,13 @@ class CalendarPageState extends State<CalendarPage>
     final flow = _activeFlowForMaatTemplate('track-the-sky');
     final now = DateTime.now();
     final snapshots = <CourseActivitySnapshot>[];
-    final intervals = <CourseMeasurementInterval>[];
+    final blocks = <FollowSkyCalendarBlock>[];
     final decodedCourse = TrackSkyCourseMetadataCodec().decode(flow?.notes);
     final rehydrated = _rehydrateFollowSkyCourse(
       flow: flow,
       decodedCourse: decodedCourse,
     );
     final course = rehydrated.course;
-    final linkedFlowId = TrackSkyCourseSourceIdentity.tryParseFlowId(
-      course?.sourceId,
-    );
-    final activeCourseId = course?.courseId;
 
     for (final entry in _notes.entries) {
       final parts = entry.key.split('-');
@@ -28081,44 +28077,44 @@ class CalendarPageState extends State<CalendarPage>
         final end = note.allDay || note.end == null
             ? start.add(const Duration(hours: 1))
             : DateTime(y, m, d, note.end!.hour, note.end!.minute);
-        final safeEnd =
-            end.isAfter(start) ? end : start.add(const Duration(minutes: 30));
-        final minutes = safeEnd.difference(start).inMinutes.abs();
-        final ownedCourseId =
-            FollowSkyCourseOwnership.courseIdOf(note.behaviorPayload);
-
-        // Course-owned Protect blocks measure without Connect.
-        if (activeCourseId != null &&
-            ownedCourseId != null &&
-            ownedCourseId == activeCourseId) {
-          intervals.add(
-            CourseMeasurementInterval(
-              start: start,
-              end: safeEnd,
-              minutes: minutes <= 0 ? 30 : minutes,
-            ),
-          );
-        }
-
         final noteFlowId = note.flowId;
-        if (noteFlowId == null || noteFlowId <= 0) continue;
-        final sourceFlow = () {
-          for (final f in _flows) {
-            if (f.id == noteFlowId) return f;
-          }
-          return null;
-        }();
-        if (sourceFlow == null) continue;
-        if (_isTrackSkyFlowName(sourceFlow.name)) continue;
+        final sourceFlow = noteFlowId == null || noteFlowId <= 0
+            ? null
+            : () {
+                for (final f in _flows) {
+                  if (f.id == noteFlowId) return f;
+                }
+                return null;
+              }();
+        // A block only counts as course-measurable activity when its flow still
+        // exists and is not Follow the Sky's own generated flow.
+        final measurableFlowId =
+            sourceFlow == null || _isTrackSkyFlowName(sourceFlow.name)
+                ? null
+                : noteFlowId;
+
+        blocks.add(
+          FollowSkyCalendarBlock(
+            start: start,
+            end: end,
+            flowId: measurableFlowId,
+            actionId: note.actionId,
+            behaviorPayload: note.behaviorPayload,
+          ),
+        );
+
+        if (sourceFlow == null || measurableFlowId == null) continue;
         final maatKind = resolveMaatFlowKind(
           flowName: sourceFlow.name,
           flowNotes: sourceFlow.notes,
         );
+        final safeEnd =
+            end.isAfter(start) ? end : start.add(const Duration(minutes: 30));
         snapshots.add(
           CourseActivitySnapshot(
             label: sourceFlow.name,
             sourceType: TrackSkyCourseSourceType.flow,
-            sourceId: TrackSkyCourseSourceIdentity.forFlow(noteFlowId),
+            sourceId: TrackSkyCourseSourceIdentity.forFlow(measurableFlowId),
             startsAt: start,
             endsAt: safeEnd,
             isHidden: sourceFlow.isHidden,
@@ -28126,15 +28122,6 @@ class CalendarPageState extends State<CalendarPage>
             isActive: sourceFlow.active,
           ),
         );
-        if (linkedFlowId != null && linkedFlowId == noteFlowId) {
-          intervals.add(
-            CourseMeasurementInterval(
-              start: start,
-              end: safeEnd,
-              minutes: minutes <= 0 ? 30 : minutes,
-            ),
-          );
-        }
       }
     }
 
@@ -28146,7 +28133,10 @@ class CalendarPageState extends State<CalendarPage>
       notes: rehydrated.notes,
       flowId: flow?.id,
       candidates: candidates,
-      intervals: intervals,
+      intervals: const FollowSkyCourseAttribution().intervalsFor(
+        course: course,
+        blocks: blocks,
+      ),
     );
   }
 
