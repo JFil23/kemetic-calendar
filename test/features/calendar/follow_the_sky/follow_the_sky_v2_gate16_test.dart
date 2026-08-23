@@ -103,21 +103,49 @@ void main() {
       expect(resolved.course.isLinked, isFalse);
       expect(resolved.course.label, 'Kung Fu');
 
-      // Measurement integrity: unlinked course must not invent history even if
-      // intervals exist under the same label's other flow.
+      // Measurement integrity: once unlinked, the host stops attributing the
+      // deleted flow's time, so there is nothing left to measure. The other
+      // same-label flow's intervals are never handed over.
       final measure = measurement.measure(
         course: resolved.course,
         now: DateTime.utc(2026, 8, 22),
-        intervals: [
-          CourseMeasurementInterval(
-            start: DateTime.utc(2026, 8, 20, 10),
-            end: DateTime.utc(2026, 8, 20, 12),
-            minutes: 120,
-          ),
-        ],
+        intervals: const [],
       );
       expect(measure.available, isFalse);
       expect(measure.recentMinutes, 0);
+
+      // Protect-owned time may keep Measure alive, but an unlinked course still
+      // has no Reconsider or Reveal object.
+      const functions = CourseFunctionService();
+      final protectIntervals = [
+        CourseMeasurementInterval(
+          start: DateTime.utc(2026, 8, 20, 10),
+          end: DateTime.utc(2026, 8, 20, 12),
+          minutes: 120,
+        ),
+      ];
+      expect(
+        functions
+            .evidenceFor(
+              function: SkyEventFunction.reconsider,
+              course: resolved.course,
+              now: DateTime.utc(2026, 8, 22),
+              intervals: protectIntervals,
+            )
+            .available,
+        isFalse,
+      );
+      expect(
+        functions
+            .evidenceFor(
+              function: SkyEventFunction.reveal,
+              course: resolved.course,
+              now: DateTime.utc(2026, 8, 22),
+              intervals: protectIntervals,
+            )
+            .available,
+        isFalse,
+      );
     },
   );
 

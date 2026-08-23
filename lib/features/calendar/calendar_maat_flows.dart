@@ -2189,7 +2189,7 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
   final int? followSkyExistingFlowId;
   final List<CourseActivitySignal> followSkyCandidates;
   final List<CourseMeasurementInterval> followSkyMeasurementIntervals;
-  final Future<void> Function(TrackSkyCourse course, String notes)?
+  final Future<void> Function(TrackSkyCourse? course, String notes)?
       onFollowSkyCourseSaved;
   final Future<void> Function({
     required TrackSkyCourse course,

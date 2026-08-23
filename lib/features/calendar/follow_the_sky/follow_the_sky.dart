@@ -16,6 +16,7 @@ export 'services/course_measurement_service.dart';
 export 'services/follow_sky_course_ownership.dart';
 export 'services/follow_sky_day_detail.dart';
 export 'services/follow_sky_headless_brain.dart';
+export 'services/follow_sky_turning_history.dart';
 export 'services/legacy_track_sky_migration_matcher.dart';
 export 'services/sky_catalog_repository.dart';
 export 'services/sky_visibility_service.dart';

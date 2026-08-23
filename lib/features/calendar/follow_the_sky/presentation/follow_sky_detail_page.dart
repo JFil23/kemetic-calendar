@@ -18,6 +18,7 @@ import '../follow_sky_cut_freeze.dart';
 import '../services/course_candidate_engine.dart';
 import '../services/course_function_service.dart';
 import '../services/course_measurement_service.dart';
+import '../services/follow_sky_turning_history.dart';
 import '../services/sky_catalog_repository.dart';
 import '../services/sky_visibility_service.dart';
 import '../services/track_sky_course_metadata_codec.dart';
@@ -65,7 +66,12 @@ class FollowSkyDetailPage extends StatefulWidget {
   final List<CourseMeasurementInterval> measurementIntervals;
   final FollowSkyTimeZone timezone;
   final Future<void> Function(TrackSkyEnrollmentDraft draft)? onJoin;
-  final Future<void> Function(TrackSkyCourse course, String notes)? onCourseSaved;
+
+  /// Persists course metadata onto the joined flow's notes.
+  /// A null course means the Course was changed or released: the notes must be
+  /// written back without any `sky_course` tokens so relaunch cannot restore it.
+  final Future<void> Function(TrackSkyCourse? course, String notes)?
+      onCourseSaved;
   final Future<void> Function({
     required TrackSkyCourse course,
     required DateTime startLocal,
@@ -103,6 +109,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
   late final CourseMeasurementService _measurement;
   late final CourseFunctionService _functionService;
   late final TrackSkyCourseMetadataCodec _codec;
+  final FollowSkyTurningHistory _turningHistory = FollowSkyTurningHistory();
   final GlobalKey<FollowSkyCoursePickerState> _coursePickerKey =
       GlobalKey<FollowSkyCoursePickerState>();
   final GlobalKey _courseSectionKey = GlobalKey();
@@ -114,6 +121,9 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
   bool _joining = false;
 
   bool get hasActiveCourse => _course != null;
+
+  /// Session ledger of turnings: observed vs actually decided on.
+  FollowSkyTurningHistory get turningHistory => _turningHistory;
 
   /// Dock “Join Flow” entry for the parent Ma’at scaffold.
   Future<void> joinFromDock() => _joinWithCourse(_course);
@@ -888,11 +898,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
             ),
             TextButton(
               onPressed: () {
-                setState(() {
-                  _course = null;
-                  _coursePromptDismissed = false;
-                });
-                _notifyHierarchy();
+                unawaited(_clearCourse(promptForNewCourse: true));
               },
               child: Text(
                 'Change',
@@ -1637,7 +1643,10 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
                         ),
                       ),
                       TextButton(
-                        onPressed: () => Navigator.of(ctx).pop(),
+                        onPressed: () {
+                          _recordWitnessed(night);
+                          Navigator.of(ctx).pop();
+                        },
                         child: Text(
                           _continueObservationLabel(night),
                           style: TextStyle(
@@ -1699,7 +1708,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
                               ),
                               onPressed: () async {
                                 Navigator.of(ctx).pop();
-                                await _onChoice(choice);
+                                await _onChoice(choice, night);
                               },
                               child: Text(choice.label),
                             ),
@@ -1862,45 +1871,90 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
     }
   }
 
-  Future<void> _onChoice(FollowSkyProductChoice choice) async {
-    if (_course == null) return;
+  Future<void> _onChoice(
+    FollowSkyProductChoice choice,
+    SkyObservingNight night,
+  ) async {
+    final course = _course;
+    if (course == null) return;
     switch (choice) {
       case FollowSkyProductChoice.keepCourse:
+        _recordFunctionCompleted(night, choice, course);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Kept.')),
         );
         break;
       case FollowSkyProductChoice.changeCourse:
-        setState(() {
-          _course = null;
-          _coursePromptDismissed = false;
-        });
-        _notifyHierarchy();
+        _recordFunctionCompleted(night, choice, course);
+        await _clearCourse(promptForNewCourse: true);
         break;
       case FollowSkyProductChoice.releaseCourse:
-        setState(() {
-          _course = null;
-          _coursePromptDismissed = true;
-        });
-        _notifyHierarchy();
+        _recordFunctionCompleted(night, choice, course);
+        await _clearCourse(promptForNewCourse: false);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Released for now.')),
         );
         break;
       case FollowSkyProductChoice.giveMoreRoom:
-        await _protectTimeForCourse();
+        // Only a completed Protect counts; a dismissed picker decided nothing.
+        if (await _protectTimeForCourse()) {
+          _recordFunctionCompleted(night, choice, course);
+        }
         break;
     }
   }
 
-  Future<void> _protectTimeForCourse() async {
-    if (_course == null) return;
+  void _recordFunctionCompleted(
+    SkyObservingNight night,
+    FollowSkyProductChoice choice,
+    TrackSkyCourse course,
+  ) {
+    _turningHistory.recordFunctionCompleted(
+      skyEventId: night.skyEventId,
+      function: night.function,
+      choice: choice,
+      courseId: course.courseId,
+      nowUtc: _now,
+    );
+  }
+
+  /// Observed the turning without making a Course decision.
+  void _recordWitnessed(SkyObservingNight night) {
+    _turningHistory.recordWitnessed(
+      skyEventId: night.skyEventId,
+      function: night.function,
+      nowUtc: _now,
+    );
+  }
+
+  /// Drop the Course locally *and* persist notes without it.
+  ///
+  /// Clearing only local state let a relaunch decode the old `sky_course`
+  /// tokens back out of the flow notes. Releasing a linked Course must never
+  /// invent a replacement — the notes simply lose their course tokens.
+  Future<void> _clearCourse({required bool promptForNewCourse}) async {
+    final notes = _enrollment.notesWithoutCourse(
+      existingNotes: widget.existingFlowNotes,
+      timezoneKey: widget.timezone.key,
+    );
+    setState(() {
+      _course = null;
+      _coursePromptDismissed = !promptForNewCourse;
+    });
+    _notifyHierarchy();
+    await widget.onCourseSaved?.call(null, notes);
+  }
+
+  /// Returns true only when the user actually protected a block.
+  Future<bool> _protectTimeForCourse() async {
+    if (_course == null) return false;
     final nowLocal = _toLocal(_now, widget.timezone.ianaName);
     final picked = await showTimePicker(
       context: context,
       initialTime: TimeOfDay(hour: nowLocal.hour, minute: 0),
     );
-    if (picked == null) return;
+    if (picked == null) return false;
     final start = DateTime(
       nowLocal.year,
       nowLocal.month,
@@ -1914,7 +1968,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
       startLocal: start,
       endLocal: end,
     );
-    if (!mounted) return;
+    if (!mounted) return true;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -1922,6 +1976,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
         ),
       ),
     );
+    return true;
   }
 }
 

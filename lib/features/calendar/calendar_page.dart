@@ -28056,7 +28056,12 @@ class CalendarPageState extends State<CalendarPage>
     final now = DateTime.now();
     final snapshots = <CourseActivitySnapshot>[];
     final intervals = <CourseMeasurementInterval>[];
-    final course = TrackSkyCourseMetadataCodec().decode(flow?.notes);
+    final decodedCourse = TrackSkyCourseMetadataCodec().decode(flow?.notes);
+    final rehydrated = _rehydrateFollowSkyCourse(
+      flow: flow,
+      decodedCourse: decodedCourse,
+    );
+    final course = rehydrated.course;
     final linkedFlowId = TrackSkyCourseSourceIdentity.tryParseFlowId(
       course?.sourceId,
     );
@@ -28138,13 +28143,86 @@ class CalendarPageState extends State<CalendarPage>
       now: now,
     );
     return (
-      notes: flow?.notes,
+      notes: rehydrated.notes,
       flowId: flow?.id,
       candidates: candidates,
       intervals: intervals,
     );
   }
 
+  /// Follow the Sky enrollment orchestration, reused outside the detail page for
+  /// Gate 16 course rehydration against the live flow catalog.
+  late final TrackSkyEnrollmentService _followSkyEnrollment =
+      TrackSkyEnrollmentService(
+        materializer: TrackSkyMaterializer(
+          toLocal: (utc, iana) =>
+              tz.TZDateTime.from(utc.toUtc(), tz.getLocation(iana)),
+          toUtc: (local, iana) => tz.TZDateTime(
+            tz.getLocation(iana),
+            local.year,
+            local.month,
+            local.day,
+            local.hour,
+            local.minute,
+            local.second,
+          ).toUtc(),
+        ),
+        visibilityService: const SkyVisibilityService(),
+      );
+
+  /// Gate 16: a course linked to a flow that no longer exists must unlink to
+  /// free text. It must never alias a different flow that reused the label.
+  ({TrackSkyCourse? course, String? notes}) _rehydrateFollowSkyCourse({
+    required _Flow? flow,
+    required TrackSkyCourse? decodedCourse,
+  }) {
+    if (flow == null || decodedCourse == null) {
+      return (course: decodedCourse, notes: flow?.notes);
+    }
+    final resolved = _followSkyEnrollment.rehydrateCourse(
+      course: decodedCourse,
+      flowsByServerId: <int, HydratedFlowRef>{
+        for (final candidate in _flows)
+          if (candidate.id > 0)
+            candidate.id: HydratedFlowRef(
+              serverId: candidate.id,
+              name: candidate.name,
+            ),
+      },
+    );
+    if (resolved.sourceId == decodedCourse.sourceId &&
+        resolved.sourceType == decodedCourse.sourceType) {
+      return (course: decodedCourse, notes: flow.notes);
+    }
+
+    final repairedNotes = _followSkyEnrollment.notesWithCourse(
+      existingNotes: flow.notes,
+      course: resolved,
+    );
+    if (flow.id > 0) {
+      _scheduleFollowSkyCourseNotesRepair(flowId: flow.id, notes: repairedNotes);
+    }
+    return (course: resolved, notes: repairedNotes);
+  }
+
+  final Set<int> _followSkyCourseRepairsInFlight = <int>{};
+
+  /// Persists a Gate 16 unlink after the current frame; this runs from build.
+  void _scheduleFollowSkyCourseNotesRepair({
+    required int flowId,
+    required String notes,
+  }) {
+    if (_followSkyCourseRepairsInFlight.contains(flowId)) return;
+    _followSkyCourseRepairsInFlight.add(flowId);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        if (!mounted) return;
+        await _saveFollowSkyCourseNotes(flowId: flowId, notes: notes);
+      } finally {
+        _followSkyCourseRepairsInFlight.remove(flowId);
+      }
+    });
+  }
 
   Future<void> _saveFollowSkyCourseNotes({
     required int flowId,
@@ -30889,6 +30967,9 @@ class CalendarPageState extends State<CalendarPage>
                                       color: selectedColor,
                                       category: selectedCategory,
                                       alertMinutesBefore: alertMinutesBefore,
+                                      actionId: existingNote.actionId,
+                                      behaviorPayload:
+                                          existingNote.behaviorPayload,
                                     );
                                   } else {
                                     final save = beginOptimisticNoteEditorSave(
@@ -32908,6 +32989,8 @@ class CalendarPageState extends State<CalendarPage>
     Color? color,
     String? category,
     int alertMinutesBefore = _alertNoneMinutes,
+    String? actionId,
+    Map<String, dynamic>? behaviorPayload,
   }) async {
     if (isImportedDeviceCalendarEvent(
       clientEventId: previousClientEventId,
@@ -32940,6 +33023,8 @@ class CalendarPageState extends State<CalendarPage>
       manualColor: color,
       category: category,
       alertOffsetMinutes: alertMinutesBefore,
+      actionId: actionId,
+      behaviorPayload: behaviorPayload,
     );
     final bodyLines = <String>[
       if (location != null && location.isNotEmpty) location,
@@ -32993,6 +33078,8 @@ class CalendarPageState extends State<CalendarPage>
       startsAt: startLocal,
       endsAt: endsAtUtc,
       category: effectiveCategory,
+      actionId: actionId,
+      behaviorPayload: behaviorPayload,
     );
 
     final savedClientEventId = updated.clientEventId ?? unifiedCid;
@@ -33019,6 +33106,8 @@ class CalendarPageState extends State<CalendarPage>
       manualColor: color,
       category: effectiveCategory,
       alertOffsetMinutes: alertMinutesBefore,
+      actionId: actionId,
+      behaviorPayload: behaviorPayload,
     );
 
     final scheduleResult = await _scheduleAlertForEvent(

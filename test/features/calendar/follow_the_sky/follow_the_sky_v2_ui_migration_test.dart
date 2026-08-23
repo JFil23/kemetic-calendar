@@ -250,8 +250,9 @@ void main() {
     expect(find.text('Release it'), findsNothing);
     expect(find.text('Connect activity'), findsWidgets);
     expect(find.text('Continue to the eclipse'), findsOneWidget);
+    // Protect-owned time alone is not a Reconsider object.
     expect(
-      find.textContaining('There isn’t any Hꜣw activity connected'),
+      find.textContaining('carried-forward object for Hꜣw to reconsider'),
       findsOneWidget,
     );
     // Primary reconsider service CTA must not appear on the sheet itself.
