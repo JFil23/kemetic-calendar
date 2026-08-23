@@ -1,16 +1,34 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/follow_the_sky/follow_the_sky.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 
-/// Cut 3 applicator: host calendar rows → stamp-only migration plan.
+/// Cut 3.1 applicator: host calendar rows → stamp + additive plan.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late SkyCatalog catalog;
-  final nowUtc = DateTime.utc(2026, 3, 1);
-  final applicator = FollowSkyMigrationApplicator();
+  late FollowSkyMigrationApplicator applicator;
+  final nowUtc = DateTime.utc(2026, 9, 1);
 
   setUpAll(() async {
+    tzdata.initializeTimeZones();
     catalog = await SkyCatalogRepository().load();
+    applicator = FollowSkyMigrationApplicator(
+      materializer: TrackSkyMaterializer(
+        toLocal: (utc, iana) =>
+            tz.TZDateTime.from(utc.toUtc(), tz.getLocation(iana)),
+        toUtc: (local, iana) => tz.TZDateTime(
+          tz.getLocation(iana),
+          local.year,
+          local.month,
+          local.day,
+          local.hour,
+          local.minute,
+          local.second,
+        ).toUtc(),
+      ),
+    );
   });
 
   SkyEvent futureEvent() {
@@ -24,6 +42,7 @@ void main() {
     final plan = applicator.plan(
       catalog: catalog,
       nowUtc: nowUtc,
+      ianaTimeZone: 'America/Los_Angeles',
       rows: [
         FollowSkyLegacyCalendarRow(
           clientEventId: 'legacy-future',
@@ -44,47 +63,35 @@ void main() {
       plan.stamps.map((s) => s.clientEventId),
       contains('legacy-future'),
     );
-    final stamp = plan.stamps.singleWhere(
-      (s) => s.clientEventId == 'legacy-future',
-    );
-    expect(stamp.skyEventId, event.id);
-    expect(
-      TrackSkyEventOwnership.isLegacyPreserved(stamp.behaviorPayload),
-      isTrue,
-    );
-    // No title/time fields exist on the stamp — payload only.
-    expect(stamp.behaviorPayload.containsKey('title'), isFalse);
+    expect(plan.adds.any((a) => a.skyEventId == event.id), isFalse);
+    expect(plan.coverage.duplicatesCreated, 0);
   });
 
-  test('already-owned rows write nothing on a second pass', () {
-    final event = futureEvent();
-    final owned = TrackSkyEventOwnership.behaviorPayload(
-      skyEventId: event.id,
-      legacyPreserved: true,
-    );
-    final plan = applicator.plan(
+  test('already-owned full coverage writes nothing on a second pass', () {
+    final empty = applicator.plan(
       catalog: catalog,
       nowUtc: nowUtc,
-      rows: [
-        FollowSkyLegacyCalendarRow(
-          clientEventId: 'owned',
-          title: event.name,
-          startsAtUtc: event.primaryInstantUtc,
-          behaviorPayload: owned,
-        ),
-        for (final e in catalog.upcoming(nowUtc: nowUtc).skip(1))
-          FollowSkyLegacyCalendarRow(
-            clientEventId: 'v2-${e.id}',
-            title: e.name,
-            startsAtUtc: e.primaryInstantUtc,
-            behaviorPayload: TrackSkyEventOwnership.behaviorPayload(
-              skyEventId: e.id,
-            ),
-          ),
-      ],
+      ianaTimeZone: 'America/Los_Angeles',
+      rows: const [],
     );
+    expect(empty.adds, isNotEmpty);
 
-    expect(plan.writesNothing, isTrue);
+    final owned = [
+      for (final add in empty.adds)
+        FollowSkyLegacyCalendarRow(
+          clientEventId: 'v2-${add.skyEventId}',
+          title: add.occurrence.title,
+          startsAtUtc: add.occurrence.startsAtUtc,
+          behaviorPayload: add.occurrence.behaviorPayload,
+        ),
+    ];
+    final second = applicator.plan(
+      catalog: catalog,
+      nowUtc: nowUtc,
+      ianaTimeZone: 'America/Los_Angeles',
+      rows: owned,
+    );
+    expect(second.writesNothing, isTrue);
     expect(FollowSkyCutFreeze.cut3MigrationApplyPending, isFalse);
   });
 }

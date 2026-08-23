@@ -28147,8 +28147,9 @@ class CalendarPageState extends State<CalendarPage>
   final Set<int> _followSkyMigrationInFlight = <int>{};
   final Set<int> _followSkyMigrationDone = <int>{};
 
-  /// Cut 3: one-time ownership stamp for rows on a joined Follow the Sky flow.
-  /// Never rewrites title/time; never adds catalog duplicates.
+  /// Cut 3.1: stamp ownership on legacy rows and add missing V2 observing nights.
+  /// Never rewrites existing title/time; never cancels existing notifications;
+  /// never duplicates a represented night.
   void _scheduleFollowSkyLegacyMigration({required int flowId}) {
     if (_followSkyMigrationDone.contains(flowId)) return;
     if (_followSkyMigrationInFlight.contains(flowId)) return;
@@ -28166,8 +28167,26 @@ class CalendarPageState extends State<CalendarPage>
     });
   }
 
+  String _followSkyIanaTimeZoneForFlow(_Flow? flow) {
+    final notes = flow?.notes ?? '';
+    for (final part in notes.split(';')) {
+      final trimmed = part.trim();
+      if (!trimmed.startsWith('sky_tz=')) continue;
+      final key = trimmed.substring('sky_tz='.length).trim();
+      final parsed = TrackSkyTimeZoneX.tryParse(key);
+      if (parsed != null) return parsed.ianaName;
+    }
+    return detectTrackSkyTimeZone().ianaName;
+  }
+
   Future<void> _applyFollowSkyLegacyMigration({required int flowId}) async {
     final nowUtc = DateTime.now().toUtc();
+    final flow = () {
+      for (final f in _flows) {
+        if (f.id == flowId) return f;
+      }
+      return null;
+    }();
     final rows = <FollowSkyLegacyCalendarRow>[];
     final byClientId = <String, ({String dayKey, int index, _Note note})>{};
 
@@ -28208,29 +28227,44 @@ class CalendarPageState extends State<CalendarPage>
       }
     }
 
-    if (rows.isEmpty) return;
-
+    final iana = _followSkyIanaTimeZoneForFlow(flow);
     final catalog = await SkyCatalogRepository().load();
-    final plan = FollowSkyMigrationApplicator().plan(
+    final materializer = TrackSkyMaterializer(
+      toLocal: (utc, zone) =>
+          tz.TZDateTime.from(utc.toUtc(), tz.getLocation(zone)),
+      toUtc: (local, zone) => tz.TZDateTime(
+        tz.getLocation(zone),
+        local.year,
+        local.month,
+        local.day,
+        local.hour,
+        local.minute,
+        local.second,
+      ).toUtc(),
+    );
+    final plan = FollowSkyMigrationApplicator(
+      materializer: materializer,
+    ).plan(
       catalog: catalog,
       nowUtc: nowUtc,
       rows: rows,
+      ianaTimeZone: iana,
       flowStillActive: true,
     );
     debugPrint(
       '[FollowSky][migrate] stamp=${FollowSkyCutFreeze.cut3RuntimeStamp} '
       '${plan.auditLine}',
     );
-    if (plan.stamps.isEmpty) return;
+    if (plan.writesNothing) return;
 
     final repo = UserEventsRepo(Supabase.instance.client);
     var wrote = false;
+
     for (final stamp in plan.stamps) {
       final located = byClientId[stamp.clientEventId];
       if (located == null) continue;
       final note = located.note;
-      if (const FollowSkyMigrationPolicy()
-          .alreadyOwned(note.behaviorPayload)) {
+      if (FollowSkyMigrationPolicy().alreadyOwned(note.behaviorPayload)) {
         continue;
       }
       final dayNotes = _notes[located.dayKey];
@@ -28242,42 +28276,10 @@ class CalendarPageState extends State<CalendarPage>
       wrote = true;
       final serverId = note.id?.trim();
       if (serverId == null || serverId.isEmpty) continue;
-      final parts = located.dayKey.split('-');
-      final ky = int.parse(parts[0]);
-      final km = int.parse(parts[1]);
-      final kd = int.parse(parts[2]);
-      final gDay = KemeticMath.toGregorian(ky, km, kd);
-      final startsAt = note.allDay || note.start == null
-          ? DateTime(gDay.year, gDay.month, gDay.day, 9, 0)
-          : DateTime(
-              gDay.year,
-              gDay.month,
-              gDay.day,
-              note.start!.hour,
-              note.start!.minute,
-            );
-      final endsAt = note.allDay || note.end == null
-          ? null
-          : DateTime(
-              gDay.year,
-              gDay.month,
-              gDay.day,
-              note.end!.hour,
-              note.end!.minute,
-            );
       try {
-        await repo.replace(
+        // Sparse patch: behavior_payload only. Never move title/time.
+        await repo.update(
           id: serverId,
-          clientEventId: stamp.clientEventId,
-          calendarId: note.calendarId,
-          title: note.title,
-          detail: note.detail,
-          location: note.location,
-          allDay: note.allDay,
-          startsAt: startsAt,
-          endsAt: endsAt,
-          category: note.category,
-          actionId: note.actionId,
           behaviorPayload: stamp.behaviorPayload,
         );
       } catch (e) {
@@ -28287,6 +28289,74 @@ class CalendarPageState extends State<CalendarPage>
         );
       }
     }
+
+    final calendarId = flow?.calendarId ?? _personalCalendarId;
+    for (final add in plan.adds) {
+      final occ = add.occurrence;
+      final dayLocal = DateUtils.dateOnly(occ.startsAtLocal);
+      final k = KemeticMath.fromGregorian(dayLocal);
+      final clientEventId = EventCidUtil.buildClientEventId(
+        ky: k.kYear,
+        km: k.kMonth,
+        kd: k.kDay,
+        title: occ.title,
+        startHour: occ.allDay ? 9 : occ.startsAtLocal.hour,
+        startMinute: occ.allDay ? 0 : occ.startsAtLocal.minute,
+        allDay: occ.allDay,
+        flowId: flowId,
+      );
+      if (byClientId.containsKey(clientEventId)) continue;
+      final dayKey = _kKey(k.kYear, k.kMonth, k.kDay);
+      final startTod = occ.allDay
+          ? null
+          : TimeOfDay(
+              hour: occ.startsAtLocal.hour,
+              minute: occ.startsAtLocal.minute,
+            );
+      final endTod = occ.allDay
+          ? null
+          : TimeOfDay(
+              hour: occ.endsAtLocal.hour,
+              minute: occ.endsAtLocal.minute,
+            );
+      final localNote = _Note(
+        clientEventId: clientEventId,
+        calendarId: calendarId,
+        title: occ.title,
+        detail: occ.detail,
+        allDay: occ.allDay,
+        start: startTod,
+        end: endTod,
+        flowId: flowId,
+        category: occ.category,
+        behaviorPayload: occ.behaviorPayload,
+      );
+      final bucket = List<_Note>.from(_notes[dayKey] ?? const <_Note>[]);
+      bucket.add(localNote);
+      _notes[dayKey] = bucket;
+      wrote = true;
+      try {
+        await repo.upsertByClientId(
+          clientEventId: clientEventId,
+          title: occ.title,
+          startsAtUtc: occ.startsAtUtc,
+          detail: occ.detail,
+          allDay: occ.allDay,
+          endsAtUtc: occ.endsAtUtc,
+          flowLocalId: flowId,
+          category: occ.category,
+          behaviorPayload: occ.behaviorPayload,
+          calendarId: calendarId,
+          caller: 'follow_sky_cut3_additive',
+        );
+      } catch (e) {
+        debugPrint(
+          '[FollowSky][migrate] add persist failed '
+          'sky=${add.skyEventId}: $e',
+        );
+      }
+    }
+
     if (wrote && mounted) setState(() {});
   }
 

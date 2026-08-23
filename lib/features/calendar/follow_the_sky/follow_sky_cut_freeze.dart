@@ -59,15 +59,22 @@ class FollowSkyCutFreeze {
       'FollowSkyV2Flags routing fork removed so track-the-sky reaches V2 only; '
       'stale assets/ma_at_flows pubspec entry and legacy assetPath dropped; '
       'FollowSkyMigrationApplicator stamps V2 ownership on matched legacy '
-      'futures without rewriting title/time; replace/add stay deferred.';
+      'futures without rewriting title/time; Cut 3.1 adds missing safe V2 '
+      'observing nights (ambiguous unmatched legacy defers nearby adds).';
 
   /// Temporary Cut 3 runtime stamp for proving the simulator loaded this tree.
-  static const String cut3RuntimeStamp = 'cut3-freeze-20260822a';
+  static const String cut3RuntimeStamp = 'cut3.1-additive-20260822a';
 
-  /// Cut 3 answer to the replace/add ambiguity: **do not rewrite or add**.
-  /// Stamp ownership only. V1 never recorded as-generated title/time, so
-  /// "untouched" cannot be proven; unmatched futures must not get a second
-  /// catalog row. [FollowSkyMigrationPolicy] encodes that; the host applies
-  /// [FollowSkyMigrationPlan.stamps] only.
+  /// Cut 3.1 — additive future coverage on top of stamp-only preservation.
+  /// Filled by the cut3.1 freeze commit / post-commit SHA record.
+  static const String cut31FrozenSha = '';
+
+  static const String cut31Summary =
+      'Additive reconciliation: represented nights are never duplicated; '
+      'missing nights beyond the V1 horizon and unambiguous gaps within the '
+      'overlap are materialized as pure V2 rows; replace/cancel stay withheld.';
+
+  /// Cut 3 answer to the replace/add ambiguity: **do not rewrite**.
+  /// Stamp ownership on existing rows; add only demonstrably absent nights.
   static const bool cut3MigrationApplyPending = false;
 }

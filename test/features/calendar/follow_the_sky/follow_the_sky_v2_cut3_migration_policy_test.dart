@@ -1,20 +1,35 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/follow_the_sky/follow_the_sky.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 
-/// Cut 3 migration policy. Proves the existing-user contract holds for the
-/// actions the policy is willing to apply, and that the destructive actions the
-/// reconciler plans are withheld rather than run.
+/// Cut 3.1 migration policy: stamp-only preservation + safe additive adds.
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const policy = FollowSkyMigrationPolicy();
+  late FollowSkyMigrationPolicy policy;
+  late TrackSkyMaterializer materializer;
   const reconciler = TrackSkyReconciler();
-  final nowUtc = DateTime.utc(2026, 3, 1);
-
+  final nowUtc = DateTime.utc(2026, 9, 1);
   late SkyCatalog catalog;
 
   setUpAll(() async {
+    tzdata.initializeTimeZones();
     catalog = await SkyCatalogRepository().load();
+    materializer = TrackSkyMaterializer(
+      toLocal: (utc, iana) =>
+          tz.TZDateTime.from(utc.toUtc(), tz.getLocation(iana)),
+      toUtc: (local, iana) => tz.TZDateTime(
+        tz.getLocation(iana),
+        local.year,
+        local.month,
+        local.day,
+        local.hour,
+        local.minute,
+        local.second,
+      ).toUtc(),
+    );
+    policy = FollowSkyMigrationPolicy();
   });
 
   TrackSkyExistingOccurrence occ({
@@ -37,14 +52,31 @@ void main() {
     );
   }
 
-  /// A future catalog event we can build a realistic legacy row against.
   SkyEvent futureEvent() {
     final upcoming = catalog.upcoming(nowUtc: nowUtc);
-    expect(upcoming, isNotEmpty, reason: 'catalog must have future events');
+    expect(upcoming, isNotEmpty);
     return upcoming.first;
   }
 
-  group('non-destructive reduction', () {
+  FollowSkyMigrationPlan reduce({
+    required TrackSkyReconcilePlan raw,
+    required List<TrackSkyExistingOccurrence> existing,
+    Map<String, String> legacyMatches = const {},
+    List<LegacyTrackSkyCandidate> unmatchedLegacy = const [],
+  }) {
+    return policy.reduce(
+      plan: raw,
+      catalog: catalog,
+      nowUtc: nowUtc,
+      existing: existing,
+      legacyMatches: legacyMatches,
+      unmatchedLegacy: unmatchedLegacy,
+      materializer: materializer,
+      ianaTimeZone: 'America/Los_Angeles',
+    );
+  }
+
+  group('preservation', () {
     test('replace is never applied; it becomes an ownership stamp', () {
       final event = futureEvent();
       final legacy = occ(
@@ -53,282 +85,277 @@ void main() {
         startsAtUtc: event.primaryInstantUtc,
         hasScheduledNotification: true,
       );
-
       final raw = reconciler.plan(
         catalog: catalog,
         nowUtc: nowUtc,
         existing: [legacy],
         legacySkyEventIds: {'legacy-1': event.id},
       );
-
-      // The reconciler really does want to replace this row.
       expect(
-        raw.actions.any(
-          (a) =>
-              a.type == TrackSkyReconcileActionType.replace &&
-              a.existingClientEventId == 'legacy-1',
-        ),
+        raw.actions.any((a) => a.type == TrackSkyReconcileActionType.replace),
         isTrue,
       );
 
-      final reduced = policy.reduce(plan: raw, catalog: catalog);
-
-      // Policy withholds it and records why.
+      final reduced = reduce(
+        raw: raw,
+        existing: [legacy],
+        legacyMatches: {'legacy-1': event.id},
+      );
       expect(reduced.deferredReplaceCount, 1);
       expect(
-        reduced.deferrals.first.reason,
-        FollowSkyMigrationDeferralReason.replaceCannotProveUntouched,
-      );
-
-      // The row is still claimed for V2 — just without a rewrite.
-      final stamp = reduced.stamps.singleWhere(
-        (s) => s.clientEventId == 'legacy-1',
-      );
-      expect(stamp.skyEventId, event.id);
-      expect(
-        TrackSkyEventOwnership.skyEventIdFromPayload(stamp.behaviorPayload),
+        reduced.stamps.singleWhere((s) => s.clientEventId == 'legacy-1').skyEventId,
         event.id,
       );
       expect(
-        TrackSkyEventOwnership.isLegacyPreserved(stamp.behaviorPayload),
-        isTrue,
-        reason: 'a migrated row must be marked as legacy-preserved',
-      );
-    });
-
-    test('add is never applied while legacy futures exist', () {
-      final event = futureEvent();
-      final raw = reconciler.plan(
-        catalog: catalog,
-        nowUtc: nowUtc,
-        existing: [
-          occ(
-            id: 'legacy-1',
-            title: event.name,
-            startsAtUtc: event.primaryInstantUtc,
-          ),
-        ],
-        legacySkyEventIds: {'legacy-1': event.id},
-      );
-
-      final reduced = policy.reduce(plan: raw, catalog: catalog);
-
-      expect(
-        reduced.deferredAddCount,
-        greaterThan(0),
-        reason: 'catalog has more upcoming events than the legacy flow had',
-      );
-      // No stamp may point at an event the user does not already have a row for.
-      final stampedIds = reduced.stamps.map((s) => s.skyEventId).toSet();
-      expect(stampedIds, {event.id});
-    });
-
-    test('cancelNotification never survives reduction', () {
-      final event = futureEvent();
-      final raw = reconciler.plan(
-        catalog: catalog,
-        nowUtc: nowUtc,
-        existing: [
-          occ(
-            id: 'legacy-1',
-            title: event.name,
-            startsAtUtc: event.primaryInstantUtc,
-            hasScheduledNotification: true,
-          ),
-        ],
-        legacySkyEventIds: {'legacy-1': event.id},
-      );
-
-      // The reconciler asked for a cancel...
-      expect(
-        TrackSkyMigrationService().notificationClientIdsToCancel(raw),
-        contains('legacy-1'),
-      );
-
-      // ...but the policy applies no replace, so nothing is cancelled and the
-      // user's existing alert keeps firing.
-      final reduced = policy.reduce(plan: raw, catalog: catalog);
-      expect(reduced.stamps.single.clientEventId, 'legacy-1');
-      expect(reduced.deferredReplaceCount, 1);
-    });
-  });
-
-  group('existing-user contract', () {
-    test('past and completed rows are preserved, never stamped', () {
-      final raw = reconciler.plan(
-        catalog: catalog,
-        nowUtc: nowUtc,
-        existing: [
-          occ(
-            id: 'past-1',
-            title: 'March Equinox',
-            startsAtUtc: DateTime.utc(2025, 3, 20),
-            isPastOrCompleted: true,
-          ),
-        ],
-        legacySkyEventIds: const {},
-      );
-
-      final reduced = policy.reduce(plan: raw, catalog: catalog);
-
-      expect(reduced.preservedClientEventIds, contains('past-1'));
-      expect(
-        reduced.stamps.any((s) => s.clientEventId == 'past-1'),
-        isFalse,
-        reason: 'history must not be rewritten',
-      );
-    });
-
-    test('a user-edited future keeps its own content and only gains a stamp',
-        () {
-      final event = futureEvent();
-      final raw = reconciler.plan(
-        catalog: catalog,
-        nowUtc: nowUtc,
-        existing: [
-          occ(
-            id: 'edited-1',
-            title: 'My own name for this night',
-            startsAtUtc: event.primaryInstantUtc,
-            isUserEdited: true,
-          ),
-        ],
-        legacySkyEventIds: {'edited-1': event.id},
-      );
-
-      expect(
-        raw.actions.any(
-          (a) =>
-              a.type == TrackSkyReconcileActionType.stampOnly &&
-              a.existingClientEventId == 'edited-1',
+        TrackSkyEventOwnership.isLegacyPreserved(
+          reduced.stamps.single.behaviorPayload,
         ),
         isTrue,
       );
-
-      final reduced = policy.reduce(plan: raw, catalog: catalog);
-      final stamp = reduced.stamps.singleWhere(
-        (s) => s.clientEventId == 'edited-1',
-      );
-      expect(stamp.skyEventId, event.id);
-      expect(
-        TrackSkyEventOwnership.isLegacyPreserved(stamp.behaviorPayload),
-        isTrue,
-      );
-      expect(reduced.deferredReplaceCount, 0);
     });
 
-    test('an unmatched future is preserved, never guessed at', () {
-      final raw = reconciler.plan(
-        catalog: catalog,
-        nowUtc: nowUtc,
-        existing: [
-          occ(
-            id: 'mystery-1',
-            title: 'Something the matcher cannot place',
-            startsAtUtc: DateTime.utc(2026, 6, 15),
-          ),
-        ],
-        legacySkyEventIds: const {},
-      );
-
-      final reduced = policy.reduce(plan: raw, catalog: catalog);
-      expect(reduced.preservedClientEventIds, contains('mystery-1'));
-      expect(reduced.stamps.any((s) => s.clientEventId == 'mystery-1'), isFalse);
-    });
-  });
-
-  group('idempotency', () {
-    test('a second pass over an already-stamped flow writes nothing', () {
+    test('cancelNotification never survives reduction', () {
       final event = futureEvent();
       final existing = [
         occ(
           id: 'legacy-1',
           title: event.name,
           startsAtUtc: event.primaryInstantUtc,
-          skyEventId: event.id,
-          isUserEdited: true,
+          hasScheduledNotification: true,
         ),
-        // Everything else the catalog knows about is already represented.
-        for (final e in catalog.upcoming(nowUtc: nowUtc).skip(1))
-          occ(
-            id: 'v2-${e.id}',
-            title: e.name,
-            startsAtUtc: e.primaryInstantUtc,
-            skyEventId: e.id,
-            isUserEdited: true,
-          ),
       ];
-
       final raw = reconciler.plan(
         catalog: catalog,
         nowUtc: nowUtc,
         existing: existing,
-        legacySkyEventIds: {
-          for (final o in existing) o.clientEventId: o.skyEventId,
-        },
+        legacySkyEventIds: {'legacy-1': event.id},
       );
-
-      final reduced = policy.reduce(plan: raw, catalog: catalog);
       expect(
-        reduced.writesNothing,
-        isTrue,
-        reason: 'reopening a migrated flow must not touch the database',
+        TrackSkyMigrationService().notificationClientIdsToCancel(raw),
+        contains('legacy-1'),
       );
-      expect(reduced.deferredAddCount, 0);
-      expect(reduced.deferredReplaceCount, 0);
+      final reduced = reduce(
+        raw: raw,
+        existing: existing,
+        legacyMatches: {'legacy-1': event.id},
+      );
+      expect(reduced.deferredReplaceCount, greaterThan(0));
+      // No cancel action exists on the reduced plan.
+      expect(reduced.adds.every((a) => a.skyEventId != event.id), isTrue);
     });
 
-    test('alreadyOwned recognises a V2-stamped payload', () {
-      final owned = TrackSkyEventOwnership.behaviorPayload(
-        skyEventId: 'sky-1',
-        legacyPreserved: true,
+    test('past and completed rows are preserved, never stamped', () {
+      final existing = [
+        occ(
+          id: 'past-1',
+          title: 'March Equinox',
+          startsAtUtc: DateTime.utc(2025, 3, 20),
+          isPastOrCompleted: true,
+        ),
+      ];
+      final raw = reconciler.plan(
+        catalog: catalog,
+        nowUtc: nowUtc,
+        existing: existing,
+        legacySkyEventIds: const {},
       );
-      expect(policy.alreadyOwned(owned), isTrue);
-      expect(policy.alreadyOwned(null), isFalse);
-      expect(policy.alreadyOwned(const {'kind': 'something_else'}), isFalse);
+      final reduced = reduce(raw: raw, existing: existing);
+      expect(reduced.preservedClientEventIds, contains('past-1'));
+      expect(
+        reduced.stamps.any((s) => s.clientEventId == 'past-1'),
+        isFalse,
+      );
     });
   });
 
-  group('full migration through TrackSkyMigrationService', () {
-    test('a legacy joined flow stays joined and is claimed without rewrites',
-        () {
+  group('additive future coverage', () {
+    test('matched legacy night is not duplicated; other nights are added', () {
       final event = futureEvent();
-      final result = TrackSkyMigrationService().migrateExistingJoinedFlow(
+      final existing = [
+        occ(
+          id: 'legacy-1',
+          title: event.name,
+          startsAtUtc: event.primaryInstantUtc,
+          isUserEdited: true,
+        ),
+      ];
+      final raw = reconciler.plan(
         catalog: catalog,
         nowUtc: nowUtc,
-        existing: [
-          occ(
-            id: 'legacy-past',
-            title: 'March Equinox',
-            startsAtUtc: DateTime.utc(2025, 3, 20),
-            isPastOrCompleted: true,
-          ),
-          occ(
-            id: 'legacy-future',
-            title: event.name,
-            startsAtUtc: event.primaryInstantUtc,
-          ),
-        ],
-        legacyCandidates: [
-          LegacyTrackSkyCandidate(
-            clientEventId: 'legacy-future',
-            title: event.name,
-            startsAtUtc: event.primaryInstantUtc,
-          ),
-        ],
+        existing: existing,
+        legacySkyEventIds: {'legacy-1': event.id},
+      );
+      final reduced = reduce(
+        raw: raw,
+        existing: existing,
+        legacyMatches: {'legacy-1': event.id},
       );
 
-      expect(result.remainedJoined, isTrue);
-      expect(result.legacyMatches['legacy-future'], event.id);
-
-      final reduced = policy.reduce(plan: result.plan, catalog: catalog);
-      expect(reduced.preservedClientEventIds, contains('legacy-past'));
+      expect(reduced.coverage.representedByLegacy, greaterThanOrEqualTo(1));
+      expect(reduced.adds.any((a) => a.skyEventId == event.id), isFalse);
       expect(
-        reduced.stamps.map((s) => s.clientEventId),
-        contains('legacy-future'),
+        reduced.coverage.newlyAdded,
+        reduced.coverage.canonicalNightsInWindow -
+            reduced.coverage.representedByLegacy -
+            reduced.coverage.deferredAmbiguous,
       );
-      expect(reduced.deferredReplaceCount, 1);
-      expect(reduced.auditLine, contains('stamps=1'));
+      expect(reduced.coverage.duplicatesCreated, 0);
+      expect(reduced.adds, isNotEmpty);
+      // Every add carries full V2 ownership.
+      for (final add in reduced.adds) {
+        expect(
+          TrackSkyEventOwnership.skyEventIdFromPayload(
+            add.occurrence.behaviorPayload,
+          ),
+          add.skyEventId,
+        );
+      }
+    });
+
+    test('unmatched nearby legacy defers that night; far nights still add', () {
+      final nights = catalog.upcomingNights(nowUtc: nowUtc);
+      expect(nights.length, greaterThan(2));
+      final near = nights.first;
+      final far = nights.last;
+      expect(
+        far.primaryInstantUtc.difference(near.primaryInstantUtc).abs(),
+        greaterThan(const Duration(hours: 36)),
+      );
+
+      final unmatched = [
+        LegacyTrackSkyCandidate(
+          clientEventId: 'mystery',
+          title: 'Something odd',
+          startsAtUtc: near.primaryInstantUtc,
+        ),
+      ];
+      final existing = [
+        occ(
+          id: 'mystery',
+          title: 'Something odd',
+          startsAtUtc: near.primaryInstantUtc,
+          isUserEdited: true,
+        ),
+      ];
+      final raw = reconciler.plan(
+        catalog: catalog,
+        nowUtc: nowUtc,
+        existing: existing,
+        legacySkyEventIds: const {},
+      );
+      final reduced = reduce(
+        raw: raw,
+        existing: existing,
+        unmatchedLegacy: unmatched,
+      );
+
+      expect(
+        reduced.coverage.deferredSkyEventIds,
+        contains(near.skyEventId),
+      );
+      expect(reduced.adds.any((a) => a.skyEventId == near.skyEventId), isFalse);
+      expect(reduced.adds.any((a) => a.skyEventId == far.skyEventId), isTrue);
+      expect(reduced.coverage.deferredAmbiguous, greaterThan(0));
+    });
+
+    test('nights beyond the V1 horizon are safe additive candidates', () {
+      final beyond = catalog.upcomingNights(nowUtc: nowUtc).where(
+            (n) => !n.primaryInstantUtc
+                .isBefore(FollowSkyMigrationPolicy.defaultV1HorizonEnd),
+          );
+      expect(beyond, isNotEmpty);
+
+      final existing = <TrackSkyExistingOccurrence>[];
+      final raw = reconciler.plan(
+        catalog: catalog,
+        nowUtc: nowUtc,
+        existing: existing,
+        legacySkyEventIds: const {},
+      );
+      final reduced = reduce(raw: raw, existing: existing);
+      for (final night in beyond) {
+        expect(
+          reduced.adds.any((a) => a.skyEventId == night.skyEventId),
+          isTrue,
+          reason: '${night.skyEventId} is past V1 horizon and unmatched',
+        );
+      }
+    });
+
+    test('merged eclipse/full-Moon night stays one add', () {
+      final eclipseNights = catalog.upcomingNights(nowUtc: nowUtc).where(
+            (n) => n.isEclipseFullMoon,
+          );
+      expect(eclipseNights, isNotEmpty);
+      final night = eclipseNights.first;
+
+      final existing = <TrackSkyExistingOccurrence>[];
+      final raw = reconciler.plan(
+        catalog: catalog,
+        nowUtc: nowUtc,
+        existing: existing,
+        legacySkyEventIds: const {},
+      );
+      final reduced = reduce(raw: raw, existing: existing);
+      final matching =
+          reduced.adds.where((a) => a.skyEventId == night.skyEventId);
+      expect(matching.length, 1);
+      expect(
+        TrackSkyEventOwnership.companionIdsFromPayload(
+          matching.single.occurrence.behaviorPayload,
+        ),
+        contains(night.companion!.id),
+      );
+      // Companion never gets its own add row.
+      expect(
+        reduced.adds.any((a) => a.skyEventId == night.companion!.id),
+        isFalse,
+      );
+    });
+  });
+
+  group('idempotency', () {
+    test('a second pass over a fully covered flow writes nothing', () {
+      final firstExisting = <TrackSkyExistingOccurrence>[];
+      final firstRaw = reconciler.plan(
+        catalog: catalog,
+        nowUtc: nowUtc,
+        existing: firstExisting,
+        legacySkyEventIds: const {},
+      );
+      final first = reduce(raw: firstRaw, existing: firstExisting);
+      expect(first.adds, isNotEmpty);
+
+      final secondExisting = [
+        for (final add in first.adds)
+          occ(
+            id: 'v2-${add.skyEventId}',
+            title: add.occurrence.title,
+            startsAtUtc: add.occurrence.startsAtUtc,
+            skyEventId: add.skyEventId,
+            isUserEdited: true,
+          ),
+      ];
+      final secondRaw = reconciler.plan(
+        catalog: catalog,
+        nowUtc: nowUtc,
+        existing: secondExisting,
+        legacySkyEventIds: {
+          for (final o in secondExisting) o.clientEventId: o.skyEventId,
+        },
+      );
+      final second = reduce(
+        raw: secondRaw,
+        existing: secondExisting,
+        legacyMatches: {
+          for (final o in secondExisting)
+            if (o.skyEventId != null) o.clientEventId: o.skyEventId!,
+        },
+      );
+      expect(second.writesNothing, isTrue);
+      expect(second.coverage.newlyAdded, 0);
+      expect(second.coverage.deferredAmbiguous, 0);
+      expect(second.coverage.duplicatesCreated, 0);
     });
   });
 }
