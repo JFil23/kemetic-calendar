@@ -67,7 +67,7 @@ class FollowSkyCutFreeze {
 
   /// Cut 3.1 — additive future coverage on top of stamp-only preservation.
   /// Filled by the cut3.1 freeze commit / post-commit SHA record.
-  static const String cut31FrozenSha = '';
+  static const String cut31FrozenSha = '77a6fb8665bdb5297ae54e2944b74d91720e5536';
 
   static const String cut31Summary =
       'Additive reconciliation: represented nights are never duplicated; '
