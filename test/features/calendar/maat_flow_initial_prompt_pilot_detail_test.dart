@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
 import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
 import 'package:mobile/features/calendar/evening_threshold_rite_flow.dart';
+import 'package:mobile/features/calendar/follow_the_sky/follow_the_sky.dart';
 
 void main() {
   tearDown(resetMaatFlowJoinedStateForTesting);
@@ -29,7 +30,6 @@ void main() {
       ('the-kept-word', 'What word or agreement needs attention?'),
       ('the-wag', 'What gift, memory, or legacy will you carry?'),
       ('the-khat', 'What is the body asking for?'),
-      ('track-the-sky', 'What change are you watching above?'),
       ('the-weighing', 'What needs to be placed on the scale?'),
       ('the-days-outside-the-year', 'What threshold are you crossing?'),
       ('the-fair-hearing', 'What must be heard before deciding?'),
@@ -88,6 +88,20 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('Follow the Sky V2 detail skips generic initial-prompt layout', (
+    tester,
+  ) async {
+    await _pumpTemplateDetail(tester, 'track-the-sky');
+
+    expect(find.byType(FollowSkyDetailPage), findsOneWidget);
+    expect(find.byKey(kMaatFlowInitialPromptSectionKey), findsNothing);
+    expect(find.text('Begin reflection'), findsNothing);
+    expect(find.text('What change are you watching above?'), findsNothing);
+    expect(find.text('ONE THING TO CARRY'), findsOneWidget);
+    expect(find.text('NEXT TURNING'), findsOneWidget);
+    expect(find.text('Join Flow'), findsOneWidget);
   });
 
   testWidgets('initial prompt remains absent for unsupported Ma’at details', (
@@ -367,14 +381,6 @@ void main() {
         'Egy'
         'pt';
     for (final detail in const <_CoreDetailLayoutCase>[
-      _CoreDetailLayoutCase(
-        key: 'track-the-sky',
-        prompt: 'What change are you watching above?',
-        shortDescription:
-            'Sky observation flow. Track visible sky events and keep one clear line of witness when the sky changes.',
-        fullDescriptionSnippet:
-            'Follow the Sky places major visible sky events',
-      ),
       _CoreDetailLayoutCase(
         key: 'the-weighing',
         prompt: 'What needs to be placed on the scale?',

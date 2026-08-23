@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/features/calendar/follow_the_sky/follow_the_sky.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 
 void main() {
@@ -66,6 +67,10 @@ void main() {
     tester,
   ) async {
     for (final entry in _expectedAccents.entries) {
+      // Follow the Sky V2 replaces expandable Ma’at event rows with its own
+      // Course / Next Turning surface — assert that path separately below.
+      if (entry.key == 'track-the-sky') continue;
+
       await _pumpFlow(tester, entry.key);
 
       final rows = _eventRows();
@@ -146,6 +151,24 @@ void main() {
       expect(_expandedCards(), findsNWidgets(firstWasVisible ? 1 : 0));
       expect(tester.takeException(), isNull, reason: entry.key);
     }
+  });
+
+  testWidgets('Follow the Sky V2 uses Ma’at shell with Course and Next Turning', (
+    tester,
+  ) async {
+    await _pumpFlow(tester, 'track-the-sky');
+
+    expect(find.byType(FollowSkyDetailPage), findsOneWidget);
+    expect(_eventRows(), findsNothing);
+    expect(find.byKey(kMaatFlowInitialPromptSectionKey), findsNothing);
+    expect(find.text('ONE THING TO CARRY'), findsOneWidget);
+    expect(find.text('NEXT TURNING'), findsOneWidget);
+    expect(find.text('Join Flow'), findsOneWidget);
+    expect(
+      find.text("Sky · Track the year's astronomical events in Kemetic time"),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(
