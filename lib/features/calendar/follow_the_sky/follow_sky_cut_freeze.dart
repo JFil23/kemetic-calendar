@@ -5,6 +5,8 @@
 /// - Cut 1.2 (Protect-attributed measurement without Connect): recorded by
 ///   the `cut1.2-frozen` checkpoint commit; [cut12FrozenSha] is updated to that
 ///   commit SHA immediately after the freeze lands.
+/// - Cut 2 (real user journey: course → turning → function → choice → ritual →
+///   history): same pattern, `cut2-frozen` / [cut2FrozenSha].
 library;
 
 class FollowSkyCutFreeze {
@@ -29,8 +31,21 @@ class FollowSkyCutFreeze {
       'CourseFunctionService: Measure+Turn may use Protect intervals; '
       'Reconsider+Reveal still require a concrete linked/deferred/open object.';
 
+  /// Cut 2 — the real user journey on live calendar + catalog data.
+  /// Domain catalog / observing-night brain from Cut 1.1 and the evidence rules
+  /// from Cut 1.2 are unchanged. Filled by the post-freeze recording commit.
+  static const String cut2FrozenSha = '';
+
+  static const String cut2Summary =
+      'FollowSkyCourseAttribution owns Protect/Connect measurement attribution; '
+      'Protect Time proved through the persistence codec (stamp survives edit '
+      'and move, deletion stops measurement, never a Flow); '
+      'five functions distinct with and without an evidence object; '
+      'completed functions end in a ritual and enter session turning history; '
+      'the Ma’at dock is the single primary advance path.';
+
   /// Temporary Cut 2 runtime stamp for proving the simulator loaded this tree.
   /// Bump the suffix whenever diagnosing stale sessions. Debug-only consumers.
   static const String cut2RuntimeStamp =
-      'cut2-cut12-freeze-20260822g';
+      'cut2-freeze-20260822a';
 }
