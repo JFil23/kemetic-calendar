@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../widgets/keyboard_aware.dart';
 import '../../maat_flow_palette.dart';
 import '../../maat_flow_visual_tokens.dart';
 import '../domain/track_sky_course.dart';
@@ -170,6 +171,7 @@ class FollowSkyCoursePickerState extends State<FollowSkyCoursePicker> {
         TextField(
           controller: _controller,
           focusNode: _focusNode,
+          scrollPadding: keyboardManagedTextFieldScrollPadding,
           style: const TextStyle(
             color: MaatFlowPalette.silverHi,
             fontSize: 15,

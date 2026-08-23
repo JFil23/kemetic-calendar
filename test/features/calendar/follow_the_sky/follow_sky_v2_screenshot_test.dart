@@ -138,6 +138,11 @@ Future<void> _pumpAndCapture(
     final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
     return byteData!.buffer.asUint8List();
   });
-  File(outPath).writeAsBytesSync(bytes!);
-  expect(File(outPath).lengthSync(), greaterThan(1000));
+  expect(bytes, isNotNull);
+  expect(bytes!.length, greaterThan(1000));
+  // Only mutate goldens when explicitly requested — CI must stay worktree-clean.
+  const updateGoldens = bool.fromEnvironment('UPDATE_FOLLOW_SKY_GOLDENS');
+  if (updateGoldens) {
+    File(outPath).writeAsBytesSync(bytes);
+  }
 }
