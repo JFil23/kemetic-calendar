@@ -22,7 +22,7 @@ class FollowSkyCutFreeze {
   /// Cut 1.2 — host-attributed intervals measure without Connect.
   /// Domain catalog / observing-night brain from Cut 1.1 is unchanged.
   /// Placeholder filled by the Cut 1.2 freeze commit / post-commit update.
-  static const String cut12FrozenSha = 'PENDING_CUT12_FREEZE_SHA';
+  static const String cut12FrozenSha = 'bb56665c7aba953d90d95bdc3f63735454425051';
 
   static const String cut12Summary =
       'CourseMeasurementService measures attributed intervals without Connect; '
