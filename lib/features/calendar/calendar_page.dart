@@ -8176,22 +8176,53 @@ class CalendarPage extends StatefulWidget {
     return _pushDetachedFlowStudioRoute<int?>(
       navigator,
       MaterialPageRoute<int?>(
-        builder: (_) => _MaatFlowTemplateDetailPage(
-          template: template,
-          alreadyJoined: _snapshotHasActiveMaatInstanceFor(
-            _cachedDetachedMyFlowsFilingSnapshot(flowsRepo),
-            template.key,
-          ),
-          addInstance: _addMaatFlowInstanceHeadlessWithCompletion,
-          resizeToAvoidBottomInset: false,
-          onJoined: (flowId) => _completeDetachedMaatJoinWithDayView(
-            navigator: navigator,
+        builder: (_) {
+          // Cut 3.1: detached /flows must still schedule additive migration via
+          // the mounted calendar host. Without this, opening Follow the Sky from
+          // Flow Studio never stamps/adds missing V2 nights.
+          final host = _mountedState;
+          final sky = template.key == 'track-the-sky'
+              ? host?._followSkyLiveInputs()
+              : null;
+          return _MaatFlowTemplateDetailPage(
             template: template,
-            flowId: flowId,
-            flowsRepo: flowsRepo,
-            onClose: onClose,
-          ),
-        ),
+            alreadyJoined: _snapshotHasActiveMaatInstanceFor(
+              _cachedDetachedMyFlowsFilingSnapshot(flowsRepo),
+              template.key,
+            ),
+            followSkyExistingFlowNotes: sky?.notes,
+            followSkyExistingFlowId: sky?.flowId,
+            followSkyCandidates: sky?.candidates ?? const [],
+            followSkyMeasurementIntervals: sky?.intervals ?? const [],
+            onFollowSkyCourseSaved: sky?.flowId == null || host == null
+                ? null
+                : (course, notes) => host._saveFollowSkyCourseNotes(
+                      flowId: sky!.flowId!,
+                      notes: notes,
+                    ),
+            onFollowSkyProtectTime: host == null
+                ? null
+                : ({
+                    required course,
+                    required startLocal,
+                    required endLocal,
+                  }) =>
+                    host._protectFollowSkyCourseTime(
+                      course: course,
+                      startLocal: startLocal,
+                      endLocal: endLocal,
+                    ),
+            addInstance: _addMaatFlowInstanceHeadlessWithCompletion,
+            resizeToAvoidBottomInset: false,
+            onJoined: (flowId) => _completeDetachedMaatJoinWithDayView(
+              navigator: navigator,
+              template: template,
+              flowId: flowId,
+              flowsRepo: flowsRepo,
+              onClose: onClose,
+            ),
+          );
+        },
       ),
       parentRoute: parentRoute,
       visibleState: <String, dynamic>{
