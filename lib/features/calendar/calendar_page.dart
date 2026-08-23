@@ -13051,9 +13051,33 @@ class CalendarPageState extends State<CalendarPage>
           if (template == null) return <Route<dynamic>>[hubRoute, listRoute];
 
           final detailRoute = MaterialPageRoute<int?>(
-            builder: (_) => _MaatFlowTemplateDetailPage(
+            builder: (_) {
+              final sky = template.key == 'track-the-sky'
+                  ? _followSkyLiveInputs()
+                  : null;
+              return _MaatFlowTemplateDetailPage(
               template: template,
               alreadyJoined: _hasActiveMaatInstanceFor(template.key),
+              followSkyExistingFlowNotes: sky?.notes,
+              followSkyExistingFlowId: sky?.flowId,
+              followSkyCandidates: sky?.candidates ?? const [],
+              followSkyMeasurementIntervals: sky?.intervals ?? const [],
+              onFollowSkyCourseSaved: sky?.flowId == null
+                  ? null
+                  : (course, notes) => _saveFollowSkyCourseNotes(
+                        flowId: sky!.flowId!,
+                        notes: notes,
+                      ),
+              onFollowSkyProtectTime: ({
+                required course,
+                required startLocal,
+                required endLocal,
+              }) =>
+                  _protectFollowSkyCourseTime(
+                    course: course,
+                    startLocal: startLocal,
+                    endLocal: endLocal,
+                  ),
               addInstance:
                   ({
                     required _MaatFlowTemplate template,
@@ -13118,7 +13142,8 @@ class CalendarPageState extends State<CalendarPage>
                 flowId: flowId,
                 templateKey: template.key,
               ),
-            ),
+            );
+            },
           );
           unawaited(
             detailRoute.popped.then((importedFlowId) async {
@@ -13335,10 +13360,34 @@ class CalendarPageState extends State<CalendarPage>
     return _pushFlowStudioRoute<int?>(
       navigator,
       MaterialPageRoute<int?>(
-        builder: (_) => _MaatFlowTemplateDetailPage(
+        builder: (_) {
+          final sky = template.key == 'track-the-sky'
+              ? _followSkyLiveInputs()
+              : null;
+          return _MaatFlowTemplateDetailPage(
           template: template,
           alreadyJoined: _hasActiveMaatInstanceFor(template.key),
           resizeToAvoidBottomInset: persistOverlay,
+          followSkyExistingFlowNotes: sky?.notes,
+          followSkyExistingFlowId: sky?.flowId,
+          followSkyCandidates: sky?.candidates ?? const [],
+          followSkyMeasurementIntervals: sky?.intervals ?? const [],
+          onFollowSkyCourseSaved: sky?.flowId == null
+              ? null
+              : (course, notes) => _saveFollowSkyCourseNotes(
+                    flowId: sky!.flowId!,
+                    notes: notes,
+                  ),
+          onFollowSkyProtectTime: ({
+            required course,
+            required startLocal,
+            required endLocal,
+          }) =>
+              _protectFollowSkyCourseTime(
+                course: course,
+                startLocal: startLocal,
+                endLocal: endLocal,
+              ),
           addInstance:
               ({
                 required _MaatFlowTemplate template,
@@ -13399,7 +13448,8 @@ class CalendarPageState extends State<CalendarPage>
             flowId: flowId,
             templateKey: template.key,
           ),
-        ),
+        );
+        },
       ),
       visibleState: <String, dynamic>{
         'mode': _kFlowStudioModeMaatTemplate,
@@ -27983,6 +28033,192 @@ class CalendarPageState extends State<CalendarPage>
     });
   }
 
+  _Flow? _activeFlowForMaatTemplate(String tplKey) {
+    for (final flow in _flows) {
+      if (CalendarPage._isFlowEndSuppressed(flow.id)) continue;
+      if (!CalendarPage._flowMatchesActiveMaatTemplate(flow, tplKey)) continue;
+      return flow;
+    }
+    return null;
+  }
+
+  /// Live Follow the Sky inputs: course notes + real activity for measurement.
+  /// Live Follow the Sky inputs: course notes + activity for Connect/Measure.
+  /// Connect candidates stay flow-backed. Measure intervals also include
+  /// Protect-stamped single blocks owned by the active Course.
+  ({
+    String? notes,
+    int? flowId,
+    List<CourseActivitySignal> candidates,
+    List<CourseMeasurementInterval> intervals,
+  }) _followSkyLiveInputs() {
+    final flow = _activeFlowForMaatTemplate('track-the-sky');
+    final now = DateTime.now();
+    final snapshots = <CourseActivitySnapshot>[];
+    final intervals = <CourseMeasurementInterval>[];
+    final course = TrackSkyCourseMetadataCodec().decode(flow?.notes);
+    final linkedFlowId = TrackSkyCourseSourceIdentity.tryParseFlowId(
+      course?.sourceId,
+    );
+    final activeCourseId = course?.courseId;
+
+    for (final entry in _notes.entries) {
+      final parts = entry.key.split('-');
+      if (parts.length != 3) continue;
+      final y = int.tryParse(parts[0]);
+      final m = int.tryParse(parts[1]);
+      final d = int.tryParse(parts[2]);
+      if (y == null || m == null || d == null) continue;
+      for (final note in entry.value) {
+        final start = note.allDay || note.start == null
+            ? DateTime(y, m, d, 9, 0)
+            : DateTime(y, m, d, note.start!.hour, note.start!.minute);
+        final end = note.allDay || note.end == null
+            ? start.add(const Duration(hours: 1))
+            : DateTime(y, m, d, note.end!.hour, note.end!.minute);
+        final safeEnd =
+            end.isAfter(start) ? end : start.add(const Duration(minutes: 30));
+        final minutes = safeEnd.difference(start).inMinutes.abs();
+        final ownedCourseId =
+            FollowSkyCourseOwnership.courseIdOf(note.behaviorPayload);
+
+        // Course-owned Protect blocks measure without Connect.
+        if (activeCourseId != null &&
+            ownedCourseId != null &&
+            ownedCourseId == activeCourseId) {
+          intervals.add(
+            CourseMeasurementInterval(
+              start: start,
+              end: safeEnd,
+              minutes: minutes <= 0 ? 30 : minutes,
+            ),
+          );
+        }
+
+        final noteFlowId = note.flowId;
+        if (noteFlowId == null || noteFlowId <= 0) continue;
+        final sourceFlow = () {
+          for (final f in _flows) {
+            if (f.id == noteFlowId) return f;
+          }
+          return null;
+        }();
+        if (sourceFlow == null) continue;
+        if (_isTrackSkyFlowName(sourceFlow.name)) continue;
+        final maatKind = resolveMaatFlowKind(
+          flowName: sourceFlow.name,
+          flowNotes: sourceFlow.notes,
+        );
+        snapshots.add(
+          CourseActivitySnapshot(
+            label: sourceFlow.name,
+            sourceType: TrackSkyCourseSourceType.flow,
+            sourceId: TrackSkyCourseSourceIdentity.forFlow(noteFlowId),
+            startsAt: start,
+            endsAt: safeEnd,
+            isHidden: sourceFlow.isHidden,
+            isSystemOrMaat: maatKind != null,
+            isActive: sourceFlow.active,
+          ),
+        );
+        if (linkedFlowId != null && linkedFlowId == noteFlowId) {
+          intervals.add(
+            CourseMeasurementInterval(
+              start: start,
+              end: safeEnd,
+              minutes: minutes <= 0 ? 30 : minutes,
+            ),
+          );
+        }
+      }
+    }
+
+    final candidates = const CourseActivityAggregator().aggregate(
+      snapshots: snapshots,
+      now: now,
+    );
+    return (
+      notes: flow?.notes,
+      flowId: flow?.id,
+      candidates: candidates,
+      intervals: intervals,
+    );
+  }
+
+
+  Future<void> _saveFollowSkyCourseNotes({
+    required int flowId,
+    required String notes,
+  }) async {
+    final idx = _flows.indexWhere((f) => f.id == flowId);
+    if (idx < 0) return;
+    final flow = _flows[idx];
+    flow.notes = notes;
+    try {
+      await FlowsRepo(Supabase.instance.client).update(
+        id: flowId,
+        name: flow.name,
+        color: flow.color.toARGB32(),
+        active: flow.active,
+        calendarId: flow.calendarId,
+        startDate: flow.start,
+        endDate: flow.end,
+        notes: notes,
+        rulesJson: flow.rules.map(ruleToJson).toList(),
+        isReminder: flow.isReminder,
+        reminderUuid: flow.reminderUuid,
+      );
+    } catch (e) {
+      debugPrint('[FollowSky] failed to persist course notes: $e');
+    }
+    if (mounted) setState(() {});
+  }
+
+  /// Protect Time creates a normal single calendar block owned by the Course.
+  /// It does **not** create a permanent My Flows entry. The block is stamped
+  /// with [FollowSkyCourseOwnership] so measurement works without Connect.
+  Future<void> _protectFollowSkyCourseTime({
+    required TrackSkyCourse course,
+    required DateTime startLocal,
+    required DateTime endLocal,
+  }) async {
+    final title = course.label.trim();
+    if (title.isEmpty) return;
+
+    final dayLocal = DateTime(startLocal.year, startLocal.month, startLocal.day);
+    final k = KemeticMath.fromGregorian(dayLocal);
+    final calendarId = _personalCalendarId;
+    final calendarName = _calendarDisplayName(calendarId);
+    final startTod = TimeOfDay(hour: startLocal.hour, minute: startLocal.minute);
+    final endTod = TimeOfDay(hour: endLocal.hour, minute: endLocal.minute);
+    final ownership = FollowSkyCourseOwnership.behaviorPayload(
+      courseId: course.courseId,
+    );
+
+    try {
+      await _saveSingleNoteOnly(
+        selYear: k.kYear,
+        selMonth: k.kMonth,
+        selDay: k.kDay,
+        title: title,
+        detail: null,
+        calendarId: calendarId,
+        calendarName: calendarName,
+        allDay: false,
+        startTime: startTod,
+        endTime: endTod,
+        color: const Color(0xFF6876D8),
+        actionId: FollowSkyCourseOwnership.actionId,
+        behaviorPayload: ownership,
+        notifyShared: false,
+      );
+    } catch (e) {
+      debugPrint('[FollowSky] protect time failed: $e');
+      return;
+    }
+    if (mounted) setState(() {});
+  }
+
   _MaatFlowCompletionStatus? _maatCompletionStatusForActiveInstance(
     String tplKey,
   ) {
@@ -32424,6 +32660,8 @@ class CalendarPageState extends State<CalendarPage>
     String? category,
     int alertMinutesBefore = _alertNoneMinutes,
     bool notifyShared = true,
+    String? actionId,
+    Map<String, dynamic>? behaviorPayload,
   }) async {
     // Compute event start + alert time
     final gDay = KemeticMath.toGregorian(selYear, selMonth, selDay);
@@ -32449,6 +32687,8 @@ class CalendarPageState extends State<CalendarPage>
       manualColor: color,
       category: category,
       alertOffsetMinutes: alertMinutesBefore,
+      actionId: actionId,
+      behaviorPayload: behaviorPayload,
     );
 
     // Build canonical clientEventId for this manual note
@@ -32482,6 +32722,8 @@ class CalendarPageState extends State<CalendarPage>
       manualColor: color,
       category: category,
       alertOffsetMinutes: alertMinutesBefore,
+      actionId: actionId,
+      behaviorPayload: behaviorPayload,
       confirmation: NoteConfirmation.unconfirmed,
       unconfirmedCreatedAt: pendingCreatedAt,
     );
@@ -32519,6 +32761,8 @@ class CalendarPageState extends State<CalendarPage>
         endsAtUtc: endsAtUtc,
         category: category,
         calendarId: calendarId,
+        actionId: actionId,
+        behaviorPayload: behaviorPayload,
         caller: 'save_single',
       );
 

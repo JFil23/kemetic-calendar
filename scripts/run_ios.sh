@@ -5,25 +5,36 @@ set -euo pipefail
 # Usage:
 #   scripts/run_ios.sh            # auto-picks iOS device
 #   scripts/run_ios.sh <device>   # specify device id
+#
+# Compatible with macOS /bin/bash 3.2 (no readarray).
 
 cd "$(dirname "$0")/.."
 
 ENV_FILE="${ENV_FILE:-env/dev.json}"
 [[ -f "$ENV_FILE" ]] || { echo "⚠️  $ENV_FILE not found. Copy or create it with your SUPABASE_URL / SUPABASE_ANON_KEY (and any other defines)." >&2; exit 1; }
 
+# Prefer python3 on macOS; fall back to python when present.
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON=python3
+elif command -v python >/dev/null 2>&1; then
+  PYTHON=python
+else
+  echo "❌ python3 (or python) is required to parse $ENV_FILE." >&2
+  exit 1
+fi
+
 if [[ $# -gt 0 ]]; then
   DEVICE="$1"
 else
-  DEVICE=$(flutter devices --machine | python - <<'PY'
+  # Use -c so flutter JSON stays on stdin (a heredoc would replace it).
+  DEVICE=$(flutter devices --machine | "$PYTHON" -c '
 import json, sys
 devices = json.load(sys.stdin)
 for d in devices:
     if d.get("targetPlatform") == "ios":
         print(d["id"])
-        sys.exit(0)
-print("", end="")
-PY
-)
+        raise SystemExit(0)
+')
 fi
 
 if [[ -z "${DEVICE:-}" ]]; then
@@ -31,7 +42,10 @@ if [[ -z "${DEVICE:-}" ]]; then
   exit 1
 fi
 
-readarray -t ENV_INFO < <(python - <<'PY' "$ENV_FILE"
+ENV_INFO=()
+while IFS= read -r line; do
+  ENV_INFO+=("$line")
+done < <("$PYTHON" - "$ENV_FILE" <<'PY'
 import json, sys
 path = sys.argv[1]
 with open(path) as f:

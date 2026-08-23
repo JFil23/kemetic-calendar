@@ -33,6 +33,9 @@ class CourseCandidateEngine {
     this.minStrongCandidates = 2,
     this.minFlowOccurrences = 2,
     this.minEventTitleOccurrences = 3,
+    this.connectMaxItems = 12,
+    this.connectMinFlowOccurrences = 1,
+    this.connectMinEventTitleOccurrences = 1,
   });
 
   final int maxCandidates;
@@ -40,9 +43,46 @@ class CourseCandidateEngine {
   final int minFlowOccurrences;
   final int minEventTitleOccurrences;
 
+  /// Broader list for explicit Connect activity (user makes the association).
+  final int connectMaxItems;
+  final int connectMinFlowOccurrences;
+  final int connectMinEventTitleOccurrences;
+
   List<TrackSkyCourseCandidate> suggest(
     List<CourseActivitySignal> signals, {
     DateTime? now,
+  }) {
+    final qualified = _qualify(
+      signals,
+      minFlowOccurrences: minFlowOccurrences,
+      minEventTitleOccurrences: minEventTitleOccurrences,
+    );
+
+    if (qualified.length < minStrongCandidates) {
+      return const [];
+    }
+
+    return _rankDedupeCap(qualified, max: maxCandidates);
+  }
+
+  /// Eligible real activity for Connect activity — still deterministic, no LLM.
+  /// Unlike [suggest], a single eligible item may appear (user asked to choose).
+  List<TrackSkyCourseCandidate> eligibleForConnect(
+    List<CourseActivitySignal> signals, {
+    DateTime? now,
+  }) {
+    final qualified = _qualify(
+      signals,
+      minFlowOccurrences: connectMinFlowOccurrences,
+      minEventTitleOccurrences: connectMinEventTitleOccurrences,
+    );
+    return _rankDedupeCap(qualified, max: connectMaxItems);
+  }
+
+  List<TrackSkyCourseCandidate> _qualify(
+    List<CourseActivitySignal> signals, {
+    required int minFlowOccurrences,
+    required int minEventTitleOccurrences,
   }) {
     final qualified = <TrackSkyCourseCandidate>[];
 
@@ -79,25 +119,26 @@ class CourseCandidateEngine {
         ),
       );
     }
+    return qualified;
+  }
 
-    if (qualified.length < minStrongCandidates) {
-      return const [];
-    }
-
+  List<TrackSkyCourseCandidate> _rankDedupeCap(
+    List<TrackSkyCourseCandidate> qualified, {
+    required int max,
+  }) {
     qualified.sort((a, b) {
       final byRank = b.rankScore.compareTo(a.rankScore);
       if (byRank != 0) return byRank;
       return a.label.toLowerCase().compareTo(b.label.toLowerCase());
     });
 
-    // Dedupe by normalized label, keep highest rank.
     final seen = <String>{};
     final out = <TrackSkyCourseCandidate>[];
     for (final c in qualified) {
       final key = TrackSkyCourseSourceIdentity.normalizeLabel(c.label);
       if (!seen.add(key)) continue;
       out.add(c);
-      if (out.length >= maxCandidates) break;
+      if (out.length >= max) break;
     }
     return out;
   }

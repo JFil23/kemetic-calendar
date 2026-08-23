@@ -223,7 +223,7 @@ void main() {
   group('CourseMeasurementService', () {
     const service = CourseMeasurementService();
 
-    test('unlinked course never invents history', () {
+    test('unlinked course with no intervals never invents history', () {
       final course = TrackSkyCourse(
         courseId: 'c1',
         label: 'Be present',
@@ -233,16 +233,33 @@ void main() {
       final m = service.measure(
         course: course,
         now: DateTime.utc(2026, 8, 22),
-        intervals: [
-          CourseMeasurementInterval(
-            start: DateTime.utc(2026, 8, 10),
-            end: DateTime.utc(2026, 8, 10, 2),
-            minutes: 120,
-          ),
-        ],
+        intervals: const [],
       );
       expect(m.available, isFalse);
       expect(m.recentMinutes, 0);
+    });
+
+    test('unlinked course measures host-attributed Protect intervals', () {
+      final course = TrackSkyCourse(
+        courseId: 'c1',
+        label: 'Finish my book',
+        sourceType: TrackSkyCourseSourceType.freeText,
+        createdAt: DateTime.utc(2026, 8, 1),
+      );
+      final now = DateTime.utc(2026, 8, 22, 12);
+      final m = service.measure(
+        course: course,
+        now: now,
+        intervals: [
+          CourseMeasurementInterval(
+            start: DateTime.utc(2026, 8, 20, 19),
+            end: DateTime.utc(2026, 8, 20, 20),
+            minutes: 60,
+          ),
+        ],
+      );
+      expect(m.available, isTrue);
+      expect(m.recentMinutes, 60);
     });
 
     test('linked course measures from intervals', () {

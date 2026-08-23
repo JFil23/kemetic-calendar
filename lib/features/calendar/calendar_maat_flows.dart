@@ -2143,6 +2143,12 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
     this.showBackButton = true,
     this.embeddedInOnboarding = false,
     this.resizeToAvoidBottomInset = true,
+    this.followSkyExistingFlowNotes,
+    this.followSkyExistingFlowId,
+    this.followSkyCandidates = const [],
+    this.followSkyMeasurementIntervals = const [],
+    this.onFollowSkyCourseSaved,
+    this.onFollowSkyProtectTime,
   });
 
   final _MaatFlowTemplate template;
@@ -2177,6 +2183,19 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
   final bool showBackButton;
   final bool embeddedInOnboarding;
   final bool resizeToAvoidBottomInset;
+
+  /// Joined Follow the Sky flow notes (course metadata).
+  final String? followSkyExistingFlowNotes;
+  final int? followSkyExistingFlowId;
+  final List<CourseActivitySignal> followSkyCandidates;
+  final List<CourseMeasurementInterval> followSkyMeasurementIntervals;
+  final Future<void> Function(TrackSkyCourse course, String notes)?
+      onFollowSkyCourseSaved;
+  final Future<void> Function({
+    required TrackSkyCourse course,
+    required DateTime startLocal,
+    required DateTime endLocal,
+  })? onFollowSkyProtectTime;
 
   @override
   State<_MaatFlowTemplateDetailPage> createState() =>
@@ -2292,6 +2311,8 @@ class _MaatFlowTemplateDetailPageState
     extends State<_MaatFlowTemplateDetailPage> {
   late TrackSkyTimeZone _previewTrackSkyTimeZone;
   Future<TrackSkyFlowData>? _trackSkyFuture;
+  final GlobalKey<FollowSkyDetailPageState> _followSkyDetailKey =
+      GlobalKey<FollowSkyDetailPageState>();
   bool _dawnDiscreetMode = false;
   DawnHouseRiteLens _dawnLens = DawnHouseRiteLens.neutral;
   bool _dawnStartDateTouched = false;
@@ -4682,14 +4703,58 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
+  /// Follow the Sky dock: Join → Carry this course → Open next turning.
+  /// Never shows inert "Joined" as a CTA.
+  Widget _buildFollowSkyStickyDockButton() {
+    if (!widget.alreadyJoined) {
+      return _buildTemplateStickyJoinButton(
+        onPressed: () {
+          final state = _followSkyDetailKey.currentState;
+          if (state != null) unawaited(state.joinFromDock());
+        },
+      );
+    }
+
+    final detail = _followSkyDetailKey.currentState;
+    final hasCourse = detail?.hasActiveCourse ??
+        (TrackSkyCourseMetadataCodec()
+                .decode(widget.followSkyExistingFlowNotes) !=
+            null);
+
+    if (hasCourse) {
+      return _buildTemplateStickyJoinButton(
+        honorJoinedState: false,
+        text: 'Open next turning',
+        onPressed: () {
+          final state = _followSkyDetailKey.currentState;
+          if (state != null) unawaited(state.openNextTurningFromDock());
+        },
+      );
+    }
+
+    return _buildTemplateStickyJoinButton(
+      honorJoinedState: false,
+      text: 'Carry this course',
+      onPressed: () {
+        final state = _followSkyDetailKey.currentState;
+        if (state != null) unawaited(state.carryCourseFromDock());
+      },
+    );
+  }
+
   Widget _buildTemplateStickyJoinButton({
     double buttonWidth = double.infinity,
     required VoidCallback? onPressed,
     String text = 'Join Flow',
     Widget? leading,
+    /// When false, [text]/[onPressed] are used even if already joined
+    /// (Follow the Sky dock: Carry this course / Open next turning).
+    bool honorJoinedState = true,
   }) {
-    final buttonText = widget.alreadyJoined ? 'Joined' : text;
-    final callback = widget.alreadyJoined ? null : onPressed;
+    final buttonText =
+        honorJoinedState && widget.alreadyJoined ? 'Joined' : text;
+    final callback =
+        honorJoinedState && widget.alreadyJoined ? null : onPressed;
     return Semantics(
       button: true,
       label: buttonText,
@@ -8998,26 +9063,51 @@ class _MaatFlowTemplateDetailPageState
       if (!FollowSkyV2Flags.useV2Production) {
         return _buildTrackSkyScaffold(context);
       }
-      return FollowSkyDetailPage(
-        isJoined: widget.alreadyJoined,
-        timezone: FollowSkyTimeZoneX.tryParse(
-              _previewTrackSkyTimeZone.key,
-            ) ??
-            FollowSkyTimeZone.pacific,
-        onJoin: (draft) async {
-          final result = await FlowJoinService().joinTrackSkyV2Headless(
-            templateKey: widget.template.key,
-            templateTitle: widget.template.title,
-            templateOverview: widget.template.overview,
-            templateColor: widget.template.color,
-            personalCalendarId: null,
-            draft: draft,
-          );
-          final id = result.flowIdOrNegativeOne;
-          if (id > 0) {
-            await _completeJoin(id);
-          }
-        },
+      // Keep the existing Ma’at detail shell (nav + dock). V2 is content only.
+      return _buildMaatFlowDetailScaffold(
+        context,
+        appendInitialPrompt: false,
+        joinButton: _buildFollowSkyStickyDockButton(),
+        children: [
+          _buildMaatFlowDetailHero(tagline: widget.template.subtitle),
+          const SizedBox(height: 4),
+          FollowSkyDetailPage(
+            key: _followSkyDetailKey,
+            standalone: false,
+            omitIdentityHero: true,
+            isJoined: widget.alreadyJoined,
+            existingFlowNotes: widget.followSkyExistingFlowNotes,
+            existingFlowId: widget.followSkyExistingFlowId,
+            candidates: widget.followSkyCandidates,
+            measurementIntervals: widget.followSkyMeasurementIntervals,
+            title: widget.template.title,
+            subtitle: widget.template.subtitle,
+            // v5/v7 In Kemet copy — do not use the older badge prose.
+            timezone: FollowSkyTimeZoneX.tryParse(
+                  _previewTrackSkyTimeZone.key,
+                ) ??
+                FollowSkyTimeZone.pacific,
+            onHierarchyChanged: () {
+              if (mounted) setState(() {});
+            },
+            onCourseSaved: widget.onFollowSkyCourseSaved,
+            onProtectTime: widget.onFollowSkyProtectTime,
+            onJoin: (draft) async {
+              final result = await FlowJoinService().joinTrackSkyV2Headless(
+                templateKey: widget.template.key,
+                templateTitle: widget.template.title,
+                templateOverview: widget.template.overview,
+                templateColor: widget.template.color,
+                personalCalendarId: null,
+                draft: draft,
+              );
+              final id = result.flowIdOrNegativeOne;
+              if (id > 0) {
+                await _completeJoin(id);
+              }
+            },
+          ),
+        ],
       );
     }
     if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite) {

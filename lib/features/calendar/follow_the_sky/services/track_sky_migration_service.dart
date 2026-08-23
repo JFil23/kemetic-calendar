@@ -1,6 +1,5 @@
 import '../domain/sky_catalog.dart';
 import 'legacy_track_sky_migration_matcher.dart';
-import 'track_sky_materializer.dart';
 import 'track_sky_reconciler.dart';
 
 class TrackSkyMigrationResult {

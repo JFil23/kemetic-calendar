@@ -99,4 +99,9 @@ class TrackSkyCourseCandidate {
   final int occurrenceCount;
   final double driftScore;
   final double rankScore;
+
+  /// Debug/live provenance — must always point at a real source ID + activity.
+  String get provenance =>
+      'label=$label, source=$sourceId, $occurrenceCount occurrences, '
+      '$recentMinutes min recent / $previousMinutes min previous';
 }

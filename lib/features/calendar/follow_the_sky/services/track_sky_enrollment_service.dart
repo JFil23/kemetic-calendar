@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import '../domain/sky_catalog.dart';
+import '../domain/sky_event_function.dart';
 import '../domain/track_sky_course.dart';
 import 'sky_visibility_service.dart';
 import 'track_sky_course_metadata_codec.dart';
@@ -12,17 +13,20 @@ enum FollowSkyProductChoice {
   keepCourse,
   giveMoreRoom,
   changeCourse,
+  releaseCourse,
 }
 
 extension FollowSkyProductChoiceX on FollowSkyProductChoice {
   String get label {
     switch (this) {
       case FollowSkyProductChoice.keepCourse:
-        return 'Keep course';
+        return 'Keep it';
       case FollowSkyProductChoice.giveMoreRoom:
         return 'Give it more room';
       case FollowSkyProductChoice.changeCourse:
-        return 'Change course';
+        return 'Change it';
+      case FollowSkyProductChoice.releaseCourse:
+        return 'Release it';
     }
   }
 }
@@ -88,6 +92,21 @@ class TrackSkyEnrollmentService {
       sourceType: candidate.sourceType,
       sourceId: candidate.sourceId,
       createdAt: createdAt,
+    );
+  }
+
+  /// Keep the Course label; attach a real calendar source for measurement.
+  TrackSkyCourse linkCourseToActivity({
+    required TrackSkyCourse course,
+    required TrackSkyCourseCandidate activity,
+  }) {
+    return TrackSkyCourse(
+      courseId: course.courseId,
+      label: course.label,
+      sourceType: activity.sourceType,
+      sourceId: activity.sourceId,
+      createdAt: course.createdAt,
+      schemaVersion: course.schemaVersion,
     );
   }
 
@@ -196,9 +215,42 @@ class TrackSkyEnrollmentService {
     );
   }
 
-  List<FollowSkyProductChoice> availableChoices({required bool hasCourse}) {
-    if (!hasCourse) return const [];
-    return FollowSkyProductChoice.values;
+  /// Product choices act on a surfaced evidence object — never on nothing.
+  List<FollowSkyProductChoice> availableChoices({
+    required bool hasCourse,
+    bool hasEvidenceObject = false,
+    SkyEventFunction function = SkyEventFunction.measure,
+  }) {
+    if (!hasCourse || !hasEvidenceObject) return const [];
+    switch (function) {
+      case SkyEventFunction.reconsider:
+        return const [
+          FollowSkyProductChoice.keepCourse,
+          FollowSkyProductChoice.changeCourse,
+          FollowSkyProductChoice.releaseCourse,
+        ];
+      case SkyEventFunction.measure:
+        return const [
+          FollowSkyProductChoice.keepCourse,
+          FollowSkyProductChoice.giveMoreRoom,
+          FollowSkyProductChoice.changeCourse,
+        ];
+      case SkyEventFunction.reveal:
+        return const [
+          FollowSkyProductChoice.keepCourse,
+          FollowSkyProductChoice.changeCourse,
+        ];
+      case SkyEventFunction.turn:
+        return const [
+          FollowSkyProductChoice.keepCourse,
+          FollowSkyProductChoice.changeCourse,
+          FollowSkyProductChoice.releaseCourse,
+        ];
+      case SkyEventFunction.attend:
+        return const [
+          FollowSkyProductChoice.keepCourse,
+        ];
+    }
   }
 
   /// Validates linked flow source still points at the expected flow (gate 16).

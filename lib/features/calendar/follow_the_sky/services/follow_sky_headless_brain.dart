@@ -2,6 +2,7 @@ import '../domain/sky_catalog.dart';
 import '../domain/sky_event_function.dart';
 import '../domain/track_sky_course.dart';
 import 'course_candidate_engine.dart';
+import 'course_function_service.dart';
 import 'course_measurement_service.dart';
 import 'track_sky_enrollment_service.dart';
 
@@ -33,7 +34,18 @@ class FollowSkyHeadlessBrain {
       now: nowUtc,
       intervals: intervals,
     );
-    final choices = enrollmentService.availableChoices(hasCourse: true);
+    final function = next?.function ?? SkyEventFunction.measure;
+    final evidence = const CourseFunctionService().evidenceFor(
+      function: function,
+      course: selectedCourse,
+      now: nowUtc,
+      intervals: intervals,
+    );
+    final choices = enrollmentService.availableChoices(
+      hasCourse: true,
+      hasEvidenceObject: evidence.available,
+      function: function,
+    );
 
     final buf = StringBuffer();
     buf.writeln('Course candidates:');

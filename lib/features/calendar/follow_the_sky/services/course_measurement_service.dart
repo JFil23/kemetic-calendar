@@ -44,7 +44,8 @@ class CourseMeasurementInterval {
   final int minutes;
 }
 
-/// Measures linked courses from calendar intervals. Never invents history for free text.
+/// Measures course-attributed calendar intervals. Never invents history.
+/// Free-text courses become measurable once Protect Time (or Connect) supplies intervals.
 class CourseMeasurementService {
   const CourseMeasurementService();
 
@@ -54,11 +55,17 @@ class CourseMeasurementService {
     required List<CourseMeasurementInterval> intervals,
     Duration window = const Duration(days: 14),
   }) {
-    if (!course.isLinked) {
+    // Intervals are pre-attributed by the host (Connect-linked source and/or
+    // Protect-stamped blocks). Measure them even when the Course remains
+    // free-text / unlinked via Connect.
+    if (intervals.isEmpty) {
       return CourseMeasurement.unavailable(
-        'Hꜣw will track the time you protect for this from here forward.',
+        course.isLinked
+            ? 'No protected time found for this course yet.'
+            : 'Hꜣw will track the time you protect for this from here forward.',
       );
     }
+
 
     final currentStart = now.subtract(window);
     final previousStart = currentStart.subtract(window);
