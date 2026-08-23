@@ -34,7 +34,7 @@ class FollowSkyCutFreeze {
   /// Cut 2 — the real user journey on live calendar + catalog data.
   /// Domain catalog / observing-night brain from Cut 1.1 and the evidence rules
   /// from Cut 1.2 are unchanged. Filled by the post-freeze recording commit.
-  static const String cut2FrozenSha = '';
+  static const String cut2FrozenSha = '20a63d0c0d44aa98b0661aeee79544f8c285f70b';
 
   static const String cut2Summary =
       'FollowSkyCourseAttribution owns Protect/Connect measurement attribution; '
