@@ -110,7 +110,6 @@ flutter:
   assets:
     - assets/icons/dendera_zodiac_gold.png
     - assets/widget/
-    - assets/ma_at_flows/
     - assets/follow_the_sky/
     - assets/profile/day_cycle_alt_2/
 

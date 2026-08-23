@@ -55,9 +55,6 @@ extension TrackSkyTimeZoneX on TrackSkyTimeZone {
     }
   }
 
-  /// Legacy V1 asset path — unused by Follow the Sky V2.
-  String get assetPath => 'assets/ma_at_flows/track_sky_$key.md';
-
   static TrackSkyTimeZone? tryParse(String? raw) {
     switch (raw?.trim().toLowerCase()) {
       case 'pacific':

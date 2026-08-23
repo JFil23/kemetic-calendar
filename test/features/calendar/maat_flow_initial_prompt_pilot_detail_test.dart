@@ -29,7 +29,8 @@ void main() {
       ('the-kept-word', 'What word or agreement needs attention?'),
       ('the-wag', 'What gift, memory, or legacy will you carry?'),
       ('the-khat', 'What is the body asking for?'),
-      ('track-the-sky', 'What change are you watching above?'),
+      // 'track-the-sky' is intentionally absent: Follow the Sky V2 replaces the
+      // shared initial-prompt section with its own first-open Course invitation.
       ('the-weighing', 'What needs to be placed on the scale?'),
       ('the-days-outside-the-year', 'What threshold are you crossing?'),
       ('the-fair-hearing', 'What must be heard before deciding?'),
@@ -366,15 +367,9 @@ void main() {
     const bannedPlaceName =
         'Egy'
         'pt';
+    // 'track-the-sky' is absent: Follow the Sky V2 does not use the shared
+    // high-entry overview layout. Its detail is a turning surface.
     for (final detail in const <_CoreDetailLayoutCase>[
-      _CoreDetailLayoutCase(
-        key: 'track-the-sky',
-        prompt: 'What change are you watching above?',
-        shortDescription:
-            'Sky observation flow. Track visible sky events and keep one clear line of witness when the sky changes.',
-        fullDescriptionSnippet:
-            'Follow the Sky places major visible sky events',
-      ),
       _CoreDetailLayoutCase(
         key: 'the-weighing',
         prompt: 'What needs to be placed on the scale?',
@@ -672,13 +667,8 @@ void main() {
       'lib/features/calendar/calendar_maat_flows.dart',
     ).readAsStringSync();
 
+    // The retired V1 Track Sky scaffold is deleted; V2 has no scaffold builder.
     for (final order in const <_CoreFooterOrderCase>[
-      _CoreFooterOrderCase(
-        start: 'Widget _buildTrackSkyScaffold',
-        end: 'Widget _buildDawnHouseRiteDayTile',
-        outlineMarker: '_buildMaatFlowOverviewZones',
-        footerMarker: '_MaatFlowPracticeDisclaimerFooter',
-      ),
       _CoreFooterOrderCase(
         start: 'Widget _buildTheWeighingScaffold',
         end: 'Widget _buildTheTendingEventTile',

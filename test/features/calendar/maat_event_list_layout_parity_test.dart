@@ -66,6 +66,11 @@ void main() {
     tester,
   ) async {
     for (final entry in _expectedAccents.entries) {
+      // Follow the Sky V2 does not use the shared Ma'at event-row list. Its
+      // detail is a turning surface (next turning / In Kemet / upcoming) with
+      // its own contract, covered by the follow_the_sky suite.
+      if (entry.key == 'track-the-sky') continue;
+
       await _pumpFlow(tester, entry.key);
 
       final rows = _eventRows();

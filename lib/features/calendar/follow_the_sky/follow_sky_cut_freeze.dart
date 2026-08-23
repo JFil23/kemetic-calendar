@@ -7,6 +7,8 @@
 ///   commit SHA immediately after the freeze lands.
 /// - Cut 2 (real user journey: course → turning → function → choice → ritual →
 ///   history): same pattern, `cut2-frozen` / [cut2FrozenSha].
+/// - Cut 3 (hard cutover to V2 + non-destructive migration policy): same
+///   pattern, `cut3-frozen` / [cut3FrozenSha].
 library;
 
 class FollowSkyCutFreeze {
@@ -48,4 +50,24 @@ class FollowSkyCutFreeze {
   /// Bump the suffix whenever diagnosing stale sessions. Debug-only consumers.
   static const String cut2RuntimeStamp =
       'cut2-freeze-20260822a';
+
+  /// Cut 3 — V2 is the only Follow the Sky. Filled by the post-freeze commit.
+  static const String cut3FrozenSha = '';
+
+  static const String cut3Summary =
+      'V1 Track Sky detail scaffold, join sheet and category tiles deleted; '
+      'FollowSkyV2Flags routing fork removed so track-the-sky reaches V2 only; '
+      'stale assets/ma_at_flows pubspec entry and legacy assetPath dropped; '
+      'FollowSkyMigrationApplicator stamps V2 ownership on matched legacy '
+      'futures without rewriting title/time; replace/add stay deferred.';
+
+  /// Temporary Cut 3 runtime stamp for proving the simulator loaded this tree.
+  static const String cut3RuntimeStamp = 'cut3-freeze-20260822a';
+
+  /// Cut 3 answer to the replace/add ambiguity: **do not rewrite or add**.
+  /// Stamp ownership only. V1 never recorded as-generated title/time, so
+  /// "untouched" cannot be proven; unmatched futures must not get a second
+  /// catalog row. [FollowSkyMigrationPolicy] encodes that; the host applies
+  /// [FollowSkyMigrationPlan.stamps] only.
+  static const bool cut3MigrationApplyPending = false;
 }
