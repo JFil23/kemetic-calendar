@@ -23,6 +23,8 @@ import 'package:mobile/utils/calendar_event_markers.dart';
 import 'package:mobile/utils/flow_filter_engine.dart';
 import 'package:mobile/utils/flow_visibility.dart';
 import 'package:flutter/foundation.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 import 'landscape_month_view.dart';
 import 'dart:convert';
 import 'day_view.dart';
@@ -150,6 +152,7 @@ import 'maat_flow_response_models.dart';
 import 'maat_flow_response_resolver.dart';
 import 'maat_flow_identity.dart';
 import 'track_sky_flow.dart';
+import 'follow_the_sky/follow_the_sky.dart';
 import 'dawn_house_rite_flow.dart';
 import 'evening_threshold_flow.dart';
 import 'evening_threshold_rite_flow.dart';
@@ -8173,22 +8176,53 @@ class CalendarPage extends StatefulWidget {
     return _pushDetachedFlowStudioRoute<int?>(
       navigator,
       MaterialPageRoute<int?>(
-        builder: (_) => _MaatFlowTemplateDetailPage(
-          template: template,
-          alreadyJoined: _snapshotHasActiveMaatInstanceFor(
-            _cachedDetachedMyFlowsFilingSnapshot(flowsRepo),
-            template.key,
-          ),
-          addInstance: _addMaatFlowInstanceHeadlessWithCompletion,
-          resizeToAvoidBottomInset: false,
-          onJoined: (flowId) => _completeDetachedMaatJoinWithDayView(
-            navigator: navigator,
+        builder: (_) {
+          // Cut 3.1: detached /flows must still schedule additive migration via
+          // the mounted calendar host. Without this, opening Follow the Sky from
+          // Flow Studio never stamps/adds missing V2 nights.
+          final host = _mountedState;
+          final sky = template.key == 'track-the-sky'
+              ? host?._followSkyLiveInputs()
+              : null;
+          return _MaatFlowTemplateDetailPage(
             template: template,
-            flowId: flowId,
-            flowsRepo: flowsRepo,
-            onClose: onClose,
-          ),
-        ),
+            alreadyJoined: _snapshotHasActiveMaatInstanceFor(
+              _cachedDetachedMyFlowsFilingSnapshot(flowsRepo),
+              template.key,
+            ),
+            followSkyExistingFlowNotes: sky?.notes,
+            followSkyExistingFlowId: sky?.flowId,
+            followSkyCandidates: sky?.candidates ?? const [],
+            followSkyMeasurementIntervals: sky?.intervals ?? const [],
+            onFollowSkyCourseSaved: sky?.flowId == null || host == null
+                ? null
+                : (course, notes) => host._saveFollowSkyCourseNotes(
+                      flowId: sky!.flowId!,
+                      notes: notes,
+                    ),
+            onFollowSkyProtectTime: host == null
+                ? null
+                : ({
+                    required course,
+                    required startLocal,
+                    required endLocal,
+                  }) =>
+                    host._protectFollowSkyCourseTime(
+                      course: course,
+                      startLocal: startLocal,
+                      endLocal: endLocal,
+                    ),
+            addInstance: _addMaatFlowInstanceHeadlessWithCompletion,
+            resizeToAvoidBottomInset: false,
+            onJoined: (flowId) => _completeDetachedMaatJoinWithDayView(
+              navigator: navigator,
+              template: template,
+              flowId: flowId,
+              flowsRepo: flowsRepo,
+              onClose: onClose,
+            ),
+          );
+        },
       ),
       parentRoute: parentRoute,
       visibleState: <String, dynamic>{
@@ -13048,9 +13082,33 @@ class CalendarPageState extends State<CalendarPage>
           if (template == null) return <Route<dynamic>>[hubRoute, listRoute];
 
           final detailRoute = MaterialPageRoute<int?>(
-            builder: (_) => _MaatFlowTemplateDetailPage(
+            builder: (_) {
+              final sky = template.key == 'track-the-sky'
+                  ? _followSkyLiveInputs()
+                  : null;
+              return _MaatFlowTemplateDetailPage(
               template: template,
               alreadyJoined: _hasActiveMaatInstanceFor(template.key),
+              followSkyExistingFlowNotes: sky?.notes,
+              followSkyExistingFlowId: sky?.flowId,
+              followSkyCandidates: sky?.candidates ?? const [],
+              followSkyMeasurementIntervals: sky?.intervals ?? const [],
+              onFollowSkyCourseSaved: sky?.flowId == null
+                  ? null
+                  : (course, notes) => _saveFollowSkyCourseNotes(
+                        flowId: sky!.flowId!,
+                        notes: notes,
+                      ),
+              onFollowSkyProtectTime: ({
+                required course,
+                required startLocal,
+                required endLocal,
+              }) =>
+                  _protectFollowSkyCourseTime(
+                    course: course,
+                    startLocal: startLocal,
+                    endLocal: endLocal,
+                  ),
               addInstance:
                   ({
                     required _MaatFlowTemplate template,
@@ -13115,7 +13173,8 @@ class CalendarPageState extends State<CalendarPage>
                 flowId: flowId,
                 templateKey: template.key,
               ),
-            ),
+            );
+            },
           );
           unawaited(
             detailRoute.popped.then((importedFlowId) async {
@@ -13332,10 +13391,34 @@ class CalendarPageState extends State<CalendarPage>
     return _pushFlowStudioRoute<int?>(
       navigator,
       MaterialPageRoute<int?>(
-        builder: (_) => _MaatFlowTemplateDetailPage(
+        builder: (_) {
+          final sky = template.key == 'track-the-sky'
+              ? _followSkyLiveInputs()
+              : null;
+          return _MaatFlowTemplateDetailPage(
           template: template,
           alreadyJoined: _hasActiveMaatInstanceFor(template.key),
           resizeToAvoidBottomInset: persistOverlay,
+          followSkyExistingFlowNotes: sky?.notes,
+          followSkyExistingFlowId: sky?.flowId,
+          followSkyCandidates: sky?.candidates ?? const [],
+          followSkyMeasurementIntervals: sky?.intervals ?? const [],
+          onFollowSkyCourseSaved: sky?.flowId == null
+              ? null
+              : (course, notes) => _saveFollowSkyCourseNotes(
+                    flowId: sky!.flowId!,
+                    notes: notes,
+                  ),
+          onFollowSkyProtectTime: ({
+            required course,
+            required startLocal,
+            required endLocal,
+          }) =>
+              _protectFollowSkyCourseTime(
+                course: course,
+                startLocal: startLocal,
+                endLocal: endLocal,
+              ),
           addInstance:
               ({
                 required _MaatFlowTemplate template,
@@ -13396,7 +13479,8 @@ class CalendarPageState extends State<CalendarPage>
             flowId: flowId,
             templateKey: template.key,
           ),
-        ),
+        );
+        },
       ),
       visibleState: <String, dynamic>{
         'mode': _kFlowStudioModeMaatTemplate,
@@ -27980,6 +28064,632 @@ class CalendarPageState extends State<CalendarPage>
     });
   }
 
+  _Flow? _activeFlowForMaatTemplate(String tplKey) {
+    for (final flow in _flows) {
+      if (CalendarPage._isFlowEndSuppressed(flow.id)) continue;
+      if (!CalendarPage._flowMatchesActiveMaatTemplate(flow, tplKey)) continue;
+      return flow;
+    }
+    return null;
+  }
+
+  /// Live Follow the Sky inputs: course notes + real activity for measurement.
+  /// Live Follow the Sky inputs: course notes + activity for Connect/Measure.
+  /// Connect candidates stay flow-backed. Measure intervals also include
+  /// Protect-stamped single blocks owned by the active Course.
+  ({
+    String? notes,
+    int? flowId,
+    List<CourseActivitySignal> candidates,
+    List<CourseMeasurementInterval> intervals,
+  }) _followSkyLiveInputs() {
+    final flow = _activeFlowForMaatTemplate('track-the-sky');
+    final now = DateTime.now();
+    final snapshots = <CourseActivitySnapshot>[];
+    final blocks = <FollowSkyCalendarBlock>[];
+    final decodedCourse = TrackSkyCourseMetadataCodec().decode(flow?.notes);
+    final rehydrated = _rehydrateFollowSkyCourse(
+      flow: flow,
+      decodedCourse: decodedCourse,
+    );
+    final course = rehydrated.course;
+
+    for (final entry in _notes.entries) {
+      final parts = entry.key.split('-');
+      if (parts.length != 3) continue;
+      final y = int.tryParse(parts[0]);
+      final m = int.tryParse(parts[1]);
+      final d = int.tryParse(parts[2]);
+      if (y == null || m == null || d == null) continue;
+      for (final note in entry.value) {
+        final start = note.allDay || note.start == null
+            ? DateTime(y, m, d, 9, 0)
+            : DateTime(y, m, d, note.start!.hour, note.start!.minute);
+        final end = note.allDay || note.end == null
+            ? start.add(const Duration(hours: 1))
+            : DateTime(y, m, d, note.end!.hour, note.end!.minute);
+        final noteFlowId = note.flowId;
+        final sourceFlow = noteFlowId == null || noteFlowId <= 0
+            ? null
+            : () {
+                for (final f in _flows) {
+                  if (f.id == noteFlowId) return f;
+                }
+                return null;
+              }();
+        // A block only counts as course-measurable activity when its flow still
+        // exists and is not Follow the Sky's own generated flow.
+        final measurableFlowId =
+            sourceFlow == null || _isTrackSkyFlowName(sourceFlow.name)
+                ? null
+                : noteFlowId;
+
+        blocks.add(
+          FollowSkyCalendarBlock(
+            start: start,
+            end: end,
+            flowId: measurableFlowId,
+            actionId: note.actionId,
+            behaviorPayload: note.behaviorPayload,
+          ),
+        );
+
+        if (sourceFlow == null || measurableFlowId == null) continue;
+        final maatKind = resolveMaatFlowKind(
+          flowName: sourceFlow.name,
+          flowNotes: sourceFlow.notes,
+        );
+        final safeEnd =
+            end.isAfter(start) ? end : start.add(const Duration(minutes: 30));
+        snapshots.add(
+          CourseActivitySnapshot(
+            label: sourceFlow.name,
+            sourceType: TrackSkyCourseSourceType.flow,
+            sourceId: TrackSkyCourseSourceIdentity.forFlow(measurableFlowId),
+            startsAt: start,
+            endsAt: safeEnd,
+            isHidden: sourceFlow.isHidden,
+            isSystemOrMaat: maatKind != null,
+            isActive: sourceFlow.active,
+          ),
+        );
+      }
+    }
+
+    final candidates = const CourseActivityAggregator().aggregate(
+      snapshots: snapshots,
+      now: now,
+    );
+    final flowId = flow?.id;
+    if (flowId != null && flowId > 0) {
+      unawaited(_scheduleFollowSkyLegacyMigration(flowId: flowId));
+    }
+    return (
+      notes: rehydrated.notes,
+      flowId: flowId,
+      candidates: candidates,
+      intervals: const FollowSkyCourseAttribution().intervalsFor(
+        course: course,
+        blocks: blocks,
+      ),
+    );
+  }
+
+  /// Cut 3.1: stamp ownership on legacy rows and add missing V2 observing nights.
+  /// Never rewrites existing title/time; never cancels existing notifications;
+  /// never duplicates a represented night.
+  ///
+  /// Concurrent entry paths coalesce onto one process-wide job per user+flow.
+  Future<FollowSkyMigrationJobReceipt> _scheduleFollowSkyLegacyMigration({
+    required int flowId,
+  }) {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    return FollowSkyMigrationJobCoordinator.instance.run(
+      userId: userId,
+      flowId: flowId,
+      job: () async {
+        // Defer one frame so the opening route can mount, then run the full
+        // plan+persist job before any coalesced waiter is released.
+        final frame = Completer<void>();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!frame.isCompleted) frame.complete();
+        });
+        await frame.future;
+        if (!mounted) {
+          return const FollowSkyMigrationJobReceipt(
+            stamped: 0,
+            added: 0,
+            failed: 0,
+            represented: 0,
+            canonical: 0,
+            plannedStampIds: <String>[],
+            plannedAddSkyEventIds: <String>[],
+          );
+        }
+        try {
+          return await _applyFollowSkyLegacyMigration(flowId: flowId);
+        } catch (e) {
+          debugPrint('[FollowSky][migrate] failed: $e');
+          rethrow;
+        }
+      },
+    );
+  }
+
+  String _followSkyIanaTimeZoneForFlow(_Flow? flow) {
+    final notes = flow?.notes ?? '';
+    for (final part in notes.split(';')) {
+      final trimmed = part.trim();
+      if (!trimmed.startsWith('sky_tz=')) continue;
+      final key = trimmed.substring('sky_tz='.length).trim();
+      final parsed = TrackSkyTimeZoneX.tryParse(key);
+      if (parsed != null) return parsed.ianaName;
+    }
+    return detectTrackSkyTimeZone().ianaName;
+  }
+
+  List<FollowSkyLegacyCalendarRow> _followSkyMigrationRowsFromNotes({
+    required int flowId,
+    required DateTime nowUtc,
+    required Map<String, ({String dayKey, int index, _Note note})> byClientId,
+    required Set<String> knownClientIds,
+  }) {
+    final rows = <FollowSkyLegacyCalendarRow>[];
+    for (final entry in _notes.entries) {
+      final parts = entry.key.split('-');
+      if (parts.length != 3) continue;
+      final ky = int.tryParse(parts[0]);
+      final km = int.tryParse(parts[1]);
+      final kd = int.tryParse(parts[2]);
+      if (ky == null || km == null || kd == null) continue;
+      final gDay = KemeticMath.toGregorian(ky, km, kd);
+      final notes = entry.value;
+      for (var i = 0; i < notes.length; i++) {
+        final note = notes[i];
+        if (note.flowId != flowId) continue;
+        final clientEventId = note.clientEventId?.trim();
+        if (clientEventId == null || clientEventId.isEmpty) continue;
+        final startLocal = note.allDay || note.start == null
+            ? DateTime(gDay.year, gDay.month, gDay.day, 9, 0)
+            : DateTime(
+                gDay.year,
+                gDay.month,
+                gDay.day,
+                note.start!.hour,
+                note.start!.minute,
+              );
+        final startsAtUtc = startLocal.toUtc();
+        rows.add(
+          FollowSkyLegacyCalendarRow(
+            clientEventId: clientEventId,
+            title: note.title,
+            startsAtUtc: startsAtUtc,
+            behaviorPayload: note.behaviorPayload,
+            isPastOrCompleted: !startsAtUtc.isAfter(nowUtc),
+          ),
+        );
+        byClientId[clientEventId] = (dayKey: entry.key, index: i, note: note);
+        knownClientIds.add(clientEventId);
+      }
+    }
+    return rows;
+  }
+
+  Future<void> _followSkyMergeRemoteMigrationRows({
+    required int flowId,
+    required DateTime nowUtc,
+    required UserEventsRepo repo,
+    required List<FollowSkyLegacyCalendarRow> rows,
+    required Map<String, ({String dayKey, int index, _Note note})> byClientId,
+    required Set<String> knownClientIds,
+  }) async {
+    // Authoritative flow rows (beyond the hydrated viewport) so a second plan
+    // cannot treat still-persisting / out-of-viewport nights as missing.
+    try {
+      final remote = await repo.getEventsForFlow(flowId);
+      for (final event in remote) {
+        final clientEventId = event.clientEventId?.trim();
+        if (clientEventId == null || clientEventId.isEmpty) continue;
+        knownClientIds.add(clientEventId);
+        if (byClientId.containsKey(clientEventId)) continue;
+        final already = rows.any((r) => r.clientEventId == clientEventId);
+        if (already) continue;
+        final startsAtUtc = event.startsAtUtc.toUtc();
+        rows.add(
+          FollowSkyLegacyCalendarRow(
+            clientEventId: clientEventId,
+            title: event.title,
+            startsAtUtc: startsAtUtc,
+            behaviorPayload: event.behaviorPayload,
+            isPastOrCompleted: !startsAtUtc.isAfter(nowUtc),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[FollowSky][migrate] flow event load failed: $e');
+    }
+  }
+
+  Future<FollowSkyMigrationJobReceipt> _applyFollowSkyLegacyMigration({
+    required int flowId,
+  }) async {
+    final nowUtc = DateTime.now().toUtc();
+    final flow = () {
+      for (final f in _flows) {
+        if (f.id == flowId) return f;
+      }
+      return null;
+    }();
+    final byClientId = <String, ({String dayKey, int index, _Note note})>{};
+    final knownClientIds = <String>{};
+    final rows = _followSkyMigrationRowsFromNotes(
+      flowId: flowId,
+      nowUtc: nowUtc,
+      byClientId: byClientId,
+      knownClientIds: knownClientIds,
+    );
+
+    final repo = UserEventsRepo(Supabase.instance.client);
+    await _followSkyMergeRemoteMigrationRows(
+      flowId: flowId,
+      nowUtc: nowUtc,
+      repo: repo,
+      rows: rows,
+      byClientId: byClientId,
+      knownClientIds: knownClientIds,
+    );
+
+    final iana = _followSkyIanaTimeZoneForFlow(flow);
+    final catalog = await SkyCatalogRepository().load();
+    final materializer = TrackSkyMaterializer(
+      toLocal: (utc, zone) =>
+          tz.TZDateTime.from(utc.toUtc(), tz.getLocation(zone)),
+      toUtc: (local, zone) => tz.TZDateTime(
+        tz.getLocation(zone),
+        local.year,
+        local.month,
+        local.day,
+        local.hour,
+        local.minute,
+        local.second,
+      ).toUtc(),
+    );
+    final applicator = FollowSkyMigrationApplicator(materializer: materializer);
+    final plan = applicator.plan(
+      catalog: catalog,
+      nowUtc: nowUtc,
+      rows: rows,
+      ianaTimeZone: iana,
+      flowStillActive: true,
+    );
+    final plannedStampIds = [
+      for (final stamp in plan.stamps) stamp.clientEventId,
+    ];
+    final plannedAddSkyEventIds = [
+      for (final add in plan.adds) add.skyEventId,
+    ];
+    debugPrint(
+      '[FollowSky][migrate] stamp=${FollowSkyCutFreeze.cut3RuntimeStamp} '
+      '${plan.auditLine}',
+    );
+    if (plannedAddSkyEventIds.isNotEmpty) {
+      debugPrint(
+        '[FollowSky][migrate] addSkyEventIds=${plannedAddSkyEventIds.join(',')}',
+      );
+    }
+
+    var stamped = 0;
+    var added = 0;
+    var failed = 0;
+
+    if (!plan.writesNothing) {
+      var wrote = false;
+
+      for (final stamp in plan.stamps) {
+        final located = byClientId[stamp.clientEventId];
+        if (located == null) continue;
+        final note = located.note;
+        if (FollowSkyMigrationPolicy().alreadyOwned(note.behaviorPayload)) {
+          stamped += 1;
+          continue;
+        }
+        final dayNotes = _notes[located.dayKey];
+        if (dayNotes == null || located.index >= dayNotes.length) continue;
+        final updated = note.copyWith(behaviorPayload: stamp.behaviorPayload);
+        final next = List<_Note>.from(dayNotes);
+        next[located.index] = updated;
+        _notes[located.dayKey] = next;
+        wrote = true;
+        final serverId = note.id?.trim();
+        if (serverId == null || serverId.isEmpty) {
+          stamped += 1;
+          continue;
+        }
+        try {
+          // Sparse patch: behavior_payload only. Never move title/time.
+          await repo.update(
+            id: serverId,
+            behaviorPayload: stamp.behaviorPayload,
+          );
+          stamped += 1;
+        } catch (e) {
+          failed += 1;
+          debugPrint(
+            '[FollowSky][migrate] stamp persist failed '
+            'cid=${stamp.clientEventId}: $e',
+          );
+        }
+      }
+
+      final calendarId = flow?.calendarId ?? _personalCalendarId;
+      for (final add in plan.adds) {
+        final occ = add.occurrence;
+        final dayLocal = DateUtils.dateOnly(occ.startsAtLocal);
+        final k = KemeticMath.fromGregorian(dayLocal);
+        final clientEventId = EventCidUtil.buildClientEventId(
+          ky: k.kYear,
+          km: k.kMonth,
+          kd: k.kDay,
+          title: occ.title,
+          startHour: occ.allDay ? 9 : occ.startsAtLocal.hour,
+          startMinute: occ.allDay ? 0 : occ.startsAtLocal.minute,
+          allDay: occ.allDay,
+          flowId: flowId,
+        );
+        if (knownClientIds.contains(clientEventId)) {
+          added += 1;
+          continue;
+        }
+        final dayKey = _kKey(k.kYear, k.kMonth, k.kDay);
+        final startTod = occ.allDay
+            ? null
+            : TimeOfDay(
+                hour: occ.startsAtLocal.hour,
+                minute: occ.startsAtLocal.minute,
+              );
+        final endTod = occ.allDay
+            ? null
+            : TimeOfDay(
+                hour: occ.endsAtLocal.hour,
+                minute: occ.endsAtLocal.minute,
+              );
+        final localNote = _Note(
+          clientEventId: clientEventId,
+          calendarId: calendarId,
+          title: occ.title,
+          detail: occ.detail,
+          allDay: occ.allDay,
+          start: startTod,
+          end: endTod,
+          flowId: flowId,
+          category: occ.category,
+          behaviorPayload: occ.behaviorPayload,
+        );
+        final bucket = List<_Note>.from(_notes[dayKey] ?? const <_Note>[]);
+        bucket.add(localNote);
+        _notes[dayKey] = bucket;
+        byClientId[clientEventId] = (
+          dayKey: dayKey,
+          index: bucket.length - 1,
+          note: localNote,
+        );
+        knownClientIds.add(clientEventId);
+        wrote = true;
+        try {
+          await repo.upsertByClientId(
+            clientEventId: clientEventId,
+            title: occ.title,
+            startsAtUtc: occ.startsAtUtc,
+            detail: occ.detail,
+            allDay: occ.allDay,
+            endsAtUtc: occ.endsAtUtc,
+            flowLocalId: flowId,
+            category: occ.category,
+            behaviorPayload: occ.behaviorPayload,
+            calendarId: calendarId,
+            caller: 'follow_sky_cut3_additive',
+          );
+          added += 1;
+        } catch (e) {
+          failed += 1;
+          debugPrint(
+            '[FollowSky][migrate] add persist failed '
+            'sky=${add.skyEventId}: $e',
+          );
+        }
+      }
+
+      if (wrote && mounted) setState(() {});
+    }
+
+    // Recompute coverage against local + authoritative remote after writes so
+    // coalesced waiters only release once durable state is visible to planning.
+    final postByClientId =
+        <String, ({String dayKey, int index, _Note note})>{};
+    final postKnown = <String>{};
+    final postRows = _followSkyMigrationRowsFromNotes(
+      flowId: flowId,
+      nowUtc: nowUtc,
+      byClientId: postByClientId,
+      knownClientIds: postKnown,
+    );
+    await _followSkyMergeRemoteMigrationRows(
+      flowId: flowId,
+      nowUtc: nowUtc,
+      repo: repo,
+      rows: postRows,
+      byClientId: postByClientId,
+      knownClientIds: postKnown,
+    );
+    final postPlan = applicator.plan(
+      catalog: catalog,
+      nowUtc: nowUtc,
+      rows: postRows,
+      ianaTimeZone: iana,
+      flowStillActive: true,
+    );
+    final receipt = FollowSkyMigrationJobReceipt(
+      stamped: stamped,
+      added: added,
+      failed: failed,
+      represented: postPlan.coverage.representedByLegacy,
+      canonical: postPlan.coverage.canonicalNightsInWindow,
+      plannedStampIds: plannedStampIds,
+      plannedAddSkyEventIds: plannedAddSkyEventIds,
+    );
+    debugPrint(
+      '[FollowSky][migrate-complete] ${receipt.completeAuditLine}',
+    );
+    return receipt;
+  }
+
+  /// Follow the Sky enrollment orchestration, reused outside the detail page for
+  /// Gate 16 course rehydration against the live flow catalog.
+  late final TrackSkyEnrollmentService _followSkyEnrollment =
+      TrackSkyEnrollmentService(
+        materializer: TrackSkyMaterializer(
+          toLocal: (utc, iana) =>
+              tz.TZDateTime.from(utc.toUtc(), tz.getLocation(iana)),
+          toUtc: (local, iana) => tz.TZDateTime(
+            tz.getLocation(iana),
+            local.year,
+            local.month,
+            local.day,
+            local.hour,
+            local.minute,
+            local.second,
+          ).toUtc(),
+        ),
+        visibilityService: const SkyVisibilityService(),
+      );
+
+  /// Gate 16: a course linked to a flow that no longer exists must unlink to
+  /// free text. It must never alias a different flow that reused the label.
+  ({TrackSkyCourse? course, String? notes}) _rehydrateFollowSkyCourse({
+    required _Flow? flow,
+    required TrackSkyCourse? decodedCourse,
+  }) {
+    if (flow == null || decodedCourse == null) {
+      return (course: decodedCourse, notes: flow?.notes);
+    }
+    final resolved = _followSkyEnrollment.rehydrateCourse(
+      course: decodedCourse,
+      flowsByServerId: <int, HydratedFlowRef>{
+        for (final candidate in _flows)
+          if (candidate.id > 0)
+            candidate.id: HydratedFlowRef(
+              serverId: candidate.id,
+              name: candidate.name,
+            ),
+      },
+    );
+    if (resolved.sourceId == decodedCourse.sourceId &&
+        resolved.sourceType == decodedCourse.sourceType) {
+      return (course: decodedCourse, notes: flow.notes);
+    }
+
+    final repairedNotes = _followSkyEnrollment.notesWithCourse(
+      existingNotes: flow.notes,
+      course: resolved,
+    );
+    if (flow.id > 0) {
+      _scheduleFollowSkyCourseNotesRepair(flowId: flow.id, notes: repairedNotes);
+    }
+    return (course: resolved, notes: repairedNotes);
+  }
+
+  final Set<int> _followSkyCourseRepairsInFlight = <int>{};
+
+  /// Persists a Gate 16 unlink after the current frame; this runs from build.
+  void _scheduleFollowSkyCourseNotesRepair({
+    required int flowId,
+    required String notes,
+  }) {
+    if (_followSkyCourseRepairsInFlight.contains(flowId)) return;
+    _followSkyCourseRepairsInFlight.add(flowId);
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        if (!mounted) return;
+        await _saveFollowSkyCourseNotes(flowId: flowId, notes: notes);
+      } finally {
+        _followSkyCourseRepairsInFlight.remove(flowId);
+      }
+    });
+  }
+
+  Future<void> _saveFollowSkyCourseNotes({
+    required int flowId,
+    required String notes,
+  }) async {
+    final idx = _flows.indexWhere((f) => f.id == flowId);
+    if (idx < 0) return;
+    final flow = _flows[idx];
+    flow.notes = notes;
+    try {
+      await FlowsRepo(Supabase.instance.client).update(
+        id: flowId,
+        name: flow.name,
+        color: flow.color.toARGB32(),
+        active: flow.active,
+        calendarId: flow.calendarId,
+        startDate: flow.start,
+        endDate: flow.end,
+        notes: notes,
+        rulesJson: flow.rules.map(ruleToJson).toList(),
+        isReminder: flow.isReminder,
+        reminderUuid: flow.reminderUuid,
+      );
+    } catch (e) {
+      debugPrint('[FollowSky] failed to persist course notes: $e');
+    }
+    if (mounted) setState(() {});
+  }
+
+  /// Protect Time creates a normal single calendar block owned by the Course.
+  /// It does **not** create a permanent My Flows entry. The block is stamped
+  /// with [FollowSkyCourseOwnership] so measurement works without Connect.
+  Future<void> _protectFollowSkyCourseTime({
+    required TrackSkyCourse course,
+    required DateTime startLocal,
+    required DateTime endLocal,
+  }) async {
+    final title = course.label.trim();
+    if (title.isEmpty) return;
+
+    final dayLocal = DateTime(startLocal.year, startLocal.month, startLocal.day);
+    final k = KemeticMath.fromGregorian(dayLocal);
+    final calendarId = _personalCalendarId;
+    final calendarName = _calendarDisplayName(calendarId);
+    final startTod = TimeOfDay(hour: startLocal.hour, minute: startLocal.minute);
+    final endTod = TimeOfDay(hour: endLocal.hour, minute: endLocal.minute);
+    final ownership = FollowSkyCourseOwnership.behaviorPayload(
+      courseId: course.courseId,
+    );
+
+    try {
+      await _saveSingleNoteOnly(
+        selYear: k.kYear,
+        selMonth: k.kMonth,
+        selDay: k.kDay,
+        title: title,
+        detail: null,
+        calendarId: calendarId,
+        calendarName: calendarName,
+        allDay: false,
+        startTime: startTod,
+        endTime: endTod,
+        color: const Color(0xFF6876D8),
+        actionId: FollowSkyCourseOwnership.actionId,
+        behaviorPayload: ownership,
+        notifyShared: false,
+      );
+    } catch (e) {
+      debugPrint('[FollowSky] protect time failed: $e');
+      return;
+    }
+    if (mounted) setState(() {});
+  }
+
   _MaatFlowCompletionStatus? _maatCompletionStatusForActiveInstance(
     String tplKey,
   ) {
@@ -30650,6 +31360,9 @@ class CalendarPageState extends State<CalendarPage>
                                       color: selectedColor,
                                       category: selectedCategory,
                                       alertMinutesBefore: alertMinutesBefore,
+                                      actionId: existingNote.actionId,
+                                      behaviorPayload:
+                                          existingNote.behaviorPayload,
                                     );
                                   } else {
                                     final save = beginOptimisticNoteEditorSave(
@@ -32421,6 +33134,8 @@ class CalendarPageState extends State<CalendarPage>
     String? category,
     int alertMinutesBefore = _alertNoneMinutes,
     bool notifyShared = true,
+    String? actionId,
+    Map<String, dynamic>? behaviorPayload,
   }) async {
     // Compute event start + alert time
     final gDay = KemeticMath.toGregorian(selYear, selMonth, selDay);
@@ -32446,6 +33161,8 @@ class CalendarPageState extends State<CalendarPage>
       manualColor: color,
       category: category,
       alertOffsetMinutes: alertMinutesBefore,
+      actionId: actionId,
+      behaviorPayload: behaviorPayload,
     );
 
     // Build canonical clientEventId for this manual note
@@ -32479,6 +33196,8 @@ class CalendarPageState extends State<CalendarPage>
       manualColor: color,
       category: category,
       alertOffsetMinutes: alertMinutesBefore,
+      actionId: actionId,
+      behaviorPayload: behaviorPayload,
       confirmation: NoteConfirmation.unconfirmed,
       unconfirmedCreatedAt: pendingCreatedAt,
     );
@@ -32516,6 +33235,8 @@ class CalendarPageState extends State<CalendarPage>
         endsAtUtc: endsAtUtc,
         category: category,
         calendarId: calendarId,
+        actionId: actionId,
+        behaviorPayload: behaviorPayload,
         caller: 'save_single',
       );
 
@@ -32661,6 +33382,8 @@ class CalendarPageState extends State<CalendarPage>
     Color? color,
     String? category,
     int alertMinutesBefore = _alertNoneMinutes,
+    String? actionId,
+    Map<String, dynamic>? behaviorPayload,
   }) async {
     if (isImportedDeviceCalendarEvent(
       clientEventId: previousClientEventId,
@@ -32693,6 +33416,8 @@ class CalendarPageState extends State<CalendarPage>
       manualColor: color,
       category: category,
       alertOffsetMinutes: alertMinutesBefore,
+      actionId: actionId,
+      behaviorPayload: behaviorPayload,
     );
     final bodyLines = <String>[
       if (location != null && location.isNotEmpty) location,
@@ -32746,6 +33471,8 @@ class CalendarPageState extends State<CalendarPage>
       startsAt: startLocal,
       endsAt: endsAtUtc,
       category: effectiveCategory,
+      actionId: actionId,
+      behaviorPayload: behaviorPayload,
     );
 
     final savedClientEventId = updated.clientEventId ?? unifiedCid;
@@ -32772,6 +33499,8 @@ class CalendarPageState extends State<CalendarPage>
       manualColor: color,
       category: effectiveCategory,
       alertOffsetMinutes: alertMinutesBefore,
+      actionId: actionId,
+      behaviorPayload: behaviorPayload,
     );
 
     final scheduleResult = await _scheduleAlertForEvent(

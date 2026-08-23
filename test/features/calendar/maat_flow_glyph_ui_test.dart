@@ -301,7 +301,6 @@ void main() {
     );
     const scaffoldBuilders = [
       '_buildEnrollmentUnavailableScaffold',
-      '_buildTrackSkyScaffold',
       '_buildDawnHouseRiteScaffold',
       '_buildEveningThresholdRiteScaffold',
       '_buildTheWeighingScaffold',
@@ -327,6 +326,30 @@ void main() {
         reason: '$builder should render through the shared detail scaffold.',
       );
     }
+
+    // Follow the Sky V2 has no scaffold builder of its own; the trackSky branch
+    // in build() renders V2 content inside the shared detail scaffold.
+    final trackSkyBranchStart = detailState.indexOf(
+      'widget.template.kind == _MaatFlowTemplateKind.trackSky',
+    );
+    expect(trackSkyBranchStart, isNonNegative);
+    final trackSkyBranch = detailState.substring(
+      trackSkyBranchStart,
+      detailState.indexOf(
+        'widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite',
+        trackSkyBranchStart,
+      ),
+    );
+    expect(
+      trackSkyBranch,
+      contains('return _buildMaatFlowDetailScaffold('),
+      reason: 'the trackSky branch should render through the shared scaffold.',
+    );
+    expect(
+      source,
+      isNot(contains('_buildTrackSkyScaffold')),
+      reason: 'the retired V1 Track Sky scaffold must stay deleted.',
+    );
   });
 
   test('The Weighing detail restructure preserves control handlers', () {

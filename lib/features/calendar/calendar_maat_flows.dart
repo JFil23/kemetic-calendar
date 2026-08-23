@@ -2143,6 +2143,12 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
     this.showBackButton = true,
     this.embeddedInOnboarding = false,
     this.resizeToAvoidBottomInset = true,
+    this.followSkyExistingFlowNotes,
+    this.followSkyExistingFlowId,
+    this.followSkyCandidates = const [],
+    this.followSkyMeasurementIntervals = const [],
+    this.onFollowSkyCourseSaved,
+    this.onFollowSkyProtectTime,
   });
 
   final _MaatFlowTemplate template;
@@ -2177,6 +2183,19 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
   final bool showBackButton;
   final bool embeddedInOnboarding;
   final bool resizeToAvoidBottomInset;
+
+  /// Joined Follow the Sky flow notes (course metadata).
+  final String? followSkyExistingFlowNotes;
+  final int? followSkyExistingFlowId;
+  final List<CourseActivitySignal> followSkyCandidates;
+  final List<CourseMeasurementInterval> followSkyMeasurementIntervals;
+  final Future<void> Function(TrackSkyCourse? course, String notes)?
+      onFollowSkyCourseSaved;
+  final Future<void> Function({
+    required TrackSkyCourse course,
+    required DateTime startLocal,
+    required DateTime endLocal,
+  })? onFollowSkyProtectTime;
 
   @override
   State<_MaatFlowTemplateDetailPage> createState() =>
@@ -2291,7 +2310,8 @@ class _MaatFlowArcChevron extends StatelessWidget {
 class _MaatFlowTemplateDetailPageState
     extends State<_MaatFlowTemplateDetailPage> {
   late TrackSkyTimeZone _previewTrackSkyTimeZone;
-  Future<TrackSkyFlowData>? _trackSkyFuture;
+  final GlobalKey<FollowSkyDetailPageState> _followSkyDetailKey =
+      GlobalKey<FollowSkyDetailPageState>();
   bool _dawnDiscreetMode = false;
   DawnHouseRiteLens _dawnLens = DawnHouseRiteLens.neutral;
   bool _dawnStartDateTouched = false;
@@ -2372,9 +2392,7 @@ class _MaatFlowTemplateDetailPageState
   void initState() {
     super.initState();
     _previewTrackSkyTimeZone = detectTrackSkyTimeZone();
-    if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
-      _trackSkyFuture = loadTrackSkyFlowData(_previewTrackSkyTimeZone);
-    } else if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
+    if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
       _picked = defaultDawnHouseRiteStartDate(_previewTrackSkyTimeZone);
     } else if (widget.template.kind == _MaatFlowTemplateKind.eveningThreshold) {
       _picked = defaultEveningThresholdStartDate(_previewTrackSkyTimeZone);
@@ -3428,9 +3446,7 @@ class _MaatFlowTemplateDetailPageState
     }
     setState(() {
       _previewTrackSkyTimeZone = timezone;
-      if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
-        _trackSkyFuture = loadTrackSkyFlowData(timezone);
-      } else if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite &&
+      if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite &&
           !_dawnStartDateTouched) {
         _picked = defaultDawnHouseRiteStartDate(timezone);
       } else if (widget.template.kind ==
@@ -4314,371 +4330,42 @@ class _MaatFlowTemplateDetailPageState
     });
   }
 
-  Future<void> _openTrackSkyJoinSheet() async {
-    TrackSkyTimeZone selectedTimeZone = _previewTrackSkyTimeZone;
-    int? selectedAlertMinutes;
-    bool isWorking = false;
+  /// Follow the Sky dock: Join → Carry this course → Open next turning.
+  /// Never shows inert "Joined" as a CTA.
+  Widget _buildFollowSkyStickyDockButton() {
+    if (!widget.alreadyJoined) {
+      return _buildTemplateStickyJoinButton(
+        onPressed: () {
+          final state = _followSkyDetailKey.currentState;
+          if (state != null) unawaited(state.joinFromDock());
+        },
+      );
+    }
 
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.black,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-      ),
-      builder: (sheetCtx) {
-        final media = MediaQuery.of(sheetCtx);
-        return StatefulBuilder(
-          builder: (sheetCtx, setSheetState) {
-            return AnimatedPadding(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-              padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
-              child: SafeArea(
-                top: false,
-                child: FractionallySizedBox(
-                  heightFactor: 0.88,
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      16,
-                      16,
-                      16,
-                      16 + media.padding.bottom,
-                    ),
-                    child: FutureBuilder<TrackSkyFlowData>(
-                      future: loadTrackSkyFlowData(selectedTimeZone),
-                      builder: (context, snapshot) {
-                        final data = snapshot.data;
-                        final upcoming = data == null
-                            ? const <TrackSkyEvent>[]
-                            : upcomingTrackSkyEvents(data);
-                        final dateRange = upcoming.isEmpty
-                            ? null
-                            : '${_dateLabel(context, DateTime.parse(upcoming.first.schedule.dateIso))} → ${_dateLabel(context, DateTime.parse(upcoming.last.schedule.dateIso))}';
+    final detail = _followSkyDetailKey.currentState;
+    final hasCourse = detail?.hasActiveCourse ??
+        (TrackSkyCourseMetadataCodec()
+                .decode(widget.followSkyExistingFlowNotes) !=
+            null);
 
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Center(
-                              child: Container(
-                                width: 36,
-                                height: 4,
-                                margin: const EdgeInsets.only(bottom: 12),
-                                decoration: BoxDecoration(
-                                  color: Colors.white24,
-                                  borderRadius: BorderRadius.circular(2),
-                                ),
-                              ),
-                            ),
-                            Expanded(
-                              child: ListView(
-                                padding: EdgeInsets.zero,
-                                children: [
-                                  const GlossyText(
-                                    text: 'Join Follow the sky',
-                                    gradient: _maatBadgeGoldGloss,
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    'Choose your timezone and alert preference. The remaining sky events for that timezone will be added to your calendar.',
-                                    style: const TextStyle(
-                                      color: Colors.white70,
-                                      height: 1.35,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  const Text(
-                                    'Timezone',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  RadioGroup<TrackSkyTimeZone>(
-                                    groupValue: selectedTimeZone,
-                                    onChanged: (value) {
-                                      if (isWorking || value == null) return;
-                                      setSheetState(() {
-                                        selectedTimeZone = value;
-                                      });
-                                    },
-                                    child: Column(
-                                      children: TrackSkyTimeZone.values
-                                          .map((timezone) {
-                                            return RadioListTile<
-                                              TrackSkyTimeZone
-                                            >(
-                                              value: timezone,
-                                              enabled: !isWorking,
-                                              activeColor: _gold,
-                                              contentPadding: EdgeInsets.zero,
-                                              title: Text(
-                                                timezone.label,
-                                                style: const TextStyle(
-                                                  color: Colors.white,
-                                                ),
-                                              ),
-                                              subtitle: Text(
-                                                timezone.shortLabel,
-                                                style: const TextStyle(
-                                                  color: Colors.white54,
-                                                ),
-                                              ),
-                                            );
-                                          })
-                                          .toList(growable: false),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  const Text(
-                                    'Alert',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  ListTile(
-                                    contentPadding: EdgeInsets.zero,
-                                    title: const Text(
-                                      'Alert preference',
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                    subtitle: Text(
-                                      selectedAlertMinutes == null
-                                          ? 'Choose when you want to be reminded'
-                                          : _alertLabelFor(
-                                              selectedAlertMinutes,
-                                            ),
-                                      style: TextStyle(
-                                        color: selectedAlertMinutes == null
-                                            ? _gold
-                                            : Colors.white54,
-                                      ),
-                                    ),
-                                    trailing: const Icon(
-                                      Icons.chevron_right,
-                                      color: _silver,
-                                    ),
-                                    onTap: isWorking
-                                        ? null
-                                        : () async {
-                                            final picked =
-                                                await _pickAlertMinutes(
-                                                  sheetCtx,
-                                                  selectedAlertMinutes,
-                                                );
-                                            if (picked == null) return;
-                                            setSheetState(() {
-                                              selectedAlertMinutes = picked;
-                                            });
-                                          },
-                                  ),
-                                  if (snapshot.hasError) ...[
-                                    const SizedBox(height: 8),
-                                    const Text(
-                                      'Could not load sky events for this timezone.',
-                                      style: TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Align(
-                                      alignment: Alignment.centerLeft,
-                                      child: OutlinedButton(
-                                        style: OutlinedButton.styleFrom(
-                                          foregroundColor: _gold,
-                                          side: const BorderSide(
-                                            color: _gold,
-                                            width: 1.1,
-                                          ),
-                                        ),
-                                        onPressed: isWorking
-                                            ? null
-                                            : () {
-                                                clearTrackSkyFlowCache(
-                                                  selectedTimeZone,
-                                                );
-                                                setSheetState(() {});
-                                              },
-                                        child: const Text('Retry'),
-                                      ),
-                                    ),
-                                  ] else if (snapshot.connectionState ==
-                                      ConnectionState.waiting)
-                                    const Padding(
-                                      padding: EdgeInsets.symmetric(
-                                        vertical: 12,
-                                      ),
-                                      child: Center(
-                                        child: CircularProgressIndicator(),
-                                      ),
-                                    )
-                                  else ...[
-                                    const SizedBox(height: 8),
-                                    Text(
-                                      upcoming.isEmpty
-                                          ? 'No upcoming sky events remain in this timezone.'
-                                          : '${upcoming.length} events will be added${dateRange == null ? '' : ' • $dateRange'}',
-                                      style: const TextStyle(
-                                        color: Colors.white70,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                  ],
-                                  if (selectedAlertMinutes == null) ...[
-                                    const SizedBox(height: 8),
-                                    const Text(
-                                      'Choose an alert preference before joining.',
-                                      style: TextStyle(
-                                        color: _gold,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                            const SizedBox(height: 16),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: _gold,
-                                  foregroundColor: Colors.black,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                  ),
-                                ),
-                                onPressed:
-                                    isWorking ||
-                                        snapshot.hasError ||
-                                        snapshot.connectionState ==
-                                            ConnectionState.waiting
-                                    ? null
-                                    : () async {
-                                        if (selectedAlertMinutes == null) {
-                                          final picked =
-                                              await _pickAlertMinutes(
-                                                sheetCtx,
-                                                _alertNoneMinutes,
-                                              );
-                                          if (picked == null) return;
-                                          setSheetState(() {
-                                            selectedAlertMinutes = picked;
-                                          });
-                                          return;
-                                        }
-                                        setSheetState(() => isWorking = true);
-                                        final int id;
-                                        try {
-                                          id = await widget.addInstance(
-                                            template: widget.template,
-                                            trackSkyTimeZone: selectedTimeZone,
-                                            alertMinutesBefore:
-                                                selectedAlertMinutes!,
-                                          );
-                                        } catch (e, st) {
-                                          if (kDebugMode) {
-                                            _calendarDebugPrint(
-                                              '[trackSky] join failed: $e',
-                                            );
-                                            _calendarDebugPrint('$st');
-                                          }
-                                          if (!mounted || !sheetCtx.mounted) {
-                                            return;
-                                          }
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                'Could not join Follow the sky. Please retry.',
-                                              ),
-                                            ),
-                                          );
-                                          setSheetState(
-                                            () => isWorking = false,
-                                          );
-                                          return;
-                                        }
-                                        if (!mounted || !sheetCtx.mounted) {
-                                          return;
-                                        }
-                                        if (id > 0) {
-                                          Navigator.of(sheetCtx).pop();
-                                          await _completeJoin(id);
-                                        } else {
-                                          setSheetState(
-                                            () => isWorking = false,
-                                          );
-                                        }
-                                      },
-                                child: Text(
-                                  isWorking
-                                      ? 'Joining…'
-                                      : selectedAlertMinutes == null
-                                      ? 'Choose Alert'
-                                      : 'Join Flow',
-                                ),
-                              ),
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
-        );
+    if (hasCourse) {
+      return _buildTemplateStickyJoinButton(
+        honorJoinedState: false,
+        text: 'Open next turning',
+        onPressed: () {
+          final state = _followSkyDetailKey.currentState;
+          if (state != null) unawaited(state.openNextTurningFromDock());
+        },
+      );
+    }
+
+    return _buildTemplateStickyJoinButton(
+      honorJoinedState: false,
+      text: 'Carry this course',
+      onPressed: () {
+        final state = _followSkyDetailKey.currentState;
+        if (state != null) unawaited(state.carryCourseFromDock());
       },
-    );
-  }
-
-  Widget _buildTrackSkyCategorySection(
-    BuildContext context,
-    String category,
-    List<TrackSkyEvent> events,
-  ) {
-    if (events.isEmpty) return const SizedBox.shrink();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 16),
-        _MaatFlowDetailSectionLabel('$category (${events.length})'),
-        const SizedBox(height: 8),
-        ...events.map((event) => _buildTrackSkyEventTile(context, event)),
-      ],
-    );
-  }
-
-  Widget _buildTrackSkyEventTile(BuildContext context, TrackSkyEvent event) {
-    final detailSummary = event.detailSummary;
-    final scheduleDate = DateTime.parse(event.schedule.dateIso);
-    final scheduleTime =
-        event.schedule.allDay || event.schedule.startTime24 == null
-        ? ''
-        : event.schedule.endTime24 == null
-        ? event.schedule.startTime24!
-        : '${event.schedule.startTime24}–${event.schedule.endTime24}';
-    final subtitle = _useKemetic
-        ? '${_dateLabel(context, scheduleDate)}${scheduleTime.isEmpty ? '' : ' · $scheduleTime'}'
-        : event.exactLabel;
-
-    return _buildExpandableFlowEventTile(
-      title: event.title,
-      subtitle: subtitle,
-      detailText: detailSummary.isEmpty
-          ? 'DETAIL\nNo additional preview.'
-          : detailSummary,
     );
   }
 
@@ -4687,9 +4374,14 @@ class _MaatFlowTemplateDetailPageState
     required VoidCallback? onPressed,
     String text = 'Join Flow',
     Widget? leading,
+    /// When false, [text]/[onPressed] are used even if already joined
+    /// (Follow the Sky dock: Carry this course / Open next turning).
+    bool honorJoinedState = true,
   }) {
-    final buttonText = widget.alreadyJoined ? 'Joined' : text;
-    final callback = widget.alreadyJoined ? null : onPressed;
+    final buttonText =
+        honorJoinedState && widget.alreadyJoined ? 'Joined' : text;
+    final callback =
+        honorJoinedState && widget.alreadyJoined ? null : onPressed;
     return Semantics(
       button: true,
       label: buttonText,
@@ -6664,111 +6356,6 @@ class _MaatFlowTemplateDetailPageState
           fontWeight: FontWeight.w700,
         ),
       ),
-    );
-  }
-
-  Widget _buildTrackSkyScaffold(BuildContext context) {
-    final initialPromptSlot = _buildCurrentInitialPromptSlot(
-      includeLeadingSeparator: false,
-    );
-
-    return _buildMaatFlowDetailScaffold(
-      context,
-      appendInitialPrompt: false,
-      joinButton: _buildTemplateStickyJoinButton(
-        onPressed: _openTrackSkyJoinSheet,
-      ),
-      children: [
-        ..._buildMaatFlowOverviewZones(
-          content: _detailContentForTemplate(overrideChips: null),
-          tagline: widget.template.subtitle,
-          initialPromptSlot: initialPromptSlot,
-          configurationControls: [
-            FutureBuilder<TrackSkyFlowData>(
-              future: _trackSkyFuture,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        color: MaatFlowPalette.gold,
-                      ),
-                    ),
-                  );
-                }
-                if (snapshot.hasError) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildMaatFlowNotice('Could not load sky events.'),
-                      const SizedBox(height: 10),
-                      OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: MaatFlowPalette.gold,
-                          side: const BorderSide(
-                            color: MaatFlowPalette.gold,
-                            width: 1.1,
-                          ),
-                        ),
-                        onPressed: () => _setTrackSkyPreviewTimeZone(
-                          _previewTrackSkyTimeZone,
-                          forceReload: true,
-                        ),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  );
-                }
-
-                final data = snapshot.data;
-                if (data == null) {
-                  return const SizedBox.shrink();
-                }
-                final upcoming = upcomingTrackSkyEvents(data);
-                final firstDate = upcoming.isEmpty
-                    ? null
-                    : _dateLabel(
-                        context,
-                        DateTime.parse(upcoming.first.schedule.dateIso),
-                      );
-                final lastDate = upcoming.isEmpty
-                    ? null
-                    : _dateLabel(
-                        context,
-                        DateTime.parse(upcoming.last.schedule.dateIso),
-                      );
-
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildMaatFlowDetailText(
-                      upcoming.isEmpty
-                          ? 'No upcoming sky events remain.'
-                          : 'Previewing ${upcoming.length} upcoming events${firstDate == null || lastDate == null ? '' : ' • $firstDate -> $lastDate'}.',
-                    ),
-                    const SizedBox(height: 8),
-                    _buildMaatFlowDetailText(
-                      'Only events with a usable viewing window are included. You can confirm alert settings from the Join Flow button.',
-                      color: MaatFlowPalette.silverLo,
-                      fontSize: 13,
-                    ),
-                    for (final category in kTrackSkyCategoryOrder)
-                      _buildTrackSkyCategorySection(
-                        context,
-                        category,
-                        upcoming
-                            .where((event) => event.category == category)
-                            .toList(),
-                      ),
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
-        const _MaatFlowPracticeDisclaimerFooter(),
-      ],
     );
   }
 
@@ -8994,7 +8581,53 @@ class _MaatFlowTemplateDetailPageState
       _maatEventTapStartedWhileScrolling.clear();
     }
     if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
-      return _buildTrackSkyScaffold(context);
+      // Cut 3: V2 is the only Follow the Sky. The Ma'at detail shell still owns
+      // nav + dock; V2 supplies the content.
+      return _buildMaatFlowDetailScaffold(
+        context,
+        appendInitialPrompt: false,
+        joinButton: _buildFollowSkyStickyDockButton(),
+        children: [
+          _buildMaatFlowDetailHero(tagline: widget.template.subtitle),
+          const SizedBox(height: 4),
+          FollowSkyDetailPage(
+            key: _followSkyDetailKey,
+            standalone: false,
+            omitIdentityHero: true,
+            isJoined: widget.alreadyJoined,
+            existingFlowNotes: widget.followSkyExistingFlowNotes,
+            existingFlowId: widget.followSkyExistingFlowId,
+            candidates: widget.followSkyCandidates,
+            measurementIntervals: widget.followSkyMeasurementIntervals,
+            title: widget.template.title,
+            subtitle: widget.template.subtitle,
+            // v5/v7 In Kemet copy — do not use the older badge prose.
+            timezone: FollowSkyTimeZoneX.tryParse(
+                  _previewTrackSkyTimeZone.key,
+                ) ??
+                FollowSkyTimeZone.pacific,
+            onHierarchyChanged: () {
+              if (mounted) setState(() {});
+            },
+            onCourseSaved: widget.onFollowSkyCourseSaved,
+            onProtectTime: widget.onFollowSkyProtectTime,
+            onJoin: (draft) async {
+              final result = await FlowJoinService().joinTrackSkyV2Headless(
+                templateKey: widget.template.key,
+                templateTitle: widget.template.title,
+                templateOverview: widget.template.overview,
+                templateColor: widget.template.color,
+                personalCalendarId: null,
+                draft: draft,
+              );
+              final id = result.flowIdOrNegativeOne;
+              if (id > 0) {
+                await _completeJoin(id);
+              }
+            },
+          ),
+        ],
+      );
     }
     if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
       return _buildDawnHouseRiteScaffold(context);

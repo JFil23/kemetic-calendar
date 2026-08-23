@@ -594,33 +594,23 @@ class FlowJoinService {
     );
   }
 
-  Future<FlowJoinResult> joinTrackSkyHeadless({
+  Future<FlowJoinResult> joinTrackSkyV2Headless({
     required String templateKey,
     required String templateTitle,
     required String templateOverview,
     required Color templateColor,
     required String? personalCalendarId,
-    required TrackSkyTimeZone timezone,
+    required TrackSkyEnrollmentDraft draft,
     int alertOffsetMinutes = kEventFilingNoAlertMinutes,
   }) async {
-    final flowData = await loadTrackSkyFlowData(timezone);
-    final events = upcomingTrackSkyEvents(flowData);
-    if (events.isEmpty) {
+    final occurrences = draft.occurrences;
+    if (occurrences.isEmpty) {
       return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
     }
     final dates = <DateTime>{
-      for (final event in events)
-        DateUtils.dateOnly(trackSkyEventStartLocal(event, timezone)),
+      for (final occ in occurrences) DateUtils.dateOnly(occ.startsAtLocal),
     };
     final orderedDates = dates.toList()..sort();
-    final notes = [
-      'mode=gregorian',
-      'split=1',
-      if (templateOverview.trim().isNotEmpty)
-        'ov=${Uri.encodeComponent(templateOverview.trim())}',
-      'maat=$templateKey',
-      'sky_tz=${timezone.key}',
-    ].join(';');
     final flowId = await _upsertFlowRow(
       id: null,
       name: templateTitle,
@@ -629,7 +619,7 @@ class FlowJoinService {
       calendarId: personalCalendarId,
       startDate: orderedDates.first,
       endDate: orderedDates.last,
-      notes: notes,
+      notes: draft.flowNotes,
       rules: jsonEncode(
         <FlowRule>[
           _RuleDates(dates: dates),
@@ -639,46 +629,45 @@ class FlowJoinService {
     );
 
     final clientEventIds = <String>[];
-    for (final event in events) {
-      final startsAtLocal = trackSkyEventStartLocal(event, timezone);
-      final endsAtLocal = trackSkyEventEndLocal(event, timezone);
-      final day = KemeticMath.fromGregorian(DateUtils.dateOnly(startsAtLocal));
+    for (final occ in occurrences) {
+      final day = KemeticMath.fromGregorian(DateUtils.dateOnly(occ.startsAtLocal));
       final clientEventId = EventCidUtil.buildClientEventId(
         ky: day.kYear,
         km: day.kMonth,
         kd: day.kDay,
-        title: event.title,
-        startHour: startsAtLocal.hour,
-        startMinute: startsAtLocal.minute,
-        allDay: event.schedule.allDay,
+        title: occ.title,
+        startHour: occ.startsAtLocal.hour,
+        startMinute: occ.startsAtLocal.minute,
+        allDay: occ.allDay,
         flowId: flowId,
       );
       final detail = _encodeDetailWithMeta(
-        event.detailText,
+        occ.detail,
         alertMinutes: alertOffsetMinutes,
       );
       await _upsertEventRow(
         clientEventId: clientEventId,
-        title: event.title,
-        startsAtUtc: trackSkyEventStartUtc(event, timezone),
-        startsAtLocal: startsAtLocal,
+        title: occ.title,
+        startsAtUtc: occ.startsAtUtc,
+        startsAtLocal: occ.startsAtLocal,
         detail: detail,
-        allDay: event.schedule.allDay,
-        endsAtUtc: trackSkyEventEndUtc(event, timezone),
-        endsAtLocal: endsAtLocal,
+        allDay: occ.allDay,
+        endsAtUtc: occ.endsAtUtc,
+        endsAtLocal: occ.endsAtLocal,
         calendarId: personalCalendarId,
         flowLocalId: flowId,
-        category: event.category,
-        caller: 'track_sky_join_headless',
+        category: occ.category,
+        behaviorPayload: occ.behaviorPayload,
+        caller: 'track_sky_v2_join_headless',
       );
       clientEventIds.add(clientEventId);
       if (alertOffsetMinutes != kEventFilingNoAlertMinutes) {
         await _fileHeadlessJoinDelivery(
-          debugLabel: 'trackSkyHeadless',
+          debugLabel: 'trackSkyV2Headless',
           clientEventId: clientEventId,
-          startsAtLocal: startsAtLocal,
+          startsAtLocal: occ.startsAtLocal,
           alertOffsetMinutes: alertOffsetMinutes,
-          title: event.title,
+          title: occ.title,
           body: detail,
         );
       }
@@ -692,6 +681,62 @@ class FlowJoinService {
       flowId: flowId,
       localFlow: staged.localFlow,
       writes: staged.writes,
+    );
+  }
+
+  Future<FlowJoinResult> joinTrackSkyHeadless({
+    required String templateKey,
+    required String templateTitle,
+    required String templateOverview,
+    required Color templateColor,
+    required String? personalCalendarId,
+    required TrackSkyTimeZone timezone,
+    int alertOffsetMinutes = kEventFilingNoAlertMinutes,
+    TrackSkyCourse? course,
+  }) async {
+    // Cut 3: V2 enrollment is the only path.
+    try {
+      tzdata.initializeTimeZones();
+    } catch (_) {}
+    final catalog = await SkyCatalogRepository().load();
+    final materializer = TrackSkyMaterializer(
+      toLocal: (utc, iana) {
+        final location = tz.getLocation(iana);
+        return tz.TZDateTime.from(utc.toUtc(), location);
+      },
+      toUtc: (local, iana) {
+        final location = tz.getLocation(iana);
+        return tz.TZDateTime(
+          location,
+          local.year,
+          local.month,
+          local.day,
+          local.hour,
+          local.minute,
+          local.second,
+        ).toUtc();
+      },
+    );
+    final enrollment = TrackSkyEnrollmentService(
+      materializer: materializer,
+      visibilityService: const SkyVisibilityService(),
+    );
+    final draft = enrollment.buildJoinDraft(
+      catalog: catalog,
+      nowUtc: DateTime.now().toUtc(),
+      ianaTimeZone: timezone.ianaName,
+      timezoneKey: timezone.key,
+      overview: templateOverview,
+      course: course,
+    );
+    return joinTrackSkyV2Headless(
+      templateKey: templateKey,
+      templateTitle: templateTitle,
+      templateOverview: templateOverview,
+      templateColor: templateColor,
+      personalCalendarId: personalCalendarId,
+      draft: draft,
+      alertOffsetMinutes: alertOffsetMinutes,
     );
   }
 
