@@ -100,6 +100,13 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
+    // A completed function closes with a ritual naming the decision.
+    expect(find.text('RITUAL'), findsOneWidget);
+    expect(find.text('Released for now.'), findsOneWidget);
+    await tester.tap(find.text('Done'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
     expect(harness.saves, hasLength(1));
     expect(harness.saves.single.course, isNull);
     expect(harness.saves.single.notes, isNot(contains('sky_course')));
@@ -132,6 +139,15 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 
+    // The ritual acknowledges setting the old course down; the picker must not
+    // open underneath it.
+    expect(find.text('RITUAL'), findsOneWidget);
+    expect(find.text('Set down, to choose again.'), findsOneWidget);
+    expect(find.text('ONE THING TO CARRY'), findsNothing);
+    await tester.tap(find.text('Done'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
     expect(harness.saves, hasLength(1));
     expect(harness.saves.single.course, isNull);
     expect(harness.saves.single.notes, isNot(contains('sky_course')));
@@ -153,6 +169,12 @@ void main() {
 
     expect(find.text('Keep it'), findsOneWidget);
     await tester.tap(find.text('Keep it'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text('RITUAL'), findsOneWidget);
+    expect(find.text('Kept.'), findsOneWidget);
+    await tester.tap(find.text('Done'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
 

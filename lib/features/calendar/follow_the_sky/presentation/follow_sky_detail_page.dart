@@ -740,6 +740,11 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
           ),
         ),
       ],
+      if (_turningHistory.entries.isNotEmpty) ...[
+        const SizedBox(height: 18),
+        _sectionRuleLabel('Your turnings'),
+        ..._historyRows(palette),
+      ],
       const SizedBox(height: 14),
       _inKemetBlock(),
       const SizedBox(height: 18),
@@ -950,7 +955,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
     final decision = const SkyVisibilityService().decide(night.windowSource);
     final useLine = _useLine(night);
 
-    return Container(
+    final card = Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: MaatFlowListTokens.joinedCardBorder),
@@ -1026,35 +1031,6 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
                           ),
                         ),
                       ],
-                      if (widget.isJoined && _course != null) ...[
-                        const SizedBox(height: 12),
-                        SizedBox(
-                          height: 43,
-                          width: double.infinity,
-                          child: OutlinedButton(
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: palette.glowColor,
-                              side: BorderSide(
-                                color: palette.accent.withValues(alpha: 0.65),
-                              ),
-                              backgroundColor:
-                                  palette.accent.withValues(alpha: 0.06),
-                              shape: const StadiumBorder(),
-                            ),
-                            onPressed: () => _openTurningSheet(night),
-                            child: Text(
-                              _functionPrimaryCta(night),
-                              style: const TextStyle(
-                                fontFamily: MaatFlowListTokens.fontFamily,
-                                fontFamilyFallback:
-                                    MaatFlowListTokens.fontFallback,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
                     ],
                   ),
                 ),
@@ -1063,6 +1039,15 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
           ),
         ),
       ),
+    );
+
+    // One primary advance path. The Ma'at dock owns "Open next turning"; this
+    // card is an affordance like the upcoming rows, not a second CTA.
+    if (!widget.isJoined) return card;
+    return InkWell(
+      borderRadius: BorderRadius.circular(14),
+      onTap: () => _openTurningSheet(night),
+      child: card,
     );
   }
 
@@ -1256,6 +1241,70 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
         ),
       ),
     );
+  }
+
+  /// Turnings from this session, newest first.
+  ///
+  /// Course history begins the day a Course is set, so this never back-fills
+  /// pre-V2 turnings and never blurs watching the sky with deciding something.
+  List<Widget> _historyRows(MaatFlowPalette palette) {
+    final entries = _turningHistory.entries.reversed.toList();
+    return [
+      for (var i = 0; i < entries.length; i++)
+        Container(
+          padding: const EdgeInsets.fromLTRB(2, 14, 2, 14),
+          decoration: BoxDecoration(
+            border: i == entries.length - 1
+                ? null
+                : const Border(
+                    bottom:
+                        BorderSide(color: MaatFlowPalette.separator, width: 1),
+                  ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _turningDisplayName(entries[i].skyEventId),
+                style: const TextStyle(
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: MaatFlowPalette.goldDim,
+                  height: 1.15,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _historyOutcomeLine(entries[i]),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: entries[i].isFunctionCompleted
+                      ? palette.glowColor
+                      : MaatFlowPalette.silverLo,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
+        ),
+    ];
+  }
+
+  /// Witnessed and decided must never read the same.
+  String _historyOutcomeLine(FollowSkyTurningEntry entry) {
+    final choice = entry.choice;
+    if (!entry.isFunctionCompleted || choice == null) {
+      return 'Witnessed · ${entry.function.displayLabel}';
+    }
+    return '${entry.function.displayLabel} completed · ${_ritualDecision(choice)}';
+  }
+
+  String _turningDisplayName(String skyEventId) {
+    final event = _catalog?.byId(skyEventId);
+    if (event == null || event.mergedIntoId != null) return skyEventId;
+    return _catalog!.observingNight(event).displayName;
   }
 
   Widget _microLabel(String text) {
@@ -1880,29 +1929,168 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
     switch (choice) {
       case FollowSkyProductChoice.keepCourse:
         _recordFunctionCompleted(night, choice, course);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Kept.')),
-        );
+        await _openRitualSheet(night: night, choice: choice, course: course);
         break;
       case FollowSkyProductChoice.changeCourse:
         _recordFunctionCompleted(night, choice, course);
+        // Ritual first: the course picker must not open under a sheet.
+        await _openRitualSheet(night: night, choice: choice, course: course);
         await _clearCourse(promptForNewCourse: true);
         break;
       case FollowSkyProductChoice.releaseCourse:
         _recordFunctionCompleted(night, choice, course);
         await _clearCourse(promptForNewCourse: false);
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Released for now.')),
-        );
+        await _openRitualSheet(night: night, choice: choice, course: course);
         break;
       case FollowSkyProductChoice.giveMoreRoom:
         // Only a completed Protect counts; a dismissed picker decided nothing.
         if (await _protectTimeForCourse()) {
           _recordFunctionCompleted(night, choice, course);
+          await _openRitualSheet(night: night, choice: choice, course: course);
         }
         break;
     }
+  }
+
+  /// What the user did at this turning, in the language of its function.
+  String _ritualLine(SkyObservingNight night, TrackSkyCourse course) {
+    switch (night.function) {
+      case SkyEventFunction.measure:
+        return 'You measured “${course.label}” against the sky.';
+      case SkyEventFunction.reveal:
+        return 'You named what was still open in “${course.label}”.';
+      case SkyEventFunction.reconsider:
+        return 'You looked again at “${course.label}” under shadow.';
+      case SkyEventFunction.turn:
+        return 'You chose what “${course.label}” deserves next season.';
+      case SkyEventFunction.attend:
+        return 'You made room to watch.';
+    }
+  }
+
+  String _ritualDecision(FollowSkyProductChoice choice) {
+    switch (choice) {
+      case FollowSkyProductChoice.keepCourse:
+        return 'Kept.';
+      case FollowSkyProductChoice.giveMoreRoom:
+        return 'Given more room.';
+      case FollowSkyProductChoice.changeCourse:
+        return 'Set down, to choose again.';
+      case FollowSkyProductChoice.releaseCourse:
+        return 'Released for now.';
+    }
+  }
+
+  /// Closes the loop on a completed function: name the decision, then remember
+  /// it. Never shown for a turning that was only witnessed.
+  Future<void> _openRitualSheet({
+    required SkyObservingNight night,
+    required FollowSkyProductChoice choice,
+    required TrackSkyCourse course,
+  }) async {
+    if (!mounted) return;
+    final palette = _palette;
+    setState(() {});
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useRootNavigator: true,
+      backgroundColor: const Color(0xFF0A0910),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        side: BorderSide(color: Color(0xD933270E)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3A3743),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'RITUAL',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    letterSpacing: 1.7,
+                    fontWeight: FontWeight.w600,
+                    color: palette.glowColor,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _ritualLine(night, course),
+                  style: const TextStyle(
+                    color: MaatFlowPalette.silverHi,
+                    fontSize: 16,
+                    height: 1.45,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _ritualDecision(choice),
+                  style: const TextStyle(
+                    fontFamily: MaatFlowListTokens.fontFamily,
+                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w600,
+                    color: MaatFlowPalette.gold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  '${night.displayName} is now part of your turnings.',
+                  style: const TextStyle(
+                    color: MaatFlowPalette.silverLo,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  height: 48,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: MaatFlowPalette.gold,
+                      side: const BorderSide(
+                        color: MaatFlowPalette.gold,
+                        width: 1.5,
+                      ),
+                      backgroundColor:
+                          MaatFlowPalette.gold.withValues(alpha: 0.055),
+                      shape: const StadiumBorder(),
+                    ),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    child: const Text(
+                      'Done',
+                      style: TextStyle(
+                        fontFamily: MaatFlowListTokens.fontFamily,
+                        fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   void _recordFunctionCompleted(
@@ -1926,6 +2114,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
       function: night.function,
       nowUtc: _now,
     );
+    if (mounted) setState(() {});
   }
 
   /// Drop the Course locally *and* persist notes without it.
