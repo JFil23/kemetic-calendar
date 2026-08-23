@@ -28162,7 +28162,7 @@ class CalendarPageState extends State<CalendarPage>
     );
     final flowId = flow?.id;
     if (flowId != null && flowId > 0) {
-      _scheduleFollowSkyLegacyMigration(flowId: flowId);
+      unawaited(_scheduleFollowSkyLegacyMigration(flowId: flowId));
     }
     return (
       notes: rehydrated.notes,
@@ -28175,27 +28175,45 @@ class CalendarPageState extends State<CalendarPage>
     );
   }
 
-  final Set<int> _followSkyMigrationInFlight = <int>{};
-  final Set<int> _followSkyMigrationDone = <int>{};
-
   /// Cut 3.1: stamp ownership on legacy rows and add missing V2 observing nights.
   /// Never rewrites existing title/time; never cancels existing notifications;
   /// never duplicates a represented night.
-  void _scheduleFollowSkyLegacyMigration({required int flowId}) {
-    if (_followSkyMigrationDone.contains(flowId)) return;
-    if (_followSkyMigrationInFlight.contains(flowId)) return;
-    _followSkyMigrationInFlight.add(flowId);
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        if (!mounted) return;
-        await _applyFollowSkyLegacyMigration(flowId: flowId);
-        _followSkyMigrationDone.add(flowId);
-      } catch (e) {
-        debugPrint('[FollowSky][migrate] failed: $e');
-      } finally {
-        _followSkyMigrationInFlight.remove(flowId);
-      }
-    });
+  ///
+  /// Concurrent entry paths coalesce onto one process-wide job per user+flow.
+  Future<FollowSkyMigrationJobReceipt> _scheduleFollowSkyLegacyMigration({
+    required int flowId,
+  }) {
+    final userId = Supabase.instance.client.auth.currentUser?.id;
+    return FollowSkyMigrationJobCoordinator.instance.run(
+      userId: userId,
+      flowId: flowId,
+      job: () async {
+        // Defer one frame so the opening route can mount, then run the full
+        // plan+persist job before any coalesced waiter is released.
+        final frame = Completer<void>();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!frame.isCompleted) frame.complete();
+        });
+        await frame.future;
+        if (!mounted) {
+          return const FollowSkyMigrationJobReceipt(
+            stamped: 0,
+            added: 0,
+            failed: 0,
+            represented: 0,
+            canonical: 0,
+            plannedStampIds: <String>[],
+            plannedAddSkyEventIds: <String>[],
+          );
+        }
+        try {
+          return await _applyFollowSkyLegacyMigration(flowId: flowId);
+        } catch (e) {
+          debugPrint('[FollowSky][migrate] failed: $e');
+          rethrow;
+        }
+      },
+    );
   }
 
   String _followSkyIanaTimeZoneForFlow(_Flow? flow) {
@@ -28210,17 +28228,13 @@ class CalendarPageState extends State<CalendarPage>
     return detectTrackSkyTimeZone().ianaName;
   }
 
-  Future<void> _applyFollowSkyLegacyMigration({required int flowId}) async {
-    final nowUtc = DateTime.now().toUtc();
-    final flow = () {
-      for (final f in _flows) {
-        if (f.id == flowId) return f;
-      }
-      return null;
-    }();
+  List<FollowSkyLegacyCalendarRow> _followSkyMigrationRowsFromNotes({
+    required int flowId,
+    required DateTime nowUtc,
+    required Map<String, ({String dayKey, int index, _Note note})> byClientId,
+    required Set<String> knownClientIds,
+  }) {
     final rows = <FollowSkyLegacyCalendarRow>[];
-    final byClientId = <String, ({String dayKey, int index, _Note note})>{};
-
     for (final entry in _notes.entries) {
       final parts = entry.key.split('-');
       if (parts.length != 3) continue;
@@ -28255,8 +28269,75 @@ class CalendarPageState extends State<CalendarPage>
           ),
         );
         byClientId[clientEventId] = (dayKey: entry.key, index: i, note: note);
+        knownClientIds.add(clientEventId);
       }
     }
+    return rows;
+  }
+
+  Future<void> _followSkyMergeRemoteMigrationRows({
+    required int flowId,
+    required DateTime nowUtc,
+    required UserEventsRepo repo,
+    required List<FollowSkyLegacyCalendarRow> rows,
+    required Map<String, ({String dayKey, int index, _Note note})> byClientId,
+    required Set<String> knownClientIds,
+  }) async {
+    // Authoritative flow rows (beyond the hydrated viewport) so a second plan
+    // cannot treat still-persisting / out-of-viewport nights as missing.
+    try {
+      final remote = await repo.getEventsForFlow(flowId);
+      for (final event in remote) {
+        final clientEventId = event.clientEventId?.trim();
+        if (clientEventId == null || clientEventId.isEmpty) continue;
+        knownClientIds.add(clientEventId);
+        if (byClientId.containsKey(clientEventId)) continue;
+        final already = rows.any((r) => r.clientEventId == clientEventId);
+        if (already) continue;
+        final startsAtUtc = event.startsAtUtc.toUtc();
+        rows.add(
+          FollowSkyLegacyCalendarRow(
+            clientEventId: clientEventId,
+            title: event.title,
+            startsAtUtc: startsAtUtc,
+            behaviorPayload: event.behaviorPayload,
+            isPastOrCompleted: !startsAtUtc.isAfter(nowUtc),
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[FollowSky][migrate] flow event load failed: $e');
+    }
+  }
+
+  Future<FollowSkyMigrationJobReceipt> _applyFollowSkyLegacyMigration({
+    required int flowId,
+  }) async {
+    final nowUtc = DateTime.now().toUtc();
+    final flow = () {
+      for (final f in _flows) {
+        if (f.id == flowId) return f;
+      }
+      return null;
+    }();
+    final byClientId = <String, ({String dayKey, int index, _Note note})>{};
+    final knownClientIds = <String>{};
+    final rows = _followSkyMigrationRowsFromNotes(
+      flowId: flowId,
+      nowUtc: nowUtc,
+      byClientId: byClientId,
+      knownClientIds: knownClientIds,
+    );
+
+    final repo = UserEventsRepo(Supabase.instance.client);
+    await _followSkyMergeRemoteMigrationRows(
+      flowId: flowId,
+      nowUtc: nowUtc,
+      repo: repo,
+      rows: rows,
+      byClientId: byClientId,
+      knownClientIds: knownClientIds,
+    );
 
     final iana = _followSkyIanaTimeZoneForFlow(flow);
     final catalog = await SkyCatalogRepository().load();
@@ -28273,122 +28354,193 @@ class CalendarPageState extends State<CalendarPage>
         local.second,
       ).toUtc(),
     );
-    final plan = FollowSkyMigrationApplicator(
-      materializer: materializer,
-    ).plan(
+    final applicator = FollowSkyMigrationApplicator(materializer: materializer);
+    final plan = applicator.plan(
       catalog: catalog,
       nowUtc: nowUtc,
       rows: rows,
       ianaTimeZone: iana,
       flowStillActive: true,
     );
+    final plannedStampIds = [
+      for (final stamp in plan.stamps) stamp.clientEventId,
+    ];
+    final plannedAddSkyEventIds = [
+      for (final add in plan.adds) add.skyEventId,
+    ];
     debugPrint(
       '[FollowSky][migrate] stamp=${FollowSkyCutFreeze.cut3RuntimeStamp} '
       '${plan.auditLine}',
     );
-    if (plan.writesNothing) return;
-
-    final repo = UserEventsRepo(Supabase.instance.client);
-    var wrote = false;
-
-    for (final stamp in plan.stamps) {
-      final located = byClientId[stamp.clientEventId];
-      if (located == null) continue;
-      final note = located.note;
-      if (FollowSkyMigrationPolicy().alreadyOwned(note.behaviorPayload)) {
-        continue;
-      }
-      final dayNotes = _notes[located.dayKey];
-      if (dayNotes == null || located.index >= dayNotes.length) continue;
-      final updated = note.copyWith(behaviorPayload: stamp.behaviorPayload);
-      final next = List<_Note>.from(dayNotes);
-      next[located.index] = updated;
-      _notes[located.dayKey] = next;
-      wrote = true;
-      final serverId = note.id?.trim();
-      if (serverId == null || serverId.isEmpty) continue;
-      try {
-        // Sparse patch: behavior_payload only. Never move title/time.
-        await repo.update(
-          id: serverId,
-          behaviorPayload: stamp.behaviorPayload,
-        );
-      } catch (e) {
-        debugPrint(
-          '[FollowSky][migrate] stamp persist failed '
-          'cid=${stamp.clientEventId}: $e',
-        );
-      }
+    if (plannedAddSkyEventIds.isNotEmpty) {
+      debugPrint(
+        '[FollowSky][migrate] addSkyEventIds=${plannedAddSkyEventIds.join(',')}',
+      );
     }
 
-    final calendarId = flow?.calendarId ?? _personalCalendarId;
-    for (final add in plan.adds) {
-      final occ = add.occurrence;
-      final dayLocal = DateUtils.dateOnly(occ.startsAtLocal);
-      final k = KemeticMath.fromGregorian(dayLocal);
-      final clientEventId = EventCidUtil.buildClientEventId(
-        ky: k.kYear,
-        km: k.kMonth,
-        kd: k.kDay,
-        title: occ.title,
-        startHour: occ.allDay ? 9 : occ.startsAtLocal.hour,
-        startMinute: occ.allDay ? 0 : occ.startsAtLocal.minute,
-        allDay: occ.allDay,
-        flowId: flowId,
-      );
-      if (byClientId.containsKey(clientEventId)) continue;
-      final dayKey = _kKey(k.kYear, k.kMonth, k.kDay);
-      final startTod = occ.allDay
-          ? null
-          : TimeOfDay(
-              hour: occ.startsAtLocal.hour,
-              minute: occ.startsAtLocal.minute,
-            );
-      final endTod = occ.allDay
-          ? null
-          : TimeOfDay(
-              hour: occ.endsAtLocal.hour,
-              minute: occ.endsAtLocal.minute,
-            );
-      final localNote = _Note(
-        clientEventId: clientEventId,
-        calendarId: calendarId,
-        title: occ.title,
-        detail: occ.detail,
-        allDay: occ.allDay,
-        start: startTod,
-        end: endTod,
-        flowId: flowId,
-        category: occ.category,
-        behaviorPayload: occ.behaviorPayload,
-      );
-      final bucket = List<_Note>.from(_notes[dayKey] ?? const <_Note>[]);
-      bucket.add(localNote);
-      _notes[dayKey] = bucket;
-      wrote = true;
-      try {
-        await repo.upsertByClientId(
-          clientEventId: clientEventId,
+    var stamped = 0;
+    var added = 0;
+    var failed = 0;
+
+    if (!plan.writesNothing) {
+      var wrote = false;
+
+      for (final stamp in plan.stamps) {
+        final located = byClientId[stamp.clientEventId];
+        if (located == null) continue;
+        final note = located.note;
+        if (FollowSkyMigrationPolicy().alreadyOwned(note.behaviorPayload)) {
+          stamped += 1;
+          continue;
+        }
+        final dayNotes = _notes[located.dayKey];
+        if (dayNotes == null || located.index >= dayNotes.length) continue;
+        final updated = note.copyWith(behaviorPayload: stamp.behaviorPayload);
+        final next = List<_Note>.from(dayNotes);
+        next[located.index] = updated;
+        _notes[located.dayKey] = next;
+        wrote = true;
+        final serverId = note.id?.trim();
+        if (serverId == null || serverId.isEmpty) {
+          stamped += 1;
+          continue;
+        }
+        try {
+          // Sparse patch: behavior_payload only. Never move title/time.
+          await repo.update(
+            id: serverId,
+            behaviorPayload: stamp.behaviorPayload,
+          );
+          stamped += 1;
+        } catch (e) {
+          failed += 1;
+          debugPrint(
+            '[FollowSky][migrate] stamp persist failed '
+            'cid=${stamp.clientEventId}: $e',
+          );
+        }
+      }
+
+      final calendarId = flow?.calendarId ?? _personalCalendarId;
+      for (final add in plan.adds) {
+        final occ = add.occurrence;
+        final dayLocal = DateUtils.dateOnly(occ.startsAtLocal);
+        final k = KemeticMath.fromGregorian(dayLocal);
+        final clientEventId = EventCidUtil.buildClientEventId(
+          ky: k.kYear,
+          km: k.kMonth,
+          kd: k.kDay,
           title: occ.title,
-          startsAtUtc: occ.startsAtUtc,
+          startHour: occ.allDay ? 9 : occ.startsAtLocal.hour,
+          startMinute: occ.allDay ? 0 : occ.startsAtLocal.minute,
+          allDay: occ.allDay,
+          flowId: flowId,
+        );
+        if (knownClientIds.contains(clientEventId)) {
+          added += 1;
+          continue;
+        }
+        final dayKey = _kKey(k.kYear, k.kMonth, k.kDay);
+        final startTod = occ.allDay
+            ? null
+            : TimeOfDay(
+                hour: occ.startsAtLocal.hour,
+                minute: occ.startsAtLocal.minute,
+              );
+        final endTod = occ.allDay
+            ? null
+            : TimeOfDay(
+                hour: occ.endsAtLocal.hour,
+                minute: occ.endsAtLocal.minute,
+              );
+        final localNote = _Note(
+          clientEventId: clientEventId,
+          calendarId: calendarId,
+          title: occ.title,
           detail: occ.detail,
           allDay: occ.allDay,
-          endsAtUtc: occ.endsAtUtc,
-          flowLocalId: flowId,
+          start: startTod,
+          end: endTod,
+          flowId: flowId,
           category: occ.category,
           behaviorPayload: occ.behaviorPayload,
-          calendarId: calendarId,
-          caller: 'follow_sky_cut3_additive',
         );
-      } catch (e) {
-        debugPrint(
-          '[FollowSky][migrate] add persist failed '
-          'sky=${add.skyEventId}: $e',
+        final bucket = List<_Note>.from(_notes[dayKey] ?? const <_Note>[]);
+        bucket.add(localNote);
+        _notes[dayKey] = bucket;
+        byClientId[clientEventId] = (
+          dayKey: dayKey,
+          index: bucket.length - 1,
+          note: localNote,
         );
+        knownClientIds.add(clientEventId);
+        wrote = true;
+        try {
+          await repo.upsertByClientId(
+            clientEventId: clientEventId,
+            title: occ.title,
+            startsAtUtc: occ.startsAtUtc,
+            detail: occ.detail,
+            allDay: occ.allDay,
+            endsAtUtc: occ.endsAtUtc,
+            flowLocalId: flowId,
+            category: occ.category,
+            behaviorPayload: occ.behaviorPayload,
+            calendarId: calendarId,
+            caller: 'follow_sky_cut3_additive',
+          );
+          added += 1;
+        } catch (e) {
+          failed += 1;
+          debugPrint(
+            '[FollowSky][migrate] add persist failed '
+            'sky=${add.skyEventId}: $e',
+          );
+        }
       }
+
+      if (wrote && mounted) setState(() {});
     }
 
-    if (wrote && mounted) setState(() {});
+    // Recompute coverage against local + authoritative remote after writes so
+    // coalesced waiters only release once durable state is visible to planning.
+    final postByClientId =
+        <String, ({String dayKey, int index, _Note note})>{};
+    final postKnown = <String>{};
+    final postRows = _followSkyMigrationRowsFromNotes(
+      flowId: flowId,
+      nowUtc: nowUtc,
+      byClientId: postByClientId,
+      knownClientIds: postKnown,
+    );
+    await _followSkyMergeRemoteMigrationRows(
+      flowId: flowId,
+      nowUtc: nowUtc,
+      repo: repo,
+      rows: postRows,
+      byClientId: postByClientId,
+      knownClientIds: postKnown,
+    );
+    final postPlan = applicator.plan(
+      catalog: catalog,
+      nowUtc: nowUtc,
+      rows: postRows,
+      ianaTimeZone: iana,
+      flowStillActive: true,
+    );
+    final receipt = FollowSkyMigrationJobReceipt(
+      stamped: stamped,
+      added: added,
+      failed: failed,
+      represented: postPlan.coverage.representedByLegacy,
+      canonical: postPlan.coverage.canonicalNightsInWindow,
+      plannedStampIds: plannedStampIds,
+      plannedAddSkyEventIds: plannedAddSkyEventIds,
+    );
+    debugPrint(
+      '[FollowSky][migrate-complete] ${receipt.completeAuditLine}',
+    );
+    return receipt;
   }
 
   /// Follow the Sky enrollment orchestration, reused outside the detail page for
