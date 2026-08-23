@@ -4,6 +4,8 @@
 /// UTC catalog and adapts it to legacy `TrackSkyEvent` shapes so day_view and
 /// other Ma'at flows that only need timezone + display helpers keep compiling.
 /// New product logic belongs in `follow_the_sky/`.
+library;
+
 import 'package:flutter/foundation.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
