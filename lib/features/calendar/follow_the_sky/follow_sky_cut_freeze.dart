@@ -52,7 +52,7 @@ class FollowSkyCutFreeze {
       'cut2-freeze-20260822a';
 
   /// Cut 3 — V2 is the only Follow the Sky. Filled by the post-freeze commit.
-  static const String cut3FrozenSha = '';
+  static const String cut3FrozenSha = '6c72b2d3206c96cf5a4eeba379e45ccafae6ee4b';
 
   static const String cut3Summary =
       'V1 Track Sky detail scaffold, join sheet and category tiles deleted; '
