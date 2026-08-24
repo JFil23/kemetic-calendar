@@ -37,6 +37,8 @@ abstract final class FollowSkyV11Tokens {
   static const double todayRingDiameter = 40;
   static const double skyRingDiameter = 36;
   static const double ringDotGap = 6;
+  static const double todayLabelFontSize = 10.5;
+  static const double dayNumberFontSize = 21;
 
   static const String heroAsset = 'assets/follow_the_sky/hero.png';
   static const String heroSubtitle =

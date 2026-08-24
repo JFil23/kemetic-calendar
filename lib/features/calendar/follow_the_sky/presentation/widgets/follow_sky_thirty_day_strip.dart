@@ -307,13 +307,20 @@ class _DayTile extends StatelessWidget {
               Text(
                 key: ValueKey<String>('follow-sky-strip-number-$dateKey'),
                 value.today ? 'today' : '${value.dayNumber}',
+                maxLines: 1,
+                softWrap: false,
+                overflow: TextOverflow.visible,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   color: value.today
                       ? const Color(0xFFE2C862)
                       : FollowSkyV11Tokens.calendarDay,
                   fontFamily: MaatFlowListTokens.fontFamily,
                   fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                  fontSize: 10.5,
+                  fontSize: value.today
+                      ? FollowSkyV11Tokens.todayLabelFontSize
+                      : FollowSkyV11Tokens.dayNumberFontSize,
+                  height: value.today ? null : 1,
                   fontWeight: FontWeight.w500,
                 ),
               ),

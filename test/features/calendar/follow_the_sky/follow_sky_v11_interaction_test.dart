@@ -106,6 +106,10 @@ void main() {
       final todayRingRect = tester.getRect(todayRing);
       final todayNumberRect = tester.getRect(todayNumber);
       final todayDotsRect = tester.getRect(todayDots);
+      expect(
+        tester.widget<Text>(todayNumber).style?.fontSize,
+        FollowSkyV11Tokens.todayLabelFontSize,
+      );
       expect(todayRingRect.width, FollowSkyV11Tokens.todayRingDiameter);
       expect(todayRingRect.height, FollowSkyV11Tokens.todayRingDiameter);
       expect(todayRingRect.contains(todayNumberRect.topLeft), isTrue);
@@ -129,10 +133,29 @@ void main() {
       final dotsRect = tester.getRect(
         find.byKey(ValueKey<String>('follow-sky-strip-dots-$intentionDateKey')),
       );
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(
+                ValueKey<String>('follow-sky-strip-number-$intentionDateKey'),
+              ),
+            )
+            .style
+            ?.fontSize,
+        FollowSkyV11Tokens.dayNumberFontSize,
+      );
       expect(ringRect.width, FollowSkyV11Tokens.skyRingDiameter);
       expect(ringRect.height, FollowSkyV11Tokens.skyRingDiameter);
-      expect(ringRect.contains(numberRect.topLeft), isTrue);
-      expect(ringRect.contains(numberRect.bottomRight), isTrue);
+      expect(
+        ringRect.contains(numberRect.topLeft),
+        isTrue,
+        reason: 'ring=$ringRect number=$numberRect',
+      );
+      expect(
+        ringRect.contains(numberRect.bottomRight),
+        isTrue,
+        reason: 'ring=$ringRect number=$numberRect',
+      );
       expect(
         dotsRect.top - ringRect.bottom,
         greaterThanOrEqualTo(FollowSkyV11Tokens.ringDotGap),
