@@ -13,7 +13,6 @@ import 'track_sky_event_block_visual.dart';
 class FollowSkyPreviewCalendar extends StatelessWidget {
   const FollowSkyPreviewCalendar({
     super.key,
-    required this.windowStart,
     required this.skyNights,
     required this.calendarRows,
     required this.excludedSkyEventIds,
@@ -24,7 +23,6 @@ class FollowSkyPreviewCalendar extends StatelessWidget {
     required this.meaningResolver,
   });
 
-  final DateTime windowStart;
   final List<SkyObservingNight> skyNights;
   final List<FollowSkyCalendarPreviewRow> calendarRows;
   final Set<String> excludedSkyEventIds;
@@ -60,22 +58,17 @@ class FollowSkyPreviewCalendar extends StatelessWidget {
   }
 
   List<_PreviewDay> _groupedDays() {
-    final start = DateUtils.dateOnly(windowStart);
-    final end = start.add(const Duration(days: 30));
     final byDay = <DateTime, _PreviewDayBuilder>{};
 
     for (final night in skyNights) {
       final local = DateUtils.dateOnly(night.primaryInstantUtc.toLocal());
-      if (local.isBefore(start) || !local.isBefore(end)) continue;
       byDay.putIfAbsent(local, () => _PreviewDayBuilder(date: local));
       byDay[local]!.rows.add(_PreviewRow.sky(night));
     }
 
     for (final row in calendarRows) {
       final local = DateUtils.dateOnly(row.localDay);
-      if (local.isBefore(start) || !local.isBefore(end)) continue;
-      byDay.putIfAbsent(local, () => _PreviewDayBuilder(date: local));
-      byDay[local]!.rows.add(_PreviewRow.calendar(row));
+      byDay[local]?.rows.add(_PreviewRow.calendar(row));
     }
 
     final days = byDay.values.map((builder) => builder.build()).toList()
@@ -142,11 +135,12 @@ class _PreviewDayCard extends StatelessWidget {
     final kemetic = KemeticMath.fromGregorian(day.date);
     final month = getMonthById(kemetic.kMonth);
     return Container(
+      key: ValueKey<String>('follow-sky-preview-day-${_dateKey(day.date)}'),
       padding: const EdgeInsets.fromLTRB(15, 15, 15, 7),
       decoration: BoxDecoration(
         color: FollowSkyV11Tokens.calendarPreview,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x24C4A64A)),
+        border: Border.all(color: const Color(0x38C4A64A)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x06C4A64A),
@@ -193,7 +187,7 @@ class _PreviewDayCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           for (var i = 0; i < day.rows.length; i++) ...[
-            if (i > 0) const Divider(color: Color(0x12C4A64A), height: 1),
+            if (i > 0) const Divider(color: Color(0x26C4A64A), height: 1),
             if (day.rows[i].isSky)
               _SkyPreviewCard(
                 night: day.rows[i].night!,
@@ -232,6 +226,11 @@ class _PreviewDayCard extends StatelessWidget {
     ];
     return '${weekdays[d.weekday - 1]} · ${months[d.month - 1]} ${d.day}';
   }
+
+  String _dateKey(DateTime d) =>
+      '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
 }
 
 class _OrdinaryPreviewRow extends StatelessWidget {
@@ -280,7 +279,7 @@ class _OrdinaryPreviewRow extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: FollowSkyV11Tokens.silverMid,
+                color: FollowSkyV11Tokens.calendarMuted,
                 fontFamily: MaatFlowListTokens.fontFamily,
                 fontFamilyFallback: MaatFlowListTokens.fontFallback,
                 fontSize: 14,

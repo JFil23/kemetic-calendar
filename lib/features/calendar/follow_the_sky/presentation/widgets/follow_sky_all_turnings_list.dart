@@ -10,8 +10,8 @@ class FollowSkyAllTurningsList extends StatelessWidget {
   const FollowSkyAllTurningsList({
     super.key,
     required this.catalog,
-    required this.nowUtc,
-    required this.lastSurfacedNight,
+    required this.remainingNights,
+    required this.surfacedCount,
     required this.expanded,
     required this.onToggle,
     required this.meaningResolver,
@@ -19,8 +19,8 @@ class FollowSkyAllTurningsList extends StatelessWidget {
   });
 
   final SkyCatalog catalog;
-  final DateTime nowUtc;
-  final SkyObservingNight? lastSurfacedNight;
+  final List<SkyObservingNight> remainingNights;
+  final int surfacedCount;
   final bool expanded;
   final VoidCallback onToggle;
   final TurningMeaningResolver meaningResolver;
@@ -29,7 +29,6 @@ class FollowSkyAllTurningsList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final endLabel = _formatCoverageMonth(catalog.coverageEnd.toLocal());
-    final remaining = _remainingNights();
     return Padding(
       padding: const EdgeInsets.only(top: 22),
       child: Column(
@@ -57,7 +56,7 @@ class FollowSkyAllTurningsList extends StatelessWidget {
                       child: Text(
                         'All ${catalog.observingNightCount} turnings through $endLabel',
                         style: const TextStyle(
-                          color: FollowSkyV11Tokens.silverMid,
+                          color: FollowSkyV11Tokens.contentSecondary,
                           fontFamily: MaatFlowListTokens.fontFamily,
                           fontFamilyFallback: MaatFlowListTokens.fontFallback,
                           fontSize: 16,
@@ -90,12 +89,14 @@ class FollowSkyAllTurningsList extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Column(
                         children: [
-                          for (var i = 0; i < remaining.length; i++)
+                          for (var i = 0; i < remainingNights.length; i++)
                             _AllTurningRow(
-                              index: _sequenceAfterSurfaced(i),
-                              night: remaining[i],
-                              meaning: meaningResolver.forNight(remaining[i]),
-                              onTap: () => onOpenNight(remaining[i]),
+                              index: surfacedCount + i + 1,
+                              night: remainingNights[i],
+                              meaning: meaningResolver.forNight(
+                                remainingNights[i],
+                              ),
+                              onTap: () => onOpenNight(remainingNights[i]),
                             ),
                         ],
                       ),
@@ -108,7 +109,7 @@ class FollowSkyAllTurningsList extends StatelessWidget {
             child: Text(
               'The sky keeps the schedule either way.',
               style: TextStyle(
-                color: FollowSkyV11Tokens.silverLo,
+                color: FollowSkyV11Tokens.contentMuted,
                 fontFamily: MaatFlowListTokens.fontFamily,
                 fontFamilyFallback: MaatFlowListTokens.fontFallback,
                 fontSize: 16,
@@ -119,22 +120,6 @@ class FollowSkyAllTurningsList extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  List<SkyObservingNight> _remainingNights() {
-    final all = catalog.upcomingNights(nowUtc: nowUtc);
-    if (lastSurfacedNight == null) return all;
-    final lastInstant = lastSurfacedNight!.primaryInstantUtc;
-    return all
-        .where((n) => n.primaryInstantUtc.isAfter(lastInstant))
-        .toList(growable: false);
-  }
-
-  int _sequenceAfterSurfaced(int index) {
-    final surfacedCount =
-        catalog.upcomingNights(nowUtc: nowUtc).length -
-        _remainingNights().length;
-    return surfacedCount + index + 1;
   }
 
   String _formatCoverageMonth(DateTime local) {
@@ -201,7 +186,7 @@ class _AllTurningRow extends StatelessWidget {
                   Text(
                     night.displayName,
                     style: const TextStyle(
-                      color: FollowSkyV11Tokens.silverHi,
+                      color: FollowSkyV11Tokens.gold,
                       fontFamily: MaatFlowListTokens.fontFamily,
                       fontFamilyFallback: MaatFlowListTokens.fontFallback,
                       fontSize: 19,
@@ -213,7 +198,7 @@ class _AllTurningRow extends StatelessWidget {
                   Text(
                     _shortDate(date),
                     style: const TextStyle(
-                      color: FollowSkyV11Tokens.silverLo,
+                      color: FollowSkyV11Tokens.contentMuted,
                       fontFamily: MaatFlowListTokens.fontFamily,
                       fontFamilyFallback: MaatFlowListTokens.fontFallback,
                       fontSize: 10.5,
@@ -223,7 +208,7 @@ class _AllTurningRow extends StatelessWidget {
                   Text(
                     meaning.significanceLabel,
                     style: const TextStyle(
-                      color: FollowSkyV11Tokens.silverMid,
+                      color: FollowSkyV11Tokens.contentSecondary,
                       fontFamily: MaatFlowListTokens.fontFamily,
                       fontFamilyFallback: MaatFlowListTokens.fontFallback,
                       fontSize: 14.5,

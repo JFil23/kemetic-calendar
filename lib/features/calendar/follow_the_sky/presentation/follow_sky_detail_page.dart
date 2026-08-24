@@ -77,6 +77,8 @@ class FollowSkyDetailPage extends StatefulWidget {
 }
 
 class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
+  static const int _expandedTurningCount = 5;
+
   late final SkyCatalogRepository _catalogRepo;
   late final TrackSkyEnrollmentService _enrollment;
   final TurningMeaningResolver _meaningResolver =
@@ -117,20 +119,30 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
     return catalog.upcomingNights(nowUtc: _now, untilUtc: until);
   }
 
-  SkyObservingNight? get _lastSurfacedNight {
-    final nights = _thirtyDayNights;
-    return nights.isEmpty ? null : nights.last;
+  List<SkyObservingNight> get _upcomingNights {
+    final catalog = _catalog;
+    if (catalog == null) return const [];
+    return catalog.upcomingNights(nowUtc: _now);
+  }
+
+  List<SkyObservingNight> get _previewNights =>
+      _upcomingNights.take(_expandedTurningCount).toList(growable: false);
+
+  List<SkyObservingNight> get _intentionPreviewNights {
+    final preview = _previewNights;
+    return preview.isEmpty ? _thirtyDayNights : preview;
   }
 
   SkyObservingNight? get _firstEclipsePreview {
-    for (final night in _thirtyDayNights) {
+    final nights = _intentionPreviewNights;
+    for (final night in nights) {
       if (_excludedSkyEventIds.contains(night.skyEventId)) continue;
       if (night.companion != null ||
           night.displayName.toLowerCase().contains('eclipse')) {
         return night;
       }
     }
-    return _thirtyDayNights.isNotEmpty ? _thirtyDayNights.first : null;
+    return nights.isNotEmpty ? nights.first : null;
   }
 
   @override
@@ -328,6 +340,13 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
   Widget _buildV11Body() {
     final windowStart = DateUtils.dateOnly(_now.toLocal());
     final exampleMeaning = TurningMeaningResolver.approvedLunarEclipse;
+    final orderedUpcomingNights = _upcomingNights;
+    final previewNights = orderedUpcomingNights
+        .take(_expandedTurningCount)
+        .toList(growable: false);
+    final remainingNights = orderedUpcomingNights
+        .skip(previewNights.length)
+        .toList(growable: false);
 
     return FollowSkyScrollShell(
       scrollController: _scrollController,
@@ -359,8 +378,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
               onChanged: (_) {},
             ),
             FollowSkyPreviewCalendar(
-              windowStart: windowStart,
-              skyNights: _thirtyDayNights,
+              skyNights: previewNights,
               calendarRows: widget.calendarPreview.rows,
               excludedSkyEventIds: _excludedSkyEventIds,
               carried: _carried,
@@ -374,8 +392,8 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
             const SizedBox(height: 8),
             FollowSkyAllTurningsList(
               catalog: _catalog!,
-              nowUtc: _now,
-              lastSurfacedNight: _lastSurfacedNight,
+              remainingNights: remainingNights,
+              surfacedCount: previewNights.length,
               expanded: _allTurningsExpanded,
               onToggle: () =>
                   setState(() => _allTurningsExpanded = !_allTurningsExpanded),

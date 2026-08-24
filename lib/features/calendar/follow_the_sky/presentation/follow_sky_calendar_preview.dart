@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../services/course_candidate_engine.dart';
 import '../services/course_measurement_service.dart';
 
-/// Read-only calendar row for the Follow Sky 30-day preview.
+/// Read-only calendar row for Follow Sky's upcoming-turning preview.
 @immutable
 class FollowSkyCalendarPreviewRow {
   const FollowSkyCalendarPreviewRow({

@@ -21,7 +21,7 @@ class FollowSkyTurningExample extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 32, 24, 28),
       decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFF1E1A0C))),
+        border: Border(bottom: BorderSide(color: FollowSkyV11Tokens.separator)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -48,7 +48,7 @@ class FollowSkyTurningExample extends StatelessWidget {
           Text(
             meaning.observation,
             style: const TextStyle(
-              color: FollowSkyV11Tokens.silverMid,
+              color: FollowSkyV11Tokens.contentSecondary,
               fontFamily: MaatFlowListTokens.fontFamily,
               fontFamilyFallback: MaatFlowListTokens.fontFallback,
               fontSize: 17,
@@ -72,7 +72,7 @@ class FollowSkyTurningExample extends StatelessWidget {
           Text(
             meaning.personalQuestion,
             style: const TextStyle(
-              color: FollowSkyV11Tokens.silverHi,
+              color: FollowSkyV11Tokens.contentPrimary,
               fontFamily: MaatFlowListTokens.fontFamily,
               fontFamilyFallback: MaatFlowListTokens.fontFallback,
               fontSize: 23.5,

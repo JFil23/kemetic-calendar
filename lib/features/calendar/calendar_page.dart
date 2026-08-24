@@ -27997,7 +27997,11 @@ class CalendarPageState extends State<CalendarPage>
     final flow = _activeFlowForMaatTemplate('track-the-sky');
     final now = DateTime.now();
     final windowStart = DateUtils.dateOnly(now);
-    final windowEnd = windowStart.add(const Duration(days: 29));
+    // The compact strip consumes thirty days, while the expanded preview may
+    // reach farther to show the next five actual turnings with same-day
+    // calendar context. Keep one bounded hydration window large enough for
+    // the canonical catalog's rolling five-event sequence.
+    final windowEnd = windowStart.add(const Duration(days: 119));
     final previewRows = <FollowSkyCalendarPreviewRow>[];
     final snapshots = <CourseActivitySnapshot>[];
     final blocks = <FollowSkyCalendarBlock>[];

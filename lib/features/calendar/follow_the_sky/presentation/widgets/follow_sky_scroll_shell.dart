@@ -49,43 +49,66 @@ class _FollowSkyScrollShellState extends State<FollowSkyScrollShell> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final heroHeight =
-        FollowSkyV11Tokens.heroHeight *
-        (width / FollowSkyV11Tokens.referenceWidth);
-    final overlap =
-        FollowSkyV11Tokens.sheetOverlap *
-        (width / FollowSkyV11Tokens.referenceWidth);
-    final parallax = _scrollOffset * FollowSkyV11Tokens.heroParallaxFactor;
-    final fadeT = (_scrollOffset / FollowSkyV11Tokens.heroFadeScrollDistance)
-        .clamp(0.0, 1.0);
-    final heroOpacity = 1 - fadeT;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        final widthScaledHero =
+            FollowSkyV11Tokens.heroHeight *
+            (width / FollowSkyV11Tokens.referenceWidth);
+        final heightScaledHero =
+            constraints.maxHeight *
+            (FollowSkyV11Tokens.heroHeight /
+                FollowSkyV11Tokens.referenceHeight);
+        final heroHeight = math.min(widthScaledHero, heightScaledHero);
+        final overlap =
+            FollowSkyV11Tokens.sheetOverlap *
+            (width / FollowSkyV11Tokens.referenceWidth);
+        final parallax = _scrollOffset * FollowSkyV11Tokens.heroParallaxFactor;
+        final fadeT =
+            (_scrollOffset / FollowSkyV11Tokens.heroFadeScrollDistance).clamp(
+              0.0,
+              1.0,
+            );
+        final heroOpacity = 1 - fadeT;
 
-    return ColoredBox(
-      color: FollowSkyV11Tokens.pageBg,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Positioned(
-            top: -parallax,
-            left: 0,
-            right: 0,
-            height: heroHeight,
-            child: Opacity(opacity: heroOpacity, child: widget.hero),
-          ),
-          CustomScrollView(
-            key: const ValueKey<String>('follow-sky-scroll'),
-            controller: _controller,
-            slivers: [
-              SliverToBoxAdapter(child: SizedBox(height: heroHeight - overlap)),
-              SliverToBoxAdapter(child: widget.sheet),
-              const SliverToBoxAdapter(child: SizedBox(height: 120)),
+        return ColoredBox(
+          color: FollowSkyV11Tokens.pageBg,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Positioned(
+                top: -parallax,
+                left: 0,
+                right: 0,
+                height: heroHeight,
+                child: Opacity(opacity: heroOpacity, child: widget.hero),
+              ),
+              CustomScrollView(
+                key: const ValueKey<String>('follow-sky-scroll'),
+                controller: _controller,
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: SizedBox(height: heroHeight - overlap),
+                  ),
+                  SliverToBoxAdapter(child: widget.sheet),
+                  const SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: FollowSkyV11Tokens.bottomContentClearance,
+                    ),
+                  ),
+                ],
+              ),
+              if (widget.bottomBar != null)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: widget.bottomBar!,
+                ),
             ],
           ),
-          if (widget.bottomBar != null)
-            Positioned(left: 0, right: 0, bottom: 0, child: widget.bottomBar!),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -98,13 +121,7 @@ class FollowSkyHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final heroHeight =
-        FollowSkyV11Tokens.heroHeight *
-        (width / FollowSkyV11Tokens.referenceWidth);
-
-    return SizedBox(
-      height: heroHeight,
+    return SizedBox.expand(
       child: Stack(
         fit: StackFit.expand,
         children: [

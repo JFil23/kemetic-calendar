@@ -24,18 +24,22 @@ void main() {
       addTearDown(tester.view.resetViewInsets);
 
       final now = DateTime.utc(2026, 8, 24, 12);
-      final windowNights = catalog.upcomingNights(
+      final allUpcoming = catalog.upcomingNights(nowUtc: now);
+      final previewNights = allUpcoming.take(5).toList(growable: false);
+      final thirtyDayNights = catalog.upcomingNights(
         nowUtc: now,
         untilUtc: now.add(const Duration(days: 30)),
       );
-      expect(windowNights.length, greaterThanOrEqualTo(2));
-      final intentionNight = windowNights.firstWhere(
+      expect(previewNights, hasLength(5));
+      expect(thirtyDayNights.length, lessThan(previewNights.length));
+      final intentionNight = previewNights.firstWhere(
         (night) => night.companion != null,
-        orElse: () => windowNights.first,
+        orElse: () => previewNights.first,
       );
-      final excludedNight = windowNights.lastWhere(
+      final excludedNight = previewNights.firstWhere(
         (night) => night.skyEventId != intentionNight.skyEventId,
       );
+      final fifthNight = previewNights.last;
       TrackSkyEnrollmentDraft? capturedDraft;
 
       final preview = FollowSkyCalendarPreview(
@@ -50,6 +54,24 @@ void main() {
             ),
             title: 'Existing calendar event',
             eventColor: const Color(0xFF4E7A46),
+          ),
+          FollowSkyCalendarPreviewRow(
+            localDay: DateTime(2026, 8, 25),
+            start: DateTime(2026, 8, 25, 9),
+            end: DateTime(2026, 8, 25, 10),
+            title: 'Non-turning calendar event',
+            eventColor: const Color(0xFF8E4B2E),
+          ),
+          FollowSkyCalendarPreviewRow(
+            localDay: fifthNight.primaryInstantUtc.toLocal(),
+            start: fifthNight.primaryInstantUtc.toLocal().subtract(
+              const Duration(hours: 2),
+            ),
+            end: fifthNight.primaryInstantUtc.toLocal().subtract(
+              const Duration(hours: 1),
+            ),
+            title: 'Fifth turning calendar context',
+            eventColor: const Color(0xFF3B5D82),
           ),
         ],
       );
@@ -67,6 +89,37 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+
+      expect(_byKeyPrefix('follow-sky-strip-day-'), findsNWidgets(30));
+      final intentionDateKey = _dateKey(
+        intentionNight.primaryInstantUtc.toLocal(),
+      );
+      final ringRect = tester.getRect(
+        find.byKey(ValueKey<String>('follow-sky-strip-ring-$intentionDateKey')),
+      );
+      final numberRect = tester.getRect(
+        find.byKey(
+          ValueKey<String>('follow-sky-strip-number-$intentionDateKey'),
+        ),
+      );
+      final dotsRect = tester.getRect(
+        find.byKey(ValueKey<String>('follow-sky-strip-dots-$intentionDateKey')),
+      );
+      expect(ringRect.contains(numberRect.topLeft), isTrue);
+      expect(ringRect.contains(numberRect.bottomRight), isTrue);
+      expect(ringRect.bottom, lessThanOrEqualTo(dotsRect.top));
+
+      expect(_byKeyPrefix('follow-sky-preview-day-'), findsNWidgets(5));
+      expect(find.text('Non-turning calendar event'), findsNothing);
+      expect(find.text('Fifth turning calendar context'), findsOneWidget);
+      for (final night in previewNights) {
+        expect(
+          find.byKey(
+            ValueKey<String>('follow-sky-preview-${night.skyEventId}'),
+          ),
+          findsOneWidget,
+        );
+      }
 
       final scrollable = find
           .descendant(
@@ -160,22 +213,23 @@ void main() {
         const ValueKey<String>('follow-sky-all-turnings-toggle'),
       );
       await tester.scrollUntilVisible(allToggle, 500, scrollable: scrollable);
+      scrollState.position.jumpTo(
+        (scrollState.position.pixels + 180).clamp(
+          scrollState.position.minScrollExtent,
+          scrollState.position.maxScrollExtent,
+        ),
+      );
+      await tester.pump();
       await tester.tap(allToggle);
       await tester.pumpAndSettle(const Duration(milliseconds: 500));
-      final firstAfterWindow = catalog
-          .upcomingNights(nowUtc: now)
-          .firstWhere(
-            (night) => night.primaryInstantUtc.isAfter(
-              windowNights.last.primaryInstantUtc,
-            ),
-          );
+      final firstAfterPreview = allUpcoming[previewNights.length];
       expect(
         find.byKey(
-          ValueKey<String>('follow-sky-all-${firstAfterWindow.skyEventId}'),
+          ValueKey<String>('follow-sky-all-${firstAfterPreview.skyEventId}'),
         ),
         findsOneWidget,
       );
-      for (final night in windowNights) {
+      for (final night in previewNights) {
         expect(
           find.byKey(ValueKey<String>('follow-sky-all-${night.skyEventId}')),
           findsNothing,
@@ -210,3 +264,13 @@ void main() {
     },
   );
 }
+
+Finder _byKeyPrefix(String prefix) => find.byWidgetPredicate((widget) {
+  final key = widget.key;
+  return key is ValueKey<String> && key.value.startsWith(prefix);
+});
+
+String _dateKey(DateTime date) =>
+    '${date.year.toString().padLeft(4, '0')}-'
+    '${date.month.toString().padLeft(2, '0')}-'
+    '${date.day.toString().padLeft(2, '0')}';

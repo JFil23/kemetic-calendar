@@ -41,7 +41,7 @@ class FollowSkyThirtyDayStrip extends StatelessWidget {
               Text(
                 'In your next thirty days.',
                 style: TextStyle(
-                  color: FollowSkyV11Tokens.silverMid,
+                  color: FollowSkyV11Tokens.contentSecondary,
                   fontFamily: MaatFlowListTokens.fontFamily,
                   fontFamilyFallback: MaatFlowListTokens.fontFallback,
                   fontSize: 24,
@@ -69,7 +69,7 @@ class FollowSkyThirtyDayStrip extends StatelessWidget {
   }
 
   static const TextStyle _introStyle = TextStyle(
-    color: FollowSkyV11Tokens.silverHi,
+    color: FollowSkyV11Tokens.contentPrimary,
     fontFamily: MaatFlowListTokens.fontFamily,
     fontFamilyFallback: MaatFlowListTokens.fontFallback,
     fontSize: 24,
@@ -115,6 +115,7 @@ class FollowSkyThirtyDayStrip extends StatelessWidget {
 
       final skyIds = skyIdsByDay[date] ?? const <String>[];
       currentDecan.days[(kemetic.kDay - 1) % 10] = _StripDay(
+        date: date,
         dayNumber: kemetic.kDay,
         today: offset == 0,
         hasSky: skyIds.any((id) => !excludedSkyEventIds.contains(id)),
@@ -143,6 +144,7 @@ class _DecanStrip {
 
 class _StripDay {
   const _StripDay({
+    required this.date,
     required this.dayNumber,
     required this.today,
     required this.hasSky,
@@ -150,6 +152,7 @@ class _StripDay {
     required this.carried,
   });
 
+  final DateTime date;
   final int dayNumber;
   final bool today;
   final bool hasSky;
@@ -206,7 +209,7 @@ class _DecanRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 57,
+      height: 64,
       decoration: BoxDecoration(
         border: Border(
           top: const BorderSide(color: Color(0x2EC4A64A)),
@@ -263,59 +266,70 @@ class _DayTile extends StatelessWidget {
     final ringColor = value.hasSky
         ? FollowSkyV11Tokens.intentionPeriwinkle.withValues(alpha: 0.72)
         : FollowSkyV11Tokens.calendarAntique.withValues(alpha: 0.72);
-    return Stack(
-      alignment: Alignment.center,
+    final dateKey =
+        '${value.date.year.toString().padLeft(4, '0')}-'
+        '${value.date.month.toString().padLeft(2, '0')}-'
+        '${value.date.day.toString().padLeft(2, '0')}';
+    return Column(
+      key: ValueKey<String>('follow-sky-strip-day-$dateKey'),
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        if (value.today || value.hasSky)
-          Container(
-            width: 26,
-            height: 26,
-            decoration: BoxDecoration(
-              color: value.hasSky && value.carried
-                  ? FollowSkyV11Tokens.intentionPeriwinkle.withValues(
-                      alpha: 0.10,
-                    )
-                  : null,
-              shape: BoxShape.circle,
-              border: Border.all(color: ringColor),
-            ),
+        SizedBox(
+          height: 28,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              if (value.today || value.hasSky)
+                Container(
+                  key: ValueKey<String>('follow-sky-strip-ring-$dateKey'),
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: value.hasSky && value.carried
+                        ? FollowSkyV11Tokens.intentionPeriwinkle.withValues(
+                            alpha: 0.10,
+                          )
+                        : null,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: ringColor),
+                  ),
+                ),
+              Text(
+                key: ValueKey<String>('follow-sky-strip-number-$dateKey'),
+                value.today ? 'today' : '${value.dayNumber}',
+                style: TextStyle(
+                  color: value.today
+                      ? const Color(0xFFE2C862)
+                      : FollowSkyV11Tokens.calendarDay,
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
           ),
-        Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              value.today ? 'today' : '${value.dayNumber}',
-              style: TextStyle(
-                color: value.today
-                    ? const Color(0xFFE2C862)
-                    : FollowSkyV11Tokens.calendarDay,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w300,
-              ),
-            ),
-            const SizedBox(height: 5),
-            SizedBox(
-              height: 3,
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (final color in value.eventColors.take(4)) ...[
-                    Container(
-                      width: 3,
-                      height: 3,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 2),
-                  ],
-                ],
-              ),
-            ),
-          ],
+        ),
+        const SizedBox(height: 5),
+        SizedBox(
+          key: ValueKey<String>('follow-sky-strip-dots-$dateKey'),
+          height: 3,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final color in value.eventColors.take(4)) ...[
+                Container(
+                  width: 3,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 2),
+              ],
+            ],
+          ),
         ),
       ],
     );
