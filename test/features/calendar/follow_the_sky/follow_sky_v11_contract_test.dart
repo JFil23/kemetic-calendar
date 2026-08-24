@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/follow_the_sky/follow_the_sky.dart';
-import 'package:mobile/features/calendar/follow_the_sky/presentation/turning_meaning.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_tokens.dart';
 
 void main() {
@@ -70,6 +69,12 @@ void main() {
     expect(find.text('In your next thirty days.'), findsOneWidget);
     expect(find.text('Follow\nthe sky'), findsOneWidget);
     expect(find.text(FollowSkyV11Tokens.heroSubtitle), findsOneWidget);
+    expect(find.text('𓇼'), findsOneWidget);
+    final heroStar = tester.widget<Text>(
+      find.byKey(const ValueKey<String>('follow-sky-hero-star')),
+    );
+    expect(heroStar.style?.fontFamily, 'Noto Sans Egyptian Hieroglyphs');
+    expect(heroStar.style?.fontSize, 29);
     expect(find.text('HOW A TURNING WORKS'), findsOneWidget);
     expect(find.text('ENDURE'), findsWidgets);
     expect(find.text('Carry this course'), findsOneWidget);
@@ -79,4 +84,22 @@ void main() {
     expect(File('assets/follow_the_sky/hero.png').existsSync(), isTrue);
     expect(FollowSkyV11Tokens.heroAsset, 'assets/follow_the_sky/hero.png');
   });
+
+  test(
+    'hero uses literal N14 glyph without painter or Material substitute',
+    () {
+      final source = File(
+        'lib/features/calendar/follow_the_sky/presentation/widgets/'
+        'follow_sky_scroll_shell.dart',
+      ).readAsStringSync();
+      final pubspec = File('pubspec.yaml').readAsStringSync();
+
+      expect(source, contains("'𓇼'"));
+      expect(source, contains('sbꜣ — star — Egyptian hieroglyph N14'));
+      expect(source, isNot(contains('_FollowSkyHeroGlyphPainter')));
+      expect(source, isNot(contains('Icons.star')));
+      expect(pubspec, contains('family: Noto Sans Egyptian Hieroglyphs'));
+      expect(pubspec, contains('NotoSansEgyptianHieroglyphs-Regular.ttf'));
+    },
+  );
 }

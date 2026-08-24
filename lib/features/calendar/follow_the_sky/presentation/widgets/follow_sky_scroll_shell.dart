@@ -265,47 +265,19 @@ class _FollowSkyHeroGlyph extends StatelessWidget {
         ],
       ),
       alignment: Alignment.center,
-      child: const SizedBox(
-        width: 26,
-        height: 26,
-        child: CustomPaint(painter: _FollowSkyHeroGlyphPainter()),
+      child: const Text(
+        // sbꜣ — star — Egyptian hieroglyph N14.
+        '𓇼',
+        key: ValueKey<String>('follow-sky-hero-star'),
+        style: TextStyle(
+          color: FollowSkyV11Tokens.glow,
+          fontFamily: 'Noto Sans Egyptian Hieroglyphs',
+          fontSize: 29,
+          height: 1,
+        ),
       ),
     );
   }
-}
-
-class _FollowSkyHeroGlyphPainter extends CustomPainter {
-  const _FollowSkyHeroGlyphPainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final scaleX = size.width / 24;
-    final scaleY = size.height / 24;
-    canvas.save();
-    canvas.scale(scaleX, scaleY);
-    final paint = Paint()
-      ..color = FollowSkyV11Tokens.intentionPeriwinkle
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.3
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-    canvas.drawCircle(const Offset(12, 6.5), 3, paint);
-    canvas.drawLine(const Offset(12, 9.5), const Offset(12, 20.5), paint);
-    final arms = Path()
-      ..moveTo(6, 13)
-      ..lineTo(12, 10.5)
-      ..lineTo(18, 13);
-    canvas.drawPath(arms, paint);
-    final legs = Path()
-      ..moveTo(8, 21)
-      ..lineTo(12, 15)
-      ..lineTo(16, 21);
-    canvas.drawPath(legs, paint);
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _FollowSkyOrbitalArcsPainter extends CustomPainter {

@@ -56,7 +56,7 @@ class FollowSkyAllTurningsList extends StatelessWidget {
                       child: Text(
                         'All ${catalog.observingNightCount} turnings through $endLabel',
                         style: const TextStyle(
-                          color: FollowSkyV11Tokens.contentSecondary,
+                          color: FollowSkyV11Tokens.silverHi,
                           fontFamily: MaatFlowListTokens.fontFamily,
                           fontFamilyFallback: MaatFlowListTokens.fontFallback,
                           fontSize: 16,
@@ -109,7 +109,7 @@ class FollowSkyAllTurningsList extends StatelessWidget {
             child: Text(
               'The sky keeps the schedule either way.',
               style: TextStyle(
-                color: FollowSkyV11Tokens.contentMuted,
+                color: FollowSkyV11Tokens.silverMid,
                 fontFamily: MaatFlowListTokens.fontFamily,
                 fontFamilyFallback: MaatFlowListTokens.fontFallback,
                 fontSize: 16,
@@ -198,7 +198,7 @@ class _AllTurningRow extends StatelessWidget {
                   Text(
                     _shortDate(date),
                     style: const TextStyle(
-                      color: FollowSkyV11Tokens.contentMuted,
+                      color: FollowSkyV11Tokens.silverMid,
                       fontFamily: MaatFlowListTokens.fontFamily,
                       fontFamilyFallback: MaatFlowListTokens.fontFallback,
                       fontSize: 10.5,
@@ -208,7 +208,7 @@ class _AllTurningRow extends StatelessWidget {
                   Text(
                     meaning.significanceLabel,
                     style: const TextStyle(
-                      color: FollowSkyV11Tokens.contentSecondary,
+                      color: FollowSkyV11Tokens.silverMid,
                       fontFamily: MaatFlowListTokens.fontFamily,
                       fontFamilyFallback: MaatFlowListTokens.fontFallback,
                       fontSize: 14.5,

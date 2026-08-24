@@ -41,7 +41,7 @@ class FollowSkyThirtyDayStrip extends StatelessWidget {
               Text(
                 'In your next thirty days.',
                 style: TextStyle(
-                  color: FollowSkyV11Tokens.contentSecondary,
+                  color: FollowSkyV11Tokens.silverMid,
                   fontFamily: MaatFlowListTokens.fontFamily,
                   fontFamilyFallback: MaatFlowListTokens.fontFallback,
                   fontSize: 24,
@@ -69,7 +69,7 @@ class FollowSkyThirtyDayStrip extends StatelessWidget {
   }
 
   static const TextStyle _introStyle = TextStyle(
-    color: FollowSkyV11Tokens.contentPrimary,
+    color: FollowSkyV11Tokens.silverHi,
     fontFamily: MaatFlowListTokens.fontFamily,
     fontFamilyFallback: MaatFlowListTokens.fontFallback,
     fontSize: 24,
@@ -209,7 +209,7 @@ class _DecanRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 64,
+      height: FollowSkyV11Tokens.decanRowHeight,
       decoration: BoxDecoration(
         border: Border(
           top: const BorderSide(color: Color(0x2EC4A64A)),
@@ -264,8 +264,11 @@ class _DayTile extends StatelessWidget {
     final value = day;
     if (value == null) return const SizedBox.expand();
     final ringColor = value.hasSky
-        ? FollowSkyV11Tokens.intentionPeriwinkle.withValues(alpha: 0.72)
-        : FollowSkyV11Tokens.calendarAntique.withValues(alpha: 0.72);
+        ? FollowSkyV11Tokens.intentionPeriwinkle
+        : FollowSkyV11Tokens.calendarAntique;
+    final ringDiameter = value.today
+        ? FollowSkyV11Tokens.todayRingDiameter
+        : FollowSkyV11Tokens.skyRingDiameter;
     final dateKey =
         '${value.date.year.toString().padLeft(4, '0')}-'
         '${value.date.month.toString().padLeft(2, '0')}-'
@@ -275,23 +278,30 @@ class _DayTile extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         SizedBox(
-          height: 28,
+          height: FollowSkyV11Tokens.dayNumberAreaHeight,
           child: Stack(
+            clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
               if (value.today || value.hasSky)
-                Container(
-                  key: ValueKey<String>('follow-sky-strip-ring-$dateKey'),
-                  width: 26,
-                  height: 26,
-                  decoration: BoxDecoration(
-                    color: value.hasSky && value.carried
-                        ? FollowSkyV11Tokens.intentionPeriwinkle.withValues(
-                            alpha: 0.10,
-                          )
-                        : null,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: ringColor),
+                OverflowBox(
+                  minWidth: ringDiameter,
+                  maxWidth: ringDiameter,
+                  minHeight: ringDiameter,
+                  maxHeight: ringDiameter,
+                  child: Container(
+                    key: ValueKey<String>('follow-sky-strip-ring-$dateKey'),
+                    width: ringDiameter,
+                    height: ringDiameter,
+                    decoration: BoxDecoration(
+                      color: value.hasSky && value.carried
+                          ? FollowSkyV11Tokens.intentionPeriwinkle.withValues(
+                              alpha: 0.10,
+                            )
+                          : null,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: ringColor),
+                    ),
                   ),
                 ),
               Text(
@@ -310,7 +320,7 @@ class _DayTile extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 5),
+        const SizedBox(height: FollowSkyV11Tokens.ringDotGap),
         SizedBox(
           key: ValueKey<String>('follow-sky-strip-dots-$dateKey'),
           height: 3,

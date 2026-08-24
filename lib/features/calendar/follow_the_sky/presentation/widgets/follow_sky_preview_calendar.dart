@@ -264,7 +264,7 @@ class _OrdinaryPreviewRow extends StatelessWidget {
               child: Text(
                 row.allDay ? 'All day' : _formatTime(row.start),
                 style: const TextStyle(
-                  color: FollowSkyV11Tokens.calendarWeekday,
+                  color: FollowSkyV11Tokens.silverMid,
                   fontFamily: MaatFlowListTokens.fontFamily,
                   fontFamilyFallback: MaatFlowListTokens.fontFallback,
                   fontSize: 10.5,
@@ -279,7 +279,7 @@ class _OrdinaryPreviewRow extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: FollowSkyV11Tokens.calendarMuted,
+                color: FollowSkyV11Tokens.silverHi,
                 fontFamily: MaatFlowListTokens.fontFamily,
                 fontFamilyFallback: MaatFlowListTokens.fontFallback,
                 fontSize: 14,

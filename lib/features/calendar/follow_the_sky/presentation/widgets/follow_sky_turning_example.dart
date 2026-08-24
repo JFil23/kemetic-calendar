@@ -31,7 +31,7 @@ class FollowSkyTurningExample extends StatelessWidget {
               Text(
                 'HOW A TURNING WORKS',
                 style: TextStyle(
-                  color: FollowSkyV11Tokens.goldDim,
+                  color: FollowSkyV11Tokens.gold,
                   fontFamily: MaatFlowListTokens.fontFamily,
                   fontFamilyFallback: MaatFlowListTokens.fontFallback,
                   fontSize: 10,
@@ -48,7 +48,7 @@ class FollowSkyTurningExample extends StatelessWidget {
           Text(
             meaning.observation,
             style: const TextStyle(
-              color: FollowSkyV11Tokens.contentSecondary,
+              color: FollowSkyV11Tokens.silverHi,
               fontFamily: MaatFlowListTokens.fontFamily,
               fontFamilyFallback: MaatFlowListTokens.fontFallback,
               fontSize: 17,
@@ -72,7 +72,7 @@ class FollowSkyTurningExample extends StatelessWidget {
           Text(
             meaning.personalQuestion,
             style: const TextStyle(
-              color: FollowSkyV11Tokens.contentPrimary,
+              color: FollowSkyV11Tokens.silverHi,
               fontFamily: MaatFlowListTokens.fontFamily,
               fontFamilyFallback: MaatFlowListTokens.fontFallback,
               fontSize: 23.5,

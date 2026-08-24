@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/follow_the_sky/follow_the_sky.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_dock.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_tokens.dart';
 
 void main() {
   late SkyCatalog catalog;
@@ -91,6 +92,29 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(_byKeyPrefix('follow-sky-strip-day-'), findsNWidgets(30));
+      final todayDateKey = _dateKey(DateUtils.dateOnly(now.toLocal()));
+      final todayRing = find.byKey(
+        ValueKey<String>('follow-sky-strip-ring-$todayDateKey'),
+      );
+      final todayNumber = find.byKey(
+        ValueKey<String>('follow-sky-strip-number-$todayDateKey'),
+      );
+      final todayDots = find.byKey(
+        ValueKey<String>('follow-sky-strip-dots-$todayDateKey'),
+      );
+      expect(todayRing, findsOneWidget);
+      final todayRingRect = tester.getRect(todayRing);
+      final todayNumberRect = tester.getRect(todayNumber);
+      final todayDotsRect = tester.getRect(todayDots);
+      expect(todayRingRect.width, FollowSkyV11Tokens.todayRingDiameter);
+      expect(todayRingRect.height, FollowSkyV11Tokens.todayRingDiameter);
+      expect(todayRingRect.contains(todayNumberRect.topLeft), isTrue);
+      expect(todayRingRect.contains(todayNumberRect.bottomRight), isTrue);
+      expect(
+        todayDotsRect.top - todayRingRect.bottom,
+        greaterThanOrEqualTo(FollowSkyV11Tokens.ringDotGap),
+      );
+
       final intentionDateKey = _dateKey(
         intentionNight.primaryInstantUtc.toLocal(),
       );
@@ -105,9 +129,14 @@ void main() {
       final dotsRect = tester.getRect(
         find.byKey(ValueKey<String>('follow-sky-strip-dots-$intentionDateKey')),
       );
+      expect(ringRect.width, FollowSkyV11Tokens.skyRingDiameter);
+      expect(ringRect.height, FollowSkyV11Tokens.skyRingDiameter);
       expect(ringRect.contains(numberRect.topLeft), isTrue);
       expect(ringRect.contains(numberRect.bottomRight), isTrue);
-      expect(ringRect.bottom, lessThanOrEqualTo(dotsRect.top));
+      expect(
+        dotsRect.top - ringRect.bottom,
+        greaterThanOrEqualTo(FollowSkyV11Tokens.ringDotGap),
+      );
 
       expect(_byKeyPrefix('follow-sky-preview-day-'), findsNWidgets(5));
       expect(find.text('Non-turning calendar event'), findsNothing);

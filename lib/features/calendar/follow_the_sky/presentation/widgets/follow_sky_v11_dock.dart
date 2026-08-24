@@ -87,7 +87,7 @@ class FollowSkyV11Dock extends StatelessWidget {
           'Nothing is added until you carry it.',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: FollowSkyV11Tokens.contentMuted,
+            color: FollowSkyV11Tokens.silverMid,
             fontFamily: MaatFlowListTokens.fontFamily,
             fontFamilyFallback: MaatFlowListTokens.fontFallback,
             fontSize: 10.5,
@@ -109,9 +109,9 @@ class FollowSkyV11Dock extends StatelessWidget {
             key: const ValueKey<String>('follow-sky-carried'),
             style: ElevatedButton.styleFrom(
               backgroundColor: FollowSkyV11Tokens.pageBg,
-              foregroundColor: FollowSkyV11Tokens.contentSecondary,
+              foregroundColor: FollowSkyV11Tokens.silverMid,
               disabledBackgroundColor: FollowSkyV11Tokens.pageBg,
-              disabledForegroundColor: FollowSkyV11Tokens.contentSecondary,
+              disabledForegroundColor: FollowSkyV11Tokens.silverMid,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(999),
                 side: BorderSide(
@@ -138,7 +138,7 @@ class FollowSkyV11Dock extends StatelessWidget {
           'The sky will find you. Change anything later.',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: FollowSkyV11Tokens.contentMuted,
+            color: FollowSkyV11Tokens.silverMid,
             fontFamily: MaatFlowListTokens.fontFamily,
             fontFamilyFallback: MaatFlowListTokens.fontFallback,
             fontSize: 10.5,
