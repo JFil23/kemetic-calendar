@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import base64
+import os
 import re
 import sys
 from pathlib import Path
@@ -30,7 +31,7 @@ def main() -> int:
         html_path = Path(sys.argv[1])
     else:
         html_path = Path(
-            sys.environ.get(
+            os.environ.get(
                 "FOLLOW_SKY_V11_HTML",
                 "follow-the-sky-preview-v11-no-lenses.html",
             )
