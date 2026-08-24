@@ -172,10 +172,17 @@ class TrackSkyEnrollmentService {
     String? overview,
     TrackSkyCourse? course,
     bool hasObservingLocation = false,
+    Set<String>? includedSkyEventIds,
+    Map<String, String>? intentionBySkyEventId,
   }) {
     final nights = catalog.upcomingNights(nowUtc: nowUtc);
+    final selectedNights = includedSkyEventIds == null
+        ? nights
+        : nights
+            .where((night) => includedSkyEventIds.contains(night.skyEventId))
+            .toList(growable: false);
     final occurrences = <MaterializedSkyOccurrence>[];
-    for (final night in nights) {
+    for (final night in selectedNights) {
       final decision = visibilityService.decide(
         night.windowSource,
         hasObservingLocation: hasObservingLocation,

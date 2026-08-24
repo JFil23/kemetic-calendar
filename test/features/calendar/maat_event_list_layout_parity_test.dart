@@ -165,7 +165,9 @@ void main() {
     expect(find.text('NEXT TURNING'), findsOneWidget);
     expect(find.text('Join Flow'), findsOneWidget);
     expect(
-      find.text("Sky · Track the year's astronomical events in Kemetic time"),
+      find.text(
+        'Sky · Major turnings in the sky carry a meaning. Attach your own intention to that meaning.',
+      ),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);

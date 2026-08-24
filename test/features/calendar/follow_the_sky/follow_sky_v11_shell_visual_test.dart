@@ -13,9 +13,30 @@ void main() {
     );
   });
 
-  testWidgets('V11 detail hierarchy replaces Course-era marketing shell', (
+  testWidgets('V11 detail shows thirty-day copy and carry dock', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FollowSkyDetailPage(
+          initialCatalog: catalog,
+          now: DateTime.utc(2026, 9, 1, 12),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Here they are.'), findsOneWidget);
+    expect(find.text('How a turning works'), findsOneWidget);
+    expect(find.text('Carry'), findsOneWidget);
+    expect(find.textContaining('All ${catalog.observingNightCount} turnings'),
+        findsOneWidget);
+  });
+
+  testWidgets('joined state shows in-your-calendar dock', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
         home: FollowSkyDetailPage(
@@ -27,11 +48,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Here they are.'), findsOneWidget);
-    expect(find.text('How a turning works'), findsOneWidget);
-    expect(find.text('Keep what matters from drifting.'), findsNothing);
-    expect(find.text('ONE THING TO CARRY'), findsNothing);
-    expect(find.text('UPCOMING TURNINGS'), findsNothing);
     expect(find.text('In your calendar'), findsOneWidget);
+    expect(
+      find.text('The sky will find you. Change anything later.'),
+      findsOneWidget,
+    );
   });
 }

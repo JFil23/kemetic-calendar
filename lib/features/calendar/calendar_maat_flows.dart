@@ -579,7 +579,8 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
               .toList(growable: false);
     final hasWaitingSection = waiting.isNotEmpty;
 
-    return Scaffold(
+    return MaatFlowsListTransitionShell(
+      child: Scaffold(
       backgroundColor: MaatFlowListTokens.pageBg,
       appBar: AppBar(
         backgroundColor: MaatFlowListTokens.pageBg,
@@ -696,6 +697,7 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
                 }
               },
             ),
+      ),
     );
   }
 
@@ -2147,6 +2149,7 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
     this.followSkyExistingFlowId,
     this.followSkyCandidates = const [],
     this.followSkyMeasurementIntervals = const [],
+    this.followSkyCalendarPreview = FollowSkyCalendarPreview.empty,
     this.onFollowSkyCourseSaved,
     this.onFollowSkyProtectTime,
   });
@@ -2189,6 +2192,7 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
   final int? followSkyExistingFlowId;
   final List<CourseActivitySignal> followSkyCandidates;
   final List<CourseMeasurementInterval> followSkyMeasurementIntervals;
+  final FollowSkyCalendarPreview followSkyCalendarPreview;
   final Future<void> Function(TrackSkyCourse? course, String notes)?
       onFollowSkyCourseSaved;
   final Future<void> Function({
@@ -9059,55 +9063,37 @@ class _MaatFlowTemplateDetailPageState
       _maatEventTapStartedWhileScrolling.clear();
     }
     if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
-      // Cut 2/3: V2 is production. Debug can still open the retired V1 scaffold.
       if (!FollowSkyV2Flags.useV2Production) {
         return _buildTrackSkyScaffold(context);
       }
-      // Keep the existing Ma’at detail shell (nav + dock). V2 is content only.
-      return _buildMaatFlowDetailScaffold(
-        context,
-        appendInitialPrompt: false,
-        joinButton: _buildFollowSkyStickyDockButton(),
-        children: [
-          _buildMaatFlowDetailHero(tagline: widget.template.subtitle),
-          const SizedBox(height: 4),
-          FollowSkyDetailPage(
-            key: _followSkyDetailKey,
-            standalone: false,
-            omitIdentityHero: true,
-            isJoined: widget.alreadyJoined,
-            existingFlowNotes: widget.followSkyExistingFlowNotes,
-            existingFlowId: widget.followSkyExistingFlowId,
-            candidates: widget.followSkyCandidates,
-            measurementIntervals: widget.followSkyMeasurementIntervals,
-            title: widget.template.title,
-            subtitle: widget.template.subtitle,
-            // v5/v7 In Kemet copy — do not use the older badge prose.
-            timezone: FollowSkyTimeZoneX.tryParse(
-                  _previewTrackSkyTimeZone.key,
-                ) ??
-                FollowSkyTimeZone.pacific,
-            onHierarchyChanged: () {
-              if (mounted) setState(() {});
-            },
-            onCourseSaved: widget.onFollowSkyCourseSaved,
-            onProtectTime: widget.onFollowSkyProtectTime,
-            onJoin: (draft) async {
-              final result = await FlowJoinService().joinTrackSkyV2Headless(
-                templateKey: widget.template.key,
-                templateTitle: widget.template.title,
-                templateOverview: widget.template.overview,
-                templateColor: widget.template.color,
-                personalCalendarId: null,
-                draft: draft,
-              );
-              final id = result.flowIdOrNegativeOne;
-              if (id > 0) {
-                await _completeJoin(id);
-              }
-            },
-          ),
-        ],
+      return FollowSkyDetailPage(
+        key: _followSkyDetailKey,
+        standalone: false,
+        isJoined: widget.alreadyJoined,
+        existingFlowNotes: widget.followSkyExistingFlowNotes,
+        existingFlowId: widget.followSkyExistingFlowId,
+        calendarPreview: widget.followSkyCalendarPreview,
+        title: widget.template.title,
+        subtitle: widget.template.subtitle,
+        timezone: FollowSkyTimeZoneX.tryParse(_previewTrackSkyTimeZone.key) ??
+            FollowSkyTimeZone.pacific,
+        onHierarchyChanged: () {
+          if (mounted) setState(() {});
+        },
+        onJoin: (draft) async {
+          final result = await FlowJoinService().joinTrackSkyV2Headless(
+            templateKey: widget.template.key,
+            templateTitle: widget.template.title,
+            templateOverview: widget.template.overview,
+            templateColor: widget.template.color,
+            personalCalendarId: null,
+            draft: draft,
+          );
+          final id = result.flowIdOrNegativeOne;
+          if (id > 0) {
+            await _completeJoin(id);
+          }
+        },
       );
     }
     if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite) {

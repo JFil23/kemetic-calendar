@@ -3763,7 +3763,8 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     title: 'Follow the sky',
     overview:
         'Follow the Sky places major visible sky events on the calendar with simple witness prompts. Step outside when you can, notice what changed above you, and keep one clear line of observation in Kemetic time.',
-    subtitle: 'Sky · Track the year\'s astronomical events in Kemetic time',
+    subtitle:
+        'Sky · Major turnings in the sky carry a meaning. Attach your own intention to that meaning.',
     historicalBadgeText: _kTrackSkyBadgeText,
     libraryCategory: _MaatFlowLibraryCategory.dailyRhythm,
     glyph: '𓇯',
@@ -13050,101 +13051,19 @@ class CalendarPageState extends State<CalendarPage>
           final template = _maatTemplateForKey(templateKey);
           if (template == null) return <Route<dynamic>>[hubRoute, listRoute];
 
-          final detailRoute = MaterialPageRoute<int?>(
-            builder: (_) {
-              final sky = template.key == 'track-the-sky'
-                  ? _followSkyLiveInputs()
-                  : null;
-              return _MaatFlowTemplateDetailPage(
-              template: template,
-              alreadyJoined: _hasActiveMaatInstanceFor(template.key),
-              followSkyExistingFlowNotes: sky?.notes,
-              followSkyExistingFlowId: sky?.flowId,
-              followSkyCandidates: sky?.candidates ?? const [],
-              followSkyMeasurementIntervals: sky?.intervals ?? const [],
-              onFollowSkyCourseSaved: sky?.flowId == null
-                  ? null
-                  : (course, notes) => _saveFollowSkyCourseNotes(
-                        flowId: sky!.flowId!,
-                        notes: notes,
-                      ),
-              onFollowSkyProtectTime: ({
-                required course,
-                required startLocal,
-                required endLocal,
-              }) =>
-                  _protectFollowSkyCourseTime(
-                    course: course,
-                    startLocal: startLocal,
-                    endLocal: endLocal,
+          final detailRoute = template.key == 'track-the-sky'
+              ? FollowSkyDetailPageRoute<int?>(
+                  builder: (_) => _buildMaatFlowTemplateDetailPage(
+                    template: template,
+                    persistOverlay: true,
                   ),
-              addInstance:
-                  ({
-                    required _MaatFlowTemplate template,
-                    DateTime? startDate,
-                    bool? useKemetic,
-                    TrackSkyTimeZone? trackSkyTimeZone,
-                    int? alertMinutesBefore,
-                    bool? dawnDiscreetMode,
-                    DawnHouseRiteLens? dawnLens,
-                    bool? eveningDiscreetMode,
-                    EveningThresholdRiteLens? eveningLens,
-                    int? eveningFallbackMinutesAfterMidnight,
-                    TheWeighingLens? theWeighingLens,
-                    OfferingTableLens? offeringTableLens,
-                    bool? offeringNoCupMode,
-                    TheTendingLens? theTendingLens,
-                    KeptWordLens? keptWordLens,
-                    CourseLens? courseLens,
-                    MoonReturnLens? moonReturnLens,
-                    WagLens? wagLens,
-                    DecanWatchLens? decanWatchLens,
-                    OpenHandLens? openHandLens,
-                    DjedLens? djedLens,
-                    List<ReadingHouseSitting>? readingHouseSittings,
-                    String? eveningThresholdInitialCarry,
-                  }) async {
-                    final id = await _addMaatFlowInstance(
-                      template: template,
-                      startDate: startDate,
-                      useKemetic: useKemetic ?? false,
-                      trackSkyTimeZone: trackSkyTimeZone,
-                      alertMinutesBefore:
-                          alertMinutesBefore ?? _alertNoneMinutes,
-                      dawnDiscreetMode: dawnDiscreetMode ?? false,
-                      dawnLens: dawnLens ?? DawnHouseRiteLens.neutral,
-                      eveningDiscreetMode: eveningDiscreetMode ?? false,
-                      eveningLens:
-                          eveningLens ?? EveningThresholdRiteLens.neutral,
-                      eveningFallbackMinutesAfterMidnight:
-                          eveningFallbackMinutesAfterMidnight ??
-                          kEveningThresholdDefaultFallbackMinutes,
-                      theWeighingLens:
-                          theWeighingLens ?? TheWeighingLens.neutral,
-                      offeringTableLens:
-                          offeringTableLens ?? OfferingTableLens.neutral,
-                      offeringNoCupMode: offeringNoCupMode ?? false,
-                      theTendingLens: theTendingLens ?? TheTendingLens.neutral,
-                      keptWordLens: keptWordLens ?? KeptWordLens.neutral,
-                      courseLens: courseLens ?? CourseLens.neutral,
-                      moonReturnLens: moonReturnLens ?? MoonReturnLens.neutral,
-                      wagLens: wagLens ?? WagLens.neutral,
-                      decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
-                      openHandLens: openHandLens ?? OpenHandLens.neutral,
-                      djedLens: djedLens ?? DjedLens.neutral,
-                      readingHouseSittings: readingHouseSittings,
-                      eveningThresholdInitialCarry:
-                          eveningThresholdInitialCarry,
-                    );
-                    return id;
-                  },
-              onJoined: (flowId) => _completeMountedMaatJoinWithDayView(
-                flowId: flowId,
-                templateKey: template.key,
-              ),
-            );
-            },
-          );
+                )
+              : MaterialPageRoute<int?>(
+                  builder: (_) => _buildMaatFlowTemplateDetailPage(
+                    template: template,
+                    persistOverlay: true,
+                  ),
+                );
           unawaited(
             detailRoute.popped.then((importedFlowId) async {
               if (!mounted ||
@@ -13351,106 +13270,118 @@ class CalendarPageState extends State<CalendarPage>
     return null;
   }
 
+  Widget _buildMaatFlowTemplateDetailPage({
+    required _MaatFlowTemplate template,
+    required bool persistOverlay,
+  }) {
+    final sky = template.key == 'track-the-sky' ? _followSkyLiveInputs() : null;
+    return _MaatFlowTemplateDetailPage(
+      template: template,
+      alreadyJoined: _hasActiveMaatInstanceFor(template.key),
+      resizeToAvoidBottomInset: persistOverlay,
+      followSkyExistingFlowNotes: sky?.notes,
+      followSkyExistingFlowId: sky?.flowId,
+      followSkyCandidates: sky?.candidates ?? const [],
+      followSkyMeasurementIntervals: sky?.intervals ?? const [],
+      followSkyCalendarPreview: sky?.preview ?? FollowSkyCalendarPreview.empty,
+      onFollowSkyCourseSaved: sky?.flowId == null
+          ? null
+          : (course, notes) => _saveFollowSkyCourseNotes(
+                flowId: sky!.flowId!,
+                notes: notes,
+              ),
+      onFollowSkyProtectTime: ({
+        required course,
+        required startLocal,
+        required endLocal,
+      }) =>
+          _protectFollowSkyCourseTime(
+            course: course,
+            startLocal: startLocal,
+            endLocal: endLocal,
+          ),
+      addInstance: ({
+        required _MaatFlowTemplate template,
+        DateTime? startDate,
+        bool? useKemetic,
+        TrackSkyTimeZone? trackSkyTimeZone,
+        int? alertMinutesBefore,
+        bool? dawnDiscreetMode,
+        DawnHouseRiteLens? dawnLens,
+        bool? eveningDiscreetMode,
+        EveningThresholdRiteLens? eveningLens,
+        int? eveningFallbackMinutesAfterMidnight,
+        TheWeighingLens? theWeighingLens,
+        OfferingTableLens? offeringTableLens,
+        bool? offeringNoCupMode,
+        TheTendingLens? theTendingLens,
+        KeptWordLens? keptWordLens,
+        CourseLens? courseLens,
+        MoonReturnLens? moonReturnLens,
+        WagLens? wagLens,
+        DecanWatchLens? decanWatchLens,
+        OpenHandLens? openHandLens,
+        DjedLens? djedLens,
+        List<ReadingHouseSitting>? readingHouseSittings,
+        String? eveningThresholdInitialCarry,
+      }) async {
+        return _addMaatFlowInstance(
+          template: template,
+          startDate: startDate,
+          useKemetic: useKemetic ?? false,
+          trackSkyTimeZone: trackSkyTimeZone,
+          alertMinutesBefore: alertMinutesBefore ?? _alertNoneMinutes,
+          dawnDiscreetMode: dawnDiscreetMode ?? false,
+          dawnLens: dawnLens ?? DawnHouseRiteLens.neutral,
+          eveningDiscreetMode: eveningDiscreetMode ?? false,
+          eveningLens: eveningLens ?? EveningThresholdRiteLens.neutral,
+          eveningFallbackMinutesAfterMidnight:
+              eveningFallbackMinutesAfterMidnight ??
+              kEveningThresholdDefaultFallbackMinutes,
+          theWeighingLens: theWeighingLens ?? TheWeighingLens.neutral,
+          offeringTableLens: offeringTableLens ?? OfferingTableLens.neutral,
+          offeringNoCupMode: offeringNoCupMode ?? false,
+          theTendingLens: theTendingLens ?? TheTendingLens.neutral,
+          keptWordLens: keptWordLens ?? KeptWordLens.neutral,
+          courseLens: courseLens ?? CourseLens.neutral,
+          moonReturnLens: moonReturnLens ?? MoonReturnLens.neutral,
+          wagLens: wagLens ?? WagLens.neutral,
+          decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
+          openHandLens: openHandLens ?? OpenHandLens.neutral,
+          djedLens: djedLens ?? DjedLens.neutral,
+          readingHouseSittings: readingHouseSittings,
+          eveningThresholdInitialCarry: eveningThresholdInitialCarry,
+        );
+      },
+      onJoined: (flowId) => _completeMountedMaatJoinWithDayView(
+        flowId: flowId,
+        templateKey: template.key,
+      ),
+    );
+  }
+
   Future<int?> _pushMaatFlowTemplateDetail(
     NavigatorState navigator,
     _MaatFlowTemplate template, {
     required Map<String, dynamic> returnState,
     bool persistOverlay = true,
   }) {
+    final route = template.key == 'track-the-sky'
+        ? FollowSkyDetailPageRoute<int?>(
+            builder: (_) => _buildMaatFlowTemplateDetailPage(
+              template: template,
+              persistOverlay: persistOverlay,
+            ),
+          )
+        : MaterialPageRoute<int?>(
+            builder: (_) => _buildMaatFlowTemplateDetailPage(
+              template: template,
+              persistOverlay: persistOverlay,
+            ),
+          );
     return _pushFlowStudioRoute<int?>(
       navigator,
-      MaterialPageRoute<int?>(
-        builder: (_) {
-          final sky = template.key == 'track-the-sky'
-              ? _followSkyLiveInputs()
-              : null;
-          return _MaatFlowTemplateDetailPage(
-          template: template,
-          alreadyJoined: _hasActiveMaatInstanceFor(template.key),
-          resizeToAvoidBottomInset: persistOverlay,
-          followSkyExistingFlowNotes: sky?.notes,
-          followSkyExistingFlowId: sky?.flowId,
-          followSkyCandidates: sky?.candidates ?? const [],
-          followSkyMeasurementIntervals: sky?.intervals ?? const [],
-          onFollowSkyCourseSaved: sky?.flowId == null
-              ? null
-              : (course, notes) => _saveFollowSkyCourseNotes(
-                    flowId: sky!.flowId!,
-                    notes: notes,
-                  ),
-          onFollowSkyProtectTime: ({
-            required course,
-            required startLocal,
-            required endLocal,
-          }) =>
-              _protectFollowSkyCourseTime(
-                course: course,
-                startLocal: startLocal,
-                endLocal: endLocal,
-              ),
-          addInstance:
-              ({
-                required _MaatFlowTemplate template,
-                DateTime? startDate,
-                bool? useKemetic,
-                TrackSkyTimeZone? trackSkyTimeZone,
-                int? alertMinutesBefore,
-                bool? dawnDiscreetMode,
-                DawnHouseRiteLens? dawnLens,
-                bool? eveningDiscreetMode,
-                EveningThresholdRiteLens? eveningLens,
-                int? eveningFallbackMinutesAfterMidnight,
-                TheWeighingLens? theWeighingLens,
-                OfferingTableLens? offeringTableLens,
-                bool? offeringNoCupMode,
-                TheTendingLens? theTendingLens,
-                KeptWordLens? keptWordLens,
-                CourseLens? courseLens,
-                MoonReturnLens? moonReturnLens,
-                WagLens? wagLens,
-                DecanWatchLens? decanWatchLens,
-                OpenHandLens? openHandLens,
-                DjedLens? djedLens,
-                List<ReadingHouseSitting>? readingHouseSittings,
-                String? eveningThresholdInitialCarry,
-              }) async {
-                final id = await _addMaatFlowInstance(
-                  template: template,
-                  startDate: startDate,
-                  useKemetic: useKemetic ?? false,
-                  trackSkyTimeZone: trackSkyTimeZone,
-                  alertMinutesBefore: alertMinutesBefore ?? _alertNoneMinutes,
-                  dawnDiscreetMode: dawnDiscreetMode ?? false,
-                  dawnLens: dawnLens ?? DawnHouseRiteLens.neutral,
-                  eveningDiscreetMode: eveningDiscreetMode ?? false,
-                  eveningLens: eveningLens ?? EveningThresholdRiteLens.neutral,
-                  eveningFallbackMinutesAfterMidnight:
-                      eveningFallbackMinutesAfterMidnight ??
-                      kEveningThresholdDefaultFallbackMinutes,
-                  theWeighingLens: theWeighingLens ?? TheWeighingLens.neutral,
-                  offeringTableLens:
-                      offeringTableLens ?? OfferingTableLens.neutral,
-                  offeringNoCupMode: offeringNoCupMode ?? false,
-                  theTendingLens: theTendingLens ?? TheTendingLens.neutral,
-                  keptWordLens: keptWordLens ?? KeptWordLens.neutral,
-                  courseLens: courseLens ?? CourseLens.neutral,
-                  moonReturnLens: moonReturnLens ?? MoonReturnLens.neutral,
-                  wagLens: wagLens ?? WagLens.neutral,
-                  decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
-                  openHandLens: openHandLens ?? OpenHandLens.neutral,
-                  djedLens: djedLens ?? DjedLens.neutral,
-                  readingHouseSittings: readingHouseSittings,
-                  eveningThresholdInitialCarry: eveningThresholdInitialCarry,
-                );
-                return id;
-              },
-          onJoined: (flowId) => _completeMountedMaatJoinWithDayView(
-            flowId: flowId,
-            templateKey: template.key,
-          ),
-        );
-        },
-      ),
+      route,
       visibleState: <String, dynamic>{
         'mode': _kFlowStudioModeMaatTemplate,
         'templateKey': template.key,
@@ -28051,9 +27982,13 @@ class CalendarPageState extends State<CalendarPage>
     int? flowId,
     List<CourseActivitySignal> candidates,
     List<CourseMeasurementInterval> intervals,
+    FollowSkyCalendarPreview preview,
   }) _followSkyLiveInputs() {
     final flow = _activeFlowForMaatTemplate('track-the-sky');
     final now = DateTime.now();
+    final windowStart = DateUtils.dateOnly(now);
+    final windowEnd = windowStart.add(const Duration(days: 29));
+    final previewRows = <FollowSkyCalendarPreviewRow>[];
     final snapshots = <CourseActivitySnapshot>[];
     final blocks = <FollowSkyCalendarBlock>[];
     final decodedCourse = TrackSkyCourseMetadataCodec().decode(flow?.notes);
@@ -28064,19 +27999,30 @@ class CalendarPageState extends State<CalendarPage>
     final course = rehydrated.course;
 
     for (final entry in _notes.entries) {
-      final parts = entry.key.split('-');
-      if (parts.length != 3) continue;
-      final y = int.tryParse(parts[0]);
-      final m = int.tryParse(parts[1]);
-      final d = int.tryParse(parts[2]);
-      if (y == null || m == null || d == null) continue;
+      final dayStart = _gregorianDayStartFromKey(entry.key);
+      if (dayStart == null) continue;
+      if (dayStart.isBefore(windowStart) || dayStart.isAfter(windowEnd)) {
+        continue;
+      }
       for (final note in entry.value) {
         final start = note.allDay || note.start == null
-            ? DateTime(y, m, d, 9, 0)
-            : DateTime(y, m, d, note.start!.hour, note.start!.minute);
+            ? DateTime(dayStart.year, dayStart.month, dayStart.day, 9, 0)
+            : DateTime(
+                dayStart.year,
+                dayStart.month,
+                dayStart.day,
+                note.start!.hour,
+                note.start!.minute,
+              );
         final end = note.allDay || note.end == null
             ? start.add(const Duration(hours: 1))
-            : DateTime(y, m, d, note.end!.hour, note.end!.minute);
+            : DateTime(
+                dayStart.year,
+                dayStart.month,
+                dayStart.day,
+                note.end!.hour,
+                note.end!.minute,
+              );
         final noteFlowId = note.flowId;
         final sourceFlow = noteFlowId == null || noteFlowId <= 0
             ? null
@@ -28086,6 +28032,20 @@ class CalendarPageState extends State<CalendarPage>
                 }
                 return null;
               }();
+        if (sourceFlow == null || !_isTrackSkyFlowName(sourceFlow.name)) {
+          previewRows.add(
+            FollowSkyCalendarPreviewRow(
+              localDay: dayStart,
+              start: start,
+              end: end,
+              title: note.title,
+              eventColor: _noteColor(note),
+              eventId: note.clientEventId ?? note.id,
+              flowName: sourceFlow?.name,
+              allDay: note.allDay,
+            ),
+          );
+        }
         // A block only counts as course-measurable activity when its flow still
         // exists and is not Follow the Sky's own generated flow.
         final measurableFlowId =
@@ -28136,6 +28096,17 @@ class CalendarPageState extends State<CalendarPage>
       intervals: const FollowSkyCourseAttribution().intervalsFor(
         course: course,
         blocks: blocks,
+      ),
+      preview: FollowSkyCalendarPreview(
+        rows: previewRows,
+        windowStart: windowStart,
+        windowEnd: windowEnd,
+        candidates: candidates,
+        intervals: const FollowSkyCourseAttribution().intervalsFor(
+          course: course,
+          blocks: blocks,
+        ),
+        coverageComplete: true,
       ),
     );
   }
