@@ -1,11 +1,9 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
-import '../../track_sky_timezone.dart';
 import '../domain/follow_sky_timezone.dart';
 import '../domain/sky_catalog.dart';
 import '../domain/sky_observing_night.dart';
@@ -14,7 +12,6 @@ import '../services/course_measurement_service.dart';
 import '../domain/track_sky_course.dart';
 import '../services/sky_catalog_repository.dart';
 import '../services/sky_visibility_service.dart';
-import '../services/track_sky_course_metadata_codec.dart';
 import '../services/track_sky_enrollment_service.dart';
 import '../services/track_sky_materializer.dart';
 import 'follow_sky_calendar_preview.dart';
@@ -30,7 +27,7 @@ import 'widgets/follow_sky_v11_tokens.dart';
 
 /// Follow the Sky V11 detail orchestrator.
 class FollowSkyDetailPage extends StatefulWidget {
-  FollowSkyDetailPage({
+  const FollowSkyDetailPage({
     super.key,
     this.existingFlowNotes,
     this.existingFlowId,
@@ -47,8 +44,7 @@ class FollowSkyDetailPage extends StatefulWidget {
     this.now,
     this.standalone = true,
     this.title = 'Follow the sky',
-    this.subtitle =
-        'Sky · Major turnings in the sky carry a meaning. Attach your own intention to that meaning.',
+    this.subtitle = FollowSkyV11Tokens.heroSubtitle,
     this.onHierarchyChanged,
   });
 
@@ -61,12 +57,13 @@ class FollowSkyDetailPage extends StatefulWidget {
   final FollowSkyTimeZone timezone;
   final Future<void> Function(TrackSkyEnrollmentDraft draft)? onJoin;
   final Future<void> Function(TrackSkyCourse? course, String notes)?
-      onCourseSaved;
+  onCourseSaved;
   final Future<void> Function({
     required TrackSkyCourse course,
     required DateTime startLocal,
     required DateTime endLocal,
-  })? onProtectTime;
+  })?
+  onProtectTime;
   final SkyCatalogRepository? catalogRepository;
   final SkyCatalog? initialCatalog;
   final DateTime? now;
@@ -82,14 +79,16 @@ class FollowSkyDetailPage extends StatefulWidget {
 class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
   late final SkyCatalogRepository _catalogRepo;
   late final TrackSkyEnrollmentService _enrollment;
-  late final TrackSkyCourseMetadataCodec _codec;
-  final TurningMeaningResolver _meaningResolver = const TurningMeaningResolver();
+  final TurningMeaningResolver _meaningResolver =
+      const TurningMeaningResolver();
   final TextEditingController _exampleIntentionController =
       TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   final Set<String> _excludedSkyEventIds = <String>{};
   final Map<String, String> _draftIntentions = <String, String>{};
   bool _allTurningsExpanded = false;
   bool _joining = false;
+  late bool _carried;
   SkyCatalog? _catalog;
   Object? _error;
 
@@ -119,9 +118,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
   }
 
   SkyObservingNight? get _lastSurfacedNight {
-    final nights = _thirtyDayNights
-        .where((n) => !_excludedSkyEventIds.contains(n.skyEventId))
-        .toList();
+    final nights = _thirtyDayNights;
     return nights.isEmpty ? null : nights.last;
   }
 
@@ -139,13 +136,10 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
   @override
   void initState() {
     super.initState();
+    _carried = widget.isJoined;
     _ensureTz();
     _catalogRepo = widget.catalogRepository ?? SkyCatalogRepository();
-    _codec = TrackSkyCourseMetadataCodec();
-    final materializer = TrackSkyMaterializer(
-      toLocal: _toLocal,
-      toUtc: _toUtc,
-    );
+    final materializer = TrackSkyMaterializer(toLocal: _toLocal, toUtc: _toUtc);
     _enrollment = TrackSkyEnrollmentService(
       materializer: materializer,
       visibilityService: const SkyVisibilityService(),
@@ -162,9 +156,18 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
   }
 
   @override
+  void didUpdateWidget(covariant FollowSkyDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isJoined != oldWidget.isJoined && widget.isJoined != _carried) {
+      _carried = widget.isJoined;
+    }
+  }
+
+  @override
   void dispose() {
     _exampleIntentionController.removeListener(_onExampleIntentionChanged);
     _exampleIntentionController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -243,12 +246,16 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
         intentionBySkyEventId: Map<String, String>.from(_draftIntentions),
       );
       await widget.onJoin!(draft);
+      if (mounted) setState(() => _carried = true);
     } finally {
       if (mounted) setState(() => _joining = false);
     }
   }
 
   Future<void> _openTurningSheet(SkyObservingNight night) async {
+    final returnOffset = _scrollController.hasClients
+        ? _scrollController.offset
+        : null;
     final meaning = _meaningResolver.forNight(night);
     await showFollowSkyTurningSheet(
       context: context,
@@ -265,6 +272,17 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
         });
       },
     );
+    // Navigator results arrive before the bottom-sheet reverse transition has
+    // fully released its view insets. Restore after that transition so the
+    // underlying course returns to the exact reading position.
+    await Future<void>.delayed(kThemeAnimationDuration);
+    if (!mounted || returnOffset == null || !_scrollController.hasClients) {
+      return;
+    }
+    final position = _scrollController.position;
+    position.jumpTo(
+      returnOffset.clamp(position.minScrollExtent, position.maxScrollExtent),
+    );
   }
 
   @override
@@ -277,10 +295,10 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
             ),
           )
         : _catalog == null
-            ? const Center(
-                child: CircularProgressIndicator(color: FollowSkyV11Tokens.gold),
-              )
-            : _buildV11Body();
+        ? const Center(
+            child: CircularProgressIndicator(color: FollowSkyV11Tokens.gold),
+          )
+        : _buildV11Body();
 
     if (!widget.standalone) {
       return Material(
@@ -292,7 +310,10 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
               top: MediaQuery.paddingOf(context).top + 4,
               left: 4,
               child: IconButton(
-                icon: const Icon(Icons.arrow_back, color: FollowSkyV11Tokens.gold),
+                icon: const Icon(
+                  Icons.arrow_back,
+                  color: FollowSkyV11Tokens.gold,
+                ),
                 onPressed: () => Navigator.of(context).maybePop(),
               ),
             ),
@@ -301,10 +322,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
       );
     }
 
-    return Scaffold(
-      backgroundColor: FollowSkyV11Tokens.pageBg,
-      body: body,
-    );
+    return Scaffold(backgroundColor: FollowSkyV11Tokens.pageBg, body: body);
   }
 
   Widget _buildV11Body() {
@@ -312,35 +330,40 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
     final exampleMeaning = TurningMeaningResolver.approvedLunarEclipse;
 
     return FollowSkyScrollShell(
+      scrollController: _scrollController,
       hero: FollowSkyHero(title: widget.title, subtitle: widget.subtitle),
       bottomBar: FollowSkyV11Dock(
-        joined: widget.isJoined,
+        joined: _carried,
         joining: _joining,
-        onCarry: widget.isJoined ? null : _carry,
+        onCarry: _carried ? null : _carry,
       ),
       sheet: Container(
         decoration: const BoxDecoration(
           color: FollowSkyV11Tokens.sheetBg,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+          border: Border(top: BorderSide(color: Color(0x2ED4AE43))),
         ),
-        padding: const EdgeInsets.fromLTRB(18, 22, 18, 0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            FollowSkyThirtyDayStrip(windowStart: windowStart),
-            const SizedBox(height: 24),
+            FollowSkyThirtyDayStrip(
+              windowStart: windowStart,
+              skyNights: _thirtyDayNights,
+              calendarRows: widget.calendarPreview.rows,
+              excludedSkyEventIds: _excludedSkyEventIds,
+              carried: _carried,
+            ),
             FollowSkyTurningExample(
               meaning: exampleMeaning,
               controller: _exampleIntentionController,
               onChanged: (_) {},
             ),
-            const SizedBox(height: 24),
             FollowSkyPreviewCalendar(
               windowStart: windowStart,
               skyNights: _thirtyDayNights,
               calendarRows: widget.calendarPreview.rows,
               excludedSkyEventIds: _excludedSkyEventIds,
-              carried: widget.isJoined,
+              carried: _carried,
               draftIntentions: _draftIntentions,
               onOpenSkyNight: _openTurningSheet,
               onExcludeSkyNight: (night) {

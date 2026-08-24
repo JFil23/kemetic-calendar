@@ -9074,8 +9074,8 @@ class _MaatFlowTemplateDetailPageState
         existingFlowId: widget.followSkyExistingFlowId,
         calendarPreview: widget.followSkyCalendarPreview,
         title: widget.template.title,
-        subtitle: widget.template.subtitle,
-        timezone: FollowSkyTimeZoneX.tryParse(_previewTrackSkyTimeZone.key) ??
+        timezone:
+            FollowSkyTimeZoneX.tryParse(_previewTrackSkyTimeZone.key) ??
             FollowSkyTimeZone.pacific,
         onHierarchyChanged: () {
           if (mounted) setState(() {});
@@ -9089,10 +9089,21 @@ class _MaatFlowTemplateDetailPageState
             personalCalendarId: null,
             draft: draft,
           );
-          final id = result.flowIdOrNegativeOne;
-          if (id > 0) {
-            await _completeJoin(id);
+          final id = CalendarPage._stageHeadlessMaatFlowJoinResult(
+            result: result,
+            template: widget.template,
+            completionRequired: false,
+          );
+          if (id <= 0) {
+            throw StateError('Follow the sky did not produce a staged flow.');
           }
+          CalendarPage._rememberJoinedMaatFlowTemplate(
+            templateKey: widget.template.key,
+            flowId: id,
+          );
+          unawaited(
+            FlowsRepo(Supabase.instance.client).clearMyFiledFlowsCache(),
+          );
         },
       );
     }

@@ -30,10 +30,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Here they are.'), findsOneWidget);
-    expect(find.text('How a turning works'), findsOneWidget);
-    expect(find.text('Carry'), findsOneWidget);
-    expect(find.textContaining('All ${catalog.observingNightCount} turnings'),
-        findsOneWidget);
+    expect(find.text('HOW A TURNING WORKS'), findsOneWidget);
+    expect(find.text('Carry this course'), findsOneWidget);
+    expect(
+      find.textContaining('All ${catalog.observingNightCount} turnings'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('joined state shows in-your-calendar dock', (tester) async {

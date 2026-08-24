@@ -17,9 +17,9 @@ void main() {
 
   test('TurningMeaningResolver ships approved eclipse copy', () {
     const resolver = TurningMeaningResolver();
-    final night = catalog.upcomingNights(
-      nowUtc: DateTime.utc(2026, 9, 1),
-    ).firstWhere((n) => n.companion != null);
+    final night = catalog
+        .upcomingNights(nowUtc: DateTime.utc(2026, 9, 1))
+        .firstWhere((n) => n.companion != null);
 
     final meaning = resolver.forNight(night);
     expect(meaning.significanceLabel, 'ENDURE');
@@ -68,9 +68,11 @@ void main() {
 
     expect(find.text('Here they are.'), findsOneWidget);
     expect(find.text('In your next thirty days.'), findsOneWidget);
-    expect(find.text('How a turning works'), findsOneWidget);
+    expect(find.text('Follow\nthe sky'), findsOneWidget);
+    expect(find.text(FollowSkyV11Tokens.heroSubtitle), findsOneWidget);
+    expect(find.text('HOW A TURNING WORKS'), findsOneWidget);
     expect(find.text('ENDURE'), findsWidgets);
-    expect(find.text('Carry'), findsOneWidget);
+    expect(find.text('Carry this course'), findsOneWidget);
   });
 
   test('hero asset is registered', () {

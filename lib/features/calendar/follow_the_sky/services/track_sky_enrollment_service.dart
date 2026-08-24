@@ -54,8 +54,8 @@ class TrackSkyEnrollmentService {
     required this.visibilityService,
     TrackSkyCourseMetadataCodec? codec,
     TrackSkyIdGenerator? courseIdGenerator,
-  })  : codec = codec ?? TrackSkyCourseMetadataCodec(),
-        courseIdGenerator = courseIdGenerator ?? _defaultCourseId;
+  }) : codec = codec ?? TrackSkyCourseMetadataCodec(),
+       courseIdGenerator = courseIdGenerator ?? _defaultCourseId;
 
   final TrackSkyMaterializer materializer;
   final SkyVisibilityService visibilityService;
@@ -179,8 +179,8 @@ class TrackSkyEnrollmentService {
     final selectedNights = includedSkyEventIds == null
         ? nights
         : nights
-            .where((night) => includedSkyEventIds.contains(night.skyEventId))
-            .toList(growable: false);
+              .where((night) => includedSkyEventIds.contains(night.skyEventId))
+              .toList(growable: false);
     final occurrences = <MaterializedSkyOccurrence>[];
     for (final night in selectedNights) {
       final decision = visibilityService.decide(
@@ -193,6 +193,7 @@ class TrackSkyEnrollmentService {
           night: night,
           ianaTimeZone: ianaTimeZone,
           visibilityNote: decision.userFacingNote,
+          intention: intentionBySkyEventId?[night.skyEventId],
         ),
       );
     }
@@ -254,9 +255,7 @@ class TrackSkyEnrollmentService {
           FollowSkyProductChoice.releaseCourse,
         ];
       case SkyEventFunction.attend:
-        return const [
-          FollowSkyProductChoice.keepCourse,
-        ];
+        return const [FollowSkyProductChoice.keepCourse];
     }
   }
 

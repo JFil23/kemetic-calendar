@@ -7547,6 +7547,50 @@ class CalendarPage extends StatefulWidget {
     );
   }
 
+  static int _stageHeadlessMaatFlowJoinResult({
+    required FlowJoinResult result,
+    required _MaatFlowTemplate template,
+    required bool completionRequired,
+  }) {
+    final flowId = result.flowId;
+    final localFlow = result._localFlow;
+    final persist = result.persistInBackground;
+    if (!result.succeeded ||
+        flowId == null ||
+        localFlow == null ||
+        persist == null ||
+        result._plannedNotes.isEmpty) {
+      return -1;
+    }
+    _stageFlowForDeferredPersistence(
+      _PendingStagedFlow(
+        flowId: flowId,
+        localFlow: localFlow,
+        plannedNotes: result._plannedNotes,
+        persist: persist,
+        completionRequired: completionRequired,
+        rollback: (state) async {
+          _forgetRememberedJoinedMaatFlow(flowId);
+          final repo = UserEventsRepo(Supabase.instance.client);
+          if (state != null) {
+            await state._rollbackStagedFlowLocally(
+              flowId,
+              repo: repo,
+              failureMessage: 'Could not create ${template.title}.',
+            );
+            return;
+          }
+          try {
+            await repo.deleteFlow(flowId);
+          } catch (_) {}
+        },
+      ),
+    );
+    _mountedState?._applyPendingStagedFlow(flowId);
+    _startStagedFlowPersistence(flowId);
+    return flowId;
+  }
+
   static Future<int> _addMaatFlowInstanceHeadless({
     required _MaatFlowTemplate template,
     bool completionRequired = false,
@@ -7576,45 +7620,11 @@ class CalendarPage extends StatefulWidget {
   }) async {
     final personalCalendarId =
         personalCalendarIdOverride ?? await _loadHeadlessPersonalCalendarId();
-    int stageResult(FlowJoinResult result) {
-      final flowId = result.flowId;
-      final localFlow = result._localFlow;
-      final persist = result.persistInBackground;
-      if (!result.succeeded ||
-          flowId == null ||
-          localFlow == null ||
-          persist == null ||
-          result._plannedNotes.isEmpty) {
-        return -1;
-      }
-      _stageFlowForDeferredPersistence(
-        _PendingStagedFlow(
-          flowId: flowId,
-          localFlow: localFlow,
-          plannedNotes: result._plannedNotes,
-          persist: persist,
-          completionRequired: completionRequired,
-          rollback: (state) async {
-            _forgetRememberedJoinedMaatFlow(flowId);
-            final repo = UserEventsRepo(Supabase.instance.client);
-            if (state != null) {
-              await state._rollbackStagedFlowLocally(
-                flowId,
-                repo: repo,
-                failureMessage: 'Could not create ${template.title}.',
-              );
-              return;
-            }
-            try {
-              await repo.deleteFlow(flowId);
-            } catch (_) {}
-          },
-        ),
-      );
-      _mountedState?._applyPendingStagedFlow(flowId);
-      _startStagedFlowPersistence(flowId);
-      return flowId;
-    }
+    int stageResult(FlowJoinResult result) => _stageHeadlessMaatFlowJoinResult(
+      result: result,
+      template: template,
+      completionRequired: completionRequired,
+    );
 
     if (template.kind == _MaatFlowTemplateKind.trackSky) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();

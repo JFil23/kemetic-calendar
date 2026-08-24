@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mobile/widgets/day_sheet_components.dart';
 
 import '../../../maat_flow_visual_tokens.dart';
 import '../turning_meaning.dart';
@@ -19,60 +18,105 @@ class FollowSkyTurningExample extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'How a turning works',
-          style: TextStyle(
-            color: FollowSkyV11Tokens.gold,
-            fontFamily: MaatFlowListTokens.fontFamily,
-            fontFamilyFallback: MaatFlowListTokens.fontFallback,
-            fontSize: 22,
-            fontWeight: FontWeight.w600,
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 32, 24, 28),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: Color(0xFF1E1A0C))),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Text(
+                'HOW A TURNING WORKS',
+                style: TextStyle(
+                  color: FollowSkyV11Tokens.goldDim,
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: 2.2,
+                  height: 1,
+                ),
+              ),
+              SizedBox(width: 12),
+              Expanded(child: Divider(color: Color(0x2ED4AE43), height: 1)),
+            ],
           ),
-        ),
-        const SizedBox(height: 14),
-        Text(
-          meaning.observation,
-          style: const TextStyle(
-            color: FollowSkyV11Tokens.silverHi,
-            fontFamily: MaatFlowListTokens.fontFamily,
-            fontFamilyFallback: MaatFlowListTokens.fontFallback,
-            fontSize: 16,
-            height: 1.45,
+          const SizedBox(height: 13),
+          Text(
+            meaning.observation,
+            style: const TextStyle(
+              color: FollowSkyV11Tokens.silverMid,
+              fontFamily: MaatFlowListTokens.fontFamily,
+              fontFamilyFallback: MaatFlowListTokens.fontFallback,
+              fontSize: 17,
+              height: 1.42,
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          meaning.significanceLabel,
-          style: const TextStyle(
-            color: FollowSkyV11Tokens.gold,
-            fontFamily: MaatFlowListTokens.fontFamily,
-            fontFamilyFallback: MaatFlowListTokens.fontFallback,
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 2.4,
+          const SizedBox(height: 20),
+          Text(
+            meaning.significanceLabel,
+            style: const TextStyle(
+              color: FollowSkyV11Tokens.intentionPeriwinkle,
+              fontFamily: MaatFlowListTokens.fontFamily,
+              fontFamilyFallback: MaatFlowListTokens.fontFallback,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w400,
+              letterSpacing: 2.73,
+              height: 1,
+            ),
           ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          meaning.personalQuestion,
-          style: const TextStyle(
-            color: FollowSkyV11Tokens.silverHi,
-            fontFamily: MaatFlowListTokens.fontFamily,
-            fontFamilyFallback: MaatFlowListTokens.fontFallback,
-            fontSize: 16,
-            fontStyle: FontStyle.italic,
-            height: 1.4,
+          const SizedBox(height: 8),
+          Text(
+            meaning.personalQuestion,
+            style: const TextStyle(
+              color: FollowSkyV11Tokens.silverHi,
+              fontFamily: MaatFlowListTokens.fontFamily,
+              fontFamilyFallback: MaatFlowListTokens.fontFallback,
+              fontSize: 23.5,
+              fontWeight: FontWeight.w400,
+              height: 1.3,
+            ),
           ),
-        ),
-        const SizedBox(height: 14),
-        DaySheetTextField(
-          controller: controller,
-          hint: 'Your intention…',
-        ),
-      ],
+          const SizedBox(height: 24),
+          TextField(
+            key: const ValueKey<String>('follow-sky-worked-intention'),
+            controller: controller,
+            onChanged: onChanged,
+            cursorColor: FollowSkyV11Tokens.intentionPeriwinkle,
+            style: const TextStyle(
+              color: FollowSkyV11Tokens.glow,
+              fontFamily: MaatFlowListTokens.fontFamily,
+              fontFamilyFallback: MaatFlowListTokens.fontFallback,
+              fontSize: 21,
+              fontWeight: FontWeight.w300,
+              fontStyle: FontStyle.italic,
+              height: 1.3,
+            ),
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding: const EdgeInsets.fromLTRB(2, 4, 2, 11),
+              border: UnderlineInputBorder(
+                borderSide: BorderSide(
+                  color: FollowSkyV11Tokens.glow.withValues(alpha: 0.30),
+                ),
+              ),
+              enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(
+                  color: FollowSkyV11Tokens.glow.withValues(alpha: 0.30),
+                ),
+              ),
+              focusedBorder: const UnderlineInputBorder(
+                borderSide: BorderSide(
+                  color: FollowSkyV11Tokens.intentionPeriwinkle,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

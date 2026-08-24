@@ -96,6 +96,7 @@ Future<void> showFollowSkyTurningSheet({
               ),
               const SizedBox(height: 16),
               DaySheetTextField(
+                key: const ValueKey<String>('follow-sky-turning-intention'),
                 controller: controller,
                 hint: 'Your intention…',
               ),
@@ -103,6 +104,7 @@ Future<void> showFollowSkyTurningSheet({
               SizedBox(
                 height: 48,
                 child: ElevatedButton(
+                  key: const ValueKey<String>('follow-sky-turning-save'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: FollowSkyV11Tokens.gold,
                     foregroundColor: Colors.black,
@@ -118,6 +120,7 @@ Future<void> showFollowSkyTurningSheet({
                 ),
               ),
               TextButton(
+                key: const ValueKey<String>('follow-sky-turning-leave-open'),
                 onPressed: () => Navigator.of(ctx).pop(),
                 child: const Text(
                   'Leave it open',

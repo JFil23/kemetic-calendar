@@ -165,15 +165,13 @@ void main() {
     expect(_eventRows(), findsNothing);
     expect(find.byKey(kMaatFlowInitialPromptSectionKey), findsNothing);
     expect(find.text('Here they are.'), findsOneWidget);
-    expect(find.text('How a turning works'), findsOneWidget);
-    expect(find.text('Carry'), findsOneWidget);
+    expect(find.text('HOW A TURNING WORKS'), findsOneWidget);
+    expect(find.text('Carry this course'), findsOneWidget);
     expect(find.text('ONE THING TO CARRY'), findsNothing);
     expect(find.text('NEXT TURNING'), findsNothing);
     expect(find.text('Join Flow'), findsNothing);
     expect(
-      find.text(
-        'Sky · Major turnings in the sky carry a meaning. Attach your own intention to that meaning.',
-      ),
+      find.text("Sky · the year's turnings, in Kemetic time"),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);

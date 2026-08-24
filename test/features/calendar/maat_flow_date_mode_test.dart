@@ -377,10 +377,18 @@ void main() {
     final source = File(
       'lib/features/calendar/calendar_page.dart',
     ).readAsStringSync();
+    final maatFlowsSource = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
     final headless = _sourceBetween(
       source,
       'static Future<int> _addMaatFlowInstanceHeadless',
       'static Future<EndFlowOutcome> _endFlowHeadless',
+    );
+    final sharedStaging = _sourceBetween(
+      source,
+      'static int _stageHeadlessMaatFlowJoinResult',
+      'static Future<int> _addMaatFlowInstanceHeadless',
     );
     final mounted = _sourceBetween(
       source,
@@ -389,7 +397,8 @@ void main() {
     );
 
     expect(headless, contains('int stageResult(FlowJoinResult result)'));
-    expect(headless, contains('_stageFlowForDeferredPersistence('));
+    expect(headless, contains('_stageHeadlessMaatFlowJoinResult('));
+    expect(sharedStaging, contains('_stageFlowForDeferredPersistence('));
     expect(headless, contains('joinTrackSkyHeadless'));
     expect(headless, contains('_joinSequenceHeadless'));
     expect(
@@ -399,6 +408,16 @@ void main() {
     expect(mounted, contains('_addMaatFlowInstanceHeadless('));
     expect(mounted, contains('_applyPendingStagedFlow(flowId)'));
     expect(mounted, isNot(contains('upsertManyDeterministic')));
+
+    final followSkyV11 = _sourceBetween(
+      maatFlowsSource,
+      'return FollowSkyDetailPage(',
+      'if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite)',
+    );
+    expect(followSkyV11, contains('_stageHeadlessMaatFlowJoinResult('));
+    expect(followSkyV11, contains('completionRequired: false'));
+    expect(followSkyV11, contains('_rememberJoinedMaatFlowTemplate('));
+    expect(followSkyV11, isNot(contains('_completeJoin(id)')));
   });
 
   test(

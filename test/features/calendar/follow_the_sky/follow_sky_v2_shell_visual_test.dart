@@ -31,7 +31,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Here they are.'), findsOneWidget);
-    expect(find.text('How a turning works'), findsOneWidget);
+    expect(find.text('HOW A TURNING WORKS'), findsOneWidget);
     expect(find.text('Keep what matters from drifting.'), findsNothing);
     expect(find.text('ONE THING TO CARRY'), findsNothing);
     expect(find.text('UPCOMING TURNINGS'), findsNothing);

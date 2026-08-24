@@ -15,6 +15,7 @@ class TrackSkyEventOwnership {
     List<String> mergedCompanionSkyEventIds = const [],
     String? resolvedFunction,
     String? displayName,
+    String? intention,
   }) {
     return <String, dynamic>{
       'kind': behaviorKind,
@@ -22,12 +23,15 @@ class TrackSkyEventOwnership {
       'trackSkySchemaVersion': schemaVersion,
       if (legacyPreserved) 'legacyPreserved': true,
       if (mergedCompanionSkyEventIds.isNotEmpty)
-        'mergedCompanionSkyEventIds':
-            List<String>.from(mergedCompanionSkyEventIds),
+        'mergedCompanionSkyEventIds': List<String>.from(
+          mergedCompanionSkyEventIds,
+        ),
       if (resolvedFunction != null && resolvedFunction.isNotEmpty)
         'resolvedFunction': resolvedFunction,
       if (displayName != null && displayName.isNotEmpty)
         'displayName': displayName,
+      if (intention != null && intention.trim().isNotEmpty)
+        'intention': intention.trim(),
     };
   }
 
@@ -61,6 +65,12 @@ class TrackSkyEventOwnership {
     if (payload['kind'] != behaviorKind) return null;
     final v = payload['displayName'];
     return v is String && v.isNotEmpty ? v : null;
+  }
+
+  static String? intentionFromPayload(Map<String, dynamic>? payload) {
+    if (payload == null || payload['kind'] != behaviorKind) return null;
+    final value = payload['intention'];
+    return value is String && value.trim().isNotEmpty ? value.trim() : null;
   }
 
   static bool isLegacyPreserved(Map<String, dynamic>? payload) {
@@ -117,8 +127,10 @@ class MaterializedSkyOccurrence {
   final String detail;
 }
 
-typedef LocalTimeConverter = DateTime Function(DateTime utc, String ianaTimeZone);
-typedef UtcTimeConverter = DateTime Function(DateTime local, String ianaTimeZone);
+typedef LocalTimeConverter =
+    DateTime Function(DateTime utc, String ianaTimeZone);
+typedef UtcTimeConverter =
+    DateTime Function(DateTime local, String ianaTimeZone);
 
 /// Builds V2 calendar occurrence drafts from canonical catalog events.
 class TrackSkyMaterializer {
@@ -137,6 +149,7 @@ class TrackSkyMaterializer {
     required String ianaTimeZone,
     String? visibilityNote,
     SkyObservingNight? night,
+    String? intention,
   }) {
     final resolved = night ?? SkyObservingNight(anchor: event);
     final windowEvent = resolved.windowSource;
@@ -154,6 +167,8 @@ class TrackSkyMaterializer {
         'Merged companion: ${resolved.companion!.id}',
       if (windowEvent.precision.wireName == 'approximate') 'Best tonight',
       if (resolved.provisional) 'Provisional — source may update',
+      if (intention != null && intention.trim().isNotEmpty)
+        'Intention: ${intention.trim()}',
     ];
     return MaterializedSkyOccurrence(
       skyEventId: resolved.skyEventId,
@@ -171,13 +186,14 @@ class TrackSkyMaterializer {
         ],
         resolvedFunction: resolved.function.wireName,
         displayName: resolved.displayName,
+        intention: intention,
       ),
       detail: detailParts.join('\n'),
     );
   }
 
   static ({DateTime startLocal, DateTime endLocal, bool allDay})
-      defaultWindowBuilder({
+  defaultWindowBuilder({
     required SkyEvent event,
     required String ianaTimeZone,
     required LocalTimeConverter toLocal,
@@ -262,12 +278,9 @@ class TrackSkyMaterializer {
   }
 }
 
-typedef SkyVisibilityWindowBuilder = ({
-  DateTime startLocal,
-  DateTime endLocal,
-  bool allDay,
-}) Function({
-  required SkyEvent event,
-  required String ianaTimeZone,
-  required LocalTimeConverter toLocal,
-});
+typedef SkyVisibilityWindowBuilder =
+    ({DateTime startLocal, DateTime endLocal, bool allDay}) Function({
+      required SkyEvent event,
+      required String ianaTimeZone,
+      required LocalTimeConverter toLocal,
+    });

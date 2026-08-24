@@ -18,58 +18,83 @@ class FollowSkyV11Dock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: FollowSkyV11Tokens.pageBg.withValues(alpha: 0.96),
-        border: const Border(top: BorderSide(color: Color(0xFF2A2518))),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.transparent, FollowSkyV11Tokens.pageBg],
+          stops: [0.0, 0.34],
+        ),
       ),
       child: SafeArea(
         top: false,
+        minimum: const EdgeInsets.only(bottom: 28),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 12),
-          child: joined
-              ? _joinedDock()
-              : _carryDock(),
+          padding: const EdgeInsets.fromLTRB(20, 44, 20, 0),
+          child: joined ? _joinedDock() : _carryDock(),
         ),
       ),
     );
   }
 
   Widget _carryDock() {
-    return SizedBox(
-      height: 52,
-      width: double.infinity,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: FollowSkyV11Tokens.pageBg,
-          foregroundColor: FollowSkyV11Tokens.gold,
-          disabledBackgroundColor: FollowSkyV11Tokens.pageBg,
-          disabledForegroundColor: FollowSkyV11Tokens.silverMid,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(999),
-            side: const BorderSide(color: FollowSkyV11Tokens.gold, width: 1.15),
-          ),
-          elevation: 0,
-        ),
-        onPressed: joining ? null : onCarry,
-        child: joining
-            ? const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox(
+          height: 54,
+          width: double.infinity,
+          child: ElevatedButton(
+            key: const ValueKey<String>('follow-sky-carry'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: FollowSkyV11Tokens.pageBg,
+              foregroundColor: FollowSkyV11Tokens.gold,
+              disabledBackgroundColor: FollowSkyV11Tokens.pageBg,
+              disabledForegroundColor: FollowSkyV11Tokens.silverMid,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(999),
+                side: const BorderSide(
                   color: FollowSkyV11Tokens.gold,
-                ),
-              )
-            : const Text(
-                'Carry',
-                style: TextStyle(
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
+                  width: 1.5,
                 ),
               ),
-      ),
+              elevation: 0,
+            ),
+            onPressed: joining ? null : onCarry,
+            child: joining
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: FollowSkyV11Tokens.gold,
+                    ),
+                  )
+                : const Text(
+                    'Carry this course',
+                    style: TextStyle(
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w500,
+                      height: 1,
+                    ),
+                  ),
+          ),
+        ),
+        const SizedBox(height: 11),
+        const Text(
+          'Nothing is added until you carry it.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: FollowSkyV11Tokens.silverLo,
+            fontFamily: MaatFlowListTokens.fontFamily,
+            fontFamilyFallback: MaatFlowListTokens.fontFallback,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w300,
+          ),
+        ),
+      ],
     );
   }
 
@@ -78,9 +103,10 @@ class FollowSkyV11Dock extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          height: 52,
+          height: 54,
           width: double.infinity,
           child: ElevatedButton(
+            key: const ValueKey<String>('follow-sky-carried'),
             style: ElevatedButton.styleFrom(
               backgroundColor: FollowSkyV11Tokens.pageBg,
               foregroundColor: FollowSkyV11Tokens.silverMid,
@@ -89,7 +115,8 @@ class FollowSkyV11Dock extends StatelessWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(999),
                 side: BorderSide(
-                  color: FollowSkyV11Tokens.silverMid.withValues(alpha: 0.5),
+                  color: FollowSkyV11Tokens.gold.withValues(alpha: 0.22),
+                  width: 1.5,
                 ),
               ),
               elevation: 0,
@@ -100,21 +127,22 @@ class FollowSkyV11Dock extends StatelessWidget {
               style: TextStyle(
                 fontFamily: MaatFlowListTokens.fontFamily,
                 fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
+                fontSize: 17,
+                fontWeight: FontWeight.w400,
               ),
             ),
           ),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 11),
         const Text(
           'The sky will find you. Change anything later.',
           textAlign: TextAlign.center,
           style: TextStyle(
-            color: FollowSkyV11Tokens.silverMid,
-            fontSize: 14,
-            fontStyle: FontStyle.italic,
-            height: 1.35,
+            color: FollowSkyV11Tokens.silverLo,
+            fontFamily: MaatFlowListTokens.fontFamily,
+            fontFamilyFallback: MaatFlowListTokens.fontFallback,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w300,
           ),
         ),
       ],
