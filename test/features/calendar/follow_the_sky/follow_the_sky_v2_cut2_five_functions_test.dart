@@ -1,16 +1,11 @@
-import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/follow_the_sky/follow_the_sky.dart';
 
 /// Cut 2 exit — all five system functions have to be genuinely different, and
-/// each has to behave with and without an evidence object. A completed function
-/// ends in a ritual and lands in history; a witnessed turning does neither.
+/// each has to behave with and without an evidence object.
 void main() {
-  TestWidgetsFlutterBinding.ensureInitialized();
-
   late SkyCatalog catalog;
 
   setUpAll(() {
@@ -20,7 +15,6 @@ void main() {
   });
 
   const functions = CourseFunctionService();
-  final codec = TrackSkyCourseMetadataCodec();
   final now = DateTime.utc(2026, 8, 28, 12);
 
   final enrollment = TrackSkyEnrollmentService(
@@ -106,7 +100,6 @@ void main() {
       };
 
       expect(bodies.values.toSet(), hasLength(SkyEventFunction.values.length));
-      // Only Measure talks in 14-day windows.
       expect(bodies[SkyEventFunction.measure], contains('Current 14 days'));
       for (final f in SkyEventFunction.values) {
         if (f == SkyEventFunction.measure) continue;
@@ -132,8 +125,6 @@ void main() {
       expect(choices(SkyEventFunction.turn),
           ['Keep it', 'Change it', 'Release it']);
       expect(choices(SkyEventFunction.attend), ['Keep it']);
-      // Only Measure can offer more room; it is the only function that has a
-      // measured shortfall to act on.
       for (final f in SkyEventFunction.values) {
         if (f == SkyEventFunction.measure) continue;
         expect(choices(f), isNot(contains('Give it more room')));
@@ -265,188 +256,6 @@ void main() {
     });
   });
 
-  group('ritual and history', () {
-    Future<GlobalKey<FollowSkyDetailPageState>> pump(
-      WidgetTester tester, {
-      required TrackSkyCourse course,
-      required List<CourseMeasurementInterval> intervals,
-    }) async {
-      final key = GlobalKey<FollowSkyDetailPageState>();
-      await tester.pumpWidget(
-        MaterialApp(
-          home: FollowSkyDetailPage(
-            key: key,
-            isJoined: true,
-            initialCatalog: catalog,
-            existingFlowNotes: codec.encode(course),
-            measurementIntervals: intervals,
-            now: now,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-      return key;
-    }
-
-    Future<void> openSheet(
-      WidgetTester tester,
-      GlobalKey<FollowSkyDetailPageState> key,
-      SkyObservingNight night,
-    ) async {
-      unawaited(key.currentState!.openTurningSheetForTest(night));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-    }
-
-    testWidgets('a completed Turn ends in a ritual and enters history', (
-      tester,
-    ) async {
-      final key = await pump(
-        tester,
-        course: linked,
-        intervals: richIntervals,
-      );
-      final solstice = nightFor(SkyEventFunction.turn);
-
-      expect(find.text('YOUR TURNINGS'), findsNothing);
-
-      await openSheet(tester, key, solstice);
-      await tester.tap(find.text('Keep it'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(find.text('RITUAL'), findsOneWidget);
-      expect(
-        find.text('You chose what “Studio Practice” deserves next season.'),
-        findsOneWidget,
-      );
-      expect(find.text('Kept.'), findsOneWidget);
-
-      await tester.tap(find.text('Done'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('YOUR TURNINGS'), findsOneWidget);
-      expect(find.text('Turn completed · Kept.'), findsOneWidget);
-      expect(find.textContaining('Witnessed'), findsNothing);
-
-      final history = key.currentState!.turningHistory;
-      expect(history.functionsCompleted, hasLength(1));
-      expect(history.hasFunctionCompleted(solstice.skyEventId), isTrue);
-    });
-
-    testWidgets('an Attend ritual makes no claim about the course', (
-      tester,
-    ) async {
-      final key = await pump(
-        tester,
-        course: linked,
-        intervals: richIntervals,
-      );
-      final attend = nightFor(SkyEventFunction.attend);
-
-      await openSheet(tester, key, attend);
-      await tester.tap(find.text('Keep it'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(find.text('You made room to watch.'), findsOneWidget);
-      await tester.tap(find.text('Done'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Attend completed · Kept.'), findsOneWidget);
-    });
-
-    testWidgets('a witnessed turning gets no ritual and reads as witnessed', (
-      tester,
-    ) async {
-      final key = await pump(tester, course: freeText, intervals: const []);
-      final eclipse = nightFor(SkyEventFunction.reconsider);
-
-      await openSheet(tester, key, eclipse);
-      await tester.tap(find.text('Continue to the eclipse'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 400));
-
-      expect(find.text('RITUAL'), findsNothing);
-      await tester.pumpAndSettle();
-
-      expect(find.text('YOUR TURNINGS'), findsOneWidget);
-      expect(find.text('Witnessed · Reconsider'), findsOneWidget);
-      expect(find.textContaining('completed ·'), findsNothing);
-
-      final history = key.currentState!.turningHistory;
-      expect(history.witnessed, hasLength(1));
-      expect(history.functionsCompleted, isEmpty);
-    });
-  });
-
-  group('one primary advance path', () {
-    testWidgets('the next-turning card carries no second CTA button', (
-      tester,
-    ) async {
-      // Embedded exactly as the Ma'at detail scaffold does it, so the dock is
-      // the only advance CTA in play.
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: ListView(
-              children: [
-                FollowSkyDetailPage(
-                  isJoined: true,
-                  standalone: false,
-                  initialCatalog: catalog,
-                  existingFlowNotes: codec.encode(linked),
-                  measurementIntervals: richIntervals,
-                  now: now,
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.text('NEXT TURNING'), findsOneWidget);
-      // The dock owns advancing; the card must not restate it.
-      for (final label in const [
-        'Measure my course',
-        'Choose what to finish',
-        'Reconsider what I’m carrying',
-        'Take stock of the season',
-        'Plan to watch',
-      ]) {
-        expect(find.text(label), findsNothing, reason: label);
-      }
-    });
-
-    testWidgets('tapping the next-turning card opens that turning', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        MaterialApp(
-          home: FollowSkyDetailPage(
-            isJoined: true,
-            initialCatalog: catalog,
-            existingFlowNotes: codec.encode(linked),
-            measurementIntervals: richIntervals,
-            now: now,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      final next = catalog.nextObservingNight(nowUtc: now)!;
-      await tester.tap(find.text('NEXT TURNING'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 300));
-
-      expect(
-        find.descendant(
-          of: find.byType(BottomSheet),
-          matching: find.text(next.function.displayLabel.toUpperCase()),
-        ),
-        findsOneWidget,
-      );
-    });
-  });
+  // V11 removed V2 ritual/history and next-turning detail widget tests.
+  // See follow_the_sky_v2_turning_history_test for persisted history behavior.
 }

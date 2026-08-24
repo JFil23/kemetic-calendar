@@ -153,17 +153,23 @@ void main() {
     }
   });
 
-  testWidgets('Follow the Sky V2 uses Ma’at shell with Course and Next Turning', (
+  testWidgets('Follow the Sky V11 detail replaces Course-era Ma’at shell', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     await _pumpFlow(tester, 'track-the-sky');
 
     expect(find.byType(FollowSkyDetailPage), findsOneWidget);
     expect(_eventRows(), findsNothing);
     expect(find.byKey(kMaatFlowInitialPromptSectionKey), findsNothing);
-    expect(find.text('ONE THING TO CARRY'), findsOneWidget);
-    expect(find.text('NEXT TURNING'), findsOneWidget);
-    expect(find.text('Join Flow'), findsOneWidget);
+    expect(find.text('Here they are.'), findsOneWidget);
+    expect(find.text('How a turning works'), findsOneWidget);
+    expect(find.text('Carry'), findsOneWidget);
+    expect(find.text('ONE THING TO CARRY'), findsNothing);
+    expect(find.text('NEXT TURNING'), findsNothing);
+    expect(find.text('Join Flow'), findsNothing);
     expect(
       find.text(
         'Sky · Major turnings in the sky carry a meaning. Attach your own intention to that meaning.',

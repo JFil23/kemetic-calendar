@@ -16,6 +16,9 @@ void main() {
   testWidgets('V11 detail hierarchy replaces Course-era marketing shell', (
     tester,
   ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     await tester.pumpWidget(
       MaterialApp(
         home: FollowSkyDetailPage(

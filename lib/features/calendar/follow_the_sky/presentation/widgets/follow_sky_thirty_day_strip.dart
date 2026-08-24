@@ -10,7 +10,7 @@ class FollowSkyThirtyDayStrip extends StatelessWidget {
   const FollowSkyThirtyDayStrip({
     super.key,
     required this.windowStart,
-    required this.dayCount = 30,
+    this.dayCount = 30,
   });
 
   final DateTime windowStart;

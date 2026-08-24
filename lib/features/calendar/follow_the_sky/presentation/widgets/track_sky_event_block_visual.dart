@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
-import '../../calendar_event_visual_style.dart';
+import '../../../calendar_event_visual_style.dart';
 
 /// Shared production Track Sky event-card visual body for Day View and Follow Sky.
 class TrackSkyEventBlockVisual extends StatelessWidget {

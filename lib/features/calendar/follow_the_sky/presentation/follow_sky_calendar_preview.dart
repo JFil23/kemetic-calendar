@@ -31,26 +31,20 @@ class FollowSkyCalendarPreviewRow {
 @immutable
 class FollowSkyCalendarPreview {
   const FollowSkyCalendarPreview({
-    required this.rows,
-    required this.windowStart,
-    required this.windowEnd,
+    this.rows = const [],
+    this.windowStart,
+    this.windowEnd,
     this.candidates = const [],
     this.intervals = const [],
     this.coverageComplete = true,
   });
 
   final List<FollowSkyCalendarPreviewRow> rows;
-  final DateTime windowStart;
-  final DateTime windowEnd;
+  final DateTime? windowStart;
+  final DateTime? windowEnd;
   final List<CourseActivitySignal> candidates;
   final List<CourseMeasurementInterval> intervals;
   final bool coverageComplete;
 
-  static const empty = FollowSkyCalendarPreview(
-    rows: [],
-    windowStart: _epoch,
-    windowEnd: _epoch,
-  );
-
-  static const _epoch = DateTime.utc(1970);
+  static const empty = FollowSkyCalendarPreview();
 }

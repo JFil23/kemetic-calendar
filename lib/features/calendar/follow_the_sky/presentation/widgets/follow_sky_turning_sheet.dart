@@ -97,8 +97,7 @@ Future<void> showFollowSkyTurningSheet({
               const SizedBox(height: 16),
               DaySheetTextField(
                 controller: controller,
-                hintText: 'Your intention…',
-                textInputAction: TextInputAction.done,
+                hint: 'Your intention…',
               ),
               const SizedBox(height: 18),
               SizedBox(

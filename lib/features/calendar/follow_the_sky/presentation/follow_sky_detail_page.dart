@@ -30,7 +30,7 @@ import 'widgets/follow_sky_v11_tokens.dart';
 
 /// Follow the Sky V11 detail orchestrator.
 class FollowSkyDetailPage extends StatefulWidget {
-  const FollowSkyDetailPage({
+  FollowSkyDetailPage({
     super.key,
     this.existingFlowNotes,
     this.existingFlowId,
@@ -283,18 +283,21 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
             : _buildV11Body();
 
     if (!widget.standalone) {
-      return Stack(
-        children: [
-          body,
-          Positioned(
-            top: MediaQuery.paddingOf(context).top + 4,
-            left: 4,
-            child: IconButton(
-              icon: const Icon(Icons.arrow_back, color: FollowSkyV11Tokens.gold),
-              onPressed: () => Navigator.of(context).maybePop(),
+      return Material(
+        color: FollowSkyV11Tokens.pageBg,
+        child: Stack(
+          children: [
+            body,
+            Positioned(
+              top: MediaQuery.paddingOf(context).top + 4,
+              left: 4,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, color: FollowSkyV11Tokens.gold),
+                onPressed: () => Navigator.of(context).maybePop(),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       );
     }
 

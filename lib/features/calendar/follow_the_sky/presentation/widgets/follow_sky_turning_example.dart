@@ -70,9 +70,7 @@ class FollowSkyTurningExample extends StatelessWidget {
         const SizedBox(height: 14),
         DaySheetTextField(
           controller: controller,
-          hintText: 'Your intention…',
-          onChanged: onChanged,
-          textInputAction: TextInputAction.done,
+          hint: 'Your intention…',
         ),
       ],
     );

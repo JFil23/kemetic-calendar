@@ -2137,7 +2137,7 @@ class _FirstMaatFlowOnboardingSheetState
 /* ───────────────────────── Template detail (Add Flow) ───────────────────────── */
 
 class _MaatFlowTemplateDetailPage extends StatefulWidget {
-  const _MaatFlowTemplateDetailPage({
+  _MaatFlowTemplateDetailPage({
     required this.template,
     required this.addInstance,
     this.onJoined,

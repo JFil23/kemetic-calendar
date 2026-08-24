@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../../maat_flow_visual_tokens.dart';
 /// Sky detail is pushed on the nested Flow Studio navigator.
 class MaatFlowsListTransitionShell extends StatelessWidget {
   const MaatFlowsListTransitionShell({super.key, required this.child});
