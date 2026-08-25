@@ -582,15 +582,6 @@ def verify_served_origin(
         "pages_controls": len(classification["pages_controls"]),
         "total": len(manifest),
     }
-    if counts != {
-        "direct_bodies": 71,
-        "redirect_only": 5,
-        "pages_controls": 2,
-        "total": 78,
-    }:
-        raise ServedVerificationError(
-            f"Unexpected served-payload classification: {counts}"
-        )
     cache: dict[str, HttpResult] = {}
     body_results = []
     for manifest_path in classification["body_paths"]:

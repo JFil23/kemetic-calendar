@@ -104,7 +104,6 @@ class ServedArtifactVerifierTest(unittest.TestCase):
             path: hashlib.sha256(body).hexdigest()
             for path, body in self.bodies.items()
         }
-        self.assertEqual(len(self.manifest), 78)
 
     def responses_for(self, origin, *, bodies=None):
         bodies = bodies or self.bodies
@@ -193,6 +192,28 @@ class ServedArtifactVerifierTest(unittest.TestCase):
             })
             self.assertEqual(result["unaccounted_entries"], [])
 
+    def test_payload_cardinality_follows_the_sealed_manifest(self) -> None:
+        bodies = dict(self.bodies)
+        bodies.pop("web/assets/test-64.bin")
+        bodies.pop("web/assets/test-65.bin")
+        manifest = {
+            path: hashlib.sha256(body).hexdigest()
+            for path, body in bodies.items()
+        }
+
+        result, _ = self.verify(
+            manifest=manifest,
+            responses=self.responses_for(self.origin, bodies=bodies),
+        )
+
+        self.assertEqual(result["classification_counts"], {
+            "direct_bodies": 69,
+            "redirect_only": 5,
+            "pages_controls": 2,
+            "total": 76,
+        })
+        self.assertEqual(result["verified_direct_bodies"], 69)
+
     def test_direct_body_mismatch_fails(self) -> None:
         responses = self.responses_for(self.origin)
         responses[self.origin + "/main.dart.js"] = verifier.HttpResult(
@@ -227,11 +248,11 @@ class ServedArtifactVerifierTest(unittest.TestCase):
             )
         self.assertEqual(fetcher.calls.count(self.origin + "/main.dart.js"), 1)
 
-    def test_unexpected_payload_population_fails(self) -> None:
+    def test_unserved_payload_entry_fails(self) -> None:
         manifest = dict(self.manifest)
         manifest["web/unexpected.bin"] = "d" * 64
         with self.assertRaisesRegex(
-            verifier.ServedVerificationError, "Unexpected served-payload classification"
+            verifier.ServedVerificationError, "Expected body status 200"
         ):
             self.verify(manifest=manifest)
 
