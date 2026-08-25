@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 
 import '../../../maat_flow_visual_tokens.dart';
 import '../turning_meaning.dart';
@@ -85,6 +86,7 @@ class FollowSkyTurningExample extends StatelessWidget {
             key: const ValueKey<String>('follow-sky-worked-intention'),
             controller: controller,
             onChanged: onChanged,
+            scrollPadding: keyboardManagedTextFieldScrollPadding,
             cursorColor: FollowSkyV11Tokens.intentionPeriwinkle,
             style: const TextStyle(
               color: FollowSkyV11Tokens.glow,

@@ -144,8 +144,14 @@ void main() {
             ?.fontSize,
         FollowSkyV11Tokens.dayNumberFontSize,
       );
-      expect(ringRect.width, FollowSkyV11Tokens.skyRingDiameter);
-      expect(ringRect.height, FollowSkyV11Tokens.skyRingDiameter);
+      expect(
+        ringRect.width,
+        closeTo(FollowSkyV11Tokens.skyRingDiameter, 0.001),
+      );
+      expect(
+        ringRect.height,
+        closeTo(FollowSkyV11Tokens.skyRingDiameter, 0.001),
+      );
       expect(
         ringRect.contains(numberRect.topLeft),
         isTrue,

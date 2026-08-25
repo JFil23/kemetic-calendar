@@ -174,9 +174,9 @@ void main() {
     );
   });
 
-  testWidgets(
-    'the detail surface follows a renamed source',
-    (tester) async {
+  testWidgets('V11 does not revive renamed legacy-source presentation', (
+    tester,
+  ) async {
     final linked = linkedToFlow11();
 
     await tester.pumpWidget(
@@ -192,11 +192,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Finish my book'), findsOneWidget);
-    expect(find.text('Connected to Writing — evenings'), findsOneWidget);
-  }, skip: true);
+    expect(find.text('Finish my book'), findsNothing);
+    expect(find.text('Connected to Writing — evenings'), findsNothing);
+    expect(find.text('HOW A TURNING WORKS'), findsOneWidget);
+    expect(find.text('In your calendar'), findsOneWidget);
+  });
 
-  testWidgets('after a deleted source the surface re-offers Connect', (
+  testWidgets('V11 does not revive deleted legacy-source presentation', (
     tester,
   ) async {
     final linked = linkedToFlow11();
@@ -220,12 +222,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // Course survives; the claim of a connected source does not.
-    expect(find.text('Finish my book'), findsOneWidget);
+    // Domain rehydration preserves the course; V11 no longer presents the
+    // superseded Course/Connect layer over the turning experience.
+    expect(unlinked.label, 'Finish my book');
+    expect(find.text('Finish my book'), findsNothing);
     expect(find.textContaining('Connected to'), findsNothing);
-    expect(find.text('No calendar activity connected yet'), findsOneWidget);
-    expect(find.text('Connect activity'), findsOneWidget);
-  }, skip: true);
+    expect(find.text('No calendar activity connected yet'), findsNothing);
+    expect(find.text('Connect activity'), findsNothing);
+    expect(find.text('In your calendar'), findsOneWidget);
+  });
 
   test('Connect offers sources the suggestion chips would not', () {
     const engine = CourseCandidateEngine();

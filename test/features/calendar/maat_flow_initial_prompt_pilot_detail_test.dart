@@ -99,9 +99,12 @@ void main() {
     expect(find.byKey(kMaatFlowInitialPromptSectionKey), findsNothing);
     expect(find.text('Begin reflection'), findsNothing);
     expect(find.text('What change are you watching above?'), findsNothing);
-    expect(find.text('ONE THING TO CARRY'), findsOneWidget);
-    expect(find.text('NEXT TURNING'), findsOneWidget);
-    expect(find.text('Join Flow'), findsOneWidget);
+    expect(find.text('HOW A TURNING WORKS'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('follow-sky-all-turnings-toggle')),
+      findsOneWidget,
+    );
+    expect(find.text('Carry this course'), findsOneWidget);
   });
 
   testWidgets('initial prompt remains absent for unsupported Ma’at details', (
