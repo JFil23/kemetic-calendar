@@ -38,6 +38,7 @@ class TurningMeaningResolver {
 
   static const Map<String, String> _canonicalEventIdAliases = {
     'lunar-eclipse-2026-08-28': 'full-moon-2026-08-28',
+    'lunar-eclipse-2027-02-20': 'full-moon-2027-02-20',
   };
 
   static const Map<String, TurningMeaning> _meaningsByCanonicalEventId = {
@@ -103,6 +104,145 @@ class TurningMeaningResolver {
       significanceLabel: 'IMPACT',
       personalQuestion:
           'What do you want to set in motion that could outlast this moment?',
+    ),
+    'mars-jupiter-conjunction-2026-11-16': TurningMeaning(
+      observation:
+          'Mars and Jupiter appear close together even as they follow separate paths.',
+      significanceLabel: 'COMBINE',
+      personalQuestion:
+          'What two things will you bring together to move something forward?',
+    ),
+    'mercury-elongation-2026-11-20': TurningMeaning(
+      observation:
+          'Mercury becomes easier to see before sunrise, briefly appearing ahead of the day.',
+      significanceLabel: 'BEGIN',
+      personalQuestion:
+          'What will you get moving before everything else starts competing for your attention?',
+    ),
+    'full-moon-2026-11-24': TurningMeaning(
+      observation:
+          'The Moon reaches fullness as the nights continue growing longer after the equinox.',
+      significanceLabel: 'PREPARE',
+      personalQuestion:
+          'What can you put in place now that will make the next stretch easier or stronger?',
+    ),
+    'geminids-2026': TurningMeaning(
+      observation:
+          'The Geminids build into a dense shower, sending many bright streaks from the same region of sky.',
+      significanceLabel: 'MOMENTUM',
+      personalQuestion:
+          'What will you push far enough that it becomes easier to keep going?',
+    ),
+    'winter-solstice-2026': TurningMeaning(
+      observation:
+          'The Sun reaches its lowest arc and the shortest span of daylight. From here, the light begins to return.',
+      significanceLabel: 'REBUILD',
+      personalQuestion: 'What will you begin rebuilding from here?',
+    ),
+    'ursids-2026': TurningMeaning(
+      observation:
+          'The Ursids arrive just after the solstice; usually quieter, but still capable of sudden bursts.',
+      significanceLabel: 'SUSTAIN',
+      personalQuestion:
+          'What will you keep advancing even when the results are quiet?',
+    ),
+    'full-moon-2026-12-24': TurningMeaning(
+      observation:
+          'The first full Moon after the solstice arrives as daylight has just begun to lengthen again.',
+      significanceLabel: 'CONTINUE',
+      personalQuestion:
+          'What will you keep building as the light begins to return?',
+    ),
+    'venus-elongation-2027-01-03': TurningMeaning(
+      observation:
+          'Venus reaches its greatest separation from the Sun and shines prominently before dawn.',
+      significanceLabel: 'ORIENT',
+      personalQuestion:
+          'What future will you orient your life toward—and what will you change now to move toward it?',
+    ),
+    'quadrantids-2027': TurningMeaning(
+      observation:
+          'The Quadrantids flare intensely, but their strongest activity passes quickly.',
+      significanceLabel: 'FOCUS',
+      personalQuestion:
+          'What will you give a concentrated push to while the moment is right?',
+    ),
+    'full-moon-2027-01-22': TurningMeaning(
+      observation:
+          'The Moon reaches fullness again while daylight continues to lengthen after the solstice.',
+      significanceLabel: 'STRENGTHEN',
+      personalQuestion:
+          'What will you make measurably stronger by the next full Moon?',
+    ),
+    'mercury-elongation-2027-02-03': TurningMeaning(
+      observation:
+          'Mercury pulls as far from the Sun as its orbit allows in the evening sky, holding briefly in the twilight before turning back.',
+      significanceLabel: 'CLAIM',
+      personalQuestion:
+          'What opportunity will you claim now, before the opening narrows?',
+    ),
+    'solar-eclipse-2027-02-06': TurningMeaning(
+      observation:
+          'The Moon crosses the Sun but cannot cover it completely; a ring of sunlight remains.',
+      significanceLabel: 'PRESERVE',
+      personalQuestion:
+          'What will you protect now so it can still shape the life you’re building?',
+    ),
+    'jupiter-opposition-2027-02-11': TurningMeaning(
+      observation:
+          'Jupiter—the largest planet—rises as the Sun sets and holds the sky through the night near its brightest.',
+      significanceLabel: 'EXPAND',
+      personalQuestion:
+          'What will you feed until it becomes too substantial to ignore?',
+    ),
+    'mars-opposition-2027-02-19': TurningMeaning(
+      observation:
+          'Mars rises as the Sun sets and burns red through the night, brighter and closer than at most other times.',
+      significanceLabel: 'CONFRONT',
+      personalQuestion:
+          'What hard thing will you confront now because becoming equal to it would change you?',
+    ),
+    'full-moon-2027-02-20': TurningMeaning(
+      observation:
+          'The full Moon passes through the faint outer edge of Earth’s shadow; the change is real even when it is difficult to see.',
+      significanceLabel: 'CORRECT',
+      personalQuestion:
+          'What will you correct now before a small drift becomes a larger one?',
+    ),
+    'mercury-elongation-2027-03-17': TurningMeaning(
+      observation:
+          'Mercury reaches its widest morning separation from the Sun and appears before dawn, ahead of the day.',
+      significanceLabel: 'ANTICIPATE',
+      personalQuestion:
+          'What can you prepare now that would make what’s coming easier to step into?',
+    ),
+    'spring-equinox-2027': TurningMeaning(
+      observation:
+          'Day and night come nearly even, then the balance begins shifting toward more light.',
+      significanceLabel: 'EMERGE',
+      personalQuestion:
+          'What are you ready to bring into the light and start growing?',
+    ),
+    'full-moon-2027-03-22': TurningMeaning(
+      observation:
+          'Two days after the equinox, the Moon reaches fullness while day and night are still near balance.',
+      significanceLabel: 'ALIGN',
+      personalQuestion:
+          'What is lining up for you right now—and what will you do while the timing is good?',
+    ),
+    'full-moon-2027-04-20': TurningMeaning(
+      observation:
+          'One lunar cycle later, the Moon reaches fullness again while the days are still growing longer.',
+      significanceLabel: 'ADVANCE',
+      personalQuestion:
+          'What will you keep pushing forward while the window is still opening?',
+    ),
+    'lyrids-2027': TurningMeaning(
+      observation:
+          'Earth crosses the debris trail of Comet Thatcher; the comet itself takes about four centuries to return.',
+      significanceLabel: 'LEGACY',
+      personalQuestion:
+          'What will you act on now that could keep creating something long after this moment passes?',
     ),
   };
 
