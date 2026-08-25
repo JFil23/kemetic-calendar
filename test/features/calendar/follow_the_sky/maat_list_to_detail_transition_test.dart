@@ -3,6 +3,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/maat_list_to_detail_route.dart';
 
 void main() {
+  testWidgets('list shell shifts on secondary animation', (tester) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(const MaterialApp(home: _TransitionHarness()));
+    await tester.pump();
+
+    final foreground = find.byKey(
+      MaatFlowsListDetailReveal.foregroundTransformKey,
+    );
+    await tester.tap(find.text('Open detail'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+
+    expect(find.text('Detail page'), findsOneWidget);
+    expect(_translationX(tester.widget<Transform>(foreground)), lessThan(0));
+  });
+
   testWidgets(
     'list shell reveals a stationary detail with exact V11 geometry and timing',
     (tester) async {
