@@ -161,7 +161,6 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
     } else {
       unawaited(_load());
     }
-    _exampleIntentionController.addListener(_onExampleIntentionChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onHierarchyChanged?.call();
     });
@@ -177,21 +176,33 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
 
   @override
   void dispose() {
-    _exampleIntentionController.removeListener(_onExampleIntentionChanged);
     _exampleIntentionController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _onExampleIntentionChanged() {
-    final text = _exampleIntentionController.text;
-    final eclipse = _firstEclipsePreview;
-    if (eclipse == null) return;
+  void _setDraftIntentionForSkyNight(SkyObservingNight night, String value) {
+    final nextValue = value.trim().isEmpty ? null : value;
+    final currentValue = _draftIntentions[night.skyEventId];
+    final exampleNight = _firstEclipsePreview;
+    final nextExampleText = nextValue ?? '';
+    final shouldSyncExample =
+        exampleNight?.skyEventId == night.skyEventId &&
+        _exampleIntentionController.text != nextExampleText;
+
+    if (shouldSyncExample) {
+      _exampleIntentionController.value = TextEditingValue(
+        text: nextExampleText,
+        selection: TextSelection.collapsed(offset: nextExampleText.length),
+      );
+    }
+    if (currentValue == nextValue) return;
+
     setState(() {
-      if (text.trim().isEmpty) {
-        _draftIntentions.remove(eclipse.skyEventId);
+      if (nextValue == null) {
+        _draftIntentions.remove(night.skyEventId);
       } else {
-        _draftIntentions[eclipse.skyEventId] = text;
+        _draftIntentions[night.skyEventId] = nextValue;
       }
     });
   }
@@ -274,15 +285,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
       night: night,
       meaning: meaning,
       initialIntention: _draftIntentions[night.skyEventId] ?? '',
-      onSetIntention: (text) {
-        setState(() {
-          if (text.isEmpty) {
-            _draftIntentions.remove(night.skyEventId);
-          } else {
-            _draftIntentions[night.skyEventId] = text;
-          }
-        });
-      },
+      onSetIntention: (text) => _setDraftIntentionForSkyNight(night, text),
     );
     // Navigator results arrive before the bottom-sheet reverse transition has
     // fully released its view insets. Restore after that transition so the
@@ -340,6 +343,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
   Widget _buildV11Body() {
     final windowStart = DateUtils.dateOnly(_now.toLocal());
     final exampleMeaning = TurningMeaningResolver.approvedLunarEclipse;
+    final exampleNight = _firstEclipsePreview;
     final orderedUpcomingNights = _upcomingNights;
     final previewNights = orderedUpcomingNights
         .take(_expandedTurningCount)
@@ -375,7 +379,11 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
             FollowSkyTurningExample(
               meaning: exampleMeaning,
               controller: _exampleIntentionController,
-              onChanged: (_) {},
+              onChanged: (text) {
+                if (exampleNight != null) {
+                  _setDraftIntentionForSkyNight(exampleNight, text);
+                }
+              },
             ),
             FollowSkyPreviewCalendar(
               skyNights: previewNights,

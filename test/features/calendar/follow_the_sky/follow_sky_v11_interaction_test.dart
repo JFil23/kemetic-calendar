@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/follow_the_sky/follow_the_sky.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_dock.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_tokens.dart';
+import 'package:mobile/widgets/kemetic_keyboard.dart';
 
 void main() {
   late SkyCatalog catalog;
@@ -288,6 +289,10 @@ void main() {
             'max before=$maxBeforeSheet after=${scrollState.position.maxScrollExtent}',
       );
       expect(find.text('“Finish my second draft”'), findsOneWidget);
+      expect(
+        tester.widget<TextField>(workedField).controller!.text,
+        'Finish my second draft',
+      );
 
       final exclude = find.byKey(
         ValueKey<String>('follow-sky-exclude-${excludedNight.skyEventId}'),
@@ -351,7 +356,263 @@ void main() {
       );
     },
   );
+
+  testWidgets('clearing either intention surface clears the canonical draft', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final now = DateTime.utc(2026, 8, 24, 12);
+    final intentionNight = catalog
+        .upcomingNights(nowUtc: now)
+        .take(5)
+        .firstWhere((night) => night.companion != null);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FollowSkyDetailPage(initialCatalog: catalog, now: now),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final scrollable = _followSkyScrollable();
+    final inlineField = find.byKey(
+      const ValueKey<String>('follow-sky-worked-intention'),
+    );
+    final intentionCard = find.byKey(
+      ValueKey<String>('follow-sky-preview-${intentionNight.skyEventId}'),
+    );
+    await tester.scrollUntilVisible(inlineField, 300, scrollable: scrollable);
+    await tester.enterText(inlineField, 'Clear from the sheet');
+    await tester.pump();
+    expect(find.text('“Clear from the sheet”'), findsOneWidget);
+
+    await tester.scrollUntilVisible(intentionCard, 300, scrollable: scrollable);
+    await tester.tap(intentionCard);
+    await tester.pumpAndSettle();
+    final sheetField = find.byKey(
+      const ValueKey<String>('follow-sky-turning-intention'),
+    );
+    await tester.enterText(sheetField, '');
+    await tester.tap(
+      find.byKey(const ValueKey<String>('follow-sky-turning-save')),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(inlineField).controller!.text, isEmpty);
+    expect(find.text('“Clear from the sheet”'), findsNothing);
+
+    await tester.enterText(inlineField, 'Clear from inline');
+    await tester.pump();
+    expect(find.text('“Clear from inline”'), findsOneWidget);
+    await tester.enterText(inlineField, '   ');
+    await tester.pump();
+    expect(find.text('“Clear from inline”'), findsNothing);
+
+    await tester.scrollUntilVisible(intentionCard, 300, scrollable: scrollable);
+    final scrollState = tester.state<ScrollableState>(scrollable);
+    scrollState.position.jumpTo(
+      (scrollState.position.pixels - 100).clamp(
+        scrollState.position.minScrollExtent,
+        scrollState.position.maxScrollExtent,
+      ),
+    );
+    await tester.pump();
+    await tester.tap(intentionCard);
+    await tester.pumpAndSettle();
+    final sheetEditable = find.descendant(
+      of: find.byKey(const ValueKey<String>('follow-sky-turning-intention')),
+      matching: find.byType(EditableText),
+    );
+    expect(tester.widget<EditableText>(sheetEditable).controller.text, isEmpty);
+  });
+
+  testWidgets('inline-only intention is serialized by Carry', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final now = DateTime.utc(2026, 8, 24, 12);
+    final intentionNight = catalog
+        .upcomingNights(nowUtc: now)
+        .take(5)
+        .firstWhere((night) => night.companion != null);
+    TrackSkyEnrollmentDraft? capturedDraft;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: FollowSkyDetailPage(
+          initialCatalog: catalog,
+          now: now,
+          onJoin: (draft) async => capturedDraft = draft,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final inlineField = find.byKey(
+      const ValueKey<String>('follow-sky-worked-intention'),
+    );
+    await tester.scrollUntilVisible(
+      inlineField,
+      300,
+      scrollable: _followSkyScrollable(),
+    );
+    await tester.enterText(inlineField, 'Inline path only');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey<String>('follow-sky-carry')));
+    await tester.pumpAndSettle();
+
+    expect(capturedDraft, isNotNull);
+    final occurrence = capturedDraft!.occurrences.singleWhere(
+      (candidate) => candidate.skyEventId == intentionNight.skyEventId,
+    );
+    expect(
+      TrackSkyEventOwnership.intentionFromPayload(occurrence.behaviorPayload),
+      'Inline path only',
+    );
+    expect(occurrence.detail, contains('Intention: Inline path only'));
+    expect(
+      find.byKey(const ValueKey<String>('follow-sky-turning-intention')),
+      findsNothing,
+    );
+  });
+
+  testWidgets(
+    'worked intention stays visible above keyboard without focus-cycle drift',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetViewInsets);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) =>
+              KemeticKeyboardHost(child: child ?? const SizedBox.shrink()),
+          home: FollowSkyDetailPage(
+            initialCatalog: catalog,
+            now: DateTime.utc(2026, 8, 24, 12),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final field = find.byKey(
+        const ValueKey<String>('follow-sky-worked-intention'),
+      );
+      final scrollable = find
+          .descendant(
+            of: find.byKey(const ValueKey<String>('follow-sky-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      final scrollState = tester.state<ScrollableState>(scrollable);
+      await tester.scrollUntilVisible(field, 100, scrollable: scrollable);
+      await tester.pumpAndSettle();
+      const keyboardInset = 320.0;
+      const keyboardTop = 844.0 - keyboardInset;
+      final fieldHeight = tester.getRect(field).height;
+      const readingTop = 150.0;
+      scrollState.position.jumpTo(
+        scrollState.position.pixels + tester.getTopLeft(field).dy - readingTop,
+      );
+      await tester.pump();
+
+      await tester.tap(field);
+      await tester.pump();
+      tester.view.viewInsets = const FakeViewPadding(bottom: keyboardInset);
+      await tester.pumpAndSettle(const Duration(milliseconds: 500));
+      final firstOpenRect = tester.getRect(field);
+      expect(firstOpenRect.top, greaterThanOrEqualTo(0));
+      expect(firstOpenRect.bottom, lessThanOrEqualTo(keyboardTop));
+      await tester.enterText(field, 'Visible while typing');
+      await tester.pump(const Duration(milliseconds: 400));
+      final typedRect = tester.getRect(field);
+      final editable = tester.state<EditableTextState>(
+        find.descendant(of: field, matching: find.byType(EditableText)),
+      );
+      final caretRect = editable.renderEditable.getLocalRectForCaret(
+        editable.textEditingValue.selection.extent,
+      );
+      final caretTop = editable.renderEditable
+          .localToGlobal(caretRect.topLeft)
+          .dy;
+      final caretBottom = editable.renderEditable
+          .localToGlobal(caretRect.bottomLeft)
+          .dy;
+      expect(
+        tester.widget<TextField>(field).controller!.text,
+        'Visible while typing',
+      );
+      expect(typedRect.top, greaterThanOrEqualTo(0));
+      expect(typedRect.bottom, lessThanOrEqualTo(keyboardTop));
+      expect(caretTop, greaterThanOrEqualTo(0));
+      expect(caretBottom, lessThanOrEqualTo(keyboardTop));
+
+      FocusManager.instance.primaryFocus?.unfocus();
+      tester.view.resetViewInsets();
+      await tester.pumpAndSettle(const Duration(milliseconds: 500));
+      final anchoredTop = keyboardTop - fieldHeight - 4;
+      scrollState.position.jumpTo(
+        scrollState.position.pixels + tester.getTopLeft(field).dy - anchoredTop,
+      );
+      await tester.pump();
+
+      final openedOffsets = <double>[];
+      final dismissedOffsets = <double>[];
+      final openedRects = <Rect>[];
+      for (var cycle = 0; cycle < 6; cycle++) {
+        await tester.tap(field);
+        await tester.pump();
+        tester.view.viewInsets = const FakeViewPadding(bottom: keyboardInset);
+        await tester.pumpAndSettle(const Duration(milliseconds: 500));
+
+        final rect = tester.getRect(field);
+        openedRects.add(rect);
+        expect(
+          rect.top,
+          greaterThanOrEqualTo(0),
+          reason: 'cycle $cycle: $rect',
+        );
+        expect(
+          rect.bottom,
+          lessThanOrEqualTo(keyboardTop),
+          reason: 'cycle $cycle: $rect',
+        );
+        openedOffsets.add(scrollState.position.pixels);
+
+        FocusManager.instance.primaryFocus?.unfocus();
+        tester.view.resetViewInsets();
+        await tester.pumpAndSettle(const Duration(milliseconds: 500));
+        dismissedOffsets.add(scrollState.position.pixels);
+      }
+
+      for (var cycle = 4; cycle < 6; cycle++) {
+        expect(
+          openedOffsets[cycle],
+          closeTo(openedOffsets[3], 0.5),
+          reason:
+              'opened=$openedOffsets rects=$openedRects dismissed=$dismissedOffsets',
+        );
+        expect(
+          dismissedOffsets[cycle],
+          closeTo(dismissedOffsets[3], 0.5),
+          reason: '$dismissedOffsets',
+        );
+      }
+    },
+  );
 }
+
+Finder _followSkyScrollable() => find
+    .descendant(
+      of: find.byKey(const ValueKey<String>('follow-sky-scroll')),
+      matching: find.byType(Scrollable),
+    )
+    .first;
 
 Finder _byKeyPrefix(String prefix) => find.byWidgetPredicate((widget) {
   final key = widget.key;
