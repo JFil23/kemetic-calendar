@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/widgets/day_sheet_components.dart';
 
 import '../../domain/sky_observing_night.dart';
 import '../../../maat_flow_visual_tokens.dart';
 import '../turning_meaning.dart';
-import 'follow_sky_intention_editor.dart';
 import 'follow_sky_v11_tokens.dart';
 
 Future<void> showFollowSkyTurningSheet({
@@ -95,16 +95,29 @@ Future<void> showFollowSkyTurningSheet({
                 ),
               ),
               const SizedBox(height: 16),
-              FollowSkyIntentionEditor(
+              DaySheetTextField(
+                key: const ValueKey<String>('follow-sky-turning-intention'),
                 controller: controller,
-                fieldKey: const ValueKey<String>(
-                  'follow-sky-turning-intention',
+                hint: 'Your intention…',
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                height: 48,
+                child: ElevatedButton(
+                  key: const ValueKey<String>('follow-sky-turning-save'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: FollowSkyV11Tokens.gold,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                  onPressed: () {
+                    onSetIntention(controller.text.trim());
+                    Navigator.of(ctx).pop();
+                  },
+                  child: const Text('Set intention'),
                 ),
-                saveKey: const ValueKey<String>('follow-sky-turning-save'),
-                onSetIntention: (text) {
-                  onSetIntention(text);
-                  Navigator.of(ctx).pop();
-                },
               ),
               TextButton(
                 key: const ValueKey<String>('follow-sky-turning-leave-open'),
