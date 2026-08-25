@@ -36,7 +36,8 @@ void main() {
       expect(routeSection, contains("closeOrReturn(context, '/')"));
       expect(routeSection, isNot(contains("context.go('/');")));
       expect(routeSection, contains('bool _handleSystemBack()'));
-      expect(routeSection, contains('nestedNavigator.pop();'));
+      expect(routeSection, contains('nestedNavigator.maybePop()'));
+      expect(routeSection, isNot(contains('nestedNavigator.pop();')));
       expect(routeSection, contains('onBackPressed: _handleSystemBack'));
       expect(routeSection, contains('key: _flowStudioNavigatorKey'));
       expect(routeSection, contains('onClose: _closeRoute'));
@@ -79,6 +80,49 @@ void main() {
       expect(initialRoutesSection, contains('hubRoute(), listRoute'));
       expect(initialRoutesSection, contains('initialTemplate: template'));
       expect(initialRoutesSection, isNot(contains('detailRoute')));
+    },
+  );
+
+  test(
+    'successful Ma at join cannot persist stale list state after owner closes',
+    () {
+      final source = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final reveal = _sourceBetween(
+        source,
+        'Future<T?> _revealFlowStudioDetail<T>(',
+        'Future<_FlowStudioResult?> _pushFlowStudioEditor(',
+      );
+      final detailPush = _sourceBetween(
+        source,
+        'Future<int?> _pushMaatFlowTemplateDetail(',
+        'Map<String, Object?> _calendarSheetTraceState(',
+      );
+      final completion = _sourceBetween(
+        source,
+        'void _completeMountedStagedFlowAddWithDayView(int flowId)',
+        '_Note? _firstFlowTargetNoteForDay(',
+      );
+
+      expect(reveal, contains('NavigatorState navigator'));
+      expect(reveal, contains('navigator.mounted'));
+      expect(
+        reveal.indexOf('navigator.mounted'),
+        lessThan(reveal.lastIndexOf('returnState,')),
+      );
+      expect(
+        detailPush,
+        contains('_revealFlowStudioDetail<int?>(\n      navigator,'),
+      );
+      expect(completion, contains('rootNavigator.pop();'));
+      expect(completion, contains('_schedulePendingStagedFlowDayViewIfAny();'));
+      expect(
+        completion.indexOf('rootNavigator.pop();'),
+        lessThan(
+          completion.indexOf('_schedulePendingStagedFlowDayViewIfAny();'),
+        ),
+      );
     },
   );
 
@@ -233,6 +277,14 @@ void main() {
       expect(writeHelper, contains('calendarId: localFlow.calendarId,'));
     },
   );
+}
+
+String _sourceBetween(String source, String start, String end) {
+  final startIndex = source.indexOf(start);
+  final endIndex = source.indexOf(end, startIndex + start.length);
+  expect(startIndex, isNonNegative, reason: 'Missing source start: $start');
+  expect(endIndex, greaterThan(startIndex), reason: 'Missing source end: $end');
+  return source.substring(startIndex, endIndex);
 }
 
 String _deleteCallFor(String source, String sourceFeatureNeedle) {

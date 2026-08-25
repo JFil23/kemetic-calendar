@@ -9827,7 +9827,7 @@ class _FlowStudioRoutePageState extends State<_FlowStudioRoutePage> {
   bool _handleSystemBack() {
     final nestedNavigator = _flowStudioNavigatorKey.currentState;
     if (nestedNavigator != null && nestedNavigator.canPop()) {
-      nestedNavigator.pop();
+      unawaited(nestedNavigator.maybePop());
       return true;
     }
     return false;
@@ -13162,6 +13162,7 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<T?> _revealFlowStudioDetail<T>(
+    NavigatorState navigator,
     MaatFlowDetailRevealer<T> revealDetail,
     WidgetBuilder detailBuilder, {
     required Map<String, dynamic> visibleState,
@@ -13179,6 +13180,7 @@ class CalendarPageState extends State<CalendarPage>
     } finally {
       if (persistOverlay &&
           mounted &&
+          navigator.mounted &&
           !RestorationCoordinator
               .instance
               .shouldPreserveOverlayForLifecycleClose) {
@@ -13386,12 +13388,14 @@ class CalendarPageState extends State<CalendarPage>
   }
 
   Future<int?> _pushMaatFlowTemplateDetail(
+    NavigatorState navigator,
     MaatFlowDetailRevealer<int?> revealDetail,
     _MaatFlowTemplate template, {
     required Map<String, dynamic> returnState,
     bool persistOverlay = true,
   }) {
     return _revealFlowStudioDetail<int?>(
+      navigator,
       revealDetail,
       (_) => _buildMaatFlowTemplateDetailPage(
         template: template,
@@ -27417,6 +27421,7 @@ class CalendarPageState extends State<CalendarPage>
       progressForKey: _maatCompletionStatusForActiveInstance,
       onPickTemplate: (tpl, revealDetail) async {
         final importedFlowId = await _pushMaatFlowTemplateDetail(
+          navigator,
           revealDetail,
           tpl,
           returnState: const <String, dynamic>{
