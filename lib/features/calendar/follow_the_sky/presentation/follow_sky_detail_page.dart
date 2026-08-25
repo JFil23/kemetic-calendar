@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
@@ -161,7 +162,6 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
     } else {
       unawaited(_load());
     }
-    _exampleIntentionController.addListener(_onExampleIntentionChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       widget.onHierarchyChanged?.call();
     });
@@ -177,21 +177,26 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
 
   @override
   void dispose() {
-    _exampleIntentionController.removeListener(_onExampleIntentionChanged);
     _exampleIntentionController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _onExampleIntentionChanged() {
-    final text = _exampleIntentionController.text;
-    final eclipse = _firstEclipsePreview;
-    if (eclipse == null) return;
+  void _setIntention(SkyObservingNight night, String text) {
+    final intention = text.trim();
+    final exampleNight = _firstEclipsePreview;
+    if (exampleNight?.skyEventId == night.skyEventId &&
+        _exampleIntentionController.text != intention) {
+      _exampleIntentionController.value = TextEditingValue(
+        text: intention,
+        selection: TextSelection.collapsed(offset: intention.length),
+      );
+    }
     setState(() {
-      if (text.trim().isEmpty) {
-        _draftIntentions.remove(eclipse.skyEventId);
+      if (intention.isEmpty) {
+        _draftIntentions.remove(night.skyEventId);
       } else {
-        _draftIntentions[eclipse.skyEventId] = text;
+        _draftIntentions[night.skyEventId] = intention;
       }
     });
   }
@@ -274,15 +279,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
       night: night,
       meaning: meaning,
       initialIntention: _draftIntentions[night.skyEventId] ?? '',
-      onSetIntention: (text) {
-        setState(() {
-          if (text.isEmpty) {
-            _draftIntentions.remove(night.skyEventId);
-          } else {
-            _draftIntentions[night.skyEventId] = text;
-          }
-        });
-      },
+      onSetIntention: (text) => _setIntention(night, text),
     );
     // Navigator results arrive before the bottom-sheet reverse transition has
     // fully released its view insets. Restore after that transition so the
@@ -340,6 +337,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
   Widget _buildV11Body() {
     final windowStart = DateUtils.dateOnly(_now.toLocal());
     final exampleMeaning = TurningMeaningResolver.approvedLunarEclipse;
+    final exampleNight = _firstEclipsePreview;
     final orderedUpcomingNights = _upcomingNights;
     final previewNights = orderedUpcomingNights
         .take(_expandedTurningCount)
@@ -347,15 +345,18 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
     final remainingNights = orderedUpcomingNights
         .skip(previewNights.length)
         .toList(growable: false);
+    final keyboardVisible = keyboardInsetOf(context) > 0;
 
     return FollowSkyScrollShell(
       scrollController: _scrollController,
       hero: FollowSkyHero(title: widget.title, subtitle: widget.subtitle),
-      bottomBar: FollowSkyV11Dock(
-        joined: _carried,
-        joining: _joining,
-        onCarry: _carried ? null : _carry,
-      ),
+      bottomBar: keyboardVisible
+          ? null
+          : FollowSkyV11Dock(
+              joined: _carried,
+              joining: _joining,
+              onCarry: _carried ? null : _carry,
+            ),
       sheet: Container(
         decoration: const BoxDecoration(
           color: FollowSkyV11Tokens.sheetBg,
@@ -375,7 +376,11 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
             FollowSkyTurningExample(
               meaning: exampleMeaning,
               controller: _exampleIntentionController,
-              onChanged: (_) {},
+              onSetIntention: (text) {
+                if (exampleNight != null) {
+                  _setIntention(exampleNight, text);
+                }
+              },
             ),
             FollowSkyPreviewCalendar(
               skyNights: previewNights,
