@@ -36,9 +36,12 @@ void main() {
       expect(moon, isNotEmpty);
       for (final e in moon) {
         expect(e.skyEventId, isNotNull);
-        // V2 adapter detail is catalog + function label, never stitched prose.
+        // V11 adapter detail is catalog + current resolved meaning, never
+        // stitched prose or raw domain function presentation.
         expect(e.detailSummary, isNot(contains('stitched')));
-        expect(e.significance, startsWith('Function:'));
+        expect(e.meaning, isNotNull);
+        expect(e.significance, e.meaning!.detailText);
+        expect(e.significance, isNot(contains('Function:')));
       }
     },
   );
@@ -77,8 +80,9 @@ void main() {
     for (final e in planets) {
       expect(e.skyEventId, isNotNull);
       expect(e.bestViewing, isNotEmpty);
-      expect(e.significance, startsWith('Function:'));
-      // Observation/viewing leads; function label is separate rationale.
+      expect(e.meaning, isNotNull);
+      expect(e.significance, e.meaning!.detailText);
+      // Observation/viewing leads; resolved meaning is separate rationale.
       expect(e.detailSummary.indexOf(e.bestViewing), lessThan(
         e.detailSummary.indexOf(e.significance),
       ));
@@ -115,12 +119,79 @@ void main() {
     final data = await loadTrackSkyFlowData(TrackSkyTimeZone.pacific);
     expect(data.events, isNotEmpty);
     for (final e in data.events.take(12)) {
-      // Adapter exposes canonical V2 detail: viewing window + function label.
+      // Adapter exposes viewing window + the canonical V11 meaning.
       expect(e.detailSummary, contains(e.bestViewing));
       expect(e.detailSummary, contains(e.significance));
       expect(e.skyEventId, isNotNull);
     }
   });
+
+  test(
+    'legacy measure payload resolves joined equinox to current BALANCE meaning',
+    () async {
+      final data = await loadTrackSkyFlowData(TrackSkyTimeZone.pacific);
+      final payload = TrackSkyEventOwnership.behaviorPayload(
+        skyEventId: 'autumn-equinox-2026',
+        resolvedFunction: 'measure',
+        displayName: 'Autumn Equinox',
+      );
+
+      final event = trackSkyEventFromBehaviorPayload(data, payload);
+
+      expect(event, isNotNull);
+      expect(event!.meaning!.significanceLabel, 'BALANCE');
+      expect(
+        event.meaning!.personalQuestion,
+        'What do you want to make more room for so it can grow?',
+      );
+      expect(event.teaserText, 'Balance · Autumn Equinox');
+      expect(event.detailSummary, contains('BALANCE'));
+      expect(event.detailSummary, isNot(contains('MEASURE')));
+      expect(
+        event.detailSummary,
+        isNot(contains('What do you want to measure against the sky?')),
+      );
+    },
+  );
+
+  test(
+    'first ten adapter events consume the approved resolver meanings',
+    () async {
+      final data = await loadTrackSkyFlowData(TrackSkyTimeZone.pacific);
+      const expected = <(String, String)>[
+        ('full-moon-2026-08-28', 'ENDURE'),
+        ('autumn-equinox-2026', 'BALANCE'),
+        ('full-moon-2026-09-26', 'GATHER'),
+        ('saturn-opposition-2026-10-04', 'PRACTICE'),
+        ('mercury-elongation-2026-10-12', 'ACT'),
+        ('orionids-2026', 'RENEW'),
+        ('full-moon-2026-10-26', 'CELEBRATE'),
+        ('southern-taurids-2026', 'POSSIBILITY'),
+        ('northern-taurids-2026', 'CONNECT'),
+        ('leonids-2026', 'IMPACT'),
+      ];
+
+      for (final row in expected) {
+        final event = data.events.singleWhere(
+          (event) => event.skyEventId == row.$1,
+        );
+        expect(event.meaning!.significanceLabel, row.$2, reason: row.$1);
+        expect(event.significance, event.meaning!.detailText, reason: row.$1);
+      }
+
+      final catalog = await SkyCatalogRepository().load();
+      final event11 = catalog.observingNight(
+        catalog.byId('mars-jupiter-conjunction-2026-11-16')!,
+      );
+      final adapterEvent = data.events.singleWhere(
+        (event) => event.skyEventId == event11.skyEventId,
+      );
+      expect(
+        adapterEvent.meaning!.significanceLabel,
+        event11.anchor.function.displayLabel.toUpperCase(),
+      );
+    },
+  );
 
   test('daytime full moons normalize to an evening viewing window', () async {
     final catalog = await SkyCatalogRepository().load();

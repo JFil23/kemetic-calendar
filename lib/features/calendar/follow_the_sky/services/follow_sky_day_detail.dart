@@ -4,6 +4,8 @@ import 'package:mobile/features/calendar/track_sky_timezone.dart';
 /// Day-sheet helpers for Follow the Sky V2 — no V1 markdown parser.
 class FollowSkyDayDetail {
   static final SkyCatalogRepository _repo = SkyCatalogRepository();
+  static const TurningMeaningResolver _meaningResolver =
+      TurningMeaningResolver();
   static SkyCatalog? _cached;
 
   static Future<SkyCatalog> catalog() async {
@@ -21,45 +23,33 @@ class FollowSkyDayDetail {
     Map<String, dynamic>? behaviorPayload,
   }) {
     final base = (eventDetail ?? '').trim();
-    final payloadName =
-        TrackSkyEventOwnership.displayNameFromPayload(behaviorPayload);
-    final payloadFn =
-        TrackSkyEventOwnership.resolvedFunctionFromPayload(behaviorPayload);
-    final companions =
-        TrackSkyEventOwnership.companionIdsFromPayload(behaviorPayload);
-
-    if (skyEventId == null || catalog == null) {
-      final parts = <String>[
-        if (base.isNotEmpty) _stripNoise(base),
-        if (payloadFn != null) 'Function: ${_labelForFunctionWire(payloadFn)}',
-        if (companions.isNotEmpty)
-          'Merged companions: ${companions.join(', ')}',
-      ];
-      return parts.where((p) => p.trim().isNotEmpty).join('\n');
-    }
-    final event = catalog.byId(skyEventId);
-    if (event == null) return _stripNoise(base);
+    final companions = TrackSkyEventOwnership.companionIdsFromPayload(
+      behaviorPayload,
+    );
+    final intention = TrackSkyEventOwnership.intentionFromPayload(
+      behaviorPayload,
+    );
+    final resolvedId = skyEventId ?? skyEventIdFromBehavior(behaviorPayload);
+    if (resolvedId == null || catalog == null) return _stripNoise(base);
+    final event = catalog.byId(resolvedId);
+    final meaning = _meaningResolver.forCatalogEvent(catalog, resolvedId);
+    if (event == null || meaning == null) return _stripNoise(base);
     final night = event.mergedIntoId == null
         ? catalog.observingNight(event)
         : null;
     final decision = const SkyVisibilityService().decide(
       night?.windowSource ?? event,
     );
-    final functionLabel = payloadFn != null
-        ? _labelForFunctionWire(payloadFn)
-        : (night?.function ?? event.function).displayLabel;
     final parts = <String>[
-      if (base.isNotEmpty) _stripNoise(base),
-      if (payloadName != null &&
-          !base.contains(payloadName) &&
-          night?.isEclipseFullMoon == true)
-        payloadName,
-      'Function: $functionLabel',
+      meaning.observation,
+      meaning.significanceLabel,
+      meaning.personalQuestion,
       if (companions.isNotEmpty)
         'Merged companions: ${companions.join(', ')}'
       else if (night?.companion != null)
         'Merged companions: ${night!.companion!.id}',
       if (decision.userFacingNote.isNotEmpty) decision.userFacingNote,
+      if (intention != null) 'Intention: $intention',
     ];
     return parts.where((p) => p.trim().isNotEmpty).join('\n');
   }
@@ -70,32 +60,18 @@ class FollowSkyDayDetail {
     SkyCatalog? catalog,
     Map<String, dynamic>? behaviorPayload,
   }) {
-    final payloadName =
-        TrackSkyEventOwnership.displayNameFromPayload(behaviorPayload);
-    final payloadFn =
-        TrackSkyEventOwnership.resolvedFunctionFromPayload(behaviorPayload);
-    if (payloadName != null && payloadFn != null) {
-      return '$payloadName · ${_labelForFunctionWire(payloadFn)}';
-    }
-    if (skyEventId != null && catalog != null) {
-      final event = catalog.byId(skyEventId);
-      if (event != null && event.mergedIntoId == null) {
-        final night = catalog.observingNight(event);
-        return '${night.displayName} · ${night.function.displayLabel}';
-      }
-      if (event != null) {
-        return '${event.name} · ${event.function.displayLabel}';
+    final resolvedId = skyEventId ?? skyEventIdFromBehavior(behaviorPayload);
+    if (resolvedId != null && catalog != null) {
+      final event = catalog.byId(resolvedId);
+      final meaning = _meaningResolver.forCatalogEvent(catalog, resolvedId);
+      if (event != null && meaning != null) {
+        final displayName = event.mergedIntoId == null
+            ? catalog.observingNight(event).displayName
+            : event.name;
+        return '${meaning.titledSignificanceLabel} · $displayName';
       }
     }
     return title;
-  }
-
-  static String _labelForFunctionWire(String wire) {
-    try {
-      return SkyEventFunctionX.parse(wire).displayLabel;
-    } catch (_) {
-      return wire;
-    }
   }
 
   static TrackSkyTimeZone? timezoneFromNotes(String? notes) {
@@ -111,7 +87,12 @@ class FollowSkyDayDetail {
   static String _stripNoise(String raw) {
     return raw
         .split('\n')
-        .where((l) => !l.trim().toLowerCase().startsWith('cid='))
+        .where((line) {
+          final lower = line.trim().toLowerCase();
+          return !lower.startsWith('cid=') &&
+              !lower.startsWith('skyeventid=') &&
+              !lower.startsWith('function:');
+        })
         .join('\n')
         .trim();
   }

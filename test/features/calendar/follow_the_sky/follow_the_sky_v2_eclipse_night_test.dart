@@ -120,9 +120,10 @@ void main() {
         catalog: catalog,
         behaviorPayload: payload,
       );
+      final meaning = const TurningMeaningResolver().forNight(night);
       expect(teaser, contains(row.$3));
-      expect(teaser, contains('Reconsider'));
-      expect(teaser, isNot(contains('Reveal')));
+      expect(teaser, contains(meaning.titledSignificanceLabel));
+      expect(teaser, isNot(contains('Reconsider')));
 
       final detail = FollowSkyDayDetail.displayDetail(
         eventDetail: occ.detail,
@@ -130,7 +131,8 @@ void main() {
         catalog: catalog,
         behaviorPayload: payload,
       );
-      expect(detail, contains('Function: Reconsider'));
+      expect(detail, contains(meaning.significanceLabel));
+      expect(detail, isNot(contains('Function: Reconsider')));
       expect(detail, contains(row.$2));
     }
 

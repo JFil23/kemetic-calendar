@@ -2549,6 +2549,12 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       return null;
     }
 
+    final ownedEvent = trackSkyEventFromBehaviorPayload(
+      data,
+      event.behaviorPayload,
+    );
+    if (ownedEvent != null) return ownedEvent;
+
     final targetDate = DateUtils.dateOnly(KemeticMath.toGregorian(ky, km, kd));
     final normalizedTitle = event.title.trim().toLowerCase();
     final exactMatches = data.events.where((candidate) {
@@ -6907,6 +6913,12 @@ class _DayViewGridState extends State<DayViewGrid> {
       _primeTrackSkyFlowData();
       return null;
     }
+
+    final ownedEvent = trackSkyEventFromBehaviorPayload(
+      data,
+      event.behaviorPayload,
+    );
+    if (ownedEvent != null) return ownedEvent;
 
     final targetDate = DateUtils.dateOnly(KemeticMath.toGregorian(ky, km, kd));
     final normalizedTitle = event.title.trim().toLowerCase();

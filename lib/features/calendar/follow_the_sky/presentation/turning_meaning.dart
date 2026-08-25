@@ -1,3 +1,4 @@
+import '../domain/sky_catalog.dart';
 import '../domain/sky_event.dart';
 import '../domain/sky_event_function.dart';
 import '../domain/sky_observing_night.dart';
@@ -13,6 +14,14 @@ class TurningMeaning {
   final String observation;
   final String significanceLabel;
   final String personalQuestion;
+
+  String get titledSignificanceLabel {
+    final lower = significanceLabel.toLowerCase();
+    return '${lower[0].toUpperCase()}${lower.substring(1)}';
+  }
+
+  String get detailText =>
+      '$observation\n$significanceLabel\n$personalQuestion';
 }
 
 /// Maps canonical sky events into presentation copy without touching domain enums.
@@ -107,6 +116,23 @@ class TurningMeaningResolver {
     final meaning = _meaningForEventId(event.id);
     if (meaning != null) return meaning;
     return _fallbackForEvent(event);
+  }
+
+  /// Resolves current presentation from stable catalog identity.
+  ///
+  /// This deliberately ignores persisted function/display copy. Callers that
+  /// only have an existing event payload should extract its `skyEventId` and
+  /// enter the same resolver path used by the V11 preview and turning sheet.
+  TurningMeaning? forCatalogEvent(SkyCatalog catalog, String skyEventId) {
+    final event = catalog.byId(skyEventId);
+    if (event == null) return null;
+    final anchor = event.mergedIntoId == null
+        ? event
+        : catalog.byId(event.mergedIntoId!);
+    if (anchor == null || anchor.mergedIntoId != null) {
+      return forEvent(event);
+    }
+    return forNight(catalog.observingNight(anchor));
   }
 
   TurningMeaning? _meaningForEventId(String eventId) {

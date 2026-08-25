@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -49,6 +50,36 @@ void main() {
     expect(draft.occurrences.single.skyEventId, nights.first.skyEventId);
   });
 
+  test('legacy payload ID overrides its persisted measure presentation', () {
+    final legacyPayload = TrackSkyEventOwnership.behaviorPayload(
+      skyEventId: 'autumn-equinox-2026',
+      resolvedFunction: 'measure',
+      displayName: 'Autumn Equinox',
+    );
+
+    final teaser = FollowSkyDayDetail.teaser(
+      title: 'Autumn Equinox',
+      skyEventId: null,
+      catalog: catalog,
+      behaviorPayload: legacyPayload,
+    );
+    final detail = FollowSkyDayDetail.displayDetail(
+      eventDetail: 'skyEventId=autumn-equinox-2026\nFunction: Measure',
+      skyEventId: null,
+      catalog: catalog,
+      behaviorPayload: legacyPayload,
+    );
+
+    expect(teaser, 'Balance · Autumn Equinox');
+    expect(detail, contains('BALANCE'));
+    expect(
+      detail,
+      contains('What do you want to make more room for so it can grow?'),
+    );
+    expect(detail, isNot(contains('Function: Measure')));
+    expect(detail, isNot(contains('MEASURE')));
+  });
+
   testWidgets('FollowSkyDetailPage renders V11 headings', (tester) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -77,6 +108,66 @@ void main() {
     expect(find.text('ENDURE'), findsWidgets);
     expect(find.text('Carry this course'), findsOneWidget);
   });
+
+  testWidgets(
+    'legacy measure equinox identity renders BALANCE in the V11 turning sheet',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final pageKey = GlobalKey<FollowSkyDetailPageState>();
+      final equinox = catalog.byId('autumn-equinox-2026')!;
+      final legacyPayload = TrackSkyEventOwnership.behaviorPayload(
+        skyEventId: equinox.id,
+        resolvedFunction: 'measure',
+        displayName: equinox.name,
+      );
+
+      expect(equinox.function, SkyEventFunction.measure);
+      expect(
+        TrackSkyEventOwnership.resolvedFunctionFromPayload(legacyPayload),
+        'measure',
+      );
+      expect(
+        TrackSkyEventOwnership.skyEventIdFromPayload(legacyPayload),
+        equinox.id,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: FollowSkyDetailPage(
+            key: pageKey,
+            initialCatalog: catalog,
+            now: DateTime.utc(2026, 9, 1, 12),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      unawaited(
+        pageKey.currentState!.openTurningSheetForTest(
+          catalog.observingNight(equinox),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(
+          'Day and night come nearly even. Then the balance begins to turn.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('BALANCE'), findsWidgets);
+      expect(
+        find.text('What do you want to make more room for so it can grow?'),
+        findsOneWidget,
+      );
+      expect(find.text('MEASURE'), findsNothing);
+      expect(
+        find.text('What do you want to measure against the sky?'),
+        findsNothing,
+      );
+    },
+  );
 
   test('hero asset is registered', () {
     expect(File('assets/follow_the_sky/hero.png').existsSync(), isTrue);

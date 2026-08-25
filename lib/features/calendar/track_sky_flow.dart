@@ -40,6 +40,7 @@ class TrackSkyEvent {
   final String notes;
   final TrackSkyEventSchedule schedule;
   final String? skyEventId;
+  final TurningMeaning? meaning;
 
   const TrackSkyEvent({
     required this.category,
@@ -52,10 +53,11 @@ class TrackSkyEvent {
     required this.notes,
     required this.schedule,
     this.skyEventId,
+    this.meaning,
   });
 
   String get trackingGuidance => bestViewing;
-  String get maatReflection => significance;
+  String get maatReflection => meaning?.detailText ?? significance;
   String get detailSummary {
     final parts = <String>[
       if (trackingGuidance.trim().isNotEmpty) trackingGuidance.trim(),
@@ -64,8 +66,9 @@ class TrackSkyEvent {
     return parts.join('\n\n');
   }
 
-  String get teaserText =>
-      trackingGuidance.trim().isNotEmpty ? trackingGuidance.trim() : title;
+  String get teaserText => meaning == null
+      ? (trackingGuidance.trim().isNotEmpty ? trackingGuidance.trim() : title)
+      : '${meaning!.titledSignificanceLabel} · $title';
 
   String get detailText => detailSummary;
 }
@@ -125,9 +128,11 @@ Future<TrackSkyFlowData> _loadV2(TrackSkyTimeZone timezone) async {
     },
   );
   const visibility = SkyVisibilityService();
+  const meaningResolver = TurningMeaningResolver();
   final events = <TrackSkyEvent>[];
   for (final sky in catalog.materializableEvents) {
     final night = catalog.observingNight(sky);
+    final meaning = meaningResolver.forNight(night);
     final decision = visibility.decide(night.windowSource);
     final occ = materializer.materialize(
       event: sky,
@@ -157,9 +162,10 @@ Future<TrackSkyFlowData> _loadV2(TrackSkyTimeZone timezone) async {
         bestViewing: sky.precision == SkyEventPrecision.approximate
             ? 'Best tonight'
             : (start24 == null ? 'All day' : 'Local window $start24–$end24'),
-        significance: 'Function: ${sky.function.displayLabel}',
+        significance: meaning.detailText,
         notes: sky.notes ?? '',
         skyEventId: sky.id,
+        meaning: meaning,
         schedule: TrackSkyEventSchedule(
           dateIso: dateIso,
           startTime24: start24,
@@ -171,6 +177,22 @@ Future<TrackSkyFlowData> _loadV2(TrackSkyTimeZone timezone) async {
   }
   events.sort((a, b) => a.schedule.dateIso.compareTo(b.schedule.dateIso));
   return TrackSkyFlowData(timezone: timezone, events: events);
+}
+
+/// Finds the current catalog-backed presentation for an existing joined event.
+/// Persisted function/display fields are intentionally not consulted.
+TrackSkyEvent? trackSkyEventFromBehaviorPayload(
+  TrackSkyFlowData data,
+  Map<String, dynamic>? behaviorPayload,
+) {
+  final skyEventId = TrackSkyEventOwnership.skyEventIdFromPayload(
+    behaviorPayload,
+  );
+  if (skyEventId == null) return null;
+  for (final event in data.events) {
+    if (event.skyEventId == skyEventId) return event;
+  }
+  return null;
 }
 
 void _ensureTz() {
