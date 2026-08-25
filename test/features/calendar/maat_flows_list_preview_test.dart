@@ -144,6 +144,46 @@ void main() {
     expect(find.text('Dawn House Rite'), findsOneWidget);
   });
 
+  testWidgets(
+    'Ma’at flow cards show the complete description and grow when it wraps',
+    (tester) async {
+      const description =
+          'Major turnings in the sky carry a meaning. Attach your own intention to that meaning.';
+      tester.view.physicalSize = const Size(760, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: buildMaatFlowsListPreviewForTesting(
+            joinedKeys: const <String>{'track-the-sky'},
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final descriptionFinder = find.text(description);
+      expect(descriptionFinder, findsOneWidget);
+      final descriptionText = tester.widget<Text>(descriptionFinder);
+      expect(descriptionText.maxLines, isNull);
+      expect(descriptionText.overflow, isNull);
+
+      final cardFinder = find
+          .ancestor(of: descriptionFinder, matching: find.byType(InkWell))
+          .first;
+      final wideCardHeight = tester.getSize(cardFinder).height;
+
+      tester.view.physicalSize = const Size(393, 1000);
+      await tester.pump();
+
+      expect(find.text(description), findsOneWidget);
+      final narrowCardHeight = tester.getSize(cardFinder).height;
+      expect(narrowCardHeight, greaterThan(wideCardHeight));
+    },
+  );
+
   testWidgets('Ma’at not-yet-joined category tabs filter and toggle', (
     tester,
   ) async {

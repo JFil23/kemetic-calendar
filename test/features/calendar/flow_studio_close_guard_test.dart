@@ -77,10 +77,8 @@ void main() {
       final initialRoutesSection = source.substring(rootEnd, routeStart);
       expect(initialRoutesSection, contains('VoidCallback? onReturnToHub'));
       expect(initialRoutesSection, contains('hubRoute(), listRoute'));
-      expect(
-        initialRoutesSection,
-        contains('hubRoute(), listRoute, detailRoute'),
-      );
+      expect(initialRoutesSection, contains('initialTemplate: template'));
+      expect(initialRoutesSection, isNot(contains('detailRoute')));
     },
   );
 
