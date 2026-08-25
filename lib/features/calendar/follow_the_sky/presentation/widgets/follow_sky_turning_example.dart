@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 
 import '../../../maat_flow_visual_tokens.dart';
 import '../turning_meaning.dart';
-import 'follow_sky_intention_editor.dart';
 import 'follow_sky_v11_tokens.dart';
 
 class FollowSkyTurningExample extends StatelessWidget {
@@ -10,12 +10,12 @@ class FollowSkyTurningExample extends StatelessWidget {
     super.key,
     required this.meaning,
     required this.controller,
-    required this.onSetIntention,
+    required this.onChanged,
   });
 
   final TurningMeaning meaning;
   final TextEditingController controller;
-  final ValueChanged<String> onSetIntention;
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -81,12 +81,41 @@ class FollowSkyTurningExample extends StatelessWidget {
               height: 1.3,
             ),
           ),
-          const SizedBox(height: 12),
-          FollowSkyIntentionEditor(
+          const SizedBox(height: 24),
+          TextField(
+            key: const ValueKey<String>('follow-sky-worked-intention'),
             controller: controller,
-            fieldKey: const ValueKey<String>('follow-sky-worked-intention'),
-            saveKey: const ValueKey<String>('follow-sky-worked-save'),
-            onSetIntention: onSetIntention,
+            onChanged: onChanged,
+            scrollPadding: keyboardManagedTextFieldScrollPadding,
+            cursorColor: FollowSkyV11Tokens.intentionPeriwinkle,
+            style: const TextStyle(
+              color: FollowSkyV11Tokens.glow,
+              fontFamily: MaatFlowListTokens.fontFamily,
+              fontFamilyFallback: MaatFlowListTokens.fontFallback,
+              fontSize: 21,
+              fontWeight: FontWeight.w300,
+              fontStyle: FontStyle.italic,
+              height: 1.3,
+            ),
+            decoration: InputDecoration(
+              isDense: true,
+              contentPadding: const EdgeInsets.fromLTRB(2, 4, 2, 11),
+              border: UnderlineInputBorder(
+                borderSide: BorderSide(
+                  color: FollowSkyV11Tokens.glow.withValues(alpha: 0.30),
+                ),
+              ),
+              enabledBorder: UnderlineInputBorder(
+                borderSide: BorderSide(
+                  color: FollowSkyV11Tokens.glow.withValues(alpha: 0.30),
+                ),
+              ),
+              focusedBorder: const UnderlineInputBorder(
+                borderSide: BorderSide(
+                  color: FollowSkyV11Tokens.intentionPeriwinkle,
+                ),
+              ),
+            ),
           ),
         ],
       ),

@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/follow_the_sky/follow_the_sky.dart';
-import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_intention_editor.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_dock.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_tokens.dart';
 
@@ -15,39 +14,6 @@ void main() {
       File('assets/follow_the_sky/sky_catalog_v2.json').readAsStringSync(),
     );
   });
-
-  testWidgets(
-    'shared Follow the Sky intention editor commits from keyboard and button',
-    (tester) async {
-      final controller = TextEditingController();
-      addTearDown(controller.dispose);
-      final committed = <String>[];
-
-      await tester.pumpWidget(
-        MaterialApp(
-          home: Scaffold(
-            body: FollowSkyIntentionEditor(
-              controller: controller,
-              fieldKey: const ValueKey<String>('test-intention-field'),
-              saveKey: const ValueKey<String>('test-intention-save'),
-              onSetIntention: committed.add,
-            ),
-          ),
-        ),
-      );
-
-      final field = find.byKey(const ValueKey<String>('test-intention-field'));
-      await tester.enterText(field, '  First intention  ');
-      await tester.testTextInput.receiveAction(TextInputAction.done);
-      expect(committed, ['First intention']);
-
-      await tester.enterText(field, 'Second intention');
-      await tester.tap(
-        find.byKey(const ValueKey<String>('test-intention-save')),
-      );
-      expect(committed, ['First intention', 'Second intention']);
-    },
-  );
 
   testWidgets(
     'V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow',
@@ -227,18 +193,7 @@ void main() {
         const ValueKey<String>('follow-sky-worked-intention'),
       );
       await tester.scrollUntilVisible(workedField, 300, scrollable: scrollable);
-      expect(find.byType(FollowSkyIntentionEditor), findsOneWidget);
       await tester.enterText(workedField, 'Finish my book');
-      tester.view.viewInsets = const FakeViewPadding(bottom: 320);
-      await tester.pumpAndSettle();
-      expect(
-        find.byKey(const ValueKey<String>('follow-sky-carry')),
-        findsNothing,
-      );
-      tester.view.resetViewInsets();
-      await tester.pumpAndSettle();
-      expect(find.text('“Finish my book”'), findsNothing);
-      await tester.testTextInput.receiveAction(TextInputAction.done);
       await tester.pump();
 
       final intentionCard = find.byKey(
@@ -259,7 +214,6 @@ void main() {
         const ValueKey<String>('follow-sky-turning-intention'),
       );
       expect(sheetField, findsOneWidget);
-      expect(find.byType(FollowSkyIntentionEditor), findsNWidgets(2));
       expect(find.text('Finish my book'), findsWidgets);
 
       final originalFlutterErrorHandler = FlutterError.onError;
@@ -304,15 +258,6 @@ void main() {
             'max before=$maxBeforeSheet after=${scrollState.position.maxScrollExtent}',
       );
       expect(find.text('“Finish my second draft”'), findsOneWidget);
-      expect(
-        tester
-            .widget<FollowSkyIntentionEditor>(
-              find.byType(FollowSkyIntentionEditor),
-            )
-            .controller
-            .text,
-        'Finish my second draft',
-      );
 
       final exclude = find.byKey(
         ValueKey<String>('follow-sky-exclude-${excludedNight.skyEventId}'),

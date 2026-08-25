@@ -476,8 +476,6 @@ class DaySheetTextField extends StatelessWidget {
     this.maxLines = 1,
     this.scrollPadding = EdgeInsets.zero,
     this.enabled = true,
-    this.textInputAction,
-    this.onSubmitted,
   });
 
   final TextEditingController controller;
@@ -486,8 +484,6 @@ class DaySheetTextField extends StatelessWidget {
   final int maxLines;
   final EdgeInsets scrollPadding;
   final bool enabled;
-  final TextInputAction? textInputAction;
-  final ValueChanged<String>? onSubmitted;
 
   @override
   Widget build(BuildContext context) {
@@ -499,8 +495,6 @@ class DaySheetTextField extends StatelessWidget {
         minLines: minLines,
         maxLines: maxLines,
         scrollPadding: scrollPadding,
-        textInputAction: textInputAction,
-        onSubmitted: onSubmitted,
         style: const TextStyle(
           fontFamily: DaySheetTokens.serif,
           fontSize: 18,
