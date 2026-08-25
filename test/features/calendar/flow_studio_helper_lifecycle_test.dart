@@ -2,7 +2,9 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/maat_list_to_detail_route.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import 'package:mobile/features/onboarding/onboarding_progress.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -92,6 +94,52 @@ void main() {
     expect(remoteStore.loadCount, 1);
     expect(GuidedOnboardingController.instance.target, isNull);
   });
+
+  testWidgets('route-backed Ma at detail back returns to list before hub', (
+    tester,
+  ) async {
+    await _seedCompletedOnboarding(
+      seenHelpers: const {OnboardingHelperIds.flowStudioAddFlow},
+    );
+    OnboardingHelperCompletionService.resetForTesting(
+      remoteStore: _FakeRemoteStore(
+        completedByUser: const {
+          _testUserId: {OnboardingHelperIds.flowStudioAddFlow},
+        },
+      ),
+    );
+
+    await _pumpRouteBackedMaatDetail(tester);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(
+      find.byKey(MaatFlowsListDetailReveal.detailSurfaceKey),
+      findsOneWidget,
+    );
+
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(MaatFlowsListDetailReveal.detailSurfaceKey),
+      findsNothing,
+    );
+    expect(
+      find.byKey(MaatFlowsListDetailReveal.foregroundTransformKey),
+      findsOneWidget,
+    );
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(MaatFlowsListDetailReveal.foregroundTransformKey),
+      findsNothing,
+    );
+    expect(find.text('Flow Studio'), findsOneWidget);
+  });
 }
 
 Future<void> _pumpFlowStudioRoute(WidgetTester tester) async {
@@ -104,6 +152,30 @@ Future<void> _pumpFlowStudioRoute(WidgetTester tester) async {
       ),
     ),
   );
+}
+
+Future<void> _pumpRouteBackedMaatDetail(WidgetTester tester) async {
+  final initialUri = Uri(
+    path: '/flows',
+    queryParameters: const {
+      'mode': 'maatTemplate',
+      'templateKey': 'track-the-sky',
+    },
+  );
+  final router = GoRouter(
+    initialLocation: initialUri.toString(),
+    routes: [
+      GoRoute(path: '/', builder: (_, _) => const SizedBox.shrink()),
+      GoRoute(
+        path: '/flows',
+        builder: (_, state) => GuidedOnboardingOverlayHost(
+          child: CalendarPage.buildFlowStudioRoutePage(routeUri: state.uri),
+        ),
+      ),
+    ],
+  );
+  addTearDown(router.dispose);
+  await tester.pumpWidget(MaterialApp.router(routerConfig: router));
 }
 
 Future<void> _seedCompletedOnboarding({
