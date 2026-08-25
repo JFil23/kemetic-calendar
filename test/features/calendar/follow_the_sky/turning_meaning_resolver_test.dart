@@ -79,6 +79,18 @@ void main() {
     _expectMeaning(resolver.forEvent(companion), _expectedMeanings[anchor.id]!);
   });
 
+  test('event 11 retains the controlled domain-function fallback', () {
+    final event = catalog.byId('mars-jupiter-conjunction-2026-11-16')!;
+
+    expect(event.function, SkyEventFunction.attend);
+    expect(event.function.displayLabel.toUpperCase(), 'ATTEND');
+    _expectMeaning(
+      resolver.forEvent(event),
+      _expectedMeanings11To30[event.id]!,
+    );
+    expect(resolver.forEvent(event).significanceLabel, 'COMBINE');
+  });
+
   test('Feb eclipse companion aliases to one CORRECT meaning', () {
     final anchor = catalog.byId('full-moon-2027-02-20')!;
     final companion = catalog.byId('lunar-eclipse-2027-02-20')!;

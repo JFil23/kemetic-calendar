@@ -155,7 +155,7 @@ void main() {
   );
 
   test(
-    'first thirty adapter events consume the approved resolver meanings',
+    'first ten adapter events consume the approved resolver meanings',
     () async {
       final data = await loadTrackSkyFlowData(TrackSkyTimeZone.pacific);
       const expected = <(String, String)>[
@@ -169,6 +169,23 @@ void main() {
         ('southern-taurids-2026', 'POSSIBILITY'),
         ('northern-taurids-2026', 'CONNECT'),
         ('leonids-2026', 'IMPACT'),
+      ];
+
+      for (final row in expected) {
+        final event = data.events.singleWhere(
+          (event) => event.skyEventId == row.$1,
+        );
+        expect(event.meaning!.significanceLabel, row.$2, reason: row.$1);
+        expect(event.significance, event.meaning!.detailText, reason: row.$1);
+      }
+    },
+  );
+
+  test(
+    'events 11–30 adapter events consume the approved resolver meanings',
+    () async {
+      final data = await loadTrackSkyFlowData(TrackSkyTimeZone.pacific);
+      const expected = <(String, String)>[
         ('mars-jupiter-conjunction-2026-11-16', 'COMBINE'),
         ('mercury-elongation-2026-11-20', 'BEGIN'),
         ('full-moon-2026-11-24', 'PREPARE'),
@@ -198,20 +215,23 @@ void main() {
         expect(event.meaning!.significanceLabel, row.$2, reason: row.$1);
         expect(event.significance, event.meaning!.detailText, reason: row.$1);
       }
-
-      final catalog = await SkyCatalogRepository().load();
-      final event31 = catalog.observingNight(
-        catalog.byId('venus-saturn-conjunction-2027-05-07')!,
-      );
-      final adapterEvent = data.events.singleWhere(
-        (event) => event.skyEventId == event31.skyEventId,
-      );
-      expect(
-        adapterEvent.meaning!.significanceLabel,
-        event31.anchor.function.displayLabel.toUpperCase(),
-      );
     },
   );
+
+  test('event 31 adapter event retains domain-function fallback', () async {
+    final data = await loadTrackSkyFlowData(TrackSkyTimeZone.pacific);
+    final catalog = await SkyCatalogRepository().load();
+    final event31 = catalog.observingNight(
+      catalog.byId('venus-saturn-conjunction-2027-05-07')!,
+    );
+    final adapterEvent = data.events.singleWhere(
+      (event) => event.skyEventId == event31.skyEventId,
+    );
+    expect(
+      adapterEvent.meaning!.significanceLabel,
+      event31.anchor.function.displayLabel.toUpperCase(),
+    );
+  });
 
   test('daytime full moons normalize to an evening viewing window', () async {
     final catalog = await SkyCatalogRepository().load();
