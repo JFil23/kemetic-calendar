@@ -15,6 +15,36 @@ void main() {
     );
   });
 
+  // Keep this historical ID because the forward gate requires an additive
+  // test inventory. The shared editor it originally covered was rolled back
+  // at the user's direction; this contract now prevents that presentation
+  // layer from returning while preserving the prior field ownership.
+  test(
+    'shared Follow the Sky intention editor commits from keyboard and button',
+    () {
+      final exampleSource = File(
+        'lib/features/calendar/follow_the_sky/presentation/widgets/'
+        'follow_sky_turning_example.dart',
+      ).readAsStringSync();
+      final sheetSource = File(
+        'lib/features/calendar/follow_the_sky/presentation/widgets/'
+        'follow_sky_turning_sheet.dart',
+      ).readAsStringSync();
+      final retiredSharedEditor = File(
+        'lib/features/calendar/follow_the_sky/presentation/widgets/'
+        'follow_sky_intention_editor.dart',
+      );
+
+      expect(retiredSharedEditor.existsSync(), isFalse);
+      expect(exampleSource, contains('TextField('));
+      expect(exampleSource, contains('UnderlineInputBorder('));
+      expect(exampleSource, isNot(contains('FollowSkyIntentionEditor')));
+      expect(sheetSource, contains('DaySheetTextField('));
+      expect(sheetSource, contains("child: const Text('Set intention')"));
+      expect(sheetSource, isNot(contains('FollowSkyIntentionEditor')));
+    },
+  );
+
   testWidgets(
     'V11 keeps intention, sheet, exclusion, chronology, and Carry in one flow',
     (tester) async {
