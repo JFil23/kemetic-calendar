@@ -218,18 +218,77 @@ void main() {
     },
   );
 
+  test(
+    'events 31–60 adapter events consume the approved resolver meanings',
+    () async {
+      final data = await loadTrackSkyFlowData(TrackSkyTimeZone.pacific);
+      const expected = <(String, String)>[
+        ('eta-aquariids-2027', 'INHERIT'),
+        ('venus-saturn-conjunction-2027-05-07', 'COMMIT'),
+        ('full-moon-2027-05-20', 'CULTIVATE'),
+        ('mercury-elongation-2027-05-28', 'DECIDE'),
+        ('full-moon-2027-06-19', 'READY'),
+        ('summer-solstice-2027', 'ASCEND'),
+        ('mercury-elongation-2027-07-15', 'PIVOT'),
+        ('full-moon-2027-07-18', 'ATTUNE'),
+        ('southern-delta-aquariids-2027', 'ACCUMULATE'),
+        ('alpha-capricornids-2027', 'BREAKTHROUGH'),
+        ('solar-eclipse-2027-08-02', 'TRANSFORM'),
+        ('perseids-2027', 'PURSUE'),
+        ('full-moon-2027-08-17', 'INTEGRATE'),
+        ('full-moon-2027-09-15', 'AFFIRM'),
+        ('autumn-equinox-2027', 'REBALANCE'),
+        ('mercury-elongation-2027-09-24', 'DECLARE'),
+        ('full-moon-2027-10-15', 'CLARIFY'),
+        ('saturn-opposition-2027-10-18', 'MASTER'),
+        ('orionids-2027', 'ACCELERATE'),
+        ('mercury-elongation-2027-11-04', 'FORESIGHT'),
+        ('southern-taurids-2027', 'ITERATE'),
+        ('northern-taurids-2027', 'DEFINE'),
+        ('full-moon-2027-11-14', 'REVEAL'),
+        ('leonids-2027', 'SURGE'),
+        ('venus-mars-conjunction-2027-11-25', 'DESIRE'),
+        ('full-moon-2027-12-13', 'PRIORITIZE'),
+        ('geminids-2027', 'BECOME'),
+        ('winter-solstice-2027', 'RETURN'),
+        ('ursids-2027', 'VENTURE'),
+        ('quadrantids-2028', 'OUTLAST'),
+      ];
+
+      for (final row in expected) {
+        final event = data.events.singleWhere(
+          (event) => event.skyEventId == row.$1,
+        );
+        expect(event.meaning!.significanceLabel, row.$2, reason: row.$1);
+        expect(event.significance, event.meaning!.detailText, reason: row.$1);
+      }
+    },
+  );
+
   test('event 31 adapter event retains domain-function fallback', () async {
     final data = await loadTrackSkyFlowData(TrackSkyTimeZone.pacific);
     final catalog = await SkyCatalogRepository().load();
-    final event31 = catalog.observingNight(
-      catalog.byId('venus-saturn-conjunction-2027-05-07')!,
-    );
+    final event31 = catalog.observingNight(catalog.byId('eta-aquariids-2027')!);
     final adapterEvent = data.events.singleWhere(
       (event) => event.skyEventId == event31.skyEventId,
     );
+    expect(event31.anchor.function, SkyEventFunction.attend);
+    expect(event31.anchor.function.displayLabel.toUpperCase(), 'ATTEND');
+    expect(adapterEvent.meaning!.significanceLabel, 'INHERIT');
+  });
+
+  test('event 61 adapter event retains domain-function fallback', () async {
+    final data = await loadTrackSkyFlowData(TrackSkyTimeZone.pacific);
+    final catalog = await SkyCatalogRepository().load();
+    final event61 = catalog.observingNight(
+      catalog.byId('mercury-mars-conjunction-2028-01-09')!,
+    );
+    final adapterEvent = data.events.singleWhere(
+      (event) => event.skyEventId == event61.skyEventId,
+    );
     expect(
       adapterEvent.meaning!.significanceLabel,
-      event31.anchor.function.displayLabel.toUpperCase(),
+      event61.anchor.function.displayLabel.toUpperCase(),
     );
   });
 

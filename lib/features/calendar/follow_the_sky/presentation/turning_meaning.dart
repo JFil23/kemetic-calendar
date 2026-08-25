@@ -39,6 +39,8 @@ class TurningMeaningResolver {
   static const Map<String, String> _canonicalEventIdAliases = {
     'lunar-eclipse-2026-08-28': 'full-moon-2026-08-28',
     'lunar-eclipse-2027-02-20': 'full-moon-2027-02-20',
+    'lunar-eclipse-2027-07-18': 'full-moon-2027-07-18',
+    'lunar-eclipse-2027-08-17': 'full-moon-2027-08-17',
   };
 
   static const Map<String, TurningMeaning> _meaningsByCanonicalEventId = {
@@ -243,6 +245,212 @@ class TurningMeaningResolver {
       significanceLabel: 'LEGACY',
       personalQuestion:
           'What will you act on now that could keep creating something long after this moment passes?',
+    ),
+    'eta-aquariids-2027': TurningMeaning(
+      observation:
+          'The η-Aquariids are fragments shed by Halley’s Comet—a visitor humans have recorded for more than 2,000 years.',
+      significanceLabel: 'INHERIT',
+      personalQuestion:
+          'What have you inherited that you want to carry further?',
+    ),
+    'venus-saturn-conjunction-2027-05-07': TurningMeaning(
+      observation:
+          'Bright Venus and ringed Saturn appear within about half a degree of each other in the sky.',
+      significanceLabel: 'COMMIT',
+      personalQuestion:
+          'What deserves a place in your life that you refuse to leave to chance?',
+    ),
+    'full-moon-2027-05-20': TurningMeaning(
+      observation:
+          'The Moon reaches fullness as the Sun continues climbing toward its highest arc.',
+      significanceLabel: 'CULTIVATE',
+      personalQuestion:
+          'What is gaining strength in your life that deserves more of your care?',
+    ),
+    'mercury-elongation-2027-05-28': TurningMeaning(
+      observation:
+          'The solar system’s fastest planet pulls far enough from the Sun to hold briefly in the evening twilight.',
+      significanceLabel: 'DECIDE',
+      personalQuestion:
+          'What decision would give everything that follows a clearer direction?',
+    ),
+    'full-moon-2027-06-19': TurningMeaning(
+      observation:
+          'The Moon reaches fullness just two days before the Sun reaches the crest of its yearly climb.',
+      significanceLabel: 'READY',
+      personalQuestion:
+          'What are you willing to climb toward because reaching it would change your life?',
+    ),
+    'summer-solstice-2027': TurningMeaning(
+      observation:
+          'The Sun reaches its highest arc and longest span of daylight—the crest before the light begins to turn.',
+      significanceLabel: 'ASCEND',
+      personalQuestion:
+          'What will you attempt now that deserves the strongest version of you?',
+    ),
+    'mercury-elongation-2027-07-15': TurningMeaning(
+      observation:
+          'Mercury reaches its widest morning separation from the Sun, appearing before dawn after the solar cycle has begun to turn.',
+      significanceLabel: 'PIVOT',
+      personalQuestion:
+          'What will you adjust now to make the next phase work in your favor?',
+    ),
+    'full-moon-2027-07-18': TurningMeaning(
+      observation:
+          'The full Moon brushes Earth’s faint outer shadow; the eclipse is so slight it may be almost impossible to see.',
+      significanceLabel: 'ATTUNE',
+      personalQuestion:
+          'What subtle change in yourself are you ready to trust enough to act on?',
+    ),
+    'southern-delta-aquariids-2027': TurningMeaning(
+      observation:
+          'A long stream of mostly faint meteors builds toward its peak, with much of its activity easier to detect than to see.',
+      significanceLabel: 'ACCUMULATE',
+      personalQuestion:
+          'What will you build through small, repeated effort while the conditions are in your favor?',
+    ),
+    'alpha-capricornids-2027': TurningMeaning(
+      observation:
+          'On the same night, the Alpha Capricornids produce far fewer meteors—but are unusually capable of brilliant fireballs.',
+      significanceLabel: 'BREAKTHROUGH',
+      personalQuestion:
+          'What one bold move will you make that could change what becomes possible next?',
+    ),
+    'solar-eclipse-2027-08-02': TurningMeaning(
+      observation:
+          'At its deepest point, the Moon completely covers the Sun for more than six minutes—an exceptionally long total eclipse.',
+      significanceLabel: 'TRANSFORM',
+      personalQuestion:
+          'What are you ready to change so completely that your life has a before and after?',
+    ),
+    'perseids-2027': TurningMeaning(
+      observation:
+          'The Perseids come from Swift-Tuttle, a 26-kilometer-wide comet that takes about 133 years to circle the Sun.',
+      significanceLabel: 'PURSUE',
+      personalQuestion:
+          'What promising thing are you ready to take seriously and see how far it can go?',
+    ),
+    'full-moon-2027-08-17': TurningMeaning(
+      observation:
+          'Fifteen days after the total solar eclipse, the full Moon passes through Earth’s outer shadow—the second eclipse of the same eclipse season.',
+      significanceLabel: 'INTEGRATE',
+      personalQuestion:
+          'What change are you ready to make part of how you actually live?',
+    ),
+    'full-moon-2027-09-15': TurningMeaning(
+      observation:
+          'The Moon reaches fullness as the Sun approaches the same equinox threshold it crossed one solar cycle ago.',
+      significanceLabel: 'AFFIRM',
+      personalQuestion:
+          'What became more important to you over this solar cycle—and what will you do with that knowledge?',
+    ),
+    'autumn-equinox-2027': TurningMeaning(
+      observation:
+          'Day and night come nearly even. Then the balance begins shifting toward longer nights.',
+      significanceLabel: 'REBALANCE',
+      personalQuestion:
+          'What part of your life deserves a fairer share of your time?',
+    ),
+    'mercury-elongation-2027-09-24': TurningMeaning(
+      observation:
+          'One day after the equinox, Mercury reaches its widest evening separation from the Sun and stands briefly clear in the twilight.',
+      significanceLabel: 'DECLARE',
+      personalQuestion:
+          'What direction are you ready to name clearly enough that your choices can start following it?',
+    ),
+    'full-moon-2027-10-15': TurningMeaning(
+      observation:
+          'The Moon reaches full illumination while the nights continue growing longer.',
+      significanceLabel: 'CLARIFY',
+      personalQuestion:
+          'What desire is becoming clear enough that you’re ready to act on it?',
+    ),
+    'saturn-opposition-2027-10-18': TurningMeaning(
+      observation:
+          'Earth passes between the Sun and Saturn, bringing the ringed planet into one of its brightest and most commanding appearances.',
+      significanceLabel: 'MASTER',
+      personalQuestion: 'What would you love to become undeniably good at?',
+    ),
+    'orionids-2027': TurningMeaning(
+      observation:
+          'Fragments of Halley’s Comet strike Earth’s atmosphere at about 66 kilometers per second—among the fastest meteors we regularly see—and can leave glowing trains behind them.',
+      significanceLabel: 'ACCELERATE',
+      personalQuestion:
+          'What are you ready to accelerate because the direction already feels right?',
+    ),
+    'mercury-elongation-2027-11-04': TurningMeaning(
+      observation:
+          'Mercury reaches its greatest separation west of the Sun, becoming visible in the morning sky before sunrise.',
+      significanceLabel: 'FORESIGHT',
+      personalQuestion:
+          'What will you do with something you can see coming before it becomes obvious?',
+    ),
+    'southern-taurids-2027': TurningMeaning(
+      observation:
+          'Comet Encke, the source of the Southern Taurids, circles the Sun every 3.3 years—the shortest orbit of any known comet.',
+      significanceLabel: 'ITERATE',
+      personalQuestion:
+          'What could become noticeably better if you gave it one more good pass?',
+    ),
+    'northern-taurids-2027': TurningMeaning(
+      observation:
+          'The Northern Taurids belong to the sprawling Taurid complex, where one broad stream of debris has separated into distinct branches.',
+      significanceLabel: 'DEFINE',
+      personalQuestion: 'What are you ready to make distinctly your own?',
+    ),
+    'full-moon-2027-11-14': TurningMeaning(
+      observation:
+          'At fullness, the Moon’s Earth-facing side is completely illuminated, leaving none of its visible face in shadow.',
+      significanceLabel: 'REVEAL',
+      personalQuestion: 'What are you ready to let people see more of?',
+    ),
+    'leonids-2027': TurningMeaning(
+      observation:
+          'The 2027 Leonids may run stronger than usual, with enhanced intervals modeled around 40–50 meteors an hour. The shower has produced extraordinary meteor storms in the past.',
+      significanceLabel: 'SURGE',
+      personalQuestion:
+          'Where could one serious burst of effort change the pace of things?',
+    ),
+    'venus-mars-conjunction-2027-11-25': TurningMeaning(
+      observation:
+          'Brilliant Venus and red Mars appear only about 0.3° apart—closer together than the width of a full Moon.',
+      significanceLabel: 'DESIRE',
+      personalQuestion:
+          'What do you want badly enough to bring closer to your real life?',
+    ),
+    'full-moon-2027-12-13': TurningMeaning(
+      observation:
+          'The Moon reaches fullness as the Geminids reach their peak, flooding the same sky the meteors are crossing.',
+      significanceLabel: 'PRIORITIZE',
+      personalQuestion: 'What deserves your fullest attention right now?',
+    ),
+    'geminids-2027': TurningMeaning(
+      observation:
+          'First noticed in the mid-1800s as a modest shower, the Geminids have grown into one of the sky’s most reliable annual displays.',
+      significanceLabel: 'BECOME',
+      personalQuestion:
+          'What will you keep developing because it is becoming more than you first imagined?',
+    ),
+    'winter-solstice-2027': TurningMeaning(
+      observation:
+          'The Sun reaches its lowest arc and shortest span of daylight. From here, the light begins returning.',
+      significanceLabel: 'RETURN',
+      personalQuestion:
+          'What part of yourself are you ready to bring back into your life?',
+    ),
+    'ursids-2027': TurningMeaning(
+      observation:
+          'The Ursids come from Comet 8P/Tuttle, whose long orbit carries it beyond Saturn before it travels back toward the Sun.',
+      significanceLabel: 'VENTURE',
+      personalQuestion:
+          'What are you curious enough to follow farther than you have before?',
+    ),
+    'quadrantids-2028': TurningMeaning(
+      observation:
+          'The Quadrantids are named for Quadrans Muralis—a constellation removed from modern star maps, even though its name still survives in the shower.',
+      significanceLabel: 'OUTLAST',
+      personalQuestion:
+          'What are you creating that should survive even if its original form changes?',
     ),
   };
 
