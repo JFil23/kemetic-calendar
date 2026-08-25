@@ -155,7 +155,7 @@ void main() {
   );
 
   test(
-    'first ten adapter events consume the approved resolver meanings',
+    'first thirty adapter events consume the approved resolver meanings',
     () async {
       final data = await loadTrackSkyFlowData(TrackSkyTimeZone.pacific);
       const expected = <(String, String)>[
@@ -169,6 +169,26 @@ void main() {
         ('southern-taurids-2026', 'POSSIBILITY'),
         ('northern-taurids-2026', 'CONNECT'),
         ('leonids-2026', 'IMPACT'),
+        ('mars-jupiter-conjunction-2026-11-16', 'COMBINE'),
+        ('mercury-elongation-2026-11-20', 'BEGIN'),
+        ('full-moon-2026-11-24', 'PREPARE'),
+        ('geminids-2026', 'MOMENTUM'),
+        ('winter-solstice-2026', 'REBUILD'),
+        ('ursids-2026', 'SUSTAIN'),
+        ('full-moon-2026-12-24', 'CONTINUE'),
+        ('venus-elongation-2027-01-03', 'ORIENT'),
+        ('quadrantids-2027', 'FOCUS'),
+        ('full-moon-2027-01-22', 'STRENGTHEN'),
+        ('mercury-elongation-2027-02-03', 'CLAIM'),
+        ('solar-eclipse-2027-02-06', 'PRESERVE'),
+        ('jupiter-opposition-2027-02-11', 'EXPAND'),
+        ('mars-opposition-2027-02-19', 'CONFRONT'),
+        ('full-moon-2027-02-20', 'CORRECT'),
+        ('mercury-elongation-2027-03-17', 'ANTICIPATE'),
+        ('spring-equinox-2027', 'EMERGE'),
+        ('full-moon-2027-03-22', 'ALIGN'),
+        ('full-moon-2027-04-20', 'ADVANCE'),
+        ('lyrids-2027', 'LEGACY'),
       ];
 
       for (final row in expected) {
@@ -180,15 +200,15 @@ void main() {
       }
 
       final catalog = await SkyCatalogRepository().load();
-      final event11 = catalog.observingNight(
-        catalog.byId('mars-jupiter-conjunction-2026-11-16')!,
+      final event31 = catalog.observingNight(
+        catalog.byId('venus-saturn-conjunction-2027-05-07')!,
       );
       final adapterEvent = data.events.singleWhere(
-        (event) => event.skyEventId == event11.skyEventId,
+        (event) => event.skyEventId == event31.skyEventId,
       );
       expect(
         adapterEvent.meaning!.significanceLabel,
-        event11.anchor.function.displayLabel.toUpperCase(),
+        event31.anchor.function.displayLabel.toUpperCase(),
       );
     },
   );
