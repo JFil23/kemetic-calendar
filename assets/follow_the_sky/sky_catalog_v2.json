@@ -9,7 +9,7 @@
       "kind": "equinox",
       "name": "Autumn Equinox",
       "function": "measure",
-      "instantUtc": "2026-09-23T00:05:00Z",
+      "instantUtc": "2026-09-23T00:06:00Z",
       "visibilityPolicy": "global",
       "precision": "phase",
       "source": "AstroPixels",
@@ -21,7 +21,7 @@
       "kind": "solstice",
       "name": "Winter Solstice",
       "function": "turn",
-      "instantUtc": "2026-12-21T16:50:00Z",
+      "instantUtc": "2026-12-21T20:50:00Z",
       "visibilityPolicy": "global",
       "precision": "phase",
       "source": "AstroPixels",
@@ -33,7 +33,7 @@
       "kind": "equinox",
       "name": "Spring Equinox",
       "function": "measure",
-      "instantUtc": "2027-03-20T15:25:00Z",
+      "instantUtc": "2027-03-20T20:25:00Z",
       "visibilityPolicy": "global",
       "precision": "phase",
       "source": "AstroPixels",
@@ -45,7 +45,7 @@
       "kind": "solstice",
       "name": "Summer Solstice",
       "function": "turn",
-      "instantUtc": "2027-06-21T10:11:00Z",
+      "instantUtc": "2027-06-21T14:11:00Z",
       "visibilityPolicy": "global",
       "precision": "phase",
       "source": "AstroPixels",
@@ -69,7 +69,7 @@
       "kind": "solstice",
       "name": "Winter Solstice",
       "function": "turn",
-      "instantUtc": "2027-12-22T04:42:00Z",
+      "instantUtc": "2027-12-22T02:43:00Z",
       "visibilityPolicy": "global",
       "precision": "phase",
       "source": "AstroPixels",
@@ -93,7 +93,7 @@
       "kind": "lunarEclipse",
       "name": "Partial Lunar Eclipse",
       "function": "reconsider",
-      "instantUtc": "2026-08-28T04:18:00Z",
+      "instantUtc": "2026-08-28T04:13:00Z",
       "mergedIntoId": "full-moon-2026-08-28",
       "visibilityPolicy": "global",
       "precision": "phase",
@@ -130,7 +130,7 @@
       "kind": "fullMoon",
       "name": "Full Moon",
       "function": "reveal",
-      "instantUtc": "2026-11-24T14:54:00Z",
+      "instantUtc": "2026-11-24T14:53:00Z",
       "visibilityPolicy": "global",
       "precision": "phase",
       "source": "AstroPixels",
@@ -178,7 +178,7 @@
       "kind": "lunarEclipse",
       "name": "Penumbral Lunar Eclipse",
       "function": "reconsider",
-      "instantUtc": "2027-02-20T23:23:00Z",
+      "instantUtc": "2027-02-20T23:13:00Z",
       "mergedIntoId": "full-moon-2027-02-20",
       "visibilityPolicy": "global",
       "precision": "phase",
@@ -191,7 +191,7 @@
       "kind": "fullMoon",
       "name": "Full Moon",
       "function": "reveal",
-      "instantUtc": "2027-03-22T10:59:00Z",
+      "instantUtc": "2027-03-22T10:44:00Z",
       "visibilityPolicy": "global",
       "precision": "phase",
       "source": "AstroPixels",
@@ -227,7 +227,7 @@
       "kind": "fullMoon",
       "name": "Full Moon",
       "function": "reveal",
-      "instantUtc": "2027-06-19T00:02:00Z",
+      "instantUtc": "2027-06-19T00:44:00Z",
       "visibilityPolicy": "global",
       "precision": "phase",
       "source": "AstroPixels",
@@ -239,7 +239,7 @@
       "kind": "fullMoon",
       "name": "Full Moon",
       "function": "reveal",
-      "instantUtc": "2027-07-18T14:38:00Z",
+      "instantUtc": "2027-07-18T15:45:00Z",
       "visibilityPolicy": "global",
       "precision": "phase",
       "source": "AstroPixels",
@@ -251,7 +251,7 @@
       "kind": "lunarEclipse",
       "name": "Slight Penumbral Lunar Eclipse",
       "function": "reconsider",
-      "instantUtc": "2027-07-18T14:38:00Z",
+      "instantUtc": "2027-07-18T16:03:00Z",
       "mergedIntoId": "full-moon-2027-07-18",
       "visibilityPolicy": "global",
       "precision": "phase",
@@ -266,7 +266,7 @@
       "kind": "fullMoon",
       "name": "Full Moon",
       "function": "reveal",
-      "instantUtc": "2027-08-17T07:15:00Z",
+      "instantUtc": "2027-08-17T07:29:00Z",
       "visibilityPolicy": "global",
       "precision": "phase",
       "source": "AstroPixels",
@@ -278,7 +278,7 @@
       "kind": "lunarEclipse",
       "name": "Penumbral Lunar Eclipse",
       "function": "reconsider",
-      "instantUtc": "2027-08-17T07:15:00Z",
+      "instantUtc": "2027-08-17T07:14:00Z",
       "mergedIntoId": "full-moon-2027-08-17",
       "visibilityPolicy": "global",
       "precision": "phase",
@@ -291,7 +291,7 @@
       "kind": "fullMoon",
       "name": "Full Moon",
       "function": "reveal",
-      "instantUtc": "2027-09-15T23:34:00Z",
+      "instantUtc": "2027-09-15T23:04:00Z",
       "visibilityPolicy": "global",
       "precision": "phase",
       "source": "AstroPixels",
@@ -303,7 +303,7 @@
       "kind": "fullMoon",
       "name": "Full Moon",
       "function": "reveal",
-      "instantUtc": "2027-10-15T14:47:00Z",
+      "instantUtc": "2027-10-15T13:47:00Z",
       "visibilityPolicy": "global",
       "precision": "phase",
       "source": "AstroPixels",
@@ -315,7 +315,7 @@
       "kind": "fullMoon",
       "name": "Full Moon",
       "function": "reveal",
-      "instantUtc": "2027-11-14T04:26:00Z",
+      "instantUtc": "2027-11-14T03:26:00Z",
       "visibilityPolicy": "global",
       "precision": "phase",
       "source": "AstroPixels",
@@ -339,7 +339,7 @@
       "kind": "fullMoon",
       "name": "Full Moon",
       "function": "reveal",
-      "instantUtc": "2028-01-12T04:13:00Z",
+      "instantUtc": "2028-01-12T04:03:00Z",
       "visibilityPolicy": "global",
       "precision": "phase",
       "source": "AstroPixels",
@@ -364,7 +364,7 @@
       "kind": "fullMoon",
       "name": "Full Moon",
       "function": "reveal",
-      "instantUtc": "2028-02-10T18:03:00Z",
+      "instantUtc": "2028-02-10T15:04:00Z",
       "visibilityPolicy": "global",
       "precision": "phase",
       "source": "AstroPixels",
@@ -402,7 +402,7 @@
       "kind": "solarEclipse",
       "name": "Annular Solar Eclipse",
       "function": "reconsider",
-      "instantUtc": "2028-01-26T15:00:00Z",
+      "instantUtc": "2028-01-26T15:08:00Z",
       "visibilityPolicy": "locationGated",
       "precision": "phase",
       "source": "NASA Eclipse",
@@ -416,8 +416,8 @@
       "name": "Orionids",
       "function": "attend",
       "peakWindowUtc": {
-        "startUtc": "2026-10-21T06:00:00Z",
-        "endUtc": "2026-10-22T12:00:00Z"
+        "startUtc": "2026-10-21T00:00:00Z",
+        "endUtc": "2026-10-21T23:59:59Z"
       },
       "visibilityPolicy": "global",
       "precision": "approximate",
@@ -431,8 +431,8 @@
       "name": "Southern Taurids",
       "function": "attend",
       "peakWindowUtc": {
-        "startUtc": "2026-11-04T06:00:00Z",
-        "endUtc": "2026-11-05T12:00:00Z"
+        "startUtc": "2026-11-05T00:00:00Z",
+        "endUtc": "2026-11-05T23:59:59Z"
       },
       "visibilityPolicy": "global",
       "precision": "approximate",
@@ -447,8 +447,8 @@
       "name": "Northern Taurids",
       "function": "attend",
       "peakWindowUtc": {
-        "startUtc": "2026-11-11T06:00:00Z",
-        "endUtc": "2026-11-12T12:00:00Z"
+        "startUtc": "2026-11-12T00:00:00Z",
+        "endUtc": "2026-11-12T23:59:59Z"
       },
       "visibilityPolicy": "global",
       "precision": "approximate",
@@ -462,10 +462,7 @@
       "kind": "meteorShower",
       "name": "Leonids",
       "function": "attend",
-      "peakWindowUtc": {
-        "startUtc": "2026-11-16T06:00:00Z",
-        "endUtc": "2026-11-17T12:00:00Z"
-      },
+      "instantUtc": "2026-11-17T23:45:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "IMO",
@@ -477,9 +474,10 @@
       "kind": "meteorShower",
       "name": "Geminids",
       "function": "attend",
+      "instantUtc": "2026-12-14T14:00:00Z",
       "peakWindowUtc": {
-        "startUtc": "2026-12-13T18:00:00Z",
-        "endUtc": "2026-12-14T12:00:00Z"
+        "startUtc": "2026-12-13T21:00:00Z",
+        "endUtc": "2026-12-14T18:00:00Z"
       },
       "visibilityPolicy": "global",
       "precision": "approximate",
@@ -492,10 +490,7 @@
       "kind": "meteorShower",
       "name": "Ursids",
       "function": "attend",
-      "peakWindowUtc": {
-        "startUtc": "2026-12-21T18:00:00Z",
-        "endUtc": "2026-12-22T12:00:00Z"
-      },
+      "instantUtc": "2026-12-22T22:00:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "IMO",
@@ -507,9 +502,10 @@
       "kind": "meteorShower",
       "name": "Quadrantids",
       "function": "attend",
+      "instantUtc": "2027-01-04T03:25:00Z",
       "peakWindowUtc": {
-        "startUtc": "2027-01-03T18:00:00Z",
-        "endUtc": "2027-01-04T12:00:00Z"
+        "startUtc": "2027-01-04T00:55:00Z",
+        "endUtc": "2027-01-04T05:55:00Z"
       },
       "visibilityPolicy": "global",
       "precision": "approximate",
@@ -522,10 +518,7 @@
       "kind": "meteorShower",
       "name": "Lyrids",
       "function": "attend",
-      "peakWindowUtc": {
-        "startUtc": "2027-04-22T18:00:00Z",
-        "endUtc": "2027-04-23T12:00:00Z"
-      },
+      "instantUtc": "2027-04-23T01:40:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "IMO",
@@ -537,10 +530,7 @@
       "kind": "meteorShower",
       "name": "η-Aquariids",
       "function": "attend",
-      "peakWindowUtc": {
-        "startUtc": "2027-05-05T18:00:00Z",
-        "endUtc": "2027-05-06T12:00:00Z"
-      },
+      "instantUtc": "2027-05-06T09:00:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "IMO",
@@ -553,8 +543,8 @@
       "name": "Southern δ-Aquariids",
       "function": "attend",
       "peakWindowUtc": {
-        "startUtc": "2027-07-30T18:00:00Z",
-        "endUtc": "2027-07-31T12:00:00Z"
+        "startUtc": "2027-07-31T00:00:00Z",
+        "endUtc": "2027-07-31T23:59:59Z"
       },
       "visibilityPolicy": "global",
       "precision": "approximate",
@@ -568,8 +558,8 @@
       "name": "α-Capricornids",
       "function": "attend",
       "peakWindowUtc": {
-        "startUtc": "2027-07-30T18:00:00Z",
-        "endUtc": "2027-07-31T12:00:00Z"
+        "startUtc": "2027-07-31T00:00:00Z",
+        "endUtc": "2027-07-31T23:59:59Z"
       },
       "visibilityPolicy": "global",
       "precision": "approximate",
@@ -584,8 +574,8 @@
       "name": "Perseids",
       "function": "attend",
       "peakWindowUtc": {
-        "startUtc": "2027-08-12T18:00:00Z",
-        "endUtc": "2027-08-13T12:00:00Z"
+        "startUtc": "2027-08-13T08:00:00Z",
+        "endUtc": "2027-08-13T10:00:00Z"
       },
       "visibilityPolicy": "global",
       "precision": "approximate",
@@ -599,8 +589,8 @@
       "name": "Orionids",
       "function": "attend",
       "peakWindowUtc": {
-        "startUtc": "2027-10-21T18:00:00Z",
-        "endUtc": "2027-10-22T12:00:00Z"
+        "startUtc": "2027-10-22T00:00:00Z",
+        "endUtc": "2027-10-22T23:59:59Z"
       },
       "visibilityPolicy": "global",
       "precision": "approximate",
@@ -614,8 +604,8 @@
       "name": "Southern Taurids",
       "function": "attend",
       "peakWindowUtc": {
-        "startUtc": "2027-11-05T18:00:00Z",
-        "endUtc": "2027-11-06T12:00:00Z"
+        "startUtc": "2027-11-06T00:00:00Z",
+        "endUtc": "2027-11-06T23:59:59Z"
       },
       "visibilityPolicy": "global",
       "precision": "approximate",
@@ -629,8 +619,8 @@
       "name": "Northern Taurids",
       "function": "attend",
       "peakWindowUtc": {
-        "startUtc": "2027-11-12T18:00:00Z",
-        "endUtc": "2027-11-13T12:00:00Z"
+        "startUtc": "2027-11-13T00:00:00Z",
+        "endUtc": "2027-11-13T23:59:59Z"
       },
       "visibilityPolicy": "global",
       "precision": "approximate",
@@ -643,10 +633,7 @@
       "kind": "meteorShower",
       "name": "Leonids",
       "function": "attend",
-      "peakWindowUtc": {
-        "startUtc": "2027-11-17T00:00:00Z",
-        "endUtc": "2027-11-20T12:00:00Z"
-      },
+      "instantUtc": "2027-11-18T06:00:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "IMO",
@@ -654,8 +641,24 @@
       "notes": "Enhanced intervals possible (modeled ZHR 40-50)",
       "enhancedWindows": [
         {
-          "startUtc": "2027-11-17T18:00:00Z",
-          "endUtc": "2027-11-18T06:00:00Z"
+          "startUtc": "2027-11-17T22:00:00Z",
+          "endUtc": "2027-11-17T22:00:00Z"
+        },
+        {
+          "startUtc": "2027-11-18T20:02:00Z",
+          "endUtc": "2027-11-18T20:02:00Z"
+        },
+        {
+          "startUtc": "2027-11-19T12:23:00Z",
+          "endUtc": "2027-11-19T12:23:00Z"
+        },
+        {
+          "startUtc": "2027-11-20T04:18:00Z",
+          "endUtc": "2027-11-20T04:25:00Z"
+        },
+        {
+          "startUtc": "2027-11-20T10:10:00Z",
+          "endUtc": "2027-11-20T10:10:00Z"
         }
       ],
       "provisional": false
@@ -665,10 +668,7 @@
       "kind": "meteorShower",
       "name": "Geminids",
       "function": "attend",
-      "peakWindowUtc": {
-        "startUtc": "2027-12-13T18:00:00Z",
-        "endUtc": "2027-12-14T12:00:00Z"
-      },
+      "instantUtc": "2027-12-14T20:00:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "IMO",
@@ -680,10 +680,7 @@
       "kind": "meteorShower",
       "name": "Ursids",
       "function": "attend",
-      "peakWindowUtc": {
-        "startUtc": "2027-12-22T18:00:00Z",
-        "endUtc": "2027-12-23T12:00:00Z"
-      },
+      "instantUtc": "2027-12-23T04:00:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "IMO",
@@ -695,10 +692,7 @@
       "kind": "meteorShower",
       "name": "Quadrantids",
       "function": "attend",
-      "peakWindowUtc": {
-        "startUtc": "2028-01-03T18:00:00Z",
-        "endUtc": "2028-01-04T12:00:00Z"
-      },
+      "instantUtc": "2028-01-04T10:00:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "AstroPixels",
@@ -723,7 +717,7 @@
       "kind": "planetElongation",
       "name": "Mercury Greatest Eastern Elongation",
       "function": "attend",
-      "instantUtc": "2026-10-12T12:00:00Z",
+      "instantUtc": "2026-10-12T10:00:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "AstroPixels",
@@ -735,7 +729,7 @@
       "kind": "planetConjunction",
       "name": "Mars/Jupiter Conjunction",
       "function": "attend",
-      "instantUtc": "2026-11-16T12:00:00Z",
+      "instantUtc": "2026-11-16T04:00:00Z",
       "visibilityPolicy": "locationGated",
       "precision": "approximate",
       "source": "AstroPixels",
@@ -748,7 +742,7 @@
       "kind": "planetElongation",
       "name": "Mercury Greatest Western Elongation",
       "function": "attend",
-      "instantUtc": "2026-11-20T12:00:00Z",
+      "instantUtc": "2026-11-20T23:00:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "AstroPixels",
@@ -760,7 +754,7 @@
       "kind": "planetElongation",
       "name": "Venus Greatest Western Elongation",
       "function": "attend",
-      "instantUtc": "2027-01-03T12:00:00Z",
+      "instantUtc": "2027-01-03T19:00:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "AstroPixels",
@@ -772,7 +766,7 @@
       "kind": "planetElongation",
       "name": "Mercury Greatest Eastern Elongation",
       "function": "attend",
-      "instantUtc": "2027-02-03T12:00:00Z",
+      "instantUtc": "2027-02-03T06:00:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "AstroPixels",
@@ -784,7 +778,7 @@
       "kind": "planetOpposition",
       "name": "Jupiter Opposition",
       "function": "attend",
-      "instantUtc": "2027-02-11T12:00:00Z",
+      "instantUtc": "2027-02-11T00:00:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "AstroPixels",
@@ -796,7 +790,7 @@
       "kind": "planetOpposition",
       "name": "Mars Opposition",
       "function": "attend",
-      "instantUtc": "2027-02-19T12:00:00Z",
+      "instantUtc": "2027-02-19T15:00:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "AstroPixels",
@@ -808,7 +802,7 @@
       "kind": "planetElongation",
       "name": "Mercury Greatest Western Elongation",
       "function": "attend",
-      "instantUtc": "2027-03-17T12:00:00Z",
+      "instantUtc": "2027-03-17T07:00:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "AstroPixels",
@@ -820,7 +814,7 @@
       "kind": "planetConjunction",
       "name": "Venus/Saturn Conjunction",
       "function": "attend",
-      "instantUtc": "2027-05-07T12:00:00Z",
+      "instantUtc": "2027-05-07T16:00:00Z",
       "visibilityPolicy": "locationGated",
       "precision": "approximate",
       "source": "AstroPixels",
@@ -833,7 +827,7 @@
       "kind": "planetElongation",
       "name": "Mercury Greatest Eastern Elongation",
       "function": "attend",
-      "instantUtc": "2027-05-28T12:00:00Z",
+      "instantUtc": "2027-05-28T10:00:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "AstroPixels",
@@ -845,7 +839,7 @@
       "kind": "planetElongation",
       "name": "Mercury Greatest Western Elongation",
       "function": "attend",
-      "instantUtc": "2027-07-15T12:00:00Z",
+      "instantUtc": "2027-07-15T19:00:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "AstroPixels",
@@ -857,7 +851,7 @@
       "kind": "planetElongation",
       "name": "Mercury Greatest Eastern Elongation",
       "function": "attend",
-      "instantUtc": "2027-09-24T12:00:00Z",
+      "instantUtc": "2027-09-24T22:00:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "AstroPixels",
@@ -869,7 +863,7 @@
       "kind": "planetOpposition",
       "name": "Saturn Opposition",
       "function": "attend",
-      "instantUtc": "2027-10-18T12:00:00Z",
+      "instantUtc": "2027-10-18T00:00:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "AstroPixels",
@@ -881,7 +875,7 @@
       "kind": "planetElongation",
       "name": "Mercury Greatest Western Elongation",
       "function": "attend",
-      "instantUtc": "2027-11-04T12:00:00Z",
+      "instantUtc": "2027-11-04T09:00:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "AstroPixels",
@@ -893,7 +887,7 @@
       "kind": "planetConjunction",
       "name": "Venus/Mars Conjunction",
       "function": "attend",
-      "instantUtc": "2027-11-25T12:00:00Z",
+      "instantUtc": "2027-11-25T01:00:00Z",
       "visibilityPolicy": "locationGated",
       "precision": "approximate",
       "source": "AstroPixels",
@@ -906,7 +900,7 @@
       "kind": "planetConjunction",
       "name": "Mercury/Mars Conjunction",
       "function": "attend",
-      "instantUtc": "2028-01-09T12:00:00Z",
+      "instantUtc": "2028-01-09T00:00:00Z",
       "visibilityPolicy": "locationGated",
       "precision": "approximate",
       "source": "AstroPixels",
@@ -919,7 +913,7 @@
       "kind": "planetElongation",
       "name": "Mercury Greatest Eastern Elongation",
       "function": "attend",
-      "instantUtc": "2028-01-17T12:00:00Z",
+      "instantUtc": "2028-01-17T17:00:00Z",
       "visibilityPolicy": "global",
       "precision": "approximate",
       "source": "AstroPixels",
