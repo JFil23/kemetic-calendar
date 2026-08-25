@@ -32,9 +32,9 @@ class _TransitionHarnessState extends State<_TransitionHarness> {
   Widget build(BuildContext context) {
     return Navigator(
       key: _navigatorKey,
-      onGenerateInitialRoutes: (_, __) => [
+      onGenerateInitialRoutes: (_, _) => [
         PageRouteBuilder(
-          pageBuilder: (_, __, ___) => MaatFlowsListTransitionShell(
+          pageBuilder: (_, _, _) => MaatFlowsListTransitionShell(
             child: Scaffold(
               body: Center(
                 child: TextButton(
@@ -52,7 +52,7 @@ class _TransitionHarnessState extends State<_TransitionHarness> {
               ),
             ),
           ),
-          transitionsBuilder: (_, __, ___, child) => child,
+          transitionsBuilder: (_, _, _, child) => child,
         ),
       ],
     );

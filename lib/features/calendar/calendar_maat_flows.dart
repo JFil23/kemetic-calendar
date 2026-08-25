@@ -2137,7 +2137,7 @@ class _FirstMaatFlowOnboardingSheetState
 /* ───────────────────────── Template detail (Add Flow) ───────────────────────── */
 
 class _MaatFlowTemplateDetailPage extends StatefulWidget {
-  _MaatFlowTemplateDetailPage({
+  const _MaatFlowTemplateDetailPage({
     required this.template,
     required this.addInstance,
     this.onJoined,
@@ -4709,6 +4709,7 @@ class _MaatFlowTemplateDetailPageState
 
   /// Follow the Sky dock: Join → Carry this course → Open next turning.
   /// Never shows inert "Joined" as a CTA.
+  // ignore: unused_element
   Widget _buildFollowSkyStickyDockButton() {
     if (!widget.alreadyJoined) {
       return _buildTemplateStickyJoinButton(
