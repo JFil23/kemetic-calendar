@@ -1,6 +1,7 @@
 import '../domain/sky_event.dart';
 import '../domain/sky_event_kind.dart';
 import '../domain/sky_visibility.dart';
+import 'track_sky_materializer.dart';
 
 /// Decides what Hꜣw may claim about local observation.
 /// Timezone alone must never claim solar-eclipse or close-conjunction visibility.
@@ -88,14 +89,7 @@ class SkyVisibilityService {
         );
         return (startLocal: start, endLocal: start.add(const Duration(hours: 1)), allDay: false);
       case SkyEventKind.meteorShower:
-        final start = DateTime(
-          localInstant.year,
-          localInstant.month,
-          localInstant.day,
-          0,
-          0,
-        );
-        return (startLocal: start, endLocal: start.add(const Duration(hours: 5)), allDay: false);
+        return TrackSkyMaterializer.meteorViewingWindow(localInstant);
       case SkyEventKind.planetOpposition:
         final start = DateTime(
           localInstant.year,

@@ -239,16 +239,7 @@ class TrackSkyMaterializer {
           allDay: false,
         );
       case SkyEventKind.meteorShower:
-        final start = DateTime(
-          localInstant.year,
-          localInstant.month,
-          localInstant.day,
-        );
-        return (
-          startLocal: start,
-          endLocal: start.add(const Duration(hours: 5)),
-          allDay: false,
-        );
+        return meteorViewingWindow(localInstant);
       case SkyEventKind.planetOpposition:
         final start = DateTime(
           localInstant.year,
@@ -275,6 +266,48 @@ class TrackSkyMaterializer {
           allDay: true,
         );
     }
+  }
+
+  /// Chooses the 00:00–05:00 local block nearest the source maximum.
+  static ({DateTime startLocal, DateTime endLocal, bool allDay})
+  meteorViewingWindow(DateTime localInstant) {
+    final civilInstant = DateTime.utc(
+      localInstant.year,
+      localInstant.month,
+      localInstant.day,
+      localInstant.hour,
+      localInstant.minute,
+      localInstant.second,
+      localInstant.millisecond,
+      localInstant.microsecond,
+    );
+    final sameMorningEnd = DateTime.utc(
+      localInstant.year,
+      localInstant.month,
+      localInstant.day,
+      5,
+    );
+    final nextMorningStart = DateTime.utc(
+      localInstant.year,
+      localInstant.month,
+      localInstant.day + 1,
+    );
+    final sameMorningDistance = civilInstant.isAfter(sameMorningEnd)
+        ? civilInstant.difference(sameMorningEnd)
+        : Duration.zero;
+    final nextMorningDistance = nextMorningStart.difference(civilInstant);
+    final useNextMorning = nextMorningDistance < sameMorningDistance;
+    final start = DateTime(
+      localInstant.year,
+      localInstant.month,
+      localInstant.day + (useNextMorning ? 1 : 0),
+    );
+
+    return (
+      startLocal: start,
+      endLocal: DateTime(start.year, start.month, start.day, 5),
+      allDay: false,
+    );
   }
 }
 
