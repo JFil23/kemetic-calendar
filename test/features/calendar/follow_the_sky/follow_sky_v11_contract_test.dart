@@ -16,15 +16,13 @@ void main() {
 
   test('TurningMeaningResolver ships approved eclipse copy', () {
     const resolver = TurningMeaningResolver();
-    final night = catalog
-        .upcomingNights(nowUtc: DateTime.utc(2026, 9, 1))
-        .firstWhere((n) => n.companion != null);
+    final night = catalog.observingNight(catalog.byId('full-moon-2026-08-28')!);
 
     final meaning = resolver.forNight(night);
     expect(meaning.significanceLabel, 'ENDURE');
     expect(
       meaning.observation,
-      'The moon passes through shadow without leaving its course.',
+      'The Moon passes through Earth’s shadow without leaving its course.',
     );
   });
 
