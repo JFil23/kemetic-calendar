@@ -579,7 +579,8 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
               .toList(growable: false);
     final hasWaitingSection = waiting.isNotEmpty;
 
-    return Scaffold(
+    return MaatFlowsListTransitionShell(
+      child: Scaffold(
       backgroundColor: MaatFlowListTokens.pageBg,
       appBar: AppBar(
         backgroundColor: MaatFlowListTokens.pageBg,
@@ -696,6 +697,7 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
                 }
               },
             ),
+      ),
     );
   }
 
@@ -2143,6 +2145,13 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
     this.showBackButton = true,
     this.embeddedInOnboarding = false,
     this.resizeToAvoidBottomInset = true,
+    this.followSkyExistingFlowNotes,
+    this.followSkyExistingFlowId,
+    this.followSkyCandidates = const [],
+    this.followSkyMeasurementIntervals = const [],
+    this.followSkyCalendarPreview = FollowSkyCalendarPreview.empty,
+    this.onFollowSkyCourseSaved,
+    this.onFollowSkyProtectTime,
   });
 
   final _MaatFlowTemplate template;
@@ -2177,6 +2186,20 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
   final bool showBackButton;
   final bool embeddedInOnboarding;
   final bool resizeToAvoidBottomInset;
+
+  /// Joined Follow the Sky flow notes (course metadata).
+  final String? followSkyExistingFlowNotes;
+  final int? followSkyExistingFlowId;
+  final List<CourseActivitySignal> followSkyCandidates;
+  final List<CourseMeasurementInterval> followSkyMeasurementIntervals;
+  final FollowSkyCalendarPreview followSkyCalendarPreview;
+  final Future<void> Function(TrackSkyCourse? course, String notes)?
+      onFollowSkyCourseSaved;
+  final Future<void> Function({
+    required TrackSkyCourse course,
+    required DateTime startLocal,
+    required DateTime endLocal,
+  })? onFollowSkyProtectTime;
 
   @override
   State<_MaatFlowTemplateDetailPage> createState() =>
@@ -2292,6 +2315,8 @@ class _MaatFlowTemplateDetailPageState
     extends State<_MaatFlowTemplateDetailPage> {
   late TrackSkyTimeZone _previewTrackSkyTimeZone;
   Future<TrackSkyFlowData>? _trackSkyFuture;
+  final GlobalKey<FollowSkyDetailPageState> _followSkyDetailKey =
+      GlobalKey<FollowSkyDetailPageState>();
   bool _dawnDiscreetMode = false;
   DawnHouseRiteLens _dawnLens = DawnHouseRiteLens.neutral;
   bool _dawnStartDateTouched = false;
@@ -4682,14 +4707,59 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
+  /// Follow the Sky dock: Join → Carry this course → Open next turning.
+  /// Never shows inert "Joined" as a CTA.
+  // ignore: unused_element
+  Widget _buildFollowSkyStickyDockButton() {
+    if (!widget.alreadyJoined) {
+      return _buildTemplateStickyJoinButton(
+        onPressed: () {
+          final state = _followSkyDetailKey.currentState;
+          if (state != null) unawaited(state.joinFromDock());
+        },
+      );
+    }
+
+    final detail = _followSkyDetailKey.currentState;
+    final hasCourse = detail?.hasActiveCourse ??
+        (TrackSkyCourseMetadataCodec()
+                .decode(widget.followSkyExistingFlowNotes) !=
+            null);
+
+    if (hasCourse) {
+      return _buildTemplateStickyJoinButton(
+        honorJoinedState: false,
+        text: 'Open next turning',
+        onPressed: () {
+          final state = _followSkyDetailKey.currentState;
+          if (state != null) unawaited(state.openNextTurningFromDock());
+        },
+      );
+    }
+
+    return _buildTemplateStickyJoinButton(
+      honorJoinedState: false,
+      text: 'Carry this course',
+      onPressed: () {
+        final state = _followSkyDetailKey.currentState;
+        if (state != null) unawaited(state.carryCourseFromDock());
+      },
+    );
+  }
+
   Widget _buildTemplateStickyJoinButton({
     double buttonWidth = double.infinity,
     required VoidCallback? onPressed,
     String text = 'Join Flow',
     Widget? leading,
+    /// When false, [text]/[onPressed] are used even if already joined
+    /// (Follow the Sky dock: Carry this course / Open next turning).
+    bool honorJoinedState = true,
   }) {
-    final buttonText = widget.alreadyJoined ? 'Joined' : text;
-    final callback = widget.alreadyJoined ? null : onPressed;
+    final buttonText =
+        honorJoinedState && widget.alreadyJoined ? 'Joined' : text;
+    final callback =
+        honorJoinedState && widget.alreadyJoined ? null : onPressed;
     return Semantics(
       button: true,
       label: buttonText,
@@ -8994,7 +9064,49 @@ class _MaatFlowTemplateDetailPageState
       _maatEventTapStartedWhileScrolling.clear();
     }
     if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
-      return _buildTrackSkyScaffold(context);
+      if (!FollowSkyV2Flags.useV2Production) {
+        return _buildTrackSkyScaffold(context);
+      }
+      return FollowSkyDetailPage(
+        key: _followSkyDetailKey,
+        standalone: false,
+        isJoined: widget.alreadyJoined,
+        existingFlowNotes: widget.followSkyExistingFlowNotes,
+        existingFlowId: widget.followSkyExistingFlowId,
+        calendarPreview: widget.followSkyCalendarPreview,
+        title: widget.template.title,
+        timezone:
+            FollowSkyTimeZoneX.tryParse(_previewTrackSkyTimeZone.key) ??
+            FollowSkyTimeZone.pacific,
+        onHierarchyChanged: () {
+          if (mounted) setState(() {});
+        },
+        onJoin: (draft) async {
+          final result = await FlowJoinService().joinTrackSkyV2Headless(
+            templateKey: widget.template.key,
+            templateTitle: widget.template.title,
+            templateOverview: widget.template.overview,
+            templateColor: widget.template.color,
+            personalCalendarId: null,
+            draft: draft,
+          );
+          final id = CalendarPage._stageHeadlessMaatFlowJoinResult(
+            result: result,
+            template: widget.template,
+            completionRequired: false,
+          );
+          if (id <= 0) {
+            throw StateError('Follow the sky did not produce a staged flow.');
+          }
+          CalendarPage._rememberJoinedMaatFlowTemplate(
+            templateKey: widget.template.key,
+            flowId: id,
+          );
+          unawaited(
+            FlowsRepo(Supabase.instance.client).clearMyFiledFlowsCache(),
+          );
+        },
+      );
     }
     if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
       return _buildDawnHouseRiteScaffold(context);

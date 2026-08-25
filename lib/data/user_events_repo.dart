@@ -982,6 +982,8 @@ class UserEventsRepo {
     required DateTime startsAt,
     DateTime? endsAt,
     String? category,
+    String? actionId,
+    Map<String, dynamic>? behaviorPayload,
   }) async {
     final patch = <String, dynamic>{
       'client_event_id': clientEventId,
@@ -993,6 +995,9 @@ class UserEventsRepo {
       'starts_at': startsAt.toUtc().toIso8601String(),
       'ends_at': endsAt?.toUtc().toIso8601String(),
       'category': category,
+      // Behavior stamps are preserved, never cleared, by an editor round-trip.
+      if (actionId != null) 'action_id': actionId,
+      if (behaviorPayload != null) 'behavior_payload': behaviorPayload,
     };
 
     _log('replace(${safeLogIdentifier(id)}) → ${safeLogMapSummary(patch)}');

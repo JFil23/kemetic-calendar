@@ -335,6 +335,7 @@ void main() {
           'lib/features/calendar/calendar_page.dart',
           'lib/features/calendar/day_view.dart',
           'lib/features/calendar/day_view_chrome.dart',
+          'lib/features/calendar/follow_the_sky/presentation/widgets/follow_sky_preview_calendar.dart',
           'lib/features/calendar/landscape_month_view.dart',
           'lib/features/calendars/shared_calendars_sheet.dart',
           'lib/features/inbox/inbox_conversation_page.dart',
@@ -1057,12 +1058,13 @@ void main() {
       final rootRouteSeed = _sourceBetween(
         rootRestore,
         'initialRoutesBuilder: (navigator) {',
-        'final detailRoute = MaterialPageRoute<int?>(',
+        'final detailRoute =',
       );
 
       expect(rootRestore, contains('initialRoutesBuilder'));
       expect(rootRestore, contains('hubRoute, listRoute'));
       expect(rootRestore, contains('hubRoute, listRoute, detailRoute'));
+      expect(rootRestore, contains('FollowSkyDetailPageRoute<int?>'));
       expect(rootRouteSeed, isNot(contains('addPostFrameCallback')));
       expect(
         rootRestore,
