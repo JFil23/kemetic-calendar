@@ -2280,11 +2280,15 @@ class _AppChromeState extends State<_AppChrome> {
       return widget.child;
     }
 
+    // KemeticKeyboardHost must wrap the overlay shell so the floating Medu
+    // Neter toggle stays above Ma'at/cosmic overlays and modal sheets.
     return GuidedOnboardingOverlayHost(
       child: _LaunchShell(
-        child: _GlobalOverlayShell(
-          router: widget.router,
-          child: KemeticKeyboardHost(child: widget.child),
+        child: KemeticKeyboardHost(
+          child: _GlobalOverlayShell(
+            router: widget.router,
+            child: widget.child,
+          ),
         ),
       ),
     );
@@ -2301,14 +2305,16 @@ Widget buildGlobalOverlayShellForTesting({
   DateTime Function()? dailyCosmicContextNow,
 }) {
   _launchOverlayDismissed.value = true;
-  return _GlobalOverlayShell(
-    router: router,
-    dailyCosmicContextUserIdForTesting: dailyCosmicContextUserId,
-    dailyCosmicContextAuthenticatedForTesting: dailyCosmicContextAuthenticated,
-    dailyCosmicContextOnboardingCompleteForTesting:
-        dailyCosmicContextOnboardingComplete,
-    dailyCosmicContextNowForTesting: dailyCosmicContextNow,
-    child: KemeticKeyboardHost(child: child),
+  return KemeticKeyboardHost(
+    child: _GlobalOverlayShell(
+      router: router,
+      dailyCosmicContextUserIdForTesting: dailyCosmicContextUserId,
+      dailyCosmicContextAuthenticatedForTesting: dailyCosmicContextAuthenticated,
+      dailyCosmicContextOnboardingCompleteForTesting:
+          dailyCosmicContextOnboardingComplete,
+      dailyCosmicContextNowForTesting: dailyCosmicContextNow,
+      child: child,
+    ),
   );
 }
 

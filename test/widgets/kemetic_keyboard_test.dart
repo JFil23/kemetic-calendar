@@ -65,7 +65,21 @@ void main() {
 
       expect(metrics.visibleTop, 120);
       expect(metrics.visibleBottom, 644);
-      expect(metrics.layoutViewInsetBottom, 0);
+      // Bottom occlusion must be published so Quick Add + the floating toggle
+      // can lift with MediaQuery.viewInsets like native insets.
+      expect(metrics.layoutViewInsetBottom, 200);
+      expect(metrics.systemKeyboardVisible, isTrue);
+    });
+
+    test('publishes full bottom occlusion for unpanned layout-sized web', () {
+      final metrics = KeyboardViewportMetrics.resolve(
+        media: const MediaQueryData(size: Size(390, 844)),
+        webViewport: const (height: 524, layoutHeight: 844, offsetTop: 0),
+      );
+
+      expect(metrics.visibleTop, 0);
+      expect(metrics.visibleBottom, 524);
+      expect(metrics.layoutViewInsetBottom, 320);
       expect(metrics.systemKeyboardVisible, isTrue);
     });
 
@@ -333,6 +347,87 @@ void main() {
         expect(fieldRect.bottom, lessThanOrEqualTo(524));
         expect(field.scrollPadding, keyboardManagedTextFieldScrollPadding);
         expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'shows floating Kemetic toggle above quick add on layout-sized web keyboard',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(390, 844);
+        addTearDown(tester.view.reset);
+
+        WebKeyboardViewportSnapshot? webViewport;
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (context, child) => KemeticKeyboardHost(
+              viewportMetricsResolver: (media) => KeyboardViewportMetrics.resolve(
+                media: media,
+                webViewport: webViewport,
+              ),
+              child: child ?? const SizedBox.shrink(),
+            ),
+            home: Builder(
+              builder: (modalContext) => Scaffold(
+                body: Center(
+                  child: ElevatedButton(
+                    key: const ValueKey('open-quick-add-sheet'),
+                    onPressed: () {
+                      showModalBottomSheet<void>(
+                        context: modalContext,
+                        isScrollControlled: true,
+                        backgroundColor: Colors.black,
+                        builder: (_) => const _QuickAddSheetHarnessContent(),
+                      );
+                    },
+                    child: const Text('Open quick add'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.byKey(const ValueKey('open-quick-add-sheet')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('quick-add-input')));
+        await tester.pump();
+
+        webViewport = const (height: 524, layoutHeight: 844, offsetTop: 0);
+        // Re-assert view metrics so KemeticKeyboardHost rebuilds and publishes
+        // the layout-sized web occlusion into MediaQuery.viewInsets.
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.viewInsets = FakeViewPadding.zero;
+        await tester.pump();
+        await tester.pumpAndSettle();
+
+        final fieldRect = tester.getRect(
+          find.byKey(const ValueKey('quick-add-input')),
+        );
+        expect(fieldRect.bottom, lessThanOrEqualTo(524));
+
+        final opacity = tester.widget<AnimatedOpacity>(
+          find.byKey(const ValueKey('kemetic-toggle-opacity')),
+        );
+        expect(opacity.opacity, 1);
+        final toggleTop = tester
+            .getTopLeft(find.byKey(const ValueKey('kemetic-toggle-hit-target')))
+            .dy;
+        expect(toggleTop, lessThan(524));
+        expect(toggleTop, greaterThan(0));
+
+        await tester.enterText(
+          find.byKey(const ValueKey('quick-add-input')),
+          'Fri 3pm coffee with Amara',
+        );
+        await tester.pump();
+        expect(
+          tester
+              .widget<TextField>(find.byKey(const ValueKey('quick-add-input')))
+              .controller!
+              .text,
+          'Fri 3pm coffee with Amara',
+        );
       },
     );
 

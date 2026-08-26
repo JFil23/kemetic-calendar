@@ -19,11 +19,12 @@ typedef KeyboardViewportMetricsResolver =
 ///
 /// Native platforms normally keep [MediaQueryData.size] stable and report an
 /// inset. Mobile web can instead shrink the visual viewport while reporting no
-/// inset. Browser offsets are expressed in layout-viewport coordinates, so
-/// they are applied only while Flutter still uses that coordinate space. Once
-/// Flutter's viewport already matches the browser's visual viewport, local
-/// coordinates start at zero and [layoutViewInsetBottom] suppresses any
-/// duplicate transitional inset.
+/// inset. While Flutter still paints in layout-viewport coordinates, the bottom
+/// occlusion must be published as [layoutViewInsetBottom] so Quick Add-style
+/// owners (`Padding(bottom: MediaQuery.viewInsets.bottom)`) and the floating
+/// Kemetic keyboard toggle can sit above the keyboard. Once Flutter's viewport
+/// already matches the browser visual viewport, local coordinates start at
+/// zero and [layoutViewInsetBottom] stays 0 to avoid a duplicate inset.
 @immutable
 class KeyboardViewportMetrics {
   const KeyboardViewportMetrics({
@@ -88,11 +89,14 @@ class KeyboardViewportMetrics {
     final viewportBottom = (webViewport.offsetTop + visualHeight)
         .clamp(viewportTop, mediaHeight)
         .toDouble();
+    // Publish the bottom occlusion into MediaQuery.viewInsets so sheet owners
+    // (Quick Add) and the floating toggle share one authoritative lift.
+    final bottomOcclusion = math.max(0.0, mediaHeight - viewportBottom);
 
     return KeyboardViewportMetrics(
       visibleTop: viewportTop,
       visibleBottom: viewportBottom,
-      layoutViewInsetBottom: 0,
+      layoutViewInsetBottom: math.max(mediaInset, bottomOcclusion),
       systemKeyboardVisible: true,
     );
   }

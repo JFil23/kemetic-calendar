@@ -306,6 +306,10 @@ void main() {
         'lib/features/calendar/follow_the_sky/presentation/widgets/'
         'follow_sky_turning_example.dart',
       ).readAsStringSync();
+      final mainSource = File('lib/main.dart').readAsStringSync();
+      final metricsSource = File(
+        'lib/widgets/keyboard_viewport_metrics.dart',
+      ).readAsStringSync();
 
       // Quick Add ownership: one direct MediaQuery lift, no autofocus/requestFocus.
       expect(quickAdd, contains('MediaQuery.viewInsetsOf(context).bottom'));
@@ -339,6 +343,23 @@ void main() {
       expect(exampleSource, isNot(contains('copyWith(')));
       expect(exampleSource, isNot(contains('KeyboardSafeViewport(')));
       expect(exampleSource, isNot(contains('AnimatedPadding(')));
+
+      // Floating Kemetic toggle stays above global overlays; layout-sized web
+      // occlusions are published into viewInsets for Quick Add + the toggle.
+      expect(
+        mainSource,
+        contains(
+          'child: KemeticKeyboardHost(\n'
+          '          child: _GlobalOverlayShell(',
+        ),
+      );
+      expect(metricsSource, contains('bottomOcclusion'));
+      expect(
+        metricsSource,
+        contains(
+          'layoutViewInsetBottom: math.max(mediaInset, bottomOcclusion)',
+        ),
+      );
     });
   });
 }
