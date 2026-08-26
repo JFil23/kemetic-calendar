@@ -286,6 +286,60 @@ void main() {
       expect(source, isNot(contains('_restingHeroHeight')));
       expect(source, isNot(contains('viewInsets')));
     });
+
+    test('Follow Sky reuses the Quick Add text-field positioning contract', () {
+      final calendarSource = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
+      final quickAddStart = calendarSource.indexOf('class _QuickAddSheetState');
+      final quickAddEnd = calendarSource.indexOf(
+        'enum MonthExpansionLevel',
+        quickAddStart,
+      );
+      final quickAdd = calendarSource.substring(quickAddStart, quickAddEnd);
+
+      final detailSource = File(
+        'lib/features/calendar/follow_the_sky/presentation/'
+        'follow_sky_detail_page.dart',
+      ).readAsStringSync();
+      final exampleSource = File(
+        'lib/features/calendar/follow_the_sky/presentation/widgets/'
+        'follow_sky_turning_example.dart',
+      ).readAsStringSync();
+
+      // Quick Add ownership: one direct MediaQuery lift, no autofocus/requestFocus.
+      expect(quickAdd, contains('MediaQuery.viewInsetsOf(context).bottom'));
+      expect(quickAdd, contains('autofocus: false'));
+      expect(quickAdd, isNot(contains('requestFocus()')));
+      expect(quickAdd, isNot(contains('KeyboardSafeViewport(')));
+      expect(quickAdd, isNot(contains('AnimatedPadding(')));
+
+      // Follow Sky copies that same outer-container ownership.
+      expect(
+        detailSource,
+        contains('final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;'),
+      );
+      expect(
+        detailSource,
+        contains('padding: EdgeInsets.only(bottom: keyboardInset)'),
+      );
+      expect(detailSource, contains('resizeToAvoidBottomInset: false'));
+      expect(detailSource, isNot(contains('KeyboardSafeViewport(')));
+      expect(detailSource, isNot(contains('AnimatedPadding(')));
+      expect(detailSource, isNot(contains('ensureVisible')));
+
+      // Field stays on the shared 20px scroll padding; no accessory/reveal math.
+      expect(
+        exampleSource,
+        contains('scrollPadding: keyboardManagedTextFieldScrollPadding'),
+      );
+      expect(exampleSource, contains('autofocus: false'));
+      expect(exampleSource, isNot(contains('requestFocus()')));
+      expect(exampleSource, isNot(contains('_systemKeyboardAccessoryClearance')));
+      expect(exampleSource, isNot(contains('copyWith(')));
+      expect(exampleSource, isNot(contains('KeyboardSafeViewport(')));
+      expect(exampleSource, isNot(contains('AnimatedPadding(')));
+    });
   });
 }
 

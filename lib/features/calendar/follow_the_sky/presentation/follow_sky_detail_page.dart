@@ -337,10 +337,16 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
       );
     }
 
-    return Scaffold(backgroundColor: FollowSkyV11Tokens.pageBg, body: body);
+    return Scaffold(
+      backgroundColor: FollowSkyV11Tokens.pageBg,
+      // Quick Add contract: the page owns keyboard inset once via Padding.
+      resizeToAvoidBottomInset: false,
+      body: body,
+    );
   }
 
   Widget _buildV11Body() {
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
     final windowStart = DateUtils.dateOnly(_now.toLocal());
     final exampleMeaning = TurningMeaningResolver.approvedLunarEclipse;
     final exampleNight = _firstEclipsePreview;
@@ -352,63 +358,70 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
         .skip(previewNights.length)
         .toList(growable: false);
 
-    return FollowSkyScrollShell(
-      scrollController: _scrollController,
-      hero: FollowSkyHero(title: widget.title, subtitle: widget.subtitle),
-      bottomBar: FollowSkyV11Dock(
-        joined: _carried,
-        joining: _joining,
-        onCarry: _carried ? null : _carry,
-      ),
-      sheet: Container(
-        decoration: const BoxDecoration(
-          color: FollowSkyV11Tokens.sheetBg,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-          border: Border(top: BorderSide(color: Color(0x2ED4AE43))),
+    // Same ownership as Quick Add: one direct keyboard lift on the outer
+    // content container. Scroll shell stays visual-only; the field never owns
+    // viewport geometry.
+    return Padding(
+      padding: EdgeInsets.only(bottom: keyboardInset),
+      child: FollowSkyScrollShell(
+        scrollController: _scrollController,
+        hero: FollowSkyHero(title: widget.title, subtitle: widget.subtitle),
+        bottomBar: FollowSkyV11Dock(
+          joined: _carried,
+          joining: _joining,
+          onCarry: _carried ? null : _carry,
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            FollowSkyThirtyDayStrip(
-              windowStart: windowStart,
-              skyNights: _thirtyDayNights,
-              calendarRows: widget.calendarPreview.rows,
-              excludedSkyEventIds: _excludedSkyEventIds,
-              carried: _carried,
-            ),
-            FollowSkyTurningExample(
-              meaning: exampleMeaning,
-              controller: _exampleIntentionController,
-              onChanged: (text) {
-                if (exampleNight != null) {
-                  _setDraftIntentionForSkyNight(exampleNight, text);
-                }
-              },
-            ),
-            FollowSkyPreviewCalendar(
-              skyNights: previewNights,
-              calendarRows: widget.calendarPreview.rows,
-              excludedSkyEventIds: _excludedSkyEventIds,
-              carried: _carried,
-              draftIntentions: _draftIntentions,
-              onOpenSkyNight: _openTurningSheet,
-              onExcludeSkyNight: (night) {
-                setState(() => _excludedSkyEventIds.add(night.skyEventId));
-              },
-              meaningResolver: _meaningResolver,
-            ),
-            const SizedBox(height: 8),
-            FollowSkyAllTurningsList(
-              catalog: _catalog!,
-              remainingNights: remainingNights,
-              surfacedCount: previewNights.length,
-              expanded: _allTurningsExpanded,
-              onToggle: () =>
-                  setState(() => _allTurningsExpanded = !_allTurningsExpanded),
-              meaningResolver: _meaningResolver,
-              onOpenNight: _openTurningSheet,
-            ),
-          ],
+        sheet: Container(
+          decoration: const BoxDecoration(
+            color: FollowSkyV11Tokens.sheetBg,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
+            border: Border(top: BorderSide(color: Color(0x2ED4AE43))),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              FollowSkyThirtyDayStrip(
+                windowStart: windowStart,
+                skyNights: _thirtyDayNights,
+                calendarRows: widget.calendarPreview.rows,
+                excludedSkyEventIds: _excludedSkyEventIds,
+                carried: _carried,
+              ),
+              FollowSkyTurningExample(
+                meaning: exampleMeaning,
+                controller: _exampleIntentionController,
+                onChanged: (text) {
+                  if (exampleNight != null) {
+                    _setDraftIntentionForSkyNight(exampleNight, text);
+                  }
+                },
+              ),
+              FollowSkyPreviewCalendar(
+                skyNights: previewNights,
+                calendarRows: widget.calendarPreview.rows,
+                excludedSkyEventIds: _excludedSkyEventIds,
+                carried: _carried,
+                draftIntentions: _draftIntentions,
+                onOpenSkyNight: _openTurningSheet,
+                onExcludeSkyNight: (night) {
+                  setState(() => _excludedSkyEventIds.add(night.skyEventId));
+                },
+                meaningResolver: _meaningResolver,
+              ),
+              const SizedBox(height: 8),
+              FollowSkyAllTurningsList(
+                catalog: _catalog!,
+                remainingNights: remainingNights,
+                surfacedCount: previewNights.length,
+                expanded: _allTurningsExpanded,
+                onToggle: () => setState(
+                  () => _allTurningsExpanded = !_allTurningsExpanded,
+                ),
+                meaningResolver: _meaningResolver,
+                onOpenNight: _openTurningSheet,
+              ),
+            ],
+          ),
         ),
       ),
     );

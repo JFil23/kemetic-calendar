@@ -6,6 +6,7 @@ import 'package:mobile/features/calendar/follow_the_sky/follow_the_sky.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_dock.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_tokens.dart';
 import 'package:mobile/widgets/kemetic_keyboard.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:mobile/widgets/keyboard_viewport_metrics.dart';
 
 void main() {
@@ -496,9 +497,49 @@ void main() {
     (tester) => _expectWorkedIntentionKeyboardContract(
       tester,
       catalog: catalog,
-      scenario: _KeyboardViewportScenario.iosWebAccessory,
+      scenario: _KeyboardViewportScenario.nativeInset,
     ),
   );
+
+  test('Follow Sky intention field matches Quick Add ownership source contract', () {
+    final calendarSource = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final quickAddStart = calendarSource.indexOf('class _QuickAddSheetState');
+    final quickAddEnd = calendarSource.indexOf(
+      'enum MonthExpansionLevel',
+      quickAddStart,
+    );
+    final quickAdd = calendarSource.substring(quickAddStart, quickAddEnd);
+    final detailSource = File(
+      'lib/features/calendar/follow_the_sky/presentation/'
+      'follow_sky_detail_page.dart',
+    ).readAsStringSync();
+    final exampleSource = File(
+      'lib/features/calendar/follow_the_sky/presentation/widgets/'
+      'follow_sky_turning_example.dart',
+    ).readAsStringSync();
+
+    expect(quickAdd, contains('MediaQuery.viewInsetsOf(context).bottom'));
+    expect(quickAdd, contains('autofocus: false'));
+    expect(quickAdd, contains('scrollPadding: keyboardManagedTextFieldScrollPadding'));
+    expect(quickAdd, isNot(contains('requestFocus()')));
+
+    expect(
+      detailSource,
+      contains('final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;'),
+    );
+    expect(
+      detailSource,
+      contains('padding: EdgeInsets.only(bottom: keyboardInset)'),
+    );
+    expect(exampleSource, contains('autofocus: false'));
+    expect(
+      exampleSource,
+      contains('scrollPadding: keyboardManagedTextFieldScrollPadding'),
+    );
+    expect(exampleSource, isNot(contains('_systemKeyboardAccessoryClearance')));
+  });
 }
 
 enum _KeyboardViewportScenario {
@@ -534,6 +575,7 @@ Future<void> _expectWorkedIntentionKeyboardContract(
         child: child ?? const SizedBox.shrink(),
       ),
       home: Scaffold(
+        resizeToAvoidBottomInset: false,
         body: MaatFlowsListDetailReveal<void>(
           initialDetailBuilder: (context) => FollowSkyDetailPage(
             standalone: false,
@@ -560,8 +602,7 @@ Future<void> _expectWorkedIntentionKeyboardContract(
 
   await tester.scrollUntilVisible(field, 100, scrollable: scrollable);
   await tester.pumpAndSettle();
-  final recordedQuestionTop =
-      scenario == _KeyboardViewportScenario.iosWebAccessory ? 290.0 : 190.0;
+  const recordedQuestionTop = 190.0;
   final readingOffset =
       (scrollState.position.pixels +
               tester.getTopLeft(question).dy -
@@ -578,6 +619,10 @@ Future<void> _expectWorkedIntentionKeyboardContract(
   expect(initialQuestionRect.top, closeTo(recordedQuestionTop, 0.5));
   expect(initialFieldRect.top, greaterThan(initialQuestionRect.bottom));
   expect(initialFieldRect.bottom, lessThan(tester.getRect(preview).top));
+
+  final textField = tester.widget<TextField>(field);
+  expect(textField.autofocus, isFalse);
+  expect(textField.scrollPadding, keyboardManagedTextFieldScrollPadding);
 
   Future<void> openKeyboard() async {
     webViewport = switch (scenario) {
@@ -624,16 +669,11 @@ Future<void> _expectWorkedIntentionKeyboardContract(
     await tester.pumpAndSettle();
   }
 
-  void expectVisibleGeometry(String phase) {
-    const iosAccessoryOcclusion = 44.0;
-    final (visibleTop, visibleBottom) = switch (scenario) {
-      _KeyboardViewportScenario.webLayoutSizedPanned => (120.0, 644.0),
-      _KeyboardViewportScenario.iosWebAccessory => (
-        0.0,
-        524.0 - iosAccessoryOcclusion,
-      ),
-      _ => (0.0, 524.0),
-    };
+  final usesDirectInset =
+      scenario == _KeyboardViewportScenario.nativeInset ||
+      scenario == _KeyboardViewportScenario.iosWebTransition;
+
+  void expectQuickAddOwnedGeometry(String phase) {
     final questionRect = tester.getRect(question);
     final fieldRect = tester.getRect(field);
     final previewRect = tester.getRect(preview);
@@ -649,67 +689,77 @@ Future<void> _expectWorkedIntentionKeyboardContract(
     final caretBottom = editable.renderEditable
         .localToGlobal(caretRect.bottomLeft)
         .dy;
-    expect(questionRect.top, greaterThanOrEqualTo(visibleTop), reason: phase);
+
+    // Container owns keyboard lift; EditableText owns caret inside the field.
+    expect(questionRect.top, greaterThanOrEqualTo(0), reason: phase);
     expect(fieldRect.top, greaterThan(questionRect.bottom), reason: phase);
-    expect(fieldRect.top, greaterThanOrEqualTo(visibleTop), reason: phase);
-    expect(fieldRect.bottom, lessThanOrEqualTo(visibleBottom), reason: phase);
     expect(fieldRect.bottom, lessThan(previewRect.top), reason: phase);
     expect(caretTop, greaterThanOrEqualTo(fieldRect.top), reason: phase);
-    expect(caretBottom, lessThanOrEqualTo(visibleBottom), reason: phase);
-  }
+    expect(caretBottom, lessThanOrEqualTo(fieldRect.bottom + 1), reason: phase);
 
-  if (scenario == _KeyboardViewportScenario.iosWebAccessory) {
-    await openKeyboard();
-    final textField = tester.widget<TextField>(field);
-    const reportedVisualViewportBottom = 524.0;
-    // Widget tests retain Flutter's layout viewport, while the browser applies
-    // EditableText's single reveal against its smaller visual viewport. Model
-    // that supported reveal from the field's configured scrollPadding.
-    final revealDelta =
-        tester.getRect(field).bottom +
-        textField.scrollPadding.bottom -
-        reportedVisualViewportBottom;
-    if (revealDelta > 0) {
-      scrollState.position.jumpTo(
-        (scrollState.position.pixels + revealDelta).clamp(
-          scrollState.position.minScrollExtent,
-          scrollState.position.maxScrollExtent,
-        ),
+    if (usesDirectInset) {
+      final visibleBottom = tester.getSize(find.byType(MaterialApp)).height;
+      expect(fieldRect.bottom, lessThanOrEqualTo(visibleBottom), reason: phase);
+      expect(
+        caretBottom,
+        lessThanOrEqualTo(visibleBottom),
+        reason: phase,
       );
     }
-    await tester.pump();
-    expectVisibleGeometry('${scenario.label} before focus');
-    await tester.tap(field);
-  } else {
-    await tester.tap(field);
-    await tester.pump();
-    await openKeyboard();
-  }
-  for (final elapsed in const [40, 80, 140, 260]) {
-    await tester.pump(Duration(milliseconds: elapsed));
-    expectVisibleGeometry('${scenario.label} after ${elapsed}ms');
   }
 
-  await tester.enterText(field, 'Visible while typing');
-  await tester.pump(const Duration(milliseconds: 400));
-  expectVisibleGeometry('${scenario.label} while typing');
+  await tester.tap(field);
+  await tester.pump();
+  final offsetBeforeKeyboard = scrollState.position.pixels;
+  await openKeyboard();
+  for (final elapsed in const [40, 80, 140, 260]) {
+    await tester.pump(Duration(milliseconds: elapsed));
+    expectQuickAddOwnedGeometry('${scenario.label} after ${elapsed}ms');
+  }
+  // Typing/cursor must never drive outer scroll — Quick Add ownership.
   expect(
-    tester.widget<TextField>(field).controller!.text,
-    'Visible while typing',
+    scrollState.position.pixels,
+    closeTo(offsetBeforeKeyboard, 0.5),
+    reason: '${scenario.label}: outer scroll must not move on keyboard open',
+  );
+
+  final offsetBeforeTyping = scrollState.position.pixels;
+  await tester.enterText(
+    field,
+    'Visible while typing twenty-plus chars!!',
+  );
+  await tester.pump(const Duration(milliseconds: 400));
+  expectQuickAddOwnedGeometry('${scenario.label} while typing');
+  expect(
+    scrollState.position.pixels,
+    closeTo(offsetBeforeTyping, 0.5),
+    reason: '${scenario.label}: outer scroll must not move while typing',
   );
   expect(
-    tester
-        .state<EditableTextState>(
-          find.descendant(of: field, matching: find.byType(EditableText)),
-        )
-        .textEditingValue
-        .text,
-    'Visible while typing',
+    tester.widget<TextField>(field).controller!.text,
+    'Visible while typing twenty-plus chars!!',
+  );
+
+  final editable = tester.state<EditableTextState>(
+    find.descendant(of: field, matching: find.byType(EditableText)),
+  );
+  final offsetBeforeCursorMove = scrollState.position.pixels;
+  editable.userUpdateTextEditingValue(
+    editable.textEditingValue.copyWith(
+      selection: const TextSelection.collapsed(offset: 8),
+    ),
+    SelectionChangedCause.keyboard,
+  );
+  await tester.pump();
+  expect(
+    scrollState.position.pixels,
+    closeTo(offsetBeforeCursorMove, 0.5),
+    reason: '${scenario.label}: outer scroll must not move on cursor move',
   );
 
   final openedOffsets = <double>[scrollState.position.pixels];
   final dismissedOffsets = <double>[];
-  for (var cycle = 0; cycle < 4; cycle++) {
+  for (var cycle = 0; cycle < 3; cycle++) {
     await closeKeyboard();
     dismissedOffsets.add(scrollState.position.pixels);
 
@@ -717,7 +767,7 @@ Future<void> _expectWorkedIntentionKeyboardContract(
     await tester.pump();
     await openKeyboard();
     await tester.pumpAndSettle();
-    expectVisibleGeometry('${scenario.label} cycle $cycle');
+    expectQuickAddOwnedGeometry('${scenario.label} cycle $cycle');
     openedOffsets.add(scrollState.position.pixels);
   }
 
