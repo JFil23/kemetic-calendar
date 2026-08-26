@@ -484,6 +484,93 @@ class BuildOrchestrationTest(unittest.TestCase):
                     )
 
 
+class PairedRepositoryAuthorityTest(unittest.TestCase):
+    mobile_commit = "a" * 40
+    parent_commit = "b" * 40
+
+    def setUp(self) -> None:
+        self.mobile_worktree_count = 1
+        self.parent_worktree_count = 1
+        self.mobile_status = ""
+        self.parent_status = ""
+        self.parent_gitlink = self.mobile_commit
+
+    def git_result(self, repo: Path, *arguments: str) -> str:
+        is_mobile = repo == REPO_ROOT
+        if arguments == ("rev-parse", "--show-toplevel"):
+            return str(repo)
+        if arguments == ("worktree", "list", "--porcelain"):
+            count = (
+                self.mobile_worktree_count
+                if is_mobile
+                else self.parent_worktree_count
+            )
+            return "\n\n".join(
+                f"worktree /authority/{'mobile' if is_mobile else 'parent'}-{index}"
+                for index in range(count)
+            )
+        if arguments == ("status", "--porcelain=v1", "--untracked-files=all"):
+            return self.mobile_status if is_mobile else self.parent_status
+        if arguments == ("rev-parse", "HEAD^{commit}"):
+            return self.mobile_commit if is_mobile else self.parent_commit
+        if arguments == ("rev-parse", "HEAD^{tree}"):
+            return "c" * 40 if is_mobile else "d" * 40
+        if arguments == ("show", "-s", "--format=%ct", "HEAD") and not is_mobile:
+            return "1700000000"
+        if arguments == ("ls-tree", "HEAD", "mobile") and not is_mobile:
+            return f"160000 commit {self.parent_gitlink}\tmobile"
+        raise AssertionError((repo, arguments))
+
+    def require_source(self) -> dict[str, object]:
+        with mock.patch.object(pipeline, "git", side_effect=self.git_result):
+            return pipeline.require_clean_paired_repositories(REPO_ROOT)
+
+    def test_exactly_one_worktree_per_repository_is_accepted(self) -> None:
+        source = self.require_source()
+        self.assertEqual(source["mobile_commit"], self.mobile_commit)
+        self.assertEqual(source["parent_commit"], self.parent_commit)
+
+    def test_extra_parent_worktree_fails(self) -> None:
+        self.parent_worktree_count = 2
+        with self.assertRaisesRegex(
+            pipeline.ReleaseInputError,
+            "Parent repository must have exactly one linked worktree",
+        ):
+            self.require_source()
+
+    def test_extra_mobile_worktree_fails(self) -> None:
+        self.mobile_worktree_count = 2
+        with self.assertRaisesRegex(
+            pipeline.ReleaseInputError,
+            "Mobile repository must have exactly one linked worktree",
+        ):
+            self.require_source()
+
+    def test_dirty_parent_fails(self) -> None:
+        self.parent_status = " M mobile"
+        with self.assertRaisesRegex(
+            pipeline.ReleaseInputError,
+            "Parent source tree must be clean",
+        ):
+            self.require_source()
+
+    def test_dirty_mobile_fails(self) -> None:
+        self.mobile_status = " M lib/main.dart"
+        with self.assertRaisesRegex(
+            pipeline.ReleaseInputError,
+            "Mobile source tree must be clean",
+        ):
+            self.require_source()
+
+    def test_mismatched_gitlink_fails(self) -> None:
+        self.parent_gitlink = "e" * 40
+        with self.assertRaisesRegex(
+            pipeline.ReleaseInputError,
+            "gitlink does not match",
+        ):
+            self.require_source()
+
+
 class CanonicalReleaseSourceTest(unittest.TestCase):
     def source(self) -> dict[str, object]:
         return {
@@ -493,69 +580,138 @@ class CanonicalReleaseSourceTest(unittest.TestCase):
         }
 
     def git_result(self, repo: Path, *arguments: str) -> str:
-        if arguments[0] == "fetch":
+        self.assertNotIn("main", " ".join(arguments))
+        if arguments == (
+            "fetch",
+            "--quiet",
+            "--no-tags",
+            "origin",
+            "+refs/heads/production:refs/remotes/origin/production",
+        ):
             return ""
-        if arguments == ("rev-parse", "refs/remotes/origin/main^{commit}"):
+        if arguments == (
+            "rev-parse",
+            "refs/remotes/origin/production^{commit}",
+        ):
             return "a" * 40 if repo == REPO_ROOT else "b" * 40
         raise AssertionError((repo, arguments))
 
-    def test_production_requires_both_sources_to_exactly_match_main(self) -> None:
-        source = self.source()
+    def require_source(
+        self,
+        source: dict[str, object],
+        *,
+        environment: str,
+        expected_source: dict[str, object] | None = None,
+    ) -> tuple[dict[str, str], mock.Mock]:
         with mock.patch.object(
-            pipeline, "require_clean_paired_repositories", return_value=source
-        ), mock.patch.object(pipeline, "git", side_effect=self.git_result):
+            pipeline,
+            "require_clean_paired_repositories",
+            return_value=source,
+        ), mock.patch.object(pipeline, "git", side_effect=self.git_result) as git_mock:
             result = pipeline.require_canonical_release_source(
                 REPO_ROOT,
-                environment="production",
-                expected_source=source,
+                environment=environment,
+                expected_source=expected_source,
             )
-        self.assertEqual(result["mobile_main_commit"], "a" * 40)
-        self.assertEqual(result["parent_main_commit"], "b" * 40)
+        return result, git_mock
 
-    def test_production_rejects_source_behind_main(self) -> None:
+    def assert_exact_source_rejected(
+        self,
+        *,
+        environment: str,
+        source_key: str,
+    ) -> None:
+        source = self.source()
+        source[source_key] = "c" * 40
+        with self.assertRaisesRegex(
+            pipeline.ReleaseInputError,
+            "must exactly match current origin/production",
+        ):
+            self.require_source(source, environment=environment)
+
+    def test_production_requires_exact_mobile_origin_production(self) -> None:
+        self.assert_exact_source_rejected(
+            environment="production",
+            source_key="mobile_commit",
+        )
+
+    def test_production_requires_exact_parent_origin_production(self) -> None:
+        self.assert_exact_source_rejected(
+            environment="production",
+            source_key="parent_commit",
+        )
+
+    def test_staging_requires_exact_mobile_origin_production(self) -> None:
+        self.assert_exact_source_rejected(
+            environment="staging",
+            source_key="mobile_commit",
+        )
+
+    def test_staging_requires_exact_parent_origin_production(self) -> None:
+        self.assert_exact_source_rejected(
+            environment="staging",
+            source_key="parent_commit",
+        )
+
+    def test_staging_rejects_descendant_of_origin_production(self) -> None:
         source = self.source()
         source["mobile_commit"] = "c" * 40
         with mock.patch.object(
-            pipeline, "require_clean_paired_repositories", return_value=source
-        ), mock.patch.object(pipeline, "git", side_effect=self.git_result):
+            pipeline,
+            "require_clean_paired_repositories",
+            return_value=source,
+        ), mock.patch.object(pipeline, "git", side_effect=self.git_result) as git_mock:
             with self.assertRaisesRegex(
-                pipeline.ReleaseInputError, "must exactly match current origin/main"
-            ):
-                pipeline.require_canonical_release_source(
-                    REPO_ROOT,
-                    environment="production",
-                )
-
-    def test_staging_requires_both_sources_to_descend_from_main(self) -> None:
-        source = self.source()
-        source["mobile_commit"] = "c" * 40
-        source["parent_commit"] = "d" * 40
-        with mock.patch.object(
-            pipeline, "require_clean_paired_repositories", return_value=source
-        ), mock.patch.object(
-            pipeline, "git", side_effect=self.git_result
-        ), mock.patch.object(pipeline, "git_is_ancestor", return_value=True) as check:
-            pipeline.require_canonical_release_source(
-                REPO_ROOT,
-                environment="staging",
-            )
-        self.assertEqual(check.call_count, 2)
-
-    def test_staging_rejects_source_that_forked_before_main(self) -> None:
-        source = self.source()
-        source["mobile_commit"] = "c" * 40
-        with mock.patch.object(
-            pipeline, "require_clean_paired_repositories", return_value=source
-        ), mock.patch.object(
-            pipeline, "git", side_effect=self.git_result
-        ), mock.patch.object(pipeline, "git_is_ancestor", return_value=False):
-            with self.assertRaisesRegex(
-                pipeline.ReleaseInputError, "must descend from current origin/main"
+                pipeline.ReleaseInputError,
+                "must exactly match current origin/production",
             ):
                 pipeline.require_canonical_release_source(
                     REPO_ROOT,
                     environment="staging",
                 )
+        self.assertNotIn("merge-base", repr(git_mock.call_args_list))
+
+    def test_production_rejects_descendant_of_origin_production(self) -> None:
+        source = self.source()
+        source["parent_commit"] = "c" * 40
+        with mock.patch.object(
+            pipeline,
+            "require_clean_paired_repositories",
+            return_value=source,
+        ), mock.patch.object(pipeline, "git", side_effect=self.git_result) as git_mock:
+            with self.assertRaisesRegex(
+                pipeline.ReleaseInputError,
+                "must exactly match current origin/production",
+            ):
+                pipeline.require_canonical_release_source(
+                    REPO_ROOT,
+                    environment="production",
+                )
+        self.assertNotIn("merge-base", repr(git_mock.call_args_list))
+
+    def test_origin_main_is_never_consulted_for_source_eligibility(self) -> None:
+        result, git_mock = self.require_source(
+            self.source(),
+            environment="production",
+        )
+        calls = repr(git_mock.call_args_list)
+        self.assertNotIn("origin/main", calls)
+        self.assertNotIn("refs/heads/main", calls)
+        self.assertEqual(
+            result["mobile_authorized_ref"],
+            "refs/remotes/origin/production",
+        )
+
+    def test_main_divergence_cannot_affect_either_artifact_environment(self) -> None:
+        for environment in ("staging", "production"):
+            with self.subTest(environment=environment):
+                result, git_mock = self.require_source(
+                    self.source(),
+                    environment=environment,
+                )
+                self.assertEqual(result["mobile_authorized_commit"], "a" * 40)
+                self.assertEqual(result["parent_authorized_commit"], "b" * 40)
+                self.assertNotIn("main", repr(git_mock.call_args_list))
 
     def test_artifact_must_match_checked_out_source(self) -> None:
         source = self.source()

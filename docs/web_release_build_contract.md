@@ -32,6 +32,31 @@ The build ID is the SHA-256 of that canonical input tuple, including the
 selected icon-set digest. The build timestamp is the parent commit time in UTC,
 not the wall clock.
 
+## Git source authority
+
+The exact Git release source for both `staging` and `production` artifacts is
+the current `origin/production` pair in the parent and mobile repositories.
+Before either artifact may be built, the builder fetches `production` in each
+repository and requires all of the following:
+
+- parent `HEAD` exactly equals parent `origin/production`;
+- mobile `HEAD` exactly equals mobile `origin/production`;
+- the parent `mobile` gitlink exactly equals mobile `HEAD`;
+- both repositories are clean; and
+- the parent and mobile repositories each have exactly one linked worktree.
+
+No ancestry exception is permitted. A descendant of `origin/production` is
+not authorized until it is itself the exact remote `production` commit.
+
+The `staging` and `production` names select artifact configuration and identity;
+they are not Git source branches. Git `origin/main` is not release authority
+and may legitimately be ahead, behind or divergent from `origin/production`
+without affecting release eligibility.
+
+Cloudflare Pages uses a deployment branch named `main`. That Pages target is
+unrelated to Git source authority and remains fixed by the deployment lane
+mapping below.
+
 ## Public configuration
 
 `config/web/staging.public.json` and

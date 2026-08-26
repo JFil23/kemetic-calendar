@@ -84,6 +84,10 @@ BUILDER_FILES = (
     "scripts/build_web_release.sh",
     "scripts/web_release_pipeline.py",
 )
+AUTHORIZED_GIT_SOURCE_BRANCH = "production"
+AUTHORIZED_GIT_SOURCE_REF = (
+    f"refs/remotes/origin/{AUTHORIZED_GIT_SOURCE_BRANCH}"
+)
 PINNED_FLUTTER_TOOLCHAIN = {
     "frameworkVersion": "3.35.3",
     "channel": "stable",
@@ -399,6 +403,17 @@ def require_clean_paired_repositories(repo_root: Path) -> dict[str, Any]:
             "Web release builds require a paired parent/mobile worktree layout."
         )
 
+    for label, root in (("mobile", repo_root), ("parent", parent_root)):
+        worktree_output = git(root, "worktree", "list", "--porcelain")
+        worktree_count = sum(
+            1 for line in worktree_output.splitlines() if line.startswith("worktree ")
+        )
+        if worktree_count != 1:
+            raise ReleaseInputError(
+                f"{label.capitalize()} repository must have exactly one linked "
+                f"worktree before release build; found {worktree_count}."
+            )
+
     mobile_status = git(repo_root, "status", "--porcelain=v1", "--untracked-files=all")
     parent_status = git(parent_root, "status", "--porcelain=v1", "--untracked-files=all")
     if mobile_status:
@@ -432,28 +447,6 @@ def require_clean_paired_repositories(repo_root: Path) -> dict[str, Any]:
     }
 
 
-def git_is_ancestor(repo: Path, ancestor: str, descendant: str) -> bool:
-    completed = subprocess.run(
-        (
-            "git",
-            "-C",
-            str(repo),
-            "merge-base",
-            "--is-ancestor",
-            ancestor,
-            descendant,
-        ),
-        check=False,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-    if completed.returncode not in (0, 1):
-        detail = completed.stderr.strip() or "git merge-base failed"
-        raise ReleaseInputError(detail)
-    return completed.returncode == 0
-
-
 def require_canonical_release_source(
     repo_root: Path,
     *,
@@ -485,23 +478,24 @@ def require_canonical_release_source(
             "--quiet",
             "--no-tags",
             "origin",
-            "+refs/heads/main:refs/remotes/origin/main",
+            f"+refs/heads/{AUTHORIZED_GIT_SOURCE_BRANCH}:"
+            f"{AUTHORIZED_GIT_SOURCE_REF}",
         )
-        main_commit = git(root, "rev-parse", "refs/remotes/origin/main^{commit}")
+        authorized_commit = git(
+            root,
+            "rev-parse",
+            f"{AUTHORIZED_GIT_SOURCE_REF}^{{commit}}",
+        )
         source_commit = source[source_key]
-        if environment == "production":
-            accepted = source_commit == main_commit
-            requirement = "exactly match"
-        else:
-            accepted = git_is_ancestor(root, main_commit, source_commit)
-            requirement = "descend from"
-        if not accepted:
+        if source_commit != authorized_commit:
             raise ReleaseInputError(
                 f"{label.capitalize()} release source {source_commit} must "
-                f"{requirement} current origin/main {main_commit}."
+                f"exactly match current origin/{AUTHORIZED_GIT_SOURCE_BRANCH} "
+                f"{authorized_commit}."
             )
         canonical[f"{label}_source_commit"] = source_commit
-        canonical[f"{label}_main_commit"] = main_commit
+        canonical[f"{label}_authorized_commit"] = authorized_commit
+        canonical[f"{label}_authorized_ref"] = AUTHORIZED_GIT_SOURCE_REF
     return canonical
 
 
@@ -2232,9 +2226,11 @@ def command_assert_canonical_source(arguments: argparse.Namespace) -> None:
         expected_source=expected_source,
     )
     print(f"canonical_mobile_source={result['mobile_source_commit']}")
-    print(f"canonical_mobile_main={result['mobile_main_commit']}")
+    print(f"canonical_mobile_authorized={result['mobile_authorized_commit']}")
+    print(f"canonical_mobile_authorized_ref={result['mobile_authorized_ref']}")
     print(f"canonical_parent_source={result['parent_source_commit']}")
-    print(f"canonical_parent_main={result['parent_main_commit']}")
+    print(f"canonical_parent_authorized={result['parent_authorized_commit']}")
+    print(f"canonical_parent_authorized_ref={result['parent_authorized_ref']}")
 
 
 def command_compare(arguments: argparse.Namespace) -> None:
