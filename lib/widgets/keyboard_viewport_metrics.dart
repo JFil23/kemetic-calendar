@@ -19,9 +19,11 @@ typedef KeyboardViewportMetricsResolver =
 ///
 /// Native platforms normally keep [MediaQueryData.size] stable and report an
 /// inset. Mobile web can instead shrink the visual viewport while reporting no
-/// inset. During an iOS web transition both signals can briefly be present; in
-/// that case [layoutViewInsetBottom] suppresses the duplicate inset once the
-/// Flutter viewport already matches the browser's visual viewport.
+/// inset. Browser offsets are expressed in layout-viewport coordinates, so
+/// they are applied only while Flutter still uses that coordinate space. Once
+/// Flutter's viewport already matches the browser's visual viewport, local
+/// coordinates start at zero and [layoutViewInsetBottom] suppresses any
+/// duplicate transitional inset.
 @immutable
 class KeyboardViewportMetrics {
   const KeyboardViewportMetrics({
@@ -42,6 +44,7 @@ class KeyboardViewportMetrics {
     required MediaQueryData media,
     WebKeyboardViewportSnapshot? webViewport,
   }) {
+    const coordinateEpsilon = 1.0;
     final mediaHeight = media.size.height;
     final mediaInset = media.viewInsets.bottom
         .clamp(0.0, mediaHeight)
@@ -55,25 +58,42 @@ class KeyboardViewportMetrics {
       );
     }
 
-    final layoutHeight = math.max(0, webViewport.layoutHeight);
+    final layoutHeight = math.max(0.0, webViewport.layoutHeight);
+    final visualHeight = math.max(0.0, webViewport.height);
+    final browserViewportShrank =
+        visualHeight < layoutHeight - coordinateEpsilon;
+    if (!browserViewportShrank) {
+      return KeyboardViewportMetrics(
+        visibleTop: 0,
+        visibleBottom: math.max(0, mediaHeight - mediaInset),
+        layoutViewInsetBottom: mediaInset,
+        systemKeyboardVisible: mediaInset > 0,
+      );
+    }
+
+    final flutterUsesVisualViewportCoordinates =
+        (mediaHeight - visualHeight).abs() <= coordinateEpsilon;
+    if (flutterUsesVisualViewportCoordinates) {
+      return KeyboardViewportMetrics(
+        visibleTop: 0,
+        visibleBottom: mediaHeight,
+        layoutViewInsetBottom: 0,
+        systemKeyboardVisible: true,
+      );
+    }
+
     final viewportTop = webViewport.offsetTop
         .clamp(0.0, mediaHeight)
         .toDouble();
-    final viewportBottom = (viewportTop + math.max(0.0, webViewport.height))
+    final viewportBottom = (webViewport.offsetTop + visualHeight)
         .clamp(viewportTop, mediaHeight)
         .toDouble();
-    final browserViewportShrank =
-        layoutHeight - (webViewport.offsetTop + webViewport.height) > 1;
-    final flutterViewportAlreadyShrank =
-        browserViewportShrank && mediaHeight <= viewportBottom + 1;
-    final layoutInset = flutterViewportAlreadyShrank ? 0.0 : mediaInset;
-    final mediaVisibleBottom = math.max(0.0, mediaHeight - layoutInset);
 
     return KeyboardViewportMetrics(
       visibleTop: viewportTop,
-      visibleBottom: math.min(mediaVisibleBottom, viewportBottom),
-      layoutViewInsetBottom: layoutInset,
-      systemKeyboardVisible: mediaInset > 0 || browserViewportShrank,
+      visibleBottom: viewportBottom,
+      layoutViewInsetBottom: 0,
+      systemKeyboardVisible: true,
     );
   }
 }

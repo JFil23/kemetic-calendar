@@ -495,7 +495,9 @@ void main() {
 enum _KeyboardViewportScenario {
   nativeInset('native stable-height keyboard'),
   webResize('web shrunken visual viewport'),
-  iosWebTransition('iOS web transitional viewport plus inset');
+  iosWebTransition('iOS web transitional viewport plus inset'),
+  webLayoutSized('web visual viewport with layout-sized Flutter'),
+  webLayoutSizedPanned('panned web viewport with layout-sized Flutter');
 
   const _KeyboardViewportScenario(this.label);
 
@@ -553,6 +555,7 @@ Future<void> _expectWorkedIntentionKeyboardContract(
           .toDouble();
   scrollState.position.jumpTo(readingOffset);
   await tester.pump();
+  final recordedScrollOffset = scrollState.position.pixels;
 
   final initialQuestionRect = tester.getRect(question);
   final initialFieldRect = tester.getRect(field);
@@ -564,10 +567,16 @@ Future<void> _expectWorkedIntentionKeyboardContract(
     webViewport = switch (scenario) {
       _KeyboardViewportScenario.nativeInset => null,
       _KeyboardViewportScenario.webResize ||
-      _KeyboardViewportScenario.iosWebTransition => const (
+      _KeyboardViewportScenario.webLayoutSized => const (
         height: 524,
         layoutHeight: 844,
         offsetTop: 0,
+      ),
+      _KeyboardViewportScenario.iosWebTransition ||
+      _KeyboardViewportScenario.webLayoutSizedPanned => const (
+        height: 524,
+        layoutHeight: 844,
+        offsetTop: 120,
       ),
     };
     switch (scenario) {
@@ -579,6 +588,10 @@ Future<void> _expectWorkedIntentionKeyboardContract(
       case _KeyboardViewportScenario.iosWebTransition:
         tester.view.physicalSize = const Size(390, 524);
         tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+      case _KeyboardViewportScenario.webLayoutSized:
+      case _KeyboardViewportScenario.webLayoutSizedPanned:
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.viewInsets = FakeViewPadding.zero;
     }
     await tester.pump();
   }
@@ -592,7 +605,10 @@ Future<void> _expectWorkedIntentionKeyboardContract(
   }
 
   void expectVisibleGeometry(String phase) {
-    const visibleBottom = 524.0;
+    final (visibleTop, visibleBottom) = switch (scenario) {
+      _KeyboardViewportScenario.webLayoutSizedPanned => (120.0, 644.0),
+      _ => (0.0, 524.0),
+    };
     final questionRect = tester.getRect(question);
     final fieldRect = tester.getRect(field);
     final previewRect = tester.getRect(preview);
@@ -609,13 +625,21 @@ Future<void> _expectWorkedIntentionKeyboardContract(
         .localToGlobal(caretRect.bottomLeft)
         .dy;
 
-    expect(questionRect.top, greaterThanOrEqualTo(0), reason: phase);
+    expect(questionRect.top, greaterThanOrEqualTo(visibleTop), reason: phase);
     expect(fieldRect.top, greaterThan(questionRect.bottom), reason: phase);
-    expect(fieldRect.top, greaterThanOrEqualTo(0), reason: phase);
+    expect(fieldRect.top, greaterThanOrEqualTo(visibleTop), reason: phase);
     expect(fieldRect.bottom, lessThanOrEqualTo(visibleBottom), reason: phase);
     expect(fieldRect.bottom, lessThan(previewRect.top), reason: phase);
     expect(caretTop, greaterThanOrEqualTo(fieldRect.top), reason: phase);
     expect(caretBottom, lessThanOrEqualTo(visibleBottom), reason: phase);
+    if (scenario == _KeyboardViewportScenario.webLayoutSized ||
+        scenario == _KeyboardViewportScenario.webLayoutSizedPanned) {
+      expect(
+        scrollState.position.pixels,
+        closeTo(recordedScrollOffset, 0.5),
+        reason: '$phase: system keyboard must not animate outer Follow Sky',
+      );
+    }
   }
 
   await tester.tap(field);

@@ -226,12 +226,14 @@ void main() {
       expect(source, isNot(contains('KemeticKeyboardViewportScope')));
     });
 
-    test('global keyboard host never reveals in response to text changes', () {
+    test('global host routes system edits only to multiline caret reveal', () {
       final source = File(
         'lib/widgets/kemetic_keyboard.dart',
       ).readAsStringSync();
 
-      expect(source, contains('if (textChanged || !selectionChanged) return;'));
+      expect(source, contains('if (!textChanged && selectionChanged)'));
+      expect(source, contains('if (textChanged || selectionChanged)'));
+      expect(source, contains('_scheduleMultilineCaretReveal();'));
       expect(source, isNot(contains('_handleEditableValueChanged')));
       expect(source, isNot(contains('_syncEditableValueListener')));
     });

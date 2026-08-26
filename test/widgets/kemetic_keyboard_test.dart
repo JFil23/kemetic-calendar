@@ -21,7 +21,7 @@ void main() {
       expect(metrics.systemKeyboardVisible, isTrue);
     });
 
-    test('uses a shrunken web visual viewport without inventing an inset', () {
+    test('uses visual coordinates when Flutter already shrank on web', () {
       final metrics = KeyboardViewportMetrics.resolve(
         media: const MediaQueryData(size: Size(390, 524)),
         webViewport: const (height: 524, layoutHeight: 844, offsetTop: 0),
@@ -33,13 +33,49 @@ void main() {
       expect(metrics.systemKeyboardVisible, isTrue);
     });
 
-    test('does not double-apply a transitional iOS web inset', () {
+    test('ignores layout-coordinate pan after Flutter already shrank', () {
+      final metrics = KeyboardViewportMetrics.resolve(
+        media: const MediaQueryData(size: Size(390, 524)),
+        webViewport: const (height: 524, layoutHeight: 844, offsetTop: 120),
+      );
+
+      expect(metrics.visibleTop, 0);
+      expect(metrics.visibleBottom, 524);
+      expect(metrics.layoutViewInsetBottom, 0);
+      expect(metrics.systemKeyboardVisible, isTrue);
+    });
+
+    test('detects maximum-pan web shrink from height, not viewport bottom', () {
+      final metrics = KeyboardViewportMetrics.resolve(
+        media: const MediaQueryData(size: Size(390, 524)),
+        webViewport: const (height: 524, layoutHeight: 844, offsetTop: 320),
+      );
+
+      expect(metrics.visibleTop, 0);
+      expect(metrics.visibleBottom, 524);
+      expect(metrics.layoutViewInsetBottom, 0);
+      expect(metrics.systemKeyboardVisible, isTrue);
+    });
+
+    test('uses layout coordinates while Flutter remains layout-sized', () {
+      final metrics = KeyboardViewportMetrics.resolve(
+        media: const MediaQueryData(size: Size(390, 844)),
+        webViewport: const (height: 524, layoutHeight: 844, offsetTop: 120),
+      );
+
+      expect(metrics.visibleTop, 120);
+      expect(metrics.visibleBottom, 644);
+      expect(metrics.layoutViewInsetBottom, 0);
+      expect(metrics.systemKeyboardVisible, isTrue);
+    });
+
+    test('does not double-apply a panned transitional iOS web inset', () {
       final metrics = KeyboardViewportMetrics.resolve(
         media: const MediaQueryData(
           size: Size(390, 524),
           viewInsets: EdgeInsets.only(bottom: 320),
         ),
-        webViewport: const (height: 524, layoutHeight: 844, offsetTop: 0),
+        webViewport: const (height: 524, layoutHeight: 844, offsetTop: 120),
       );
 
       expect(metrics.visibleTop, 0);
