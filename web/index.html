@@ -348,16 +348,15 @@
 
     const buildVersion = {{flutter_service_worker_version}};
 
-    function withFontAssetVersion(rawUrl) {
+    function withFlutterAssetVersion(rawUrl) {
       if (!buildVersion || rawUrl == null) {
         return rawUrl;
       }
       try {
         const url = new URL(String(rawUrl), document.baseURI);
         const isSameOrigin = url.origin === window.location.origin;
-        const isFontManifest = url.pathname.endsWith('/assets/FontManifest.json');
-        const isFontAsset = url.pathname.indexOf('/assets/ios/Runner/Fonts/') !== -1;
-        if (isSameOrigin && (isFontManifest || isFontAsset) && !url.searchParams.has('v')) {
+        const isFlutterAsset = url.pathname.indexOf('/assets/') !== -1;
+        if (isSameOrigin && isFlutterAsset && !url.searchParams.has('v')) {
           url.searchParams.set('v', String(buildVersion));
           return url.toString();
         }
@@ -367,17 +366,17 @@
       return rawUrl;
     }
 
-    if (window.fetch && !window.__kemeticFontAssetFetchPatched) {
-      window.__kemeticFontAssetFetchPatched = true;
+    if (window.fetch && !window.__kemeticFlutterAssetFetchPatched) {
+      window.__kemeticFlutterAssetFetchPatched = true;
       const originalFetch = window.fetch.bind(window);
       window.fetch = function (input, init) {
         if (typeof Request !== 'undefined' && input instanceof Request) {
-          const versionedUrl = withFontAssetVersion(input.url);
+          const versionedUrl = withFlutterAssetVersion(input.url);
           if (versionedUrl !== input.url) {
             return originalFetch(new Request(versionedUrl, input), init);
           }
         } else {
-          const versionedInput = withFontAssetVersion(input);
+          const versionedInput = withFlutterAssetVersion(input);
           if (versionedInput !== input) {
             return originalFetch(versionedInput, init);
           }
@@ -386,12 +385,12 @@
       };
     }
 
-    if (window.XMLHttpRequest && !window.__kemeticFontAssetXhrPatched) {
-      window.__kemeticFontAssetXhrPatched = true;
+    if (window.XMLHttpRequest && !window.__kemeticFlutterAssetXhrPatched) {
+      window.__kemeticFlutterAssetXhrPatched = true;
       const originalOpen = window.XMLHttpRequest.prototype.open;
       window.XMLHttpRequest.prototype.open = function () {
         const args = Array.prototype.slice.call(arguments);
-        args[1] = withFontAssetVersion(args[1]);
+        args[1] = withFlutterAssetVersion(args[1]);
         return originalOpen.apply(this, args);
       };
     }
@@ -404,7 +403,7 @@
           return source;
         }
         return source.replace(/url\((['"]?)([^'")]+)\1\)/g, function (match, quote, fontUrl) {
-          const versionedUrl = withFontAssetVersion(fontUrl);
+          const versionedUrl = withFlutterAssetVersion(fontUrl);
           if (versionedUrl === fontUrl) {
             return match;
           }
