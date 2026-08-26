@@ -204,3 +204,17 @@ void deactivateWebCustomKeyboardInput({bool requestSystemKeyboard = false}) {
 
   _trackedEditingElement = null;
 }
+
+({double height, double layoutHeight, double offsetTop})?
+readWebKeyboardViewport() {
+  final viewport = web.window.visualViewport;
+  if (viewport == null) return null;
+  final documentElement = web.document.documentElement;
+  final layoutHeight = documentElement?.clientHeight.toDouble();
+  if (layoutHeight == null || layoutHeight <= 0) return null;
+  return (
+    height: viewport.height.toDouble(),
+    layoutHeight: layoutHeight,
+    offsetTop: viewport.offsetTop.toDouble(),
+  );
+}

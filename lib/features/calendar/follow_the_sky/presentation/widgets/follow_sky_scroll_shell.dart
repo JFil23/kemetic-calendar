@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:mobile/widgets/keyboard_aware.dart';
 
 import '../../../maat_flow_visual_tokens.dart';
 import 'follow_sky_v11_tokens.dart';
@@ -28,7 +27,6 @@ class FollowSkyScrollShell extends StatefulWidget {
 class _FollowSkyScrollShellState extends State<FollowSkyScrollShell> {
   late final ScrollController _controller;
   late final bool _ownsController;
-  double? _restingHeroHeight;
 
   @override
   void initState() {
@@ -65,13 +63,7 @@ class _FollowSkyScrollShellState extends State<FollowSkyScrollShell> {
           widthScaledHero,
           heightScaledHero,
         );
-        final keyboardVisible = keyboardInsetOf(context) > 0;
-        if (!keyboardVisible || _restingHeroHeight == null) {
-          _restingHeroHeight = calculatedHeroHeight;
-        }
-        final heroHeight = keyboardVisible
-            ? _restingHeroHeight!
-            : calculatedHeroHeight;
+        final heroHeight = calculatedHeroHeight;
         final overlap =
             FollowSkyV11Tokens.sheetOverlap *
             (width / FollowSkyV11Tokens.referenceWidth);

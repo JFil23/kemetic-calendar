@@ -226,14 +226,41 @@ void main() {
       expect(source, isNot(contains('KemeticKeyboardViewportScope')));
     });
 
-    test('global keyboard host never reveals in response to text changes', () {
+    test('global host routes system edits only to multiline caret reveal', () {
       final source = File(
         'lib/widgets/kemetic_keyboard.dart',
       ).readAsStringSync();
 
-      expect(source, contains('if (textChanged || !selectionChanged) return;'));
+      expect(source, contains('if (!textChanged && selectionChanged)'));
+      expect(source, contains('if (textChanged || selectionChanged)'));
+      expect(source, contains('_scheduleMultilineCaretReveal();'));
       expect(source, isNot(contains('_handleEditableValueChanged')));
       expect(source, isNot(contains('_syncEditableValueListener')));
+    });
+
+    test('global host leaves system reveal to EditableText', () {
+      final source = File(
+        'lib/widgets/kemetic_keyboard.dart',
+      ).readAsStringSync();
+
+      expect(source, isNot(contains('Scrollable.ensureVisible')));
+      expect(source, isNot(contains('Duration(milliseconds: 140)')));
+      expect(RegExp(r'\.animateTo\(').allMatches(source), hasLength(1));
+      expect(source, contains('_scheduleCustomKeyboardReveal'));
+      expect(source, contains('if (!_controller.shouldShowPanel) return;'));
+      expect(source, contains('_scheduleMultilineCaretReveal'));
+      expect(source, contains('position.jumpTo(targetPixels)'));
+    });
+
+    test('Follow Sky scroll shell has no keyboard ownership', () {
+      final source = File(
+        'lib/features/calendar/follow_the_sky/presentation/widgets/'
+        'follow_sky_scroll_shell.dart',
+      ).readAsStringSync();
+
+      expect(source, isNot(contains('keyboardInsetOf')));
+      expect(source, isNot(contains('_restingHeroHeight')));
+      expect(source, isNot(contains('viewInsets')));
     });
   });
 }
