@@ -5,17 +5,20 @@ import 'maat_flow_response_models.dart';
 const String kMaatJournalResponseBlockIdPrefix = 'maat_response:';
 const String kMaatJournalPlainTextSourceMetaKey =
     'maat_plain_user_text_sources';
+const String kMaatJournalSourceMetadataKey = 'maat_source_metadata';
 
 class MaatJournalResponseBlock {
   const MaatJournalResponseBlock({
     required this.sourceId,
     required this.text,
     this.localDate,
+    this.sourceMetadata = const <String, dynamic>{},
   }) : assert(sourceId.length > 0);
 
   final String sourceId;
   final String text;
   final DateTime? localDate;
+  final Map<String, dynamic> sourceMetadata;
 
   String get blockId => maatJournalResponseBlockId(sourceId);
 }
@@ -197,15 +200,16 @@ class MaatJournalResponseBlockUtils {
     final sourceId = block.sourceId.trim();
     if (sourceId.isEmpty) return document;
 
+    final documentWithMetadata = _upsertSourceMetadata(document, block);
     final normalizedText = block.text.trim();
     if (normalizedText.isEmpty) {
-      return removePlainUserText(document, sourceId);
+      return removePlainUserText(documentWithMetadata, sourceId);
     }
 
-    final meta = Map<String, dynamic>.from(document.meta);
+    final meta = Map<String, dynamic>.from(documentWithMetadata.meta);
     final sources = _plainTextSourceMap(meta);
     final previousText = sources[sourceId]?.trim();
-    final blocks = document.blocks
+    final blocks = documentWithMetadata.blocks
         .where(
           (candidate) => !_isLegacyGeneratedResponseBlock(candidate, sourceId),
         )
@@ -228,7 +232,7 @@ class MaatJournalResponseBlockUtils {
           sources[sourceId] = normalizedText;
           _writePlainUserTextSources(meta, sources);
           return JournalDocument(
-            version: document.version,
+            version: documentWithMetadata.version,
             blocks: blocks,
             meta: meta,
           );
@@ -239,7 +243,7 @@ class MaatJournalResponseBlockUtils {
       // marker so later flow saves do not append duplicates or overwrite prose.
       _writePlainUserTextSources(meta, sources);
       return JournalDocument(
-        version: document.version,
+        version: documentWithMetadata.version,
         blocks: blocks,
         meta: meta,
       );
@@ -264,7 +268,7 @@ class MaatJournalResponseBlockUtils {
     _writePlainUserTextSources(meta, sources);
 
     return JournalDocument(
-      version: document.version,
+      version: documentWithMetadata.version,
       blocks: blocks,
       meta: meta,
     );
@@ -334,6 +338,44 @@ class MaatJournalResponseBlockUtils {
   ) {
     return Map<String, String>.unmodifiable(_plainTextSourceMap(document.meta));
   }
+
+  static Map<String, dynamic> extractSourceMetadata(
+    JournalDocument document,
+    String sourceId,
+  ) {
+    final all = _sourceMetadataMap(document.meta);
+    final raw = all[sourceId.trim()];
+    return raw is Map
+        ? Map<String, dynamic>.unmodifiable(Map<String, dynamic>.from(raw))
+        : const <String, dynamic>{};
+  }
+}
+
+JournalDocument _upsertSourceMetadata(
+  JournalDocument document,
+  MaatJournalResponseBlock block,
+) {
+  final sourceId = block.sourceId.trim();
+  if (sourceId.isEmpty || block.sourceMetadata.isEmpty) return document;
+  final meta = Map<String, dynamic>.from(document.meta);
+  final sources = _sourceMetadataMap(meta);
+  sources[sourceId] = Map<String, dynamic>.from(block.sourceMetadata);
+  meta[kMaatJournalSourceMetadataKey] = sources;
+  return JournalDocument(
+    version: document.version,
+    blocks: List<JournalBlock>.from(document.blocks),
+    meta: meta,
+  );
+}
+
+Map<String, dynamic> _sourceMetadataMap(Map<String, dynamic> meta) {
+  final raw = meta[kMaatJournalSourceMetadataKey];
+  if (raw is! Map) return <String, dynamic>{};
+  return <String, dynamic>{
+    for (final entry in raw.entries)
+      if (entry.key.toString().trim().isNotEmpty)
+        entry.key.toString().trim(): entry.value,
+  };
 }
 
 Map<String, String> _plainTextSourceMap(Map<String, dynamic> meta) {

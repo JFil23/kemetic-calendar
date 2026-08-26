@@ -404,7 +404,7 @@ void main() {
 
       expect(movePath, contains('_showRepeatingEventScopeSheet'));
       expect(movePath, contains('_applyRepeatingNoteEditScope'));
-      expect(movePath, contains('if (scope == null) return;'));
+      expect(movePath, contains('if (scope == null) return false;'));
     });
   });
 }

@@ -75,6 +75,12 @@
 	<string>Allow HAw to read external calendar events for one-way import. HAw will not create, update, export, or delete Apple Calendar events.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Allow Kemetic Calendar to access your photo library to set your profile picture.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Allow Hꜣw to capture one photo with a Follow the Sky turning.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Allow Hꜣw to turn a spoken reflection into text. Audio is not stored.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Allow Hꜣw to hear reflection dictation. Audio is not stored.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

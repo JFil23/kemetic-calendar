@@ -608,6 +608,7 @@ class LandscapeMonthView extends StatelessWidget {
     int newStartMin,
   )?
   onMoveEventTime;
+  final DayViewMoveFollowSkyEventTime? onMoveFollowSkyEventTime;
   final Future<bool> Function({
     required int ky,
     required int km,
@@ -659,6 +660,7 @@ class LandscapeMonthView extends StatelessWidget {
     this.onEndReminder,
     this.onShareReminder,
     this.onMoveEventTime,
+    this.onMoveFollowSkyEventTime,
     this.onRequestEndChange,
     this.onShareNote,
     this.onAppendToJournal,
@@ -698,6 +700,7 @@ class LandscapeMonthView extends StatelessWidget {
       onEndReminder: onEndReminder,
       onShareReminder: onShareReminder,
       onMoveEventTime: onMoveEventTime,
+      onMoveFollowSkyEventTime: onMoveFollowSkyEventTime,
       onRequestEndChange: onRequestEndChange,
       onShareNote: onShareNote,
       onAppendToJournal: onAppendToJournal,
@@ -752,6 +755,7 @@ class LandscapeMonthPager extends StatefulWidget {
     int newStartMin,
   )?
   onMoveEventTime;
+  final DayViewMoveFollowSkyEventTime? onMoveFollowSkyEventTime;
   final Future<bool> Function({
     required int ky,
     required int km,
@@ -803,6 +807,7 @@ class LandscapeMonthPager extends StatefulWidget {
     this.onEndReminder,
     this.onShareReminder,
     this.onMoveEventTime,
+    this.onMoveFollowSkyEventTime,
     this.onRequestEndChange,
     this.onShareNote,
     this.onAppendToJournal,
@@ -1244,6 +1249,7 @@ class _LandscapeMonthPagerState extends State<LandscapeMonthPager> {
           onEndReminder: widget.onEndReminder,
           onShareReminder: widget.onShareReminder,
           onMoveEventTime: widget.onMoveEventTime,
+          onMoveFollowSkyEventTime: widget.onMoveFollowSkyEventTime,
           onRequestEndChange: widget.onRequestEndChange,
           onShareNote: widget.onShareNote,
           onAppendToJournal: widget.onAppendToJournal,
@@ -1297,6 +1303,7 @@ class LandscapeMonthGridBody extends StatefulWidget {
     int newStartMin,
   )?
   onMoveEventTime;
+  final DayViewMoveFollowSkyEventTime? onMoveFollowSkyEventTime;
   final Future<bool> Function({
     required int ky,
     required int km,
@@ -1343,6 +1350,7 @@ class LandscapeMonthGridBody extends StatefulWidget {
     this.onEndReminder,
     this.onShareReminder,
     this.onMoveEventTime,
+    this.onMoveFollowSkyEventTime,
     this.onRequestEndChange,
     this.onShareNote,
     this.onAppendToJournal,
@@ -2592,6 +2600,7 @@ class _LandscapeMonthGridBodyState extends State<LandscapeMonthGridBody> {
           resolveAdjacentEventTarget: _resolveAdjacentEventTarget,
           onTargetChanged: moveToTarget,
           onRequestEndChange: widget.onRequestEndChange,
+          onMoveFollowSkyEventTime: widget.onMoveFollowSkyEventTime,
           initialPresentation: _eventDetailPresentation,
           onPresentationChanged: (presentation) {
             _eventDetailPresentation = normalizeEventWorkspacePresentation(

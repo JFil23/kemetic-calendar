@@ -16944,6 +16944,7 @@ class CalendarPageState extends State<CalendarPage>
         await _editNoteByEvent(ky, km, kd, evt);
       },
       onMoveEventTime: _moveEventInDayView,
+      onMoveFollowSkyEventTime: _moveFollowSkyEventInDayView,
       onRequestEndChange: requestEndChange,
       onShareNote: (evt) async {
         await _shareNoteSimple(evt);
@@ -25166,6 +25167,40 @@ class CalendarPageState extends State<CalendarPage>
     EventItem evt,
     int proposedStartMin,
   ) async {
+    await _moveEventInDayViewWithResult(
+      ky,
+      km,
+      kd,
+      evt,
+      proposedStartMin,
+    );
+  }
+
+  Future<bool> _moveFollowSkyEventInDayView(
+    int ky,
+    int km,
+    int kd,
+    EventItem evt,
+    DateTime newStartLocal,
+  ) {
+    return _moveEventInDayViewWithResult(
+      ky,
+      km,
+      kd,
+      evt,
+      newStartLocal.hour * 60 + newStartLocal.minute,
+      targetLocalDate: newStartLocal,
+    );
+  }
+
+  Future<bool> _moveEventInDayViewWithResult(
+    int ky,
+    int km,
+    int kd,
+    EventItem evt,
+    int proposedStartMin, {
+    DateTime? targetLocalDate,
+  }) async {
     final rawId = evt.id?.trim();
     final rawClientId = evt.clientEventId?.trim();
     final moveKeyForLog = (rawId != null && rawId.isNotEmpty)
@@ -25191,20 +25226,20 @@ class CalendarPageState extends State<CalendarPage>
           '[DayView] move bail: all-day event "${evt.title}"',
         );
       }
-      return;
+      return false;
     }
     if (evt.isReminder) {
       if (kDebugMode) {
         _calendarDebugPrint('[DayView] move bail: reminder "${evt.title}"');
       }
-      return;
+      return false;
     }
     if (isImportedDeviceCalendarEvent(
       clientEventId: rawClientId,
       category: evt.category,
     )) {
       _showImportedDeviceEventReadOnlyMessage();
-      return;
+      return false;
     }
 
     if ((rawId == null || rawId.isEmpty) &&
@@ -25219,7 +25254,7 @@ class CalendarPageState extends State<CalendarPage>
           const SnackBar(content: Text('Save event before moving.')),
         );
       }
-      return;
+      return false;
     }
 
     final moveKey = (rawId != null && rawId.isNotEmpty) ? rawId : rawClientId!;
@@ -25227,11 +25262,29 @@ class CalendarPageState extends State<CalendarPage>
       if (kDebugMode) {
         _calendarDebugPrint('[DayView] move already in progress for $moveKey');
       }
-      return;
+      return false;
     }
     _eventMoveInProgress.add(moveKey);
 
-    final key = _kKey(ky, km, kd);
+    final sourceKey = _kKey(ky, km, kd);
+    final sourceGregorian = KemeticMath.toGregorian(ky, km, kd);
+    final targetGregorian = targetLocalDate == null
+        ? DateTime(
+            sourceGregorian.year,
+            sourceGregorian.month,
+            sourceGregorian.day,
+          )
+        : DateTime(
+            targetLocalDate.year,
+            targetLocalDate.month,
+            targetLocalDate.day,
+          );
+    final targetKemetic = KemeticMath.fromGregorian(targetGregorian);
+    final targetKey = _kKey(
+      targetKemetic.kYear,
+      targetKemetic.kMonth,
+      targetKemetic.kDay,
+    );
     _Note? previousNote;
     _Note? publishedNote;
     final bool isReminderOccurrence =
@@ -25258,7 +25311,7 @@ class CalendarPageState extends State<CalendarPage>
 
     void logBucket(String label) {
       if (!kDebugMode) return;
-      final bucket = _notes[key] ?? const [];
+      final bucket = _notes[targetKey] ?? const [];
       final summary = bucket
           .map(
             (n) =>
@@ -25266,7 +25319,7 @@ class CalendarPageState extends State<CalendarPage>
           )
           .join(' | ');
       _calendarDebugPrint(
-        '[DayView] $label key=$key count=${bucket.length} notes=[$summary]',
+        '[DayView] $label key=$targetKey count=${bucket.length} notes=[$summary]',
       );
     }
 
@@ -25281,25 +25334,26 @@ class CalendarPageState extends State<CalendarPage>
         clampedStart = (clampedEnd - durationMin).clamp(0, 1439).toInt();
       }
 
-      if (clampedStart == evt.startMin && clampedEnd == evt.endMin) {
+      if (targetKey == sourceKey &&
+          clampedStart == evt.startMin &&
+          clampedEnd == evt.endMin) {
         if (kDebugMode) {
           _calendarDebugPrint('[DayView] move no-op for $moveKey');
         }
-        return;
+        return true;
       }
 
-      final gregorian = KemeticMath.toGregorian(ky, km, kd);
       final startLocal = DateTime(
-        gregorian.year,
-        gregorian.month,
-        gregorian.day,
+        targetGregorian.year,
+        targetGregorian.month,
+        targetGregorian.day,
         clampedStart ~/ 60,
         clampedStart % 60,
       );
       final endLocal = DateTime(
-        gregorian.year,
-        gregorian.month,
-        gregorian.day,
+        targetGregorian.year,
+        targetGregorian.month,
+        targetGregorian.day,
         clampedEnd ~/ 60,
         clampedEnd % 60,
       );
@@ -25310,7 +25364,7 @@ class CalendarPageState extends State<CalendarPage>
           context: context,
           isDelete: false,
         );
-        if (scope == null) return;
+        if (scope == null) return false;
         final idx = _findNoteIndexByEvent(ky, km, kd, evt);
         final originalNote = idx == null
             ? _Note(
@@ -25334,15 +25388,15 @@ class CalendarPageState extends State<CalendarPage>
                   evt.detail,
                 ).alertMinutes,
               )
-            : _notes[key]![idx];
+            : _notes[sourceKey]![idx];
         await _applyRepeatingNoteEditScope(
           originalNote: originalNote,
           sourceKYear: ky,
           sourceKMonth: km,
           sourceKDay: kd,
-          selYear: ky,
-          selMonth: km,
-          selDay: kd,
+          selYear: targetKemetic.kYear,
+          selMonth: targetKemetic.kMonth,
+          selDay: targetKemetic.kDay,
           title: evt.title,
           detail: evt.detail,
           location: evt.location,
@@ -25360,7 +25414,7 @@ class CalendarPageState extends State<CalendarPage>
               originalNote.alertOffsetMinutes ?? _alertNoneMinutes,
           scope: scope,
         );
-        return;
+        return true;
       }
 
       final repo = UserEventsRepo(Supabase.instance.client);
@@ -25423,12 +25477,12 @@ class CalendarPageState extends State<CalendarPage>
 
       _Note reminderNote;
       final localIdx = _findNoteIndexByIdOrClientId(
-        key,
+        sourceKey,
         eventId: updated.id,
         clientEventId: updated.clientEventId,
       );
       if (localIdx != -1) {
-        final existing = _notes[key]![localIdx];
+        final existing = _notes[sourceKey]![localIdx];
         previousNote = existing;
         if (kDebugMode) {
           _calendarDebugPrint(
@@ -25487,10 +25541,15 @@ class CalendarPageState extends State<CalendarPage>
 
       _publishCalendarNoteMutation(
         upserts: <CalendarPendingVisibleItem<_Note>>[
-          CalendarPendingVisibleItem<_Note>(dayKey: key, item: reminderNote),
+          CalendarPendingVisibleItem<_Note>(
+            dayKey: targetKey,
+            item: reminderNote,
+          ),
         ],
         sourceConflictRule: (sourceDayKey, source, pendingDayKey, pending) {
-          if (sourceDayKey != pendingDayKey) return false;
+          if (sourceDayKey != sourceKey && sourceDayKey != pendingDayKey) {
+            return false;
+          }
           if (_calendarNoteMatchesIdentityAliases(
             source,
             eventIds: <String?>[pending.id, rawId],
@@ -25499,7 +25558,8 @@ class CalendarPageState extends State<CalendarPage>
             return true;
           }
           if (previousNote != null) return identical(source, previousNote);
-          return source.title.trim().toLowerCase() ==
+          return sourceDayKey == sourceKey &&
+              source.title.trim().toLowerCase() ==
                   pending.title.trim().toLowerCase() &&
               source.start != null &&
               pending.start != null &&
@@ -25554,9 +25614,9 @@ class CalendarPageState extends State<CalendarPage>
                       reminderNote.flowId != null && reminderNote.flowId! > 0
                       ? calendarPushItemTypeFlowEvent
                       : calendarPushItemTypeNote,
-                  kYear: ky,
-                  kMonth: km,
-                  kDay: kd,
+                  kYear: targetKemetic.kYear,
+                  kMonth: targetKemetic.kMonth,
+                  kDay: targetKemetic.kDay,
                   eventId: updated.id,
                   clientEventId: updated.clientEventId,
                   reminderId: reminderNote.reminderId,
@@ -25570,16 +25630,20 @@ class CalendarPageState extends State<CalendarPage>
       }
 
       _notifyDayViewDataChanged();
+      return true;
     } catch (e, st) {
       final rollbackNote = previousNote;
       final failedNote = publishedNote;
       if (rollbackNote != null && failedNote != null) {
         _publishCalendarNoteMutation(
           upserts: <CalendarPendingVisibleItem<_Note>>[
-            CalendarPendingVisibleItem<_Note>(dayKey: key, item: rollbackNote),
+            CalendarPendingVisibleItem<_Note>(
+              dayKey: sourceKey,
+              item: rollbackNote,
+            ),
           ],
           sourceConflictRule: (sourceDayKey, source, pendingDayKey, _) =>
-              sourceDayKey == pendingDayKey &&
+              (sourceDayKey == targetKey || sourceDayKey == pendingDayKey) &&
               _calendarNoteMatchesIdentityAliases(
                 source,
                 eventIds: <String?>[failedNote.id],
@@ -25596,6 +25660,7 @@ class CalendarPageState extends State<CalendarPage>
           context,
         ).showSnackBar(const SnackBar(content: Text("Couldn't move event.")));
       }
+      return false;
     } finally {
       _eventMoveInProgress.remove(moveKey);
     }
@@ -28763,6 +28828,7 @@ class CalendarPageState extends State<CalendarPage>
             await _editNoteByEvent(ky, km, kd, evt);
           },
           onMoveEventTime: _moveEventInDayView,
+          onMoveFollowSkyEventTime: _moveFollowSkyEventInDayView,
           onRequestEndChange: requestEndChange,
           onShareNote: (evt) async {
             await _shareNoteSimple(evt);

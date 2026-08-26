@@ -26,6 +26,8 @@ import 'calendar_event_visual_style.dart';
 import 'calendar_reflection_context.dart';
 import 'day_view_chrome.dart';
 import 'follow_the_sky/presentation/widgets/track_sky_event_block_visual.dart';
+import 'follow_the_sky/presentation/widgets/follow_sky_observation_panel.dart';
+import 'follow_the_sky/services/track_sky_materializer.dart';
 import 'landscape_month_view.dart';
 import 'maat_flow_identity.dart';
 import 'maat_flow_interactive_primitives.dart';
@@ -153,6 +155,22 @@ typedef DayViewRestorationCallback =
       double? scrollOffset,
       EventDetailRestorationState? eventDetail,
     });
+typedef DayViewMoveEventTime =
+    Future<void> Function(
+      int ky,
+      int km,
+      int kd,
+      EventItem event,
+      int newStartMinute,
+    );
+typedef DayViewMoveFollowSkyEventTime =
+    Future<bool> Function(
+      int ky,
+      int km,
+      int kd,
+      EventItem event,
+      DateTime newStartLocal,
+    );
 
 const TextStyle _goldHeaderStyle = TextStyle(
   fontSize: 17,
@@ -2184,6 +2202,8 @@ class CalendarEventDetailSheet extends StatefulWidget {
     this.onOnboardingObservedJournalNext,
     this.onboardingClosingBannerBuilder,
     this.onRequestEndChange,
+    this.onMoveEventTime,
+    this.onMoveFollowSkyEventTime,
     this.onPresentationChanged,
     this.initialPresentation = eventWorkspacePresentationDetail,
   });
@@ -2246,6 +2266,8 @@ class CalendarEventDetailSheet extends StatefulWidget {
     required Duration extension,
   })?
   onRequestEndChange;
+  final DayViewMoveEventTime? onMoveEventTime;
+  final DayViewMoveFollowSkyEventTime? onMoveFollowSkyEventTime;
   final ValueChanged<String>? onPresentationChanged;
   final String initialPresentation;
 
@@ -3212,6 +3234,55 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     await _removeCompletionContinuity(target, sourceType: sourceType);
   }
 
+  Future<void> _commitFollowSkyCompletion({
+    required DayViewSheetEventTarget target,
+    required _MaatFlowCompletionContext completion,
+    required CompletionStatus status,
+  }) async {
+    final clientEventId = target.event.clientEventId?.trim();
+    final flowId = target.event.flowId;
+    if (clientEventId == null || clientEventId.isEmpty || flowId == null) {
+      return;
+    }
+    if (status == CompletionStatus.none) {
+      await _clearCalendarCompletion(
+        target,
+        sourceType: CompletionSourceType.maatFlow,
+      );
+      return;
+    }
+
+    final completedOnDate = DateUtils.dateOnly(
+      KemeticMath.toGregorian(target.ky, target.km, target.kd),
+    );
+    final metadata = completion.metadataFor(
+      status: status.maatStatusName,
+      completedOnDate: completedOnDate,
+    );
+    final callback = widget.onRecordCompletion;
+    if (callback != null) {
+      await callback(
+        clientEventId: clientEventId,
+        flowId: flowId,
+        completedOnDate: completedOnDate,
+        metadata: metadata,
+      );
+    } else {
+      await UserEventsRepo(Supabase.instance.client).recordEventCompletion(
+        clientEventId: clientEventId,
+        flowId: flowId,
+        completedOnDate: completedOnDate,
+        metadata: metadata,
+      );
+    }
+    await _appendCompletionContinuity(
+      target,
+      status,
+      sourceType: CompletionSourceType.maatFlow,
+      triggerHaptic: false,
+    );
+  }
+
   Widget _buildAddReflectionButton({
     required BuildContext routeContext,
     required BuildContext sheetContext,
@@ -3237,6 +3308,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     required DayViewSheetEventTarget target,
     bool scrollable = true,
     bool includeOnboardingKeys = true,
+    bool enableFollowSkyEngagement = true,
     Object? completionReloadSignal,
   }) {
     final currentEvent = target.event;
@@ -3332,6 +3404,20 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final sharedPracticeRoomId = sharedPracticeRoomIdFromBehaviorPayload(
       currentEvent.behaviorPayload,
     );
+    final followSkyClientEventId = currentEvent.clientEventId?.trim();
+    final followSkyEventId = TrackSkyEventOwnership.skyEventIdFromPayload(
+      currentEvent.behaviorPayload,
+    );
+    final hasFollowSkyObservationPanel =
+        enableFollowSkyEngagement &&
+        isTrackSky &&
+        _detailSheetTargetKey(target) ==
+            _detailSheetTargetKey(_currentTarget) &&
+        completionContext != null &&
+        followSkyClientEventId != null &&
+        followSkyClientEventId.isNotEmpty &&
+        followSkyEventId != null &&
+        followSkyEventId.isNotEmpty;
 
     Widget buildMaatCompletionPanel() {
       return Builder(
@@ -3574,7 +3660,47 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             flowTitle: flow?.name ?? currentEvent.title,
           ),
         ],
-        if (hasMaatCompletionPanel && responseSpecs.isNotEmpty) ...[
+        if (hasFollowSkyObservationPanel) ...[
+          const SizedBox(height: 12),
+          FollowSkyObservationPanel(
+            key: ValueKey<String>(
+              'follow-sky-observation:$followSkyClientEventId',
+            ),
+            clientEventId: followSkyClientEventId,
+            completionIdentity: _completionIdentityForEvent(currentEvent),
+            skyEventId: followSkyEventId,
+            title: currentEvent.title,
+            localDate: DateUtils.dateOnly(
+              KemeticMath.toGregorian(target.ky, target.km, target.kd),
+            ),
+            startMinute: currentEvent.startMin,
+            endMinute: currentEvent.endMin,
+            intentionSnapshot: TrackSkyEventOwnership.intentionFromPayload(
+              currentEvent.behaviorPayload,
+            ),
+            onWriteJournalResponse: widget.onWriteJournalResponse,
+            completionPickerStyle: completionPickerStyle,
+            onCommitStartTime: (startLocal) async {
+              final move = widget.onMoveFollowSkyEventTime;
+              if (move == null) return false;
+              return move(
+                target.ky,
+                target.km,
+                target.kd,
+                currentEvent,
+                startLocal,
+              );
+            },
+            onCommitCompletion: (status) => _commitFollowSkyCompletion(
+              target: target,
+              completion: completionContext,
+              status: status,
+            ),
+          ),
+        ],
+        if (!hasFollowSkyObservationPanel &&
+            hasMaatCompletionPanel &&
+            responseSpecs.isNotEmpty) ...[
           const SizedBox(height: 10),
           buildMaatCompletionPanel(),
         ],
@@ -3648,10 +3774,13 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             kYear: target.ky,
           ),
         ],
-        if (hasMaatCompletionPanel && responseSpecs.isEmpty) ...[
+        if (!hasFollowSkyObservationPanel &&
+            hasMaatCompletionPanel &&
+            responseSpecs.isEmpty) ...[
           const SizedBox(height: 10),
           buildMaatCompletionPanel(),
-        ] else if (!hasMaatCompletionPanel) ...[
+        ] else if (!hasFollowSkyObservationPanel &&
+            !hasMaatCompletionPanel) ...[
           const SizedBox(height: 10),
           buildCalendarCompletionPanel(),
         ],
@@ -4153,7 +4282,14 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         ? 250.0
         : 120.0;
     final maxPageHeight = math.max(0.0, maxSheetHeight - reservedChromeHeight);
-    final sheetHeight = _isWorkspacePresentation
+    final activeFlow = _chromeFlowForId(target.event.flowId);
+    final activeFollowSkyInstrument =
+        _isTrackSkyFlowName(activeFlow?.name) &&
+        TrackSkyEventOwnership.skyEventIdFromPayload(
+              target.event.behaviorPayload,
+            ) !=
+            null;
+    final sheetHeight = _isWorkspacePresentation || activeFollowSkyInstrument
         ? maxPageHeight
         : (_measuredHeights[currentKey] ?? 200.0)
               .clamp(0.0, maxPageHeight)
@@ -4184,6 +4320,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                       target: pageTarget,
                       scrollable: false,
                       includeOnboardingKeys: false,
+                      enableFollowSkyEngagement: false,
                       completionReloadSignal: completionReloadSignal,
                     ),
                   ),
@@ -4889,14 +5026,8 @@ class DayViewPage extends StatefulWidget {
   onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem event)?
   onEditNote;
-  final Future<void> Function(
-    int ky,
-    int km,
-    int kd,
-    EventItem evt,
-    int newStartMin,
-  )?
-  onMoveEventTime;
+  final DayViewMoveEventTime? onMoveEventTime;
+  final DayViewMoveFollowSkyEventTime? onMoveFollowSkyEventTime;
   final Future<bool> Function({
     required int ky,
     required int km,
@@ -4995,6 +5126,7 @@ class DayViewPage extends StatefulWidget {
     this.onDeleteNote,
     this.onEditNote,
     this.onMoveEventTime,
+    this.onMoveFollowSkyEventTime,
     this.onRequestEndChange,
     this.onShareNote,
     this.onEditReminder,
@@ -5774,6 +5906,8 @@ class _DayViewPageState extends State<DayViewPage> {
                       onDeleteNote: widget.onDeleteNote,
                       onEditNote: widget.onEditNote,
                       onMoveEventTime: widget.onMoveEventTime,
+                      onMoveFollowSkyEventTime:
+                          widget.onMoveFollowSkyEventTime,
                       onRequestEndChange: widget.onRequestEndChange,
                       onMonthChanged: (ky, km) {
                         // ✅ HANDLE MONTH CHANGE IN DAY VIEW
@@ -5962,6 +6096,8 @@ class _DayViewPageState extends State<DayViewPage> {
                               onDeleteNote: widget.onDeleteNote,
                               onEditNote: widget.onEditNote,
                               onMoveEventTime: widget.onMoveEventTime,
+                              onMoveFollowSkyEventTime:
+                                  widget.onMoveFollowSkyEventTime,
                               onRequestEndChange: widget.onRequestEndChange,
                               onShareNote: widget.onShareNote,
                               onEditReminder: widget.onEditReminder,
@@ -6059,14 +6195,8 @@ class DayViewGrid extends StatefulWidget {
   onDeleteNote;
   final Future<void> Function(int ky, int km, int kd, EventItem event)?
   onEditNote;
-  final Future<void> Function(
-    int ky,
-    int km,
-    int kd,
-    EventItem evt,
-    int newStartMin,
-  )?
-  onMoveEventTime;
+  final DayViewMoveEventTime? onMoveEventTime;
+  final DayViewMoveFollowSkyEventTime? onMoveFollowSkyEventTime;
   final Future<bool> Function({
     required int ky,
     required int km,
@@ -6160,6 +6290,7 @@ class DayViewGrid extends StatefulWidget {
     this.onDeleteNote,
     this.onEditNote,
     this.onMoveEventTime,
+    this.onMoveFollowSkyEventTime,
     this.onRequestEndChange,
     this.onShareNote,
     this.onEditReminder,
@@ -8500,6 +8631,8 @@ class _DayViewGridState extends State<DayViewGrid> {
           onTargetChanged: _publishEventDetailRestorationTarget,
           onPresentationChanged: _handleEventDetailPresentationChanged,
           onRequestEndChange: widget.onRequestEndChange,
+          onMoveEventTime: widget.onMoveEventTime,
+          onMoveFollowSkyEventTime: widget.onMoveFollowSkyEventTime,
           initialPresentation: _eventDetailPresentation,
           onEndFlowOptimisticDismiss: _handleEndFlowOptimisticDismiss,
           onNavigateToDay: widget.onNavigateToDay,
