@@ -88,11 +88,12 @@ class KeyboardViewportMetrics {
     final viewportBottom = (webViewport.offsetTop + visualHeight)
         .clamp(viewportTop, mediaHeight)
         .toDouble();
+    final bottomOcclusion = math.max(0.0, mediaHeight - viewportBottom);
 
     return KeyboardViewportMetrics(
       visibleTop: viewportTop,
       visibleBottom: viewportBottom,
-      layoutViewInsetBottom: 0,
+      layoutViewInsetBottom: bottomOcclusion,
       systemKeyboardVisible: true,
     );
   }

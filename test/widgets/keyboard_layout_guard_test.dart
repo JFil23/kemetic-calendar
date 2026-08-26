@@ -276,15 +276,29 @@ void main() {
       expect(source, contains('position.jumpTo(targetPixels)'));
     });
 
-    test('Follow Sky scroll shell has no keyboard ownership', () {
-      final source = File(
+    test('Follow Sky embedded root owns one inset and shell owns none', () {
+      final detailSource = File(
+        'lib/features/calendar/follow_the_sky/presentation/'
+        'follow_sky_detail_page.dart',
+      ).readAsStringSync();
+      final shellSource = File(
         'lib/features/calendar/follow_the_sky/presentation/widgets/'
         'follow_sky_scroll_shell.dart',
       ).readAsStringSync();
 
-      expect(source, isNot(contains('keyboardInsetOf')));
-      expect(source, isNot(contains('_restingHeroHeight')));
-      expect(source, isNot(contains('viewInsets')));
+      expect(
+        detailSource,
+        contains(
+          'final keyboardInset = MediaQuery.viewInsetsOf(context).bottom',
+        ),
+      );
+      expect(
+        detailSource,
+        contains('padding: EdgeInsets.only(bottom: keyboardInset)'),
+      );
+      expect(shellSource, isNot(contains('keyboardInsetOf')));
+      expect(shellSource, isNot(contains('_restingHeroHeight')));
+      expect(shellSource, isNot(contains('viewInsets')));
     });
   });
 }

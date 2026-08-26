@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,24 +12,24 @@ void main() {
       final metrics = KeyboardViewportMetrics.resolve(
         media: const MediaQueryData(
           size: Size(390, 844),
-          viewInsets: EdgeInsets.only(bottom: 320),
+          viewInsets: EdgeInsets.only(bottom: 344),
         ),
       );
 
       expect(metrics.visibleTop, 0);
-      expect(metrics.visibleBottom, 524);
-      expect(metrics.layoutViewInsetBottom, 320);
+      expect(metrics.visibleBottom, 500);
+      expect(metrics.layoutViewInsetBottom, 344);
       expect(metrics.systemKeyboardVisible, isTrue);
     });
 
     test('uses visual coordinates when Flutter already shrank on web', () {
       final metrics = KeyboardViewportMetrics.resolve(
-        media: const MediaQueryData(size: Size(390, 524)),
-        webViewport: const (height: 524, layoutHeight: 844, offsetTop: 0),
+        media: const MediaQueryData(size: Size(390, 500)),
+        webViewport: const (height: 500, layoutHeight: 844, offsetTop: 0),
       );
 
       expect(metrics.visibleTop, 0);
-      expect(metrics.visibleBottom, 524);
+      expect(metrics.visibleBottom, 500);
       expect(metrics.layoutViewInsetBottom, 0);
       expect(metrics.systemKeyboardVisible, isTrue);
     });
@@ -60,12 +61,24 @@ void main() {
     test('uses layout coordinates while Flutter remains layout-sized', () {
       final metrics = KeyboardViewportMetrics.resolve(
         media: const MediaQueryData(size: Size(390, 844)),
-        webViewport: const (height: 524, layoutHeight: 844, offsetTop: 120),
+        webViewport: const (height: 500, layoutHeight: 844, offsetTop: 0),
       );
 
-      expect(metrics.visibleTop, 120);
-      expect(metrics.visibleBottom, 644);
-      expect(metrics.layoutViewInsetBottom, 0);
+      expect(metrics.visibleTop, 0);
+      expect(metrics.visibleBottom, 500);
+      expect(metrics.layoutViewInsetBottom, 344);
+      expect(metrics.systemKeyboardVisible, isTrue);
+    });
+
+    test('subtracts browser pan from layout-sized bottom occlusion', () {
+      final metrics = KeyboardViewportMetrics.resolve(
+        media: const MediaQueryData(size: Size(390, 844)),
+        webViewport: const (height: 500, layoutHeight: 844, offsetTop: 100),
+      );
+
+      expect(metrics.visibleTop, 100);
+      expect(metrics.visibleBottom, 600);
+      expect(metrics.layoutViewInsetBottom, 244);
       expect(metrics.systemKeyboardVisible, isTrue);
     });
 
@@ -312,26 +325,93 @@ void main() {
         tester.view.devicePixelRatio = 1;
         tester.view.physicalSize = const Size(390, 844);
         addTearDown(tester.view.reset);
+        final webViewport = ValueNotifier<WebKeyboardViewportSnapshot?>(null);
+        addTearDown(webViewport.dispose);
 
-        await tester.pumpWidget(const _QuickAddSheetHarness());
+        await tester.pumpWidget(
+          _QuickAddSheetHarness(webViewport: webViewport),
+        );
         await tester.tap(find.byKey(const ValueKey('open-quick-add-sheet')));
         await tester.pumpAndSettle();
-        await tester.tap(find.byKey(const ValueKey('quick-add-input')));
-        await tester.pump();
 
-        tester.view.viewInsets = const FakeViewPadding(bottom: 320);
-        await tester.pump();
-        await tester.pumpAndSettle();
+        final field = find.byKey(const ValueKey('quick-add-input'));
+        final scrollable = find
+            .descendant(
+              of: find.byKey(const ValueKey('quick-add-scroll')),
+              matching: find.byType(Scrollable),
+            )
+            .first;
+        final scrollState = tester.state<ScrollableState>(scrollable);
 
-        final fieldRect = tester.getRect(
-          find.byKey(const ValueKey('quick-add-input')),
-        );
-        final field = tester.widget<TextField>(
-          find.byKey(const ValueKey('quick-add-input')),
-        );
-        expect(fieldRect.top, greaterThanOrEqualTo(0));
-        expect(fieldRect.bottom, lessThanOrEqualTo(524));
-        expect(field.scrollPadding, keyboardManagedTextFieldScrollPadding);
+        void expectVisibleGeometry(String phase) {
+          final fieldRect = tester.getRect(field);
+          final textField = tester.widget<TextField>(field);
+          final editable = tester.state<EditableTextState>(
+            find.descendant(of: field, matching: find.byType(EditableText)),
+          );
+          final caretRect = editable.renderEditable.getLocalRectForCaret(
+            editable.textEditingValue.selection.extent,
+          );
+          final caretBottom = editable.renderEditable
+              .localToGlobal(caretRect.bottomLeft)
+              .dy;
+
+          expect(fieldRect.top, greaterThanOrEqualTo(0), reason: phase);
+          expect(fieldRect.bottom, lessThanOrEqualTo(500), reason: phase);
+          expect(caretBottom, lessThanOrEqualTo(500), reason: phase);
+          expect(
+            textField.scrollPadding,
+            keyboardManagedTextFieldScrollPadding,
+            reason: phase,
+          );
+        }
+
+        Future<void> openKeyboard() async {
+          await tester.tap(field);
+          await tester.pump();
+          webViewport.value = const (
+            height: 500,
+            layoutHeight: 844,
+            offsetTop: 0,
+          );
+          await tester.pumpAndSettle();
+        }
+
+        Future<void> closeKeyboard() async {
+          webViewport.value = null;
+          FocusManager.instance.primaryFocus?.unfocus();
+          await tester.pumpAndSettle();
+        }
+
+        await openKeyboard();
+        expectVisibleGeometry('quick add focused');
+
+        await tester.enterText(field, 'Fri 3pm coffee with Amara');
+        await tester.pump();
+        expectVisibleGeometry('quick add typing');
+
+        final controller = tester.widget<TextField>(field).controller!;
+        controller.selection = const TextSelection.collapsed(offset: 4);
+        await tester.pump();
+        expectVisibleGeometry('quick add cursor moved');
+
+        final openedOffsets = <double>[scrollState.position.pixels];
+        final dismissedOffsets = <double>[];
+        for (var cycle = 0; cycle < 3; cycle++) {
+          await closeKeyboard();
+          dismissedOffsets.add(scrollState.position.pixels);
+
+          await openKeyboard();
+          expectVisibleGeometry('quick add cycle $cycle');
+          openedOffsets.add(scrollState.position.pixels);
+        }
+
+        for (final offset in openedOffsets.skip(1)) {
+          expect(offset, closeTo(openedOffsets.last, 0.5));
+        }
+        for (final offset in dismissedOffsets.skip(1)) {
+          expect(offset, closeTo(dismissedOffsets.last, 0.5));
+        }
         expect(tester.takeException(), isNull);
       },
     );
@@ -1004,13 +1084,30 @@ class _SystemKeyboardInsetHarness extends StatelessWidget {
 }
 
 class _QuickAddSheetHarness extends StatelessWidget {
-  const _QuickAddSheetHarness();
+  const _QuickAddSheetHarness({this.webViewport});
+
+  final ValueListenable<WebKeyboardViewportSnapshot?>? webViewport;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      builder: (context, child) =>
-          KemeticKeyboardHost(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) {
+        final viewportListenable = webViewport;
+        if (viewportListenable == null) {
+          return KemeticKeyboardHost(child: child ?? const SizedBox.shrink());
+        }
+        return ValueListenableBuilder<WebKeyboardViewportSnapshot?>(
+          valueListenable: viewportListenable,
+          child: child ?? const SizedBox.shrink(),
+          builder: (context, viewport, child) => KemeticKeyboardHost(
+            viewportMetricsResolver: (media) => KeyboardViewportMetrics.resolve(
+              media: media,
+              webViewport: viewport,
+            ),
+            child: child!,
+          ),
+        );
+      },
       home: Builder(
         builder: (modalContext) => Scaffold(
           body: Center(
@@ -1067,6 +1164,7 @@ class _QuickAddSheetHarnessContentState
       child: SafeArea(
         top: false,
         child: SingleChildScrollView(
+          key: const ValueKey('quick-add-scroll'),
           controller: _scrollCtrl,
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
           child: Column(

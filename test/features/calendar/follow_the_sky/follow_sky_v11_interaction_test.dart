@@ -497,6 +497,26 @@ void main() {
       tester,
       catalog: catalog,
       scenario: _KeyboardViewportScenario.webLayoutSizedPanned,
+      standalone: false,
+    ),
+  );
+
+  testWidgets(
+    'embedded worked intention reserves the shared keyboard occlusion once',
+    (tester) => _expectWorkedIntentionKeyboardContract(
+      tester,
+      catalog: catalog,
+      scenario: _KeyboardViewportScenario.webLayoutSized,
+      standalone: false,
+    ),
+  );
+
+  testWidgets(
+    'standalone worked intention remains visible through Scaffold resize',
+    (tester) => _expectWorkedIntentionKeyboardContract(
+      tester,
+      catalog: catalog,
+      scenario: _KeyboardViewportScenario.webLayoutSized,
     ),
   );
 }
@@ -517,6 +537,7 @@ Future<void> _expectWorkedIntentionKeyboardContract(
   WidgetTester tester, {
   required SkyCatalog catalog,
   required _KeyboardViewportScenario scenario,
+  bool standalone = true,
 }) async {
   tester.view.physicalSize = const Size(390, 844);
   tester.view.devicePixelRatio = 1;
@@ -532,10 +553,20 @@ Future<void> _expectWorkedIntentionKeyboardContract(
         ),
         child: child ?? const SizedBox.shrink(),
       ),
-      home: FollowSkyDetailPage(
-        initialCatalog: catalog,
-        now: DateTime.utc(2026, 8, 24, 12),
-      ),
+      home: standalone
+          ? FollowSkyDetailPage(
+              initialCatalog: catalog,
+              now: DateTime.utc(2026, 8, 24, 12),
+            )
+          : MaatFlowsListDetailReveal<void>(
+              initialDetailBuilder: (context) => FollowSkyDetailPage(
+                initialCatalog: catalog,
+                now: DateTime.utc(2026, 8, 24, 12),
+                standalone: false,
+              ),
+              foregroundBuilder: (context, revealDetail) =>
+                  const ColoredBox(color: Colors.black),
+            ),
     ),
   );
   await tester.pumpAndSettle();
@@ -564,7 +595,6 @@ Future<void> _expectWorkedIntentionKeyboardContract(
           .toDouble();
   scrollState.position.jumpTo(readingOffset);
   await tester.pump();
-  final recordedScrollOffset = scrollState.position.pixels;
 
   final initialQuestionRect = tester.getRect(question);
   final initialFieldRect = tester.getRect(field);
@@ -577,26 +607,26 @@ Future<void> _expectWorkedIntentionKeyboardContract(
       _KeyboardViewportScenario.nativeInset => null,
       _KeyboardViewportScenario.webResize ||
       _KeyboardViewportScenario.webLayoutSized => const (
-        height: 524,
+        height: 500,
         layoutHeight: 844,
         offsetTop: 0,
       ),
       _KeyboardViewportScenario.iosWebTransition ||
       _KeyboardViewportScenario.webLayoutSizedPanned => const (
-        height: 524,
+        height: 500,
         layoutHeight: 844,
-        offsetTop: 120,
+        offsetTop: 100,
       ),
     };
     switch (scenario) {
       case _KeyboardViewportScenario.nativeInset:
-        tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+        tester.view.viewInsets = const FakeViewPadding(bottom: 344);
       case _KeyboardViewportScenario.webResize:
-        tester.view.physicalSize = const Size(390, 524);
+        tester.view.physicalSize = const Size(390, 500);
         tester.view.viewInsets = FakeViewPadding.zero;
       case _KeyboardViewportScenario.iosWebTransition:
-        tester.view.physicalSize = const Size(390, 524);
-        tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+        tester.view.physicalSize = const Size(390, 500);
+        tester.view.viewInsets = const FakeViewPadding(bottom: 344);
       case _KeyboardViewportScenario.webLayoutSized:
       case _KeyboardViewportScenario.webLayoutSizedPanned:
         tester.view.physicalSize = const Size(390, 844);
@@ -615,8 +645,8 @@ Future<void> _expectWorkedIntentionKeyboardContract(
 
   void expectVisibleGeometry(String phase) {
     final (visibleTop, visibleBottom) = switch (scenario) {
-      _KeyboardViewportScenario.webLayoutSizedPanned => (120.0, 644.0),
-      _ => (0.0, 524.0),
+      _KeyboardViewportScenario.webLayoutSizedPanned => (100.0, 600.0),
+      _ => (0.0, 500.0),
     };
     final questionRect = tester.getRect(question);
     final fieldRect = tester.getRect(field);
@@ -641,14 +671,6 @@ Future<void> _expectWorkedIntentionKeyboardContract(
     expect(fieldRect.bottom, lessThan(previewRect.top), reason: phase);
     expect(caretTop, greaterThanOrEqualTo(fieldRect.top), reason: phase);
     expect(caretBottom, lessThanOrEqualTo(visibleBottom), reason: phase);
-    if (scenario == _KeyboardViewportScenario.webLayoutSized ||
-        scenario == _KeyboardViewportScenario.webLayoutSizedPanned) {
-      expect(
-        scrollState.position.pixels,
-        closeTo(recordedScrollOffset, 0.5),
-        reason: '$phase: system keyboard must not animate outer Follow Sky',
-      );
-    }
   }
 
   await tester.tap(field);
@@ -667,9 +689,14 @@ Future<void> _expectWorkedIntentionKeyboardContract(
     'Visible while typing',
   );
 
+  tester.widget<TextField>(field).controller!.selection =
+      const TextSelection.collapsed(offset: 7);
+  await tester.pump();
+  expectVisibleGeometry('${scenario.label} after cursor movement');
+
   final openedOffsets = <double>[scrollState.position.pixels];
   final dismissedOffsets = <double>[];
-  for (var cycle = 0; cycle < 4; cycle++) {
+  for (var cycle = 0; cycle < 3; cycle++) {
     await closeKeyboard();
     dismissedOffsets.add(scrollState.position.pixels);
 

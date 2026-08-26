@@ -316,23 +316,27 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
         : _buildV11Body();
 
     if (!widget.standalone) {
-      return Material(
-        color: FollowSkyV11Tokens.pageBg,
-        child: Stack(
-          children: [
-            body,
-            Positioned(
-              top: MediaQuery.paddingOf(context).top + 4,
-              left: 4,
-              child: IconButton(
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: FollowSkyV11Tokens.gold,
+      final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+      return Padding(
+        padding: EdgeInsets.only(bottom: keyboardInset),
+        child: Material(
+          color: FollowSkyV11Tokens.pageBg,
+          child: Stack(
+            children: [
+              body,
+              Positioned(
+                top: MediaQuery.paddingOf(context).top + 4,
+                left: 4,
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.arrow_back,
+                    color: FollowSkyV11Tokens.gold,
+                  ),
+                  onPressed: () => Navigator.of(context).maybePop(),
                 ),
-                onPressed: () => Navigator.of(context).maybePop(),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       );
     }
