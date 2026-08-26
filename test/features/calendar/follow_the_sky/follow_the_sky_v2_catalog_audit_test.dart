@@ -70,6 +70,140 @@ void main() {
     expect(provisional, 1); // quadrantids-2028
   });
 
+  test('locked seasonal anchors present with correct functions', () {
+    const expected = <(String id, String ymd, SkyEventFunction fn)>[
+      ('autumn-equinox-2026', '2026-09-23', SkyEventFunction.measure),
+      ('winter-solstice-2026', '2026-12-21', SkyEventFunction.turn),
+      ('spring-equinox-2027', '2027-03-20', SkyEventFunction.measure),
+      ('summer-solstice-2027', '2027-06-21', SkyEventFunction.turn),
+      ('autumn-equinox-2027', '2027-09-23', SkyEventFunction.measure),
+      ('winter-solstice-2027', '2027-12-22', SkyEventFunction.turn),
+    ];
+    for (final row in expected) {
+      final e = catalog.byId(row.$1);
+      expect(e, isNotNull, reason: 'missing ${row.$1}');
+      expect(civilYmd(e!.primaryInstantUtc.toUtc()), row.$2);
+      expect(e.function, row.$3);
+      expect(e.visibilityPolicy, SkyVisibilityPolicy.global);
+      expect(e.instantUtc!.isUtc, isTrue);
+    }
+  });
+
+  test('locked full moons — every one in coverage window', () {
+    const lockedYmds = <String>[
+      '2026-08-28',
+      '2026-09-26',
+      '2026-10-26',
+      '2026-11-24',
+      '2026-12-24',
+      '2027-01-22',
+      '2027-02-20',
+      '2027-03-22',
+      '2027-04-20',
+      '2027-05-20',
+      '2027-06-19',
+      '2027-07-18',
+      '2027-08-17',
+      '2027-09-15',
+      '2027-10-15',
+      '2027-11-14',
+      '2027-12-13',
+      '2028-01-12',
+      '2028-02-10',
+    ];
+    final moons = ofKind(SkyEventKind.fullMoon);
+    expect(moons.length, lockedYmds.length);
+    final present = moons
+        .map((e) => civilYmd(e.primaryInstantUtc.toUtc()))
+        .toSet();
+    expect(present, lockedYmds.toSet());
+    for (final e in moons) {
+      expect(e.function, SkyEventFunction.reveal);
+      expect(e.visibilityPolicy, SkyVisibilityPolicy.global);
+      expect(e.name, 'Full Moon');
+      expect(e.instantUtc, isNotNull);
+      expect(e.instantUtc!.isUtc, isTrue);
+    }
+  });
+
+  test('locked lunar eclipses merged into full moons', () {
+    const rows = <(String id, String fullMoonId, bool specialNotify)>[
+      ('lunar-eclipse-2026-08-28', 'full-moon-2026-08-28', true),
+      ('lunar-eclipse-2027-02-20', 'full-moon-2027-02-20', true),
+      ('lunar-eclipse-2027-07-18', 'full-moon-2027-07-18', false),
+      ('lunar-eclipse-2027-08-17', 'full-moon-2027-08-17', true),
+      ('lunar-eclipse-2028-01-12', 'full-moon-2028-01-12', true),
+    ];
+    for (final row in rows) {
+      final e = catalog.byId(row.$1)!;
+      expect(e.kind, SkyEventKind.lunarEclipse);
+      expect(e.mergedIntoId, row.$2);
+      expect(e.function, SkyEventFunction.reconsider);
+      expect(e.specialNotification, row.$3);
+      expect(catalog.materializableEvents.any((x) => x.id == e.id), isFalse);
+    }
+  });
+
+  test('locked solar eclipses are location-gated', () {
+    const ids = [
+      'solar-eclipse-2027-02-06',
+      'solar-eclipse-2027-08-02',
+      'solar-eclipse-2028-01-26',
+    ];
+    for (final id in ids) {
+      final e = catalog.byId(id)!;
+      expect(e.kind, SkyEventKind.solarEclipse);
+      expect(e.visibilityPolicy, SkyVisibilityPolicy.locationGated);
+      expect(e.function, SkyEventFunction.reconsider);
+      expect(e.instantUtc!.isUtc, isTrue);
+    }
+  });
+
+  test('locked meteor inclusion set (ZHR≥10 / fireball / notable)', () {
+    const requiredIds = <String>[
+      'orionids-2026',
+      'southern-taurids-2026',
+      'northern-taurids-2026',
+      'leonids-2026',
+      'geminids-2026',
+      'ursids-2026',
+      'quadrantids-2027',
+      'lyrids-2027',
+      'eta-aquariids-2027',
+      'southern-delta-aquariids-2027',
+      'alpha-capricornids-2027',
+      'perseids-2027',
+      'orionids-2027',
+      'southern-taurids-2027',
+      'northern-taurids-2027',
+      'leonids-2027',
+      'geminids-2027',
+      'ursids-2027',
+      'quadrantids-2028',
+    ];
+    for (final id in requiredIds) {
+      final e = catalog.byId(id);
+      expect(e, isNotNull, reason: 'missing meteor $id');
+      expect(e!.kind, SkyEventKind.meteorShower);
+      expect(e.function, SkyEventFunction.attend);
+      expect(e.visibilityPolicy, SkyVisibilityPolicy.global);
+      expect(e.precision, SkyEventPrecision.approximate);
+      expect(
+        e.instantUtc != null || e.peakWindowUtc != null,
+        isTrue,
+        reason: '$id needs an authoritative UTC instant or window',
+      );
+      if (e.instantUtc != null) {
+        expect(e.instantUtc!.isUtc, isTrue, reason: id);
+      }
+      if (e.peakWindowUtc != null) {
+        expect(e.peakWindowUtc!.startUtc.isUtc, isTrue, reason: id);
+        expect(e.peakWindowUtc!.endUtc.isUtc, isTrue, reason: id);
+      }
+    }
+    expect(catalog.byId('quadrantids-2028')!.provisional, isTrue);
+  });
+
   test('AstroPixels seasonal anchors lock exact authoritative UTC', () {
     const expected = <(String id, String utc, SkyEventFunction fn)>[
       ('autumn-equinox-2026', '2026-09-23T00:06:00Z', SkyEventFunction.measure),
