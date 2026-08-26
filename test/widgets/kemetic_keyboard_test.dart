@@ -3,8 +3,52 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:mobile/widgets/kemetic_keyboard.dart';
+import 'package:mobile/widgets/keyboard_viewport_metrics.dart';
 
 void main() {
+  group('KeyboardViewportMetrics', () {
+    test('uses the native keyboard inset against a stable view height', () {
+      final metrics = KeyboardViewportMetrics.resolve(
+        media: const MediaQueryData(
+          size: Size(390, 844),
+          viewInsets: EdgeInsets.only(bottom: 320),
+        ),
+      );
+
+      expect(metrics.visibleTop, 0);
+      expect(metrics.visibleBottom, 524);
+      expect(metrics.layoutViewInsetBottom, 320);
+      expect(metrics.systemKeyboardVisible, isTrue);
+    });
+
+    test('uses a shrunken web visual viewport without inventing an inset', () {
+      final metrics = KeyboardViewportMetrics.resolve(
+        media: const MediaQueryData(size: Size(390, 524)),
+        webViewport: const (height: 524, layoutHeight: 844, offsetTop: 0),
+      );
+
+      expect(metrics.visibleTop, 0);
+      expect(metrics.visibleBottom, 524);
+      expect(metrics.layoutViewInsetBottom, 0);
+      expect(metrics.systemKeyboardVisible, isTrue);
+    });
+
+    test('does not double-apply a transitional iOS web inset', () {
+      final metrics = KeyboardViewportMetrics.resolve(
+        media: const MediaQueryData(
+          size: Size(390, 524),
+          viewInsets: EdgeInsets.only(bottom: 320),
+        ),
+        webViewport: const (height: 524, layoutHeight: 844, offsetTop: 0),
+      );
+
+      expect(metrics.visibleTop, 0);
+      expect(metrics.visibleBottom, 524);
+      expect(metrics.layoutViewInsetBottom, 0);
+      expect(metrics.systemKeyboardVisible, isTrue);
+    });
+  });
+
   group('KemeticKeyboardHost', () {
     testWidgets('inserts text through the normal EditableText pipeline', (
       tester,
@@ -338,7 +382,6 @@ void main() {
     ) async {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(390, 844);
-      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
       addTearDown(tester.view.reset);
 
       final controller = TextEditingController();
@@ -349,6 +392,8 @@ void main() {
       );
       await tester.tap(find.byKey(const ValueKey('system-keyboard-input')));
       await tester.pump();
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      await tester.pumpAndSettle();
 
       controller.value = const TextEditingValue(
         text: 'Visible cursor',
@@ -375,7 +420,6 @@ void main() {
     ) async {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(390, 844);
-      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
       addTearDown(tester.view.reset);
 
       final controller = TextEditingController();
@@ -390,6 +434,8 @@ void main() {
         ),
       );
       await tester.tap(find.byKey(const ValueKey('system-keyboard-input')));
+      await tester.pump();
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
       await tester.pumpAndSettle();
       final focusedOffset = scrollController.offset;
 
@@ -408,7 +454,6 @@ void main() {
     ) async {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = const Size(390, 844);
-      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
       addTearDown(tester.view.reset);
 
       final controller = TextEditingController();
@@ -424,6 +469,8 @@ void main() {
       );
       await tester.tap(find.byKey(const ValueKey('expanding-keyboard-input')));
       await tester.pump();
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      await tester.pumpAndSettle();
 
       final text = List<String>.generate(
         40,
@@ -455,7 +502,6 @@ void main() {
       (tester) async {
         tester.view.devicePixelRatio = 1;
         tester.view.physicalSize = const Size(390, 844);
-        tester.view.viewInsets = const FakeViewPadding(bottom: 300);
         addTearDown(tester.view.reset);
 
         final controller = TextEditingController();
@@ -473,6 +519,8 @@ void main() {
           find.byKey(const ValueKey('expanding-keyboard-input')),
         );
         await tester.pump();
+        tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+        await tester.pumpAndSettle();
 
         final text = List<String>.generate(
           40,
@@ -899,7 +947,7 @@ class _SystemKeyboardInsetHarness extends StatelessWidget {
       builder: (context, child) =>
           KemeticKeyboardHost(child: child ?? const SizedBox.shrink()),
       home: Scaffold(
-        resizeToAvoidBottomInset: false,
+        resizeToAvoidBottomInset: true,
         body: SingleChildScrollView(
           controller: scrollController,
           child: Padding(
