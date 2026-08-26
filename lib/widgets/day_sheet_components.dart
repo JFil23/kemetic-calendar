@@ -101,6 +101,7 @@ class DaySheetKeyboardSafeFrame extends StatelessWidget {
     this.bottomPadding = 12,
     this.scrollBottomPadding = 180,
     this.scrollable = true,
+    this.expanded = false,
   });
 
   final Widget child;
@@ -110,45 +111,58 @@ class DaySheetKeyboardSafeFrame extends StatelessWidget {
   final double bottomPadding;
   final double scrollBottomPadding;
   final bool scrollable;
+  final bool expanded;
 
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    return SizedBox(
-      key: daySheetKeyboardSafePaddingKey,
-      height: media.size.height * maxHeightFactor,
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        resizeToAvoidBottomInset: true,
-        body: Container(
-          key: daySheetKeyboardSafeFrameKey,
-          decoration: const BoxDecoration(
-            color: DaySheetTokens.bg,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-            border: Border(
-              top: BorderSide(color: DaySheetTokens.hair, width: 1),
-            ),
-          ),
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: horizontalPadding,
-                right: horizontalPadding,
-                top: topPadding,
-                bottom: media.padding.bottom + bottomPadding,
+    final visibleHeight = math.max(
+      0.0,
+      media.size.height - media.viewInsets.bottom,
+    );
+    final sheetHeight = expanded
+        ? visibleHeight
+        : media.size.height * maxHeightFactor;
+    final bottomInset = expanded ? media.viewInsets.bottom : 0.0;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: SizedBox(
+        key: daySheetKeyboardSafePaddingKey,
+        height: sheetHeight,
+        child: Scaffold(
+          backgroundColor: Colors.transparent,
+          resizeToAvoidBottomInset: !expanded,
+          body: Container(
+            key: daySheetKeyboardSafeFrameKey,
+            decoration: const BoxDecoration(
+              color: DaySheetTokens.bg,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+              border: Border(
+                top: BorderSide(color: DaySheetTokens.hair, width: 1),
               ),
-              child: scrollable
-                  ? SingleChildScrollView(
-                      key: daySheetKeyboardSafeScrollViewKey,
-                      keyboardDismissBehavior:
-                          ScrollViewKeyboardDismissBehavior.onDrag,
-                      padding: EdgeInsets.only(
-                        bottom: media.padding.bottom + scrollBottomPadding,
-                      ),
-                      child: child,
-                    )
-                  : child,
+            ),
+            child: SafeArea(
+              top: false,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: horizontalPadding,
+                  right: horizontalPadding,
+                  top: topPadding,
+                  bottom: media.padding.bottom + bottomPadding,
+                ),
+                child: scrollable
+                    ? SingleChildScrollView(
+                        key: daySheetKeyboardSafeScrollViewKey,
+                        keyboardDismissBehavior:
+                            ScrollViewKeyboardDismissBehavior.onDrag,
+                        padding: EdgeInsets.only(
+                          bottom: media.padding.bottom + scrollBottomPadding,
+                        ),
+                        child: child,
+                      )
+                    : child,
+              ),
             ),
           ),
         ),

@@ -128,6 +128,67 @@ void main() {
     },
   );
 
+  testWidgets('editing frame fills both iOS keyboard coordinate modes', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1.0;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.reset);
+
+    final expanded = ValueNotifier<bool>(false);
+    addTearDown(expanded.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          resizeToAvoidBottomInset: false,
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: ValueListenableBuilder<bool>(
+              valueListenable: expanded,
+              builder: (context, value, child) => DaySheetKeyboardSafeFrame(
+                expanded: value,
+                scrollable: false,
+                child: child!,
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    Rect frameRect() =>
+        tester.getRect(find.byKey(daySheetKeyboardSafeFrameKey));
+
+    expect(frameRect().top, closeTo(84.4, 0.01));
+    expect(frameRect().height, closeTo(759.6, 0.01));
+
+    expanded.value = true;
+    await tester.pump();
+
+    expect(frameRect().top, closeTo(0, 0.01));
+    expect(frameRect().height, closeTo(844, 0.01));
+
+    tester.view.physicalSize = const Size(390, 500);
+    tester.view.viewInsets = FakeViewPadding.zero;
+    await tester.pump();
+
+    expect(frameRect().top, closeTo(0, 0.01));
+    expect(frameRect().height, closeTo(500, 0.01));
+    expect(frameRect().height, isNot(closeTo(450, 0.01)));
+
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 344);
+    await tester.pump();
+
+    expect(frameRect().top, closeTo(0, 0.01));
+    expect(frameRect().height, closeTo(500, 0.01));
+    expect(frameRect().bottom, closeTo(500, 0.01));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('live data rebuild preserves draft tab and scroll position', (
     tester,
   ) async {

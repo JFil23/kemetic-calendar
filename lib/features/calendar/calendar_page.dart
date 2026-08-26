@@ -29666,6 +29666,7 @@ class CalendarPageState extends State<CalendarPage>
         builder: (sheetCtx) {
           bool scheduledFlowsExpanded = false;
           bool dayNotesExpanded = false;
+          bool followSkyIntentionEditing = false;
 
           final daySheetContent = DaySheetLiveDataBuilder(
             key: const ValueKey('calendar-day-sheet-live-content'),
@@ -29837,7 +29838,12 @@ class CalendarPageState extends State<CalendarPage>
                 final leavingFlows =
                     activeDaySheetTab == DaySheetTab.flows &&
                     tab != DaySheetTab.flows;
-                setSheetState(() => activeDaySheetTab = tab);
+                setSheetState(() {
+                  activeDaySheetTab = tab;
+                  if (tab != DaySheetTab.flows) {
+                    followSkyIntentionEditing = false;
+                  }
+                });
                 if (tab == DaySheetTab.flows) {
                   flowStudioTabVisited = true;
                 }
@@ -29914,36 +29920,50 @@ class CalendarPageState extends State<CalendarPage>
               }
 
               if (activeDaySheetTab == DaySheetTab.flows) {
-                return DaySheetKeyboardSafeFrame(
-                  scrollable: false,
-                  scrollBottomPadding: 0,
-                  bottomPadding: 0,
-                  horizontalPadding: 0,
-                  child: DefaultTextStyle(
-                    style: const TextStyle(color: Colors.white),
-                    child: Column(
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 22),
-                          child: sheetChrome(),
-                        ),
-                        const SizedBox(height: 4),
-                        Expanded(
-                          child: Navigator(
-                            key: flowStudioTabNavigatorKey,
-                            onGenerateInitialRoutes: (_, _) => [
-                              MaterialPageRoute<void>(
-                                builder: (innerCtx) =>
-                                    _buildEmbeddedFlowStudioHubPage(
-                                      innerCtx,
-                                      onClose: () =>
-                                          selectDaySheetTab(DaySheetTab.notes),
-                                    ),
-                              ),
-                            ],
+                return NotificationListener<
+                  FollowSkyIntentionEditingNotification
+                >(
+                  onNotification: (notification) {
+                    if (followSkyIntentionEditing != notification.editing) {
+                      setSheetState(
+                        () => followSkyIntentionEditing = notification.editing,
+                      );
+                    }
+                    return true;
+                  },
+                  child: DaySheetKeyboardSafeFrame(
+                    expanded: followSkyIntentionEditing,
+                    scrollable: false,
+                    scrollBottomPadding: 0,
+                    bottomPadding: 0,
+                    horizontalPadding: 0,
+                    child: DefaultTextStyle(
+                      style: const TextStyle(color: Colors.white),
+                      child: Column(
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 22),
+                            child: sheetChrome(),
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          Expanded(
+                            child: Navigator(
+                              key: flowStudioTabNavigatorKey,
+                              onGenerateInitialRoutes: (_, _) => [
+                                MaterialPageRoute<void>(
+                                  builder: (innerCtx) =>
+                                      _buildEmbeddedFlowStudioHubPage(
+                                        innerCtx,
+                                        onClose: () => selectDaySheetTab(
+                                          DaySheetTab.notes,
+                                        ),
+                                      ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 );

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/follow_the_sky/follow_the_sky.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_dock.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_tokens.dart';
+import 'package:mobile/widgets/day_sheet_components.dart';
 import 'package:mobile/widgets/kemetic_keyboard.dart';
 import 'package:mobile/widgets/keyboard_viewport_metrics.dart';
 
@@ -512,6 +513,131 @@ void main() {
   );
 
   testWidgets(
+    'focused embedded intention fills visual and layout-sized iOS viewports',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(home: _FollowSkyEditingSheetHarness(catalog: catalog)),
+      );
+      await tester.pumpAndSettle();
+
+      final sheet = find.byKey(daySheetKeyboardSafeFrameKey);
+      final tabs = find.byKey(_followSkyTestTabsKey);
+      final field = find.byKey(
+        const ValueKey<String>('follow-sky-worked-intention'),
+      );
+      final question = find.text(
+        'What do you want to stay true to when conditions change?',
+      );
+      final dock = find.byType(FollowSkyV11Dock);
+      final dockControl = find.byKey(
+        const ValueKey<String>('follow-sky-carried'),
+      );
+      final scrollable = _followSkyScrollable();
+      final scrollState = tester.state<ScrollableState>(scrollable);
+
+      await tester.scrollUntilVisible(field, 100, scrollable: scrollable);
+      await tester.pumpAndSettle();
+      const recordedQuestionTop = 370.0;
+      final readingOffset =
+          (scrollState.position.pixels +
+                  tester.getTopLeft(question).dy -
+                  recordedQuestionTop)
+              .clamp(
+                scrollState.position.minScrollExtent,
+                scrollState.position.maxScrollExtent,
+              )
+              .toDouble();
+      scrollState.position.jumpTo(readingOffset);
+      await tester.pump();
+
+      final closedSheetRect = tester.getRect(sheet);
+      expect(closedSheetRect.top, closeTo(84.4, 0.01));
+      expect(closedSheetRect.height, closeTo(759.6, 0.01));
+
+      await tester.tap(field);
+      await tester.pump();
+
+      final focusedSheetRect = tester.getRect(sheet);
+      expect(focusedSheetRect.top, lessThan(closedSheetRect.top));
+      expect(focusedSheetRect.top, closeTo(0, 0.01));
+      expect(focusedSheetRect.height, closeTo(844, 0.01));
+
+      tester.view.physicalSize = const Size(390, 500);
+      tester.view.viewInsets = FakeViewPadding.zero;
+      await tester.pump();
+
+      final visualSheetRect = tester.getRect(sheet);
+      final visualTabsRect = tester.getRect(tabs);
+      final visualQuestionRect = tester.getRect(question);
+      final visualFieldRect = tester.getRect(field);
+      final visualDockRect = tester.getRect(dock);
+      final visualDockControlRect = tester.getRect(dockControl);
+      final visualGeometry =
+          'tabs=$visualTabsRect question=$visualQuestionRect '
+          'field=$visualFieldRect dock=$visualDockRect '
+          'dockControl=$visualDockControlRect';
+
+      expect(visualSheetRect.top, closeTo(0, 0.01));
+      expect(visualSheetRect.height, closeTo(500, 0.01));
+      expect(visualSheetRect.height, isNot(closeTo(450, 0.01)));
+      expect(
+        visualTabsRect.bottom,
+        lessThan(visualQuestionRect.top),
+        reason: visualGeometry,
+      );
+      expect(
+        visualQuestionRect.bottom,
+        lessThan(visualFieldRect.top),
+        reason: visualGeometry,
+      );
+      expect(
+        visualFieldRect.bottom,
+        lessThan(visualDockControlRect.top),
+        reason: visualGeometry,
+      );
+      expect(
+        visualDockRect.bottom,
+        lessThanOrEqualTo(500),
+        reason: visualGeometry,
+      );
+
+      await tester.enterText(field, 'Visible while typing');
+      await tester.pump();
+      expect(tester.getRect(question), visualQuestionRect);
+      expect(tester.getRect(field).bottom, lessThan(visualDockControlRect.top));
+
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 344);
+      await tester.pump();
+
+      final layoutSheetRect = tester.getRect(sheet);
+      expect(layoutSheetRect.top, closeTo(0, 0.01));
+      expect(layoutSheetRect.height, closeTo(500, 0.01));
+      expect(layoutSheetRect.bottom, closeTo(500, 0.01));
+      expect(tester.getRect(tabs), visualTabsRect);
+      expect(tester.getRect(question), visualQuestionRect);
+      expect(tester.getRect(field), visualFieldRect);
+      expect(tester.getRect(dock), visualDockRect);
+      expect(tester.getRect(dockControl), visualDockControlRect);
+
+      FocusManager.instance.primaryFocus?.unfocus();
+      tester.view.viewInsets = FakeViewPadding.zero;
+      await tester.pump();
+
+      expect(tester.getRect(sheet).top, closeTo(closedSheetRect.top, 0.01));
+      expect(
+        tester.getRect(sheet).height,
+        closeTo(closedSheetRect.height, 0.01),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
     'standalone worked intention remains visible through Scaffold resize',
     (tester) => _expectWorkedIntentionKeyboardContract(
       tester,
@@ -519,6 +645,89 @@ void main() {
       scenario: _KeyboardViewportScenario.webLayoutSized,
     ),
   );
+}
+
+const _followSkyTestTabsKey = ValueKey<String>('follow-sky-test-tabs');
+
+class _FollowSkyEditingSheetHarness extends StatefulWidget {
+  const _FollowSkyEditingSheetHarness({required this.catalog});
+
+  final SkyCatalog catalog;
+
+  @override
+  State<_FollowSkyEditingSheetHarness> createState() =>
+      _FollowSkyEditingSheetHarnessState();
+}
+
+class _FollowSkyEditingSheetHarnessState
+    extends State<_FollowSkyEditingSheetHarness> {
+  final _navigatorKey = GlobalKey<NavigatorState>();
+  var _editing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      resizeToAvoidBottomInset: false,
+      body: Align(
+        alignment: Alignment.bottomCenter,
+        child: NotificationListener<FollowSkyIntentionEditingNotification>(
+          onNotification: (notification) {
+            if (_editing != notification.editing) {
+              setState(() => _editing = notification.editing);
+            }
+            return true;
+          },
+          child: DaySheetKeyboardSafeFrame(
+            expanded: _editing,
+            scrollable: false,
+            scrollBottomPadding: 0,
+            bottomPadding: 0,
+            horizontalPadding: 0,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 22),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(height: 44),
+                      DaySheetTabBar(
+                        key: _followSkyTestTabsKey,
+                        activeTab: DaySheetTab.flows,
+                        accent: DaySheetTokens.gold,
+                        onSelected: (_) {},
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Expanded(
+                  child: Navigator(
+                    key: _navigatorKey,
+                    onGenerateInitialRoutes: (_, _) => [
+                      MaterialPageRoute<void>(
+                        builder: (context) => MaatFlowsListDetailReveal<void>(
+                          initialDetailBuilder: (context) =>
+                              FollowSkyDetailPage(
+                                initialCatalog: widget.catalog,
+                                now: DateTime.utc(2026, 8, 24, 12),
+                                isJoined: true,
+                                standalone: false,
+                              ),
+                          foregroundBuilder: (context, revealDetail) =>
+                              const ColoredBox(color: Colors.black),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 enum _KeyboardViewportScenario {
@@ -558,15 +767,7 @@ Future<void> _expectWorkedIntentionKeyboardContract(
               initialCatalog: catalog,
               now: DateTime.utc(2026, 8, 24, 12),
             )
-          : MaatFlowsListDetailReveal<void>(
-              initialDetailBuilder: (context) => FollowSkyDetailPage(
-                initialCatalog: catalog,
-                now: DateTime.utc(2026, 8, 24, 12),
-                standalone: false,
-              ),
-              foregroundBuilder: (context, revealDetail) =>
-                  const ColoredBox(color: Colors.black),
-            ),
+          : _FollowSkyEditingSheetHarness(catalog: catalog),
     ),
   );
   await tester.pumpAndSettle();

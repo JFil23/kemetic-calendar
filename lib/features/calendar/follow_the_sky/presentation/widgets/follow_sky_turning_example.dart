@@ -11,11 +11,13 @@ class FollowSkyTurningExample extends StatelessWidget {
     required this.meaning,
     required this.controller,
     required this.onChanged,
+    this.onEditingFocusChanged,
   });
 
   final TurningMeaning meaning;
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final ValueChanged<bool>? onEditingFocusChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -82,37 +84,40 @@ class FollowSkyTurningExample extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          TextField(
-            key: const ValueKey<String>('follow-sky-worked-intention'),
-            controller: controller,
-            onChanged: onChanged,
-            scrollPadding: keyboardManagedTextFieldScrollPadding,
-            cursorColor: FollowSkyV11Tokens.intentionPeriwinkle,
-            style: const TextStyle(
-              color: FollowSkyV11Tokens.glow,
-              fontFamily: MaatFlowListTokens.fontFamily,
-              fontFamilyFallback: MaatFlowListTokens.fontFallback,
-              fontSize: 21,
-              fontWeight: FontWeight.w300,
-              fontStyle: FontStyle.italic,
-              height: 1.3,
-            ),
-            decoration: InputDecoration(
-              isDense: true,
-              contentPadding: const EdgeInsets.fromLTRB(2, 4, 2, 11),
-              border: UnderlineInputBorder(
-                borderSide: BorderSide(
-                  color: FollowSkyV11Tokens.glow.withValues(alpha: 0.30),
-                ),
+          Focus(
+            onFocusChange: onEditingFocusChanged,
+            child: TextField(
+              key: const ValueKey<String>('follow-sky-worked-intention'),
+              controller: controller,
+              onChanged: onChanged,
+              scrollPadding: keyboardManagedTextFieldScrollPadding,
+              cursorColor: FollowSkyV11Tokens.intentionPeriwinkle,
+              style: const TextStyle(
+                color: FollowSkyV11Tokens.glow,
+                fontFamily: MaatFlowListTokens.fontFamily,
+                fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                fontSize: 21,
+                fontWeight: FontWeight.w300,
+                fontStyle: FontStyle.italic,
+                height: 1.3,
               ),
-              enabledBorder: UnderlineInputBorder(
-                borderSide: BorderSide(
-                  color: FollowSkyV11Tokens.glow.withValues(alpha: 0.30),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.fromLTRB(2, 4, 2, 11),
+                border: UnderlineInputBorder(
+                  borderSide: BorderSide(
+                    color: FollowSkyV11Tokens.glow.withValues(alpha: 0.30),
+                  ),
                 ),
-              ),
-              focusedBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(
-                  color: FollowSkyV11Tokens.intentionPeriwinkle,
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(
+                    color: FollowSkyV11Tokens.glow.withValues(alpha: 0.30),
+                  ),
+                ),
+                focusedBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(
+                    color: FollowSkyV11Tokens.intentionPeriwinkle,
+                  ),
                 ),
               ),
             ),

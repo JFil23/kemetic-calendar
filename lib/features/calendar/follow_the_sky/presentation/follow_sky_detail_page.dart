@@ -25,6 +25,12 @@ import 'widgets/follow_sky_turning_sheet.dart';
 import 'widgets/follow_sky_v11_dock.dart';
 import 'widgets/follow_sky_v11_tokens.dart';
 
+class FollowSkyIntentionEditingNotification extends Notification {
+  const FollowSkyIntentionEditingNotification(this.editing);
+
+  final bool editing;
+}
+
 /// Follow the Sky V11 detail orchestrator.
 class FollowSkyDetailPage extends StatefulWidget {
   const FollowSkyDetailPage({
@@ -300,6 +306,11 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
     );
   }
 
+  void _handleExampleIntentionEditingChanged(bool editing) {
+    if (!mounted) return;
+    FollowSkyIntentionEditingNotification(editing).dispatch(context);
+  }
+
   @override
   Widget build(BuildContext context) {
     final body = _error != null
@@ -316,27 +327,23 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
         : _buildV11Body();
 
     if (!widget.standalone) {
-      final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
-      return Padding(
-        padding: EdgeInsets.only(bottom: keyboardInset),
-        child: Material(
-          color: FollowSkyV11Tokens.pageBg,
-          child: Stack(
-            children: [
-              body,
-              Positioned(
-                top: MediaQuery.paddingOf(context).top + 4,
-                left: 4,
-                child: IconButton(
-                  icon: const Icon(
-                    Icons.arrow_back,
-                    color: FollowSkyV11Tokens.gold,
-                  ),
-                  onPressed: () => Navigator.of(context).maybePop(),
+      return Material(
+        color: FollowSkyV11Tokens.pageBg,
+        child: Stack(
+          children: [
+            body,
+            Positioned(
+              top: MediaQuery.paddingOf(context).top + 4,
+              left: 4,
+              child: IconButton(
+                icon: const Icon(
+                  Icons.arrow_back,
+                  color: FollowSkyV11Tokens.gold,
                 ),
+                onPressed: () => Navigator.of(context).maybePop(),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       );
     }
@@ -383,6 +390,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
             FollowSkyTurningExample(
               meaning: exampleMeaning,
               controller: _exampleIntentionController,
+              onEditingFocusChanged: _handleExampleIntentionEditingChanged,
               onChanged: (text) {
                 if (exampleNight != null) {
                   _setDraftIntentionForSkyNight(exampleNight, text);

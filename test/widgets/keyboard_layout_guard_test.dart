@@ -85,7 +85,9 @@ void main() {
       ).readAsStringSync();
 
       expect(source, contains('child: Scaffold('));
-      expect(source, contains('resizeToAvoidBottomInset: true'));
+      expect(source, contains('resizeToAvoidBottomInset: !expanded'));
+      expect(source, contains('media.size.height - media.viewInsets.bottom'));
+      expect(source, contains('media.size.height * maxHeightFactor'));
       expect(source, contains('SingleChildScrollView('));
       expect(source, isNot(contains('return KeyboardSafeViewport(')));
     });
@@ -277,25 +279,41 @@ void main() {
     });
 
     test('Follow Sky embedded root owns one inset and shell owns none', () {
+      final calendarSource = File(
+        'lib/features/calendar/calendar_page.dart',
+      ).readAsStringSync();
       final detailSource = File(
         'lib/features/calendar/follow_the_sky/presentation/'
         'follow_sky_detail_page.dart',
+      ).readAsStringSync();
+      final exampleSource = File(
+        'lib/features/calendar/follow_the_sky/presentation/widgets/'
+        'follow_sky_turning_example.dart',
+      ).readAsStringSync();
+      final frameSource = File(
+        'lib/widgets/day_sheet_components.dart',
       ).readAsStringSync();
       final shellSource = File(
         'lib/features/calendar/follow_the_sky/presentation/widgets/'
         'follow_sky_scroll_shell.dart',
       ).readAsStringSync();
 
+      expect(calendarSource, contains('FollowSkyIntentionEditingNotification'));
+      expect(calendarSource, contains('expanded: followSkyIntentionEditing'));
       expect(
         detailSource,
-        contains(
-          'final keyboardInset = MediaQuery.viewInsetsOf(context).bottom',
-        ),
+        contains('FollowSkyIntentionEditingNotification(editing).dispatch'),
       );
       expect(
-        detailSource,
-        contains('padding: EdgeInsets.only(bottom: keyboardInset)'),
+        frameSource,
+        contains('media.size.height - media.viewInsets.bottom'),
       );
+      expect(frameSource, contains('final sheetHeight = expanded'));
+      expect(frameSource, contains('resizeToAvoidBottomInset: !expanded'));
+      expect(exampleSource, contains('onFocusChange: onEditingFocusChanged'));
+      expect(detailSource, isNot(contains('viewInsets')));
+      expect(exampleSource, isNot(contains('ensureVisible')));
+      expect(exampleSource, isNot(contains('animateTo')));
       expect(shellSource, isNot(contains('keyboardInsetOf')));
       expect(shellSource, isNot(contains('_restingHeroHeight')));
       expect(shellSource, isNot(contains('viewInsets')));
