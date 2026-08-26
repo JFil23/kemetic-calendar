@@ -3,6 +3,7 @@ import '../domain/sky_event_function.dart';
 import '../domain/sky_event_kind.dart';
 import '../domain/sky_observing_night.dart';
 import '../domain/sky_visibility.dart';
+import 'sky_observation_window_policy.dart';
 
 /// Ownership metadata stamped on V2-generated (or migrated) calendar events.
 class TrackSkyEventOwnership {
@@ -137,12 +138,12 @@ class TrackSkyMaterializer {
   TrackSkyMaterializer({
     required this.toLocal,
     required this.toUtc,
-    SkyVisibilityWindowBuilder? windowBuilder,
-  }) : windowBuilder = windowBuilder ?? defaultWindowBuilder;
+    this.windowPolicy = const SkyObservationWindowPolicy(),
+  });
 
   final LocalTimeConverter toLocal;
   final UtcTimeConverter toUtc;
-  final SkyVisibilityWindowBuilder windowBuilder;
+  final SkyObservationWindowPolicy windowPolicy;
 
   MaterializedSkyOccurrence materialize({
     required SkyEvent event,
@@ -153,7 +154,7 @@ class TrackSkyMaterializer {
   }) {
     final resolved = night ?? SkyObservingNight(anchor: event);
     final windowEvent = resolved.windowSource;
-    final window = windowBuilder(
+    final window = windowPolicy.resolve(
       event: windowEvent,
       ianaTimeZone: ianaTimeZone,
       toLocal: toLocal,
@@ -166,6 +167,9 @@ class TrackSkyMaterializer {
       if (resolved.isEclipseFullMoon)
         'Merged companion: ${resolved.companion!.id}',
       if (windowEvent.precision.wireName == 'approximate') 'Best tonight',
+      if (windowEvent.kind == SkyEventKind.solarEclipse)
+        'Global greatest eclipse (UTC): '
+            '${windowEvent.primaryInstantUtc.toIso8601String()}',
       if (resolved.provisional) 'Provisional — source may update',
       if (intention != null && intention.trim().isNotEmpty)
         'Intention: ${intention.trim()}',
@@ -191,129 +195,4 @@ class TrackSkyMaterializer {
       detail: detailParts.join('\n'),
     );
   }
-
-  static ({DateTime startLocal, DateTime endLocal, bool allDay})
-  defaultWindowBuilder({
-    required SkyEvent event,
-    required String ianaTimeZone,
-    required LocalTimeConverter toLocal,
-  }) {
-    final localInstant = toLocal(event.primaryInstantUtc, ianaTimeZone);
-    switch (event.kind) {
-      case SkyEventKind.equinox:
-        final start = DateTime(
-          localInstant.year,
-          localInstant.month,
-          localInstant.day,
-          localInstant.month == 9 || localInstant.month == 10 ? 18 : 6,
-          localInstant.month == 9 || localInstant.month == 10 ? 0 : 30,
-        );
-        return (
-          startLocal: start,
-          endLocal: start.add(const Duration(hours: 1)),
-          allDay: false,
-        );
-      case SkyEventKind.solstice:
-        final start = DateTime(
-          localInstant.year,
-          localInstant.month,
-          localInstant.day,
-          17,
-        );
-        return (
-          startLocal: start,
-          endLocal: start.add(const Duration(hours: 1)),
-          allDay: false,
-        );
-      case SkyEventKind.fullMoon:
-      case SkyEventKind.lunarEclipse:
-        final start = DateTime(
-          localInstant.year,
-          localInstant.month,
-          localInstant.day,
-          20,
-        );
-        return (
-          startLocal: start,
-          endLocal: start.add(const Duration(hours: 1)),
-          allDay: false,
-        );
-      case SkyEventKind.meteorShower:
-        return meteorViewingWindow(localInstant);
-      case SkyEventKind.planetOpposition:
-        final start = DateTime(
-          localInstant.year,
-          localInstant.month,
-          localInstant.day,
-          21,
-        );
-        return (
-          startLocal: start,
-          endLocal: start.add(const Duration(hours: 1)),
-          allDay: false,
-        );
-      case SkyEventKind.planetElongation:
-      case SkyEventKind.planetConjunction:
-      case SkyEventKind.solarEclipse:
-        final day = DateTime(
-          localInstant.year,
-          localInstant.month,
-          localInstant.day,
-        );
-        return (
-          startLocal: day,
-          endLocal: day.add(const Duration(days: 1)),
-          allDay: true,
-        );
-    }
-  }
-
-  /// Chooses the 00:00–05:00 local block nearest the source maximum.
-  static ({DateTime startLocal, DateTime endLocal, bool allDay})
-  meteorViewingWindow(DateTime localInstant) {
-    final civilInstant = DateTime.utc(
-      localInstant.year,
-      localInstant.month,
-      localInstant.day,
-      localInstant.hour,
-      localInstant.minute,
-      localInstant.second,
-      localInstant.millisecond,
-      localInstant.microsecond,
-    );
-    final sameMorningEnd = DateTime.utc(
-      localInstant.year,
-      localInstant.month,
-      localInstant.day,
-      5,
-    );
-    final nextMorningStart = DateTime.utc(
-      localInstant.year,
-      localInstant.month,
-      localInstant.day + 1,
-    );
-    final sameMorningDistance = civilInstant.isAfter(sameMorningEnd)
-        ? civilInstant.difference(sameMorningEnd)
-        : Duration.zero;
-    final nextMorningDistance = nextMorningStart.difference(civilInstant);
-    final useNextMorning = nextMorningDistance < sameMorningDistance;
-    final start = DateTime(
-      localInstant.year,
-      localInstant.month,
-      localInstant.day + (useNextMorning ? 1 : 0),
-    );
-
-    return (
-      startLocal: start,
-      endLocal: DateTime(start.year, start.month, start.day, 5),
-      allDay: false,
-    );
-  }
 }
-
-typedef SkyVisibilityWindowBuilder =
-    ({DateTime startLocal, DateTime endLocal, bool allDay}) Function({
-      required SkyEvent event,
-      required String ianaTimeZone,
-      required LocalTimeConverter toLocal,
-    });

@@ -219,27 +219,28 @@ void main() {
       );
     });
 
-    test(
-      'web bootstrap versions Flutter font asset loads for installed PWAs',
-      () {
-        expect(webIndexSource, contains('__kemeticFontAssetFetchPatched'));
-        expect(webIndexSource, contains('__kemeticFontAssetXhrPatched'));
-        expect(webIndexSource, contains('__kemeticFontAssetFontFacePatched'));
-        expect(webIndexSource, contains('/assets/FontManifest.json'));
-        expect(webIndexSource, contains('/assets/ios/Runner/Fonts/'));
-        expect(
-          webIndexSource,
-          contains("url.searchParams.set('v', String(buildVersion))"),
-        );
-        expect(
-          webIndexSource.indexOf('const buildVersion ='),
-          lessThan(webIndexSource.indexOf('__kemeticFontAssetFetchPatched')),
-        );
-        expect(
-          webIndexSource.indexOf('__kemeticFontAssetFetchPatched'),
-          lessThan(webIndexSource.indexOf("s.src = 'flutter_bootstrap.js")),
-        );
-      },
-    );
+    test('web bootstrap versions every Flutter asset by release identity', () {
+      expect(webIndexSource, contains('withFlutterAssetVersion'));
+      expect(webIndexSource, contains('__kemeticFlutterAssetFetchPatched'));
+      expect(webIndexSource, contains('__kemeticFlutterAssetXhrPatched'));
+      expect(webIndexSource, contains('__kemeticFontAssetFontFacePatched'));
+      expect(
+        webIndexSource,
+        contains("url.pathname.indexOf('/assets/') !== -1"),
+      );
+      expect(webIndexSource, contains('isSameOrigin && isFlutterAsset'));
+      expect(
+        webIndexSource,
+        contains("url.searchParams.set('v', String(buildVersion))"),
+      );
+      expect(
+        webIndexSource.indexOf('const buildVersion ='),
+        lessThan(webIndexSource.indexOf('__kemeticFlutterAssetFetchPatched')),
+      );
+      expect(
+        webIndexSource.indexOf('__kemeticFlutterAssetFetchPatched'),
+        lessThan(webIndexSource.indexOf("s.src = 'flutter_bootstrap.js")),
+      );
+    });
   });
 }
