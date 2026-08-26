@@ -20,6 +20,7 @@ export 'services/follow_sky_headless_brain.dart';
 export 'services/follow_sky_turning_history.dart';
 export 'services/legacy_track_sky_migration_matcher.dart';
 export 'services/sky_catalog_repository.dart';
+export 'services/sky_observation_window_policy.dart';
 export 'services/sky_visibility_service.dart';
 export 'services/track_sky_course_metadata_codec.dart';
 export 'services/track_sky_course_source_identity.dart';
