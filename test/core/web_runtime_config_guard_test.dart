@@ -242,5 +242,18 @@ void main() {
         lessThan(webIndexSource.indexOf("s.src = 'flutter_bootstrap.js")),
       );
     });
+
+    test(
+      'web bootstrap versions Flutter font asset loads for installed PWAs',
+      () {
+        expect(webIndexSource, contains('__kemeticFontAssetFontFacePatched'));
+        expect(webIndexSource, contains('versionFontFaceSource(source)'));
+        expect(webIndexSource, contains('withFlutterAssetVersion(fontUrl)'));
+        expect(
+          webIndexSource,
+          contains("url.pathname.indexOf('/assets/') !== -1"),
+        );
+      },
+    );
   });
 }
