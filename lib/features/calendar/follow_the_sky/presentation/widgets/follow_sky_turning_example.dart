@@ -5,6 +5,10 @@ import '../../../maat_flow_visual_tokens.dart';
 import '../turning_meaning.dart';
 import 'follow_sky_v11_tokens.dart';
 
+// The iOS browser input assistant occupies 44 logical pixels above the
+// reported visual viewport keyboard boundary.
+const double _systemKeyboardAccessoryClearance = 44;
+
 class FollowSkyTurningExample extends StatelessWidget {
   const FollowSkyTurningExample({
     super.key,
@@ -19,6 +23,11 @@ class FollowSkyTurningExample extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fieldScrollPadding = keyboardManagedTextFieldScrollPadding.copyWith(
+      bottom:
+          keyboardManagedTextFieldScrollPadding.bottom +
+          _systemKeyboardAccessoryClearance,
+    );
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 32, 24, 28),
       decoration: const BoxDecoration(
@@ -86,7 +95,7 @@ class FollowSkyTurningExample extends StatelessWidget {
             key: const ValueKey<String>('follow-sky-worked-intention'),
             controller: controller,
             onChanged: onChanged,
-            scrollPadding: keyboardManagedTextFieldScrollPadding,
+            scrollPadding: fieldScrollPadding,
             cursorColor: FollowSkyV11Tokens.intentionPeriwinkle,
             style: const TextStyle(
               color: FollowSkyV11Tokens.glow,
