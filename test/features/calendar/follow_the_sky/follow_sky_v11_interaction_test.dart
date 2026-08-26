@@ -6,6 +6,7 @@ import 'package:mobile/features/calendar/follow_the_sky/follow_the_sky.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_dock.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_tokens.dart';
 import 'package:mobile/widgets/kemetic_keyboard.dart';
+import 'package:mobile/widgets/keyboard_viewport_metrics.dart';
 
 void main() {
   late SkyCatalog catalog;
@@ -479,132 +480,208 @@ void main() {
     );
   });
 
-  testWidgets(
-    'worked intention stays visible above keyboard without focus-cycle drift',
-    (tester) async {
-      tester.view.physicalSize = const Size(390, 844);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      addTearDown(tester.view.resetViewInsets);
+  for (final scenario in _KeyboardViewportScenario.values) {
+    testWidgets(
+      'worked intention survives ${scenario.label} from the recorded reading position',
+      (tester) => _expectWorkedIntentionKeyboardContract(
+        tester,
+        catalog: catalog,
+        scenario: scenario,
+      ),
+    );
+  }
+}
 
-      await tester.pumpWidget(
-        MaterialApp(
-          builder: (context, child) =>
-              KemeticKeyboardHost(child: child ?? const SizedBox.shrink()),
-          home: FollowSkyDetailPage(
-            initialCatalog: catalog,
-            now: DateTime.utc(2026, 8, 24, 12),
-          ),
+enum _KeyboardViewportScenario {
+  nativeInset('native stable-height keyboard'),
+  webResize('web shrunken visual viewport'),
+  iosWebTransition('iOS web transitional viewport plus inset'),
+  webLayoutSized('web visual viewport with layout-sized Flutter'),
+  webLayoutSizedPanned('panned web viewport with layout-sized Flutter');
+
+  const _KeyboardViewportScenario(this.label);
+
+  final String label;
+}
+
+Future<void> _expectWorkedIntentionKeyboardContract(
+  WidgetTester tester, {
+  required SkyCatalog catalog,
+  required _KeyboardViewportScenario scenario,
+}) async {
+  tester.view.physicalSize = const Size(390, 844);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+
+  WebKeyboardViewportSnapshot? webViewport;
+  await tester.pumpWidget(
+    MaterialApp(
+      builder: (context, child) => KemeticKeyboardHost(
+        viewportMetricsResolver: (media) => KeyboardViewportMetrics.resolve(
+          media: media,
+          webViewport: webViewport,
         ),
-      );
-      await tester.pumpAndSettle();
-
-      final field = find.byKey(
-        const ValueKey<String>('follow-sky-worked-intention'),
-      );
-      final scrollable = find
-          .descendant(
-            of: find.byKey(const ValueKey<String>('follow-sky-scroll')),
-            matching: find.byType(Scrollable),
-          )
-          .first;
-      final scrollState = tester.state<ScrollableState>(scrollable);
-      await tester.scrollUntilVisible(field, 100, scrollable: scrollable);
-      await tester.pumpAndSettle();
-      const keyboardInset = 320.0;
-      const keyboardTop = 844.0 - keyboardInset;
-      final fieldHeight = tester.getRect(field).height;
-      const readingTop = 150.0;
-      scrollState.position.jumpTo(
-        scrollState.position.pixels + tester.getTopLeft(field).dy - readingTop,
-      );
-      await tester.pump();
-
-      await tester.tap(field);
-      await tester.pump();
-      tester.view.viewInsets = const FakeViewPadding(bottom: keyboardInset);
-      await tester.pumpAndSettle(const Duration(milliseconds: 500));
-      final firstOpenRect = tester.getRect(field);
-      expect(firstOpenRect.top, greaterThanOrEqualTo(0));
-      expect(firstOpenRect.bottom, lessThanOrEqualTo(keyboardTop));
-      await tester.enterText(field, 'Visible while typing');
-      await tester.pump(const Duration(milliseconds: 400));
-      final typedRect = tester.getRect(field);
-      final editable = tester.state<EditableTextState>(
-        find.descendant(of: field, matching: find.byType(EditableText)),
-      );
-      final caretRect = editable.renderEditable.getLocalRectForCaret(
-        editable.textEditingValue.selection.extent,
-      );
-      final caretTop = editable.renderEditable
-          .localToGlobal(caretRect.topLeft)
-          .dy;
-      final caretBottom = editable.renderEditable
-          .localToGlobal(caretRect.bottomLeft)
-          .dy;
-      expect(
-        tester.widget<TextField>(field).controller!.text,
-        'Visible while typing',
-      );
-      expect(typedRect.top, greaterThanOrEqualTo(0));
-      expect(typedRect.bottom, lessThanOrEqualTo(keyboardTop));
-      expect(caretTop, greaterThanOrEqualTo(0));
-      expect(caretBottom, lessThanOrEqualTo(keyboardTop));
-
-      FocusManager.instance.primaryFocus?.unfocus();
-      tester.view.resetViewInsets();
-      await tester.pumpAndSettle(const Duration(milliseconds: 500));
-      final anchoredTop = keyboardTop - fieldHeight - 4;
-      scrollState.position.jumpTo(
-        scrollState.position.pixels + tester.getTopLeft(field).dy - anchoredTop,
-      );
-      await tester.pump();
-
-      final openedOffsets = <double>[];
-      final dismissedOffsets = <double>[];
-      final openedRects = <Rect>[];
-      for (var cycle = 0; cycle < 6; cycle++) {
-        await tester.tap(field);
-        await tester.pump();
-        tester.view.viewInsets = const FakeViewPadding(bottom: keyboardInset);
-        await tester.pumpAndSettle(const Duration(milliseconds: 500));
-
-        final rect = tester.getRect(field);
-        openedRects.add(rect);
-        expect(
-          rect.top,
-          greaterThanOrEqualTo(0),
-          reason: 'cycle $cycle: $rect',
-        );
-        expect(
-          rect.bottom,
-          lessThanOrEqualTo(keyboardTop),
-          reason: 'cycle $cycle: $rect',
-        );
-        openedOffsets.add(scrollState.position.pixels);
-
-        FocusManager.instance.primaryFocus?.unfocus();
-        tester.view.resetViewInsets();
-        await tester.pumpAndSettle(const Duration(milliseconds: 500));
-        dismissedOffsets.add(scrollState.position.pixels);
-      }
-
-      for (var cycle = 4; cycle < 6; cycle++) {
-        expect(
-          openedOffsets[cycle],
-          closeTo(openedOffsets[3], 0.5),
-          reason:
-              'opened=$openedOffsets rects=$openedRects dismissed=$dismissedOffsets',
-        );
-        expect(
-          dismissedOffsets[cycle],
-          closeTo(dismissedOffsets[3], 0.5),
-          reason: '$dismissedOffsets',
-        );
-      }
-    },
+        child: child ?? const SizedBox.shrink(),
+      ),
+      home: FollowSkyDetailPage(
+        initialCatalog: catalog,
+        now: DateTime.utc(2026, 8, 24, 12),
+      ),
+    ),
   );
+  await tester.pumpAndSettle();
+
+  final field = find.byKey(
+    const ValueKey<String>('follow-sky-worked-intention'),
+  );
+  final question = find.text(
+    'What do you want to stay true to when conditions change?',
+  );
+  final preview = _byKeyPrefix('follow-sky-preview-day-').first;
+  final scrollable = _followSkyScrollable();
+  final scrollState = tester.state<ScrollableState>(scrollable);
+
+  await tester.scrollUntilVisible(field, 100, scrollable: scrollable);
+  await tester.pumpAndSettle();
+  const recordedQuestionTop = 190.0;
+  final readingOffset =
+      (scrollState.position.pixels +
+              tester.getTopLeft(question).dy -
+              recordedQuestionTop)
+          .clamp(
+            scrollState.position.minScrollExtent,
+            scrollState.position.maxScrollExtent,
+          )
+          .toDouble();
+  scrollState.position.jumpTo(readingOffset);
+  await tester.pump();
+  final recordedScrollOffset = scrollState.position.pixels;
+
+  final initialQuestionRect = tester.getRect(question);
+  final initialFieldRect = tester.getRect(field);
+  expect(initialQuestionRect.top, closeTo(recordedQuestionTop, 0.5));
+  expect(initialFieldRect.top, greaterThan(initialQuestionRect.bottom));
+  expect(initialFieldRect.bottom, lessThan(tester.getRect(preview).top));
+
+  Future<void> openKeyboard() async {
+    webViewport = switch (scenario) {
+      _KeyboardViewportScenario.nativeInset => null,
+      _KeyboardViewportScenario.webResize ||
+      _KeyboardViewportScenario.webLayoutSized => const (
+        height: 524,
+        layoutHeight: 844,
+        offsetTop: 0,
+      ),
+      _KeyboardViewportScenario.iosWebTransition ||
+      _KeyboardViewportScenario.webLayoutSizedPanned => const (
+        height: 524,
+        layoutHeight: 844,
+        offsetTop: 120,
+      ),
+    };
+    switch (scenario) {
+      case _KeyboardViewportScenario.nativeInset:
+        tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+      case _KeyboardViewportScenario.webResize:
+        tester.view.physicalSize = const Size(390, 524);
+        tester.view.viewInsets = FakeViewPadding.zero;
+      case _KeyboardViewportScenario.iosWebTransition:
+        tester.view.physicalSize = const Size(390, 524);
+        tester.view.viewInsets = const FakeViewPadding(bottom: 320);
+      case _KeyboardViewportScenario.webLayoutSized:
+      case _KeyboardViewportScenario.webLayoutSizedPanned:
+        tester.view.physicalSize = const Size(390, 844);
+        tester.view.viewInsets = FakeViewPadding.zero;
+    }
+    await tester.pump();
+  }
+
+  Future<void> closeKeyboard() async {
+    webViewport = null;
+    tester.view.viewInsets = FakeViewPadding.zero;
+    tester.view.physicalSize = const Size(390, 844);
+    FocusManager.instance.primaryFocus?.unfocus();
+    await tester.pumpAndSettle();
+  }
+
+  void expectVisibleGeometry(String phase) {
+    final (visibleTop, visibleBottom) = switch (scenario) {
+      _KeyboardViewportScenario.webLayoutSizedPanned => (120.0, 644.0),
+      _ => (0.0, 524.0),
+    };
+    final questionRect = tester.getRect(question);
+    final fieldRect = tester.getRect(field);
+    final previewRect = tester.getRect(preview);
+    final editable = tester.state<EditableTextState>(
+      find.descendant(of: field, matching: find.byType(EditableText)),
+    );
+    final caretRect = editable.renderEditable.getLocalRectForCaret(
+      editable.textEditingValue.selection.extent,
+    );
+    final caretTop = editable.renderEditable
+        .localToGlobal(caretRect.topLeft)
+        .dy;
+    final caretBottom = editable.renderEditable
+        .localToGlobal(caretRect.bottomLeft)
+        .dy;
+
+    expect(questionRect.top, greaterThanOrEqualTo(visibleTop), reason: phase);
+    expect(fieldRect.top, greaterThan(questionRect.bottom), reason: phase);
+    expect(fieldRect.top, greaterThanOrEqualTo(visibleTop), reason: phase);
+    expect(fieldRect.bottom, lessThanOrEqualTo(visibleBottom), reason: phase);
+    expect(fieldRect.bottom, lessThan(previewRect.top), reason: phase);
+    expect(caretTop, greaterThanOrEqualTo(fieldRect.top), reason: phase);
+    expect(caretBottom, lessThanOrEqualTo(visibleBottom), reason: phase);
+    if (scenario == _KeyboardViewportScenario.webLayoutSized ||
+        scenario == _KeyboardViewportScenario.webLayoutSizedPanned) {
+      expect(
+        scrollState.position.pixels,
+        closeTo(recordedScrollOffset, 0.5),
+        reason: '$phase: system keyboard must not animate outer Follow Sky',
+      );
+    }
+  }
+
+  await tester.tap(field);
+  await tester.pump();
+  await openKeyboard();
+  for (final elapsed in const [40, 80, 140, 260]) {
+    await tester.pump(Duration(milliseconds: elapsed));
+    expectVisibleGeometry('${scenario.label} after ${elapsed}ms');
+  }
+
+  await tester.enterText(field, 'Visible while typing');
+  await tester.pump(const Duration(milliseconds: 400));
+  expectVisibleGeometry('${scenario.label} while typing');
+  expect(
+    tester.widget<TextField>(field).controller!.text,
+    'Visible while typing',
+  );
+
+  final openedOffsets = <double>[scrollState.position.pixels];
+  final dismissedOffsets = <double>[];
+  for (var cycle = 0; cycle < 4; cycle++) {
+    await closeKeyboard();
+    dismissedOffsets.add(scrollState.position.pixels);
+
+    await tester.tap(field);
+    await tester.pump();
+    await openKeyboard();
+    await tester.pumpAndSettle();
+    expectVisibleGeometry('${scenario.label} cycle $cycle');
+    openedOffsets.add(scrollState.position.pixels);
+  }
+
+  for (final offset in openedOffsets.skip(1)) {
+    expect(offset, closeTo(openedOffsets.last, 0.5), reason: '$openedOffsets');
+  }
+  for (final offset in dismissedOffsets.skip(1)) {
+    expect(
+      offset,
+      closeTo(dismissedOffsets.last, 0.5),
+      reason: '$dismissedOffsets',
+    );
+  }
 }
 
 Finder _followSkyScrollable() => find

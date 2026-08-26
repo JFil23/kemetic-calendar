@@ -8,6 +8,7 @@ import 'package:mobile/shared/kemetic_text.dart';
 
 import 'kemetic_web_keyboard_input.dart'
     if (dart.library.js_interop) 'kemetic_web_keyboard_input_web.dart';
+import 'keyboard_viewport_metrics.dart';
 
 enum KeyboardMode { system, custom }
 
@@ -328,8 +329,13 @@ class KemeticKeyboardController extends ChangeNotifier {
 /// whenever a text input is focused.
 class KemeticKeyboardHost extends StatefulWidget {
   final Widget child;
+  final KeyboardViewportMetricsResolver viewportMetricsResolver;
 
-  const KemeticKeyboardHost({super.key, required this.child});
+  const KemeticKeyboardHost({
+    super.key,
+    required this.child,
+    this.viewportMetricsResolver = resolveKeyboardViewportMetrics,
+  });
 
   @override
   State<KemeticKeyboardHost> createState() => _KemeticKeyboardHostState();
@@ -344,13 +350,12 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
   String _observedText = '';
   TextSelection _observedSelection = const TextSelection.collapsed(offset: -1);
   double _lastKeyboardHeight = 300;
-  double _lastSystemKeyboardInset = 0;
   bool _opening = false;
   bool _systemKeyboardHidden = false;
   bool _dismissScheduled = false;
   bool _restoreSystemKeyboardScheduled = false;
   bool _revealScheduled = false;
-  bool _revealNeedsDelayedPass = false;
+  bool _multilineRevealScheduled = false;
 
   @override
   void initState() {
@@ -374,8 +379,7 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
 
   @override
   void didChangeMetrics() {
-    super.didChangeMetrics();
-    _scheduleRevealFocusedEditable(includeDelayedPass: true);
+    _scheduleMultilineCaretReveal();
   }
 
   double _resolvedPanelHeight() {
@@ -395,7 +399,7 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
       setState(() {});
     }
     _syncSelectionObserver(_controller.editable);
-    _scheduleRevealFocusedEditable();
+    _scheduleCustomKeyboardReveal();
   }
 
   void _handleSelectionChanged() {
@@ -406,8 +410,15 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
     final selectionChanged = value.selection != _observedSelection;
     _observedText = value.text;
     _observedSelection = value.selection;
-    if (textChanged || !selectionChanged) return;
-    _scheduleRevealFocusedEditable();
+    if (_controller.shouldShowPanel) {
+      if (!textChanged && selectionChanged) {
+        _scheduleCustomKeyboardReveal();
+      }
+      return;
+    }
+    if (textChanged || selectionChanged) {
+      _scheduleMultilineCaretReveal();
+    }
   }
 
   void _syncSelectionObserver(EditableTextState? editable) {
@@ -424,36 +435,87 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
     _selectionController?.addListener(_handleSelectionChanged);
   }
 
-  void _scheduleRevealFocusedEditable({bool includeDelayedPass = false}) {
-    _revealNeedsDelayedPass = _revealNeedsDelayedPass || includeDelayedPass;
+  void _scheduleCustomKeyboardReveal() {
+    if (!_controller.shouldShowPanel) return;
     if (_revealScheduled) return;
     _revealScheduled = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _revealScheduled = false;
-      final includeDelayedPass = _revealNeedsDelayedPass;
-      _revealNeedsDelayedPass = false;
       if (!mounted) return;
-      _revealFocusedEditableNow();
-      if (!includeDelayedPass) return;
-      Future<void>.delayed(const Duration(milliseconds: 140), () {
-        if (mounted) _revealFocusedEditableNow();
-      });
+      _revealFocusedEditableForCustomKeyboard();
     });
   }
 
-  void _revealFocusedEditableNow() {
-    if (!mounted) return;
+  bool _isMultiline(EditableTextState? editable) {
+    return _controller._isUsable(editable) && editable!.widget.maxLines != 1;
+  }
+
+  void _scheduleMultilineCaretReveal() {
+    if (_controller.shouldShowPanel) return;
+    final editable = _controller.editable;
+    if (!_isMultiline(editable) || _multilineRevealScheduled) return;
+    _multilineRevealScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _multilineRevealScheduled = false;
+      if (!mounted || _controller.shouldShowPanel) return;
+      _revealMultilineCaretInsideEditable();
+    });
+  }
+
+  void _revealMultilineCaretInsideEditable() {
+    final editable = _controller.editable;
+    if (!_isMultiline(editable)) return;
+    final media = MediaQuery.maybeOf(context);
+    if (media == null ||
+        !widget.viewportMetricsResolver(media).systemKeyboardVisible) {
+      return;
+    }
+    try {
+      final renderEditable = editable!.renderEditable;
+      final position = renderEditable.offset;
+      if (position is! ScrollPosition ||
+          position.axis != Axis.vertical ||
+          !position.hasPixels ||
+          !renderEditable.hasSize) {
+        return;
+      }
+      final selection = editable.widget.controller.selection;
+      final textLength = editable.widget.controller.text.length;
+      final extent = selection.isValid
+          ? selection.extent
+          : TextPosition(offset: textLength);
+      final caret = renderEditable.getLocalRectForCaret(
+        TextPosition(offset: extent.offset.clamp(0, textLength)),
+      );
+      const clearance = 8.0;
+      final lowerOverflow =
+          caret.bottom + clearance - renderEditable.size.height;
+      final upperOverflow = caret.top - clearance;
+      if (lowerOverflow <= 0 && upperOverflow >= 0) return;
+      final overflow = lowerOverflow > 0 ? lowerOverflow : upperOverflow;
+      final scrollDelta = position.axisDirection == AxisDirection.up
+          ? -overflow
+          : overflow;
+      final targetPixels = (position.pixels + scrollDelta)
+          .clamp(position.minScrollExtent, position.maxScrollExtent)
+          .toDouble();
+      if ((targetPixels - position.pixels).abs() < 0.5) return;
+      position.jumpTo(targetPixels);
+    } catch (_) {}
+  }
+
+  void _revealFocusedEditableForCustomKeyboard() {
+    if (!mounted || !_controller.shouldShowPanel) return;
     final target = _controller.editable ?? _controller.lastEditable;
     if (!_controller._isUsable(target)) return;
     final editable = target;
     if (editable == null) return;
     final media = MediaQuery.maybeOf(context);
     if (media == null) return;
-    final customKeyboardVisible = _controller.shouldShowPanel;
-    final keyboardInset = customKeyboardVisible
-        ? _customKeyboardInset(media)
-        : media.viewInsets.bottom;
+    final keyboardInset = _customKeyboardInset(media);
     if (keyboardInset <= 0) return;
+    final viewport = widget.viewportMetricsResolver(media);
+    final keyboardTop = viewport.visibleBottom - keyboardInset;
 
     final selection = editable.widget.controller.selection;
     final textLength = editable.widget.controller.text.length;
@@ -463,109 +525,55 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
     final caretPosition = TextPosition(
       offset: extentPosition.offset.clamp(0, textLength),
     );
-    final caretClearance = _caretKeyboardClearance(
-      customKeyboardVisible: customKeyboardVisible,
-    );
-
-    final scrolledTextContent = _scrollCaretAboveKeyboard(
-      editable: editable,
-      caretPosition: caretPosition,
-      keyboardInset: keyboardInset,
-      media: media,
-      clearance: caretClearance,
-      scrollPosition: _scrollPositionFor(editable.widget.scrollController),
-    );
 
     final scrollable = Scrollable.maybeOf(editable.context);
     if (scrollable == null) return;
-
-    if (!scrolledTextContent) {
-      try {
-        Scrollable.ensureVisible(
-          editable.context,
-          alignment: 1.0,
-          alignmentPolicy: ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOut,
-        );
-      } catch (_) {}
-    }
-
-    _scrollCaretAboveKeyboard(
+    _scrollCaretWithinOuterViewport(
       editable: editable,
       caretPosition: caretPosition,
-      keyboardInset: keyboardInset,
-      media: media,
-      clearance: caretClearance,
+      visibleTop: max(viewport.visibleTop, media.padding.top),
+      visibleBottom: keyboardTop,
       scrollPosition: scrollable.position,
     );
   }
 
-  ScrollPosition? _scrollPositionFor(ScrollController? controller) {
-    if (controller == null || !controller.hasClients) return null;
-    return controller.position;
-  }
-
-  double _caretKeyboardClearance({required bool customKeyboardVisible}) {
-    return 20;
-  }
-
-  bool _scrollCaretAboveKeyboard({
+  void _scrollCaretWithinOuterViewport({
     required EditableTextState editable,
     required TextPosition caretPosition,
-    required double keyboardInset,
-    required MediaQueryData media,
-    required double clearance,
-    required ScrollPosition? scrollPosition,
+    required double visibleTop,
+    required double visibleBottom,
+    required ScrollPosition scrollPosition,
   }) {
     try {
       final renderEditable = editable.renderEditable;
-      final editableOffset = renderEditable.offset;
-      final renderPosition =
-          editableOffset is ScrollPosition &&
-              editableOffset.axis == Axis.vertical
-          ? editableOffset
-          : null;
-      final ScrollPosition? position = renderPosition ?? scrollPosition;
-      if (position == null) return false;
-      if (!renderEditable.hasSize) {
-        return false;
-      }
+      if (!renderEditable.hasSize) return;
       final caretRect = renderEditable.getLocalRectForCaret(caretPosition);
-      final keyboardTop = media.size.height - keyboardInset;
-      if (position.axis != Axis.vertical || !position.hasPixels) {
-        return false;
+      if (scrollPosition.axis != Axis.vertical || !scrollPosition.hasPixels) {
+        return;
       }
 
       final caretTop = renderEditable.localToGlobal(caretRect.topLeft).dy;
       final caretBottom = renderEditable.localToGlobal(caretRect.bottomLeft).dy;
-      final editableTop = renderEditable.localToGlobal(Offset.zero).dy;
-      final lowerOverflow = caretBottom + clearance - keyboardTop;
-      final upperOverflow = caretTop - max(editableTop + 8, media.padding.top);
-      if (lowerOverflow <= 0 && upperOverflow >= 0) return false;
+      const clearance = 20.0;
+      final lowerOverflow = caretBottom + clearance - visibleBottom;
+      final upperOverflow = caretTop - (visibleTop + clearance);
+      if (lowerOverflow <= 0 && upperOverflow >= 0) return;
 
       final overflow = lowerOverflow > 0 ? lowerOverflow : upperOverflow;
-      final scrollDelta = position.axisDirection == AxisDirection.up
+      final scrollDelta = scrollPosition.axisDirection == AxisDirection.up
           ? -overflow
           : overflow;
-      final targetPixels = (position.pixels + scrollDelta)
-          .clamp(position.minScrollExtent, position.maxScrollExtent)
+      final targetPixels = (scrollPosition.pixels + scrollDelta)
+          .clamp(scrollPosition.minScrollExtent, scrollPosition.maxScrollExtent)
           .toDouble();
-      if ((targetPixels - position.pixels).abs() < 0.5) return false;
+      if ((targetPixels - scrollPosition.pixels).abs() < 0.5) return;
 
-      position.animateTo(
+      scrollPosition.animateTo(
         targetPixels,
         duration: const Duration(milliseconds: 220),
         curve: Curves.easeOut,
       );
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  void _scheduleRevealAfterFocusChange() {
-    _scheduleRevealFocusedEditable(includeDelayedPass: true);
+    } catch (_) {}
   }
 
   void _handleFocusChange() {
@@ -592,7 +600,7 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
         _dismissCustomKeyboard(unfocusTarget: false);
       }
       _syncSelectionObserver(editable);
-      _scheduleRevealAfterFocusChange();
+      _scheduleCustomKeyboardReveal();
       return;
     }
 
@@ -607,7 +615,6 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
 
     _controller.attachEditable(editable);
     _syncSelectionObserver(editable);
-    _scheduleRevealAfterFocusChange();
     // If the system keyboard was explicitly hidden (e.g., after custom mode),
     // restore it once a field regains focus so cursor gestures keep working.
     if (_systemKeyboardHidden) {
@@ -670,18 +677,15 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final bottomInset = media.viewInsets.bottom;
-    if ((bottomInset - _lastSystemKeyboardInset).abs() > 1) {
-      _lastSystemKeyboardInset = bottomInset;
-      if (bottomInset > 0) {
-        _scheduleRevealFocusedEditable(includeDelayedPass: true);
-      }
-    }
-    if (bottomInset > 60 && (bottomInset - _lastKeyboardHeight).abs() > 1) {
-      _lastKeyboardHeight = bottomInset;
+    final viewport = widget.viewportMetricsResolver(media);
+    final rawBottomInset = media.viewInsets.bottom;
+    final layoutBottomInset = viewport.layoutViewInsetBottom;
+    if (rawBottomInset > 60 &&
+        (rawBottomInset - _lastKeyboardHeight).abs() > 1) {
+      _lastKeyboardHeight = rawBottomInset;
     }
     final effectiveKeyboardInset = max(
-      bottomInset,
+      layoutBottomInset,
       _customKeyboardInset(media),
     );
     final effectiveViewInsets = media.viewInsets.copyWith(
@@ -705,7 +709,7 @@ class _KemeticKeyboardHostState extends State<KemeticKeyboardHost>
           _KeyboardToggle(
             controller: _controller,
             regionKey: _toggleRegionKey,
-            bottomInset: bottomInset,
+            bottomInset: layoutBottomInset,
             onOpenCustom: _openCustomKeyboard,
           ),
           _KeyboardPanel(
