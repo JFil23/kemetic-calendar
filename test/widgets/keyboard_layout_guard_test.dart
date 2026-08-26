@@ -238,6 +238,30 @@ void main() {
       expect(source, isNot(contains('_syncEditableValueListener')));
     });
 
+    test('global keyboard host never reveals in response to text changes', () {
+      final source = File(
+        'lib/widgets/kemetic_keyboard.dart',
+      ).readAsStringSync();
+      final innerCaretReveal = source.substring(
+        source.indexOf('void _revealMultilineCaretInsideEditable()'),
+        source.indexOf('void _revealFocusedEditableForCustomKeyboard()'),
+      );
+
+      expect(
+        source,
+        contains(
+          'if (textChanged || selectionChanged) {\n'
+          '      _scheduleMultilineCaretReveal();',
+        ),
+      );
+      expect(
+        innerCaretReveal,
+        contains('final position = renderEditable.offset;'),
+      );
+      expect(innerCaretReveal, isNot(contains('Scrollable.maybeOf')));
+      expect(innerCaretReveal, isNot(contains('animateTo')));
+    });
+
     test('global host leaves system reveal to EditableText', () {
       final source = File(
         'lib/widgets/kemetic_keyboard.dart',
