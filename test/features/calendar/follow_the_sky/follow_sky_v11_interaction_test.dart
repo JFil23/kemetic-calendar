@@ -490,6 +490,15 @@ void main() {
       ),
     );
   }
+
+  testWidgets(
+    'worked intention stays visible above keyboard without focus-cycle drift',
+    (tester) => _expectWorkedIntentionKeyboardContract(
+      tester,
+      catalog: catalog,
+      scenario: _KeyboardViewportScenario.webLayoutSizedPanned,
+    ),
+  );
 }
 
 enum _KeyboardViewportScenario {
