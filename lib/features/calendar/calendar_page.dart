@@ -13320,7 +13320,14 @@ class CalendarPageState extends State<CalendarPage>
     required _MaatFlowTemplate template,
     required bool persistOverlay,
   }) {
-    final sky = template.key == 'track-the-sky' ? _followSkyLiveInputs() : null;
+    final needsCalendarPreview =
+        template.key == 'track-the-sky' ||
+        template.key == kOfferingTableFlowKey;
+    final liveInputs = needsCalendarPreview ? _followSkyLiveInputs() : null;
+    final sky = template.key == 'track-the-sky' ? liveInputs : null;
+    final calendarPreview = template.key == kOfferingTableFlowKey
+        ? liveInputs?.fullCalendarPreview
+        : sky?.preview;
     return _MaatFlowTemplateDetailPage(
       template: template,
       alreadyJoined: _hasActiveMaatInstanceFor(template.key),
@@ -13329,7 +13336,8 @@ class CalendarPageState extends State<CalendarPage>
       followSkyExistingFlowId: sky?.flowId,
       followSkyCandidates: sky?.candidates ?? const [],
       followSkyMeasurementIntervals: sky?.intervals ?? const [],
-      followSkyCalendarPreview: sky?.preview ?? FollowSkyCalendarPreview.empty,
+      followSkyCalendarPreview:
+          calendarPreview ?? FollowSkyCalendarPreview.empty,
       onFollowSkyCourseSaved: sky?.flowId == null
           ? null
           : (course, notes) => _saveFollowSkyCourseNotes(
@@ -28119,6 +28127,7 @@ class CalendarPageState extends State<CalendarPage>
     List<CourseActivitySignal> candidates,
     List<CourseMeasurementInterval> intervals,
     FollowSkyCalendarPreview preview,
+    FollowSkyCalendarPreview fullCalendarPreview,
   }) _followSkyLiveInputs() {
     final flow = _activeFlowForMaatTemplate('track-the-sky');
     final now = DateTime.now();
@@ -28128,7 +28137,7 @@ class CalendarPageState extends State<CalendarPage>
     // calendar context. Keep one bounded hydration window large enough for
     // the canonical catalog's rolling five-event sequence.
     final windowEnd = windowStart.add(const Duration(days: 119));
-    final previewRows = <FollowSkyCalendarPreviewRow>[];
+    final allPreviewRows = <FollowSkyCalendarPreviewRow>[];
     final snapshots = <CourseActivitySnapshot>[];
     final blocks = <FollowSkyCalendarBlock>[];
     final decodedCourse = TrackSkyCourseMetadataCodec().decode(flow?.notes);
@@ -28172,20 +28181,18 @@ class CalendarPageState extends State<CalendarPage>
                 }
                 return null;
               }();
-        if (sourceFlow == null || !_isTrackSkyFlowName(sourceFlow.name)) {
-          previewRows.add(
-            FollowSkyCalendarPreviewRow(
-              localDay: dayStart,
-              start: start,
-              end: end,
-              title: note.title,
-              eventColor: _noteColor(note),
-              eventId: note.clientEventId ?? note.id,
-              flowName: sourceFlow?.name,
-              allDay: note.allDay,
-            ),
-          );
-        }
+        allPreviewRows.add(
+          FollowSkyCalendarPreviewRow(
+            localDay: dayStart,
+            start: start,
+            end: end,
+            title: note.title,
+            eventColor: _noteColor(note),
+            eventId: note.clientEventId ?? note.id,
+            flowName: sourceFlow?.name,
+            allDay: note.allDay,
+          ),
+        );
         // A block only counts as course-measurable activity when its flow still
         // exists and is not Follow the Sky's own generated flow.
         final measurableFlowId =
@@ -28229,23 +28236,32 @@ class CalendarPageState extends State<CalendarPage>
       snapshots: snapshots,
       now: now,
     );
+    final previewRows = allPreviewRows
+        .where((row) => !_isTrackSkyFlowName(row.flowName))
+        .toList(growable: false);
+    final intervals = const FollowSkyCourseAttribution().intervalsFor(
+      course: course,
+      blocks: blocks,
+    );
     return (
       notes: rehydrated.notes,
       flowId: flow?.id,
       candidates: candidates,
-      intervals: const FollowSkyCourseAttribution().intervalsFor(
-        course: course,
-        blocks: blocks,
-      ),
+      intervals: intervals,
       preview: FollowSkyCalendarPreview(
         rows: previewRows,
         windowStart: windowStart,
         windowEnd: windowEnd,
         candidates: candidates,
-        intervals: const FollowSkyCourseAttribution().intervalsFor(
-          course: course,
-          blocks: blocks,
-        ),
+        intervals: intervals,
+        coverageComplete: true,
+      ),
+      fullCalendarPreview: FollowSkyCalendarPreview(
+        rows: List<FollowSkyCalendarPreviewRow>.unmodifiable(allPreviewRows),
+        windowStart: windowStart,
+        windowEnd: windowEnd,
+        candidates: candidates,
+        intervals: intervals,
         coverageComplete: true,
       ),
     );

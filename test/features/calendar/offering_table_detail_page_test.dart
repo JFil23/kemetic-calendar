@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' hide KemeticMath;
+import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_tokens.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/track_sky_event_block_visual.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
@@ -43,7 +44,12 @@ void main() {
     (tester) async {
       const size = Size(390, 844);
       final start = DateTime(2026, 9, 3);
-      await _pumpPage(tester, size: size, start: start);
+      await _pumpPage(
+        tester,
+        size: size,
+        start: start,
+        calendarPreview: _calendarPreview(start),
+      );
 
       final calendar = find.byKey(
         const ValueKey<String>('offering-table-thirty-day-calendar'),
@@ -100,6 +106,49 @@ void main() {
       expect(find.text('Day 1: The First Water'), findsOneWidget);
       expect(find.text('7:30 AM'), findsNWidgets(5));
       expect(find.byType(TrackSkyEventBlockVisual), findsNWidgets(5));
+      expect(find.text('Morning workout'), findsOneWidget);
+      expect(find.text('Evening journal'), findsOneWidget);
+      expect(find.text('Lunch meeting'), findsOneWidget);
+
+      final workout = find.descendant(
+        of: firstPreview,
+        matching: find.text('Morning workout'),
+      );
+      final offering = find.descendant(
+        of: firstPreview,
+        matching: find.text('Day 1: The First Water'),
+      );
+      final journal = find.descendant(
+        of: firstPreview,
+        matching: find.text('Evening journal'),
+      );
+      expect(
+        tester.getTopLeft(workout).dy,
+        lessThan(tester.getTopLeft(offering).dy),
+      );
+      expect(
+        tester.getTopLeft(offering).dy,
+        lessThan(tester.getTopLeft(journal).dy),
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(
+            const ValueKey<String>('offering-table-preview-day-2'),
+          ),
+          matching: find.text('Day 2: The Cup Before the Noise'),
+        ),
+        findsOneWidget,
+      );
+
+      final firstDateKey = _dateKey(start);
+      expect(
+        _dotColor(tester, 'offering-table-calendar-dot-$firstDateKey-1'),
+        const Color(0xFF4E7A46),
+      );
+      expect(
+        _dotColor(tester, 'offering-table-calendar-dot-$firstDateKey-2'),
+        const Color(0xFF3B5D82),
+      );
 
       expect(find.text('THE FIRST PRACTICE'), findsNothing);
       expect(find.text('SET YOUR TABLE'), findsNothing);
@@ -123,14 +172,19 @@ void main() {
       tester.widget<InkWell>(showAll).onTap!();
       await tester.pumpAndSettle();
 
-      expect(_previewDayCards(), findsNWidgets(30));
+      expect(_previewDayCards(), findsNWidgets(5));
       expect(
         find.byKey(const ValueKey<String>('offering-table-preview-day-30')),
+        findsNothing,
+      );
+      expect(find.byType(TrackSkyEventBlockVisual), findsNWidgets(5));
+      expect(_compactDayRows(), findsNWidgets(25));
+      expect(
+        find.byKey(const ValueKey<String>('offering-table-all-day-30')),
         findsOneWidget,
       );
-      expect(find.byType(TrackSkyEventBlockVisual), findsNWidgets(30));
 
-      for (final day in kOfferingTableDays) {
+      for (final day in kOfferingTableDays.take(5)) {
         final date = start.add(Duration(days: day.dayNumber - 1));
         final kemetic = KemeticMath.fromGregorian(date);
         final month = getMonthById(kemetic.kMonth);
@@ -163,6 +217,29 @@ void main() {
           findsOneWidget,
         );
       }
+
+      final day30 = kOfferingTableDays.last;
+      final day30Date = start.add(const Duration(days: 29));
+      final compact30 = find.byKey(
+        const ValueKey<String>('offering-table-all-day-30'),
+      );
+      expect(
+        find.descendant(of: compact30, matching: find.text(day30.title)),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: compact30,
+          matching: find.textContaining(
+            '${day30Date.day}, ${day30Date.year} · 7:30 AM',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: compact30, matching: find.text(day30.section)),
+        findsOneWidget,
+      );
 
       expect(
         find.byKey(const ValueKey<String>('offering-table-join')),
@@ -247,6 +324,7 @@ Future<void> _pumpPage(
   required DateTime start,
   TrackSkyTimeZone timezone = TrackSkyTimeZone.pacific,
   OfferingTableJoinCallback? onJoin,
+  FollowSkyCalendarPreview calendarPreview = FollowSkyCalendarPreview.empty,
 }) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -254,6 +332,7 @@ Future<void> _pumpPage(
     MaterialApp(
       home: OfferingTableDetailPage(
         timezone: timezone,
+        calendarPreview: calendarPreview,
         initialStartDate: start,
         showBackButton: false,
         onJoin:
@@ -275,6 +354,54 @@ Finder _previewDayCards() => find.byWidgetPredicate((widget) {
   return key is ValueKey<String> &&
       key.value.startsWith('offering-table-preview-day-');
 });
+
+Finder _compactDayRows() => find.byWidgetPredicate((widget) {
+  final key = widget.key;
+  return key is ValueKey<String> &&
+      key.value.startsWith('offering-table-all-day-');
+});
+
+Color? _dotColor(WidgetTester tester, String key) {
+  final container = tester.widget<Container>(find.byKey(ValueKey<String>(key)));
+  return (container.decoration as BoxDecoration).color;
+}
+
+FollowSkyCalendarPreview _calendarPreview(DateTime start) {
+  final secondDay = start.add(const Duration(days: 1));
+  return FollowSkyCalendarPreview(
+    rows: [
+      FollowSkyCalendarPreviewRow(
+        localDay: start,
+        start: DateTime(start.year, start.month, start.day, 6, 30),
+        end: DateTime(start.year, start.month, start.day, 7, 15),
+        title: 'Morning workout',
+        eventColor: const Color(0xFF4E7A46),
+      ),
+      FollowSkyCalendarPreviewRow(
+        localDay: start,
+        start: DateTime(start.year, start.month, start.day, 21, 30),
+        end: DateTime(start.year, start.month, start.day, 22),
+        title: 'Evening journal',
+        eventColor: const Color(0xFF3B5D82),
+      ),
+      FollowSkyCalendarPreviewRow(
+        localDay: secondDay,
+        start: DateTime(secondDay.year, secondDay.month, secondDay.day, 7, 30),
+        end: DateTime(secondDay.year, secondDay.month, secondDay.day, 7, 33),
+        title: 'Day 2: The Cup Before the Noise',
+        eventColor: const Color(0xFFB85B87),
+        flowName: kOfferingTableTitle,
+      ),
+      FollowSkyCalendarPreviewRow(
+        localDay: secondDay,
+        start: DateTime(secondDay.year, secondDay.month, secondDay.day, 13),
+        end: DateTime(secondDay.year, secondDay.month, secondDay.day, 14),
+        title: 'Lunch meeting',
+        eventColor: const Color(0xFF8E4B2E),
+      ),
+    ],
+  );
+}
 
 String _dateKey(DateTime date) =>
     '${date.year.toString().padLeft(4, '0')}-'

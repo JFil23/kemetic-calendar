@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 
 import 'package:mobile/features/calendar/calendar_event_visual_style.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/track_sky_event_block_visual.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
@@ -109,6 +110,7 @@ class OfferingTableDetailPage extends StatefulWidget {
     super.key,
     required this.timezone,
     required this.onJoin,
+    this.calendarPreview = FollowSkyCalendarPreview.empty,
     this.initialStartDate,
     this.alreadyJoined = false,
     this.showBackButton = true,
@@ -118,6 +120,7 @@ class OfferingTableDetailPage extends StatefulWidget {
 
   final TrackSkyTimeZone timezone;
   final OfferingTableJoinCallback onJoin;
+  final FollowSkyCalendarPreview calendarPreview;
   final DateTime? initialStartDate;
   final bool alreadyJoined;
   final bool showBackButton;
@@ -266,6 +269,7 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
     final today = DateUtils.dateOnly(offeringTableNowInZone(widget.timezone));
     final surfaced = occurrences.take(5).toList(growable: false);
     final remaining = occurrences.skip(5).toList(growable: false);
+    final ordinaryRowsByDay = _ordinaryRowsByDay(occurrences);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -278,7 +282,13 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
               MaatFlowThirtyDayMarker(
                 date: occurrence.date,
                 isToday: DateUtils.isSameDay(occurrence.date, today),
-                secondaryColors: const [OfferingTableDetailTokens.warmGold],
+                secondaryColors: [
+                  OfferingTableDetailTokens.warmGold,
+                  for (final row
+                      in ordinaryRowsByDay[occurrence.date] ??
+                          const <FollowSkyCalendarPreviewRow>[])
+                    row.eventColor,
+                ],
               ),
           ],
           theme: OfferingTableDetailTokens.thirtyDayCalendarTheme,
@@ -293,7 +303,13 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               for (var i = 0; i < surfaced.length; i++) ...[
-                _OfferingPreviewDay(occurrence: surfaced[i], carried: _joined),
+                _OfferingPreviewDay(
+                  occurrence: surfaced[i],
+                  carried: _joined,
+                  calendarRows:
+                      ordinaryRowsByDay[surfaced[i].date] ??
+                      const <FollowSkyCalendarPreviewRow>[],
+                ),
                 if (i != surfaced.length - 1) const SizedBox(height: 10),
               ],
             ],
@@ -303,11 +319,29 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
         _OfferingAllDaysList(
           remaining: remaining,
           expanded: _showAllDays,
-          carried: _joined,
           onToggle: () => setState(() => _showAllDays = !_showAllDays),
         ),
       ],
     );
+  }
+
+  Map<DateTime, List<FollowSkyCalendarPreviewRow>> _ordinaryRowsByDay(
+    List<OfferingTablePreviewOccurrence> occurrences,
+  ) {
+    final windowDays = <DateTime>{
+      for (final occurrence in occurrences) occurrence.date,
+    };
+    final rowsByDay = <DateTime, List<FollowSkyCalendarPreviewRow>>{};
+    for (final row in widget.calendarPreview.rows) {
+      if (isOfferingTableFlowReference(flowName: row.flowName)) continue;
+      final day = DateUtils.dateOnly(row.localDay);
+      if (!windowDays.contains(day)) continue;
+      rowsByDay.putIfAbsent(day, () => []).add(row);
+    }
+    for (final rows in rowsByDay.values) {
+      rows.sort((a, b) => a.start.compareTo(b.start));
+    }
+    return rowsByDay;
   }
 }
 
@@ -515,21 +549,40 @@ class _OfferingTableInitialEntry extends StatelessWidget {
 }
 
 class _OfferingPreviewDay extends StatelessWidget {
-  const _OfferingPreviewDay({required this.occurrence, required this.carried});
+  const _OfferingPreviewDay({
+    required this.occurrence,
+    required this.carried,
+    this.calendarRows = const <FollowSkyCalendarPreviewRow>[],
+  });
 
   final OfferingTablePreviewOccurrence occurrence;
   final bool carried;
+  final List<FollowSkyCalendarPreviewRow> calendarRows;
 
   @override
   Widget build(BuildContext context) {
     final day = occurrence.day;
+    final rows = <({DateTime start, Widget child})>[
+      (
+        start: occurrence.startLocal,
+        child: _OfferingFlowEventCard(occurrence: occurrence, carried: carried),
+      ),
+      for (final row in calendarRows)
+        (
+          start: row.start,
+          child: MaatFlowPreviewEventRow(
+            timeLabel: row.allDay ? 'All day' : _formatTime(row.start),
+            title: row.title,
+            accent: row.eventColor,
+            theme: OfferingTableDetailTokens.previewTheme,
+          ),
+        ),
+    ]..sort((a, b) => a.start.compareTo(b.start));
     return MaatFlowPreviewDayCard(
       key: ValueKey<String>('offering-table-preview-day-${day.dayNumber}'),
       date: occurrence.date,
       theme: OfferingTableDetailTokens.previewTheme,
-      children: [
-        _OfferingFlowEventCard(occurrence: occurrence, carried: carried),
-      ],
+      children: [for (final row in rows) row.child],
     );
   }
 }
@@ -645,13 +698,11 @@ class _OfferingAllDaysList extends StatelessWidget {
   const _OfferingAllDaysList({
     required this.remaining,
     required this.expanded,
-    required this.carried,
     required this.onToggle,
   });
 
   final List<OfferingTablePreviewOccurrence> remaining;
   final bool expanded;
-  final bool carried;
   final VoidCallback onToggle;
 
   @override
@@ -720,14 +771,8 @@ class _OfferingAllDaysList extends StatelessWidget {
                       padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
                       child: Column(
                         children: [
-                          for (var i = 0; i < remaining.length; i++) ...[
-                            _OfferingPreviewDay(
-                              occurrence: remaining[i],
-                              carried: carried,
-                            ),
-                            if (i != remaining.length - 1)
-                              const SizedBox(height: 10),
-                          ],
+                          for (final occurrence in remaining)
+                            _OfferingAllDayRow(occurrence: occurrence),
                         ],
                       ),
                     )
@@ -751,6 +796,103 @@ class _OfferingAllDaysList extends StatelessWidget {
       ),
     );
   }
+}
+
+class _OfferingAllDayRow extends StatelessWidget {
+  const _OfferingAllDayRow({required this.occurrence});
+
+  final OfferingTablePreviewOccurrence occurrence;
+
+  @override
+  Widget build(BuildContext context) {
+    final day = occurrence.day;
+    return Padding(
+      key: ValueKey<String>('offering-table-all-day-${day.dayNumber}'),
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 28,
+            child: Text(
+              day.dayNumber.toString().padLeft(2, '0'),
+              style: const TextStyle(
+                color: OfferingTableDetailTokens.warmGold,
+                fontFamily: MaatFlowListTokens.fontFamily,
+                fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                fontSize: 9.5,
+                fontWeight: FontWeight.w300,
+                letterSpacing: 0.76,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  day.title,
+                  style: const TextStyle(
+                    color: OfferingTableDetailTokens.warmGold,
+                    fontFamily: MaatFlowListTokens.fontFamily,
+                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                    fontSize: 19,
+                    fontWeight: FontWeight.w400,
+                    fontStyle: FontStyle.italic,
+                    height: 1.2,
+                  ),
+                ),
+                Text(
+                  '${_shortDate(occurrence.date)} · ${_formatTime(occurrence.startLocal)}',
+                  style: const TextStyle(
+                    color: OfferingTableDetailTokens.silver,
+                    fontFamily: MaatFlowListTokens.fontFamily,
+                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w300,
+                  ),
+                ),
+                Text(
+                  day.section,
+                  style: const TextStyle(
+                    color: OfferingTableDetailTokens.silver,
+                    fontFamily: MaatFlowListTokens.fontFamily,
+                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                    fontSize: 14.5,
+                    fontStyle: FontStyle.italic,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(
+            Icons.chevron_right,
+            size: 16,
+            color: OfferingTableDetailTokens.warmGold,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String _shortDate(DateTime date) {
+  const months = <String>[
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return '${months[date.month - 1]} ${date.day}, ${date.year}';
 }
 
 String _formatTime(DateTime date) {

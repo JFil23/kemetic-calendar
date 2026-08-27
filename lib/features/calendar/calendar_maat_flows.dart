@@ -8982,6 +8982,7 @@ class _MaatFlowTemplateDetailPageState
     if (widget.template.kind == _MaatFlowTemplateKind.offeringTable) {
       return OfferingTableDetailPage(
         timezone: _previewTrackSkyTimeZone,
+        calendarPreview: widget.followSkyCalendarPreview,
         alreadyJoined: widget.alreadyJoined,
         showBackButton: widget.showBackButton,
         resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
