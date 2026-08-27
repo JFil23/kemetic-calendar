@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' hide KemeticMath;
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_tokens.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/track_sky_event_block_visual.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_preview_day.dart';
@@ -58,6 +59,7 @@ void main() {
       expect(find.text('Here is your table.'), findsOneWidget);
       expect(find.text('For the next thirty days.'), findsOneWidget);
       expect(initialEntry, findsOneWidget);
+      expect(find.text('HOW THE TABLE WORKS'), findsOneWidget);
       expect(find.text('WHAT WAS FED?'), findsOneWidget);
       expect(find.text('What did you provide today?'), findsOneWidget);
       expect(
@@ -97,6 +99,7 @@ void main() {
       );
       expect(find.text('Day 1: The First Water'), findsOneWidget);
       expect(find.text('7:30 AM'), findsNWidgets(5));
+      expect(find.byType(TrackSkyEventBlockVisual), findsNWidgets(5));
 
       expect(find.text('THE FIRST PRACTICE'), findsNothing);
       expect(find.text('SET YOUR TABLE'), findsNothing);
@@ -117,7 +120,7 @@ void main() {
       final showAll = find.byKey(
         const ValueKey<String>('offering-table-show-all'),
       );
-      tester.widget<OutlinedButton>(showAll).onPressed!();
+      tester.widget<InkWell>(showAll).onTap!();
       await tester.pumpAndSettle();
 
       expect(_previewDayCards(), findsNWidgets(30));
@@ -125,6 +128,7 @@ void main() {
         find.byKey(const ValueKey<String>('offering-table-preview-day-30')),
         findsOneWidget,
       );
+      expect(find.byType(TrackSkyEventBlockVisual), findsNWidgets(30));
 
       for (final day in kOfferingTableDays) {
         final date = start.add(Duration(days: day.dayNumber - 1));

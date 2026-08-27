@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 
+import 'package:mobile/features/calendar/calendar_event_visual_style.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/track_sky_event_block_visual.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_preview_day.dart';
@@ -62,6 +64,29 @@ abstract final class OfferingTableDetailTokens {
     primaryText: mutedIvory,
     secondaryText: silver,
   );
+
+  static const CalendarEventGraphicStyle eventGraphic =
+      CalendarEventGraphicStyle(
+        kind: CalendarEventGraphicKind.trackSky,
+        trackSkyKind: CalendarTrackSkyCardKind.genericSky,
+        background: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF120B04), Color(0xFF38210D), Color(0xFF8A5723)],
+        ),
+        flowLabelGradient: LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [glow, warmGold, mutedIvory, warmGold],
+        ),
+        borderColor: warmGold,
+        accentColor: glow,
+        accentSecondaryColor: mutedIvory,
+        titleColor: Color(0xFFFFF2D7),
+        labelColor: glow,
+        detailColor: mutedIvory,
+        glowColor: warmGold,
+      );
 }
 
 @immutable
@@ -209,7 +234,7 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
         actionKey: const ValueKey<String>('offering-table-join'),
         joinedKey: const ValueKey<String>('offering-table-joined'),
       ),
-      sheet: _buildSheet(context),
+      sheet: _buildSheet(),
     );
 
     return Scaffold(
@@ -236,10 +261,11 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
     );
   }
 
-  Widget _buildSheet(BuildContext context) {
+  Widget _buildSheet() {
     final occurrences = _previewOccurrences();
     final today = DateUtils.dateOnly(offeringTableNowInZone(widget.timezone));
-    final visible = _showAllDays ? occurrences : occurrences.take(5);
+    final surfaced = occurrences.take(5).toList(growable: false);
+    final remaining = occurrences.skip(5).toList(growable: false);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -266,36 +292,19 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              for (final occurrence in visible) ...[
-                _OfferingPreviewDay(
-                  occurrence: occurrence,
-                  timeLabel: MaterialLocalizations.of(context).formatTimeOfDay(
-                    TimeOfDay.fromDateTime(occurrence.startLocal),
-                  ),
-                ),
-                const SizedBox(height: 10),
+              for (var i = 0; i < surfaced.length; i++) ...[
+                _OfferingPreviewDay(occurrence: surfaced[i], carried: _joined),
+                if (i != surfaced.length - 1) const SizedBox(height: 10),
               ],
-              if (!_showAllDays)
-                OutlinedButton(
-                  key: const ValueKey<String>('offering-table-show-all'),
-                  style: _showMoreButtonStyle(),
-                  onPressed: () => setState(() => _showAllDays = true),
-                  child: const Text('Show all 30 days'),
-                )
-              else
-                TextButton(
-                  key: const ValueKey<String>('offering-table-show-fewer'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: OfferingTableDetailTokens.warmGold,
-                  ),
-                  onPressed: () => setState(() => _showAllDays = false),
-                  child: const Text('Show fewer days'),
-                ),
-              const SizedBox(height: 18),
-              const _OfferingDescription(overview: kOfferingTableOverview),
-              const SizedBox(height: 16),
             ],
           ),
+        ),
+        const SizedBox(height: 8),
+        _OfferingAllDaysList(
+          remaining: remaining,
+          expanded: _showAllDays,
+          carried: _joined,
+          onToggle: () => setState(() => _showAllDays = !_showAllDays),
         ),
       ],
     );
@@ -398,7 +407,7 @@ class _OfferingTableInitialEntry extends StatelessWidget {
           const Row(
             children: [
               Text(
-                'WHAT WAS FED?',
+                'HOW THE TABLE WORKS',
                 style: TextStyle(
                   color: OfferingTableDetailTokens.warmGold,
                   fontFamily: MaatFlowListTokens.fontFamily,
@@ -431,6 +440,19 @@ class _OfferingTableInitialEntry extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           const Text(
+            'WHAT WAS FED?',
+            style: TextStyle(
+              color: OfferingTableDetailTokens.warmGold,
+              fontFamily: MaatFlowListTokens.fontFamily,
+              fontFamilyFallback: MaatFlowListTokens.fontFallback,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w400,
+              letterSpacing: 2.73,
+              height: 1,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
             'What did you provide today?',
             style: TextStyle(
               color: OfferingTableDetailTokens.mutedIvory,
@@ -442,40 +464,46 @@ class _OfferingTableInitialEntry extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 24),
-          TextField(
-            key: const ValueKey<String>('offering-table-initial-input'),
-            controller: controller,
-            scrollPadding: keyboardManagedTextFieldScrollPadding,
-            cursorColor: OfferingTableDetailTokens.warmGold,
-            style: const TextStyle(
-              color: OfferingTableDetailTokens.glow,
-              fontFamily: MaatFlowListTokens.fontFamily,
-              fontFamilyFallback: MaatFlowListTokens.fontFallback,
-              fontSize: 21,
-              fontWeight: FontWeight.w300,
-              fontStyle: FontStyle.italic,
-              height: 1.3,
-            ),
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: 'Name the provision…',
-              hintStyle: TextStyle(
-                color: OfferingTableDetailTokens.muted.withValues(alpha: 0.8),
+          Focus(
+            child: TextField(
+              key: const ValueKey<String>('offering-table-initial-input'),
+              controller: controller,
+              scrollPadding: keyboardManagedTextFieldScrollPadding,
+              cursorColor: OfferingTableDetailTokens.warmGold,
+              style: const TextStyle(
+                color: OfferingTableDetailTokens.glow,
+                fontFamily: MaatFlowListTokens.fontFamily,
+                fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                fontSize: 21,
+                fontWeight: FontWeight.w300,
+                fontStyle: FontStyle.italic,
+                height: 1.3,
               ),
-              contentPadding: const EdgeInsets.fromLTRB(2, 4, 2, 11),
-              border: UnderlineInputBorder(
-                borderSide: BorderSide(
-                  color: OfferingTableDetailTokens.glow.withValues(alpha: 0.30),
+              decoration: InputDecoration(
+                isDense: true,
+                hintText: 'Name the provision…',
+                hintStyle: TextStyle(
+                  color: OfferingTableDetailTokens.muted.withValues(alpha: 0.8),
                 ),
-              ),
-              enabledBorder: UnderlineInputBorder(
-                borderSide: BorderSide(
-                  color: OfferingTableDetailTokens.glow.withValues(alpha: 0.30),
+                contentPadding: const EdgeInsets.fromLTRB(2, 4, 2, 11),
+                border: UnderlineInputBorder(
+                  borderSide: BorderSide(
+                    color: OfferingTableDetailTokens.glow.withValues(
+                      alpha: 0.30,
+                    ),
+                  ),
                 ),
-              ),
-              focusedBorder: const UnderlineInputBorder(
-                borderSide: BorderSide(
-                  color: OfferingTableDetailTokens.warmGold,
+                enabledBorder: UnderlineInputBorder(
+                  borderSide: BorderSide(
+                    color: OfferingTableDetailTokens.glow.withValues(
+                      alpha: 0.30,
+                    ),
+                  ),
+                ),
+                focusedBorder: const UnderlineInputBorder(
+                  borderSide: BorderSide(
+                    color: OfferingTableDetailTokens.warmGold,
+                  ),
                 ),
               ),
             ),
@@ -487,13 +515,10 @@ class _OfferingTableInitialEntry extends StatelessWidget {
 }
 
 class _OfferingPreviewDay extends StatelessWidget {
-  const _OfferingPreviewDay({
-    required this.occurrence,
-    required this.timeLabel,
-  });
+  const _OfferingPreviewDay({required this.occurrence, required this.carried});
 
   final OfferingTablePreviewOccurrence occurrence;
-  final String timeLabel;
+  final bool carried;
 
   @override
   Widget build(BuildContext context) {
@@ -503,88 +528,233 @@ class _OfferingPreviewDay extends StatelessWidget {
       date: occurrence.date,
       theme: OfferingTableDetailTokens.previewTheme,
       children: [
-        MaatFlowPreviewEventRow(
-          key: ValueKey<String>(
-            'offering-table-preview-event-${day.dayNumber}',
-          ),
-          timeLabel: timeLabel,
-          title: offeringTableEventTitle(day),
-          subtitle: '${day.section} · ${day.provisionAct}',
-          accent: OfferingTableDetailTokens.warmGold,
-          theme: OfferingTableDetailTokens.previewTheme,
-        ),
+        _OfferingFlowEventCard(occurrence: occurrence, carried: carried),
       ],
     );
   }
 }
 
-class _OfferingDescription extends StatefulWidget {
-  const _OfferingDescription({required this.overview});
+class _OfferingFlowEventCard extends StatelessWidget {
+  const _OfferingFlowEventCard({
+    required this.occurrence,
+    required this.carried,
+  });
 
-  final String overview;
-
-  @override
-  State<_OfferingDescription> createState() => _OfferingDescriptionState();
-}
-
-class _OfferingDescriptionState extends State<_OfferingDescription> {
-  bool _expanded = false;
+  final OfferingTablePreviewOccurrence occurrence;
+  final bool carried;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        TextButton(
-          key: const ValueKey<String>('offering-table-description-toggle'),
-          style: TextButton.styleFrom(
-            foregroundColor: OfferingTableDetailTokens.warmGold,
-            alignment: Alignment.centerLeft,
-            padding: EdgeInsets.zero,
+    final day = occurrence.day;
+    final title = offeringTableEventTitle(day);
+    return Padding(
+      key: ValueKey<String>('offering-table-preview-event-${day.dayNumber}'),
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: TrackSkyEventBlockVisual(
+        title: title,
+        graphic: OfferingTableDetailTokens.eventGraphic,
+        height: 100,
+        width: double.infinity,
+        compact: false,
+        isPreview: !carried,
+        dashedBorder: !carried,
+        child: Padding(
+          padding: const EdgeInsets.only(right: 24),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 9,
+                height: 9,
+                margin: const EdgeInsets.only(top: 10),
+                decoration: BoxDecoration(
+                  color: carried
+                      ? OfferingTableDetailTokens.warmGold
+                      : Colors.transparent,
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: OfferingTableDetailTokens.glow,
+                    width: 1,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 11),
+              SizedBox(
+                width: 56,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 7),
+                  child: Text(
+                    _formatTime(occurrence.startLocal),
+                    style: TextStyle(
+                      color: OfferingTableDetailTokens.glow.withValues(
+                        alpha: 0.72,
+                      ),
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                      fontSize: 10.5,
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: Color(0xFFFFF2D7),
+                          fontFamily: MaatFlowListTokens.fontFamily,
+                          fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                          height: 1.15,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${day.section} · ${day.provisionAct}',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: OfferingTableDetailTokens.silver,
+                          fontFamily: MaatFlowListTokens.fontFamily,
+                          fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                          fontSize: 14.5,
+                          fontStyle: FontStyle.italic,
+                          height: 1.25,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
           ),
-          onPressed: () => setState(() => _expanded = !_expanded),
-          child: Text(_expanded ? 'Hide full description' : 'Full description'),
         ),
-        AnimatedCrossFade(
-          duration: const Duration(milliseconds: 180),
-          crossFadeState: _expanded
-              ? CrossFadeState.showSecond
-              : CrossFadeState.showFirst,
-          firstChild: const SizedBox.shrink(),
-          secondChild: Text(
-            widget.overview,
-            style: _bodyStyle(OfferingTableDetailTokens.silver),
-          ),
-        ),
-      ],
+      ),
     );
   }
 }
 
-ButtonStyle _showMoreButtonStyle() {
-  return OutlinedButton.styleFrom(
-    foregroundColor: OfferingTableDetailTokens.mutedIvory,
-    backgroundColor: Colors.transparent,
-    side: const BorderSide(color: Color(0x52C99A3D)),
-    minimumSize: const Size.fromHeight(52),
-    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(13)),
-    textStyle: const TextStyle(
-      fontFamily: MaatFlowListTokens.fontFamily,
-      fontFamilyFallback: MaatFlowListTokens.fontFallback,
-      fontSize: 16,
-      fontWeight: FontWeight.w500,
-    ),
-  );
+class _OfferingAllDaysList extends StatelessWidget {
+  const _OfferingAllDaysList({
+    required this.remaining,
+    required this.expanded,
+    required this.carried,
+    required this.onToggle,
+  });
+
+  final List<OfferingTablePreviewOccurrence> remaining;
+  final bool expanded;
+  final bool carried;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: InkWell(
+              key: ValueKey<String>(
+                expanded
+                    ? 'offering-table-show-fewer'
+                    : 'offering-table-show-all',
+              ),
+              onTap: onToggle,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 2,
+                  vertical: 16,
+                ),
+                decoration: const BoxDecoration(
+                  border: Border(
+                    top: BorderSide(color: Color(0x3DC99A3D)),
+                    bottom: BorderSide(color: Color(0x3DC99A3D)),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        expanded ? 'Show first 5 days' : 'All 30 offerings',
+                        style: const TextStyle(
+                          color: OfferingTableDetailTokens.mutedIvory,
+                          fontFamily: MaatFlowListTokens.fontFamily,
+                          fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
+                          height: 1,
+                        ),
+                      ),
+                    ),
+                    AnimatedRotation(
+                      turns: expanded ? 0.5 : 0,
+                      duration: const Duration(milliseconds: 300),
+                      child: const Icon(
+                        Icons.expand_more,
+                        size: 16,
+                        color: OfferingTableDetailTokens.warmGold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          ClipRect(
+            child: AnimatedSize(
+              alignment: Alignment.topCenter,
+              duration: const Duration(milliseconds: 450),
+              curve: Curves.ease,
+              child: expanded
+                  ? Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < remaining.length; i++) ...[
+                            _OfferingPreviewDay(
+                              occurrence: remaining[i],
+                              carried: carried,
+                            ),
+                            if (i != remaining.length - 1)
+                              const SizedBox(height: 10),
+                          ],
+                        ],
+                      ),
+                    )
+                  : const SizedBox(width: double.infinity),
+            ),
+          ),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(24, 22, 24, 0),
+            child: Text(
+              'The table keeps the rhythm either way.',
+              style: TextStyle(
+                color: OfferingTableDetailTokens.silver,
+                fontFamily: MaatFlowListTokens.fontFamily,
+                fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                fontSize: 16,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-TextStyle _bodyStyle(Color color) {
-  return TextStyle(
-    color: color,
-    fontFamily: MaatFlowListTokens.fontFamily,
-    fontFamilyFallback: MaatFlowListTokens.fontFallback,
-    fontSize: 14,
-    fontWeight: FontWeight.w300,
-    height: 1.42,
-  );
+String _formatTime(DateTime date) {
+  final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
+  final minute = date.minute.toString().padLeft(2, '0');
+  return '$hour:$minute ${date.hour < 12 ? 'AM' : 'PM'}';
 }
