@@ -128,18 +128,25 @@ Future<TrackSkyFlowData> _loadV2(TrackSkyTimeZone timezone) async {
     },
   );
   const visibility = SkyVisibilityService();
+  final enrollment = TrackSkyEnrollmentService(
+    materializer: materializer,
+    visibilityService: visibility,
+  );
+  final nights = enrollment.canonicalNights(catalog: catalog);
+  final occurrencesById = <String, MaterializedSkyOccurrence>{
+    for (final occurrence in enrollment.buildCanonicalOccurrences(
+      catalog: catalog,
+      ianaTimeZone: timezone.ianaName,
+    ))
+      occurrence.skyEventId: occurrence,
+  };
   const meaningResolver = TurningMeaningResolver();
   final events = <TrackSkyEvent>[];
-  for (final sky in catalog.materializableEvents) {
-    final night = catalog.observingNight(sky);
+  for (final night in nights) {
+    final sky = night.anchor;
     final meaning = meaningResolver.forNight(night);
     final decision = visibility.decide(night.windowSource);
-    final occ = materializer.materialize(
-      event: sky,
-      night: night,
-      ianaTimeZone: timezone.ianaName,
-      visibilityNote: decision.userFacingNote,
-    );
+    final occ = occurrencesById[night.skyEventId]!;
     final dateIso =
         '${occ.startsAtLocal.year.toString().padLeft(4, '0')}-'
         '${occ.startsAtLocal.month.toString().padLeft(2, '0')}-'
@@ -147,11 +154,11 @@ Future<TrackSkyFlowData> _loadV2(TrackSkyTimeZone timezone) async {
     final start24 = occ.allDay
         ? null
         : '${occ.startsAtLocal.hour.toString().padLeft(2, '0')}:'
-            '${occ.startsAtLocal.minute.toString().padLeft(2, '0')}';
+              '${occ.startsAtLocal.minute.toString().padLeft(2, '0')}';
     final end24 = occ.allDay
         ? null
         : '${occ.endsAtLocal.hour.toString().padLeft(2, '0')}:'
-            '${occ.endsAtLocal.minute.toString().padLeft(2, '0')}';
+              '${occ.endsAtLocal.minute.toString().padLeft(2, '0')}';
     events.add(
       TrackSkyEvent(
         category: occ.category,
@@ -222,13 +229,18 @@ List<TrackSkyEvent> upcomingTrackSkyEvents(
   DateTime? now,
 }) {
   final current = now ?? DateTime.now();
-  return data.events.where((e) {
-    final end = trackSkyEventEndLocal(e, data.timezone);
-    return !end.isBefore(current);
-  }).toList(growable: false);
+  return data.events
+      .where((e) {
+        final end = trackSkyEventEndLocal(e, data.timezone);
+        return !end.isBefore(current);
+      })
+      .toList(growable: false);
 }
 
-DateTime trackSkyEventStartLocal(TrackSkyEvent event, TrackSkyTimeZone timezone) {
+DateTime trackSkyEventStartLocal(
+  TrackSkyEvent event,
+  TrackSkyTimeZone timezone,
+) {
   if (event.schedule.allDay) {
     return DateTime.parse(event.schedule.dateIso);
   }

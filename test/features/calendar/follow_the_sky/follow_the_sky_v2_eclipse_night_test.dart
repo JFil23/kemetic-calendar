@@ -45,7 +45,8 @@ void main() {
       File('assets/follow_the_sky/sky_catalog_v2.json').readAsStringSync(),
     );
     materializer = TrackSkyMaterializer(
-      toLocal: (utc, iana) => tz.TZDateTime.from(utc.toUtc(), tz.getLocation(iana)),
+      toLocal: (utc, iana) =>
+          tz.TZDateTime.from(utc.toUtc(), tz.getLocation(iana)),
       toUtc: (local, iana) {
         final location = tz.getLocation(iana);
         return tz.TZDateTime(
@@ -72,77 +73,81 @@ void main() {
     expect(catalog.materializableEvents.length, 65);
   });
 
-  test('all five merged nights: one occurrence, Reconsider, companion preserved', () {
-    final materializedIds = <String>{};
+  test(
+    'all five merged nights: one occurrence, Reconsider, companion preserved',
+    () {
+      final materializedIds = <String>{};
 
-    for (final row in mergedNights) {
-      final anchor = catalog.byId(row.$1)!;
-      expect(anchor.function, SkyEventFunction.reveal,
-          reason: 'raw Full Moon fact remains Reveal');
+      for (final row in mergedNights) {
+        final anchor = catalog.byId(row.$1)!;
+        expect(
+          anchor.function,
+          SkyEventFunction.reveal,
+          reason: 'raw Full Moon fact remains Reveal',
+        );
 
-      final night = catalog.observingNight(anchor);
-      expect(night.companion?.id, row.$2);
-      expect(night.function, SkyEventFunction.reconsider);
-      expect(night.displayName, row.$3);
-      expect(night.skyEventId, row.$1);
+        final night = catalog.observingNight(anchor);
+        expect(night.companion?.id, row.$2);
+        expect(night.function, SkyEventFunction.reconsider);
+        expect(night.displayName, row.$3);
+        expect(night.skyEventId, row.$1);
 
-      final occ = materializer.materialize(
-        event: anchor,
-        night: night,
-        ianaTimeZone: 'America/Los_Angeles',
-      );
+        final occ = materializer.materialize(
+          event: anchor,
+          night: night,
+          ianaTimeZone: 'America/Los_Angeles',
+        );
 
-      expect(occ.skyEventId, row.$1);
-      expect(occ.title, row.$3);
-      expect(materializedIds.add(occ.skyEventId), isTrue,
-          reason: 'exactly one materialized occurrence per night');
+        expect(occ.skyEventId, row.$1);
+        expect(occ.title, row.$3);
+        expect(
+          materializedIds.add(occ.skyEventId),
+          isTrue,
+          reason: 'exactly one materialized occurrence per night',
+        );
 
-      final payload = occ.behaviorPayload;
-      expect(TrackSkyEventOwnership.skyEventIdFromPayload(payload), row.$1);
-      expect(
-        TrackSkyEventOwnership.companionIdsFromPayload(payload),
-        [row.$2],
-      );
-      expect(
-        TrackSkyEventOwnership.resolvedFunctionFromPayload(payload),
-        'reconsider',
-      );
-      expect(
-        TrackSkyEventOwnership.displayNameFromPayload(payload),
-        row.$3,
-      );
-      expect(TrackSkyEventOwnership.isEclipseObservingNight(payload), isTrue);
+        final payload = occ.behaviorPayload;
+        expect(TrackSkyEventOwnership.skyEventIdFromPayload(payload), row.$1);
+        expect(TrackSkyEventOwnership.companionIdsFromPayload(payload), [
+          row.$2,
+        ]);
+        expect(
+          TrackSkyEventOwnership.resolvedFunctionFromPayload(payload),
+          'reconsider',
+        );
+        expect(TrackSkyEventOwnership.displayNameFromPayload(payload), row.$3);
+        expect(TrackSkyEventOwnership.isEclipseObservingNight(payload), isTrue);
 
-      // History / day sheet: eclipse night, not ordinary Full Moon.
-      final teaser = FollowSkyDayDetail.teaser(
-        title: 'Full Moon',
-        skyEventId: row.$1,
-        catalog: catalog,
-        behaviorPayload: payload,
-      );
-      final meaning = const TurningMeaningResolver().forNight(night);
-      expect(teaser, contains(row.$3));
-      expect(teaser, contains(meaning.titledSignificanceLabel));
-      expect(teaser, isNot(contains('Reconsider')));
+        // History / day sheet: eclipse night, not ordinary Full Moon.
+        final teaser = FollowSkyDayDetail.teaser(
+          title: 'Full Moon',
+          skyEventId: row.$1,
+          catalog: catalog,
+          behaviorPayload: payload,
+        );
+        final meaning = const TurningMeaningResolver().forNight(night);
+        expect(teaser, contains(row.$3));
+        expect(teaser, contains(meaning.titledSignificanceLabel));
+        expect(teaser, isNot(contains('Reconsider')));
 
-      final detail = FollowSkyDayDetail.displayDetail(
-        eventDetail: occ.detail,
-        skyEventId: row.$1,
-        catalog: catalog,
-        behaviorPayload: payload,
-      );
-      expect(detail, contains(meaning.significanceLabel));
-      expect(detail, isNot(contains('Function: Reconsider')));
-      expect(detail, contains(row.$2));
-    }
+        final detail = FollowSkyDayDetail.displayDetail(
+          eventDetail: occ.detail,
+          skyEventId: row.$1,
+          catalog: catalog,
+          behaviorPayload: payload,
+        );
+        expect(detail, contains(meaning.significanceLabel));
+        expect(detail, isNot(contains('Function: Reconsider')));
+        expect(detail, contains(row.$2));
+      }
 
-    expect(materializedIds.length, 5);
-  });
+      expect(materializedIds.length, 5);
+    },
+  );
 
   test('enrollment never double-books eclipse companions as separate nights', () {
     final draft = enrollment.buildJoinDraft(
       catalog: catalog,
-      nowUtc: DateTime.utc(2026, 8, 1),
       ianaTimeZone: 'America/Los_Angeles',
       timezoneKey: 'pacific',
     );
@@ -152,14 +157,18 @@ void main() {
 
     for (final row in mergedNights) {
       expect(ids.where((id) => id == row.$1).length, 1);
-      expect(ids.contains(row.$2), isFalse,
-          reason: 'companion eclipse must not materialize alone');
+      expect(
+        ids.contains(row.$2),
+        isFalse,
+        reason: 'companion eclipse must not materialize alone',
+      );
     }
 
     // One notification surface per observing night (unique client identity = skyEventId).
     final eclipseOccs = [
       for (final o in draft.occurrences)
-        if (TrackSkyEventOwnership.isEclipseObservingNight(o.behaviorPayload)) o,
+        if (TrackSkyEventOwnership.isEclipseObservingNight(o.behaviorPayload))
+          o,
     ];
     expect(eclipseOccs.length, 5);
     expect(

@@ -560,7 +560,11 @@ void main() {
       expect(topRow, contains('_buildAddReflectionButton('));
       expect(topRow, contains('if (!isFollowSkyObservation)'));
       expect(dayView, contains("label: const Text('Add reflection')"));
-      expect(dayView, contains('FollowSkyObservationSheet('));
+      expect(
+        dayView,
+        contains('FollowSkyObservationPresentationLoader('),
+      );
+      expect(dayView, isNot(contains('FollowSkyObservationSheet(')));
       expect(dayView, isNot(contains('FollowSkyObservationPanel(')));
       expect(topRow, isNot(contains("label: const Text('End Flow')")));
       expect(dayView, contains("value: 'end_flow'"));

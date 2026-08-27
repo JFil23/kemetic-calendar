@@ -26,10 +26,11 @@ import 'calendar_event_visual_style.dart';
 import 'calendar_reflection_context.dart';
 import 'day_view_chrome.dart';
 import 'follow_the_sky/presentation/widgets/track_sky_event_block_visual.dart';
-import 'follow_the_sky/presentation/widgets/follow_sky_observation_sheet.dart';
-import 'follow_the_sky/presentation/widgets/follow_sky_observation_presentation.dart';
-import 'follow_the_sky/presentation/fixtures/follow_sky_observation_presentation_fixture.dart';
+import 'follow_the_sky/domain/sky_catalog.dart';
+import 'follow_the_sky/presentation/widgets/follow_sky_observation_presentation_loader.dart';
 import 'follow_the_sky/presentation/follow_sky_observation_route.dart';
+import 'follow_the_sky/services/sky_catalog_repository.dart';
+import 'follow_the_sky/services/sky_instrument_data_provider.dart';
 import 'follow_the_sky/services/track_sky_materializer.dart';
 import 'landscape_month_view.dart';
 import 'maat_flow_identity.dart';
@@ -1157,6 +1158,25 @@ _MaatFlowCompletionContext? _maatFlowCompletionContextForEvent(
   FlowData? flow,
 ) {
   final flowName = flow?.name;
+  final followSkyEventId = TrackSkyEventOwnership.skyEventIdFromPayload(
+    event.behaviorPayload,
+  )?.trim();
+  if (followSkyEventId?.isNotEmpty == true &&
+      event.behaviorPayload?['trackSkySchemaVersion'] ==
+          TrackSkyEventOwnership.schemaVersion) {
+    return _MaatFlowCompletionContext(
+      flowKey: 'track-the-sky',
+      flowTitle: flowName?.trim().isNotEmpty == true
+          ? flowName!.trim()
+          : 'Follow the Sky',
+      eventTitle: event.title,
+      eventCategory: event.category,
+      graphNodeSlugs: _maatGraphNodeSlugsForFlow(
+        flowKey: 'track-the-sky',
+        eventCategory: event.category,
+      ),
+    );
+  }
   if (_isDawnHouseRiteFlowName(flowName)) {
     final day = dawnHouseRiteDayForEvent(title: event.title);
     return _MaatFlowCompletionContext(
@@ -2208,6 +2228,9 @@ class CalendarEventDetailSheet extends StatefulWidget {
     this.onMoveEventTime,
     this.onMoveFollowSkyEventTime,
     this.onPresentationChanged,
+    this.followSkyCatalog,
+    this.followSkyInstrumentProvider,
+    this.followSkyNow,
     this.initialPresentation = eventWorkspacePresentationDetail,
   });
 
@@ -2272,6 +2295,9 @@ class CalendarEventDetailSheet extends StatefulWidget {
   final DayViewMoveEventTime? onMoveEventTime;
   final DayViewMoveFollowSkyEventTime? onMoveFollowSkyEventTime;
   final ValueChanged<String>? onPresentationChanged;
+  final SkyCatalog? followSkyCatalog;
+  final SkyInstrumentDataProvider? followSkyInstrumentProvider;
+  final DateTime Function()? followSkyNow;
   final String initialPresentation;
 
   @override
@@ -2290,6 +2316,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   final Set<TrackSkyTimeZone> _trackSkyLoadingTimeZones = <TrackSkyTimeZone>{};
   final Set<int> _endingFlowIds = <int>{};
   Map<String, double> _measuredHeights = <String, double>{};
+  SkyCatalog? _followSkyCatalog;
   bool _onboardingDetailPromptScheduled = false;
   double _followSkySheetExtent = _followSkyMinSheetExtent;
 
@@ -2313,6 +2340,17 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       widget.onPresentationChanged?.call(_presentation);
     });
     _primeTrackSkyFlowDataForEvent(_currentTarget.event);
+    _followSkyCatalog = widget.followSkyCatalog;
+    if (_followSkyCatalog == null) unawaited(_loadFollowSkyCatalog());
+  }
+
+  Future<void> _loadFollowSkyCatalog() async {
+    try {
+      final catalog = await SkyCatalogRepository().load();
+      if (mounted) setState(() => _followSkyCatalog = catalog);
+    } on Object {
+      // Invalid or unavailable catalog data keeps the ordinary detail sheet.
+    }
   }
 
   @override
@@ -3442,96 +3480,53 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final followSkyEventId = TrackSkyEventOwnership.skyEventIdFromPayload(
       currentEvent.behaviorPayload,
     );
-    final hasFollowSkyObservationSheet =
+    final hasFollowSkyInstrument =
         enableFollowSkyEngagement &&
         _detailSheetTargetKey(target) ==
             _detailSheetTargetKey(_currentTarget) &&
         completionContext != null &&
         FollowSkyObservationRoute.matches(
-          flowName: flow?.name,
           clientEventId: followSkyClientEventId,
           behaviorPayload: currentEvent.behaviorPayload,
+          catalog: _followSkyCatalog,
         ) &&
         followSkyEventId != null &&
         followSkyEventId.isNotEmpty;
 
-    if (hasFollowSkyObservationSheet) {
-      final isPresentationFixture = followSkyEventId == 'full-moon-2026-08-28';
-      final Widget observation = isPresentationFixture
-          ? ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(20),
-              ),
-              child: FollowSkyObservationPresentation(
-                key: ValueKey<String>(
-                  'follow-sky-presentation:$followSkyClientEventId',
-                ),
-                fixture: losAngelesFullMoonPresentationFixture,
-                clientEventId: followSkyClientEventId,
-                completionIdentity: _completionIdentityForEvent(currentEvent),
-                skyEventId: followSkyEventId,
-                localDate: DateUtils.dateOnly(
-                  KemeticMath.toGregorian(target.ky, target.km, target.kd),
-                ),
-                scheduledTimeSnapshot: DateUtils.dateOnly(
-                  KemeticMath.toGregorian(target.ky, target.km, target.kd),
-                ).add(Duration(minutes: currentEvent.startMin)),
-                intentionSnapshot: TrackSkyEventOwnership.intentionFromPayload(
-                  currentEvent.behaviorPayload,
-                ),
-                onWriteJournalResponse: widget.onWriteJournalResponse,
-                onCommitCompletion: (status) => _commitFollowSkyCompletion(
-                  target: target,
-                  completion: completionContext,
-                  status: status,
-                ),
-              ),
-            )
-          : FollowSkyObservationSheet(
-              key: ValueKey<String>(
-                'follow-sky-observation:$followSkyClientEventId',
-              ),
-              clientEventId: followSkyClientEventId!,
-              completionIdentity: _completionIdentityForEvent(currentEvent),
-              skyEventId: followSkyEventId,
-              title: currentEvent.title,
-              localDate: DateUtils.dateOnly(
-                KemeticMath.toGregorian(target.ky, target.km, target.kd),
-              ),
-              startMinute: currentEvent.startMin,
-              endMinute: currentEvent.endMin,
-              intentionSnapshot: TrackSkyEventOwnership.intentionFromPayload(
-                currentEvent.behaviorPayload,
-              ),
-              onWriteJournalResponse: widget.onWriteJournalResponse,
-              completionPickerStyle: completionPickerStyle,
-              onCommitStartTime: (startLocal) async {
-                final move = widget.onMoveFollowSkyEventTime;
-                if (move == null) return false;
-                return move(
-                  target.ky,
-                  target.km,
-                  target.kd,
-                  currentEvent,
-                  startLocal,
-                );
-              },
-              onCommitCompletion: (status) => _commitFollowSkyCompletion(
-                target: target,
-                completion: completionContext,
-                status: status,
-              ),
-            );
+    if (hasFollowSkyInstrument) {
+      final localDate = DateUtils.dateOnly(
+        KemeticMath.toGregorian(target.ky, target.km, target.kd),
+      );
+      final observation = ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        child: FollowSkyObservationPresentationLoader(
+          key: ValueKey<String>(
+            'follow-sky-presentation:$followSkyClientEventId',
+          ),
+          catalog: _followSkyCatalog!,
+          clientEventId: followSkyClientEventId!,
+          completionIdentity: _completionIdentityForEvent(currentEvent),
+          skyEventId: followSkyEventId,
+          localDate: localDate,
+          scheduledTimeSnapshot: localDate.add(
+            Duration(minutes: currentEvent.startMin),
+          ),
+          intentionSnapshot: TrackSkyEventOwnership.intentionFromPayload(
+            currentEvent.behaviorPayload,
+          ),
+          instrumentProvider: widget.followSkyInstrumentProvider,
+          now: widget.followSkyNow,
+          onWriteJournalResponse: widget.onWriteJournalResponse,
+          onCommitCompletion: (status) => _commitFollowSkyCompletion(
+            target: target,
+            completion: completionContext,
+            status: status,
+          ),
+        ),
+      );
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
-        child: scrollable && !isPresentationFixture
-            ? SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                child: observation,
-              )
-            : observation,
+        child: observation,
       );
     }
 
@@ -3901,9 +3896,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       completionContext,
     );
     final isFollowSkyObservation = FollowSkyObservationRoute.matches(
-      flowName: flow?.name,
       clientEventId: currentEvent.clientEventId,
       behaviorPayload: currentEvent.behaviorPayload,
+      catalog: _followSkyCatalog,
     );
 
     if (showFollowSkyResizeHandle) {
@@ -4402,28 +4397,24 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           media.padding.bottom -
           12,
     );
-    final activeFlow = _chromeFlowForId(target.event.flowId);
-    final activeFollowSkyEventId = TrackSkyEventOwnership.skyEventIdFromPayload(
-      target.event.behaviorPayload,
+    final activeFollowSkyInstrument = FollowSkyObservationRoute.matches(
+      clientEventId: target.event.clientEventId,
+      behaviorPayload: target.event.behaviorPayload,
+      catalog: _followSkyCatalog,
     );
-    final activeFollowSkyInstrument =
-        _isTrackSkyFlowName(activeFlow?.name) && activeFollowSkyEventId != null;
-    final activeFollowSkyPresentationFixture =
-        activeFollowSkyInstrument &&
-        activeFollowSkyEventId == 'full-moon-2026-08-28';
     final followSkySheetExtent = _followSkySheetExtent
         .clamp(_followSkyMinSheetExtent, 1.0)
         .toDouble();
     final maxSheetHeight = _isWorkspacePresentation
         ? availableSheetHeight
-        : activeFollowSkyPresentationFixture && keyboardInset == 0
+        : activeFollowSkyInstrument && keyboardInset == 0
         ? availableSheetHeight * followSkySheetExtent
         : keyboardInset > 0
         ? availableSheetHeight
         : math.min(media.size.height * 0.68, 520.0);
     final reservedChromeHeight = _isWorkspacePresentation
         ? 24.0
-        : activeFollowSkyPresentationFixture
+        : activeFollowSkyInstrument
         ? 120.0
         : hasOnboardingClosingBanner
         ? 250.0
@@ -4436,7 +4427,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
               .toDouble();
 
     final content = Column(
-      key: activeFollowSkyPresentationFixture
+      key: activeFollowSkyInstrument
           ? const ValueKey<String>('follow-sky-resizable-sheet')
           : null,
       mainAxisSize: MainAxisSize.min,
@@ -4482,17 +4473,15 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                     rootContext: widget.hostContext,
                     sheetContext: context,
                     target: target,
-                    showFollowSkyResizeHandle:
-                        activeFollowSkyPresentationFixture,
+                    showFollowSkyResizeHandle: activeFollowSkyInstrument,
                     enableFollowSkyResize:
-                        activeFollowSkyPresentationFixture &&
-                        keyboardInset == 0,
+                        activeFollowSkyInstrument && keyboardInset == 0,
                     availableSheetHeight: availableSheetHeight,
                   ),
                   const SizedBox(height: 8),
                 ],
                 _buildDetailPageSizeTransition(
-                  animate: !activeFollowSkyPresentationFixture,
+                  animate: !activeFollowSkyInstrument,
                   child: SizedBox(
                     height: sheetHeight,
                     child: _isWorkspacePresentation

@@ -58,28 +58,31 @@ void main() {
     );
     expect(
       FollowSkyObservationRoute.matches(
-        flowName: 'Follow the Sky',
         clientEventId: 'event-1',
         behaviorPayload: valid,
+        catalog: catalog,
       ),
       isTrue,
     );
     expect(
       FollowSkyObservationRoute.matches(
-        flowName: 'Follow the Sky',
         clientEventId: 'event-1',
         behaviorPayload: <String, dynamic>{
           ...valid,
           'trackSkySchemaVersion': 1,
         },
+        catalog: catalog,
       ),
       isFalse,
     );
     expect(
       FollowSkyObservationRoute.matches(
-        flowName: 'Ordinary flow',
         clientEventId: 'event-1',
-        behaviorPayload: valid,
+        behaviorPayload: TrackSkyEventOwnership.behaviorPayload(
+          skyEventId: 'not-in-catalog',
+          displayName: 'Renamed flow',
+        ),
+        catalog: catalog,
       ),
       isFalse,
     );
@@ -444,22 +447,31 @@ void main() {
     },
   );
 
-  test('vertical slice uses real projected geometry instead of a slider', () {
-    final sheet = File(
-      'lib/features/calendar/follow_the_sky/presentation/widgets/'
-      'follow_sky_observation_sheet.dart',
+  test('all seven instruments use one presentation slice without sliders', () {
+    final model = File(
+      'lib/features/calendar/follow_the_sky/presentation/'
+      'follow_sky_observation_presentation_model.dart',
     ).readAsStringSync();
-    final arc = File(
+    final presentation = File(
       'lib/features/calendar/follow_the_sky/presentation/widgets/'
-      'lunar_path_instrument.dart',
+      'follow_sky_observation_presentation.dart',
+    ).readAsStringSync();
+    final surface = File(
+      'lib/features/calendar/follow_the_sky/presentation/widgets/'
+      'follow_sky_instrument_surface.dart',
     ).readAsStringSync();
 
-    expect(sheet, contains('FullMoonInstrumentDataProvider().resolve'));
-    expect(sheet, isNot(contains('Slider(')));
-    expect(arc, contains('extends CustomPainter'));
-    expect(arc, contains('_timeFraction'));
-    expect(arc, contains('LOCAL ALTITUDE · INSTRUMENT PROJECTION'));
-    expect(arc, contains('true local azimuth'));
+    expect(model, contains('SkyInstrumentDataProvider'));
+    expect(presentation, contains('FollowSkyInstrumentSurface('));
+    expect(presentation, contains('FollowSkyTurningController'));
+    expect(surface, isNot(contains('Slider(')));
+    expect(surface, contains('_LunarPathRenderer'));
+    expect(surface, contains('_MeteorWindowRenderer'));
+    expect(surface, contains('_OppositionRenderer'));
+    expect(surface, contains('_ElongationRenderer'));
+    expect(surface, contains('_ConjunctionRenderer'));
+    expect(surface, contains('_SolarThresholdRenderer'));
+    expect(surface, contains('_SolarEclipseRenderer'));
   });
 
   test('photo retake confirms the new reference before old deletion', () async {

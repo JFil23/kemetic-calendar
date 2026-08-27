@@ -9,7 +9,7 @@ import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/fol
 void main() {
   test('Los Angeles fixture retains the verified Full Moon specimen', () {
     final fixture = losAngelesFullMoonPresentationFixture;
-    final instrument = fixture.instrument;
+    final instrument = fixture.instrument as LunarPathData;
 
     expect(fixture.intention, 'self confidence');
     expect(instrument.rise, DateTime(2026, 8, 27, 19, 17, 18));
@@ -33,31 +33,17 @@ void main() {
     expect(instrument.moonSamples, hasLength(12));
   });
 
-  test(
-    'Day View keeps fixture view time disconnected from calendar movement',
-    () {
-      final source = File(
-        'lib/features/calendar/day_view.dart',
-      ).readAsStringSync();
-      final fixtureBranchStart = source.indexOf(
-        'final Widget observation = isPresentationFixture',
-      );
-      final fixtureBranchEnd = source.indexOf(
-        ': FollowSkyObservationSheet(',
-        fixtureBranchStart,
-      );
-      final fixtureBranch = source.substring(
-        fixtureBranchStart,
-        fixtureBranchEnd,
-      );
-
-      expect(fixtureBranch, isNot(contains('onMoveFollowSkyEventTime')));
-      expect(fixtureBranch, isNot(contains('onCommitStartTime')));
-      expect(fixtureBranch, contains('onWriteJournalResponse'));
-      expect(fixtureBranch, contains('onCommitCompletion'));
-      expect(fixtureBranch, contains('_commitFollowSkyCompletion('));
-    },
-  );
+  test('Day View keeps view time disconnected from calendar movement', () {
+    final source = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
+    expect(source, isNot(contains('FollowSkyObservationSheet(')));
+    expect(source, isNot(contains('full-moon-2026-08-28')));
+    expect(source, isNot(contains('onCommitStartTime')));
+    expect(source, contains('FollowSkyObservationPresentationLoader('));
+    expect(source, contains('onWriteJournalResponse'));
+    expect(source, contains('_commitFollowSkyCompletion('));
+  });
 
   testWidgets('presentation starts on the HTML mockup hierarchy', (
     tester,
@@ -73,7 +59,7 @@ void main() {
         home: Scaffold(
           backgroundColor: Colors.black,
           body: FollowSkyObservationPresentation(
-            fixture: losAngelesFullMoonPresentationFixture,
+            model: losAngelesFullMoonPresentationFixture,
             now: _beforeRise,
           ),
         ),
@@ -81,7 +67,7 @@ void main() {
     );
 
     expect(
-      find.byKey(const ValueKey<String>('follow-sky-presentation-fixture')),
+      find.byKey(const ValueKey<String>('follow-sky-observation-presentation')),
       findsOneWidget,
     );
     expect(find.text('FOLLOW THE SKY'), findsOneWidget);
@@ -140,7 +126,7 @@ void main() {
         home: Scaffold(
           backgroundColor: Colors.black,
           body: FollowSkyObservationPresentation(
-            fixture: losAngelesFullMoonPresentationFixture,
+            model: losAngelesFullMoonPresentationFixture,
             now: _beforeRise,
           ),
         ),
@@ -204,7 +190,7 @@ void main() {
         home: Scaffold(
           backgroundColor: Colors.black,
           body: FollowSkyObservationPresentation(
-            fixture: losAngelesFullMoonPresentationFixture,
+            model: losAngelesFullMoonPresentationFixture,
             now: _beforeRise,
           ),
         ),
@@ -246,7 +232,7 @@ void main() {
           home: Scaffold(
             backgroundColor: Colors.black,
             body: FollowSkyObservationPresentation(
-              fixture: losAngelesFullMoonPresentationFixture,
+              model: losAngelesFullMoonPresentationFixture,
               now: _beforeRise,
             ),
           ),
@@ -304,7 +290,7 @@ void main() {
         home: Scaffold(
           backgroundColor: Colors.black,
           body: FollowSkyObservationPresentation(
-            fixture: losAngelesFullMoonPresentationFixture,
+            model: losAngelesFullMoonPresentationFixture,
             now: _beforeRise,
           ),
         ),
@@ -417,7 +403,7 @@ Widget _presentationHarness({required DateTime Function() now}) {
     home: Scaffold(
       backgroundColor: Colors.black,
       body: FollowSkyObservationPresentation(
-        fixture: losAngelesFullMoonPresentationFixture,
+        model: losAngelesFullMoonPresentationFixture,
         now: now,
       ),
     ),

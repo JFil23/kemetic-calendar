@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/day_view.dart';
+import 'package:mobile/features/calendar/follow_the_sky/domain/sky_catalog.dart';
+import 'package:mobile/features/calendar/follow_the_sky/services/sky_catalog_repository.dart';
+import 'package:mobile/features/calendar/follow_the_sky/services/sky_instrument_data_provider.dart';
 import 'package:mobile/features/calendar/follow_the_sky/services/track_sky_materializer.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -9,6 +12,7 @@ const _viewport = Size(390, 844);
 const _flowId = 73;
 const _minimumExtent = 0.58;
 const _reservedChromeHeight = 120.0;
+late SkyCatalog _catalog;
 
 Future<void> _ensureSupabaseInitialized() async {
   try {
@@ -28,6 +32,7 @@ void main() {
   setUpAll(() async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     await _ensureSupabaseInitialized();
+    _catalog = await SkyCatalogRepository().load();
   });
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
@@ -105,6 +110,20 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('V2 ownership opens the sheet after the Flow is renamed', (
+    tester,
+  ) async {
+    await _pumpFollowSkySheet(tester, flowName: 'My own night practice');
+
+    expect(_sheet, findsOneWidget);
+    expect(_resizeHandle, findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('follow-sky-observation-presentation')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('keyboard preserves manual extent and reopening resets it', (
     tester,
   ) async {
@@ -151,6 +170,7 @@ String? _viewTime(WidgetTester tester) => tester
 Future<void> _pumpFollowSkySheet(
   WidgetTester tester, {
   bool configureViewport = true,
+  String flowName = 'Follow the Sky',
 }) async {
   if (configureViewport) {
     tester.view.physicalSize = _viewport;
@@ -191,10 +211,14 @@ Future<void> _pumpFollowSkySheet(
           body: CalendarEventDetailSheet(
             hostContext: context,
             initialTarget: target,
+            followSkyCatalog: _catalog,
+            followSkyInstrumentProvider:
+                const CatalogSkyInstrumentDataProvider(),
+            followSkyNow: () => DateTime(2026, 8, 27, 12),
             flowResolver: (flowId) => flowId == _flowId
-                ? const FlowData(
+                ? FlowData(
                     id: _flowId,
-                    name: 'Follow the Sky',
+                    name: flowName,
                     color: Color(0xFF9DA8FF),
                     active: true,
                   )

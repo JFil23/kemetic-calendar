@@ -2,6 +2,7 @@ import 'dart:math';
 
 import '../domain/sky_catalog.dart';
 import '../domain/sky_event_function.dart';
+import '../domain/sky_observing_night.dart';
 import '../domain/track_sky_course.dart';
 import 'sky_visibility_service.dart';
 import 'track_sky_course_metadata_codec.dart';
@@ -164,25 +165,31 @@ class TrackSkyEnrollmentService {
     return map.entries.map((e) => '${e.key}=${e.value}').join(';');
   }
 
-  TrackSkyEnrollmentDraft buildJoinDraft({
+  /// The one canonical occurrence authority shared by preview and persistence.
+  /// Merged lunar eclipses remain metadata on their Full Moon anchor.
+  List<SkyObservingNight> canonicalNights({required SkyCatalog catalog}) {
+    final nights =
+        catalog.materializableEvents
+            .map(catalog.observingNight)
+            .toList(growable: false)
+          ..sort((a, b) => a.primaryInstantUtc.compareTo(b.primaryInstantUtc));
+    final ids = nights.map((night) => night.skyEventId).toSet();
+    if (ids.length != nights.length) {
+      throw StateError('Canonical Follow Sky occurrence IDs are not unique.');
+    }
+    return List<SkyObservingNight>.unmodifiable(nights);
+  }
+
+  List<MaterializedSkyOccurrence> buildCanonicalOccurrences({
     required SkyCatalog catalog,
-    required DateTime nowUtc,
     required String ianaTimeZone,
-    String? timezoneKey,
-    String? overview,
-    TrackSkyCourse? course,
     bool hasObservingLocation = false,
-    Set<String>? includedSkyEventIds,
+    Set<String> excludedSkyEventIds = const <String>{},
     Map<String, String>? intentionBySkyEventId,
   }) {
-    final nights = catalog.upcomingNights(nowUtc: nowUtc);
-    final selectedNights = includedSkyEventIds == null
-        ? nights
-        : nights
-              .where((night) => includedSkyEventIds.contains(night.skyEventId))
-              .toList(growable: false);
     final occurrences = <MaterializedSkyOccurrence>[];
-    for (final night in selectedNights) {
+    for (final night in canonicalNights(catalog: catalog)) {
+      if (excludedSkyEventIds.contains(night.skyEventId)) continue;
       final decision = visibilityService.decide(
         night.windowSource,
         hasObservingLocation: hasObservingLocation,
@@ -197,6 +204,26 @@ class TrackSkyEnrollmentService {
         ),
       );
     }
+    return List<MaterializedSkyOccurrence>.unmodifiable(occurrences);
+  }
+
+  TrackSkyEnrollmentDraft buildJoinDraft({
+    required SkyCatalog catalog,
+    required String ianaTimeZone,
+    String? timezoneKey,
+    String? overview,
+    TrackSkyCourse? course,
+    bool hasObservingLocation = false,
+    Set<String> excludedSkyEventIds = const <String>{},
+    Map<String, String>? intentionBySkyEventId,
+  }) {
+    final occurrences = buildCanonicalOccurrences(
+      catalog: catalog,
+      ianaTimeZone: ianaTimeZone,
+      hasObservingLocation: hasObservingLocation,
+      excludedSkyEventIds: excludedSkyEventIds,
+      intentionBySkyEventId: intentionBySkyEventId,
+    );
 
     final notes = course == null
         ? [

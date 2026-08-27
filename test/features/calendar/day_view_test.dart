@@ -271,17 +271,11 @@ void main() {
       );
       expect(
         sizingSource,
-        contains('activeFollowSkyPresentationFixture\n        ? 120.0'),
+        contains('activeFollowSkyInstrument\n        ? 120.0'),
       );
       expect(frameSource, contains('if (!_isWorkspacePresentation) ...['));
-      expect(
-        frameSource,
-        contains('animate: !activeFollowSkyPresentationFixture'),
-      );
-      expect(
-        frameSource,
-        isNot(contains('if (!activeFollowSkyPresentationFixture)')),
-      );
+      expect(frameSource, contains('animate: !activeFollowSkyInstrument'));
+      expect(frameSource, isNot(contains('if (!activeFollowSkyInstrument)')));
       expect(topActionSource, contains("'follow-sky-sheet-resize-handle'"));
       expect(topActionSource, contains('_buildEventDetailOverflowButton('));
     },

@@ -1,46 +1,13 @@
-import 'package:flutter/foundation.dart';
-
 import '../../domain/sky_instrument_data.dart';
+import '../follow_sky_observation_presentation_model.dart';
+import '../turning_meaning.dart';
 
-/// Deterministic presentation data for matching the approved Follow the sky
-/// mockup before any production provider or persistence is connected.
-@immutable
-class FollowSkyObservationPresentationFixture {
-  const FollowSkyObservationPresentationFixture({
-    required this.title,
-    required this.dateLabel,
-    required this.locationLabel,
-    required this.latitudeDegrees,
-    required this.longitudeDegrees,
-    required this.ianaTimeZone,
-    required this.fullPhaseLabel,
-    required this.lens,
-    required this.lensStatement,
-    required this.intention,
-    required this.intentionContext,
-    required this.initialSelection,
-    required this.instrument,
-  });
-
-  final String title;
-  final String dateLabel;
-  final String locationLabel;
-  final double latitudeDegrees;
-  final double longitudeDegrees;
-  final String ianaTimeZone;
-  final String fullPhaseLabel;
-  final String lens;
-  final String lensStatement;
-  final String intention;
-  final String intentionContext;
-  final DateTime initialSelection;
-  final LunarPathData instrument;
-}
-
-final FollowSkyObservationPresentationFixture
+/// Deterministic reference specimen for the approved Full Moon presentation.
+/// Production consumes the same generic model type for every observing night.
+final FollowSkyObservationPresentationModel
 losAngelesFullMoonPresentationFixture = _losAngelesFullMoonFixture();
 
-FollowSkyObservationPresentationFixture _losAngelesFullMoonFixture() {
+FollowSkyObservationPresentationModel _losAngelesFullMoonFixture() {
   final rise = DateTime(2026, 8, 27, 19, 17, 18);
   final u1 = DateTime(2026, 8, 27, 19, 33, 23);
   final maximum = DateTime(2026, 8, 27, 21, 12, 49);
@@ -50,131 +17,139 @@ FollowSkyObservationPresentationFixture _losAngelesFullMoonFixture() {
   final transit = DateTime(2026, 8, 28, 1, 0, 9);
   final set = DateTime(2026, 8, 28, 6, 51);
 
-  return FollowSkyObservationPresentationFixture(
+  const meaning = TurningMeaningResolver.approvedLunarEclipse;
+  final instrument = LunarPathData(
+    viewingWindowStart: rise,
+    viewingWindowEnd: set,
+    rise: rise,
+    transit: transit,
+    set: set,
+    moonSamples: <SkyPositionSample>[
+      SkyPositionSample(at: rise, azimuthDegrees: 101.8824, altitudeDegrees: 0),
+      SkyPositionSample(
+        at: u1,
+        azimuthDegrees: 104.0382,
+        altitudeDegrees: 2.6274,
+      ),
+      SkyPositionSample(
+        at: DateTime(2026, 8, 27, 20),
+        azimuthDegrees: 108.105,
+        altitudeDegrees: 7.934,
+      ),
+      SkyPositionSample(
+        at: maximum,
+        azimuthDegrees: 119.0314,
+        altitudeDegrees: 21.2959,
+      ),
+      SkyPositionSample(
+        at: fullPhase,
+        azimuthDegrees: 120.311,
+        altitudeDegrees: 22.512,
+      ),
+      SkyPositionSample(
+        at: u4,
+        azimuthDegrees: 139.7716,
+        altitudeDegrees: 37.2084,
+      ),
+      SkyPositionSample(
+        at: p4,
+        azimuthDegrees: 159.9779,
+        altitudeDegrees: 44.6312,
+      ),
+      SkyPositionSample(
+        at: transit,
+        azimuthDegrees: 179.9999,
+        altitudeDegrees: 46.9393,
+      ),
+      SkyPositionSample(
+        at: DateTime(2026, 8, 28, 2),
+        azimuthDegrees: 201.08,
+        altitudeDegrees: 44.93,
+      ),
+      SkyPositionSample(
+        at: DateTime(2026, 8, 28, 3, 30),
+        azimuthDegrees: 225.41,
+        altitudeDegrees: 35.84,
+      ),
+      SkyPositionSample(
+        at: DateTime(2026, 8, 28, 5),
+        azimuthDegrees: 245.82,
+        altitudeDegrees: 20.16,
+      ),
+      SkyPositionSample(at: set, azimuthDegrees: 261.52, altitudeDegrees: 0),
+    ],
+    eclipseContacts: <LunarEclipseContact>[
+      LunarEclipseContact(
+        kind: LunarEclipseContactKind.p1,
+        at: DateTime(2026, 8, 27, 18, 23, 36),
+        azimuthDegrees: 94.8891,
+        altitudeDegrees: -11.0243,
+        locallyVisible: false,
+      ),
+      LunarEclipseContact(
+        kind: LunarEclipseContactKind.u1,
+        at: u1,
+        azimuthDegrees: 104.0382,
+        altitudeDegrees: 2.6274,
+        locallyVisible: true,
+      ),
+      LunarEclipseContact(
+        kind: LunarEclipseContactKind.maximum,
+        at: maximum,
+        azimuthDegrees: 119.0314,
+        altitudeDegrees: 21.2959,
+        locallyVisible: true,
+      ),
+      LunarEclipseContact(
+        kind: LunarEclipseContactKind.u4,
+        at: u4,
+        azimuthDegrees: 139.7716,
+        altitudeDegrees: 37.2084,
+        locallyVisible: true,
+      ),
+      LunarEclipseContact(
+        kind: LunarEclipseContactKind.p4,
+        at: p4,
+        azimuthDegrees: 159.9779,
+        altitudeDegrees: 44.6312,
+        locallyVisible: true,
+      ),
+    ],
+    phaseInstant: fullPhase,
+    provenance: const SkyInstrumentProvenance(
+      source: 'presentation-fixture',
+      sourceVersion: 'los-angeles-2026-08-27',
+      calculationVersion: 'verified-live-specimen',
+    ),
+    visibility: const SkyInstrumentVisibility(
+      isLocal: true,
+      isTimeFallback: false,
+      summary: 'Los Angeles local sky',
+    ),
+  );
+  return FollowSkyObservationPresentationModel(
+    skyEventId: 'full-moon-2026-08-28',
     title: 'Full Moon + Partial Lunar Eclipse',
     dateLabel: 'THU · AUG 27',
     locationLabel: 'Los Angeles',
-    latitudeDegrees: 34.0522,
-    longitudeDegrees: -118.2437,
     ianaTimeZone: 'America/Los_Angeles',
-    fullPhaseLabel: 'Full phase · 9:18 PM',
-    lens: 'ENDURE',
-    lensStatement: 'Stay true when conditions change.',
+    meaning: meaning,
     intention: 'self confidence',
-    intentionContext: 'Kept with this turning when you added Follow the sky.',
+    instrument: instrument,
+    focusInstant: maximum,
     initialSelection: maximum,
-    instrument: LunarPathData(
-      viewingWindowStart: rise,
-      viewingWindowEnd: set,
-      rise: rise,
-      transit: transit,
-      set: set,
-      moonSamples: <SkyPositionSample>[
-        SkyPositionSample(
-          at: rise,
-          azimuthDegrees: 101.8824,
-          altitudeDegrees: 0,
-        ),
-        SkyPositionSample(
-          at: u1,
-          azimuthDegrees: 104.0382,
-          altitudeDegrees: 2.6274,
-        ),
-        SkyPositionSample(
-          at: DateTime(2026, 8, 27, 20),
-          azimuthDegrees: 108.105,
-          altitudeDegrees: 7.934,
-        ),
-        SkyPositionSample(
-          at: maximum,
-          azimuthDegrees: 119.0314,
-          altitudeDegrees: 21.2959,
-        ),
-        SkyPositionSample(
-          at: fullPhase,
-          azimuthDegrees: 120.311,
-          altitudeDegrees: 22.512,
-        ),
-        SkyPositionSample(
-          at: u4,
-          azimuthDegrees: 139.7716,
-          altitudeDegrees: 37.2084,
-        ),
-        SkyPositionSample(
-          at: p4,
-          azimuthDegrees: 159.9779,
-          altitudeDegrees: 44.6312,
-        ),
-        SkyPositionSample(
-          at: transit,
-          azimuthDegrees: 179.9999,
-          altitudeDegrees: 46.9393,
-        ),
-        SkyPositionSample(
-          at: DateTime(2026, 8, 28, 2),
-          azimuthDegrees: 201.08,
-          altitudeDegrees: 44.93,
-        ),
-        SkyPositionSample(
-          at: DateTime(2026, 8, 28, 3, 30),
-          azimuthDegrees: 225.41,
-          altitudeDegrees: 35.84,
-        ),
-        SkyPositionSample(
-          at: DateTime(2026, 8, 28, 5),
-          azimuthDegrees: 245.82,
-          altitudeDegrees: 20.16,
-        ),
-        SkyPositionSample(at: set, azimuthDegrees: 261.52, altitudeDegrees: 0),
-      ],
-      eclipseContacts: <LunarEclipseContact>[
-        LunarEclipseContact(
-          kind: LunarEclipseContactKind.p1,
-          at: DateTime(2026, 8, 27, 18, 23, 36),
-          azimuthDegrees: 94.8891,
-          altitudeDegrees: -11.0243,
-          locallyVisible: false,
-        ),
-        LunarEclipseContact(
-          kind: LunarEclipseContactKind.u1,
-          at: u1,
-          azimuthDegrees: 104.0382,
-          altitudeDegrees: 2.6274,
-          locallyVisible: true,
-        ),
-        LunarEclipseContact(
-          kind: LunarEclipseContactKind.maximum,
-          at: maximum,
-          azimuthDegrees: 119.0314,
-          altitudeDegrees: 21.2959,
-          locallyVisible: true,
-        ),
-        LunarEclipseContact(
-          kind: LunarEclipseContactKind.u4,
-          at: u4,
-          azimuthDegrees: 139.7716,
-          altitudeDegrees: 37.2084,
-          locallyVisible: true,
-        ),
-        LunarEclipseContact(
-          kind: LunarEclipseContactKind.p4,
-          at: p4,
-          azimuthDegrees: 159.9779,
-          altitudeDegrees: 44.6312,
-          locallyVisible: true,
-        ),
-      ],
-      phaseInstant: fullPhase,
-      provenance: const SkyInstrumentProvenance(
-        source: 'presentation-fixture',
-        sourceVersion: 'los-angeles-2026-08-27',
-        calculationVersion: 'verified-live-specimen',
-      ),
-      visibility: const SkyInstrumentVisibility(
-        isLocal: true,
-        isTimeFallback: false,
-        summary: 'Los Angeles local sky',
-      ),
+    visual: const FollowSkyInstrumentVisualSpec(
+      family: SkyInstrumentFamily.lunarPath,
+      semanticLabel: 'lunar path',
+    ),
+    copy: const FollowSkySurfaceCopy(
+      lensLabel: 'ENDURE',
+      lensStatement: 'Stay true when conditions change.',
+      reflectionPrompt:
+          'What did staying true to your choice look like tonight?',
+      timingLabel: 'Full phase · 9:18 PM',
+      dragLead: 'Drag the night. ',
+      intentionContext: 'Kept with this turning when you added Follow the sky.',
     ),
   );
 }

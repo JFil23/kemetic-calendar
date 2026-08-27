@@ -1,3 +1,4 @@
+import '../domain/sky_catalog.dart';
 import '../services/track_sky_materializer.dart';
 
 /// Pure routing gate for the dedicated event-time observation experience.
@@ -5,23 +6,25 @@ class FollowSkyObservationRoute {
   const FollowSkyObservationRoute._();
 
   static bool matches({
-    required String? flowName,
     required String? clientEventId,
     required Map<String, dynamic>? behaviorPayload,
+    required SkyCatalog? catalog,
   }) {
-    final normalizedFlow = flowName?.trim().toLowerCase();
-    if (normalizedFlow != 'follow the sky' &&
-        normalizedFlow != 'track the sky') {
+    if (clientEventId?.trim().isEmpty != false) return false;
+    if (behaviorPayload?['kind'] != TrackSkyEventOwnership.behaviorKind) {
       return false;
     }
-    if (clientEventId?.trim().isEmpty != false) return false;
     if (behaviorPayload?['trackSkySchemaVersion'] !=
         TrackSkyEventOwnership.schemaVersion) {
       return false;
     }
-    return TrackSkyEventOwnership.skyEventIdFromPayload(
-          behaviorPayload,
-        )?.trim().isNotEmpty ==
-        true;
+    final skyEventId = TrackSkyEventOwnership.skyEventIdFromPayload(
+      behaviorPayload,
+    )?.trim();
+    if (skyEventId == null || skyEventId.isEmpty || catalog == null) {
+      return false;
+    }
+    final event = catalog.byId(skyEventId);
+    return event != null && event.mergedIntoId == null;
   }
 }

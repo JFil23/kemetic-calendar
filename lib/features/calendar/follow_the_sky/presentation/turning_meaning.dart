@@ -9,11 +9,20 @@ class TurningMeaning {
     required this.observation,
     required this.significanceLabel,
     required this.personalQuestion,
+    this.surfaceStatement,
+    this.reflectionPrompt,
   });
 
   final String observation;
   final String significanceLabel;
   final String personalQuestion;
+
+  /// Optional approved short-form copy for the shared observation surface.
+  ///
+  /// Canonical meaning stays in this resolver; the sheet does not own a
+  /// second event-copy catalog.
+  final String? surfaceStatement;
+  final String? reflectionPrompt;
 
   String get titledSignificanceLabel {
     final lower = significanceLabel.toLowerCase();
@@ -34,6 +43,8 @@ class TurningMeaningResolver {
     significanceLabel: 'ENDURE',
     personalQuestion:
         'What do you want to stay true to when conditions change?',
+    surfaceStatement: 'Stay true when conditions change.',
+    reflectionPrompt: 'What did staying true to your choice look like tonight?',
   );
 
   static const Map<String, String> _canonicalEventIdAliases = {

@@ -628,50 +628,14 @@ class FlowJoinService {
       originType: 'template',
     );
 
-    final clientEventIds = <String>[];
-    for (final occ in occurrences) {
-      final day = KemeticMath.fromGregorian(DateUtils.dateOnly(occ.startsAtLocal));
-      final clientEventId = EventCidUtil.buildClientEventId(
-        ky: day.kYear,
-        km: day.kMonth,
-        kd: day.kDay,
-        title: occ.title,
-        startHour: occ.startsAtLocal.hour,
-        startMinute: occ.startsAtLocal.minute,
-        allDay: occ.allDay,
-        flowId: flowId,
-      );
-      final detail = _encodeDetailWithMeta(
-        occ.detail,
-        alertMinutes: alertOffsetMinutes,
-      );
-      await _upsertEventRow(
-        clientEventId: clientEventId,
-        title: occ.title,
-        startsAtUtc: occ.startsAtUtc,
-        startsAtLocal: occ.startsAtLocal,
-        detail: detail,
-        allDay: occ.allDay,
-        endsAtUtc: occ.endsAtUtc,
-        endsAtLocal: occ.endsAtLocal,
-        calendarId: personalCalendarId,
-        flowLocalId: flowId,
-        category: occ.category,
-        behaviorPayload: occ.behaviorPayload,
-        caller: 'track_sky_v2_join_headless',
-      );
-      clientEventIds.add(clientEventId);
-      if (alertOffsetMinutes != kEventFilingNoAlertMinutes) {
-        await _fileHeadlessJoinDelivery(
-          debugLabel: 'trackSkyV2Headless',
-          clientEventId: clientEventId,
-          startsAtLocal: occ.startsAtLocal,
-          alertOffsetMinutes: alertOffsetMinutes,
-          title: occ.title,
-          body: detail,
-        );
-      }
-    }
+    final clientEventIds = await _stageTrackSkyOccurrences(
+      occurrences: occurrences,
+      flowId: flowId,
+      calendarId: personalCalendarId,
+      alertOffsetMinutes: alertOffsetMinutes,
+      caller: 'track_sky_v2_join_headless',
+      alertDebugLabel: 'trackSkyV2Headless',
+    );
 
     final staged = _takeDeferredJoinContext(
       flowId: flowId,
@@ -682,6 +646,154 @@ class FlowJoinService {
       localFlow: staged.localFlow,
       writes: staged.writes,
     );
+  }
+
+  /// Repairs one concrete joined Follow Sky flow without rewriting valid
+  /// children. Stable ownership is the existing [flowId] plus `skyEventId`.
+  Future<FlowJoinResult> reconcileTrackSkyV2Headless({
+    required int flowId,
+    required String flowName,
+    required Color flowColor,
+    required bool active,
+    required String? personalCalendarId,
+    required String existingFlowNotes,
+    required TrackSkyEnrollmentDraft draft,
+    List<PersistedTrackSkyChild>? existingChildren,
+    int alertOffsetMinutes = kEventFilingNoAlertMinutes,
+  }) async {
+    final occurrences = draft.occurrences;
+    if (occurrences.isEmpty) {
+      return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
+    }
+
+    final persistedChildren =
+        existingChildren ??
+        <PersistedTrackSkyChild>[
+          for (final row in await _repo.getEventsForFlow(
+            flowId,
+            flowEventsOnly: true,
+          ))
+            PersistedTrackSkyChild(
+              clientEventId: row.clientEventId,
+              behaviorPayload: row.behaviorPayload,
+            ),
+        ];
+    final plan = const TrackSkyOccurrenceReconciler().plan(
+      expectedOccurrences: occurrences,
+      existingChildren: persistedChildren,
+    );
+
+    final dates = <DateTime>{
+      for (final occurrence in occurrences)
+        DateUtils.dateOnly(occurrence.startsAtLocal),
+    };
+    final orderedDates = dates.toList()..sort();
+    final savedFlowId = await _upsertFlowRow(
+      id: flowId,
+      name: flowName,
+      color: flowColor.toARGB32(),
+      active: active,
+      calendarId: personalCalendarId,
+      startDate: orderedDates.first,
+      endDate: orderedDates.last,
+      notes: existingFlowNotes,
+      rules: jsonEncode(
+        <FlowRule>[
+          _RuleDates(dates: dates),
+        ].map(CalendarPageState.ruleToJson).toList(),
+      ),
+      originType: 'template',
+    );
+    if (savedFlowId != flowId) {
+      _deferredJoinContext = null;
+      throw StateError(
+        'Follow Sky reconciliation changed flow identity '
+        '$flowId → $savedFlowId.',
+      );
+    }
+
+    if (plan.missingOccurrences.isEmpty) {
+      _deferredJoinContext = null;
+      return FlowJoinResult.success(
+        flowId: flowId,
+        clientEventIds: const <String>[],
+      );
+    }
+
+    final clientEventIds = await _stageTrackSkyOccurrences(
+      occurrences: plan.missingOccurrences,
+      flowId: flowId,
+      calendarId: personalCalendarId,
+      alertOffsetMinutes: alertOffsetMinutes,
+      caller: 'track_sky_v2_reconcile_headless',
+      alertDebugLabel: 'trackSkyV2ReconcileHeadless',
+    );
+    final staged = _takeDeferredJoinContext(
+      flowId: flowId,
+      clientEventIds: clientEventIds,
+    );
+    return stagePlannedNotesAndDeferPersist(
+      flowId: flowId,
+      localFlow: staged.localFlow,
+      writes: staged.writes,
+    );
+  }
+
+  Future<List<String>> _stageTrackSkyOccurrences({
+    required Iterable<MaterializedSkyOccurrence> occurrences,
+    required int flowId,
+    required String? calendarId,
+    required int alertOffsetMinutes,
+    required String caller,
+    required String alertDebugLabel,
+  }) async {
+    final clientEventIds = <String>[];
+    for (final occurrence in occurrences) {
+      final day = KemeticMath.fromGregorian(
+        DateUtils.dateOnly(occurrence.startsAtLocal),
+      );
+      final clientEventId = EventCidUtil.buildClientEventId(
+        ky: day.kYear,
+        km: day.kMonth,
+        kd: day.kDay,
+        title: occurrence.title,
+        startHour: occurrence.startsAtLocal.hour,
+        startMinute: occurrence.startsAtLocal.minute,
+        allDay: occurrence.allDay,
+        flowId: flowId,
+      );
+      final detail = _encodeDetailWithMeta(
+        occurrence.detail,
+        alertMinutes: alertOffsetMinutes,
+      );
+      await _upsertEventRow(
+        clientEventId: clientEventId,
+        title: occurrence.title,
+        startsAtUtc: occurrence.startsAtUtc,
+        startsAtLocal: occurrence.startsAtLocal,
+        detail: detail,
+        allDay: occurrence.allDay,
+        endsAtUtc: occurrence.endsAtUtc,
+        endsAtLocal: occurrence.endsAtLocal,
+        calendarId: calendarId,
+        flowLocalId: flowId,
+        category: occurrence.category,
+        behaviorPayload: occurrence.behaviorPayload,
+        caller: caller,
+      );
+      clientEventIds.add(clientEventId);
+      if (alertOffsetMinutes != kEventFilingNoAlertMinutes) {
+        await _fileHeadlessJoinDelivery(
+          debugLabel: alertDebugLabel,
+          clientEventId: clientEventId,
+          startsAtLocal: occurrence.startsAtLocal,
+          alertOffsetMinutes: alertOffsetMinutes,
+          title: occurrence.title,
+          body: detail,
+        );
+      }
+    }
+    return List<String>.unmodifiable(clientEventIds);
   }
 
   Future<FlowJoinResult> joinTrackSkyHeadless({
@@ -723,7 +835,6 @@ class FlowJoinService {
     );
     final draft = enrollment.buildJoinDraft(
       catalog: catalog,
-      nowUtc: DateTime.now().toUtc(),
       ianaTimeZone: timezone.ianaName,
       timezoneKey: timezone.key,
       overview: templateOverview,

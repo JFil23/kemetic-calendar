@@ -119,16 +119,26 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
   DateTime get _now => widget.now ?? DateTime.now().toUtc();
 
   List<SkyObservingNight> get _thirtyDayNights {
-    final catalog = _catalog;
-    if (catalog == null) return const [];
     final until = _now.add(const Duration(days: 30));
-    return catalog.upcomingNights(nowUtc: _now, untilUtc: until);
+    return _canonicalNights
+        .where(
+          (night) =>
+              !night.primaryInstantUtc.isBefore(_now) &&
+              !night.primaryInstantUtc.isAfter(until),
+        )
+        .toList(growable: false);
   }
 
   List<SkyObservingNight> get _upcomingNights {
+    return _canonicalNights
+        .where((night) => !night.primaryInstantUtc.isBefore(_now))
+        .toList(growable: false);
+  }
+
+  List<SkyObservingNight> get _canonicalNights {
     final catalog = _catalog;
     if (catalog == null) return const [];
-    return catalog.upcomingNights(nowUtc: _now);
+    return _enrollment.canonicalNights(catalog: catalog);
   }
 
   List<SkyObservingNight> get _previewNights =>
@@ -262,16 +272,11 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
     if (_catalog == null || widget.onJoin == null || _joining) return;
     setState(() => _joining = true);
     try {
-      final included = _thirtyDayNights
-          .map((n) => n.skyEventId)
-          .where((id) => !_excludedSkyEventIds.contains(id))
-          .toSet();
       final draft = _enrollment.buildJoinDraft(
         catalog: _catalog!,
-        nowUtc: _now,
         ianaTimeZone: widget.timezone.ianaName,
         timezoneKey: widget.timezone.key,
-        includedSkyEventIds: included,
+        excludedSkyEventIds: Set<String>.from(_excludedSkyEventIds),
         intentionBySkyEventId: Map<String, String>.from(_draftIntentions),
       );
       await widget.onJoin!(draft);

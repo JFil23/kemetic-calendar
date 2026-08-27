@@ -27,7 +27,7 @@ void main() {
     );
   });
 
-  test('buildJoinDraft respects includedSkyEventIds filter', () {
+  test('buildJoinDraft respects excludedSkyEventIds filter', () {
     final enrollment = TrackSkyEnrollmentService(
       materializer: TrackSkyMaterializer(
         toLocal: (utc, _) => utc.toLocal(),
@@ -37,13 +37,15 @@ void main() {
     );
     final now = DateTime.utc(2026, 9, 1);
     final nights = catalog.upcomingNights(nowUtc: now).take(3).toList();
-    final onlyFirst = {nights.first.skyEventId};
+    final excluded = catalog.materializableEvents
+        .map((event) => event.id)
+        .where((id) => id != nights.first.skyEventId)
+        .toSet();
 
     final draft = enrollment.buildJoinDraft(
       catalog: catalog,
-      nowUtc: now,
       ianaTimeZone: 'America/Los_Angeles',
-      includedSkyEventIds: onlyFirst,
+      excludedSkyEventIds: excluded,
     );
 
     expect(draft.occurrences, hasLength(1));
