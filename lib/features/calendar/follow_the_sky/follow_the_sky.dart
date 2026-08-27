@@ -22,6 +22,7 @@ export 'services/follow_sky_day_detail.dart';
 export 'services/follow_sky_headless_brain.dart';
 export 'services/full_moon_instrument_data_provider.dart';
 export 'services/follow_sky_photo_store.dart';
+export 'services/follow_sky_turning_controller.dart';
 export 'services/follow_sky_turning_history.dart';
 export 'services/instrument_family_resolver.dart';
 export 'services/legacy_track_sky_migration_matcher.dart';

@@ -21,13 +21,11 @@ import '../../services/follow_sky_photo_store.dart';
 import '../../services/full_moon_instrument_data_provider.dart';
 import '../../services/observing_place_store.dart';
 import '../../services/sky_catalog_repository.dart';
-import '../../services/turning_journal_projector.dart';
+import '../../services/follow_sky_turning_controller.dart';
 import '../../services/turning_record_repository.dart';
 import 'lunar_path_instrument.dart';
 
 typedef FollowSkyTimeCommit = Future<bool> Function(DateTime newStartLocal);
-typedef FollowSkyCompletionCommit =
-    Future<void> Function(CompletionStatus status);
 
 class FollowSkyObservationSheet extends StatefulWidget {
   const FollowSkyObservationSheet({
@@ -73,17 +71,12 @@ class _FollowSkyObservationSheetState extends State<FollowSkyObservationSheet> {
   static const Color _blue = Color(0xFF617CAC);
 
   final TextEditingController _reflectionController = TextEditingController();
-  final TurningJournalProjector _projector = const TurningJournalProjector();
-  late final TurningRecordRepository _records = TurningRecordRepository(
-    Supabase.instance.client,
-  );
+  late FollowSkyTurningController _turning;
   late final FollowSkyPhotoStore _photos = FollowSkyPhotoStore(
     Supabase.instance.client,
   );
   final FollowSkyPhotoReplacementCoordinator _photoReplacement =
       const FollowSkyPhotoReplacementCoordinator();
-  Timer? _reflectionSaveTimer;
-  Future<void> _recordWriteTail = Future<void>.value();
   TurningRecord? _record;
   SkyInstrumentData? _instrument;
   Uint8List? _photoPreview;
@@ -106,6 +99,7 @@ class _FollowSkyObservationSheetState extends State<FollowSkyObservationSheet> {
     super.initState();
     _authoritativeTime = _scheduledTime;
     _previewTime = _scheduledTime;
+    _turning = _createTurningController();
     _reflectionController.addListener(_onReflectionChanged);
     unawaited(_load());
   }
@@ -115,7 +109,8 @@ class _FollowSkyObservationSheetState extends State<FollowSkyObservationSheet> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.clientEventId != widget.clientEventId ||
         oldWidget.skyEventId != widget.skyEventId) {
-      _reflectionSaveTimer?.cancel();
+      unawaited(_turning.close());
+      _turning = _createTurningController();
       _authoritativeTime = _scheduledTime;
       _previewTime = _scheduledTime;
       unawaited(_load());
@@ -137,7 +132,7 @@ class _FollowSkyObservationSheetState extends State<FollowSkyObservationSheet> {
 
   @override
   void dispose() {
-    _reflectionSaveTimer?.cancel();
+    unawaited(_turning.close());
     _reflectionController
       ..removeListener(_onReflectionChanged)
       ..dispose();
@@ -145,7 +140,22 @@ class _FollowSkyObservationSheetState extends State<FollowSkyObservationSheet> {
     super.dispose();
   }
 
+  FollowSkyTurningController _createTurningController() {
+    return FollowSkyTurningController.live(
+      client: Supabase.instance.client,
+      clientEventId: widget.clientEventId,
+      completionIdentity: widget.completionIdentity,
+      skyEventId: widget.skyEventId,
+      localDate: widget.localDate,
+      scheduledTimeSnapshot: _scheduledTime,
+      intentionSnapshot: widget.intentionSnapshot,
+      onCommitCompletion: widget.onCommitCompletion,
+      onWriteJournalResponse: widget.onWriteJournalResponse,
+    );
+  }
+
   Future<void> _load() async {
+    final turning = _turning;
     if (mounted) {
       setState(() {
         _loading = true;
@@ -165,29 +175,8 @@ class _FollowSkyObservationSheetState extends State<FollowSkyObservationSheet> {
         place: place,
       );
       final scheduled = _scheduledTime;
-      var record = await _records.loadOrCreate(
-        clientEventId: widget.clientEventId,
-        skyEventId: widget.skyEventId,
-        intentionSnapshot: widget.intentionSnapshot,
-        scheduledTimeSnapshot: scheduled,
-      );
-      if (record.completion == null) {
-        final priorCompletion = await _loadExistingCompletion();
-        if (priorCompletion.status != CompletionStatus.none) {
-          record = await _records.save(
-            record.copyWith(
-              completion: _turningCompletion(priorCompletion.status),
-              completedAt: priorCompletion.completedAt,
-              lastEditedAt: DateTime.now().toUtc(),
-            ),
-          );
-        }
-      }
-      if (!mounted) return;
-      final pendingCloudSync = await _records.isPendingSync(
-        widget.clientEventId,
-      );
-      if (!mounted) return;
+      final record = await turning.initialize();
+      if (!mounted || !identical(turning, _turning)) return;
       _hydratingText = true;
       _reflectionController.text = record.reflectionText;
       _hydratingText = false;
@@ -196,11 +185,10 @@ class _FollowSkyObservationSheetState extends State<FollowSkyObservationSheet> {
         _instrument = instrument;
         _authoritativeTime = scheduled;
         _previewTime = _clampToViewingWindow(scheduled, instrument);
-        _pendingCloudSync = pendingCloudSync;
-        _completion = _completionFromRecord(record.completion);
+        _pendingCloudSync = turning.pendingCloudSync;
+        _completion = turning.completion;
         _loading = false;
       });
-      await _project(record);
     } on Object catch (error) {
       if (!mounted) return;
       setState(() {
@@ -210,121 +198,29 @@ class _FollowSkyObservationSheetState extends State<FollowSkyObservationSheet> {
     }
   }
 
-  CompletionStatus _completionFromRecord(TurningCompletion? value) {
-    return switch (value) {
-      TurningCompletion.observed => CompletionStatus.observed,
-      TurningCompletion.partly => CompletionStatus.partial,
-      TurningCompletion.skipped => CompletionStatus.skipped,
-      null => CompletionStatus.none,
-    };
-  }
-
-  TurningCompletion? _turningCompletion(CompletionStatus value) {
-    return switch (value) {
-      CompletionStatus.observed => TurningCompletion.observed,
-      CompletionStatus.partial => TurningCompletion.partly,
-      CompletionStatus.skipped => TurningCompletion.skipped,
-      CompletionStatus.none => null,
-    };
-  }
-
-  Future<({CompletionStatus status, DateTime? completedAt})>
-  _loadExistingCompletion() async {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user != null) {
-      try {
-        final row = await Supabase.instance.client
-            .from('user_event_completions')
-            .select('completed_at,metadata')
-            .eq('user_id', user.id)
-            .eq('client_event_id', widget.clientEventId)
-            .maybeSingle();
-        if (row != null) {
-          final metadata = row['metadata'];
-          final rawStatus = metadata is Map
-              ? metadata['completion_status']?.toString() ??
-                    metadata['status']?.toString()
-              : null;
-          final parsed = CompletionStatusX.fromWireName(rawStatus);
-          return (
-            status: parsed == CompletionStatus.none
-                ? CompletionStatus.observed
-                : parsed,
-            completedAt: DateTime.tryParse(
-              row['completed_at']?.toString() ?? '',
-            )?.toUtc(),
-          );
-        }
-      } on Object {
-        // Fall through to the on-device completion cache.
-      }
-    }
-    final local = await const CalendarCompletionLocalStore().load(
-      widget.completionIdentity,
-    );
-    return (status: local.completionStatus, completedAt: null);
-  }
-
   void _onReflectionChanged() {
-    if (_hydratingText || _record == null) return;
-    _reflectionSaveTimer?.cancel();
+    if (_hydratingText) return;
     if (mounted) setState(() {});
-    _reflectionSaveTimer = Timer(
-      const Duration(milliseconds: 450),
-      () => unawaited(_saveReflection()),
-    );
+    _turning.scheduleReflection(_reflectionController.text);
   }
 
-  Future<void> _saveReflection() async {
-    if (_record == null) return;
-    final reflection = _reflectionController.text;
-    await _queueRecordMutation(
-      (current) => current.copyWith(
-        reflectionText: reflection,
-        lastEditedAt: DateTime.now().toUtc(),
-      ),
-    );
-  }
-
-  Future<TurningRecordSaveResult> _queueRecordMutation(
+  Future<TurningRecordSaveResult> _mutateRecord(
     TurningRecord Function(TurningRecord current) mutation,
-  ) {
-    final operation = _recordWriteTail.then((_) async {
-      final current = _record;
-      if (current == null) {
-        throw StateError('Turning record is not ready.');
-      }
-      if (mounted) setState(() => _saving = true);
-      final result = await _records.saveWithStatus(mutation(current));
+  ) async {
+    if (mounted) setState(() => _saving = true);
+    try {
+      final result = await _turning.mutateRecord(mutation);
       if (mounted) {
         setState(() {
           _record = result.record;
-          _pendingCloudSync = !result.cloudSynced;
+          _pendingCloudSync = _turning.pendingCloudSync;
           _saving = false;
         });
       }
-      await _project(result.record);
       return result;
-    });
-    _recordWriteTail = operation.then<void>(
-      (_) {},
-      onError: (_, _) {
-        if (mounted) setState(() => _saving = false);
-      },
-    );
-    return operation;
-  }
-
-  Future<void> _project(TurningRecord record) async {
-    final writer = widget.onWriteJournalResponse;
-    if (writer == null) return;
-    try {
-      await writer(
-        _projector.project(record: record, localDate: widget.localDate),
-      );
     } on Object {
-      // A Turning Record save is authoritative for engagement. Journal
-      // projection retries on the next edit and never invalidates that save.
+      if (mounted) setState(() => _saving = false);
+      rethrow;
     }
   }
 
@@ -353,33 +249,15 @@ class _FollowSkyObservationSheetState extends State<FollowSkyObservationSheet> {
 
   Future<void> _commitCompletion(CompletionStatus selected) async {
     if (_saving || _record == null) return;
-    final nextStatus = selected == _completion
-        ? CompletionStatus.none
-        : selected;
     final previous = _completion;
-    setState(() {
-      _completion = nextStatus;
-      _saving = true;
-    });
+    setState(() => _saving = true);
     try {
-      await widget.onCommitCompletion(nextStatus);
-      await const CalendarCompletionLocalStore().save(
-        identity: widget.completionIdentity,
-        status: nextStatus,
-      );
-      final now = DateTime.now().toUtc();
-      final result = await _queueRecordMutation(
-        (current) => current.copyWith(
-          completion: _turningCompletion(nextStatus),
-          clearCompletion: nextStatus == CompletionStatus.none,
-          completedAt: nextStatus == CompletionStatus.none ? null : now,
-          clearCompletedAt: nextStatus == CompletionStatus.none,
-          lastEditedAt: now,
-        ),
-      );
+      final result = await _turning.toggleCompletion(selected);
       if (!mounted) return;
       setState(() {
         _record = result.record;
+        _completion = result.status;
+        _pendingCloudSync = _turning.pendingCloudSync;
         _saving = false;
       });
     } on Object {
@@ -416,7 +294,7 @@ class _FollowSkyObservationSheetState extends State<FollowSkyObservationSheet> {
           contentType: contentType,
           extension: extension,
         ),
-        persistNewReference: (objectPath) => _queueRecordMutation(
+        persistNewReference: (objectPath) => _mutateRecord(
           (latest) => latest.copyWith(
             photoObjectPath: objectPath,
             lastEditedAt: DateTime.now().toUtc(),
@@ -884,7 +762,7 @@ class _FollowSkyObservationSheetState extends State<FollowSkyObservationSheet> {
           Text(
             _saving
                 ? 'Saving turning…'
-                : _reflectionSaveTimer?.isActive == true
+                : _turning.hasPendingReflection
                 ? 'Autosaving…'
                 : _pendingCloudSync
                 ? 'Saved on this device · cloud sync pending'

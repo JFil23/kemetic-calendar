@@ -53,6 +53,9 @@ void main() {
 
       expect(fixtureBranch, isNot(contains('onMoveFollowSkyEventTime')));
       expect(fixtureBranch, isNot(contains('onCommitStartTime')));
+      expect(fixtureBranch, contains('onWriteJournalResponse'));
+      expect(fixtureBranch, contains('onCommitCompletion'));
+      expect(fixtureBranch, contains('_commitFollowSkyCompletion('));
     },
   );
 

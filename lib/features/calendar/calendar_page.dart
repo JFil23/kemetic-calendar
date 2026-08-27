@@ -10414,7 +10414,12 @@ class CalendarPageState extends State<CalendarPage>
     if (!await _ensureJournalControllerReady()) return;
     final localDate = block.localDate;
     if (localDate != null) {
-      await _journalController.loadDate(DateUtils.dateOnly(localDate));
+      final targetDate = DateUtils.dateOnly(localDate);
+      final currentDate = _journalController.currentDate;
+      if (currentDate == null ||
+          !DateUtils.isSameDay(currentDate, targetDate)) {
+        await _journalController.loadDate(targetDate);
+      }
     }
     final currentDocument =
         _journalController.currentDocument ??

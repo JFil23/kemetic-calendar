@@ -2,8 +2,14 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'package:mobile/core/completion_status.dart';
+import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 
 import '../../domain/sky_instrument_data.dart';
+import '../../services/follow_sky_turning_controller.dart';
 import '../fixtures/follow_sky_observation_presentation_fixture.dart';
 import '../follow_sky_view_time_policy.dart';
 
@@ -12,17 +18,48 @@ class FollowSkyObservationPresentation extends StatefulWidget {
     super.key,
     required this.fixture,
     this.now,
-  });
+    this.clientEventId,
+    this.completionIdentity,
+    this.skyEventId,
+    this.localDate,
+    this.scheduledTimeSnapshot,
+    this.intentionSnapshot,
+    this.onWriteJournalResponse,
+    this.onCommitCompletion,
+    this.turningController,
+  }) : assert(
+         turningController != null ||
+             (clientEventId == null &&
+                 completionIdentity == null &&
+                 skyEventId == null &&
+                 localDate == null &&
+                 scheduledTimeSnapshot == null &&
+                 onCommitCompletion == null) ||
+             (clientEventId != null &&
+                 completionIdentity != null &&
+                 skyEventId != null &&
+                 localDate != null &&
+                 scheduledTimeSnapshot != null &&
+                 onCommitCompletion != null),
+         'Provide either a complete Turning session or no persistence fields.',
+       );
 
   final FollowSkyObservationPresentationFixture fixture;
   final DateTime Function()? now;
+  final String? clientEventId;
+  final String? completionIdentity;
+  final String? skyEventId;
+  final DateTime? localDate;
+  final DateTime? scheduledTimeSnapshot;
+  final String? intentionSnapshot;
+  final MaatJournalResponseBlockWriter? onWriteJournalResponse;
+  final FollowSkyCompletionCommit? onCommitCompletion;
+  final FollowSkyTurningController? turningController;
 
   @override
   State<FollowSkyObservationPresentation> createState() =>
       _FollowSkyObservationPresentationState();
 }
-
-enum _PreviewCompletion { observed, partly, skipped }
 
 class _FollowSkyObservationPresentationState
     extends State<FollowSkyObservationPresentation> {
@@ -40,11 +77,15 @@ class _FollowSkyObservationPresentationState
   static const _ui = 'GentiumPlus';
 
   final TextEditingController _reflectionController = TextEditingController();
+  FollowSkyTurningController? _turning;
   late _LunarInstrumentController _instrumentController;
   Timer? _liveTickTimer;
   bool _isLiveTracking = false;
   bool _reflectionOpen = false;
-  _PreviewCompletion? _completion;
+  bool _hydratingReflection = false;
+  bool _reflectionEditedBeforeHydration = false;
+  bool _committingCompletion = false;
+  CompletionStatus _completion = CompletionStatus.none;
 
   @override
   void initState() {
@@ -54,6 +95,9 @@ class _FollowSkyObservationPresentationState
       data: widget.fixture.instrument,
       initialSelection: _initialSelection(now),
     );
+    _reflectionController.addListener(_onReflectionChanged);
+    _turning = _createTurningController();
+    unawaited(_loadTurning());
     if (_isWithinTrackingWindow(now)) {
       _startLiveTracking(now);
     }
@@ -62,6 +106,10 @@ class _FollowSkyObservationPresentationState
   @override
   void didUpdateWidget(covariant FollowSkyObservationPresentation oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final turningChanged =
+        oldWidget.turningController != widget.turningController ||
+        oldWidget.clientEventId != widget.clientEventId ||
+        oldWidget.skyEventId != widget.skyEventId;
     if (oldWidget.fixture != widget.fixture) {
       _stopLiveTracking();
       _instrumentController.dispose();
@@ -73,9 +121,18 @@ class _FollowSkyObservationPresentationState
       if (_isWithinTrackingWindow(now)) {
         _startLiveTracking(now);
       }
-      _reflectionController.clear();
       _reflectionOpen = false;
-      _completion = null;
+    }
+    if (turningChanged) {
+      final previous = _turning;
+      _turning = _createTurningController();
+      _reflectionEditedBeforeHydration = false;
+      _hydratingReflection = true;
+      _reflectionController.clear();
+      _hydratingReflection = false;
+      _completion = CompletionStatus.none;
+      unawaited(previous?.close());
+      unawaited(_loadTurning());
     }
   }
 
@@ -83,8 +140,65 @@ class _FollowSkyObservationPresentationState
   void dispose() {
     _stopLiveTracking();
     _instrumentController.dispose();
-    _reflectionController.dispose();
+    unawaited(_turning?.close());
+    _reflectionController
+      ..removeListener(_onReflectionChanged)
+      ..dispose();
     super.dispose();
+  }
+
+  FollowSkyTurningController? _createTurningController() {
+    final injected = widget.turningController;
+    if (injected != null) return injected;
+    final clientEventId = widget.clientEventId;
+    final completionIdentity = widget.completionIdentity;
+    final skyEventId = widget.skyEventId;
+    final localDate = widget.localDate;
+    final scheduledTimeSnapshot = widget.scheduledTimeSnapshot;
+    final onCommitCompletion = widget.onCommitCompletion;
+    if (clientEventId == null ||
+        completionIdentity == null ||
+        skyEventId == null ||
+        localDate == null ||
+        scheduledTimeSnapshot == null ||
+        onCommitCompletion == null) {
+      return null;
+    }
+    return FollowSkyTurningController.live(
+      client: Supabase.instance.client,
+      clientEventId: clientEventId,
+      completionIdentity: completionIdentity,
+      skyEventId: skyEventId,
+      localDate: localDate,
+      scheduledTimeSnapshot: scheduledTimeSnapshot,
+      intentionSnapshot: widget.intentionSnapshot,
+      onCommitCompletion: onCommitCompletion,
+      onWriteJournalResponse: widget.onWriteJournalResponse,
+    );
+  }
+
+  Future<void> _loadTurning() async {
+    final turning = _turning;
+    if (turning == null) return;
+    try {
+      final record = await turning.initialize();
+      if (!mounted || !identical(turning, _turning)) return;
+      if (!_reflectionEditedBeforeHydration) {
+        _hydratingReflection = true;
+        _reflectionController.text = record.reflectionText;
+        _hydratingReflection = false;
+      }
+      setState(() => _completion = turning.completion);
+    } on Object {
+      // Keep the approved presentation available. The local-first Turning
+      // Record path will retry the next time the sheet opens.
+    }
+  }
+
+  void _onReflectionChanged() {
+    if (_hydratingReflection) return;
+    _reflectionEditedBeforeHydration = true;
+    _turning?.scheduleReflection(_reflectionController.text);
   }
 
   DateTime _fixtureNow() => followSkyWallTime(
@@ -680,15 +794,16 @@ class _FollowSkyObservationPresentationState
             padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
             child: Row(
               children: <Widget>[
-                _completionChip('Observed', _PreviewCompletion.observed),
+                _completionChip('Observed', CompletionStatus.observed),
                 const SizedBox(width: 9),
-                _completionChip('Partly', _PreviewCompletion.partly),
+                _completionChip('Partly', CompletionStatus.partial),
                 const SizedBox(width: 9),
-                _completionChip('Skipped', _PreviewCompletion.skipped),
+                _completionChip('Skipped', CompletionStatus.skipped),
               ],
             ),
           ),
-          if (_completion != null) _buildConsequence(_completion!),
+          if (_completion != CompletionStatus.none)
+            _buildConsequence(_completion),
         ],
       ),
     );
@@ -716,6 +831,7 @@ class _FollowSkyObservationPresentationState
               TextField(
                 key: const ValueKey<String>('follow-sky-fixture-reflection'),
                 controller: _reflectionController,
+                scrollPadding: keyboardManagedTextFieldScrollPadding,
                 minLines: 3,
                 maxLines: 5,
                 style: const TextStyle(
@@ -765,11 +881,11 @@ class _FollowSkyObservationPresentationState
     );
   }
 
-  Widget _completionChip(String label, _PreviewCompletion value) {
+  Widget _completionChip(String label, CompletionStatus value) {
     final selected = _completion == value;
     return Expanded(
       child: OutlinedButton(
-        onPressed: () => setState(() => _completion = selected ? null : value),
+        onPressed: () => unawaited(_commitCompletion(value)),
         style: OutlinedButton.styleFrom(
           minimumSize: const Size(0, 45),
           padding: EdgeInsets.zero,
@@ -794,19 +910,50 @@ class _FollowSkyObservationPresentationState
     );
   }
 
-  Widget _buildConsequence(_PreviewCompletion completion) {
+  Future<void> _commitCompletion(CompletionStatus selected) async {
+    if (_committingCompletion) return;
+    final turning = _turning;
+    if (turning == null) {
+      setState(() {
+        _completion = selected == _completion
+            ? CompletionStatus.none
+            : selected;
+      });
+      return;
+    }
+    final previous = _completion;
+    _committingCompletion = true;
+    try {
+      final result = await turning.toggleCompletion(selected);
+      if (!mounted || !identical(turning, _turning)) return;
+      setState(() => _completion = result.status);
+    } on Object {
+      if (!mounted || !identical(turning, _turning)) return;
+      setState(() => _completion = previous);
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(content: Text('Could not record this turning.')),
+      );
+    } finally {
+      _committingCompletion = false;
+    }
+  }
+
+  Widget _buildConsequence(CompletionStatus completion) {
     final (heading, body) = switch (completion) {
-      _PreviewCompletion.observed => (
+      CompletionStatus.observed => (
         'KEPT',
         'Your choice, reflection, and anything you captured stay with this night. Hꜣw can return them when this pattern comes around again.',
       ),
-      _PreviewCompletion.partly => (
+      CompletionStatus.partial => (
         'KEPT',
         'A glance counts. Hꜣw keeps the reflection of what happened without turning the rest into debt.',
       ),
-      _PreviewCompletion.skipped => (
+      CompletionStatus.skipped => (
         'NOTHING OWED',
         'The next Full Moon in this Flow is Sep 26. Your choice can end here or travel forward with you.',
+      ),
+      CompletionStatus.none => throw StateError(
+        'Completion consequence requires a selected status.',
       ),
     };
     return Container(

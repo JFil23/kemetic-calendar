@@ -3436,6 +3436,24 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                   'follow-sky-presentation:$followSkyClientEventId',
                 ),
                 fixture: losAngelesFullMoonPresentationFixture,
+                clientEventId: followSkyClientEventId,
+                completionIdentity: _completionIdentityForEvent(currentEvent),
+                skyEventId: followSkyEventId,
+                localDate: DateUtils.dateOnly(
+                  KemeticMath.toGregorian(target.ky, target.km, target.kd),
+                ),
+                scheduledTimeSnapshot: DateUtils.dateOnly(
+                  KemeticMath.toGregorian(target.ky, target.km, target.kd),
+                ).add(Duration(minutes: currentEvent.startMin)),
+                intentionSnapshot: TrackSkyEventOwnership.intentionFromPayload(
+                  currentEvent.behaviorPayload,
+                ),
+                onWriteJournalResponse: widget.onWriteJournalResponse,
+                onCommitCompletion: (status) => _commitFollowSkyCompletion(
+                  target: target,
+                  completion: completionContext,
+                  status: status,
+                ),
               ),
             )
           : FollowSkyObservationSheet(

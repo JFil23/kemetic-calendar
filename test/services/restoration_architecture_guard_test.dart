@@ -335,6 +335,7 @@ void main() {
           'lib/features/calendar/calendar_page.dart',
           'lib/features/calendar/day_view.dart',
           'lib/features/calendar/day_view_chrome.dart',
+          'lib/features/calendar/follow_the_sky/presentation/widgets/follow_sky_observation_presentation.dart',
           'lib/features/calendar/follow_the_sky/presentation/widgets/follow_sky_preview_calendar.dart',
           'lib/features/calendar/follow_the_sky/presentation/widgets/lunar_path_instrument.dart',
           'lib/features/calendar/landscape_month_view.dart',
