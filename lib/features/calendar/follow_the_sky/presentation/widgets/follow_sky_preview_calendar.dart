@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../calendar_event_visual_style.dart';
-import '../../../kemetic_month_metadata.dart';
 import '../../../maat_flow_visual_tokens.dart';
-import 'package:mobile/widgets/kemetic_date_picker.dart';
+import '../../../presentation/maat_flow_preview_day.dart';
 import '../../domain/sky_observing_night.dart';
 import '../follow_sky_calendar_preview.dart';
 import '../turning_meaning.dart';
@@ -132,99 +131,26 @@ class _PreviewDayCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kemetic = KemeticMath.fromGregorian(day.date);
-    final month = getMonthById(kemetic.kMonth);
-    return Container(
+    return MaatFlowPreviewDayCard(
       key: ValueKey<String>('follow-sky-preview-day-${_dateKey(day.date)}'),
-      padding: const EdgeInsets.fromLTRB(15, 15, 15, 7),
-      decoration: BoxDecoration(
-        color: FollowSkyV11Tokens.calendarPreview,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x38C4A64A)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x06C4A64A),
-            offset: Offset(0, 1),
-            blurRadius: 0,
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Expanded(
-                child: Text(
-                  '${month.displayShort} ${kemetic.kDay}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: FollowSkyV11Tokens.calendarAntique,
-                    fontFamily: MaatFlowListTokens.fontFamily,
-                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 9),
-              Text(
-                _gregorianLabel(day.date),
-                maxLines: 1,
-                style: const TextStyle(
-                  color: FollowSkyV11Tokens.calendarGregorian,
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                  fontSize: 10,
-                  fontWeight: FontWeight.w300,
-                  letterSpacing: 1.4,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          for (var i = 0; i < day.rows.length; i++) ...[
-            if (i > 0) const Divider(color: Color(0x26C4A64A), height: 1),
-            if (day.rows[i].isSky)
-              _SkyPreviewCard(
-                night: day.rows[i].night!,
-                meaning: meaningResolver.forNight(day.rows[i].night!),
-                excluded: excludedSkyEventIds.contains(
-                  day.rows[i].night!.skyEventId,
-                ),
-                carried: carried,
-                intention: draftIntentions[day.rows[i].night!.skyEventId],
-                onTap: () => onOpenSkyNight(day.rows[i].night!),
-                onExclude: () => onExcludeSkyNight(day.rows[i].night!),
-              )
-            else
-              _OrdinaryPreviewRow(row: day.rows[i].calendar!),
-          ],
-        ],
-      ),
+      date: day.date,
+      theme: FollowSkyV11Tokens.previewTheme,
+      children: [
+        for (final row in day.rows)
+          if (row.isSky)
+            _SkyPreviewCard(
+              night: row.night!,
+              meaning: meaningResolver.forNight(row.night!),
+              excluded: excludedSkyEventIds.contains(row.night!.skyEventId),
+              carried: carried,
+              intention: draftIntentions[row.night!.skyEventId],
+              onTap: () => onOpenSkyNight(row.night!),
+              onExclude: () => onExcludeSkyNight(row.night!),
+            )
+          else
+            _OrdinaryPreviewRow(row: row.calendar!),
+      ],
     );
-  }
-
-  String _gregorianLabel(DateTime d) {
-    const weekdays = <String>['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const months = <String>[
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
-    return '${weekdays[d.weekday - 1]} · ${months[d.month - 1]} ${d.day}';
   }
 
   String _dateKey(DateTime d) =>
@@ -240,56 +166,11 @@ class _OrdinaryPreviewRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 12,
-            child: Container(
-              width: 3,
-              height: 14,
-              margin: const EdgeInsets.only(top: 4, right: 9),
-              decoration: BoxDecoration(
-                color: row.eventColor,
-                borderRadius: BorderRadius.circular(2),
-              ),
-            ),
-          ),
-          SizedBox(
-            width: 64,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 3),
-              child: Text(
-                row.allDay ? 'All day' : _formatTime(row.start),
-                style: const TextStyle(
-                  color: FollowSkyV11Tokens.silverMid,
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w300,
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(
-              row.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: FollowSkyV11Tokens.silverHi,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 14,
-                fontWeight: FontWeight.w400,
-                height: 1.35,
-              ),
-            ),
-          ),
-        ],
-      ),
+    return MaatFlowPreviewEventRow(
+      timeLabel: row.allDay ? 'All day' : _formatTime(row.start),
+      title: row.title,
+      accent: row.eventColor,
+      theme: FollowSkyV11Tokens.previewTheme,
     );
   }
 }

@@ -8985,9 +8985,6 @@ class _MaatFlowTemplateDetailPageState
         alreadyJoined: widget.alreadyJoined,
         showBackButton: widget.showBackButton,
         resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
-        initialPrompt: _buildCurrentInitialPromptSlot(
-          includeLeadingSeparator: false,
-        ),
         onJoin:
             ({
               required startDate,

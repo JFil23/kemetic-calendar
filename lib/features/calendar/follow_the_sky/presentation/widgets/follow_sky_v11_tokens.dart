@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../presentation/maat_flow_detail_shell.dart';
+import '../../../presentation/maat_flow_preview_day.dart';
+import '../../../presentation/maat_flow_thirty_day_calendar.dart';
 
 /// V11 reference geometry for Follow the Sky detail at ~390 logical px width.
 abstract final class FollowSkyV11Tokens {
@@ -49,13 +51,43 @@ abstract final class FollowSkyV11Tokens {
     glow: glow,
   );
 
-  static const double decanRowHeight = 80;
-  static const double dayNumberAreaHeight = 42;
-  static const double todayRingDiameter = 40;
-  static const double skyRingDiameter = 36;
-  static const double ringDotGap = 6;
-  static const double todayLabelFontSize = 10.5;
-  static const double dayNumberFontSize = 21;
+  static const MaatFlowThirtyDayCalendarTheme thirtyDayCalendarTheme =
+      MaatFlowThirtyDayCalendarTheme(
+        introText: silverHi,
+        introEmphasis: silverMid,
+        border: Color(0x2EC4A64A),
+        month: calendarAntique,
+        monthTransliteration: calendarTransliteration,
+        decan: calendarDecan,
+        day: calendarDay,
+        today: Color(0xFFE2C862),
+        highlight: intentionPeriwinkle,
+      );
+
+  static const MaatFlowPreviewTheme previewTheme = MaatFlowPreviewTheme(
+    surface: calendarPreview,
+    border: Color(0x38C4A64A),
+    shadow: Color(0x06C4A64A),
+    kemeticDate: calendarAntique,
+    gregorianDate: calendarGregorian,
+    divider: Color(0x26C4A64A),
+    primaryText: silverHi,
+    secondaryText: silverMid,
+  );
+
+  static const double decanRowHeight =
+      MaatFlowThirtyDayCalendarGeometry.decanRowHeight;
+  static const double dayNumberAreaHeight =
+      MaatFlowThirtyDayCalendarGeometry.dayNumberAreaHeight;
+  static const double todayRingDiameter =
+      MaatFlowThirtyDayCalendarGeometry.todayRingDiameter;
+  static const double skyRingDiameter =
+      MaatFlowThirtyDayCalendarGeometry.highlightRingDiameter;
+  static const double ringDotGap = MaatFlowThirtyDayCalendarGeometry.ringDotGap;
+  static const double todayLabelFontSize =
+      MaatFlowThirtyDayCalendarGeometry.todayLabelFontSize;
+  static const double dayNumberFontSize =
+      MaatFlowThirtyDayCalendarGeometry.dayNumberFontSize;
 
   static const String heroAsset = 'assets/follow_the_sky/hero.png';
   static const String heroSubtitle =
