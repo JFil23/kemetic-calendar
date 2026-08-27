@@ -63,7 +63,19 @@ void main() {
     expect(find.textContaining('Full Moon +'), findsOneWidget);
     expect(find.textContaining('Los Angeles'), findsOneWidget);
     expect(find.text('9:12 PM'), findsOneWidget);
-    expect(find.text('ECLIPSE MAXIMUM'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('follow-sky-view-time')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('follow-sky-fixture-scrubber')),
+      findsNothing,
+    );
+    expect(find.textContaining('Your block moves'), findsNothing);
+    expect(
+      find.textContaining('Your view time moves to 9:12 PM.'),
+      findsOneWidget,
+    );
     expect(find.text('ENDURE'), findsOneWidget);
     expect(find.text('Stay true when conditions change.'), findsOneWidget);
     expect(find.text('“self confidence”'), findsOneWidget);
@@ -98,15 +110,16 @@ void main() {
       ),
     );
 
-    final scrubber = find.byKey(
-      const ValueKey<String>('follow-sky-fixture-scrubber'),
-    );
-    final scrubberRect = tester.getRect(scrubber);
-    await tester.tapAt(scrubberRect.center);
+    final hero = find.byKey(const ValueKey<String>('follow-sky-hero-drag'));
+    final heroRect = tester.getRect(hero);
+    await tester.tapAt(heroRect.center);
     await tester.pump();
-    expect(find.text('1:00 AM'), findsWidgets);
-    expect(find.text('HIGHEST'), findsWidgets);
+    expect(find.text('1:00 AM'), findsOneWidget);
     expect(find.text('Due south'), findsOneWidget);
+    expect(
+      find.textContaining('Your view time moves to 1:00 AM.'),
+      findsOneWidget,
+    );
 
     await tester.ensureVisible(find.text('Reflect'));
     await tester.tap(find.text('Reflect'));
@@ -151,15 +164,15 @@ void main() {
       final lowerContent = tester.element(
         find.byKey(const ValueKey<String>('follow-sky-static-lower-sheet')),
       );
-      final scrubberRect = tester.getRect(
-        find.byKey(const ValueKey<String>('follow-sky-fixture-scrubber')),
+      final heroRect = tester.getRect(
+        find.byKey(const ValueKey<String>('follow-sky-hero-drag')),
       );
-      final gesture = await tester.startGesture(scrubberRect.centerLeft);
+      final gesture = await tester.startGesture(heroRect.centerLeft);
       for (var index = 1; index <= 24; index++) {
         await gesture.moveTo(
           Offset(
-            scrubberRect.left + scrubberRect.width * index / 24,
-            scrubberRect.center.dy,
+            heroRect.left + heroRect.width * index / 24,
+            heroRect.center.dy,
           ),
         );
         await tester.pump(const Duration(milliseconds: 1));
@@ -167,7 +180,11 @@ void main() {
       await gesture.up();
       await tester.pump();
 
-      expect(find.text('6:51 AM'), findsWidgets);
+      expect(find.text('6:51 AM'), findsOneWidget);
+      expect(
+        find.textContaining('Your view time moves to 6:51 AM.'),
+        findsOneWidget,
+      );
       expect(
         identical(
           lowerContent,
@@ -180,4 +197,45 @@ void main() {
       expect(find.text('Stay true when conditions change.'), findsOneWidget);
     },
   );
+
+  testWidgets('ENDURE foreground rises over the lunar instrument', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(
+          backgroundColor: Colors.black,
+          body: FollowSkyObservationPresentation(
+            fixture: losAngelesFullMoonPresentationFixture,
+          ),
+        ),
+      ),
+    );
+
+    final foreground = find.byKey(
+      const ValueKey<String>('follow-sky-foreground-layer'),
+    );
+    final initialTop = tester.getTopLeft(foreground).dy;
+    expect(initialTop, greaterThan(320));
+    expect(initialTop, lessThan(420));
+
+    await tester.drag(
+      find.byKey(const ValueKey<String>('follow-sky-presentation-body')),
+      const Offset(0, -330),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.getTopLeft(foreground).dy, lessThan(80));
+    expect(find.text('ENDURE'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('follow-sky-hero-drag')),
+      findsOneWidget,
+    );
+  });
 }

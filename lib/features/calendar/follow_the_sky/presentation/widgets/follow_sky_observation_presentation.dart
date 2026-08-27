@@ -84,6 +84,7 @@ class _FollowSkyObservationPresentationState
           282.0,
           math.max(238.0, boundedHeight * 0.46),
         );
+        final instrumentHeight = heroHeight + 76;
         return DecoratedBox(
           key: const ValueKey<String>('follow-sky-presentation-fixture'),
           decoration: const BoxDecoration(
@@ -94,18 +95,59 @@ class _FollowSkyObservationPresentationState
               colors: <Color>[Color(0xFF1B1220), Color(0xFF140F1A), _velvet],
             ),
           ),
-          child: Column(
+          child: Stack(
+            fit: StackFit.expand,
             children: <Widget>[
-              SizedBox(
-                height: heroHeight,
-                child: RepaintBoundary(child: _buildSky()),
-              ),
-              _buildFinder(),
-              Expanded(
-                child: RepaintBoundary(
-                  key: const ValueKey<String>('follow-sky-static-lower-sheet'),
-                  child: _buildBody(),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: instrumentHeight,
+                child: Column(
+                  children: <Widget>[
+                    SizedBox(
+                      height: heroHeight,
+                      child: ExcludeSemantics(
+                        child: IgnorePointer(
+                          child: RepaintBoundary(child: _buildSky()),
+                        ),
+                      ),
+                    ),
+                    _buildFinder(),
+                    _buildDragInstruction(),
+                  ],
                 ),
+              ),
+              CustomScrollView(
+                key: const ValueKey<String>('follow-sky-presentation-body'),
+                physics: const BouncingScrollPhysics(),
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                slivers: <Widget>[
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: instrumentHeight,
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: SizedBox(
+                          height: heroHeight,
+                          child: _buildSkyInput(),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: RepaintBoundary(
+                      key: const ValueKey<String>(
+                        'follow-sky-static-lower-sheet',
+                      ),
+                      child: _buildBody(),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: SizedBox(height: instrumentHeight * 0.64),
+                  ),
+                ],
               ),
             ],
           ),
@@ -116,6 +158,147 @@ class _FollowSkyObservationPresentationState
 
   Widget _buildSky() {
     const compass = <String>['ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW'];
+    final instrument = _instrumentController;
+    return Stack(
+      fit: StackFit.expand,
+      children: <Widget>[
+        RepaintBoundary(
+          child: CustomPaint(
+            isComplex: true,
+            willChange: false,
+            painter: _StaticSkyDomePainter(geometry: instrument.geometry),
+          ),
+        ),
+        RepaintBoundary(
+          child: CustomPaint(
+            willChange: true,
+            painter: _DynamicMoonPainter(instrument),
+          ),
+        ),
+        const RepaintBoundary(child: CustomPaint(painter: _SkylinePainter())),
+        Positioned(
+          top: 20,
+          left: 20,
+          child: const Row(
+            children: <Widget>[
+              _SkySparkle(),
+              SizedBox(width: 7),
+              Text(
+                'FOLLOW THE SKY',
+                style: TextStyle(
+                  color: _gold,
+                  fontFamily: _ui,
+                  fontSize: 10.5,
+                  letterSpacing: 2.5,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          top: 39,
+          left: 20,
+          right: 126,
+          child: Text(
+            widget.fixture.title.replaceFirst(' + ', ' +\n'),
+            style: const TextStyle(
+              color: Colors.white,
+              fontFamily: _display,
+              fontSize: 25,
+              fontWeight: FontWeight.w500,
+              height: 1.04,
+              shadows: <Shadow>[Shadow(color: Colors.black87, blurRadius: 22)],
+            ),
+          ),
+        ),
+        Positioned(
+          top: 22,
+          right: 18,
+          child: Text.rich(
+            TextSpan(
+              children: <InlineSpan>[
+                TextSpan(
+                  text: '${widget.fixture.dateLabel}\n',
+                  style: const TextStyle(color: _rose, letterSpacing: 1.05),
+                ),
+                TextSpan(text: '${widget.fixture.locationLabel}\n'),
+                TextSpan(text: widget.fixture.fullPhaseLabel),
+              ],
+            ),
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              color: _silverLow,
+              fontFamily: _ui,
+              fontSize: 9.5,
+              height: 1.45,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+        Positioned(
+          top: 113,
+          right: 18,
+          child: ValueListenableBuilder<_InstrumentFrame>(
+            valueListenable: instrument,
+            builder: (context, frame, _) => Text(
+              _formatTime(frame.selectedAt),
+              key: const ValueKey<String>('follow-sky-view-time'),
+              textAlign: TextAlign.right,
+              style: const TextStyle(
+                color: _glow,
+                fontFamily: _display,
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+                letterSpacing: 0.5,
+                shadows: <Shadow>[
+                  Shadow(color: _glow, blurRadius: 10),
+                  Shadow(color: Colors.black87, blurRadius: 14),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 22,
+          right: 22,
+          bottom: 13,
+          child: ValueListenableBuilder<_InstrumentFrame>(
+            valueListenable: instrument,
+            builder: (context, frame, _) {
+              final compassIndex =
+                  ((frame.position.azimuthDegrees - 112.5) / 22.5)
+                      .round()
+                      .clamp(0, 6);
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: <Widget>[
+                  for (var index = 0; index < compass.length; index++)
+                    Text(
+                      compass[index],
+                      style: TextStyle(
+                        color: index == compassIndex
+                            ? _glow
+                            : _bone.withValues(alpha: 0.28),
+                        fontFamily: _ui,
+                        fontSize: 9.5,
+                        letterSpacing: 1.2,
+                        shadows: index == compassIndex
+                            ? const <Shadow>[
+                                Shadow(color: _glow, blurRadius: 8),
+                              ]
+                            : null,
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSkyInput() {
     return LayoutBuilder(
       builder: (context, constraints) {
         void update(Offset position) {
@@ -131,127 +314,7 @@ class _FollowSkyObservationPresentationState
           onTapUp: (details) => update(details.localPosition),
           onHorizontalDragDown: (details) => update(details.localPosition),
           onHorizontalDragUpdate: (details) => update(details.localPosition),
-          child: Stack(
-            fit: StackFit.expand,
-            children: <Widget>[
-              RepaintBoundary(
-                child: CustomPaint(
-                  isComplex: true,
-                  willChange: false,
-                  painter: _StaticSkyDomePainter(geometry: instrument.geometry),
-                ),
-              ),
-              RepaintBoundary(
-                child: CustomPaint(
-                  willChange: true,
-                  painter: _DynamicMoonPainter(instrument),
-                ),
-              ),
-              const RepaintBoundary(
-                child: CustomPaint(painter: _SkylinePainter()),
-              ),
-              Positioned(
-                top: 20,
-                left: 20,
-                child: const Row(
-                  children: <Widget>[
-                    _SkySparkle(),
-                    SizedBox(width: 7),
-                    Text(
-                      'FOLLOW THE SKY',
-                      style: TextStyle(
-                        color: _gold,
-                        fontFamily: _ui,
-                        fontSize: 10.5,
-                        letterSpacing: 2.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Positioned(
-                top: 39,
-                left: 20,
-                right: 126,
-                child: Text(
-                  widget.fixture.title.replaceFirst(' + ', ' +\n'),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontFamily: _display,
-                    fontSize: 25,
-                    fontWeight: FontWeight.w500,
-                    height: 1.04,
-                    shadows: <Shadow>[
-                      Shadow(color: Colors.black87, blurRadius: 22),
-                    ],
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 22,
-                right: 18,
-                child: Text.rich(
-                  TextSpan(
-                    children: <InlineSpan>[
-                      TextSpan(
-                        text: '${widget.fixture.dateLabel}\n',
-                        style: const TextStyle(
-                          color: _rose,
-                          letterSpacing: 1.05,
-                        ),
-                      ),
-                      TextSpan(text: '${widget.fixture.locationLabel}\n'),
-                      TextSpan(text: widget.fixture.fullPhaseLabel),
-                    ],
-                  ),
-                  textAlign: TextAlign.right,
-                  style: const TextStyle(
-                    color: _silverLow,
-                    fontFamily: _ui,
-                    fontSize: 9.5,
-                    height: 1.45,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ),
-              Positioned(
-                left: 22,
-                right: 22,
-                bottom: 13,
-                child: ValueListenableBuilder<_InstrumentFrame>(
-                  valueListenable: instrument,
-                  builder: (context, frame, _) {
-                    final compassIndex =
-                        ((frame.position.azimuthDegrees - 112.5) / 22.5)
-                            .round()
-                            .clamp(0, 6);
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: <Widget>[
-                        for (var index = 0; index < compass.length; index++)
-                          Text(
-                            compass[index],
-                            style: TextStyle(
-                              color: index == compassIndex
-                                  ? _glow
-                                  : _bone.withValues(alpha: 0.28),
-                              fontFamily: _ui,
-                              fontSize: 9.5,
-                              letterSpacing: 1.2,
-                              shadows: index == compassIndex
-                                  ? const <Shadow>[
-                                      Shadow(color: _glow, blurRadius: 8),
-                                    ]
-                                  : null,
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
+          child: const SizedBox.expand(),
         );
         return ValueListenableBuilder<_InstrumentFrame>(
           valueListenable: instrument,
@@ -336,18 +399,62 @@ class _FollowSkyObservationPresentationState
     );
   }
 
+  Widget _buildDragInstruction() {
+    return ValueListenableBuilder<_InstrumentFrame>(
+      valueListenable: _instrumentController,
+      builder: (context, frame, _) => Padding(
+        padding: const EdgeInsets.fromLTRB(20, 2, 20, 10),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text.rich(
+            TextSpan(
+              children: <InlineSpan>[
+                const TextSpan(text: 'Drag the night. '),
+                TextSpan(
+                  text:
+                      'Your view time moves to ${_formatTime(frame.selectedAt)}.',
+                  style: const TextStyle(
+                    color: _glow,
+                    fontStyle: FontStyle.normal,
+                  ),
+                ),
+              ],
+            ),
+            key: const ValueKey<String>('follow-sky-drag-instruction'),
+            style: const TextStyle(
+              color: _silverLow,
+              fontFamily: _ui,
+              fontSize: 11.5,
+              fontStyle: FontStyle.italic,
+              height: 1.2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildBody() {
-    return SingleChildScrollView(
-      key: const ValueKey<String>('follow-sky-presentation-body'),
-      physics: const BouncingScrollPhysics(),
-      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+    return Container(
+      key: const ValueKey<String>('follow-sky-foreground-layer'),
       padding: const EdgeInsets.only(bottom: 22),
+      decoration: const BoxDecoration(
+        color: _velvet,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        border: Border(top: BorderSide(color: Color(0x3A6876D8))),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: Color(0xB3000000),
+            blurRadius: 24,
+            offset: Offset(0, -8),
+          ),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          _buildScrubber(),
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
@@ -518,109 +625,6 @@ class _FollowSkyObservationPresentationState
             ),
           ),
           if (_completion != null) _buildConsequence(_completion!),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildScrubber() {
-    final instrument = _instrumentController;
-    final geometry = instrument.geometry;
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      padding: const EdgeInsets.fromLTRB(15, 15, 15, 13),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.022),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: _separator),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          ValueListenableBuilder<_InstrumentFrame>(
-            valueListenable: instrument,
-            builder: (context, frame, _) => Row(
-              crossAxisAlignment: CrossAxisAlignment.baseline,
-              textBaseline: TextBaseline.alphabetic,
-              children: <Widget>[
-                Expanded(
-                  child: Text(
-                    _formatTime(frame.selectedAt),
-                    style: const TextStyle(
-                      color: _bone,
-                      fontFamily: _display,
-                      fontSize: 29,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                Text(
-                  frame.phaseLabel.toUpperCase(),
-                  style: const TextStyle(
-                    color: _rose,
-                    fontFamily: _ui,
-                    fontSize: 10.5,
-                    letterSpacing: 1.7,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 9),
-          _SkyScrubber(controller: instrument, onChanged: _selectFraction),
-          SizedBox(
-            height: 34,
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: <Widget>[
-                _TrackerLabel(
-                  alignment: Alignment.centerLeft,
-                  time: _formatTimeShort(geometry.rise),
-                  label: 'RISES',
-                ),
-                _TrackerLabel(
-                  alignment: const Alignment(-0.63, 0),
-                  time: _formatTimeShort(geometry.maximum.at),
-                  label: 'ECLIPSE MAX',
-                ),
-                _TrackerLabel(
-                  alignment: Alignment.center,
-                  time: _formatTimeShort(geometry.transit),
-                  label: 'HIGHEST',
-                ),
-                _TrackerLabel(
-                  alignment: Alignment.centerRight,
-                  time: _formatTimeShort(geometry.set),
-                  label: 'SETS',
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 4),
-          ValueListenableBuilder<_InstrumentFrame>(
-            valueListenable: instrument,
-            builder: (context, frame, _) => Text.rich(
-              TextSpan(
-                children: <InlineSpan>[
-                  const TextSpan(text: 'Drag the night. '),
-                  TextSpan(
-                    text:
-                        'Your block moves to ${_formatTime(frame.selectedAt)}.',
-                    style: const TextStyle(
-                      color: _glow,
-                      fontStyle: FontStyle.normal,
-                    ),
-                  ),
-                ],
-              ),
-              style: const TextStyle(
-                color: _silverLow,
-                fontFamily: _ui,
-                fontSize: 11.5,
-                fontStyle: FontStyle.italic,
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -966,230 +970,16 @@ class _SkySparklePainter extends CustomPainter {
   bool shouldRepaint(covariant _SkySparklePainter oldDelegate) => false;
 }
 
-class _SkyScrubber extends StatelessWidget {
-  const _SkyScrubber({required this.controller, required this.onChanged});
-
-  final _LunarInstrumentController controller;
-  final ValueChanged<double> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        void update(Offset position) =>
-            onChanged((position.dx / constraints.maxWidth).clamp(0.0, 1.0));
-        final gesture = GestureDetector(
-          key: const ValueKey<String>('follow-sky-fixture-scrubber'),
-          behavior: HitTestBehavior.opaque,
-          onTapUp: (details) => update(details.localPosition),
-          onHorizontalDragDown: (details) => update(details.localPosition),
-          onHorizontalDragUpdate: (details) => update(details.localPosition),
-          child: SizedBox(
-            height: 46,
-            child: Stack(
-              fit: StackFit.expand,
-              children: <Widget>[
-                RepaintBoundary(
-                  child: CustomPaint(
-                    painter: _StaticScrubberPainter(
-                      geometry: controller.geometry,
-                    ),
-                  ),
-                ),
-                RepaintBoundary(
-                  child: CustomPaint(
-                    willChange: true,
-                    painter: _DynamicScrubberPainter(controller),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-        return ValueListenableBuilder<_InstrumentFrame>(
-          valueListenable: controller,
-          child: gesture,
-          builder: (context, frame, child) => Semantics(
-            label: 'Drag the night',
-            slider: true,
-            value: '${(frame.selectedFraction * 100).round()} percent',
-            child: child,
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _TrackerLabel extends StatelessWidget {
-  const _TrackerLabel({
-    required this.alignment,
-    required this.time,
-    required this.label,
-  });
-
-  final Alignment alignment;
-  final String time;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => Align(
-    alignment: alignment,
-    child: Text.rich(
-      TextSpan(
-        children: <InlineSpan>[
-          TextSpan(text: '$time\n'),
-          TextSpan(
-            text: label,
-            style: const TextStyle(
-              color: _FollowSkyObservationPresentationState._rose,
-            ),
-          ),
-        ],
-      ),
-      textAlign: alignment.x < -0.9
-          ? TextAlign.left
-          : alignment.x > 0.9
-          ? TextAlign.right
-          : TextAlign.center,
-      style: const TextStyle(
-        color: _FollowSkyObservationPresentationState._silverLow,
-        fontFamily: _FollowSkyObservationPresentationState._ui,
-        fontSize: 8.7,
-        height: 1.2,
-        letterSpacing: 0.55,
-      ),
-    ),
-  );
-}
-
-class _StaticScrubberPainter extends CustomPainter {
-  const _StaticScrubberPainter({required this.geometry});
-
-  final _LunarDisplayGeometry geometry;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final path = _scrubberPath(size, geometry.scrubberPath);
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = _FollowSkyObservationPresentationState._bone.withValues(
-          alpha: 0.13,
-        )
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2,
-    );
-    canvas.drawLine(
-      Offset(size.width * 0.5, 2),
-      Offset(size.width * 0.5, 14),
-      Paint()
-        ..color = _FollowSkyObservationPresentationState._rose.withValues(
-          alpha: 0.55,
-        ),
-    );
-
-    final eclipse = _scrubberPoint(size, geometry.maximumFraction);
-    canvas.drawLine(
-      Offset(eclipse.dx, 19),
-      Offset(eclipse.dx, 44),
-      Paint()..color = const Color(0x73D88C82),
-    );
-    canvas.drawCircle(eclipse, 2.8, Paint()..color = const Color(0xFFD88C82));
-    canvas.drawCircle(
-      _scrubberPoint(size, geometry.fullPhaseFraction),
-      2.1,
-      Paint()..color = _FollowSkyObservationPresentationState._glow,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _StaticScrubberPainter oldDelegate) =>
-      oldDelegate.geometry != geometry;
-}
-
-class _DynamicScrubberPainter extends CustomPainter {
-  _DynamicScrubberPainter(this.controller) : super(repaint: controller);
-
-  final _LunarInstrumentController controller;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final selectedFraction = controller.value.selectedFraction;
-    final path = _scrubberPath(size, controller.geometry.scrubberPath);
-    for (final metric in path.computeMetrics()) {
-      canvas.drawPath(
-        metric.extractPath(0, metric.length * selectedFraction),
-        Paint()
-          ..color = _FollowSkyObservationPresentationState._rose.withValues(
-            alpha: 0.75,
-          )
-          ..style = PaintingStyle.stroke
-          ..strokeCap = StrokeCap.round
-          ..strokeWidth = 2,
-      );
-    }
-
-    final knob = _scrubberPoint(size, selectedFraction);
-    canvas.drawCircle(
-      knob,
-      13,
-      Paint()
-        ..color = _FollowSkyObservationPresentationState._rose.withValues(
-          alpha: 0.2,
-        )
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9),
-    );
-    canvas.drawCircle(
-      knob,
-      10,
-      Paint()
-        ..shader = const RadialGradient(
-          center: Alignment(-0.3, -0.35),
-          colors: <Color>[Colors.white, Color(0xFFD9CFC2)],
-        ).createShader(Rect.fromCircle(center: knob, radius: 10)),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant _DynamicScrubberPainter oldDelegate) =>
-      oldDelegate.controller != controller;
-}
-
-Path _scrubberPath(Size size, List<Offset> normalizedPoints) {
-  final path = Path();
-  for (var index = 0; index < normalizedPoints.length; index++) {
-    final normalized = normalizedPoints[index];
-    final point = Offset(
-      2 + normalized.dx * (size.width - 4),
-      8 + normalized.dy * 32,
-    );
-    if (index == 0) {
-      path.moveTo(point.dx, point.dy);
-    } else {
-      path.lineTo(point.dx, point.dy);
-    }
-  }
-  return path;
-}
-
-Offset _scrubberPoint(Size size, double fraction) => Offset(
-  2 + fraction * (size.width - 4),
-  40 - math.sin(math.pi * fraction) * 32,
-);
-
 class _InstrumentFrame {
   const _InstrumentFrame({
     required this.selectedAt,
     required this.selectedFraction,
     required this.position,
-    required this.phaseLabel,
   });
 
   final DateTime selectedAt;
   final double selectedFraction;
   final SkyPositionSample position;
-  final String phaseLabel;
 }
 
 class _LunarDisplayGeometry {
@@ -1200,7 +990,6 @@ class _LunarDisplayGeometry {
       maximum = data.eclipseContacts.firstWhere(
         (contact) => contact.kind == LunarEclipseContactKind.maximum,
       ),
-      fullPhaseAt = data.phaseInstant,
       sortedSamples = (data.moonSamples.toList(growable: false)
         ..sort((a, b) => a.at.compareTo(b.at))) {
     maxAltitude = sortedSamples
@@ -1214,26 +1003,15 @@ class _LunarDisplayGeometry {
         return Offset(fraction, (altitude / maxAltitude).clamp(0.0, 1.0));
       }),
     );
-    scrubberPath = List<Offset>.unmodifiable(
-      List<Offset>.generate(49, (index) {
-        final fraction = index / 48;
-        return Offset(fraction, 1 - math.sin(math.pi * fraction));
-      }),
-    );
   }
 
   final DateTime rise;
   final DateTime transit;
   final DateTime set;
   final LunarEclipseContact maximum;
-  final DateTime fullPhaseAt;
   final List<SkyPositionSample> sortedSamples;
   late final double maxAltitude;
   late final List<Offset> skyPath;
-  late final List<Offset> scrubberPath;
-
-  double get maximumFraction => fractionAt(maximum.at);
-  double get fullPhaseFraction => fractionAt(fullPhaseAt);
 
   double fractionAt(DateTime at) => _fractionAt(at, rise, transit, set);
 
@@ -1285,13 +1063,6 @@ class _LunarInstrumentController extends ValueNotifier<_InstrumentFrame> {
       selectedAt: selectedAt,
       selectedFraction: fraction,
       position: geometry.positionAt(selectedAt),
-      phaseLabel: _phaseLabel(
-        selectedAt,
-        geometry.maximum.at,
-        geometry.rise,
-        geometry.transit,
-        geometry.set,
-      ),
     );
   }
 
@@ -1444,6 +1215,22 @@ class _DynamicMoonPainter extends CustomPainter {
     final brightness = math
         .sin(math.pi * frame.selectedFraction)
         .clamp(0.0, 1.0);
+
+    final litPathPaint = Paint()
+      ..color = _FollowSkyObservationPresentationState._glow.withValues(
+        alpha: 0.58,
+      );
+    final litPathGlow = Paint()
+      ..color = _FollowSkyObservationPresentationState._glow.withValues(
+        alpha: 0.18,
+      )
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+    for (final point in geometry.skyPath) {
+      if (point.dx > frame.selectedFraction) break;
+      final pathPoint = geometry.pointFor(size, point.dx, point.dy);
+      canvas.drawCircle(pathPoint, 2.6, litPathGlow);
+      canvas.drawCircle(pathPoint, 1.1, litPathPaint);
+    }
 
     canvas.drawCircle(
       moon,
@@ -1607,32 +1394,6 @@ String _formatTime(DateTime value) {
       ? value.hour - 12
       : value.hour;
   return '$hour:${value.minute.toString().padLeft(2, '0')} $period';
-}
-
-String _formatTimeShort(DateTime value) {
-  final hour = value.hour == 0
-      ? 12
-      : value.hour > 12
-      ? value.hour - 12
-      : value.hour;
-  return '$hour:${value.minute.toString().padLeft(2, '0')}';
-}
-
-String _phaseLabel(
-  DateTime selected,
-  DateTime maximum,
-  DateTime rise,
-  DateTime transit,
-  DateTime set,
-) {
-  final minutesFromMaximum = selected.difference(maximum).inMinutes.abs();
-  if (minutesFromMaximum < 10) return 'Eclipse maximum';
-  if (selected.hour == 1 && selected.minute < 16) return 'Highest';
-  final fraction = _fractionAt(selected, rise, transit, set);
-  if (fraction < 0.08) return 'Rising';
-  if (fraction < 0.5) return 'Climbing';
-  if (fraction < 0.92) return 'Descending';
-  return 'Setting';
 }
 
 String _longCompassDirection(double azimuth) {
