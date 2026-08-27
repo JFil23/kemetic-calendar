@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/calendar/follow_the_sky/domain/follow_sky_track_definition.dart';
 import 'package:mobile/features/calendar/follow_the_sky/domain/sky_catalog.dart';
 import 'package:mobile/features/calendar/follow_the_sky/domain/sky_instrument_data.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/fixtures/follow_sky_observation_presentation_fixture.dart';
@@ -60,17 +61,16 @@ void main() {
       expect(model.copy.lensLabel, isNotEmpty);
       expect(model.copy.lensStatement, isNotEmpty);
       expect(model.copy.reflectionPrompt, isNotEmpty);
-      expect(model.copy.timingLabel, isNotEmpty);
       expect(model.peakMarker.label, isNotEmpty);
-      expect(model.copy.timingLabel, model.peakMarker.displayLabel);
+      expect(model.track.visualMetric, isNotEmpty);
       expect(model.visual.family, model.instrument.family);
       expect(
-        model.focusInstant.isBefore(model.instrument.viewingWindowStart),
+        model.focusInstant.isBefore(model.track.trackStart),
         isFalse,
         reason: model.skyEventId,
       );
       expect(
-        model.focusInstant.isAfter(model.instrument.viewingWindowEnd),
+        model.focusInstant.isAfter(model.track.trackEnd),
         isFalse,
         reason: model.skyEventId,
       );
@@ -92,11 +92,8 @@ void main() {
   test('all 65 peak markers remain independent of selected view time', () {
     for (final model in models) {
       final controller = FollowSkyViewTimeController(
-        instrument: model.instrument,
-        focusInstant: model.focusInstant,
-        now: model.instrument.viewingWindowStart.subtract(
-          const Duration(days: 2),
-        ),
+        track: model.track,
+        now: model.track.trackStart.subtract(const Duration(days: 2)),
       );
       final peakLabel = model.peakMarker.displayLabel;
       final peakFraction = controller.fractionFor(model.peakMarker.instant);
@@ -108,29 +105,104 @@ void main() {
     }
   });
 
-  test('all seven families expose the required phenomenon peak label', () {
-    final labels = <SkyInstrumentFamily, Set<String>>{
-      for (final family in SkyInstrumentFamily.values)
-        family: models
-            .where((model) => model.instrument.family == family)
+  test('all nine track modes expose the experience-peak label', () {
+    final labels = <FollowSkyTrackMode, Set<String>>{
+      for (final mode in FollowSkyTrackMode.values)
+        mode: models
+            .where((model) => model.track.mode == mode)
             .map((model) => model.peakMarker.label)
             .toSet(),
     };
-    expect(labels[SkyInstrumentFamily.lunarPath], <String>{'FULL'});
-    expect(labels[SkyInstrumentFamily.meteorWindow], <String>{'PEAK'});
-    expect(labels[SkyInstrumentFamily.opposition], <String>{'OPPOSITION'});
-    expect(labels[SkyInstrumentFamily.elongation], <String>{'MAX ELONGATION'});
-    expect(labels[SkyInstrumentFamily.conjunction], <String>{'CLOSEST'});
-    expect(labels[SkyInstrumentFamily.solarThreshold], <String>{
-      'EQUINOX',
-      'SOLSTICE',
+    expect(labels[FollowSkyTrackMode.fullMoonNight], <String>{'HIGHEST'});
+    expect(labels[FollowSkyTrackMode.lunarEclipse], <String>{'MAX ECLIPSE'});
+    expect(labels[FollowSkyTrackMode.meteorActivity], <String>{'PEAK'});
+    expect(labels[FollowSkyTrackMode.oppositionNight], <String>{'HIGHEST'});
+    expect(labels[FollowSkyTrackMode.elongationCycle], <String>{
+      'MAX SEPARATION',
     });
-    expect(labels[SkyInstrumentFamily.solarEclipse], <String>{'MAX ECLIPSE'});
+    expect(labels[FollowSkyTrackMode.conjunctionApproach], <String>{'CLOSEST'});
+    expect(labels[FollowSkyTrackMode.equinoxDayNight], <String>{'SUNSET'});
+    expect(labels[FollowSkyTrackMode.solsticeSunArc], <String>{'HIGHEST'});
+    expect(labels[FollowSkyTrackMode.solarEclipse], <String>{'MAX ECLIPSE'});
     expect(
       losAngelesFullMoonPresentationFixture.peakMarker.label,
       'MAX ECLIPSE',
     );
   });
+
+  test('all 65 records resolve to the audited tracking-mode table', () {
+    final counts = <FollowSkyTrackMode, int>{
+      for (final mode in FollowSkyTrackMode.values) mode: 0,
+    };
+    for (final model in models) {
+      counts.update(model.track.mode, (value) => value + 1);
+    }
+    expect(counts, <FollowSkyTrackMode, int>{
+      FollowSkyTrackMode.fullMoonNight: 14,
+      FollowSkyTrackMode.lunarEclipse: 5,
+      FollowSkyTrackMode.meteorActivity: 19,
+      FollowSkyTrackMode.oppositionNight: 4,
+      FollowSkyTrackMode.elongationCycle: 10,
+      FollowSkyTrackMode.conjunctionApproach: 4,
+      FollowSkyTrackMode.equinoxDayNight: 3,
+      FollowSkyTrackMode.solsticeSunArc: 3,
+      FollowSkyTrackMode.solarEclipse: 3,
+    });
+  });
+
+  test(
+    'catalog-only data remains explicitly honest about visual precision',
+    () {
+      final counts = <FollowSkyTrackDataQuality, int>{
+        for (final quality in FollowSkyTrackDataQuality.values) quality: 0,
+      };
+      for (final model in models) {
+        counts.update(model.track.dataQuality, (value) => value + 1);
+      }
+      expect(counts, <FollowSkyTrackDataQuality, int>{
+        FollowSkyTrackDataQuality.observerCalculated: 0,
+        FollowSkyTrackDataQuality.locallyDerived: 6,
+        FollowSkyTrackDataQuality.catalogEnvelope: 51,
+        FollowSkyTrackDataQuality.globalTimingEnvelope: 8,
+      });
+    },
+  );
+
+  test(
+    'every event changes the tracked phenomenon across five review states',
+    () {
+      for (final model in models) {
+        final track = model.track;
+        final reviewFractions = <double>[0, 0.25, track.peakFraction, 0.75, 1];
+        final signatures = reviewFractions.map((fraction) {
+          final state = track.stateAt(track.timeAtFraction(fraction));
+          return <double>[
+            state.eventStrength,
+            state.altitudeNormalized,
+            state.separationNormalized,
+            state.daylight,
+          ].map((value) => value.toStringAsFixed(3)).join('/');
+        }).toSet();
+        expect(signatures.length, greaterThan(1), reason: model.skyEventId);
+        String signatureAt(double fraction) {
+          final state = track.stateAt(track.timeAtFraction(fraction));
+          return <double>[
+            state.eventStrength,
+            state.altitudeNormalized,
+            state.separationNormalized,
+            state.daylight,
+          ].map((value) => value.toStringAsFixed(3)).join('/');
+        }
+
+        expect(
+          signatureAt(0),
+          isNot(signatureAt(track.peakFraction)),
+          reason: model.skyEventId,
+        );
+        expect(model.peakMarker.instant, track.experiencePeak);
+      }
+    },
+  );
 
   test('catalog coverage remains grouped into the seven sealed families', () {
     final counts = <SkyInstrumentFamily, int>{
@@ -179,11 +251,8 @@ void main() {
       final model = models.firstWhere(
         (candidate) => candidate.instrument.family == family,
       );
-      final liveWallTime = model.instrument.viewingWindowStart.add(
-        model.instrument.viewingWindowEnd.difference(
-              model.instrument.viewingWindowStart,
-            ) ~/
-            2,
+      final liveWallTime = model.track.trackStart.add(
+        model.track.trackEnd.difference(model.track.trackStart) ~/ 2,
       );
       final liveInstant = tz.TZDateTime(
         losAngeles,
@@ -233,7 +302,10 @@ void main() {
         );
         expect(titleZone.right, lessThanOrEqualTo(metaZone.left));
         final time = find.byKey(const ValueKey<String>('follow-sky-view-time'));
-        expect(tester.widget<Text>(time).data, _formatTime(liveWallTime));
+        expect(
+          tester.widget<Text>(time).data,
+          contains(_formatTime(liveWallTime)),
+        );
         expect(tester.takeException(), isNull);
 
         final before = tester.widget<Text>(time).data;
@@ -265,7 +337,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        _harness(model, now: () => model.instrument.viewingWindowStart.toUtc()),
+        _harness(model, now: () => model.track.trackStart.toUtc()),
       );
       await tester.pump();
 
@@ -276,7 +348,7 @@ void main() {
       );
       expect(
         tester.widget<Semantics>(marker).properties.value,
-        startsWith('OPPOSITION · '),
+        startsWith('HIGHEST · '),
       );
 
       final peakValue = tester.widget<Semantics>(marker).properties.value;

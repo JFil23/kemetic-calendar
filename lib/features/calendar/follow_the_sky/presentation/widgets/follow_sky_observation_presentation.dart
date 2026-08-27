@@ -8,6 +8,7 @@ import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 
+import '../../domain/follow_sky_track_definition.dart';
 import '../../services/follow_sky_turning_controller.dart';
 import '../follow_sky_observation_presentation_model.dart';
 import '../follow_sky_view_time_policy.dart';
@@ -92,8 +93,7 @@ class _FollowSkyObservationPresentationState
     super.initState();
     final now = _presentationNow();
     _instrumentController = FollowSkyViewTimeController(
-      instrument: widget.model.instrument,
-      focusInstant: widget.model.focusInstant,
+      track: widget.model.track,
       now: now,
     );
     _reflectionController.addListener(_onReflectionChanged);
@@ -116,8 +116,7 @@ class _FollowSkyObservationPresentationState
       _instrumentController.dispose();
       final now = _presentationNow();
       _instrumentController = FollowSkyViewTimeController(
-        instrument: widget.model.instrument,
-        focusInstant: widget.model.focusInstant,
+        track: widget.model.track,
         now: now,
       );
       if (_isWithinTrackingWindow(now)) {
@@ -209,10 +208,7 @@ class _FollowSkyObservationPresentationState
   );
 
   bool _isWithinTrackingWindow(DateTime now) {
-    return isFollowSkyInstrumentLiveTime(
-      now: now,
-      instrument: widget.model.instrument,
-    );
+    return isFollowSkyTrackLiveTime(now: now, track: widget.model.track);
   }
 
   void _startLiveTracking(DateTime now) {
@@ -235,16 +231,13 @@ class _FollowSkyObservationPresentationState
   void _followClock() {
     if (!_isLiveTracking || !mounted) return;
     final now = _presentationNow();
-    final instrument = widget.model.instrument;
-    if (now.isAfter(instrument.viewingWindowEnd)) {
-      _instrumentController.selectTime(
-        instrument.viewingWindowEnd,
-        manual: false,
-      );
+    final track = widget.model.track;
+    if (now.isAfter(track.trackEnd)) {
+      _instrumentController.selectTime(track.trackEnd, manual: false);
       _stopLiveTracking();
       return;
     }
-    if (now.isBefore(instrument.viewingWindowStart)) {
+    if (now.isBefore(track.trackStart)) {
       _stopLiveTracking();
       return;
     }
@@ -426,7 +419,9 @@ class _FollowSkyObservationPresentationState
                                 ),
                               ),
                               TextSpan(text: '${widget.model.locationLabel}\n'),
-                              TextSpan(text: widget.model.copy.timingLabel),
+                              TextSpan(
+                                text: widget.model.peakMarker.displayLabel,
+                              ),
                             ],
                           ),
                           textAlign: TextAlign.right,
@@ -442,7 +437,11 @@ class _FollowSkyObservationPresentationState
                         ValueListenableBuilder<DateTime>(
                           valueListenable: instrument,
                           builder: (context, selectedAt, _) => Text(
-                            _formatTime(selectedAt),
+                            _formatSelection(
+                              selectedAt,
+                              widget.model.track,
+                              multiline: true,
+                            ),
                             key: const ValueKey<String>('follow-sky-view-time'),
                             textAlign: TextAlign.right,
                             style: const TextStyle(
@@ -494,6 +493,7 @@ class _FollowSkyObservationPresentationState
           builder: (context, selectedAt, child) {
             final reading = FollowSkyInstrumentSurface.readingFor(
               widget.model.instrument,
+              widget.model.track,
               selectedAt,
             );
             final selectedFraction = instrument.fractionFor(selectedAt);
@@ -530,6 +530,7 @@ class _FollowSkyObservationPresentationState
       builder: (context, selectedAt, _) {
         final reading = FollowSkyInstrumentSurface.readingFor(
           widget.model.instrument,
+          widget.model.track,
           selectedAt,
         );
         return Padding(
@@ -1036,4 +1037,28 @@ String _formatTime(DateTime value) {
       ? value.hour - 12
       : value.hour;
   return '$hour:${value.minute.toString().padLeft(2, '0')} $period';
+}
+
+String _formatSelection(
+  DateTime value,
+  FollowSkyTrackDefinition track, {
+  bool multiline = false,
+}) {
+  if (!track.spansMultipleCivilDays) return _formatTime(value);
+  const months = <String>[
+    'JAN',
+    'FEB',
+    'MAR',
+    'APR',
+    'MAY',
+    'JUN',
+    'JUL',
+    'AUG',
+    'SEP',
+    'OCT',
+    'NOV',
+    'DEC',
+  ];
+  final separator = multiline ? '\n' : ' · ';
+  return '${months[value.month - 1]} ${value.day}$separator${_formatTime(value)}';
 }

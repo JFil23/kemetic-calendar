@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../domain/follow_sky_track_definition.dart';
 import '../../domain/sky_event_kind.dart';
 import '../../domain/sky_instrument_data.dart';
 import '../follow_sky_observation_presentation_model.dart';
@@ -66,52 +67,49 @@ class FollowSkyInstrumentSurface extends StatelessWidget {
 
   static FollowSkyInstrumentReading readingFor(
     SkyInstrumentData data,
+    FollowSkyTrackDefinition track,
     DateTime selectedAt,
   ) => switch (data) {
     LunarPathData value => _lunarReading(value, selectedAt),
     MeteorWindowData value => FollowSkyInstrumentReading(
       primary: value.radiantName,
       secondary: value.estimatedZenithalHourlyRate == null
-          ? 'peak activity window'
+          ? ''
           : 'up to ${value.estimatedZenithalHourlyRate} meteors/hr',
       semanticsValue: '${value.radiantName}, ${_formatTime(selectedAt)}',
     ),
     OppositionData value => FollowSkyInstrumentReading(
       primary: value.bodyName,
       secondary: value.altitudeSamples.isEmpty
-          ? 'opposition night window'
+          ? ''
           : '${_positionAt(value.altitudeSamples, selectedAt).altitudeDegrees.round()}° up',
       semanticsValue:
           '${value.bodyName} opposition, ${_formatTime(selectedAt)}',
     ),
     ElongationData value => FollowSkyInstrumentReading(
-      primary: '${value.bodyName} · ${value.direction}',
+      primary: value.bodyName,
       secondary: value.maximumElongationDegrees == null
-          ? 'maximum separation window'
+          ? ''
           : '${value.maximumElongationDegrees!.toStringAsFixed(1)}° from the Sun',
       semanticsValue:
           '${value.bodyName} ${value.direction} elongation, ${_formatTime(selectedAt)}',
     ),
     ConjunctionData value => FollowSkyInstrumentReading(
       primary: '${value.bodyA} + ${value.bodyB}',
-      secondary: value.minimumSeparationDegrees == null
-          ? 'closest-approach window'
-          : '${value.minimumSeparationDegrees!.toStringAsFixed(1)}° closest separation',
+      secondary: '',
       semanticsValue:
           '${value.bodyA} and ${value.bodyB} conjunction, ${_formatTime(selectedAt)}',
     ),
     SolarThresholdData value => FollowSkyInstrumentReading(
-      primary: value.thresholdKind == SkyEventKind.equinox
-          ? 'Equal light'
-          : 'Sun at the turning',
+      primary: 'Sun',
       secondary: value.solarSamples.isEmpty
-          ? 'threshold timing'
+          ? ''
           : '${_positionAt(value.solarSamples, selectedAt).altitudeDegrees.round()}° up',
       semanticsValue: 'Solar threshold, ${_formatTime(selectedAt)}',
     ),
     SolarEclipseData _ => FollowSkyInstrumentReading(
       primary: 'Sun + Moon',
-      secondary: 'greatest-eclipse window',
+      secondary: '',
       semanticsValue: 'Solar eclipse, ${_formatTime(selectedAt)}',
     ),
   };
@@ -207,12 +205,13 @@ abstract class _FollowSkyRenderer extends CustomPainter {
   final DateTime selectedAt;
 
   double get fraction => controller.fractionFor(selectedAt).clamp(0.0, 1.0);
+  FollowSkyVisualState get state => controller.stateAt(selectedAt);
   double get peakFraction =>
       controller.fractionFor(peakMarker.instant).clamp(0.0, 1.0);
 
   @override
   void paint(Canvas canvas, Size size) {
-    _paintField(canvas, size);
+    _paintField(canvas, size, state);
     paintInstrument(canvas, size);
     FollowSkyPeakMarker.paint(
       canvas,
@@ -228,27 +227,41 @@ abstract class _FollowSkyRenderer extends CustomPainter {
   Offset peakAnchor(Size size);
   bool get peakLabelAbove => true;
 
-  void _paintField(Canvas canvas, Size size) {
+  void _paintField(Canvas canvas, Size size, FollowSkyVisualState state) {
     final bounds = Offset.zero & size;
+    final daylight = state.daylight.clamp(0.0, 1.0);
+    final upper = Color.lerp(
+      const Color(0xFF2C2338),
+      const Color(0xFF6A8EB8),
+      daylight,
+    )!;
+    final middle = Color.lerp(
+      const Color(0xFF1A1526),
+      const Color(0xFFC79B6F),
+      daylight,
+    )!;
+    final lower = Color.lerp(
+      const Color(0xFF0C0912),
+      const Color(0xFFE8C98D),
+      daylight,
+    )!;
     canvas.drawRect(
       bounds,
       Paint()
-        ..shader = const RadialGradient(
+        ..shader = RadialGradient(
           center: Alignment(0, -1),
           radius: 1.35,
-          colors: <Color>[
-            Color(0xFF2C2338),
-            Color(0xFF1A1526),
-            Color(0xFF0C0912),
-          ],
-          stops: <double>[0, 0.46, 1],
+          colors: <Color>[upper, middle, lower],
+          stops: const <double>[0, 0.46, 1],
         ).createShader(bounds),
     );
+    final starVisibility = math.pow(1 - daylight, 2).toDouble();
     for (var index = 0; index < 118; index++) {
       final x = ((index * 83 + 29) % 521) / 521 * size.width;
       final rawY = ((index * index * 37 + index * 17 + 11) % 389) / 389;
       final y = math.pow(rawY, 1.3) * size.height * 0.9;
-      final alpha = (0.1 + (index % 9) * 0.055) * (1 - y / size.height);
+      final alpha =
+          (0.1 + (index % 9) * 0.055) * (1 - y / size.height) * starVisibility;
       canvas.drawCircle(
         Offset(x, y),
         index % 13 == 0 ? 1.25 : 0.55 + (index % 3) * 0.18,
@@ -378,15 +391,27 @@ abstract final class FollowSkyPeakMarker {
 
     final minimumTop = _instrumentTextTop(size);
     final maximumTop = math.max(minimumTop, size.height - 72);
-    var top = labelAbove ? anchor.dy - painter.height - 16 : anchor.dy + 12;
-    top = top.clamp(minimumTop, maximumTop).toDouble();
-    final left = (anchor.dx - painter.width / 2)
+    final desiredTop = labelAbove
+        ? anchor.dy - painter.height - 34
+        : anchor.dy + 18;
+    final useSide = labelAbove && desiredTop < minimumTop;
+    final top = (useSide ? anchor.dy - painter.height / 2 : desiredTop)
+        .clamp(minimumTop, maximumTop)
+        .toDouble();
+    final desiredLeft = useSide
+        ? anchor.dx + 32 + painter.width <= size.width - 12
+              ? anchor.dx + 32
+              : anchor.dx - painter.width - 32
+        : anchor.dx - painter.width / 2;
+    final left = desiredLeft
         .clamp(12.0, math.max(12.0, size.width - painter.width - 12))
         .toDouble();
-    final lineEnd = Offset(
-      anchor.dx,
-      labelAbove ? top + painter.height + 3 : top - 3,
-    );
+    final lineEnd = useSide
+        ? Offset(
+            left > anchor.dx ? left - 4 : left + painter.width + 4,
+            top + painter.height / 2,
+          )
+        : Offset(anchor.dx, labelAbove ? top + painter.height + 3 : top - 3);
     canvas.drawLine(
       anchor,
       lineEnd,
@@ -417,15 +442,9 @@ class _LunarPathRenderer extends _FollowSkyRenderer {
       math.min(size.height - 82, math.max(144, size.height * 0.54));
 
   double _altitudeAt(double atFraction) {
-    if (lunar.moonSamples.isEmpty) {
-      return math.sin(math.pi * atFraction).clamp(0.0, 1.0);
-    }
-    final maxAltitude = lunar.moonSamples
-        .map((sample) => sample.altitudeDegrees)
-        .reduce(math.max);
-    if (maxAltitude <= 0) return 0;
-    final at = controller.timeAtFraction(atFraction);
-    return (_positionAt(lunar.moonSamples, at).altitudeDegrees / maxAltitude)
+    return controller
+        .stateAt(controller.timeAtFraction(atFraction))
+        .altitudeNormalized
         .clamp(0.0, 1.0);
   }
 
@@ -434,20 +453,11 @@ class _LunarPathRenderer extends _FollowSkyRenderer {
     _baseY(size) - _altitudeAt(atFraction) * (_baseY(size) - _apexY(size)),
   );
 
-  LunarEclipseContact? get _maximumContact {
-    for (final contact in lunar.eclipseContacts) {
-      if (contact.kind == LunarEclipseContactKind.maximum) return contact;
-    }
-    return null;
-  }
-
   @override
   Offset peakAnchor(Size size) => _pathPoint(size, peakFraction);
 
   @override
   void paintInstrument(Canvas canvas, Size size) {
-    final hasGeometry = lunar.moonSamples.isNotEmpty;
-
     final dim = Paint()..color = _rose.withValues(alpha: 0.28);
     final lit = Paint()..color = _glow.withValues(alpha: 0.58);
     final glow = Paint()
@@ -463,22 +473,8 @@ class _LunarPathRenderer extends _FollowSkyRenderer {
       }
     }
 
-    if (hasGeometry && lunar.transit != null) {
-      final apexFraction = controller.fractionFor(lunar.transit!);
-      final apex = _pathPoint(size, apexFraction);
-      label(
-        canvas,
-        size,
-        'HIGHEST · ${_formatTime(lunar.transit!)}',
-        apex.translate(0, -26),
-        color: _rose.withValues(alpha: 0.58),
-      );
-    }
-
-    final maximum = _maximumContact;
-
     final moon = _pathPoint(size, fraction);
-    final brightness = math.sin(math.pi * fraction).clamp(0.0, 1.0);
+    final brightness = state.altitudeNormalized.clamp(0.0, 1.0);
     canvas.drawCircle(
       moon,
       52 + 34 * brightness,
@@ -493,9 +489,8 @@ class _LunarPathRenderer extends _FollowSkyRenderer {
         ).createShader(Rect.fromCircle(center: moon, radius: 86)),
     );
     canvas.drawCircle(moon, 24, Paint()..color = const Color(0xFFF6EEE3));
-    if (maximum != null) {
-      final minutes = selectedAt.difference(maximum.at).inSeconds.abs() / 60;
-      final strength = math.max(0.0, 1 - minutes / 105);
+    if (controller.track.mode == FollowSkyTrackMode.lunarEclipse) {
+      final strength = state.eventStrength.clamp(0.0, 1.0);
       if (strength > 0) {
         canvas.save();
         canvas.clipPath(
@@ -532,13 +527,6 @@ class _MeteorWindowRenderer extends _FollowSkyRenderer {
   ) : super(meteor, peakMarker, controller, selectedAt);
   final MeteorWindowData meteor;
 
-  double _activityAt(double atFraction) {
-    final span = atFraction < peakFraction
-        ? math.max(peakFraction, 0.001)
-        : math.max(1 - peakFraction, 0.001);
-    return (1 - (atFraction - peakFraction).abs() / span).clamp(0.22, 1.0);
-  }
-
   @override
   Offset peakAnchor(Size size) =>
       Offset(42 + peakFraction * (size.width - 84), size.height - 65);
@@ -555,8 +543,8 @@ class _MeteorWindowRenderer extends _FollowSkyRenderer {
     );
     canvas.drawCircle(radiant, 3, Paint()..color = _glow);
     label(canvas, size, 'RADIANT', radiant.translate(0, 12));
-    final activity = _activityAt(fraction);
-    final count = 3 + (activity * 7).round();
+    final activity = state.eventStrength.clamp(0.0, 1.0);
+    final count = 1 + (activity * 10).round();
     for (var index = 0; index < count; index++) {
       final angle = -2.72 + index * 0.48;
       final length = 18.0 + (index % 4) * 9;
@@ -601,23 +589,24 @@ class _OppositionRenderer extends _FollowSkyRenderer {
   ) : super(opposition, peakMarker, controller, selectedAt);
   final OppositionData opposition;
 
-  Offset _earth(Size size) => Offset(size.width * 0.47, size.height * 0.67);
-  double _orbitRadius(Size size) => size.width * 0.31;
-
-  double _offsetFromPeak(double atFraction) {
-    final delta = atFraction - peakFraction;
-    final span = delta < 0
-        ? math.max(peakFraction, 0.001)
-        : math.max(1 - peakFraction, 0.001);
-    return (delta / span).clamp(-1.0, 1.0);
+  Offset _planetAt(Size size, double atFraction) {
+    final altitude = controller
+        .stateAt(controller.timeAtFraction(atFraction))
+        .altitudeNormalized
+        .clamp(0.0, 1.0);
+    final horizon = size.height * 0.7;
+    return Offset(
+      44 + atFraction * (size.width - 88),
+      horizon - altitude * size.height * 0.27,
+    );
   }
 
-  Offset _planetAt(Size size, double atFraction) {
-    final angle = _offsetFromPeak(atFraction) * 0.95;
-    final earth = _earth(size);
-    final radius = _orbitRadius(size);
-    return earth +
-        Offset(math.cos(angle) * radius, math.sin(angle) * radius * 0.58);
+  Offset _sunAt(Size size, double atFraction) {
+    final horizon = size.height * 0.7;
+    return Offset(
+      size.width - 44 - atFraction * (size.width - 88),
+      horizon + math.sin(math.pi * atFraction) * size.height * 0.13,
+    );
   }
 
   @override
@@ -625,59 +614,45 @@ class _OppositionRenderer extends _FollowSkyRenderer {
 
   @override
   void paintInstrument(Canvas canvas, Size size) {
-    final earth = _earth(size);
-    final radius = _orbitRadius(size);
-    final sun = earth.translate(-radius * 0.92, 0);
-    final peakPlanet = peakAnchor(size);
-
-    final path = Path();
+    final planetPath = Path();
+    final sunPath = Path();
     for (var index = 0; index <= 40; index++) {
-      final point = _planetAt(size, index / 40);
+      final atFraction = index / 40;
+      final planetPoint = _planetAt(size, atFraction);
+      final sunPoint = _sunAt(size, atFraction);
       if (index == 0) {
-        path.moveTo(point.dx, point.dy);
+        planetPath.moveTo(planetPoint.dx, planetPoint.dy);
+        sunPath.moveTo(sunPoint.dx, sunPoint.dy);
       } else {
-        path.lineTo(point.dx, point.dy);
+        planetPath.lineTo(planetPoint.dx, planetPoint.dy);
+        sunPath.lineTo(sunPoint.dx, sunPoint.dy);
       }
     }
     canvas.drawPath(
-      path,
+      planetPath,
       Paint()
-        ..color = _rose.withValues(alpha: 0.3)
+        ..color = _glow.withValues(alpha: 0.42)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
+        ..strokeWidth = 1.2,
     );
-    canvas.drawLine(
-      sun,
-      peakPlanet,
+    canvas.drawPath(
+      sunPath,
       Paint()
-        ..color = _gold.withValues(alpha: 0.28)
+        ..color = _gold.withValues(alpha: 0.24)
+        ..style = PaintingStyle.stroke
         ..strokeWidth = 0.9,
     );
-    _paintBody(canvas, sun, 13, _gold);
-    _paintBody(canvas, earth, 7, _bone);
     final planet = _planetAt(size, fraction);
+    final sun = _sunAt(size, fraction);
     canvas.drawLine(
-      earth,
+      sun,
       planet,
       Paint()
-        ..color = _glow.withValues(alpha: 0.3)
-        ..strokeWidth = 0.8,
+        ..color = _rose.withValues(alpha: 0.2)
+        ..strokeWidth = 0.7,
     );
-    _paintBody(canvas, planet, 10, _glow);
-    label(
-      canvas,
-      size,
-      'SUN',
-      sun.translate(0, 16),
-      color: _gold.withValues(alpha: 0.7),
-    );
-    label(
-      canvas,
-      size,
-      'EARTH · YOU',
-      earth.translate(0, 16),
-      color: _bone.withValues(alpha: 0.62),
-    );
+    _paintBody(canvas, sun, 13, _gold);
+    _paintPlanet(canvas, planet, opposition.bodyName);
   }
 }
 
@@ -697,20 +672,16 @@ class _ElongationRenderer extends _FollowSkyRenderer {
     size.height * 0.74,
   );
 
-  double _separationFactor(double atFraction) {
-    final delta = (atFraction - peakFraction).abs();
-    final span = atFraction < peakFraction
-        ? math.max(peakFraction, 0.001)
-        : math.max(1 - peakFraction, 0.001);
-    return (1 - delta / span).clamp(0.18, 1.0);
-  }
-
   Offset _planetAt(Size size, double atFraction) {
-    final strength = _separationFactor(atFraction);
-    final separation = 30 + size.width * 0.24 * strength;
-    return _sun(
-      size,
-    ).translate(_western ? -separation : separation, -20 - 12 * strength);
+    final separationState = controller
+        .stateAt(controller.timeAtFraction(atFraction))
+        .separationNormalized
+        .clamp(0.0, 1.0);
+    final separation = 22 + size.width * 0.38 * separationState;
+    return _sun(size).translate(
+      _western ? -separation : separation,
+      -12 - 34 * separationState,
+    );
   }
 
   @override
@@ -726,8 +697,16 @@ class _ElongationRenderer extends _FollowSkyRenderer {
     );
     final sun = _sun(size);
     final planet = _planetAt(size, fraction);
+    for (var index = 0; index <= 16; index++) {
+      final point = _planetAt(size, index / 16);
+      canvas.drawCircle(
+        point,
+        1.1,
+        Paint()..color = _glow.withValues(alpha: 0.1 + index * 0.008),
+      );
+    }
     _paintBody(canvas, sun, 24, _gold);
-    _paintBody(canvas, planet, 9, _glow);
+    _paintPlanet(canvas, planet, elongation.bodyName, radius: 9);
     canvas.drawLine(
       sun,
       planet,
@@ -747,13 +726,6 @@ class _ElongationRenderer extends _FollowSkyRenderer {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 0.8,
     );
-    label(
-      canvas,
-      size,
-      _western ? 'MORNING SKY' : 'EVENING SKY',
-      Offset(size.width / 2, size.height - 88),
-      color: _rose.withValues(alpha: 0.62),
-    );
   }
 }
 
@@ -770,13 +742,13 @@ class _ConjunctionRenderer extends _FollowSkyRenderer {
 
   double _distanceAt(Size size, double atFraction) {
     final minimum = conjunction.minimumSeparationDegrees == null
-        ? 28.0
-        : (24 + conjunction.minimumSeparationDegrees! * 6).clamp(24.0, 52.0);
-    final delta = (atFraction - peakFraction).abs();
-    final span = atFraction < peakFraction
-        ? math.max(peakFraction, 0.001)
-        : math.max(1 - peakFraction, 0.001);
-    return minimum + (delta / span).clamp(0.0, 1.0) * size.width * 0.34;
+        ? 18.0
+        : (16 + conjunction.minimumSeparationDegrees! * 5).clamp(16.0, 34.0);
+    final separation = controller
+        .stateAt(controller.timeAtFraction(atFraction))
+        .separationNormalized
+        .clamp(0.0, 1.0);
+    return minimum + separation * size.width * 0.46;
   }
 
   @override
@@ -786,10 +758,11 @@ class _ConjunctionRenderer extends _FollowSkyRenderer {
   void paintInstrument(Canvas canvas, Size size) {
     final center = _center(size);
     final distance = _distanceAt(size, fraction);
-    final left = center.translate(-distance / 2, 0);
-    final right = center.translate(distance / 2, 0);
-    _paintBody(canvas, left, 12, _rose);
-    _paintBody(canvas, right, 16, _glow);
+    final direction = fraction <= peakFraction ? -1.0 : 1.0;
+    final left = center.translate(-distance / 2, -direction * distance * 0.12);
+    final right = center.translate(distance / 2, direction * distance * 0.12);
+    _paintPlanet(canvas, left, conjunction.bodyA, radius: 12);
+    _paintPlanet(canvas, right, conjunction.bodyB, radius: 14);
     canvas.drawLine(
       left,
       right,
@@ -829,6 +802,27 @@ class _SolarThresholdRenderer extends _FollowSkyRenderer {
 
   Offset _sunAt(Size size, double atFraction, {double? arcHeight}) {
     final baseY = size.height - 43;
+    if (threshold.thresholdKind == SkyEventKind.equinox) {
+      final selected = controller.timeAtFraction(atFraction);
+      final visual = controller.stateAt(selected);
+      final rise = controller.track.sunrise;
+      final set = controller.track.sunset;
+      final riseFraction = rise == null ? 0.25 : controller.fractionFor(rise);
+      final setFraction = set == null ? 0.75 : controller.fractionFor(set);
+      final daylightProgress = atFraction <= riseFraction
+          ? 0.0
+          : atFraction >= setFraction
+          ? 1.0
+          : (atFraction - riseFraction) / (setFraction - riseFraction);
+      final x = 42 + daylightProgress * (size.width - 84);
+      final altitude = visual.altitudeNormalized;
+      return Offset(
+        x,
+        altitude >= 0
+            ? baseY - altitude * size.height * 0.28
+            : baseY + (-altitude).clamp(0.0, 1.0) * 34,
+      );
+    }
     final height = arcHeight ?? _arcHeight(size);
     return Offset(
       42 + atFraction * (size.width - 84),
@@ -855,15 +849,15 @@ class _SolarThresholdRenderer extends _FollowSkyRenderer {
   @override
   void paintInstrument(Canvas canvas, Size size) {
     final height = _arcHeight(size);
-    final arc = _arcPath(size, height);
-    canvas.drawPath(
-      arc,
-      Paint()
-        ..color = _gold.withValues(alpha: 0.38)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.2,
-    );
     if (threshold.thresholdKind == SkyEventKind.solstice) {
+      final arc = _arcPath(size, height);
+      canvas.drawPath(
+        arc,
+        Paint()
+          ..color = _gold.withValues(alpha: 0.42)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2,
+      );
       final referenceHeight =
           threshold.thresholdInstant.month >= 4 &&
               threshold.thresholdInstant.month <= 9
@@ -877,24 +871,44 @@ class _SolarThresholdRenderer extends _FollowSkyRenderer {
           ..strokeWidth = 0.8,
       );
     } else {
-      final centerX = size.width / 2;
+      final riseFraction = controller.track.sunrise == null
+          ? 0.25
+          : controller.fractionFor(controller.track.sunrise!);
+      final setFraction = controller.track.sunset == null
+          ? 0.75
+          : controller.fractionFor(controller.track.sunset!);
+      final left = 42.0;
+      final width = size.width - 84;
+      final bandY = size.height - 78;
       canvas.drawLine(
-        Offset(centerX, size.height * 0.55),
-        Offset(centerX, size.height - 44),
+        Offset(left, bandY),
+        Offset(left + width, bandY),
         Paint()
-          ..color = _rose.withValues(alpha: 0.22)
-          ..strokeWidth = 0.8,
+          ..color = _glow.withValues(alpha: 0.25)
+          ..strokeWidth = 6,
       );
       canvas.drawLine(
-        Offset(42, size.height - 57),
-        Offset(size.width - 42, size.height - 57),
+        Offset(left + width * riseFraction, bandY),
+        Offset(left + width * setFraction, bandY),
         Paint()
-          ..color = _rose.withValues(alpha: 0.15)
-          ..strokeWidth = 0.8,
+          ..color = _gold.withValues(alpha: 0.72)
+          ..strokeWidth = 6,
+      );
+      final selectedX = left + width * fraction;
+      canvas.drawLine(
+        Offset(selectedX, bandY - 7),
+        Offset(selectedX, bandY + 7),
+        Paint()
+          ..color = _bone.withValues(alpha: 0.75)
+          ..strokeWidth = 1.2,
       );
     }
     final sun = _sunAt(size, fraction);
-    _paintBody(canvas, sun, 23, _gold);
+    if (threshold.thresholdKind != SkyEventKind.equinox ||
+        state.daylight > 0.02 ||
+        state.altitudeNormalized >= 0) {
+      _paintBody(canvas, sun, 23, _gold);
+    }
   }
 }
 
@@ -909,22 +923,17 @@ class _SolarEclipseRenderer extends _FollowSkyRenderer {
 
   Offset _center(Size size) => Offset(size.width / 2, size.height * 0.66);
 
-  double _progressFromMaximum(double atFraction) {
-    final delta = atFraction - peakFraction;
-    final span = delta < 0
-        ? math.max(peakFraction, 0.001)
-        : math.max(1 - peakFraction, 0.001);
-    return (delta / span).clamp(-1.0, 1.0);
-  }
-
   @override
   Offset peakAnchor(Size size) => _center(size);
 
   @override
   void paintInstrument(Canvas canvas, Size size) {
     final center = _center(size);
-    final progress = _progressFromMaximum(fraction);
-    final moon = center.translate(progress * 78, 0);
+    final direction = fraction <= peakFraction ? -1.0 : 1.0;
+    final moon = center.translate(
+      direction * state.separationNormalized.clamp(0.0, 1.0) * 78,
+      0,
+    );
     canvas.drawCircle(
       center,
       58,
@@ -983,6 +992,42 @@ void _paintBody(Canvas canvas, Offset center, double radius, Color color) {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.8,
   );
+}
+
+void _paintPlanet(
+  Canvas canvas,
+  Offset center,
+  String bodyName, {
+  double radius = 10,
+}) {
+  final normalized = bodyName.toLowerCase();
+  final color = normalized.contains('mars')
+      ? const Color(0xFFD58C7A)
+      : normalized.contains('jupiter')
+      ? const Color(0xFFE0C49A)
+      : normalized.contains('venus')
+      ? const Color(0xFFF1DDAF)
+      : normalized.contains('mercury')
+      ? const Color(0xFFC7C1B8)
+      : _glow;
+  _paintBody(canvas, center, radius, color);
+  if (normalized.contains('saturn')) {
+    canvas.save();
+    canvas.translate(center.dx, center.dy);
+    canvas.rotate(-0.22);
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: Offset.zero,
+        width: radius * 3.2,
+        height: radius * 0.9,
+      ),
+      Paint()
+        ..color = _bone.withValues(alpha: 0.68)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.1,
+    );
+    canvas.restore();
+  }
 }
 
 SkyPositionSample _positionAt(List<SkyPositionSample> samples, DateTime at) {

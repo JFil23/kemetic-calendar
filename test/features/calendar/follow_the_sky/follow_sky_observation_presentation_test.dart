@@ -137,10 +137,10 @@ void main() {
     final heroRect = tester.getRect(hero);
     await tester.tapAt(heroRect.center);
     await tester.pump();
-    expect(find.text('1:00 AM'), findsOneWidget);
+    expect(find.text('1:04 AM'), findsOneWidget);
     expect(find.text('Due south'), findsOneWidget);
     expect(
-      find.textContaining('Your view time moves to 1:00 AM.'),
+      find.textContaining('Your view time moves to 1:04 AM.'),
       findsOneWidget,
     );
 
@@ -209,7 +209,7 @@ void main() {
     );
     await tester.tapAt(heroRect.center);
     await tester.pump();
-    expect(find.text('1:00 AM'), findsOneWidget);
+    expect(find.text('1:04 AM'), findsOneWidget);
 
     await tester.ensureVisible(find.text('Reflect'));
     await tester.pumpAndSettle();
@@ -378,11 +378,11 @@ void main() {
     final hero = find.byKey(const ValueKey<String>('follow-sky-hero-drag'));
     await tester.tapAt(tester.getRect(hero).center);
     await tester.pump();
-    expect(find.text('1:00 AM'), findsOneWidget);
+    expect(find.text('1:04 AM'), findsOneWidget);
 
     now = DateTime.utc(2026, 8, 28, 9, 5);
     await tester.pump(const Duration(minutes: 10));
-    expect(find.text('1:00 AM'), findsOneWidget);
+    expect(find.text('1:04 AM'), findsOneWidget);
     expect(find.text('2:05 AM'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());

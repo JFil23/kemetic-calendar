@@ -1,3 +1,4 @@
+import '../../domain/follow_sky_track_definition.dart';
 import '../../domain/sky_instrument_data.dart';
 import '../follow_sky_observation_presentation_model.dart';
 import '../turning_meaning.dart';
@@ -136,13 +137,23 @@ FollowSkyObservationPresentationModel _losAngelesFullMoonFixture() {
     meaning: meaning,
     intention: 'self confidence',
     instrument: instrument,
-    peakMarker: FollowSkyPeakMarkerSpec(
-      label: 'MAX ECLIPSE',
-      instant: maximum,
-      emphasized: true,
+    track: FollowSkyTrackDefinition(
+      mode: FollowSkyTrackMode.lunarEclipse,
+      trackStart: rise,
+      trackEnd: set,
+      astronomyAnchor: maximum,
+      experiencePeak: maximum,
+      visualMetric: 'Earth-shadow coverage across lunar eclipse contacts',
+      dataQuality: FollowSkyTrackDataQuality.observerCalculated,
+      metricSamples: <FollowSkyTrackSample>[
+        FollowSkyTrackSample(at: rise, value: 0),
+        FollowSkyTrackSample(at: u1, value: 0),
+        FollowSkyTrackSample(at: maximum, value: 1),
+        FollowSkyTrackSample(at: u4, value: 0),
+        FollowSkyTrackSample(at: p4, value: 0),
+        FollowSkyTrackSample(at: set, value: 0),
+      ],
     ),
-    focusInstant: maximum,
-    initialSelection: maximum,
     visual: const FollowSkyInstrumentVisualSpec(
       family: SkyInstrumentFamily.lunarPath,
       semanticLabel: 'lunar path',
@@ -152,7 +163,6 @@ FollowSkyObservationPresentationModel _losAngelesFullMoonFixture() {
       lensStatement: 'Stay true when conditions change.',
       reflectionPrompt:
           'What did staying true to your choice look like tonight?',
-      timingLabel: 'MAX ECLIPSE · 9:12 PM',
       dragLead: 'Drag the night. ',
       intentionContext: 'Kept with this turning when you added Follow the sky.',
     ),

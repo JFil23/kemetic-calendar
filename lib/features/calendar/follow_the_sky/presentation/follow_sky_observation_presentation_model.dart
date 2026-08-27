@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
 
+import '../domain/follow_sky_track_definition.dart';
 import '../domain/observing_place.dart';
 import '../domain/sky_catalog.dart';
-import '../domain/sky_event_kind.dart';
 import '../domain/sky_instrument_data.dart';
+import '../services/follow_sky_track_resolver.dart';
 import '../services/sky_instrument_data_provider.dart';
-import 'follow_sky_view_time_policy.dart';
 import 'turning_meaning.dart';
 
 @immutable
@@ -31,7 +31,6 @@ class FollowSkySurfaceCopy {
     required this.lensLabel,
     required this.lensStatement,
     required this.reflectionPrompt,
-    required this.timingLabel,
     required this.dragLead,
     required this.intentionContext,
   });
@@ -39,7 +38,6 @@ class FollowSkySurfaceCopy {
   final String lensLabel;
   final String lensStatement;
   final String reflectionPrompt;
-  final String timingLabel;
   final String dragLead;
   final String intentionContext;
 }
@@ -83,9 +81,7 @@ class FollowSkyObservationPresentationModel {
     required this.meaning,
     required this.intention,
     required this.instrument,
-    required this.peakMarker,
-    required this.focusInstant,
-    required this.initialSelection,
+    required this.track,
     required this.visual,
     required this.copy,
   });
@@ -98,22 +94,26 @@ class FollowSkyObservationPresentationModel {
   final TurningMeaning meaning;
   final String? intention;
   final SkyInstrumentData instrument;
-  final FollowSkyPeakMarkerSpec peakMarker;
-  final DateTime focusInstant;
-  final DateTime initialSelection;
+  final FollowSkyTrackDefinition track;
   final FollowSkyInstrumentVisualSpec visual;
   final FollowSkySurfaceCopy copy;
+
+  FollowSkyPeakMarkerSpec get peakMarker => followSkyPeakMarkerFor(track);
+  DateTime get focusInstant => track.experiencePeak;
+  DateTime get initialSelection => track.experiencePeak;
 }
 
 class FollowSkyObservationPresentationModelFactory {
   const FollowSkyObservationPresentationModelFactory({
     required this.instrumentProvider,
     this.meaningResolver = const TurningMeaningResolver(),
+    this.trackResolver = const FollowSkyTrackResolver(),
     this.context = FollowSkyPresentationContext.losAngeles,
   });
 
   final SkyInstrumentDataProvider instrumentProvider;
   final TurningMeaningResolver meaningResolver;
+  final FollowSkyTrackResolver trackResolver;
   final FollowSkyPresentationContext context;
 
   Future<FollowSkyObservationPresentationModel> build({
@@ -131,41 +131,37 @@ class FollowSkyObservationPresentationModelFactory {
       place: context.place,
     );
     final instrument = _asWallTime(resolved);
-    final peakMarker = followSkyPeakMarkerFor(instrument);
+    final track = trackResolver.resolve(
+      night: night,
+      instrument: instrument,
+      place: context.place,
+    );
     final meaning = meaningResolver.forNight(night);
-    final resolvedFocus = followSkyFocusInstant(instrument);
-    final focus = resolvedFocus.isBefore(instrument.viewingWindowStart)
-        ? instrument.viewingWindowStart
-        : resolvedFocus.isAfter(instrument.viewingWindowEnd)
-        ? instrument.viewingWindowEnd
-        : resolvedFocus;
     final family = instrument.family;
     return FollowSkyObservationPresentationModel(
       skyEventId: night.skyEventId,
       title: night.displayName,
-      dateLabel: _formatDate(focus),
+      dateLabel: _formatDate(track.experiencePeak),
       locationLabel: context.place.label,
       ianaTimeZone: context.place.ianaTimeZone,
       meaning: meaning,
       intention: intention?.trim().isEmpty == true ? null : intention?.trim(),
       instrument: instrument,
-      peakMarker: peakMarker,
-      focusInstant: focus,
-      initialSelection: focus,
+      track: track,
       visual: FollowSkyInstrumentVisualSpec(
         family: family,
-        semanticLabel: _semanticLabel(family),
+        semanticLabel: _semanticLabel(track.mode),
       ),
       copy: FollowSkySurfaceCopy(
         lensLabel: meaning.significanceLabel,
         lensStatement: meaning.surfaceStatement ?? meaning.observation,
         reflectionPrompt: meaning.reflectionPrompt ?? meaning.personalQuestion,
-        timingLabel: peakMarker.displayLabel,
-        dragLead:
-            family == SkyInstrumentFamily.solarThreshold ||
-                family == SkyInstrumentFamily.solarEclipse
-            ? 'Drag the light. '
-            : 'Drag the night. ',
+        dragLead: switch (track.mode) {
+          FollowSkyTrackMode.equinoxDayNight ||
+          FollowSkyTrackMode.solsticeSunArc ||
+          FollowSkyTrackMode.solarEclipse => 'Drag the light. ',
+          _ => 'Drag the night. ',
+        },
         intentionContext:
             'Kept with this turning when you added Follow the sky.',
       ),
@@ -173,61 +169,59 @@ class FollowSkyObservationPresentationModelFactory {
   }
 }
 
-FollowSkyPeakMarkerSpec followSkyPeakMarkerFor(SkyInstrumentData data) =>
-    switch (data) {
-      LunarPathData value => _lunarPeakMarker(value),
-      MeteorWindowData value => FollowSkyPeakMarkerSpec(
-        label: 'PEAK',
-        instant: value.peakWindowStart.add(
-          value.peakWindowEnd.difference(value.peakWindowStart) ~/ 2,
-        ),
-      ),
-      OppositionData value => FollowSkyPeakMarkerSpec(
-        label: 'OPPOSITION',
-        instant: value.closestApproach,
-      ),
-      ElongationData value => FollowSkyPeakMarkerSpec(
-        label: 'MAX ELONGATION',
-        instant: value.maximumAt,
-      ),
-      ConjunctionData value => FollowSkyPeakMarkerSpec(
-        label: 'CLOSEST',
-        instant: value.closestApproach,
-      ),
-      SolarThresholdData value => FollowSkyPeakMarkerSpec(
-        label: value.thresholdKind == SkyEventKind.equinox
-            ? 'EQUINOX'
-            : 'SOLSTICE',
-        instant: value.thresholdInstant,
-      ),
-      SolarEclipseData value => FollowSkyPeakMarkerSpec(
-        label: 'MAX ECLIPSE',
-        instant: value.greatestEclipse,
-        emphasized: true,
-      ),
-    };
+FollowSkyPeakMarkerSpec followSkyPeakMarkerFor(
+  FollowSkyTrackDefinition track,
+) => switch (track.mode) {
+  FollowSkyTrackMode.fullMoonNight => FollowSkyPeakMarkerSpec(
+    label: 'HIGHEST',
+    instant: track.experiencePeak,
+  ),
+  FollowSkyTrackMode.lunarEclipse => FollowSkyPeakMarkerSpec(
+    label: 'MAX ECLIPSE',
+    instant: track.experiencePeak,
+    emphasized: true,
+  ),
+  FollowSkyTrackMode.meteorActivity => FollowSkyPeakMarkerSpec(
+    label: 'PEAK',
+    instant: track.experiencePeak,
+  ),
+  FollowSkyTrackMode.oppositionNight => FollowSkyPeakMarkerSpec(
+    label: 'HIGHEST',
+    instant: track.experiencePeak,
+  ),
+  FollowSkyTrackMode.elongationCycle => FollowSkyPeakMarkerSpec(
+    label: 'MAX SEPARATION',
+    instant: track.experiencePeak,
+  ),
+  FollowSkyTrackMode.conjunctionApproach => FollowSkyPeakMarkerSpec(
+    label: 'CLOSEST',
+    instant: track.experiencePeak,
+  ),
+  FollowSkyTrackMode.equinoxDayNight => FollowSkyPeakMarkerSpec(
+    label: 'SUNSET',
+    instant: track.experiencePeak,
+  ),
+  FollowSkyTrackMode.solsticeSunArc => FollowSkyPeakMarkerSpec(
+    label: 'HIGHEST',
+    instant: track.experiencePeak,
+  ),
+  FollowSkyTrackMode.solarEclipse => FollowSkyPeakMarkerSpec(
+    label: 'MAX ECLIPSE',
+    instant: track.experiencePeak,
+    emphasized: true,
+  ),
+};
 
-FollowSkyPeakMarkerSpec _lunarPeakMarker(LunarPathData value) {
-  for (final contact in value.eclipseContacts) {
-    if (contact.kind == LunarEclipseContactKind.maximum) {
-      return FollowSkyPeakMarkerSpec(
-        label: 'MAX ECLIPSE',
-        instant: contact.at,
-        emphasized: true,
-      );
-    }
-  }
-  return FollowSkyPeakMarkerSpec(label: 'FULL', instant: value.phaseInstant);
-}
-
-String _semanticLabel(SkyInstrumentFamily family) => switch (family) {
-  SkyInstrumentFamily.lunarPath => 'lunar path',
-  SkyInstrumentFamily.meteorWindow => 'meteor activity window',
-  SkyInstrumentFamily.opposition => 'planet opposition window',
-  SkyInstrumentFamily.elongation => 'planet elongation relationship',
-  SkyInstrumentFamily.conjunction => 'conjunction separation',
-  SkyInstrumentFamily.solarThreshold => 'solar threshold',
-  SkyInstrumentFamily.solarEclipse => 'solar eclipse contacts',
+String _semanticLabel(FollowSkyTrackMode mode) => switch (mode) {
+  FollowSkyTrackMode.fullMoonNight => 'Moon path across the night',
+  FollowSkyTrackMode.lunarEclipse => 'lunar eclipse progression',
+  FollowSkyTrackMode.meteorActivity => 'meteor activity progression',
+  FollowSkyTrackMode.oppositionNight => 'planet path across opposition night',
+  FollowSkyTrackMode.elongationCycle => 'planet separation from the Sun',
+  FollowSkyTrackMode.conjunctionApproach => 'two-body approach and separation',
+  FollowSkyTrackMode.equinoxDayNight => 'night and daylight cycle',
+  FollowSkyTrackMode.solsticeSunArc => 'seasonal solar arc',
+  FollowSkyTrackMode.solarEclipse => 'solar eclipse progression',
 };
 
 String _formatDate(DateTime value) {

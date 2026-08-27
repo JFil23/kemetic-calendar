@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/features/calendar/follow_the_sky/domain/sky_instrument_data.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/fixtures/follow_sky_observation_presentation_fixture.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_observation_presentation_model.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_view_time_policy.dart';
@@ -34,67 +33,40 @@ void main() {
     expect(viewTimeAt(28, 1, 55), DateTime(2026, 8, 28, 1, 55));
   });
 
-  test('initial view time uses live time only from rise through set', () {
+  test('initial view time uses live time only inside the resolved track', () {
     final fixture = losAngelesFullMoonPresentationFixture;
-    final instrument = fixture.instrument as LunarPathData;
-    final rise = instrument.rise!;
-    final set = instrument.set!;
-    final peak = fixture.initialSelection;
+    final track = fixture.track;
 
-    expect(
-      initialFollowSkyViewTime(
-        now: viewTimeAt(27, 18),
-        rise: rise,
-        set: set,
-        peak: peak,
-      ),
-      peak,
-    );
-    expect(
-      initialFollowSkyViewTime(
-        now: viewTimeAt(27, 20, 30),
-        rise: rise,
-        set: set,
-        peak: peak,
-      ),
-      DateTime(2026, 8, 27, 20, 30),
-    );
-    expect(
-      initialFollowSkyViewTime(
-        now: viewTimeAt(28, 1, 55),
-        rise: rise,
-        set: set,
-        peak: peak,
-      ),
-      DateTime(2026, 8, 28, 1, 55),
-    );
-    expect(
-      initialFollowSkyViewTime(
-        now: viewTimeAt(28, 6, 30),
-        rise: rise,
-        set: set,
-        peak: peak,
-      ),
-      DateTime(2026, 8, 28, 6, 30),
-    );
-    expect(
-      initialFollowSkyViewTime(
-        now: viewTimeAt(28, 7),
-        rise: rise,
-        set: set,
-        peak: peak,
-      ),
-      peak,
-    );
+    FollowSkyViewTimeController controller(DateTime now) =>
+        FollowSkyViewTimeController(track: track, now: now);
+
+    final before = controller(viewTimeAt(27, 18));
+    expect(before.value, fixture.initialSelection);
+    before.dispose();
+
+    for (final live in <DateTime>[
+      viewTimeAt(27, 20, 30),
+      viewTimeAt(28, 1, 55),
+      viewTimeAt(28, 6, 30),
+    ]) {
+      final active = controller(live);
+      expect(active.value, live);
+      active.dispose();
+    }
+
+    final after = controller(viewTimeAt(28, 7));
+    expect(after.value, fixture.initialSelection);
+    after.dispose();
   });
 
-  test('rise and set are inclusive live boundaries', () {
+  test('track start and end are inclusive live boundaries', () {
     final fixture = losAngelesFullMoonPresentationFixture;
-    final instrument = fixture.instrument as LunarPathData;
-    final rise = instrument.rise!;
-    final set = instrument.set!;
+    final track = fixture.track;
 
-    expect(isFollowSkyLiveTime(now: rise, rise: rise, set: set), isTrue);
-    expect(isFollowSkyLiveTime(now: set, rise: rise, set: set), isTrue);
+    expect(
+      isFollowSkyTrackLiveTime(now: track.trackStart, track: track),
+      isTrue,
+    );
+    expect(isFollowSkyTrackLiveTime(now: track.trackEnd, track: track), isTrue);
   });
 }

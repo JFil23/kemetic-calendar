@@ -5,9 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/calendar/follow_the_sky/domain/follow_sky_track_definition.dart';
 import 'package:mobile/features/calendar/follow_the_sky/domain/sky_instrument_data.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/fixtures/follow_sky_observation_presentation_fixture.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_observation_presentation_model.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_view_time_policy.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_instrument_surface.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_observation_presentation.dart';
 import 'package:mobile/features/calendar/follow_the_sky/services/sky_catalog_repository.dart';
 import 'package:mobile/features/calendar/follow_the_sky/services/sky_instrument_data_provider.dart';
@@ -78,7 +81,7 @@ void main() {
               backgroundColor: Colors.black,
               body: FollowSkyObservationPresentation(
                 model: model,
-                now: () => model.instrument.viewingWindowStart
+                now: () => model.track.trackStart
                     .subtract(const Duration(days: 2))
                     .toUtc(),
               ),
@@ -113,4 +116,91 @@ void main() {
       File('${output.path}/${family.name}.png').writeAsBytesSync(bytes);
     }
   });
+
+  testWidgets(
+    'renders start 25 peak 75 end without explanatory copy for all modes',
+    (tester) async {
+      final catalog = SkyCatalogRepository.parseJsonString(
+        File('assets/follow_the_sky/sky_catalog_v2.json').readAsStringSync(),
+      );
+      const factory = FollowSkyObservationPresentationModelFactory(
+        instrumentProvider: CatalogSkyInstrumentDataProvider(),
+      );
+      final models =
+          <FollowSkyTrackMode, FollowSkyObservationPresentationModel>{};
+      for (final event in catalog.materializableEvents) {
+        final model = await factory.build(
+          catalog: catalog,
+          skyEventId: event.id,
+        );
+        models.putIfAbsent(model.track.mode, () => model);
+      }
+      expect(models.keys.toSet(), FollowSkyTrackMode.values.toSet());
+
+      final output = Directory(
+        '${Directory.systemTemp.path}/follow-sky-track-review',
+      )..createSync(recursive: true);
+      await tester.binding.setSurfaceSize(const Size(390, 282));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      for (final mode in FollowSkyTrackMode.values) {
+        final model = models[mode]!;
+        final fractions = <String, double>{
+          'start': 0,
+          '25': 0.25,
+          'peak': model.track.peakFraction,
+          '75': 0.75,
+          'end': 1,
+        };
+        for (final entry in fractions.entries) {
+          final controller = FollowSkyViewTimeController(
+            track: model.track,
+            now: model.track.trackStart.subtract(const Duration(days: 2)),
+          )..selectFraction(entry.value);
+          final captureKey = GlobalKey();
+          await tester.pumpWidget(
+            MaterialApp(
+              theme: ThemeData.dark(),
+              home: RepaintBoundary(
+                key: captureKey,
+                child: ColoredBox(
+                  color: Colors.black,
+                  child: FollowSkyInstrumentSurface(
+                    data: model.instrument,
+                    peakMarker: model.peakMarker,
+                    controller: controller,
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.pump();
+          expect(find.text(model.copy.lensStatement), findsNothing);
+          expect(
+            find.byKey(
+              ValueKey<String>(
+                'follow-sky-peak-marker-${model.instrument.family.name}',
+              ),
+            ),
+            findsOneWidget,
+          );
+
+          final boundary =
+              captureKey.currentContext!.findRenderObject()!
+                  as RenderRepaintBoundary;
+          final bytes = await tester.runAsync(() async {
+            final image = await boundary.toImage(pixelRatio: 2);
+            final byteData = await image.toByteData(
+              format: ui.ImageByteFormat.png,
+            );
+            return byteData!.buffer.asUint8List();
+          });
+          File(
+            '${output.path}/${mode.name}-${entry.key}.png',
+          ).writeAsBytesSync(bytes!);
+          controller.dispose();
+        }
+      }
+    },
+  );
 }
