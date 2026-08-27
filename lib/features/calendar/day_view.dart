@@ -2280,6 +2280,8 @@ class CalendarEventDetailSheet extends StatefulWidget {
 }
 
 class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
+  static const double _followSkyMinSheetExtent = 0.58;
+
   late DayViewSheetEventTarget _currentTarget;
   late PageController _pageController;
   late String _presentation;
@@ -2289,6 +2291,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   final Set<int> _endingFlowIds = <int>{};
   Map<String, double> _measuredHeights = <String, double>{};
   bool _onboardingDetailPromptScheduled = false;
+  double _followSkySheetExtent = _followSkyMinSheetExtent;
 
   @override
   void initState() {
@@ -2330,6 +2333,34 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
 
   void _handleEndFlowAuthReadinessChanged() {
     if (mounted) setState(() {});
+  }
+
+  void _updateFollowSkySheetExtent(
+    DragUpdateDetails details,
+    double availableSheetHeight,
+  ) {
+    final delta = details.primaryDelta;
+    if (delta == null || availableSheetHeight <= 0) return;
+    final nextExtent = (_followSkySheetExtent - delta / availableSheetHeight)
+        .clamp(_followSkyMinSheetExtent, 1.0)
+        .toDouble();
+    if ((nextExtent - _followSkySheetExtent).abs() < 0.0001) return;
+    setState(() {
+      _followSkySheetExtent = nextExtent;
+    });
+  }
+
+  Widget _buildDetailPageSizeTransition({
+    required bool animate,
+    required Widget child,
+  }) {
+    if (!animate) return child;
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.bottomCenter,
+      child: child,
+    );
   }
 
   bool _isOnboardingTargetEvent(EventItem event) {
@@ -3854,6 +3885,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     required BuildContext rootContext,
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
+    bool showFollowSkyResizeHandle = false,
+    bool enableFollowSkyResize = false,
+    double availableSheetHeight = 0,
   }) {
     final currentEvent = target.event;
     final flow = _chromeFlowForId(currentEvent.flowId);
@@ -3871,6 +3905,54 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       clientEventId: currentEvent.clientEventId,
       behaviorPayload: currentEvent.behaviorPayload,
     );
+
+    if (showFollowSkyResizeHandle) {
+      return SizedBox(
+        height: 48,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              left: 52,
+              right: 52,
+              top: 0,
+              bottom: 0,
+              child: GestureDetector(
+                key: const ValueKey<String>('follow-sky-sheet-resize-handle'),
+                behavior: HitTestBehavior.opaque,
+                onVerticalDragUpdate: enableFollowSkyResize
+                    ? (details) => _updateFollowSkySheetExtent(
+                        details,
+                        availableSheetHeight,
+                      )
+                    : null,
+                child: Center(
+                  child: Semantics(
+                    label: 'Resize Follow Sky sheet',
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: _dayGold.withValues(alpha: 0.48),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: _buildEventDetailOverflowButton(
+                rootContext: rootContext,
+                sheetContext: sheetContext,
+                target: target,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
 
     return Row(
       children: [
@@ -4329,10 +4411,13 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final activeFollowSkyPresentationFixture =
         activeFollowSkyInstrument &&
         activeFollowSkyEventId == 'full-moon-2026-08-28';
+    final followSkySheetExtent = _followSkySheetExtent
+        .clamp(_followSkyMinSheetExtent, 1.0)
+        .toDouble();
     final maxSheetHeight = _isWorkspacePresentation
         ? availableSheetHeight
         : activeFollowSkyPresentationFixture && keyboardInset == 0
-        ? availableSheetHeight * 0.58
+        ? availableSheetHeight * followSkySheetExtent
         : keyboardInset > 0
         ? availableSheetHeight
         : math.min(media.size.height * 0.68, 520.0);
@@ -4351,6 +4436,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
               .toDouble();
 
     final content = Column(
+      key: activeFollowSkyPresentationFixture
+          ? const ValueKey<String>('follow-sky-resizable-sheet')
+          : null,
       mainAxisSize: MainAxisSize.min,
       children: [
         if (hasOnboardingClosingBanner) ...[
@@ -4394,13 +4482,17 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                     rootContext: widget.hostContext,
                     sheetContext: context,
                     target: target,
+                    showFollowSkyResizeHandle:
+                        activeFollowSkyPresentationFixture,
+                    enableFollowSkyResize:
+                        activeFollowSkyPresentationFixture &&
+                        keyboardInset == 0,
+                    availableSheetHeight: availableSheetHeight,
                   ),
                   const SizedBox(height: 8),
                 ],
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOutCubic,
-                  alignment: Alignment.bottomCenter,
+                _buildDetailPageSizeTransition(
+                  animate: !activeFollowSkyPresentationFixture,
                   child: SizedBox(
                     height: sheetHeight,
                     child: _isWorkspacePresentation

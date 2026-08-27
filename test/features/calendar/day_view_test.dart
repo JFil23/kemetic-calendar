@@ -235,7 +235,7 @@ void main() {
   );
 
   test(
-    'Follow Sky fixture uses the shorter sheet with standard fixed overflow chrome',
+    'Follow Sky fixture keeps its approved minimum with resizable overflow chrome',
     () async {
       final source = await File(
         'lib/features/calendar/day_view.dart',
@@ -256,7 +256,15 @@ void main() {
         'Widget _buildEventDetailPrimaryAction({',
       );
 
-      expect(sizingSource, contains('availableSheetHeight * 0.58'));
+      expect(
+        source,
+        contains('static const double _followSkyMinSheetExtent = 0.58;'),
+      );
+      expect(
+        sizingSource,
+        contains('availableSheetHeight * followSkySheetExtent'),
+      );
+      expect(source, contains('.clamp(_followSkyMinSheetExtent, 1.0)'));
       expect(
         sizingSource,
         contains('math.min(media.size.height * 0.68, 520.0)'),
@@ -268,8 +276,13 @@ void main() {
       expect(frameSource, contains('if (!_isWorkspacePresentation) ...['));
       expect(
         frameSource,
-        isNot(contains('!activeFollowSkyPresentationFixture')),
+        contains('animate: !activeFollowSkyPresentationFixture'),
       );
+      expect(
+        frameSource,
+        isNot(contains('if (!activeFollowSkyPresentationFixture)')),
+      );
+      expect(topActionSource, contains("'follow-sky-sheet-resize-handle'"));
       expect(topActionSource, contains('_buildEventDetailOverflowButton('));
     },
   );
