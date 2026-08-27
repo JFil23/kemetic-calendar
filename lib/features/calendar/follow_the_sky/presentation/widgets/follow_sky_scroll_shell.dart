@@ -2,126 +2,43 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../maat_flow_visual_tokens.dart';
+import '../../../presentation/maat_flow_detail_shell.dart';
 import 'follow_sky_v11_tokens.dart';
 
-/// Single-scroll Follow Sky shell: hero recedes at [FollowSkyV11Tokens.heroParallaxFactor].
-class FollowSkyScrollShell extends StatefulWidget {
-  const FollowSkyScrollShell({
-    super.key,
-    required this.hero,
-    required this.sheet,
-    this.bottomBar,
-    this.scrollController,
-  });
-
-  final Widget hero;
-  final Widget sheet;
-  final Widget? bottomBar;
-  final ScrollController? scrollController;
-
-  @override
-  State<FollowSkyScrollShell> createState() => _FollowSkyScrollShellState();
-}
-
-class _FollowSkyScrollShellState extends State<FollowSkyScrollShell> {
-  late final ScrollController _controller;
-  late final bool _ownsController;
-
-  @override
-  void initState() {
-    super.initState();
-    _ownsController = widget.scrollController == null;
-    _controller = widget.scrollController ?? ScrollController();
-    _controller.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _controller.removeListener(_onScroll);
-    if (_ownsController) _controller.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() => setState(() {});
-
-  double get _scrollOffset => _controller.hasClients ? _controller.offset : 0;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        final widthScaledHero =
-            FollowSkyV11Tokens.heroHeight *
-            (width / FollowSkyV11Tokens.referenceWidth);
-        final heightScaledHero =
-            constraints.maxHeight *
-            (FollowSkyV11Tokens.heroHeight /
-                FollowSkyV11Tokens.referenceHeight);
-        final calculatedHeroHeight = math.min(
-          widthScaledHero,
-          heightScaledHero,
-        );
-        final heroHeight = calculatedHeroHeight;
-        final overlap =
-            FollowSkyV11Tokens.sheetOverlap *
-            (width / FollowSkyV11Tokens.referenceWidth);
-        final parallax = _scrollOffset * FollowSkyV11Tokens.heroParallaxFactor;
-        final fadeT =
-            (_scrollOffset / FollowSkyV11Tokens.heroFadeScrollDistance).clamp(
-              0.0,
-              1.0,
-            );
-        final heroOpacity = 1 - fadeT;
-
-        return ColoredBox(
-          color: FollowSkyV11Tokens.pageBg,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Positioned(
-                top: -parallax,
-                left: 0,
-                right: 0,
-                height: heroHeight,
-                child: Opacity(opacity: heroOpacity, child: widget.hero),
-              ),
-              CustomScrollView(
-                key: const ValueKey<String>('follow-sky-scroll'),
-                controller: _controller,
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: SizedBox(height: heroHeight - overlap),
-                  ),
-                  SliverToBoxAdapter(child: widget.sheet),
-                  const SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: FollowSkyV11Tokens.bottomContentClearance,
-                    ),
-                  ),
-                ],
-              ),
-              if (widget.bottomBar != null)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: widget.bottomBar!,
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
+/// Follow the Sky's own art direction inside the shared Ma'at hero geometry.
 class FollowSkyHero extends StatelessWidget {
   const FollowSkyHero({super.key, required this.title, required this.subtitle});
 
   final String title;
   final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaatFlowDetailHero(
+      theme: FollowSkyV11Tokens.detailTheme,
+      background: const _FollowSkyHeroBackdrop(),
+      glyph: '𓇼', // sbꜣ — star — Egyptian hieroglyph N14.
+      glyphKey: const ValueKey<String>('follow-sky-hero-star'),
+      glyphGradient: const RadialGradient(
+        center: Alignment(-0.24, -0.44),
+        radius: 0.9,
+        colors: [Color(0xE04B5EBB), Color(0xEB222A5B), Color(0xFA090D1E)],
+        stops: [0.0, 0.48, 1.0],
+      ),
+      glyphBorder: FollowSkyV11Tokens.intentionPeriwinkle.withValues(
+        alpha: 0.30,
+      ),
+      glyphGlow: FollowSkyV11Tokens.glow,
+      title: title.toLowerCase() == 'follow the sky'
+          ? 'Follow\nthe Sky'
+          : title,
+      subtitle: subtitle,
+    );
+  }
+}
+
+class _FollowSkyHeroBackdrop extends StatelessWidget {
+  const _FollowSkyHeroBackdrop();
 
   @override
   Widget build(BuildContext context) {
@@ -182,105 +99,7 @@ class FollowSkyHero extends StatelessWidget {
               ),
             ),
           ),
-          Positioned(
-            left: 24,
-            right: 24,
-            bottom: 72,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const _FollowSkyHeroGlyph(),
-                const SizedBox(height: 16),
-                Text(
-                  title.toLowerCase() == 'follow the sky'
-                      ? 'Follow\nthe Sky'
-                      : title,
-                  style: const TextStyle(
-                    color: FollowSkyV11Tokens.gold,
-                    fontFamily: MaatFlowListTokens.fontFamily,
-                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                    fontSize: 48,
-                    fontWeight: FontWeight.w500,
-                    height: 1,
-                    letterSpacing: -0.48,
-                    shadows: [
-                      Shadow(
-                        color: Color(0xB8000000),
-                        blurRadius: 8,
-                        offset: Offset(0, 1),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-                SizedBox(
-                  width: 250,
-                  child: Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: FollowSkyV11Tokens.silverHi,
-                      fontFamily: MaatFlowListTokens.fontFamily,
-                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                      fontSize: 19,
-                      fontWeight: FontWeight.w300,
-                      fontStyle: FontStyle.italic,
-                      height: 1.2,
-                      shadows: [
-                        Shadow(
-                          color: Color(0xC7000000),
-                          blurRadius: 8,
-                          offset: Offset(0, 1),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         ],
-      ),
-    );
-  }
-}
-
-class _FollowSkyHeroGlyph extends StatelessWidget {
-  const _FollowSkyHeroGlyph();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 52,
-      height: 52,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: const RadialGradient(
-          center: Alignment(-0.24, -0.44),
-          radius: 0.9,
-          colors: [Color(0xE04B5EBB), Color(0xEB222A5B), Color(0xFA090D1E)],
-          stops: [0.0, 0.48, 1.0],
-        ),
-        border: Border.all(
-          color: FollowSkyV11Tokens.intentionPeriwinkle.withValues(alpha: 0.30),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFA4B1FF).withValues(alpha: 0.13),
-            blurRadius: 26,
-          ),
-        ],
-      ),
-      alignment: Alignment.center,
-      child: const Text(
-        // sbꜣ — star — Egyptian hieroglyph N14.
-        '𓇼',
-        key: ValueKey<String>('follow-sky-hero-star'),
-        style: TextStyle(
-          color: FollowSkyV11Tokens.glow,
-          fontFamily: 'Noto Sans Egyptian Hieroglyphs',
-          fontSize: 29,
-          height: 1,
-        ),
       ),
     );
   }

@@ -98,7 +98,7 @@ void main() {
 
     expect(find.text('Here they are.'), findsOneWidget);
     expect(find.text('In your next thirty days.'), findsOneWidget);
-    expect(find.text('Follow\nthe sky'), findsOneWidget);
+    expect(find.text('Follow\nthe Sky'), findsOneWidget);
     expect(find.text(FollowSkyV11Tokens.heroSubtitle), findsOneWidget);
     expect(find.text('𓇼'), findsOneWidget);
     final heroStar = tester.widget<Text>(
@@ -191,6 +191,29 @@ void main() {
       expect(source, isNot(contains('Icons.star')));
       expect(pubspec, contains('family: Noto Sans Egyptian Hieroglyphs'));
       expect(pubspec, contains('NotoSansEgyptianHieroglyphs-Regular.ttf'));
+    },
+  );
+
+  test(
+    'V11 delegates geometry, hero hierarchy, and dock to shared primitives',
+    () {
+      final detailSource = File(
+        'lib/features/calendar/follow_the_sky/presentation/'
+        'follow_sky_detail_page.dart',
+      ).readAsStringSync();
+      final heroSource = File(
+        'lib/features/calendar/follow_the_sky/presentation/widgets/'
+        'follow_sky_scroll_shell.dart',
+      ).readAsStringSync();
+      final dockSource = File(
+        'lib/features/calendar/follow_the_sky/presentation/widgets/'
+        'follow_sky_v11_dock.dart',
+      ).readAsStringSync();
+
+      expect(detailSource, contains('return MaatFlowDetailShell('));
+      expect(heroSource, contains('return MaatFlowDetailHero('));
+      expect(dockSource, contains('return MaatFlowDetailDock('));
+      expect(detailSource, isNot(contains('FollowSkyScrollShell(')));
     },
   );
 }

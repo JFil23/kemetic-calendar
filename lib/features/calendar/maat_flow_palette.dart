@@ -78,6 +78,16 @@ class MaatFlowPalette {
         Color(0xFF5D5241),
       ],
     ),
+    'the-offering-table': MaatFlowPalette(
+      accent: Color(0xFFC99A3D),
+      glowColor: Color(0xFFF0C96A),
+      isGraphic: true,
+      iconGradientStops: [
+        Color(0xFF120B04),
+        Color(0xFF62401D),
+        Color(0xFFE2B559),
+      ],
+    ),
     'the-reading-house': MaatFlowPalette(
       accent: Color(0xFF4FA58D),
       glowColor: Color(0xFFA8E6D1),

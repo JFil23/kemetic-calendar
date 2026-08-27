@@ -14,6 +14,7 @@ import '../services/sky_catalog_repository.dart';
 import '../services/sky_visibility_service.dart';
 import '../services/track_sky_enrollment_service.dart';
 import '../services/track_sky_materializer.dart';
+import '../../presentation/maat_flow_detail_shell.dart';
 import 'follow_sky_calendar_preview.dart';
 import 'turning_meaning.dart';
 import 'widgets/follow_sky_all_turnings_list.dart';
@@ -368,65 +369,60 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
         .skip(previewNights.length)
         .toList(growable: false);
 
-    return FollowSkyScrollShell(
+    return MaatFlowDetailShell(
+      theme: FollowSkyV11Tokens.detailTheme,
+      scrollKey: const ValueKey<String>('follow-sky-scroll'),
       scrollController: _scrollController,
       hero: FollowSkyHero(title: widget.title, subtitle: widget.subtitle),
-      bottomBar: FollowSkyV11Dock(
+      bottomDock: FollowSkyV11Dock(
         joined: _carried,
         joining: _joining,
         onCarry: _carried ? null : _carry,
       ),
-      sheet: Container(
-        decoration: const BoxDecoration(
-          color: FollowSkyV11Tokens.sheetBg,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(26)),
-          border: Border(top: BorderSide(color: Color(0x2ED4AE43))),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            FollowSkyThirtyDayStrip(
-              windowStart: windowStart,
-              skyNights: _thirtyDayNights,
-              calendarRows: widget.calendarPreview.rows,
-              excludedSkyEventIds: _excludedSkyEventIds,
-              carried: _carried,
-            ),
-            FollowSkyTurningExample(
-              meaning: exampleMeaning,
-              controller: _exampleIntentionController,
-              onEditingFocusChanged: _handleExampleIntentionEditingChanged,
-              onChanged: (text) {
-                if (exampleNight != null) {
-                  _setDraftIntentionForSkyNight(exampleNight, text);
-                }
-              },
-            ),
-            FollowSkyPreviewCalendar(
-              skyNights: previewNights,
-              calendarRows: widget.calendarPreview.rows,
-              excludedSkyEventIds: _excludedSkyEventIds,
-              carried: _carried,
-              draftIntentions: _draftIntentions,
-              onOpenSkyNight: _openTurningSheet,
-              onExcludeSkyNight: (night) {
-                setState(() => _excludedSkyEventIds.add(night.skyEventId));
-              },
-              meaningResolver: _meaningResolver,
-            ),
-            const SizedBox(height: 8),
-            FollowSkyAllTurningsList(
-              catalog: _catalog!,
-              remainingNights: remainingNights,
-              surfacedCount: previewNights.length,
-              expanded: _allTurningsExpanded,
-              onToggle: () =>
-                  setState(() => _allTurningsExpanded = !_allTurningsExpanded),
-              meaningResolver: _meaningResolver,
-              onOpenNight: _openTurningSheet,
-            ),
-          ],
-        ),
+      sheet: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          FollowSkyThirtyDayStrip(
+            windowStart: windowStart,
+            skyNights: _thirtyDayNights,
+            calendarRows: widget.calendarPreview.rows,
+            excludedSkyEventIds: _excludedSkyEventIds,
+            carried: _carried,
+          ),
+          FollowSkyTurningExample(
+            meaning: exampleMeaning,
+            controller: _exampleIntentionController,
+            onEditingFocusChanged: _handleExampleIntentionEditingChanged,
+            onChanged: (text) {
+              if (exampleNight != null) {
+                _setDraftIntentionForSkyNight(exampleNight, text);
+              }
+            },
+          ),
+          FollowSkyPreviewCalendar(
+            skyNights: previewNights,
+            calendarRows: widget.calendarPreview.rows,
+            excludedSkyEventIds: _excludedSkyEventIds,
+            carried: _carried,
+            draftIntentions: _draftIntentions,
+            onOpenSkyNight: _openTurningSheet,
+            onExcludeSkyNight: (night) {
+              setState(() => _excludedSkyEventIds.add(night.skyEventId));
+            },
+            meaningResolver: _meaningResolver,
+          ),
+          const SizedBox(height: 8),
+          FollowSkyAllTurningsList(
+            catalog: _catalog!,
+            remainingNights: remainingNights,
+            surfacedCount: previewNights.length,
+            expanded: _allTurningsExpanded,
+            onToggle: () =>
+                setState(() => _allTurningsExpanded = !_allTurningsExpanded),
+            meaningResolver: _meaningResolver,
+            onOpenNight: _openTurningSheet,
+          ),
+        ],
       ),
     );
   }

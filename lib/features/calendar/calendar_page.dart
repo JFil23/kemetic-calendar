@@ -159,6 +159,7 @@ import 'evening_threshold_flow.dart';
 import 'evening_threshold_rite_flow.dart';
 import 'the_weighing_flow.dart';
 import 'the_offering_table_flow.dart';
+import 'the_offering_table/presentation/offering_table_detail_page.dart';
 import 'the_tending_flow.dart';
 import 'the_kept_word_flow.dart';
 import 'the_course_flow.dart';

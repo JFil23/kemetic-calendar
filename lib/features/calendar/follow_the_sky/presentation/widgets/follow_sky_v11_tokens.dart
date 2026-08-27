@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
 
+import '../../../presentation/maat_flow_detail_shell.dart';
+
 /// V11 reference geometry for Follow the Sky detail at ~390 logical px width.
 abstract final class FollowSkyV11Tokens {
-  static const double referenceWidth = 390;
-  static const double referenceHeight = 844;
-  static const double heroHeight = 452;
-  static const double sheetOverlap = 46;
-  static const double heroParallaxFactor = 0.58;
-  static const double heroFadeScrollDistance = 430;
+  static const double referenceWidth = MaatFlowDetailGeometry.referenceWidth;
+  static const double referenceHeight = MaatFlowDetailGeometry.referenceHeight;
+  static const double heroHeight = MaatFlowDetailGeometry.heroHeight;
+  static const double sheetOverlap = MaatFlowDetailGeometry.sheetOverlap;
+  static const double heroParallaxFactor =
+      MaatFlowDetailGeometry.heroParallaxFactor;
+  static const double heroFadeScrollDistance =
+      MaatFlowDetailGeometry.heroFadeScrollDistance;
   static const double heroImageAlignmentY = 0.48;
-  static const double bottomContentClearance = 168;
+  static const double bottomContentClearance =
+      MaatFlowDetailGeometry.bottomContentClearance;
 
   static const Color pageBg = Color(0xFF050504);
   static const Color sheetBg = Color(0xFF080706);
@@ -31,6 +36,18 @@ abstract final class FollowSkyV11Tokens {
   static const Color calendarGregorian = Color(0xFF4DA3FF);
   static const Color calendarTransliteration = Color(0xFFB09355);
   static const Color calendarMuted = Color(0xFFB3A596);
+
+  static const MaatFlowDetailTheme detailTheme = MaatFlowDetailTheme(
+    pageBackground: pageBg,
+    sheetBackground: sheetBg,
+    sheetBorder: Color(0x2ED4AE43),
+    accent: gold,
+    primaryText: silverHi,
+    secondaryText: silverMid,
+    mutedText: silverLo,
+    separator: separator,
+    glow: glow,
+  );
 
   static const double decanRowHeight = 80;
   static const double dayNumberAreaHeight = 42;

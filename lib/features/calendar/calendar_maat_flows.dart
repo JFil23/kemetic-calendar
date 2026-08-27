@@ -2393,10 +2393,6 @@ class _MaatFlowTemplateDetailPageState
   TheWeighingLens _theWeighingLens = TheWeighingLens.neutral;
   bool _theWeighingStartDateTouched = false;
   bool _theWeighingJoinInFlight = false;
-  OfferingTableLens _offeringTableLens = OfferingTableLens.neutral;
-  bool _offeringNoCupMode = false;
-  bool _offeringStartDateTouched = false;
-  bool _offeringJoinInFlight = false;
   TheTendingLens _theTendingLens = TheTendingLens.neutral;
   bool _theTendingStartDateTouched = false;
   bool _theTendingJoinInFlight = false;
@@ -2471,8 +2467,6 @@ class _MaatFlowTemplateDetailPageState
       );
     } else if (widget.template.kind == _MaatFlowTemplateKind.theWeighing) {
       _picked = defaultTheWeighingStartDate(_previewTrackSkyTimeZone);
-    } else if (widget.template.kind == _MaatFlowTemplateKind.offeringTable) {
-      _picked = defaultOfferingTableStartDate(_previewTrackSkyTimeZone);
     } else if (widget.template.kind == _MaatFlowTemplateKind.theTending) {
       _picked = defaultTheTendingStartDate(_previewTrackSkyTimeZone);
     } else if (widget.template.kind == _MaatFlowTemplateKind.keptWord) {
@@ -2699,8 +2693,6 @@ class _MaatFlowTemplateDetailPageState
       _eveningStartDateTouched = true;
     } else if (widget.template.kind == _MaatFlowTemplateKind.theWeighing) {
       _theWeighingStartDateTouched = true;
-    } else if (widget.template.kind == _MaatFlowTemplateKind.offeringTable) {
-      _offeringStartDateTouched = true;
     } else if (widget.template.kind == _MaatFlowTemplateKind.theTending) {
       _theTendingStartDateTouched = true;
     } else if (widget.template.kind == _MaatFlowTemplateKind.keptWord) {
@@ -3532,9 +3524,6 @@ class _MaatFlowTemplateDetailPageState
       } else if (widget.template.kind == _MaatFlowTemplateKind.theWeighing &&
           !_theWeighingStartDateTouched) {
         _picked = defaultTheWeighingStartDate(timezone);
-      } else if (widget.template.kind == _MaatFlowTemplateKind.offeringTable &&
-          !_offeringStartDateTouched) {
-        _picked = defaultOfferingTableStartDate(timezone);
       } else if (widget.template.kind == _MaatFlowTemplateKind.theTending &&
           !_theTendingStartDateTouched) {
         _picked = defaultTheTendingStartDate(timezone);
@@ -3613,17 +3602,6 @@ class _MaatFlowTemplateDetailPageState
         return 'Neutral keeps the flow focused on record, measure, and conduct without added devotional framing.';
       case TheWeighingLens.djehuty:
         return 'Djehuty adds a short keeper-of-records line to each sitting.';
-    }
-  }
-
-  String _offeringTableLensExplanation(OfferingTableLens lens) {
-    switch (lens) {
-      case OfferingTableLens.neutral:
-        return 'Neutral keeps the table focused on water, provision, and truthful care.';
-      case OfferingTableLens.hapy:
-        return 'Hapy adds a short abundance-and-flow line to each sitting.';
-      case OfferingTableLens.ausar:
-        return 'Ausar adds a short restoration line for provision that has gone dry.';
     }
   }
 
@@ -3904,48 +3882,6 @@ class _MaatFlowTemplateDetailPageState
     }
     setState(() {
       _theWeighingJoinInFlight = false;
-    });
-  }
-
-  Future<void> _joinOfferingTableFlow(DateTime selectedStart) async {
-    if (_offeringJoinInFlight) return;
-    setState(() {
-      _offeringJoinInFlight = true;
-    });
-
-    final int id;
-    try {
-      id = await widget.addInstance(
-        template: widget.template,
-        startDate: selectedStart,
-        trackSkyTimeZone: _previewTrackSkyTimeZone,
-        offeringTableLens: _offeringTableLens,
-        offeringNoCupMode: _offeringNoCupMode,
-      );
-    } catch (e, st) {
-      if (kDebugMode) {
-        _calendarDebugPrint('[offeringTable] join failed: $e');
-        _calendarDebugPrint('$st');
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not join The Offering Table. Please retry.'),
-        ),
-      );
-      setState(() {
-        _offeringJoinInFlight = false;
-      });
-      return;
-    }
-
-    if (!mounted) return;
-    if (id > 0) {
-      await _completeJoin(id);
-      return;
-    }
-    setState(() {
-      _offeringJoinInFlight = false;
     });
   }
 
@@ -8898,143 +8834,6 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
-  Widget _buildOfferingTableDayTile(
-    BuildContext context,
-    OfferingTableDay day,
-  ) {
-    final detail = offeringTableDetailText(
-      day,
-      lens: _offeringTableLens,
-      noCupMode: _offeringNoCupMode,
-    );
-    return _buildMaatFlowSittingTile(
-      title: offeringTableEventTitle(day),
-      subtitle: '${day.section} · ${offeringTableTimingLabel(day)}',
-      detailText: detail,
-    );
-  }
-
-  Widget _buildOfferingTableScaffold(BuildContext context) {
-    final l10n = MaterialLocalizations.of(context);
-    final selectedStart =
-        _picked ?? defaultOfferingTableStartDate(_previewTrackSkyTimeZone);
-    final firstDay = kOfferingTableDays.first;
-    final firstSchedule = offeringTableScheduleForDate(
-      firstDay,
-      selectedStart,
-      _previewTrackSkyTimeZone,
-    );
-    final firstTime = l10n.formatTimeOfDay(
-      TimeOfDay(
-        hour: firstSchedule.startLocal.hour,
-        minute: firstSchedule.startLocal.minute,
-      ),
-    );
-    final initialPromptSlot = _buildCurrentInitialPromptSlot(
-      includeLeadingSeparator: false,
-    );
-
-    return _buildMaatFlowDetailScaffold(
-      context,
-      appendInitialPrompt: false,
-      joinButton: _buildTemplateStickyJoinButton(
-        text: _offeringJoinInFlight ? 'Joining…' : 'Join Flow',
-        onPressed: _offeringJoinInFlight
-            ? null
-            : () => _joinOfferingTableFlow(selectedStart),
-      ),
-      children: [
-        ..._buildMaatFlowOverviewZones(
-          content: _detailContentForTemplate(overrideChips: null),
-          tagline: kOfferingTableTagline,
-          initialPromptSlot: initialPromptSlot,
-          extraOverviewNote: _buildMaatFlowNotice(kOfferingTableEnrollmentCopy),
-          configurationControls: [
-            _buildStartDateRow(
-              context,
-              selectedStart,
-              label:
-                  'Start: ${_dateLabel(context, selectedStart)} at $firstTime',
-            ),
-            const SizedBox(height: 28),
-            const _MaatFlowDetailSectionLabel('LENS'),
-            const Text(
-              'A lens adds one short framing line. It does not change the thirty sittings, timing, or completion states.',
-              style: TextStyle(
-                color: MaatFlowPalette.silverLo,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 13,
-                fontStyle: FontStyle.italic,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 10),
-            _buildDetailChoiceChips<OfferingTableLens>(
-              values: OfferingTableLens.values,
-              selectedValue: _offeringTableLens,
-              labelFor: (lens) => lens.label,
-              onSelected: (lens) {
-                setState(() {
-                  _offeringTableLens = lens;
-                });
-              },
-            ),
-            const SizedBox(height: 10),
-            Text(
-              _offeringTableLensExplanation(_offeringTableLens),
-              style: const TextStyle(
-                color: MaatFlowPalette.silverMid,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 14,
-                fontStyle: FontStyle.italic,
-                height: 1.35,
-              ),
-            ),
-            const SizedBox(height: 12),
-            _buildMaatFlowSwitchSurface(
-              value: _offeringNoCupMode,
-              title: 'Use the cup you’re already holding',
-              subtitle:
-                  'Commute alternative; the water step remains part of the sitting.',
-              onChanged: (value) {
-                setState(() {
-                  _offeringNoCupMode = value;
-                });
-              },
-            ),
-          ],
-        ),
-        const _MaatFlowDetailSeparator(),
-        const _MaatFlowDetailSectionLabel('30-DAY TABLE'),
-        for (final section in const <String>[
-          'Personal Table',
-          'Household Table',
-          'Flowing Table',
-        ]) ...[
-          Padding(
-            padding: const EdgeInsets.only(top: 8, bottom: 8),
-            child: Text(
-              section,
-              style: const TextStyle(
-                color: MaatFlowPalette.interiorLabel,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-          ...kOfferingTableDays
-              .where((day) => day.section == section)
-              .map((day) => _buildOfferingTableDayTile(context, day)),
-        ],
-        const _MaatFlowPracticeDisclaimerFooter(),
-      ],
-    );
-  }
-
   Widget _buildSequenceScaffold(BuildContext context) {
     final l10n = MaterialLocalizations.of(context);
     final selectedStart = _picked ?? DateUtils.dateOnly(DateTime.now());
@@ -9181,7 +8980,29 @@ class _MaatFlowTemplateDetailPageState
       return _buildTheWeighingScaffold(context);
     }
     if (widget.template.kind == _MaatFlowTemplateKind.offeringTable) {
-      return _buildOfferingTableScaffold(context);
+      return OfferingTableDetailPage(
+        timezone: _previewTrackSkyTimeZone,
+        alreadyJoined: widget.alreadyJoined,
+        showBackButton: widget.showBackButton,
+        resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
+        initialPrompt: _buildCurrentInitialPromptSlot(
+          includeLeadingSeparator: false,
+        ),
+        onJoin:
+            ({
+              required startDate,
+              required timezone,
+              required lens,
+              required noCupMode,
+            }) => widget.addInstance(
+              template: widget.template,
+              startDate: startDate,
+              trackSkyTimeZone: timezone,
+              offeringTableLens: lens,
+              offeringNoCupMode: noCupMode,
+            ),
+        onJoined: _completeJoin,
+      );
     }
     if (widget.template.kind == _MaatFlowTemplateKind.theTending) {
       return _buildTheTendingScaffold(context);
