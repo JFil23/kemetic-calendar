@@ -35,7 +35,6 @@ class _FollowSkyObservationPresentationState
   final TextEditingController _reflectionController = TextEditingController();
   late _LunarInstrumentController _instrumentController;
   bool _reflectionOpen = false;
-  bool _capturePreview = false;
   _PreviewCompletion? _completion;
 
   @override
@@ -58,7 +57,6 @@ class _FollowSkyObservationPresentationState
       );
       _reflectionController.clear();
       _reflectionOpen = false;
-      _capturePreview = false;
       _completion = null;
     }
   }
@@ -535,31 +533,13 @@ class _FollowSkyObservationPresentationState
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-            child: Row(
-              children: <Widget>[
-                Expanded(
-                  child: _InstrumentTool(
-                    icon: Icons.camera_alt_outlined,
-                    label: _capturePreview ? 'Photo kept' : 'Capture',
-                    armed: _capturePreview,
-                    onTap: () =>
-                        setState(() => _capturePreview = !_capturePreview),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _InstrumentTool(
-                    icon: Icons.description_outlined,
-                    label: 'Reflect',
-                    armed: _reflectionOpen,
-                    onTap: () =>
-                        setState(() => _reflectionOpen = !_reflectionOpen),
-                  ),
-                ),
-              ],
+            child: _InstrumentTool(
+              icon: Icons.description_outlined,
+              label: 'Reflect',
+              armed: _reflectionOpen,
+              onTap: () => setState(() => _reflectionOpen = !_reflectionOpen),
             ),
           ),
-          if (_capturePreview) _buildCapturePreview(),
           const Padding(
             padding: EdgeInsets.fromLTRB(20, 13, 20, 0),
             child: Row(
@@ -630,59 +610,6 @@ class _FollowSkyObservationPresentationState
     );
   }
 
-  Widget _buildCapturePreview() {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 13, 20, 0),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _glow.withValues(alpha: 0.26)),
-        color: Colors.white.withValues(alpha: 0.018),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        children: <Widget>[
-          Container(
-            height: 120,
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: <Color>[Color(0xFF2C2338), Color(0xFF0B0A0D)],
-              ),
-            ),
-            child: const Center(
-              child: Icon(Icons.brightness_2_outlined, color: _bone, size: 42),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 8, 11),
-            child: Row(
-              children: <Widget>[
-                const Expanded(
-                  child: Text(
-                    '1 photo · kept with this turning',
-                    style: TextStyle(
-                      color: _silverMid,
-                      fontFamily: _ui,
-                      fontSize: 11,
-                    ),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text(
-                    'Retake',
-                    style: TextStyle(color: _glow, fontFamily: _ui),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildReflection() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -748,37 +675,6 @@ class _FollowSkyObservationPresentationState
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 8),
-          const Text.rich(
-            TextSpan(
-              children: <InlineSpan>[
-                TextSpan(
-                  text: 'Same reflection either way. ',
-                  style: TextStyle(color: _glow),
-                ),
-                TextSpan(
-                  text:
-                      'Dictation becomes editable text — no voice recording is stored.',
-                ),
-              ],
-            ),
-            style: TextStyle(
-              color: _silverLow,
-              fontFamily: _ui,
-              fontSize: 11,
-              height: 1.35,
-            ),
-          ),
-          const SizedBox(height: 7),
-          const Text(
-            'This one belongs to tonight · automatically kept in your Journal.',
-            style: TextStyle(
-              color: _silverLow,
-              fontFamily: _display,
-              fontSize: 13.5,
-              fontStyle: FontStyle.italic,
-            ),
           ),
         ],
       ),

@@ -79,8 +79,15 @@ void main() {
     expect(find.text('ENDURE'), findsOneWidget);
     expect(find.text('Stay true when conditions change.'), findsOneWidget);
     expect(find.text('“self confidence”'), findsOneWidget);
-    expect(find.text('Capture'), findsOneWidget);
+    expect(find.text('Capture'), findsNothing);
+    expect(find.byIcon(Icons.camera_alt_outlined), findsNothing);
     expect(find.text('Reflect'), findsOneWidget);
+    final reflectAction = find.ancestor(
+      of: find.text('Reflect'),
+      matching: find.byType(InkWell),
+    );
+    expect(reflectAction, findsOneWidget);
+    expect(tester.getSize(reflectAction).width, greaterThan(300));
     expect(find.text('COMPLETION'), findsOneWidget);
     expect(tester.getTopLeft(find.text('ENDURE')).dy, lessThan(760));
     expect(tester.getTopLeft(find.text('YOU CHOSE')).dy, lessThan(760));
@@ -128,17 +135,64 @@ void main() {
       find.text('What did staying true to your choice look like tonight?'),
       findsOneWidget,
     );
-
-    await tester.ensureVisible(find.text('Capture'));
-    await tester.tap(find.text('Capture'));
-    await tester.pump();
-    expect(find.text('Photo kept'), findsOneWidget);
-    expect(find.text('1 photo · kept with this turning'), findsOneWidget);
+    expect(find.text('Capture'), findsNothing);
+    expect(find.text('Photo kept'), findsNothing);
+    expect(find.textContaining('Same reflection either way'), findsNothing);
+    expect(
+      find.textContaining('Dictation becomes editable text'),
+      findsNothing,
+    );
+    expect(find.textContaining('This one belongs to tonight'), findsNothing);
+    expect(
+      find.textContaining('automatically kept in today’s Journal'),
+      findsOneWidget,
+    );
 
     await tester.ensureVisible(find.text('Observed'));
     await tester.tap(find.text('Observed'));
     await tester.pump();
     expect(find.text('KEPT'), findsOneWidget);
+  });
+
+  testWidgets('compact sheet host keeps the instrument clear and body usable', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 317);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(
+          backgroundColor: Colors.black,
+          body: FollowSkyObservationPresentation(
+            fixture: losAngelesFullMoonPresentationFixture,
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('FOLLOW THE SKY'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('follow-sky-hero-drag')),
+      findsOneWidget,
+    );
+
+    final heroRect = tester.getRect(
+      find.byKey(const ValueKey<String>('follow-sky-hero-drag')),
+    );
+    await tester.tapAt(heroRect.center);
+    await tester.pump();
+    expect(find.text('1:00 AM'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Reflect'));
+    await tester.pumpAndSettle();
+    expect(find.text('Reflect'), findsOneWidget);
+    expect(find.text('Capture'), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets(

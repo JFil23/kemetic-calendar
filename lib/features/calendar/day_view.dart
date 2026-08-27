@@ -4314,14 +4314,14 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final maxSheetHeight = _isWorkspacePresentation
         ? availableSheetHeight
         : activeFollowSkyPresentationFixture && keyboardInset == 0
-        ? availableSheetHeight * 0.93
+        ? availableSheetHeight * 0.58
         : keyboardInset > 0
         ? availableSheetHeight
         : math.min(media.size.height * 0.68, 520.0);
     final reservedChromeHeight = _isWorkspacePresentation
         ? 24.0
         : activeFollowSkyPresentationFixture
-        ? 64.0
+        ? 120.0
         : hasOnboardingClosingBanner
         ? 250.0
         : 120.0;
@@ -4371,8 +4371,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (!_isWorkspacePresentation &&
-                    !activeFollowSkyPresentationFixture) ...[
+                if (!_isWorkspacePresentation) ...[
                   _buildEventDetailTopActionRow(
                     rootContext: widget.hostContext,
                     sheetContext: context,

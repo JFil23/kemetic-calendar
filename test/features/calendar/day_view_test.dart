@@ -234,6 +234,46 @@ void main() {
     },
   );
 
+  test(
+    'Follow Sky fixture uses the shorter sheet with standard fixed overflow chrome',
+    () async {
+      final source = await File(
+        'lib/features/calendar/day_view.dart',
+      ).readAsString();
+      final sizingSource = _sourceBetween(
+        source,
+        'final maxSheetHeight = _isWorkspacePresentation',
+        'final content = Column(',
+      );
+      final frameSource = _sourceBetween(
+        source,
+        'final content = Column(',
+        'return Padding(',
+      );
+      final topActionSource = _sourceBetween(
+        source,
+        'Widget _buildEventDetailTopActionRow({',
+        'Widget _buildEventDetailPrimaryAction({',
+      );
+
+      expect(sizingSource, contains('availableSheetHeight * 0.58'));
+      expect(
+        sizingSource,
+        contains('math.min(media.size.height * 0.68, 520.0)'),
+      );
+      expect(
+        sizingSource,
+        contains('activeFollowSkyPresentationFixture\n        ? 120.0'),
+      );
+      expect(frameSource, contains('if (!_isWorkspacePresentation) ...['));
+      expect(
+        frameSource,
+        isNot(contains('!activeFollowSkyPresentationFixture')),
+      );
+      expect(topActionSource, contains('_buildEventDetailOverflowButton('));
+    },
+  );
+
   test('End Flow successor is same-day, stable, and excludes ending flow', () {
     const targetEvent = EventItem(
       clientEventId: 'cid-b',
