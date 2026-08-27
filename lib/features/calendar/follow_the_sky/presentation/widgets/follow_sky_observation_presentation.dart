@@ -802,8 +802,6 @@ class _FollowSkyObservationPresentationState
               ],
             ),
           ),
-          if (_completion != CompletionStatus.none)
-            _buildConsequence(_completion),
         ],
       ),
     );
@@ -938,58 +936,6 @@ class _FollowSkyObservationPresentationState
     }
   }
 
-  Widget _buildConsequence(CompletionStatus completion) {
-    final (heading, body) = switch (completion) {
-      CompletionStatus.observed => (
-        'KEPT',
-        'Your choice, reflection, and anything you captured stay with this night. Hꜣw can return them when this pattern comes around again.',
-      ),
-      CompletionStatus.partial => (
-        'KEPT',
-        'A glance counts. Hꜣw keeps the reflection of what happened without turning the rest into debt.',
-      ),
-      CompletionStatus.skipped => (
-        'NOTHING OWED',
-        'The next Full Moon in this Flow is Sep 26. Your choice can end here or travel forward with you.',
-      ),
-      CompletionStatus.none => throw StateError(
-        'Completion consequence requires a selected status.',
-      ),
-    };
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 15, 20, 0),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.022),
-        borderRadius: BorderRadius.circular(15),
-        border: Border.all(color: _separator),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            heading,
-            style: const TextStyle(
-              color: _goldDim,
-              fontFamily: _ui,
-              fontSize: 10,
-              letterSpacing: 2.4,
-            ),
-          ),
-          const SizedBox(height: 9),
-          Text(
-            body,
-            style: const TextStyle(
-              color: _silverMid,
-              fontFamily: _display,
-              fontSize: 17,
-              height: 1.42,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _InstrumentTool extends StatelessWidget {

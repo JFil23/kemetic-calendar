@@ -185,7 +185,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Observed'));
     await tester.pump();
-    expect(find.text('KEPT'), findsOneWidget);
+    expect(find.text('Observed'), findsOneWidget);
+    expect(find.text('KEPT'), findsNothing);
+    expect(find.text('NOTHING OWED'), findsNothing);
   });
 
   testWidgets('compact sheet host keeps the instrument clear and body usable', (
