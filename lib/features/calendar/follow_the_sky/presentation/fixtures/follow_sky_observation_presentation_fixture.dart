@@ -10,6 +10,9 @@ class FollowSkyObservationPresentationFixture {
     required this.title,
     required this.dateLabel,
     required this.locationLabel,
+    required this.latitudeDegrees,
+    required this.longitudeDegrees,
+    required this.ianaTimeZone,
     required this.fullPhaseLabel,
     required this.lens,
     required this.lensStatement,
@@ -22,6 +25,9 @@ class FollowSkyObservationPresentationFixture {
   final String title;
   final String dateLabel;
   final String locationLabel;
+  final double latitudeDegrees;
+  final double longitudeDegrees;
+  final String ianaTimeZone;
   final String fullPhaseLabel;
   final String lens;
   final String lensStatement;
@@ -48,6 +54,9 @@ FollowSkyObservationPresentationFixture _losAngelesFullMoonFixture() {
     title: 'Full Moon + Partial Lunar Eclipse',
     dateLabel: 'THU · AUG 27',
     locationLabel: 'Los Angeles',
+    latitudeDegrees: 34.0522,
+    longitudeDegrees: -118.2437,
+    ianaTimeZone: 'America/Los_Angeles',
     fullPhaseLabel: 'Full phase · 9:18 PM',
     lens: 'ENDURE',
     lensStatement: 'Stay true when conditions change.',

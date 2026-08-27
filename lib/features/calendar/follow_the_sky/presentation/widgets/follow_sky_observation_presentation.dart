@@ -1,14 +1,21 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
 import '../../domain/sky_instrument_data.dart';
 import '../fixtures/follow_sky_observation_presentation_fixture.dart';
+import '../follow_sky_view_time_policy.dart';
 
 class FollowSkyObservationPresentation extends StatefulWidget {
-  const FollowSkyObservationPresentation({super.key, required this.fixture});
+  const FollowSkyObservationPresentation({
+    super.key,
+    required this.fixture,
+    this.now,
+  });
 
   final FollowSkyObservationPresentationFixture fixture;
+  final DateTime Function()? now;
 
   @override
   State<FollowSkyObservationPresentation> createState() =>
@@ -34,27 +41,38 @@ class _FollowSkyObservationPresentationState
 
   final TextEditingController _reflectionController = TextEditingController();
   late _LunarInstrumentController _instrumentController;
+  Timer? _liveTickTimer;
+  bool _isLiveTracking = false;
   bool _reflectionOpen = false;
   _PreviewCompletion? _completion;
 
   @override
   void initState() {
     super.initState();
+    final now = _fixtureNow();
     _instrumentController = _LunarInstrumentController(
       data: widget.fixture.instrument,
-      initialSelection: widget.fixture.initialSelection,
+      initialSelection: _initialSelection(now),
     );
+    if (_isWithinTrackingWindow(now)) {
+      _startLiveTracking(now);
+    }
   }
 
   @override
   void didUpdateWidget(covariant FollowSkyObservationPresentation oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.fixture.instrument != widget.fixture.instrument) {
+    if (oldWidget.fixture != widget.fixture) {
+      _stopLiveTracking();
       _instrumentController.dispose();
+      final now = _fixtureNow();
       _instrumentController = _LunarInstrumentController(
         data: widget.fixture.instrument,
-        initialSelection: widget.fixture.initialSelection,
+        initialSelection: _initialSelection(now),
       );
+      if (_isWithinTrackingWindow(now)) {
+        _startLiveTracking(now);
+      }
       _reflectionController.clear();
       _reflectionOpen = false;
       _completion = null;
@@ -63,13 +81,82 @@ class _FollowSkyObservationPresentationState
 
   @override
   void dispose() {
+    _stopLiveTracking();
     _instrumentController.dispose();
     _reflectionController.dispose();
     super.dispose();
   }
 
-  void _selectFraction(double fraction) =>
-      _instrumentController.selectFraction(fraction);
+  DateTime _fixtureNow() => followSkyWallTime(
+    (widget.now ?? DateTime.now)(),
+    widget.fixture.ianaTimeZone,
+  );
+
+  DateTime _initialSelection(DateTime now) {
+    final instrument = widget.fixture.instrument;
+    return initialFollowSkyViewTime(
+      now: now,
+      rise: instrument.rise!,
+      set: instrument.set!,
+      peak: widget.fixture.initialSelection,
+    );
+  }
+
+  bool _isWithinTrackingWindow(DateTime now) {
+    final instrument = widget.fixture.instrument;
+    return isFollowSkyLiveTime(
+      now: now,
+      rise: instrument.rise!,
+      set: instrument.set!,
+    );
+  }
+
+  void _startLiveTracking(DateTime now) {
+    _isLiveTracking = true;
+    _scheduleLiveTick(now);
+  }
+
+  void _scheduleLiveTick(DateTime now) {
+    _liveTickTimer?.cancel();
+    final nextMinute = DateTime(
+      now.year,
+      now.month,
+      now.day,
+      now.hour,
+      now.minute,
+    ).add(const Duration(minutes: 1));
+    _liveTickTimer = Timer(nextMinute.difference(now), _followClock);
+  }
+
+  void _followClock() {
+    if (!_isLiveTracking || !mounted) return;
+    final now = _fixtureNow();
+    final instrument = widget.fixture.instrument;
+    final rise = instrument.rise!;
+    final set = instrument.set!;
+    if (now.isAfter(set)) {
+      _instrumentController.selectTime(set);
+      _stopLiveTracking();
+      return;
+    }
+    if (now.isBefore(rise)) {
+      _stopLiveTracking();
+      return;
+    }
+    _instrumentController.selectTime(now);
+    _scheduleLiveTick(now);
+  }
+
+  void _stopLiveTracking() {
+    _isLiveTracking = false;
+    _liveTickTimer?.cancel();
+    _liveTickTimer = null;
+  }
+
+  void _selectFraction(double fraction) {
+    _stopLiveTracking();
+    _instrumentController.selectFraction(fraction);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -961,6 +1048,11 @@ class _LunarInstrumentController extends ValueNotifier<_InstrumentFrame> {
 
   DateTime timeAtFraction(double fraction) =>
       geometry.timeAtFraction(fraction.clamp(0.0, 1.0));
+
+  void selectTime(DateTime selectedAt) {
+    if (selectedAt == value.selectedAt) return;
+    value = _frameFor(geometry, selectedAt);
+  }
 
   void selectFraction(double fraction) {
     final next = timeAtFraction(fraction);
