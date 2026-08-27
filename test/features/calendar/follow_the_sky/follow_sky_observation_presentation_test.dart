@@ -1,0 +1,128 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/calendar/follow_the_sky/domain/sky_instrument_data.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/fixtures/follow_sky_observation_presentation_fixture.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_observation_presentation.dart';
+
+void main() {
+  test('Los Angeles fixture retains the verified Full Moon specimen', () {
+    final fixture = losAngelesFullMoonPresentationFixture;
+    final instrument = fixture.instrument;
+
+    expect(fixture.intention, 'self confidence');
+    expect(instrument.rise, DateTime(2026, 8, 27, 19, 17, 18));
+    expect(instrument.transit, DateTime(2026, 8, 28, 1, 0, 9));
+    expect(instrument.set, DateTime(2026, 8, 28, 6, 51));
+    expect(
+      instrument.eclipseContacts.map((contact) => contact.kind),
+      <LunarEclipseContactKind>[
+        LunarEclipseContactKind.p1,
+        LunarEclipseContactKind.u1,
+        LunarEclipseContactKind.maximum,
+        LunarEclipseContactKind.u4,
+        LunarEclipseContactKind.p4,
+      ],
+    );
+    expect(instrument.eclipseContacts.first.locallyVisible, isFalse);
+    expect(
+      instrument.eclipseContacts.skip(1).every((item) => item.locallyVisible),
+      isTrue,
+    );
+    expect(instrument.moonSamples, hasLength(12));
+  });
+
+  testWidgets('presentation starts on the HTML mockup hierarchy', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(
+          backgroundColor: Colors.black,
+          body: FollowSkyObservationPresentation(
+            fixture: losAngelesFullMoonPresentationFixture,
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey<String>('follow-sky-presentation-fixture')),
+      findsOneWidget,
+    );
+    expect(find.text('FOLLOW THE SKY'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('follow-sky-sparkle')),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Full Moon +'), findsOneWidget);
+    expect(find.textContaining('Los Angeles'), findsOneWidget);
+    expect(find.text('9:12 PM'), findsOneWidget);
+    expect(find.text('ECLIPSE MAXIMUM'), findsOneWidget);
+    expect(find.text('ENDURE'), findsOneWidget);
+    expect(find.text('Stay true when conditions change.'), findsOneWidget);
+    expect(find.text('“self confidence”'), findsOneWidget);
+    expect(find.text('Capture'), findsOneWidget);
+    expect(find.text('Reflect'), findsOneWidget);
+    expect(find.text('COMPLETION'), findsOneWidget);
+    expect(
+      find.text('What did staying true to your choice look like tonight?'),
+      findsNothing,
+    );
+  });
+
+  testWidgets('fixture interactions stay local to the presentation', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: Scaffold(
+          backgroundColor: Colors.black,
+          body: FollowSkyObservationPresentation(
+            fixture: losAngelesFullMoonPresentationFixture,
+          ),
+        ),
+      ),
+    );
+
+    final scrubber = find.byKey(
+      const ValueKey<String>('follow-sky-fixture-scrubber'),
+    );
+    final scrubberRect = tester.getRect(scrubber);
+    await tester.tapAt(scrubberRect.center);
+    await tester.pump();
+    expect(find.text('1:00 AM'), findsWidgets);
+    expect(find.text('HIGHEST'), findsWidgets);
+    expect(find.text('Due south'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Reflect'));
+    await tester.tap(find.text('Reflect'));
+    await tester.pump();
+    expect(
+      find.text('What did staying true to your choice look like tonight?'),
+      findsOneWidget,
+    );
+
+    await tester.ensureVisible(find.text('Capture'));
+    await tester.tap(find.text('Capture'));
+    await tester.pump();
+    expect(find.text('Photo kept'), findsOneWidget);
+    expect(find.text('1 photo · kept with this turning'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('Observed'));
+    await tester.tap(find.text('Observed'));
+    await tester.pump();
+    expect(find.text('KEPT'), findsOneWidget);
+  });
+}

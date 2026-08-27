@@ -27,6 +27,8 @@ import 'calendar_reflection_context.dart';
 import 'day_view_chrome.dart';
 import 'follow_the_sky/presentation/widgets/track_sky_event_block_visual.dart';
 import 'follow_the_sky/presentation/widgets/follow_sky_observation_sheet.dart';
+import 'follow_the_sky/presentation/widgets/follow_sky_observation_presentation.dart';
+import 'follow_the_sky/presentation/fixtures/follow_sky_observation_presentation_fixture.dart';
 import 'follow_the_sky/presentation/follow_sky_observation_route.dart';
 import 'follow_the_sky/services/track_sky_materializer.dart';
 import 'landscape_month_view.dart';
@@ -3423,42 +3425,52 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         followSkyEventId.isNotEmpty;
 
     if (hasFollowSkyObservationSheet) {
-      final observation = FollowSkyObservationSheet(
-        key: ValueKey<String>('follow-sky-observation:$followSkyClientEventId'),
-        clientEventId: followSkyClientEventId!,
-        completionIdentity: _completionIdentityForEvent(currentEvent),
-        skyEventId: followSkyEventId,
-        title: currentEvent.title,
-        localDate: DateUtils.dateOnly(
-          KemeticMath.toGregorian(target.ky, target.km, target.kd),
-        ),
-        startMinute: currentEvent.startMin,
-        endMinute: currentEvent.endMin,
-        intentionSnapshot: TrackSkyEventOwnership.intentionFromPayload(
-          currentEvent.behaviorPayload,
-        ),
-        onWriteJournalResponse: widget.onWriteJournalResponse,
-        completionPickerStyle: completionPickerStyle,
-        onCommitStartTime: (startLocal) async {
-          final move = widget.onMoveFollowSkyEventTime;
-          if (move == null) return false;
-          return move(
-            target.ky,
-            target.km,
-            target.kd,
-            currentEvent,
-            startLocal,
-          );
-        },
-        onCommitCompletion: (status) => _commitFollowSkyCompletion(
-          target: target,
-          completion: completionContext,
-          status: status,
-        ),
-      );
+      final isPresentationFixture = followSkyEventId == 'full-moon-2026-08-28';
+      final Widget observation = isPresentationFixture
+          ? FollowSkyObservationPresentation(
+              key: ValueKey<String>(
+                'follow-sky-presentation:$followSkyClientEventId',
+              ),
+              fixture: losAngelesFullMoonPresentationFixture,
+            )
+          : FollowSkyObservationSheet(
+              key: ValueKey<String>(
+                'follow-sky-observation:$followSkyClientEventId',
+              ),
+              clientEventId: followSkyClientEventId!,
+              completionIdentity: _completionIdentityForEvent(currentEvent),
+              skyEventId: followSkyEventId,
+              title: currentEvent.title,
+              localDate: DateUtils.dateOnly(
+                KemeticMath.toGregorian(target.ky, target.km, target.kd),
+              ),
+              startMinute: currentEvent.startMin,
+              endMinute: currentEvent.endMin,
+              intentionSnapshot: TrackSkyEventOwnership.intentionFromPayload(
+                currentEvent.behaviorPayload,
+              ),
+              onWriteJournalResponse: widget.onWriteJournalResponse,
+              completionPickerStyle: completionPickerStyle,
+              onCommitStartTime: (startLocal) async {
+                final move = widget.onMoveFollowSkyEventTime;
+                if (move == null) return false;
+                return move(
+                  target.ky,
+                  target.km,
+                  target.kd,
+                  currentEvent,
+                  startLocal,
+                );
+              },
+              onCommitCompletion: (status) => _commitFollowSkyCompletion(
+                target: target,
+                completion: completionContext,
+                status: status,
+              ),
+            );
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 2),
-        child: scrollable
+        child: scrollable && !isPresentationFixture
             ? SingleChildScrollView(
                 physics: const BouncingScrollPhysics(),
                 keyboardDismissBehavior:

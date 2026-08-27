@@ -1,0 +1,1505 @@
+import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+
+import '../../domain/sky_instrument_data.dart';
+import '../fixtures/follow_sky_observation_presentation_fixture.dart';
+
+class FollowSkyObservationPresentation extends StatefulWidget {
+  const FollowSkyObservationPresentation({super.key, required this.fixture});
+
+  final FollowSkyObservationPresentationFixture fixture;
+
+  @override
+  State<FollowSkyObservationPresentation> createState() =>
+      _FollowSkyObservationPresentationState();
+}
+
+enum _PreviewCompletion { observed, partly, skipped }
+
+class _FollowSkyObservationPresentationState
+    extends State<FollowSkyObservationPresentation> {
+  static const _velvet = Color(0xFF080706);
+  static const _bone = Color(0xFFE8E2D6);
+  static const _gold = Color(0xFFD4AE43);
+  static const _goldDim = Color(0xFF8A7030);
+  static const _silverMid = Color(0xFF9E9A94);
+  static const _silverLow = Color(0xFF6A6660);
+  static const _separator = Color(0xFF2A2415);
+  static const _periwinkle = Color(0xFF6876D8);
+  static const _glow = Color(0xFFA4B1FF);
+  static const _rose = Color(0xFFE5C3C6);
+  static const _display = 'CormorantGaramond';
+  static const _ui = 'GentiumPlus';
+
+  final TextEditingController _reflectionController = TextEditingController();
+  late DateTime _selectedAt;
+  bool _reflectionOpen = false;
+  bool _capturePreview = false;
+  _PreviewCompletion? _completion;
+
+  LunarPathData get _instrument => widget.fixture.instrument;
+  DateTime get _rise => _instrument.rise!;
+  DateTime get _transit => _instrument.transit!;
+  DateTime get _set => _instrument.set!;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedAt = widget.fixture.initialSelection;
+  }
+
+  @override
+  void didUpdateWidget(covariant FollowSkyObservationPresentation oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.fixture.instrument != widget.fixture.instrument) {
+      _selectedAt = widget.fixture.initialSelection;
+      _reflectionController.clear();
+      _reflectionOpen = false;
+      _capturePreview = false;
+      _completion = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _reflectionController.dispose();
+    super.dispose();
+  }
+
+  void _selectFraction(double fraction) {
+    final next = _timeAtFraction(
+      fraction.clamp(0.0, 1.0),
+      _rise,
+      _transit,
+      _set,
+    );
+    setState(
+      () => _selectedAt = DateTime(
+        next.year,
+        next.month,
+        next.day,
+        next.hour,
+        next.minute,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final boundedHeight = constraints.hasBoundedHeight
+            ? constraints.maxHeight
+            : 620.0;
+        final heroHeight = math.min(
+          282.0,
+          math.max(238.0, boundedHeight * 0.46),
+        );
+        return DecoratedBox(
+          key: const ValueKey<String>('follow-sky-presentation-fixture'),
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              stops: <double>[0, 0.34, 0.74],
+              colors: <Color>[Color(0xFF1B1220), Color(0xFF140F1A), _velvet],
+            ),
+          ),
+          child: Column(
+            children: <Widget>[
+              SizedBox(height: heroHeight, child: _buildSky()),
+              _buildFinder(),
+              Expanded(child: _buildBody()),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSky() {
+    final selectedPosition = _interpolatePosition(
+      _instrument.moonSamples,
+      _selectedAt,
+    );
+    final compassIndex = ((selectedPosition.azimuthDegrees - 112.5) / 22.5)
+        .round()
+        .clamp(0, 6);
+    const compass = <String>['ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW'];
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        void update(Offset position) {
+          _selectFraction(
+            ((position.dx - 42) / (constraints.maxWidth - 84)).clamp(0.0, 1.0),
+          );
+        }
+
+        return Semantics(
+          label: 'Los Angeles lunar path presentation instrument',
+          value:
+              '${_formatTime(_selectedAt)}, ${selectedPosition.altitudeDegrees.toStringAsFixed(1)} degrees up, ${selectedPosition.azimuthDegrees.toStringAsFixed(0)} degrees azimuth',
+          increasedValue: _formatTime(
+            _timeAtFraction(
+              (_fractionAt(_selectedAt, _rise, _transit, _set) + 0.02).clamp(
+                0.0,
+                1.0,
+              ),
+              _rise,
+              _transit,
+              _set,
+            ),
+          ),
+          decreasedValue: _formatTime(
+            _timeAtFraction(
+              (_fractionAt(_selectedAt, _rise, _transit, _set) - 0.02).clamp(
+                0.0,
+                1.0,
+              ),
+              _rise,
+              _transit,
+              _set,
+            ),
+          ),
+          slider: true,
+          onIncrease: () => _selectFraction(
+            (_fractionAt(_selectedAt, _rise, _transit, _set) + 0.02).clamp(
+              0.0,
+              1.0,
+            ),
+          ),
+          onDecrease: () => _selectFraction(
+            (_fractionAt(_selectedAt, _rise, _transit, _set) - 0.02).clamp(
+              0.0,
+              1.0,
+            ),
+          ),
+          child: GestureDetector(
+            key: const ValueKey<String>('follow-sky-hero-drag'),
+            behavior: HitTestBehavior.opaque,
+            onTapUp: (details) => update(details.localPosition),
+            onHorizontalDragDown: (details) => update(details.localPosition),
+            onHorizontalDragUpdate: (details) => update(details.localPosition),
+            child: Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                CustomPaint(
+                  painter: _SkyDomePainter(
+                    data: _instrument,
+                    selectedAt: _selectedAt,
+                  ),
+                ),
+                Positioned(
+                  top: 20,
+                  left: 20,
+                  child: const Row(
+                    children: <Widget>[
+                      _SkySparkle(),
+                      SizedBox(width: 7),
+                      Text(
+                        'FOLLOW THE SKY',
+                        style: TextStyle(
+                          color: _gold,
+                          fontFamily: _ui,
+                          fontSize: 10.5,
+                          letterSpacing: 2.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  top: 39,
+                  left: 20,
+                  right: 126,
+                  child: Text(
+                    widget.fixture.title.replaceFirst(' + ', ' +\n'),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontFamily: _display,
+                      fontSize: 25,
+                      fontWeight: FontWeight.w500,
+                      height: 1.04,
+                      shadows: <Shadow>[
+                        Shadow(color: Colors.black87, blurRadius: 22),
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 22,
+                  right: 18,
+                  child: Text.rich(
+                    TextSpan(
+                      children: <InlineSpan>[
+                        TextSpan(
+                          text: '${widget.fixture.dateLabel}\n',
+                          style: const TextStyle(
+                            color: _rose,
+                            letterSpacing: 1.05,
+                          ),
+                        ),
+                        TextSpan(text: '${widget.fixture.locationLabel}\n'),
+                        TextSpan(text: widget.fixture.fullPhaseLabel),
+                      ],
+                    ),
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      color: _silverLow,
+                      fontFamily: _ui,
+                      fontSize: 9.5,
+                      height: 1.45,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 22,
+                  right: 22,
+                  bottom: 13,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: <Widget>[
+                      for (var index = 0; index < compass.length; index++)
+                        Text(
+                          compass[index],
+                          style: TextStyle(
+                            color: index == compassIndex
+                                ? _glow
+                                : _bone.withValues(alpha: 0.28),
+                            fontFamily: _ui,
+                            fontSize: 9.5,
+                            letterSpacing: 1.2,
+                            shadows: index == compassIndex
+                                ? const <Shadow>[
+                                    Shadow(color: _glow, blurRadius: 8),
+                                  ]
+                                : null,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildFinder() {
+    final position = _interpolatePosition(_instrument.moonSamples, _selectedAt);
+    final altitude = position.altitudeDegrees.round();
+    final note = altitude > 34
+        ? 'high over the roofline'
+        : altitude > 20
+        ? 'clear of the roofline'
+        : 'low · clear horizon';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: <Widget>[
+          Flexible(
+            child: Text(
+              _longCompassDirection(position.azimuthDegrees),
+              maxLines: 1,
+              overflow: TextOverflow.fade,
+              softWrap: false,
+              style: const TextStyle(
+                color: _glow,
+                fontFamily: _display,
+                fontSize: 23,
+                fontStyle: FontStyle.italic,
+                shadows: <Shadow>[Shadow(color: _glow, blurRadius: 10)],
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Flexible(
+            child: Text(
+              '$altitude° up · $note',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: _silverMid,
+                fontFamily: _ui,
+                fontSize: 12.5,
+                letterSpacing: 0.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    return SingleChildScrollView(
+      key: const ValueKey<String>('follow-sky-presentation-body'),
+      physics: const BouncingScrollPhysics(),
+      keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+      padding: const EdgeInsets.only(bottom: 22),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          _buildScrubber(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  widget.fixture.lens,
+                  style: const TextStyle(
+                    color: _periwinkle,
+                    fontFamily: _ui,
+                    fontSize: 10.5,
+                    letterSpacing: 2.7,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  widget.fixture.lensStatement,
+                  style: const TextStyle(
+                    color: _bone,
+                    fontFamily: _display,
+                    fontSize: 21,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.fromLTRB(20, 17, 20, 0),
+            padding: const EdgeInsets.fromLTRB(15, 14, 15, 15),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: _glow.withValues(alpha: 0.28)),
+              gradient: LinearGradient(
+                begin: Alignment.topRight,
+                end: Alignment.bottomLeft,
+                colors: <Color>[
+                  _periwinkle.withValues(alpha: 0.12),
+                  Colors.white.withValues(alpha: 0.018),
+                ],
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                const Text(
+                  'YOU CHOSE',
+                  style: TextStyle(
+                    color: _glow,
+                    fontFamily: _ui,
+                    fontSize: 10,
+                    letterSpacing: 2.4,
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  '“${widget.fixture.intention}”',
+                  style: const TextStyle(
+                    color: _bone,
+                    fontFamily: _display,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w300,
+                    fontStyle: FontStyle.italic,
+                    height: 1.28,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  widget.fixture.intentionContext,
+                  style: const TextStyle(
+                    color: _silverLow,
+                    fontFamily: _ui,
+                    fontSize: 11.5,
+                    fontStyle: FontStyle.italic,
+                    height: 1.3,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+            child: Row(
+              children: <Widget>[
+                Expanded(
+                  child: _InstrumentTool(
+                    icon: Icons.camera_alt_outlined,
+                    label: _capturePreview ? 'Photo kept' : 'Capture',
+                    armed: _capturePreview,
+                    onTap: () =>
+                        setState(() => _capturePreview = !_capturePreview),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _InstrumentTool(
+                    icon: Icons.description_outlined,
+                    label: 'Reflect',
+                    armed: _reflectionOpen,
+                    onTap: () =>
+                        setState(() => _reflectionOpen = !_reflectionOpen),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_capturePreview) _buildCapturePreview(),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 13, 20, 0),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Padding(
+                  padding: EdgeInsets.only(top: 4),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: _glow,
+                      shape: BoxShape.circle,
+                      boxShadow: <BoxShadow>[
+                        BoxShadow(color: _glow, blurRadius: 10),
+                      ],
+                    ),
+                    child: SizedBox(width: 6, height: 6),
+                  ),
+                ),
+                SizedBox(width: 9),
+                Expanded(
+                  child: Text(
+                    'Everything you add here is automatically kept in today’s Journal.',
+                    style: TextStyle(
+                      color: _silverLow,
+                      fontFamily: _ui,
+                      fontSize: 11,
+                      height: 1.3,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_reflectionOpen) _buildReflection(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 26, 20, 0),
+            child: Row(
+              children: <Widget>[
+                const Text(
+                  'COMPLETION',
+                  style: TextStyle(
+                    color: _goldDim,
+                    fontFamily: _ui,
+                    fontSize: 10.5,
+                    letterSpacing: 2.7,
+                  ),
+                ),
+                const SizedBox(width: 11),
+                Expanded(child: Container(height: 1, color: _separator)),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+            child: Row(
+              children: <Widget>[
+                _completionChip('Observed', _PreviewCompletion.observed),
+                const SizedBox(width: 9),
+                _completionChip('Partly', _PreviewCompletion.partly),
+                const SizedBox(width: 9),
+                _completionChip('Skipped', _PreviewCompletion.skipped),
+              ],
+            ),
+          ),
+          if (_completion != null) _buildConsequence(_completion!),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildScrubber() {
+    final maximum = _instrument.eclipseContacts.firstWhere(
+      (contact) => contact.kind == LunarEclipseContactKind.maximum,
+    );
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      padding: const EdgeInsets.fromLTRB(15, 15, 15, 13),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.022),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: _separator),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  _formatTime(_selectedAt),
+                  style: const TextStyle(
+                    color: _bone,
+                    fontFamily: _display,
+                    fontSize: 29,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              Text(
+                _phaseLabel(
+                  _selectedAt,
+                  maximum.at,
+                  _rise,
+                  _transit,
+                  _set,
+                ).toUpperCase(),
+                style: const TextStyle(
+                  color: _rose,
+                  fontFamily: _ui,
+                  fontSize: 10.5,
+                  letterSpacing: 1.7,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 9),
+          _SkyScrubber(
+            selectedFraction: _fractionAt(_selectedAt, _rise, _transit, _set),
+            maximumFraction: _fractionAt(maximum.at, _rise, _transit, _set),
+            fullPhaseFraction: _fractionAt(
+              _instrument.phaseInstant,
+              _rise,
+              _transit,
+              _set,
+            ),
+            onChanged: _selectFraction,
+          ),
+          SizedBox(
+            height: 34,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: <Widget>[
+                _TrackerLabel(
+                  alignment: Alignment.centerLeft,
+                  time: _formatTimeShort(_rise),
+                  label: 'RISES',
+                ),
+                _TrackerLabel(
+                  alignment: const Alignment(-0.63, 0),
+                  time: _formatTimeShort(maximum.at),
+                  label: 'ECLIPSE MAX',
+                ),
+                _TrackerLabel(
+                  alignment: Alignment.center,
+                  time: _formatTimeShort(_transit),
+                  label: 'HIGHEST',
+                ),
+                _TrackerLabel(
+                  alignment: Alignment.centerRight,
+                  time: _formatTimeShort(_set),
+                  label: 'SETS',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text.rich(
+            TextSpan(
+              children: <InlineSpan>[
+                const TextSpan(text: 'Drag the night. '),
+                TextSpan(
+                  text: 'Your block moves to ${_formatTime(_selectedAt)}.',
+                  style: const TextStyle(
+                    color: _glow,
+                    fontStyle: FontStyle.normal,
+                  ),
+                ),
+              ],
+            ),
+            style: const TextStyle(
+              color: _silverLow,
+              fontFamily: _ui,
+              fontSize: 11.5,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCapturePreview() {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 13, 20, 0),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _glow.withValues(alpha: 0.26)),
+        color: Colors.white.withValues(alpha: 0.018),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: <Widget>[
+          Container(
+            height: 120,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: <Color>[Color(0xFF2C2338), Color(0xFF0B0A0D)],
+              ),
+            ),
+            child: const Center(
+              child: Icon(Icons.brightness_2_outlined, color: _bone, size: 42),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 8, 11),
+            child: Row(
+              children: <Widget>[
+                const Expanded(
+                  child: Text(
+                    '1 photo · kept with this turning',
+                    style: TextStyle(
+                      color: _silverMid,
+                      fontFamily: _ui,
+                      fontSize: 11,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {},
+                  child: const Text(
+                    'Retake',
+                    style: TextStyle(color: _glow, fontFamily: _ui),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReflection() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Text(
+            'What did staying true to your choice look like tonight?',
+            style: TextStyle(
+              color: _bone,
+              fontFamily: _display,
+              fontSize: 20,
+              height: 1.34,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Stack(
+            alignment: Alignment.bottomRight,
+            children: <Widget>[
+              TextField(
+                key: const ValueKey<String>('follow-sky-fixture-reflection'),
+                controller: _reflectionController,
+                minLines: 3,
+                maxLines: 5,
+                style: const TextStyle(
+                  color: _glow,
+                  fontFamily: _display,
+                  fontSize: 19,
+                  fontStyle: FontStyle.italic,
+                  height: 1.42,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Type it, or say it out loud.',
+                  hintStyle: const TextStyle(color: _silverLow),
+                  filled: true,
+                  fillColor: Colors.white.withValues(alpha: 0.03),
+                  contentPadding: const EdgeInsets.fromLTRB(13, 13, 52, 13),
+                  enabledBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: Color(0x4DA4B1FF)),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(11),
+                    ),
+                  ),
+                  focusedBorder: const UnderlineInputBorder(
+                    borderSide: BorderSide(color: _glow),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(11),
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(right: 9, bottom: 11),
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: _periwinkle.withValues(alpha: 0.08),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: _glow.withValues(alpha: 0.34)),
+                  ),
+                  child: const Icon(Icons.mic_none, color: _glow, size: 18),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text.rich(
+            TextSpan(
+              children: <InlineSpan>[
+                TextSpan(
+                  text: 'Same reflection either way. ',
+                  style: TextStyle(color: _glow),
+                ),
+                TextSpan(
+                  text:
+                      'Dictation becomes editable text — no voice recording is stored.',
+                ),
+              ],
+            ),
+            style: TextStyle(
+              color: _silverLow,
+              fontFamily: _ui,
+              fontSize: 11,
+              height: 1.35,
+            ),
+          ),
+          const SizedBox(height: 7),
+          const Text(
+            'This one belongs to tonight · automatically kept in your Journal.',
+            style: TextStyle(
+              color: _silverLow,
+              fontFamily: _display,
+              fontSize: 13.5,
+              fontStyle: FontStyle.italic,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _completionChip(String label, _PreviewCompletion value) {
+    final selected = _completion == value;
+    return Expanded(
+      child: OutlinedButton(
+        onPressed: () => setState(() => _completion = selected ? null : value),
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(0, 45),
+          padding: EdgeInsets.zero,
+          foregroundColor: selected ? _glow : _silverMid,
+          backgroundColor: selected
+              ? _periwinkle.withValues(alpha: 0.13)
+              : Colors.transparent,
+          side: BorderSide(
+            color: selected ? _glow : _bone.withValues(alpha: 0.18),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          textStyle: const TextStyle(
+            fontFamily: _display,
+            fontSize: 16.5,
+            fontWeight: FontWeight.w400,
+          ),
+        ),
+        child: Text(label),
+      ),
+    );
+  }
+
+  Widget _buildConsequence(_PreviewCompletion completion) {
+    final (heading, body) = switch (completion) {
+      _PreviewCompletion.observed => (
+        'KEPT',
+        'Your choice, reflection, and anything you captured stay with this night. Hꜣw can return them when this pattern comes around again.',
+      ),
+      _PreviewCompletion.partly => (
+        'KEPT',
+        'A glance counts. Hꜣw keeps the reflection of what happened without turning the rest into debt.',
+      ),
+      _PreviewCompletion.skipped => (
+        'NOTHING OWED',
+        'The next Full Moon in this Flow is Sep 26. Your choice can end here or travel forward with you.',
+      ),
+    };
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 15, 20, 0),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.022),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: _separator),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            heading,
+            style: const TextStyle(
+              color: _goldDim,
+              fontFamily: _ui,
+              fontSize: 10,
+              letterSpacing: 2.4,
+            ),
+          ),
+          const SizedBox(height: 9),
+          Text(
+            body,
+            style: const TextStyle(
+              color: _silverMid,
+              fontFamily: _display,
+              fontSize: 17,
+              height: 1.42,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InstrumentTool extends StatelessWidget {
+  const _InstrumentTool({
+    required this.icon,
+    required this.label,
+    required this.armed,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool armed;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = armed
+        ? _FollowSkyObservationPresentationState._glow
+        : _FollowSkyObservationPresentationState._bone;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(15),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        height: 69,
+        decoration: BoxDecoration(
+          color: armed
+              ? _FollowSkyObservationPresentationState._periwinkle.withValues(
+                  alpha: 0.1,
+                )
+              : Colors.white.withValues(alpha: 0.022),
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(
+            color: armed
+                ? _FollowSkyObservationPresentationState._glow
+                : _FollowSkyObservationPresentationState._separator,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Icon(icon, color: color, size: 23),
+            const SizedBox(height: 7),
+            Text(
+              label,
+              style: TextStyle(
+                color: armed
+                    ? _FollowSkyObservationPresentationState._glow
+                    : _FollowSkyObservationPresentationState._silverMid,
+                fontFamily: _FollowSkyObservationPresentationState._ui,
+                fontSize: 11,
+                letterSpacing: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SkySparkle extends StatelessWidget {
+  const _SkySparkle();
+
+  @override
+  Widget build(BuildContext context) => const SizedBox(
+    key: ValueKey<String>('follow-sky-sparkle'),
+    width: 12,
+    height: 12,
+    child: CustomPaint(painter: _SkySparklePainter()),
+  );
+}
+
+class _SkySparklePainter extends CustomPainter {
+  const _SkySparklePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final path = Path()
+      ..moveTo(center.dx, 0)
+      ..quadraticBezierTo(
+        center.dx + 1.2,
+        center.dy - 1.2,
+        size.width,
+        center.dy,
+      )
+      ..quadraticBezierTo(
+        center.dx + 1.2,
+        center.dy + 1.2,
+        center.dx,
+        size.height,
+      )
+      ..quadraticBezierTo(center.dx - 1.2, center.dy + 1.2, 0, center.dy)
+      ..quadraticBezierTo(center.dx - 1.2, center.dy - 1.2, center.dx, 0)
+      ..close();
+    canvas.drawPath(
+      path,
+      Paint()..color = _FollowSkyObservationPresentationState._gold,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _SkySparklePainter oldDelegate) => false;
+}
+
+class _SkyScrubber extends StatelessWidget {
+  const _SkyScrubber({
+    required this.selectedFraction,
+    required this.maximumFraction,
+    required this.fullPhaseFraction,
+    required this.onChanged,
+  });
+
+  final double selectedFraction;
+  final double maximumFraction;
+  final double fullPhaseFraction;
+  final ValueChanged<double> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        void update(Offset position) =>
+            onChanged((position.dx / constraints.maxWidth).clamp(0.0, 1.0));
+        return Semantics(
+          label: 'Drag the night',
+          slider: true,
+          value: '${(selectedFraction * 100).round()} percent',
+          child: GestureDetector(
+            key: const ValueKey<String>('follow-sky-fixture-scrubber'),
+            behavior: HitTestBehavior.opaque,
+            onTapUp: (details) => update(details.localPosition),
+            onHorizontalDragDown: (details) => update(details.localPosition),
+            onHorizontalDragUpdate: (details) => update(details.localPosition),
+            child: SizedBox(
+              height: 46,
+              child: CustomPaint(
+                painter: _ScrubberPainter(
+                  selectedFraction: selectedFraction,
+                  maximumFraction: maximumFraction,
+                  fullPhaseFraction: fullPhaseFraction,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _TrackerLabel extends StatelessWidget {
+  const _TrackerLabel({
+    required this.alignment,
+    required this.time,
+    required this.label,
+  });
+
+  final Alignment alignment;
+  final String time;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => Align(
+    alignment: alignment,
+    child: Text.rich(
+      TextSpan(
+        children: <InlineSpan>[
+          TextSpan(text: '$time\n'),
+          TextSpan(
+            text: label,
+            style: const TextStyle(
+              color: _FollowSkyObservationPresentationState._rose,
+            ),
+          ),
+        ],
+      ),
+      textAlign: alignment.x < -0.9
+          ? TextAlign.left
+          : alignment.x > 0.9
+          ? TextAlign.right
+          : TextAlign.center,
+      style: const TextStyle(
+        color: _FollowSkyObservationPresentationState._silverLow,
+        fontFamily: _FollowSkyObservationPresentationState._ui,
+        fontSize: 8.7,
+        height: 1.2,
+        letterSpacing: 0.55,
+      ),
+    ),
+  );
+}
+
+class _ScrubberPainter extends CustomPainter {
+  const _ScrubberPainter({
+    required this.selectedFraction,
+    required this.maximumFraction,
+    required this.fullPhaseFraction,
+  });
+
+  final double selectedFraction;
+  final double maximumFraction;
+  final double fullPhaseFraction;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = Path()
+      ..moveTo(2, 40)
+      ..cubicTo(
+        size.width * 0.18,
+        40,
+        size.width * 0.27,
+        8,
+        size.width * 0.5,
+        8,
+      )
+      ..cubicTo(
+        size.width * 0.73,
+        8,
+        size.width * 0.82,
+        40,
+        size.width - 2,
+        40,
+      );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = _FollowSkyObservationPresentationState._bone.withValues(
+          alpha: 0.13,
+        )
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+    for (final metric in path.computeMetrics()) {
+      canvas.drawPath(
+        metric.extractPath(0, metric.length * selectedFraction),
+        Paint()
+          ..color = _FollowSkyObservationPresentationState._rose.withValues(
+            alpha: 0.75,
+          )
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..strokeWidth = 2,
+      );
+    }
+    canvas.drawLine(
+      Offset(size.width * 0.5, 2),
+      Offset(size.width * 0.5, 14),
+      Paint()
+        ..color = _FollowSkyObservationPresentationState._rose.withValues(
+          alpha: 0.55,
+        ),
+    );
+
+    Offset point(double fraction) => Offset(
+      2 + fraction * (size.width - 4),
+      40 - math.sin(math.pi * fraction) * 32,
+    );
+
+    final eclipse = point(maximumFraction);
+    canvas.drawLine(
+      Offset(eclipse.dx, 19),
+      Offset(eclipse.dx, 44),
+      Paint()..color = const Color(0x73D88C82),
+    );
+    canvas.drawCircle(eclipse, 2.8, Paint()..color = const Color(0xFFD88C82));
+    canvas.drawCircle(
+      point(fullPhaseFraction),
+      2.1,
+      Paint()..color = _FollowSkyObservationPresentationState._glow,
+    );
+
+    final knob = point(selectedFraction);
+    canvas.drawCircle(
+      knob,
+      13,
+      Paint()
+        ..color = _FollowSkyObservationPresentationState._rose.withValues(
+          alpha: 0.2,
+        )
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 9),
+    );
+    canvas.drawCircle(
+      knob,
+      10,
+      Paint()
+        ..shader = const RadialGradient(
+          center: Alignment(-0.3, -0.35),
+          colors: <Color>[Colors.white, Color(0xFFD9CFC2)],
+        ).createShader(Rect.fromCircle(center: knob, radius: 10)),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ScrubberPainter oldDelegate) =>
+      oldDelegate.selectedFraction != selectedFraction ||
+      oldDelegate.maximumFraction != maximumFraction ||
+      oldDelegate.fullPhaseFraction != fullPhaseFraction;
+}
+
+class _SkyDomePainter extends CustomPainter {
+  const _SkyDomePainter({required this.data, required this.selectedAt});
+
+  final LunarPathData data;
+  final DateTime selectedAt;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final bounds = Offset.zero & size;
+    canvas.drawRect(
+      bounds,
+      Paint()
+        ..shader = const RadialGradient(
+          center: Alignment(0, -1),
+          radius: 1.35,
+          colors: <Color>[
+            Color(0xFF2C2338),
+            Color(0xFF1A1526),
+            Color(0xFF0C0912),
+          ],
+          stops: <double>[0, 0.46, 1],
+        ).createShader(bounds),
+    );
+
+    for (var index = 0; index < 118; index++) {
+      final x = ((index * 83 + 29) % 521) / 521 * size.width;
+      final rawY = ((index * index * 37 + index * 17 + 11) % 389) / 389;
+      final y = math.pow(rawY, 1.3) * size.height * 0.9;
+      final alpha = (0.1 + (index % 9) * 0.055) * (1 - y / size.height);
+      canvas.drawCircle(
+        Offset(x, y),
+        index % 13 == 0 ? 1.25 : 0.55 + (index % 3) * 0.18,
+        Paint()..color = const Color(0xFFEFE7DE).withValues(alpha: alpha),
+      );
+    }
+
+    final rise = data.rise!;
+    final transit = data.transit!;
+    final set = data.set!;
+    final maxAltitude = data.moonSamples
+        .map((sample) => sample.altitudeDegrees)
+        .reduce(math.max);
+    final baseY = size.height - 39;
+    final apexY = math.max(92.0, size.height * 0.34);
+    Offset pointAt(DateTime at) {
+      final position = _interpolatePosition(data.moonSamples, at);
+      return Offset(
+        42 + _fractionAt(at, rise, transit, set) * (size.width - 84),
+        baseY -
+            (position.altitudeDegrees / maxAltitude).clamp(0.0, 1.0) *
+                (baseY - apexY),
+      );
+    }
+
+    final pathDotPaint = Paint()
+      ..color = _FollowSkyObservationPresentationState._rose.withValues(
+        alpha: 0.28,
+      );
+    for (var index = 0; index <= 58; index++) {
+      final at = _timeAtFraction(index / 58, rise, transit, set);
+      canvas.drawCircle(pointAt(at), 1, pathDotPaint);
+    }
+
+    final apex = pointAt(transit);
+    canvas.drawLine(
+      apex.translate(0, -40),
+      apex.translate(0, -30),
+      Paint()
+        ..color = _FollowSkyObservationPresentationState._rose.withValues(
+          alpha: 0.4,
+        ),
+    );
+    _paintLabel(
+      canvas,
+      'HIGHEST · ${_formatTime(transit)}',
+      apex.translate(0, -48),
+      color: _FollowSkyObservationPresentationState._rose.withValues(
+        alpha: 0.58,
+      ),
+      centered: true,
+    );
+
+    final maximum = data.eclipseContacts.firstWhere(
+      (contact) => contact.kind == LunarEclipseContactKind.maximum,
+    );
+    final maximumPoint = pointAt(maximum.at);
+    canvas.drawCircle(
+      maximumPoint,
+      3.2,
+      Paint()..color = const Color(0xFFD88C82),
+    );
+    _paintLabel(
+      canvas,
+      'ECLIPSE MAX',
+      maximumPoint.translate(2, -13),
+      color: _FollowSkyObservationPresentationState._rose.withValues(
+        alpha: 0.72,
+      ),
+      centered: true,
+      fontSize: 8.7,
+    );
+
+    final moon = pointAt(selectedAt);
+    final selectedFraction = _fractionAt(selectedAt, rise, transit, set);
+    final brightness = math.sin(math.pi * selectedFraction).clamp(0.0, 1.0);
+    canvas.drawCircle(
+      moon,
+      52 + 34 * brightness,
+      Paint()
+        ..shader = RadialGradient(
+          colors: <Color>[
+            const Color(0xFFF0E1DC).withValues(alpha: 0.34),
+            const Color(0xFFBEA5C8).withValues(alpha: 0.1),
+            Colors.transparent,
+          ],
+          stops: const <double>[0, 0.52, 1],
+        ).createShader(Rect.fromCircle(center: moon, radius: 86)),
+    );
+    canvas.drawCircle(moon, 24, Paint()..color = const Color(0xFFF6EEE3));
+    final minutesFromMaximum =
+        selectedAt.difference(maximum.at).inSeconds.abs() / 60;
+    final eclipseStrength = math.max(0.0, 1 - minutesFromMaximum / 105);
+    if (eclipseStrength > 0) {
+      canvas.save();
+      canvas.clipPath(
+        Path()..addOval(Rect.fromCircle(center: moon, radius: 24)),
+      );
+      canvas.drawCircle(
+        moon.translate(8 - 14 * eclipseStrength, 0),
+        24,
+        Paint()
+          ..color = const Color(
+            0xFF7B3F4C,
+          ).withValues(alpha: 0.78 * eclipseStrength),
+      );
+      canvas.restore();
+    }
+    canvas.drawCircle(
+      moon,
+      24,
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.3)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.7,
+    );
+
+    final roof = Path()
+      ..moveTo(0, size.height - 32)
+      ..lineTo(size.width * 0.13, size.height - 32)
+      ..lineTo(size.width * 0.13, size.height - 58)
+      ..lineTo(size.width * 0.27, size.height - 58)
+      ..lineTo(size.width * 0.27, size.height - 40)
+      ..lineTo(size.width * 0.43, size.height - 40)
+      ..lineTo(size.width * 0.47, size.height - 66)
+      ..lineTo(size.width * 0.51, size.height - 40)
+      ..lineTo(size.width * 0.69, size.height - 40)
+      ..lineTo(size.width * 0.69, size.height - 52)
+      ..lineTo(size.width * 0.82, size.height - 52)
+      ..lineTo(size.width * 0.82, size.height - 36)
+      ..lineTo(size.width, size.height - 36)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+    canvas.drawPath(roof, Paint()..color = const Color(0xFF08060B));
+    canvas.drawPath(
+      roof,
+      Paint()
+        ..color = _FollowSkyObservationPresentationState._glow.withValues(
+          alpha: 0.16,
+        )
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(0, size.height - 92, size.width, 92),
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[
+            Colors.transparent,
+            const Color(0xFF0A0808).withValues(alpha: 0.5),
+            _FollowSkyObservationPresentationState._velvet,
+          ],
+        ).createShader(Rect.fromLTWH(0, size.height - 92, size.width, 92)),
+    );
+  }
+
+  void _paintLabel(
+    Canvas canvas,
+    String text,
+    Offset position, {
+    required Color color,
+    bool centered = false,
+    double fontSize = 9.3,
+  }) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: color,
+          fontFamily: _FollowSkyObservationPresentationState._ui,
+          fontSize: fontSize,
+          letterSpacing: 1.2,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    painter.paint(
+      canvas,
+      centered ? position.translate(-painter.width / 2, 0) : position,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _SkyDomePainter oldDelegate) =>
+      oldDelegate.selectedAt != selectedAt || oldDelegate.data != data;
+}
+
+SkyPositionSample _interpolatePosition(
+  List<SkyPositionSample> samples,
+  DateTime at,
+) {
+  final sorted = samples.toList(growable: false)
+    ..sort((a, b) => a.at.compareTo(b.at));
+  if (!at.isAfter(sorted.first.at)) return sorted.first;
+  if (!at.isBefore(sorted.last.at)) return sorted.last;
+  for (var index = 0; index < sorted.length - 1; index++) {
+    final left = sorted[index];
+    final right = sorted[index + 1];
+    if (at.isAfter(right.at)) continue;
+    final span = right.at.difference(left.at).inMilliseconds;
+    final elapsed = at.difference(left.at).inMilliseconds;
+    final fraction = span == 0 ? 0.0 : elapsed / span;
+    return SkyPositionSample(
+      at: at,
+      azimuthDegrees:
+          left.azimuthDegrees +
+          (right.azimuthDegrees - left.azimuthDegrees) * fraction,
+      altitudeDegrees:
+          left.altitudeDegrees +
+          (right.altitudeDegrees - left.altitudeDegrees) * fraction,
+    );
+  }
+  return sorted.last;
+}
+
+double _fractionAt(DateTime at, DateTime rise, DateTime transit, DateTime set) {
+  if (!at.isAfter(rise)) return 0;
+  if (!at.isBefore(set)) return 1;
+  if (!at.isAfter(transit)) {
+    return 0.5 *
+        at.difference(rise).inMilliseconds /
+        transit.difference(rise).inMilliseconds;
+  }
+  return 0.5 +
+      0.5 *
+          at.difference(transit).inMilliseconds /
+          set.difference(transit).inMilliseconds;
+}
+
+DateTime _timeAtFraction(
+  double fraction,
+  DateTime rise,
+  DateTime transit,
+  DateTime set,
+) {
+  final milliseconds = fraction <= 0.5
+      ? transit.difference(rise).inMilliseconds * (fraction / 0.5)
+      : set.difference(transit).inMilliseconds * ((fraction - 0.5) / 0.5);
+  return (fraction <= 0.5 ? rise : transit).add(
+    Duration(milliseconds: milliseconds.round()),
+  );
+}
+
+String _formatTime(DateTime value) {
+  final period = value.hour >= 12 ? 'PM' : 'AM';
+  final hour = value.hour == 0
+      ? 12
+      : value.hour > 12
+      ? value.hour - 12
+      : value.hour;
+  return '$hour:${value.minute.toString().padLeft(2, '0')} $period';
+}
+
+String _formatTimeShort(DateTime value) {
+  final hour = value.hour == 0
+      ? 12
+      : value.hour > 12
+      ? value.hour - 12
+      : value.hour;
+  return '$hour:${value.minute.toString().padLeft(2, '0')}';
+}
+
+String _phaseLabel(
+  DateTime selected,
+  DateTime maximum,
+  DateTime rise,
+  DateTime transit,
+  DateTime set,
+) {
+  final minutesFromMaximum = selected.difference(maximum).inMinutes.abs();
+  if (minutesFromMaximum < 10) return 'Eclipse maximum';
+  if (selected.hour == 1 && selected.minute < 16) return 'Highest';
+  final fraction = _fractionAt(selected, rise, transit, set);
+  if (fraction < 0.08) return 'Rising';
+  if (fraction < 0.5) return 'Climbing';
+  if (fraction < 0.92) return 'Descending';
+  return 'Setting';
+}
+
+String _longCompassDirection(double azimuth) {
+  const directions = <String>[
+    'Due north',
+    'North-northeast',
+    'Northeast',
+    'East-northeast',
+    'Due east',
+    'East-southeast',
+    'Southeast',
+    'South-southeast',
+    'Due south',
+    'South-southwest',
+    'Southwest',
+    'West-southwest',
+    'Due west',
+    'West-northwest',
+    'Northwest',
+    'North-northwest',
+  ];
+  return directions[((azimuth / 22.5).round()) % directions.length];
+}
