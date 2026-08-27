@@ -118,7 +118,7 @@ class _FollowSkyObservationPresentationState
               ),
               CustomScrollView(
                 key: const ValueKey<String>('follow-sky-presentation-body'),
-                physics: const BouncingScrollPhysics(),
+                physics: const ClampingScrollPhysics(),
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
                 slivers: <Widget>[
@@ -141,9 +141,6 @@ class _FollowSkyObservationPresentationState
                       ),
                       child: _buildBody(),
                     ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: SizedBox(height: instrumentHeight * 0.64),
                   ),
                 ],
               ),

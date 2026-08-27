@@ -148,7 +148,11 @@ void main() {
       findsOneWidget,
     );
 
-    await tester.ensureVisible(find.text('Observed'));
+    await tester.drag(
+      find.byKey(const ValueKey<String>('follow-sky-presentation-body')),
+      const Offset(0, -2000),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Observed'));
     await tester.pump();
     expect(find.text('KEPT'), findsOneWidget);
@@ -252,10 +256,10 @@ void main() {
     },
   );
 
-  testWidgets('ENDURE foreground rises over the lunar instrument', (
+  testWidgets('foreground clamps at its bottom and reveals the hero downward', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 760);
+    tester.view.physicalSize = const Size(390, 317);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -275,17 +279,36 @@ void main() {
     final foreground = find.byKey(
       const ValueKey<String>('follow-sky-foreground-layer'),
     );
-    final initialTop = tester.getTopLeft(foreground).dy;
-    expect(initialTop, greaterThan(320));
-    expect(initialTop, lessThan(420));
-
-    await tester.drag(
-      find.byKey(const ValueKey<String>('follow-sky-presentation-body')),
-      const Offset(0, -330),
+    final presentationBody = find.byKey(
+      const ValueKey<String>('follow-sky-presentation-body'),
     );
+    final scrollView = tester.widget<CustomScrollView>(presentationBody);
+    expect(scrollView.physics, isA<ClampingScrollPhysics>());
+
+    final initialRect = tester.getRect(foreground);
+    expect(initialRect.top, greaterThan(300));
+
+    await tester.drag(presentationBody, const Offset(0, -2000));
     await tester.pumpAndSettle();
 
-    expect(tester.getTopLeft(foreground).dy, lessThan(80));
+    final terminalRect = tester.getRect(foreground);
+    expect(terminalRect.top, lessThan(0));
+    expect(terminalRect.bottom, closeTo(317, 0.1));
+    expect(tester.getRect(find.text('Observed')).bottom, lessThan(317));
+
+    await tester.drag(presentationBody, const Offset(0, -500));
+    await tester.pumpAndSettle();
+
+    final clampedRect = tester.getRect(foreground);
+    expect(clampedRect.top, closeTo(terminalRect.top, 0.1));
+    expect(clampedRect.bottom, closeTo(terminalRect.bottom, 0.1));
+
+    await tester.drag(presentationBody, const Offset(0, 2000));
+    await tester.pumpAndSettle();
+
+    final revealedRect = tester.getRect(foreground);
+    expect(revealedRect.top, closeTo(initialRect.top, 0.1));
+    expect(revealedRect.top, greaterThan(terminalRect.top));
     expect(find.text('ENDURE'), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('follow-sky-hero-drag')),
