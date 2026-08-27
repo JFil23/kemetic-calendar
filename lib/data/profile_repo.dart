@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' show DateUtils;
 import 'package:mobile/core/supabase_auth_retry.dart';
 import 'package:mobile/features/calendar/dawn_house_rite_flow.dart';
+import 'package:mobile/features/calendar/maat_flow_catalog.dart';
 import 'package:mobile/utils/detail_sanitizer.dart';
 import 'package:mobile/utils/event_cid_util.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart' show KemeticMath;
@@ -1195,6 +1196,13 @@ class ProfileRepo {
       if (userId == null) return null;
       final existingFlowId = await getSavedFlowPostFlowId(post);
       if (existingFlowId != null) return existingFlowId;
+      ensureNewFlowCreationAllowedByMaatCatalog(
+        flowName: post.name,
+        flowNotes: post.notes,
+        flowKey: post.payloadJson?['flow_key']?.toString(),
+        events:
+            post.payloadJson?['events'] as List<dynamic>? ?? const <dynamic>[],
+      );
 
       DateTime? parseDate(String? raw) {
         if (raw == null) return null;

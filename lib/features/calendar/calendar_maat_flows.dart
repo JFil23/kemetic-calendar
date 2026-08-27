@@ -25,6 +25,27 @@ const Key kMaatFlowCategoryLivingInMaatTabKey = ValueKey<String>(
   'maat_flow_category_living_in_maat_tab',
 );
 
+@visibleForTesting
+Key maatFlowCatalogCardKeyForTesting(String flowKey) =>
+    ValueKey<String>('maat_flow_catalog_card_$flowKey');
+
+@visibleForTesting
+List<String> knownMaatFlowTemplateKeysForTesting() => List<String>.unmodifiable(
+  _kMaatFlowTemplates.map((template) => template.key),
+);
+
+@visibleForTesting
+List<String> coreMaatFlowTemplateKeysForTesting() => List<String>.unmodifiable(
+  _kCoreMaatFlowTemplates.map((template) => template.key),
+);
+
+@visibleForTesting
+Map<String, String> coreMaatFlowTemplateTitlesForTesting() =>
+    Map<String, String>.unmodifiable(<String, String>{
+      for (final template in _kCoreMaatFlowTemplates)
+        template.key: template.title,
+    });
+
 class _MaatExpandableEventDetail extends StatefulWidget {
   const _MaatExpandableEventDetail({
     required this.expanded,
@@ -286,7 +307,7 @@ Widget buildMaatFlowsListPreviewForTesting({
 }) {
   return _MaatFlowsListPage(
     title: _kMaatFlowsDisplayTitle,
-    templates: _kMaatFlowTemplates,
+    templates: _kCoreMaatFlowTemplates,
     hasActiveForKey: (key) =>
         joinedKeys.contains(key) ||
         CalendarPage._hasRememberedJoinedMaatTemplate(key),
@@ -590,12 +611,23 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
     final waiting = entries
         .where((entry) => !entry.status.joined)
         .toList(growable: false);
-    final filteredWaiting = _selectedWaitingCategory == null
+    final visibleCategories = _kMaatFlowLibraryCategories
+        .where(
+          (category) => waiting.any(
+            (entry) => entry.template.libraryCategory == category,
+          ),
+        )
+        .toList(growable: false);
+    final selectedWaitingCategory =
+        visibleCategories.contains(_selectedWaitingCategory)
+        ? _selectedWaitingCategory
+        : null;
+    final filteredWaiting = selectedWaitingCategory == null
         ? waiting
         : waiting
               .where(
                 (entry) =>
-                    entry.template.libraryCategory == _selectedWaitingCategory,
+                    entry.template.libraryCategory == selectedWaitingCategory,
               )
               .toList(growable: false);
     final hasWaitingSection = waiting.isNotEmpty;
@@ -698,7 +730,8 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
                       return _MaatFlowSectionLabel(label: label);
                     case _MaatFlowCategoryTabsVisual():
                       return _MaatFlowCategoryTabs(
-                        selected: _selectedWaitingCategory,
+                        categories: visibleCategories,
+                        selected: selectedWaitingCategory,
                         onSelected: _toggleWaitingCategory,
                       );
                     case _MaatFlowCardVisual(:final entry):
@@ -709,6 +742,9 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
                               : MaatFlowListTokens.unjoinedCardGap,
                         ),
                         child: _MaatFlowCard(
+                          key: maatFlowCatalogCardKeyForTesting(
+                            entry.template.key,
+                          ),
                           entry: entry,
                           onTap: () async =>
                               _handlePickTemplate(entry.template, revealDetail),
@@ -896,10 +932,12 @@ class _MaatFlowSectionLabel extends StatelessWidget {
 
 class _MaatFlowCategoryTabs extends StatelessWidget {
   const _MaatFlowCategoryTabs({
+    required this.categories,
     required this.selected,
     required this.onSelected,
   });
 
+  final List<_MaatFlowLibraryCategory> categories;
   final _MaatFlowLibraryCategory? selected;
   final ValueChanged<_MaatFlowLibraryCategory> onSelected;
 
@@ -909,7 +947,7 @@ class _MaatFlowCategoryTabs extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(4, 0, 4, 16),
       child: Row(
         children: [
-          for (final category in _kMaatFlowLibraryCategories)
+          for (final category in categories)
             Expanded(
               child: _MaatFlowCategoryTab(
                 key: _maatFlowCategoryTabKey(category),
@@ -1004,7 +1042,7 @@ Key _maatFlowCategoryTabKey(_MaatFlowLibraryCategory category) {
 }
 
 class _MaatFlowCard extends StatelessWidget {
-  const _MaatFlowCard({required this.entry, required this.onTap});
+  const _MaatFlowCard({required this.entry, required this.onTap, super.key});
 
   final _MaatFlowListEntry entry;
   final VoidCallback onTap;
@@ -4422,7 +4460,7 @@ class _MaatFlowTemplateDetailPageState
                                 padding: EdgeInsets.zero,
                                 children: [
                                   const GlossyText(
-                                    text: 'Join Follow the sky',
+                                    text: 'Join Follow the Sky',
                                     gradient: _maatBadgeGoldGloss,
                                     style: TextStyle(
                                       fontSize: 18,
@@ -4646,7 +4684,7 @@ class _MaatFlowTemplateDetailPageState
                                           ).showSnackBar(
                                             const SnackBar(
                                               content: Text(
-                                                'Could not join Follow the sky. Please retry.',
+                                                'Could not join Follow the Sky. Please retry.',
                                               ),
                                             ),
                                           );

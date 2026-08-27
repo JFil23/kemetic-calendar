@@ -49,7 +49,7 @@ class FollowSkyDetailPage extends StatefulWidget {
     this.initialCatalog,
     this.now,
     this.standalone = true,
-    this.title = 'Follow the sky',
+    this.title = 'Follow the Sky',
     this.subtitle = FollowSkyV11Tokens.heroSubtitle,
     this.onHierarchyChanged,
   });

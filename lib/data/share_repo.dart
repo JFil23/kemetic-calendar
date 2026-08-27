@@ -11,6 +11,7 @@ import '../core/kemetic_converter.dart';
 import 'share_models.dart';
 import 'user_events_repo.dart';
 import '../features/calendar/dawn_house_rite_flow.dart';
+import '../features/calendar/maat_flow_catalog.dart';
 import '../telemetry/telemetry.dart';
 import '../utils/event_cid_util.dart';
 import '../utils/flow_visibility.dart';
@@ -2174,6 +2175,14 @@ class ShareRepo {
         _cleanNullableString(sourceFlow['name']) ??
         _cleanNullableString(payload?['title']) ??
         'Shared Flow';
+    if (existingFlowId == null) {
+      ensureNewFlowCreationAllowedByMaatCatalog(
+        flowName: name,
+        flowNotes: importedNotes,
+        flowKey: sourceFlow['flow_key']?.toString(),
+        events: sourceEvents,
+      );
+    }
     final targetFlowId = await repo.upsertFlow(
       id: existingFlowId,
       name: name,

@@ -151,6 +151,7 @@ import 'maat_flow_response_journal_blocks.dart';
 import 'maat_flow_response_models.dart';
 import 'maat_flow_response_resolver.dart';
 import 'maat_flow_identity.dart';
+import 'maat_flow_catalog.dart';
 import 'track_sky_flow.dart';
 import 'follow_the_sky/follow_the_sky.dart';
 import 'dawn_house_rite_flow.dart';
@@ -3760,7 +3761,7 @@ class _MaatFlowTemplate {
 final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
   _MaatFlowTemplate(
     key: 'track-the-sky',
-    title: 'Follow the sky',
+    title: 'Follow the Sky',
     overview:
         'Follow the Sky places major visible sky events on the calendar with simple witness prompts. Step outside when you can, notice what changed above you, and keep one clear line of observation in Kemetic time.',
     subtitle:
@@ -4228,6 +4229,11 @@ final List<_MaatFlowTemplate> _kMaatFlowTemplates = [
     kind: _MaatFlowTemplateKind.maatDecan,
   ),
 ];
+
+final List<_MaatFlowTemplate> _kCoreMaatFlowTemplates =
+    List<_MaatFlowTemplate>.unmodifiable(
+      _kMaatFlowTemplates.where((template) => isCoreMaatFlowKey(template.key)),
+    );
 
 /* ─────────────────────────── CALENDAR PAGE (flows + notes) ─────────────────────────── */
 
@@ -7618,6 +7624,7 @@ class CalendarPage extends StatefulWidget {
     List<ReadingHouseSitting>? readingHouseSittings,
     String? eveningThresholdInitialCarry,
   }) async {
+    if (!isMaatFlowNewJoinAllowed(template.key)) return -1;
     final personalCalendarId =
         personalCalendarIdOverride ?? await _loadHeadlessPersonalCalendarId();
     int stageResult(FlowJoinResult result) => _stageHeadlessMaatFlowJoinResult(
@@ -8419,7 +8426,7 @@ class CalendarPage extends StatefulWidget {
     final restoredTemplate = initialTemplate;
     return _MaatFlowsListPageWithSnapshot(
       title: _kMaatFlowsDisplayTitle,
-      templates: _kMaatFlowTemplates,
+      templates: _kCoreMaatFlowTemplates,
       initialSnapshot: cachedSnapshot,
       loadSnapshot: () async {
         final rows = await flowsRepo.refreshMyFiledFlows();
@@ -9556,6 +9563,12 @@ class CalendarPage extends StatefulWidget {
   }) async {
     final rawEvents =
         data.share.payloadJson?['events'] as List<dynamic>? ?? const [];
+    ensureNewFlowCreationAllowedByMaatCatalog(
+      flowName: data.name,
+      flowNotes: data.notes,
+      flowKey: data.share.payloadJson?['flow_key']?.toString(),
+      events: rawEvents,
+    );
     final rules = _parseImportedFlowRules(data.rules);
     if (rawEvents.isEmpty && rules.isEmpty) {
       throw StateError('Shared flow has no events or materializable rules.');
@@ -17272,7 +17285,7 @@ class CalendarPageState extends State<CalendarPage>
         backgroundColor: Colors.transparent,
         builder: (sheetContext) {
           return _FirstMaatFlowOnboardingSheet(
-            templates: _kMaatFlowTemplates,
+            templates: _kCoreMaatFlowTemplates,
             onAddFlow: (template) async {
               final id = await _addMaatFlowInstance(
                 template: template,
@@ -27486,7 +27499,7 @@ class CalendarPageState extends State<CalendarPage>
     final restoredTemplate = initialTemplate;
     return _MaatFlowsListPage(
       title: _kMaatFlowsDisplayTitle,
-      templates: _kMaatFlowTemplates,
+      templates: _kCoreMaatFlowTemplates,
       hasActiveForKey: (key) => _hasActiveMaatInstanceFor(key),
       progressForKey: _maatCompletionStatusForActiveInstance,
       onPickTemplate: (tpl, revealDetail) async {

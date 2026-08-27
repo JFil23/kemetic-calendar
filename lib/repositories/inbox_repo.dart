@@ -12,6 +12,7 @@ import '../data/share_models.dart';
 import '../data/share_repo.dart';
 import '../data/user_events_repo.dart';
 import '../features/calendar/calendar_page.dart' show CalendarPage, KemeticMath;
+import '../features/calendar/maat_flow_catalog.dart';
 import '../telemetry/telemetry.dart';
 import '../utils/event_cid_util.dart';
 
@@ -627,6 +628,12 @@ class InboxRepo {
       if (existingFlowId != null) {
         return existingFlowId;
       }
+      ensureNewFlowCreationAllowedByMaatCatalog(
+        flowName: name,
+        flowNotes: notes,
+        flowKey: payloadJson['flow_key']?.toString(),
+        events: payloadJson['events'] as List<dynamic>? ?? const <dynamic>[],
+      );
       final flowId = await userEventsRepo.upsertFlow(
         name: name,
         color: color,

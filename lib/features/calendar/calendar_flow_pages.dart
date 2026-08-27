@@ -790,6 +790,17 @@ class _FlowPreviewPageState extends State<_FlowPreviewPage> {
     DateTime dateOnly(DateTime d) => DateUtils.dateOnly(d);
     final targetStart = dateOnly(startDate);
     final events = await _eventsRepo.getEventsForFlow(template.id);
+    ensureNewFlowCreationAllowedByMaatCatalog(
+      flowName: template.name,
+      flowNotes: template.notes,
+      events: <Map<String, dynamic>>[
+        for (final event in events)
+          <String, dynamic>{
+            'action_id': event.actionId,
+            'behavior_payload': event.behaviorPayload,
+          },
+      ],
+    );
 
     DateTime minDate(DateTime a, DateTime b) => a.isBefore(b) ? a : b;
     DateTime maxDate(DateTime a, DateTime b) => a.isAfter(b) ? a : b;
@@ -4958,7 +4969,7 @@ class _FlowHubPageState extends State<_FlowHubPage> {
     final savedCount = visibleSnapshot?.savedFlowIds.length ?? 0;
     final joinedMaatCount = visibleSnapshot == null
         ? 0
-        : _kMaatFlowTemplates
+        : _kCoreMaatFlowTemplates
               .where(
                 (template) =>
                     CalendarPage._visibleSnapshotHasActiveMaatInstanceFor(
@@ -5036,7 +5047,7 @@ class _FlowHubPageState extends State<_FlowHubPage> {
                         subtitle:
                             'Practices offered by the tradition. Each one a\npath you can walk.',
                         joinedText:
-                            '$joinedMaatCount of ${_kMaatFlowTemplates.length}',
+                            '$joinedMaatCount of ${_kCoreMaatFlowTemplates.length}',
                         onTap: _handleOpenMaatFlows,
                       ),
                       const SizedBox(height: 14),

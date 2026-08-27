@@ -192,7 +192,9 @@ class FollowSkyHero extends StatelessWidget {
                 const _FollowSkyHeroGlyph(),
                 const SizedBox(height: 16),
                 Text(
-                  title == 'Follow the sky' ? 'Follow\nthe sky' : title,
+                  title.toLowerCase() == 'follow the sky'
+                      ? 'Follow\nthe Sky'
+                      : title,
                   style: const TextStyle(
                     color: FollowSkyV11Tokens.gold,
                     fontFamily: MaatFlowListTokens.fontFamily,

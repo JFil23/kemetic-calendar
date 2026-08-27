@@ -17,6 +17,30 @@ import 'package:mobile/features/calendar/the_weighing_flow.dart';
 
 void main() {
   group('resolveMaatFlowKind', () {
+    test('keeps all 33 historical identities recognized', () {
+      expect(MaatFlowKind.values, hasLength(33));
+      expect(
+        resolveMaatFlowKind(flowNotes: 'maat=the-moon-return'),
+        MaatFlowKind.moonReturn,
+      );
+      expect(
+        resolveMaatFlowKind(flowNotes: 'maat=the-decan-watch'),
+        MaatFlowKind.decanWatch,
+      );
+      expect(
+        resolveMaatFlowKind(flowNotes: 'maat=the-course'),
+        MaatFlowKind.theCourse,
+      );
+      expect(
+        resolveMaatFlowKind(flowNotes: 'maat=evening_threshold'),
+        MaatFlowKind.eveningThreshold,
+      );
+      expect(
+        resolveMaatFlowKind(flowName: 'The Closing'),
+        MaatFlowKind.eveningThresholdRite,
+      );
+    });
+
     test('resolves all registered flow keys from encoded flow notes', () {
       for (final kind in MaatFlowKind.values) {
         expect(

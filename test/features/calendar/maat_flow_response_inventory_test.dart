@@ -300,6 +300,34 @@ void main() {
       );
     });
 
+    test(
+      'representative non-core historical response specs remain available',
+      () {
+        expect(
+          resolveMaatFlowResponseSpecs(
+            flowKey: kMoonReturnFlowKey,
+            surface: MaatFlowResponseSurface.calendarSheet,
+            eventKey: 'new',
+          ),
+          isNotEmpty,
+        );
+        expect(
+          resolveMaatFlowResponseSpecs(
+            flowKey: kTheCourseFlowKey,
+            surface: MaatFlowResponseSurface.calendarSheet,
+          ),
+          isNotEmpty,
+        );
+        expect(
+          resolveMaatFlowResponseSpecs(
+            flowKey: kDecanWatchFlowKey,
+            surface: MaatFlowResponseSurface.calendarSheet,
+          ),
+          isNotEmpty,
+        );
+      },
+    );
+
     test('remaining decan flows stay assigned to named expansion phases', () {
       expect(_phaseKeys('Phase 4A'), isEmpty);
       expect(_phaseKeys('Phase 4B'), isEmpty);

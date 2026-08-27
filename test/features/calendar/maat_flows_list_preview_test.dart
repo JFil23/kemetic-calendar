@@ -100,6 +100,70 @@ void main() {
     );
   });
 
+  testWidgets('Ma’at product catalog renders exactly the 13 core templates', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 16000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    const expectedTitles = <String, String>{
+      'track-the-sky': 'Follow the Sky',
+      'dawn-house-rite': 'Dawn House Rite',
+      'evening-threshold-rite': 'The Closing',
+      'the-offering-table': 'The Offering Table',
+      'the-weighing': 'The Weighing',
+      'the-kept-word': 'The Kept Word',
+      'the-djed': 'The Djed',
+      'the-tending': 'The Tending',
+      'the-first-arrangement': 'The First Arrangement',
+      'the-clearing': 'The Clearing',
+      'the-reading-house': 'The Reading House',
+      'the-wag': 'The Wag',
+      'the-days-outside-the-year': 'The Days Outside the Year',
+    };
+
+    expect(knownMaatFlowTemplateKeysForTesting(), hasLength(33));
+    expect(
+      coreMaatFlowTemplateKeysForTesting().toSet(),
+      expectedTitles.keys.toSet(),
+    );
+    expect(coreMaatFlowTemplateTitlesForTesting(), expectedTitles);
+    expect(knownMaatFlowCategoryForTesting('the-moon-return'), isNotNull);
+    expect(knownMaatFlowCategoryForTesting('the-course'), isNotNull);
+    expect(knownMaatFlowCategoryForTesting('the-decan-watch'), isNotNull);
+
+    await tester.pumpWidget(
+      MaterialApp(home: buildMaatFlowsListPreviewForTesting()),
+    );
+    await tester.pump();
+
+    for (final key in expectedTitles.keys) {
+      expect(
+        find.byKey(maatFlowCatalogCardKeyForTesting(key)),
+        findsOneWidget,
+        reason: key,
+      );
+    }
+    for (final key in <String>[
+      'the-course',
+      'the-moon-return',
+      'the-decan-watch',
+      'the-open-hand',
+      'evening_threshold',
+    ]) {
+      expect(
+        find.byKey(maatFlowCatalogCardKeyForTesting(key)),
+        findsNothing,
+        reason: key,
+      );
+    }
+    expect(find.byKey(kMaatFlowCategoryDailyRhythmTabKey), findsOneWidget);
+    expect(find.byKey(kMaatFlowCategoryInnerWorkTabKey), findsOneWidget);
+    expect(find.byKey(kMaatFlowCategoryLivingInMaatTabKey), findsOneWidget);
+  });
+
   testWidgets('Ma’at flows list groups joined flows above waiting flows', (
     tester,
   ) async {
@@ -140,7 +204,7 @@ void main() {
     expect(find.text('3 of 10'), findsNothing);
     expect(find.text('30%'), findsNothing);
     expect(find.text('The Weighing'), findsOneWidget);
-    expect(find.text('Follow the sky'), findsOneWidget);
+    expect(find.text('Follow the Sky'), findsOneWidget);
     expect(find.text('Dawn House Rite'), findsOneWidget);
   });
 
@@ -201,7 +265,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('Dawn House Rite'), findsOneWidget);
-    expect(find.text('Follow the sky'), findsOneWidget);
+    expect(find.text('Follow the Sky'), findsOneWidget);
     expect(find.text('The Weighing'), findsOneWidget);
 
     await tester.tap(find.byKey(kMaatFlowCategoryInnerWorkTabKey));
@@ -209,13 +273,13 @@ void main() {
 
     expect(find.text('The Weighing'), findsOneWidget);
     expect(find.text('Dawn House Rite'), findsNothing);
-    expect(find.text('Follow the sky'), findsNothing);
+    expect(find.text('Follow the Sky'), findsNothing);
 
     await tester.tap(find.byKey(kMaatFlowCategoryInnerWorkTabKey));
     await tester.pumpAndSettle();
 
     expect(find.text('Dawn House Rite'), findsOneWidget);
-    expect(find.text('Follow the sky'), findsOneWidget);
+    expect(find.text('Follow the Sky'), findsOneWidget);
     expect(find.text('The Weighing'), findsOneWidget);
   });
 

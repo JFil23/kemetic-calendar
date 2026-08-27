@@ -170,3 +170,11 @@ _MaatFlowTemplate? _myFlowMaatTemplateFor(MaatFlowKind kind) {
   }
   return null;
 }
+
+@visibleForTesting
+String? knownMaatFlowCategoryForTesting(String flowKey) {
+  final kind = resolveMaatFlowKind(
+    behaviorPayload: <String, dynamic>{'flow_key': flowKey},
+  );
+  return kind == null ? null : _resolveMyFlowMaatCategoryLabel(kind);
+}
