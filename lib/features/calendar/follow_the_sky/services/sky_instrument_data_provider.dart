@@ -147,7 +147,7 @@ class CatalogSkyInstrumentDataProvider implements SkyInstrumentDataProvider {
       transit: null,
       set: null,
       moonSamples: const <SkyPositionSample>[],
-      eclipseMarkers: const <DateTime>[],
+      eclipseContacts: const <LunarEclipseContact>[],
       phaseInstant: instant,
       provenance: provenance,
       visibility: visibility,

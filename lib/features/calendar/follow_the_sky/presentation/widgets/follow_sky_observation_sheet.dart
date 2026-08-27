@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -7,27 +6,31 @@ import 'package:image_picker/image_picker.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:timezone/data/latest_all.dart' as tzdata;
+import 'package:timezone/timezone.dart' as tz;
 
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/calendar_completion.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 
+import '../../domain/observing_place.dart';
 import '../../domain/sky_instrument_data.dart';
 import '../../domain/turning_record.dart';
 import '../../services/follow_sky_photo_store.dart';
+import '../../services/full_moon_instrument_data_provider.dart';
 import '../../services/observing_place_store.dart';
 import '../../services/sky_catalog_repository.dart';
-import '../../services/sky_instrument_data_provider.dart';
 import '../../services/turning_journal_projector.dart';
 import '../../services/turning_record_repository.dart';
+import 'lunar_path_instrument.dart';
 
 typedef FollowSkyTimeCommit = Future<bool> Function(DateTime newStartLocal);
 typedef FollowSkyCompletionCommit =
     Future<void> Function(CompletionStatus status);
 
-class FollowSkyObservationPanel extends StatefulWidget {
-  const FollowSkyObservationPanel({
+class FollowSkyObservationSheet extends StatefulWidget {
+  const FollowSkyObservationSheet({
     super.key,
     required this.clientEventId,
     required this.completionIdentity,
@@ -41,6 +44,8 @@ class FollowSkyObservationPanel extends StatefulWidget {
     required this.onCommitCompletion,
     this.onWriteJournalResponse,
     this.completionPickerStyle,
+    this.onUseMyLocation,
+    this.onChoosePlace,
   });
 
   final String clientEventId;
@@ -55,13 +60,15 @@ class FollowSkyObservationPanel extends StatefulWidget {
   final FollowSkyCompletionCommit onCommitCompletion;
   final MaatJournalResponseBlockWriter? onWriteJournalResponse;
   final CalendarCompletionPickerStyle? completionPickerStyle;
+  final Future<ObservingPlace?> Function()? onUseMyLocation;
+  final Future<ObservingPlace?> Function()? onChoosePlace;
 
   @override
-  State<FollowSkyObservationPanel> createState() =>
-      _FollowSkyObservationPanelState();
+  State<FollowSkyObservationSheet> createState() =>
+      _FollowSkyObservationSheetState();
 }
 
-class _FollowSkyObservationPanelState extends State<FollowSkyObservationPanel> {
+class _FollowSkyObservationSheetState extends State<FollowSkyObservationSheet> {
   static const Color _gold = Color(0xFFFFD486);
   static const Color _blue = Color(0xFF617CAC);
 
@@ -104,7 +111,7 @@ class _FollowSkyObservationPanelState extends State<FollowSkyObservationPanel> {
   }
 
   @override
-  void didUpdateWidget(covariant FollowSkyObservationPanel oldWidget) {
+  void didUpdateWidget(covariant FollowSkyObservationSheet oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.clientEventId != widget.clientEventId ||
         oldWidget.skyEventId != widget.skyEventId) {
@@ -153,7 +160,7 @@ class _FollowSkyObservationPanelState extends State<FollowSkyObservationPanel> {
       }
       final night = catalog.observingNight(anchor);
       final place = await const ObservingPlaceStore().load();
-      final instrument = await const CatalogSkyInstrumentDataProvider().resolve(
+      final instrument = await FullMoonInstrumentDataProvider().resolve(
         night: night,
         place: place,
       );
@@ -473,18 +480,6 @@ class _FollowSkyObservationPanelState extends State<FollowSkyObservationPanel> {
     return value;
   }
 
-  SkyViewingTimeline get _timeline => SkyViewingTimeline(
-    start: _instrument!.viewingWindowStart,
-    end: _instrument!.viewingWindowEnd,
-  );
-
-  int get _viewingWindowMinutes => math.max(1, _timeline.durationMinutes);
-
-  int get _previewOffsetMinutes => _timeline.offsetFor(_previewTime);
-
-  DateTime _timeAtOffset(int offsetMinutes) =>
-      _timeline.timeAtOffset(offsetMinutes);
-
   String _formatTime(DateTime value) {
     final hour = value.hour;
     final minutes = value.minute;
@@ -511,6 +506,144 @@ class _FollowSkyObservationPanelState extends State<FollowSkyObservationPanel> {
     return '${months[value.month - 1]} ${value.day} · ${_formatTime(value)}';
   }
 
+  Future<void> _useMyLocation() async {
+    final resolver = widget.onUseMyLocation;
+    if (resolver == null) {
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Device location is not enabled here yet. Choose a place instead.',
+          ),
+        ),
+      );
+      return;
+    }
+    final place = await resolver();
+    if (place == null) return;
+    await const ObservingPlaceStore().save(place);
+    await _load();
+  }
+
+  Future<void> _choosePlace() async {
+    final resolver = widget.onChoosePlace;
+    final selected = resolver == null
+        ? await _showManualPlaceDialog()
+        : await resolver();
+    if (selected == null) return;
+    await const ObservingPlaceStore().save(selected);
+    await _load();
+  }
+
+  Future<ObservingPlace?> _showManualPlaceDialog() async {
+    final label = TextEditingController();
+    final latitude = TextEditingController();
+    final longitude = TextEditingController();
+    final timeZone = TextEditingController(text: 'America/Los_Angeles');
+    try {
+      return await showDialog<ObservingPlace>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          backgroundColor: const Color(0xFF111114),
+          title: const Text(
+            'Choose an observing place',
+            style: TextStyle(color: Colors.white),
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: label,
+                  scrollPadding: keyboardManagedTextFieldScrollPadding,
+                  decoration: const InputDecoration(labelText: 'Place name'),
+                ),
+                TextField(
+                  controller: latitude,
+                  scrollPadding: keyboardManagedTextFieldScrollPadding,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
+                  decoration: const InputDecoration(labelText: 'Latitude'),
+                ),
+                TextField(
+                  controller: longitude,
+                  scrollPadding: keyboardManagedTextFieldScrollPadding,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
+                  decoration: const InputDecoration(labelText: 'Longitude'),
+                ),
+                TextField(
+                  controller: timeZone,
+                  scrollPadding: keyboardManagedTextFieldScrollPadding,
+                  decoration: const InputDecoration(
+                    labelText: 'IANA time zone',
+                    hintText: 'America/Los_Angeles',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                final lat = double.tryParse(latitude.text.trim());
+                final lon = double.tryParse(longitude.text.trim());
+                final zone = timeZone.text.trim();
+                final name = label.text.trim();
+                var validTimeZone = false;
+                if (zone.isNotEmpty) {
+                  try {
+                    tzdata.initializeTimeZones();
+                    tz.getLocation(zone);
+                    validTimeZone = true;
+                  } on Object {
+                    validTimeZone = false;
+                  }
+                }
+                if (lat == null ||
+                    lon == null ||
+                    lat < -90 ||
+                    lat > 90 ||
+                    lon < -180 ||
+                    lon > 180 ||
+                    !validTimeZone ||
+                    name.isEmpty) {
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(
+                    const SnackBar(content: Text('Enter a valid place.')),
+                  );
+                  return;
+                }
+                Navigator.pop(
+                  dialogContext,
+                  ObservingPlace(
+                    latitude: lat,
+                    longitude: lon,
+                    ianaTimeZone: zone,
+                    label: name,
+                    source: ObservingPlaceSource.manual,
+                  ),
+                );
+              },
+              child: const Text('Use place'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      label.dispose();
+      latitude.dispose();
+      longitude.dispose();
+      timeZone.dispose();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -520,12 +653,14 @@ class _FollowSkyObservationPanelState extends State<FollowSkyObservationPanel> {
       );
     }
     if (_loadError != null || _instrument == null || _record == null) {
-      return _PanelFrame(
+      final mismatch = _loadError is FullMoonInstrumentProvenanceMismatch;
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'TURNING INSTRUMENT',
+              'FOLLOW THE SKY',
               style: TextStyle(
                 color: _gold,
                 fontSize: 12,
@@ -534,9 +669,11 @@ class _FollowSkyObservationPanelState extends State<FollowSkyObservationPanel> {
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'The instrument could not open. Your calendar event is unchanged.',
-              style: TextStyle(color: Colors.white70, height: 1.35),
+            Text(
+              mismatch
+                  ? 'Catalog and computed astronomy do not agree closely enough. Local geometry is withheld; your calendar event is unchanged.'
+                  : 'The instrument could not open. Your calendar event is unchanged.',
+              style: const TextStyle(color: Colors.white70, height: 1.35),
             ),
             const SizedBox(height: 8),
             TextButton(onPressed: _load, child: const Text('Try again')),
@@ -547,21 +684,38 @@ class _FollowSkyObservationPanelState extends State<FollowSkyObservationPanel> {
 
     final instrument = _instrument!;
     final hasPhoto = _record!.photoObjectPath?.isNotEmpty == true;
-    return _PanelFrame(
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text(
+            'FOLLOW THE SKY',
+            style: TextStyle(
+              color: _gold,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.5,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            widget.title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontFamily: 'CormorantGaramond',
+              fontSize: 30,
+              fontWeight: FontWeight.w600,
+              height: 1.03,
+            ),
+          ),
+          const SizedBox(height: 5),
           Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'TURNING INSTRUMENT',
-                  style: TextStyle(
-                    color: _gold,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 1.5,
-                  ),
+                  '${_formatDateTime(_authoritativeTime)} · ${instrument.visibility.summary}',
+                  style: const TextStyle(color: Colors.white54, fontSize: 11),
                 ),
               ),
               Text(
@@ -579,58 +733,30 @@ class _FollowSkyObservationPanelState extends State<FollowSkyObservationPanel> {
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            instrument.visibility.summary,
-            style: const TextStyle(color: Colors.white54, fontSize: 12),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 18),
           _instrumentWidget(instrument),
-          const SizedBox(height: 6),
-          Center(
-            child: Text(
-              _formatDateTime(_previewTime),
-              style: const TextStyle(
-                color: Colors.white,
-                fontFamily: 'CormorantGaramond',
-                fontSize: 30,
-                fontWeight: FontWeight.w600,
-              ),
+          if (!instrument.visibility.isLocal) ...[
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _useMyLocation,
+                    icon: const Icon(Icons.my_location),
+                    label: const Text('Use my location'),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _choosePlace,
+                    icon: const Icon(Icons.place_outlined),
+                    label: const Text('Choose a place'),
+                  ),
+                ),
+              ],
             ),
-          ),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              activeTrackColor: _gold,
-              inactiveTrackColor: Colors.white12,
-              thumbColor: _gold,
-              overlayColor: _gold.withValues(alpha: 0.14),
-            ),
-            child: Slider(
-              value: _previewOffsetMinutes.toDouble(),
-              min: 0,
-              max: _viewingWindowMinutes.toDouble(),
-              divisions: math.max(1, _viewingWindowMinutes ~/ 5),
-              onChanged: _rescheduling
-                  ? null
-                  : (value) => setState(() {
-                      final snapped = ((value / 5).round() * 5).clamp(
-                        0,
-                        _viewingWindowMinutes,
-                      );
-                      _previewTime = _timeAtOffset(snapped);
-                      _movementMessage = null;
-                    }),
-              onChangeEnd: _rescheduling
-                  ? null
-                  : (value) {
-                      final snapped = ((value / 5).round() * 5).clamp(
-                        0,
-                        _viewingWindowMinutes,
-                      );
-                      unawaited(_commitPreview(_timeAtOffset(snapped)));
-                    },
-            ),
-          ),
+          ],
           if (_rescheduling)
             const Center(
               child: Text(
@@ -651,7 +777,29 @@ class _FollowSkyObservationPanelState extends State<FollowSkyObservationPanel> {
                 ),
               ),
             ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 20),
+          const Text(
+            'YOU CHOSE',
+            style: TextStyle(
+              color: _gold,
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.3,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            widget.intentionSnapshot?.trim().isNotEmpty == true
+                ? '“${widget.intentionSnapshot!.trim()}”'
+                : 'No prior intention was saved for this turning.',
+            style: const TextStyle(
+              color: Colors.white,
+              fontFamily: 'CormorantGaramond',
+              fontSize: 21,
+              height: 1.25,
+            ),
+          ),
+          const SizedBox(height: 18),
           const Text(
             'REFLECT',
             style: TextStyle(
@@ -669,7 +817,8 @@ class _FollowSkyObservationPanelState extends State<FollowSkyObservationPanel> {
             maxLines: 7,
             style: const TextStyle(color: Colors.white, height: 1.35),
             decoration: InputDecoration(
-              hintText: 'What did you encounter?',
+              hintText:
+                  'What did staying true to your choice look like tonight?',
               hintStyle: const TextStyle(color: Colors.white38),
               filled: true,
               fillColor: Colors.black26,
@@ -709,6 +858,11 @@ class _FollowSkyObservationPanelState extends State<FollowSkyObservationPanel> {
           if (_photoPreview != null) const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: _capturing ? null : _capturePhoto,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _gold,
+              side: const BorderSide(color: Color(0x88FFD486)),
+              backgroundColor: Colors.black26,
+            ),
             icon: Icon(hasPhoto ? Icons.flip_camera_ios : Icons.camera_alt),
             label: Text(
               _capturing
@@ -744,7 +898,16 @@ class _FollowSkyObservationPanelState extends State<FollowSkyObservationPanel> {
 
   Widget _instrumentWidget(SkyInstrumentData data) {
     return switch (data) {
-      LunarPathData value => LunarPathInstrument(data: value),
+      LunarPathData value => LunarPathInstrument(
+        data: value,
+        selectedAt: _previewTime,
+        enabled: !_rescheduling,
+        onPreview: (selected) => setState(() {
+          _previewTime = selected;
+          _movementMessage = null;
+        }),
+        onCommit: (selected) => unawaited(_commitPreview(selected)),
+      ),
       MeteorWindowData value => MeteorWindowInstrument(data: value),
       OppositionData value => OppositionInstrument(data: value),
       ElongationData value => ElongationInstrument(data: value),
@@ -753,51 +916,6 @@ class _FollowSkyObservationPanelState extends State<FollowSkyObservationPanel> {
       SolarEclipseData value => SolarEclipseInstrument(data: value),
     };
   }
-}
-
-class _PanelFrame extends StatelessWidget {
-  const _PanelFrame({required this.child});
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF080807),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0x55FFD486)),
-        boxShadow: const <BoxShadow>[
-          BoxShadow(
-            color: Colors.black54,
-            blurRadius: 18,
-            offset: Offset(0, 8),
-          ),
-        ],
-      ),
-      child: child,
-    );
-  }
-}
-
-class LunarPathInstrument extends StatelessWidget {
-  const LunarPathInstrument({super.key, required this.data});
-  final LunarPathData data;
-
-  @override
-  Widget build(BuildContext context) => _TimingOnlyInstrument(
-    title: 'Full Moon timing',
-    detail:
-        'Viewing window ${_instrumentTimeRange(data.viewingWindowStart, data.viewingWindowEnd)}',
-    note:
-        data.rise == null &&
-            data.transit == null &&
-            data.set == null &&
-            data.moonSamples.isEmpty
-        ? 'Moonrise, highest point, moonset, altitude, and azimuth are unavailable.'
-        : 'Sky-path geometry is not enabled in this vertical slice.',
-  );
 }
 
 class MeteorWindowInstrument extends StatelessWidget {

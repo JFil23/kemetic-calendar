@@ -26,7 +26,8 @@ import 'calendar_event_visual_style.dart';
 import 'calendar_reflection_context.dart';
 import 'day_view_chrome.dart';
 import 'follow_the_sky/presentation/widgets/track_sky_event_block_visual.dart';
-import 'follow_the_sky/presentation/widgets/follow_sky_observation_panel.dart';
+import 'follow_the_sky/presentation/widgets/follow_sky_observation_sheet.dart';
+import 'follow_the_sky/presentation/follow_sky_observation_route.dart';
 import 'follow_the_sky/services/track_sky_materializer.dart';
 import 'landscape_month_view.dart';
 import 'maat_flow_identity.dart';
@@ -3408,16 +3409,65 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final followSkyEventId = TrackSkyEventOwnership.skyEventIdFromPayload(
       currentEvent.behaviorPayload,
     );
-    final hasFollowSkyObservationPanel =
+    final hasFollowSkyObservationSheet =
         enableFollowSkyEngagement &&
-        isTrackSky &&
         _detailSheetTargetKey(target) ==
             _detailSheetTargetKey(_currentTarget) &&
         completionContext != null &&
-        followSkyClientEventId != null &&
-        followSkyClientEventId.isNotEmpty &&
+        FollowSkyObservationRoute.matches(
+          flowName: flow?.name,
+          clientEventId: followSkyClientEventId,
+          behaviorPayload: currentEvent.behaviorPayload,
+        ) &&
         followSkyEventId != null &&
         followSkyEventId.isNotEmpty;
+
+    if (hasFollowSkyObservationSheet) {
+      final observation = FollowSkyObservationSheet(
+        key: ValueKey<String>('follow-sky-observation:$followSkyClientEventId'),
+        clientEventId: followSkyClientEventId!,
+        completionIdentity: _completionIdentityForEvent(currentEvent),
+        skyEventId: followSkyEventId,
+        title: currentEvent.title,
+        localDate: DateUtils.dateOnly(
+          KemeticMath.toGregorian(target.ky, target.km, target.kd),
+        ),
+        startMinute: currentEvent.startMin,
+        endMinute: currentEvent.endMin,
+        intentionSnapshot: TrackSkyEventOwnership.intentionFromPayload(
+          currentEvent.behaviorPayload,
+        ),
+        onWriteJournalResponse: widget.onWriteJournalResponse,
+        completionPickerStyle: completionPickerStyle,
+        onCommitStartTime: (startLocal) async {
+          final move = widget.onMoveFollowSkyEventTime;
+          if (move == null) return false;
+          return move(
+            target.ky,
+            target.km,
+            target.kd,
+            currentEvent,
+            startLocal,
+          );
+        },
+        onCommitCompletion: (status) => _commitFollowSkyCompletion(
+          target: target,
+          completion: completionContext,
+          status: status,
+        ),
+      );
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: scrollable
+            ? SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                keyboardDismissBehavior:
+                    ScrollViewKeyboardDismissBehavior.onDrag,
+                child: observation,
+              )
+            : observation,
+      );
+    }
 
     Widget buildMaatCompletionPanel() {
       return Builder(
@@ -3660,47 +3710,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             flowTitle: flow?.name ?? currentEvent.title,
           ),
         ],
-        if (hasFollowSkyObservationPanel) ...[
-          const SizedBox(height: 12),
-          FollowSkyObservationPanel(
-            key: ValueKey<String>(
-              'follow-sky-observation:$followSkyClientEventId',
-            ),
-            clientEventId: followSkyClientEventId,
-            completionIdentity: _completionIdentityForEvent(currentEvent),
-            skyEventId: followSkyEventId,
-            title: currentEvent.title,
-            localDate: DateUtils.dateOnly(
-              KemeticMath.toGregorian(target.ky, target.km, target.kd),
-            ),
-            startMinute: currentEvent.startMin,
-            endMinute: currentEvent.endMin,
-            intentionSnapshot: TrackSkyEventOwnership.intentionFromPayload(
-              currentEvent.behaviorPayload,
-            ),
-            onWriteJournalResponse: widget.onWriteJournalResponse,
-            completionPickerStyle: completionPickerStyle,
-            onCommitStartTime: (startLocal) async {
-              final move = widget.onMoveFollowSkyEventTime;
-              if (move == null) return false;
-              return move(
-                target.ky,
-                target.km,
-                target.kd,
-                currentEvent,
-                startLocal,
-              );
-            },
-            onCommitCompletion: (status) => _commitFollowSkyCompletion(
-              target: target,
-              completion: completionContext,
-              status: status,
-            ),
-          ),
-        ],
-        if (!hasFollowSkyObservationPanel &&
-            hasMaatCompletionPanel &&
-            responseSpecs.isNotEmpty) ...[
+        if (hasMaatCompletionPanel && responseSpecs.isNotEmpty) ...[
           const SizedBox(height: 10),
           buildMaatCompletionPanel(),
         ],
@@ -3774,13 +3784,10 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             kYear: target.ky,
           ),
         ],
-        if (!hasFollowSkyObservationPanel &&
-            hasMaatCompletionPanel &&
-            responseSpecs.isEmpty) ...[
+        if (hasMaatCompletionPanel && responseSpecs.isEmpty) ...[
           const SizedBox(height: 10),
           buildMaatCompletionPanel(),
-        ] else if (!hasFollowSkyObservationPanel &&
-            !hasMaatCompletionPanel) ...[
+        ] else if (!hasMaatCompletionPanel) ...[
           const SizedBox(height: 10),
           buildCalendarCompletionPanel(),
         ],
@@ -3824,17 +3831,24 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       flow,
       completionContext,
     );
+    final isFollowSkyObservation = FollowSkyObservationRoute.matches(
+      flowName: flow?.name,
+      clientEventId: currentEvent.clientEventId,
+      behaviorPayload: currentEvent.behaviorPayload,
+    );
 
     return Row(
       children: [
         const Spacer(),
-        _buildAddReflectionButton(
-          routeContext: rootContext,
-          sheetContext: sheetContext,
-          target: target,
-          sourceType: sourceType,
-        ),
-        const SizedBox(width: 8),
+        if (!isFollowSkyObservation) ...[
+          _buildAddReflectionButton(
+            routeContext: rootContext,
+            sheetContext: sheetContext,
+            target: target,
+            sourceType: sourceType,
+          ),
+          const SizedBox(width: 8),
+        ],
         _buildEventDetailOverflowButton(
           rootContext: rootContext,
           sheetContext: sheetContext,
@@ -5906,8 +5920,7 @@ class _DayViewPageState extends State<DayViewPage> {
                       onDeleteNote: widget.onDeleteNote,
                       onEditNote: widget.onEditNote,
                       onMoveEventTime: widget.onMoveEventTime,
-                      onMoveFollowSkyEventTime:
-                          widget.onMoveFollowSkyEventTime,
+                      onMoveFollowSkyEventTime: widget.onMoveFollowSkyEventTime,
                       onRequestEndChange: widget.onRequestEndChange,
                       onMonthChanged: (ky, km) {
                         // ✅ HANDLE MONTH CHANGE IN DAY VIEW

@@ -15,11 +15,25 @@ class SkyInstrumentProvenance {
     required this.source,
     required this.sourceVersion,
     required this.calculationVersion,
+    this.astronomyEngineVersion,
+    this.catalogPhaseInstant,
+    this.computedPhaseInstant,
+    this.catalogEclipsePeak,
+    this.computedEclipsePeak,
+    this.elevationMeters,
+    this.elevationAssumed = false,
   });
 
   final String source;
   final String sourceVersion;
   final String calculationVersion;
+  final String? astronomyEngineVersion;
+  final DateTime? catalogPhaseInstant;
+  final DateTime? computedPhaseInstant;
+  final DateTime? catalogEclipsePeak;
+  final DateTime? computedEclipsePeak;
+  final double? elevationMeters;
+  final bool elevationAssumed;
 }
 
 class SkyInstrumentVisibility {
@@ -45,6 +59,40 @@ class SkyPositionSample {
   final DateTime at;
   final double azimuthDegrees;
   final double altitudeDegrees;
+}
+
+enum LunarEclipseContactKind { p1, u1, maximum, u4, p4 }
+
+extension LunarEclipseContactKindX on LunarEclipseContactKind {
+  String get wireName => switch (this) {
+    LunarEclipseContactKind.p1 => 'P1',
+    LunarEclipseContactKind.u1 => 'U1',
+    LunarEclipseContactKind.maximum => 'MAX',
+    LunarEclipseContactKind.u4 => 'U4',
+    LunarEclipseContactKind.p4 => 'P4',
+  };
+
+  static LunarEclipseContactKind parse(String value) => switch (value) {
+    'P1' => LunarEclipseContactKind.p1,
+    'U1' => LunarEclipseContactKind.u1,
+    'MAX' => LunarEclipseContactKind.maximum,
+    'U4' => LunarEclipseContactKind.u4,
+    'P4' => LunarEclipseContactKind.p4,
+    _ => throw FormatException('Unknown lunar eclipse contact: $value'),
+  };
+}
+
+class LunarEclipseContact extends SkyPositionSample {
+  const LunarEclipseContact({
+    required this.kind,
+    required super.at,
+    required super.azimuthDegrees,
+    required super.altitudeDegrees,
+    required this.locallyVisible,
+  });
+
+  final LunarEclipseContactKind kind;
+  final bool locallyVisible;
 }
 
 sealed class SkyInstrumentData {
@@ -94,7 +142,7 @@ final class LunarPathData extends SkyInstrumentData {
     required this.transit,
     required this.set,
     required this.moonSamples,
-    required this.eclipseMarkers,
+    required this.eclipseContacts,
     required this.phaseInstant,
     required super.provenance,
     required super.visibility,
@@ -104,7 +152,9 @@ final class LunarPathData extends SkyInstrumentData {
   final DateTime? transit;
   final DateTime? set;
   final List<SkyPositionSample> moonSamples;
-  final List<DateTime> eclipseMarkers;
+  final List<LunarEclipseContact> eclipseContacts;
+
+  /// Catalog-owned Full Moon anchor. Computed anchors live in provenance.
   final DateTime phaseInstant;
 }
 

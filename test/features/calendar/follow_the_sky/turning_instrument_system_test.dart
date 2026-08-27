@@ -52,6 +52,39 @@ void main() {
     );
   });
 
+  test('dedicated observation route accepts only exact V2 ownership', () {
+    final valid = TrackSkyEventOwnership.behaviorPayload(
+      skyEventId: 'full-moon-2026-08-28',
+    );
+    expect(
+      FollowSkyObservationRoute.matches(
+        flowName: 'Follow the Sky',
+        clientEventId: 'event-1',
+        behaviorPayload: valid,
+      ),
+      isTrue,
+    );
+    expect(
+      FollowSkyObservationRoute.matches(
+        flowName: 'Follow the Sky',
+        clientEventId: 'event-1',
+        behaviorPayload: <String, dynamic>{
+          ...valid,
+          'trackSkySchemaVersion': 1,
+        },
+      ),
+      isFalse,
+    );
+    expect(
+      FollowSkyObservationRoute.matches(
+        flowName: 'Ordinary flow',
+        clientEventId: 'event-1',
+        behaviorPayload: valid,
+      ),
+      isFalse,
+    );
+  });
+
   test(
     'provider accepts arbitrary IANA place and returns typed lunar data',
     () async {
@@ -75,11 +108,136 @@ void main() {
       expect(data.visibility.summary, contains('Cairo'));
       expect(data.visibility.summary, contains('sky position unavailable'));
       final lunar = data as LunarPathData;
-      expect(lunar.eclipseMarkers, isEmpty);
+      expect(lunar.eclipseContacts, isEmpty);
       expect(lunar.moonSamples, isEmpty);
       expect(lunar.rise, isNull);
     },
   );
+
+  test(
+    'optional observing elevation round-trips without inventing a value',
+    () {
+      const elevated = ObservingPlace(
+        latitude: 37.7749,
+        longitude: -122.4194,
+        ianaTimeZone: 'America/Los_Angeles',
+        label: 'San Francisco',
+        source: ObservingPlaceSource.manual,
+        elevationMeters: 16,
+      );
+      final restored = ObservingPlace.fromJson(elevated.toJson());
+      expect(restored.elevationMeters, 16);
+
+      final seaLevelUnknown = ObservingPlace.fromJson(
+        <String, dynamic>{...elevated.toJson()}..remove('elevation_meters'),
+      );
+      expect(seaLevelUnknown.elevationMeters, isNull);
+    },
+  );
+
+  test(
+    'Full Moon schema keeps catalog anchors and parses explicit contacts',
+    () {
+      final night = catalog.observingNight(
+        catalog.byId('full-moon-2026-08-28')!,
+      );
+      const place = ObservingPlace(
+        latitude: 37.7749,
+        longitude: -122.4194,
+        ianaTimeZone: 'America/Los_Angeles',
+        label: 'San Francisco',
+        source: ObservingPlaceSource.manual,
+      );
+      final data = FullMoonInstrumentDataProvider.parseResult(
+        _fullMoonInstrumentResponse(),
+        night: night,
+        place: place,
+      );
+
+      expect(data.phaseInstant.toUtc(), DateTime.utc(2026, 8, 28, 4, 18));
+      expect(
+        data.provenance.computedPhaseInstant?.toUtc(),
+        DateTime.utc(2026, 8, 28, 4, 17, 30),
+      );
+      expect(data.provenance.elevationMeters, 0);
+      expect(data.provenance.elevationAssumed, isTrue);
+      expect(data.eclipseContacts.map((item) => item.kind.wireName), <String>[
+        'P1',
+        'U1',
+        'MAX',
+        'U4',
+        'P4',
+      ]);
+      expect(data.eclipseContacts.last.locallyVisible, isFalse);
+      expect(data.rise!.isBefore(data.transit!), isTrue);
+      expect(data.transit!.isBefore(data.set!), isTrue);
+    },
+  );
+
+  test(
+    'Full Moon schema rejects a provenance mismatch as unusable geometry',
+    () {
+      final night = catalog.observingNight(
+        catalog.byId('full-moon-2026-08-28')!,
+      );
+      const place = ObservingPlace(
+        latitude: 37.7749,
+        longitude: -122.4194,
+        ianaTimeZone: 'America/Los_Angeles',
+        label: 'San Francisco',
+        source: ObservingPlaceSource.manual,
+      );
+      final mismatch = _fullMoonInstrumentResponse()
+        ..['status'] = 'anchor_mismatch'
+        ..['validation'] = <String, dynamic>{
+          'toleranceSeconds': 900,
+          'phaseDeltaSeconds': 901,
+          'issues': <String>['catalog_phase_anchor_mismatch'],
+        };
+
+      expect(
+        () => FullMoonInstrumentDataProvider.parseResult(
+          mismatch,
+          night: night,
+          place: place,
+        ),
+        throwsA(isA<FullMoonInstrumentProvenanceMismatch>()),
+      );
+    },
+  );
+
+  test('successful local geometry is cached only on the client', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final preferences = await SharedPreferences.getInstance();
+    final night = catalog.observingNight(catalog.byId('full-moon-2026-08-28')!);
+    const place = ObservingPlace(
+      latitude: 37.7749,
+      longitude: -122.4194,
+      ianaTimeZone: 'America/Los_Angeles',
+      label: 'San Francisco',
+      source: ObservingPlaceSource.manual,
+    );
+    var invocationCount = 0;
+    final provider = FullMoonInstrumentDataProvider(
+      preferences: preferences,
+      invoke: (_) async {
+        invocationCount += 1;
+        return (status: 200, data: _fullMoonInstrumentResponse());
+      },
+    );
+
+    final first = await provider.resolve(night: night, place: place);
+    final second = await provider.resolve(night: night, place: place);
+    expect(first, isA<LunarPathData>());
+    expect(second, isA<LunarPathData>());
+    expect(invocationCount, 1);
+    expect(
+      preferences.getKeys().where(
+        (key) => key.startsWith('haw:full_moon_instrument:v1:'),
+      ),
+      hasLength(1),
+    );
+  });
 
   test(
     'invalid IANA zone fails closed instead of claiming local time',
@@ -286,16 +444,22 @@ void main() {
     },
   );
 
-  test('vertical slice contains no decorative sky-geometry painter', () {
-    final source = File(
+  test('vertical slice uses real projected geometry instead of a slider', () {
+    final sheet = File(
       'lib/features/calendar/follow_the_sky/presentation/widgets/'
-      'follow_sky_observation_panel.dart',
+      'follow_sky_observation_sheet.dart',
+    ).readAsStringSync();
+    final arc = File(
+      'lib/features/calendar/follow_the_sky/presentation/widgets/'
+      'lunar_path_instrument.dart',
     ).readAsStringSync();
 
-    expect(source, isNot(contains('_SkyInstrumentPainter')));
-    expect(source, isNot(contains('_drawArcBody')));
-    expect(source, contains('Moonrise, highest point, moonset'));
-    expect(source, contains('No visual sky geometry is shown'));
+    expect(sheet, contains('FullMoonInstrumentDataProvider().resolve'));
+    expect(sheet, isNot(contains('Slider(')));
+    expect(arc, contains('extends CustomPainter'));
+    expect(arc, contains('_timeFraction'));
+    expect(arc, contains('LOCAL ALTITUDE · INSTRUMENT PROJECTION'));
+    expect(arc, contains('true local azimuth'));
   });
 
   test('photo retake confirms the new reference before old deletion', () async {
@@ -363,6 +527,70 @@ void main() {
     expect(source, contains('DateTime? targetLocalDate'));
     expect(source, isNot(contains('Future<bool> _moveEventInDayView(')));
   });
+}
+
+Map<String, dynamic> _fullMoonInstrumentResponse() {
+  Map<String, dynamic> sample(String at, double altitude, double azimuth) =>
+      <String, dynamic>{
+        'atUtc': at,
+        'altitudeDegrees': altitude,
+        'azimuthDegrees': azimuth,
+      };
+  Map<String, dynamic> contact(
+    String kind,
+    String at,
+    double altitude,
+    double azimuth, {
+    bool visible = true,
+  }) => <String, dynamic>{
+    'kind': kind,
+    ...sample(at, altitude, azimuth),
+    'locallyVisible': visible,
+  };
+
+  return <String, dynamic>{
+    'schemaVersion': 1,
+    'status': 'ok',
+    'skyEventId': 'full-moon-2026-08-28',
+    'companionSkyEventId': 'lunar-eclipse-2026-08-28',
+    'catalogPhaseInstantUtc': '2026-08-28T04:18:00.000Z',
+    'computedPhaseInstantUtc': '2026-08-28T04:17:30.000Z',
+    'riseUtc': '2026-08-28T02:00:00.000Z',
+    'transitUtc': '2026-08-28T06:00:00.000Z',
+    'setUtc': '2026-08-28T12:00:00.000Z',
+    'samples': <Map<String, dynamic>>[
+      sample('2026-08-28T02:00:00.000Z', 0, 90),
+      sample('2026-08-28T06:00:00.000Z', 55, 180),
+      sample('2026-08-28T12:00:00.000Z', 0, 270),
+    ],
+    'eclipse': <String, dynamic>{
+      'kind': 'partial',
+      'catalogPeakUtc': '2026-08-28T04:13:00.000Z',
+      'computedPeakUtc': '2026-08-28T04:12:30.000Z',
+      'obscuration': 0.8,
+      'contacts': <Map<String, dynamic>>[
+        contact('P1', '2026-08-28T02:30:00.000Z', 8, 100),
+        contact('U1', '2026-08-28T03:20:00.000Z', 20, 120),
+        contact('MAX', '2026-08-28T04:12:30.000Z', 35, 145),
+        contact('U4', '2026-08-28T05:05:00.000Z', 46, 165),
+        contact('P4', '2026-08-28T05:55:00.000Z', -1, 179, visible: false),
+      ],
+    },
+    'validation': <String, dynamic>{
+      'toleranceSeconds': 900,
+      'phaseDeltaSeconds': 30,
+      'eclipsePeakDeltaSeconds': 30,
+      'issues': <String>[],
+    },
+    'provenance': <String, dynamic>{
+      'astronomyEngineVersion': '2.1.19',
+      'calculationSchemaVersion': 'full-moon-local-v1',
+      'observerLatitude': 37.7749,
+      'observerLongitude': -122.4194,
+      'elevationMeters': 0,
+      'elevationAssumed': true,
+    },
+  };
 }
 
 const _userId = '27d63169-a28a-4550-a0a0-8fee0e8e7b95';

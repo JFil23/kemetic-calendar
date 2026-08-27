@@ -22,8 +22,13 @@ class ObservingPlace {
     required this.ianaTimeZone,
     required this.label,
     required this.source,
+    this.elevationMeters,
   }) : assert(latitude >= -90 && latitude <= 90),
        assert(longitude >= -180 && longitude <= 180),
+       assert(
+         elevationMeters == null ||
+             (elevationMeters >= -500 && elevationMeters <= 10000),
+       ),
        assert(ianaTimeZone.length > 0),
        assert(label.length > 0);
 
@@ -32,6 +37,7 @@ class ObservingPlace {
   final String ianaTimeZone;
   final String label;
   final ObservingPlaceSource source;
+  final double? elevationMeters;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
     'latitude': latitude,
@@ -39,6 +45,7 @@ class ObservingPlace {
     'iana_time_zone': ianaTimeZone,
     'label': label,
     'source': source.wireName,
+    if (elevationMeters != null) 'elevation_meters': elevationMeters,
   };
 
   factory ObservingPlace.fromJson(Map<String, dynamic> json) {
@@ -48,6 +55,7 @@ class ObservingPlace {
       ianaTimeZone: json['iana_time_zone'] as String,
       label: json['label'] as String,
       source: ObservingPlaceSourceX.parse(json['source']?.toString()),
+      elevationMeters: (json['elevation_meters'] as num?)?.toDouble(),
     );
   }
 }

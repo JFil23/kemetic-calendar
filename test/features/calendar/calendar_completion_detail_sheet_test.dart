@@ -541,7 +541,7 @@ void main() {
   );
 
   test(
-    'detail top action is Add reflection while End Flow stays overflow-only',
+    'generic detail retains Add reflection while Follow Sky owns its reflection',
     () {
       final dayView = File(
         'lib/features/calendar/day_view.dart',
@@ -558,7 +558,10 @@ void main() {
         'Widget _buildEventDetailPrimaryAction',
       );
       expect(topRow, contains('_buildAddReflectionButton('));
+      expect(topRow, contains('if (!isFollowSkyObservation)'));
       expect(dayView, contains("label: const Text('Add reflection')"));
+      expect(dayView, contains('FollowSkyObservationSheet('));
+      expect(dayView, isNot(contains('FollowSkyObservationPanel(')));
       expect(topRow, isNot(contains("label: const Text('End Flow')")));
       expect(dayView, contains("value: 'end_flow'"));
       expect(monthGrid, contains('CalendarEventDetailSheet('));
