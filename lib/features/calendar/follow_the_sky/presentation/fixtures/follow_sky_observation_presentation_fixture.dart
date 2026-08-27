@@ -136,6 +136,11 @@ FollowSkyObservationPresentationModel _losAngelesFullMoonFixture() {
     meaning: meaning,
     intention: 'self confidence',
     instrument: instrument,
+    peakMarker: FollowSkyPeakMarkerSpec(
+      label: 'MAX ECLIPSE',
+      instant: maximum,
+      emphasized: true,
+    ),
     focusInstant: maximum,
     initialSelection: maximum,
     visual: const FollowSkyInstrumentVisualSpec(
@@ -147,7 +152,7 @@ FollowSkyObservationPresentationModel _losAngelesFullMoonFixture() {
       lensStatement: 'Stay true when conditions change.',
       reflectionPrompt:
           'What did staying true to your choice look like tonight?',
-      timingLabel: 'Full phase · 9:18 PM',
+      timingLabel: 'MAX ECLIPSE · 9:12 PM',
       dragLead: 'Drag the night. ',
       intentionContext: 'Kept with this turning when you added Follow the sky.',
     ),

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../domain/observing_place.dart';
 import '../domain/sky_catalog.dart';
+import '../domain/sky_event_kind.dart';
 import '../domain/sky_instrument_data.dart';
 import '../services/sky_instrument_data_provider.dart';
 import 'follow_sky_view_time_policy.dart';
@@ -55,6 +56,23 @@ class FollowSkyInstrumentVisualSpec {
 }
 
 @immutable
+class FollowSkyPeakMarkerSpec {
+  const FollowSkyPeakMarkerSpec({
+    required this.label,
+    required this.instant,
+    this.glyph,
+    this.emphasized = false,
+  });
+
+  final String label;
+  final DateTime instant;
+  final String? glyph;
+  final bool emphasized;
+
+  String get displayLabel => '$label · ${_formatTime(instant)}';
+}
+
+@immutable
 class FollowSkyObservationPresentationModel {
   const FollowSkyObservationPresentationModel({
     required this.skyEventId,
@@ -65,6 +83,7 @@ class FollowSkyObservationPresentationModel {
     required this.meaning,
     required this.intention,
     required this.instrument,
+    required this.peakMarker,
     required this.focusInstant,
     required this.initialSelection,
     required this.visual,
@@ -79,6 +98,7 @@ class FollowSkyObservationPresentationModel {
   final TurningMeaning meaning;
   final String? intention;
   final SkyInstrumentData instrument;
+  final FollowSkyPeakMarkerSpec peakMarker;
   final DateTime focusInstant;
   final DateTime initialSelection;
   final FollowSkyInstrumentVisualSpec visual;
@@ -111,6 +131,7 @@ class FollowSkyObservationPresentationModelFactory {
       place: context.place,
     );
     final instrument = _asWallTime(resolved);
+    final peakMarker = followSkyPeakMarkerFor(instrument);
     final meaning = meaningResolver.forNight(night);
     final resolvedFocus = followSkyFocusInstant(instrument);
     final focus = resolvedFocus.isBefore(instrument.viewingWindowStart)
@@ -128,6 +149,7 @@ class FollowSkyObservationPresentationModelFactory {
       meaning: meaning,
       intention: intention?.trim().isEmpty == true ? null : intention?.trim(),
       instrument: instrument,
+      peakMarker: peakMarker,
       focusInstant: focus,
       initialSelection: focus,
       visual: FollowSkyInstrumentVisualSpec(
@@ -138,7 +160,7 @@ class FollowSkyObservationPresentationModelFactory {
         lensLabel: meaning.significanceLabel,
         lensStatement: meaning.surfaceStatement ?? meaning.observation,
         reflectionPrompt: meaning.reflectionPrompt ?? meaning.personalQuestion,
-        timingLabel: _timingLabel(instrument),
+        timingLabel: peakMarker.displayLabel,
         dragLead:
             family == SkyInstrumentFamily.solarThreshold ||
                 family == SkyInstrumentFamily.solarEclipse
@@ -151,6 +173,53 @@ class FollowSkyObservationPresentationModelFactory {
   }
 }
 
+FollowSkyPeakMarkerSpec followSkyPeakMarkerFor(SkyInstrumentData data) =>
+    switch (data) {
+      LunarPathData value => _lunarPeakMarker(value),
+      MeteorWindowData value => FollowSkyPeakMarkerSpec(
+        label: 'PEAK',
+        instant: value.peakWindowStart.add(
+          value.peakWindowEnd.difference(value.peakWindowStart) ~/ 2,
+        ),
+      ),
+      OppositionData value => FollowSkyPeakMarkerSpec(
+        label: 'OPPOSITION',
+        instant: value.closestApproach,
+      ),
+      ElongationData value => FollowSkyPeakMarkerSpec(
+        label: 'MAX ELONGATION',
+        instant: value.maximumAt,
+      ),
+      ConjunctionData value => FollowSkyPeakMarkerSpec(
+        label: 'CLOSEST',
+        instant: value.closestApproach,
+      ),
+      SolarThresholdData value => FollowSkyPeakMarkerSpec(
+        label: value.thresholdKind == SkyEventKind.equinox
+            ? 'EQUINOX'
+            : 'SOLSTICE',
+        instant: value.thresholdInstant,
+      ),
+      SolarEclipseData value => FollowSkyPeakMarkerSpec(
+        label: 'MAX ECLIPSE',
+        instant: value.greatestEclipse,
+        emphasized: true,
+      ),
+    };
+
+FollowSkyPeakMarkerSpec _lunarPeakMarker(LunarPathData value) {
+  for (final contact in value.eclipseContacts) {
+    if (contact.kind == LunarEclipseContactKind.maximum) {
+      return FollowSkyPeakMarkerSpec(
+        label: 'MAX ECLIPSE',
+        instant: contact.at,
+        emphasized: true,
+      );
+    }
+  }
+  return FollowSkyPeakMarkerSpec(label: 'FULL', instant: value.phaseInstant);
+}
+
 String _semanticLabel(SkyInstrumentFamily family) => switch (family) {
   SkyInstrumentFamily.lunarPath => 'lunar path',
   SkyInstrumentFamily.meteorWindow => 'meteor activity window',
@@ -159,18 +228,6 @@ String _semanticLabel(SkyInstrumentFamily family) => switch (family) {
   SkyInstrumentFamily.conjunction => 'conjunction separation',
   SkyInstrumentFamily.solarThreshold => 'solar threshold',
   SkyInstrumentFamily.solarEclipse => 'solar eclipse contacts',
-};
-
-String _timingLabel(SkyInstrumentData data) => switch (data) {
-  LunarPathData value => 'Full phase · ${_formatTime(value.phaseInstant)}',
-  MeteorWindowData value =>
-    'Peak window · ${_formatTime(value.peakWindowStart)}–${_formatTime(value.peakWindowEnd)}',
-  OppositionData value => 'Closest · ${_formatTime(value.closestApproach)}',
-  ElongationData value => 'Maximum · ${_formatTime(value.maximumAt)}',
-  ConjunctionData value => 'Closest · ${_formatTime(value.closestApproach)}',
-  SolarThresholdData value =>
-    'Threshold · ${_formatTime(value.thresholdInstant)}',
-  SolarEclipseData value => 'Greatest · ${_formatTime(value.greatestEclipse)}',
 };
 
 String _formatDate(DateTime value) {

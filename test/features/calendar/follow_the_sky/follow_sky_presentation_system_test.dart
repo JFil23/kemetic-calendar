@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/follow_the_sky/domain/sky_catalog.dart';
 import 'package:mobile/features/calendar/follow_the_sky/domain/sky_instrument_data.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/fixtures/follow_sky_observation_presentation_fixture.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_observation_presentation_model.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_observation_route.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_view_time_policy.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_observation_presentation.dart';
 import 'package:mobile/features/calendar/follow_the_sky/services/sky_catalog_repository.dart';
 import 'package:mobile/features/calendar/follow_the_sky/services/sky_instrument_data_provider.dart';
@@ -59,6 +61,8 @@ void main() {
       expect(model.copy.lensStatement, isNotEmpty);
       expect(model.copy.reflectionPrompt, isNotEmpty);
       expect(model.copy.timingLabel, isNotEmpty);
+      expect(model.peakMarker.label, isNotEmpty);
+      expect(model.copy.timingLabel, model.peakMarker.displayLabel);
       expect(model.visual.family, model.instrument.family);
       expect(
         model.focusInstant.isBefore(model.instrument.viewingWindowStart),
@@ -83,6 +87,49 @@ void main() {
         reason: model.skyEventId,
       );
     }
+  });
+
+  test('all 65 peak markers remain independent of selected view time', () {
+    for (final model in models) {
+      final controller = FollowSkyViewTimeController(
+        instrument: model.instrument,
+        focusInstant: model.focusInstant,
+        now: model.instrument.viewingWindowStart.subtract(
+          const Duration(days: 2),
+        ),
+      );
+      final peakLabel = model.peakMarker.displayLabel;
+      final peakFraction = controller.fractionFor(model.peakMarker.instant);
+      controller.selectFraction(peakFraction < 0.5 ? 0.9 : 0.1);
+
+      expect(controller.value, isNot(model.peakMarker.instant));
+      expect(model.peakMarker.displayLabel, peakLabel);
+      controller.dispose();
+    }
+  });
+
+  test('all seven families expose the required phenomenon peak label', () {
+    final labels = <SkyInstrumentFamily, Set<String>>{
+      for (final family in SkyInstrumentFamily.values)
+        family: models
+            .where((model) => model.instrument.family == family)
+            .map((model) => model.peakMarker.label)
+            .toSet(),
+    };
+    expect(labels[SkyInstrumentFamily.lunarPath], <String>{'FULL'});
+    expect(labels[SkyInstrumentFamily.meteorWindow], <String>{'PEAK'});
+    expect(labels[SkyInstrumentFamily.opposition], <String>{'OPPOSITION'});
+    expect(labels[SkyInstrumentFamily.elongation], <String>{'MAX ELONGATION'});
+    expect(labels[SkyInstrumentFamily.conjunction], <String>{'CLOSEST'});
+    expect(labels[SkyInstrumentFamily.solarThreshold], <String>{
+      'EQUINOX',
+      'SOLSTICE',
+    });
+    expect(labels[SkyInstrumentFamily.solarEclipse], <String>{'MAX ECLIPSE'});
+    expect(
+      losAngelesFullMoonPresentationFixture.peakMarker.label,
+      'MAX ECLIPSE',
+    );
   });
 
   test('catalog coverage remains grouped into the seven sealed families', () {
@@ -151,9 +198,14 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
       addTearDown(tester.view.resetPhysicalSize);
 
-      for (final height in <double>[317, 760]) {
+      for (final size in <Size>[
+        const Size(390, 317),
+        const Size(390, 760),
+        const Size(320, 317),
+        const Size(320, 760),
+      ]) {
         await tester.pumpWidget(const SizedBox.shrink());
-        tester.view.physicalSize = Size(390, height);
+        tester.view.physicalSize = size;
         await tester.pumpWidget(_harness(model, now: () => liveInstant));
         await tester.pump();
 
@@ -165,6 +217,21 @@ void main() {
         expect(find.text(model.copy.lensLabel), findsOneWidget);
         expect(find.text('Reflect'), findsOneWidget);
         expect(find.text('COMPLETION'), findsOneWidget);
+        final marker = find.byKey(
+          ValueKey<String>('follow-sky-peak-marker-${family.name}'),
+        );
+        expect(marker, findsOneWidget);
+        expect(
+          tester.widget<Semantics>(marker).properties.value,
+          model.peakMarker.displayLabel,
+        );
+        final titleZone = tester.getRect(
+          find.byKey(const ValueKey<String>('follow-sky-header-title-zone')),
+        );
+        final metaZone = tester.getRect(
+          find.byKey(const ValueKey<String>('follow-sky-header-meta-zone')),
+        );
+        expect(titleZone.right, lessThanOrEqualTo(metaZone.left));
         final time = find.byKey(const ValueKey<String>('follow-sky-view-time'));
         expect(tester.widget<Text>(time).data, _formatTime(liveWallTime));
         expect(tester.takeException(), isNull);
@@ -177,10 +244,59 @@ void main() {
         );
         await tester.pump();
         expect(tester.widget<Text>(time).data, isNot(before));
+        expect(
+          tester.widget<Semantics>(marker).properties.value,
+          model.peakMarker.displayLabel,
+        );
         expect(tester.takeException(), isNull);
       }
     });
   }
+
+  testWidgets(
+    'Saturn opposition owns its label as a fixed marker, not header debris',
+    (tester) async {
+      final model = models.singleWhere(
+        (candidate) => candidate.skyEventId == 'saturn-opposition-2026-10-04',
+      );
+      tester.view.physicalSize = const Size(390, 317);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        _harness(model, now: () => model.instrument.viewingWindowStart.toUtc()),
+      );
+      await tester.pump();
+
+      expect(find.text('Saturn Opposition'), findsOneWidget);
+      expect(find.text('OPPOSITION'), findsNothing);
+      final marker = find.byKey(
+        const ValueKey<String>('follow-sky-peak-marker-opposition'),
+      );
+      expect(
+        tester.widget<Semantics>(marker).properties.value,
+        startsWith('OPPOSITION · '),
+      );
+
+      final peakValue = tester.widget<Semantics>(marker).properties.value;
+      final hero = find.byKey(const ValueKey<String>('follow-sky-hero-drag'));
+      final rect = tester.getRect(hero);
+      await tester.tapAt(Offset(rect.left + rect.width * 0.84, rect.center.dy));
+      await tester.pump();
+
+      expect(tester.widget<Semantics>(marker).properties.value, peakValue);
+      expect(
+        tester
+            .widget<Text>(
+              find.byKey(const ValueKey<String>('follow-sky-view-time')),
+            )
+            .data,
+        isNot(model.peakMarker.displayLabel.split(' · ').last),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 }
 
 Widget _harness(

@@ -350,88 +350,120 @@ class _FollowSkyObservationPresentationState
       children: <Widget>[
         FollowSkyInstrumentSurface(
           data: widget.model.instrument,
+          peakMarker: widget.model.peakMarker,
           controller: instrument,
         ),
         Positioned(
-          top: 20,
+          top: 18,
           left: 20,
-          child: const Row(
-            children: <Widget>[
-              _SkySparkle(),
-              SizedBox(width: 7),
-              Text(
-                'FOLLOW THE SKY',
-                style: TextStyle(
-                  color: _gold,
-                  fontFamily: _ui,
-                  fontSize: 10.5,
-                  letterSpacing: 2.5,
-                ),
-              ),
-            ],
-          ),
-        ),
-        Positioned(
-          top: 39,
-          left: 20,
-          right: 126,
-          child: Text(
-            widget.model.title.replaceFirst(' + ', ' +\n'),
-            style: const TextStyle(
-              color: Colors.white,
-              fontFamily: _display,
-              fontSize: 25,
-              fontWeight: FontWeight.w500,
-              height: 1.04,
-              shadows: <Shadow>[Shadow(color: Colors.black87, blurRadius: 22)],
-            ),
-          ),
-        ),
-        Positioned(
-          top: 22,
           right: 18,
-          child: Text.rich(
-            TextSpan(
-              children: <InlineSpan>[
-                TextSpan(
-                  text: '${widget.model.dateLabel}\n',
-                  style: const TextStyle(color: _rose, letterSpacing: 1.05),
-                ),
-                TextSpan(text: '${widget.model.locationLabel}\n'),
-                TextSpan(text: widget.model.copy.timingLabel),
-              ],
-            ),
-            textAlign: TextAlign.right,
-            style: const TextStyle(
-              color: _silverLow,
-              fontFamily: _ui,
-              fontSize: 9.5,
-              height: 1.45,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ),
-        Positioned(
-          top: 113,
-          right: 18,
-          child: ValueListenableBuilder<DateTime>(
-            valueListenable: instrument,
-            builder: (context, selectedAt, _) => Text(
-              _formatTime(selectedAt),
-              key: const ValueKey<String>('follow-sky-view-time'),
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                color: _glow,
-                fontFamily: _display,
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-                letterSpacing: 0.5,
-                shadows: <Shadow>[
-                  Shadow(color: _glow, blurRadius: 10),
-                  Shadow(color: Colors.black87, blurRadius: 14),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final metaWidth = constraints.maxWidth < 330 ? 96.0 : 112.0;
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Expanded(
+                    child: Column(
+                      key: const ValueKey<String>(
+                        'follow-sky-header-title-zone',
+                      ),
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        const Row(
+                          children: <Widget>[
+                            _SkySparkle(),
+                            SizedBox(width: 7),
+                            Flexible(
+                              child: Text(
+                                'FOLLOW THE SKY',
+                                softWrap: true,
+                                style: TextStyle(
+                                  color: _gold,
+                                  fontFamily: _ui,
+                                  fontSize: 10.5,
+                                  letterSpacing: 2.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 7),
+                        Text(
+                          widget.model.title,
+                          key: const ValueKey<String>('follow-sky-event-title'),
+                          maxLines: 4,
+                          overflow: TextOverflow.fade,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontFamily: _display,
+                            fontSize: 25,
+                            fontWeight: FontWeight.w500,
+                            height: 1.04,
+                            shadows: <Shadow>[
+                              Shadow(color: Colors.black87, blurRadius: 22),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox(
+                    key: const ValueKey<String>('follow-sky-header-meta-zone'),
+                    width: metaWidth,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: <Widget>[
+                        Text.rich(
+                          TextSpan(
+                            children: <InlineSpan>[
+                              TextSpan(
+                                text: '${widget.model.dateLabel}\n',
+                                style: const TextStyle(
+                                  color: _rose,
+                                  letterSpacing: 1.05,
+                                ),
+                              ),
+                              TextSpan(text: '${widget.model.locationLabel}\n'),
+                              TextSpan(text: widget.model.copy.timingLabel),
+                            ],
+                          ),
+                          textAlign: TextAlign.right,
+                          style: const TextStyle(
+                            color: _silverLow,
+                            fontFamily: _ui,
+                            fontSize: 9.5,
+                            height: 1.35,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 7),
+                        ValueListenableBuilder<DateTime>(
+                          valueListenable: instrument,
+                          builder: (context, selectedAt, _) => Text(
+                            _formatTime(selectedAt),
+                            key: const ValueKey<String>('follow-sky-view-time'),
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(
+                              color: _glow,
+                              fontFamily: _display,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 0.5,
+                              shadows: <Shadow>[
+                                Shadow(color: _glow, blurRadius: 10),
+                                Shadow(color: Colors.black87, blurRadius: 14),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
-              ),
-            ),
+              );
+            },
           ),
         ),
       ],
@@ -545,33 +577,39 @@ class _FollowSkyObservationPresentationState
   Widget _buildDragInstruction() {
     return ValueListenableBuilder<DateTime>(
       valueListenable: _instrumentController,
-      builder: (context, selectedAt, _) => Padding(
-        padding: const EdgeInsets.fromLTRB(20, 2, 20, 10),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text.rich(
-            TextSpan(
-              children: <InlineSpan>[
-                TextSpan(text: widget.model.copy.dragLead),
+      builder: (context, selectedAt, _) => LayoutBuilder(
+        builder: (context, constraints) {
+          final horizontal = constraints.maxWidth < 350 ? 12.0 : 20.0;
+          return Padding(
+            padding: EdgeInsets.fromLTRB(horizontal, 2, horizontal, 10),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text.rich(
                 TextSpan(
-                  text: 'Your view time moves to ${_formatTime(selectedAt)}.',
-                  style: const TextStyle(
-                    color: _glow,
-                    fontStyle: FontStyle.normal,
-                  ),
+                  children: <InlineSpan>[
+                    TextSpan(text: widget.model.copy.dragLead),
+                    TextSpan(
+                      text:
+                          'Your view time moves to ${_formatTime(selectedAt)}.',
+                      style: const TextStyle(
+                        color: _glow,
+                        fontStyle: FontStyle.normal,
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+                key: const ValueKey<String>('follow-sky-drag-instruction'),
+                style: const TextStyle(
+                  color: _silverLow,
+                  fontFamily: _ui,
+                  fontSize: 11.5,
+                  fontStyle: FontStyle.italic,
+                  height: 1.2,
+                ),
+              ),
             ),
-            key: const ValueKey<String>('follow-sky-drag-instruction'),
-            style: const TextStyle(
-              color: _silverLow,
-              fontFamily: _ui,
-              fontSize: 11.5,
-              fontStyle: FontStyle.italic,
-              height: 1.2,
-            ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
