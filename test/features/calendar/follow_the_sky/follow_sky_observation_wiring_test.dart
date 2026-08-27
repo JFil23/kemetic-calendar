@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/completion_status.dart';
@@ -220,39 +218,17 @@ void main() {
   );
 
   test(
-    'the leaked RC reflection self-heals without disturbing Journal prose',
+    'isolated wiring accepts arbitrary prose and clears its test state',
     () async {
       const clientEventId = 'full-moon-rc-smoke';
-      const sourceId = 'follow-sky-turning:$clientEventId';
-      const leakedVerificationProse =
+      const arbitraryUserProse =
           'RC wiring check: '
           'the approved sky view held.';
-      SharedPreferences.setMockInitialValues(<String, Object>{
-        'follow_sky:turning_record:v1:$clientEventId': jsonEncode(
-          TurningRecord(
-            id: 'rc-smoke-record',
-            clientEventId: clientEventId,
-            skyEventId: 'full-moon-2026-08-28',
-            intentionSnapshot: 'self confidence',
-            reflectionText: leakedVerificationProse,
-            completion: TurningCompletion.observed,
-            startedAt: DateTime.utc(2026, 8, 27, 20),
-            lastEditedAt: DateTime.utc(2026, 8, 27, 20, 52),
-            completedAt: DateTime.utc(2026, 8, 27, 20, 52),
-            scheduledTimeSnapshot: DateTime.utc(2026, 8, 28, 4, 12),
-          ).toJson(),
-        ),
-      });
       final preferences = await SharedPreferences.getInstance();
       final client = SupabaseClient('http://localhost', 'anon-key');
-      var journal = MaatJournalResponseBlockUtils.upsertPlainUserText(
-        JournalDocument.fromPlainText(
-          'What have I called done that is only begun?',
-        ),
-        const MaatJournalResponseBlock(
-          sourceId: sourceId,
-          text: leakedVerificationProse,
-        ),
+      expect(client.auth.currentUser, isNull);
+      var journal = JournalDocument.fromPlainText(
+        'What have I called done that is only begun?',
       );
       final controller = FollowSkyTurningController(
         records: TurningRecordRepository(client, preferences: preferences),
@@ -271,40 +247,25 @@ void main() {
         },
       );
 
-      final restored = await controller.initialize();
+      await controller.initialize();
+      controller.scheduleReflection(arbitraryUserProse);
+      await controller.flushReflection();
 
-      expect(restored.reflectionText, isEmpty);
-      expect(restored.completion, TurningCompletion.observed);
+      expect(controller.record?.reflectionText, arbitraryUserProse);
       expect(
         journal.toPlainText(),
-        'What have I called done that is only begun?',
+        'What have I called done that is only begun?\n\n$arbitraryUserProse',
       );
       expect(
         MaatJournalResponseBlockUtils.extractPlainUserTextSources(journal),
-        isEmpty,
+        <String, String>{
+          'follow-sky-turning:$clientEventId': arbitraryUserProse,
+        },
       );
-      final cached = TurningRecord.fromJson(
-        Map<String, dynamic>.from(
-          jsonDecode(
-                preferences.getString(
-                  'follow_sky:turning_record:v1:$clientEventId',
-                )!,
-              )
-              as Map,
-        ),
-      );
-      expect(cached.reflectionText, isEmpty);
-      expect(cached.completion, TurningCompletion.observed);
-
-      const ordinaryUserProse =
-          'RC wiring check: I used these words in my own reflection.';
-      final ordinarySave = await TurningRecordRepository(
-        client,
-        preferences: preferences,
-      ).saveWithStatus(restored.copyWith(reflectionText: ordinaryUserProse));
-      expect(ordinarySave.record.reflectionText, ordinaryUserProse);
 
       await controller.close();
+      await preferences.clear();
+      expect(preferences.getKeys(), isEmpty);
       client.dispose();
     },
   );

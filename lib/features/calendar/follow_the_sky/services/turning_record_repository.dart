@@ -56,11 +56,7 @@ class TurningRecordRepository {
         return (await _saveWithStatus(local, user.id)).record;
       }
       if (row == null) return null;
-      final decodedRemote = TurningRecord.fromJson(row);
-      final remote = _withoutLeakedRcVerificationProse(decodedRemote);
-      if (remote.reflectionText != decodedRemote.reflectionText) {
-        return (await _saveWithStatus(remote, user.id)).record;
-      }
+      final remote = TurningRecord.fromJson(row);
       await _saveLocal(remote);
       await _setPending(clientEventId, false);
       return remote;
@@ -96,7 +92,6 @@ class TurningRecordRepository {
   }
 
   Future<TurningRecordSaveResult> saveWithStatus(TurningRecord record) async {
-    record = _withoutLeakedRcVerificationProse(record);
     await _saveLocal(record);
     await _setPending(record.clientEventId, true);
     final user = _client.auth.currentUser;
@@ -137,30 +132,12 @@ class TurningRecordRepository {
     final raw = (await _prefs).getString(_localKey(clientEventId));
     if (raw == null || raw.isEmpty) return null;
     try {
-      final record = TurningRecord.fromJson(
+      return TurningRecord.fromJson(
         Map<String, dynamic>.from(jsonDecode(raw) as Map),
       );
-      final safeRecord = _withoutLeakedRcVerificationProse(record);
-      if (safeRecord.reflectionText != record.reflectionText) {
-        await _saveLocal(safeRecord);
-      }
-      return safeRecord;
     } on Object {
       return null;
     }
-  }
-
-  TurningRecord _withoutLeakedRcVerificationProse(TurningRecord record) {
-    const leakedRcVerificationProse =
-        'RC wiring check: '
-        'the approved sky view held.';
-    if (record.reflectionText.trim() != leakedRcVerificationProse) {
-      return record;
-    }
-    return record.copyWith(
-      reflectionText: '',
-      lastEditedAt: DateTime.now().toUtc(),
-    );
   }
 
   Future<void> _saveLocal(TurningRecord record) async {
