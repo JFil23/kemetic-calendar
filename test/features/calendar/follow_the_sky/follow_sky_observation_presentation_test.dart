@@ -70,6 +70,8 @@ void main() {
     expect(find.text('Capture'), findsOneWidget);
     expect(find.text('Reflect'), findsOneWidget);
     expect(find.text('COMPLETION'), findsOneWidget);
+    expect(tester.getTopLeft(find.text('ENDURE')).dy, lessThan(760));
+    expect(tester.getTopLeft(find.text('YOU CHOSE')).dy, lessThan(760));
     expect(
       find.text('What did staying true to your choice look like tonight?'),
       findsNothing,
@@ -125,4 +127,57 @@ void main() {
     await tester.pump();
     expect(find.text('KEPT'), findsOneWidget);
   });
+
+  testWidgets(
+    'rapid drag tracks the finger while lower content stays mounted',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 760);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.dark(),
+          home: Scaffold(
+            backgroundColor: Colors.black,
+            body: FollowSkyObservationPresentation(
+              fixture: losAngelesFullMoonPresentationFixture,
+            ),
+          ),
+        ),
+      );
+
+      final lowerContent = tester.element(
+        find.byKey(const ValueKey<String>('follow-sky-static-lower-sheet')),
+      );
+      final scrubberRect = tester.getRect(
+        find.byKey(const ValueKey<String>('follow-sky-fixture-scrubber')),
+      );
+      final gesture = await tester.startGesture(scrubberRect.centerLeft);
+      for (var index = 1; index <= 24; index++) {
+        await gesture.moveTo(
+          Offset(
+            scrubberRect.left + scrubberRect.width * index / 24,
+            scrubberRect.center.dy,
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 1));
+      }
+      await gesture.up();
+      await tester.pump();
+
+      expect(find.text('6:51 AM'), findsWidgets);
+      expect(
+        identical(
+          lowerContent,
+          tester.element(
+            find.byKey(const ValueKey<String>('follow-sky-static-lower-sheet')),
+          ),
+        ),
+        isTrue,
+      );
+      expect(find.text('Stay true when conditions change.'), findsOneWidget);
+    },
+  );
 }

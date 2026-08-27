@@ -33,27 +33,29 @@ class _FollowSkyObservationPresentationState
   static const _ui = 'GentiumPlus';
 
   final TextEditingController _reflectionController = TextEditingController();
-  late DateTime _selectedAt;
+  late _LunarInstrumentController _instrumentController;
   bool _reflectionOpen = false;
   bool _capturePreview = false;
   _PreviewCompletion? _completion;
 
-  LunarPathData get _instrument => widget.fixture.instrument;
-  DateTime get _rise => _instrument.rise!;
-  DateTime get _transit => _instrument.transit!;
-  DateTime get _set => _instrument.set!;
-
   @override
   void initState() {
     super.initState();
-    _selectedAt = widget.fixture.initialSelection;
+    _instrumentController = _LunarInstrumentController(
+      data: widget.fixture.instrument,
+      initialSelection: widget.fixture.initialSelection,
+    );
   }
 
   @override
   void didUpdateWidget(covariant FollowSkyObservationPresentation oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.fixture.instrument != widget.fixture.instrument) {
-      _selectedAt = widget.fixture.initialSelection;
+      _instrumentController.dispose();
+      _instrumentController = _LunarInstrumentController(
+        data: widget.fixture.instrument,
+        initialSelection: widget.fixture.initialSelection,
+      );
       _reflectionController.clear();
       _reflectionOpen = false;
       _capturePreview = false;
@@ -63,27 +65,13 @@ class _FollowSkyObservationPresentationState
 
   @override
   void dispose() {
+    _instrumentController.dispose();
     _reflectionController.dispose();
     super.dispose();
   }
 
-  void _selectFraction(double fraction) {
-    final next = _timeAtFraction(
-      fraction.clamp(0.0, 1.0),
-      _rise,
-      _transit,
-      _set,
-    );
-    setState(
-      () => _selectedAt = DateTime(
-        next.year,
-        next.month,
-        next.day,
-        next.hour,
-        next.minute,
-      ),
-    );
-  }
+  void _selectFraction(double fraction) =>
+      _instrumentController.selectFraction(fraction);
 
   @override
   Widget build(BuildContext context) {
@@ -108,9 +96,17 @@ class _FollowSkyObservationPresentationState
           ),
           child: Column(
             children: <Widget>[
-              SizedBox(height: heroHeight, child: _buildSky()),
+              SizedBox(
+                height: heroHeight,
+                child: RepaintBoundary(child: _buildSky()),
+              ),
               _buildFinder(),
-              Expanded(child: _buildBody()),
+              Expanded(
+                child: RepaintBoundary(
+                  key: const ValueKey<String>('follow-sky-static-lower-sheet'),
+                  child: _buildBody(),
+                ),
+              ),
             ],
           ),
         );
@@ -119,13 +115,6 @@ class _FollowSkyObservationPresentationState
   }
 
   Widget _buildSky() {
-    final selectedPosition = _interpolatePosition(
-      _instrument.moonSamples,
-      _selectedAt,
-    );
-    final compassIndex = ((selectedPosition.azimuthDegrees - 112.5) / 22.5)
-        .round()
-        .clamp(0, 6);
     const compass = <String>['ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW'];
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -135,153 +124,160 @@ class _FollowSkyObservationPresentationState
           );
         }
 
-        return Semantics(
-          label: 'Los Angeles lunar path presentation instrument',
-          value:
-              '${_formatTime(_selectedAt)}, ${selectedPosition.altitudeDegrees.toStringAsFixed(1)} degrees up, ${selectedPosition.azimuthDegrees.toStringAsFixed(0)} degrees azimuth',
-          increasedValue: _formatTime(
-            _timeAtFraction(
-              (_fractionAt(_selectedAt, _rise, _transit, _set) + 0.02).clamp(
-                0.0,
-                1.0,
+        final instrument = _instrumentController;
+        final gesture = GestureDetector(
+          key: const ValueKey<String>('follow-sky-hero-drag'),
+          behavior: HitTestBehavior.opaque,
+          onTapUp: (details) => update(details.localPosition),
+          onHorizontalDragDown: (details) => update(details.localPosition),
+          onHorizontalDragUpdate: (details) => update(details.localPosition),
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              RepaintBoundary(
+                child: CustomPaint(
+                  isComplex: true,
+                  willChange: false,
+                  painter: _StaticSkyDomePainter(geometry: instrument.geometry),
+                ),
               ),
-              _rise,
-              _transit,
-              _set,
-            ),
-          ),
-          decreasedValue: _formatTime(
-            _timeAtFraction(
-              (_fractionAt(_selectedAt, _rise, _transit, _set) - 0.02).clamp(
-                0.0,
-                1.0,
+              RepaintBoundary(
+                child: CustomPaint(
+                  willChange: true,
+                  painter: _DynamicMoonPainter(instrument),
+                ),
               ),
-              _rise,
-              _transit,
-              _set,
-            ),
-          ),
-          slider: true,
-          onIncrease: () => _selectFraction(
-            (_fractionAt(_selectedAt, _rise, _transit, _set) + 0.02).clamp(
-              0.0,
-              1.0,
-            ),
-          ),
-          onDecrease: () => _selectFraction(
-            (_fractionAt(_selectedAt, _rise, _transit, _set) - 0.02).clamp(
-              0.0,
-              1.0,
-            ),
-          ),
-          child: GestureDetector(
-            key: const ValueKey<String>('follow-sky-hero-drag'),
-            behavior: HitTestBehavior.opaque,
-            onTapUp: (details) => update(details.localPosition),
-            onHorizontalDragDown: (details) => update(details.localPosition),
-            onHorizontalDragUpdate: (details) => update(details.localPosition),
-            child: Stack(
-              fit: StackFit.expand,
-              children: <Widget>[
-                CustomPaint(
-                  painter: _SkyDomePainter(
-                    data: _instrument,
-                    selectedAt: _selectedAt,
+              const RepaintBoundary(
+                child: CustomPaint(painter: _SkylinePainter()),
+              ),
+              Positioned(
+                top: 20,
+                left: 20,
+                child: const Row(
+                  children: <Widget>[
+                    _SkySparkle(),
+                    SizedBox(width: 7),
+                    Text(
+                      'FOLLOW THE SKY',
+                      style: TextStyle(
+                        color: _gold,
+                        fontFamily: _ui,
+                        fontSize: 10.5,
+                        letterSpacing: 2.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                top: 39,
+                left: 20,
+                right: 126,
+                child: Text(
+                  widget.fixture.title.replaceFirst(' + ', ' +\n'),
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontFamily: _display,
+                    fontSize: 25,
+                    fontWeight: FontWeight.w500,
+                    height: 1.04,
+                    shadows: <Shadow>[
+                      Shadow(color: Colors.black87, blurRadius: 22),
+                    ],
                   ),
                 ),
-                Positioned(
-                  top: 20,
-                  left: 20,
-                  child: const Row(
-                    children: <Widget>[
-                      _SkySparkle(),
-                      SizedBox(width: 7),
-                      Text(
-                        'FOLLOW THE SKY',
-                        style: TextStyle(
-                          color: _gold,
-                          fontFamily: _ui,
-                          fontSize: 10.5,
-                          letterSpacing: 2.5,
+              ),
+              Positioned(
+                top: 22,
+                right: 18,
+                child: Text.rich(
+                  TextSpan(
+                    children: <InlineSpan>[
+                      TextSpan(
+                        text: '${widget.fixture.dateLabel}\n',
+                        style: const TextStyle(
+                          color: _rose,
+                          letterSpacing: 1.05,
                         ),
                       ),
+                      TextSpan(text: '${widget.fixture.locationLabel}\n'),
+                      TextSpan(text: widget.fixture.fullPhaseLabel),
                     ],
                   ),
-                ),
-                Positioned(
-                  top: 39,
-                  left: 20,
-                  right: 126,
-                  child: Text(
-                    widget.fixture.title.replaceFirst(' + ', ' +\n'),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontFamily: _display,
-                      fontSize: 25,
-                      fontWeight: FontWeight.w500,
-                      height: 1.04,
-                      shadows: <Shadow>[
-                        Shadow(color: Colors.black87, blurRadius: 22),
-                      ],
-                    ),
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    color: _silverLow,
+                    fontFamily: _ui,
+                    fontSize: 9.5,
+                    height: 1.45,
+                    letterSpacing: 0.5,
                   ),
                 ),
-                Positioned(
-                  top: 22,
-                  right: 18,
-                  child: Text.rich(
-                    TextSpan(
-                      children: <InlineSpan>[
-                        TextSpan(
-                          text: '${widget.fixture.dateLabel}\n',
-                          style: const TextStyle(
-                            color: _rose,
-                            letterSpacing: 1.05,
+              ),
+              Positioned(
+                left: 22,
+                right: 22,
+                bottom: 13,
+                child: ValueListenableBuilder<_InstrumentFrame>(
+                  valueListenable: instrument,
+                  builder: (context, frame, _) {
+                    final compassIndex =
+                        ((frame.position.azimuthDegrees - 112.5) / 22.5)
+                            .round()
+                            .clamp(0, 6);
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: <Widget>[
+                        for (var index = 0; index < compass.length; index++)
+                          Text(
+                            compass[index],
+                            style: TextStyle(
+                              color: index == compassIndex
+                                  ? _glow
+                                  : _bone.withValues(alpha: 0.28),
+                              fontFamily: _ui,
+                              fontSize: 9.5,
+                              letterSpacing: 1.2,
+                              shadows: index == compassIndex
+                                  ? const <Shadow>[
+                                      Shadow(color: _glow, blurRadius: 8),
+                                    ]
+                                  : null,
+                            ),
                           ),
-                        ),
-                        TextSpan(text: '${widget.fixture.locationLabel}\n'),
-                        TextSpan(text: widget.fixture.fullPhaseLabel),
                       ],
-                    ),
-                    textAlign: TextAlign.right,
-                    style: const TextStyle(
-                      color: _silverLow,
-                      fontFamily: _ui,
-                      fontSize: 9.5,
-                      height: 1.45,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
+                    );
+                  },
                 ),
-                Positioned(
-                  left: 22,
-                  right: 22,
-                  bottom: 13,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: <Widget>[
-                      for (var index = 0; index < compass.length; index++)
-                        Text(
-                          compass[index],
-                          style: TextStyle(
-                            color: index == compassIndex
-                                ? _glow
-                                : _bone.withValues(alpha: 0.28),
-                            fontFamily: _ui,
-                            fontSize: 9.5,
-                            letterSpacing: 1.2,
-                            shadows: index == compassIndex
-                                ? const <Shadow>[
-                                    Shadow(color: _glow, blurRadius: 8),
-                                  ]
-                                : null,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
+            ],
+          ),
+        );
+        return ValueListenableBuilder<_InstrumentFrame>(
+          valueListenable: instrument,
+          child: gesture,
+          builder: (context, frame, child) => Semantics(
+            label: 'Los Angeles lunar path presentation instrument',
+            value:
+                '${_formatTime(frame.selectedAt)}, ${frame.position.altitudeDegrees.toStringAsFixed(1)} degrees up, ${frame.position.azimuthDegrees.toStringAsFixed(0)} degrees azimuth',
+            increasedValue: _formatTime(
+              instrument.timeAtFraction(
+                (frame.selectedFraction + 0.02).clamp(0.0, 1.0),
+              ),
             ),
+            decreasedValue: _formatTime(
+              instrument.timeAtFraction(
+                (frame.selectedFraction - 0.02).clamp(0.0, 1.0),
+              ),
+            ),
+            slider: true,
+            onIncrease: () => _selectFraction(
+              (frame.selectedFraction + 0.02).clamp(0.0, 1.0),
+            ),
+            onDecrease: () => _selectFraction(
+              (frame.selectedFraction - 0.02).clamp(0.0, 1.0),
+            ),
+            child: child,
           ),
         );
       },
@@ -289,50 +285,54 @@ class _FollowSkyObservationPresentationState
   }
 
   Widget _buildFinder() {
-    final position = _interpolatePosition(_instrument.moonSamples, _selectedAt);
-    final altitude = position.altitudeDegrees.round();
-    final note = altitude > 34
-        ? 'high over the roofline'
-        : altitude > 20
-        ? 'clear of the roofline'
-        : 'low · clear horizon';
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
-        children: <Widget>[
-          Flexible(
-            child: Text(
-              _longCompassDirection(position.azimuthDegrees),
-              maxLines: 1,
-              overflow: TextOverflow.fade,
-              softWrap: false,
-              style: const TextStyle(
-                color: _glow,
-                fontFamily: _display,
-                fontSize: 23,
-                fontStyle: FontStyle.italic,
-                shadows: <Shadow>[Shadow(color: _glow, blurRadius: 10)],
+    return ValueListenableBuilder<_InstrumentFrame>(
+      valueListenable: _instrumentController,
+      builder: (context, frame, _) {
+        final altitude = frame.position.altitudeDegrees.round();
+        final note = altitude > 34
+            ? 'high over the roofline'
+            : altitude > 20
+            ? 'clear of the roofline'
+            : 'low · clear horizon';
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(20, 2, 20, 0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: <Widget>[
+              Flexible(
+                child: Text(
+                  _longCompassDirection(frame.position.azimuthDegrees),
+                  maxLines: 1,
+                  overflow: TextOverflow.fade,
+                  softWrap: false,
+                  style: const TextStyle(
+                    color: _glow,
+                    fontFamily: _display,
+                    fontSize: 23,
+                    fontStyle: FontStyle.italic,
+                    shadows: <Shadow>[Shadow(color: _glow, blurRadius: 10)],
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Flexible(
-            child: Text(
-              '$altitude° up · $note',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: _silverMid,
-                fontFamily: _ui,
-                fontSize: 12.5,
-                letterSpacing: 0.35,
+              const SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  '$altitude° up · $note',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _silverMid,
+                    fontFamily: _ui,
+                    fontSize: 12.5,
+                    letterSpacing: 0.35,
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -524,9 +524,8 @@ class _FollowSkyObservationPresentationState
   }
 
   Widget _buildScrubber() {
-    final maximum = _instrument.eclipseContacts.firstWhere(
-      (contact) => contact.kind == LunarEclipseContactKind.maximum,
-    );
+    final instrument = _instrumentController;
+    final geometry = instrument.geometry;
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
       padding: const EdgeInsets.fromLTRB(15, 15, 15, 13),
@@ -538,50 +537,37 @@ class _FollowSkyObservationPresentationState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: <Widget>[
-              Expanded(
-                child: Text(
-                  _formatTime(_selectedAt),
-                  style: const TextStyle(
-                    color: _bone,
-                    fontFamily: _display,
-                    fontSize: 29,
-                    fontWeight: FontWeight.w500,
+          ValueListenableBuilder<_InstrumentFrame>(
+            valueListenable: instrument,
+            builder: (context, frame, _) => Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: <Widget>[
+                Expanded(
+                  child: Text(
+                    _formatTime(frame.selectedAt),
+                    style: const TextStyle(
+                      color: _bone,
+                      fontFamily: _display,
+                      fontSize: 29,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-              ),
-              Text(
-                _phaseLabel(
-                  _selectedAt,
-                  maximum.at,
-                  _rise,
-                  _transit,
-                  _set,
-                ).toUpperCase(),
-                style: const TextStyle(
-                  color: _rose,
-                  fontFamily: _ui,
-                  fontSize: 10.5,
-                  letterSpacing: 1.7,
+                Text(
+                  frame.phaseLabel.toUpperCase(),
+                  style: const TextStyle(
+                    color: _rose,
+                    fontFamily: _ui,
+                    fontSize: 10.5,
+                    letterSpacing: 1.7,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 9),
-          _SkyScrubber(
-            selectedFraction: _fractionAt(_selectedAt, _rise, _transit, _set),
-            maximumFraction: _fractionAt(maximum.at, _rise, _transit, _set),
-            fullPhaseFraction: _fractionAt(
-              _instrument.phaseInstant,
-              _rise,
-              _transit,
-              _set,
-            ),
-            onChanged: _selectFraction,
-          ),
+          _SkyScrubber(controller: instrument, onChanged: _selectFraction),
           SizedBox(
             height: 34,
             child: Stack(
@@ -589,46 +575,50 @@ class _FollowSkyObservationPresentationState
               children: <Widget>[
                 _TrackerLabel(
                   alignment: Alignment.centerLeft,
-                  time: _formatTimeShort(_rise),
+                  time: _formatTimeShort(geometry.rise),
                   label: 'RISES',
                 ),
                 _TrackerLabel(
                   alignment: const Alignment(-0.63, 0),
-                  time: _formatTimeShort(maximum.at),
+                  time: _formatTimeShort(geometry.maximum.at),
                   label: 'ECLIPSE MAX',
                 ),
                 _TrackerLabel(
                   alignment: Alignment.center,
-                  time: _formatTimeShort(_transit),
+                  time: _formatTimeShort(geometry.transit),
                   label: 'HIGHEST',
                 ),
                 _TrackerLabel(
                   alignment: Alignment.centerRight,
-                  time: _formatTimeShort(_set),
+                  time: _formatTimeShort(geometry.set),
                   label: 'SETS',
                 ),
               ],
             ),
           ),
           const SizedBox(height: 4),
-          Text.rich(
-            TextSpan(
-              children: <InlineSpan>[
-                const TextSpan(text: 'Drag the night. '),
-                TextSpan(
-                  text: 'Your block moves to ${_formatTime(_selectedAt)}.',
-                  style: const TextStyle(
-                    color: _glow,
-                    fontStyle: FontStyle.normal,
+          ValueListenableBuilder<_InstrumentFrame>(
+            valueListenable: instrument,
+            builder: (context, frame, _) => Text.rich(
+              TextSpan(
+                children: <InlineSpan>[
+                  const TextSpan(text: 'Drag the night. '),
+                  TextSpan(
+                    text:
+                        'Your block moves to ${_formatTime(frame.selectedAt)}.',
+                    style: const TextStyle(
+                      color: _glow,
+                      fontStyle: FontStyle.normal,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            style: const TextStyle(
-              color: _silverLow,
-              fontFamily: _ui,
-              fontSize: 11.5,
-              fontStyle: FontStyle.italic,
+                ],
+              ),
+              style: const TextStyle(
+                color: _silverLow,
+                fontFamily: _ui,
+                fontSize: 11.5,
+                fontStyle: FontStyle.italic,
+              ),
             ),
           ),
         ],
@@ -977,16 +967,9 @@ class _SkySparklePainter extends CustomPainter {
 }
 
 class _SkyScrubber extends StatelessWidget {
-  const _SkyScrubber({
-    required this.selectedFraction,
-    required this.maximumFraction,
-    required this.fullPhaseFraction,
-    required this.onChanged,
-  });
+  const _SkyScrubber({required this.controller, required this.onChanged});
 
-  final double selectedFraction;
-  final double maximumFraction;
-  final double fullPhaseFraction;
+  final _LunarInstrumentController controller;
   final ValueChanged<double> onChanged;
 
   @override
@@ -995,26 +978,42 @@ class _SkyScrubber extends StatelessWidget {
       builder: (context, constraints) {
         void update(Offset position) =>
             onChanged((position.dx / constraints.maxWidth).clamp(0.0, 1.0));
-        return Semantics(
-          label: 'Drag the night',
-          slider: true,
-          value: '${(selectedFraction * 100).round()} percent',
-          child: GestureDetector(
-            key: const ValueKey<String>('follow-sky-fixture-scrubber'),
-            behavior: HitTestBehavior.opaque,
-            onTapUp: (details) => update(details.localPosition),
-            onHorizontalDragDown: (details) => update(details.localPosition),
-            onHorizontalDragUpdate: (details) => update(details.localPosition),
-            child: SizedBox(
-              height: 46,
-              child: CustomPaint(
-                painter: _ScrubberPainter(
-                  selectedFraction: selectedFraction,
-                  maximumFraction: maximumFraction,
-                  fullPhaseFraction: fullPhaseFraction,
+        final gesture = GestureDetector(
+          key: const ValueKey<String>('follow-sky-fixture-scrubber'),
+          behavior: HitTestBehavior.opaque,
+          onTapUp: (details) => update(details.localPosition),
+          onHorizontalDragDown: (details) => update(details.localPosition),
+          onHorizontalDragUpdate: (details) => update(details.localPosition),
+          child: SizedBox(
+            height: 46,
+            child: Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                RepaintBoundary(
+                  child: CustomPaint(
+                    painter: _StaticScrubberPainter(
+                      geometry: controller.geometry,
+                    ),
+                  ),
                 ),
-              ),
+                RepaintBoundary(
+                  child: CustomPaint(
+                    willChange: true,
+                    painter: _DynamicScrubberPainter(controller),
+                  ),
+                ),
+              ],
             ),
+          ),
+        );
+        return ValueListenableBuilder<_InstrumentFrame>(
+          valueListenable: controller,
+          child: gesture,
+          builder: (context, frame, child) => Semantics(
+            label: 'Drag the night',
+            slider: true,
+            value: '${(frame.selectedFraction * 100).round()} percent',
+            child: child,
           ),
         );
       },
@@ -1064,37 +1063,14 @@ class _TrackerLabel extends StatelessWidget {
   );
 }
 
-class _ScrubberPainter extends CustomPainter {
-  const _ScrubberPainter({
-    required this.selectedFraction,
-    required this.maximumFraction,
-    required this.fullPhaseFraction,
-  });
+class _StaticScrubberPainter extends CustomPainter {
+  const _StaticScrubberPainter({required this.geometry});
 
-  final double selectedFraction;
-  final double maximumFraction;
-  final double fullPhaseFraction;
+  final _LunarDisplayGeometry geometry;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final path = Path()
-      ..moveTo(2, 40)
-      ..cubicTo(
-        size.width * 0.18,
-        40,
-        size.width * 0.27,
-        8,
-        size.width * 0.5,
-        8,
-      )
-      ..cubicTo(
-        size.width * 0.73,
-        8,
-        size.width * 0.82,
-        40,
-        size.width - 2,
-        40,
-      );
+    final path = _scrubberPath(size, geometry.scrubberPath);
     canvas.drawPath(
       path,
       Paint()
@@ -1104,6 +1080,43 @@ class _ScrubberPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2,
     );
+    canvas.drawLine(
+      Offset(size.width * 0.5, 2),
+      Offset(size.width * 0.5, 14),
+      Paint()
+        ..color = _FollowSkyObservationPresentationState._rose.withValues(
+          alpha: 0.55,
+        ),
+    );
+
+    final eclipse = _scrubberPoint(size, geometry.maximumFraction);
+    canvas.drawLine(
+      Offset(eclipse.dx, 19),
+      Offset(eclipse.dx, 44),
+      Paint()..color = const Color(0x73D88C82),
+    );
+    canvas.drawCircle(eclipse, 2.8, Paint()..color = const Color(0xFFD88C82));
+    canvas.drawCircle(
+      _scrubberPoint(size, geometry.fullPhaseFraction),
+      2.1,
+      Paint()..color = _FollowSkyObservationPresentationState._glow,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _StaticScrubberPainter oldDelegate) =>
+      oldDelegate.geometry != geometry;
+}
+
+class _DynamicScrubberPainter extends CustomPainter {
+  _DynamicScrubberPainter(this.controller) : super(repaint: controller);
+
+  final _LunarInstrumentController controller;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final selectedFraction = controller.value.selectedFraction;
+    final path = _scrubberPath(size, controller.geometry.scrubberPath);
     for (final metric in path.computeMetrics()) {
       canvas.drawPath(
         metric.extractPath(0, metric.length * selectedFraction),
@@ -1116,34 +1129,8 @@ class _ScrubberPainter extends CustomPainter {
           ..strokeWidth = 2,
       );
     }
-    canvas.drawLine(
-      Offset(size.width * 0.5, 2),
-      Offset(size.width * 0.5, 14),
-      Paint()
-        ..color = _FollowSkyObservationPresentationState._rose.withValues(
-          alpha: 0.55,
-        ),
-    );
 
-    Offset point(double fraction) => Offset(
-      2 + fraction * (size.width - 4),
-      40 - math.sin(math.pi * fraction) * 32,
-    );
-
-    final eclipse = point(maximumFraction);
-    canvas.drawLine(
-      Offset(eclipse.dx, 19),
-      Offset(eclipse.dx, 44),
-      Paint()..color = const Color(0x73D88C82),
-    );
-    canvas.drawCircle(eclipse, 2.8, Paint()..color = const Color(0xFFD88C82));
-    canvas.drawCircle(
-      point(fullPhaseFraction),
-      2.1,
-      Paint()..color = _FollowSkyObservationPresentationState._glow,
-    );
-
-    final knob = point(selectedFraction);
+    final knob = _scrubberPoint(size, selectedFraction);
     canvas.drawCircle(
       knob,
       13,
@@ -1165,17 +1152,170 @@ class _ScrubberPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _ScrubberPainter oldDelegate) =>
-      oldDelegate.selectedFraction != selectedFraction ||
-      oldDelegate.maximumFraction != maximumFraction ||
-      oldDelegate.fullPhaseFraction != fullPhaseFraction;
+  bool shouldRepaint(covariant _DynamicScrubberPainter oldDelegate) =>
+      oldDelegate.controller != controller;
 }
 
-class _SkyDomePainter extends CustomPainter {
-  const _SkyDomePainter({required this.data, required this.selectedAt});
+Path _scrubberPath(Size size, List<Offset> normalizedPoints) {
+  final path = Path();
+  for (var index = 0; index < normalizedPoints.length; index++) {
+    final normalized = normalizedPoints[index];
+    final point = Offset(
+      2 + normalized.dx * (size.width - 4),
+      8 + normalized.dy * 32,
+    );
+    if (index == 0) {
+      path.moveTo(point.dx, point.dy);
+    } else {
+      path.lineTo(point.dx, point.dy);
+    }
+  }
+  return path;
+}
 
-  final LunarPathData data;
+Offset _scrubberPoint(Size size, double fraction) => Offset(
+  2 + fraction * (size.width - 4),
+  40 - math.sin(math.pi * fraction) * 32,
+);
+
+class _InstrumentFrame {
+  const _InstrumentFrame({
+    required this.selectedAt,
+    required this.selectedFraction,
+    required this.position,
+    required this.phaseLabel,
+  });
+
   final DateTime selectedAt;
+  final double selectedFraction;
+  final SkyPositionSample position;
+  final String phaseLabel;
+}
+
+class _LunarDisplayGeometry {
+  _LunarDisplayGeometry(LunarPathData data)
+    : rise = data.rise!,
+      transit = data.transit!,
+      set = data.set!,
+      maximum = data.eclipseContacts.firstWhere(
+        (contact) => contact.kind == LunarEclipseContactKind.maximum,
+      ),
+      fullPhaseAt = data.phaseInstant,
+      sortedSamples = (data.moonSamples.toList(growable: false)
+        ..sort((a, b) => a.at.compareTo(b.at))) {
+    maxAltitude = sortedSamples
+        .map((sample) => sample.altitudeDegrees)
+        .reduce(math.max);
+    skyPath = List<Offset>.unmodifiable(
+      List<Offset>.generate(59, (index) {
+        final fraction = index / 58;
+        final at = timeAtFraction(fraction);
+        final altitude = positionAt(at).altitudeDegrees;
+        return Offset(fraction, (altitude / maxAltitude).clamp(0.0, 1.0));
+      }),
+    );
+    scrubberPath = List<Offset>.unmodifiable(
+      List<Offset>.generate(49, (index) {
+        final fraction = index / 48;
+        return Offset(fraction, 1 - math.sin(math.pi * fraction));
+      }),
+    );
+  }
+
+  final DateTime rise;
+  final DateTime transit;
+  final DateTime set;
+  final LunarEclipseContact maximum;
+  final DateTime fullPhaseAt;
+  final List<SkyPositionSample> sortedSamples;
+  late final double maxAltitude;
+  late final List<Offset> skyPath;
+  late final List<Offset> scrubberPath;
+
+  double get maximumFraction => fractionAt(maximum.at);
+  double get fullPhaseFraction => fractionAt(fullPhaseAt);
+
+  double fractionAt(DateTime at) => _fractionAt(at, rise, transit, set);
+
+  DateTime timeAtFraction(double fraction) =>
+      _timeAtFraction(fraction, rise, transit, set);
+
+  SkyPositionSample positionAt(DateTime at) =>
+      _interpolatePosition(sortedSamples, at);
+
+  Offset pointAt(Size size, DateTime at) {
+    final position = positionAt(at);
+    return pointFor(
+      size,
+      fractionAt(at),
+      position.altitudeDegrees / maxAltitude,
+    );
+  }
+
+  Offset pointFor(Size size, double fraction, double normalizedAltitude) {
+    final baseY = size.height - 39;
+    final apexY = math.max(92.0, size.height * 0.34);
+    return Offset(
+      42 + fraction * (size.width - 84),
+      baseY - normalizedAltitude.clamp(0.0, 1.0) * (baseY - apexY),
+    );
+  }
+}
+
+class _LunarInstrumentController extends ValueNotifier<_InstrumentFrame> {
+  factory _LunarInstrumentController({
+    required LunarPathData data,
+    required DateTime initialSelection,
+  }) {
+    final geometry = _LunarDisplayGeometry(data);
+    return _LunarInstrumentController._(geometry, initialSelection);
+  }
+
+  _LunarInstrumentController._(this.geometry, DateTime initialSelection)
+    : super(_frameFor(geometry, initialSelection));
+
+  final _LunarDisplayGeometry geometry;
+
+  static _InstrumentFrame _frameFor(
+    _LunarDisplayGeometry geometry,
+    DateTime selectedAt,
+  ) {
+    final fraction = geometry.fractionAt(selectedAt);
+    return _InstrumentFrame(
+      selectedAt: selectedAt,
+      selectedFraction: fraction,
+      position: geometry.positionAt(selectedAt),
+      phaseLabel: _phaseLabel(
+        selectedAt,
+        geometry.maximum.at,
+        geometry.rise,
+        geometry.transit,
+        geometry.set,
+      ),
+    );
+  }
+
+  DateTime timeAtFraction(double fraction) =>
+      geometry.timeAtFraction(fraction.clamp(0.0, 1.0));
+
+  void selectFraction(double fraction) {
+    final next = timeAtFraction(fraction);
+    final selectedAt = DateTime(
+      next.year,
+      next.month,
+      next.day,
+      next.hour,
+      next.minute,
+    );
+    if (selectedAt == value.selectedAt) return;
+    value = _frameFor(geometry, selectedAt);
+  }
+}
+
+class _StaticSkyDomePainter extends CustomPainter {
+  const _StaticSkyDomePainter({required this.geometry});
+
+  final _LunarDisplayGeometry geometry;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1207,34 +1347,19 @@ class _SkyDomePainter extends CustomPainter {
       );
     }
 
-    final rise = data.rise!;
-    final transit = data.transit!;
-    final set = data.set!;
-    final maxAltitude = data.moonSamples
-        .map((sample) => sample.altitudeDegrees)
-        .reduce(math.max);
-    final baseY = size.height - 39;
-    final apexY = math.max(92.0, size.height * 0.34);
-    Offset pointAt(DateTime at) {
-      final position = _interpolatePosition(data.moonSamples, at);
-      return Offset(
-        42 + _fractionAt(at, rise, transit, set) * (size.width - 84),
-        baseY -
-            (position.altitudeDegrees / maxAltitude).clamp(0.0, 1.0) *
-                (baseY - apexY),
-      );
-    }
-
     final pathDotPaint = Paint()
       ..color = _FollowSkyObservationPresentationState._rose.withValues(
         alpha: 0.28,
       );
-    for (var index = 0; index <= 58; index++) {
-      final at = _timeAtFraction(index / 58, rise, transit, set);
-      canvas.drawCircle(pointAt(at), 1, pathDotPaint);
+    for (final point in geometry.skyPath) {
+      canvas.drawCircle(
+        geometry.pointFor(size, point.dx, point.dy),
+        1,
+        pathDotPaint,
+      );
     }
 
-    final apex = pointAt(transit);
+    final apex = geometry.pointAt(size, geometry.transit);
     canvas.drawLine(
       apex.translate(0, -40),
       apex.translate(0, -30),
@@ -1245,7 +1370,7 @@ class _SkyDomePainter extends CustomPainter {
     );
     _paintLabel(
       canvas,
-      'HIGHEST · ${_formatTime(transit)}',
+      'HIGHEST · ${_formatTime(geometry.transit)}',
       apex.translate(0, -48),
       color: _FollowSkyObservationPresentationState._rose.withValues(
         alpha: 0.58,
@@ -1253,10 +1378,7 @@ class _SkyDomePainter extends CustomPainter {
       centered: true,
     );
 
-    final maximum = data.eclipseContacts.firstWhere(
-      (contact) => contact.kind == LunarEclipseContactKind.maximum,
-    );
-    final maximumPoint = pointAt(maximum.at);
+    final maximumPoint = geometry.pointAt(size, geometry.maximum.at);
     canvas.drawCircle(
       maximumPoint,
       3.2,
@@ -1272,10 +1394,57 @@ class _SkyDomePainter extends CustomPainter {
       centered: true,
       fontSize: 8.7,
     );
+  }
 
-    final moon = pointAt(selectedAt);
-    final selectedFraction = _fractionAt(selectedAt, rise, transit, set);
-    final brightness = math.sin(math.pi * selectedFraction).clamp(0.0, 1.0);
+  void _paintLabel(
+    Canvas canvas,
+    String text,
+    Offset position, {
+    required Color color,
+    bool centered = false,
+    double fontSize = 9.3,
+  }) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          color: color,
+          fontFamily: _FollowSkyObservationPresentationState._ui,
+          fontSize: fontSize,
+          letterSpacing: 1.2,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    painter.paint(
+      canvas,
+      centered ? position.translate(-painter.width / 2, 0) : position,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _StaticSkyDomePainter oldDelegate) =>
+      oldDelegate.geometry != geometry;
+}
+
+class _DynamicMoonPainter extends CustomPainter {
+  _DynamicMoonPainter(this.controller) : super(repaint: controller);
+
+  final _LunarInstrumentController controller;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final frame = controller.value;
+    final geometry = controller.geometry;
+    final moon = geometry.pointFor(
+      size,
+      frame.selectedFraction,
+      frame.position.altitudeDegrees / geometry.maxAltitude,
+    );
+    final brightness = math
+        .sin(math.pi * frame.selectedFraction)
+        .clamp(0.0, 1.0);
+
     canvas.drawCircle(
       moon,
       52 + 34 * brightness,
@@ -1291,7 +1460,7 @@ class _SkyDomePainter extends CustomPainter {
     );
     canvas.drawCircle(moon, 24, Paint()..color = const Color(0xFFF6EEE3));
     final minutesFromMaximum =
-        selectedAt.difference(maximum.at).inSeconds.abs() / 60;
+        frame.selectedAt.difference(geometry.maximum.at).inSeconds.abs() / 60;
     final eclipseStrength = math.max(0.0, 1 - minutesFromMaximum / 105);
     if (eclipseStrength > 0) {
       canvas.save();
@@ -1316,7 +1485,18 @@ class _SkyDomePainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 0.7,
     );
+  }
 
+  @override
+  bool shouldRepaint(covariant _DynamicMoonPainter oldDelegate) =>
+      oldDelegate.controller != controller;
+}
+
+class _SkylinePainter extends CustomPainter {
+  const _SkylinePainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
     final roof = Path()
       ..moveTo(0, size.height - 32)
       ..lineTo(size.width * 0.13, size.height - 32)
@@ -1359,35 +1539,8 @@ class _SkyDomePainter extends CustomPainter {
     );
   }
 
-  void _paintLabel(
-    Canvas canvas,
-    String text,
-    Offset position, {
-    required Color color,
-    bool centered = false,
-    double fontSize = 9.3,
-  }) {
-    final painter = TextPainter(
-      text: TextSpan(
-        text: text,
-        style: TextStyle(
-          color: color,
-          fontFamily: _FollowSkyObservationPresentationState._ui,
-          fontSize: fontSize,
-          letterSpacing: 1.2,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    painter.paint(
-      canvas,
-      centered ? position.translate(-painter.width / 2, 0) : position,
-    );
-  }
-
   @override
-  bool shouldRepaint(covariant _SkyDomePainter oldDelegate) =>
-      oldDelegate.selectedAt != selectedAt || oldDelegate.data != data;
+  bool shouldRepaint(covariant _SkylinePainter oldDelegate) => false;
 }
 
 SkyPositionSample _interpolatePosition(

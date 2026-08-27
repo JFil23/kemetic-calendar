@@ -3427,11 +3427,16 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     if (hasFollowSkyObservationSheet) {
       final isPresentationFixture = followSkyEventId == 'full-moon-2026-08-28';
       final Widget observation = isPresentationFixture
-          ? FollowSkyObservationPresentation(
-              key: ValueKey<String>(
-                'follow-sky-presentation:$followSkyClientEventId',
+          ? ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
               ),
-              fixture: losAngelesFullMoonPresentationFixture,
+              child: FollowSkyObservationPresentation(
+                key: ValueKey<String>(
+                  'follow-sky-presentation:$followSkyClientEventId',
+                ),
+                fixture: losAngelesFullMoonPresentationFixture,
+              ),
             )
           : FollowSkyObservationSheet(
               key: ValueKey<String>(
@@ -4297,24 +4302,30 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
           media.padding.bottom -
           12,
     );
+    final activeFlow = _chromeFlowForId(target.event.flowId);
+    final activeFollowSkyEventId = TrackSkyEventOwnership.skyEventIdFromPayload(
+      target.event.behaviorPayload,
+    );
+    final activeFollowSkyInstrument =
+        _isTrackSkyFlowName(activeFlow?.name) && activeFollowSkyEventId != null;
+    final activeFollowSkyPresentationFixture =
+        activeFollowSkyInstrument &&
+        activeFollowSkyEventId == 'full-moon-2026-08-28';
     final maxSheetHeight = _isWorkspacePresentation
         ? availableSheetHeight
+        : activeFollowSkyPresentationFixture && keyboardInset == 0
+        ? availableSheetHeight * 0.93
         : keyboardInset > 0
         ? availableSheetHeight
         : math.min(media.size.height * 0.68, 520.0);
     final reservedChromeHeight = _isWorkspacePresentation
         ? 24.0
+        : activeFollowSkyPresentationFixture
+        ? 64.0
         : hasOnboardingClosingBanner
         ? 250.0
         : 120.0;
     final maxPageHeight = math.max(0.0, maxSheetHeight - reservedChromeHeight);
-    final activeFlow = _chromeFlowForId(target.event.flowId);
-    final activeFollowSkyInstrument =
-        _isTrackSkyFlowName(activeFlow?.name) &&
-        TrackSkyEventOwnership.skyEventIdFromPayload(
-              target.event.behaviorPayload,
-            ) !=
-            null;
     final sheetHeight = _isWorkspacePresentation || activeFollowSkyInstrument
         ? maxPageHeight
         : (_measuredHeights[currentKey] ?? 200.0)
@@ -4360,7 +4371,8 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                if (!_isWorkspacePresentation) ...[
+                if (!_isWorkspacePresentation &&
+                    !activeFollowSkyPresentationFixture) ...[
                   _buildEventDetailTopActionRow(
                     rootContext: widget.hostContext,
                     sheetContext: context,
