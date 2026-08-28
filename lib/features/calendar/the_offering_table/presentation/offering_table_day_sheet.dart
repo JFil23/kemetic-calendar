@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../maat_flow_visual_tokens.dart';
 import '../../presentation/maat_flow_preview_day.dart';
 import '../../the_offering_table_flow.dart';
+import 'offering_table_presentation_copy.dart';
 
 @immutable
 class OfferingTablePreviewOccurrence {
@@ -68,10 +69,7 @@ class OfferingTableDaySheet extends StatelessWidget {
     final day = occurrence.day;
     final stage = _offeringStage(day.dayNumber);
     final stageDay = ((day.dayNumber - 1) % 10) + 1;
-    final copy = _firstFivePracticeCopy[day.dayNumber];
-    final why = copy?.why ?? day.purpose;
-    final instruction = copy?.instruction ?? day.provisionAct;
-    final steps = copy?.steps ?? day.optionalSteps;
+    final presentation = offeringTablePracticePresentation(day);
 
     return SafeArea(
       key: const ValueKey<String>('offering-table-day-sheet'),
@@ -212,19 +210,6 @@ class OfferingTableDaySheet extends StatelessWidget {
                   ),
                 ),
                 const _SheetDivider(),
-                const _SheetLabel('WHY THIS DAY'),
-                const SizedBox(height: 8),
-                Text(
-                  why,
-                  style: const TextStyle(
-                    color: _ivory,
-                    fontFamily: MaatFlowListTokens.fontFamily,
-                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                    fontSize: 18,
-                    height: 1.42,
-                  ),
-                ),
-                const _SheetDivider(),
                 const _SheetLabel('YOUR MOVE'),
                 const SizedBox(height: 9),
                 Container(
@@ -241,7 +226,7 @@ class OfferingTableDaySheet extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        instruction,
+                        presentation.instruction,
                         style: const TextStyle(
                           color: Color(0xFFE4D8C3),
                           fontFamily: MaatFlowListTokens.fontFamily,
@@ -250,11 +235,18 @@ class OfferingTableDaySheet extends StatelessWidget {
                           height: 1.35,
                         ),
                       ),
-                      if (steps.isNotEmpty) ...[
+                      if (presentation.steps.isNotEmpty) ...[
                         const SizedBox(height: 15),
-                        for (var index = 0; index < steps.length; index++) ...[
-                          _OfferingStep(number: index + 1, text: steps[index]),
-                          if (index != steps.length - 1)
+                        for (
+                          var index = 0;
+                          index < presentation.steps.length;
+                          index++
+                        ) ...[
+                          _OfferingStep(
+                            number: index + 1,
+                            text: presentation.steps[index],
+                          ),
+                          if (index != presentation.steps.length - 1)
                             const SizedBox(height: 10),
                         ],
                       ],
@@ -312,7 +304,11 @@ class OfferingTableDaySheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 18),
-                _OfferingContextDisclosure(day: day, lens: lens),
+                _OfferingContextDisclosure(
+                  day: day,
+                  lens: lens,
+                  why: presentation.why,
+                ),
                 const SizedBox(height: 20),
                 SizedBox(
                   height: 50,
@@ -450,10 +446,15 @@ class _WaterIcon extends StatelessWidget {
 }
 
 class _OfferingContextDisclosure extends StatefulWidget {
-  const _OfferingContextDisclosure({required this.day, required this.lens});
+  const _OfferingContextDisclosure({
+    required this.day,
+    required this.lens,
+    required this.why,
+  });
 
   final OfferingTableDay day;
   final OfferingTableLens lens;
+  final String why;
 
   @override
   State<_OfferingContextDisclosure> createState() =>
@@ -524,6 +525,10 @@ class _OfferingContextDisclosureState
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          const _SheetLabel('WHY THIS DAY'),
+                          const SizedBox(height: 8),
+                          Text(widget.why, style: _whyStyle),
+                          const SizedBox(height: 14),
                           if (sourceNote?.isNotEmpty == true) ...[
                             Text(sourceNote!, style: _contextStyle),
                             const SizedBox(height: 10),
@@ -556,6 +561,14 @@ class _OfferingContextDisclosureState
     fontSize: 13,
     height: 1.48,
   );
+
+  static const _whyStyle = TextStyle(
+    color: OfferingTableDaySheet._ivory,
+    fontFamily: MaatFlowListTokens.fontFamily,
+    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+    fontSize: 15,
+    height: 1.42,
+  );
 }
 
 class _OfferingStage {
@@ -583,73 +596,6 @@ _OfferingStage _offeringStage(int dayNumber) {
     progressLanguage: 'Return provision to the larger flow',
   );
 }
-
-class _OfferingPracticeCopy {
-  const _OfferingPracticeCopy({
-    required this.why,
-    required this.instruction,
-    required this.steps,
-  });
-
-  final String why;
-  final String instruction;
-  final List<String> steps;
-}
-
-const _firstFivePracticeCopy = <int, _OfferingPracticeCopy>{
-  1: _OfferingPracticeCopy(
-    why:
-        'Provision begins with the most basic need. Today you practice noticing yours before the day takes over.',
-    instruction:
-        'Start with water, then name one need you have been putting off.',
-    steps: <String>[
-      'Fill a cup of water.',
-      'Name one basic need that has been unmet for a few days.',
-      'Do the smallest thing that begins to meet it.',
-    ],
-  ),
-  2: _OfferingPracticeCopy(
-    why:
-        'The day starts competing for your attention immediately. This practice lets you choose your first input.',
-    instruction:
-        'Give your body something before your feeds, messages, or task list.',
-    steps: <String>[
-      'Drink water before opening a feed or message thread.',
-      'Name what you want your first real input to be today.',
-      'Protect one quiet minute for it.',
-    ],
-  ),
-  3: _OfferingPracticeCopy(
-    why:
-        'Food can become something you rush through. Today you treat one meal as actual provision.',
-    instruction: 'Make your first real food deliberate instead of accidental.',
-    steps: <String>[
-      'Name your first real food for the day.',
-      'If it is not planned, choose one reachable option now.',
-      'Prepare or place one part of it where you will see it.',
-    ],
-  ),
-  4: _OfferingPracticeCopy(
-    why:
-        'Small acts of neglect build quietly. Today you correct one before it becomes normal.',
-    instruction: 'Give your body one piece of care you have been postponing.',
-    steps: <String>[
-      'Wash your face, hands, or mouth with attention.',
-      'Name one body-care task you have delayed.',
-      'Do its smallest useful version today.',
-    ],
-  ),
-  5: _OfferingPracticeCopy(
-    why:
-        'Rest is not leftover time. It is something that has to be provided for on purpose.',
-    instruction: 'Look at tonight before the day fills it for you.',
-    steps: <String>[
-      'Name how many hours you slept last night.',
-      "Name one thing likely to shorten tonight's sleep.",
-      'Reduce that thing by one small amount.',
-    ],
-  ),
-};
 
 String _formatTime(DateTime date) {
   final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;

@@ -486,12 +486,6 @@ DateTime defaultOfferingTableStartDate(
 }) {
   final nowLocal = offeringTableNowInZone(timezone, now: now);
   final today = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
-  final todayStart = offeringTableScheduleForDate(
-    kOfferingTableDays.first,
-    today,
-    timezone,
-  ).startLocal;
-  if (!todayStart.isBefore(nowLocal)) return today;
   return today.add(const Duration(days: 1));
 }
 

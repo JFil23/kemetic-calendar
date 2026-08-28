@@ -125,6 +125,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(_byKeyPrefix('follow-sky-strip-day-'), findsNWidgets(30));
+      expect(_byKeyPrefix('follow-sky-strip-top-label-'), findsNothing);
+      expect(find.text('START DATE'), findsNothing);
       final todayDateKey = _dateKey(DateUtils.dateOnly(now.toLocal()));
       final todayRing = find.byKey(
         ValueKey<String>('follow-sky-strip-ring-$todayDateKey'),

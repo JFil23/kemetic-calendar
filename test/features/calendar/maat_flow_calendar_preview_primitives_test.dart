@@ -30,6 +30,7 @@ void main() {
     tester,
   ) async {
     final start = DateTime(2026, 9, 3);
+    var startDateTapped = false;
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
@@ -43,6 +44,13 @@ void main() {
                   MaatFlowThirtyDayMarker(
                     date: start.add(Duration(days: offset)),
                     secondaryColors: const [Color(0xFFC99A3D)],
+                    topLabel: offset == 0 ? 'START DATE' : null,
+                    onTopLabelTap: offset == 0
+                        ? () => startDateTapped = true
+                        : null,
+                    topLabelSemanticLabel: offset == 0
+                        ? 'Change start date'
+                        : null,
                   ),
               ],
               theme: calendarTheme,
@@ -68,6 +76,15 @@ void main() {
         findsOneWidget,
       );
     }
+    expect(find.text('START DATE'), findsOneWidget);
+    final semantics = tester.ensureSemantics();
+    final startDateControl = find.byKey(
+      ValueKey<String>('test-calendar-top-label-control-${_dateKey(start)}'),
+    );
+    expect(tester.getSemantics(startDateControl).label, 'Change start date');
+    semantics.dispose();
+    await tester.tap(startDateControl);
+    expect(startDateTapped, isTrue);
     expect(tester.takeException(), isNull);
   });
 

@@ -55,7 +55,7 @@ void main() {
     expect(clamped.startLocal.isAfter(DateTime(2026, 6, 1, 3)), isTrue);
   });
 
-  test('default start date advances after the morning table has passed', () {
+  test('default start date is tomorrow before and after the morning table', () {
     final before = defaultOfferingTableStartDate(
       TrackSkyTimeZone.pacific,
       now: DateTime.utc(2026, 6, 1, 13),
@@ -65,8 +65,21 @@ void main() {
       now: DateTime.utc(2026, 6, 1, 16),
     );
 
-    expect(before, DateTime(2026, 6, 1));
+    expect(before, DateTime(2026, 6, 2));
     expect(after, DateTime(2026, 6, 2));
+  });
+
+  test('default tomorrow follows the selected timezone calendar date', () {
+    final instant = DateTime.utc(2026, 6, 2, 6, 30);
+
+    expect(
+      defaultOfferingTableStartDate(TrackSkyTimeZone.pacific, now: instant),
+      DateTime(2026, 6, 2),
+    );
+    expect(
+      defaultOfferingTableStartDate(TrackSkyTimeZone.eastern, now: instant),
+      DateTime(2026, 6, 3),
+    );
   });
 
   test('builds JSON-safe behavior payloads and action ids', () {

@@ -15,6 +15,9 @@ abstract final class MaatFlowThirtyDayCalendarGeometry {
   static const double ringHorizontalInset = 1;
   static const double highlightRingDiameterDelta = 2;
   static const double ringDotGap = 6;
+  static const double topLabelWidth = 64;
+  static const double topLabelHeight = 14;
+  static const double topLabelFontSize = 7;
   static const double todayLabelFontSize = 10.5;
   static const double dayNumberFontSize = 21;
 }
@@ -53,6 +56,9 @@ class MaatFlowThirtyDayMarker {
     this.filled = false,
     this.accent,
     this.secondaryColors = const <Color>[],
+    this.topLabel,
+    this.onTopLabelTap,
+    this.topLabelSemanticLabel,
   });
 
   final DateTime date;
@@ -61,6 +67,9 @@ class MaatFlowThirtyDayMarker {
   final bool filled;
   final Color? accent;
   final List<Color> secondaryColors;
+  final String? topLabel;
+  final VoidCallback? onTopLabelTap;
+  final String? topLabelSemanticLabel;
 }
 
 /// Shared Kemetic month/decan calendar geometry for a rolling thirty-day flow.
@@ -178,6 +187,9 @@ class MaatFlowThirtyDayCalendar extends StatelessWidget {
         filled: marker?.filled ?? false,
         accent: marker?.accent,
         secondaryColors: marker?.secondaryColors ?? const <Color>[],
+        topLabel: marker?.topLabel,
+        onTopLabelTap: marker?.onTopLabelTap,
+        topLabelSemanticLabel: marker?.topLabelSemanticLabel,
       );
     }
     return sections;
@@ -208,6 +220,9 @@ class _CalendarDay {
     required this.filled,
     required this.accent,
     required this.secondaryColors,
+    required this.topLabel,
+    required this.onTopLabelTap,
+    required this.topLabelSemanticLabel,
   });
 
   final DateTime date;
@@ -217,6 +232,9 @@ class _CalendarDay {
   final bool filled;
   final Color? accent;
   final List<Color> secondaryColors;
+  final String? topLabel;
+  final VoidCallback? onTopLabelTap;
+  final String? topLabelSemanticLabel;
 }
 
 class _MonthBand extends StatelessWidget {
@@ -345,7 +363,7 @@ class _DayTile extends StatelessWidget {
     final accent = value.accent ?? theme.highlight;
     final dateKey = _dateKey(value.date);
 
-    return Column(
+    final tile = Column(
       key: ValueKey<String>('$keyPrefix-day-$dateKey'),
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -463,6 +481,56 @@ class _DayTile extends StatelessWidget {
           ),
         ),
       ],
+    );
+
+    final topLabel = value.topLabel;
+    if (topLabel == null || topLabel.isEmpty) return tile;
+
+    return Semantics(
+      key: ValueKey<String>('$keyPrefix-top-label-control-$dateKey'),
+      button: value.onTopLabelTap != null,
+      excludeSemantics: true,
+      label: value.topLabelSemanticLabel ?? topLabel,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: value.onTopLabelTap,
+        child: Stack(
+          clipBehavior: Clip.none,
+          fit: StackFit.expand,
+          children: [
+            tile,
+            Positioned(
+              top: 1,
+              left: 0,
+              right: 0,
+              height: MaatFlowThirtyDayCalendarGeometry.topLabelHeight,
+              child: ExcludeSemantics(
+                child: OverflowBox(
+                  maxWidth: MaatFlowThirtyDayCalendarGeometry.topLabelWidth,
+                  alignment: Alignment.topCenter,
+                  child: Text(
+                    topLabel,
+                    key: ValueKey<String>('$keyPrefix-top-label-$dateKey'),
+                    maxLines: 1,
+                    softWrap: false,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: accent,
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                      fontSize:
+                          MaatFlowThirtyDayCalendarGeometry.topLabelFontSize,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.7,
+                      height: 1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 

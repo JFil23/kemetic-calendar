@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
+import 'package:mobile/widgets/maat_flow_date_picker.dart';
 
 import 'package:mobile/features/calendar/calendar_event_visual_style.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
@@ -9,6 +10,7 @@ import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dar
 import 'package:mobile/features/calendar/presentation/maat_flow_preview_day.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calendar.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_sheet.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_presentation_copy.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
 
@@ -199,6 +201,31 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
     );
   }
 
+  Future<void> _pickStartDate() async {
+    final result = await MaatFlowDatePicker.show(
+      context: context,
+      initialDate: _startDate,
+      initialMode: MaatFlowDatePickerMode.gregorian,
+    );
+    if (result == null || !mounted) return;
+
+    setState(() {
+      _startDate = DateUtils.dateOnly(result.date);
+    });
+  }
+
+  String _initialEntryIntro() {
+    final today = DateUtils.dateOnly(offeringTableNowInZone(widget.timezone));
+    final tomorrow = today.add(const Duration(days: 1));
+    final timing = DateUtils.isSameDay(_startDate, tomorrow)
+        ? 'Tomorrow'
+        : DateUtils.isSameDay(_startDate, today)
+        ? 'Today'
+        : 'On ${_shortMonthDay(_startDate)}';
+    return 'Provision begins with the most basic need. '
+        '$timing you practice noticing yours before the day takes over.';
+  }
+
   List<OfferingTablePreviewOccurrence> _previewOccurrences() {
     return [
       for (final day in kOfferingTableDays)
@@ -286,6 +313,13 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
                 highlighted: true,
                 filled: _joined,
                 accent: OfferingTableDetailTokens.warmGold,
+                topLabel: occurrence.day.dayNumber == 1 ? 'START DATE' : null,
+                onTopLabelTap: occurrence.day.dayNumber == 1
+                    ? _pickStartDate
+                    : null,
+                topLabelSemanticLabel: occurrence.day.dayNumber == 1
+                    ? 'Change start date'
+                    : null,
                 secondaryColors:
                     ordinaryRowsByDay[occurrence.date]
                         ?.map((row) => row.eventColor)
@@ -298,7 +332,10 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
           introSecondLine: 'For the next thirty days.',
           keyPrefix: 'offering-table-calendar',
         ),
-        _OfferingTableInitialEntry(controller: _initialEntryController),
+        _OfferingTableInitialEntry(
+          controller: _initialEntryController,
+          introText: _initialEntryIntro(),
+        ),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 26, 20, 0),
           child: Column(
@@ -437,9 +474,13 @@ class _OfferingTableHeroBackdrop extends StatelessWidget {
 }
 
 class _OfferingTableInitialEntry extends StatelessWidget {
-  const _OfferingTableInitialEntry({required this.controller});
+  const _OfferingTableInitialEntry({
+    required this.controller,
+    required this.introText,
+  });
 
   final TextEditingController controller;
+  final String introText;
 
   @override
   Widget build(BuildContext context) {
@@ -478,9 +519,9 @@ class _OfferingTableInitialEntry extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 13),
-          const Text(
-            'The first water comes before the day asks anything else.',
-            style: TextStyle(
+          Text(
+            introText,
+            style: const TextStyle(
               color: OfferingTableDetailTokens.mutedIvory,
               fontFamily: MaatFlowListTokens.fontFamily,
               fontFamilyFallback: MaatFlowListTokens.fontFallback,
@@ -490,7 +531,7 @@ class _OfferingTableInitialEntry extends StatelessWidget {
           ),
           const SizedBox(height: 20),
           const Text(
-            'WHAT WAS FED?',
+            'WHAT NEEDS FEEDING?',
             style: TextStyle(
               color: OfferingTableDetailTokens.warmGold,
               fontFamily: MaatFlowListTokens.fontFamily,
@@ -503,7 +544,7 @@ class _OfferingTableInitialEntry extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'What did you provide today?',
+            'Name one need you have been putting off',
             style: TextStyle(
               color: OfferingTableDetailTokens.mutedIvory,
               fontFamily: MaatFlowListTokens.fontFamily,
@@ -531,7 +572,7 @@ class _OfferingTableInitialEntry extends StatelessWidget {
               ),
               decoration: InputDecoration(
                 isDense: true,
-                hintText: 'Name the provision…',
+                hintText: 'Name the need…',
                 hintStyle: TextStyle(
                   color: OfferingTableDetailTokens.muted.withValues(alpha: 0.8),
                 ),
@@ -705,7 +746,9 @@ class _OfferingFlowEventCard extends StatelessWidget {
                               ),
                               const SizedBox(height: 3),
                               Text(
-                                _offeringPreviewSummary(day),
+                                offeringTablePracticePresentation(
+                                  day,
+                                ).previewSummary,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
@@ -979,21 +1022,22 @@ String _shortDate(DateTime date) {
   return '${months[date.month - 1]} ${date.day}, ${date.year}';
 }
 
-const _firstFiveOfferingPreviewSummaries = <int, String>{
-  1: 'Start with your most basic need before the day starts asking.',
-  2: 'Choose what reaches you before messages and tasks do.',
-  3: 'Turn one meal from fuel into actual provision.',
-  4: 'Correct one small act of body-care you have been deferring.',
-  5: 'Treat rest as something that must be provided, not hoped for.',
-};
-
-String _offeringPreviewSummary(OfferingTableDay day) {
-  final approved = _firstFiveOfferingPreviewSummaries[day.dayNumber];
-  if (approved != null) return approved;
-
-  final provision = day.provisionAct.trim();
-  final firstSentence = RegExp(r'^.*?[.!?](?:\s|$)').firstMatch(provision);
-  return firstSentence?.group(0)?.trim() ?? provision;
+String _shortMonthDay(DateTime date) {
+  const months = <String>[
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return '${months[date.month - 1]} ${date.day}';
 }
 
 String _formatTime(DateTime date) {

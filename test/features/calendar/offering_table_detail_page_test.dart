@@ -12,6 +12,7 @@ import 'package:mobile/features/calendar/the_offering_table/presentation/offerin
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_detail_page.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
+import 'package:mobile/shared/date_picker/stone_register_date_picker_theme.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart';
 
 void main() {
@@ -56,6 +57,139 @@ void main() {
     expect(find.text('Carry this table'), findsOneWidget);
   });
 
+  testWidgets('default preview begins tomorrow with the approved intro copy', (
+    tester,
+  ) async {
+    final expectedStart = defaultOfferingTableStartDate(
+      TrackSkyTimeZone.pacific,
+    );
+    await _pumpPage(tester, size: const Size(390, 844));
+
+    expect(
+      find.text(
+        'Provision begins with the most basic need. Tomorrow you practice noticing yours before the day takes over.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('WHAT NEEDS FEEDING?'), findsOneWidget);
+    expect(
+      find.text('Name one need you have been putting off'),
+      findsOneWidget,
+    );
+    expect(find.text('Name the need…'), findsOneWidget);
+    expect(find.text('START DATE'), findsOneWidget);
+    expect(
+      find.byKey(
+        ValueKey<String>(
+          'offering-table-calendar-ring-${_dateKey(expectedStart)}',
+        ),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('intro timing says Today for an explicit same-day start', (
+    tester,
+  ) async {
+    final today = DateUtils.dateOnly(
+      offeringTableNowInZone(TrackSkyTimeZone.pacific),
+    );
+    await _pumpPage(tester, size: const Size(390, 844), start: today);
+
+    expect(
+      find.text(
+        'Provision begins with the most basic need. Today you practice noticing yours before the day takes over.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('start-date label moves the entire preview and Carry date', (
+    tester,
+  ) async {
+    final start = DateTime(DateTime.now().year + 1, 6, 10);
+    final selected = start.add(const Duration(days: 1));
+    DateTime? joinedDate;
+
+    await _pumpPage(
+      tester,
+      size: const Size(390, 844),
+      start: start,
+      onJoin:
+          ({
+            required startDate,
+            required timezone,
+            required lens,
+            required noCupMode,
+          }) async {
+            joinedDate = startDate;
+            return 52;
+          },
+    );
+
+    final startControl = find.byKey(
+      ValueKey<String>(
+        'offering-table-calendar-top-label-control-${_dateKey(start)}',
+      ),
+    );
+    await tester.ensureVisible(startControl);
+    await tester.pumpAndSettle();
+    await tester.tap(startControl);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Start date'), findsOneWidget);
+    expect(find.text('Gregorian Calendar'), findsWidgets);
+    await tester.drag(
+      find.byKey(const ValueKey<String>('stone-register-wheel-day')),
+      const Offset(0, -StoneRegisterDatePickerTheme.rowHeight),
+    );
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(
+        ValueKey<String>('offering-table-calendar-ring-${_dateKey(start)}'),
+      ),
+      findsNothing,
+    );
+    expect(
+      find.byKey(
+        ValueKey<String>('offering-table-calendar-ring-${_dateKey(selected)}'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        ValueKey<String>(
+          'offering-table-calendar-ring-'
+          '${_dateKey(selected.add(const Duration(days: 29)))}',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(_calendarRings(), findsNWidgets(30));
+    expect(find.text('START DATE'), findsOneWidget);
+    expect(
+      find.text(
+        'Provision begins with the most basic need. On ${_monthDay(selected)} you practice noticing yours before the day takes over.',
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('offering-table-preview-day-1')),
+        matching: find.text(gregorianDateLabel(selected)),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey<String>('offering-table-join')));
+    await tester.pumpAndSettle();
+    expect(joinedDate, selected);
+  });
+
   testWidgets(
     'calendar, initial entry, and date previews follow the approved order',
     (tester) async {
@@ -83,13 +217,26 @@ void main() {
       expect(find.text('For the next thirty days.'), findsOneWidget);
       expect(initialEntry, findsOneWidget);
       expect(find.text('HOW THE TABLE WORKS'), findsOneWidget);
-      expect(find.text('WHAT WAS FED?'), findsOneWidget);
-      expect(find.text('What did you provide today?'), findsOneWidget);
+      expect(find.text('WHAT NEEDS FEEDING?'), findsOneWidget);
+      expect(
+        find.text('Name one need you have been putting off'),
+        findsOneWidget,
+      );
+      expect(find.text('Name the need…'), findsOneWidget);
       expect(
         find.byKey(const ValueKey<String>('offering-table-initial-input')),
         findsOneWidget,
       );
       expect(firstPreview, findsOneWidget);
+      expect(find.text('START DATE'), findsOneWidget);
+      final semantics = tester.ensureSemantics();
+      final startDateControl = find.byKey(
+        ValueKey<String>(
+          'offering-table-calendar-top-label-control-${_dateKey(start)}',
+        ),
+      );
+      expect(tester.getSemantics(startDateControl).label, 'Change start date');
+      semantics.dispose();
 
       expect(
         tester.getTopLeft(calendar).dy,
@@ -267,7 +414,7 @@ void main() {
       );
       expect(
         find.descendant(of: daySheet, matching: find.text('WHY THIS DAY')),
-        findsOneWidget,
+        findsNothing,
       );
       expect(
         find.descendant(
@@ -276,11 +423,22 @@ void main() {
             'Provision begins with the most basic need. Today you practice noticing yours before the day takes over.',
           ),
         ),
-        findsOneWidget,
+        findsNothing,
       );
+      final progress = find.descendant(
+        of: daySheet,
+        matching: find.byKey(
+          const ValueKey<String>('offering-table-day-sheet-progress'),
+        ),
+      );
+      final yourMove = find.descendant(
+        of: daySheet,
+        matching: find.text('YOUR MOVE'),
+      );
+      expect(yourMove, findsOneWidget);
       expect(
-        find.descendant(of: daySheet, matching: find.text('YOUR MOVE')),
-        findsOneWidget,
+        tester.getTopLeft(progress).dy,
+        lessThan(tester.getTopLeft(yourMove).dy),
       );
       for (final step in const <String>[
         'Fill a cup of water.',
@@ -333,9 +491,31 @@ void main() {
           .onTap!();
       await tester.pumpAndSettle();
       expect(
+        find.descendant(of: daySheet, matching: find.text('WHY THIS DAY')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: daySheet,
+          matching: find.text(
+            'Provision begins with the most basic need. Today you practice noticing yours before the day takes over.',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
         find.descendant(
           of: daySheet,
           matching: find.text(kOfferingTableDays.first.sourceNote!),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: daySheet,
+          matching: find.text(
+            '“${offeringTableDecanLine(kOfferingTableDays.first.dayNumber)}”',
+          ),
         ),
         findsOneWidget,
       );
@@ -608,7 +788,7 @@ void main() {
 Future<void> _pumpPage(
   WidgetTester tester, {
   required Size size,
-  required DateTime start,
+  DateTime? start,
   TrackSkyTimeZone timezone = TrackSkyTimeZone.pacific,
   OfferingTableJoinCallback? onJoin,
   FollowSkyCalendarPreview calendarPreview = FollowSkyCalendarPreview.empty,
@@ -686,6 +866,12 @@ Finder _compactDayRows() => find.byWidgetPredicate((widget) {
       key.value.startsWith('offering-table-all-day-');
 });
 
+Finder _calendarRings() => find.byWidgetPredicate((widget) {
+  final key = widget.key;
+  return key is ValueKey<String> &&
+      key.value.startsWith('offering-table-calendar-ring-');
+});
+
 Color? _dotColor(WidgetTester tester, String key) {
   final container = tester.widget<Container>(find.byKey(ValueKey<String>(key)));
   return (container.decoration as BoxDecoration).color;
@@ -743,3 +929,21 @@ String _dateKey(DateTime date) =>
     '${date.year.toString().padLeft(4, '0')}-'
     '${date.month.toString().padLeft(2, '0')}-'
     '${date.day.toString().padLeft(2, '0')}';
+
+String _monthDay(DateTime date) {
+  const months = <String>[
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  return '${months[date.month - 1]} ${date.day}';
+}
