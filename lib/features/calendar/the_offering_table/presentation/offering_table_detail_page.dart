@@ -8,7 +8,9 @@ import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_preview_day.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calendar.dart';
-import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_sheet.dart';
+import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_components.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_presentation.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_presentation_copy.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
@@ -102,7 +104,6 @@ class OfferingTableDetailPage extends StatefulWidget {
     super.key,
     required this.timezone,
     required this.onJoin,
-    required this.onJoined,
     this.calendarPreview = FollowSkyCalendarPreview.empty,
     this.initialStartDate,
     this.joinedFlowId,
@@ -117,7 +118,6 @@ class OfferingTableDetailPage extends StatefulWidget {
 
   final TrackSkyTimeZone timezone;
   final OfferingTableJoinCallback onJoin;
-  final Future<void> Function(int flowId) onJoined;
   final FollowSkyCalendarPreview calendarPreview;
   final DateTime? initialStartDate;
   final int? joinedFlowId;
@@ -136,6 +136,7 @@ class OfferingTableDetailPage extends StatefulWidget {
 
 class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
   late DateTime _draftStartDate;
+  int? _carriedFlowId;
   final TextEditingController _initialEntryController = TextEditingController();
   bool _joining = false;
   bool _showAllDays = false;
@@ -146,6 +147,7 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
     _draftStartDate = DateUtils.dateOnly(
       widget.initialStartDate ?? defaultOfferingTableStartDate(widget.timezone),
     );
+    _carriedFlowId = widget.joinedFlowId;
     _loadJoinedNeed();
   }
 
@@ -153,14 +155,15 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
   void didUpdateWidget(covariant OfferingTableDetailPage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.joinedFlowId != oldWidget.joinedFlowId) {
+      _carriedFlowId = widget.joinedFlowId;
       _loadJoinedNeed();
     }
   }
 
-  bool get _joined => widget.joinedFlowId != null;
+  bool get _joined => _carriedFlowId != null;
 
   DateTime get _startDate {
-    if (!_joined) return _draftStartDate;
+    if (widget.joinedFlowId == null) return _draftStartDate;
     final joinedStart = widget.joinedStartDate;
     if (joinedStart != null) return DateUtils.dateOnly(joinedStart);
     if (widget.joinedScheduleDates.isNotEmpty) {
@@ -172,10 +175,10 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
   }
 
   Future<void> _loadJoinedNeed() async {
-    final flowId = widget.joinedFlowId;
+    final flowId = _carriedFlowId;
     if (flowId == null) return;
     final need = await widget.localStore.loadNeed(flowId);
-    if (!mounted || widget.joinedFlowId != flowId) return;
+    if (!mounted || _carriedFlowId != flowId) return;
     _initialEntryController.text = need;
   }
 
@@ -188,21 +191,14 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
   Future<void> _join() async {
     if (_joining || _joined) return;
     setState(() => _joining = true);
+    int id;
     try {
-      final id = await widget.onJoin(
+      id = await widget.onJoin(
         startDate: _startDate,
         timezone: widget.timezone,
         lens: widget.lens,
         noCupMode: widget.noCupMode,
       );
-      if (id > 0) {
-        await widget.localStore.saveNeed(id, _initialEntryController.text);
-        if (!mounted) return;
-        await widget.onJoined(id);
-        if (mounted) setState(() => _joining = false);
-        return;
-      }
-      if (!mounted) return;
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -210,19 +206,119 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
           content: Text('Could not join The Offering Table. Please retry.'),
         ),
       );
+      setState(() => _joining = false);
+      return;
     }
-    if (mounted) setState(() => _joining = false);
+    if (id <= 0) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not join The Offering Table. Please retry.'),
+        ),
+      );
+      setState(() => _joining = false);
+      return;
+    }
+
+    // The staged flow is the join authority. Private local copy must never
+    // turn a successful calendar join into a retryable second enrollment.
+    try {
+      await widget.localStore.saveNeed(id, _initialEntryController.text);
+    } catch (error, stackTrace) {
+      debugPrint('[OfferingTable] private need save failed after join: $error');
+      debugPrint('$stackTrace');
+    }
+    if (!mounted) return;
+    setState(() {
+      _carriedFlowId = id;
+      _joining = false;
+    });
   }
 
   Future<void> _openOfferingDaySheet(
     OfferingTablePreviewOccurrence occurrence,
   ) async {
-    await showOfferingTableDaySheet(
-      context: context,
-      occurrence: occurrence,
-      lens: widget.lens,
-      noCupMode: widget.noCupMode,
-    );
+    if (!CalendarEventDetailSheetCoordinator.tryMarkOpenOrOpening()) return;
+    var extent = 0.58;
+    try {
+      await showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: Colors.transparent,
+        isScrollControlled: true,
+        builder: (sheetContext) => StatefulBuilder(
+          builder: (context, setSheetState) {
+            final media = MediaQuery.of(context);
+            final availableHeight =
+                media.size.height -
+                media.padding.top -
+                media.padding.bottom -
+                12;
+            return Align(
+              alignment: Alignment.bottomCenter,
+              child: SizedBox(
+                height: availableHeight * extent,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                  child: DayViewBottomSheetFrame(
+                    child: Column(
+                      children: <Widget>[
+                        InstrumentEventSheetTopBar(
+                          semanticLabel: 'Resize Offering Table sheet',
+                          handleColor: const Color(0x7AD4AE43),
+                          onVerticalDragUpdate: (details) {
+                            final delta = details.primaryDelta;
+                            if (delta == null || availableHeight <= 0) return;
+                            setSheetState(() {
+                              extent = (extent - delta / availableHeight)
+                                  .clamp(0.58, 1.0)
+                                  .toDouble();
+                            });
+                          },
+                          trailing: IconButton(
+                            key: const ValueKey<String>(
+                              'offering-table-preview-sheet-close',
+                            ),
+                            tooltip: 'Close Offering Table practice',
+                            onPressed: () => Navigator.of(sheetContext).pop(),
+                            icon: const Icon(
+                              Icons.close,
+                              color: Color(0xFFA59D91),
+                              size: 30,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: const BorderRadius.vertical(
+                              top: Radius.circular(20),
+                            ),
+                            child: OfferingTableDayPresentation(
+                              day: occurrence.day,
+                              localDate: occurrence.date,
+                              startMinute:
+                                  occurrence.startLocal.hour * 60 +
+                                  occurrence.startLocal.minute,
+                              initialNeed: _initialEntryController.text,
+                              lens: widget.lens,
+                              persistResponses: false,
+                              completionPanel:
+                                  const _OfferingPreviewCompletionPanel(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      );
+    } finally {
+      CalendarEventDetailSheetCoordinator.markClosed();
+    }
   }
 
   Future<void> _pickStartDate() async {
@@ -1033,6 +1129,44 @@ class _OfferingAllDayRow extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _OfferingPreviewCompletionPanel extends StatelessWidget {
+  const _OfferingPreviewCompletionPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        for (final label in const <String>[
+          'Observed',
+          'Partly',
+          'Skipped',
+        ]) ...<Widget>[
+          Expanded(
+            child: Container(
+              height: 45,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0x2EE8E2D6)),
+              ),
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: Color(0xFF9E9A94),
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                  fontSize: 16.5,
+                ),
+              ),
+            ),
+          ),
+          if (label != 'Skipped') const SizedBox(width: 9),
+        ],
+      ],
     );
   }
 }

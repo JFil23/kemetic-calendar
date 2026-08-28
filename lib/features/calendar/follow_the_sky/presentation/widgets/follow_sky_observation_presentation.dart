@@ -1,11 +1,10 @@
 import 'dart:async';
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
+import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 
 import '../../domain/follow_sky_track_definition.dart';
@@ -258,81 +257,30 @@ class _FollowSkyObservationPresentationState
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final boundedHeight = constraints.hasBoundedHeight
-            ? constraints.maxHeight
-            : 620.0;
-        final heroHeight = math.min(
-          282.0,
-          math.max(238.0, boundedHeight * 0.46),
-        );
-        final instrumentHeight = heroHeight + 76;
-        return DecoratedBox(
-          key: const ValueKey<String>('follow-sky-observation-presentation'),
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              stops: <double>[0, 0.34, 0.74],
-              colors: <Color>[Color(0xFF1B1220), Color(0xFF140F1A), _velvet],
-            ),
-          ),
-          child: Stack(
-            fit: StackFit.expand,
-            children: <Widget>[
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                height: instrumentHeight,
-                child: Column(
-                  children: <Widget>[
-                    SizedBox(
-                      height: heroHeight,
-                      child: ExcludeSemantics(
-                        child: IgnorePointer(
-                          child: RepaintBoundary(child: _buildSky()),
-                        ),
-                      ),
-                    ),
-                    _buildFinder(),
-                    _buildDragInstruction(),
-                  ],
-                ),
-              ),
-              CustomScrollView(
-                key: const ValueKey<String>('follow-sky-presentation-body'),
-                physics: const ClampingScrollPhysics(),
-                keyboardDismissBehavior:
-                    ScrollViewKeyboardDismissBehavior.onDrag,
-                slivers: <Widget>[
-                  SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: instrumentHeight,
-                      child: Align(
-                        alignment: Alignment.topCenter,
-                        child: SizedBox(
-                          height: heroHeight,
-                          child: _buildSkyInput(),
-                        ),
-                      ),
-                    ),
-                  ),
-                  SliverToBoxAdapter(
-                    child: RepaintBoundary(
-                      key: const ValueKey<String>(
-                        'follow-sky-static-lower-sheet',
-                      ),
-                      child: _buildBody(),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
+    return InstrumentEventPresentationFrame(
+      key: const ValueKey<String>('follow-sky-observation-presentation'),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          stops: <double>[0, 0.34, 0.74],
+          colors: <Color>[Color(0xFF1B1220), Color(0xFF140F1A), _velvet],
+        ),
+      ),
+      instrument: _buildSky(),
+      instrumentFooter: Column(
+        children: <Widget>[
+          Expanded(child: _buildFinder()),
+          _buildDragInstruction(),
+        ],
+      ),
+      inputBuilder: (context, heroHeight, _) => Align(
+        alignment: Alignment.topCenter,
+        child: SizedBox(height: heroHeight, child: _buildSkyInput()),
+      ),
+      body: _buildBody(),
+      bodyScrollKey: const ValueKey<String>('follow-sky-presentation-body'),
+      lowerSheetKey: const ValueKey<String>('follow-sky-static-lower-sheet'),
     );
   }
 

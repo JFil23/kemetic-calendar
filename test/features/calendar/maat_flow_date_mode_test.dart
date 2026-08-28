@@ -358,7 +358,7 @@ void main() {
       'lib/features/calendar/flow_join_service.dart',
     ).readAsStringSync();
 
-    expect(_countOccurrences(source, 'stagePlannedNotesAndDeferPersist('), 19);
+    expect(_countOccurrences(source, 'stagePlannedNotesAndDeferPersist('), 20);
     expect(
       _countOccurrences(
         source,
@@ -418,6 +418,16 @@ void main() {
     expect(followSkyV11, contains('completionRequired: false'));
     expect(followSkyV11, contains('_rememberJoinedMaatFlowTemplate('));
     expect(followSkyV11, isNot(contains('_completeJoin(id)')));
+
+    final offeringTable = _sourceBetween(
+      maatFlowsSource,
+      'if (widget.template.kind == _MaatFlowTemplateKind.offeringTable)',
+      'if (widget.template.kind == _MaatFlowTemplateKind.theTending)',
+    );
+    expect(offeringTable, contains('_joinOfferingTable('));
+    expect(offeringTable, isNot(contains('widget.addInstance(')));
+    expect(offeringTable, isNot(contains('_completeJoin')));
+    expect(maatFlowsSource, contains('completionRequired: false'));
   });
 
   test(

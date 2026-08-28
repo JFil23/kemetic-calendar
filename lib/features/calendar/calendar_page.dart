@@ -7595,6 +7595,37 @@ class CalendarPage extends StatefulWidget {
     return flowId;
   }
 
+  static Future<int> _joinOfferingTableHeadless({
+    required _MaatFlowTemplate template,
+    required bool completionRequired,
+    String? personalCalendarIdOverride,
+    required DateTime startDate,
+    required TrackSkyTimeZone timezone,
+    required OfferingTableLens lens,
+    required bool noCupMode,
+  }) async {
+    if (!isMaatFlowNewJoinAllowed(template.key)) return -1;
+    final personalCalendarId =
+        personalCalendarIdOverride ?? await _loadHeadlessPersonalCalendarId();
+    final result = await FlowJoinService().joinOfferingTableHeadless(
+      templateKey: template.key,
+      templateTitle: template.title,
+      templateOverview: template.overview,
+      templateColor: template.color,
+      personalCalendarId: personalCalendarId,
+      timezone: timezone,
+      startDate: startDate,
+      lens: lens,
+      noCupMode: noCupMode,
+      alertOffsetMinutes: 0,
+    );
+    return _stageHeadlessMaatFlowJoinResult(
+      result: result,
+      template: template,
+      completionRequired: completionRequired,
+    );
+  }
+
   static Future<int> _addMaatFlowInstanceHeadless({
     required _MaatFlowTemplate template,
     bool completionRequired = false,
@@ -7630,6 +7661,22 @@ class CalendarPage extends StatefulWidget {
       template: template,
       completionRequired: completionRequired,
     );
+
+    if (template.kind == _MaatFlowTemplateKind.offeringTable) {
+      return _joinOfferingTableHeadless(
+        template: template,
+        completionRequired: completionRequired,
+        personalCalendarIdOverride: personalCalendarId,
+        startDate:
+            startDate ??
+            defaultOfferingTableStartDate(
+              trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+            ),
+        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+        lens: offeringTableLens ?? OfferingTableLens.neutral,
+        noCupMode: offeringNoCupMode == true,
+      );
+    }
 
     if (template.kind == _MaatFlowTemplateKind.trackSky) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
@@ -7829,22 +7876,6 @@ class CalendarPage extends StatefulWidget {
         startDate: startDate,
         lens: theWeighingLens ?? TheWeighingLens.neutral,
         alertOffsetMinutes: kEventFilingNoAlertMinutes,
-      );
-      return stageResult(result);
-    }
-
-    if (template.kind == _MaatFlowTemplateKind.offeringTable) {
-      final result = await FlowJoinService().joinOfferingTableHeadless(
-        templateKey: template.key,
-        templateTitle: template.title,
-        templateOverview: template.overview,
-        templateColor: template.color,
-        personalCalendarId: personalCalendarId,
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-        startDate: startDate,
-        lens: offeringTableLens ?? OfferingTableLens.neutral,
-        noCupMode: offeringNoCupMode == true,
-        alertOffsetMinutes: 0,
       );
       return stageResult(result);
     }

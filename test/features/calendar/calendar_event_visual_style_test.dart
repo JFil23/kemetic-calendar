@@ -56,6 +56,17 @@ void main() {
           graphicKind: CalendarEventGraphicKind.trackSky,
         ),
         _PaletteCase(
+          label: 'Offering Table staged identity',
+          eventTitle: 'Day 1: The First Water',
+          eventColor: Colors.brown,
+          behaviorPayload: const <String, dynamic>{
+            'flow_key': 'the-offering-table',
+            'kind': 'maat_offering_table_day',
+            'day': 1,
+          },
+          graphicKind: CalendarEventGraphicKind.offeringTable,
+        ),
+        _PaletteCase(
           label: 'Dawn House Rite',
           flowName: 'Dawn House Rite',
           eventTitle: 'Day 1: Open the House',
@@ -99,6 +110,7 @@ void main() {
           eventColor: c.eventColor,
           flowName: c.flowName,
           eventTitle: c.eventTitle,
+          behaviorPayload: c.behaviorPayload,
           isReminder: c.isReminder,
           isNutrition: c.isNutrition,
         );
@@ -123,6 +135,7 @@ class _PaletteCase {
     required this.eventTitle,
     required this.eventColor,
     this.flowName,
+    this.behaviorPayload,
     this.graphicKind,
     this.isReminder = false,
     this.isNutrition = false,
@@ -130,6 +143,7 @@ class _PaletteCase {
 
   final String label;
   final String? flowName;
+  final Map<String, dynamic>? behaviorPayload;
   final String eventTitle;
   final Color eventColor;
   final CalendarEventGraphicKind? graphicKind;

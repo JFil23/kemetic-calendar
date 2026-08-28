@@ -66,23 +66,26 @@ void main() {
 
     await tester.tapAt(Offset(rect.left + 42, rect.center.dy));
     await tester.pump();
-    expect(find.text('0%'), findsOneWidget);
+    expect(tester.getSemantics(gesture).value, '0 percent placed');
 
     await tester.tapAt(Offset(rect.center.dx, rect.center.dy));
     await tester.pump();
-    expect(find.text('50%'), findsOneWidget);
+    expect(tester.getSemantics(gesture).value, '50 percent placed');
 
     await tester.tapAt(Offset(rect.right - 42, rect.center.dy));
     await tester.pump();
-    expect(find.text('100%'), findsOneWidget);
+    expect(tester.getSemantics(gesture).value, '100 percent placed');
 
     final node = tester.getSemantics(gesture);
+    // The widget-test semantics owner for the active render view remains on
+    // this compatibility accessor in the current Flutter test binding.
+    // ignore: deprecated_member_use
     tester.binding.pipelineOwner.semanticsOwner!.performAction(
       node.id,
       SemanticsAction.decrease,
     );
     await tester.pump();
-    expect(find.text('98%'), findsOneWidget);
+    expect(tester.getSemantics(gesture).value, '98 percent placed');
     semanticsHandle.dispose();
   });
 
@@ -143,8 +146,10 @@ void main() {
       const ValueKey<String>('follow-sky-sheet-resize-handle'),
     );
     final page = find.descendant(of: sheet, matching: find.byType(PageView));
+    final hero = find.byKey(const ValueKey<String>('offering-table-cup-hero'));
     expect(sheet, findsOneWidget);
     expect(handle, findsOneWidget);
+    expect(tester.getSize(hero).height, 238);
     expect(
       find.byKey(const ValueKey<String>('offering-table-day-presentation')),
       findsOneWidget,
@@ -157,6 +162,7 @@ void main() {
     await tester.drag(handle, const Offset(0, -120));
     await tester.pumpAndSettle();
     expect(tester.getSize(page).height, closeTo(minimumPageHeight + 120, 0.1));
+    expect(tester.getSize(hero).height, 238);
 
     final body = find.byKey(
       const ValueKey<String>('offering-table-presentation-body'),

@@ -41,6 +41,7 @@ import 'maat_flow_response_journal_blocks.dart';
 import 'maat_flow_response_models.dart';
 import 'maat_flow_response_resolver.dart';
 import 'maat_flow_visual_tokens.dart';
+import 'presentation/instrument_event_presentation_frame.dart';
 import 'track_sky_flow.dart';
 import 'dawn_house_rite_flow.dart';
 import 'evening_threshold_flow.dart';
@@ -95,6 +96,11 @@ import 'event_workspace/event_workspace_models.dart';
 import 'event_workspace/event_workspace_surface.dart';
 export 'event_resource.dart';
 export 'event_workspace/event_workspace_models.dart';
+export 'presentation/instrument_event_presentation_frame.dart'
+    show
+        CalendarEventDetailSheetCoordinator,
+        DayViewBottomSheetFrame,
+        dayViewBottomSheetBackplateKey;
 
 const double _kMinEventBlockHeight = 56.0;
 const double _kTimelineLabelWidth = 60.0;
@@ -401,6 +407,37 @@ CalendarCompletionPickerStyle _dayViewCompletionPickerStyle(
     buttonVisualDensity: const VisualDensity(horizontal: -1, vertical: -1),
   );
 }
+
+const CalendarCompletionPickerStyle _offeringTableCompletionPickerStyle =
+    CalendarCompletionPickerStyle(
+      containerPadding: EdgeInsets.zero,
+      containerColor: Colors.transparent,
+      containerBorderColor: Colors.transparent,
+      containerBorderWidth: 0,
+      containerRadius: 0,
+      label: '',
+      labelColor: Colors.transparent,
+      labelFontSize: 0,
+      labelFontWeight: FontWeight.w400,
+      labelGap: 0,
+      buttonGap: 9,
+      selectedForegroundColor: Color(0xFFE8B27C),
+      selectedBackgroundColor: Color(0x21C08A52),
+      selectedBorderColor: Color(0xFFE8B27C),
+      unselectedForegroundColor: Color(0xFF9E9A94),
+      unselectedBackgroundColor: Colors.transparent,
+      unselectedBorderColor: Color(0x2EE8E2D6),
+      buttonBorderWidth: 1,
+      buttonPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      buttonRadius: 12,
+      buttonFontSize: 16.5,
+      buttonFontWeight: FontWeight.w400,
+      buttonFontFamily: _dayViewSerifFamily,
+      buttonFontFamilyFallback: _dayViewSerifFallback,
+      buttonMinimumSize: Size(0, 45),
+      buttonTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      buttonVisualDensity: VisualDensity.compact,
+    );
 
 enum _RitualCompletionFeedbackLevel { observed, partial, skipped }
 
@@ -2120,80 +2157,6 @@ DayViewSheetEventTarget? sameDayEndFlowSuccessor({
   return null;
 }
 
-class CalendarEventDetailSheetCoordinator {
-  CalendarEventDetailSheetCoordinator._();
-
-  static bool _openOrOpening = false;
-
-  static bool get isOpenOrOpening => _openOrOpening;
-
-  static bool tryMarkOpenOrOpening() {
-    if (_openOrOpening) return false;
-    _openOrOpening = true;
-    return true;
-  }
-
-  static void markClosed() {
-    _openOrOpening = false;
-  }
-
-  @visibleForTesting
-  static void debugResetForTests() {
-    _openOrOpening = false;
-  }
-}
-
-@visibleForTesting
-const ValueKey<String> dayViewBottomSheetBackplateKey = ValueKey<String>(
-  'day-view-bottom-sheet-backplate',
-);
-
-class DayViewBottomSheetFrame extends StatelessWidget {
-  const DayViewBottomSheetFrame({
-    super.key,
-    required this.child,
-    this.borderRadius = 20,
-  });
-
-  final Widget child;
-  final double borderRadius;
-
-  @override
-  Widget build(BuildContext context) {
-    final radius = BorderRadius.vertical(top: Radius.circular(borderRadius));
-
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Positioned.fill(
-          child: IgnorePointer(
-            child: DecoratedBox(
-              key: dayViewBottomSheetBackplateKey,
-              decoration: BoxDecoration(
-                borderRadius: radius,
-                gradient: const LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Color(0xF7070605), Color(0xFA050403)],
-                ),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0xCC000000),
-                    blurRadius: 28,
-                    spreadRadius: 6,
-                    offset: Offset(0, -8),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-        child,
-      ],
-    );
-  }
-}
-
 class CalendarEventDetailSheet extends StatefulWidget {
   const CalendarEventDetailSheet({
     super.key,
@@ -3661,6 +3624,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             lens: offeringTableLensFromNotes(flow?.notes),
             completionPanel: buildMaatCompletionPanel(
               responseSpecsOverride: const <MaatFlowResponseSpec>[],
+              pickerStyleOverride: _offeringTableCompletionPickerStyle,
             ),
           ),
         ),
@@ -4005,49 +3969,17 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     );
 
     if (showInstrumentResizeHandle) {
-      return SizedBox(
-        height: 48,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Positioned(
-              left: 52,
-              right: 52,
-              top: 0,
-              bottom: 0,
-              child: GestureDetector(
-                key: const ValueKey<String>('follow-sky-sheet-resize-handle'),
-                behavior: HitTestBehavior.opaque,
-                onVerticalDragUpdate: enableInstrumentResize
-                    ? (details) => _updateInstrumentSheetExtent(
-                        details,
-                        availableSheetHeight,
-                      )
-                    : null,
-                child: Center(
-                  child: Semantics(
-                    label: instrumentResizeLabel,
-                    child: Container(
-                      width: 42,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: _dayGold.withValues(alpha: 0.48),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: _buildEventDetailOverflowButton(
-                rootContext: rootContext,
-                sheetContext: sheetContext,
-                target: target,
-              ),
-            ),
-          ],
+      return InstrumentEventSheetTopBar(
+        semanticLabel: instrumentResizeLabel,
+        handleColor: _dayGold.withValues(alpha: 0.48),
+        onVerticalDragUpdate: enableInstrumentResize
+            ? (details) =>
+                  _updateInstrumentSheetExtent(details, availableSheetHeight)
+            : null,
+        trailing: _buildEventDetailOverflowButton(
+          rootContext: rootContext,
+          sheetContext: sheetContext,
+          target: target,
         ),
       );
     }
@@ -8194,10 +8126,13 @@ class _DayViewGridState extends State<DayViewGrid> {
         width: block.width,
         height: height,
         isPreview: isPreview,
-        child: _buildEventTextContents(
-          event,
-          durationMinutes,
-          isPreview: isPreview,
+        child: Padding(
+          padding: const EdgeInsets.only(right: 35),
+          child: _buildEventTextContents(
+            event,
+            durationMinutes,
+            isPreview: isPreview,
+          ),
         ),
       );
     }
@@ -8683,6 +8618,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
+                    letterSpacing: isOfferingTable ? 0.3 : null,
                     color: graphicFlowNameColor,
                   ),
                   maxLines: 1,
@@ -8779,15 +8715,15 @@ class _DayViewGridState extends State<DayViewGrid> {
             overflow: TextOverflow.ellipsis,
           ),
         ],
-        if (isOfferingTable &&
-            offeringTableTeaser.isNotEmpty &&
-            durationMinutes >= 45) ...[
+        if (isOfferingTable && offeringTableTeaser.isNotEmpty) ...[
           const SizedBox(height: 0),
           buildGraphicText(
             '“$offeringTableTeaser”',
             style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              fontWeight: FontWeight.w400,
+              fontStyle: FontStyle.italic,
+              height: 1.15,
               color: graphic!.detailColor.withValues(
                 alpha: isPreview ? 0.82 : 0.96,
               ),

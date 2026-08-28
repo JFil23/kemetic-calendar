@@ -2902,10 +2902,7 @@ void main() {
     () async {
       final timezone = TrackSkyTimeZone.pacific;
       final selectedStart = DateTime(2026, 6, 7);
-      final days = <OfferingTableDay>[
-        kOfferingTableDays[0],
-        kOfferingTableDays[1],
-      ];
+      final days = kOfferingTableDays;
 
       OfferingTableOccurrenceSchedule scheduleForDay(
         OfferingTableDay day,
@@ -3091,12 +3088,17 @@ void main() {
       expect(result.flowId, 305);
       expect(result.flowIdOrNegativeOne, 305);
       expect(result.clientEventIds, expectedIds);
+      expect(result.clientEventIds, hasLength(30));
+      expect(result.clientEventIds.toSet(), hasLength(30));
 
       expect(flowCalls, hasLength(1));
       expect(flowCalls.single['name'], kOfferingTableTitle);
       expect(flowCalls.single['calendarId'], 'personal-calendar');
       expect(flowCalls.single['startDate'], selectedStart);
-      expect(flowCalls.single['endDate'], DateTime(2026, 6, 8));
+      expect(
+        flowCalls.single['endDate'],
+        selectedStart.add(const Duration(days: 29)),
+      );
       expect(flowCalls.single['originType'], 'template');
       expect(
         flowCalls.single['notes'],
@@ -3159,11 +3161,9 @@ void main() {
       expect(invalidations.single.clientEventIds, expectedIds);
       expect(order, <String>[
         'flow',
-        'event:${expectedIds[0]}',
-        'event:${expectedIds[1]}',
+        for (final id in expectedIds) 'event:$id',
         'invalidation',
-        'delivery:${expectedIds[0]}',
-        'delivery:${expectedIds[1]}',
+        for (final id in expectedIds) 'delivery:$id',
       ]);
     },
   );

@@ -2496,6 +2496,31 @@ class _MaatFlowTemplateDetailPageState
     Navigator.of(context).pop(id);
   }
 
+  Future<int> _joinOfferingTable({
+    required DateTime startDate,
+    required TrackSkyTimeZone timezone,
+    required OfferingTableLens lens,
+    required bool noCupMode,
+  }) async {
+    final id = await CalendarPage._joinOfferingTableHeadless(
+      template: widget.template,
+      completionRequired: false,
+      startDate: startDate,
+      timezone: timezone,
+      lens: lens,
+      noCupMode: noCupMode,
+    );
+    if (id <= 0) {
+      throw StateError('The Offering Table did not produce a staged flow.');
+    }
+    CalendarPage._rememberJoinedMaatFlowTemplate(
+      templateKey: widget.template.key,
+      flowId: id,
+    );
+    unawaited(FlowsRepo(Supabase.instance.client).clearMyFiledFlowsCache());
+    return id;
+  }
+
   List<DateTime> _joinedDateRuleDates(_Flow? flow) {
     if (flow == null) return const <DateTime>[];
     final dates = <DateTime>{};
@@ -9063,14 +9088,12 @@ class _MaatFlowTemplateDetailPageState
               required timezone,
               required lens,
               required noCupMode,
-            }) => widget.addInstance(
-              template: widget.template,
+            }) => _joinOfferingTable(
               startDate: startDate,
-              trackSkyTimeZone: timezone,
-              offeringTableLens: lens,
-              offeringNoCupMode: noCupMode,
+              timezone: timezone,
+              lens: lens,
+              noCupMode: noCupMode,
             ),
-        onJoined: _completeJoin,
       );
     }
     if (widget.template.kind == _MaatFlowTemplateKind.theTending) {
