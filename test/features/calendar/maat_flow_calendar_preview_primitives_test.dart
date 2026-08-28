@@ -71,6 +71,97 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  for (final fixture in const <({String name, Size size})>[
+    (name: '390 wide', size: Size(390, 844)),
+    (name: '320 wide', size: Size(320, 700)),
+  ]) {
+    testWidgets(
+      'shared calendar rings fit their tiles without overlap at ${fixture.name}',
+      (tester) async {
+        final start = DateTime(2026, 9, 3);
+        await tester.binding.setSurfaceSize(fixture.size);
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: MaatFlowThirtyDayCalendar(
+                  windowStart: start,
+                  markers: [
+                    for (var offset = 0; offset < 30; offset++)
+                      MaatFlowThirtyDayMarker(
+                        date: start.add(Duration(days: offset)),
+                        isToday: offset == 0,
+                        highlighted: true,
+                        secondaryColors: const [
+                          Color(0xFF82C96C),
+                          Color(0xFF5EA4D9),
+                        ],
+                      ),
+                  ],
+                  theme: calendarTheme,
+                  introFirstLine: 'Here is your table.',
+                  introSecondLine: 'For the next thirty days.',
+                  keyPrefix: 'responsive-calendar',
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        Rect? previousRing;
+        Rect? previousTile;
+        for (var offset = 0; offset < 30; offset++) {
+          final date = start.add(Duration(days: offset));
+          final dateKey = _dateKey(date);
+          final tile = tester.getRect(
+            find.byKey(ValueKey<String>('responsive-calendar-day-$dateKey')),
+          );
+          final ring = tester.getRect(
+            find.byKey(ValueKey<String>('responsive-calendar-ring-$dateKey')),
+          );
+          final number = tester.getRect(
+            find.byKey(ValueKey<String>('responsive-calendar-number-$dateKey')),
+          );
+          final dots = tester.getRect(
+            find.byKey(ValueKey<String>('responsive-calendar-dots-$dateKey')),
+          );
+
+          expect(ring.width, closeTo(ring.height, 0.01));
+          expect(ring.left, greaterThan(tile.left));
+          expect(ring.right, lessThan(tile.right));
+          expect(number.center.dx, closeTo(tile.center.dx, 0.01));
+          expect(dots.top, greaterThan(ring.bottom));
+
+          if (previousRing != null &&
+              previousTile != null &&
+              previousTile.center.dy == tile.center.dy) {
+            expect(ring.left - previousRing.right, greaterThan(0));
+          }
+          previousRing = ring;
+          previousTile = tile;
+        }
+
+        final todayRing = tester.getRect(
+          find.byKey(
+            ValueKey<String>('responsive-calendar-ring-${_dateKey(start)}'),
+          ),
+        );
+        final nextRing = tester.getRect(
+          find.byKey(
+            ValueKey<String>(
+              'responsive-calendar-ring-'
+              '${_dateKey(start.add(const Duration(days: 1)))}',
+            ),
+          ),
+        );
+        expect(todayRing.width, greaterThan(nextRing.width));
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
   testWidgets('shared preview card keeps date and event hierarchy at 320', (
     tester,
   ) async {

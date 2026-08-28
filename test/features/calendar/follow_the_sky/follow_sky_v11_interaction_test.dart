@@ -129,6 +129,9 @@ void main() {
       final todayRing = find.byKey(
         ValueKey<String>('follow-sky-strip-ring-$todayDateKey'),
       );
+      final todayTile = find.byKey(
+        ValueKey<String>('follow-sky-strip-day-$todayDateKey'),
+      );
       final todayNumber = find.byKey(
         ValueKey<String>('follow-sky-strip-number-$todayDateKey'),
       );
@@ -137,14 +140,20 @@ void main() {
       );
       expect(todayRing, findsOneWidget);
       final todayRingRect = tester.getRect(todayRing);
+      final todayTileRect = tester.getRect(todayTile);
       final todayNumberRect = tester.getRect(todayNumber);
       final todayDotsRect = tester.getRect(todayDots);
       expect(
         tester.widget<Text>(todayNumber).style?.fontSize,
         FollowSkyV11Tokens.todayLabelFontSize,
       );
-      expect(todayRingRect.width, FollowSkyV11Tokens.todayRingDiameter);
-      expect(todayRingRect.height, FollowSkyV11Tokens.todayRingDiameter);
+      expect(todayRingRect.width, closeTo(todayRingRect.height, 0.001));
+      expect(
+        todayRingRect.width,
+        lessThan(FollowSkyV11Tokens.todayRingDiameter),
+      );
+      expect(todayRingRect.left, greaterThan(todayTileRect.left));
+      expect(todayRingRect.right, lessThan(todayTileRect.right));
       expect(todayRingRect.contains(todayNumberRect.topLeft), isTrue);
       expect(todayRingRect.contains(todayNumberRect.bottomRight), isTrue);
       expect(
@@ -157,6 +166,9 @@ void main() {
       );
       final ringRect = tester.getRect(
         find.byKey(ValueKey<String>('follow-sky-strip-ring-$intentionDateKey')),
+      );
+      final tileRect = tester.getRect(
+        find.byKey(ValueKey<String>('follow-sky-strip-day-$intentionDateKey')),
       );
       final numberRect = tester.getRect(
         find.byKey(
@@ -177,14 +189,10 @@ void main() {
             ?.fontSize,
         FollowSkyV11Tokens.dayNumberFontSize,
       );
-      expect(
-        ringRect.width,
-        closeTo(FollowSkyV11Tokens.skyRingDiameter, 0.001),
-      );
-      expect(
-        ringRect.height,
-        closeTo(FollowSkyV11Tokens.skyRingDiameter, 0.001),
-      );
+      expect(ringRect.width, closeTo(ringRect.height, 0.001));
+      expect(ringRect.width, lessThan(FollowSkyV11Tokens.skyRingDiameter));
+      expect(ringRect.left, greaterThan(tileRect.left));
+      expect(ringRect.right, lessThan(tileRect.right));
       expect(
         ringRect.contains(numberRect.topLeft),
         isTrue,

@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../decan_metadata.dart';
@@ -10,6 +12,8 @@ abstract final class MaatFlowThirtyDayCalendarGeometry {
   static const double dayNumberAreaHeight = 42;
   static const double todayRingDiameter = 40;
   static const double highlightRingDiameter = 36;
+  static const double ringHorizontalInset = 1;
+  static const double highlightRingDiameterDelta = 2;
   static const double ringDotGap = 6;
   static const double todayLabelFontSize = 10.5;
   static const double dayNumberFontSize = 21;
@@ -339,9 +343,6 @@ class _DayTile extends StatelessWidget {
     final value = day;
     if (value == null) return const SizedBox.expand();
     final accent = value.accent ?? theme.highlight;
-    final ringDiameter = value.isToday
-        ? MaatFlowThirtyDayCalendarGeometry.todayRingDiameter
-        : MaatFlowThirtyDayCalendarGeometry.highlightRingDiameter;
     final dateKey = _dateKey(value.date);
 
     return Column(
@@ -350,32 +351,43 @@ class _DayTile extends StatelessWidget {
       children: [
         SizedBox(
           height: MaatFlowThirtyDayCalendarGeometry.dayNumberAreaHeight,
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: [
-              if (value.isToday || value.highlighted)
-                OverflowBox(
-                  minWidth: ringDiameter,
-                  maxWidth: ringDiameter,
-                  minHeight: ringDiameter,
-                  maxHeight: ringDiameter,
-                  child: Container(
-                    key: ValueKey<String>('$keyPrefix-ring-$dateKey'),
-                    width: ringDiameter,
-                    height: ringDiameter,
-                    decoration: BoxDecoration(
-                      color: value.highlighted && value.filled
-                          ? accent.withValues(alpha: 0.10)
-                          : null,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: value.highlighted ? accent : theme.month,
-                      ),
-                    ),
-                  ),
-                ),
-              Text(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final tileWidth = constraints.hasBoundedWidth
+                  ? constraints.maxWidth
+                  : MaatFlowThirtyDayCalendarGeometry.todayRingDiameter +
+                        (MaatFlowThirtyDayCalendarGeometry.ringHorizontalInset *
+                            2);
+              final safeTileDiameter = math.max(
+                0.0,
+                tileWidth -
+                    (MaatFlowThirtyDayCalendarGeometry.ringHorizontalInset * 2),
+              );
+              final configuredRingDiameter = value.isToday
+                  ? MaatFlowThirtyDayCalendarGeometry.todayRingDiameter
+                  : MaatFlowThirtyDayCalendarGeometry.highlightRingDiameter;
+              final safeRingDiameter = value.isToday
+                  ? safeTileDiameter
+                  : math.max(
+                      0.0,
+                      safeTileDiameter -
+                          MaatFlowThirtyDayCalendarGeometry
+                              .highlightRingDiameterDelta,
+                    );
+              final ringDiameter = math.min(
+                configuredRingDiameter,
+                safeRingDiameter,
+              );
+              final ringIsClamped =
+                  (value.isToday || value.highlighted) &&
+                  ringDiameter < configuredRingDiameter;
+              final dayNumberFontSize = !value.isToday && ringIsClamped
+                  ? math.min(
+                      MaatFlowThirtyDayCalendarGeometry.dayNumberFontSize,
+                      math.max(1.0, ringDiameter - 4),
+                    )
+                  : MaatFlowThirtyDayCalendarGeometry.dayNumberFontSize;
+              final number = Text(
                 key: ValueKey<String>('$keyPrefix-number-$dateKey'),
                 value.isToday ? 'today' : '${value.dayNumber}',
                 maxLines: 1,
@@ -388,12 +400,43 @@ class _DayTile extends StatelessWidget {
                   fontFamilyFallback: MaatFlowListTokens.fontFallback,
                   fontSize: value.isToday
                       ? MaatFlowThirtyDayCalendarGeometry.todayLabelFontSize
-                      : MaatFlowThirtyDayCalendarGeometry.dayNumberFontSize,
+                      : dayNumberFontSize,
                   height: value.isToday ? null : 1,
                   fontWeight: FontWeight.w500,
                 ),
-              ),
-            ],
+              );
+              final displayedNumber = ringIsClamped
+                  ? SizedBox(
+                      width: math.max(0.0, ringDiameter - 4),
+                      child: FittedBox(fit: BoxFit.scaleDown, child: number),
+                    )
+                  : number;
+
+              return Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  if (value.isToday || value.highlighted)
+                    SizedBox(
+                      width: ringDiameter,
+                      height: ringDiameter,
+                      child: Container(
+                        key: ValueKey<String>('$keyPrefix-ring-$dateKey'),
+                        decoration: BoxDecoration(
+                          color: value.highlighted && value.filled
+                              ? accent.withValues(alpha: 0.10)
+                              : null,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: value.highlighted ? accent : theme.month,
+                          ),
+                        ),
+                      ),
+                    ),
+                  displayedNumber,
+                ],
+              );
+            },
           ),
         ),
         const SizedBox(height: MaatFlowThirtyDayCalendarGeometry.ringDotGap),
