@@ -28,6 +28,8 @@ Future<void> showOfferingTableDaySheet({
     isScrollControlled: true,
     useRootNavigator: true,
     backgroundColor: const Color(0xFF0C0905),
+    barrierColor: Colors.black.withValues(alpha: 0.66),
+    clipBehavior: Clip.antiAlias,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       side: BorderSide(color: Color(0x4AC99A3D)),
@@ -52,102 +54,291 @@ class OfferingTableDaySheet extends StatelessWidget {
   final OfferingTableLens lens;
   final bool noCupMode;
 
+  static const _background = Color(0xFF0C0905);
+  static const _panel = Color(0xFF110C07);
   static const _gold = Color(0xFFC99A3D);
+  static const _goldBright = Color(0xFFF0C96A);
   static const _ivory = Color(0xFFD7CDBA);
   static const _silver = Color(0xFFA59D91);
+  static const _muted = Color(0xFF91877A);
   static const _separator = Color(0xFF302313);
 
   @override
   Widget build(BuildContext context) {
     final day = occurrence.day;
-    final sections = _detailSections(
-      offeringTableDetailText(day, lens: lens, noCupMode: noCupMode),
-    );
+    final stage = _offeringStage(day.dayNumber);
+    final stageDay = ((day.dayNumber - 1) % 10) + 1;
+    final copy = _firstFivePracticeCopy[day.dayNumber];
+    final why = copy?.why ?? day.purpose;
+    final instruction = copy?.instruction ?? day.provisionAct;
+    final steps = copy?.steps ?? day.optionalSteps;
 
     return SafeArea(
       key: const ValueKey<String>('offering-table-day-sheet'),
       top: false,
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          12,
-          20,
-          20 + MediaQuery.viewInsetsOf(context).bottom,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.82,
         ),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Center(
-                child: Container(
-                  width: 44,
-                  height: 4,
+        child: ColoredBox(
+          color: _background,
+          child: SingleChildScrollView(
+            key: const ValueKey<String>('offering-table-day-sheet-scroll'),
+            padding: EdgeInsets.fromLTRB(
+              22,
+              12,
+              22,
+              24 + MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4B4033),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'DAY ${day.dayNumber.toString().padLeft(2, '0')} OF 30 · ${stage.name.toUpperCase()}',
+                          style: const TextStyle(
+                            color: _gold,
+                            fontFamily: MaatFlowListTokens.fontFamily,
+                            fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 1.7,
+                            height: 1.25,
+                          ),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      key: const ValueKey<String>(
+                        'offering-table-day-sheet-top-close',
+                      ),
+                      tooltip: 'Close',
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 34,
+                        minHeight: 34,
+                      ),
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close, color: _silver, size: 25),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  day.title,
+                  style: const TextStyle(
+                    color: _ivory,
+                    fontFamily: MaatFlowListTokens.fontFamily,
+                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                    fontSize: 30,
+                    fontWeight: FontWeight.w500,
+                    height: 1.08,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${gregorianDateLabel(occurrence.date)}, ${occurrence.date.year} · ${_formatTime(occurrence.startLocal)}',
+                  style: const TextStyle(
+                    color: _silver,
+                    fontFamily: MaatFlowListTokens.fontFamily,
+                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                    fontSize: 11.5,
+                    letterSpacing: 0.25,
+                  ),
+                ),
+                const SizedBox(height: 17),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        stage.progressLanguage,
+                        style: const TextStyle(
+                          color: Color(0xFF9D8C70),
+                          fontFamily: MaatFlowListTokens.fontFamily,
+                          fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 1.05,
+                          height: 1.2,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Text(
+                      '$stageDay/10',
+                      style: const TextStyle(
+                        color: Color(0xFF9D8C70),
+                        fontFamily: MaatFlowListTokens.fontFamily,
+                        fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                        fontSize: 9.5,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.05,
+                        height: 1.2,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 7),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(99),
+                  child: LinearProgressIndicator(
+                    key: const ValueKey<String>(
+                      'offering-table-day-sheet-progress',
+                    ),
+                    value: stageDay / 10,
+                    minHeight: 3,
+                    backgroundColor: const Color(0xFF2A2117),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      _goldBright,
+                    ),
+                  ),
+                ),
+                const _SheetDivider(),
+                const _SheetLabel('WHY THIS DAY'),
+                const SizedBox(height: 8),
+                Text(
+                  why,
+                  style: const TextStyle(
+                    color: _ivory,
+                    fontFamily: MaatFlowListTokens.fontFamily,
+                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                    fontSize: 18,
+                    height: 1.42,
+                  ),
+                ),
+                const _SheetDivider(),
+                const _SheetLabel('YOUR MOVE'),
+                const SizedBox(height: 9),
+                Container(
+                  key: const ValueKey<String>(
+                    'offering-table-day-sheet-your-move',
+                  ),
+                  padding: const EdgeInsets.all(17),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4B4033),
-                    borderRadius: BorderRadius.circular(4),
+                    color: _panel,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: const Color(0xFF3C2B16)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        instruction,
+                        style: const TextStyle(
+                          color: Color(0xFFE4D8C3),
+                          fontFamily: MaatFlowListTokens.fontFamily,
+                          fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                          fontSize: 19,
+                          height: 1.35,
+                        ),
+                      ),
+                      if (steps.isNotEmpty) ...[
+                        const SizedBox(height: 15),
+                        for (var index = 0; index < steps.length; index++) ...[
+                          _OfferingStep(number: index + 1, text: steps[index]),
+                          if (index != steps.length - 1)
+                            const SizedBox(height: 10),
+                        ],
+                      ],
+                    ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 18),
-              Text(
-                'DAY ${day.dayNumber.toString().padLeft(2, '0')} · ${day.section.toUpperCase()}',
-                style: const TextStyle(
-                  color: _gold,
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 1.8,
+                const _SheetDivider(),
+                const _SheetLabel('CLOSE THE RITUAL'),
+                const SizedBox(height: 9),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 15,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0D0B08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: const Color(0xFF302719)),
+                  ),
+                  child: const Row(
+                    children: [
+                      _WaterIcon(),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Drink the water.',
+                              style: TextStyle(
+                                color: _ivory,
+                                fontFamily: MaatFlowListTokens.fontFamily,
+                                fontFamilyFallback:
+                                    MaatFlowListTokens.fontFallback,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            SizedBox(height: 2),
+                            Text(
+                              'Provision returns to life through you.',
+                              style: TextStyle(
+                                color: Color(0xFF968B7C),
+                                fontFamily: MaatFlowListTokens.fontFamily,
+                                fontFamilyFallback:
+                                    MaatFlowListTokens.fontFallback,
+                                fontSize: 13,
+                                height: 1.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                day.title,
-                style: const TextStyle(
-                  color: _ivory,
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                  fontSize: 28,
-                  fontWeight: FontWeight.w500,
-                  height: 1.15,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                '${gregorianDateLabel(occurrence.date)}, ${occurrence.date.year} · ${_formatTime(occurrence.startLocal)}',
-                style: const TextStyle(
-                  color: _silver,
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                  fontSize: 12,
-                  letterSpacing: 0.45,
-                ),
-              ),
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 18),
-                child: Divider(color: _separator, height: 1),
-              ),
-              for (var index = 0; index < sections.length; index++) ...[
-                _OfferingDetailSection(section: sections[index]),
-                if (index != sections.length - 1) const SizedBox(height: 18),
-              ],
-              if (day.sourceNote?.trim().isNotEmpty == true) ...[
                 const SizedBox(height: 18),
-                _OfferingDetailSection(
-                  section: _DetailSection(
-                    label: 'Context',
-                    body: day.sourceNote!.trim(),
+                _OfferingContextDisclosure(day: day, lens: lens),
+                const SizedBox(height: 20),
+                SizedBox(
+                  height: 50,
+                  child: TextButton(
+                    key: const ValueKey<String>(
+                      'offering-table-day-sheet-close',
+                    ),
+                    style: TextButton.styleFrom(
+                      backgroundColor: _gold,
+                      foregroundColor: const Color(0xFF120C05),
+                      shape: const StadiumBorder(),
+                    ),
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text(
+                      'Back to the table',
+                      style: TextStyle(
+                        fontFamily: MaatFlowListTokens.fontFamily,
+                        fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
               ],
-              const SizedBox(height: 18),
-              TextButton(
-                key: const ValueKey<String>('offering-table-day-sheet-close'),
-                onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Close', style: TextStyle(color: _gold)),
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -155,36 +346,81 @@ class OfferingTableDaySheet extends StatelessWidget {
   }
 }
 
-class _OfferingDetailSection extends StatelessWidget {
-  const _OfferingDetailSection({required this.section});
-
-  final _DetailSection section;
+class _SheetDivider extends StatelessWidget {
+  const _SheetDivider();
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 18),
+      child: Divider(color: OfferingTableDaySheet._separator, height: 1),
+    );
+  }
+}
+
+class _SheetLabel extends StatelessWidget {
+  const _SheetLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: OfferingTableDaySheet._gold,
+        fontFamily: MaatFlowListTokens.fontFamily,
+        fontFamilyFallback: MaatFlowListTokens.fontFallback,
+        fontSize: 9.5,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 2,
+        height: 1.2,
+      ),
+    );
+  }
+}
+
+class _OfferingStep extends StatelessWidget {
+  const _OfferingStep({required this.number, required this.text});
+
+  final int number;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          section.label.toUpperCase(),
-          style: const TextStyle(
-            color: OfferingTableDaySheet._gold,
-            fontFamily: MaatFlowListTokens.fontFamily,
-            fontFamilyFallback: MaatFlowListTokens.fontFallback,
-            fontSize: 10,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 1.8,
+        Container(
+          width: 23,
+          height: 23,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFF755927)),
+          ),
+          child: Text(
+            '$number',
+            style: const TextStyle(
+              color: Color(0xFFD2AA57),
+              fontFamily: MaatFlowListTokens.fontFamily,
+              fontFamilyFallback: MaatFlowListTokens.fontFallback,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
-        const SizedBox(height: 6),
-        Text(
-          section.body,
-          style: const TextStyle(
-            color: OfferingTableDaySheet._ivory,
-            fontFamily: MaatFlowListTokens.fontFamily,
-            fontFamilyFallback: MaatFlowListTokens.fontFallback,
-            fontSize: 15.5,
-            height: 1.45,
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Color(0xFFBAAF9E),
+              fontFamily: MaatFlowListTokens.fontFamily,
+              fontFamilyFallback: MaatFlowListTokens.fontFallback,
+              fontSize: 14,
+              height: 1.4,
+            ),
           ),
         ),
       ],
@@ -192,26 +428,228 @@ class _OfferingDetailSection extends StatelessWidget {
   }
 }
 
-class _DetailSection {
-  const _DetailSection({required this.label, required this.body});
+class _WaterIcon extends StatelessWidget {
+  const _WaterIcon();
 
-  final String label;
-  final String body;
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: const Color(0xFF78602E)),
+      ),
+      child: const Icon(
+        Icons.water_drop_outlined,
+        color: Color(0xFFD5AF58),
+        size: 18,
+      ),
+    );
+  }
 }
 
-List<_DetailSection> _detailSections(String detail) {
-  return [
-    for (final block in detail.split('\n\n'))
-      if (block.trim().isNotEmpty)
-        () {
-          final lines = block.trim().split('\n');
-          return _DetailSection(
-            label: lines.first,
-            body: lines.skip(1).join('\n').trim(),
-          );
-        }(),
-  ];
+class _OfferingContextDisclosure extends StatefulWidget {
+  const _OfferingContextDisclosure({required this.day, required this.lens});
+
+  final OfferingTableDay day;
+  final OfferingTableLens lens;
+
+  @override
+  State<_OfferingContextDisclosure> createState() =>
+      _OfferingContextDisclosureState();
 }
+
+class _OfferingContextDisclosureState
+    extends State<_OfferingContextDisclosure> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final sourceNote = widget.day.sourceNote?.trim();
+    final lensLine = widget.lens.detailLine.trim();
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(
+          top: BorderSide(color: OfferingTableDaySheet._separator),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            key: const ValueKey<String>(
+              'offering-table-day-sheet-context-toggle',
+            ),
+            onTap: () => setState(() => _expanded = !_expanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Row(
+                children: [
+                  const Expanded(
+                    child: Text(
+                      'Why this belongs at the Offering Table',
+                      style: TextStyle(
+                        color: Color(0xFF9D8F7A),
+                        fontFamily: MaatFlowListTokens.fontFamily,
+                        fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                        fontSize: 13.5,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    _expanded ? '−' : '+',
+                    style: const TextStyle(
+                      color: OfferingTableDaySheet._gold,
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                      fontSize: 18,
+                      height: 1,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          ClipRect(
+            child: AnimatedSize(
+              alignment: Alignment.topCenter,
+              duration: const Duration(milliseconds: 220),
+              curve: Curves.easeOut,
+              child: _expanded
+                  ? Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (sourceNote?.isNotEmpty == true) ...[
+                            Text(sourceNote!, style: _contextStyle),
+                            const SizedBox(height: 10),
+                          ],
+                          Text(
+                            '“${offeringTableDecanLine(widget.day.dayNumber)}”',
+                            style: _contextStyle.copyWith(
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                          if (lensLine.isNotEmpty) ...[
+                            const SizedBox(height: 10),
+                            Text(lensLine, style: _contextStyle),
+                          ],
+                        ],
+                      ),
+                    )
+                  : const SizedBox(width: double.infinity),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static const _contextStyle = TextStyle(
+    color: OfferingTableDaySheet._muted,
+    fontFamily: MaatFlowListTokens.fontFamily,
+    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+    fontSize: 13,
+    height: 1.48,
+  );
+}
+
+class _OfferingStage {
+  const _OfferingStage({required this.name, required this.progressLanguage});
+
+  final String name;
+  final String progressLanguage;
+}
+
+_OfferingStage _offeringStage(int dayNumber) {
+  if (dayNumber <= 10) {
+    return const _OfferingStage(
+      name: 'Personal Table',
+      progressLanguage: 'Provide for yourself',
+    );
+  }
+  if (dayNumber <= 20) {
+    return const _OfferingStage(
+      name: 'Household Table',
+      progressLanguage: 'Provide for what depends on you',
+    );
+  }
+  return const _OfferingStage(
+    name: 'Flowing Table',
+    progressLanguage: 'Return provision to the larger flow',
+  );
+}
+
+class _OfferingPracticeCopy {
+  const _OfferingPracticeCopy({
+    required this.why,
+    required this.instruction,
+    required this.steps,
+  });
+
+  final String why;
+  final String instruction;
+  final List<String> steps;
+}
+
+const _firstFivePracticeCopy = <int, _OfferingPracticeCopy>{
+  1: _OfferingPracticeCopy(
+    why:
+        'Provision begins with the most basic need. Today you practice noticing yours before the day takes over.',
+    instruction:
+        'Start with water, then name one need you have been putting off.',
+    steps: <String>[
+      'Fill a cup of water.',
+      'Name one basic need that has been unmet for a few days.',
+      'Do the smallest thing that begins to meet it.',
+    ],
+  ),
+  2: _OfferingPracticeCopy(
+    why:
+        'The day starts competing for your attention immediately. This practice lets you choose your first input.',
+    instruction:
+        'Give your body something before your feeds, messages, or task list.',
+    steps: <String>[
+      'Drink water before opening a feed or message thread.',
+      'Name what you want your first real input to be today.',
+      'Protect one quiet minute for it.',
+    ],
+  ),
+  3: _OfferingPracticeCopy(
+    why:
+        'Food can become something you rush through. Today you treat one meal as actual provision.',
+    instruction: 'Make your first real food deliberate instead of accidental.',
+    steps: <String>[
+      'Name your first real food for the day.',
+      'If it is not planned, choose one reachable option now.',
+      'Prepare or place one part of it where you will see it.',
+    ],
+  ),
+  4: _OfferingPracticeCopy(
+    why:
+        'Small acts of neglect build quietly. Today you correct one before it becomes normal.',
+    instruction: 'Give your body one piece of care you have been postponing.',
+    steps: <String>[
+      'Wash your face, hands, or mouth with attention.',
+      'Name one body-care task you have delayed.',
+      'Do its smallest useful version today.',
+    ],
+  ),
+  5: _OfferingPracticeCopy(
+    why:
+        'Rest is not leftover time. It is something that has to be provided for on purpose.',
+    instruction: 'Look at tonight before the day fills it for you.',
+    steps: <String>[
+      'Name how many hours you slept last night.',
+      "Name one thing likely to shorten tonight's sleep.",
+      'Reduce that thing by one small amount.',
+    ],
+  ),
+};
 
 String _formatTime(DateTime date) {
   final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;

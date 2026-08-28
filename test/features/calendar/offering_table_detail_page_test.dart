@@ -125,6 +125,54 @@ void main() {
       expect(find.text('Day 1: The First Water'), findsOneWidget);
       expect(find.text('7:30 AM'), findsNWidgets(5));
       expect(find.byType(TrackSkyEventBlockVisual), findsNWidgets(5));
+      expect(find.byType(MaatFlowPreviewEventRow), findsNWidgets(3));
+      expect(find.text('VIEW PRACTICE'), findsNWidgets(5));
+      expect(
+        find.text(
+          'Start with your most basic need before the day starts asking.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Choose what reaches you before messages and tasks do.'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Turn one meal from fuel into actual provision.'),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Correct one small act of body-care you have been deferring.',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Treat rest as something that must be provided, not hoped for.',
+        ),
+        findsOneWidget,
+      );
+      for (final day in kOfferingTableDays.take(5)) {
+        final badge = find.byKey(
+          ValueKey<String>('offering-table-preview-event-${day.dayNumber}'),
+        );
+        expect(tester.widget<GestureDetector>(badge).onTap, isNotNull);
+        expect(
+          find.byKey(
+            ValueKey<String>('offering-table-preview-chevron-${day.dayNumber}'),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(
+            ValueKey<String>(
+              'offering-table-preview-affordance-${day.dayNumber}',
+            ),
+          ),
+          findsOneWidget,
+        );
+      }
       expect(find.text('Morning workout'), findsOneWidget);
       expect(find.text('Evening journal'), findsOneWidget);
       expect(find.text('Lunch meeting'), findsOneWidget);
@@ -198,7 +246,7 @@ void main() {
       expect(
         find.descendant(
           of: daySheet,
-          matching: find.text('DAY 01 · PERSONAL TABLE'),
+          matching: find.text('DAY 01 OF 30 · PERSONAL TABLE'),
         ),
         findsOneWidget,
       );
@@ -209,7 +257,85 @@ void main() {
       expect(
         find.descendant(
           of: daySheet,
-          matching: find.text(kOfferingTableDays.first.provisionAct),
+          matching: find.text('Provide for yourself'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: daySheet, matching: find.text('1/10')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: daySheet, matching: find.text('WHY THIS DAY')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: daySheet,
+          matching: find.text(
+            'Provision begins with the most basic need. Today you practice noticing yours before the day takes over.',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: daySheet, matching: find.text('YOUR MOVE')),
+        findsOneWidget,
+      );
+      for (final step in const <String>[
+        'Fill a cup of water.',
+        'Name one basic need that has been unmet for a few days.',
+        'Do the smallest thing that begins to meet it.',
+      ]) {
+        expect(
+          find.descendant(of: daySheet, matching: find.text(step)),
+          findsOneWidget,
+        );
+      }
+      expect(
+        find.descendant(of: daySheet, matching: find.text('CLOSE THE RITUAL')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: daySheet, matching: find.text('Drink the water.')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: daySheet, matching: find.text('Back to the table')),
+        findsOneWidget,
+      );
+      for (final oldLabel in const <String>[
+        'PURPOSE',
+        'WATER',
+        'WORDS',
+        'PROVISION',
+        'OPTIONAL',
+        'DRINK',
+      ]) {
+        expect(
+          find.descendant(of: daySheet, matching: find.text(oldLabel)),
+          findsNothing,
+        );
+      }
+      expect(
+        find.descendant(
+          of: daySheet,
+          matching: find.text(kOfferingTableDays.first.sourceNote!),
+        ),
+        findsNothing,
+      );
+      tester
+          .widget<InkWell>(
+            find.byKey(
+              const ValueKey<String>('offering-table-day-sheet-context-toggle'),
+            ),
+          )
+          .onTap!();
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: daySheet,
+          matching: find.text(kOfferingTableDays.first.sourceNote!),
         ),
         findsOneWidget,
       );
@@ -267,7 +393,7 @@ void main() {
       expect(
         find.descendant(
           of: daySheet,
-          matching: find.text('DAY 06 · PERSONAL TABLE'),
+          matching: find.text('DAY 06 OF 30 · PERSONAL TABLE'),
         ),
         findsOneWidget,
       );
@@ -357,6 +483,28 @@ void main() {
     },
   );
 
+  testWidgets('day sheet shows the three ten-day journey stages', (
+    tester,
+  ) async {
+    const size = Size(390, 844);
+
+    await _pumpDaySheet(tester, size: size, dayNumber: 5);
+    expect(find.text('DAY 05 OF 30 · PERSONAL TABLE'), findsOneWidget);
+    expect(find.text('Provide for yourself'), findsOneWidget);
+    expect(find.text('5/10'), findsOneWidget);
+
+    await _pumpDaySheet(tester, size: size, dayNumber: 11);
+    expect(find.text('DAY 11 OF 30 · HOUSEHOLD TABLE'), findsOneWidget);
+    expect(find.text('Provide for what depends on you'), findsOneWidget);
+    expect(find.text('1/10'), findsOneWidget);
+
+    await _pumpDaySheet(tester, size: size, dayNumber: 21);
+    expect(find.text('DAY 21 OF 30 · FLOWING TABLE'), findsOneWidget);
+    expect(find.text('Return provision to the larger flow'), findsOneWidget);
+    expect(find.text('1/10'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('carry retains the existing default join arguments', (
     tester,
   ) async {
@@ -408,13 +556,39 @@ void main() {
     (name: 'normal iPhone', size: Size(390, 844)),
     (name: 'narrow', size: Size(320, 700)),
   ]) {
-    testWidgets('${fixture.name} layout remains overflow-free', (tester) async {
+    testWidgets('${fixture.name} page and day sheet remain scroll-safe', (
+      tester,
+    ) async {
       await _pumpPage(tester, size: fixture.size, start: DateTime(2026, 9, 3));
       await tester.drag(
         find.byKey(const ValueKey<String>('offering-table-scroll')),
         const Offset(0, -900),
       );
       await tester.pumpAndSettle();
+
+      tester
+          .widget<GestureDetector>(
+            find.byKey(
+              const ValueKey<String>('offering-table-preview-event-1'),
+            ),
+          )
+          .onTap!();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(OfferingTableDaySheet), findsOneWidget);
+      final sheetScroll = find.byKey(
+        const ValueKey<String>('offering-table-day-sheet-scroll'),
+      );
+      final scrollable = find.descendant(
+        of: sheetScroll,
+        matching: find.byType(Scrollable),
+      );
+      final before = tester.state<ScrollableState>(scrollable).position.pixels;
+      await tester.drag(sheetScroll, const Offset(0, -500));
+      await tester.pumpAndSettle();
+      final after = tester.state<ScrollableState>(scrollable).position.pixels;
+      expect(after, greaterThan(before));
+      expect(find.text('Back to the table'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }
@@ -460,6 +634,44 @@ Future<void> _pumpPage(
     ),
   );
   await tester.pump();
+}
+
+Future<void> _pumpDaySheet(
+  WidgetTester tester, {
+  required Size size,
+  required int dayNumber,
+}) async {
+  final start = DateTime(2026, 9, 3);
+  final day = kOfferingTableDays[dayNumber - 1];
+  final date = start.add(Duration(days: dayNumber - 1));
+  await tester.binding.setSurfaceSize(size);
+  addTearDown(() => tester.binding.setSurfaceSize(null));
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        backgroundColor: OfferingTableDetailTokens.pageBackground,
+        body: Align(
+          alignment: Alignment.bottomCenter,
+          child: OfferingTableDaySheet(
+            occurrence: OfferingTablePreviewOccurrence(
+              day: day,
+              date: date,
+              startLocal: DateTime(
+                date.year,
+                date.month,
+                date.day,
+                kOfferingTableDefaultHour,
+                kOfferingTableDefaultMinute,
+              ),
+            ),
+            lens: OfferingTableLens.neutral,
+            noCupMode: false,
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
 }
 
 Finder _previewDayCards() => find.byWidgetPredicate((widget) {

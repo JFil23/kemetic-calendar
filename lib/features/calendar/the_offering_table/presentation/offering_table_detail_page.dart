@@ -624,91 +624,139 @@ class _OfferingFlowEventCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final day = occurrence.day;
     final title = offeringTableEventTitle(day);
-    return GestureDetector(
-      key: ValueKey<String>('offering-table-preview-event-${day.dayNumber}'),
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        child: TrackSkyEventBlockVisual(
-          title: title,
-          graphic: OfferingTableDetailTokens.eventGraphic,
-          height: 100,
-          width: double.infinity,
-          compact: false,
-          isPreview: !carried,
-          dashedBorder: !carried,
-          child: Padding(
-            padding: const EdgeInsets.only(right: 24),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    final isNarrow = MediaQuery.sizeOf(context).width <= 350;
+    return Semantics(
+      button: true,
+      label: 'View practice for $title',
+      child: GestureDetector(
+        key: ValueKey<String>('offering-table-preview-event-${day.dayNumber}'),
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: TrackSkyEventBlockVisual(
+            title: title,
+            graphic: OfferingTableDetailTokens.eventGraphic,
+            height: 100,
+            width: double.infinity,
+            compact: false,
+            isPreview: !carried,
+            dashedBorder: !carried,
+            child: Stack(
               children: [
-                Container(
-                  width: 9,
-                  height: 9,
-                  margin: const EdgeInsets.only(top: 10),
-                  decoration: BoxDecoration(
-                    color: carried
-                        ? OfferingTableDetailTokens.warmGold
-                        : Colors.transparent,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: OfferingTableDetailTokens.glow,
-                      width: 1,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 11),
-                SizedBox(
-                  width: 56,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 7),
-                    child: Text(
-                      _formatTime(occurrence.startLocal),
-                      style: TextStyle(
-                        color: OfferingTableDetailTokens.glow.withValues(
-                          alpha: 0.72,
+                Padding(
+                  padding: const EdgeInsets.only(right: 27, bottom: 11),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: 9,
+                        height: 9,
+                        margin: const EdgeInsets.only(top: 10),
+                        decoration: BoxDecoration(
+                          color: carried
+                              ? OfferingTableDetailTokens.warmGold
+                              : Colors.transparent,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: OfferingTableDetailTokens.glow,
+                            width: 1,
+                          ),
                         ),
-                        fontFamily: MaatFlowListTokens.fontFamily,
-                        fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                        fontSize: 10.5,
                       ),
+                      SizedBox(width: isNarrow ? 9 : 11),
+                      SizedBox(
+                        width: isNarrow ? 51 : 56,
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 7),
+                          child: Text(
+                            _formatTime(occurrence.startLocal),
+                            style: TextStyle(
+                              color: OfferingTableDetailTokens.glow.withValues(
+                                alpha: 0.72,
+                              ),
+                              fontFamily: MaatFlowListTokens.fontFamily,
+                              fontFamilyFallback:
+                                  MaatFlowListTokens.fontFallback,
+                              fontSize: 10.5,
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(top: 3),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: const Color(0xFFFFF2D7),
+                                  fontFamily: MaatFlowListTokens.fontFamily,
+                                  fontFamilyFallback:
+                                      MaatFlowListTokens.fontFallback,
+                                  fontSize: isNarrow ? 15.5 : 18,
+                                  fontWeight: FontWeight.w500,
+                                  height: 1.15,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                _offeringPreviewSummary(day),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: OfferingTableDetailTokens.silver,
+                                  fontFamily: MaatFlowListTokens.fontFamily,
+                                  fontFamilyFallback:
+                                      MaatFlowListTokens.fontFallback,
+                                  fontSize: isNarrow ? 12.5 : 13,
+                                  fontStyle: FontStyle.italic,
+                                  height: 1.25,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Positioned(
+                  right: 0,
+                  top: 35,
+                  child: Icon(
+                    Icons.chevron_right,
+                    key: ValueKey<String>(
+                      'offering-table-preview-chevron-${day.dayNumber}',
+                    ),
+                    size: 19,
+                    color: OfferingTableDetailTokens.glow.withValues(
+                      alpha: 0.88,
                     ),
                   ),
                 ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 3),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: Color(0xFFFFF2D7),
-                            fontFamily: MaatFlowListTokens.fontFamily,
-                            fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
-                            height: 1.15,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${day.section} · ${day.provisionAct}',
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: OfferingTableDetailTokens.silver,
-                            fontFamily: MaatFlowListTokens.fontFamily,
-                            fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                            fontSize: 14.5,
-                            fontStyle: FontStyle.italic,
-                            height: 1.25,
-                          ),
-                        ),
-                      ],
+                Positioned(
+                  right: 1,
+                  bottom: 1,
+                  child: Text(
+                    'VIEW PRACTICE',
+                    key: ValueKey<String>(
+                      'offering-table-preview-affordance-${day.dayNumber}',
+                    ),
+                    style: TextStyle(
+                      color: OfferingTableDetailTokens.glow.withValues(
+                        alpha: 0.78,
+                      ),
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 1.05,
+                      height: 1,
                     ),
                   ),
                 ),
@@ -929,6 +977,23 @@ String _shortDate(DateTime date) {
     'Dec',
   ];
   return '${months[date.month - 1]} ${date.day}, ${date.year}';
+}
+
+const _firstFiveOfferingPreviewSummaries = <int, String>{
+  1: 'Start with your most basic need before the day starts asking.',
+  2: 'Choose what reaches you before messages and tasks do.',
+  3: 'Turn one meal from fuel into actual provision.',
+  4: 'Correct one small act of body-care you have been deferring.',
+  5: 'Treat rest as something that must be provided, not hoped for.',
+};
+
+String _offeringPreviewSummary(OfferingTableDay day) {
+  final approved = _firstFiveOfferingPreviewSummaries[day.dayNumber];
+  if (approved != null) return approved;
+
+  final provision = day.provisionAct.trim();
+  final firstSentence = RegExp(r'^.*?[.!?](?:\s|$)').firstMatch(provision);
+  return firstSentence?.group(0)?.trim() ?? provision;
 }
 
 String _formatTime(DateTime date) {
