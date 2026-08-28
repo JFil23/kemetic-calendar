@@ -8,6 +8,7 @@ import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_preview_day.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calendar.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_sheet.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
 
@@ -29,6 +30,8 @@ abstract final class OfferingTableDetailTokens {
   static const Color muted = Color(0xFF756C60);
   static const Color glow = Color(0xFFF0C96A);
   static const Color separator = Color(0xFF302313);
+  static const String heroAsset = 'assets/the_offering_table/hero.png';
+  static const double heroImageAlignmentY = 0.5;
 
   static const MaatFlowDetailTheme theme = MaatFlowDetailTheme(
     pageBackground: pageBackground,
@@ -88,19 +91,6 @@ abstract final class OfferingTableDetailTokens {
         detailColor: mutedIvory,
         glowColor: warmGold,
       );
-}
-
-@immutable
-class OfferingTablePreviewOccurrence {
-  const OfferingTablePreviewOccurrence({
-    required this.day,
-    required this.date,
-    required this.startLocal,
-  });
-
-  final OfferingTableDay day;
-  final DateTime date;
-  final DateTime startLocal;
 }
 
 /// Dedicated Offering Table presentation. The preview is derived locally from
@@ -198,6 +188,17 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
     if (mounted) setState(() => _joining = false);
   }
 
+  Future<void> _openOfferingDaySheet(
+    OfferingTablePreviewOccurrence occurrence,
+  ) async {
+    await showOfferingTableDaySheet(
+      context: context,
+      occurrence: occurrence,
+      lens: _lens,
+      noCupMode: _noCupMode,
+    );
+  }
+
   List<OfferingTablePreviewOccurrence> _previewOccurrences() {
     return [
       for (final day in kOfferingTableDays)
@@ -282,13 +283,14 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
               MaatFlowThirtyDayMarker(
                 date: occurrence.date,
                 isToday: DateUtils.isSameDay(occurrence.date, today),
-                secondaryColors: [
-                  OfferingTableDetailTokens.warmGold,
-                  for (final row
-                      in ordinaryRowsByDay[occurrence.date] ??
-                          const <FollowSkyCalendarPreviewRow>[])
-                    row.eventColor,
-                ],
+                highlighted: true,
+                filled: _joined,
+                accent: OfferingTableDetailTokens.warmGold,
+                secondaryColors:
+                    ordinaryRowsByDay[occurrence.date]
+                        ?.map((row) => row.eventColor)
+                        .toList() ??
+                    const <Color>[],
               ),
           ],
           theme: OfferingTableDetailTokens.thirtyDayCalendarTheme,
@@ -309,6 +311,7 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
                   calendarRows:
                       ordinaryRowsByDay[surfaced[i].date] ??
                       const <FollowSkyCalendarPreviewRow>[],
+                  onOpenOfferingDay: _openOfferingDaySheet,
                 ),
                 if (i != surfaced.length - 1) const SizedBox(height: 10),
               ],
@@ -320,6 +323,7 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
           remaining: remaining,
           expanded: _showAllDays,
           onToggle: () => setState(() => _showAllDays = !_showAllDays),
+          onOpenOfferingDay: _openOfferingDaySheet,
         ),
       ],
     );
@@ -351,6 +355,7 @@ class _OfferingTableHero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaatFlowDetailHero(
+      key: const ValueKey<String>('offering-table-hero'),
       theme: OfferingTableDetailTokens.theme,
       background: const _OfferingTableHeroBackdrop(),
       glyph: kOfferingTableGlyph,
@@ -373,44 +378,55 @@ class _OfferingTableHeroBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox.expand(
+    return SizedBox.expand(
       child: Stack(
         fit: StackFit.expand,
         children: [
-          DecoratedBox(
+          Image.asset(
+            OfferingTableDetailTokens.heroAsset,
+            key: const ValueKey<String>('offering-table-hero-image'),
+            fit: BoxFit.cover,
+            alignment: Alignment(
+              0,
+              OfferingTableDetailTokens.heroImageAlignmentY * 2 - 1,
+            ),
+            errorBuilder: (context, error, stackTrace) => const ColoredBox(
+              color: OfferingTableDetailTokens.pageBackground,
+            ),
+          ),
+          const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  Color(0xFF160E05),
-                  Color(0xFF0C0804),
-                  Color(0xFF070502),
+                  Color(0x10070502),
+                  Color(0x18070502),
+                  Color(0x4D070502),
+                  Color(0xB3070502),
                 ],
-                stops: [0.0, 0.58, 1.0],
+                stops: [0.0, 0.46, 0.70, 1.0],
               ),
             ),
           ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment(0.48, -0.50),
-                radius: 0.72,
-                colors: [
-                  Color(0x526F451B),
-                  Color(0x142B1909),
-                  Colors.transparent,
-                ],
-                stops: [0.0, 0.54, 1.0],
-              ),
-            ),
-          ),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: RadialGradient(
-                center: Alignment(-0.70, 0.82),
-                radius: 0.78,
-                colors: [Color(0x384A2D13), Colors.transparent],
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: 200,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.transparent,
+                    Color(0x24070502),
+                    OfferingTableDetailTokens.pageBackground,
+                    OfferingTableDetailTokens.pageBackground,
+                  ],
+                  stops: [0.0, 0.38, 0.92, 1.0],
+                ),
               ),
             ),
           ),
@@ -552,11 +568,13 @@ class _OfferingPreviewDay extends StatelessWidget {
   const _OfferingPreviewDay({
     required this.occurrence,
     required this.carried,
+    required this.onOpenOfferingDay,
     this.calendarRows = const <FollowSkyCalendarPreviewRow>[],
   });
 
   final OfferingTablePreviewOccurrence occurrence;
   final bool carried;
+  final ValueChanged<OfferingTablePreviewOccurrence> onOpenOfferingDay;
   final List<FollowSkyCalendarPreviewRow> calendarRows;
 
   @override
@@ -565,7 +583,11 @@ class _OfferingPreviewDay extends StatelessWidget {
     final rows = <({DateTime start, Widget child})>[
       (
         start: occurrence.startLocal,
-        child: _OfferingFlowEventCard(occurrence: occurrence, carried: carried),
+        child: _OfferingFlowEventCard(
+          occurrence: occurrence,
+          carried: carried,
+          onTap: () => onOpenOfferingDay(occurrence),
+        ),
       ),
       for (final row in calendarRows)
         (
@@ -591,102 +613,107 @@ class _OfferingFlowEventCard extends StatelessWidget {
   const _OfferingFlowEventCard({
     required this.occurrence,
     required this.carried,
+    required this.onTap,
   });
 
   final OfferingTablePreviewOccurrence occurrence;
   final bool carried;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final day = occurrence.day;
     final title = offeringTableEventTitle(day);
-    return Padding(
+    return GestureDetector(
       key: ValueKey<String>('offering-table-preview-event-${day.dayNumber}'),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: TrackSkyEventBlockVisual(
-        title: title,
-        graphic: OfferingTableDetailTokens.eventGraphic,
-        height: 100,
-        width: double.infinity,
-        compact: false,
-        isPreview: !carried,
-        dashedBorder: !carried,
-        child: Padding(
-          padding: const EdgeInsets.only(right: 24),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 9,
-                height: 9,
-                margin: const EdgeInsets.only(top: 10),
-                decoration: BoxDecoration(
-                  color: carried
-                      ? OfferingTableDetailTokens.warmGold
-                      : Colors.transparent,
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: OfferingTableDetailTokens.glow,
-                    width: 1,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 11),
-              SizedBox(
-                width: 56,
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 7),
-                  child: Text(
-                    _formatTime(occurrence.startLocal),
-                    style: TextStyle(
-                      color: OfferingTableDetailTokens.glow.withValues(
-                        alpha: 0.72,
-                      ),
-                      fontFamily: MaatFlowListTokens.fontFamily,
-                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                      fontSize: 10.5,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: TrackSkyEventBlockVisual(
+          title: title,
+          graphic: OfferingTableDetailTokens.eventGraphic,
+          height: 100,
+          width: double.infinity,
+          compact: false,
+          isPreview: !carried,
+          dashedBorder: !carried,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 24),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 9,
+                  height: 9,
+                  margin: const EdgeInsets.only(top: 10),
+                  decoration: BoxDecoration(
+                    color: carried
+                        ? OfferingTableDetailTokens.warmGold
+                        : Colors.transparent,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: OfferingTableDetailTokens.glow,
+                      width: 1,
                     ),
                   ),
                 ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 3),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        title,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFFFFF2D7),
-                          fontFamily: MaatFlowListTokens.fontFamily,
-                          fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                          height: 1.15,
+                const SizedBox(width: 11),
+                SizedBox(
+                  width: 56,
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 7),
+                    child: Text(
+                      _formatTime(occurrence.startLocal),
+                      style: TextStyle(
+                        color: OfferingTableDetailTokens.glow.withValues(
+                          alpha: 0.72,
                         ),
+                        fontFamily: MaatFlowListTokens.fontFamily,
+                        fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                        fontSize: 10.5,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${day.section} · ${day.provisionAct}',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: OfferingTableDetailTokens.silver,
-                          fontFamily: MaatFlowListTokens.fontFamily,
-                          fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                          fontSize: 14.5,
-                          fontStyle: FontStyle.italic,
-                          height: 1.25,
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ],
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Color(0xFFFFF2D7),
+                            fontFamily: MaatFlowListTokens.fontFamily,
+                            fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                            height: 1.15,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${day.section} · ${day.provisionAct}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: OfferingTableDetailTokens.silver,
+                            fontFamily: MaatFlowListTokens.fontFamily,
+                            fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                            fontSize: 14.5,
+                            fontStyle: FontStyle.italic,
+                            height: 1.25,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -699,11 +726,13 @@ class _OfferingAllDaysList extends StatelessWidget {
     required this.remaining,
     required this.expanded,
     required this.onToggle,
+    required this.onOpenOfferingDay,
   });
 
   final List<OfferingTablePreviewOccurrence> remaining;
   final bool expanded;
   final VoidCallback onToggle;
+  final ValueChanged<OfferingTablePreviewOccurrence> onOpenOfferingDay;
 
   @override
   Widget build(BuildContext context) {
@@ -772,7 +801,10 @@ class _OfferingAllDaysList extends StatelessWidget {
                       child: Column(
                         children: [
                           for (final occurrence in remaining)
-                            _OfferingAllDayRow(occurrence: occurrence),
+                            _OfferingAllDayRow(
+                              occurrence: occurrence,
+                              onTap: () => onOpenOfferingDay(occurrence),
+                            ),
                         ],
                       ),
                     )
@@ -799,79 +831,83 @@ class _OfferingAllDaysList extends StatelessWidget {
 }
 
 class _OfferingAllDayRow extends StatelessWidget {
-  const _OfferingAllDayRow({required this.occurrence});
+  const _OfferingAllDayRow({required this.occurrence, required this.onTap});
 
   final OfferingTablePreviewOccurrence occurrence;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final day = occurrence.day;
-    return Padding(
+    return InkWell(
       key: ValueKey<String>('offering-table-all-day-${day.dayNumber}'),
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 28,
-            child: Text(
-              day.dayNumber.toString().padLeft(2, '0'),
-              style: const TextStyle(
-                color: OfferingTableDetailTokens.warmGold,
-                fontFamily: MaatFlowListTokens.fontFamily,
-                fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                fontSize: 9.5,
-                fontWeight: FontWeight.w300,
-                letterSpacing: 0.76,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 28,
+              child: Text(
+                day.dayNumber.toString().padLeft(2, '0'),
+                style: const TextStyle(
+                  color: OfferingTableDetailTokens.warmGold,
+                  fontFamily: MaatFlowListTokens.fontFamily,
+                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.w300,
+                  letterSpacing: 0.76,
+                ),
               ),
             ),
-          ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  day.title,
-                  style: const TextStyle(
-                    color: OfferingTableDetailTokens.warmGold,
-                    fontFamily: MaatFlowListTokens.fontFamily,
-                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w400,
-                    fontStyle: FontStyle.italic,
-                    height: 1.2,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    day.title,
+                    style: const TextStyle(
+                      color: OfferingTableDetailTokens.warmGold,
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w400,
+                      fontStyle: FontStyle.italic,
+                      height: 1.2,
+                    ),
                   ),
-                ),
-                Text(
-                  '${_shortDate(occurrence.date)} · ${_formatTime(occurrence.startLocal)}',
-                  style: const TextStyle(
-                    color: OfferingTableDetailTokens.silver,
-                    fontFamily: MaatFlowListTokens.fontFamily,
-                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w300,
+                  Text(
+                    '${_shortDate(occurrence.date)} · ${_formatTime(occurrence.startLocal)}',
+                    style: const TextStyle(
+                      color: OfferingTableDetailTokens.silver,
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w300,
+                    ),
                   ),
-                ),
-                Text(
-                  day.section,
-                  style: const TextStyle(
-                    color: OfferingTableDetailTokens.silver,
-                    fontFamily: MaatFlowListTokens.fontFamily,
-                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                    fontSize: 14.5,
-                    fontStyle: FontStyle.italic,
-                    height: 1.35,
+                  Text(
+                    day.section,
+                    style: const TextStyle(
+                      color: OfferingTableDetailTokens.silver,
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                      fontSize: 14.5,
+                      fontStyle: FontStyle.italic,
+                      height: 1.35,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const Icon(
-            Icons.chevron_right,
-            size: 16,
-            color: OfferingTableDetailTokens.warmGold,
-          ),
-        ],
+            const Icon(
+              Icons.chevron_right,
+              size: 16,
+              color: OfferingTableDetailTokens.warmGold,
+            ),
+          ],
+        ),
       ),
     );
   }

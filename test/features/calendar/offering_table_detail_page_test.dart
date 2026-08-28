@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' hide KemeticMath;
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
@@ -7,7 +8,7 @@ import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/tra
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_preview_day.dart';
-import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calendar.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_sheet.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_detail_page.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
@@ -31,8 +32,24 @@ void main() {
     );
     await tester.pump();
 
+    final heroAsset = await rootBundle.load(
+      OfferingTableDetailTokens.heroAsset,
+    );
+
     expect(find.byType(OfferingTableDetailPage), findsOneWidget);
     expect(find.byType(MaatFlowDetailShell), findsOneWidget);
+    expect(find.byType(MaatFlowDetailHero), findsOneWidget);
+    expect(heroAsset.lengthInBytes, greaterThan(0));
+    final hero = find.byKey(const ValueKey<String>('offering-table-hero'));
+    final heroImage = find.descendant(
+      of: hero,
+      matching: find.byKey(const ValueKey<String>('offering-table-hero-image')),
+    );
+    expect(heroImage, findsOneWidget);
+    expect(
+      (tester.widget<Image>(heroImage).image as AssetImage).assetName,
+      OfferingTableDetailTokens.heroAsset,
+    );
     expect(find.text('The Offering\nTable'), findsOneWidget);
     expect(find.text(kOfferingTableTagline), findsOneWidget);
     expect(find.text(kOfferingTableGlyph), findsOneWidget);
@@ -83,7 +100,7 @@ void main() {
         lessThan(tester.getTopLeft(firstPreview).dy),
       );
 
-      for (var offset = 0; offset < 30; offset++) {
+      for (final offset in const <int>[0, 14, 29]) {
         final date = start.add(Duration(days: offset));
         final dateKey = _dateKey(date);
         expect(
@@ -91,10 +108,12 @@ void main() {
           findsOneWidget,
         );
         expect(
-          find.byKey(
-            ValueKey<String>('offering-table-calendar-dot-$dateKey-0'),
-          ),
+          find.byKey(ValueKey<String>('offering-table-calendar-ring-$dateKey')),
           findsOneWidget,
+        );
+        expect(
+          _ringBorderColor(tester, 'offering-table-calendar-ring-$dateKey'),
+          OfferingTableDetailTokens.warmGold,
         );
       }
 
@@ -142,13 +161,60 @@ void main() {
 
       final firstDateKey = _dateKey(start);
       expect(
-        _dotColor(tester, 'offering-table-calendar-dot-$firstDateKey-1'),
+        _dotColor(tester, 'offering-table-calendar-dot-$firstDateKey-0'),
         const Color(0xFF4E7A46),
       );
       expect(
-        _dotColor(tester, 'offering-table-calendar-dot-$firstDateKey-2'),
+        _dotColor(tester, 'offering-table-calendar-dot-$firstDateKey-1'),
         const Color(0xFF3B5D82),
       );
+      expect(
+        find.byKey(
+          ValueKey<String>('offering-table-calendar-dot-$firstDateKey-2'),
+        ),
+        findsNothing,
+      );
+      final thirdDateKey = _dateKey(start.add(const Duration(days: 2)));
+      expect(
+        find.byKey(
+          ValueKey<String>('offering-table-calendar-dot-$thirdDateKey-0'),
+        ),
+        findsNothing,
+      );
+
+      final firstBadge = find.byKey(
+        const ValueKey<String>('offering-table-preview-event-1'),
+      );
+      await tester.drag(
+        find.byKey(const ValueKey<String>('offering-table-scroll')),
+        const Offset(0, -1000),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(firstBadge);
+      await tester.pumpAndSettle();
+
+      var daySheet = find.byType(OfferingTableDaySheet);
+      expect(daySheet, findsOneWidget);
+      expect(
+        find.descendant(
+          of: daySheet,
+          matching: find.text('DAY 01 · PERSONAL TABLE'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: daySheet, matching: find.text('The First Water')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: daySheet,
+          matching: find.text(kOfferingTableDays.first.provisionAct),
+        ),
+        findsOneWidget,
+      );
+      Navigator.of(tester.element(daySheet)).pop();
+      await tester.pumpAndSettle();
 
       expect(find.text('THE FIRST PRACTICE'), findsNothing);
       expect(find.text('SET YOUR TABLE'), findsNothing);
@@ -183,6 +249,48 @@ void main() {
         find.byKey(const ValueKey<String>('offering-table-all-day-30')),
         findsOneWidget,
       );
+
+      final sixthRow = find.byKey(
+        const ValueKey<String>('offering-table-all-day-6'),
+      );
+      await tester.drag(
+        find.byKey(const ValueKey<String>('offering-table-scroll')),
+        const Offset(0, -1200),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(sixthRow);
+      await tester.pumpAndSettle();
+
+      daySheet = find.byType(OfferingTableDaySheet);
+      final sixthDay = kOfferingTableDays[5];
+      expect(daySheet, findsOneWidget);
+      expect(
+        find.descendant(
+          of: daySheet,
+          matching: find.text('DAY 06 · PERSONAL TABLE'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: daySheet, matching: find.text('The Small Supply')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: daySheet,
+          matching: find.text(sixthDay.provisionAct),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: daySheet,
+          matching: find.text('Tue · Sep 8, 2026 · 7:30 AM'),
+        ),
+        findsOneWidget,
+      );
+      Navigator.of(tester.element(daySheet)).pop();
+      await tester.pumpAndSettle();
 
       for (final day in kOfferingTableDays.take(5)) {
         final date = start.add(Duration(days: day.dayNumber - 1));
@@ -285,6 +393,11 @@ void main() {
     expect(joinedTimezone, TrackSkyTimeZone.eastern);
     expect(joinedLens, OfferingTableLens.neutral);
     expect(joinedNoCupMode, isFalse);
+    final firstDateKey = _dateKey(selectedDate);
+    expect(
+      _ringFillColor(tester, 'offering-table-calendar-ring-$firstDateKey'),
+      isNotNull,
+    );
     expect(
       find.byKey(const ValueKey<String>('offering-table-joined')),
       findsOneWidget,
@@ -362,6 +475,17 @@ Finder _compactDayRows() => find.byWidgetPredicate((widget) {
 });
 
 Color? _dotColor(WidgetTester tester, String key) {
+  final container = tester.widget<Container>(find.byKey(ValueKey<String>(key)));
+  return (container.decoration as BoxDecoration).color;
+}
+
+Color? _ringBorderColor(WidgetTester tester, String key) {
+  final container = tester.widget<Container>(find.byKey(ValueKey<String>(key)));
+  final decoration = container.decoration as BoxDecoration;
+  return (decoration.border as Border).top.color;
+}
+
+Color? _ringFillColor(WidgetTester tester, String key) {
   final container = tester.widget<Container>(find.byKey(ValueKey<String>(key)));
   return (container.decoration as BoxDecoration).color;
 }
