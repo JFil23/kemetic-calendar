@@ -237,7 +237,7 @@ void main() {
       expect(source, isNot(contains('FollowSkyObservationSheet(')));
       expect(
         source,
-        contains('activeFollowSkyInstrument && keyboardInset == 0'),
+        contains('activeInstrumentPresentation && keyboardInset == 0'),
       );
       expect(route, isNot(contains('flowName')));
       expect(route, contains('catalog.byId(skyEventId)'));

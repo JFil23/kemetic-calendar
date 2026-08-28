@@ -235,7 +235,7 @@ void main() {
   );
 
   test(
-    'Follow Sky fixture keeps its approved minimum with resizable overflow chrome',
+    'shared instrument host keeps Follow Sky minimum and overflow chrome',
     () async {
       final source = await File(
         'lib/features/calendar/day_view.dart',
@@ -258,24 +258,27 @@ void main() {
 
       expect(
         source,
-        contains('static const double _followSkyMinSheetExtent = 0.58;'),
+        contains('static const double _instrumentMinSheetExtent = 0.58;'),
       );
       expect(
         sizingSource,
-        contains('availableSheetHeight * followSkySheetExtent'),
+        contains('availableSheetHeight * instrumentSheetExtent'),
       );
-      expect(source, contains('.clamp(_followSkyMinSheetExtent, 1.0)'));
+      expect(source, contains('.clamp(_instrumentMinSheetExtent, 1.0)'));
       expect(
         sizingSource,
         contains('math.min(media.size.height * 0.68, 520.0)'),
       );
       expect(
         sizingSource,
-        contains('activeFollowSkyInstrument\n        ? 120.0'),
+        contains('activeInstrumentPresentation\n        ? 120.0'),
       );
       expect(frameSource, contains('if (!_isWorkspacePresentation) ...['));
-      expect(frameSource, contains('animate: !activeFollowSkyInstrument'));
-      expect(frameSource, isNot(contains('if (!activeFollowSkyInstrument)')));
+      expect(frameSource, contains('animate: !activeInstrumentPresentation'));
+      expect(
+        frameSource,
+        isNot(contains('if (!activeInstrumentPresentation)')),
+      );
       expect(topActionSource, contains("'follow-sky-sheet-resize-handle'"));
       expect(topActionSource, contains('_buildEventDetailOverflowButton('));
     },

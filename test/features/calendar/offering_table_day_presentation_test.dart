@@ -1,0 +1,261 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/calendar/day_view.dart';
+import 'package:mobile/features/calendar/maat_flow_response_draft_store.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_presentation.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_presentation_copy.dart';
+import 'package:mobile/features/calendar/the_offering_table_flow.dart';
+import 'package:mobile/features/calendar/the_offering_table_local_store.dart';
+import 'package:mobile/features/calendar/track_sky_flow.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+const _viewport = Size(390, 844);
+const _flowId = 91;
+
+Future<void> _ensureSupabaseInitialized() async {
+  try {
+    Supabase.instance.client;
+    return;
+  } catch (_) {}
+  await Supabase.initialize(
+    url: 'https://example.supabase.co',
+    anonKey: 'anon-key-0123456789012345678901234567890123456789',
+  );
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    await _ensureSupabaseInitialized();
+  });
+  setUp(() {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    kMaatFlowResponseDraftStore.clearForTesting();
+  });
+  tearDown(kMaatFlowResponseDraftStore.clearForTesting);
+
+  test('all thirty days resolve a non-empty shared ritual checklist', () {
+    for (final day in kOfferingTableDays) {
+      final presentation = offeringTablePracticePresentation(day);
+      expect(presentation.steps, isNotEmpty, reason: 'Day ${day.dayNumber}');
+    }
+    expect(
+      offeringTablePracticePresentation(kOfferingTableDays.first).steps,
+      const <String>[
+        'Fill a cup of water.',
+        'Name one basic need that has been unmet for a few days.',
+        'Do the smallest thing that begins to meet it.',
+      ],
+    );
+  });
+
+  testWidgets('uses Follow Sky gesture mapping and semantic 0.02 steps', (
+    tester,
+  ) async {
+    final semanticsHandle = tester.ensureSemantics();
+    await _pumpPresentation(tester);
+
+    final gesture = find.byKey(
+      const ValueKey<String>('offering-table-intention-drag'),
+    );
+    final rect = tester.getRect(gesture);
+
+    await tester.tapAt(Offset(rect.left + 42, rect.center.dy));
+    await tester.pump();
+    expect(find.text('0%'), findsOneWidget);
+
+    await tester.tapAt(Offset(rect.center.dx, rect.center.dy));
+    await tester.pump();
+    expect(find.text('50%'), findsOneWidget);
+
+    await tester.tapAt(Offset(rect.right - 42, rect.center.dy));
+    await tester.pump();
+    expect(find.text('100%'), findsOneWidget);
+
+    final node = tester.getSemantics(gesture);
+    tester.binding.pipelineOwner.semanticsOwner!.performAction(
+      node.id,
+      SemanticsAction.decrease,
+    );
+    await tester.pump();
+    expect(find.text('98%'), findsOneWidget);
+    semanticsHandle.dispose();
+  });
+
+  testWidgets('Day 1 ritual and why use the shared Offering authority', (
+    tester,
+  ) async {
+    await _pumpPresentation(tester);
+    final presentation = offeringTablePracticePresentation(
+      kOfferingTableDays.first,
+    );
+
+    expect(find.text("TODAY'S RITUAL"), findsOneWidget);
+    for (final step in presentation.steps) {
+      expect(find.text(step), findsOneWidget);
+    }
+    expect(find.text('Protect my sleep.'), findsWidgets);
+
+    final body = find.byKey(
+      const ValueKey<String>('offering-table-presentation-body'),
+    );
+    await tester.drag(body, const Offset(0, -500));
+    await tester.pumpAndSettle();
+    final toggle = find.byKey(
+      const ValueKey<String>('offering-table-day-sheet-context-toggle'),
+    );
+    await tester.ensureVisible(toggle);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(find.text(presentation.why), findsOneWidget);
+  });
+
+  testWidgets(
+    'narrow presentation keeps a fixed instrument and vertical body',
+    (tester) async {
+      await _pumpPresentation(tester, size: const Size(320, 700));
+      final body = find.byKey(
+        const ValueKey<String>('offering-table-presentation-body'),
+      );
+      final xBefore = tester.getTopLeft(body).dx;
+      await tester.drag(body, const Offset(0, -500));
+      await tester.pumpAndSettle();
+
+      expect(tester.getTopLeft(body).dx, closeTo(xBefore, 0.1));
+      expect(find.text('Completion fixture'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('Offering uses the shared resizable instrument host', (
+    tester,
+  ) async {
+    await _pumpOfferingSheet(tester);
+
+    final sheet = find.byKey(
+      const ValueKey<String>('offering-table-resizable-sheet'),
+    );
+    final handle = find.byKey(
+      const ValueKey<String>('follow-sky-sheet-resize-handle'),
+    );
+    final page = find.descendant(of: sheet, matching: find.byType(PageView));
+    expect(sheet, findsOneWidget);
+    expect(handle, findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('offering-table-day-presentation')),
+      findsOneWidget,
+    );
+
+    final availableHeight = _viewport.height - 12;
+    final minimumPageHeight = availableHeight * 0.58 - 120;
+    expect(tester.getSize(page).height, closeTo(minimumPageHeight, 0.1));
+
+    await tester.drag(handle, const Offset(0, -120));
+    await tester.pumpAndSettle();
+    expect(tester.getSize(page).height, closeTo(minimumPageHeight + 120, 0.1));
+
+    final body = find.byKey(
+      const ValueKey<String>('offering-table-presentation-body'),
+    );
+    final xBefore = tester.getTopLeft(body).dx;
+    await tester.drag(body, const Offset(0, -400));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(body).dx, closeTo(xBefore, 0.1));
+  });
+}
+
+Future<void> _pumpPresentation(
+  WidgetTester tester, {
+  Size size = const Size(390, 700),
+}) async {
+  tester.view.physicalSize = size;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: ThemeData.dark(),
+      home: Scaffold(
+        body: OfferingTableDayPresentation(
+          day: kOfferingTableDays.first,
+          localDate: DateTime(2026, 8, 29),
+          startMinute: 7 * 60 + 30,
+          initialNeed: 'Protect my sleep.',
+          lens: OfferingTableLens.neutral,
+          completionPanel: const Text('Completion fixture'),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> _pumpOfferingSheet(WidgetTester tester) async {
+  tester.view.physicalSize = _viewport;
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+  addTearDown(tester.view.resetViewInsets);
+
+  const store = OfferingTableLocalStore();
+  await store.saveNeed(_flowId, 'Protect my sleep.');
+  final day = kOfferingTableDays.first;
+  final localDate = DateTime(2026, 8, 29);
+  final schedule = offeringTableScheduleForDate(
+    day,
+    localDate,
+    TrackSkyTimeZone.pacific,
+  );
+  final target = DayViewSheetEventTarget(
+    ky: 1,
+    km: 1,
+    kd: 1,
+    event: EventItem(
+      clientEventId: 'offering-table-sheet-fixture',
+      title: offeringTableEventTitle(day),
+      startMin: 7 * 60 + 30,
+      endMin: 7 * 60 + 35,
+      flowId: _flowId,
+      color: const Color(0xFFC99A3D),
+      allDay: false,
+      behaviorPayload: offeringTableBehaviorPayload(
+        day: day,
+        schedule: schedule,
+        lens: OfferingTableLens.neutral,
+        noCupMode: false,
+      ),
+    ),
+  );
+
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: ThemeData.dark(),
+      home: Builder(
+        builder: (context) => Scaffold(
+          backgroundColor: Colors.black,
+          resizeToAvoidBottomInset: false,
+          body: CalendarEventDetailSheet(
+            hostContext: context,
+            initialTarget: target,
+            flowResolver: (flowId) => flowId == _flowId
+                ? const FlowData(
+                    id: _flowId,
+                    name: kOfferingTableTitle,
+                    color: Color(0xFFC99A3D),
+                    active: true,
+                    notes:
+                        'mode=gregorian;maat=the-offering-table;offering_lens=neutral',
+                  )
+                : null,
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}

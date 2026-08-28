@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../../calendar_event_visual_style.dart';
+import '../../../presentation/graphic_event_block_shell.dart';
 
 /// Shared production Track Sky event-card visual body for Day View and Follow Sky.
 class TrackSkyEventBlockVisual extends StatelessWidget {
@@ -34,99 +34,55 @@ class TrackSkyEventBlockVisual extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final borderRadius = BorderRadius.circular(7);
-    final block = Container(
+    return GraphicEventBlockShell(
+      graphic: graphic,
       width: width,
       height: height,
-      margin: const EdgeInsets.only(right: 4, bottom: 2),
-      decoration: BoxDecoration(
-        borderRadius: borderRadius,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: isPreview ? 0.16 : 0.28),
-            blurRadius: kIsWeb ? 8 : 12,
-            offset: const Offset(0, 4),
-          ),
-          BoxShadow(
-            color: graphic.glowColor.withValues(
-              alpha: isPreview ? 0.08 : 0.14,
-            ),
-            blurRadius: kIsWeb ? 10 : 14,
-            spreadRadius: -3,
-          ),
-        ],
-      ),
-      clipBehavior: Clip.hardEdge,
-      child: Stack(
+      isPreview: isPreview,
+      opacity: opacity,
+      dashedBorder: dashedBorder,
+      overlay: overlay,
+      visual: Stack(
+        fit: StackFit.expand,
         children: [
-          Positioned.fill(
+          ...buildTrackSkyCardStars(
+            seed: title,
+            tint: graphic.accentColor,
+            compact: compact,
+          ),
+          const Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
-                gradient: graphic.background,
-                borderRadius: borderRadius,
-                border: Border.all(
-                  color: graphic.borderColor.withValues(
-                    alpha: dashedBorder
-                        ? 0.55
-                        : (isPreview ? 0.7 : 0.92),
-                  ),
-                  width: dashedBorder ? 1.2 : 0.9,
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    Color(0xA804060C),
+                    Color(0x7A04060C),
+                    Color(0x1804060C),
+                    Colors.transparent,
+                  ],
+                  stops: [0.0, 0.34, 0.62, 1.0],
                 ),
               ),
             ),
           ),
-          IgnorePointer(
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                ...buildTrackSkyCardStars(
-                  seed: title,
-                  tint: graphic.accentColor,
-                  compact: compact,
-                ),
-                Positioned.fill(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
-                        colors: [
-                          const Color(0xA804060C),
-                          const Color(0x7A04060C),
-                          const Color(0x1804060C),
-                          Colors.transparent,
-                        ],
-                        stops: const [0.0, 0.34, 0.62, 1.0],
-                      ),
-                    ),
-                  ),
-                ),
-                Positioned(
-                  right: 10,
-                  top: 7,
-                  child: Opacity(
-                    opacity: isPreview ? 0.82 : 1.0,
-                    child: buildTrackSkyCardAccent(
-                      graphic,
-                      title,
-                      size: math.min(height - 18, 24),
-                    ),
-                  ),
-                ),
-              ],
+          Positioned(
+            right: 10,
+            top: 7,
+            child: Opacity(
+              opacity: isPreview ? 0.82 : 1.0,
+              child: buildTrackSkyCardAccent(
+                graphic,
+                title,
+                size: math.min(height - 18, 24),
+              ),
             ),
           ),
-          if (child != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 4),
-              child: child,
-            ),
-          if (overlay != null) Positioned.fill(child: overlay!),
         ],
       ),
+      child: child,
     );
-    if (opacity >= 0.999) return block;
-    return Opacity(opacity: opacity, child: block);
   }
 }
 

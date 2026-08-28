@@ -90,7 +90,7 @@ OfferingTablePracticePresentation offeringTablePracticePresentation(
     previewSummary: _firstSentence(day.provisionAct),
     why: day.purpose,
     instruction: day.provisionAct,
-    steps: day.optionalSteps,
+    steps: <String>[day.provisionAct, ...day.optionalSteps],
   );
 }
 

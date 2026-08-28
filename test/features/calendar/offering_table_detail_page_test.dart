@@ -4,18 +4,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' hide KemeticMath;
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_tokens.dart';
-import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/track_sky_event_block_visual.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_preview_day.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_sheet.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_detail_page.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
+import 'package:mobile/features/calendar/the_offering_table_local_store.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
 import 'package:mobile/shared/date_picker/stone_register_date_picker_theme.dart';
 import 'package:mobile/widgets/kemetic_date_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+  });
   tearDown(resetMaatFlowJoinedStateForTesting);
 
   testWidgets('catalog route opens the dedicated warm shared-shell detail', (
@@ -190,6 +197,34 @@ void main() {
     expect(joinedDate, selected);
   });
 
+  testWidgets('Carry saves the trimmed private need only after join succeeds', (
+    tester,
+  ) async {
+    await _pumpPage(
+      tester,
+      size: const Size(390, 844),
+      onJoin:
+          ({
+            required startDate,
+            required timezone,
+            required lens,
+            required noCupMode,
+          }) async => 81,
+    );
+
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('offering-table-initial-input')),
+      '  Protect my sleep.  ',
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('offering-table-join')));
+    await tester.pumpAndSettle();
+
+    expect(
+      await const OfferingTableLocalStore().loadNeed(81),
+      'Protect my sleep.',
+    );
+  });
+
   testWidgets(
     'calendar, initial entry, and date previews follow the approved order',
     (tester) async {
@@ -271,7 +306,7 @@ void main() {
       );
       expect(find.text('Day 1: The First Water'), findsOneWidget);
       expect(find.text('7:30 AM'), findsNWidgets(5));
-      expect(find.byType(TrackSkyEventBlockVisual), findsNWidgets(5));
+      expect(find.byType(OfferingTableEventBlockVisual), findsNWidgets(5));
       expect(find.byType(MaatFlowPreviewEventRow), findsNWidgets(3));
       expect(find.text('VIEW PRACTICE'), findsNWidgets(5));
       expect(
@@ -549,7 +584,7 @@ void main() {
         find.byKey(const ValueKey<String>('offering-table-preview-day-30')),
         findsNothing,
       );
-      expect(find.byType(TrackSkyEventBlockVisual), findsNWidgets(5));
+      expect(find.byType(OfferingTableEventBlockVisual), findsNWidgets(5));
       expect(_compactDayRows(), findsNWidgets(25));
       expect(
         find.byKey(const ValueKey<String>('offering-table-all-day-30')),

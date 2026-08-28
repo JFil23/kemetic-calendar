@@ -67,9 +67,12 @@ class OfferingTableDaySheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final day = occurrence.day;
-    final stage = _offeringStage(day.dayNumber);
+    final stage = offeringTableStage(day.dayNumber);
     final stageDay = ((day.dayNumber - 1) % 10) + 1;
     final presentation = offeringTablePracticePresentation(day);
+    final showInstruction =
+        presentation.steps.isEmpty ||
+        presentation.steps.first.trim() != presentation.instruction.trim();
 
     return SafeArea(
       key: const ValueKey<String>('offering-table-day-sheet'),
@@ -225,18 +228,19 @@ class OfferingTableDaySheet extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Text(
-                        presentation.instruction,
-                        style: const TextStyle(
-                          color: Color(0xFFE4D8C3),
-                          fontFamily: MaatFlowListTokens.fontFamily,
-                          fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                          fontSize: 19,
-                          height: 1.35,
+                      if (showInstruction)
+                        Text(
+                          presentation.instruction,
+                          style: const TextStyle(
+                            color: Color(0xFFE4D8C3),
+                            fontFamily: MaatFlowListTokens.fontFamily,
+                            fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                            fontSize: 19,
+                            height: 1.35,
+                          ),
                         ),
-                      ),
                       if (presentation.steps.isNotEmpty) ...[
-                        const SizedBox(height: 15),
+                        if (showInstruction) const SizedBox(height: 15),
                         for (
                           var index = 0;
                           index < presentation.steps.length;
@@ -304,7 +308,7 @@ class OfferingTableDaySheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 18),
-                _OfferingContextDisclosure(
+                OfferingTableContextDisclosure(
                   day: day,
                   lens: lens,
                   why: presentation.why,
@@ -445,8 +449,9 @@ class _WaterIcon extends StatelessWidget {
   }
 }
 
-class _OfferingContextDisclosure extends StatefulWidget {
-  const _OfferingContextDisclosure({
+class OfferingTableContextDisclosure extends StatefulWidget {
+  const OfferingTableContextDisclosure({
+    super.key,
     required this.day,
     required this.lens,
     required this.why,
@@ -457,12 +462,12 @@ class _OfferingContextDisclosure extends StatefulWidget {
   final String why;
 
   @override
-  State<_OfferingContextDisclosure> createState() =>
-      _OfferingContextDisclosureState();
+  State<OfferingTableContextDisclosure> createState() =>
+      _OfferingTableContextDisclosureState();
 }
 
-class _OfferingContextDisclosureState
-    extends State<_OfferingContextDisclosure> {
+class _OfferingTableContextDisclosureState
+    extends State<OfferingTableContextDisclosure> {
   bool _expanded = false;
 
   @override
@@ -571,27 +576,30 @@ class _OfferingContextDisclosureState
   );
 }
 
-class _OfferingStage {
-  const _OfferingStage({required this.name, required this.progressLanguage});
+class OfferingTableStage {
+  const OfferingTableStage({
+    required this.name,
+    required this.progressLanguage,
+  });
 
   final String name;
   final String progressLanguage;
 }
 
-_OfferingStage _offeringStage(int dayNumber) {
+OfferingTableStage offeringTableStage(int dayNumber) {
   if (dayNumber <= 10) {
-    return const _OfferingStage(
+    return const OfferingTableStage(
       name: 'Personal Table',
       progressLanguage: 'Provide for yourself',
     );
   }
   if (dayNumber <= 20) {
-    return const _OfferingStage(
+    return const OfferingTableStage(
       name: 'Household Table',
       progressLanguage: 'Provide for what depends on you',
     );
   }
-  return const _OfferingStage(
+  return const OfferingTableStage(
     name: 'Flowing Table',
     progressLanguage: 'Return provision to the larger flow',
   );

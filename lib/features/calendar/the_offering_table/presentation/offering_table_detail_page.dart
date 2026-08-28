@@ -4,14 +4,15 @@ import 'package:mobile/widgets/maat_flow_date_picker.dart';
 
 import 'package:mobile/features/calendar/calendar_event_visual_style.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
-import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/track_sky_event_block_visual.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_preview_day.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calendar.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_sheet.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_presentation_copy.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
+import 'package:mobile/features/calendar/the_offering_table_local_store.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
 
 typedef OfferingTableJoinCallback =
@@ -73,8 +74,7 @@ abstract final class OfferingTableDetailTokens {
 
   static const CalendarEventGraphicStyle eventGraphic =
       CalendarEventGraphicStyle(
-        kind: CalendarEventGraphicKind.trackSky,
-        trackSkyKind: CalendarTrackSkyCardKind.genericSky,
+        kind: CalendarEventGraphicKind.offeringTable,
         background: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -108,6 +108,7 @@ class OfferingTableDetailPage extends StatefulWidget {
     this.showBackButton = true,
     this.resizeToAvoidBottomInset = true,
     this.onJoined,
+    this.localStore = const OfferingTableLocalStore(),
   });
 
   final TrackSkyTimeZone timezone;
@@ -118,6 +119,7 @@ class OfferingTableDetailPage extends StatefulWidget {
   final bool showBackButton;
   final bool resizeToAvoidBottomInset;
   final Future<void> Function(int flowId)? onJoined;
+  final OfferingTableLocalStore localStore;
 
   @override
   State<OfferingTableDetailPage> createState() =>
@@ -166,8 +168,9 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
         lens: _lens,
         noCupMode: _noCupMode,
       );
-      if (!mounted) return;
       if (id > 0) {
+        await widget.localStore.saveNeed(id, _initialEntryController.text);
+        if (!mounted) return;
         final onJoined = widget.onJoined;
         if (onJoined != null) {
           await onJoined(id);
@@ -179,6 +182,7 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
         }
         return;
       }
+      if (!mounted) return;
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -675,12 +679,10 @@ class _OfferingFlowEventCard extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
-          child: TrackSkyEventBlockVisual(
-            title: title,
+          child: OfferingTableEventBlockVisual(
             graphic: OfferingTableDetailTokens.eventGraphic,
             height: 100,
             width: double.infinity,
-            compact: false,
             isPreview: !carried,
             dashedBorder: !carried,
             child: Stack(

@@ -47,6 +47,9 @@ import 'evening_threshold_flow.dart';
 import 'evening_threshold_rite_flow.dart';
 import 'the_weighing_flow.dart';
 import 'the_offering_table_flow.dart';
+import 'the_offering_table/presentation/offering_table_event_block_visual.dart';
+import 'the_offering_table/presentation/offering_table_day_presentation.dart';
+import 'the_offering_table_local_store.dart';
 import 'the_tending_flow.dart';
 import 'the_tending_local_store.dart';
 import 'the_kept_word_flow.dart';
@@ -2306,7 +2309,7 @@ class CalendarEventDetailSheet extends StatefulWidget {
 }
 
 class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
-  static const double _followSkyMinSheetExtent = 0.58;
+  static const double _instrumentMinSheetExtent = 0.58;
 
   late DayViewSheetEventTarget _currentTarget;
   late PageController _pageController;
@@ -2318,7 +2321,11 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   Map<String, double> _measuredHeights = <String, double>{};
   SkyCatalog? _followSkyCatalog;
   bool _onboardingDetailPromptScheduled = false;
-  double _followSkySheetExtent = _followSkyMinSheetExtent;
+  double _instrumentSheetExtent = _instrumentMinSheetExtent;
+  final OfferingTableLocalStore _offeringTableLocalStore =
+      const OfferingTableLocalStore();
+  final Map<int, String> _offeringTableNeedsByFlowId = <int, String>{};
+  final Set<int> _offeringTableLoadingFlowIds = <int>{};
 
   @override
   void initState() {
@@ -2340,6 +2347,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       widget.onPresentationChanged?.call(_presentation);
     });
     _primeTrackSkyFlowDataForEvent(_currentTarget.event);
+    _primeOfferingTableNeedForEvent(_currentTarget.event);
     _followSkyCatalog = widget.followSkyCatalog;
     if (_followSkyCatalog == null) unawaited(_loadFollowSkyCatalog());
   }
@@ -2373,18 +2381,18 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     if (mounted) setState(() {});
   }
 
-  void _updateFollowSkySheetExtent(
+  void _updateInstrumentSheetExtent(
     DragUpdateDetails details,
     double availableSheetHeight,
   ) {
     final delta = details.primaryDelta;
     if (delta == null || availableSheetHeight <= 0) return;
-    final nextExtent = (_followSkySheetExtent - delta / availableSheetHeight)
-        .clamp(_followSkyMinSheetExtent, 1.0)
+    final nextExtent = (_instrumentSheetExtent - delta / availableSheetHeight)
+        .clamp(_instrumentMinSheetExtent, 1.0)
         .toDouble();
-    if ((nextExtent - _followSkySheetExtent).abs() < 0.0001) return;
+    if ((nextExtent - _instrumentSheetExtent).abs() < 0.0001) return;
     setState(() {
-      _followSkySheetExtent = nextExtent;
+      _instrumentSheetExtent = nextExtent;
     });
   }
 
@@ -2410,6 +2418,21 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   }
 
   FlowData? _chromeFlowForId(int? flowId) => widget.flowResolver?.call(flowId);
+
+  bool _isOfferingTableInstrumentEvent(EventItem event) {
+    final flow = _chromeFlowForId(event.flowId);
+    return event.flowId != null &&
+        isOfferingTableFlowReference(
+          flowName: flow?.name,
+          flowNotes: flow?.notes,
+          behaviorPayload: event.behaviorPayload,
+        ) &&
+        offeringTableDayForEvent(
+              title: event.title,
+              behaviorPayload: event.behaviorPayload,
+            ) !=
+            null;
+  }
 
   bool _isRepeatingNoteFlowId(int? flowId) {
     final flow = _chromeFlowForId(flowId);
@@ -2528,6 +2551,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       widget.onPresentationChanged?.call(_presentation);
     }
     _primeTrackSkyFlowDataForEvent(nextTarget.event);
+    _primeOfferingTableNeedForEvent(nextTarget.event);
     if (widget.onNavigateToDay != null &&
         (nextTarget.ky != previousTarget.ky ||
             nextTarget.km != previousTarget.km ||
@@ -2625,6 +2649,38 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         _trackSkyLoadingTimeZones.remove(timezone);
       }
     }());
+  }
+
+  void _primeOfferingTableNeedForEvent(EventItem event) {
+    final flowId = event.flowId;
+    if (flowId == null ||
+        _offeringTableNeedsByFlowId.containsKey(flowId) ||
+        !_offeringTableLoadingFlowIds.add(flowId)) {
+      return;
+    }
+    final flow = _chromeFlowForId(flowId);
+    if (!isOfferingTableFlowReference(
+      flowName: flow?.name,
+      flowNotes: flow?.notes,
+      behaviorPayload: event.behaviorPayload,
+    )) {
+      _offeringTableLoadingFlowIds.remove(flowId);
+      return;
+    }
+    unawaited(() async {
+      try {
+        final need = await _offeringTableLocalStore.loadNeed(flowId);
+        if (!mounted) return;
+        setState(() => _offeringTableNeedsByFlowId[flowId] = need);
+      } finally {
+        _offeringTableLoadingFlowIds.remove(flowId);
+      }
+    }());
+  }
+
+  String _offeringTableNeedForEvent(EventItem event) {
+    final flowId = event.flowId;
+    return flowId == null ? '' : (_offeringTableNeedsByFlowId[flowId] ?? '');
   }
 
   TrackSkyEvent? _resolveTrackSkyEvent(
@@ -3389,6 +3445,11 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     final bool isNutrition =
         currentEvent.detail != null && currentEvent.detail!.contains('Source:');
     final bool isTrackSky = _isTrackSkyFlowName(flow?.name);
+    final bool isOfferingTable = isOfferingTableFlowReference(
+      flowName: flow?.name,
+      flowNotes: flow?.notes,
+      behaviorPayload: currentEvent.behaviorPayload,
+    );
     final bool isTheTending = _isTheTendingFlowName(flow?.name);
     final bool isKeptWord = _isKeptWordFlowName(flow?.name);
     final bool isTheCourse = _isTheCourseFlowName(flow?.name);
@@ -3417,6 +3478,12 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         : null;
     final djedEvent = isDjed
         ? djedEventForEvent(title: currentEvent.title)
+        : null;
+    final offeringTableDay = isOfferingTable
+        ? offeringTableDayForEvent(
+            title: currentEvent.title,
+            behaviorPayload: currentEvent.behaviorPayload,
+          )
         : null;
     final courseContext = courseEvent == null
         ? null
@@ -3492,6 +3559,13 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
         ) &&
         followSkyEventId != null &&
         followSkyEventId.isNotEmpty;
+    final hasOfferingTableInstrument =
+        enableFollowSkyEngagement &&
+        _detailSheetTargetKey(target) ==
+            _detailSheetTargetKey(_currentTarget) &&
+        completionContext != null &&
+        currentEvent.flowId != null &&
+        offeringTableDay != null;
 
     if (hasFollowSkyInstrument) {
       final localDate = DateUtils.dateOnly(
@@ -3530,13 +3604,16 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       );
     }
 
-    Widget buildMaatCompletionPanel() {
+    Widget buildMaatCompletionPanel({
+      List<MaatFlowResponseSpec>? responseSpecsOverride,
+      CalendarCompletionPickerStyle? pickerStyleOverride,
+    }) {
       return Builder(
         builder: (feedbackContext) => _MaatFlowCompletionPanel(
           event: currentEvent,
           identity: _completionIdentityForEvent(currentEvent),
           completion: completionContext!,
-          responseSpecs: responseSpecs,
+          responseSpecs: responseSpecsOverride ?? responseSpecs,
           ky: target.ky,
           km: target.km,
           kd: target.kd,
@@ -3556,11 +3633,36 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
               : null,
           onAddReflection: null,
           reloadSignal: completionReloadSignal,
-          pickerStyle: completionPickerStyle,
+          pickerStyle: pickerStyleOverride ?? completionPickerStyle,
           observedButtonKey:
               includeOnboardingKeys && _isOnboardingTargetEvent(currentEvent)
               ? widget.onboardingObservedKey
               : null,
+        ),
+      );
+    }
+
+    if (hasOfferingTableInstrument) {
+      final localDate = DateUtils.dateOnly(
+        KemeticMath.toGregorian(target.ky, target.km, target.kd),
+      );
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: ClipRRect(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          child: OfferingTableDayPresentation(
+            key: ValueKey<String>(
+              'offering-table-presentation:${currentEvent.clientEventId ?? offeringTableDay.dayNumber}',
+            ),
+            day: offeringTableDay,
+            localDate: localDate,
+            startMinute: currentEvent.startMin,
+            initialNeed: _offeringTableNeedForEvent(currentEvent),
+            lens: offeringTableLensFromNotes(flow?.notes),
+            completionPanel: buildMaatCompletionPanel(
+              responseSpecsOverride: const <MaatFlowResponseSpec>[],
+            ),
+          ),
         ),
       );
     }
@@ -3880,8 +3982,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     required BuildContext rootContext,
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
-    bool showFollowSkyResizeHandle = false,
-    bool enableFollowSkyResize = false,
+    bool showInstrumentResizeHandle = false,
+    bool enableInstrumentResize = false,
+    String instrumentResizeLabel = 'Resize event sheet',
     double availableSheetHeight = 0,
   }) {
     final currentEvent = target.event;
@@ -3901,7 +4004,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       catalog: _followSkyCatalog,
     );
 
-    if (showFollowSkyResizeHandle) {
+    if (showInstrumentResizeHandle) {
       return SizedBox(
         height: 48,
         child: Stack(
@@ -3915,15 +4018,15 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
               child: GestureDetector(
                 key: const ValueKey<String>('follow-sky-sheet-resize-handle'),
                 behavior: HitTestBehavior.opaque,
-                onVerticalDragUpdate: enableFollowSkyResize
-                    ? (details) => _updateFollowSkySheetExtent(
+                onVerticalDragUpdate: enableInstrumentResize
+                    ? (details) => _updateInstrumentSheetExtent(
                         details,
                         availableSheetHeight,
                       )
                     : null,
                 child: Center(
                   child: Semantics(
-                    label: 'Resize Follow Sky sheet',
+                    label: instrumentResizeLabel,
                     child: Container(
                       width: 42,
                       height: 4,
@@ -4402,33 +4505,42 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       behaviorPayload: target.event.behaviorPayload,
       catalog: _followSkyCatalog,
     );
-    final followSkySheetExtent = _followSkySheetExtent
-        .clamp(_followSkyMinSheetExtent, 1.0)
+    final activeOfferingTableInstrument = _isOfferingTableInstrumentEvent(
+      target.event,
+    );
+    final activeInstrumentPresentation =
+        activeFollowSkyInstrument || activeOfferingTableInstrument;
+    final instrumentSheetExtent = _instrumentSheetExtent
+        .clamp(_instrumentMinSheetExtent, 1.0)
         .toDouble();
     final maxSheetHeight = _isWorkspacePresentation
         ? availableSheetHeight
-        : activeFollowSkyInstrument && keyboardInset == 0
-        ? availableSheetHeight * followSkySheetExtent
+        : activeInstrumentPresentation && keyboardInset == 0
+        ? availableSheetHeight * instrumentSheetExtent
         : keyboardInset > 0
         ? availableSheetHeight
         : math.min(media.size.height * 0.68, 520.0);
     final reservedChromeHeight = _isWorkspacePresentation
         ? 24.0
-        : activeFollowSkyInstrument
+        : activeInstrumentPresentation
         ? 120.0
         : hasOnboardingClosingBanner
         ? 250.0
         : 120.0;
     final maxPageHeight = math.max(0.0, maxSheetHeight - reservedChromeHeight);
-    final sheetHeight = _isWorkspacePresentation || activeFollowSkyInstrument
+    final sheetHeight = _isWorkspacePresentation || activeInstrumentPresentation
         ? maxPageHeight
         : (_measuredHeights[currentKey] ?? 200.0)
               .clamp(0.0, maxPageHeight)
               .toDouble();
 
     final content = Column(
-      key: activeFollowSkyInstrument
-          ? const ValueKey<String>('follow-sky-resizable-sheet')
+      key: activeInstrumentPresentation
+          ? ValueKey<String>(
+              activeFollowSkyInstrument
+                  ? 'follow-sky-resizable-sheet'
+                  : 'offering-table-resizable-sheet',
+            )
           : null,
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -4473,15 +4585,18 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                     rootContext: widget.hostContext,
                     sheetContext: context,
                     target: target,
-                    showFollowSkyResizeHandle: activeFollowSkyInstrument,
-                    enableFollowSkyResize:
-                        activeFollowSkyInstrument && keyboardInset == 0,
+                    showInstrumentResizeHandle: activeInstrumentPresentation,
+                    enableInstrumentResize:
+                        activeInstrumentPresentation && keyboardInset == 0,
+                    instrumentResizeLabel: activeFollowSkyInstrument
+                        ? 'Resize Follow Sky sheet'
+                        : 'Resize Offering Table sheet',
                     availableSheetHeight: availableSheetHeight,
                   ),
                   const SizedBox(height: 8),
                 ],
                 _buildDetailPageSizeTransition(
-                  animate: !activeFollowSkyInstrument,
+                  animate: !activeInstrumentPresentation,
                   child: SizedBox(
                     height: sheetHeight,
                     child: _isWorkspacePresentation
@@ -6478,6 +6593,10 @@ class _DayViewGridState extends State<DayViewGrid> {
   final Map<TrackSkyTimeZone, TrackSkyFlowData> _trackSkyDataByTimeZone =
       <TrackSkyTimeZone, TrackSkyFlowData>{};
   final Set<TrackSkyTimeZone> _trackSkyLoadingTimeZones = <TrackSkyTimeZone>{};
+  final OfferingTableLocalStore _offeringTableLocalStore =
+      const OfferingTableLocalStore();
+  final Map<int, String> _offeringTableNeedsByFlowId = <int, String>{};
+  final Set<int> _offeringTableLoadingFlowIds = <int>{};
   bool _hasScrolledToInitial = false; // Added for scroll persistence
   int? _tempDragStartMin; // minutes since midnight
   bool _isDraggingEvent = false;
@@ -6505,6 +6624,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     super.initState();
     _scrollController.addListener(_onScroll); // Added listener
     _primeTrackSkyFlowData();
+    unawaited(_primeOfferingTableNeeds());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToSavedOrCurrentTime(); // Renamed method
     });
@@ -6517,6 +6637,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     if (_computeFlowIndexHash(oldWidget.flowIndex) !=
         _computeFlowIndexHash(widget.flowIndex)) {
       _primeTrackSkyFlowData();
+      unawaited(_primeOfferingTableNeeds());
     }
     if (_eventDetailRestoreKey(oldWidget.initialEventDetailRestorationState) !=
         _eventDetailRestoreKey(widget.initialEventDetailRestorationState)) {
@@ -7162,6 +7283,41 @@ class _DayViewGridState extends State<DayViewGrid> {
         }
       }());
     }
+  }
+
+  Future<void> _primeOfferingTableNeeds() async {
+    final flowIds = <int>{};
+    for (final event in widget.notes) {
+      final flowId = event.flowId;
+      if (flowId == null) continue;
+      final flow = _chromeFlowForId(flowId);
+      if (!isOfferingTableFlowReference(
+        flowName: flow?.name,
+        flowNotes: flow?.notes,
+        behaviorPayload: event.behaviorPayload,
+      )) {
+        continue;
+      }
+      flowIds.add(flowId);
+    }
+    for (final flowId in flowIds) {
+      if (_offeringTableNeedsByFlowId.containsKey(flowId) ||
+          !_offeringTableLoadingFlowIds.add(flowId)) {
+        continue;
+      }
+      try {
+        final need = await _offeringTableLocalStore.loadNeed(flowId);
+        if (!mounted) return;
+        setState(() => _offeringTableNeedsByFlowId[flowId] = need);
+      } finally {
+        _offeringTableLoadingFlowIds.remove(flowId);
+      }
+    }
+  }
+
+  String _offeringTableNeedForEvent(EventItem event) {
+    final flowId = event.flowId;
+    return flowId == null ? '' : (_offeringTableNeedsByFlowId[flowId] ?? '');
   }
 
   TrackSkyEvent? _resolveTrackSkyEvent(
@@ -8002,6 +8158,8 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
     final graphic = visual.graphic;
     final isTrackSky = graphic?.kind == CalendarEventGraphicKind.trackSky;
+    final isOfferingTable =
+        graphic?.kind == CalendarEventGraphicKind.offeringTable;
     final isDawnHouseRite =
         graphic?.kind == CalendarEventGraphicKind.dawnHouseRite;
     final isEveningThresholdRite =
@@ -8015,98 +8173,31 @@ class _DayViewGridState extends State<DayViewGrid> {
     final borderRadius = BorderRadius.circular(graphic != null ? 7 : 6);
 
     if (isTrackSky) {
-      return Container(
+      return TrackSkyEventBlockVisual(
+        title: event.title,
+        graphic: trackSkySpec!,
         width: block.width,
         height: height,
-        margin: const EdgeInsets.only(right: 4, bottom: 2),
-        decoration: BoxDecoration(
-          borderRadius: borderRadius,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: isPreview ? 0.16 : 0.28),
-              blurRadius: kIsWeb ? 8 : 12,
-              offset: const Offset(0, 4),
-            ),
-            BoxShadow(
-              color: trackSkySpec!.glowColor.withValues(
-                alpha: isPreview ? 0.08 : 0.14,
-              ),
-              blurRadius: kIsWeb ? 10 : 14,
-              spreadRadius: -3,
-              offset: const Offset(0, 0),
-            ),
-          ],
+        compact: durationMinutes < 80,
+        isPreview: isPreview,
+        child: _buildEventTextContents(
+          event,
+          durationMinutes,
+          isPreview: isPreview,
         ),
-        clipBehavior: Clip.hardEdge,
-        child: Stack(
-          children: [
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: trackSkySpec.background,
-                  borderRadius: borderRadius,
-                  border: Border.all(
-                    color: trackSkySpec.borderColor.withValues(
-                      alpha: isPreview ? 0.7 : 0.92,
-                    ),
-                    width: 0.9,
-                  ),
-                ),
-              ),
-            ),
-            IgnorePointer(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  ...buildTrackSkyCardStars(
-                    seed: event.title,
-                    tint: trackSkySpec.accentColor,
-                    compact: durationMinutes < 80,
-                  ),
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.centerLeft,
-                          end: Alignment.centerRight,
-                          colors: [
-                            const Color(0xA804060C),
-                            const Color(0x7A04060C),
-                            const Color(0x1804060C),
-                            Colors.transparent,
-                          ],
-                          stops: const [0.0, 0.34, 0.62, 1.0],
-                        ),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    right: 10,
-                    top: 7,
-                    child: Opacity(
-                      opacity: isPreview ? 0.82 : 1.0,
-                      child: buildTrackSkyCardAccent(
-                        trackSkySpec,
-                        event.title,
-                        size: math.min(height - 18, 24),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: 11,
-                vertical: event.isReminder ? 4 : 4,
-              ),
-              child: _buildEventTextContents(
-                event,
-                durationMinutes,
-                isPreview: isPreview,
-              ),
-            ),
-          ],
+      );
+    }
+
+    if (isOfferingTable) {
+      return OfferingTableEventBlockVisual(
+        graphic: graphic!,
+        width: block.width,
+        height: height,
+        isPreview: isPreview,
+        child: _buildEventTextContents(
+          event,
+          durationMinutes,
+          isPreview: isPreview,
         ),
       );
     }
@@ -8445,8 +8536,17 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
     final graphic = visual.graphic;
     final bool isTrackSky = graphic?.kind == CalendarEventGraphicKind.trackSky;
+    final bool isOfferingTable =
+        graphic?.kind == CalendarEventGraphicKind.offeringTable;
     final bool isGraphicFlow = graphic != null;
     final trackSkySpec = isTrackSky ? graphic : null;
+    final offeringTableDay = isOfferingTable
+        ? offeringTableDayForEvent(
+            title: event.title,
+            behaviorPayload: event.behaviorPayload,
+          )
+        : null;
+    final displayTitle = offeringTableDay?.title ?? event.title;
     final isMaatFlow = _maatFlowCompletionContextForEvent(event, flow) != null;
     final flowLabel = _dayViewTimelineFlowLabel(
       event,
@@ -8456,7 +8556,7 @@ class _DayViewGridState extends State<DayViewGrid> {
       isNutrition: isNutrition,
     );
 
-    final showTitle = event.title.trim().isNotEmpty;
+    final showTitle = displayTitle.trim().isNotEmpty;
     final showPreviewLabel = !isGraphicFlow || (hasFlow && !event.isReminder);
     final graphicFlowNameColor = (graphic?.labelColor ?? _dayGold).withValues(
       alpha: isPreview ? 0.92 : 1.0,
@@ -8482,8 +8582,11 @@ class _DayViewGridState extends State<DayViewGrid> {
             kd: widget.kd,
           )
         : '';
+    final offeringTableTeaser = isOfferingTable
+        ? _offeringTableNeedForEvent(event).trim()
+        : '';
 
-    Widget buildTrackSkyText(
+    Widget buildGraphicText(
       String text, {
       required TextStyle style,
       required int maxLines,
@@ -8575,7 +8678,7 @@ class _DayViewGridState extends State<DayViewGrid> {
         // Compact preview label only; detail/body/location belongs in the sheet.
         if (showPreviewLabel) ...[
           isGraphicFlow
-              ? buildTrackSkyText(
+              ? buildGraphicText(
                   flow!.name,
                   style: TextStyle(
                     fontSize: 11,
@@ -8604,10 +8707,10 @@ class _DayViewGridState extends State<DayViewGrid> {
         // Note title - only render if meaningful
         if (showTitle)
           isGraphicFlow
-              ? buildTrackSkyText(
-                  event.title,
+              ? buildGraphicText(
+                  displayTitle,
                   style: TextStyle(
-                    fontSize: isTrackSky ? 14 : 13,
+                    fontSize: isTrackSky || isOfferingTable ? 14 : 13,
                     fontWeight: FontWeight.w700,
                     color: titleColor,
                   ),
@@ -8615,7 +8718,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                   overflow: TextOverflow.ellipsis,
                 )
               : Text(
-                  event.title,
+                  displayTitle,
                   style: TextStyle(
                     fontSize: event.isReminder ? 13.5 : 13.8,
                     height: 1.08,
@@ -8629,7 +8732,7 @@ class _DayViewGridState extends State<DayViewGrid> {
                 )
         else
           isGraphicFlow
-              ? buildTrackSkyText(
+              ? buildGraphicText(
                   hasFlow ? '(flow block)' : '(scheduled)',
                   style: TextStyle(
                     fontSize: 13,
@@ -8663,12 +8766,29 @@ class _DayViewGridState extends State<DayViewGrid> {
             trackSkyTeaser.isNotEmpty &&
             durationMinutes >= 45) ...[
           const SizedBox(height: 0),
-          buildTrackSkyText(
+          buildGraphicText(
             trackSkyTeaser,
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w600,
               color: trackSkySpec!.detailColor.withValues(
+                alpha: isPreview ? 0.82 : 0.96,
+              ),
+            ),
+            maxLines: durationMinutes >= 90 ? 2 : 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+        if (isOfferingTable &&
+            offeringTableTeaser.isNotEmpty &&
+            durationMinutes >= 45) ...[
+          const SizedBox(height: 0),
+          buildGraphicText(
+            '“$offeringTableTeaser”',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: graphic!.detailColor.withValues(
                 alpha: isPreview ? 0.82 : 0.96,
               ),
             ),

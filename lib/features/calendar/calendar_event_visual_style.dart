@@ -4,6 +4,7 @@ import 'maat_flow_identity.dart';
 
 enum CalendarEventGraphicKind {
   trackSky,
+  offeringTable,
   dawnHouseRite,
   eveningThresholdRite,
   theWeighing,
@@ -446,6 +447,7 @@ CalendarEventGraphicStyle? _graphicStyleForEvent({
   );
   return switch (kind) {
     MaatFlowKind.trackSky => _trackSkyGraphicStyleForTitle(eventTitle ?? ''),
+    MaatFlowKind.offeringTable => _offeringTableGraphicStyle,
     MaatFlowKind.dawnHouseRite => _dawnHouseRiteGraphicStyle,
     MaatFlowKind.eveningThresholdRite => _eveningThresholdRiteGraphicStyle,
     MaatFlowKind.theWeighing => _theWeighingGraphicStyle,
@@ -458,12 +460,14 @@ CalendarEventVisualStyle _graphicVisualStyle(
 ) {
   final base = switch (graphic.kind) {
     CalendarEventGraphicKind.trackSky => const Color(0xFF05070F),
+    CalendarEventGraphicKind.offeringTable => const Color(0xFF0A0603),
     CalendarEventGraphicKind.dawnHouseRite => const Color(0xFF120D14),
     CalendarEventGraphicKind.eveningThresholdRite => const Color(0xFF030611),
     CalendarEventGraphicKind.theWeighing => const Color(0xFF111213),
   };
   final lowWash = switch (graphic.kind) {
     CalendarEventGraphicKind.trackSky => _mix(graphic.accentColor, base, 0.42),
+    CalendarEventGraphicKind.offeringTable => const Color(0xFF6B4027),
     CalendarEventGraphicKind.dawnHouseRite => const Color(0xFF3A315D),
     CalendarEventGraphicKind.eveningThresholdRite => const Color(0xFF193248),
     CalendarEventGraphicKind.theWeighing => const Color(0xFF5D5241),
@@ -520,6 +524,25 @@ CalendarEventVisualStyle _graphicVisualStyle(
     completionButtonSelectedText: graphic.titleColor.withValues(alpha: 0.93),
   );
 }
+
+const CalendarEventGraphicStyle _offeringTableGraphicStyle =
+    CalendarEventGraphicStyle(
+      kind: CalendarEventGraphicKind.offeringTable,
+      background: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFF0A0603), Color(0xFF6B4027), Color(0xFF160D07)],
+        stops: [0, 0.56, 1],
+      ),
+      flowLabelGradient: _trackSkyFlowGoldGloss,
+      borderColor: Color(0xFFDDB787),
+      accentColor: Color(0xFFE8B27C),
+      accentSecondaryColor: Color(0xFF8FC7C4),
+      titleColor: Color(0xFFFFF6F1),
+      labelColor: Color(0xFFFFE7B3),
+      detailColor: Color(0xFFE8B27C),
+      glowColor: Color(0xFFC08A52),
+    );
 
 const CalendarEventGraphicStyle _dawnHouseRiteGraphicStyle =
     CalendarEventGraphicStyle(

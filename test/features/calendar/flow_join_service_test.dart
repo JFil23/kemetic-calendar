@@ -3136,6 +3136,9 @@ void main() {
       expect(firstPayload['day'], days.first.dayNumber);
       expect(firstPayload['lens'], 'hapy');
       expect(firstPayload['no_cup_mode'], isTrue);
+      expect(firstPayload, isNot(contains('initial_need')));
+      expect(firstPayload, isNot(contains('initialNeed')));
+      expect(firstPayload, isNot(contains('intention')));
       expect(
         firstPayload['schedule'],
         containsPair('default_notification', 'event_start'),
