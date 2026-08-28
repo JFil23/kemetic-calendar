@@ -112,6 +112,47 @@ void main() {
     },
   );
 
+  testWidgets('Ma_at 40-to-401 year mode switch preserves the canonical date', (
+    tester,
+  ) async {
+    _useSmallPhoneSurface(tester);
+    final initial = DateTime(2026, 9, 1);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: _MaatFlowDateHost(
+          initialDate: initial,
+          initialMode: MaatFlowDatePickerMode.gregorian,
+        ),
+      ),
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey<String>('maat-flow-date-button')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Kemetic'));
+    await tester.pumpAndSettle();
+    expect(find.text('Kemetic Calendar'), findsWidgets);
+    final kDate = KemeticMath.fromGregorian(initial);
+    expect(find.text(kemeticPickerMonthLabel(kDate.kMonth)), findsWidgets);
+    expect(find.text('${kDate.kDay}'), findsWidgets);
+
+    await tester.tap(find.text('Gregorian'));
+    await tester.pumpAndSettle();
+    expect(find.text('Gregorian Calendar'), findsWidgets);
+    expect(find.text('September'), findsWidgets);
+    expect(find.text('2026'), findsWidgets);
+
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
+    await tester.pumpAndSettle();
+
+    expect(find.text(_label(initial)), findsOneWidget);
+    expect(find.text('Mode: gregorian'), findsOneWidget);
+    expect(find.text('Updates: 1'), findsOneWidget);
+  });
+
   testWidgets('Ma_at flow date picker defaults empty value to tomorrow', (
     tester,
   ) async {

@@ -135,6 +135,7 @@ class _StoneRegisterDatePickerSheetState<T>
           Semantics(
             label: 'Selected date ${widget.adapter.formatValue(_value, _mode)}',
             child: StoneRegisterDateWheel(
+              key: ValueKey<StoneDatePickerCalendarMode>(_mode),
               columns: _columns,
               controllers: _controllers,
               accent: accent,
@@ -184,9 +185,16 @@ class _StoneRegisterDatePickerSheetState<T>
       _mode = nextMode;
       _value = widget.adapter.clampOrNormalize(_value, _mode);
       _columns = widget.adapter.buildColumns(_value, _mode);
-      _ensureControllers();
+      _resetControllers();
     });
-    _syncControllers();
+  }
+
+  void _resetControllers() {
+    for (final controller in _controllers.values) {
+      controller.dispose();
+    }
+    _controllers.clear();
+    _ensureControllers();
   }
 
   void _selectColumnIndex(String columnId, int selectedIndex) {
@@ -241,6 +249,7 @@ class _StoneRegisterDatePickerSheetState<T>
           initialScrollOffset: StoneRegisterWheelMetrics.initialOffsetFor(
             column,
           ),
+          keepScrollOffset: false,
         ),
       );
     }
