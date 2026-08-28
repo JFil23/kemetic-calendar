@@ -581,6 +581,22 @@ OfferingTableLens offeringTableLensFromNotes(
   return fallback;
 }
 
+TrackSkyTimeZone offeringTableTimeZoneFromNotes(
+  String? notes, {
+  TrackSkyTimeZone fallback = TrackSkyTimeZone.pacific,
+}) {
+  if (notes == null || notes.isEmpty) return fallback;
+  for (final token in notes.split(';')) {
+    final trimmed = token.trim();
+    if (!trimmed.startsWith('offering_tz=')) continue;
+    return TrackSkyTimeZoneX.tryParse(
+          trimmed.substring('offering_tz='.length),
+        ) ??
+        fallback;
+  }
+  return fallback;
+}
+
 bool offeringTableNoCupModeFromNotes(String? notes, {bool fallback = false}) {
   if (notes == null || notes.isEmpty) return fallback;
   for (final token in notes.split(';')) {

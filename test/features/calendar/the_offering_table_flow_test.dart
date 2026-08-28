@@ -82,6 +82,19 @@ void main() {
     );
   });
 
+  test('joined presentation settings derive from persisted flow notes', () {
+    const notes =
+        'maat=the-offering-table;offering_tz=eastern;'
+        'offering_lens=hapy;no_cup_mode=1';
+
+    expect(
+      offeringTableTimeZoneFromNotes(notes),
+      TrackSkyTimeZone.eastern,
+    );
+    expect(offeringTableLensFromNotes(notes), OfferingTableLens.hapy);
+    expect(offeringTableNoCupModeFromNotes(notes), isTrue);
+  });
+
   test('builds JSON-safe behavior payloads and action ids', () {
     final startDate = DateTime(2026, 6, 1);
     final ids = <String>{};

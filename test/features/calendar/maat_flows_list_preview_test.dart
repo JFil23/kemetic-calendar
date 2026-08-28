@@ -455,7 +455,7 @@ void main() {
           debugShowCheckedModeBanner: false,
           home: buildMaatFlowTemplateDetailPreviewForTesting(
             templateKey: 'the-course',
-            alreadyJoined: true,
+            joinedStartDate: DateTime(2026, 9, 1),
           ),
         ),
       );
@@ -499,38 +499,41 @@ void main() {
     },
   );
 
-  testWidgets('successful join cannot be overridden by stale joined keys', (
-    tester,
-  ) async {
-    Future<int?> joinTemplate(String key) async {
-      return key == 'dawn-house-rite' ? 441 : null;
-    }
+  testWidgets(
+    'join result does not impersonate the persisted active instance',
+    (tester) async {
+      Future<int?> joinTemplate(String key) async {
+        return key == 'dawn-house-rite' ? 441 : null;
+      }
 
-    await tester.pumpWidget(
-      MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: buildMaatFlowsListPreviewForTesting(onPickTemplate: joinTemplate),
-      ),
-    );
-    await tester.pump();
-
-    expect(find.text('active'), findsNothing);
-    await tester.tap(find.text('Dawn House Rite'));
-    await tester.pumpAndSettle();
-    expect(find.text('active'), findsOneWidget);
-
-    await tester.pumpWidget(
-      MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: buildMaatFlowsListPreviewForTesting(
-          joinedKeys: const <String>{},
-          onPickTemplate: joinTemplate,
+      await tester.pumpWidget(
+        MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: buildMaatFlowsListPreviewForTesting(
+            onPickTemplate: joinTemplate,
+          ),
         ),
-      ),
-    );
-    await tester.pump();
+      );
+      await tester.pump();
 
-    expect(find.text('active'), findsOneWidget);
-    expect(find.text('NOT YET JOINED'), findsOneWidget);
-  });
+      expect(find.text('active'), findsNothing);
+      await tester.tap(find.text('Dawn House Rite'));
+      await tester.pumpAndSettle();
+      expect(find.text('active'), findsNothing);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          debugShowCheckedModeBanner: false,
+          home: buildMaatFlowsListPreviewForTesting(
+            joinedKeys: const <String>{'dawn-house-rite'},
+            onPickTemplate: joinTemplate,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('active'), findsOneWidget);
+      expect(find.text('NOT YET JOINED'), findsOneWidget);
+    },
+  );
 }

@@ -7258,23 +7258,28 @@ class CalendarPage extends StatefulWidget {
     _MyFlowsFilingSnapshot? snapshot,
     String tplKey,
   ) {
-    if (_hasRememberedJoinedMaatTemplate(tplKey)) return true;
     if (snapshot == null) return false;
-    return _visibleSnapshotHasActiveMaatInstanceFor(
-      _applyEndFlowVisibilityOverlay(snapshot),
-      tplKey,
-    );
+    return _visibleSnapshotActiveMaatInstanceFor(
+          _applyEndFlowVisibilityOverlay(snapshot),
+          tplKey,
+        ) !=
+        null;
   }
 
   static bool _visibleSnapshotHasActiveMaatInstanceFor(
     _MyFlowsFilingSnapshot visibleSnapshot,
     String tplKey,
+  ) => _visibleSnapshotActiveMaatInstanceFor(visibleSnapshot, tplKey) != null;
+
+  static _Flow? _visibleSnapshotActiveMaatInstanceFor(
+    _MyFlowsFilingSnapshot visibleSnapshot,
+    String tplKey,
   ) {
-    if (_hasRememberedJoinedMaatTemplate(tplKey)) return true;
-    return visibleSnapshot.flows.any((flow) {
-      return visibleSnapshot.activeFlowIds.contains(flow.id) &&
-          _flowMatchesActiveMaatTemplate(flow, tplKey);
-    });
+    for (final flow in visibleSnapshot.flows) {
+      if (!visibleSnapshot.activeFlowIds.contains(flow.id)) continue;
+      if (_flowMatchesActiveMaatTemplate(flow, tplKey)) return flow;
+    }
+    return null;
   }
 
   static _MaatFlowCompletionStatus? _visibleSnapshotMaatCompletionStatusFor(
@@ -7323,14 +7328,6 @@ class CalendarPage extends StatefulWidget {
     _rememberedJoinedMaatUserScope = scope;
     _rememberedJoinedMaatFlowIdsByTemplateKey[key] = flowId;
     _rememberedJoinedMaatTemplateKeysByFlowId[flowId] = key;
-  }
-
-  static bool _hasRememberedJoinedMaatTemplate(String templateKey) {
-    if (!_rememberedJoinedMaatScopeIsCurrent()) return false;
-    final key = templateKey.trim();
-    if (key.isEmpty) return false;
-    final flowId = _rememberedJoinedMaatFlowIdsByTemplateKey[key];
-    return flowId != null && !_isFlowEndSuppressed(flowId);
   }
 
   static void _forgetRememberedJoinedMaatFlow(int flowId) {
@@ -8227,14 +8224,22 @@ class CalendarPage extends StatefulWidget {
     required NavigatorState navigator,
     required _MaatFlowTemplate template,
     required FlowsRepo flowsRepo,
+    _Flow? joinedFlow,
     VoidCallback? onClose,
   }) {
+    final activeInstance =
+        joinedFlow ??
+        () {
+          final snapshot = _cachedDetachedMyFlowsFilingSnapshot(flowsRepo);
+          if (snapshot == null) return null;
+          return _visibleSnapshotActiveMaatInstanceFor(
+            _applyEndFlowVisibilityOverlay(snapshot),
+            template.key,
+          );
+        }();
     return _MaatFlowTemplateDetailPage(
       template: template,
-      alreadyJoined: _snapshotHasActiveMaatInstanceFor(
-        _cachedDetachedMyFlowsFilingSnapshot(flowsRepo),
-        template.key,
-      ),
+      joinedFlow: activeInstance,
       addInstance: _addMaatFlowInstanceHeadlessWithCompletion,
       resizeToAvoidBottomInset: false,
       onJoined: (flowId) => _completeDetachedMaatJoinWithDayView(
@@ -8251,6 +8256,7 @@ class CalendarPage extends StatefulWidget {
     NavigatorState navigator,
     MaatFlowDetailRevealer<int?> revealDetail,
     _MaatFlowTemplate template, {
+    _Flow? joinedFlow,
     required String parentRoute,
     required Map<String, dynamic> returnState,
     required FlowsRepo flowsRepo,
@@ -8263,6 +8269,7 @@ class CalendarPage extends StatefulWidget {
         navigator: navigator,
         template: template,
         flowsRepo: flowsRepo,
+        joinedFlow: joinedFlow,
         onClose: onClose,
       ),
       parentRoute: parentRoute,
@@ -8435,11 +8442,12 @@ class CalendarPage extends StatefulWidget {
         _reconcileRememberedMaatJoinsFromLiveSnapshot(snapshot);
         return snapshot;
       },
-      onPickTemplate: (template, revealDetail) async {
+      onPickTemplate: (template, activeInstance, revealDetail) async {
         final importedFlowId = await _pushDetachedMaatFlowTemplateDetail(
           navigator,
           revealDetail,
           template,
+          joinedFlow: activeInstance,
           parentRoute: parentRoute,
           flowsRepo: flowsRepo,
           onClose: onClose,
@@ -8487,6 +8495,12 @@ class CalendarPage extends StatefulWidget {
               navigator: navigator,
               template: restoredTemplate,
               flowsRepo: flowsRepo,
+              joinedFlow: cachedSnapshot == null
+                  ? null
+                  : _visibleSnapshotActiveMaatInstanceFor(
+                      _applyEndFlowVisibilityOverlay(cachedSnapshot),
+                      restoredTemplate.key,
+                    ),
               onClose: onClose,
             ),
       onInitialDetailDismissed: restoredTemplate == null
@@ -13319,94 +13333,89 @@ class CalendarPageState extends State<CalendarPage>
   Widget _buildMaatFlowTemplateDetailPage({
     required _MaatFlowTemplate template,
     required bool persistOverlay,
+    _Flow? joinedFlow,
   }) {
-    final needsCalendarPreview =
-        template.key == 'track-the-sky' ||
-        template.key == kOfferingTableFlowKey;
-    final liveInputs = needsCalendarPreview ? _followSkyLiveInputs() : null;
-    final sky = template.key == 'track-the-sky' ? liveInputs : null;
+    final activeInstance =
+        joinedFlow ?? _activeFlowForMaatTemplate(template.key);
+    final sky = template.key == 'track-the-sky' ? _followSkyLiveInputs() : null;
     final calendarPreview = template.key == kOfferingTableFlowKey
-        ? liveInputs?.fullCalendarPreview
+        ? _offeringTableCalendarPreview()
         : sky?.preview;
     return _MaatFlowTemplateDetailPage(
       template: template,
-      alreadyJoined: _hasActiveMaatInstanceFor(template.key),
+      joinedFlow: activeInstance,
       resizeToAvoidBottomInset: persistOverlay,
-      followSkyExistingFlowNotes: sky?.notes,
-      followSkyExistingFlowId: sky?.flowId,
       followSkyCandidates: sky?.candidates ?? const [],
       followSkyMeasurementIntervals: sky?.intervals ?? const [],
       followSkyCalendarPreview:
           calendarPreview ?? FollowSkyCalendarPreview.empty,
-      onFollowSkyCourseSaved: sky?.flowId == null
+      onFollowSkyCourseSaved: activeInstance?.id == null
           ? null
           : (course, notes) => _saveFollowSkyCourseNotes(
-                flowId: sky!.flowId!,
-                notes: notes,
+              flowId: activeInstance!.id,
+              notes: notes,
+            ),
+      onFollowSkyProtectTime:
+          ({required course, required startLocal, required endLocal}) =>
+              _protectFollowSkyCourseTime(
+                course: course,
+                startLocal: startLocal,
+                endLocal: endLocal,
               ),
-      onFollowSkyProtectTime: ({
-        required course,
-        required startLocal,
-        required endLocal,
-      }) =>
-          _protectFollowSkyCourseTime(
-            course: course,
-            startLocal: startLocal,
-            endLocal: endLocal,
-          ),
-      addInstance: ({
-        required _MaatFlowTemplate template,
-        DateTime? startDate,
-        bool? useKemetic,
-        TrackSkyTimeZone? trackSkyTimeZone,
-        int? alertMinutesBefore,
-        bool? dawnDiscreetMode,
-        DawnHouseRiteLens? dawnLens,
-        bool? eveningDiscreetMode,
-        EveningThresholdRiteLens? eveningLens,
-        int? eveningFallbackMinutesAfterMidnight,
-        TheWeighingLens? theWeighingLens,
-        OfferingTableLens? offeringTableLens,
-        bool? offeringNoCupMode,
-        TheTendingLens? theTendingLens,
-        KeptWordLens? keptWordLens,
-        CourseLens? courseLens,
-        MoonReturnLens? moonReturnLens,
-        WagLens? wagLens,
-        DecanWatchLens? decanWatchLens,
-        OpenHandLens? openHandLens,
-        DjedLens? djedLens,
-        List<ReadingHouseSitting>? readingHouseSittings,
-        String? eveningThresholdInitialCarry,
-      }) async {
-        return _addMaatFlowInstance(
-          template: template,
-          startDate: startDate,
-          useKemetic: useKemetic ?? false,
-          trackSkyTimeZone: trackSkyTimeZone,
-          alertMinutesBefore: alertMinutesBefore ?? _alertNoneMinutes,
-          dawnDiscreetMode: dawnDiscreetMode ?? false,
-          dawnLens: dawnLens ?? DawnHouseRiteLens.neutral,
-          eveningDiscreetMode: eveningDiscreetMode ?? false,
-          eveningLens: eveningLens ?? EveningThresholdRiteLens.neutral,
-          eveningFallbackMinutesAfterMidnight:
-              eveningFallbackMinutesAfterMidnight ??
-              kEveningThresholdDefaultFallbackMinutes,
-          theWeighingLens: theWeighingLens ?? TheWeighingLens.neutral,
-          offeringTableLens: offeringTableLens ?? OfferingTableLens.neutral,
-          offeringNoCupMode: offeringNoCupMode ?? false,
-          theTendingLens: theTendingLens ?? TheTendingLens.neutral,
-          keptWordLens: keptWordLens ?? KeptWordLens.neutral,
-          courseLens: courseLens ?? CourseLens.neutral,
-          moonReturnLens: moonReturnLens ?? MoonReturnLens.neutral,
-          wagLens: wagLens ?? WagLens.neutral,
-          decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
-          openHandLens: openHandLens ?? OpenHandLens.neutral,
-          djedLens: djedLens ?? DjedLens.neutral,
-          readingHouseSittings: readingHouseSittings,
-          eveningThresholdInitialCarry: eveningThresholdInitialCarry,
-        );
-      },
+      addInstance:
+          ({
+            required _MaatFlowTemplate template,
+            DateTime? startDate,
+            bool? useKemetic,
+            TrackSkyTimeZone? trackSkyTimeZone,
+            int? alertMinutesBefore,
+            bool? dawnDiscreetMode,
+            DawnHouseRiteLens? dawnLens,
+            bool? eveningDiscreetMode,
+            EveningThresholdRiteLens? eveningLens,
+            int? eveningFallbackMinutesAfterMidnight,
+            TheWeighingLens? theWeighingLens,
+            OfferingTableLens? offeringTableLens,
+            bool? offeringNoCupMode,
+            TheTendingLens? theTendingLens,
+            KeptWordLens? keptWordLens,
+            CourseLens? courseLens,
+            MoonReturnLens? moonReturnLens,
+            WagLens? wagLens,
+            DecanWatchLens? decanWatchLens,
+            OpenHandLens? openHandLens,
+            DjedLens? djedLens,
+            List<ReadingHouseSitting>? readingHouseSittings,
+            String? eveningThresholdInitialCarry,
+          }) async {
+            return _addMaatFlowInstance(
+              template: template,
+              startDate: startDate,
+              useKemetic: useKemetic ?? false,
+              trackSkyTimeZone: trackSkyTimeZone,
+              alertMinutesBefore: alertMinutesBefore ?? _alertNoneMinutes,
+              dawnDiscreetMode: dawnDiscreetMode ?? false,
+              dawnLens: dawnLens ?? DawnHouseRiteLens.neutral,
+              eveningDiscreetMode: eveningDiscreetMode ?? false,
+              eveningLens: eveningLens ?? EveningThresholdRiteLens.neutral,
+              eveningFallbackMinutesAfterMidnight:
+                  eveningFallbackMinutesAfterMidnight ??
+                  kEveningThresholdDefaultFallbackMinutes,
+              theWeighingLens: theWeighingLens ?? TheWeighingLens.neutral,
+              offeringTableLens: offeringTableLens ?? OfferingTableLens.neutral,
+              offeringNoCupMode: offeringNoCupMode ?? false,
+              theTendingLens: theTendingLens ?? TheTendingLens.neutral,
+              keptWordLens: keptWordLens ?? KeptWordLens.neutral,
+              courseLens: courseLens ?? CourseLens.neutral,
+              moonReturnLens: moonReturnLens ?? MoonReturnLens.neutral,
+              wagLens: wagLens ?? WagLens.neutral,
+              decanWatchLens: decanWatchLens ?? DecanWatchLens.neutral,
+              openHandLens: openHandLens ?? OpenHandLens.neutral,
+              djedLens: djedLens ?? DjedLens.neutral,
+              readingHouseSittings: readingHouseSittings,
+              eveningThresholdInitialCarry: eveningThresholdInitialCarry,
+            );
+          },
       onJoined: (flowId) => _completeMountedMaatJoinWithDayView(
         flowId: flowId,
         templateKey: template.key,
@@ -13418,6 +13427,7 @@ class CalendarPageState extends State<CalendarPage>
     NavigatorState navigator,
     MaatFlowDetailRevealer<int?> revealDetail,
     _MaatFlowTemplate template, {
+    _Flow? joinedFlow,
     required Map<String, dynamic> returnState,
     bool persistOverlay = true,
   }) {
@@ -13427,6 +13437,7 @@ class CalendarPageState extends State<CalendarPage>
       (_) => _buildMaatFlowTemplateDetailPage(
         template: template,
         persistOverlay: persistOverlay,
+        joinedFlow: joinedFlow,
       ),
       visibleState: <String, dynamic>{
         'mode': _kFlowStudioModeMaatTemplate,
@@ -25194,13 +25205,7 @@ class CalendarPageState extends State<CalendarPage>
     EventItem evt,
     int proposedStartMin,
   ) async {
-    await _moveEventInDayViewWithResult(
-      ky,
-      km,
-      kd,
-      evt,
-      proposedStartMin,
-    );
+    await _moveEventInDayViewWithResult(ky, km, kd, evt, proposedStartMin);
   }
 
   Future<bool> _moveFollowSkyEventInDayView(
@@ -27509,13 +27514,14 @@ class CalendarPageState extends State<CalendarPage>
     return _MaatFlowsListPage(
       title: _kMaatFlowsDisplayTitle,
       templates: _kCoreMaatFlowTemplates,
-      hasActiveForKey: (key) => _hasActiveMaatInstanceFor(key),
+      activeInstanceForKey: _activeFlowForMaatTemplate,
       progressForKey: _maatCompletionStatusForActiveInstance,
-      onPickTemplate: (tpl, revealDetail) async {
+      onPickTemplate: (tpl, activeInstance, revealDetail) async {
         final importedFlowId = await _pushMaatFlowTemplateDetail(
           navigator,
           revealDetail,
           tpl,
+          joinedFlow: activeInstance,
           returnState: const <String, dynamic>{
             'mode': _kFlowStudioModeMaatFlows,
           },
@@ -27550,6 +27556,7 @@ class CalendarPageState extends State<CalendarPage>
           : (_) => _buildMaatFlowTemplateDetailPage(
               template: restoredTemplate,
               persistOverlay: persistOverlay,
+              joinedFlow: _activeFlowForMaatTemplate(restoredTemplate.key),
             ),
       onInitialDetailDismissed: restoredTemplate == null
           ? null
@@ -28094,21 +28101,15 @@ class CalendarPageState extends State<CalendarPage>
 
   /* ─────────── Ma’at Flows helpers ─────────── */
 
-  /// True if there is at least one *active* instance of template [tplKey]
-  /// with any remaining day today or in the future.
-  bool _hasActiveMaatInstanceFor(String tplKey) {
-    if (CalendarPage._hasRememberedJoinedMaatTemplate(tplKey)) return true;
+  _Flow? _activeFlowForMaatTemplate(String tplKey) {
     final snapshot = _cachedMyFlowsFilingSnapshot();
     if (snapshot != null) {
-      return CalendarPage._snapshotHasActiveMaatInstanceFor(snapshot, tplKey);
+      final active = CalendarPage._visibleSnapshotActiveMaatInstanceFor(
+        CalendarPage._applyEndFlowVisibilityOverlay(snapshot),
+        tplKey,
+      );
+      if (active != null) return active;
     }
-    return _flows.any((f) {
-      return !CalendarPage._isFlowEndSuppressed(f.id) &&
-          CalendarPage._flowMatchesActiveMaatTemplate(f, tplKey);
-    });
-  }
-
-  _Flow? _activeFlowForMaatTemplate(String tplKey) {
     for (final flow in _flows) {
       if (CalendarPage._isFlowEndSuppressed(flow.id)) continue;
       if (!CalendarPage._flowMatchesActiveMaatTemplate(flow, tplKey)) continue;
@@ -28117,36 +28118,18 @@ class CalendarPageState extends State<CalendarPage>
     return null;
   }
 
-  /// Live Follow the Sky inputs: course notes + real activity for measurement.
-  /// Live Follow the Sky inputs: course notes + activity for Connect/Measure.
-  /// Connect candidates stay flow-backed. Measure intervals also include
-  /// Protect-stamped single blocks owned by the active Course.
   ({
-    String? notes,
-    int? flowId,
-    List<CourseActivitySignal> candidates,
-    List<CourseMeasurementInterval> intervals,
-    FollowSkyCalendarPreview preview,
-    FollowSkyCalendarPreview fullCalendarPreview,
-  }) _followSkyLiveInputs() {
-    final flow = _activeFlowForMaatTemplate('track-the-sky');
-    final now = DateTime.now();
-    final windowStart = DateUtils.dateOnly(now);
-    // The compact strip consumes thirty days, while the expanded preview may
-    // reach farther to show the next five actual turnings with same-day
-    // calendar context. Keep one bounded hydration window large enough for
-    // the canonical catalog's rolling five-event sequence.
-    final windowEnd = windowStart.add(const Duration(days: 119));
-    final allPreviewRows = <FollowSkyCalendarPreviewRow>[];
+    List<FollowSkyCalendarPreviewRow> rows,
+    List<CourseActivitySnapshot> snapshots,
+    List<FollowSkyCalendarBlock> blocks,
+  })
+  _calendarPreviewSource({
+    required DateTime windowStart,
+    required DateTime windowEnd,
+  }) {
+    final rows = <FollowSkyCalendarPreviewRow>[];
     final snapshots = <CourseActivitySnapshot>[];
     final blocks = <FollowSkyCalendarBlock>[];
-    final decodedCourse = TrackSkyCourseMetadataCodec().decode(flow?.notes);
-    final rehydrated = _rehydrateFollowSkyCourse(
-      flow: flow,
-      decodedCourse: decodedCourse,
-    );
-    final course = rehydrated.course;
-
     for (final entry in _notes.entries) {
       final dayStart = _gregorianDayStartFromKey(entry.key);
       if (dayStart == null) continue;
@@ -28181,7 +28164,7 @@ class CalendarPageState extends State<CalendarPage>
                 }
                 return null;
               }();
-        allPreviewRows.add(
+        rows.add(
           FollowSkyCalendarPreviewRow(
             localDay: dayStart,
             start: start,
@@ -28197,8 +28180,8 @@ class CalendarPageState extends State<CalendarPage>
         // exists and is not Follow the Sky's own generated flow.
         final measurableFlowId =
             sourceFlow == null || _isTrackSkyFlowName(sourceFlow.name)
-                ? null
-                : noteFlowId;
+            ? null
+            : noteFlowId;
 
         blocks.add(
           FollowSkyCalendarBlock(
@@ -28215,8 +28198,9 @@ class CalendarPageState extends State<CalendarPage>
           flowName: sourceFlow.name,
           flowNotes: sourceFlow.notes,
         );
-        final safeEnd =
-            end.isAfter(start) ? end : start.add(const Duration(minutes: 30));
+        final safeEnd = end.isAfter(start)
+            ? end
+            : start.add(const Duration(minutes: 30));
         snapshots.add(
           CourseActivitySnapshot(
             label: sourceFlow.name,
@@ -28232,32 +28216,72 @@ class CalendarPageState extends State<CalendarPage>
       }
     }
 
+    return (
+      rows: List<FollowSkyCalendarPreviewRow>.unmodifiable(rows),
+      snapshots: List<CourseActivitySnapshot>.unmodifiable(snapshots),
+      blocks: List<FollowSkyCalendarBlock>.unmodifiable(blocks),
+    );
+  }
+
+  FollowSkyCalendarPreview _offeringTableCalendarPreview() {
+    final windowStart = DateUtils.dateOnly(DateTime.now());
+    final windowEnd = windowStart.add(const Duration(days: 119));
+    final source = _calendarPreviewSource(
+      windowStart: windowStart,
+      windowEnd: windowEnd,
+    );
+    return FollowSkyCalendarPreview(
+      rows: source.rows,
+      windowStart: windowStart,
+      windowEnd: windowEnd,
+      coverageComplete: true,
+    );
+  }
+
+  /// Live Follow the Sky inputs: course notes + activity for Connect/Measure.
+  /// Connect candidates stay flow-backed. Measure intervals also include
+  /// Protect-stamped single blocks owned by the active Course.
+  ({
+    List<CourseActivitySignal> candidates,
+    List<CourseMeasurementInterval> intervals,
+    FollowSkyCalendarPreview preview,
+  })
+  _followSkyLiveInputs() {
+    final flow = _activeFlowForMaatTemplate('track-the-sky');
+    final now = DateTime.now();
+    final windowStart = DateUtils.dateOnly(now);
+    // The compact strip consumes thirty days, while the expanded preview may
+    // reach farther to show the next five actual turnings with same-day
+    // calendar context. Keep one bounded hydration window large enough for
+    // the canonical catalog's rolling five-event sequence.
+    final windowEnd = windowStart.add(const Duration(days: 119));
+    final source = _calendarPreviewSource(
+      windowStart: windowStart,
+      windowEnd: windowEnd,
+    );
+    final decodedCourse = TrackSkyCourseMetadataCodec().decode(flow?.notes);
+    final rehydrated = _rehydrateFollowSkyCourse(
+      flow: flow,
+      decodedCourse: decodedCourse,
+    );
+    final course = rehydrated.course;
+
     final candidates = const CourseActivityAggregator().aggregate(
-      snapshots: snapshots,
+      snapshots: source.snapshots,
       now: now,
     );
-    final previewRows = allPreviewRows
+    final previewRows = source.rows
         .where((row) => !_isTrackSkyFlowName(row.flowName))
         .toList(growable: false);
     final intervals = const FollowSkyCourseAttribution().intervalsFor(
       course: course,
-      blocks: blocks,
+      blocks: source.blocks,
     );
     return (
-      notes: rehydrated.notes,
-      flowId: flow?.id,
       candidates: candidates,
       intervals: intervals,
       preview: FollowSkyCalendarPreview(
         rows: previewRows,
-        windowStart: windowStart,
-        windowEnd: windowEnd,
-        candidates: candidates,
-        intervals: intervals,
-        coverageComplete: true,
-      ),
-      fullCalendarPreview: FollowSkyCalendarPreview(
-        rows: List<FollowSkyCalendarPreviewRow>.unmodifiable(allPreviewRows),
         windowStart: windowStart,
         windowEnd: windowEnd,
         candidates: candidates,
@@ -28317,7 +28341,10 @@ class CalendarPageState extends State<CalendarPage>
       course: resolved,
     );
     if (flow.id > 0) {
-      _scheduleFollowSkyCourseNotesRepair(flowId: flow.id, notes: repairedNotes);
+      _scheduleFollowSkyCourseNotesRepair(
+        flowId: flow.id,
+        notes: repairedNotes,
+      );
     }
     return (course: resolved, notes: repairedNotes);
   }
@@ -28380,11 +28407,18 @@ class CalendarPageState extends State<CalendarPage>
     final title = course.label.trim();
     if (title.isEmpty) return;
 
-    final dayLocal = DateTime(startLocal.year, startLocal.month, startLocal.day);
+    final dayLocal = DateTime(
+      startLocal.year,
+      startLocal.month,
+      startLocal.day,
+    );
     final k = KemeticMath.fromGregorian(dayLocal);
     final calendarId = _personalCalendarId;
     final calendarName = _calendarDisplayName(calendarId);
-    final startTod = TimeOfDay(hour: startLocal.hour, minute: startLocal.minute);
+    final startTod = TimeOfDay(
+      hour: startLocal.hour,
+      minute: startLocal.minute,
+    );
     final endTod = TimeOfDay(hour: endLocal.hour, minute: endLocal.minute);
     final ownership = FollowSkyCourseOwnership.behaviorPayload(
       courseId: course.courseId,

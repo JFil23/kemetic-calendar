@@ -64,6 +64,37 @@ void main() {
     expect(find.text('Carry this table'), findsOneWidget);
   });
 
+  testWidgets('catalog route preserves the persisted joined flow schedule', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final start = DateTime(2026, 9, 1);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: buildMaatFlowTemplateDetailPreviewForTesting(
+          templateKey: kOfferingTableFlowKey,
+          joinedStartDate: start,
+          joinedFlowId: 957,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final detail = tester.widget<OfferingTableDetailPage>(
+      find.byType(OfferingTableDetailPage),
+    );
+    expect(detail.joinedFlowId, 957);
+    expect(detail.joinedStartDate, start);
+    expect(detail.joinedScheduleDates, hasLength(30));
+    expect(detail.joinedScheduleDates.first, start);
+    expect(detail.joinedScheduleDates.last, DateTime(2026, 9, 30));
+    expect(
+      find.byKey(const ValueKey<String>('offering-table-joined')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('default preview begins tomorrow with the approved intro copy', (
     tester,
   ) async {
@@ -196,6 +227,85 @@ void main() {
     await tester.pumpAndSettle();
     expect(joinedDate, selected);
   });
+
+  testWidgets(
+    'joined detail reads the persisted schedule and cannot draft another start',
+    (tester) async {
+      final start = DateTime(2026, 9, 1);
+      final dates = <DateTime>[
+        for (var offset = 0; offset < 30; offset++)
+          start.add(Duration(days: offset)),
+      ];
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'offering_table_957_initial_need': 'Protect my sleep.',
+      });
+
+      await _pumpPage(
+        tester,
+        size: const Size(390, 844),
+        start: DateTime(2026, 8, 29),
+        joinedFlowId: 957,
+        joinedStartDate: start,
+        joinedScheduleDates: dates,
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(
+          ValueKey<String>('offering-table-calendar-ring-${_dateKey(start)}'),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          ValueKey<String>(
+            'offering-table-calendar-ring-${_dateKey(DateTime(2026, 9, 30))}',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(
+          const ValueKey<String>('offering-table-calendar-ring-2026-08-29'),
+        ),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('offering-table-joined')),
+        findsOneWidget,
+      );
+      expect(
+        tester
+            .widget<TextField>(
+              find.byKey(
+                const ValueKey<String>('offering-table-initial-input'),
+              ),
+            )
+            .readOnly,
+        isTrue,
+      );
+      expect(
+        tester
+            .widget<TextField>(
+              find.byKey(
+                const ValueKey<String>('offering-table-initial-input'),
+              ),
+            )
+            .controller
+            ?.text,
+        'Protect my sleep.',
+      );
+
+      final startControl = find.byKey(
+        ValueKey<String>(
+          'offering-table-calendar-top-label-control-${_dateKey(start)}',
+        ),
+      );
+      await tester.tap(startControl);
+      await tester.pumpAndSettle();
+      expect(find.text('Start date'), findsNothing);
+    },
+  );
 
   testWidgets('Carry saves the trimmed private need only after join succeeds', (
     tester,
@@ -720,52 +830,53 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('carry retains the existing default join arguments', (
-    tester,
-  ) async {
-    final selectedDate = DateTime(2026, 9, 3);
-    DateTime? joinedDate;
-    TrackSkyTimeZone? joinedTimezone;
-    OfferingTableLens? joinedLens;
-    bool? joinedNoCupMode;
+  testWidgets(
+    'carry delegates the draft once and waits for persisted authority',
+    (tester) async {
+      final selectedDate = DateTime(2026, 9, 3);
+      DateTime? joinedDate;
+      TrackSkyTimeZone? joinedTimezone;
+      OfferingTableLens? joinedLens;
+      bool? joinedNoCupMode;
+      int? completedFlowId;
 
-    await _pumpPage(
-      tester,
-      size: const Size(390, 844),
-      start: selectedDate,
-      timezone: TrackSkyTimeZone.eastern,
-      onJoin:
-          ({
-            required startDate,
-            required timezone,
-            required lens,
-            required noCupMode,
-          }) async {
-            joinedDate = startDate;
-            joinedTimezone = timezone;
-            joinedLens = lens;
-            joinedNoCupMode = noCupMode;
-            return 41;
-          },
-    );
+      await _pumpPage(
+        tester,
+        size: const Size(390, 844),
+        start: selectedDate,
+        timezone: TrackSkyTimeZone.eastern,
+        onJoined: (flowId) async => completedFlowId = flowId,
+        onJoin:
+            ({
+              required startDate,
+              required timezone,
+              required lens,
+              required noCupMode,
+            }) async {
+              joinedDate = startDate;
+              joinedTimezone = timezone;
+              joinedLens = lens;
+              joinedNoCupMode = noCupMode;
+              return 41;
+            },
+      );
 
-    await tester.tap(find.byKey(const ValueKey<String>('offering-table-join')));
-    await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('offering-table-join')),
+      );
+      await tester.pumpAndSettle();
 
-    expect(joinedDate, selectedDate);
-    expect(joinedTimezone, TrackSkyTimeZone.eastern);
-    expect(joinedLens, OfferingTableLens.neutral);
-    expect(joinedNoCupMode, isFalse);
-    final firstDateKey = _dateKey(selectedDate);
-    expect(
-      _ringFillColor(tester, 'offering-table-calendar-ring-$firstDateKey'),
-      isNotNull,
-    );
-    expect(
-      find.byKey(const ValueKey<String>('offering-table-joined')),
-      findsOneWidget,
-    );
-  });
+      expect(joinedDate, selectedDate);
+      expect(joinedTimezone, TrackSkyTimeZone.eastern);
+      expect(joinedLens, OfferingTableLens.neutral);
+      expect(joinedNoCupMode, isFalse);
+      expect(completedFlowId, 41);
+      expect(
+        find.byKey(const ValueKey<String>('offering-table-joined')),
+        findsNothing,
+      );
+    },
+  );
 
   for (final fixture in const <({String name, Size size})>[
     (name: 'normal iPhone', size: Size(390, 844)),
@@ -824,8 +935,12 @@ Future<void> _pumpPage(
   WidgetTester tester, {
   required Size size,
   DateTime? start,
+  int? joinedFlowId,
+  DateTime? joinedStartDate,
+  List<DateTime> joinedScheduleDates = const <DateTime>[],
   TrackSkyTimeZone timezone = TrackSkyTimeZone.pacific,
   OfferingTableJoinCallback? onJoin,
+  Future<void> Function(int flowId)? onJoined,
   FollowSkyCalendarPreview calendarPreview = FollowSkyCalendarPreview.empty,
 }) async {
   await tester.binding.setSurfaceSize(size);
@@ -836,7 +951,11 @@ Future<void> _pumpPage(
         timezone: timezone,
         calendarPreview: calendarPreview,
         initialStartDate: start,
+        joinedFlowId: joinedFlowId,
+        joinedStartDate: joinedStartDate,
+        joinedScheduleDates: joinedScheduleDates,
         showBackButton: false,
+        onJoined: onJoined ?? (_) async {},
         onJoin:
             onJoin ??
             ({
@@ -916,11 +1035,6 @@ Color? _ringBorderColor(WidgetTester tester, String key) {
   final container = tester.widget<Container>(find.byKey(ValueKey<String>(key)));
   final decoration = container.decoration as BoxDecoration;
   return (decoration.border as Border).top.color;
-}
-
-Color? _ringFillColor(WidgetTester tester, String key) {
-  final container = tester.widget<Container>(find.byKey(ValueKey<String>(key)));
-  return (container.decoration as BoxDecoration).color;
 }
 
 FollowSkyCalendarPreview _calendarPreview(DateTime start) {

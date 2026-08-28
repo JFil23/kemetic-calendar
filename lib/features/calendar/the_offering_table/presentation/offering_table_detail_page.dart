@@ -102,23 +102,31 @@ class OfferingTableDetailPage extends StatefulWidget {
     super.key,
     required this.timezone,
     required this.onJoin,
+    required this.onJoined,
     this.calendarPreview = FollowSkyCalendarPreview.empty,
     this.initialStartDate,
-    this.alreadyJoined = false,
+    this.joinedFlowId,
+    this.joinedStartDate,
+    this.joinedScheduleDates = const <DateTime>[],
+    this.lens = OfferingTableLens.neutral,
+    this.noCupMode = false,
     this.showBackButton = true,
     this.resizeToAvoidBottomInset = true,
-    this.onJoined,
     this.localStore = const OfferingTableLocalStore(),
   });
 
   final TrackSkyTimeZone timezone;
   final OfferingTableJoinCallback onJoin;
+  final Future<void> Function(int flowId) onJoined;
   final FollowSkyCalendarPreview calendarPreview;
   final DateTime? initialStartDate;
-  final bool alreadyJoined;
+  final int? joinedFlowId;
+  final DateTime? joinedStartDate;
+  final List<DateTime> joinedScheduleDates;
+  final OfferingTableLens lens;
+  final bool noCupMode;
   final bool showBackButton;
   final bool resizeToAvoidBottomInset;
-  final Future<void> Function(int flowId)? onJoined;
   final OfferingTableLocalStore localStore;
 
   @override
@@ -127,10 +135,7 @@ class OfferingTableDetailPage extends StatefulWidget {
 }
 
 class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
-  late DateTime _startDate;
-  late bool _joined;
-  final OfferingTableLens _lens = OfferingTableLens.neutral;
-  final bool _noCupMode = false;
+  late DateTime _draftStartDate;
   final TextEditingController _initialEntryController = TextEditingController();
   bool _joining = false;
   bool _showAllDays = false;
@@ -138,18 +143,40 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
   @override
   void initState() {
     super.initState();
-    _startDate = DateUtils.dateOnly(
+    _draftStartDate = DateUtils.dateOnly(
       widget.initialStartDate ?? defaultOfferingTableStartDate(widget.timezone),
     );
-    _joined = widget.alreadyJoined;
+    _loadJoinedNeed();
   }
 
   @override
   void didUpdateWidget(covariant OfferingTableDetailPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.alreadyJoined != oldWidget.alreadyJoined) {
-      _joined = widget.alreadyJoined;
+    if (widget.joinedFlowId != oldWidget.joinedFlowId) {
+      _loadJoinedNeed();
     }
+  }
+
+  bool get _joined => widget.joinedFlowId != null;
+
+  DateTime get _startDate {
+    if (!_joined) return _draftStartDate;
+    final joinedStart = widget.joinedStartDate;
+    if (joinedStart != null) return DateUtils.dateOnly(joinedStart);
+    if (widget.joinedScheduleDates.isNotEmpty) {
+      final ordered =
+          widget.joinedScheduleDates.map(DateUtils.dateOnly).toList()..sort();
+      return ordered.first;
+    }
+    throw StateError('A joined Offering Table must have a persisted schedule.');
+  }
+
+  Future<void> _loadJoinedNeed() async {
+    final flowId = widget.joinedFlowId;
+    if (flowId == null) return;
+    final need = await widget.localStore.loadNeed(flowId);
+    if (!mounted || widget.joinedFlowId != flowId) return;
+    _initialEntryController.text = need;
   }
 
   @override
@@ -165,21 +192,14 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
       final id = await widget.onJoin(
         startDate: _startDate,
         timezone: widget.timezone,
-        lens: _lens,
-        noCupMode: _noCupMode,
+        lens: widget.lens,
+        noCupMode: widget.noCupMode,
       );
       if (id > 0) {
         await widget.localStore.saveNeed(id, _initialEntryController.text);
         if (!mounted) return;
-        final onJoined = widget.onJoined;
-        if (onJoined != null) {
-          await onJoined(id);
-        } else if (mounted) {
-          setState(() {
-            _joined = true;
-            _joining = false;
-          });
-        }
+        await widget.onJoined(id);
+        if (mounted) setState(() => _joining = false);
         return;
       }
       if (!mounted) return;
@@ -200,12 +220,13 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
     await showOfferingTableDaySheet(
       context: context,
       occurrence: occurrence,
-      lens: _lens,
-      noCupMode: _noCupMode,
+      lens: widget.lens,
+      noCupMode: widget.noCupMode,
     );
   }
 
   Future<void> _pickStartDate() async {
+    if (_joined) return;
     final result = await MaatFlowDatePicker.show(
       context: context,
       initialDate: _startDate,
@@ -214,7 +235,7 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
     if (result == null || !mounted) return;
 
     setState(() {
-      _startDate = DateUtils.dateOnly(result.date);
+      _draftStartDate = DateUtils.dateOnly(result.date);
     });
   }
 
@@ -231,10 +252,16 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
   }
 
   List<OfferingTablePreviewOccurrence> _previewOccurrences() {
+    final persistedDates = _joined
+        ? (widget.joinedScheduleDates.map(DateUtils.dateOnly).toList()..sort())
+        : const <DateTime>[];
     return [
       for (final day in kOfferingTableDays)
         () {
-          final date = _startDate.add(Duration(days: day.dayNumber - 1));
+          final index = day.dayNumber - 1;
+          final date = index < persistedDates.length
+              ? persistedDates[index]
+              : _startDate.add(Duration(days: index));
           final schedule = offeringTableScheduleForDate(
             day,
             date,
@@ -318,10 +345,10 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
                 filled: _joined,
                 accent: OfferingTableDetailTokens.warmGold,
                 topLabel: occurrence.day.dayNumber == 1 ? 'START DATE' : null,
-                onTopLabelTap: occurrence.day.dayNumber == 1
+                onTopLabelTap: occurrence.day.dayNumber == 1 && !_joined
                     ? _pickStartDate
                     : null,
-                topLabelSemanticLabel: occurrence.day.dayNumber == 1
+                topLabelSemanticLabel: occurrence.day.dayNumber == 1 && !_joined
                     ? 'Change start date'
                     : null,
                 secondaryColors:
@@ -339,6 +366,7 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
         _OfferingTableInitialEntry(
           controller: _initialEntryController,
           introText: _initialEntryIntro(),
+          readOnly: _joined,
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 26, 20, 0),
@@ -481,10 +509,12 @@ class _OfferingTableInitialEntry extends StatelessWidget {
   const _OfferingTableInitialEntry({
     required this.controller,
     required this.introText,
+    required this.readOnly,
   });
 
   final TextEditingController controller;
   final String introText;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -563,6 +593,7 @@ class _OfferingTableInitialEntry extends StatelessWidget {
             child: TextField(
               key: const ValueKey<String>('offering-table-initial-input'),
               controller: controller,
+              readOnly: readOnly,
               scrollPadding: keyboardManagedTextFieldScrollPadding,
               cursorColor: OfferingTableDetailTokens.warmGold,
               style: const TextStyle(

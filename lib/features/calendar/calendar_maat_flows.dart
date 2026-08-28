@@ -180,6 +180,7 @@ class _MaatFlowsListPageWithSnapshot extends StatefulWidget {
   final Future<_MyFlowsFilingSnapshot> Function() loadSnapshot;
   final Future<int?> Function(
     _MaatFlowTemplate tpl,
+    _Flow? activeInstance,
     MaatFlowDetailRevealer<int?> revealDetail,
   )
   onPickTemplate;
@@ -243,9 +244,9 @@ class _MaatFlowsListPageWithSnapshotState
       key: ValueKey<int>(_flowLifecycleRevision),
       title: widget.title,
       templates: widget.templates,
-      hasActiveForKey: (key) => visibleSnapshot == null
-          ? CalendarPage._hasRememberedJoinedMaatTemplate(key)
-          : CalendarPage._visibleSnapshotHasActiveMaatInstanceFor(
+      activeInstanceForKey: (key) => visibleSnapshot == null
+          ? null
+          : CalendarPage._visibleSnapshotActiveMaatInstanceFor(
               visibleSnapshot,
               key,
             ),
@@ -267,7 +268,7 @@ class _MaatFlowsListPageWithSnapshotState
 class _MaatFlowsListPage extends StatefulWidget {
   const _MaatFlowsListPage({
     super.key,
-    required this.hasActiveForKey,
+    required this.activeInstanceForKey,
     this.progressForKey,
     required this.onPickTemplate,
     required this.onCreateNew,
@@ -278,10 +279,11 @@ class _MaatFlowsListPage extends StatefulWidget {
     this.onInitialDetailDismissed,
   });
 
-  final bool Function(String key) hasActiveForKey;
+  final _Flow? Function(String key) activeInstanceForKey;
   final _MaatFlowCompletionStatus? Function(String key)? progressForKey;
   final Future<int?> Function(
     _MaatFlowTemplate tpl,
+    _Flow? activeInstance,
     MaatFlowDetailRevealer<int?> revealDetail,
   )
   onPickTemplate;
@@ -308,9 +310,22 @@ Widget buildMaatFlowsListPreviewForTesting({
   return _MaatFlowsListPage(
     title: _kMaatFlowsDisplayTitle,
     templates: _kCoreMaatFlowTemplates,
-    hasActiveForKey: (key) =>
-        joinedKeys.contains(key) ||
-        CalendarPage._hasRememberedJoinedMaatTemplate(key),
+    activeInstanceForKey: (key) {
+      if (!joinedKeys.contains(key)) return null;
+      final template = _kMaatFlowTemplates.firstWhere(
+        (candidate) => candidate.key == key,
+      );
+      return _Flow(
+        id: key.hashCode.abs() + 1,
+        name: template.title,
+        color: template.color,
+        active: true,
+        rules: const <FlowRule>[],
+        start: DateTime(2026, 9, 1),
+        end: DateTime(2026, 9, 30),
+        notes: 'maat=$key',
+      );
+    },
     progressForKey: (key) {
       final counts = completionCounts[key];
       if (counts == null) return null;
@@ -319,7 +334,7 @@ Widget buildMaatFlowsListPreviewForTesting({
         remainingEventCount: counts.$2,
       );
     },
-    onPickTemplate: (template, _) async {
+    onPickTemplate: (template, _, _) async {
       return onPickTemplate == null ? null : await onPickTemplate(template.key);
     },
     onCreateNew: onCreateNew ?? () {},
@@ -331,7 +346,8 @@ Widget buildMaatFlowsListPreviewForTesting({
 Widget buildMaatFlowTemplateDetailPreviewForTesting({
   String templateKey = 'the-weighing',
   bool emptyEvents = false,
-  bool alreadyJoined = false,
+  DateTime? joinedStartDate,
+  int joinedFlowId = 957,
   Future<int> Function()? onJoin,
 }) {
   final resolvedTemplate = _kMaatFlowTemplates.firstWhere(
@@ -354,7 +370,30 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
       : resolvedTemplate;
   return _MaatFlowTemplateDetailPage(
     template: template,
-    alreadyJoined: alreadyJoined,
+    joinedFlow: joinedStartDate == null
+        ? null
+        : _Flow(
+            id: joinedFlowId,
+            name: template.title,
+            color: template.color,
+            active: true,
+            rules: <FlowRule>[
+              _RuleDates(
+                dates: <DateTime>{
+                  for (var offset = 0; offset < 30; offset++)
+                    DateUtils.dateOnly(
+                      joinedStartDate.add(Duration(days: offset)),
+                    ),
+                },
+              ),
+            ],
+            start: DateUtils.dateOnly(joinedStartDate),
+            end: DateUtils.dateOnly(
+              joinedStartDate.add(const Duration(days: 29)),
+            ),
+            notes:
+                'maat=${template.key};offering_tz=pacific;offering_lens=neutral;no_cup_mode=0',
+          ),
     addInstance:
         ({
           required _MaatFlowTemplate template,
@@ -444,7 +483,6 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
   final GlobalKey _addFlowHelperKey = GlobalKey(
     debugLabel: 'flow_studio_maat_add_flow_helper',
   );
-  final Set<String> _locallyJoinedTemplateKeys = <String>{};
   _MaatFlowLibraryCategory? _selectedWaitingCategory;
   bool _helperPrompted = false;
 
@@ -558,6 +596,7 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
 
   Future<void> _handlePickTemplate(
     _MaatFlowTemplate template,
+    _Flow? activeInstance,
     MaatFlowDetailRevealer<int?> revealDetail,
   ) async {
     unawaited(
@@ -565,15 +604,16 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
         OnboardingHelperRegistry.flowStudioMaatFlows.id,
       ),
     );
-    final joinedFlowId = await widget.onPickTemplate(template, revealDetail);
+    final joinedFlowId = await widget.onPickTemplate(
+      template,
+      activeInstance,
+      revealDetail,
+    );
     if (!mounted || joinedFlowId == null || joinedFlowId <= 0) return;
     CalendarPage._rememberJoinedMaatFlowTemplate(
       templateKey: template.key,
       flowId: joinedFlowId,
     );
-    setState(() {
-      _locallyJoinedTemplateKeys.add(template.key);
-    });
   }
 
   void _toggleWaitingCategory(_MaatFlowLibraryCategory category) {
@@ -588,17 +628,20 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
   Widget build(BuildContext context) {
     final entries = <_MaatFlowListEntry>[
       for (var i = 0; i < widget.templates.length; i++)
-        _MaatFlowListEntry(
-          template: widget.templates[i],
-          status: _statusForTemplate(
-            widget.templates[i],
-            joined:
-                _locallyJoinedTemplateKeys.contains(widget.templates[i].key) ||
-                widget.hasActiveForKey(widget.templates[i].key),
-            completion: widget.progressForKey?.call(widget.templates[i].key),
-          ),
-          originalIndex: i,
-        ),
+        () {
+          final template = widget.templates[i];
+          final activeInstance = widget.activeInstanceForKey(template.key);
+          return _MaatFlowListEntry(
+            template: template,
+            activeInstance: activeInstance,
+            status: _statusForTemplate(
+              template,
+              joined: activeInstance != null,
+              completion: widget.progressForKey?.call(template.key),
+            ),
+            originalIndex: i,
+          );
+        }(),
     ];
     final joined = entries.where((entry) => entry.status.joined).toList()
       ..sort((a, b) {
@@ -746,8 +789,11 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
                             entry.template.key,
                           ),
                           entry: entry,
-                          onTap: () async =>
-                              _handlePickTemplate(entry.template, revealDetail),
+                          onTap: () async => _handlePickTemplate(
+                            entry.template,
+                            entry.activeInstance,
+                            revealDetail,
+                          ),
                         ),
                       );
                     case _MaatFlowDividerVisual():
@@ -823,11 +869,13 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
 class _MaatFlowListEntry {
   const _MaatFlowListEntry({
     required this.template,
+    required this.activeInstance,
     required this.status,
     required this.originalIndex,
   });
 
   final _MaatFlowTemplate template;
+  final _Flow? activeInstance;
   final _MaatFlowCardStatus status;
   final int originalIndex;
 }
@@ -2201,12 +2249,10 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
     required this.template,
     required this.addInstance,
     this.onJoined,
-    this.alreadyJoined = false,
+    this.joinedFlow,
     this.showBackButton = true,
     this.embeddedInOnboarding = false,
     this.resizeToAvoidBottomInset = true,
-    this.followSkyExistingFlowNotes,
-    this.followSkyExistingFlowId,
     this.followSkyCandidates = const [],
     this.followSkyMeasurementIntervals = const [],
     this.followSkyCalendarPreview = FollowSkyCalendarPreview.empty,
@@ -2242,24 +2288,25 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
   })
   addInstance;
   final Future<void> Function(int flowId)? onJoined;
-  final bool alreadyJoined;
+  final _Flow? joinedFlow;
+  bool get alreadyJoined => joinedFlow != null;
   final bool showBackButton;
   final bool embeddedInOnboarding;
   final bool resizeToAvoidBottomInset;
 
-  /// Joined Follow the Sky flow notes (course metadata).
-  final String? followSkyExistingFlowNotes;
-  final int? followSkyExistingFlowId;
+  String? get followSkyExistingFlowNotes => joinedFlow?.notes;
+  int? get followSkyExistingFlowId => joinedFlow?.id;
   final List<CourseActivitySignal> followSkyCandidates;
   final List<CourseMeasurementInterval> followSkyMeasurementIntervals;
   final FollowSkyCalendarPreview followSkyCalendarPreview;
   final Future<void> Function(TrackSkyCourse? course, String notes)?
-      onFollowSkyCourseSaved;
+  onFollowSkyCourseSaved;
   final Future<void> Function({
     required TrackSkyCourse course,
     required DateTime startLocal,
     required DateTime endLocal,
-  })? onFollowSkyProtectTime;
+  })?
+  onFollowSkyProtectTime;
 
   @override
   State<_MaatFlowTemplateDetailPage> createState() =>
@@ -2447,6 +2494,17 @@ class _MaatFlowTemplateDetailPageState
     }
     if (!mounted) return;
     Navigator.of(context).pop(id);
+  }
+
+  List<DateTime> _joinedDateRuleDates(_Flow? flow) {
+    if (flow == null) return const <DateTime>[];
+    final dates = <DateTime>{};
+    for (final rule in flow.rules) {
+      if (rule is! _RuleDates) continue;
+      dates.addAll(rule.dates.map(DateUtils.dateOnly));
+    }
+    final ordered = dates.toList()..sort();
+    return List<DateTime>.unmodifiable(ordered);
   }
 
   @override
@@ -4717,9 +4775,11 @@ class _MaatFlowTemplateDetailPageState
     }
 
     final detail = _followSkyDetailKey.currentState;
-    final hasCourse = detail?.hasActiveCourse ??
-        (TrackSkyCourseMetadataCodec()
-                .decode(widget.followSkyExistingFlowNotes) !=
+    final hasCourse =
+        detail?.hasActiveCourse ??
+        (TrackSkyCourseMetadataCodec().decode(
+              widget.followSkyExistingFlowNotes,
+            ) !=
             null);
 
     if (hasCourse) {
@@ -4748,14 +4808,17 @@ class _MaatFlowTemplateDetailPageState
     required VoidCallback? onPressed,
     String text = 'Join Flow',
     Widget? leading,
+
     /// When false, [text]/[onPressed] are used even if already joined
     /// (Follow the Sky dock: Carry this course / Open next turning).
     bool honorJoinedState = true,
   }) {
-    final buttonText =
-        honorJoinedState && widget.alreadyJoined ? 'Joined' : text;
-    final callback =
-        honorJoinedState && widget.alreadyJoined ? null : onPressed;
+    final buttonText = honorJoinedState && widget.alreadyJoined
+        ? 'Joined'
+        : text;
+    final callback = honorJoinedState && widget.alreadyJoined
+        ? null
+        : onPressed;
     return Semantics(
       button: true,
       label: buttonText,
@@ -8980,10 +9043,18 @@ class _MaatFlowTemplateDetailPageState
       return _buildTheWeighingScaffold(context);
     }
     if (widget.template.kind == _MaatFlowTemplateKind.offeringTable) {
+      final joinedFlow = widget.joinedFlow;
       return OfferingTableDetailPage(
-        timezone: _previewTrackSkyTimeZone,
+        timezone: offeringTableTimeZoneFromNotes(
+          joinedFlow?.notes,
+          fallback: _previewTrackSkyTimeZone,
+        ),
         calendarPreview: widget.followSkyCalendarPreview,
-        alreadyJoined: widget.alreadyJoined,
+        joinedFlowId: joinedFlow?.id,
+        joinedStartDate: joinedFlow?.start,
+        joinedScheduleDates: _joinedDateRuleDates(joinedFlow),
+        lens: offeringTableLensFromNotes(joinedFlow?.notes),
+        noCupMode: offeringTableNoCupModeFromNotes(joinedFlow?.notes),
         showBackButton: widget.showBackButton,
         resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
         onJoin:
