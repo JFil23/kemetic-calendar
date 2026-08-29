@@ -469,6 +469,38 @@ void main() {
     },
   );
 
+  test('instrument event sheets keep one shared resize authority', () {
+    final shared = File(
+      'lib/features/calendar/presentation/instrument_event_presentation_frame.dart',
+    ).readAsStringSync();
+    final dayView = File(
+      'lib/features/calendar/day_view.dart',
+    ).readAsStringSync();
+    final offering = File(
+      'lib/features/calendar/the_offering_table/presentation/offering_table_detail_page.dart',
+    ).readAsStringSync();
+    final offeringOpen = _sourceBetween(
+      offering,
+      'Future<void> _openOfferingDaySheet(',
+      'Future<void> _pickStartDate()',
+    );
+
+    expect(shared, contains('class InstrumentEventSheetHost'));
+    expect(shared, contains('const double instrumentEventSheetMinExtent'));
+    expect(shared, contains('delta / availableSheetHeight'));
+    expect(shared, contains('showCalendarEventDetailSheetModal'));
+    expect(dayView, contains('InstrumentEventSheetHost('));
+    expect(dayView, contains('showCalendarEventDetailSheetModal<void>('));
+    expect(dayView, isNot(contains('_instrumentSheetExtent')));
+    expect(dayView, isNot(contains('_updateInstrumentSheetExtent')));
+    expect(offeringOpen, contains('InstrumentEventSheetHost('));
+    expect(offeringOpen, contains('showCalendarEventDetailSheetModal<void>('));
+    expect(offeringOpen, isNot(contains('showModalBottomSheet')));
+    expect(offeringOpen, isNot(contains('var extent')));
+    expect(offeringOpen, isNot(contains('delta /')));
+    expect(offeringOpen, isNot(contains('.clamp(0.58, 1.0)')));
+  });
+
   test('Ma_at join completion never hydrates to rediscover staged notes', () {
     final source = File(
       'lib/features/calendar/calendar_page.dart',

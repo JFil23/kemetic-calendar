@@ -423,6 +423,65 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
   );
 }
 
+Future<int> _joinOfferingTableFromDetailAuthority({
+  required _MaatFlowTemplate template,
+  required DateTime startDate,
+  required TrackSkyTimeZone timezone,
+  required OfferingTableLens lens,
+  required bool noCupMode,
+  String? personalCalendarIdOverride,
+  FlowJoinService? joinService,
+  Future<void> Function()? clearFiledFlowsCache,
+}) async {
+  final id = await CalendarPage._joinOfferingTableHeadless(
+    template: template,
+    completionRequired: false,
+    personalCalendarIdOverride: personalCalendarIdOverride,
+    startDate: startDate,
+    timezone: timezone,
+    lens: lens,
+    noCupMode: noCupMode,
+    joinService: joinService,
+  );
+  if (id <= 0) {
+    throw StateError('The Offering Table did not produce a staged flow.');
+  }
+  CalendarPage._rememberJoinedMaatFlowTemplate(
+    templateKey: template.key,
+    flowId: id,
+  );
+  unawaited(
+    clearFiledFlowsCache?.call() ??
+        FlowsRepo(Supabase.instance.client).clearMyFiledFlowsCache(),
+  );
+  return id;
+}
+
+@visibleForTesting
+Future<int> joinOfferingTableThroughProductionForTesting({
+  required FlowJoinService joinService,
+  required DateTime startDate,
+  TrackSkyTimeZone timezone = TrackSkyTimeZone.pacific,
+  OfferingTableLens lens = OfferingTableLens.neutral,
+  bool noCupMode = false,
+  String personalCalendarId = 'personal-calendar',
+  Future<void> Function()? clearFiledFlowsCache,
+}) {
+  final template = _kMaatFlowTemplates.firstWhere(
+    (candidate) => candidate.kind == _MaatFlowTemplateKind.offeringTable,
+  );
+  return _joinOfferingTableFromDetailAuthority(
+    template: template,
+    startDate: startDate,
+    timezone: timezone,
+    lens: lens,
+    noCupMode: noCupMode,
+    personalCalendarIdOverride: personalCalendarId,
+    joinService: joinService,
+    clearFiledFlowsCache: clearFiledFlowsCache,
+  );
+}
+
 @visibleForTesting
 void resetMaatFlowJoinedStateForTesting() {
   CalendarPage._clearRememberedJoinedMaatFlowTemplates();
@@ -2501,24 +2560,14 @@ class _MaatFlowTemplateDetailPageState
     required TrackSkyTimeZone timezone,
     required OfferingTableLens lens,
     required bool noCupMode,
-  }) async {
-    final id = await CalendarPage._joinOfferingTableHeadless(
+  }) {
+    return _joinOfferingTableFromDetailAuthority(
       template: widget.template,
-      completionRequired: false,
       startDate: startDate,
       timezone: timezone,
       lens: lens,
       noCupMode: noCupMode,
     );
-    if (id <= 0) {
-      throw StateError('The Offering Table did not produce a staged flow.');
-    }
-    CalendarPage._rememberJoinedMaatFlowTemplate(
-      templateKey: widget.template.key,
-      flowId: id,
-    );
-    unawaited(FlowsRepo(Supabase.instance.client).clearMyFiledFlowsCache());
-    return id;
   }
 
   List<DateTime> _joinedDateRuleDates(_Flow? flow) {

@@ -7599,6 +7599,7 @@ class CalendarPage extends StatefulWidget {
     required _MaatFlowTemplate template,
     required bool completionRequired,
     String? personalCalendarIdOverride,
+    FlowJoinService? joinService,
     required DateTime startDate,
     required TrackSkyTimeZone timezone,
     required OfferingTableLens lens,
@@ -7607,18 +7608,19 @@ class CalendarPage extends StatefulWidget {
     if (!isMaatFlowNewJoinAllowed(template.key)) return -1;
     final personalCalendarId =
         personalCalendarIdOverride ?? await _loadHeadlessPersonalCalendarId();
-    final result = await FlowJoinService().joinOfferingTableHeadless(
-      templateKey: template.key,
-      templateTitle: template.title,
-      templateOverview: template.overview,
-      templateColor: template.color,
-      personalCalendarId: personalCalendarId,
-      timezone: timezone,
-      startDate: startDate,
-      lens: lens,
-      noCupMode: noCupMode,
-      alertOffsetMinutes: 0,
-    );
+    final result = await (joinService ?? FlowJoinService())
+        .joinOfferingTableHeadless(
+          templateKey: template.key,
+          templateTitle: template.title,
+          templateOverview: template.overview,
+          templateColor: template.color,
+          personalCalendarId: personalCalendarId,
+          timezone: timezone,
+          startDate: startDate,
+          lens: lens,
+          noCupMode: noCupMode,
+          alertOffsetMinutes: 0,
+        );
     return _stageHeadlessMaatFlowJoinResult(
       result: result,
       template: template,

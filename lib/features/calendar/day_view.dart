@@ -2272,8 +2272,6 @@ class CalendarEventDetailSheet extends StatefulWidget {
 }
 
 class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
-  static const double _instrumentMinSheetExtent = 0.58;
-
   late DayViewSheetEventTarget _currentTarget;
   late PageController _pageController;
   late String _presentation;
@@ -2284,7 +2282,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   Map<String, double> _measuredHeights = <String, double>{};
   SkyCatalog? _followSkyCatalog;
   bool _onboardingDetailPromptScheduled = false;
-  double _instrumentSheetExtent = _instrumentMinSheetExtent;
   final OfferingTableLocalStore _offeringTableLocalStore =
       const OfferingTableLocalStore();
   final Map<int, String> _offeringTableNeedsByFlowId = <int, String>{};
@@ -2342,21 +2339,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
 
   void _handleEndFlowAuthReadinessChanged() {
     if (mounted) setState(() {});
-  }
-
-  void _updateInstrumentSheetExtent(
-    DragUpdateDetails details,
-    double availableSheetHeight,
-  ) {
-    final delta = details.primaryDelta;
-    if (delta == null || availableSheetHeight <= 0) return;
-    final nextExtent = (_instrumentSheetExtent - delta / availableSheetHeight)
-        .clamp(_instrumentMinSheetExtent, 1.0)
-        .toDouble();
-    if ((nextExtent - _instrumentSheetExtent).abs() < 0.0001) return;
-    setState(() {
-      _instrumentSheetExtent = nextExtent;
-    });
   }
 
   Widget _buildDetailPageSizeTransition({
@@ -3946,10 +3928,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     required BuildContext rootContext,
     required BuildContext sheetContext,
     required DayViewSheetEventTarget target,
-    bool showInstrumentResizeHandle = false,
-    bool enableInstrumentResize = false,
-    String instrumentResizeLabel = 'Resize event sheet',
-    double availableSheetHeight = 0,
   }) {
     final currentEvent = target.event;
     final flow = _chromeFlowForId(currentEvent.flowId);
@@ -3967,22 +3945,6 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       behaviorPayload: currentEvent.behaviorPayload,
       catalog: _followSkyCatalog,
     );
-
-    if (showInstrumentResizeHandle) {
-      return InstrumentEventSheetTopBar(
-        semanticLabel: instrumentResizeLabel,
-        handleColor: _dayGold.withValues(alpha: 0.48),
-        onVerticalDragUpdate: enableInstrumentResize
-            ? (details) =>
-                  _updateInstrumentSheetExtent(details, availableSheetHeight)
-            : null,
-        trailing: _buildEventDetailOverflowButton(
-          rootContext: rootContext,
-          sheetContext: sheetContext,
-          target: target,
-        ),
-      );
-    }
 
     return Row(
       children: [
@@ -4442,38 +4404,86 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     );
     final activeInstrumentPresentation =
         activeFollowSkyInstrument || activeOfferingTableInstrument;
-    final instrumentSheetExtent = _instrumentSheetExtent
-        .clamp(_instrumentMinSheetExtent, 1.0)
-        .toDouble();
     final maxSheetHeight = _isWorkspacePresentation
         ? availableSheetHeight
-        : activeInstrumentPresentation && keyboardInset == 0
-        ? availableSheetHeight * instrumentSheetExtent
         : keyboardInset > 0
         ? availableSheetHeight
         : math.min(media.size.height * 0.68, 520.0);
     final reservedChromeHeight = _isWorkspacePresentation
         ? 24.0
-        : activeInstrumentPresentation
-        ? 120.0
         : hasOnboardingClosingBanner
         ? 250.0
         : 120.0;
     final maxPageHeight = math.max(0.0, maxSheetHeight - reservedChromeHeight);
-    final sheetHeight = _isWorkspacePresentation || activeInstrumentPresentation
+    final sheetHeight = _isWorkspacePresentation
         ? maxPageHeight
         : (_measuredHeights[currentKey] ?? 200.0)
               .clamp(0.0, maxPageHeight)
               .toDouble();
 
+    Widget buildDetailSurface() {
+      if (_isWorkspacePresentation) {
+        return EventWorkspaceSurface(
+          title: target.event.title,
+          sourceUrl: _dayViewExternalActionForEvent(target.event)?.target ?? '',
+          purpose: eventWorkspacePurposeFromDetail(target.event.detail),
+          canonicalEnd: _canonicalEndForTarget(target),
+          onMinimize: () => _setPresentation(eventWorkspacePresentationDetail),
+          onClose: () {
+            Navigator.of(context).maybePop();
+          },
+          onRequestExtend: widget.onRequestEndChange == null
+              ? null
+              : (extension) => _requestWorkspaceExtend(target, extension),
+        );
+      }
+      return PageView.builder(
+        key: pageViewKey,
+        controller: _pageController,
+        physics: const BouncingScrollPhysics(),
+        itemCount: pages.pages.length,
+        onPageChanged: (index) {
+          if (index == pages.currentIndex) return;
+          final nextTarget = pages.pages[index];
+          final nextPages = _detailSheetPagesForTarget(nextTarget);
+          _resetPageController(nextPages.currentIndex);
+          _moveToTarget(nextTarget);
+        },
+        itemBuilder: (context, index) {
+          return _buildEventDetailSheetPage(
+            target: pages.pages[index],
+            completionReloadSignal: completionReloadSignal,
+          );
+        },
+      );
+    }
+
+    if (activeInstrumentPresentation && !_isWorkspacePresentation) {
+      return InstrumentEventSheetHost(
+        key: ValueKey<String>(
+          activeFollowSkyInstrument
+              ? 'follow-sky-resizable-sheet'
+              : 'offering-table-resizable-sheet',
+        ),
+        semanticLabel: activeFollowSkyInstrument
+            ? 'Resize Follow Sky sheet'
+            : 'Resize Offering Table sheet',
+        handleColor: _dayGold.withValues(alpha: 0.48),
+        trailing: _buildEventDetailOverflowButton(
+          rootContext: widget.hostContext,
+          sheetContext: context,
+          target: target,
+        ),
+        body: buildDetailSurface(),
+        footer: _buildEventDetailBottomActionRow(
+          rootContext: widget.hostContext,
+          sheetContext: context,
+          target: target,
+        ),
+      );
+    }
+
     final content = Column(
-      key: activeInstrumentPresentation
-          ? ValueKey<String>(
-              activeFollowSkyInstrument
-                  ? 'follow-sky-resizable-sheet'
-                  : 'offering-table-resizable-sheet',
-            )
-          : null,
       mainAxisSize: MainAxisSize.min,
       children: [
         if (hasOnboardingClosingBanner) ...[
@@ -4517,66 +4527,14 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
                     rootContext: widget.hostContext,
                     sheetContext: context,
                     target: target,
-                    showInstrumentResizeHandle: activeInstrumentPresentation,
-                    enableInstrumentResize:
-                        activeInstrumentPresentation && keyboardInset == 0,
-                    instrumentResizeLabel: activeFollowSkyInstrument
-                        ? 'Resize Follow Sky sheet'
-                        : 'Resize Offering Table sheet',
-                    availableSheetHeight: availableSheetHeight,
                   ),
                   const SizedBox(height: 8),
                 ],
                 _buildDetailPageSizeTransition(
-                  animate: !activeInstrumentPresentation,
+                  animate: true,
                   child: SizedBox(
                     height: sheetHeight,
-                    child: _isWorkspacePresentation
-                        ? EventWorkspaceSurface(
-                            title: target.event.title,
-                            sourceUrl:
-                                _dayViewExternalActionForEvent(
-                                  target.event,
-                                )?.target ??
-                                '',
-                            purpose: eventWorkspacePurposeFromDetail(
-                              target.event.detail,
-                            ),
-                            canonicalEnd: _canonicalEndForTarget(target),
-                            onMinimize: () => _setPresentation(
-                              eventWorkspacePresentationDetail,
-                            ),
-                            onClose: () {
-                              Navigator.of(context).maybePop();
-                            },
-                            onRequestExtend: widget.onRequestEndChange == null
-                                ? null
-                                : (extension) => _requestWorkspaceExtend(
-                                    target,
-                                    extension,
-                                  ),
-                          )
-                        : PageView.builder(
-                            key: pageViewKey,
-                            controller: _pageController,
-                            physics: const BouncingScrollPhysics(),
-                            itemCount: pages.pages.length,
-                            onPageChanged: (index) {
-                              if (index == pages.currentIndex) return;
-                              final nextTarget = pages.pages[index];
-                              final nextPages = _detailSheetPagesForTarget(
-                                nextTarget,
-                              );
-                              _resetPageController(nextPages.currentIndex);
-                              _moveToTarget(nextTarget);
-                            },
-                            itemBuilder: (context, index) {
-                              return _buildEventDetailSheetPage(
-                                target: pages.pages[index],
-                                completionReloadSignal: completionReloadSignal,
-                              );
-                            },
-                          ),
+                    child: buildDetailSurface(),
                   ),
                 ),
                 if (!_isWorkspacePresentation) ...[
@@ -8807,10 +8765,8 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
 
     try {
-      showModalBottomSheet(
+      showCalendarEventDetailSheetModal<void>(
         context: rootContext,
-        backgroundColor: Colors.transparent,
-        isScrollControlled: true,
         builder: (sheetContext) => CalendarEventDetailSheet(
           hostContext: rootContext,
           initialTarget: sheetTarget,

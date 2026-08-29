@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/theme/app_theme.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' hide KemeticMath;
 import 'package:mobile/features/calendar/day_view.dart';
+import 'package:mobile/features/calendar/calendar_event_visual_style.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_tokens.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
@@ -366,9 +369,94 @@ void main() {
   });
 
   testWidgets(
-    'private need save failure cannot turn one successful carry into a retry',
+    'production carry stages one canonical flow before local need persistence',
     (tester) async {
       var joinCalls = 0;
+      var flowCalls = 0;
+      var cacheClears = 0;
+      int? returnedFlowId;
+      final eventCalls = <Map<String, Object?>>[];
+      final persistenceComplete = Completer<void>();
+      final service = FlowJoinService(
+        offeringTableScheduleForDate: (day, date, timezone) {
+          final startLocal = DateTime(
+            date.year,
+            date.month,
+            date.day,
+            kOfferingTableDefaultHour,
+            kOfferingTableDefaultMinute,
+          );
+          final endLocal = startLocal.add(
+            Duration(minutes: day.durationMinutes),
+          );
+          return OfferingTableOccurrenceSchedule(
+            startLocal: startLocal,
+            endLocal: endLocal,
+            startUtc: startLocal.toUtc(),
+            endUtc: endLocal.toUtc(),
+            usedFallback: false,
+            clampedToDawn: false,
+            timezone: timezone,
+            referenceLocationName: 'Production seam fixture',
+            configuredHour: kOfferingTableDefaultHour,
+            configuredMinute: kOfferingTableDefaultMinute,
+          );
+        },
+        upsertFlow:
+            ({
+              id,
+              required name,
+              required color,
+              required active,
+              calendarId,
+              startDate,
+              endDate,
+              notes,
+              required rules,
+              originType,
+            }) async {
+              flowCalls += 1;
+              return 82;
+            },
+        upsertEvent:
+            ({
+              required clientEventId,
+              required title,
+              required startsAtUtc,
+              detail,
+              allDay = false,
+              endsAtUtc,
+              flowLocalId,
+              category,
+              actionId,
+              behaviorPayload,
+              calendarId,
+              caller,
+            }) async {
+              eventCalls.add(<String, Object?>{
+                'clientEventId': clientEventId,
+                'title': title,
+                'flowLocalId': flowLocalId,
+                'behaviorPayload': behaviorPayload,
+              });
+            },
+        fileHeadlessEventDelivery:
+            ({
+              required eventFiling,
+              required debugLabel,
+              required clientEventId,
+              required startsAtLocal,
+              required alertOffsetMinutes,
+              required title,
+              body,
+            }) async {},
+        publishHeadlessCalendarInvalidation:
+            ({required reason, required flowId, required clientEventIds}) {
+              if (!persistenceComplete.isCompleted) {
+                persistenceComplete.complete();
+              }
+            },
+      );
       await _pumpPage(
         tester,
         size: const Size(390, 844),
@@ -381,7 +469,18 @@ void main() {
               required noCupMode,
             }) async {
               joinCalls += 1;
-              return 82;
+              returnedFlowId =
+                  await joinOfferingTableThroughProductionForTesting(
+                    joinService: service,
+                    startDate: startDate,
+                    timezone: timezone,
+                    lens: lens,
+                    noCupMode: noCupMode,
+                    clearFiledFlowsCache: () async {
+                      cacheClears += 1;
+                    },
+                  );
+              return returnedFlowId!;
             },
       );
 
@@ -393,8 +492,42 @@ void main() {
         find.byKey(const ValueKey<String>('offering-table-join')),
       );
       await tester.pumpAndSettle();
+      await tester.runAsync(
+        () => persistenceComplete.future.timeout(const Duration(seconds: 2)),
+      );
+      await tester.pump();
 
       expect(joinCalls, 1);
+      expect(returnedFlowId, 82);
+      expect(flowCalls, 1);
+      expect(cacheClears, 1);
+      expect(eventCalls, hasLength(30));
+      expect(
+        eventCalls.map((call) => call['clientEventId']).toSet(),
+        hasLength(30),
+      );
+      expect(eventCalls.map((call) => call['flowLocalId']).toSet(), <Object?>{
+        82,
+      });
+      expect(
+        eventCalls.map(
+          (call) => (call['behaviorPayload']! as Map<String, dynamic>)['day'],
+        ),
+        orderedEquals(List<int>.generate(30, (index) => index + 1)),
+      );
+      for (final call in eventCalls) {
+        final payload = call['behaviorPayload']! as Map<String, dynamic>;
+        expect(payload['kind'], 'maat_offering_table_day');
+        expect(payload['flow_key'], kOfferingTableFlowKey);
+        expect(
+          resolveCalendarEventVisualStyle(
+            eventColor: const Color(0xFFC99A3D),
+            eventTitle: call['title']! as String,
+            behaviorPayload: payload,
+          ).graphic?.kind,
+          CalendarEventGraphicKind.offeringTable,
+        );
+      }
       expect(
         find.byKey(const ValueKey<String>('offering-table-joined')),
         findsOneWidget,

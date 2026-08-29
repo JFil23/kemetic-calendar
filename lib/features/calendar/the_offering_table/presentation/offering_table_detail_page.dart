@@ -239,81 +239,28 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
     OfferingTablePreviewOccurrence occurrence,
   ) async {
     if (!CalendarEventDetailSheetCoordinator.tryMarkOpenOrOpening()) return;
-    var extent = 0.58;
     try {
-      await showModalBottomSheet<void>(
+      await showCalendarEventDetailSheetModal<void>(
         context: context,
-        backgroundColor: Colors.transparent,
-        isScrollControlled: true,
-        builder: (sheetContext) => StatefulBuilder(
-          builder: (context, setSheetState) {
-            final media = MediaQuery.of(context);
-            final availableHeight =
-                media.size.height -
-                media.padding.top -
-                media.padding.bottom -
-                12;
-            return Align(
-              alignment: Alignment.bottomCenter,
-              child: SizedBox(
-                height: availableHeight * extent,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-                  child: DayViewBottomSheetFrame(
-                    child: Column(
-                      children: <Widget>[
-                        InstrumentEventSheetTopBar(
-                          semanticLabel: 'Resize Offering Table sheet',
-                          handleColor: const Color(0x7AD4AE43),
-                          onVerticalDragUpdate: (details) {
-                            final delta = details.primaryDelta;
-                            if (delta == null || availableHeight <= 0) return;
-                            setSheetState(() {
-                              extent = (extent - delta / availableHeight)
-                                  .clamp(0.58, 1.0)
-                                  .toDouble();
-                            });
-                          },
-                          trailing: IconButton(
-                            key: const ValueKey<String>(
-                              'offering-table-preview-sheet-close',
-                            ),
-                            tooltip: 'Close Offering Table practice',
-                            onPressed: () => Navigator.of(sheetContext).pop(),
-                            icon: const Icon(
-                              Icons.close,
-                              color: Color(0xFFA59D91),
-                              size: 30,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(20),
-                            ),
-                            child: OfferingTableDayPresentation(
-                              day: occurrence.day,
-                              localDate: occurrence.date,
-                              startMinute:
-                                  occurrence.startLocal.hour * 60 +
-                                  occurrence.startLocal.minute,
-                              initialNeed: _initialEntryController.text,
-                              lens: widget.lens,
-                              persistResponses: false,
-                              completionPanel:
-                                  const _OfferingPreviewCompletionPanel(),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            );
-          },
+        builder: (sheetContext) => InstrumentEventSheetHost(
+          semanticLabel: 'Resize Offering Table sheet',
+          handleColor: const Color(0x7AD4AE43),
+          trailing: IconButton(
+            key: const ValueKey<String>('offering-table-preview-sheet-close'),
+            tooltip: 'Close Offering Table practice',
+            onPressed: () => Navigator.of(sheetContext).pop(),
+            icon: const Icon(Icons.close, color: Color(0xFFA59D91), size: 30),
+          ),
+          body: OfferingTableDayPresentation(
+            day: occurrence.day,
+            localDate: occurrence.date,
+            startMinute:
+                occurrence.startLocal.hour * 60 + occurrence.startLocal.minute,
+            initialNeed: _initialEntryController.text,
+            lens: widget.lens,
+            persistResponses: false,
+            completionPanel: const _OfferingPreviewCompletionPanel(),
+          ),
         ),
       );
     } finally {

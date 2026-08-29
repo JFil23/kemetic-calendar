@@ -228,6 +228,10 @@ void main() {
       final source = File(
         'lib/features/calendar/day_view.dart',
       ).readAsStringSync();
+      final sheetHost = File(
+        'lib/features/calendar/presentation/'
+        'instrument_event_presentation_frame.dart',
+      ).readAsStringSync();
       final route = File(
         'lib/features/calendar/follow_the_sky/presentation/'
         'follow_sky_observation_route.dart',
@@ -235,10 +239,8 @@ void main() {
 
       expect(source, isNot(contains('full-moon-2026-08-28')));
       expect(source, isNot(contains('FollowSkyObservationSheet(')));
-      expect(
-        source,
-        contains('activeInstrumentPresentation && keyboardInset == 0'),
-      );
+      expect(source, contains('InstrumentEventSheetHost('));
+      expect(sheetHost, contains('onVerticalDragUpdate: keyboardInset == 0'));
       expect(route, isNot(contains('flowName')));
       expect(route, contains('catalog.byId(skyEventId)'));
     },

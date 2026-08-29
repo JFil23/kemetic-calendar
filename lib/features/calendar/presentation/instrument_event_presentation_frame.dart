@@ -1,6 +1,22 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
+
+@visibleForTesting
+const double instrumentEventSheetMinExtent = 0.58;
+
+Future<T?> showCalendarEventDetailSheetModal<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+}) {
+  return showModalBottomSheet<T>(
+    context: context,
+    backgroundColor: Colors.transparent,
+    isScrollControlled: true,
+    builder: builder,
+  );
+}
 
 class CalendarEventDetailSheetCoordinator {
   CalendarEventDetailSheetCoordinator._();
@@ -72,6 +88,122 @@ class DayViewBottomSheetFrame extends StatelessWidget {
         ),
         child,
       ],
+    );
+  }
+}
+
+/// The single outer host for instrument-backed calendar event sheets.
+///
+/// This is the extracted Day View behavior: it owns the modal-height extent,
+/// keyboard-aware available height, vertical resize equation, backplate,
+/// resize region, and outer sheet geometry. Consumers provide only their
+/// presentation body, trailing control, and optional fixed footer.
+class InstrumentEventSheetHost extends StatefulWidget {
+  const InstrumentEventSheetHost({
+    super.key,
+    required this.semanticLabel,
+    required this.handleColor,
+    required this.body,
+    this.trailing,
+    this.footer,
+  });
+
+  final String semanticLabel;
+  final Color handleColor;
+  final Widget body;
+  final Widget? trailing;
+  final Widget? footer;
+
+  @override
+  State<InstrumentEventSheetHost> createState() =>
+      _InstrumentEventSheetHostState();
+}
+
+class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
+  double _extent = instrumentEventSheetMinExtent;
+
+  void _updateExtent(DragUpdateDetails details, double availableSheetHeight) {
+    final delta = details.primaryDelta;
+    if (delta == null || availableSheetHeight <= 0) return;
+    final nextExtent = (_extent - delta / availableSheetHeight)
+        .clamp(instrumentEventSheetMinExtent, 1.0)
+        .toDouble();
+    if ((nextExtent - _extent).abs() < 0.0001) return;
+    setState(() => _extent = nextExtent);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final keyboardInset = keyboardInsetOf(context);
+    final availableSheetHeight = math.max(
+      0.0,
+      media.size.height -
+          keyboardInset -
+          media.padding.top -
+          media.padding.bottom -
+          12,
+    );
+    final effectiveExtent = keyboardInset > 0 ? 1.0 : _extent;
+    final maxSheetHeight = availableSheetHeight * effectiveExtent;
+    final hasFooter = widget.footer != null;
+
+    // These values preserve the two production geometries that existed before
+    // extraction: Day View reserves 120px for its fixed actions, while the
+    // preview has no external footer and gives that space to the presentation.
+    final bodyHeight = math.max(
+      0.0,
+      maxSheetHeight - (hasFooter ? 120.0 : 66.0),
+    );
+    final outerHeight = maxSheetHeight + (hasFooter ? 8.0 : 0.0);
+    final outerPadding = hasFooter
+        ? const EdgeInsets.fromLTRB(10, 8, 10, 10)
+        : const EdgeInsets.fromLTRB(10, 0, 10, 10);
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: keyboardInset),
+      child: SafeArea(
+        top: false,
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: SizedBox(
+            height: outerHeight,
+            child: Padding(
+              padding: outerPadding,
+              child: DayViewBottomSheetFrame(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    InstrumentEventSheetTopBar(
+                      semanticLabel: widget.semanticLabel,
+                      handleColor: widget.handleColor,
+                      onVerticalDragUpdate: keyboardInset == 0
+                          ? (details) =>
+                                _updateExtent(details, availableSheetHeight)
+                          : null,
+                      trailing: widget.trailing,
+                    ),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: bodyHeight,
+                      child: ClipRRect(
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(20),
+                        ),
+                        child: widget.body,
+                      ),
+                    ),
+                    if (widget.footer != null) ...<Widget>[
+                      const SizedBox(height: 8),
+                      SizedBox(height: 46, child: widget.footer),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
