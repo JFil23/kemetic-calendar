@@ -8,11 +8,10 @@ import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_preview_day.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calendar.dart';
-import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_components.dart';
-import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_presentation.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_event_block_visual.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_presentation_copy.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_preview_day_sheet.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_local_store.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
@@ -238,79 +237,9 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
   Future<void> _openOfferingDaySheet(
     OfferingTablePreviewOccurrence occurrence,
   ) async {
-    var extent = 0.58;
-    await showModalBottomSheet<void>(
+    await showOfferingTablePreviewDaySheet(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      isDismissible: true,
-      enableDrag: true,
-      useRootNavigator: true,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (context, setSheetState) {
-          final media = MediaQuery.of(context);
-          final availableHeight =
-              media.size.height - media.padding.top - media.padding.bottom - 12;
-          return SizedBox(
-            key: const ValueKey<String>('offering-table-preview-sheet-host'),
-            height: availableHeight * extent,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
-              child: DayViewBottomSheetFrame(
-                child: Column(
-                  children: <Widget>[
-                    InstrumentEventSheetTopBar(
-                      semanticLabel: 'Resize Offering Table preview',
-                      handleColor: const Color(0x7AD4AE43),
-                      onVerticalDragUpdate: (details) {
-                        final delta = details.primaryDelta;
-                        if (delta == null || availableHeight <= 0) return;
-                        setSheetState(() {
-                          extent = (extent - delta / availableHeight)
-                              .clamp(0.58, 1.0)
-                              .toDouble();
-                        });
-                      },
-                      trailing: IconButton(
-                        key: const ValueKey<String>(
-                          'offering-table-preview-sheet-close',
-                        ),
-                        tooltip: 'Close Offering Table practice',
-                        onPressed: () => Navigator.of(sheetContext).pop(),
-                        icon: const Icon(
-                          Icons.close,
-                          color: Color(0xFFA59D91),
-                          size: 30,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(20),
-                        ),
-                        child: OfferingTableDayPresentation(
-                          day: occurrence.day,
-                          localDate: occurrence.date,
-                          startMinute:
-                              occurrence.startLocal.hour * 60 +
-                              occurrence.startLocal.minute,
-                          initialNeed: _initialEntryController.text,
-                          lens: widget.lens,
-                          persistResponses: false,
-                          completionPanel:
-                              const _OfferingPreviewCompletionPanel(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
+      occurrence: occurrence,
     );
   }
 
@@ -1122,44 +1051,6 @@ class _OfferingAllDayRow extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _OfferingPreviewCompletionPanel extends StatelessWidget {
-  const _OfferingPreviewCompletionPanel();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: <Widget>[
-        for (final label in const <String>[
-          'Observed',
-          'Partly',
-          'Skipped',
-        ]) ...<Widget>[
-          Expanded(
-            child: Container(
-              height: 45,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0x2EE8E2D6)),
-              ),
-              child: Text(
-                label,
-                style: const TextStyle(
-                  color: Color(0xFF9E9A94),
-                  fontFamily: MaatFlowListTokens.fontFamily,
-                  fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                  fontSize: 16.5,
-                ),
-              ),
-            ),
-          ),
-          if (label != 'Skipped') const SizedBox(width: 9),
-        ],
-      ],
     );
   }
 }
