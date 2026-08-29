@@ -89,6 +89,28 @@ void main() {
     semanticsHandle.dispose();
   });
 
+  testWidgets('uses the quiet instruction and a clean upper graphic edge', (
+    tester,
+  ) async {
+    await _pumpPresentation(tester);
+
+    final instruction = tester.widget<Text>(
+      find.byKey(const ValueKey<String>('offering-table-placement-label')),
+    );
+    expect(instruction.data, 'Speak your intention into the water');
+    expect(instruction.textAlign, TextAlign.center);
+    expect(instruction.style?.fontSize, 17);
+    expect(instruction.style?.color, const Color(0xC2E8B27C));
+    expect(instruction.style?.shadows, isNull);
+    expect(find.text('Place your intention in the water'), findsNothing);
+
+    final lowerBody = tester.widget<Container>(
+      find.byKey(const ValueKey<String>('offering-table-foreground-layer')),
+    );
+    final decoration = lowerBody.decoration! as BoxDecoration;
+    expect(decoration.boxShadow, isNull);
+  });
+
   testWidgets('Day 1 ritual and why use the shared Offering authority', (
     tester,
   ) async {

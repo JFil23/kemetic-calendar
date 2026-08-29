@@ -384,19 +384,17 @@ class _OfferingTableDayPresentationState
           const SizedBox(
             height: 28,
             child: Text(
-              'Place your intention in the water',
+              'Speak your intention into the water',
               key: ValueKey<String>('offering-table-placement-label'),
+              textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.fade,
               softWrap: false,
               style: TextStyle(
-                color: Color(0xFFE8B27C),
+                color: Color(0xC2E8B27C),
                 fontFamily: _display,
-                fontSize: 23,
+                fontSize: 17,
                 fontStyle: FontStyle.italic,
-                shadows: <Shadow>[
-                  Shadow(color: Color(0x55E8B27C), blurRadius: 10),
-                ],
               ),
             ),
           ),
@@ -486,13 +484,6 @@ class _OfferingTableDayPresentationState
         color: _velvet,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
         border: Border(top: BorderSide(color: Color(0x3AD4AE43))),
-        boxShadow: <BoxShadow>[
-          BoxShadow(
-            color: Color(0xB3000000),
-            blurRadius: 24,
-            offset: Offset(0, -8),
-          ),
-        ],
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 22, 20, 0),
