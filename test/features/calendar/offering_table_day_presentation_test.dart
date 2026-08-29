@@ -90,20 +90,26 @@ void main() {
     semanticsHandle.dispose();
   });
 
-  testWidgets('uses the quiet instruction and a clean upper graphic edge', (
+  testWidgets('uses Follow Sky drag guidance without visible slider chrome', (
     tester,
   ) async {
     await _pumpPresentation(tester);
 
     final instruction = tester.widget<Text>(
-      find.byKey(const ValueKey<String>('offering-table-placement-label')),
+      find.byKey(const ValueKey<String>('offering-table-drag-instruction')),
     );
-    expect(instruction.data, 'Speak your intention into the water');
-    expect(instruction.textAlign, TextAlign.center);
-    expect(instruction.style?.fontSize, 17);
-    expect(instruction.style?.color, const Color(0xC2E8B27C));
+    expect(instruction.data, 'Drag your intention into the water.');
+    expect(instruction.style?.fontFamily, 'GentiumPlus');
+    expect(instruction.style?.fontSize, 11.5);
+    expect(instruction.style?.fontStyle, FontStyle.italic);
+    expect(instruction.style?.height, 1.2);
+    expect(instruction.style?.color, const Color(0xFF6F685F));
     expect(instruction.style?.shadows, isNull);
-    expect(find.text('Place your intention in the water'), findsNothing);
+    expect(find.text('Speak your intention into the water'), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('offering-table-placement-thumb')),
+      findsNothing,
+    );
 
     final lowerBody = tester.widget<Container>(
       find.byKey(const ValueKey<String>('offering-table-foreground-layer')),

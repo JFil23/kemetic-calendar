@@ -1103,6 +1103,7 @@ void main() {
       expect(find.text('Make to-do'), findsNothing);
       expect(find.text('Calendar'), findsNothing);
       expect(find.text('Speak your intention into the water'), findsNothing);
+      expect(find.text('Drag your intention into the water.'), findsNothing);
       expect(find.text('THE NEED YOU NAMED'), findsNothing);
       expect(find.text('Reflect'), findsNothing);
       expect(find.text('COMPLETION'), findsNothing);

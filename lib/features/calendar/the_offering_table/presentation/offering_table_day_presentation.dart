@@ -184,7 +184,9 @@ class _OfferingTableDayPresentationState
       decoration: const BoxDecoration(color: _velvet),
       fixedHeroHeight: 238,
       instrument: _buildCupHero(),
-      instrumentFooter: _buildPlacementControl(),
+      instrumentFooter: Column(
+        children: <Widget>[const Spacer(), _buildDragInstruction()],
+      ),
       inputBuilder: (context, _, instrumentHeight) => Align(
         alignment: Alignment.bottomCenter,
         child: SizedBox(
@@ -472,102 +474,30 @@ class _OfferingTableDayPresentationState
     );
   }
 
-  Widget _buildPlacementControl() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          const SizedBox(
-            height: 28,
-            child: Text(
-              'Speak your intention into the water',
-              key: ValueKey<String>('offering-table-placement-label'),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.fade,
-              softWrap: false,
-              style: TextStyle(
-                color: Color(0xC2E8B27C),
-                fontFamily: _display,
-                fontSize: 17,
-                fontStyle: FontStyle.italic,
+  Widget _buildDragInstruction() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final horizontal = constraints.maxWidth < 350 ? 12.0 : 20.0;
+        return IgnorePointer(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(horizontal, 2, horizontal, 10),
+            child: const Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Drag your intention into the water.',
+                key: ValueKey<String>('offering-table-drag-instruction'),
+                style: TextStyle(
+                  color: _silverLow,
+                  fontFamily: _ui,
+                  fontSize: 11.5,
+                  fontStyle: FontStyle.italic,
+                  height: 1.2,
+                ),
               ),
             ),
           ),
-          Expanded(
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                const inset = 22.0;
-                const thumbSize = 22.0;
-                final trackWidth = (constraints.maxWidth - inset * 2).clamp(
-                  1.0,
-                  double.infinity,
-                );
-                final thumbCenter = inset + trackWidth * _placement;
-                return Stack(
-                  clipBehavior: Clip.none,
-                  children: <Widget>[
-                    const Positioned(
-                      left: inset,
-                      right: inset,
-                      top: 16,
-                      child: SizedBox(
-                        height: 2,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: Color(0xFF3A2B1D),
-                            borderRadius: BorderRadius.all(Radius.circular(99)),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: inset,
-                      top: 16,
-                      width: trackWidth * _placement,
-                      child: const SizedBox(
-                        height: 2,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: Color(0xFFE8B27C),
-                            borderRadius: BorderRadius.all(Radius.circular(99)),
-                          ),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      left: thumbCenter - thumbSize / 2,
-                      top: 6,
-                      child: Container(
-                        key: const ValueKey<String>(
-                          'offering-table-placement-thumb',
-                        ),
-                        width: thumbSize,
-                        height: thumbSize,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          gradient: const RadialGradient(
-                            center: Alignment(-0.25, -0.35),
-                            colors: <Color>[
-                              Color(0xFFC58A5C),
-                              Color(0xFF7E4C2E),
-                            ],
-                          ),
-                          border: Border.all(color: const Color(0xFFF0C99B)),
-                          boxShadow: const <BoxShadow>[
-                            BoxShadow(color: Color(0x33E8B27C), blurRadius: 12),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 
