@@ -5,7 +5,6 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:mobile/core/completion_status.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
-import 'package:mobile/widgets/keyboard_aware.dart';
 
 import '../../domain/follow_sky_track_definition.dart';
 import '../../services/follow_sky_turning_controller.dart';
@@ -75,6 +74,21 @@ class _FollowSkyObservationPresentationState
   static const _rose = Color(0xFFE5C3C6);
   static const _display = 'CormorantGaramond';
   static const _ui = 'GentiumPlus';
+  static const _reflectionStyle = InstrumentEventReflectionStyle(
+    activeColor: _glow,
+    armedBackgroundColor: Color(0x1A6876D8),
+    inactiveBackgroundColor: Color(0x06FFFFFF),
+    inactiveIconColor: _bone,
+    inactiveLabelColor: _silverMid,
+    inactiveBorderColor: _separator,
+    promptColor: _bone,
+    reflectionTextColor: _glow,
+    mutedColor: _silverLow,
+    fieldFillColor: Color(0x08FFFFFF),
+    microphoneBackgroundColor: Color(0x146876D8),
+    displayFontFamily: _display,
+    uiFontFamily: _ui,
+  );
 
   final TextEditingController _reflectionController = TextEditingController();
   FollowSkyTurningController? _turning;
@@ -664,49 +678,14 @@ class _FollowSkyObservationPresentationState
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-            child: _InstrumentTool(
-              icon: Icons.description_outlined,
-              label: 'Reflect',
-              armed: _reflectionOpen,
-              onTap: () => setState(() => _reflectionOpen = !_reflectionOpen),
-            ),
+          InstrumentEventReflectionSection(
+            open: _reflectionOpen,
+            onToggle: () => setState(() => _reflectionOpen = !_reflectionOpen),
+            prompt: widget.model.copy.reflectionPrompt,
+            controller: _reflectionController,
+            fieldKey: const ValueKey<String>('follow-sky-fixture-reflection'),
+            style: _reflectionStyle,
           ),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(20, 13, 20, 0),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Padding(
-                  padding: EdgeInsets.only(top: 4),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: _glow,
-                      shape: BoxShape.circle,
-                      boxShadow: <BoxShadow>[
-                        BoxShadow(color: _glow, blurRadius: 10),
-                      ],
-                    ),
-                    child: SizedBox(width: 6, height: 6),
-                  ),
-                ),
-                SizedBox(width: 9),
-                Expanded(
-                  child: Text(
-                    'Everything you add here is automatically kept in today’s Journal.',
-                    style: TextStyle(
-                      color: _silverLow,
-                      fontFamily: _ui,
-                      fontSize: 11,
-                      height: 1.3,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (_reflectionOpen) _buildReflection(),
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 26, 20, 0),
             child: Row(
@@ -736,78 +715,6 @@ class _FollowSkyObservationPresentationState
                 _completionChip('Skipped', CompletionStatus.skipped),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildReflection() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text(
-            widget.model.copy.reflectionPrompt,
-            style: const TextStyle(
-              color: _bone,
-              fontFamily: _display,
-              fontSize: 20,
-              height: 1.34,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Stack(
-            alignment: Alignment.bottomRight,
-            children: <Widget>[
-              TextField(
-                key: const ValueKey<String>('follow-sky-fixture-reflection'),
-                controller: _reflectionController,
-                scrollPadding: keyboardManagedTextFieldScrollPadding,
-                minLines: 3,
-                maxLines: 5,
-                style: const TextStyle(
-                  color: _glow,
-                  fontFamily: _display,
-                  fontSize: 19,
-                  fontStyle: FontStyle.italic,
-                  height: 1.42,
-                ),
-                decoration: InputDecoration(
-                  hintText: 'Type it, or say it out loud.',
-                  hintStyle: const TextStyle(color: _silverLow),
-                  filled: true,
-                  fillColor: Colors.white.withValues(alpha: 0.03),
-                  contentPadding: const EdgeInsets.fromLTRB(13, 13, 52, 13),
-                  enabledBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: Color(0x4DA4B1FF)),
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(11),
-                    ),
-                  ),
-                  focusedBorder: const UnderlineInputBorder(
-                    borderSide: BorderSide(color: _glow),
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(11),
-                    ),
-                  ),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.only(right: 9, bottom: 11),
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: BoxDecoration(
-                    color: _periwinkle.withValues(alpha: 0.08),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: _glow.withValues(alpha: 0.34)),
-                  ),
-                  child: const Icon(Icons.mic_none, color: _glow, size: 18),
-                ),
-              ),
-            ],
           ),
         ],
       ),
@@ -869,66 +776,6 @@ class _FollowSkyObservationPresentationState
     } finally {
       _committingCompletion = false;
     }
-  }
-}
-
-class _InstrumentTool extends StatelessWidget {
-  const _InstrumentTool({
-    required this.icon,
-    required this.label,
-    required this.armed,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool armed;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final color = armed
-        ? _FollowSkyObservationPresentationState._glow
-        : _FollowSkyObservationPresentationState._bone;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(15),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        height: 69,
-        decoration: BoxDecoration(
-          color: armed
-              ? _FollowSkyObservationPresentationState._periwinkle.withValues(
-                  alpha: 0.1,
-                )
-              : Colors.white.withValues(alpha: 0.022),
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(
-            color: armed
-                ? _FollowSkyObservationPresentationState._glow
-                : _FollowSkyObservationPresentationState._separator,
-          ),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Icon(icon, color: color, size: 23),
-            const SizedBox(height: 7),
-            Text(
-              label,
-              style: TextStyle(
-                color: armed
-                    ? _FollowSkyObservationPresentationState._glow
-                    : _FollowSkyObservationPresentationState._silverMid,
-                fontFamily: _FollowSkyObservationPresentationState._ui,
-                fontSize: 11,
-                letterSpacing: 1,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 

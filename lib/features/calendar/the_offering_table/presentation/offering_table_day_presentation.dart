@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../maat_flow_response_draft_store.dart';
+import '../../maat_flow_response_journal_blocks.dart';
 import '../../maat_flow_response_models.dart';
 import '../../presentation/instrument_event_presentation_frame.dart';
 import '../../the_offering_table_flow.dart';
@@ -17,6 +20,9 @@ class OfferingTableDayPresentation extends StatefulWidget {
     required this.lens,
     required this.completionPanel,
     this.persistResponses = true,
+    this.clientEventId,
+    this.onWriteJournalResponse,
+    this.reflectionSaveDebounce = const Duration(milliseconds: 450),
   });
 
   final OfferingTableDay day;
@@ -26,6 +32,9 @@ class OfferingTableDayPresentation extends StatefulWidget {
   final OfferingTableLens lens;
   final Widget completionPanel;
   final bool persistResponses;
+  final String? clientEventId;
+  final MaatJournalResponseBlockWriter? onWriteJournalResponse;
+  final Duration reflectionSaveDebounce;
 
   @override
   State<OfferingTableDayPresentation> createState() =>
@@ -43,7 +52,30 @@ class _OfferingTableDayPresentationState
   static const _water = Color(0xFF83BEB9);
   static const _display = 'CormorantGaramond';
   static const _ui = 'GentiumPlus';
+  static const _reflectionPrompt =
+      'What did you notice about what needs to be fed?';
+  static const _reflectionStyle = InstrumentEventReflectionStyle(
+    activeColor: _gold,
+    armedBackgroundColor: Color(0x1AD4AE43),
+    inactiveBackgroundColor: Color(0x06FFFFFF),
+    inactiveIconColor: _bone,
+    inactiveLabelColor: _silverLow,
+    inactiveBorderColor: _separator,
+    promptColor: _bone,
+    reflectionTextColor: Color(0xFFE8B27C),
+    mutedColor: _silverLow,
+    fieldFillColor: Color(0x08FFFFFF),
+    microphoneBackgroundColor: Color(0x14C08A52),
+    displayFontFamily: _display,
+    uiFontFamily: _ui,
+  );
 
+  final TextEditingController _reflectionController = TextEditingController();
+  Future<void> _journalWriteTail = Future<void>.value();
+  Timer? _reflectionSaveTimer;
+  String? _lastWrittenReflection;
+  bool _reflectionDirty = false;
+  bool _reflectionOpen = false;
   double _placement = 0;
   late Map<String, bool> _checkedSteps;
 
@@ -56,6 +88,7 @@ class _OfferingTableDayPresentationState
   @override
   void initState() {
     super.initState();
+    _reflectionController.addListener(_onReflectionChanged);
     final drafts = widget.persistResponses
         ? kMaatFlowResponseDraftStore.valuesForFlow(kOfferingTableFlowKey)
         : const <String, MaatFlowResponseValue>{};
@@ -63,6 +96,70 @@ class _OfferingTableDayPresentationState
       for (var index = 0; index < _presentation.steps.length; index++)
         _stepId(index): drafts[_stepId(index)]?.checked == true,
     };
+  }
+
+  @override
+  void dispose() {
+    _reflectionSaveTimer?.cancel();
+    unawaited(_flushReflection());
+    _reflectionController
+      ..removeListener(_onReflectionChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _onReflectionChanged() {
+    if (widget.onWriteJournalResponse == null) return;
+    _reflectionDirty = true;
+    _reflectionSaveTimer?.cancel();
+    _reflectionSaveTimer = Timer(
+      widget.reflectionSaveDebounce,
+      () => unawaited(_flushReflection()),
+    );
+  }
+
+  Future<void> _flushReflection() async {
+    _reflectionSaveTimer?.cancel();
+    _reflectionSaveTimer = null;
+    final writer = widget.onWriteJournalResponse;
+    if (writer == null || !_reflectionDirty) return;
+    final reflection = _reflectionController.text;
+    if (reflection == _lastWrittenReflection) {
+      _reflectionDirty = false;
+      return;
+    }
+    _reflectionDirty = false;
+    final sourceId = buildMaatFlowResponseSourceId(
+      flowKey: kOfferingTableFlowKey,
+      responseSpecId: 'offering-table-reflection',
+      clientEventId: widget.clientEventId,
+      localDate: widget.localDate,
+      eventKey: 'day-${widget.day.dayNumber}',
+    );
+    final block = MaatJournalResponseBlock(
+      sourceId: sourceId,
+      text: reflection,
+      localDate: widget.localDate,
+      sourceMetadata: <String, dynamic>{
+        'kind': 'offering_table_reflection',
+        'flow_key': kOfferingTableFlowKey,
+        'day': widget.day.dayNumber,
+        if (widget.clientEventId?.trim().isNotEmpty == true)
+          'client_event_id': widget.clientEventId!.trim(),
+      },
+    );
+    final operation = _journalWriteTail.then((_) => writer(block));
+    _journalWriteTail = operation.then<void>((_) {}, onError: (_, _) {});
+    try {
+      await operation;
+      _lastWrittenReflection = reflection;
+    } on Object {
+      // CalendarPage's journal writer remains authoritative. A later edit or
+      // close retries without introducing another Offering persistence path.
+      if (mounted && _reflectionController.text == reflection) {
+        _reflectionDirty = true;
+      }
+    }
   }
 
   void _selectPlacement(double value) {
@@ -635,7 +732,20 @@ class _OfferingTableDayPresentationState
               lens: widget.lens,
               why: _presentation.why,
             ),
-            const SizedBox(height: 24),
+            InstrumentEventReflectionSection(
+              key: const ValueKey<String>('offering-table-reflection-section'),
+              open: _reflectionOpen,
+              onToggle: () =>
+                  setState(() => _reflectionOpen = !_reflectionOpen),
+              prompt: _reflectionPrompt,
+              controller: _reflectionController,
+              fieldKey: const ValueKey<String>(
+                'offering-table-reflection-field',
+              ),
+              style: _reflectionStyle,
+              horizontalPadding: 0,
+            ),
+            const SizedBox(height: 26),
             const Row(
               children: <Widget>[
                 Text(

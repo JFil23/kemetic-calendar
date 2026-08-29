@@ -3604,6 +3604,8 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             startMinute: currentEvent.startMin,
             initialNeed: _offeringTableNeedForEvent(currentEvent),
             lens: offeringTableLensFromNotes(flow?.notes),
+            clientEventId: currentEvent.clientEventId,
+            onWriteJournalResponse: widget.onWriteJournalResponse,
             completionPanel: buildMaatCompletionPanel(
               responseSpecsOverride: const <MaatFlowResponseSpec>[],
               pickerStyleOverride: _offeringTableCompletionPickerStyle,

@@ -3,6 +3,7 @@ import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/maat_flow_response_draft_store.dart';
+import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_presentation.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_presentation_copy.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
@@ -139,6 +140,63 @@ void main() {
     expect(find.text(presentation.why), findsOneWidget);
   });
 
+  testWidgets('Reflect reuses the shared tool and writes through Journal', (
+    tester,
+  ) async {
+    final blocks = <MaatJournalResponseBlock>[];
+    await _pumpPresentation(
+      tester,
+      reflectionSaveDebounce: Duration.zero,
+      onWriteJournalResponse: (block) async => blocks.add(block),
+    );
+
+    await tester.ensureVisible(find.text('Reflect'));
+    await tester.pumpAndSettle();
+    final reflectTool = find.ancestor(
+      of: find.text('Reflect'),
+      matching: find.byType(InkWell),
+    );
+    expect(reflectTool, findsOneWidget);
+    expect(tester.getSize(reflectTool).height, 69);
+    expect(
+      find.text('What did you notice about what needs to be fed?'),
+      findsNothing,
+    );
+
+    await tester.tap(find.text('Reflect'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('What did you notice about what needs to be fed?'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('automatically kept in today’s Journal'),
+      findsOneWidget,
+    );
+
+    const reflection = 'Rest needed to be counted before the day filled.';
+    final field = find.byKey(
+      const ValueKey<String>('offering-table-reflection-field'),
+    );
+    await tester.ensureVisible(field);
+    await tester.enterText(field, reflection);
+    await tester.pumpAndSettle();
+
+    expect(blocks, hasLength(1));
+    expect(blocks.single.text, reflection);
+    expect(blocks.single.localDate, DateTime(2026, 8, 29));
+    expect(
+      blocks.single.sourceId,
+      'maat_response:the-offering-table:cid:offering-table-test-event:offering-table-reflection',
+    );
+    expect(blocks.single.sourceMetadata['kind'], 'offering_table_reflection');
+
+    await tester.ensureVisible(find.text('Reflect'));
+    await tester.tap(find.text('Reflect'));
+    await tester.pumpAndSettle();
+    expect(field, findsNothing);
+  });
+
   testWidgets(
     'narrow presentation keeps a fixed instrument and vertical body',
     (tester) async {
@@ -199,6 +257,8 @@ void main() {
 Future<void> _pumpPresentation(
   WidgetTester tester, {
   Size size = const Size(390, 700),
+  Duration reflectionSaveDebounce = const Duration(milliseconds: 450),
+  MaatJournalResponseBlockWriter? onWriteJournalResponse,
 }) async {
   tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
@@ -216,6 +276,9 @@ Future<void> _pumpPresentation(
           initialNeed: 'Protect my sleep.',
           lens: OfferingTableLens.neutral,
           completionPanel: const Text('Completion fixture'),
+          clientEventId: 'offering-table-test-event',
+          onWriteJournalResponse: onWriteJournalResponse,
+          reflectionSaveDebounce: reflectionSaveDebounce,
         ),
       ),
     ),

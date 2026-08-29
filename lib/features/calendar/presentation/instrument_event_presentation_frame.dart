@@ -308,6 +308,273 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
   }
 }
 
+@immutable
+class InstrumentEventReflectionStyle {
+  const InstrumentEventReflectionStyle({
+    required this.activeColor,
+    required this.armedBackgroundColor,
+    required this.inactiveBackgroundColor,
+    required this.inactiveIconColor,
+    required this.inactiveLabelColor,
+    required this.inactiveBorderColor,
+    required this.promptColor,
+    required this.reflectionTextColor,
+    required this.mutedColor,
+    required this.fieldFillColor,
+    required this.microphoneBackgroundColor,
+    required this.displayFontFamily,
+    required this.uiFontFamily,
+  });
+
+  final Color activeColor;
+  final Color armedBackgroundColor;
+  final Color inactiveBackgroundColor;
+  final Color inactiveIconColor;
+  final Color inactiveLabelColor;
+  final Color inactiveBorderColor;
+  final Color promptColor;
+  final Color reflectionTextColor;
+  final Color mutedColor;
+  final Color fieldFillColor;
+  final Color microphoneBackgroundColor;
+  final String displayFontFamily;
+  final String uiFontFamily;
+}
+
+/// The shared reflection tool used by instrument-backed Day View sheets.
+///
+/// Flow presentations own their reflection state and persistence authority;
+/// this widget owns only the proven Follow the Sky visual and interaction
+/// geometry.
+class InstrumentEventReflectionSection extends StatelessWidget {
+  const InstrumentEventReflectionSection({
+    super.key,
+    required this.open,
+    required this.onToggle,
+    required this.prompt,
+    required this.controller,
+    required this.fieldKey,
+    required this.style,
+    this.horizontalPadding = 20,
+  });
+
+  final bool open;
+  final VoidCallback onToggle;
+  final String prompt;
+  final TextEditingController controller;
+  final Key fieldKey;
+  final InstrumentEventReflectionStyle style;
+  final double horizontalPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: <Widget>[
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            20,
+            horizontalPadding,
+            0,
+          ),
+          child: InstrumentEventTool(
+            icon: Icons.description_outlined,
+            label: 'Reflect',
+            armed: open,
+            onTap: onToggle,
+            style: style,
+          ),
+        ),
+        Padding(
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            13,
+            horizontalPadding,
+            0,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: style.activeColor,
+                    shape: BoxShape.circle,
+                    boxShadow: <BoxShadow>[
+                      BoxShadow(color: style.activeColor, blurRadius: 10),
+                    ],
+                  ),
+                  child: const SizedBox(width: 6, height: 6),
+                ),
+              ),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(
+                  'Everything you add here is automatically kept in today’s Journal.',
+                  style: TextStyle(
+                    color: style.mutedColor,
+                    fontFamily: style.uiFontFamily,
+                    fontSize: 11,
+                    height: 1.3,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (open)
+          Padding(
+            padding: EdgeInsets.fromLTRB(
+              horizontalPadding,
+              16,
+              horizontalPadding,
+              0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(
+                  prompt,
+                  style: TextStyle(
+                    color: style.promptColor,
+                    fontFamily: style.displayFontFamily,
+                    fontSize: 20,
+                    height: 1.34,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Stack(
+                  alignment: Alignment.bottomRight,
+                  children: <Widget>[
+                    TextField(
+                      key: fieldKey,
+                      controller: controller,
+                      scrollPadding: keyboardManagedTextFieldScrollPadding,
+                      minLines: 3,
+                      maxLines: 5,
+                      style: TextStyle(
+                        color: style.reflectionTextColor,
+                        fontFamily: style.displayFontFamily,
+                        fontSize: 19,
+                        fontStyle: FontStyle.italic,
+                        height: 1.42,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: 'Type it, or say it out loud.',
+                        hintStyle: TextStyle(color: style.mutedColor),
+                        filled: true,
+                        fillColor: style.fieldFillColor,
+                        contentPadding: const EdgeInsets.fromLTRB(
+                          13,
+                          13,
+                          52,
+                          13,
+                        ),
+                        enabledBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(
+                            color: style.activeColor.withValues(alpha: 0.30),
+                          ),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(11),
+                          ),
+                        ),
+                        focusedBorder: UnderlineInputBorder(
+                          borderSide: BorderSide(color: style.activeColor),
+                          borderRadius: const BorderRadius.vertical(
+                            top: Radius.circular(11),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 9, bottom: 11),
+                      child: Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          color: style.microphoneBackgroundColor,
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: style.activeColor.withValues(alpha: 0.34),
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.mic_none,
+                          color: style.activeColor,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class InstrumentEventTool extends StatelessWidget {
+  const InstrumentEventTool({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.armed,
+    required this.onTap,
+    required this.style,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool armed;
+  final VoidCallback onTap;
+  final InstrumentEventReflectionStyle style;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(15),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        height: 69,
+        decoration: BoxDecoration(
+          color: armed
+              ? style.armedBackgroundColor
+              : style.inactiveBackgroundColor,
+          borderRadius: BorderRadius.circular(15),
+          border: Border.all(
+            color: armed ? style.activeColor : style.inactiveBorderColor,
+          ),
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: <Widget>[
+            Icon(
+              icon,
+              color: armed ? style.activeColor : style.inactiveIconColor,
+              size: 23,
+            ),
+            const SizedBox(height: 7),
+            Text(
+              label,
+              style: TextStyle(
+                color: armed ? style.activeColor : style.inactiveLabelColor,
+                fontFamily: style.uiFontFamily,
+                fontSize: 11,
+                letterSpacing: 1,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class InstrumentEventSheetTopBar extends StatelessWidget {
   const InstrumentEventSheetTopBar({
     super.key,

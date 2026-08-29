@@ -1104,6 +1104,7 @@ void main() {
       expect(find.text('Calendar'), findsNothing);
       expect(find.text('Speak your intention into the water'), findsNothing);
       expect(find.text('THE NEED YOU NAMED'), findsNothing);
+      expect(find.text('Reflect'), findsNothing);
       expect(find.text('COMPLETION'), findsNothing);
       expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isFalse);
 
@@ -1150,6 +1151,7 @@ void main() {
         findsOneWidget,
       );
       expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isTrue);
+      expect(find.text('Reflect'), findsOneWidget);
 
       await tester.tapAt(const Offset(195, 100));
       await tester.pumpAndSettle();
