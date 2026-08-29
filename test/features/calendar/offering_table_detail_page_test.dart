@@ -1084,7 +1084,7 @@ void main() {
   });
 
   testWidgets(
-    'tapping the shared modal barrier closes and releases the sheet',
+    'detail preview uses its own host and dismisses without Day View lifecycle',
     (tester) async {
       await _pumpPage(
         tester,
@@ -1104,12 +1104,23 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(OfferingTableDayPresentation), findsOneWidget);
-      expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isTrue);
+      expect(
+        find.byKey(const ValueKey<String>('offering-table-preview-sheet-host')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('offering-table-resizable-sheet')),
+        findsNothing,
+      );
+      expect(find.byTooltip('Event options'), findsNothing);
+      expect(find.text('Make to-do'), findsNothing);
+      expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isFalse);
 
       await tester.tapAt(const Offset(195, 100));
       await tester.pumpAndSettle();
 
       expect(find.byType(OfferingTableDayPresentation), findsNothing);
+      expect(find.byType(OfferingTableDetailPage), findsOneWidget);
       expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isFalse);
     },
   );
