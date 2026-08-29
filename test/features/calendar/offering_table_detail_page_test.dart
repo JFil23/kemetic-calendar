@@ -15,6 +15,7 @@ import 'package:mobile/features/calendar/presentation/maat_flow_preview_day.dart
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_presentation.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_detail_page.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_event_block_visual.dart';
+import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_presentation_copy.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_local_store.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
@@ -762,7 +763,11 @@ void main() {
       expect(
         find.descendant(
           of: daySheet,
-          matching: find.text('Begin with what you chose for yourself.'),
+          matching: find.text(
+            offeringTablePracticePresentation(
+              kOfferingTableDays.first,
+            ).previewSummary,
+          ),
         ),
         findsOneWidget,
       );
@@ -1042,33 +1047,122 @@ void main() {
     },
   );
 
-  testWidgets('canonical presentation shows the three ten-day journey stages', (
+  testWidgets('canonical presentation uses the unique daily prompt authority', (
     tester,
   ) async {
     const size = Size(390, 844);
+    final day5Prompt = offeringTablePracticePresentation(
+      kOfferingTableDays[4],
+    ).previewSummary;
+    final day11Prompt = offeringTablePracticePresentation(
+      kOfferingTableDays[10],
+    ).previewSummary;
+    final day21Prompt = offeringTablePracticePresentation(
+      kOfferingTableDays[20],
+    ).previewSummary;
+    expect(day5Prompt, isNot(day11Prompt));
+    expect(day11Prompt, isNot(day21Prompt));
 
     await _pumpDaySheet(tester, size: size, dayNumber: 5);
     await _revealOfferingPresentationBody(tester);
     expect(find.text('PERSONAL TABLE · DAY 5'), findsWidgets);
-    expect(
-      find.text('Begin with what you chose for yourself.'),
-      findsOneWidget,
-    );
+    expect(find.text(day5Prompt), findsOneWidget);
     expect(find.text('3 steps'), findsOneWidget);
 
     await _pumpDaySheet(tester, size: size, dayNumber: 11);
     await _revealOfferingPresentationBody(tester);
     expect(find.text('HOUSEHOLD TABLE · DAY 1'), findsWidgets);
-    expect(find.text('Provide for what depends on you.'), findsOneWidget);
+    expect(find.text(day11Prompt), findsOneWidget);
     expect(find.text('2 steps'), findsOneWidget);
 
     await _pumpDaySheet(tester, size: size, dayNumber: 21);
     await _revealOfferingPresentationBody(tester);
     expect(find.text('FLOWING TABLE · DAY 1'), findsWidgets);
-    expect(find.text('Return provision to the larger flow.'), findsOneWidget);
+    expect(find.text(day21Prompt), findsOneWidget);
     expect(find.text('2 steps'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'tapping the shared modal barrier closes and releases the sheet',
+    (tester) async {
+      await _pumpPage(
+        tester,
+        size: const Size(390, 844),
+        start: DateTime(2026, 9, 3),
+      );
+      await tester.drag(
+        find.byKey(const ValueKey<String>('offering-table-scroll')),
+        const Offset(0, -1000),
+      );
+      await tester.pumpAndSettle();
+
+      final firstBadge = find.byKey(
+        const ValueKey<String>('offering-table-preview-event-1'),
+      );
+      await tester.tap(firstBadge);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(OfferingTableDayPresentation), findsOneWidget);
+      expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isTrue);
+
+      await tester.tapAt(const Offset(195, 100));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(OfferingTableDayPresentation), findsNothing);
+      expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isFalse);
+    },
+  );
+
+  testWidgets(
+    'Day View Offering blocks reopen after shared barrier dismissal',
+    (tester) async {
+      await _pumpOfferingDayViewInteraction(tester);
+
+      final eventLayer = find.byKey(dayViewTimelineEventLayerKey);
+      final previewLayer = find.byKey(dayViewTimelinePreviewLayerKey);
+      Finder offeringBlocksIn(Finder layer) => find.descendant(
+        of: layer,
+        matching: find.byType(OfferingTableEventBlockVisual),
+      );
+
+      expect(offeringBlocksIn(eventLayer), findsNWidgets(2));
+      expect(offeringBlocksIn(previewLayer), findsNothing);
+
+      await tester.tap(offeringBlocksIn(eventLayer).first);
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey<String>('offering-table-resizable-sheet')),
+        findsOneWidget,
+      );
+      expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isTrue);
+
+      await tester.tapAt(const Offset(195, 100));
+      await tester.pumpAndSettle();
+      expect(find.byType(OfferingTableDayPresentation), findsNothing);
+      expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isFalse);
+
+      await tester.tap(offeringBlocksIn(eventLayer).first);
+      await tester.pumpAndSettle();
+      expect(find.byType(OfferingTableDayPresentation), findsOneWidget);
+
+      await tester.tapAt(const Offset(195, 100));
+      await tester.pumpAndSettle();
+      expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isFalse);
+
+      await tester.tap(offeringBlocksIn(eventLayer).last);
+      await tester.pumpAndSettle();
+      expect(find.byType(OfferingTableDayPresentation), findsOneWidget);
+      expect(
+        find.text(
+          offeringTablePracticePresentation(
+            kOfferingTableDays[1],
+          ).previewSummary,
+        ),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets(
     'carry delegates once and keeps the successful staged join authoritative',
@@ -1445,6 +1539,62 @@ Future<void> _pumpStaticOfferingDayView(
             activeLedgerFlowIds: const <int>{flowId},
             initialScrollOffset: 6 * 60,
           ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> _pumpOfferingDayViewInteraction(WidgetTester tester) async {
+  const flowId = 702;
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = const Size(390, 844);
+  addTearDown(() {
+    tester.view.resetPhysicalSize();
+    tester.view.resetDevicePixelRatio();
+  });
+  await tester.pumpWidget(
+    MaterialApp(
+      theme: AppTheme.dark,
+      home: Scaffold(
+        body: DayViewGrid(
+          ky: 1,
+          km: 1,
+          kd: 1,
+          notes: <NoteData>[
+            for (final entry in <({int dayNumber, int hour})>[
+              (dayNumber: 1, hour: 7),
+              (dayNumber: 2, hour: 9),
+            ])
+              NoteData(
+                clientEventId: 'offering-table-day-view-${entry.dayNumber}',
+                title: offeringTableEventTitle(
+                  kOfferingTableDays[entry.dayNumber - 1],
+                ),
+                allDay: false,
+                start: TimeOfDay(hour: entry.hour, minute: 30),
+                end: TimeOfDay(hour: entry.hour + 1, minute: 0),
+                flowId: flowId,
+                behaviorPayload: <String, dynamic>{
+                  'kind': 'maat_offering_table_day',
+                  'flow_key': kOfferingTableFlowKey,
+                  'day': entry.dayNumber,
+                },
+              ),
+          ],
+          showGregorian: false,
+          flowIndex: const <int, FlowData>{
+            flowId: FlowData(
+              id: flowId,
+              name: kOfferingTableTitle,
+              color: Color(0xFFC99A3D),
+              active: true,
+              notes: 'mode=gregorian;maat=$kOfferingTableFlowKey',
+            ),
+          },
+          activeLedgerFlowIds: const <int>{flowId},
+          initialScrollOffset: 6 * 60,
         ),
       ),
     ),

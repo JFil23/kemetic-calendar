@@ -510,7 +510,7 @@ class _OfferingTableDayPresentationState
             ),
             const SizedBox(height: 6),
             Text(
-              _stageStatement(widget.day.dayNumber),
+              _presentation.previewSummary,
               style: const TextStyle(
                 color: _bone,
                 fontFamily: _display,
@@ -666,12 +666,6 @@ class _OfferingTableDayPresentationState
         ),
       ),
     );
-  }
-
-  String _stageStatement(int dayNumber) {
-    if (dayNumber <= 10) return 'Begin with what you chose for yourself.';
-    if (dayNumber <= 20) return 'Provide for what depends on you.';
-    return 'Return provision to the larger flow.';
   }
 
   String _dateLabel(DateTime date) {

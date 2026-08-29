@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/follow_the_sky/domain/sky_catalog.dart';
+import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/track_sky_event_block_visual.dart';
 import 'package:mobile/features/calendar/follow_the_sky/services/sky_catalog_repository.dart';
 import 'package:mobile/features/calendar/follow_the_sky/services/sky_instrument_data_provider.dart';
 import 'package:mobile/features/calendar/follow_the_sky/services/track_sky_materializer.dart';
@@ -36,6 +37,10 @@ void main() {
   });
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
+    CalendarEventDetailSheetCoordinator.debugResetForTests();
+  });
+  tearDown(() {
+    CalendarEventDetailSheetCoordinator.debugResetForTests();
   });
 
   testWidgets(
@@ -146,6 +151,92 @@ void main() {
     await _pumpFollowSkySheet(tester, configureViewport: false);
     expect(_pageHeight(tester), closeTo(initialHeight, 0.1));
   });
+
+  testWidgets(
+    'Day View Follow Sky block reopens after shared barrier dismissal',
+    (tester) async {
+      tester.view.physicalSize = _viewport;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      final behaviorPayload = TrackSkyEventOwnership.behaviorPayload(
+        skyEventId: 'full-moon-2026-08-28',
+        resolvedFunction: 'ENDURE',
+        intention: 'self confidence',
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.dark(),
+          home: Scaffold(
+            body: DayViewGrid(
+              ky: 1,
+              km: 1,
+              kd: 1,
+              notes: <NoteData>[
+                NoteData(
+                  clientEventId: 'follow-sky-day-view-fixture',
+                  title: 'Full Moon + Partial Lunar Eclipse',
+                  allDay: false,
+                  start: const TimeOfDay(hour: 21, minute: 12),
+                  end: const TimeOfDay(hour: 22, minute: 0),
+                  flowId: _flowId,
+                  behaviorPayload: behaviorPayload,
+                ),
+              ],
+              showGregorian: false,
+              flowIndex: const <int, FlowData>{
+                _flowId: FlowData(
+                  id: _flowId,
+                  name: 'Follow the Sky',
+                  color: Color(0xFF9DA8FF),
+                  active: true,
+                ),
+              },
+              activeLedgerFlowIds: const <int>{_flowId},
+              initialScrollOffset: 20 * 60,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final eventLayer = find.byKey(dayViewTimelineEventLayerKey);
+      final previewLayer = find.byKey(dayViewTimelinePreviewLayerKey);
+      Finder followSkyBlocksIn(Finder layer) => find.descendant(
+        of: layer,
+        matching: find.byType(TrackSkyEventBlockVisual),
+      );
+      expect(followSkyBlocksIn(eventLayer), findsOneWidget);
+      expect(followSkyBlocksIn(previewLayer), findsNothing);
+
+      await tester.tap(followSkyBlocksIn(eventLayer));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(_sheet, findsOneWidget);
+      expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isTrue);
+
+      final sheetTop = tester.getTopLeft(_sheet).dy;
+      expect(sheetTop, greaterThan(0));
+      await tester.tapAt(Offset(_viewport.width / 2, sheetTop / 2));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(_sheet, findsNothing);
+      expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isFalse);
+
+      await tester.tap(followSkyBlocksIn(eventLayer));
+      await tester.pump();
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 100)),
+      );
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(_sheet, findsOneWidget);
+      expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isTrue);
+    },
+  );
 }
 
 Finder get _sheet =>

@@ -237,50 +237,29 @@ void main() {
   test(
     'shared instrument host keeps Follow Sky minimum and overflow chrome',
     () async {
-      final source = await File(
+      final dayView = await File(
         'lib/features/calendar/day_view.dart',
       ).readAsString();
-      final sizingSource = _sourceBetween(
-        source,
-        'final maxSheetHeight = _isWorkspacePresentation',
-        'final content = Column(',
-      );
-      final frameSource = _sourceBetween(
-        source,
-        'final content = Column(',
-        'return Padding(',
-      );
-      final topActionSource = _sourceBetween(
-        source,
-        'Widget _buildEventDetailTopActionRow({',
-        'Widget _buildEventDetailPrimaryAction({',
-      );
+      final sharedHost = await File(
+        'lib/features/calendar/presentation/'
+        'instrument_event_presentation_frame.dart',
+      ).readAsString();
 
       expect(
-        source,
-        contains('static const double _instrumentMinSheetExtent = 0.58;'),
+        sharedHost,
+        contains('const double instrumentEventSheetMinExtent = 0.58;'),
       );
+      expect(sharedHost, contains('availableSheetHeight * effectiveExtent'));
       expect(
-        sizingSource,
-        contains('availableSheetHeight * instrumentSheetExtent'),
+        sharedHost,
+        contains('.clamp(instrumentEventSheetMinExtent, 1.0)'),
       );
-      expect(source, contains('.clamp(_instrumentMinSheetExtent, 1.0)'));
-      expect(
-        sizingSource,
-        contains('math.min(media.size.height * 0.68, 520.0)'),
-      );
-      expect(
-        sizingSource,
-        contains('activeInstrumentPresentation\n        ? 120.0'),
-      );
-      expect(frameSource, contains('if (!_isWorkspacePresentation) ...['));
-      expect(frameSource, contains('animate: !activeInstrumentPresentation'));
-      expect(
-        frameSource,
-        isNot(contains('if (!activeInstrumentPresentation)')),
-      );
-      expect(topActionSource, contains("'follow-sky-sheet-resize-handle'"));
-      expect(topActionSource, contains('_buildEventDetailOverflowButton('));
+      expect(sharedHost, contains('isDismissible: true'));
+      expect(sharedHost, contains('enableDrag: true'));
+      expect(sharedHost, contains('useRootNavigator: false'));
+      expect(sharedHost, isNot(contains('child: Align(')));
+      expect(dayView, contains('InstrumentEventSheetHost('));
+      expect(dayView, contains('trailing: _buildEventDetailOverflowButton('));
     },
   );
 

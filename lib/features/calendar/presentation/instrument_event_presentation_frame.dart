@@ -14,6 +14,9 @@ Future<T?> showCalendarEventDetailSheetModal<T>({
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
+    isDismissible: true,
+    enableDrag: true,
+    useRootNavigator: false,
     builder: builder,
   );
 }
@@ -164,41 +167,38 @@ class _InstrumentEventSheetHostState extends State<InstrumentEventSheetHost> {
       padding: EdgeInsets.only(bottom: keyboardInset),
       child: SafeArea(
         top: false,
-        child: Align(
-          alignment: Alignment.bottomCenter,
-          child: SizedBox(
-            height: outerHeight,
-            child: Padding(
-              padding: outerPadding,
-              child: DayViewBottomSheetFrame(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    InstrumentEventSheetTopBar(
-                      semanticLabel: widget.semanticLabel,
-                      handleColor: widget.handleColor,
-                      onVerticalDragUpdate: keyboardInset == 0
-                          ? (details) =>
-                                _updateExtent(details, availableSheetHeight)
-                          : null,
-                      trailing: widget.trailing,
-                    ),
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      height: bodyHeight,
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(20),
-                        ),
-                        child: widget.body,
+        child: SizedBox(
+          height: outerHeight,
+          child: Padding(
+            padding: outerPadding,
+            child: DayViewBottomSheetFrame(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  InstrumentEventSheetTopBar(
+                    semanticLabel: widget.semanticLabel,
+                    handleColor: widget.handleColor,
+                    onVerticalDragUpdate: keyboardInset == 0
+                        ? (details) =>
+                              _updateExtent(details, availableSheetHeight)
+                        : null,
+                    trailing: widget.trailing,
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    height: bodyHeight,
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(20),
                       ),
+                      child: widget.body,
                     ),
-                    if (widget.footer != null) ...<Widget>[
-                      const SizedBox(height: 8),
-                      SizedBox(height: 46, child: widget.footer),
-                    ],
+                  ),
+                  if (widget.footer != null) ...<Widget>[
+                    const SizedBox(height: 8),
+                    SizedBox(height: 46, child: widget.footer),
                   ],
-                ),
+                ],
               ),
             ),
           ),
