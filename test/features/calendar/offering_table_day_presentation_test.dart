@@ -67,6 +67,10 @@ void main() {
     expect(rect.height, 238);
     final startY = rect.top + rect.height * (96 / 238);
     final endY = rect.top + rect.height * ((96 + 70) / 238);
+    final lowerBody = find.byKey(
+      const ValueKey<String>('offering-table-foreground-layer'),
+    );
+    final lowerBodyBefore = tester.widget<Container>(lowerBody);
 
     final intentionCenter = tester.getCenter(
       find.byKey(const ValueKey<String>('offering-table-intention-air')),
@@ -87,10 +91,14 @@ void main() {
     await tester.pump();
     expect(tester.getSemantics(gesture).value, '100 percent placed');
 
-    await tester.dragFrom(
-      Offset(rect.center.dx, startY),
-      Offset(0, endY - startY),
-    );
+    final pointer = await tester.startGesture(Offset(rect.center.dx, startY));
+    for (var step = 1; step <= 12; step++) {
+      await pointer.moveTo(
+        Offset(rect.center.dx, startY + (endY - startY) * step / 12),
+      );
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await pointer.up();
     await tester.pump();
     expect(tester.getSemantics(gesture).value, '100 percent placed');
 
@@ -104,6 +112,11 @@ void main() {
     );
     await tester.pump();
     expect(tester.getSemantics(gesture).value, '98 percent placed');
+    expect(
+      identical(tester.widget<Container>(lowerBody), lowerBodyBefore),
+      isTrue,
+      reason: 'instrument updates must not rebuild the lower ritual body',
+    );
     semanticsHandle.dispose();
   });
 
