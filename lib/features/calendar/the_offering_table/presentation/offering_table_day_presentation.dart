@@ -52,6 +52,9 @@ class _OfferingTableDayPresentationState
   static const _water = Color(0xFF83BEB9);
   static const _display = 'CormorantGaramond';
   static const _ui = 'GentiumPlus';
+  static const _cupHeroHeight = 238.0;
+  static const _intentionStartY = 96.0;
+  static const _intentionTravel = 70.0;
   static const _reflectionPrompt =
       'What did you notice about what needs to be fed?';
   static const _reflectionStyle = InstrumentEventReflectionStyle(
@@ -182,17 +185,14 @@ class _OfferingTableDayPresentationState
     return InstrumentEventPresentationFrame(
       key: const ValueKey<String>('offering-table-day-presentation'),
       decoration: const BoxDecoration(color: _velvet),
-      fixedHeroHeight: 238,
+      fixedHeroHeight: _cupHeroHeight,
       instrument: _buildCupHero(),
       instrumentFooter: Column(
         children: <Widget>[const Spacer(), _buildDragInstruction()],
       ),
-      inputBuilder: (context, _, instrumentHeight) => Align(
-        alignment: Alignment.bottomCenter,
-        child: SizedBox(
-          height: InstrumentEventPresentationFrame.footerHeight,
-          child: _buildCupInput(),
-        ),
+      inputBuilder: (context, heroHeight, _) => Align(
+        alignment: Alignment.topCenter,
+        child: SizedBox(height: heroHeight, child: _buildCupInput()),
       ),
       body: _buildBody(),
       bodyScrollKey: const ValueKey<String>('offering-table-presentation-body'),
@@ -224,9 +224,10 @@ class _OfferingTableDayPresentationState
           child: LayoutBuilder(
             builder: (context, constraints) {
               final surfaceY = constraints.maxHeight * (168 / 238);
+              final instrumentScale = constraints.maxHeight / _cupHeroHeight;
               final wordTop =
-                  constraints.maxHeight * (96 / 238) +
-                  (_placement * constraints.maxHeight * (70 / 238));
+                  (_intentionStartY + _placement * _intentionTravel) *
+                  instrumentScale;
               final scale = 1 - (_placement * 0.18);
               final fontSize = need.length > 46
                   ? 14.5
@@ -444,9 +445,10 @@ class _OfferingTableDayPresentationState
     return LayoutBuilder(
       builder: (context, constraints) {
         void update(Offset position) {
-          _selectPlacement(
-            ((position.dx - 42) / (constraints.maxWidth - 84)).clamp(0.0, 1.0),
-          );
+          final instrumentScale = constraints.maxHeight / _cupHeroHeight;
+          final startY = _intentionStartY * instrumentScale;
+          final travel = _intentionTravel * instrumentScale;
+          _selectPlacement(((position.dy - startY) / travel).clamp(0.0, 1.0));
         }
 
         return Semantics(
@@ -465,8 +467,8 @@ class _OfferingTableDayPresentationState
             key: const ValueKey<String>('offering-table-intention-drag'),
             behavior: HitTestBehavior.opaque,
             onTapUp: (details) => update(details.localPosition),
-            onHorizontalDragDown: (details) => update(details.localPosition),
-            onHorizontalDragUpdate: (details) => update(details.localPosition),
+            onVerticalDragDown: (details) => update(details.localPosition),
+            onVerticalDragUpdate: (details) => update(details.localPosition),
             child: const SizedBox.expand(),
           ),
         );

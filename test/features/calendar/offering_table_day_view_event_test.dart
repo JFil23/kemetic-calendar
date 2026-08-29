@@ -65,8 +65,12 @@ void main() {
 
     await tester.tap(find.byType(OfferingTableEventBlockVisual));
     await tester.pumpAndSettle();
-    await tester.drag(
-      find.byKey(const ValueKey<String>('offering-table-presentation-body')),
+    final presentationScroll = find.byKey(
+      const ValueKey<String>('offering-table-presentation-body'),
+    );
+    final scrollRect = tester.getRect(presentationScroll);
+    await tester.dragFrom(
+      Offset(scrollRect.center.dx, scrollRect.bottom - 20),
       const Offset(0, -1200),
     );
     await tester.pumpAndSettle();

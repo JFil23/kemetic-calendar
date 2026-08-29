@@ -54,7 +54,7 @@ void main() {
     );
   });
 
-  testWidgets('uses Follow Sky gesture mapping and semantic 0.02 steps', (
+  testWidgets('maps full-hero taps and vertical drags through one placement', (
     tester,
   ) async {
     final semanticsHandle = tester.ensureSemantics();
@@ -64,16 +64,33 @@ void main() {
       const ValueKey<String>('offering-table-intention-drag'),
     );
     final rect = tester.getRect(gesture);
+    expect(rect.height, 238);
+    final startY = rect.top + rect.height * (96 / 238);
+    final endY = rect.top + rect.height * ((96 + 70) / 238);
 
-    await tester.tapAt(Offset(rect.left + 42, rect.center.dy));
+    final intentionCenter = tester.getCenter(
+      find.byKey(const ValueKey<String>('offering-table-intention-air')),
+    );
+    await tester.tapAt(intentionCenter);
+    await tester.pump();
+    expect(tester.getSemantics(gesture).value, isNot('0 percent placed'));
+
+    await tester.tapAt(Offset(rect.center.dx, startY));
     await tester.pump();
     expect(tester.getSemantics(gesture).value, '0 percent placed');
 
-    await tester.tapAt(Offset(rect.center.dx, rect.center.dy));
+    await tester.tapAt(Offset(rect.center.dx, (startY + endY) / 2));
     await tester.pump();
     expect(tester.getSemantics(gesture).value, '50 percent placed');
 
-    await tester.tapAt(Offset(rect.right - 42, rect.center.dy));
+    await tester.tapAt(Offset(rect.center.dx, endY));
+    await tester.pump();
+    expect(tester.getSemantics(gesture).value, '100 percent placed');
+
+    await tester.dragFrom(
+      Offset(rect.center.dx, startY),
+      Offset(0, endY - startY),
+    );
     await tester.pump();
     expect(tester.getSemantics(gesture).value, '100 percent placed');
 
