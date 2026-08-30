@@ -49,6 +49,54 @@ class ReadingHouseSnapshot {
       sittings.any((sitting) => sitting.scheduledDate != null);
 }
 
+ReadingHouseSnapshot readingHouseSnapshotFromSharedPracticeRoom(
+  SharedPracticeRoomSnapshot roomSnapshot,
+) {
+  final source = roomSnapshot.sourceFlow;
+  if (source == null) {
+    throw StateError('Reading House source flow is unavailable.');
+  }
+  final metadata = source['ai_metadata'] is Map
+      ? Map<String, dynamic>.from(source['ai_metadata'] as Map)
+      : null;
+  final notes = source['notes']?.toString();
+  final plan = readingHousePlanFromMetadata(
+    metadata,
+    fallback: readingHousePlanFromFlowNotes(notes),
+  );
+  final members = roomSnapshot.members
+      .map(
+        (member) => SharedCalendarMember(
+          userId: member.userId,
+          role: sharedCalendarRoleFromString(member.role ?? 'viewer'),
+          status: SharedCalendarInviteStatus.accepted,
+          handle: member.handle,
+          displayName: member.displayName,
+          avatarUrl: member.avatarUrl,
+        ),
+      )
+      .toList(growable: false);
+  return ReadingHouseSnapshot(
+    flowId: (source['id'] as num?)?.toInt() ?? roomSnapshot.room.sourceFlowId,
+    calendarId: source['calendar_id']?.toString() ?? roomSnapshot.calendar.id,
+    plan: plan,
+    sittings: List<ReadingHouseSitting>.unmodifiable(
+      readingHouseSittingsFromMetadata(metadata),
+    ),
+    openDoors: readingHouseOpenDoorsFromMetadata(
+      metadata,
+      fallback:
+          roomSnapshot.room.visibility == SharedPracticeRoomVisibility.public,
+    ),
+    members: List<SharedCalendarMember>.unmodifiable(members),
+    held: true,
+    canEdit: roomSnapshot.viewerCanEdit,
+    canManageMembership:
+        roomSnapshot.viewerCanEdit && roomSnapshot.viewerCanManage,
+    isSharedHouse: true,
+  );
+}
+
 abstract class ReadingHouseAuthority {
   String? get currentUserId;
 
@@ -252,6 +300,13 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
     if (existing == null) {
       throw StateError('Reading House $flowId was not found.');
     }
+    final existingPlan = readingHousePlanFromMetadata(
+      existing.aiMetadata,
+      fallback: readingHousePlanFromFlowNotes(
+        existing.notes,
+        fallback: house.plan,
+      ),
+    );
     final heldPlan = plan.copyWith(state: kReadingHouseHeldState);
     final normalized = normalizeReadingHouseSittingOrder(sittings);
     final effectiveOpenDoors = !heldPlan.isSolo && openDoors;
@@ -263,6 +318,16 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
       openDoors: effectiveOpenDoors,
       timezone: timezone,
     );
+
+    if (existingPlan.displayQuestion != heldPlan.displayQuestion) {
+      await _materializeScheduledSittings(
+        flowId: flowId,
+        calendarId: calendarId,
+        plan: heldPlan,
+        sittings: normalized,
+        timezone: timezone,
+      );
+    }
 
     if (!heldPlan.isSolo && effectiveOpenDoors != house.openDoors) {
       await _updateSharedPracticeVisibility(

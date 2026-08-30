@@ -769,6 +769,90 @@ void main() {
   );
 
   test(
+    'Reading House input sheets use the shared system-keyboard contract',
+    () {
+      final detailSource = File(
+        'lib/features/calendar/the_reading_house/presentation/'
+        'reading_house_detail_page.dart',
+      ).readAsStringSync();
+      final sittingSource = File(
+        'lib/features/calendar/the_reading_house/presentation/'
+        'reading_house_sitting_editor.dart',
+      ).readAsStringSync();
+
+      expect(detailSource, contains('keyboardManagedTextFieldScrollPadding'));
+      expect(detailSource, contains('keyboardInsetOf(context)'));
+      expect(detailSource, contains('requestFocus: true'));
+      expect(sittingSource, contains('keyboardInsetOf(context)'));
+      expect(sittingSource, contains('requestFocus: true'));
+      expect(sittingSource, contains('FocusScopeNode('));
+      expect(sittingSource, contains('_releaseFocus();'));
+      expect(sittingSource, contains('MaatFlowDatePicker.show('));
+      expect(sittingSource, contains('showTimePicker('));
+      expect(sittingSource, isNot(contains('defaultTargetPlatform')));
+      expect(sittingSource, isNot(contains('kIsWeb')));
+    },
+  );
+
+  test('question reconciliation is scoped to one Reading House flow', () {
+    final authoritySource = File(
+      'lib/features/calendar/the_reading_house/reading_house_authority.dart',
+    ).readAsStringSync();
+    final liveAuthority = authoritySource.substring(
+      authoritySource.indexOf('class LiveReadingHouseAuthority'),
+    );
+    final updateSection = _sourceBetween(
+      liveAuthority,
+      'Future<ReadingHouseSnapshot> updateHeldHouse',
+      'Future<ReadingHouseSnapshot> saveSitting',
+    );
+    final materializationSection = _sourceBetween(
+      liveAuthority,
+      'Future<void> _materializeScheduledSittings',
+      'String readingHouseClientEventId',
+    );
+
+    expect(
+      updateSection,
+      contains('existingPlan.displayQuestion != heldPlan.displayQuestion'),
+    );
+    expect(updateSection, contains('_materializeScheduledSittings('));
+    expect(updateSection, contains('flowId: flowId'));
+    expect(updateSection, contains('sittings: normalized'));
+    expect(materializationSection, contains(".eq('flow_local_id', flowId)"));
+    expect(materializationSection, contains('sitting.scheduledDate!'));
+    expect(materializationSection, contains('hour: sitting.hour'));
+    expect(materializationSection, contains('minute: sitting.minute'));
+    expect(
+      materializationSection,
+      contains('readingHouseDetailText(sitting, plan: plan)'),
+    );
+  });
+
+  test('Commons detail migration preserves the room access authority', () {
+    final migration = File(
+      '../supabase/migrations/'
+      '20260830230300_reading_house_shared_practice_detail.sql',
+    ).readAsStringSync();
+
+    final accessGate = migration.indexOf(
+      'if not public.shared_practice_can_read_room(v_room.id, v_uid)',
+    );
+    final sourceProjection = migration.indexOf(
+      "f.ai_metadata ->> 'flow_key' = 'the-reading-house'",
+    );
+    expect(accessGate, greaterThanOrEqualTo(0));
+    expect(sourceProjection, greaterThan(accessGate));
+    expect(migration, contains("'source_flow', v_source_flow"));
+    expect(migration, contains("'viewer_can_edit', v_room.created_by = v_uid"));
+    expect(migration, contains("f.ai_metadata -> 'reading_house'"));
+    expect(migration, isNot(contains('alter policy')));
+    expect(migration, isNot(contains('drop ')));
+    expect(migration, isNot(contains('update public.flows')));
+    expect(migration, isNot(contains('insert into public.flows')));
+  });
+
+  test(
     'payload enables fragment replies but not broader conversation surfaces',
     () {
       final payload = readingHouseBehaviorPayload(
@@ -1258,7 +1342,11 @@ void main() {
       '  @override\n  Future<ReadingHouseSnapshot> saveSitting',
     );
     expect(doorUpdate, contains('_updateSharedPracticeVisibility'));
-    expect(doorUpdate, isNot(contains('_materializeScheduledSittings')));
+    expect(
+      doorUpdate,
+      contains('existingPlan.displayQuestion != heldPlan.displayQuestion'),
+    );
+    expect(doorUpdate, contains('_materializeScheduledSittings'));
     expect(doorUpdate, isNot(contains('_snapshotFromRow')));
     expect(doorUpdate, isNot(contains('listMembers(')));
 

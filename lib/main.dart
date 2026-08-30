@@ -1638,7 +1638,7 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
         }
         return SessionTrackedRoute(
           location: state.uri.toString(),
-          child: SharedPracticeRoomPage(roomId: roomId),
+          child: SharedPracticeRoomRoutePage(roomId: roomId),
         );
       },
     ),

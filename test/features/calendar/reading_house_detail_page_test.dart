@@ -244,6 +244,14 @@ void main() {
       find.byKey(const ValueKey<String>('reading-house-question')),
       'What does homecoming require?',
     );
+    await tester.pump();
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('reading-house-reading-frame')),
+        matching: find.text('What does homecoming require?'),
+      ),
+      findsOneWidget,
+    );
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pumpAndSettle();
     expect(authority.lastSnapshot?.plan.bookTitle, 'The Odyssey');
@@ -266,7 +274,184 @@ void main() {
       find.byKey(const ValueKey<String>('reading-house-question')),
     );
     expect(question.controller?.text, 'What does homecoming require?');
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('reading-house-reading-frame')),
+        matching: find.text('What does homecoming require?'),
+      ),
+      findsOneWidget,
+    );
   });
+
+  testWidgets('blank House Question uses the canonical frame fallback', (
+    tester,
+  ) async {
+    await pumpHouse(tester);
+    await jumpHouseScroll(tester, 700);
+    final question = find.byKey(
+      const ValueKey<String>('reading-house-question'),
+    );
+    await tester.enterText(question, 'A question for this house');
+    await tester.pump();
+    await tester.enterText(question, '');
+    await tester.pump();
+
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('reading-house-reading-frame')),
+        matching: find.text(kReadingHouseDefaultQuestion),
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('all setup and invite inputs obtain system text focus', (
+    tester,
+  ) async {
+    await pumpHouse(tester);
+    for (final key in const <String>[
+      'reading-house-book',
+      'reading-house-edition',
+      'reading-house-question',
+    ]) {
+      final finder = find.byKey(ValueKey<String>(key));
+      await Scrollable.ensureVisible(
+        tester.element(finder),
+        alignment: 0.42,
+        duration: const Duration(milliseconds: 1),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(finder);
+      await tester.pump();
+      expect(
+        tester
+            .widget<EditableText>(
+              find.descendant(of: finder, matching: find.byType(EditableText)),
+            )
+            .focusNode
+            .hasFocus,
+        isTrue,
+      );
+      expect(tester.testTextInput.isVisible, isTrue);
+    }
+
+    await jumpHouseScroll(tester, 1050);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('reading-house-invite-reader')),
+    );
+    await tester.pumpAndSettle();
+    final search = find.byKey(
+      const ValueKey<String>('reading-house-reader-search'),
+    );
+    expect(tester.widget<TextField>(search).focusNode?.hasFocus, isTrue);
+    expect(tester.testTextInput.isVisible, isTrue);
+  });
+
+  testWidgets(
+    'sitting editor keeps every field above the keyboard and clears modal focus',
+    (tester) async {
+      await pumpHouse(tester);
+      await jumpHouseScroll(tester, 2000);
+      await tester.tap(
+        find.byKey(const ValueKey<String>('reading-house-sitting-1')),
+      );
+      await tester.pumpAndSettle();
+
+      const fieldKeys = <String>[
+        'reading_house_sitting_title_field',
+        'reading_house_sitting_section_field',
+        'reading_house_sitting_theme_field',
+        'reading_house_sitting_private_prompt_field',
+        'reading_house_sitting_host_note_field',
+      ];
+      for (final key in fieldKeys) {
+        final field = find.byKey(ValueKey<String>(key));
+        await tester.ensureVisible(field);
+        await tester.tap(field);
+        await tester.pumpAndSettle();
+        expect(tester.widget<TextField>(field).focusNode?.hasFocus, isTrue);
+        expect(tester.testTextInput.isVisible, isTrue);
+      }
+
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      addTearDown(() => tester.view.viewInsets = FakeViewPadding.zero);
+      await tester.pumpAndSettle();
+      final hostNote = find.byKey(
+        const ValueKey<String>('reading_house_sitting_host_note_field'),
+      );
+      await tester.ensureVisible(hostNote);
+      await tester.tap(hostNote);
+      await tester.pumpAndSettle();
+      final surfaceHeight = tester.getSize(find.byType(Scaffold).first).height;
+      expect(tester.getRect(hostNote).bottom, lessThan(surfaceHeight - 300));
+
+      final dateButton = find.byKey(
+        const ValueKey<String>('reading_house_sitting_date_button'),
+      );
+      await tester.ensureVisible(dateButton);
+      await tester.tap(dateButton);
+      await tester.pumpAndSettle();
+      for (final key in fieldKeys) {
+        expect(
+          tester
+              .widget<TextField>(find.byKey(ValueKey<String>(key)))
+              .focusNode
+              ?.hasFocus,
+          isFalse,
+        );
+      }
+      tester.state<NavigatorState>(find.byType(Navigator)).pop();
+      tester.view.viewInsets = FakeViewPadding.zero;
+      await tester.pumpAndSettle();
+
+      final timeButton = find.byKey(
+        const ValueKey<String>('reading_house_sitting_time_button'),
+      );
+      await tester.ensureVisible(timeButton);
+      await tester.tap(timeButton);
+      await tester.pumpAndSettle();
+      for (final key in fieldKeys) {
+        expect(
+          tester
+              .widget<TextField>(find.byKey(ValueKey<String>(key)))
+              .focusNode
+              ?.hasFocus,
+          isFalse,
+        );
+      }
+      tester.state<NavigatorState>(find.byType(Navigator)).pop();
+      await tester.pumpAndSettle();
+
+      await tester.tap(hostNote);
+      await tester.pump();
+      await tester.tap(
+        find.byKey(const ValueKey<String>('reading_house_sitting_save_button')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byType(ReadingHouseSittingEditorSheet), findsNothing);
+      expect(
+        tester
+            .widgetList<EditableText>(find.byType(EditableText))
+            .where((field) => field.focusNode.hasFocus),
+        isEmpty,
+      );
+      expect(tester.testTextInput.isVisible, isFalse);
+
+      await tester.tap(
+        find.byKey(const ValueKey<String>('reading-house-sitting-1')),
+      );
+      await tester.pumpAndSettle();
+      for (final key in fieldKeys) {
+        expect(
+          tester
+              .widget<TextField>(find.byKey(ValueKey<String>(key)))
+              .focusNode
+              ?.hasFocus,
+          isFalse,
+        );
+      }
+    },
+  );
 
   testWidgets('scheduled date and time persist through edit and reopen', (
     tester,
@@ -354,10 +539,22 @@ void main() {
     );
     await jumpHouseScroll(tester, 900);
     expect(find.text('Nia Morgan'), findsOneWidget);
-    final book = tester.widget<TextField>(
-      find.byKey(const ValueKey<String>('reading-house-book')),
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey<String>('reading-house-setup')),
+        matching: find.byType(TextField),
+      ),
+      findsNothing,
     );
-    expect(book.enabled, isFalse);
+    expect(
+      find.byKey(const ValueKey<String>('reading-house-book')),
+      findsOneWidget,
+    );
+    expect(find.byType(MaatFlowDetailDock), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('reading-house-invite-reader')),
+      findsNothing,
+    );
 
     await jumpHouseScroll(tester, 2000);
     await tester.tap(
@@ -365,6 +562,14 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.byType(ReadingHouseSittingEditorSheet), findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('reading-house-add-sitting')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('reading-house-place-reading')),
+      findsNothing,
+    );
     expect(authority.ensureCount, 0);
   });
 

@@ -68,6 +68,7 @@ class ReadingHouseDetailPage extends StatefulWidget {
     this.initialFlowId,
     this.initialCalendarId,
     this.initialOpenDoors = false,
+    this.initialSnapshot,
     this.authority,
     this.resolvePersonalCalendarId,
     this.onHeld,
@@ -84,6 +85,7 @@ class ReadingHouseDetailPage extends StatefulWidget {
   final int? initialFlowId;
   final String? initialCalendarId;
   final bool initialOpenDoors;
+  final ReadingHouseSnapshot? initialSnapshot;
   final ReadingHouseAuthority? authority;
   final Future<String?> Function()? resolvePersonalCalendarId;
   final ValueChanged<int>? onHeld;
@@ -124,31 +126,38 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
   @override
   void initState() {
     super.initState();
-    final initialBook = widget.initialPlan.bookTitle.trim();
+    final initialSnapshot = widget.initialSnapshot;
+    final initialPlan = initialSnapshot?.plan ?? widget.initialPlan;
+    final initialBook = initialPlan.bookTitle.trim();
     _bookController = TextEditingController(
       text: initialBook == kReadingHouseDefaultBookTitle ? '' : initialBook,
     );
-    _editionController = TextEditingController(
-      text: widget.initialPlan.editionNote,
-    );
+    _editionController = TextEditingController(text: initialPlan.editionNote);
     _questionController = TextEditingController(
-      text: widget.initialPlan.houseQuestion == kReadingHouseDefaultQuestion
+      text: initialPlan.houseQuestion == kReadingHouseDefaultQuestion
           ? ''
-          : widget.initialPlan.houseQuestion,
+          : initialPlan.houseQuestion,
     );
     _windowStart = DateUtils.dateOnly(
       widget.initialStartDate ?? defaultReadingHouseStartDate(widget.timezone),
     );
-    _sittings = List<ReadingHouseSitting>.of(widget.initialSittings);
-    _withReaders = !widget.initialPlan.isSolo;
-    _held = widget.initiallyHeld;
-    _openDoors = widget.initialOpenDoors;
-    _flowId = widget.initialFlowId;
-    _calendarId = widget.initialCalendarId;
+    _sittings = List<ReadingHouseSitting>.of(
+      initialSnapshot?.sittings ?? widget.initialSittings,
+    );
+    _withReaders = !(initialSnapshot?.plan ?? widget.initialPlan).isSolo;
+    _held = initialSnapshot?.held ?? widget.initiallyHeld;
+    _openDoors = initialSnapshot?.openDoors ?? widget.initialOpenDoors;
+    _flowId = initialSnapshot?.flowId ?? widget.initialFlowId;
+    _calendarId = initialSnapshot?.calendarId ?? widget.initialCalendarId;
+    _members = initialSnapshot?.members ?? const <SharedCalendarMember>[];
+    _canEdit = initialSnapshot?.canEdit ?? true;
+    _canManageMembership = initialSnapshot?.canManageMembership ?? true;
     _bookController.addListener(_scheduleProgressiveSave);
     _editionController.addListener(_scheduleProgressiveSave);
     _questionController.addListener(_scheduleProgressiveSave);
-    if (_flowId != null && widget.authority != null) {
+    if (initialSnapshot == null &&
+        _flowId != null &&
+        widget.authority != null) {
       unawaited(_loadHouse());
     }
   }
@@ -190,12 +199,13 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
     return markers.values.toList(growable: false);
   }
 
-  ReadingHousePlan get _plan => widget.initialPlan.copyWith(
-    bookTitle: _bookController.text.trim(),
-    editionNote: _editionController.text.trim(),
-    houseQuestion: _questionController.text.trim(),
-    mode: _withReaders ? kReadingHouseDefaultMode : kReadingHouseSoloMode,
-  );
+  ReadingHousePlan get _plan =>
+      (widget.initialSnapshot?.plan ?? widget.initialPlan).copyWith(
+        bookTitle: _bookController.text.trim(),
+        editionNote: _editionController.text.trim(),
+        houseQuestion: _questionController.text.trim(),
+        mode: _withReaders ? kReadingHouseDefaultMode : kReadingHouseSoloMode,
+      );
 
   void _applySnapshot(ReadingHouseSnapshot snapshot) {
     _applyingSnapshot = true;
@@ -455,10 +465,12 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
     final authority = widget.authority;
     if (authority == null || !_canManageMembership) return;
     final excluded = <String>{for (final member in _members) member.userId};
+    FocusManager.instance.primaryFocus?.unfocus();
     final invited = await showModalBottomSheet<SharedCalendarMember>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      requestFocus: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _ReaderInviteSheet(
         authority: authority,
@@ -467,6 +479,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
             authority.inviteReader(house: _currentSnapshot, reader: reader),
       ),
     );
+    FocusManager.instance.primaryFocus?.unfocus();
     if (invited == null || !mounted) return;
     setState(() => _members = _upsertMember(_members, invited));
     unawaited(_refreshMembersInBackground());
@@ -629,20 +642,22 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
       heroLayerKey: const ValueKey<String>('reading-house-hero-layer'),
       sheetKey: const ValueKey<String>('reading-house-sheet'),
       hero: const _ReadingHouseHero(),
-      bottomDock: MaatFlowDetailDock(
-        theme: ReadingHouseDetailTokens.theme,
-        joined: _held,
-        busy: _holding,
-        onPressed: _canEdit && !_loadingHouse ? _holdHouse : null,
-        actionLabel: 'Hold this house',
-        actionNote:
-            'This creates the house in My Flows. You do not need to schedule it yet.',
-        joinedLabel: 'Held in your flows',
-        joinedNote:
-            'This house can stay partial while readers respond. Nothing needs to be scheduled yet.',
-        actionKey: const ValueKey<String>('reading-house-hold'),
-        joinedKey: const ValueKey<String>('reading-house-held'),
-      ),
+      bottomDock: !_canEdit
+          ? null
+          : MaatFlowDetailDock(
+              theme: ReadingHouseDetailTokens.theme,
+              joined: _held,
+              busy: _holding,
+              onPressed: !_loadingHouse ? _holdHouse : null,
+              actionLabel: 'Hold this house',
+              actionNote:
+                  'This creates the house in My Flows. You do not need to schedule it yet.',
+              joinedLabel: 'Held in your flows',
+              joinedNote:
+                  'This house can stay partial while readers respond. Nothing needs to be scheduled yet.',
+              actionKey: const ValueKey<String>('reading-house-hold'),
+              joinedKey: const ValueKey<String>('reading-house-held'),
+            ),
       sheet: _buildSheet(context),
     );
 
@@ -663,7 +678,10 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                   Icons.arrow_back,
                   color: ReadingHouseDetailTokens.gold,
                 ),
-                onPressed: () => Navigator.of(context).maybePop(),
+                onPressed: () {
+                  FocusManager.instance.primaryFocus?.unfocus();
+                  Navigator.of(context).maybePop();
+                },
               ),
             ),
         ],
@@ -680,13 +698,31 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
         _buildHouseSetup(),
         _buildCalendar(),
         _buildSittings(context),
-        const _ReadingFrame(),
+        ValueListenableBuilder<TextEditingValue>(
+          valueListenable: _questionController,
+          builder: (context, _, child) =>
+              _ReadingFrame(question: _plan.displayQuestion),
+        ),
         const _HistoricalContext(),
       ],
     );
   }
 
   Widget _buildHouseSetup() {
+    SharedCalendarMember? host;
+    for (final member in _members) {
+      if (member.isOwner) {
+        host = member;
+        break;
+      }
+    }
+    final currentUserId = widget.authority?.currentUserId;
+    final hostName = host == null
+        ? (_canManageMembership ? 'You' : 'House host')
+        : host.userId == currentUserId
+        ? 'You'
+        : host.displayLabel;
+    final hostInitials = host == null ? 'H' : _memberInitials(host);
     final invitedReaders = _members
         .where(
           (member) =>
@@ -718,6 +754,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
             hintText: 'Name the book',
             controller: _bookController,
             enabled: _canEdit,
+            readOnlyValue: _plan.displayBookTitle,
             topPadding: 0,
             fieldKey: const ValueKey<String>('reading-house-book'),
           ),
@@ -727,6 +764,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
             hintText: 'Translator, edition, or link',
             controller: _editionController,
             enabled: _canEdit,
+            readOnlyValue: _plan.editionNote,
             fieldKey: const ValueKey<String>('reading-house-edition'),
           ),
           _SetupTextField(
@@ -735,6 +773,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
             hintText: 'What is this book asking the house to hold?',
             controller: _questionController,
             enabled: _canEdit,
+            readOnlyValue: _plan.displayQuestion,
             fieldKey: const ValueKey<String>('reading-house-question'),
           ),
           _SetupChoiceField(
@@ -753,6 +792,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                 : 'A solo house stays with you and your private calendar.',
             fieldKey: const ValueKey<String>('reading-house-mode'),
             busy: _savingMode,
+            readOnly: !_canEdit,
           ),
           IgnorePointer(
             ignoring: !_withReaders,
@@ -776,6 +816,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                 highlightedNote: _openDoors,
                 fieldKey: const ValueKey<String>('reading-house-doors'),
                 busy: _savingDoors,
+                readOnly: !_canEdit,
               ),
             ),
           ),
@@ -803,9 +844,9 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                           ],
                         ),
                         const SizedBox(height: 14),
-                        const _ReaderRow(
-                          initials: 'Y',
-                          name: 'You',
+                        _ReaderRow(
+                          initials: hostInitials,
+                          name: hostName,
                           status: 'HOST',
                           host: true,
                         ),
@@ -830,16 +871,16 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                               ),
                             ),
                           ),
-                        const SizedBox(height: 16),
-                        _DashedPillButton(
-                          key: const ValueKey<String>(
-                            'reading-house-invite-reader',
+                        if (_canManageMembership) ...[
+                          const SizedBox(height: 16),
+                          _DashedPillButton(
+                            key: const ValueKey<String>(
+                              'reading-house-invite-reader',
+                            ),
+                            label: '+  Invite a reader',
+                            onTap: () => unawaited(_inviteReader()),
                           ),
-                          label: '+  Invite a reader',
-                          onTap: _canManageMembership
-                              ? () => unawaited(_inviteReader())
-                              : null,
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -892,22 +933,23 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
               ),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 14, 24, 30),
-            child: _OutlinePillButton(
-              key: const ValueKey<String>('reading-house-place-reading'),
-              label: _placingReading
-                  ? 'Placing reading…'
-                  : waiting <= 0
-                  ? 'Reading placed'
-                  : 'Place the reading',
-              color: ReadingHouseDetailTokens.gold,
-              onTap: waiting <= 0 || !_canEdit || _placingReading
-                  ? null
-                  : _placeReading,
-              busy: _placingReading,
-            ),
-          ),
+          if (_canEdit)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 14, 24, 30),
+              child: _OutlinePillButton(
+                key: const ValueKey<String>('reading-house-place-reading'),
+                label: _placingReading
+                    ? 'Placing reading…'
+                    : waiting <= 0
+                    ? 'Reading placed'
+                    : 'Place the reading',
+                color: ReadingHouseDetailTokens.gold,
+                onTap: waiting <= 0 || _placingReading ? null : _placeReading,
+                busy: _placingReading,
+              ),
+            )
+          else
+            const SizedBox(height: 30),
         ],
       ),
     );
@@ -933,18 +975,19 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
             _SittingRow(
               sitting: sitting,
               status: _sittingStatus(context, sitting),
-              onTap: () => _openSitting(sitting),
+              onTap: _canEdit ? () => _openSitting(sitting) : null,
             ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 22),
-            child: _DashedPillButton(
-              key: const ValueKey<String>('reading-house-add-sitting'),
-              label: _addingSitting ? 'Adding sitting…' : '+  Add sitting',
-              onTap: _canEdit && !_addingSitting
-                  ? () => unawaited(_addSitting())
-                  : null,
-            ),
-          ),
+          if (_canEdit)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 22),
+              child: _DashedPillButton(
+                key: const ValueKey<String>('reading-house-add-sitting'),
+                label: _addingSitting ? 'Adding sitting…' : '+  Add sitting',
+                onTap: !_addingSitting ? () => unawaited(_addSitting()) : null,
+              ),
+            )
+          else
+            const SizedBox(height: 22),
         ],
       ),
     );
@@ -1185,6 +1228,7 @@ class _SetupTextField extends StatelessWidget {
     required this.controller,
     required this.fieldKey,
     this.enabled = true,
+    this.readOnlyValue,
     this.trailing,
     this.topPadding = 17,
   });
@@ -1194,6 +1238,7 @@ class _SetupTextField extends StatelessWidget {
   final TextEditingController controller;
   final Key fieldKey;
   final bool enabled;
+  final String? readOnlyValue;
   final String? trailing;
   final double topPadding;
 
@@ -1226,31 +1271,47 @@ class _SetupTextField extends StatelessWidget {
                 ),
             ],
           ),
-          TextField(
-            key: fieldKey,
-            controller: controller,
-            enabled: enabled,
-            scrollPadding: keyboardManagedTextFieldScrollPadding,
-            cursorColor: ReadingHouseDetailTokens.houseHighlight,
-            style: _displayStyle(
-              color: ReadingHouseDetailTokens.houseHighlight,
-              fontSize: 22,
-              fontStyle: FontStyle.italic,
-              height: 1.25,
-            ),
-            decoration: InputDecoration(
-              isDense: true,
-              contentPadding: const EdgeInsets.only(top: 9, bottom: 6),
-              border: InputBorder.none,
-              hintText: hintText,
-              hintStyle: _displayStyle(
-                color: const Color(0xFF3F4A44),
+          if (enabled)
+            TextField(
+              key: fieldKey,
+              controller: controller,
+              scrollPadding: keyboardManagedTextFieldScrollPadding,
+              cursorColor: ReadingHouseDetailTokens.houseHighlight,
+              style: _displayStyle(
+                color: ReadingHouseDetailTokens.houseHighlight,
                 fontSize: 22,
                 fontStyle: FontStyle.italic,
                 height: 1.25,
               ),
+              decoration: InputDecoration(
+                isDense: true,
+                contentPadding: const EdgeInsets.only(top: 9, bottom: 6),
+                border: InputBorder.none,
+                hintText: hintText,
+                hintStyle: _displayStyle(
+                  color: const Color(0xFF3F4A44),
+                  fontSize: 22,
+                  fontStyle: FontStyle.italic,
+                  height: 1.25,
+                ),
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.only(top: 9, bottom: 6),
+              child: Text(
+                readOnlyValue?.trim().isNotEmpty == true
+                    ? readOnlyValue!.trim()
+                    : 'Not specified',
+                key: fieldKey,
+                style: _displayStyle(
+                  color: ReadingHouseDetailTokens.houseHighlight,
+                  fontSize: 22,
+                  fontStyle: FontStyle.italic,
+                  height: 1.25,
+                ),
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -1269,6 +1330,7 @@ class _SetupChoiceField extends StatelessWidget {
     required this.fieldKey,
     this.highlightedNote = false,
     this.busy = false,
+    this.readOnly = false,
   });
 
   final String label;
@@ -1281,6 +1343,7 @@ class _SetupChoiceField extends StatelessWidget {
   final Key fieldKey;
   final bool highlightedNote;
   final bool busy;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -1316,6 +1379,7 @@ class _SetupChoiceField extends StatelessWidget {
                   label: firstLabel,
                   selected: !secondSelected,
                   onTap: onFirst,
+                  readOnly: readOnly,
                 ),
               ),
               const SizedBox(width: 9),
@@ -1324,6 +1388,7 @@ class _SetupChoiceField extends StatelessWidget {
                   label: secondLabel,
                   selected: secondSelected,
                   onTap: onSecond,
+                  readOnly: readOnly,
                 ),
               ),
             ],
@@ -1364,46 +1429,49 @@ class _ChoiceButton extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
+    this.readOnly = false,
   });
 
   final String label;
   final bool selected;
   final VoidCallback? onTap;
+  final bool readOnly;
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      selected: selected,
-      button: true,
-      child: InkWell(
+    final content = AnimatedContainer(
+      duration: const Duration(milliseconds: 160),
+      constraints: const BoxConstraints(minHeight: 44),
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+      decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          constraints: const BoxConstraints(minHeight: 44),
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 9),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected
-                  ? const Color(0xC27FD9BC)
-                  : const Color(0x24E8E2D6),
-            ),
-            color: selected ? const Color(0x1A3FA98A) : Colors.transparent,
-          ),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: _displayStyle(
-              color: selected
-                  ? ReadingHouseDetailTokens.houseHighlight
-                  : ReadingHouseDetailTokens.silver,
-              fontSize: 15.5,
-            ),
-          ),
+        border: Border.all(
+          color: selected ? const Color(0xC27FD9BC) : const Color(0x24E8E2D6),
+        ),
+        color: selected ? const Color(0x1A3FA98A) : Colors.transparent,
+      ),
+      child: Text(
+        label,
+        textAlign: TextAlign.center,
+        style: _displayStyle(
+          color: selected
+              ? ReadingHouseDetailTokens.houseHighlight
+              : ReadingHouseDetailTokens.silver,
+          fontSize: 15.5,
         ),
       ),
+    );
+    return Semantics(
+      selected: selected,
+      button: !readOnly,
+      child: readOnly
+          ? content
+          : InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: onTap,
+              child: content,
+            ),
     );
   }
 }
@@ -1639,14 +1707,17 @@ class _SittingRow extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const Padding(
-              padding: EdgeInsets.only(top: 5),
-              child: Icon(
-                Icons.chevron_right,
-                size: 17,
-                color: ReadingHouseDetailTokens.house,
+            if (onTap != null) ...[
+              const SizedBox(width: 8),
+              const Padding(
+                padding: EdgeInsets.only(top: 5),
+                child: Icon(
+                  Icons.chevron_right,
+                  size: 17,
+                  color: ReadingHouseDetailTokens.house,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
@@ -1655,7 +1726,9 @@ class _SittingRow extends StatelessWidget {
 }
 
 class _ReadingFrame extends StatelessWidget {
-  const _ReadingFrame();
+  const _ReadingFrame({required this.question});
+
+  final String question;
 
   @override
   Widget build(BuildContext context) {
@@ -1684,7 +1757,7 @@ class _ReadingFrame extends StatelessWidget {
                 const _UpperLabel('HOUSE QUESTION · CAN WAIT'),
                 const SizedBox(height: 9),
                 Text(
-                  kReadingHouseDefaultQuestion,
+                  question,
                   style: _displayStyle(
                     color: ReadingHouseDetailTokens.bone,
                     fontSize: 19,
@@ -1924,6 +1997,9 @@ class _ReaderInviteSheet extends StatefulWidget {
 }
 
 class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
+  late final FocusNode _searchFocus = FocusNode(
+    debugLabel: 'reading-house-reader-search',
+  );
   String _query = '';
   List<UserSearchResult> _results = const <UserSearchResult>[];
   Timer? _debounce;
@@ -1936,7 +2012,14 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
   @override
   void dispose() {
     _debounce?.cancel();
+    _searchFocus.dispose();
     super.dispose();
+  }
+
+  void _dismiss([SharedCalendarMember? member]) {
+    _searchFocus.unfocus();
+    FocusManager.instance.primaryFocus?.unfocus();
+    Navigator.of(context).pop(member);
   }
 
   void _onQueryChanged(String raw) {
@@ -1985,7 +2068,7 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
     try {
       final member = await widget.onInvite(reader);
       if (!mounted) return;
-      Navigator.of(context).pop(member);
+      _dismiss(member);
     } catch (error) {
       if (!mounted) return;
       setState(() => _inviteError = error);
@@ -2012,7 +2095,7 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      padding: EdgeInsets.only(bottom: keyboardInsetOf(context)),
       child: Material(
         key: const ValueKey<String>('reading-house-invite-sheet'),
         color: const Color(0xFF0A0D0B),
@@ -2043,7 +2126,7 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
                     child: Align(
                       alignment: Alignment.centerRight,
                       child: IconButton(
-                        onPressed: () => Navigator.of(context).pop(),
+                        onPressed: _dismiss,
                         icon: const Icon(
                           Icons.close,
                           color: ReadingHouseDetailTokens.silver,
@@ -2059,6 +2142,7 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
               const SizedBox(height: 18),
               TextField(
                 key: const ValueKey<String>('reading-house-reader-search'),
+                focusNode: _searchFocus,
                 autofocus: true,
                 onChanged: _onQueryChanged,
                 scrollPadding: keyboardManagedTextFieldScrollPadding,

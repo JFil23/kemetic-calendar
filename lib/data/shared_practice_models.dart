@@ -523,6 +523,8 @@ class SharedPracticeRoomSnapshot {
     required this.members,
     required this.entries,
     this.joinRequests = const <SharedPracticeJoinRequest>[],
+    this.sourceFlow,
+    this.viewerCanEdit = false,
     this.viewerCanManage = false,
     this.viewerIsMember = false,
     this.todayStep,
@@ -535,6 +537,8 @@ class SharedPracticeRoomSnapshot {
   final List<SharedPracticeMemberStatus> members;
   final List<SharedPracticeEntry> entries;
   final List<SharedPracticeJoinRequest> joinRequests;
+  final Map<String, dynamic>? sourceFlow;
+  final bool viewerCanEdit;
   final bool viewerCanManage;
   final bool viewerIsMember;
 
@@ -547,6 +551,7 @@ class SharedPracticeRoomSnapshot {
     final membersRaw = json['members'];
     final entriesRaw = json['entries'];
     final joinRequestsRaw = json['join_requests'];
+    final sourceFlowRaw = json['source_flow'];
     return SharedPracticeRoomSnapshot(
       room: SharedPracticeRoom.fromJson(room),
       calendar: SharedPracticeCalendar.fromJson(calendar),
@@ -587,6 +592,12 @@ class SharedPracticeRoomSnapshot {
                 .where((request) => request.id.isNotEmpty)
                 .toList(growable: false)
           : const <SharedPracticeJoinRequest>[],
+      sourceFlow: sourceFlowRaw is Map
+          ? Map<String, dynamic>.unmodifiable(
+              Map<String, dynamic>.from(sourceFlowRaw),
+            )
+          : null,
+      viewerCanEdit: json['viewer_can_edit'] == true,
       viewerCanManage: json['viewer_can_manage'] == true,
       viewerIsMember: json['viewer_is_member'] == true,
     );

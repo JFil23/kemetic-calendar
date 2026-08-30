@@ -21,6 +21,13 @@ void main() {
           'viewer_can_manage': true,
         },
         'calendar': {'id': 'cal-1', 'name': 'Family', 'color': 0xD4AE43},
+        'source_flow': {
+          'id': 42,
+          'user_id': 'user-1',
+          'calendar_id': 'cal-1',
+          'name': 'The Reading House',
+          'notes': 'maat=the-reading-house',
+        },
         'local_date': '2026-06-24',
         'today_step': {
           'id': 'event-1',
@@ -74,6 +81,7 @@ void main() {
           },
         ],
         'viewer_can_manage': true,
+        'viewer_can_edit': true,
         'viewer_is_member': true,
       });
 
@@ -82,6 +90,8 @@ void main() {
       expect(snapshot.room.joinPolicy, SharedPracticeJoinPolicy.ownerApproval);
       expect(snapshot.room.pendingJoinRequestCount, 1);
       expect(snapshot.viewerCanManage, isTrue);
+      expect(snapshot.viewerCanEdit, isTrue);
+      expect(snapshot.sourceFlow?['id'], 42);
       expect(snapshot.todayStep?.flowId, 84);
       expect(
         snapshot.members.first.completionStatus,

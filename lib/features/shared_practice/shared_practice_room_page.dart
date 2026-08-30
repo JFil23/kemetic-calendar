@@ -4,8 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/completion_status.dart';
+import '../../data/shared_calendars_repo.dart';
 import '../../data/shared_practice_models.dart';
 import '../../data/shared_practice_repo.dart';
+import '../calendar/the_reading_house/presentation/reading_house_detail_page.dart';
+import '../calendar/the_reading_house/reading_house_authority.dart';
+import '../calendar/the_reading_house_flow.dart';
 import 'shared_practice_completion_sheet.dart';
 
 const Color _base = Color(0xFF0B0906);
@@ -15,10 +19,146 @@ const Color _ink = Color(0xFFE7E0D2);
 const Color _muted = Color(0xFF9E9A94);
 const String _serif = 'CormorantGaramond';
 
-class SharedPracticeRoomPage extends StatefulWidget {
-  const SharedPracticeRoomPage({super.key, required this.roomId});
+typedef SharedPracticeRoomSnapshotLoader =
+    Future<SharedPracticeRoomSnapshot> Function(
+      String roomId,
+      DateTime localDate,
+    );
+
+bool sharedPracticeSnapshotIsReadingHouse(SharedPracticeRoomSnapshot snapshot) {
+  final source = snapshot.sourceFlow;
+  if (source == null) return false;
+  final metadata = source['ai_metadata'];
+  final metadataFlowKey = metadata is Map
+      ? metadata['flow_key']?.toString()
+      : null;
+  final flowKey = snapshot.room.flowKey ?? metadataFlowKey;
+  return flowKey == kReadingHouseFlowKey &&
+      isReadingHouseFlowReference(
+        flowName: source['name']?.toString(),
+        flowNotes: source['notes']?.toString(),
+      );
+}
+
+class SharedPracticeRoomRoutePage extends StatefulWidget {
+  const SharedPracticeRoomRoutePage({
+    super.key,
+    required this.roomId,
+    this.loadSnapshot,
+    this.readingHouseAuthority,
+    this.resolvePersonalCalendarId,
+  });
 
   final String roomId;
+  final SharedPracticeRoomSnapshotLoader? loadSnapshot;
+  final ReadingHouseAuthority? readingHouseAuthority;
+  final Future<String?> Function()? resolvePersonalCalendarId;
+
+  @override
+  State<SharedPracticeRoomRoutePage> createState() =>
+      _SharedPracticeRoomRoutePageState();
+}
+
+class _SharedPracticeRoomRoutePageState
+    extends State<SharedPracticeRoomRoutePage> {
+  late final SupabaseClient _client = Supabase.instance.client;
+  late final SharedPracticeRepo _repo = SharedPracticeRepo(_client);
+  late Future<SharedPracticeRoomSnapshot> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _fetch();
+  }
+
+  Future<SharedPracticeRoomSnapshot> _fetch() =>
+      (widget.loadSnapshot ?? _loadSnapshot)(widget.roomId, DateTime.now());
+
+  void _refresh() => setState(() => _future = _fetch());
+
+  Future<SharedPracticeRoomSnapshot> _loadSnapshot(
+    String roomId,
+    DateTime localDate,
+  ) => _repo.getSharedPracticeRoom(roomId: roomId, localDate: localDate);
+
+  Future<String?> _loadPersonalCalendarId() async {
+    final repo = SharedCalendarsRepo(_client);
+    try {
+      final cached = await repo.restoreCachedSnapshot();
+      final cachedId = cached?.personalCalendarId?.trim();
+      if (cachedId != null && cachedId.isNotEmpty) return cachedId;
+    } catch (_) {
+      // Fall through to the live accepted-calendar authority.
+    }
+    try {
+      final snapshot = await repo.loadSnapshot();
+      final id = snapshot.personalCalendarId?.trim();
+      return id == null || id.isEmpty ? null : id;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<SharedPracticeRoomSnapshot>(
+      future: _future,
+      builder: (context, asyncSnapshot) {
+        if (asyncSnapshot.hasError) {
+          return Scaffold(
+            backgroundColor: _base,
+            appBar: AppBar(
+              backgroundColor: _base,
+              foregroundColor: _gold,
+              elevation: 0,
+            ),
+            body: _ErrorState(onRetry: _refresh),
+          );
+        }
+        final snapshot = asyncSnapshot.data;
+        if (snapshot == null) {
+          return const Scaffold(
+            backgroundColor: _base,
+            body: Center(child: CircularProgressIndicator(color: _gold)),
+          );
+        }
+        if (!sharedPracticeSnapshotIsReadingHouse(snapshot)) {
+          return SharedPracticeRoomPage(
+            roomId: widget.roomId,
+            initialSnapshot: snapshot,
+          );
+        }
+        final house = readingHouseSnapshotFromSharedPracticeRoom(snapshot);
+        final source = snapshot.sourceFlow!;
+        final timezone = readingHouseTimeZoneFromFlowNotes(
+          source['notes']?.toString(),
+        );
+        return ReadingHouseDetailPage(
+          timezone: timezone,
+          initialStartDate:
+              DateTime.tryParse(source['start_date']?.toString() ?? '') ??
+              snapshot.room.startDate,
+          initialSnapshot: house,
+          authority:
+              widget.readingHouseAuthority ??
+              LiveReadingHouseAuthority(_client),
+          resolvePersonalCalendarId:
+              widget.resolvePersonalCalendarId ?? _loadPersonalCalendarId,
+        );
+      },
+    );
+  }
+}
+
+class SharedPracticeRoomPage extends StatefulWidget {
+  const SharedPracticeRoomPage({
+    super.key,
+    required this.roomId,
+    this.initialSnapshot,
+  });
+
+  final String roomId;
+  final SharedPracticeRoomSnapshot? initialSnapshot;
 
   @override
   State<SharedPracticeRoomPage> createState() => _SharedPracticeRoomPageState();
@@ -37,7 +177,14 @@ class _SharedPracticeRoomPageState extends State<SharedPracticeRoomPage> {
   @override
   void initState() {
     super.initState();
-    _future = _load();
+    final initialSnapshot = widget.initialSnapshot;
+    if (initialSnapshot == null) {
+      _future = _load();
+    } else {
+      _snapshot = initialSnapshot;
+      _future = Future<SharedPracticeRoomSnapshot>.value(initialSnapshot);
+      unawaited(_markOpened(initialSnapshot));
+    }
   }
 
   Future<SharedPracticeRoomSnapshot> _load() async {
