@@ -1244,6 +1244,53 @@ void main() {
     expect(joinSource, isNot(contains('joinReadingHouseHeadless(')));
   });
 
+  test('Reading House narrow mutations stay on targeted authority paths', () {
+    final authoritySource = File(
+      'lib/features/calendar/the_reading_house/reading_house_authority.dart',
+    ).readAsStringSync();
+    final liveAuthority = authoritySource.substring(
+      authoritySource.indexOf('class LiveReadingHouseAuthority'),
+    );
+
+    final doorUpdate = _sourceBetween(
+      liveAuthority,
+      'Future<ReadingHouseSnapshot> updateHeldHouse',
+      '  @override\n  Future<ReadingHouseSnapshot> saveSitting',
+    );
+    expect(doorUpdate, contains('_updateSharedPracticeVisibility'));
+    expect(doorUpdate, isNot(contains('_materializeScheduledSittings')));
+    expect(doorUpdate, isNot(contains('_snapshotFromRow')));
+    expect(doorUpdate, isNot(contains('listMembers(')));
+
+    final sittingSave = _sourceBetween(
+      liveAuthority,
+      'Future<ReadingHouseSnapshot> saveSitting',
+      '  @override\n  Future<List<UserSearchResult>> searchReaders',
+    );
+    expect(sittingSave, contains('_materializeAffectedSitting'));
+    expect(sittingSave, isNot(contains('_materializeScheduledSittings')));
+    expect(sittingSave, isNot(contains('_snapshotFromRow')));
+    expect(sittingSave, isNot(contains('listMembers(')));
+
+    final affectedEvent = _sourceBetween(
+      liveAuthority,
+      'Future<void> _materializeAffectedSitting',
+      '  Future<ReadingHouseSnapshot> _snapshotFromRow',
+    );
+    expect(affectedEvent, contains(".eq('action_id', actionId)"));
+    expect(affectedEvent, contains('upsertByClientId('));
+
+    final invite = _sourceBetween(
+      liveAuthority,
+      'Future<SharedCalendarMember> inviteReader',
+      '  @override\n  Future<List<SharedCalendarMember>> refreshMembers',
+    );
+    expect(invite, contains('inviteUser('));
+    expect(invite, contains('return SharedCalendarMember('));
+    expect(invite, isNot(contains('load(')));
+    expect(invite, isNot(contains('listMembers(')));
+  });
+
   test('Reading House edit routes open the authoring surface', () {
     final calendarPageSource = File(
       'lib/features/calendar/calendar_page.dart',
@@ -1351,8 +1398,8 @@ void main() {
 
     final persist = _sourceBetween(
       detailSource,
-      'Future<ReadingHouseSnapshot?> _persistHouse',
-      '  Future<void> _holdHouse',
+      'Future<void> _persistDetails',
+      '  Future<ReadingHouseSnapshot?> _holdHouse',
     );
     expect(persist, contains('!_canEdit'));
 
@@ -1368,7 +1415,7 @@ void main() {
       'Future<void> _addSitting',
       '  void _showError',
     );
-    expect(addSitting, contains('if (!_canEdit) return'));
+    expect(addSitting, contains('!_canEdit'));
 
     expect(detailSource, contains('enabled: _canEdit'));
     expect(detailSource, contains('onTap: _canEdit'));
@@ -1436,7 +1483,9 @@ void main() {
     ).readAsStringSync();
     expect(draftSheet, contains('late final TextEditingController _titleCtrl'));
     expect(draftSheet, contains('void dispose()'));
-    expect(draftSheet, contains('void _saveDraft()'));
+    expect(draftSheet, contains('Future<void> _saveDraft()'));
+    expect(draftSheet, contains('final saved = await onSave(edited)'));
+    expect(draftSheet, contains('if (saved)'));
     expect(draftSheet, contains('Navigator.of(context).pop'));
     expect(draftSheet, contains('Name this sitting...'));
     expect(draftSheet, contains('Chapters, pages, maxims, or passage...'));

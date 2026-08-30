@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -66,14 +68,33 @@ abstract class ReadingHouseAuthority {
     required TrackSkyTimeZone timezone,
   });
 
+  Future<ReadingHouseSnapshot> updateHeldHouse({
+    required ReadingHouseSnapshot house,
+    required ReadingHousePlan plan,
+    required List<ReadingHouseSitting> sittings,
+    required bool openDoors,
+    required TrackSkyTimeZone timezone,
+  });
+
+  Future<ReadingHouseSnapshot> saveSitting({
+    required ReadingHouseSnapshot house,
+    required ReadingHouseSitting sitting,
+    required List<ReadingHouseSitting> sittings,
+    required TrackSkyTimeZone timezone,
+  });
+
   Future<List<UserSearchResult>> searchReaders(
     String query, {
     required Iterable<String> excludedUserIds,
   });
 
-  Future<ReadingHouseSnapshot> inviteReader({
+  Future<SharedCalendarMember> inviteReader({
     required ReadingHouseSnapshot house,
     required UserSearchResult reader,
+  });
+
+  Future<List<SharedCalendarMember>> refreshMembers({
+    required ReadingHouseSnapshot house,
   });
 }
 
@@ -93,6 +114,19 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
   final SharedPracticeRepo _practice;
   final ProfileRepo _profiles;
 
+  Future<T> _measure<T>(String operation, Future<T> Function() action) async {
+    final stopwatch = Stopwatch()..start();
+    try {
+      return await action();
+    } finally {
+      if (kDebugMode) {
+        debugPrint(
+          '[ReadingHouseTiming] $operation=${stopwatch.elapsedMilliseconds}ms',
+        );
+      }
+    }
+  }
+
   @override
   String? get currentUserId => _client.auth.currentUser?.id;
 
@@ -101,7 +135,7 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
     required int flowId,
     required ReadingHousePlan fallbackPlan,
     required List<ReadingHouseSitting> fallbackSittings,
-  }) async {
+  }) => _measure('plan_reload', () async {
     final row = await _flows.getFlowById(flowId);
     if (row == null) throw StateError('Reading House $flowId was not found.');
     return _snapshotFromRow(
@@ -109,7 +143,7 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
       fallbackPlan: fallbackPlan,
       fallbackSittings: fallbackSittings,
     );
-  }
+  });
 
   @override
   Future<ReadingHouseSnapshot> ensureHouse({
@@ -120,7 +154,7 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
     required List<ReadingHouseSitting> sittings,
     required bool openDoors,
     required TrackSkyTimeZone timezone,
-  }) async {
+  }) => _measure('hold_or_update_house', () async {
     // Reaching this authority is the explicit "Hold this house" boundary for
     // a new house. Progressive edits only call it after the house is held.
     final heldPlan = plan.copyWith(state: kReadingHouseHeldState);
@@ -152,57 +186,13 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
     }
 
     final normalized = normalizeReadingHouseSittingOrder(sittings);
-    final scheduled = normalized
-        .where((sitting) => sitting.scheduledDate != null)
-        .toList(growable: false);
-    final dates =
-        scheduled
-            .map((sitting) => DateUtils.dateOnly(sitting.scheduledDate!))
-            .toSet()
-            .toList()
-          ..sort();
-    final metadata = <String, dynamic>{
-      ...?existing?.aiMetadata,
-      'flow_key': kReadingHouseFlowKey,
-      kReadingHouseMetadataKey: readingHouseMetadata(
-        plan: heldPlan,
-        sittings: normalized,
-        openDoors: !heldPlan.isSolo && openDoors,
-      ),
-    };
-    final notes = <String>[
-      'mode=gregorian',
-      'split=1',
-      'maat=$kReadingHouseFlowKey',
-      'reading_house_tz=${timezone.key}',
-      ...readingHouseFlowNoteTokens(heldPlan),
-    ].join(';');
-    final rules = dates.isEmpty
-        ? const <Map<String, dynamic>>[]
-        : <Map<String, dynamic>>[
-            <String, dynamic>{
-              'type': 'dates',
-              'dates': dates
-                  .map((date) => date.millisecondsSinceEpoch)
-                  .toList(growable: false),
-              'allDay': true,
-            },
-          ];
-
-    final savedFlowId = await _events.upsertFlow(
-      id: existing?.id,
-      name: kReadingHouseTitle,
-      color: 0x3FA98A,
-      active: true,
+    final savedFlowId = await _persistFlowDefinition(
+      existing: existing,
       calendarId: targetCalendarId,
-      startDate: dates.isEmpty ? null : dates.first,
-      endDate: dates.isEmpty ? null : dates.last,
-      clearStartDate: dates.isEmpty,
-      clearEndDate: dates.isEmpty,
-      notes: notes,
-      rules: jsonEncode(rules),
-      originType: 'template',
-      aiMetadata: metadata,
+      plan: heldPlan,
+      sittings: normalized,
+      openDoors: openDoors,
+      timezone: timezone,
     );
 
     await _materializeScheduledSittings(
@@ -214,24 +204,14 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
     );
 
     if (!heldPlan.isSolo) {
-      final roomId = await _practice.ensureSharedExperienceForFlow(
+      await _updateSharedPracticeVisibility(
         flowId: savedFlowId,
         calendarId: targetCalendarId,
+        openDoors: openDoors,
       );
-      if (roomId != null) {
-        await _practice.setSharedPracticeVisibility(
-          roomId: roomId,
-          visibility: openDoors
-              ? SharedPracticeRoomVisibility.public
-              : SharedPracticeRoomVisibility.unlisted,
-          joinPolicy: openDoors
-              ? SharedPracticeJoinPolicy.ownerApproval
-              : SharedPracticeJoinPolicy.closed,
-        );
-      }
     }
 
-    await _flows.clearMyFiledFlowsCache();
+    unawaited(_flows.clearMyFiledFlowsCache());
     final row = await _flows.getFlowById(savedFlowId);
     if (row == null) {
       throw StateError('Reading House $savedFlowId could not be reloaded.');
@@ -241,13 +221,134 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
       fallbackPlan: heldPlan,
       fallbackSittings: normalized,
     );
-  }
+  });
+
+  @override
+  Future<ReadingHouseSnapshot> updateHeldHouse({
+    required ReadingHouseSnapshot house,
+    required ReadingHousePlan plan,
+    required List<ReadingHouseSitting> sittings,
+    required bool openDoors,
+    required TrackSkyTimeZone timezone,
+  }) => _measure('update_house_details', () async {
+    final flowId = house.flowId;
+    final calendarId = house.calendarId?.trim();
+    if (flowId == null ||
+        flowId <= 0 ||
+        calendarId == null ||
+        calendarId.isEmpty) {
+      throw StateError('Hold the Reading House before updating it.');
+    }
+    if (!house.canEdit) {
+      throw StateError('Only an editor can update this Reading House.');
+    }
+    if (plan.isSolo != house.plan.isSolo) {
+      throw StateError(
+        'Reading House mode changes must use the calendar transition path.',
+      );
+    }
+
+    final existing = await _flows.getFlowById(flowId);
+    if (existing == null) {
+      throw StateError('Reading House $flowId was not found.');
+    }
+    final heldPlan = plan.copyWith(state: kReadingHouseHeldState);
+    final normalized = normalizeReadingHouseSittingOrder(sittings);
+    final effectiveOpenDoors = !heldPlan.isSolo && openDoors;
+    await _persistFlowDefinition(
+      existing: existing,
+      calendarId: calendarId,
+      plan: heldPlan,
+      sittings: normalized,
+      openDoors: effectiveOpenDoors,
+      timezone: timezone,
+    );
+
+    if (!heldPlan.isSolo && effectiveOpenDoors != house.openDoors) {
+      await _updateSharedPracticeVisibility(
+        flowId: flowId,
+        calendarId: calendarId,
+        openDoors: effectiveOpenDoors,
+      );
+    }
+
+    unawaited(_flows.clearMyFiledFlowsCache());
+    return _snapshotWith(
+      house,
+      plan: heldPlan,
+      sittings: normalized,
+      openDoors: effectiveOpenDoors,
+    );
+  });
+
+  @override
+  Future<ReadingHouseSnapshot> saveSitting({
+    required ReadingHouseSnapshot house,
+    required ReadingHouseSitting sitting,
+    required List<ReadingHouseSitting> sittings,
+    required TrackSkyTimeZone timezone,
+  }) => _measure('date_time_or_sitting_save', () async {
+    final flowId = house.flowId;
+    final calendarId = house.calendarId?.trim();
+    if (flowId == null ||
+        flowId <= 0 ||
+        calendarId == null ||
+        calendarId.isEmpty) {
+      throw StateError('Hold the Reading House before saving a sitting.');
+    }
+    if (!house.canEdit) {
+      throw StateError('Only an editor can update a sitting.');
+    }
+
+    final existing = await _flows.getFlowById(flowId);
+    if (existing == null) {
+      throw StateError('Reading House $flowId was not found.');
+    }
+    final heldPlan = house.plan.copyWith(state: kReadingHouseHeldState);
+    final normalized = normalizeReadingHouseSittingOrder(sittings);
+    final persistedSitting = normalized.firstWhere(
+      (candidate) => candidate.eventNumber == sitting.eventNumber,
+      orElse: () => throw StateError('The sitting is no longer in the house.'),
+    );
+    ReadingHouseSitting? previous;
+    for (final candidate in house.sittings) {
+      if (candidate.eventNumber == sitting.eventNumber) {
+        previous = candidate;
+        break;
+      }
+    }
+
+    await _persistFlowDefinition(
+      existing: existing,
+      calendarId: calendarId,
+      plan: heldPlan,
+      sittings: normalized,
+      openDoors: house.openDoors,
+      timezone: timezone,
+    );
+    await _materializeAffectedSitting(
+      flowId: flowId,
+      calendarId: calendarId,
+      plan: heldPlan,
+      previous: previous,
+      sitting: persistedSitting,
+      timezone: timezone,
+    );
+
+    unawaited(_flows.clearMyFiledFlowsCache());
+    return _snapshotWith(
+      house,
+      plan: heldPlan,
+      sittings: normalized,
+      openDoors: house.openDoors,
+    );
+  });
 
   @override
   Future<List<UserSearchResult>> searchReaders(
     String query, {
     required Iterable<String> excludedUserIds,
-  }) async {
+  }) => _measure('profile_search', () async {
     final excluded = <String>{
       ...excludedUserIds.map((id) => id.trim()).where((id) => id.isNotEmpty),
       if (currentUserId?.trim().isNotEmpty == true) currentUserId!.trim(),
@@ -262,13 +363,13 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
       return aName.compareTo(bName);
     });
     return List<UserSearchResult>.unmodifiable(filtered.take(10));
-  }
+  });
 
   @override
-  Future<ReadingHouseSnapshot> inviteReader({
+  Future<SharedCalendarMember> inviteReader({
     required ReadingHouseSnapshot house,
     required UserSearchResult reader,
-  }) async {
+  }) => _measure('invite_reader', () async {
     final flowId = house.flowId;
     final calendarId = house.calendarId?.trim();
     if (flowId == null ||
@@ -287,12 +388,214 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
       calendarName: _sharedCalendarName(house.plan.displayBookTitle),
       calendarColorValue: 0x3FA98A,
     );
-    return load(
-      flowId: flowId,
-      fallbackPlan: house.plan,
-      fallbackSittings: house.sittings,
+    return SharedCalendarMember(
+      userId: reader.userId.trim(),
+      role: SharedCalendarRole.viewer,
+      status: SharedCalendarInviteStatus.pending,
+      invitedBy: currentUserId,
+      invitedAt: DateTime.now().toUtc(),
+      displayName: reader.displayName?.trim(),
+      handle: reader.handle?.trim(),
+    );
+  });
+
+  @override
+  Future<List<SharedCalendarMember>> refreshMembers({
+    required ReadingHouseSnapshot house,
+  }) => _measure('member_refresh', () async {
+    final calendarId = house.calendarId?.trim();
+    if (!house.isSharedHouse || calendarId == null || calendarId.isEmpty) {
+      return const <SharedCalendarMember>[];
+    }
+    final members = await _calendars.listMembers(
+      calendarId,
+      includePending: house.canManageMembership,
+    );
+    return List<SharedCalendarMember>.unmodifiable(members);
+  });
+
+  Future<int> _persistFlowDefinition({
+    required FlowRow? existing,
+    required String calendarId,
+    required ReadingHousePlan plan,
+    required List<ReadingHouseSitting> sittings,
+    required bool openDoors,
+    required TrackSkyTimeZone timezone,
+  }) => _measure('flow_definition_upsert', () async {
+    final scheduled = sittings
+        .where((sitting) => sitting.scheduledDate != null)
+        .toList(growable: false);
+    final dates =
+        scheduled
+            .map((sitting) => DateUtils.dateOnly(sitting.scheduledDate!))
+            .toSet()
+            .toList()
+          ..sort();
+    final metadata = <String, dynamic>{
+      ...?existing?.aiMetadata,
+      'flow_key': kReadingHouseFlowKey,
+      kReadingHouseMetadataKey: readingHouseMetadata(
+        plan: plan,
+        sittings: sittings,
+        openDoors: !plan.isSolo && openDoors,
+      ),
+    };
+    final notes = <String>[
+      'mode=gregorian',
+      'split=1',
+      'maat=$kReadingHouseFlowKey',
+      'reading_house_tz=${timezone.key}',
+      ...readingHouseFlowNoteTokens(plan),
+    ].join(';');
+    final rules = dates.isEmpty
+        ? const <Map<String, dynamic>>[]
+        : <Map<String, dynamic>>[
+            <String, dynamic>{
+              'type': 'dates',
+              'dates': dates
+                  .map((date) => date.millisecondsSinceEpoch)
+                  .toList(growable: false),
+              'allDay': true,
+            },
+          ];
+
+    return _events.upsertFlow(
+      id: existing?.id,
+      name: kReadingHouseTitle,
+      color: 0x3FA98A,
+      active: true,
+      calendarId: calendarId,
+      startDate: dates.isEmpty ? null : dates.first,
+      endDate: dates.isEmpty ? null : dates.last,
+      clearStartDate: dates.isEmpty,
+      clearEndDate: dates.isEmpty,
+      notes: notes,
+      rules: jsonEncode(rules),
+      originType: 'template',
+      aiMetadata: metadata,
+    );
+  });
+
+  ReadingHouseSnapshot _snapshotWith(
+    ReadingHouseSnapshot house, {
+    required ReadingHousePlan plan,
+    required List<ReadingHouseSitting> sittings,
+    required bool openDoors,
+  }) {
+    return ReadingHouseSnapshot(
+      flowId: house.flowId,
+      calendarId: house.calendarId,
+      plan: plan,
+      sittings: List<ReadingHouseSitting>.unmodifiable(sittings),
+      openDoors: openDoors,
+      members: house.members,
+      held: true,
+      canEdit: house.canEdit,
+      canManageMembership: house.canManageMembership,
+      isSharedHouse: house.isSharedHouse,
     );
   }
+
+  Future<void> _updateSharedPracticeVisibility({
+    required int flowId,
+    required String calendarId,
+    required bool openDoors,
+  }) => _measure('commons_visibility_update', () async {
+    final roomId = await _practice.ensureSharedExperienceForFlow(
+      flowId: flowId,
+      calendarId: calendarId,
+    );
+    if (roomId == null) return;
+    await _practice.setSharedPracticeVisibility(
+      roomId: roomId,
+      visibility: openDoors
+          ? SharedPracticeRoomVisibility.public
+          : SharedPracticeRoomVisibility.unlisted,
+      joinPolicy: openDoors
+          ? SharedPracticeJoinPolicy.ownerApproval
+          : SharedPracticeJoinPolicy.closed,
+    );
+  });
+
+  Future<void> _materializeAffectedSitting({
+    required int flowId,
+    required String calendarId,
+    required ReadingHousePlan plan,
+    required ReadingHouseSitting? previous,
+    required ReadingHouseSitting sitting,
+    required TrackSkyTimeZone timezone,
+  }) => _measure('sitting_event_materialization', () async {
+    if (previous?.scheduledDate == null && sitting.scheduledDate == null) {
+      return;
+    }
+
+    final actionId = readingHouseActionId(sitting);
+    final canonicalId = readingHouseClientEventId(
+      flowId: flowId,
+      eventNumber: sitting.eventNumber,
+    );
+    final rows = await _client
+        .from('user_events')
+        .select('client_event_id')
+        .eq('flow_local_id', flowId)
+        .eq('action_id', actionId)
+        .neq('category', 'tombstone');
+    final existingIds = (rows as List)
+        .whereType<Map>()
+        .map((row) => row['client_event_id']?.toString().trim())
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+
+    if (sitting.scheduledDate == null) {
+      for (final clientId in existingIds) {
+        await _events.deleteByClientId(
+          clientId,
+          semantic: 'reading_house_sitting_unplaced',
+          suppressesClient: false,
+          sourceFeature: 'LiveReadingHouseAuthority',
+        );
+      }
+      return;
+    }
+
+    final clientId = existingIds.contains(canonicalId)
+        ? canonicalId
+        : (existingIds.isEmpty ? canonicalId : existingIds.first);
+    for (final duplicate in existingIds.where((id) => id != clientId)) {
+      await _events.deleteByClientId(
+        duplicate,
+        semantic: 'reading_house_duplicate_materialization',
+        suppressesClient: false,
+        sourceFeature: 'LiveReadingHouseAuthority',
+      );
+    }
+    final schedule = readingHouseScheduleForDate(
+      sitting,
+      sitting.scheduledDate!,
+      timezone,
+      hour: sitting.hour,
+      minute: sitting.minute,
+    );
+    await _events.upsertByClientId(
+      clientEventId: clientId,
+      title: readingHouseSittingTitle(sitting),
+      startsAtUtc: schedule.startUtc,
+      endsAtUtc: schedule.endUtc,
+      detail: readingHouseDetailText(sitting, plan: plan),
+      flowLocalId: flowId,
+      category: 'Study',
+      actionId: actionId,
+      behaviorPayload: readingHouseBehaviorPayload(
+        sitting: sitting,
+        schedule: schedule,
+        plan: plan,
+      ),
+      calendarId: calendarId,
+      caller: 'reading_house_authority_targeted',
+    );
+  });
 
   Future<ReadingHouseSnapshot> _snapshotFromRow(
     FlowRow row, {

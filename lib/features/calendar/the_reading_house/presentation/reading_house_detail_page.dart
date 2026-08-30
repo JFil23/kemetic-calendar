@@ -99,6 +99,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
   late final TextEditingController _bookController;
   late final TextEditingController _editionController;
   late final TextEditingController _questionController;
+  final ScrollController _scrollController = ScrollController();
   late DateTime _windowStart;
   late List<ReadingHouseSitting> _sittings;
   late bool _withReaders;
@@ -109,7 +110,15 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
   List<SharedCalendarMember> _members = const <SharedCalendarMember>[];
   bool _canEdit = true;
   bool _canManageMembership = true;
-  bool _busy = false;
+  bool _loadingHouse = false;
+  bool _holding = false;
+  bool _savingMode = false;
+  bool _savingDoors = false;
+  bool _placingReading = false;
+  bool _addingSitting = false;
+  bool _applyingSnapshot = false;
+  int _detailsSaveSerial = 0;
+  int _memberRefreshSerial = 0;
   Timer? _saveDebounce;
 
   @override
@@ -147,6 +156,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
   @override
   void dispose() {
     _saveDebounce?.cancel();
+    _scrollController.dispose();
     _bookController.dispose();
     _editionController.dispose();
     _questionController.dispose();
@@ -188,29 +198,49 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
   );
 
   void _applySnapshot(ReadingHouseSnapshot snapshot) {
-    _flowId = snapshot.flowId;
-    _calendarId = snapshot.calendarId;
-    _held = snapshot.held;
-    _withReaders = !snapshot.plan.isSolo;
-    _openDoors = snapshot.openDoors;
-    _sittings = List<ReadingHouseSitting>.of(snapshot.sittings);
-    _members = snapshot.members;
-    _canEdit = snapshot.canEdit;
-    _canManageMembership = snapshot.canManageMembership;
-    final book = snapshot.plan.bookTitle.trim();
-    _bookController.text = book == kReadingHouseDefaultBookTitle ? '' : book;
-    _editionController.text = snapshot.plan.editionNote;
-    final question = snapshot.plan.houseQuestion.trim();
-    _questionController.text = question == kReadingHouseDefaultQuestion
-        ? ''
-        : question;
+    _applyingSnapshot = true;
+    try {
+      _flowId = snapshot.flowId;
+      _calendarId = snapshot.calendarId;
+      _held = snapshot.held;
+      _withReaders = !snapshot.plan.isSolo;
+      _openDoors = snapshot.openDoors;
+      _sittings = List<ReadingHouseSitting>.of(snapshot.sittings);
+      _members = snapshot.members;
+      _canEdit = snapshot.canEdit;
+      _canManageMembership = snapshot.canManageMembership;
+      final book = snapshot.plan.bookTitle.trim();
+      _replaceControllerText(
+        _bookController,
+        book == kReadingHouseDefaultBookTitle ? '' : book,
+      );
+      _replaceControllerText(_editionController, snapshot.plan.editionNote);
+      final question = snapshot.plan.houseQuestion.trim();
+      _replaceControllerText(
+        _questionController,
+        question == kReadingHouseDefaultQuestion ? '' : question,
+      );
+    } finally {
+      _applyingSnapshot = false;
+    }
+  }
+
+  void _replaceControllerText(
+    TextEditingController controller,
+    String nextText,
+  ) {
+    if (controller.text == nextText) return;
+    controller.value = TextEditingValue(
+      text: nextText,
+      selection: TextSelection.collapsed(offset: nextText.length),
+    );
   }
 
   Future<void> _loadHouse() async {
     final authority = widget.authority;
     final flowId = _flowId;
     if (authority == null || flowId == null || flowId <= 0) return;
-    setState(() => _busy = true);
+    setState(() => _loadingHouse = true);
     try {
       final snapshot = await authority.load(
         flowId: flowId,
@@ -222,116 +252,255 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
     } catch (error) {
       _showError('Could not load this Reading House: $error');
     } finally {
-      if (mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _loadingHouse = false);
     }
   }
 
   void _scheduleProgressiveSave() {
-    if (!_held || !_canEdit || _busy) return;
+    if (_applyingSnapshot || !_held || !_canEdit) return;
     _saveDebounce?.cancel();
     _saveDebounce = Timer(
       const Duration(milliseconds: 450),
-      () => unawaited(_persistHouse()),
+      () => unawaited(_persistDetails()),
     );
   }
 
-  Future<ReadingHouseSnapshot?> _persistHouse({bool showBusy = false}) async {
+  ReadingHouseSnapshot get _currentSnapshot => ReadingHouseSnapshot(
+    flowId: _flowId,
+    calendarId: _calendarId,
+    plan: _plan,
+    sittings: _sittings,
+    openDoors: _openDoors,
+    members: _members,
+    held: _held,
+    canEdit: _canEdit,
+    canManageMembership: _canManageMembership,
+    isSharedHouse: _withReaders,
+  );
+
+  Future<String> _personalCalendarId() async {
+    final resolved = await widget.resolvePersonalCalendarId?.call();
+    final calendarId = resolved?.trim();
+    if (calendarId == null || calendarId.isEmpty) {
+      throw StateError('Your personal calendar is unavailable.');
+    }
+    return calendarId;
+  }
+
+  Future<void> _persistDetails() async {
     final authority = widget.authority;
-    final resolveCalendar = widget.resolvePersonalCalendarId;
-    if (authority == null || resolveCalendar == null || !_canEdit) return null;
-    if (showBusy && mounted) setState(() => _busy = true);
+    if (authority == null || !_held || !_canEdit) return;
+    final serial = ++_detailsSaveSerial;
+    final house = _currentSnapshot;
     try {
-      final personalCalendarId = await resolveCalendar();
-      if (personalCalendarId == null || personalCalendarId.trim().isEmpty) {
-        throw StateError('Your personal calendar is unavailable.');
-      }
+      await authority.updateHeldHouse(
+        house: house,
+        plan: house.plan,
+        sittings: house.sittings,
+        openDoors: house.openDoors,
+        timezone: widget.timezone,
+      );
+      if (!mounted || serial != _detailsSaveSerial) return;
+    } catch (error) {
+      if (!mounted || serial != _detailsSaveSerial) return;
+      _showError('Could not save this Reading House: $error');
+    }
+  }
+
+  Future<ReadingHouseSnapshot?> _holdHouse() async {
+    if (_held) return _currentSnapshot;
+    final authority = widget.authority;
+    if (authority == null || !_canEdit || _holding || _loadingHouse) {
+      return null;
+    }
+    _saveDebounce?.cancel();
+    setState(() => _holding = true);
+    try {
       final snapshot = await authority.ensureHouse(
         flowId: _flowId,
         calendarId: _calendarId,
-        personalCalendarId: personalCalendarId.trim(),
+        personalCalendarId: await _personalCalendarId(),
         plan: _plan,
         sittings: _sittings,
         openDoors: _openDoors,
         timezone: widget.timezone,
       );
       if (!mounted) return snapshot;
-      final wasHeld = _held;
       setState(() => _applySnapshot(snapshot));
-      if (!wasHeld && snapshot.flowId != null) {
-        widget.onHeld?.call(snapshot.flowId!);
-      }
-      await _notifyPersisted(snapshot);
+      if (snapshot.flowId != null) widget.onHeld?.call(snapshot.flowId!);
+      _notifyPersistedInBackground(snapshot);
       return snapshot;
     } catch (error) {
-      _showError('Could not save this Reading House: $error');
+      _showError('Could not hold this Reading House: $error');
       return null;
     } finally {
-      if (showBusy && mounted) setState(() => _busy = false);
+      if (mounted) setState(() => _holding = false);
     }
   }
 
-  Future<void> _holdHouse() async {
-    if (_held || _busy) return;
-    await _persistHouse(showBusy: true);
+  Future<void> _changeMode(bool withReaders) async {
+    if (!_canEdit || _savingMode || _withReaders == withReaders) return;
+    if (!withReaders && _members.any((member) => !member.isOwner)) {
+      _showError(
+        'Remove invited readers before changing this house to Solo study.',
+      );
+      return;
+    }
+    if (!_held) {
+      setState(() {
+        _withReaders = withReaders;
+        if (!withReaders) _openDoors = false;
+      });
+      return;
+    }
+
+    final authority = widget.authority;
+    if (authority == null) return;
+    _saveDebounce?.cancel();
+    setState(() => _savingMode = true);
+    try {
+      final nextPlan = _plan.copyWith(
+        mode: withReaders ? kReadingHouseDefaultMode : kReadingHouseSoloMode,
+      );
+      final snapshot = await authority.ensureHouse(
+        flowId: _flowId,
+        calendarId: _calendarId,
+        personalCalendarId: await _personalCalendarId(),
+        plan: nextPlan,
+        sittings: _sittings,
+        openDoors: withReaders && _openDoors,
+        timezone: widget.timezone,
+      );
+      if (!mounted) return;
+      setState(() => _applySnapshot(snapshot));
+      _notifyPersistedInBackground(snapshot);
+    } catch (error) {
+      _showError('Could not change how this house is read: $error');
+    } finally {
+      if (mounted) setState(() => _savingMode = false);
+    }
+  }
+
+  Future<void> _changeDoors(bool openDoors) async {
+    if (!_canEdit || _savingDoors || _openDoors == openDoors) return;
+    if (!_held) {
+      setState(() => _openDoors = openDoors);
+      return;
+    }
+
+    final authority = widget.authority;
+    if (authority == null) return;
+    _saveDebounce?.cancel();
+    setState(() => _savingDoors = true);
+    try {
+      final house = _currentSnapshot;
+      final snapshot = await authority.updateHeldHouse(
+        house: house,
+        plan: house.plan,
+        sittings: house.sittings,
+        openDoors: openDoors,
+        timezone: widget.timezone,
+      );
+      if (!mounted) return;
+      setState(() => _openDoors = snapshot.openDoors);
+    } catch (error) {
+      _showError('Could not change the doors: $error');
+    } finally {
+      if (mounted) setState(() => _savingDoors = false);
+    }
   }
 
   Future<void> _placeReading() async {
-    if (!_canEdit || _busy) return;
-    setState(() {
-      _sittings = <ReadingHouseSitting>[
-        for (final sitting in _sittings)
-          sitting.copyWith(
-            scheduledDate: _windowStart.add(
-              Duration(days: sitting.flowDay - 1),
-            ),
-          ),
-      ];
-    });
-    if (_held) await _persistHouse(showBusy: true);
+    if (!_canEdit || _placingReading) return;
+    final next = <ReadingHouseSitting>[
+      for (final sitting in _sittings)
+        sitting.copyWith(
+          scheduledDate: _windowStart.add(Duration(days: sitting.flowDay - 1)),
+        ),
+    ];
+    if (!_held) {
+      setState(() => _sittings = next);
+      return;
+    }
+
+    final authority = widget.authority;
+    if (authority == null) return;
+    _saveDebounce?.cancel();
+    setState(() => _placingReading = true);
+    try {
+      final snapshot = await authority.ensureHouse(
+        flowId: _flowId,
+        calendarId: _calendarId,
+        personalCalendarId: await _personalCalendarId(),
+        plan: _plan,
+        sittings: next,
+        openDoors: _openDoors,
+        timezone: widget.timezone,
+      );
+      if (!mounted) return;
+      setState(() => _applySnapshot(snapshot));
+      _notifyPersistedInBackground(snapshot);
+    } catch (error) {
+      _showError('Could not place this reading: $error');
+    } finally {
+      if (mounted) setState(() => _placingReading = false);
+    }
   }
 
   Future<void> _inviteReader() async {
     if (!_held) {
-      final held = await _persistHouse(showBusy: true);
+      final held = await _holdHouse();
       if (held == null || !mounted) return;
     }
     final authority = widget.authority;
     if (authority == null || !_canManageMembership) return;
     final excluded = <String>{for (final member in _members) member.userId};
-    final result = await showModalBottomSheet<UserSearchResult>(
+    final invited = await showModalBottomSheet<SharedCalendarMember>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (_) =>
-          _ReaderInviteSheet(authority: authority, excludedUserIds: excluded),
+      builder: (_) => _ReaderInviteSheet(
+        authority: authority,
+        excludedUserIds: excluded,
+        onInvite: (reader) =>
+            authority.inviteReader(house: _currentSnapshot, reader: reader),
+      ),
     );
-    if (result == null || !mounted) return;
-    final current = ReadingHouseSnapshot(
-      flowId: _flowId,
-      calendarId: _calendarId,
-      plan: _plan,
-      sittings: _sittings,
-      openDoors: _openDoors,
-      members: _members,
-      held: _held,
-      canEdit: _canEdit,
-      canManageMembership: _canManageMembership,
-      isSharedHouse: _withReaders,
-    );
-    setState(() => _busy = true);
+    if (invited == null || !mounted) return;
+    setState(() => _members = _upsertMember(_members, invited));
+    unawaited(_refreshMembersInBackground());
+  }
+
+  List<SharedCalendarMember> _upsertMember(
+    List<SharedCalendarMember> current,
+    SharedCalendarMember member,
+  ) {
+    return List<SharedCalendarMember>.unmodifiable(<SharedCalendarMember>[
+      for (final existing in current)
+        if (existing.userId != member.userId) existing,
+      member,
+    ]);
+  }
+
+  Future<void> _refreshMembersInBackground() async {
+    final authority = widget.authority;
+    if (authority == null || !_held || !_withReaders) return;
+    final serial = ++_memberRefreshSerial;
     try {
-      final snapshot = await authority.inviteReader(
-        house: current,
-        reader: result,
-      );
-      if (mounted) setState(() => _applySnapshot(snapshot));
-      await _notifyPersisted(snapshot);
-    } catch (error) {
-      _showError('Could not invite that reader: $error');
-    } finally {
-      if (mounted) setState(() => _busy = false);
+      final members = await authority.refreshMembers(house: _currentSnapshot);
+      if (!mounted || serial != _memberRefreshSerial) return;
+      setState(() => _members = members);
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('[ReadingHouse] member reconciliation failed: $error');
+        debugPrint('$stackTrace');
+      }
     }
+  }
+
+  void _notifyPersistedInBackground(ReadingHouseSnapshot snapshot) {
+    unawaited(_notifyPersisted(snapshot));
   }
 
   Future<void> _notifyPersisted(ReadingHouseSnapshot snapshot) async {
@@ -349,7 +518,10 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
 
   Future<void> _openSitting(ReadingHouseSitting sitting) async {
     if (!_canEdit) return;
-    final edited = await ReadingHouseSittingEditorSheet.show(
+    final returnOffset = _scrollController.hasClients
+        ? _scrollController.offset
+        : null;
+    await ReadingHouseSittingEditorSheet.show(
       context,
       sitting: sitting,
       initialDate: sitting.scheduledDate ?? _windowStart,
@@ -358,24 +530,86 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
           date.difference(DateUtils.dateOnly(_windowStart)).inDays + 1,
       accentColor: ReadingHouseDetailTokens.houseHighlight,
       borderColor: const Color(0x664FA58D),
+      onSave: (edited) => _saveSitting(sitting, edited),
     );
-    if (edited == null || !mounted) return;
-    setState(() {
-      _sittings = editReadingHouseSitting(
-        _sittings,
-        sitting.eventNumber,
-        edited,
+    await Future<void>.delayed(kThemeAnimationDuration);
+    if (!mounted || returnOffset == null || !_scrollController.hasClients) {
+      return;
+    }
+    final position = _scrollController.position;
+    position.jumpTo(
+      returnOffset.clamp(position.minScrollExtent, position.maxScrollExtent),
+    );
+  }
+
+  Future<bool> _saveSitting(
+    ReadingHouseSitting original,
+    ReadingHouseSitting edited,
+  ) async {
+    final next = editReadingHouseSitting(
+      _sittings,
+      original.eventNumber,
+      edited,
+    );
+    if (!_held) {
+      if (mounted) setState(() => _sittings = next);
+      return true;
+    }
+    final authority = widget.authority;
+    if (authority == null) return false;
+    _saveDebounce?.cancel();
+    try {
+      final snapshot = await authority.saveSitting(
+        house: _currentSnapshot,
+        sitting: edited,
+        sittings: next,
+        timezone: widget.timezone,
       );
-    });
-    if (_held) await _persistHouse();
+      if (!mounted) return true;
+      setState(() {
+        _sittings = editReadingHouseSitting(
+          _sittings,
+          edited.eventNumber,
+          snapshot.sittings.firstWhere(
+            (candidate) => candidate.eventNumber == edited.eventNumber,
+          ),
+        );
+      });
+      _notifyPersistedInBackground(snapshot);
+      return true;
+    } catch (error) {
+      _showError('Could not save this sitting: $error');
+      return false;
+    }
   }
 
   Future<void> _addSitting() async {
-    if (!_canEdit) return;
+    if (!_canEdit || _addingSitting) return;
     final next = addReadingHouseSitting(_sittings);
     final added = next.last;
-    setState(() => _sittings = next);
-    if (_held) await _persistHouse();
+    if (_held) {
+      final authority = widget.authority;
+      if (authority == null) return;
+      setState(() => _addingSitting = true);
+      try {
+        final snapshot = await authority.saveSitting(
+          house: _currentSnapshot,
+          sitting: added,
+          sittings: next,
+          timezone: widget.timezone,
+        );
+        if (!mounted) return;
+        setState(() => _sittings = List.of(snapshot.sittings));
+      } catch (error) {
+        _showError('Could not add this sitting: $error');
+        return;
+      } finally {
+        if (mounted) setState(() => _addingSitting = false);
+      }
+    } else {
+      setState(() => _sittings = next);
+    }
+    if (!mounted) return;
     await _openSitting(added);
   }
 
@@ -390,6 +624,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
   Widget build(BuildContext context) {
     final body = MaatFlowDetailShell(
       theme: ReadingHouseDetailTokens.theme,
+      scrollController: _scrollController,
       scrollKey: const ValueKey<String>('reading-house-scroll'),
       heroLayerKey: const ValueKey<String>('reading-house-hero-layer'),
       sheetKey: const ValueKey<String>('reading-house-sheet'),
@@ -397,8 +632,8 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
       bottomDock: MaatFlowDetailDock(
         theme: ReadingHouseDetailTokens.theme,
         joined: _held,
-        busy: _busy,
-        onPressed: _canEdit ? _holdHouse : null,
+        busy: _holding,
+        onPressed: _canEdit && !_loadingHouse ? _holdHouse : null,
         actionLabel: 'Hold this house',
         actionNote:
             'This creates the house in My Flows. You do not need to schedule it yet.',
@@ -507,31 +742,17 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
             firstLabel: 'Solo study',
             secondLabel: 'With readers',
             secondSelected: _withReaders,
-            onFirst: !_canEdit
+            onFirst: !_canEdit || _savingMode
                 ? null
-                : () {
-                    if (_members.any((member) => !member.isOwner)) {
-                      _showError(
-                        'Remove invited readers before changing this house to Solo study.',
-                      );
-                      return;
-                    }
-                    setState(() {
-                      _withReaders = false;
-                      _openDoors = false;
-                    });
-                    if (_held) unawaited(_persistHouse(showBusy: true));
-                  },
-            onSecond: !_canEdit
+                : () => unawaited(_changeMode(false)),
+            onSecond: !_canEdit || _savingMode
                 ? null
-                : () {
-                    setState(() => _withReaders = true);
-                    if (_held) unawaited(_persistHouse(showBusy: true));
-                  },
+                : () => unawaited(_changeMode(true)),
             note: _withReaders
                 ? 'Everyone who accepts sees this same house, even before it has dates.'
                 : 'A solo house stays with you and your private calendar.',
             fieldKey: const ValueKey<String>('reading-house-mode'),
+            busy: _savingMode,
           ),
           IgnorePointer(
             ignoring: !_withReaders,
@@ -543,23 +764,18 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                 firstLabel: 'Closed · invited',
                 secondLabel: 'Open · Commons',
                 secondSelected: _openDoors,
-                onFirst: !_canEdit
+                onFirst: !_canEdit || _savingDoors
                     ? null
-                    : () {
-                        setState(() => _openDoors = false);
-                        if (_held) unawaited(_persistHouse(showBusy: true));
-                      },
-                onSecond: !_canEdit
+                    : () => unawaited(_changeDoors(false)),
+                onSecond: !_canEdit || _savingDoors
                     ? null
-                    : () {
-                        setState(() => _openDoors = true);
-                        if (_held) unawaited(_persistHouse(showBusy: true));
-                      },
+                    : () => unawaited(_changeDoors(true)),
                 note: _openDoors
                     ? 'Community members can discover this house in the Commons.'
                     : 'Closed houses only appear to people you invite.',
                 highlightedNote: _openDoors,
                 fieldKey: const ValueKey<String>('reading-house-doors'),
+                busy: _savingDoors,
               ),
             ),
           ),
@@ -620,7 +836,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                             'reading-house-invite-reader',
                           ),
                           label: '+  Invite a reader',
-                          onTap: _canManageMembership && !_busy
+                          onTap: _canManageMembership
                               ? () => unawaited(_inviteReader())
                               : null,
                         ),
@@ -680,9 +896,16 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
             padding: const EdgeInsets.fromLTRB(24, 14, 24, 30),
             child: _OutlinePillButton(
               key: const ValueKey<String>('reading-house-place-reading'),
-              label: waiting <= 0 ? 'Reading placed' : 'Place the reading',
+              label: _placingReading
+                  ? 'Placing reading…'
+                  : waiting <= 0
+                  ? 'Reading placed'
+                  : 'Place the reading',
               color: ReadingHouseDetailTokens.gold,
-              onTap: waiting <= 0 || !_canEdit || _busy ? null : _placeReading,
+              onTap: waiting <= 0 || !_canEdit || _placingReading
+                  ? null
+                  : _placeReading,
+              busy: _placingReading,
             ),
           ),
         ],
@@ -716,8 +939,10 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
             padding: const EdgeInsets.fromLTRB(24, 16, 24, 22),
             child: _DashedPillButton(
               key: const ValueKey<String>('reading-house-add-sitting'),
-              label: '+  Add sitting',
-              onTap: _canEdit ? () => unawaited(_addSitting()) : null,
+              label: _addingSitting ? 'Adding sitting…' : '+  Add sitting',
+              onTap: _canEdit && !_addingSitting
+                  ? () => unawaited(_addSitting())
+                  : null,
             ),
           ),
         ],
@@ -1043,6 +1268,7 @@ class _SetupChoiceField extends StatelessWidget {
     required this.note,
     required this.fieldKey,
     this.highlightedNote = false,
+    this.busy = false,
   });
 
   final String label;
@@ -1054,6 +1280,7 @@ class _SetupChoiceField extends StatelessWidget {
   final String note;
   final Key fieldKey;
   final bool highlightedNote;
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
@@ -1066,7 +1293,21 @@ class _SetupChoiceField extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _UpperLabel(label),
+          Row(
+            children: [
+              Expanded(child: _UpperLabel(label)),
+              if (busy)
+                const SizedBox(
+                  key: ValueKey<String>('reading-house-choice-busy'),
+                  width: 13,
+                  height: 13,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 1.5,
+                    color: ReadingHouseDetailTokens.houseHighlight,
+                  ),
+                ),
+            ],
+          ),
           const SizedBox(height: 11),
           Row(
             children: [
@@ -1529,11 +1770,13 @@ class _OutlinePillButton extends StatelessWidget {
     required this.label,
     required this.color,
     required this.onTap,
+    this.busy = false,
   });
 
   final String label;
   final Color color;
   final VoidCallback? onTap;
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
@@ -1548,7 +1791,16 @@ class _OutlinePillButton extends StatelessWidget {
           shape: const StadiumBorder(),
           textStyle: _displayStyle(fontSize: 16),
         ),
-        child: Text(label),
+        child: busy
+            ? SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.8,
+                  color: color,
+                ),
+              )
+            : Text(label),
       ),
     );
   }
@@ -1660,10 +1912,12 @@ class _ReaderInviteSheet extends StatefulWidget {
   const _ReaderInviteSheet({
     required this.authority,
     required this.excludedUserIds,
+    required this.onInvite,
   });
 
   final ReadingHouseAuthority authority;
   final Set<String> excludedUserIds;
+  final Future<SharedCalendarMember> Function(UserSearchResult reader) onInvite;
 
   @override
   State<_ReaderInviteSheet> createState() => _ReaderInviteSheetState();
@@ -1676,6 +1930,8 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
   int _searchSerial = 0;
   bool _searching = false;
   Object? _error;
+  Object? _inviteError;
+  String? _invitingUserId;
 
   @override
   void dispose() {
@@ -1690,13 +1946,14 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
     setState(() {
       _query = query;
       _error = null;
+      _inviteError = null;
       if (query.length < 2) {
         _results = const <UserSearchResult>[];
         _searching = false;
       }
     });
     if (query.length < 2) return;
-    _debounce = Timer(const Duration(milliseconds: 300), () async {
+    _debounce = Timer(const Duration(milliseconds: 250), () async {
       if (mounted) setState(() => _searching = true);
       try {
         final results = await widget.authority.searchReaders(
@@ -1717,6 +1974,24 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
         });
       }
     });
+  }
+
+  Future<void> _invite(UserSearchResult reader) async {
+    if (_invitingUserId != null) return;
+    setState(() {
+      _invitingUserId = reader.userId;
+      _inviteError = null;
+    });
+    try {
+      final member = await widget.onInvite(reader);
+      if (!mounted) return;
+      Navigator.of(context).pop(member);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _inviteError = error);
+    } finally {
+      if (mounted) setState(() => _invitingUserId = null);
+    }
   }
 
   String _initials(UserSearchResult reader) {
@@ -1816,7 +2091,9 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
               ),
               const SizedBox(height: 12),
               Text(
-                _query.length < 2
+                _inviteError != null
+                    ? 'Invitation failed. Please try again.'
+                    : _query.length < 2
                     ? 'Type at least two characters to search profiles.'
                     : _searching
                     ? 'Searching…'
@@ -1838,7 +2115,9 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
                   key: ValueKey<String>(
                     'reading-house-reader-result-${reader.userId}',
                   ),
-                  onTap: () => Navigator.of(context).pop(reader),
+                  onTap: _invitingUserId == null
+                      ? () => unawaited(_invite(reader))
+                      : null,
                   child: Container(
                     constraints: const BoxConstraints(minHeight: 54),
                     decoration: const BoxDecoration(
@@ -1889,13 +2168,26 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
                             ],
                           ),
                         ),
-                        Text(
-                          'ADD',
-                          style: _uiStyle(
-                            color: ReadingHouseDetailTokens.houseHighlight,
-                            fontSize: 12,
+                        if (_invitingUserId == reader.userId)
+                          const SizedBox(
+                            key: ValueKey<String>(
+                              'reading-house-invite-result-busy',
+                            ),
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 1.8,
+                              color: ReadingHouseDetailTokens.houseHighlight,
+                            ),
+                          )
+                        else
+                          Text(
+                            'ADD',
+                            style: _uiStyle(
+                              color: ReadingHouseDetailTokens.houseHighlight,
+                              fontSize: 12,
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ),

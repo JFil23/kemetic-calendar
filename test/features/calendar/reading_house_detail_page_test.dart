@@ -412,6 +412,179 @@ void main() {
     expect(authority.lastExcluded, contains('host-user'));
   });
 
+  testWidgets('profile search waits 250ms before using the authority', (
+    tester,
+  ) async {
+    final authority = _ControlledSearchAuthority();
+    await pumpHouse(tester, authority: authority);
+    await jumpHouseScroll(tester, 1050);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('reading-house-invite-reader')),
+    );
+    await tester.pumpAndSettle();
+    final field = find.byKey(
+      const ValueKey<String>('reading-house-reader-search'),
+    );
+    await tester.enterText(field, 'Am');
+    await tester.pump(const Duration(milliseconds: 249));
+    expect(authority.searchCount, 0);
+    await tester.pump(const Duration(milliseconds: 1));
+    expect(authority.searchCount, 1);
+
+    authority.complete(
+      'Am',
+      UserSearchResult(
+        userId: 'amina-user',
+        displayName: 'Amina Reed',
+        handle: 'aminareads',
+      ),
+    );
+    await tester.pump();
+    expect(find.text('Amina Reed'), findsOneWidget);
+  });
+
+  testWidgets('invite is locally busy and refreshes only members', (
+    tester,
+  ) async {
+    final authority = _FakeReadingHouseAuthority()
+      ..inviteGate = Completer<void>();
+    await pumpHouse(
+      tester,
+      authority: authority,
+      initialFlowId: authority.flowId,
+    );
+    authority.resetOperationCounts();
+    await jumpHouseScroll(tester, 1050);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('reading-house-invite-reader')),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('reading-house-reader-search')),
+      'Amina',
+    );
+    await tester.pump(const Duration(milliseconds: 250));
+    await tester.pump();
+    await tester.tap(find.text('Amina Reed'));
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey<String>('reading-house-invite-result-busy')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('reading-house-invite-sheet')),
+      findsOneWidget,
+    );
+    expect(
+      tester.widget<MaatFlowDetailDock>(find.byType(MaatFlowDetailDock)).busy,
+      isFalse,
+    );
+    expect(authority.inviteCount, 1);
+    expect(authority.ensureCount, 0);
+    expect(authority.updateCount, 0);
+    expect(authority.sittingSaveCount, 0);
+    expect(authority.loadCount, 0);
+
+    authority.inviteGate!.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('Amina Reed'), findsOneWidget);
+    expect(authority.memberRefreshCount, 1);
+    expect(authority.ensureCount, 0);
+    expect(authority.updateCount, 0);
+    expect(authority.sittingSaveCount, 0);
+    expect(authority.loadCount, 0);
+  });
+
+  testWidgets('door change does not reload plan, members, or events', (
+    tester,
+  ) async {
+    final authority = _FakeReadingHouseAuthority()
+      ..updateGate = Completer<void>();
+    await pumpHouse(
+      tester,
+      authority: authority,
+      initialFlowId: authority.flowId,
+    );
+    authority.resetOperationCounts();
+    await jumpHouseScroll(tester, 820);
+    await tester.tap(find.text('Open · Commons'));
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey<String>('reading-house-choice-busy')),
+      findsOneWidget,
+    );
+    expect(
+      tester.widget<MaatFlowDetailDock>(find.byType(MaatFlowDetailDock)).busy,
+      isFalse,
+    );
+    expect(authority.updateCount, 1);
+    expect(authority.ensureCount, 0);
+    expect(authority.memberRefreshCount, 0);
+    expect(authority.sittingSaveCount, 0);
+    expect(authority.loadCount, 0);
+
+    authority.updateGate!.complete();
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Community members can discover this house in the Commons.'),
+      findsOneWidget,
+    );
+    expect(authority.updateCount, 1);
+    expect(authority.ensureCount, 0);
+    expect(authority.memberRefreshCount, 0);
+    expect(authority.sittingSaveCount, 0);
+    expect(authority.loadCount, 0);
+  });
+
+  testWidgets('one sitting save stays in-sheet and preserves page scroll', (
+    tester,
+  ) async {
+    final authority = _FakeReadingHouseAuthority()
+      ..sittingSaveGate = Completer<void>();
+    await pumpHouse(
+      tester,
+      authority: authority,
+      initialFlowId: authority.flowId,
+    );
+    authority.resetOperationCounts();
+    await jumpHouseScroll(tester, 2000);
+    final position = tester.state<ScrollableState>(houseScrollable()).position;
+    final beforeOffset = position.pixels;
+    await tester.tap(
+      find.byKey(const ValueKey<String>('reading-house-sitting-1')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey<String>('reading_house_sitting_save_button')),
+    );
+    await tester.pump();
+
+    expect(find.byType(ReadingHouseSittingEditorSheet), findsOneWidget);
+    expect(find.text('Saving…'), findsOneWidget);
+    expect(
+      tester.widget<MaatFlowDetailDock>(find.byType(MaatFlowDetailDock)).busy,
+      isFalse,
+    );
+    expect(authority.sittingSaveCount, 1);
+    expect(authority.lastSavedSittingEventNumber, 1);
+    expect(authority.ensureCount, 0);
+    expect(authority.updateCount, 0);
+    expect(authority.memberRefreshCount, 0);
+    expect(authority.loadCount, 0);
+
+    authority.sittingSaveGate!.complete();
+    await tester.pumpAndSettle();
+    expect(find.byType(ReadingHouseSittingEditorSheet), findsNothing);
+    expect(position.pixels, closeTo(beforeOffset, 0.01));
+    expect(authority.sittingSaveCount, 1);
+    expect(authority.ensureCount, 0);
+    expect(authority.updateCount, 0);
+    expect(authority.memberRefreshCount, 0);
+    expect(authority.loadCount, 0);
+  });
+
   testWidgets('narrow phone keeps the shared page free of layout overflow', (
     tester,
   ) async {
@@ -495,10 +668,19 @@ Future<void> _loadVisualFonts() async {
 class _FakeReadingHouseAuthority implements ReadingHouseAuthority {
   int get flowId => 41;
   int ensureCount = 0;
+  int updateCount = 0;
+  int sittingSaveCount = 0;
   int inviteCount = 0;
+  int memberRefreshCount = 0;
   int searchCount = 0;
+  int loadCount = 0;
+  int? lastSavedSittingEventNumber;
   Set<String> lastExcluded = <String>{};
   ReadingHouseSnapshot? lastSnapshot;
+  Completer<void>? updateGate;
+  Completer<void>? inviteGate;
+  Completer<void>? memberRefreshGate;
+  Completer<void>? sittingSaveGate;
 
   static const _host = SharedCalendarMember(
     userId: 'host-user',
@@ -510,6 +692,16 @@ class _FakeReadingHouseAuthority implements ReadingHouseAuthority {
 
   @override
   String? get currentUserId => 'host-user';
+
+  void resetOperationCounts() {
+    ensureCount = 0;
+    updateCount = 0;
+    sittingSaveCount = 0;
+    inviteCount = 0;
+    memberRefreshCount = 0;
+    loadCount = 0;
+    lastSavedSittingEventNumber = null;
+  }
 
   @override
   Future<ReadingHouseSnapshot> ensureHouse({
@@ -542,34 +734,41 @@ class _FakeReadingHouseAuthority implements ReadingHouseAuthority {
   }
 
   @override
-  Future<ReadingHouseSnapshot> inviteReader({
+  Future<SharedCalendarMember> inviteReader({
     required ReadingHouseSnapshot house,
     required UserSearchResult reader,
   }) async {
     inviteCount += 1;
-    final snapshot = ReadingHouseSnapshot(
+    await inviteGate?.future;
+    final member = SharedCalendarMember(
+      userId: reader.userId,
+      role: SharedCalendarRole.viewer,
+      status: SharedCalendarInviteStatus.pending,
+      displayName: reader.displayName,
+      handle: reader.handle,
+    );
+    lastSnapshot = ReadingHouseSnapshot(
       flowId: house.flowId,
       calendarId: house.calendarId,
       plan: house.plan,
       sittings: house.sittings,
       openDoors: house.openDoors,
-      members: <SharedCalendarMember>[
-        ...house.members,
-        SharedCalendarMember(
-          userId: reader.userId,
-          role: SharedCalendarRole.viewer,
-          status: SharedCalendarInviteStatus.pending,
-          displayName: reader.displayName,
-          handle: reader.handle,
-        ),
-      ],
+      members: <SharedCalendarMember>[...house.members, member],
       held: true,
       canEdit: true,
       canManageMembership: true,
       isSharedHouse: true,
     );
-    lastSnapshot = snapshot;
-    return snapshot;
+    return member;
+  }
+
+  @override
+  Future<List<SharedCalendarMember>> refreshMembers({
+    required ReadingHouseSnapshot house,
+  }) async {
+    memberRefreshCount += 1;
+    await memberRefreshGate?.future;
+    return lastSnapshot?.members ?? house.members;
   }
 
   @override
@@ -578,6 +777,7 @@ class _FakeReadingHouseAuthority implements ReadingHouseAuthority {
     required ReadingHousePlan fallbackPlan,
     required List<ReadingHouseSitting> fallbackSittings,
   }) async {
+    loadCount += 1;
     return lastSnapshot ??
         ReadingHouseSnapshot(
           flowId: flowId,
@@ -591,6 +791,58 @@ class _FakeReadingHouseAuthority implements ReadingHouseAuthority {
           canManageMembership: true,
           isSharedHouse: true,
         );
+  }
+
+  @override
+  Future<ReadingHouseSnapshot> updateHeldHouse({
+    required ReadingHouseSnapshot house,
+    required ReadingHousePlan plan,
+    required List<ReadingHouseSitting> sittings,
+    required bool openDoors,
+    required TrackSkyTimeZone timezone,
+  }) async {
+    updateCount += 1;
+    await updateGate?.future;
+    final snapshot = ReadingHouseSnapshot(
+      flowId: house.flowId,
+      calendarId: house.calendarId,
+      plan: plan.copyWith(state: kReadingHouseHeldState),
+      sittings: List<ReadingHouseSitting>.of(sittings),
+      openDoors: !plan.isSolo && openDoors,
+      members: house.members,
+      held: true,
+      canEdit: house.canEdit,
+      canManageMembership: house.canManageMembership,
+      isSharedHouse: house.isSharedHouse,
+    );
+    lastSnapshot = snapshot;
+    return snapshot;
+  }
+
+  @override
+  Future<ReadingHouseSnapshot> saveSitting({
+    required ReadingHouseSnapshot house,
+    required ReadingHouseSitting sitting,
+    required List<ReadingHouseSitting> sittings,
+    required TrackSkyTimeZone timezone,
+  }) async {
+    sittingSaveCount += 1;
+    lastSavedSittingEventNumber = sitting.eventNumber;
+    await sittingSaveGate?.future;
+    final snapshot = ReadingHouseSnapshot(
+      flowId: house.flowId,
+      calendarId: house.calendarId,
+      plan: house.plan,
+      sittings: List<ReadingHouseSitting>.of(sittings),
+      openDoors: house.openDoors,
+      members: house.members,
+      held: true,
+      canEdit: house.canEdit,
+      canManageMembership: house.canManageMembership,
+      isSharedHouse: house.isSharedHouse,
+    );
+    lastSnapshot = snapshot;
+    return snapshot;
   }
 
   @override

@@ -14,6 +14,7 @@ class ReadingHouseSittingEditorSheet extends StatefulWidget {
     required this.flowDayForDate,
     required this.accentColor,
     required this.borderColor,
+    this.onSave,
     this.manageKeyboardInset = true,
   });
 
@@ -23,6 +24,7 @@ class ReadingHouseSittingEditorSheet extends StatefulWidget {
   final int Function(DateTime date) flowDayForDate;
   final Color accentColor;
   final Color borderColor;
+  final Future<bool> Function(ReadingHouseSitting sitting)? onSave;
   final bool manageKeyboardInset;
 
   static Future<ReadingHouseSitting?> show(
@@ -33,6 +35,7 @@ class ReadingHouseSittingEditorSheet extends StatefulWidget {
     required int Function(DateTime date) flowDayForDate,
     required Color accentColor,
     required Color borderColor,
+    Future<bool> Function(ReadingHouseSitting sitting)? onSave,
     bool manageKeyboardInset = true,
   }) {
     return showModalBottomSheet<ReadingHouseSitting>(
@@ -47,6 +50,7 @@ class ReadingHouseSittingEditorSheet extends StatefulWidget {
         flowDayForDate: flowDayForDate,
         accentColor: accentColor,
         borderColor: borderColor,
+        onSave: onSave,
         manageKeyboardInset: manageKeyboardInset,
       ),
     );
@@ -67,6 +71,8 @@ class _ReadingHouseSittingEditorSheetState
   late DateTime _scheduledDate;
   late TimeOfDay _scheduledTime;
   late bool _placementChosen;
+  bool _saving = false;
+  bool _saveFailed = false;
 
   @override
   void initState() {
@@ -174,28 +180,44 @@ class _ReadingHouseSittingEditorSheetState
     return trimmed.isEmpty ? fallback : trimmed;
   }
 
-  void _saveDraft() {
+  Future<void> _saveDraft() async {
+    if (_saving) return;
     final sitting = widget.sitting;
-    Navigator.of(context).pop(
-      sitting
-          .copyWith(
-            title: _trimmedOrFallback(_titleCtrl, sitting.title),
-            section: _trimmedOrFallback(_sectionCtrl, sitting.section),
-            theme: _trimmedOrFallback(_themeCtrl, sitting.theme),
-            privatePrompt: _trimmedOrFallback(
-              _promptCtrl,
-              sitting.privatePrompt,
-            ),
-            hostNote: _noteCtrl.text.trim(),
-            scheduledDate: _placementChosen ? _scheduledDate : null,
-            flowDay: _placementChosen
-                ? widget.flowDayForDate(_scheduledDate)
-                : sitting.flowDay,
-            hour: _scheduledTime.hour,
-            minute: _scheduledTime.minute,
-          )
-          .asHostAuthored(),
-    );
+    final edited = sitting
+        .copyWith(
+          title: _trimmedOrFallback(_titleCtrl, sitting.title),
+          section: _trimmedOrFallback(_sectionCtrl, sitting.section),
+          theme: _trimmedOrFallback(_themeCtrl, sitting.theme),
+          privatePrompt: _trimmedOrFallback(_promptCtrl, sitting.privatePrompt),
+          hostNote: _noteCtrl.text.trim(),
+          scheduledDate: _placementChosen ? _scheduledDate : null,
+          flowDay: _placementChosen
+              ? widget.flowDayForDate(_scheduledDate)
+              : sitting.flowDay,
+          hour: _scheduledTime.hour,
+          minute: _scheduledTime.minute,
+        )
+        .asHostAuthored();
+    final onSave = widget.onSave;
+    if (onSave == null) {
+      Navigator.of(context).pop(edited);
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+      _saveFailed = false;
+    });
+    final saved = await onSave(edited);
+    if (!mounted) return;
+    if (saved) {
+      Navigator.of(context).pop(edited);
+      return;
+    }
+    setState(() {
+      _saving = false;
+      _saveFailed = true;
+    });
   }
 
   @override
@@ -319,15 +341,35 @@ class _ReadingHouseSittingEditorSheetState
                   ],
                 ),
                 const SizedBox(height: 18),
+                if (_saveFailed) ...[
+                  Text(
+                    'That sitting could not be saved. Your edits are still here.',
+                    key: const ValueKey<String>(
+                      'reading_house_sitting_save_error',
+                    ),
+                    style: TextStyle(
+                      color: widget.accentColor,
+                      fontSize: 12,
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                ],
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
                     key: const ValueKey<String>(
                       'reading_house_sitting_save_button',
                     ),
-                    onPressed: _saveDraft,
-                    icon: const Icon(Icons.check),
-                    label: const Text('Save Sitting'),
+                    onPressed: _saving ? null : _saveDraft,
+                    icon: _saving
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.check),
+                    label: Text(_saving ? 'Saving…' : 'Save Sitting'),
                   ),
                 ),
               ],
