@@ -4,7 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/maat_flow_response_draft_store.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
-import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_presentation.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_presentation_copy.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
@@ -55,7 +54,7 @@ void main() {
     );
   });
 
-  testWidgets('maps shared horizontal taps and drags through one placement', (
+  testWidgets('moves the intention smoothly through its vertical target', (
     tester,
   ) async {
     final semanticsHandle = tester.ensureSemantics();
@@ -65,51 +64,61 @@ void main() {
       const ValueKey<String>('offering-table-intention-drag'),
     );
     final rect = tester.getRect(gesture);
-    expect(rect.height, 238);
-    expect(find.byType(InstrumentEventHorizontalInput), findsOneWidget);
-    final startX = rect.left + 42;
-    final endX = rect.right - 42;
+    final heroRect = tester.getRect(
+      find.byKey(const ValueKey<String>('offering-table-cup-hero')),
+    );
+    expect(rect.width, 176);
+    expect(rect.height, 72);
+    expect(rect.width, lessThan(heroRect.width));
+    expect(rect.height, lessThan(heroRect.height));
+    expect(
+      rect.top,
+      closeTo(
+        tester
+            .getTopLeft(
+              find.byKey(
+                const ValueKey<String>('offering-table-intention-air'),
+              ),
+            )
+            .dy,
+        0.1,
+      ),
+    );
     final lowerBody = find.byKey(
       const ValueKey<String>('offering-table-foreground-layer'),
     );
     final lowerBodyBefore = tester.widget<Container>(lowerBody);
 
-    final intentionCenter = tester.getCenter(
-      find.byKey(const ValueKey<String>('offering-table-intention-air')),
-    );
-    await tester.tapAt(intentionCenter);
+    await tester.tapAt(Offset(rect.center.dx, rect.top + rect.height * 0.75));
     await tester.pump();
     expect(tester.getSemantics(gesture).value, isNot('0 percent placed'));
 
-    await tester.tapAt(Offset(startX, rect.center.dy));
-    await tester.pump();
-    expect(tester.getSemantics(gesture).value, '0 percent placed');
-    final intentionAtStart = tester.getTopLeft(
-      find.byKey(const ValueKey<String>('offering-table-intention-air')),
-    );
-
-    await tester.tapAt(Offset((startX + endX) / 2, rect.center.dy));
-    await tester.pump();
-    expect(tester.getSemantics(gesture).value, '50 percent placed');
-
-    await tester.tapAt(Offset(endX, rect.center.dy));
-    await tester.pump();
-    expect(tester.getSemantics(gesture).value, '100 percent placed');
-    final intentionAtEnd = tester.getTopLeft(
-      find.byKey(const ValueKey<String>('offering-table-intention-air')),
-    );
-    expect(intentionAtEnd.dy, greaterThan(intentionAtStart.dy));
-
-    final pointer = await tester.startGesture(Offset(startX, rect.center.dy));
+    final currentRect = tester.getRect(gesture);
+    final pointer = await tester.startGesture(currentRect.center);
     for (var step = 1; step <= 12; step++) {
-      await pointer.moveTo(
-        Offset(startX + (endX - startX) * step / 12, rect.center.dy),
-      );
+      await pointer.moveBy(const Offset(0, 4));
       await tester.pump(const Duration(milliseconds: 16));
     }
     await pointer.up();
     await tester.pump();
-    expect(tester.getSemantics(gesture).value, '100 percent placed');
+    final placementAfterDown = tester.getSemantics(gesture).value;
+    expect(placementAfterDown, isNot('0 percent placed'));
+    final intentionAtStart = tester.getTopLeft(
+      find.byKey(const ValueKey<String>('offering-table-intention-air')),
+    );
+
+    final movedRect = tester.getRect(gesture);
+    final upward = await tester.startGesture(movedRect.center);
+    for (var step = 1; step <= 8; step++) {
+      await upward.moveBy(const Offset(0, -4));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await upward.up();
+    await tester.pump();
+    final intentionAtEnd = tester.getTopLeft(
+      find.byKey(const ValueKey<String>('offering-table-intention-air')),
+    );
+    expect(intentionAtEnd.dy, lessThan(intentionAtStart.dy));
 
     final node = tester.getSemantics(gesture);
     // The widget-test semantics owner for the active render view remains on
@@ -120,7 +129,7 @@ void main() {
       SemanticsAction.decrease,
     );
     await tester.pump();
-    expect(tester.getSemantics(gesture).value, '98 percent placed');
+    expect(tester.getSemantics(gesture).value, isNot(placementAfterDown));
     expect(
       identical(tester.widget<Container>(lowerBody), lowerBodyBefore),
       isTrue,
@@ -138,10 +147,10 @@ void main() {
     final gesture = find.byKey(
       const ValueKey<String>('offering-table-intention-drag'),
     );
-    final rect = tester.getRect(gesture);
-    await tester.tapAt(rect.center);
-    await tester.pump();
-    expect(tester.getSemantics(gesture).value, '50 percent placed');
+    final heroRect = tester.getRect(
+      find.byKey(const ValueKey<String>('offering-table-cup-hero')),
+    );
+    final placementBefore = tester.getSemantics(gesture).value;
 
     final scrollable = find
         .descendant(
@@ -154,11 +163,14 @@ void main() {
     final position = tester.state<ScrollableState>(scrollable).position;
     final scrollBefore = position.pixels;
 
-    await tester.dragFrom(rect.center, const Offset(0, -100));
+    await tester.dragFrom(
+      Offset(heroRect.left + 12, heroRect.center.dy),
+      const Offset(0, -100),
+    );
     await tester.pumpAndSettle();
 
     expect(position.pixels, greaterThan(scrollBefore));
-    expect(tester.getSemantics(gesture).value, '50 percent placed');
+    expect(tester.getSemantics(gesture).value, placementBefore);
     semanticsHandle.dispose();
   });
 

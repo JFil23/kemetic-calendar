@@ -53,8 +53,6 @@ class _OfferingTableDayPresentationState
   static const _display = 'CormorantGaramond';
   static const _ui = 'GentiumPlus';
   static const _cupHeroHeight = 238.0;
-  static const _intentionStartY = 96.0;
-  static const _intentionTravel = 70.0;
   static const _reflectionPrompt =
       'What did you notice about what needs to be fed?';
   static const _reflectionStyle = InstrumentEventReflectionStyle(
@@ -230,13 +228,12 @@ class _OfferingTableDayPresentationState
                 ),
                 LayoutBuilder(
                   builder: (context, constraints) {
+                    final geometry = _OfferingIntentionGeometry(
+                      size: constraints.biggest,
+                      placement: placement,
+                    );
                     final surfaceY =
                         constraints.maxHeight * (168 / _cupHeroHeight);
-                    final instrumentScale =
-                        constraints.maxHeight / _cupHeroHeight;
-                    final wordTop =
-                        (_intentionStartY + placement * _intentionTravel) *
-                        instrumentScale;
                     final scale = 1 - (placement * 0.18);
                     final fontSize = need.length > 46
                         ? 14.5
@@ -252,9 +249,9 @@ class _OfferingTableDayPresentationState
                         fit: StackFit.expand,
                         children: <Widget>[
                           Positioned(
-                            left: (constraints.maxWidth - 176) / 2,
-                            top: wordTop,
-                            width: 176,
+                            left: geometry.wordLeft,
+                            top: geometry.wordTop,
+                            width: geometry.wordWidth,
                             child: Transform(
                               alignment: Alignment.topCenter,
                               transform: Matrix4.diagonal3Values(
@@ -452,24 +449,43 @@ class _OfferingTableDayPresentationState
   }
 
   Widget _buildCupInput() {
-    final gesture = InstrumentEventHorizontalInput(
-      gestureKey: const ValueKey<String>('offering-table-intention-drag'),
-      onSelectFraction: _selectPlacement,
-    );
-    return ValueListenableBuilder<double>(
-      valueListenable: _placementController,
-      child: gesture,
-      builder: (context, placement, child) => Semantics(
-        label: 'Offering Table intention placement instrument',
-        value: '${(placement * 100).round()} percent placed',
-        increasedValue:
-            '${((placement + 0.02).clamp(0.0, 1.0) * 100).round()} percent placed',
-        decreasedValue:
-            '${((placement - 0.02).clamp(0.0, 1.0) * 100).round()} percent placed',
-        slider: true,
-        onIncrease: () => _selectPlacement((placement + 0.02).clamp(0.0, 1.0)),
-        onDecrease: () => _selectPlacement((placement - 0.02).clamp(0.0, 1.0)),
-        child: child,
+    return LayoutBuilder(
+      builder: (context, constraints) => ValueListenableBuilder<double>(
+        valueListenable: _placementController,
+        builder: (context, placement, _) {
+          final geometry = _OfferingIntentionGeometry(
+            size: constraints.biggest,
+            placement: placement,
+          );
+          return Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              Positioned.fromRect(
+                rect: geometry.interactionRect,
+                child: Semantics(
+                  label: 'Offering Table intention placement instrument',
+                  value: '${(placement * 100).round()} percent placed',
+                  increasedValue:
+                      '${((placement + 0.02).clamp(0.0, 1.0) * 100).round()} percent placed',
+                  decreasedValue:
+                      '${((placement - 0.02).clamp(0.0, 1.0) * 100).round()} percent placed',
+                  slider: true,
+                  onIncrease: () =>
+                      _selectPlacement((placement + 0.02).clamp(0.0, 1.0)),
+                  onDecrease: () =>
+                      _selectPlacement((placement - 0.02).clamp(0.0, 1.0)),
+                  child: _OfferingIntentionDragTarget(
+                    placement: placement,
+                    travel: geometry.scaledTravel,
+                    onSelectPlacement: _selectPlacement,
+                    onTapAt: (localY) =>
+                        _selectPlacement(geometry.placementForTap(localY)),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -811,6 +827,95 @@ class _OfferingChecklistStep extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+@immutable
+class _OfferingIntentionGeometry {
+  const _OfferingIntentionGeometry({
+    required this.size,
+    required this.placement,
+  });
+
+  static const _referenceHeight = 238.0;
+  static const _startY = 96.0;
+  static const _travel = 70.0;
+  static const _wordWidth = 176.0;
+  static const _interactionHeight = 72.0;
+
+  final Size size;
+  final double placement;
+
+  double get _verticalScale => size.height / _referenceHeight;
+  double get wordWidth => _wordWidth;
+  double get wordLeft => (size.width - wordWidth) / 2;
+  double get wordTop => (_startY + placement * _travel) * _verticalScale;
+  double get scaledTravel => _travel * _verticalScale;
+  double get _scaledInteractionHeight => _interactionHeight * _verticalScale;
+
+  Rect get interactionRect =>
+      Rect.fromLTWH(wordLeft, wordTop, wordWidth, _scaledInteractionHeight);
+
+  double placementForTap(double localY) =>
+      placement + (localY - _scaledInteractionHeight / 2) / scaledTravel;
+}
+
+class _OfferingIntentionDragTarget extends StatefulWidget {
+  const _OfferingIntentionDragTarget({
+    required this.placement,
+    required this.travel,
+    required this.onSelectPlacement,
+    required this.onTapAt,
+  });
+
+  final double placement;
+  final double travel;
+  final ValueChanged<double> onSelectPlacement;
+  final ValueChanged<double> onTapAt;
+
+  @override
+  State<_OfferingIntentionDragTarget> createState() =>
+      _OfferingIntentionDragTargetState();
+}
+
+class _OfferingIntentionDragTargetState
+    extends State<_OfferingIntentionDragTarget> {
+  double? _dragOriginY;
+  double? _dragOriginPlacement;
+
+  void _beginDrag(DragDownDetails details) {
+    _dragOriginY = details.globalPosition.dy;
+    _dragOriginPlacement = widget.placement;
+  }
+
+  void _updateDrag(DragUpdateDetails details) {
+    final originY = _dragOriginY;
+    final originPlacement = _dragOriginPlacement;
+    if (originY == null || originPlacement == null || widget.travel <= 0) {
+      return;
+    }
+    widget.onSelectPlacement(
+      originPlacement + (details.globalPosition.dy - originY) / widget.travel,
+    );
+  }
+
+  void _endDrag([Object? _]) {
+    _dragOriginY = null;
+    _dragOriginPlacement = null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      key: const ValueKey<String>('offering-table-intention-drag'),
+      behavior: HitTestBehavior.opaque,
+      onTapUp: (details) => widget.onTapAt(details.localPosition.dy),
+      onVerticalDragDown: _beginDrag,
+      onVerticalDragUpdate: _updateDrag,
+      onVerticalDragEnd: _endDrag,
+      onVerticalDragCancel: _endDrag,
+      child: const SizedBox.expand(),
     );
   }
 }
