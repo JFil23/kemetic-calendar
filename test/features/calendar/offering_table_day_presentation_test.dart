@@ -39,19 +39,74 @@ void main() {
   });
   tearDown(kMaatFlowResponseDraftStore.clearForTesting);
 
-  test('all thirty days resolve a non-empty shared ritual checklist', () {
+  test('all thirty days close the shared ritual checklist with water once', () {
+    const daysWithExistingDrinkingWaterAct = <int>{2, 26, 30};
+
     for (final day in kOfferingTableDays) {
       final presentation = offeringTablePracticePresentation(day);
       expect(presentation.steps, isNotEmpty, reason: 'Day ${day.dayNumber}');
+      final appendedClosures = presentation.steps
+          .where((step) => step == 'Drink water.')
+          .length;
+      if (daysWithExistingDrinkingWaterAct.contains(day.dayNumber)) {
+        expect(appendedClosures, 0, reason: 'Day ${day.dayNumber}');
+      } else {
+        expect(presentation.steps.last, 'Drink water.');
+        expect(appendedClosures, 1, reason: 'Day ${day.dayNumber}');
+      }
     }
+
     expect(
       offeringTablePracticePresentation(kOfferingTableDays.first).steps,
       const <String>[
         'Fill a cup of water.',
         'Name one basic need that has been unmet for a few days.',
         'Do the smallest thing that begins to meet it.',
+        'Drink water.',
       ],
     );
+    expect(
+      offeringTablePracticePresentation(kOfferingTableDays[1]).steps,
+      const <String>[
+        'Drink water before opening a feed or message thread.',
+        'Name what you want your first real input to be today.',
+        'Protect one quiet minute for it.',
+      ],
+    );
+    expect(
+      offeringTablePracticePresentation(kOfferingTableDays[5]).steps.length,
+      3,
+      reason: 'an existing 2-step ritual gains one closing water step',
+    );
+    expect(
+      offeringTablePracticePresentation(kOfferingTableDays[7]).steps.length,
+      2,
+      reason: 'an existing 1-step ritual gains one closing water step',
+    );
+    expect(
+      offeringTablePracticePresentation(kOfferingTableDays[25]).steps.single,
+      contains('drink the water'),
+    );
+    expect(
+      offeringTablePracticePresentation(
+        kOfferingTableDays[29],
+      ).steps.any((step) => step.contains('after drinking the water')),
+      isTrue,
+    );
+  });
+
+  testWidgets('ritual count and checkbox use the closed presentation steps', (
+    tester,
+  ) async {
+    final day = kOfferingTableDays[2];
+    await _pumpPresentation(tester, day: day);
+
+    expect(find.text('4 steps'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('offering-table-day-03-step-4')),
+      findsOneWidget,
+    );
+    expect(find.text('Drink water.'), findsOneWidget);
   });
 
   testWidgets('uses Follow Sky gesture mapping and semantic 0.02 steps', (
@@ -257,6 +312,7 @@ void main() {
 Future<void> _pumpPresentation(
   WidgetTester tester, {
   Size size = const Size(390, 700),
+  OfferingTableDay? day,
   Duration reflectionSaveDebounce = const Duration(milliseconds: 450),
   MaatJournalResponseBlockWriter? onWriteJournalResponse,
 }) async {
@@ -270,7 +326,7 @@ Future<void> _pumpPresentation(
       theme: ThemeData.dark(),
       home: Scaffold(
         body: OfferingTableDayPresentation(
-          day: kOfferingTableDays.first,
+          day: day ?? kOfferingTableDays.first,
           localDate: DateTime(2026, 8, 29),
           startMinute: 7 * 60 + 30,
           initialNeed: 'Protect my sleep.',

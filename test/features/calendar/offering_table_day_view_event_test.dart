@@ -29,7 +29,9 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
+    CalendarEventDetailSheetCoordinator.debugResetForTests();
   });
+  tearDown(CalendarEventDetailSheetCoordinator.debugResetForTests);
 
   testWidgets('Offering event block resolves its private need by flow id', (
     tester,
@@ -50,6 +52,28 @@ void main() {
     expect(find.text(kOfferingTableDays.first.title), findsWidgets);
     expect(find.textContaining('No need was named'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Day View renders the canonical closing water checkbox', (
+    tester,
+  ) async {
+    final day = kOfferingTableDays[2];
+    await _pumpDayView(
+      tester,
+      flowId: 74,
+      day: day,
+      initialNeed: 'Protect my sleep.',
+    );
+
+    await tester.tap(find.byType(OfferingTableEventBlockVisual));
+    await tester.pumpAndSettle();
+
+    expect(find.text('4 steps'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('offering-table-day-03-step-4')),
+      findsOneWidget,
+    );
+    expect(find.text('Drink water.'), findsOneWidget);
   });
 
   testWidgets('Day View Reflect writes through the shared Journal authority', (
@@ -93,6 +117,7 @@ void main() {
 Future<void> _pumpDayView(
   WidgetTester tester, {
   required int flowId,
+  OfferingTableDay? day,
   String? initialNeed,
   MaatJournalResponseBlockWriter? onWriteJournalResponse,
 }) async {
@@ -104,7 +129,7 @@ Future<void> _pumpDayView(
   if (initialNeed != null) {
     await const OfferingTableLocalStore().saveNeed(flowId, initialNeed);
   }
-  final day = kOfferingTableDays.first;
+  final resolvedDay = day ?? kOfferingTableDays.first;
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(
@@ -115,7 +140,7 @@ Future<void> _pumpDayView(
           notes: <NoteData>[
             NoteData(
               clientEventId: 'offering-table-event-$flowId',
-              title: offeringTableEventTitle(day),
+              title: offeringTableEventTitle(resolvedDay),
               allDay: false,
               start: const TimeOfDay(hour: 7, minute: 30),
               end: const TimeOfDay(hour: 8, minute: 30),
@@ -123,7 +148,7 @@ Future<void> _pumpDayView(
               behaviorPayload: <String, dynamic>{
                 'kind': 'maat_offering_table_day',
                 'flow_key': kOfferingTableFlowKey,
-                'day': day.dayNumber,
+                'day': resolvedDay.dayNumber,
               },
             ),
           ],

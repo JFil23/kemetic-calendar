@@ -788,11 +788,9 @@ void main() {
         find.descendant(of: daySheet, matching: find.text('CLOSE THE RITUAL')),
         findsOneWidget,
       );
-      for (final step in const <String>[
-        'Fill a cup of water.',
-        'Name one basic need that has been unmet for a few days.',
-        'Do the smallest thing that begins to meet it.',
-      ]) {
+      for (final step in offeringTablePracticePresentation(
+        kOfferingTableDays.first,
+      ).steps) {
         expect(
           find.descendant(of: daySheet, matching: find.text(step)),
           findsOneWidget,
@@ -1053,19 +1051,34 @@ void main() {
     await _revealOfferingPresentationBody(tester);
     expect(find.text('PERSONAL TABLE · DAY 5'), findsWidgets);
     expect(find.text(day5Prompt), findsOneWidget);
-    expect(find.text('3 steps'), findsOneWidget);
+    expect(
+      find.text(
+        '${offeringTablePracticePresentation(kOfferingTableDays[4]).steps.length} steps',
+      ),
+      findsOneWidget,
+    );
 
     await _pumpDaySheet(tester, size: size, dayNumber: 11);
     await _revealOfferingPresentationBody(tester);
     expect(find.text('HOUSEHOLD TABLE · DAY 1'), findsWidgets);
     expect(find.text(day11Prompt), findsOneWidget);
-    expect(find.text('2 steps'), findsOneWidget);
+    expect(
+      find.text(
+        '${offeringTablePracticePresentation(kOfferingTableDays[10]).steps.length} steps',
+      ),
+      findsOneWidget,
+    );
 
     await _pumpDaySheet(tester, size: size, dayNumber: 21);
     await _revealOfferingPresentationBody(tester);
     expect(find.text('FLOWING TABLE · DAY 1'), findsWidgets);
     expect(find.text(day21Prompt), findsOneWidget);
-    expect(find.text('2 steps'), findsOneWidget);
+    expect(
+      find.text(
+        '${offeringTablePracticePresentation(kOfferingTableDays[20]).steps.length} steps',
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 
