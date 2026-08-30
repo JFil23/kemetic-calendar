@@ -8081,20 +8081,20 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
 
     if (isOfferingTable) {
-      return OfferingTableEventBlockVisual(
-        graphic: graphic!,
-        width: block.width,
-        height: height,
-        isPreview: isPreview,
-        child: Padding(
-          padding: const EdgeInsets.only(right: 35),
-          child: _buildEventTextContents(
-            event,
-            durationMinutes,
-            isPreview: isPreview,
-          ),
-        ),
+      final offeringTableDay = offeringTableDayForEvent(
+        title: event.title,
+        behaviorPayload: event.behaviorPayload,
       );
+      if (offeringTableDay != null) {
+        return OfferingTableEventBlockVisual(
+          dayNumber: offeringTableDay.dayNumber,
+          title: offeringTableDay.title,
+          teaser: _offeringTableNeedForEvent(event),
+          width: block.width,
+          height: height,
+          isPreview: isPreview,
+        );
+      }
     }
 
     if (isDawnHouseRite) {
@@ -8431,17 +8431,9 @@ class _DayViewGridState extends State<DayViewGrid> {
     );
     final graphic = visual.graphic;
     final bool isTrackSky = graphic?.kind == CalendarEventGraphicKind.trackSky;
-    final bool isOfferingTable =
-        graphic?.kind == CalendarEventGraphicKind.offeringTable;
     final bool isGraphicFlow = graphic != null;
     final trackSkySpec = isTrackSky ? graphic : null;
-    final offeringTableDay = isOfferingTable
-        ? offeringTableDayForEvent(
-            title: event.title,
-            behaviorPayload: event.behaviorPayload,
-          )
-        : null;
-    final displayTitle = offeringTableDay?.title ?? event.title;
+    final displayTitle = event.title;
     final isMaatFlow = _maatFlowCompletionContextForEvent(event, flow) != null;
     final flowLabel = _dayViewTimelineFlowLabel(
       event,
@@ -8477,10 +8469,6 @@ class _DayViewGridState extends State<DayViewGrid> {
             kd: widget.kd,
           )
         : '';
-    final offeringTableTeaser = isOfferingTable
-        ? _offeringTableNeedForEvent(event).trim()
-        : '';
-
     Widget buildGraphicText(
       String text, {
       required TextStyle style,
@@ -8578,7 +8566,6 @@ class _DayViewGridState extends State<DayViewGrid> {
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: isOfferingTable ? 0.3 : null,
                     color: graphicFlowNameColor,
                   ),
                   maxLines: 1,
@@ -8606,7 +8593,7 @@ class _DayViewGridState extends State<DayViewGrid> {
               ? buildGraphicText(
                   displayTitle,
                   style: TextStyle(
-                    fontSize: isTrackSky || isOfferingTable ? 14 : 13,
+                    fontSize: isTrackSky ? 14 : 13,
                     fontWeight: FontWeight.w700,
                     color: titleColor,
                   ),
@@ -8668,23 +8655,6 @@ class _DayViewGridState extends State<DayViewGrid> {
               fontSize: 11,
               fontWeight: FontWeight.w600,
               color: trackSkySpec!.detailColor.withValues(
-                alpha: isPreview ? 0.82 : 0.96,
-              ),
-            ),
-            maxLines: durationMinutes >= 90 ? 2 : 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-        if (isOfferingTable && offeringTableTeaser.isNotEmpty) ...[
-          const SizedBox(height: 0),
-          buildGraphicText(
-            '“$offeringTableTeaser”',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w400,
-              fontStyle: FontStyle.italic,
-              height: 1.15,
-              color: graphic!.detailColor.withValues(
                 alpha: isPreview ? 0.82 : 0.96,
               ),
             ),

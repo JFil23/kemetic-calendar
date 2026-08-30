@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:mobile/widgets/maat_flow_date_picker.dart';
 
-import 'package:mobile/features/calendar/calendar_event_visual_style.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
@@ -72,28 +71,6 @@ abstract final class OfferingTableDetailTokens {
     primaryText: mutedIvory,
     secondaryText: silver,
   );
-
-  static const CalendarEventGraphicStyle eventGraphic =
-      CalendarEventGraphicStyle(
-        kind: CalendarEventGraphicKind.offeringTable,
-        background: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF120B04), Color(0xFF38210D), Color(0xFF8A5723)],
-        ),
-        flowLabelGradient: LinearGradient(
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-          colors: [glow, warmGold, mutedIvory, warmGold],
-        ),
-        borderColor: warmGold,
-        accentColor: glow,
-        accentSecondaryColor: mutedIvory,
-        titleColor: Color(0xFFFFF2D7),
-        labelColor: glow,
-        detailColor: mutedIvory,
-        glowColor: warmGold,
-      );
 }
 
 /// Dedicated Offering Table presentation. The preview is derived locally from
@@ -729,99 +706,33 @@ class _OfferingFlowEventCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: OfferingTableEventBlockVisual(
-            graphic: OfferingTableDetailTokens.eventGraphic,
+            dayNumber: day.dayNumber,
+            title: title,
+            teaser: offeringTablePracticePresentation(day).previewSummary,
             height: 100,
             width: double.infinity,
             isPreview: !carried,
             dashedBorder: !carried,
-            child: Stack(
+            overlay: Stack(
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 27, bottom: 11),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 9,
-                        height: 9,
-                        margin: const EdgeInsets.only(top: 10),
-                        decoration: BoxDecoration(
-                          color: carried
-                              ? OfferingTableDetailTokens.warmGold
-                              : Colors.transparent,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: OfferingTableDetailTokens.glow,
-                            width: 1,
-                          ),
-                        ),
+                Positioned(
+                  left: 13,
+                  bottom: 7,
+                  child: Text(
+                    _formatTime(occurrence.startLocal),
+                    style: TextStyle(
+                      color: OfferingTableDetailTokens.glow.withValues(
+                        alpha: 0.72,
                       ),
-                      SizedBox(width: isNarrow ? 9 : 11),
-                      SizedBox(
-                        width: isNarrow ? 51 : 56,
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 7),
-                          child: Text(
-                            _formatTime(occurrence.startLocal),
-                            style: TextStyle(
-                              color: OfferingTableDetailTokens.glow.withValues(
-                                alpha: 0.72,
-                              ),
-                              fontFamily: MaatFlowListTokens.fontFamily,
-                              fontFamilyFallback:
-                                  MaatFlowListTokens.fontFallback,
-                              fontSize: 10.5,
-                            ),
-                          ),
-                        ),
-                      ),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 3),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                title,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: const Color(0xFFFFF2D7),
-                                  fontFamily: MaatFlowListTokens.fontFamily,
-                                  fontFamilyFallback:
-                                      MaatFlowListTokens.fontFallback,
-                                  fontSize: isNarrow ? 15.5 : 18,
-                                  fontWeight: FontWeight.w500,
-                                  height: 1.15,
-                                ),
-                              ),
-                              const SizedBox(height: 3),
-                              Text(
-                                offeringTablePracticePresentation(
-                                  day,
-                                ).previewSummary,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: OfferingTableDetailTokens.silver,
-                                  fontFamily: MaatFlowListTokens.fontFamily,
-                                  fontFamilyFallback:
-                                      MaatFlowListTokens.fontFallback,
-                                  fontSize: isNarrow ? 12.5 : 13,
-                                  fontStyle: FontStyle.italic,
-                                  height: 1.25,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
+                      fontFamily: MaatFlowListTokens.fontFamily,
+                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                      fontSize: 10.5,
+                    ),
                   ),
                 ),
                 Positioned(
-                  right: 0,
-                  top: 35,
+                  right: 5,
+                  bottom: 3,
                   child: Icon(
                     Icons.chevron_right,
                     key: ValueKey<String>(
@@ -834,8 +745,8 @@ class _OfferingFlowEventCard extends StatelessWidget {
                   ),
                 ),
                 Positioned(
-                  right: 1,
-                  bottom: 1,
+                  right: isNarrow ? 68 : 74,
+                  bottom: 7,
                   child: Text(
                     'VIEW PRACTICE',
                     key: ValueKey<String>(

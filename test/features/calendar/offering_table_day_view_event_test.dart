@@ -38,9 +38,18 @@ void main() {
   ) async {
     await _pumpDayView(tester, flowId: 71, initialNeed: 'Protect my sleep.');
 
-    expect(find.text(kOfferingTableTitle), findsOneWidget);
+    expect(find.text('THE OFFERING TABLE · DAY 01'), findsOneWidget);
     expect(find.text(kOfferingTableDays.first.title), findsWidgets);
     expect(find.text('“Protect my sleep.”'), findsWidgets);
+    final block = tester.widget<OfferingTableEventBlockVisual>(
+      find.byType(OfferingTableEventBlockVisual),
+    );
+    expect(block.stage, OfferingTableBlockStage.personal);
+    expect(block.resolvedVisualState, OfferingTableBlockVisualState.named);
+    expect(
+      tester.getSize(find.byType(OfferingTableCupVisual)),
+      const Size(48, 50),
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -50,9 +59,81 @@ void main() {
     await _pumpDayView(tester, flowId: 72);
 
     expect(find.text(kOfferingTableDays.first.title), findsWidgets);
+    expect(find.text('nothing named yet'), findsOneWidget);
     expect(find.textContaining('No need was named'), findsNothing);
+    final block = tester.widget<OfferingTableEventBlockVisual>(
+      find.byType(OfferingTableEventBlockVisual),
+    );
+    expect(block.resolvedVisualState, OfferingTableBlockVisualState.empty);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'static block states and responsive cup geometry match the mock',
+    (tester) async {
+      expect(
+        offeringTableBlockStageForDay(8),
+        OfferingTableBlockStage.personal,
+      );
+      expect(
+        offeringTableBlockStageForDay(14),
+        OfferingTableBlockStage.household,
+      );
+      expect(
+        offeringTableBlockStageForDay(23),
+        OfferingTableBlockStage.flowing,
+      );
+
+      await _pumpStaticBlock(
+        tester,
+        width: 164,
+        height: 56,
+        dayNumber: 23,
+        title: 'The River Unblocked',
+        teaser: 'pay Marcus what I owe him',
+        isPreview: true,
+      );
+
+      expect(find.text('THE OFFERING TABLE · DAY 23'), findsOneWidget);
+      expect(find.text('The River Unblocked'), findsOneWidget);
+      expect(find.text('“pay Marcus what I owe him”'), findsOneWidget);
+      expect(
+        tester.getSize(find.byType(OfferingTableCupVisual)),
+        const Size(48, 50),
+      );
+      final preview = tester.widget<OfferingTableEventBlockVisual>(
+        find.byType(OfferingTableEventBlockVisual),
+      );
+      expect(preview.isPreview, isTrue);
+      expect(preview.dashedBorder, isTrue);
+      expect(preview.stage, OfferingTableBlockStage.flowing);
+      expect(tester.takeException(), isNull);
+
+      await _pumpStaticBlock(
+        tester,
+        width: 300,
+        height: 74,
+        dayNumber: 14,
+        title: 'The Waiting Bowl',
+        teaser: 'the pantry, before Sunday',
+        visualState: OfferingTableBlockVisualState.received,
+      );
+
+      expect(
+        tester.getSize(find.byType(OfferingTableCupVisual)),
+        const Size(58, 60),
+      );
+      final received = tester.widget<OfferingTableEventBlockVisual>(
+        find.byType(OfferingTableEventBlockVisual),
+      );
+      expect(received.stage, OfferingTableBlockStage.household);
+      expect(
+        received.resolvedVisualState,
+        OfferingTableBlockVisualState.received,
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets('Day View renders the canonical closing water checkbox', (
     tester,
@@ -112,6 +193,39 @@ void main() {
       'maat_response:the-offering-table:cid:offering-table-event-73:offering-table-reflection',
     );
   });
+}
+
+Future<void> _pumpStaticBlock(
+  WidgetTester tester, {
+  required double width,
+  required double height,
+  required int dayNumber,
+  required String title,
+  required String teaser,
+  bool isPreview = false,
+  OfferingTableBlockVisualState? visualState,
+}) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        backgroundColor: Colors.black,
+        body: Align(
+          alignment: Alignment.topLeft,
+          child: OfferingTableEventBlockVisual(
+            dayNumber: dayNumber,
+            title: title,
+            teaser: teaser,
+            width: width,
+            height: height,
+            isPreview: isPreview,
+            dashedBorder: isPreview,
+            visualState: visualState,
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
 }
 
 Future<void> _pumpDayView(

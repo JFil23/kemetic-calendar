@@ -628,27 +628,27 @@ void main() {
       expect(find.text('VIEW PRACTICE'), findsNWidgets(5));
       expect(
         find.text(
-          'Start with your most basic need before the day starts asking.',
+          '“Start with your most basic need before the day starts asking.”',
         ),
         findsOneWidget,
       );
       expect(
-        find.text('Choose what reaches you before messages and tasks do.'),
+        find.text('“Choose what reaches you before messages and tasks do.”'),
         findsOneWidget,
       );
       expect(
-        find.text('Turn one meal from fuel into actual provision.'),
+        find.text('“Turn one meal from fuel into actual provision.”'),
         findsOneWidget,
       );
       expect(
         find.text(
-          'Correct one small act of body-care you have been deferring.',
+          '“Correct one small act of body-care you have been deferring.”',
         ),
         findsOneWidget,
       );
       expect(
         find.text(
-          'Treat rest as something that must be provided, not hoped for.',
+          '“Treat rest as something that must be provided, not hoped for.”',
         ),
         findsOneWidget,
       );
@@ -1393,17 +1393,17 @@ void main() {
       await _pumpStaticOfferingDayView(tester, size: fixture.size);
       final eventBlock = find.byType(OfferingTableEventBlockVisual).first;
       expect(eventBlock, findsOneWidget);
-      if (fixture.name == '390') {
-        final rect = tester.getRect(eventBlock);
-        debugPrint(
-          'OFFERING_EVENT_RECT '
-          '${rect.left},${rect.top},${rect.width},${rect.height}',
-        );
-        await expectLater(
-          find.byKey(_visualCaptureSurfaceKey),
-          matchesGoldenFile('/tmp/offering-table-flutter-day-view-390.png'),
-        );
-      }
+      final rect = tester.getRect(eventBlock);
+      debugPrint(
+        'OFFERING_EVENT_RECT_${fixture.name} '
+        '${rect.left},${rect.top},${rect.width},${rect.height}',
+      );
+      await expectLater(
+        find.byKey(_visualCaptureSurfaceKey),
+        matchesGoldenFile(
+          '/tmp/offering-table-flutter-day-view-${fixture.name}.png',
+        ),
+      );
 
       await tester.tap(eventBlock);
       await tester.pumpAndSettle();
