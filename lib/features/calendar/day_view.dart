@@ -2298,8 +2298,10 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
   bool _onboardingDetailPromptScheduled = false;
   final OfferingTableLocalStore _offeringTableLocalStore =
       const OfferingTableLocalStore();
-  final Map<int, String> _offeringTableNeedsByFlowId = <int, String>{};
-  final Set<int> _offeringTableLoadingFlowIds = <int>{};
+  final Map<({int flowId, int dayNumber}), String>
+  _offeringTableIntentionsByDay = <({int flowId, int dayNumber}), String>{};
+  final Set<({int flowId, int dayNumber})> _offeringTableLoadingIntentions =
+      <({int flowId, int dayNumber})>{};
 
   @override
   void initState() {
@@ -2321,7 +2323,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       widget.onPresentationChanged?.call(_presentation);
     });
     _primeTrackSkyFlowDataForEvent(_currentTarget.event);
-    _primeOfferingTableNeedForEvent(_currentTarget.event);
+    _primeOfferingTableIntentionForEvent(_currentTarget.event);
     _followSkyCatalog = widget.followSkyCatalog;
     if (_followSkyCatalog == null) unawaited(_loadFollowSkyCatalog());
   }
@@ -2510,7 +2512,7 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
       widget.onPresentationChanged?.call(_presentation);
     }
     _primeTrackSkyFlowDataForEvent(nextTarget.event);
-    _primeOfferingTableNeedForEvent(nextTarget.event);
+    _primeOfferingTableIntentionForEvent(nextTarget.event);
     if (widget.onNavigateToDay != null &&
         (nextTarget.ky != previousTarget.ky ||
             nextTarget.km != previousTarget.km ||
@@ -2610,36 +2612,66 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
     }());
   }
 
-  void _primeOfferingTableNeedForEvent(EventItem event) {
+  ({int flowId, int dayNumber})? _offeringTableIntentionKeyForEvent(
+    EventItem event,
+  ) {
     final flowId = event.flowId;
-    if (flowId == null ||
-        _offeringTableNeedsByFlowId.containsKey(flowId) ||
-        !_offeringTableLoadingFlowIds.add(flowId)) {
-      return;
-    }
+    if (flowId == null) return null;
     final flow = _chromeFlowForId(flowId);
     if (!isOfferingTableFlowReference(
       flowName: flow?.name,
       flowNotes: flow?.notes,
       behaviorPayload: event.behaviorPayload,
     )) {
-      _offeringTableLoadingFlowIds.remove(flowId);
+      return null;
+    }
+    final day = offeringTableDayForEvent(
+      title: event.title,
+      behaviorPayload: event.behaviorPayload,
+    );
+    if (day == null) return null;
+    return (flowId: flowId, dayNumber: day.dayNumber);
+  }
+
+  void _primeOfferingTableIntentionForEvent(EventItem event) {
+    final key = _offeringTableIntentionKeyForEvent(event);
+    if (key == null ||
+        _offeringTableIntentionsByDay.containsKey(key) ||
+        !_offeringTableLoadingIntentions.add(key)) {
       return;
     }
     unawaited(() async {
       try {
-        final need = await _offeringTableLocalStore.loadNeed(flowId);
+        final intention = await _offeringTableLocalStore.loadIntention(
+          key.flowId,
+          key.dayNumber,
+        );
         if (!mounted) return;
-        setState(() => _offeringTableNeedsByFlowId[flowId] = need);
+        setState(() => _offeringTableIntentionsByDay[key] = intention);
       } finally {
-        _offeringTableLoadingFlowIds.remove(flowId);
+        _offeringTableLoadingIntentions.remove(key);
       }
     }());
   }
 
-  String _offeringTableNeedForEvent(EventItem event) {
-    final flowId = event.flowId;
-    return flowId == null ? '' : (_offeringTableNeedsByFlowId[flowId] ?? '');
+  String _offeringTableIntentionForEvent(EventItem event) {
+    final key = _offeringTableIntentionKeyForEvent(event);
+    return key == null ? '' : (_offeringTableIntentionsByDay[key] ?? '');
+  }
+
+  Future<void> _saveOfferingTableIntentionForEvent(
+    EventItem event,
+    String value,
+  ) async {
+    final key = _offeringTableIntentionKeyForEvent(event);
+    if (key == null) return;
+    await _offeringTableLocalStore.saveIntention(
+      key.flowId,
+      key.dayNumber,
+      value,
+    );
+    if (!mounted) return;
+    setState(() => _offeringTableIntentionsByDay[key] = value.trim());
   }
 
   TrackSkyEvent? _resolveTrackSkyEvent(
@@ -3616,7 +3648,9 @@ class _CalendarEventDetailSheetState extends State<CalendarEventDetailSheet> {
             day: offeringTableDay,
             localDate: localDate,
             startMinute: currentEvent.startMin,
-            initialNeed: _offeringTableNeedForEvent(currentEvent),
+            initialIntention: _offeringTableIntentionForEvent(currentEvent),
+            onSaveIntention: (value) =>
+                _saveOfferingTableIntentionForEvent(currentEvent, value),
             lens: offeringTableLensFromNotes(flow?.notes),
             clientEventId: currentEvent.clientEventId,
             onWriteJournalResponse: widget.onWriteJournalResponse,

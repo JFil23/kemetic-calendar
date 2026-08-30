@@ -212,6 +212,42 @@ void main() {
     expect(find.text(presentation.why), findsOneWidget);
   });
 
+  testWidgets('blank intention is honest and editing updates the cup', (
+    tester,
+  ) async {
+    final saved = <String>[];
+    await _pumpPresentation(
+      tester,
+      initialIntention: '',
+      intentionSaveDebounce: Duration.zero,
+      onSaveIntention: (value) async => saved.add(value),
+    );
+
+    expect(find.text('What matters to me.'), findsNothing);
+    expect(
+      find.text('No need was named when this table was carried.'),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey<String>('offering-table-intention-air')),
+      findsNothing,
+    );
+    expect(find.text('Name today’s intention…'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('offering-table-intention-field')),
+      'Call my mother.',
+    );
+    await tester.pump();
+
+    expect(find.text('Call my mother.'), findsWidgets);
+    expect(
+      find.byKey(const ValueKey<String>('offering-table-intention-air')),
+      findsOneWidget,
+    );
+    expect(saved, <String>['Call my mother.']);
+  });
+
   testWidgets('Reflect reuses the shared tool and writes through Journal', (
     tester,
   ) async {
@@ -330,7 +366,10 @@ Future<void> _pumpPresentation(
   WidgetTester tester, {
   Size size = const Size(390, 700),
   OfferingTableDay? day,
+  String initialIntention = 'Protect my sleep.',
+  Duration intentionSaveDebounce = const Duration(milliseconds: 350),
   Duration reflectionSaveDebounce = const Duration(milliseconds: 450),
+  Future<void> Function(String value)? onSaveIntention,
   MaatJournalResponseBlockWriter? onWriteJournalResponse,
 }) async {
   tester.view.physicalSize = size;
@@ -346,11 +385,13 @@ Future<void> _pumpPresentation(
           day: day ?? kOfferingTableDays.first,
           localDate: DateTime(2026, 8, 29),
           startMinute: 7 * 60 + 30,
-          initialNeed: 'Protect my sleep.',
+          initialIntention: initialIntention,
           lens: OfferingTableLens.neutral,
           completionPanel: const Text('Completion fixture'),
           clientEventId: 'offering-table-test-event',
+          onSaveIntention: onSaveIntention,
           onWriteJournalResponse: onWriteJournalResponse,
+          intentionSaveDebounce: intentionSaveDebounce,
           reflectionSaveDebounce: reflectionSaveDebounce,
         ),
       ),
@@ -367,7 +408,7 @@ Future<void> _pumpOfferingSheet(WidgetTester tester) async {
   addTearDown(tester.view.resetViewInsets);
 
   const store = OfferingTableLocalStore();
-  await store.saveNeed(_flowId, 'Protect my sleep.');
+  await store.saveIntention(_flowId, 1, 'Protect my sleep.');
   final day = kOfferingTableDays.first;
   final localDate = DateTime(2026, 8, 29);
   final schedule = offeringTableScheduleForDate(

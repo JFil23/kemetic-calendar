@@ -42,7 +42,7 @@ void main() {
         tester,
         flowId: 71,
         day: day,
-        initialNeed: 'Protect my sleep.',
+        initialIntention: 'Protect my sleep.',
       );
 
       expect(find.text('THE OFFERING TABLE · DAY 03'), findsOneWidget);
@@ -81,6 +81,44 @@ void main() {
     );
     expect(block.resolvedVisualState, OfferingTableBlockVisualState.named);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('each Offering event edits and restores only its own intention', (
+    tester,
+  ) async {
+    const flowId = 75;
+    const store = OfferingTableLocalStore();
+    await store.saveIntention(flowId, 1, 'Protect my sleep.');
+    final dayTwo = kOfferingTableDays[1];
+
+    await _pumpDayView(tester, flowId: flowId, day: dayTwo);
+    await tester.tap(find.byType(OfferingTableEventBlockVisual));
+    await tester.pumpAndSettle();
+
+    final field = find.byKey(
+      const ValueKey<String>('offering-table-intention-field'),
+    );
+    expect(tester.widget<TextField>(field).controller?.text, isEmpty);
+    expect(find.text('What matters to me.'), findsNothing);
+    expect(
+      find.text('No need was named when this table was carried.'),
+      findsNothing,
+    );
+
+    await tester.enterText(field, 'Call my mother.');
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(await store.loadIntention(flowId, 2), 'Call my mother.');
+
+    await tester.tapAt(const Offset(195, 100));
+    await tester.pumpAndSettle();
+    expect(CalendarEventDetailSheetCoordinator.isOpenOrOpening, isFalse);
+
+    await _pumpDayView(tester, flowId: flowId, day: dayTwo);
+    await tester.tap(find.byType(OfferingTableEventBlockVisual));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(field).controller?.text, 'Call my mother.');
+    expect(await store.loadIntention(flowId, 1), 'Protect my sleep.');
+    expect(await store.loadIntention(flowId, 3), isEmpty);
   });
 
   testWidgets(
@@ -333,7 +371,7 @@ void main() {
       tester,
       flowId: 74,
       day: day,
-      initialNeed: 'Protect my sleep.',
+      initialIntention: 'Protect my sleep.',
     );
 
     await tester.tap(find.byType(OfferingTableEventBlockVisual));
@@ -354,7 +392,7 @@ void main() {
     await _pumpDayView(
       tester,
       flowId: 73,
-      initialNeed: 'Protect my sleep.',
+      initialIntention: 'Protect my sleep.',
       onWriteJournalResponse: (block) async => blocks.add(block),
     );
 
@@ -482,7 +520,7 @@ Future<void> _pumpDayView(
   WidgetTester tester, {
   required int flowId,
   OfferingTableDay? day,
-  String? initialNeed,
+  String? initialIntention,
   MaatJournalResponseBlockWriter? onWriteJournalResponse,
 }) async {
   tester.view.physicalSize = const Size(390, 844);
@@ -490,10 +528,14 @@ Future<void> _pumpDayView(
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
 
-  if (initialNeed != null) {
-    await const OfferingTableLocalStore().saveNeed(flowId, initialNeed);
-  }
   final resolvedDay = day ?? kOfferingTableDays.first;
+  if (initialIntention != null) {
+    await const OfferingTableLocalStore().saveIntention(
+      flowId,
+      resolvedDay.dayNumber,
+      initialIntention,
+    );
+  }
   await tester.pumpWidget(
     MaterialApp(
       home: Scaffold(

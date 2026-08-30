@@ -342,7 +342,7 @@ void main() {
     },
   );
 
-  testWidgets('Carry saves the trimmed private need only after join succeeds', (
+  testWidgets('Carry seeds only the trimmed Day 1 intention after join', (
     tester,
   ) async {
     await _pumpPage(
@@ -365,8 +365,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      await const OfferingTableLocalStore().loadNeed(81),
+      await const OfferingTableLocalStore().loadIntention(81, 1),
       'Protect my sleep.',
+    );
+    expect(await const OfferingTableLocalStore().loadIntention(81, 2), isEmpty);
+    expect(
+      await const OfferingTableLocalStore().loadIntention(81, 30),
+      isEmpty,
     );
   });
 
@@ -1504,7 +1509,7 @@ class _FailingOfferingTableLocalStore extends OfferingTableLocalStore {
   const _FailingOfferingTableLocalStore();
 
   @override
-  Future<void> saveNeed(int flowId, String value) async {
+  Future<void> saveIntention(int flowId, int dayNumber, String value) async {
     throw StateError('test-only private store failure');
   }
 }
@@ -1530,7 +1535,7 @@ Future<void> _pumpDaySheet(
             localDate: date,
             startMinute:
                 kOfferingTableDefaultHour * 60 + kOfferingTableDefaultMinute,
-            initialNeed: 'Protect my sleep.',
+            initialIntention: 'Protect my sleep.',
             lens: OfferingTableLens.neutral,
             persistResponses: false,
             completionPanel: const Text('Completion fixture'),
@@ -1579,7 +1584,11 @@ Future<void> _pumpStaticOfferingDayView(
 }) async {
   const flowId = 701;
   tester.view.physicalSize = size;
-  await const OfferingTableLocalStore().saveNeed(flowId, 'Protect my sleep.');
+  await const OfferingTableLocalStore().saveIntention(
+    flowId,
+    1,
+    'Protect my sleep.',
+  );
   final day = kOfferingTableDays.first;
   await tester.pumpWidget(
     RepaintBoundary(

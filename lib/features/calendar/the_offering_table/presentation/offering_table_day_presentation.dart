@@ -16,24 +16,28 @@ class OfferingTableDayPresentation extends StatefulWidget {
     required this.day,
     required this.localDate,
     required this.startMinute,
-    required this.initialNeed,
+    required this.initialIntention,
     required this.lens,
     required this.completionPanel,
     this.persistResponses = true,
     this.clientEventId,
+    this.onSaveIntention,
     this.onWriteJournalResponse,
+    this.intentionSaveDebounce = const Duration(milliseconds: 350),
     this.reflectionSaveDebounce = const Duration(milliseconds: 450),
   });
 
   final OfferingTableDay day;
   final DateTime localDate;
   final int startMinute;
-  final String initialNeed;
+  final String initialIntention;
   final OfferingTableLens lens;
   final Widget completionPanel;
   final bool persistResponses;
   final String? clientEventId;
+  final Future<void> Function(String value)? onSaveIntention;
   final MaatJournalResponseBlockWriter? onWriteJournalResponse;
+  final Duration intentionSaveDebounce;
   final Duration reflectionSaveDebounce;
 
   @override
@@ -70,10 +74,16 @@ class _OfferingTableDayPresentationState
     uiFontFamily: _ui,
   );
 
+  final TextEditingController _intentionController = TextEditingController();
   final TextEditingController _reflectionController = TextEditingController();
+  Future<void> _intentionWriteTail = Future<void>.value();
   Future<void> _journalWriteTail = Future<void>.value();
+  Timer? _intentionSaveTimer;
   Timer? _reflectionSaveTimer;
+  String? _lastSavedIntention;
   String? _lastWrittenReflection;
+  bool _intentionDirty = false;
+  bool _updatingIntentionFromWidget = false;
   bool _reflectionDirty = false;
   bool _reflectionOpen = false;
   double _placement = 0;
@@ -88,6 +98,10 @@ class _OfferingTableDayPresentationState
   @override
   void initState() {
     super.initState();
+    final initialIntention = widget.initialIntention.trim();
+    _intentionController.text = initialIntention;
+    _lastSavedIntention = initialIntention;
+    _intentionController.addListener(_onIntentionChanged);
     _reflectionController.addListener(_onReflectionChanged);
     final drafts = widget.persistResponses
         ? kMaatFlowResponseDraftStore.valuesForFlow(kOfferingTableFlowKey)
@@ -99,13 +113,69 @@ class _OfferingTableDayPresentationState
   }
 
   @override
+  void didUpdateWidget(covariant OfferingTableDayPresentation oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialIntention == widget.initialIntention ||
+        _intentionDirty) {
+      return;
+    }
+    final intention = widget.initialIntention.trim();
+    if (_intentionController.text == intention) return;
+    _updatingIntentionFromWidget = true;
+    _intentionController.text = intention;
+    _updatingIntentionFromWidget = false;
+    _lastSavedIntention = intention;
+  }
+
+  @override
   void dispose() {
+    _intentionSaveTimer?.cancel();
+    unawaited(_flushIntention());
     _reflectionSaveTimer?.cancel();
     unawaited(_flushReflection());
+    _intentionController
+      ..removeListener(_onIntentionChanged)
+      ..dispose();
     _reflectionController
       ..removeListener(_onReflectionChanged)
       ..dispose();
     super.dispose();
+  }
+
+  void _onIntentionChanged() {
+    if (_updatingIntentionFromWidget) return;
+    setState(() {});
+    final saver = widget.onSaveIntention;
+    if (saver == null) return;
+    _intentionDirty = true;
+    _intentionSaveTimer?.cancel();
+    _intentionSaveTimer = Timer(
+      widget.intentionSaveDebounce,
+      () => unawaited(_flushIntention()),
+    );
+  }
+
+  Future<void> _flushIntention() async {
+    _intentionSaveTimer?.cancel();
+    _intentionSaveTimer = null;
+    final saver = widget.onSaveIntention;
+    if (saver == null || !_intentionDirty) return;
+    final intention = _intentionController.text.trim();
+    if (intention == _lastSavedIntention) {
+      _intentionDirty = false;
+      return;
+    }
+    _intentionDirty = false;
+    final operation = _intentionWriteTail.then((_) => saver(intention));
+    _intentionWriteTail = operation.then<void>((_) {}, onError: (_, _) {});
+    try {
+      await operation;
+      _lastSavedIntention = intention;
+    } on Object {
+      if (_intentionController.text.trim() == intention) {
+        _intentionDirty = true;
+      }
+    }
   }
 
   void _onReflectionChanged() {
@@ -203,9 +273,7 @@ class _OfferingTableDayPresentationState
   Widget _buildCupHero() {
     final stage = offeringTableStage(widget.day.dayNumber);
     final stageDay = ((widget.day.dayNumber - 1) % 10) + 1;
-    final need = widget.initialNeed.trim().isEmpty
-        ? 'What matters to me.'
-        : widget.initialNeed.trim();
+    final intention = _intentionController.text.trim();
     return Stack(
       key: const ValueKey<String>('offering-table-cup-hero'),
       fit: StackFit.expand,
@@ -221,14 +289,15 @@ class _OfferingTableDayPresentationState
         Positioned.fill(
           child: LayoutBuilder(
             builder: (context, constraints) {
+              if (intention.isEmpty) return const SizedBox.shrink();
               final surfaceY = constraints.maxHeight * (168 / 238);
               final wordTop =
                   constraints.maxHeight * (96 / 238) +
                   (_placement * constraints.maxHeight * (70 / 238));
               final scale = 1 - (_placement * 0.18);
-              final fontSize = need.length > 46
+              final fontSize = intention.length > 46
                   ? 14.5
-                  : need.length > 28
+                  : intention.length > 28
                   ? 16.0
                   : 17.5;
               Widget word({
@@ -251,7 +320,7 @@ class _OfferingTableDayPresentationState
                           1,
                         ),
                         child: Text(
-                          need,
+                          intention,
                           key: key,
                           textAlign: TextAlign.center,
                           maxLines: 3,
@@ -261,7 +330,7 @@ class _OfferingTableDayPresentationState
                             fontFamily: _display,
                             fontSize: fontSize,
                             fontStyle: FontStyle.italic,
-                            height: need.length > 46 ? 1.24 : 1.3,
+                            height: intention.length > 46 ? 1.24 : 1.3,
                             letterSpacing: 0.35,
                             shadows: submerged
                                 ? const <Shadow>[
@@ -649,10 +718,31 @@ class _OfferingTableDayPresentationState
                         ),
                       ),
                     ),
-                    child: Text(
-                      widget.initialNeed.trim().isEmpty
-                          ? 'No need was named when this table was carried.'
-                          : widget.initialNeed.trim(),
+                    child: TextField(
+                      key: const ValueKey<String>(
+                        'offering-table-intention-field',
+                      ),
+                      controller: _intentionController,
+                      cursorColor: const Color(0xFFE8B27C),
+                      minLines: 1,
+                      maxLines: 2,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => unawaited(_flushIntention()),
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                        hintText: 'Name today’s intention…',
+                        hintStyle: TextStyle(
+                          color: Color(0x737F756A),
+                          fontFamily: _display,
+                          fontSize: 18,
+                          fontStyle: FontStyle.italic,
+                          height: 1.3,
+                        ),
+                      ),
                       style: const TextStyle(
                         color: Color(0xFFE8B27C),
                         fontFamily: _display,

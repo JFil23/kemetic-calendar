@@ -123,7 +123,7 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
       widget.initialStartDate ?? defaultOfferingTableStartDate(widget.timezone),
     );
     _carriedFlowId = widget.joinedFlowId;
-    _loadJoinedNeed();
+    _loadJoinedIntention();
   }
 
   @override
@@ -131,7 +131,7 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
     super.didUpdateWidget(oldWidget);
     if (widget.joinedFlowId != oldWidget.joinedFlowId) {
       _carriedFlowId = widget.joinedFlowId;
-      _loadJoinedNeed();
+      _loadJoinedIntention();
     }
   }
 
@@ -149,12 +149,12 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
     throw StateError('A joined Offering Table must have a persisted schedule.');
   }
 
-  Future<void> _loadJoinedNeed() async {
+  Future<void> _loadJoinedIntention() async {
     final flowId = _carriedFlowId;
     if (flowId == null) return;
-    final need = await widget.localStore.loadNeed(flowId);
+    final intention = await widget.localStore.loadIntention(flowId, 1);
     if (!mounted || _carriedFlowId != flowId) return;
-    _initialEntryController.text = need;
+    _initialEntryController.text = intention;
   }
 
   @override
@@ -198,7 +198,11 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
     // The staged flow is the join authority. Private local copy must never
     // turn a successful calendar join into a retryable second enrollment.
     try {
-      await widget.localStore.saveNeed(id, _initialEntryController.text);
+      await widget.localStore.saveIntention(
+        id,
+        1,
+        _initialEntryController.text,
+      );
     } catch (error, stackTrace) {
       debugPrint('[OfferingTable] private need save failed after join: $error');
       debugPrint('$stackTrace');
