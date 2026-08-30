@@ -205,6 +205,7 @@ void main() {
     expect(authority.ensureCount, 1);
     expect(authority.lastSnapshot?.isScheduled, isFalse);
     expect(authority.lastSnapshot?.flowId, authority.flowId);
+    expect(authority.lastSnapshot?.plan.state, kReadingHouseHeldState);
 
     await tester.tap(find.byKey(const ValueKey<String>('reading-house-held')));
     await tester.pumpAndSettle();
@@ -521,17 +522,20 @@ class _FakeReadingHouseAuthority implements ReadingHouseAuthority {
     required TrackSkyTimeZone timezone,
   }) async {
     ensureCount += 1;
+    final heldPlan = plan.copyWith(state: kReadingHouseHeldState);
     final snapshot = ReadingHouseSnapshot(
       flowId: flowId ?? this.flowId,
-      calendarId: plan.isSolo ? personalCalendarId : 'shared-house-calendar',
-      plan: plan,
+      calendarId: heldPlan.isSolo
+          ? personalCalendarId
+          : 'shared-house-calendar',
+      plan: heldPlan,
       sittings: List<ReadingHouseSitting>.of(sittings),
-      openDoors: !plan.isSolo && openDoors,
+      openDoors: !heldPlan.isSolo && openDoors,
       members: lastSnapshot?.members ?? const <SharedCalendarMember>[_host],
       held: true,
       canEdit: true,
-      canManageMembership: !plan.isSolo,
-      isSharedHouse: !plan.isSolo,
+      canManageMembership: !heldPlan.isSolo,
+      isSharedHouse: !heldPlan.isSolo,
     );
     lastSnapshot = snapshot;
     return snapshot;

@@ -143,28 +143,16 @@ void main() {
       () async {
         final httpClient = _ActivityClient(
           fail: false,
-          responseBody: <Object?>[
-            <String, Object?>{
-              'id': 7,
-              'user_id': _userId,
-              'calendar_id': null,
-              'name': 'Bounded flow',
-              'color': 0x4DD0E1,
-              'active': true,
-              'is_saved': false,
-              'start_date': null,
-              'end_date': null,
-              'notes': null,
-              'rules': const <Object?>[],
-              'is_hidden': false,
-              'is_reminder': false,
-              'visible_in_active_list': true,
-              'visible_in_saved_list': false,
-              'total_event_count': 12,
-              'remaining_event_count': 4,
-              'remaining_live_event_count': 4,
-            },
-          ],
+          responsesByPath: <String, Object?>{
+            '/rest/v1/rpc/get_my_filed_flows_v1': <Object?>[
+              _filedRow(
+                id: 7,
+                name: 'Bounded flow',
+                remainingLiveEventCount: 4,
+              ),
+            ],
+            '/rest/v1/rpc/get_my_held_reading_houses_v1': const <Object?>[],
+          },
         );
         final client = SupabaseClient(
           'https://example.supabase.test',
@@ -181,10 +169,160 @@ void main() {
           expect(rows.single.remainingLiveEventCount, 4);
           expect(
             httpClient.lastRequestPath,
-            '/rest/v1/rpc/get_my_filed_flows_v1',
+            '/rest/v1/rpc/get_my_held_reading_houses_v1',
           );
           expect(httpClient.lastRequestBody, <String, Object?>{'p_limit': 10});
-          expect(httpClient.requestCount, 1);
+          expect(httpClient.requestPaths, <String>[
+            '/rest/v1/rpc/get_my_filed_flows_v1',
+            '/rest/v1/rpc/get_my_held_reading_houses_v1',
+          ]);
+          expect(httpClient.requestCount, 2);
+        } finally {
+          client.dispose();
+        }
+      },
+    );
+
+    test(
+      'composes v1 with held houses and keeps ordinary v1 rows intact',
+      () async {
+        final httpClient = _ActivityClient(
+          fail: false,
+          responsesByPath: <String, Object?>{
+            '/rest/v1/rpc/get_my_filed_flows_v1': <Object?>[
+              _filedRow(
+                id: 7,
+                name: 'Existing flow',
+                createdAt: '2026-08-29T12:00:00Z',
+                remainingLiveEventCount: 4,
+              ),
+            ],
+            '/rest/v1/rpc/get_my_held_reading_houses_v1': <Object?>[
+              _filedRow(
+                id: 8,
+                userId: 'another-owner',
+                name: 'The Reading House',
+                createdAt: '2026-08-30T12:00:00Z',
+              ),
+            ],
+          },
+        );
+        final client = SupabaseClient(
+          'https://example.supabase.test',
+          'test-anon-key',
+          httpClient: httpClient,
+          authOptions: const AuthClientOptions(autoRefreshToken: false),
+        );
+        try {
+          await client.auth.recoverSession(_sessionJson());
+          final rows = await FlowsRepo(client).refreshMyFiledFlows(limit: 10);
+
+          expect(rows.map((row) => row.id), <int>[8, 7]);
+          expect(rows.last.name, 'Existing flow');
+          expect(rows.last.remainingLiveEventCount, 4);
+          expect(rows.first.userId, 'another-owner');
+          expect(rows.first.visibleInActiveList, isTrue);
+        } finally {
+          client.dispose();
+        }
+      },
+    );
+
+    test(
+      'supplement replaces the same house row without duplicating it',
+      () async {
+        final httpClient = _ActivityClient(
+          fail: false,
+          responsesByPath: <String, Object?>{
+            '/rest/v1/rpc/get_my_filed_flows_v1': <Object?>[
+              _filedRow(
+                id: 9,
+                name: 'The Reading House',
+                visibleInActiveList: false,
+              ),
+            ],
+            '/rest/v1/rpc/get_my_held_reading_houses_v1': <Object?>[
+              _filedRow(id: 9, name: 'The Reading House'),
+            ],
+          },
+        );
+        final client = SupabaseClient(
+          'https://example.supabase.test',
+          'test-anon-key',
+          httpClient: httpClient,
+          authOptions: const AuthClientOptions(autoRefreshToken: false),
+        );
+        try {
+          await client.auth.recoverSession(_sessionJson());
+          final rows = await FlowsRepo(client).refreshMyFiledFlows(limit: 10);
+
+          expect(rows, hasLength(1));
+          expect(rows.single.id, 9);
+          expect(rows.single.visibleInActiveList, isTrue);
+        } finally {
+          client.dispose();
+        }
+      },
+    );
+
+    test(
+      'falls back to unchanged v1 when the supplement is unavailable',
+      () async {
+        final httpClient = _ActivityClient(
+          fail: false,
+          responseBody: <Object?>[_filedRow(id: 7, name: 'Existing flow')],
+          failPaths: const <String>{
+            '/rest/v1/rpc/get_my_held_reading_houses_v1',
+          },
+        );
+        final client = SupabaseClient(
+          'https://example.supabase.test',
+          'test-anon-key',
+          httpClient: httpClient,
+          authOptions: const AuthClientOptions(autoRefreshToken: false),
+        );
+        try {
+          await client.auth.recoverSession(_sessionJson());
+          final rows = await FlowsRepo(client).refreshMyFiledFlows(limit: 10);
+
+          expect(rows, hasLength(1));
+          expect(rows.single.id, 7);
+          expect(httpClient.requestCount, 2);
+        } finally {
+          client.dispose();
+        }
+      },
+    );
+
+    test(
+      'held unscheduled member house remains active with zero events',
+      () async {
+        final httpClient = _ActivityClient(
+          fail: false,
+          responsesByPath: <String, Object?>{
+            '/rest/v1/rpc/get_my_filed_flows_v1': const <Object?>[],
+            '/rest/v1/rpc/get_my_held_reading_houses_v1': <Object?>[
+              _filedRow(
+                id: 10,
+                userId: 'another-owner',
+                name: 'The Reading House',
+              ),
+            ],
+          },
+        );
+        final client = SupabaseClient(
+          'https://example.supabase.test',
+          'test-anon-key',
+          httpClient: httpClient,
+          authOptions: const AuthClientOptions(autoRefreshToken: false),
+        );
+        try {
+          await client.auth.recoverSession(_sessionJson());
+          final ledger = await FlowsRepo(client).loadMyFlowLedger();
+
+          expect(ledger.activeItems.map((flow) => flow.id), <int>[10]);
+          expect(ledger.totalRemainingEventCount, 0);
+          expect(ledger.entries.single.isActive, isTrue);
         } finally {
           client.dispose();
         }
@@ -322,24 +460,33 @@ void main() {
 }
 
 class _ActivityClient extends http.BaseClient {
-  _ActivityClient({required this.fail, this.responseBody = const <Object?>[]});
+  _ActivityClient({
+    required this.fail,
+    this.responseBody = const <Object?>[],
+    this.responsesByPath = const <String, Object?>{},
+    this.failPaths = const <String>{},
+  });
 
   final bool fail;
   final Object? responseBody;
+  final Map<String, Object?> responsesByPath;
+  final Set<String> failPaths;
   int requestCount = 0;
   String? lastRequestPath;
   Map<String, Object?>? lastRequestBody;
+  final List<String> requestPaths = <String>[];
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     requestCount++;
     lastRequestPath = request.url.path;
+    requestPaths.add(request.url.path);
     if (request is http.Request && request.body.isNotEmpty) {
       lastRequestBody = Map<String, Object?>.from(
         jsonDecode(request.body) as Map,
       );
     }
-    if (fail) {
+    if (fail || failPaths.contains(request.url.path)) {
       return _response(request, const <String, Object?>{
         'message': 'fixture failure',
         'code': '57014',
@@ -347,7 +494,10 @@ class _ActivityClient extends http.BaseClient {
         'hint': null,
       }, statusCode: 500);
     }
-    return _response(request, responseBody);
+    return _response(
+      request,
+      responsesByPath[request.url.path] ?? responseBody,
+    );
   }
 
   http.StreamedResponse _response(
@@ -364,6 +514,35 @@ class _ActivityClient extends http.BaseClient {
     );
   }
 }
+
+Map<String, Object?> _filedRow({
+  required int id,
+  required String name,
+  String userId = _userId,
+  String createdAt = '2026-08-30T12:00:00Z',
+  bool visibleInActiveList = true,
+  int remainingLiveEventCount = 0,
+}) => <String, Object?>{
+  'id': id,
+  'user_id': userId,
+  'calendar_id': null,
+  'name': name,
+  'color': 0x4DD0E1,
+  'active': true,
+  'is_saved': false,
+  'start_date': null,
+  'end_date': null,
+  'notes': null,
+  'rules': const <Object?>[],
+  'is_hidden': false,
+  'is_reminder': false,
+  'created_at': createdAt,
+  'visible_in_active_list': visibleInActiveList,
+  'visible_in_saved_list': false,
+  'total_event_count': 0,
+  'remaining_event_count': 0,
+  'remaining_live_event_count': remainingLiveEventCount,
+};
 
 String _sessionJson() => jsonEncode(<String, Object?>{
   'access_token': _jwtForUser(_userId),

@@ -121,6 +121,9 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
     required bool openDoors,
     required TrackSkyTimeZone timezone,
   }) async {
+    // Reaching this authority is the explicit "Hold this house" boundary for
+    // a new house. Progressive edits only call it after the house is held.
+    final heldPlan = plan.copyWith(state: kReadingHouseHeldState);
     final existing = flowId != null && flowId > 0
         ? await _flows.getFlowById(flowId)
         : null;
@@ -133,12 +136,12 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
       throw StateError('A calendar is required to hold this Reading House.');
     }
 
-    if (!plan.isSolo) {
+    if (!heldPlan.isSolo) {
       targetCalendarId = await _ensureSharedHouseCalendar(
         flowId: existing?.id,
         currentCalendarId: targetCalendarId,
         personalCalendarId: personalCalendarId,
-        bookTitle: plan.displayBookTitle,
+        bookTitle: heldPlan.displayBookTitle,
       );
     } else if (existing != null && targetCalendarId != personalCalendarId) {
       targetCalendarId = await _moveSoloHouseToPersonal(
@@ -162,9 +165,9 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
       ...?existing?.aiMetadata,
       'flow_key': kReadingHouseFlowKey,
       kReadingHouseMetadataKey: readingHouseMetadata(
-        plan: plan,
+        plan: heldPlan,
         sittings: normalized,
-        openDoors: !plan.isSolo && openDoors,
+        openDoors: !heldPlan.isSolo && openDoors,
       ),
     };
     final notes = <String>[
@@ -172,7 +175,7 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
       'split=1',
       'maat=$kReadingHouseFlowKey',
       'reading_house_tz=${timezone.key}',
-      ...readingHouseFlowNoteTokens(plan),
+      ...readingHouseFlowNoteTokens(heldPlan),
     ].join(';');
     final rules = dates.isEmpty
         ? const <Map<String, dynamic>>[]
@@ -205,12 +208,12 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
     await _materializeScheduledSittings(
       flowId: savedFlowId,
       calendarId: targetCalendarId,
-      plan: plan,
+      plan: heldPlan,
       sittings: normalized,
       timezone: timezone,
     );
 
-    if (!plan.isSolo) {
+    if (!heldPlan.isSolo) {
       final roomId = await _practice.ensureSharedExperienceForFlow(
         flowId: savedFlowId,
         calendarId: targetCalendarId,
@@ -235,7 +238,7 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
     }
     return _snapshotFromRow(
       row,
-      fallbackPlan: plan,
+      fallbackPlan: heldPlan,
       fallbackSittings: normalized,
     );
   }
@@ -340,6 +343,8 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
       row.aiMetadata,
       fallback: eventFallbackSittings,
     );
+    final hasReadingHouseMetadata =
+        row.aiMetadata?[kReadingHouseMetadataKey] is Map;
     final calendars = await _calendars.getAcceptedCalendars();
     SharedCalendarSummary? calendar;
     for (final candidate in calendars) {
@@ -364,7 +369,10 @@ class LiveReadingHouseAuthority implements ReadingHouseAuthority {
       sittings: List<ReadingHouseSitting>.unmodifiable(sittings),
       openDoors: readingHouseOpenDoorsFromMetadata(row.aiMetadata),
       members: List<SharedCalendarMember>.unmodifiable(members),
-      held: true,
+      // Pre-metadata Reading Houses were only persisted by the old explicit
+      // Add Flow action. Preserve them as held while requiring the explicit
+      // held_house lifecycle for every metadata-backed house.
+      held: plan.isHeld || !hasReadingHouseMetadata,
       canEdit: calendar?.canEdit ?? row.userId == currentUserId,
       canManageMembership: calendar?.canManageMembership ?? false,
       isSharedHouse: isShared,

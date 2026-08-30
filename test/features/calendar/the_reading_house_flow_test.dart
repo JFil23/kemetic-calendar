@@ -36,6 +36,25 @@ void main() {
       ).every((sitting) => sitting.scheduledDate == null),
       isTrue,
     );
+    expect(readingHousePlanFromMetadata(metadata).isHeld, isFalse);
+  });
+
+  test('explicit held lifecycle round-trips through notes and metadata', () {
+    const plan = ReadingHousePlan(state: kReadingHouseHeldState);
+    final notes = readingHouseFlowNoteTokens(plan).join(';');
+    final metadata = <String, dynamic>{
+      'flow_key': kReadingHouseFlowKey,
+      kReadingHouseMetadataKey: readingHouseMetadata(
+        plan: plan,
+        sittings: const <ReadingHouseSitting>[],
+        openDoors: false,
+      ),
+    };
+
+    expect(const ReadingHousePlan().isHeld, isFalse);
+    expect(readingHousePlanFromFlowNotes(notes).isHeld, isTrue);
+    expect(readingHousePlanFromMetadata(metadata).isHeld, isTrue);
+    expect(notes, contains('reading_house_state=held_house'));
   });
 
   test(
@@ -48,23 +67,114 @@ void main() {
     },
   );
 
-  test(
-    'unscheduled filing migration uses membership without placeholder events',
-    () {
-      final sql = File(
+  group('additive unscheduled Reading House filing migration', () {
+    late String sql;
+
+    setUpAll(() {
+      sql = File(
         '../supabase/migrations/'
         '20260830120000_reading_house_unscheduled_filing.sql',
       ).readAsStringSync();
+    });
 
-      expect(sql, contains('private.flow_is_reading_house'));
-      expect(sql, contains("scm.status = 'accepted'"));
-      expect(sql, contains('or cf.is_reading_house'));
-      expect(sql, contains('or private.flow_is_reading_house'));
-      expect(sql, contains('and f.user_id = p_user_id'));
+    test('leaves every deployed production authority unchanged', () {
+      for (final authority in <String>[
+        'private.flow_activity_summary_v1',
+        'public.get_my_filed_flows_v1',
+        'public.get_profile_flow_counts',
+        'public.get_my_flow_activity_v1',
+        'public.get_currently_active_imported_flows_v1',
+      ]) {
+        expect(
+          sql,
+          isNot(
+            matches(
+              RegExp(
+                'create\\s+or\\s+replace\\s+function\\s+'
+                '${RegExp.escape(authority)}',
+                caseSensitive: false,
+              ),
+            ),
+          ),
+          reason: '$authority must remain the deployed v1 authority',
+        );
+      }
+      expect(sql, isNot(contains('alter table')));
+      expect(sql, isNot(contains('create policy')));
+      expect(sql, isNot(contains('drop policy')));
+      expect(sql, isNot(contains('create trigger')));
+      expect(sql, isNot(contains('drop trigger')));
+    });
+
+    test('adds only an exact held-house supplement', () {
+      expect(sql, contains('create function private.flow_is_reading_house'));
+      expect(
+        sql,
+        contains('create function private.flow_is_held_reading_house'),
+      );
+      expect(
+        sql,
+        contains('create function public.get_my_held_reading_houses_v1'),
+      );
+      expect(sql, contains("'the-reading-house'"));
+      expect(sql, contains('reading_house_state=held_house'));
+      expect(sql, contains("'{reading_house,state}'"));
+      expect(sql, isNot(contains('reading_house_[^;]*=')));
       expect(sql, isNot(contains('placeholder')));
+      expect(sql, isNot(matches(RegExp(r'\bdraft_house\b'))));
+    });
+
+    test('requires exact accepted membership and preserves accounting', () {
+      expect(sql, contains('join public.shared_calendar_members membership'));
+      expect(sql, contains('membership.calendar_id = f.calendar_id'));
+      expect(sql, contains('membership.user_id = v_uid'));
+      expect(sql, contains("membership.status = 'accepted'"));
+      expect(
+        sql,
+        contains('left join lateral private.flow_activity_summary_v1'),
+      );
+      expect(sql, contains('private.flow_activity_summary_v1(\n    f.user_id'));
+      expect(sql, contains('when f.user_id = v_uid then'));
+      expect(sql, contains('public.flow_is_schedule_open'));
+      expect(sql, contains('coalesce(summary.is_counted_active, false)'));
+      expect(sql, contains('f.start_date is null and f.end_date is null'));
+      expect(sql, isNot(contains("membership.status = 'pending'")));
+    });
+
+    test('does not mutate data or publish a house to Commons', () {
+      expect(
+        sql,
+        isNot(
+          matches(
+            RegExp(
+              r'\b(insert\s+into|update|delete\s+from|truncate)\s+public\.',
+              caseSensitive: false,
+            ),
+          ),
+        ),
+      );
       expect(sql, isNot(contains('insert into public.user_events')));
-    },
-  );
+      expect(sql, isNot(contains('insert into public.flow_posts')));
+      expect(sql, isNot(contains('update public.flow_posts')));
+      expect(sql, isNot(contains('shared_practice')));
+    });
+
+    test('grants authenticated access only to the new public supplement', () {
+      expect(
+        sql,
+        contains(
+          'grant execute on function '
+          'public.get_my_held_reading_houses_v1(integer)',
+        ),
+      );
+      expect(
+        sql,
+        isNot(
+          contains('grant execute on function public.get_my_filed_flows_v1'),
+        ),
+      );
+    });
+  });
 
   test('Reading House has three starter sittings on the MVP rhythm', () {
     expect(kReadingHouseSittings, hasLength(3));

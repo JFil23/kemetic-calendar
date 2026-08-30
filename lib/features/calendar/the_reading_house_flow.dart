@@ -32,6 +32,7 @@ const String kReadingHouseDefaultQuestion =
 const String kReadingHouseDefaultMode = 'company';
 const String kReadingHouseSoloMode = 'solo';
 const String kReadingHouseDefaultState = 'draft_house';
+const String kReadingHouseHeldState = 'held_house';
 const String kReadingHouseSittingSourceStarterDefault = 'starter_default';
 const String kReadingHouseSittingSourceHostAuthored = 'host_authored';
 const String kReadingHouseHostAuthoringPhaseFuture = 'future';
@@ -94,6 +95,8 @@ class ReadingHousePlan {
   }
 
   bool get isSolo => normalizedMode == kReadingHouseSoloMode;
+
+  bool get isHeld => state.trim().toLowerCase() == kReadingHouseHeldState;
 
   ReadingHousePlan copyWith({
     String? bookTitle,
