@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/maat_flow_response_draft_store.dart';
 import 'package:mobile/features/calendar/maat_flow_response_journal_blocks.dart';
+import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_presentation.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_presentation_copy.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
@@ -54,7 +55,7 @@ void main() {
     );
   });
 
-  testWidgets('maps full-hero taps and vertical drags through one placement', (
+  testWidgets('maps shared horizontal taps and drags through one placement', (
     tester,
   ) async {
     final semanticsHandle = tester.ensureSemantics();
@@ -65,8 +66,9 @@ void main() {
     );
     final rect = tester.getRect(gesture);
     expect(rect.height, 238);
-    final startY = rect.top + rect.height * (96 / 238);
-    final endY = rect.top + rect.height * ((96 + 70) / 238);
+    expect(find.byType(InstrumentEventHorizontalInput), findsOneWidget);
+    final startX = rect.left + 42;
+    final endX = rect.right - 42;
     final lowerBody = find.byKey(
       const ValueKey<String>('offering-table-foreground-layer'),
     );
@@ -79,22 +81,29 @@ void main() {
     await tester.pump();
     expect(tester.getSemantics(gesture).value, isNot('0 percent placed'));
 
-    await tester.tapAt(Offset(rect.center.dx, startY));
+    await tester.tapAt(Offset(startX, rect.center.dy));
     await tester.pump();
     expect(tester.getSemantics(gesture).value, '0 percent placed');
+    final intentionAtStart = tester.getTopLeft(
+      find.byKey(const ValueKey<String>('offering-table-intention-air')),
+    );
 
-    await tester.tapAt(Offset(rect.center.dx, (startY + endY) / 2));
+    await tester.tapAt(Offset((startX + endX) / 2, rect.center.dy));
     await tester.pump();
     expect(tester.getSemantics(gesture).value, '50 percent placed');
 
-    await tester.tapAt(Offset(rect.center.dx, endY));
+    await tester.tapAt(Offset(endX, rect.center.dy));
     await tester.pump();
     expect(tester.getSemantics(gesture).value, '100 percent placed');
+    final intentionAtEnd = tester.getTopLeft(
+      find.byKey(const ValueKey<String>('offering-table-intention-air')),
+    );
+    expect(intentionAtEnd.dy, greaterThan(intentionAtStart.dy));
 
-    final pointer = await tester.startGesture(Offset(rect.center.dx, startY));
+    final pointer = await tester.startGesture(Offset(startX, rect.center.dy));
     for (var step = 1; step <= 12; step++) {
       await pointer.moveTo(
-        Offset(rect.center.dx, startY + (endY - startY) * step / 12),
+        Offset(startX + (endX - startX) * step / 12, rect.center.dy),
       );
       await tester.pump(const Duration(milliseconds: 16));
     }
@@ -117,6 +126,39 @@ void main() {
       isTrue,
       reason: 'instrument updates must not rebuild the lower ritual body',
     );
+    semanticsHandle.dispose();
+  });
+
+  testWidgets('vertical swipe over the hero scrolls without moving intention', (
+    tester,
+  ) async {
+    final semanticsHandle = tester.ensureSemantics();
+    await _pumpPresentation(tester);
+
+    final gesture = find.byKey(
+      const ValueKey<String>('offering-table-intention-drag'),
+    );
+    final rect = tester.getRect(gesture);
+    await tester.tapAt(rect.center);
+    await tester.pump();
+    expect(tester.getSemantics(gesture).value, '50 percent placed');
+
+    final scrollable = find
+        .descendant(
+          of: find.byKey(
+            const ValueKey<String>('offering-table-presentation-body'),
+          ),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    final position = tester.state<ScrollableState>(scrollable).position;
+    final scrollBefore = position.pixels;
+
+    await tester.dragFrom(rect.center, const Offset(0, -100));
+    await tester.pumpAndSettle();
+
+    expect(position.pixels, greaterThan(scrollBefore));
+    expect(tester.getSemantics(gesture).value, '50 percent placed');
     semanticsHandle.dispose();
   });
 

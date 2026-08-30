@@ -44,6 +44,46 @@ class CalendarEventDetailSheetCoordinator {
   }
 }
 
+/// The shared horizontal, normalized input surface for instrument heroes.
+///
+/// Follow the Sky owns the established gesture contract: taps and horizontal
+/// drags select one fraction across the instrument's inset track. Instrument
+/// presentations decide only how that fraction is rendered.
+class InstrumentEventHorizontalInput extends StatelessWidget {
+  const InstrumentEventHorizontalInput({
+    super.key,
+    required this.gestureKey,
+    required this.onSelectFraction,
+  });
+
+  final Key gestureKey;
+  final ValueChanged<double> onSelectFraction;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        void update(Offset position) {
+          onSelectFraction(
+            ((position.dx - 42) / (constraints.maxWidth - 84))
+                .clamp(0.0, 1.0)
+                .toDouble(),
+          );
+        }
+
+        return GestureDetector(
+          key: gestureKey,
+          behavior: HitTestBehavior.opaque,
+          onTapUp: (details) => update(details.localPosition),
+          onHorizontalDragDown: (details) => update(details.localPosition),
+          onHorizontalDragUpdate: (details) => update(details.localPosition),
+          child: const SizedBox.expand(),
+        );
+      },
+    );
+  }
+}
+
 @visibleForTesting
 const ValueKey<String> dayViewBottomSheetBackplateKey = ValueKey<String>(
   'day-view-bottom-sheet-backplate',

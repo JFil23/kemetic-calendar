@@ -432,55 +432,41 @@ class _FollowSkyObservationPresentationState
   }
 
   Widget _buildSkyInput() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        void update(Offset position) {
-          _selectFraction(
-            ((position.dx - 42) / (constraints.maxWidth - 84)).clamp(0.0, 1.0),
-          );
-        }
-
-        final instrument = _instrumentController;
-        final gesture = GestureDetector(
-          key: const ValueKey<String>('follow-sky-hero-drag'),
-          behavior: HitTestBehavior.opaque,
-          onTapUp: (details) => update(details.localPosition),
-          onHorizontalDragDown: (details) => update(details.localPosition),
-          onHorizontalDragUpdate: (details) => update(details.localPosition),
-          child: const SizedBox.expand(),
+    final instrument = _instrumentController;
+    final gesture = InstrumentEventHorizontalInput(
+      gestureKey: const ValueKey<String>('follow-sky-hero-drag'),
+      onSelectFraction: _selectFraction,
+    );
+    return ValueListenableBuilder<DateTime>(
+      valueListenable: instrument,
+      child: gesture,
+      builder: (context, selectedAt, child) {
+        final reading = FollowSkyInstrumentSurface.readingFor(
+          widget.model.instrument,
+          widget.model.track,
+          selectedAt,
         );
-        return ValueListenableBuilder<DateTime>(
-          valueListenable: instrument,
-          child: gesture,
-          builder: (context, selectedAt, child) {
-            final reading = FollowSkyInstrumentSurface.readingFor(
-              widget.model.instrument,
-              widget.model.track,
-              selectedAt,
-            );
-            final selectedFraction = instrument.fractionFor(selectedAt);
-            return Semantics(
-              label:
-                  '${widget.model.locationLabel} ${widget.model.visual.semanticLabel} presentation instrument',
-              value: reading.semanticsValue,
-              increasedValue: _formatTime(
-                instrument.timeAtFraction(
-                  (selectedFraction + 0.02).clamp(0.0, 1.0),
-                ),
-              ),
-              decreasedValue: _formatTime(
-                instrument.timeAtFraction(
-                  (selectedFraction - 0.02).clamp(0.0, 1.0),
-                ),
-              ),
-              slider: true,
-              onIncrease: () =>
-                  _selectFraction((selectedFraction + 0.02).clamp(0.0, 1.0)),
-              onDecrease: () =>
-                  _selectFraction((selectedFraction - 0.02).clamp(0.0, 1.0)),
-              child: child,
-            );
-          },
+        final selectedFraction = instrument.fractionFor(selectedAt);
+        return Semantics(
+          label:
+              '${widget.model.locationLabel} ${widget.model.visual.semanticLabel} presentation instrument',
+          value: reading.semanticsValue,
+          increasedValue: _formatTime(
+            instrument.timeAtFraction(
+              (selectedFraction + 0.02).clamp(0.0, 1.0),
+            ),
+          ),
+          decreasedValue: _formatTime(
+            instrument.timeAtFraction(
+              (selectedFraction - 0.02).clamp(0.0, 1.0),
+            ),
+          ),
+          slider: true,
+          onIncrease: () =>
+              _selectFraction((selectedFraction + 0.02).clamp(0.0, 1.0)),
+          onDecrease: () =>
+              _selectFraction((selectedFraction - 0.02).clamp(0.0, 1.0)),
+          child: child,
         );
       },
     );

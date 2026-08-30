@@ -452,42 +452,25 @@ class _OfferingTableDayPresentationState
   }
 
   Widget _buildCupInput() {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        void update(Offset position) {
-          final instrumentScale = constraints.maxHeight / _cupHeroHeight;
-          final startY = _intentionStartY * instrumentScale;
-          final travel = _intentionTravel * instrumentScale;
-          _selectPlacement(((position.dy - startY) / travel).clamp(0.0, 1.0));
-        }
-
-        final gesture = GestureDetector(
-          key: const ValueKey<String>('offering-table-intention-drag'),
-          behavior: HitTestBehavior.opaque,
-          onTapUp: (details) => update(details.localPosition),
-          onVerticalDragDown: (details) => update(details.localPosition),
-          onVerticalDragUpdate: (details) => update(details.localPosition),
-          child: const SizedBox.expand(),
-        );
-        return ValueListenableBuilder<double>(
-          valueListenable: _placementController,
-          child: gesture,
-          builder: (context, placement, child) => Semantics(
-            label: 'Offering Table intention placement instrument',
-            value: '${(placement * 100).round()} percent placed',
-            increasedValue:
-                '${((placement + 0.02).clamp(0.0, 1.0) * 100).round()} percent placed',
-            decreasedValue:
-                '${((placement - 0.02).clamp(0.0, 1.0) * 100).round()} percent placed',
-            slider: true,
-            onIncrease: () =>
-                _selectPlacement((placement + 0.02).clamp(0.0, 1.0)),
-            onDecrease: () =>
-                _selectPlacement((placement - 0.02).clamp(0.0, 1.0)),
-            child: child,
-          ),
-        );
-      },
+    final gesture = InstrumentEventHorizontalInput(
+      gestureKey: const ValueKey<String>('offering-table-intention-drag'),
+      onSelectFraction: _selectPlacement,
+    );
+    return ValueListenableBuilder<double>(
+      valueListenable: _placementController,
+      child: gesture,
+      builder: (context, placement, child) => Semantics(
+        label: 'Offering Table intention placement instrument',
+        value: '${(placement * 100).round()} percent placed',
+        increasedValue:
+            '${((placement + 0.02).clamp(0.0, 1.0) * 100).round()} percent placed',
+        decreasedValue:
+            '${((placement - 0.02).clamp(0.0, 1.0) * 100).round()} percent placed',
+        slider: true,
+        onIncrease: () => _selectPlacement((placement + 0.02).clamp(0.0, 1.0)),
+        onDecrease: () => _selectPlacement((placement - 0.02).clamp(0.0, 1.0)),
+        child: child,
+      ),
     );
   }
 

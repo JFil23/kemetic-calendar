@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/follow_the_sky/domain/sky_instrument_data.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/fixtures/follow_sky_observation_presentation_fixture.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_observation_presentation.dart';
+import 'package:mobile/features/calendar/presentation/instrument_event_presentation_frame.dart';
 
 void main() {
   test('Los Angeles fixture retains the verified Full Moon specimen', () {
@@ -70,6 +71,7 @@ void main() {
       find.byKey(const ValueKey<String>('follow-sky-observation-presentation')),
       findsOneWidget,
     );
+    expect(find.byType(InstrumentEventHorizontalInput), findsOneWidget);
     expect(find.text('FOLLOW THE SKY'), findsOneWidget);
     expect(
       find.byKey(const ValueKey<String>('follow-sky-sparkle')),
