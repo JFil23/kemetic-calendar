@@ -177,7 +177,7 @@ void main() {
   });
 
   test(
-    'hero uses literal N14 glyph without painter or Material substitute',
+    'hero uses canonical N14 glyph without painter or Material substitute',
     () {
       final source = File(
         'lib/features/calendar/follow_the_sky/presentation/widgets/'
@@ -185,8 +185,8 @@ void main() {
       ).readAsStringSync();
       final pubspec = File('pubspec.yaml').readAsStringSync();
 
-      expect(source, contains("'𓇼'"));
-      expect(source, contains('sbꜣ — star — Egyptian hieroglyph N14'));
+      expect(kFollowSkyGlyph, '𓇼');
+      expect(source, contains('glyph: kFollowSkyGlyph'));
       expect(source, isNot(contains('_FollowSkyHeroGlyphPainter')));
       expect(source, isNot(contains('Icons.star')));
       expect(pubspec, contains('family: Noto Sans Egyptian Hieroglyphs'));

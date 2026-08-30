@@ -1703,13 +1703,12 @@ class _MaatFlowIconPainter extends CustomPainter {
       case _MaatFlowTemplateKind.theWeighing:
         _drawWeighing(canvas, linePaint);
       case _MaatFlowTemplateKind.trackSky:
-        _drawSky(canvas, linePaint);
+      case _MaatFlowTemplateKind.offeringTable:
+        _drawFallbackGlyph(canvas, size, lineColor);
       case _MaatFlowTemplateKind.dawnHouseRite:
         _drawDawnHouse(canvas, linePaint);
       case _MaatFlowTemplateKind.eveningThresholdRite:
         _drawEveningThreshold(canvas, linePaint);
-      case _MaatFlowTemplateKind.offeringTable:
-        _drawOfferingTable(canvas, linePaint);
       case _MaatFlowTemplateKind.theTending:
         _drawTending(canvas, linePaint);
       default:
@@ -1732,20 +1731,6 @@ class _MaatFlowIconPainter extends CustomPainter {
     canvas.drawLine(const Offset(10, 2), const Offset(14, 6), paint);
     canvas.drawLine(const Offset(-17, 6), const Offset(-7, 6), paint);
     canvas.drawLine(const Offset(7, 6), const Offset(17, 6), paint);
-  }
-
-  void _drawSky(Canvas canvas, Paint paint) {
-    canvas.drawCircle(const Offset(0, -8), 5.1, paint);
-    canvas.drawArc(
-      const Rect.fromLTWH(-11, -6, 22, 22),
-      math.pi * 1.12,
-      math.pi * 0.76,
-      false,
-      paint,
-    );
-    canvas.drawLine(const Offset(0, -2), const Offset(0, 14), paint);
-    canvas.drawLine(const Offset(0, -2), const Offset(-8, 7), paint);
-    canvas.drawLine(const Offset(0, -2), const Offset(8, 7), paint);
   }
 
   void _drawDawnHouse(Canvas canvas, Paint paint) {
@@ -1771,15 +1756,6 @@ class _MaatFlowIconPainter extends CustomPainter {
     );
     canvas.drawLine(const Offset(-15, 8), const Offset(15, 8), paint);
     canvas.drawLine(const Offset(-10, 12), const Offset(10, 12), paint);
-  }
-
-  void _drawOfferingTable(Canvas canvas, Paint paint) {
-    canvas.drawLine(const Offset(-14, 2), const Offset(14, 2), paint);
-    canvas.drawCircle(const Offset(-12, 2), 4.1, paint);
-    canvas.drawCircle(const Offset(12, 2), 4.1, paint);
-    canvas.drawLine(const Offset(-4, 2), const Offset(4, 2), paint);
-    canvas.drawLine(const Offset(-12, 2), const Offset(-12, 9), paint);
-    canvas.drawLine(const Offset(12, 2), const Offset(12, 9), paint);
   }
 
   void _drawTending(Canvas canvas, Paint paint) {

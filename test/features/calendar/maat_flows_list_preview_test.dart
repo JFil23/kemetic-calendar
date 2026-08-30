@@ -248,6 +248,55 @@ void main() {
     },
   );
 
+  testWidgets(
+    'Offering identity and full description remain clear at mobile widths',
+    (tester) async {
+      const description =
+          'Notice what needs to be fed. Name an intention, make one small act of provision, then drink the water.';
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      Future<double> pumpAtWidth(double width) async {
+        tester.view.physicalSize = Size(width, 16000);
+        await tester.pumpWidget(
+          MaterialApp(
+            debugShowCheckedModeBanner: false,
+            home: buildMaatFlowsListPreviewForTesting(
+              joinedKeys: const <String>{'the-offering-table'},
+              completionCounts: const <String, (int total, int remaining)>{
+                'the-offering-table': (30, 29),
+              },
+            ),
+          ),
+        );
+        await tester.pump();
+
+        final descriptionFinder = find.text(description);
+        final cardFinder = find.byKey(
+          maatFlowCatalogCardKeyForTesting('the-offering-table'),
+        );
+        expect(descriptionFinder, findsOneWidget);
+        expect(find.text('1 of 30'), findsOneWidget);
+        final descriptionText = tester.widget<Text>(descriptionFinder);
+        expect(descriptionText.maxLines, isNull);
+        expect(descriptionText.overflow, isNull);
+        expect(
+          tester
+              .getRect(cardFinder)
+              .contains(tester.getRect(descriptionFinder).bottomRight),
+          isTrue,
+        );
+        expect(tester.takeException(), isNull);
+        return tester.getSize(cardFinder).height;
+      }
+
+      final normalHeight = await pumpAtWidth(390);
+      final narrowHeight = await pumpAtWidth(320);
+      expect(narrowHeight, greaterThan(normalHeight));
+    },
+  );
+
   testWidgets('Ma’at not-yet-joined category tabs filter and toggle', (
     tester,
   ) async {

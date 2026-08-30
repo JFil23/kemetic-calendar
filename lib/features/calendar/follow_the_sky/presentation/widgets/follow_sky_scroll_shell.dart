@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../domain/follow_sky_identity.dart';
 import '../../../presentation/maat_flow_detail_shell.dart';
 import 'follow_sky_v11_tokens.dart';
 
@@ -17,7 +18,7 @@ class FollowSkyHero extends StatelessWidget {
     return MaatFlowDetailHero(
       theme: FollowSkyV11Tokens.detailTheme,
       background: const _FollowSkyHeroBackdrop(),
-      glyph: '𓇼', // sbꜣ — star — Egyptian hieroglyph N14.
+      glyph: kFollowSkyGlyph,
       glyphKey: const ValueKey<String>('follow-sky-hero-star'),
       glyphGradient: const RadialGradient(
         center: Alignment(-0.24, -0.44),

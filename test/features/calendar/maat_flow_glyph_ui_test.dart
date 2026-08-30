@@ -3,8 +3,10 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/features/calendar/follow_the_sky/follow_the_sky.dart';
 import 'package:mobile/features/calendar/maat_flow_palette.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
+import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 
 void main() {
   test('prebuilt Ma’at Flow templates declare non-empty glyph metadata', () {
@@ -46,6 +48,44 @@ void main() {
       expect(find.byType(MaatFlowGlyph), findsOneWidget);
     },
   );
+
+  test('Offering and Follow Sky surfaces consume one canonical glyph each', () {
+    final templates = File(
+      'lib/features/calendar/calendar_page.dart',
+    ).readAsStringSync();
+    final listPainter = File(
+      'lib/features/calendar/calendar_maat_flows.dart',
+    ).readAsStringSync();
+    final followHero = File(
+      'lib/features/calendar/follow_the_sky/presentation/widgets/'
+      'follow_sky_scroll_shell.dart',
+    ).readAsStringSync();
+
+    expect(kOfferingTableGlyph, '𓊲');
+    expect(kFollowSkyGlyph, '𓇼');
+    expect(templates, contains('glyph: kOfferingTableGlyph'));
+    expect(templates, contains('glyph: kFollowSkyGlyph'));
+    expect(templates, contains('color: const Color(0xFFC08A52)'));
+    expect(
+      templates,
+      contains(
+        'Notice what needs to be fed. Name an intention, make one small act '
+        'of provision, then drink the water.',
+      ),
+    );
+    expect(templates, contains("glyphSourceWord: 'wdHw'"));
+    expect(followHero, contains('glyph: kFollowSkyGlyph'));
+    expect(
+      listPainter,
+      contains(
+        'case _MaatFlowTemplateKind.trackSky:\n'
+        '      case _MaatFlowTemplateKind.offeringTable:\n'
+        '        _drawFallbackGlyph(canvas, size, lineColor);',
+      ),
+    );
+    expect(listPainter, isNot(contains('void _drawSky(')));
+    expect(listPainter, isNot(contains('void _drawOfferingTable(')));
+  });
 
   test('Ma’at Flow surface bundles and uses Cormorant Garamond', () {
     final pubspec = File('pubspec.yaml').readAsStringSync();

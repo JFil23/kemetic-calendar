@@ -7,7 +7,9 @@ import 'track_sky_flow.dart';
 
 const String kOfferingTableFlowKey = 'the-offering-table';
 const String kOfferingTableTitle = 'The Offering Table';
-const String kOfferingTableGlyph = '𓊵';
+
+/// R3, wdHw: an offering table bearing offerings.
+const String kOfferingTableGlyph = '𓊲';
 const String kOfferingTableTagline = 'Feed what needs to be fed.';
 const int kOfferingTableDurationMinutes = 3;
 const int kOfferingTableCompletionDurationMinutes = 5;

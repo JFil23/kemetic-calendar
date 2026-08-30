@@ -2,6 +2,7 @@
 library;
 
 export 'domain/follow_sky_timezone.dart';
+export 'domain/follow_sky_identity.dart';
 export 'domain/observing_place.dart';
 export 'domain/sky_catalog.dart';
 export 'domain/sky_event.dart';
