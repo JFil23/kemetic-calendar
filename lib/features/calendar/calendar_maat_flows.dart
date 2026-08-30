@@ -8539,6 +8539,9 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
+  // Kept as the behavior-connected legacy donor until the approved visual
+  // presentation is wired back onto persistence in a later pass.
+  // ignore: unused_element
   Widget _buildReadingHouseScaffold(BuildContext context) {
     final l10n = MaterialLocalizations.of(context);
     final selectedStart =
@@ -8605,6 +8608,27 @@ class _MaatFlowTemplateDetailPageState
         const SizedBox(height: 10),
         const _MaatFlowPrivacyFooter(),
       ],
+    );
+  }
+
+  Widget _buildReadingHouseVisualScaffold() {
+    final selectedStart =
+        _picked ?? defaultReadingHouseStartDate(_previewTrackSkyTimeZone);
+    final draftPlan = readingHousePlanFromDraftValues(
+      kMaatFlowResponseDraftStore.valuesForFlow(kReadingHouseFlowKey),
+    );
+    final initialPlan = readingHousePlanFromFlowNotes(
+      widget.joinedFlow?.notes,
+      fallback: draftPlan,
+    );
+    return ReadingHouseDetailPage(
+      timezone: _previewTrackSkyTimeZone,
+      initialStartDate: selectedStart,
+      initialPlan: initialPlan,
+      initialSittings: _readingHouseSittings,
+      initiallyHeld: widget.alreadyJoined,
+      showBackButton: widget.showBackButton,
+      resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
     );
   }
 
@@ -9149,7 +9173,7 @@ class _MaatFlowTemplateDetailPageState
       return _buildDjedScaffold(context);
     }
     if (widget.template.kind == _MaatFlowTemplateKind.readingHouse) {
-      return _buildReadingHouseScaffold(context);
+      return _buildReadingHouseVisualScaffold();
     }
     if (widget.template.kind == _MaatFlowTemplateKind.maatDecan) {
       return _buildMaatDecanFlowScaffold(context);

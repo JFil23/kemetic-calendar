@@ -180,6 +180,7 @@ import 'the_open_hand_enrollment.dart';
 import 'the_djed_flow.dart';
 import 'the_djed_enrollment.dart';
 import 'the_reading_house_flow.dart';
+import 'the_reading_house/presentation/reading_house_detail_page.dart';
 import 'maat_decan_flow.dart';
 import '../settings/settings_prefs.dart';
 import '../calendars/shared_calendars_sheet.dart';
