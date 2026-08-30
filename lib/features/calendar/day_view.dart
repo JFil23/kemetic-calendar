@@ -5425,7 +5425,10 @@ class _DayViewPageState extends State<DayViewPage>
     _syncOfferingTableRippleController();
   }
 
-  void _handleHydrationActivation() => _scheduleHydrationFrame();
+  void _handleHydrationActivation() {
+    _scheduleHydrationFrame();
+    _syncOfferingTableRippleController();
+  }
 
   @override
   void initState() {
@@ -5494,9 +5497,7 @@ class _DayViewPageState extends State<DayViewPage>
   }
 
   void _syncOfferingTableRippleController() {
-    final motionDisabled =
-        MediaQuery.maybeOf(context)?.disableAnimations == true ||
-        MediaQuery.maybeOf(context)?.accessibleNavigation == true;
+    final motionDisabled = MediaQuery.disableAnimationsOf(context);
     final shouldAnimate =
         !motionDisabled && _hasLiveOfferingTableEvent(DateTime.now());
     if (!shouldAnimate) {

@@ -1,3 +1,7 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart' show ValueListenable, listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
@@ -249,67 +253,91 @@ void main() {
     },
   );
 
+  testWidgets('DayViewPage starts its real ripple after event hydration', (
+    tester,
+  ) async {
+    final notes = <NoteData>[];
+    final dataVersion = ValueNotifier<int>(0);
+    addTearDown(dataVersion.dispose);
+
+    await _pumpRealRippleDayViewPage(
+      tester,
+      notes: notes,
+      dataVersion: dataVersion,
+    );
+    expect(find.byType(OfferingTableEventBlockVisual), findsNothing);
+
+    notes.add(_offeringRippleNote());
+    dataVersion.value++;
+    await tester.pump();
+
+    final controller = _realRippleController(tester);
+    final initialValue = controller.value;
+    await tester.pump(const Duration(milliseconds: 300));
+    final firstAdvance = controller.value;
+    await tester.pump(const Duration(milliseconds: 300));
+    final secondAdvance = controller.value;
+
+    expect(firstAdvance, isNot(initialValue));
+    expect(secondAdvance, isNot(firstAdvance));
+    expect(controller.isAnimating, isTrue);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('hydration activation restarts the real DayViewPage controller', (
+    tester,
+  ) async {
+    final hydrationActivation = ValueNotifier<int>(0);
+    addTearDown(hydrationActivation.dispose);
+
+    await _pumpRealRippleDayViewPage(
+      tester,
+      notes: <NoteData>[_offeringRippleNote()],
+      hydrationActivation: hydrationActivation,
+    );
+    final controller = _realRippleController(tester);
+    controller
+      ..stop()
+      ..value = 0;
+
+    hydrationActivation.value++;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(controller.isAnimating, isTrue);
+    expect(controller.value, greaterThan(0));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets("reduced motion keeps today's shared ripple controller still", (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(390, 844);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    final now = DateTime.now();
-    final today = KemeticMath.fromGregorian(now);
-    final day = kOfferingTableDays.first;
-    final note = NoteData(
-      clientEventId: 'offering-reduced-motion-today',
-      title: offeringTableEventTitle(day),
-      allDay: false,
-      start: const TimeOfDay(hour: 7, minute: 30),
-      end: const TimeOfDay(hour: 7, minute: 33),
-      flowId: 81,
-      behaviorPayload: <String, dynamic>{
-        'kind': 'maat_offering_table_day',
-        'flow_key': kOfferingTableFlowKey,
-        'day': day.dayNumber,
-      },
+    await _pumpRealRippleDayViewPage(
+      tester,
+      notes: <NoteData>[_offeringRippleNote()],
+      mediaQueryData: const MediaQueryData(disableAnimations: true),
     );
-
-    await tester.pumpWidget(
-      MaterialApp(
-        home: MediaQuery(
-          data: const MediaQueryData(disableAnimations: true),
-          child: DayViewPage(
-            initialKy: today.kYear,
-            initialKm: today.kMonth,
-            initialKd: today.kDay,
-            showGregorian: false,
-            notesForDay: (ky, km, kd) =>
-                ky == today.kYear && km == today.kMonth && kd == today.kDay
-                ? <NoteData>[note]
-                : const <NoteData>[],
-            flowIndex: <int, FlowData>{
-              81: FlowData(
-                id: 81,
-                name: kOfferingTableTitle,
-                color: const Color(0xFFC99A3D),
-                active: true,
-                notes: 'mode=gregorian;maat=$kOfferingTableFlowKey',
-              ),
-            },
-            activeLedgerFlowIds: const <int>{81},
-            getMonthName: (month) => 'Month $month',
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-
-    final block = tester.widget<OfferingTableEventBlockVisual>(
-      find.byType(OfferingTableEventBlockVisual).first,
-    );
-    final controller = block.rippleAnimation! as AnimationController;
+    final controller = _realRippleController(tester);
     expect(controller.isAnimating, isFalse);
     expect(controller.value, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('accessible navigation alone does not suppress today ripple', (
+    tester,
+  ) async {
+    await _pumpRealRippleDayViewPage(
+      tester,
+      notes: <NoteData>[_offeringRippleNote()],
+      mediaQueryData: const MediaQueryData(accessibleNavigation: true),
+    );
+    final controller = _realRippleController(tester);
+    final initialValue = controller.value;
+
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(controller.isAnimating, isTrue);
+    expect(controller.value, isNot(initialValue));
     expect(tester.takeException(), isNull);
   });
 
@@ -367,6 +395,32 @@ void main() {
     final reducedMotion = await pumpState(OfferingTableBlockVisualState.named);
     expect(reducedMotion.visible, isTrue);
     expect(reducedMotion.animation, isNull);
+  });
+
+  test('ripple frames match the approved pulse envelope', () {
+    final start = offeringTableRippleFrameForPhase(0);
+    final peak = offeringTableRippleFrameForPhase(0.18);
+    final middle = offeringTableRippleFrameForPhase(0.5);
+    final end = offeringTableRippleFrameForPhase(1);
+
+    expect(start.scale, closeTo(0.3, 0.0001));
+    expect(start.opacity, closeTo(0, 0.0001));
+    expect(peak.opacity, closeTo(0.6, 0.0001));
+    expect(middle.scale, greaterThan(peak.scale));
+    expect(middle.opacity, lessThan(peak.opacity));
+    expect(end.scale, closeTo(1, 0.0001));
+    expect(end.opacity, closeTo(0, 0.0001));
+  });
+
+  test('ripple painter produces visibly different loop frames', () async {
+    final start = await _rasterizedRippleFrame(0);
+    final rise = await _rasterizedRippleFrame(0.18);
+    final middle = await _rasterizedRippleFrame(0.5);
+
+    expect(listEquals(start, rise), isFalse);
+    expect(listEquals(rise, middle), isFalse);
+    expect(_pixelDelta(start, rise), greaterThan(1000));
+    expect(_pixelDelta(rise, middle), greaterThan(1000));
   });
 
   testWidgets('Day View renders the canonical closing water checkbox', (
@@ -462,6 +516,101 @@ Future<void> _pumpStaticBlock(
     ),
   );
   await tester.pump();
+}
+
+NoteData _offeringRippleNote() {
+  final day = kOfferingTableDays.first;
+  return NoteData(
+    clientEventId: 'offering-real-ripple-today',
+    title: offeringTableEventTitle(day),
+    allDay: false,
+    start: const TimeOfDay(hour: 7, minute: 30),
+    end: const TimeOfDay(hour: 7, minute: 33),
+    flowId: 81,
+    behaviorPayload: <String, dynamic>{
+      'kind': 'maat_offering_table_day',
+      'flow_key': kOfferingTableFlowKey,
+      'day': day.dayNumber,
+    },
+  );
+}
+
+Future<void> _pumpRealRippleDayViewPage(
+  WidgetTester tester, {
+  required List<NoteData> notes,
+  ValueListenable<int>? dataVersion,
+  ValueListenable<int>? hydrationActivation,
+  MediaQueryData mediaQueryData = const MediaQueryData(),
+}) async {
+  tester.view.physicalSize = const Size(390, 844);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+
+  final today = KemeticMath.fromGregorian(DateTime.now());
+  await tester.pumpWidget(
+    MaterialApp(
+      home: MediaQuery(
+        data: mediaQueryData,
+        child: DayViewPage(
+          initialKy: today.kYear,
+          initialKm: today.kMonth,
+          initialKd: today.kDay,
+          showGregorian: false,
+          notesForDay: (ky, km, kd) =>
+              ky == today.kYear && km == today.kMonth && kd == today.kDay
+              ? notes
+              : const <NoteData>[],
+          flowIndex: <int, FlowData>{
+            81: FlowData(
+              id: 81,
+              name: kOfferingTableTitle,
+              color: const Color(0xFFC99A3D),
+              active: true,
+              notes: 'mode=gregorian;maat=$kOfferingTableFlowKey',
+            ),
+          },
+          activeLedgerFlowIds: const <int>{81},
+          dataVersion: dataVersion,
+          hydrationActivation: hydrationActivation,
+          getMonthName: (month) => 'Month $month',
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+}
+
+AnimationController _realRippleController(WidgetTester tester) {
+  final block = tester.widget<OfferingTableEventBlockVisual>(
+    find.byType(OfferingTableEventBlockVisual).first,
+  );
+  return block.rippleAnimation! as AnimationController;
+}
+
+Future<Uint8List> _rasterizedRippleFrame(double value) async {
+  final recorder = ui.PictureRecorder();
+  final canvas = ui.Canvas(recorder);
+  canvas.drawRect(
+    const Rect.fromLTWH(0, 0, 56, 52),
+    Paint()..color = Colors.black,
+  );
+  OfferingTableRipplePainter(
+    visible: true,
+    animation: AlwaysStoppedAnimation<double>(value),
+  ).paint(canvas, const Size(56, 52));
+  final image = await recorder.endRecording().toImage(56, 52);
+  final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+  image.dispose();
+  return bytes!.buffer.asUint8List();
+}
+
+int _pixelDelta(Uint8List left, Uint8List right) {
+  var delta = 0;
+  for (var index = 0; index < left.length; index++) {
+    delta += (left[index] - right[index]).abs();
+  }
+  return delta;
 }
 
 Future<void> _pumpRippleDayView(

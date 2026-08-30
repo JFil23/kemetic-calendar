@@ -616,6 +616,19 @@ class _OfferingTableCupPainter extends CustomPainter {
 }
 
 @visibleForTesting
+({double scale, double opacity}) offeringTableRippleFrameForPhase(
+  double phase,
+) {
+  final normalizedPhase = phase.clamp(0.0, 1.0).toDouble();
+  const curve = Cubic(0.25, 0.72, 0.4, 1);
+  final scale = 0.3 + (0.7 * curve.transform(normalizedPhase));
+  final opacity = normalizedPhase <= 0.18
+      ? 0.6 * curve.transform(normalizedPhase / 0.18)
+      : 0.6 * (1 - curve.transform((normalizedPhase - 0.18) / (1 - 0.18)));
+  return (scale: scale, opacity: opacity);
+}
+
+@visibleForTesting
 class OfferingTableRipplePainter extends CustomPainter {
   const OfferingTableRipplePainter({required this.visible, this.animation})
     : super(repaint: animation);
@@ -638,11 +651,7 @@ class OfferingTableRipplePainter extends CustomPainter {
         : List<({double scale, double opacity})>.generate(3, (index) {
             final phase =
                 (driver.value - (index * _offeringTableRipplePhaseOffset)) % 1;
-            final easedScale = Curves.easeOutCubic.transform(phase);
-            return (
-              scale: 0.28 + (0.72 * easedScale),
-              opacity: (0.20 * math.pow(1 - phase, 1.45)).toDouble(),
-            );
+            return offeringTableRippleFrameForPhase(phase);
           }, growable: false);
     for (final ring in rings) {
       canvas.drawOval(
