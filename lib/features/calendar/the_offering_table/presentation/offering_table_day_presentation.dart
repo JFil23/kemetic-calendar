@@ -52,7 +52,6 @@ class _OfferingTableDayPresentationState
   static const _water = Color(0xFF83BEB9);
   static const _display = 'CormorantGaramond';
   static const _ui = 'GentiumPlus';
-  static const _cupHeroHeight = 238.0;
   static const _reflectionPrompt =
       'What did you notice about what needs to be fed?';
   static const _reflectionStyle = InstrumentEventReflectionStyle(
@@ -72,14 +71,12 @@ class _OfferingTableDayPresentationState
   );
 
   final TextEditingController _reflectionController = TextEditingController();
-  late final ValueNotifier<double> _placementController;
-  late final ScrollController _presentationScrollController;
-  late final ValueNotifier<bool> _intentionHittable;
   Future<void> _journalWriteTail = Future<void>.value();
   Timer? _reflectionSaveTimer;
   String? _lastWrittenReflection;
   bool _reflectionDirty = false;
   bool _reflectionOpen = false;
+  double _placement = 0;
   late Map<String, bool> _checkedSteps;
 
   OfferingTablePracticePresentation get _presentation =>
@@ -91,11 +88,6 @@ class _OfferingTableDayPresentationState
   @override
   void initState() {
     super.initState();
-    _placementController = ValueNotifier<double>(0);
-    _presentationScrollController = ScrollController();
-    _intentionHittable = ValueNotifier<bool>(true);
-    _placementController.addListener(_recomputeIntentionHittable);
-    _presentationScrollController.addListener(_recomputeIntentionHittable);
     _reflectionController.addListener(_onReflectionChanged);
     final drafts = widget.persistResponses
         ? kMaatFlowResponseDraftStore.valuesForFlow(kOfferingTableFlowKey)
@@ -113,31 +105,7 @@ class _OfferingTableDayPresentationState
     _reflectionController
       ..removeListener(_onReflectionChanged)
       ..dispose();
-    _placementController
-      ..removeListener(_recomputeIntentionHittable)
-      ..dispose();
-    _presentationScrollController
-      ..removeListener(_recomputeIntentionHittable)
-      ..dispose();
-    _intentionHittable.dispose();
     super.dispose();
-  }
-
-  void _recomputeIntentionHittable() {
-    final scrollOffset = _presentationScrollController.hasClients
-        ? _presentationScrollController.offset
-        : 0.0;
-    final geometry = _OfferingIntentionGeometry(
-      size: const Size(0, _cupHeroHeight),
-      placement: _placementController.value,
-    );
-    final bodyTop =
-        _cupHeroHeight +
-        InstrumentEventPresentationFrame.footerHeight -
-        scrollOffset;
-    final next = geometry.wordBottom <= bodyTop;
-    if (next == _intentionHittable.value) return;
-    _intentionHittable.value = next;
   }
 
   void _onReflectionChanged() {
@@ -195,9 +163,7 @@ class _OfferingTableDayPresentationState
   }
 
   void _selectPlacement(double value) {
-    final next = value.clamp(0.0, 1.0).toDouble();
-    if (next == _placementController.value) return;
-    _placementController.value = next;
+    setState(() => _placement = value.clamp(0.0, 1.0));
   }
 
   void _toggleStep(int index) {
@@ -216,19 +182,15 @@ class _OfferingTableDayPresentationState
     return InstrumentEventPresentationFrame(
       key: const ValueKey<String>('offering-table-day-presentation'),
       decoration: const BoxDecoration(color: _velvet),
-      fixedHeroHeight: _cupHeroHeight,
+      fixedHeroHeight: 238,
       instrument: _buildCupHero(),
-      instrumentFooter: Column(
-        children: <Widget>[const Spacer(), _buildDragInstruction()],
-      ),
-      inputBuilder: (context, heroHeight, _) => Align(
-        alignment: Alignment.topCenter,
-        child: SizedBox(height: heroHeight),
-      ),
-      scrollController: _presentationScrollController,
-      overlayInputBuilder: (context, heroHeight, _) => Align(
-        alignment: Alignment.topCenter,
-        child: SizedBox(height: heroHeight, child: _buildCupInput()),
+      instrumentFooter: _buildPlacementControl(),
+      inputBuilder: (context, _, instrumentHeight) => Align(
+        alignment: Alignment.bottomCenter,
+        child: SizedBox(
+          height: InstrumentEventPresentationFrame.footerHeight,
+          child: _buildCupInput(),
+        ),
       ),
       body: _buildBody(),
       bodyScrollKey: const ValueKey<String>('offering-table-presentation-body'),
@@ -249,118 +211,112 @@ class _OfferingTableDayPresentationState
       fit: StackFit.expand,
       children: <Widget>[
         Positioned.fill(
-          child: ValueListenableBuilder<double>(
-            valueListenable: _placementController,
-            builder: (context, placement, _) => Stack(
-              fit: StackFit.expand,
-              children: <Widget>[
-                CustomPaint(
-                  painter: _OfferingCupInstrumentPainter(
-                    placement: placement,
-                    foreground: false,
-                  ),
-                ),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final geometry = _OfferingIntentionGeometry(
-                      size: constraints.biggest,
-                      placement: placement,
-                    );
-                    final surfaceY =
-                        constraints.maxHeight * (168 / _cupHeroHeight);
-                    final scale = 1 - (placement * 0.18);
-                    final fontSize = need.length > 46
-                        ? 14.5
-                        : need.length > 28
-                        ? 16.0
-                        : 17.5;
-                    Widget word({
-                      required Key key,
-                      required Color color,
-                      required bool submerged,
-                    }) {
-                      return Stack(
-                        fit: StackFit.expand,
-                        children: <Widget>[
-                          Positioned(
-                            left: geometry.wordLeft,
-                            top: geometry.wordTop,
-                            width: geometry.wordWidth,
-                            child: Transform(
-                              alignment: Alignment.topCenter,
-                              transform: Matrix4.diagonal3Values(
-                                submerged ? scale * 1.04 : scale,
-                                scale,
-                                1,
-                              ),
-                              child: Text(
-                                need,
-                                key: key,
-                                textAlign: TextAlign.center,
-                                maxLines: 3,
-                                overflow: TextOverflow.fade,
-                                style: TextStyle(
-                                  color: color,
-                                  fontFamily: _display,
-                                  fontSize: fontSize,
-                                  fontStyle: FontStyle.italic,
-                                  height: need.length > 46 ? 1.24 : 1.3,
-                                  letterSpacing: 0.35,
-                                  shadows: submerged
-                                      ? const <Shadow>[
-                                          Shadow(color: _water, blurRadius: 6),
-                                        ]
-                                      : const <Shadow>[
-                                          Shadow(
-                                            color: Colors.black87,
-                                            blurRadius: 12,
-                                          ),
-                                        ],
-                                ),
-                              ),
-                            ),
+          child: CustomPaint(
+            painter: _OfferingCupInstrumentPainter(
+              placement: _placement,
+              foreground: false,
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final surfaceY = constraints.maxHeight * (168 / 238);
+              final wordTop =
+                  constraints.maxHeight * (96 / 238) +
+                  (_placement * constraints.maxHeight * (70 / 238));
+              final scale = 1 - (_placement * 0.18);
+              final fontSize = need.length > 46
+                  ? 14.5
+                  : need.length > 28
+                  ? 16.0
+                  : 17.5;
+              Widget word({
+                required Key key,
+                required Color color,
+                required bool submerged,
+              }) {
+                return Stack(
+                  fit: StackFit.expand,
+                  children: <Widget>[
+                    Positioned(
+                      left: (constraints.maxWidth - 176) / 2,
+                      top: wordTop,
+                      width: 176,
+                      child: Transform(
+                        alignment: Alignment.topCenter,
+                        transform: Matrix4.diagonal3Values(
+                          submerged ? scale * 1.04 : scale,
+                          scale,
+                          1,
+                        ),
+                        child: Text(
+                          need,
+                          key: key,
+                          textAlign: TextAlign.center,
+                          maxLines: 3,
+                          overflow: TextOverflow.fade,
+                          style: TextStyle(
+                            color: color,
+                            fontFamily: _display,
+                            fontSize: fontSize,
+                            fontStyle: FontStyle.italic,
+                            height: need.length > 46 ? 1.24 : 1.3,
+                            letterSpacing: 0.35,
+                            shadows: submerged
+                                ? const <Shadow>[
+                                    Shadow(color: _water, blurRadius: 6),
+                                  ]
+                                : const <Shadow>[
+                                    Shadow(
+                                      color: Colors.black87,
+                                      blurRadius: 12,
+                                    ),
+                                  ],
                           ),
-                        ],
-                      );
-                    }
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }
 
-                    return Stack(
-                      fit: StackFit.expand,
-                      children: <Widget>[
-                        ClipPath(
-                          clipper: _OfferingWaterEllipseClipper(surfaceY),
-                          child: ClipRect(
-                            clipper: _OfferingBelowWaterClipper(surfaceY),
-                            child: word(
-                              key: const ValueKey<String>(
-                                'offering-table-intention-water',
-                              ),
-                              color: const Color(0xFFA9DCD5),
-                              submerged: true,
-                            ),
-                          ),
+              return Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  ClipPath(
+                    clipper: _OfferingWaterEllipseClipper(surfaceY),
+                    child: ClipRect(
+                      clipper: _OfferingBelowWaterClipper(surfaceY),
+                      child: word(
+                        key: const ValueKey<String>(
+                          'offering-table-intention-water',
                         ),
-                        ClipRect(
-                          clipper: _OfferingAboveWaterClipper(surfaceY),
-                          child: word(
-                            key: const ValueKey<String>(
-                              'offering-table-intention-air',
-                            ),
-                            color: const Color(0xFFE8B27C),
-                            submerged: false,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-                CustomPaint(
-                  painter: _OfferingCupInstrumentPainter(
-                    placement: placement,
-                    foreground: true,
+                        color: const Color(0xFFA9DCD5),
+                        submerged: true,
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                  ClipRect(
+                    clipper: _OfferingAboveWaterClipper(surfaceY),
+                    child: word(
+                      key: const ValueKey<String>(
+                        'offering-table-intention-air',
+                      ),
+                      color: const Color(0xFFE8B27C),
+                      submerged: false,
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+        Positioned.fill(
+          child: CustomPaint(
+            painter: _OfferingCupInstrumentPainter(
+              placement: _placement,
+              foreground: true,
             ),
           ),
         ),
@@ -484,77 +440,134 @@ class _OfferingTableDayPresentationState
 
   Widget _buildCupInput() {
     return LayoutBuilder(
-      builder: (context, constraints) => ValueListenableBuilder<double>(
-        valueListenable: _placementController,
-        builder: (context, placement, _) {
-          final geometry = _OfferingIntentionGeometry(
-            size: constraints.biggest,
-            placement: placement,
-          );
-          return Stack(
-            fit: StackFit.expand,
-            children: <Widget>[
-              Positioned.fromRect(
-                rect: geometry.interactionRect,
-                child: ValueListenableBuilder<bool>(
-                  valueListenable: _intentionHittable,
-                  builder: (context, hittable, _) => IgnorePointer(
-                    key: const ValueKey<String>(
-                      'offering-table-intention-hit-gate',
-                    ),
-                    ignoring: !hittable,
-                    child: Semantics(
-                      label: 'Offering Table intention placement instrument',
-                      value: '${(placement * 100).round()} percent placed',
-                      increasedValue:
-                          '${((placement + 0.02).clamp(0.0, 1.0) * 100).round()} percent placed',
-                      decreasedValue:
-                          '${((placement - 0.02).clamp(0.0, 1.0) * 100).round()} percent placed',
-                      slider: true,
-                      onIncrease: () =>
-                          _selectPlacement((placement + 0.02).clamp(0.0, 1.0)),
-                      onDecrease: () =>
-                          _selectPlacement((placement - 0.02).clamp(0.0, 1.0)),
-                      child: _OfferingIntentionDragTarget(
-                        placement: placement,
-                        travel: geometry.scaledTravel,
-                        onSelectPlacement: _selectPlacement,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildDragInstruction() {
-    return LayoutBuilder(
       builder: (context, constraints) {
-        final horizontal = constraints.maxWidth < 350 ? 12.0 : 20.0;
-        return IgnorePointer(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(horizontal, 2, horizontal, 10),
-            child: const Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Drag your intention into the water.',
-                key: ValueKey<String>('offering-table-drag-instruction'),
-                style: TextStyle(
-                  color: _silverLow,
-                  fontFamily: _ui,
-                  fontSize: 11.5,
-                  fontStyle: FontStyle.italic,
-                  height: 1.2,
-                ),
-              ),
-            ),
+        void update(Offset position) {
+          _selectPlacement(
+            ((position.dx - 42) / (constraints.maxWidth - 84)).clamp(0.0, 1.0),
+          );
+        }
+
+        return Semantics(
+          label: 'Offering Table intention placement instrument',
+          value: '${(_placement * 100).round()} percent placed',
+          increasedValue:
+              '${((_placement + 0.02).clamp(0.0, 1.0) * 100).round()} percent placed',
+          decreasedValue:
+              '${((_placement - 0.02).clamp(0.0, 1.0) * 100).round()} percent placed',
+          slider: true,
+          onIncrease: () =>
+              _selectPlacement((_placement + 0.02).clamp(0.0, 1.0)),
+          onDecrease: () =>
+              _selectPlacement((_placement - 0.02).clamp(0.0, 1.0)),
+          child: GestureDetector(
+            key: const ValueKey<String>('offering-table-intention-drag'),
+            behavior: HitTestBehavior.opaque,
+            onTapUp: (details) => update(details.localPosition),
+            onHorizontalDragDown: (details) => update(details.localPosition),
+            onHorizontalDragUpdate: (details) => update(details.localPosition),
+            child: const SizedBox.expand(),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildPlacementControl() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          const SizedBox(
+            height: 28,
+            child: Text(
+              'Speak your intention into the water',
+              key: ValueKey<String>('offering-table-placement-label'),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.fade,
+              softWrap: false,
+              style: TextStyle(
+                color: Color(0xC2E8B27C),
+                fontFamily: _display,
+                fontSize: 17,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ),
+          Expanded(
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                const inset = 22.0;
+                const thumbSize = 22.0;
+                final trackWidth = (constraints.maxWidth - inset * 2).clamp(
+                  1.0,
+                  double.infinity,
+                );
+                final thumbCenter = inset + trackWidth * _placement;
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: <Widget>[
+                    const Positioned(
+                      left: inset,
+                      right: inset,
+                      top: 16,
+                      child: SizedBox(
+                        height: 2,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Color(0xFF3A2B1D),
+                            borderRadius: BorderRadius.all(Radius.circular(99)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: inset,
+                      top: 16,
+                      width: trackWidth * _placement,
+                      child: const SizedBox(
+                        height: 2,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Color(0xFFE8B27C),
+                            borderRadius: BorderRadius.all(Radius.circular(99)),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: thumbCenter - thumbSize / 2,
+                      top: 6,
+                      child: Container(
+                        key: const ValueKey<String>(
+                          'offering-table-placement-thumb',
+                        ),
+                        width: thumbSize,
+                        height: thumbSize,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const RadialGradient(
+                            center: Alignment(-0.25, -0.35),
+                            colors: <Color>[
+                              Color(0xFFC58A5C),
+                              Color(0xFF7E4C2E),
+                            ],
+                          ),
+                          border: Border.all(color: const Color(0xFFF0C99B)),
+                          boxShadow: const <BoxShadow>[
+                            BoxShadow(color: Color(0x33E8B27C), blurRadius: 12),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -868,90 +881,6 @@ class _OfferingChecklistStep extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-@immutable
-class _OfferingIntentionGeometry {
-  const _OfferingIntentionGeometry({
-    required this.size,
-    required this.placement,
-  });
-
-  static const _referenceHeight = 238.0;
-  static const _startY = 96.0;
-  static const _travel = 70.0;
-  static const _wordWidth = 176.0;
-  static const _interactionHeight = 72.0;
-
-  final Size size;
-  final double placement;
-
-  double get _verticalScale => size.height / _referenceHeight;
-  double get wordWidth => _wordWidth;
-  double get wordLeft => (size.width - wordWidth) / 2;
-  double get wordTop => (_startY + placement * _travel) * _verticalScale;
-  double get wordBottom => wordTop + _scaledInteractionHeight;
-  double get scaledTravel => _travel * _verticalScale;
-  double get _scaledInteractionHeight => _interactionHeight * _verticalScale;
-
-  Rect get interactionRect =>
-      Rect.fromLTWH(wordLeft, wordTop, wordWidth, _scaledInteractionHeight);
-}
-
-class _OfferingIntentionDragTarget extends StatefulWidget {
-  const _OfferingIntentionDragTarget({
-    required this.placement,
-    required this.travel,
-    required this.onSelectPlacement,
-  });
-
-  final double placement;
-  final double travel;
-  final ValueChanged<double> onSelectPlacement;
-
-  @override
-  State<_OfferingIntentionDragTarget> createState() =>
-      _OfferingIntentionDragTargetState();
-}
-
-class _OfferingIntentionDragTargetState
-    extends State<_OfferingIntentionDragTarget> {
-  double? _dragOriginY;
-  double? _dragOriginPlacement;
-
-  void _beginDrag(DragDownDetails details) {
-    _dragOriginY = details.globalPosition.dy;
-    _dragOriginPlacement = widget.placement;
-  }
-
-  void _updateDrag(DragUpdateDetails details) {
-    final originY = _dragOriginY;
-    final originPlacement = _dragOriginPlacement;
-    if (originY == null || originPlacement == null || widget.travel <= 0) {
-      return;
-    }
-    widget.onSelectPlacement(
-      originPlacement + (details.globalPosition.dy - originY) / widget.travel,
-    );
-  }
-
-  void _endDrag([Object? _]) {
-    _dragOriginY = null;
-    _dragOriginPlacement = null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      key: const ValueKey<String>('offering-table-intention-drag'),
-      behavior: HitTestBehavior.opaque,
-      onVerticalDragDown: _beginDrag,
-      onVerticalDragUpdate: _updateDrag,
-      onVerticalDragEnd: _endDrag,
-      onVerticalDragCancel: _endDrag,
-      child: const SizedBox.expand(),
     );
   }
 }

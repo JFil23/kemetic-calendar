@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/day_view.dart';
 import 'package:mobile/features/calendar/maat_flow_response_draft_store.dart';
@@ -53,185 +54,56 @@ void main() {
     );
   });
 
-  testWidgets('fixed intention target follows the artwork while body scrolls', (
+  testWidgets('uses Follow Sky gesture mapping and semantic 0.02 steps', (
     tester,
   ) async {
     final semanticsHandle = tester.ensureSemantics();
-    await _pumpOfferingSheet(tester);
+    await _pumpPresentation(tester);
 
     final gesture = find.byKey(
       const ValueKey<String>('offering-table-intention-drag'),
-    );
-    final word = find.byKey(
-      const ValueKey<String>('offering-table-intention-air'),
-    );
-    final heroRect = tester.getRect(
-      find.byKey(const ValueKey<String>('offering-table-cup-hero')),
     );
     final rect = tester.getRect(gesture);
-    expect(rect.width, 176);
-    expect(rect.height, 72);
-    expect(rect.width, lessThan(heroRect.width));
-    expect(rect.height, lessThan(heroRect.height));
-    expect(rect.top, closeTo(tester.getRect(word).top, 0.1));
-    final lowerBody = find.byKey(
-      const ValueKey<String>('offering-table-foreground-layer'),
-    );
-    final lowerBodyBefore = tester.widget<Container>(lowerBody);
 
-    final pointer = await tester.startGesture(tester.getRect(word).center);
-    for (var step = 1; step <= 6; step++) {
-      await pointer.moveBy(const Offset(0, 4));
-      await tester.pump(const Duration(milliseconds: 16));
-    }
-    await pointer.up();
+    await tester.tapAt(Offset(rect.left + 42, rect.center.dy));
     await tester.pump();
-    expect(tester.getSemantics(gesture).value, isNot('0 percent placed'));
+    expect(tester.getSemantics(gesture).value, '0 percent placed');
 
-    final scrollable = find
-        .descendant(
-          of: find.byKey(
-            const ValueKey<String>('offering-table-presentation-body'),
-          ),
-          matching: find.byType(Scrollable),
-        )
-        .first;
-    final position = tester.state<ScrollableState>(scrollable).position;
-    final scrollBefore = position.pixels;
-    await tester.dragFrom(
-      Offset(heroRect.left + 12, heroRect.bottom - 20),
-      const Offset(0, -56),
-    );
-    await tester.pumpAndSettle();
-    expect(position.pixels, greaterThan(scrollBefore));
-    expect(
-      tester
-          .widget<IgnorePointer>(
-            find.byKey(
-              const ValueKey<String>('offering-table-intention-hit-gate'),
-            ),
-          )
-          .ignoring,
-      isFalse,
-    );
-    expect(tester.getRect(gesture).top, closeTo(tester.getRect(word).top, 0.1));
-
-    final placementBeforeSecondDrag = tester.getSemantics(gesture).value;
-    final secondPointer = await tester.startGesture(
-      tester.getRect(word).center,
-    );
-    await secondPointer.moveBy(const Offset(0, 12));
-    await tester.pump(const Duration(milliseconds: 16));
-    await secondPointer.up();
+    await tester.tapAt(Offset(rect.center.dx, rect.center.dy));
     await tester.pump();
-    expect(
-      tester.getSemantics(gesture).value,
-      isNot(placementBeforeSecondDrag),
-    );
+    expect(tester.getSemantics(gesture).value, '50 percent placed');
 
-    final placementBeforeOutsideSwipe = tester.getSemantics(gesture).value;
-    final scrollBeforeOutsideSwipe = position.pixels;
-    await tester.dragFrom(
-      Offset(heroRect.left + 12, heroRect.center.dy),
-      const Offset(0, -28),
+    await tester.tapAt(Offset(rect.right - 42, rect.center.dy));
+    await tester.pump();
+    expect(tester.getSemantics(gesture).value, '100 percent placed');
+
+    final node = tester.getSemantics(gesture);
+    // The widget-test semantics owner for the active render view remains on
+    // this compatibility accessor in the current Flutter test binding.
+    // ignore: deprecated_member_use
+    tester.binding.pipelineOwner.semanticsOwner!.performAction(
+      node.id,
+      SemanticsAction.decrease,
     );
-    await tester.pumpAndSettle();
-    expect(position.pixels, greaterThan(scrollBeforeOutsideSwipe));
-    expect(tester.getSemantics(gesture).value, placementBeforeOutsideSwipe);
-    expect(
-      identical(tester.widget<Container>(lowerBody), lowerBodyBefore),
-      isTrue,
-      reason: 'instrument updates must not rebuild the lower ritual body',
-    );
+    await tester.pump();
+    expect(tester.getSemantics(gesture).value, '98 percent placed');
     semanticsHandle.dispose();
   });
 
-  testWidgets('covered intention target yields to the scrolling foreground', (
-    tester,
-  ) async {
-    final semanticsHandle = tester.ensureSemantics();
-    await _pumpOfferingSheet(tester);
-
-    final gesture = find.byKey(
-      const ValueKey<String>('offering-table-intention-drag'),
-    );
-    final heroRect = tester.getRect(
-      find.byKey(const ValueKey<String>('offering-table-cup-hero')),
-    );
-    final placementBefore = tester.getSemantics(gesture).value;
-
-    final scrollable = find
-        .descendant(
-          of: find.byKey(
-            const ValueKey<String>('offering-table-presentation-body'),
-          ),
-          matching: find.byType(Scrollable),
-        )
-        .first;
-    final position = tester.state<ScrollableState>(scrollable).position;
-    final scrollBefore = position.pixels;
-    final formerWordCenter = tester
-        .getRect(
-          find.byKey(const ValueKey<String>('offering-table-intention-air')),
-        )
-        .center;
-
-    await tester.dragFrom(
-      Offset(heroRect.left + 12, heroRect.center.dy),
-      const Offset(0, -250),
-    );
-    await tester.pumpAndSettle();
-
-    expect(position.pixels, greaterThan(scrollBefore));
-    expect(
-      tester
-          .widget<IgnorePointer>(
-            find.byKey(
-              const ValueKey<String>('offering-table-intention-hit-gate'),
-            ),
-          )
-          .ignoring,
-      isTrue,
-    );
-    expect(
-      tester
-          .getRect(
-            find.byKey(
-              const ValueKey<String>('offering-table-foreground-layer'),
-            ),
-          )
-          .top,
-      lessThan(formerWordCenter.dy),
-    );
-
-    final scrollBeforeFormerTargetSwipe = position.pixels;
-    await tester.dragFrom(formerWordCenter, const Offset(0, -40));
-    await tester.pumpAndSettle();
-    expect(position.pixels, greaterThan(scrollBeforeFormerTargetSwipe));
-    expect(tester.getSemantics(gesture).value, placementBefore);
-    semanticsHandle.dispose();
-  });
-
-  testWidgets('uses Follow Sky drag guidance without visible slider chrome', (
+  testWidgets('uses the quiet instruction and a clean upper graphic edge', (
     tester,
   ) async {
     await _pumpPresentation(tester);
 
     final instruction = tester.widget<Text>(
-      find.byKey(const ValueKey<String>('offering-table-drag-instruction')),
+      find.byKey(const ValueKey<String>('offering-table-placement-label')),
     );
-    expect(instruction.data, 'Drag your intention into the water.');
-    expect(instruction.style?.fontFamily, 'GentiumPlus');
-    expect(instruction.style?.fontSize, 11.5);
-    expect(instruction.style?.fontStyle, FontStyle.italic);
-    expect(instruction.style?.height, 1.2);
-    expect(instruction.style?.color, const Color(0xFF6F685F));
+    expect(instruction.data, 'Speak your intention into the water');
+    expect(instruction.textAlign, TextAlign.center);
+    expect(instruction.style?.fontSize, 17);
+    expect(instruction.style?.color, const Color(0xC2E8B27C));
     expect(instruction.style?.shadows, isNull);
-    expect(find.text('Speak your intention into the water'), findsNothing);
-    expect(
-      find.byKey(const ValueKey<String>('offering-table-placement-thumb')),
-      findsNothing,
-    );
+    expect(find.text('Place your intention in the water'), findsNothing);
 
     final lowerBody = tester.widget<Container>(
       find.byKey(const ValueKey<String>('offering-table-foreground-layer')),

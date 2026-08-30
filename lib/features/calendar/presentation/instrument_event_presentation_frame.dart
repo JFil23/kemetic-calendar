@@ -44,46 +44,6 @@ class CalendarEventDetailSheetCoordinator {
   }
 }
 
-/// The shared horizontal, normalized input surface for instrument heroes.
-///
-/// Follow the Sky owns the established gesture contract: taps and horizontal
-/// drags select one fraction across the instrument's inset track. Instrument
-/// presentations decide only how that fraction is rendered.
-class InstrumentEventHorizontalInput extends StatelessWidget {
-  const InstrumentEventHorizontalInput({
-    super.key,
-    required this.gestureKey,
-    required this.onSelectFraction,
-  });
-
-  final Key gestureKey;
-  final ValueChanged<double> onSelectFraction;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        void update(Offset position) {
-          onSelectFraction(
-            ((position.dx - 42) / (constraints.maxWidth - 84))
-                .clamp(0.0, 1.0)
-                .toDouble(),
-          );
-        }
-
-        return GestureDetector(
-          key: gestureKey,
-          behavior: HitTestBehavior.opaque,
-          onTapUp: (details) => update(details.localPosition),
-          onHorizontalDragDown: (details) => update(details.localPosition),
-          onHorizontalDragUpdate: (details) => update(details.localPosition),
-          child: const SizedBox.expand(),
-        );
-      },
-    );
-  }
-}
-
 @visibleForTesting
 const ValueKey<String> dayViewBottomSheetBackplateKey = ValueKey<String>(
   'day-view-bottom-sheet-backplate',
@@ -255,13 +215,6 @@ typedef InstrumentEventInputBuilder =
       double instrumentHeight,
     );
 
-typedef InstrumentEventOverlayBuilder =
-    Widget Function(
-      BuildContext context,
-      double heroHeight,
-      double instrumentHeight,
-    );
-
 /// The production geometry shared by instrument-backed calendar details.
 ///
 /// This owns only the frame that Follow the Sky already proved: the fixed
@@ -278,8 +231,6 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
     required this.bodyScrollKey,
     required this.lowerSheetKey,
     this.fixedHeroHeight,
-    this.scrollController,
-    this.overlayInputBuilder,
   });
 
   static const double footerHeight = 76;
@@ -292,8 +243,6 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
   final Key bodyScrollKey;
   final Key lowerSheetKey;
   final double? fixedHeroHeight;
-  final ScrollController? scrollController;
-  final InstrumentEventOverlayBuilder? overlayInputBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -332,7 +281,6 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
               ),
               CustomScrollView(
                 key: bodyScrollKey,
-                controller: scrollController,
                 physics: const ClampingScrollPhysics(),
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
@@ -340,9 +288,11 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
                   SliverToBoxAdapter(
                     child: SizedBox(
                       height: instrumentHeight,
-                      child: overlayInputBuilder == null
-                          ? inputBuilder(context, heroHeight, instrumentHeight)
-                          : null,
+                      child: inputBuilder(
+                        context,
+                        heroHeight,
+                        instrumentHeight,
+                      ),
                     ),
                   ),
                   SliverToBoxAdapter(
@@ -350,18 +300,6 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
                   ),
                 ],
               ),
-              if (overlayInputBuilder != null)
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: instrumentHeight,
-                  child: overlayInputBuilder!(
-                    context,
-                    heroHeight,
-                    instrumentHeight,
-                  ),
-                ),
             ],
           ),
         );
