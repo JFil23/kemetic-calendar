@@ -255,6 +255,13 @@ typedef InstrumentEventInputBuilder =
       double instrumentHeight,
     );
 
+typedef InstrumentEventOverlayBuilder =
+    Widget Function(
+      BuildContext context,
+      double heroHeight,
+      double instrumentHeight,
+    );
+
 /// The production geometry shared by instrument-backed calendar details.
 ///
 /// This owns only the frame that Follow the Sky already proved: the fixed
@@ -271,6 +278,8 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
     required this.bodyScrollKey,
     required this.lowerSheetKey,
     this.fixedHeroHeight,
+    this.scrollController,
+    this.overlayInputBuilder,
   });
 
   static const double footerHeight = 76;
@@ -283,6 +292,8 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
   final Key bodyScrollKey;
   final Key lowerSheetKey;
   final double? fixedHeroHeight;
+  final ScrollController? scrollController;
+  final InstrumentEventOverlayBuilder? overlayInputBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -321,6 +332,7 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
               ),
               CustomScrollView(
                 key: bodyScrollKey,
+                controller: scrollController,
                 physics: const ClampingScrollPhysics(),
                 keyboardDismissBehavior:
                     ScrollViewKeyboardDismissBehavior.onDrag,
@@ -328,11 +340,9 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
                   SliverToBoxAdapter(
                     child: SizedBox(
                       height: instrumentHeight,
-                      child: inputBuilder(
-                        context,
-                        heroHeight,
-                        instrumentHeight,
-                      ),
+                      child: overlayInputBuilder == null
+                          ? inputBuilder(context, heroHeight, instrumentHeight)
+                          : null,
                     ),
                   ),
                   SliverToBoxAdapter(
@@ -340,6 +350,18 @@ class InstrumentEventPresentationFrame extends StatelessWidget {
                   ),
                 ],
               ),
+              if (overlayInputBuilder != null)
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: instrumentHeight,
+                  child: overlayInputBuilder!(
+                    context,
+                    heroHeight,
+                    instrumentHeight,
+                  ),
+                ),
             ],
           ),
         );

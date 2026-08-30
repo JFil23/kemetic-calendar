@@ -73,6 +73,8 @@ class _OfferingTableDayPresentationState
 
   final TextEditingController _reflectionController = TextEditingController();
   late final ValueNotifier<double> _placementController;
+  late final ScrollController _presentationScrollController;
+  late final ValueNotifier<bool> _intentionHittable;
   Future<void> _journalWriteTail = Future<void>.value();
   Timer? _reflectionSaveTimer;
   String? _lastWrittenReflection;
@@ -90,6 +92,10 @@ class _OfferingTableDayPresentationState
   void initState() {
     super.initState();
     _placementController = ValueNotifier<double>(0);
+    _presentationScrollController = ScrollController();
+    _intentionHittable = ValueNotifier<bool>(true);
+    _placementController.addListener(_recomputeIntentionHittable);
+    _presentationScrollController.addListener(_recomputeIntentionHittable);
     _reflectionController.addListener(_onReflectionChanged);
     final drafts = widget.persistResponses
         ? kMaatFlowResponseDraftStore.valuesForFlow(kOfferingTableFlowKey)
@@ -107,8 +113,31 @@ class _OfferingTableDayPresentationState
     _reflectionController
       ..removeListener(_onReflectionChanged)
       ..dispose();
-    _placementController.dispose();
+    _placementController
+      ..removeListener(_recomputeIntentionHittable)
+      ..dispose();
+    _presentationScrollController
+      ..removeListener(_recomputeIntentionHittable)
+      ..dispose();
+    _intentionHittable.dispose();
     super.dispose();
+  }
+
+  void _recomputeIntentionHittable() {
+    final scrollOffset = _presentationScrollController.hasClients
+        ? _presentationScrollController.offset
+        : 0.0;
+    final geometry = _OfferingIntentionGeometry(
+      size: const Size(0, _cupHeroHeight),
+      placement: _placementController.value,
+    );
+    final bodyTop =
+        _cupHeroHeight +
+        InstrumentEventPresentationFrame.footerHeight -
+        scrollOffset;
+    final next = geometry.wordBottom <= bodyTop;
+    if (next == _intentionHittable.value) return;
+    _intentionHittable.value = next;
   }
 
   void _onReflectionChanged() {
@@ -193,6 +222,11 @@ class _OfferingTableDayPresentationState
         children: <Widget>[const Spacer(), _buildDragInstruction()],
       ),
       inputBuilder: (context, heroHeight, _) => Align(
+        alignment: Alignment.topCenter,
+        child: SizedBox(height: heroHeight),
+      ),
+      scrollController: _presentationScrollController,
+      overlayInputBuilder: (context, heroHeight, _) => Align(
         alignment: Alignment.topCenter,
         child: SizedBox(height: heroHeight, child: _buildCupInput()),
       ),
@@ -462,24 +496,31 @@ class _OfferingTableDayPresentationState
             children: <Widget>[
               Positioned.fromRect(
                 rect: geometry.interactionRect,
-                child: Semantics(
-                  label: 'Offering Table intention placement instrument',
-                  value: '${(placement * 100).round()} percent placed',
-                  increasedValue:
-                      '${((placement + 0.02).clamp(0.0, 1.0) * 100).round()} percent placed',
-                  decreasedValue:
-                      '${((placement - 0.02).clamp(0.0, 1.0) * 100).round()} percent placed',
-                  slider: true,
-                  onIncrease: () =>
-                      _selectPlacement((placement + 0.02).clamp(0.0, 1.0)),
-                  onDecrease: () =>
-                      _selectPlacement((placement - 0.02).clamp(0.0, 1.0)),
-                  child: _OfferingIntentionDragTarget(
-                    placement: placement,
-                    travel: geometry.scaledTravel,
-                    onSelectPlacement: _selectPlacement,
-                    onTapAt: (localY) =>
-                        _selectPlacement(geometry.placementForTap(localY)),
+                child: ValueListenableBuilder<bool>(
+                  valueListenable: _intentionHittable,
+                  builder: (context, hittable, _) => IgnorePointer(
+                    key: const ValueKey<String>(
+                      'offering-table-intention-hit-gate',
+                    ),
+                    ignoring: !hittable,
+                    child: Semantics(
+                      label: 'Offering Table intention placement instrument',
+                      value: '${(placement * 100).round()} percent placed',
+                      increasedValue:
+                          '${((placement + 0.02).clamp(0.0, 1.0) * 100).round()} percent placed',
+                      decreasedValue:
+                          '${((placement - 0.02).clamp(0.0, 1.0) * 100).round()} percent placed',
+                      slider: true,
+                      onIncrease: () =>
+                          _selectPlacement((placement + 0.02).clamp(0.0, 1.0)),
+                      onDecrease: () =>
+                          _selectPlacement((placement - 0.02).clamp(0.0, 1.0)),
+                      child: _OfferingIntentionDragTarget(
+                        placement: placement,
+                        travel: geometry.scaledTravel,
+                        onSelectPlacement: _selectPlacement,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -851,14 +892,12 @@ class _OfferingIntentionGeometry {
   double get wordWidth => _wordWidth;
   double get wordLeft => (size.width - wordWidth) / 2;
   double get wordTop => (_startY + placement * _travel) * _verticalScale;
+  double get wordBottom => wordTop + _scaledInteractionHeight;
   double get scaledTravel => _travel * _verticalScale;
   double get _scaledInteractionHeight => _interactionHeight * _verticalScale;
 
   Rect get interactionRect =>
       Rect.fromLTWH(wordLeft, wordTop, wordWidth, _scaledInteractionHeight);
-
-  double placementForTap(double localY) =>
-      placement + (localY - _scaledInteractionHeight / 2) / scaledTravel;
 }
 
 class _OfferingIntentionDragTarget extends StatefulWidget {
@@ -866,13 +905,11 @@ class _OfferingIntentionDragTarget extends StatefulWidget {
     required this.placement,
     required this.travel,
     required this.onSelectPlacement,
-    required this.onTapAt,
   });
 
   final double placement;
   final double travel;
   final ValueChanged<double> onSelectPlacement;
-  final ValueChanged<double> onTapAt;
 
   @override
   State<_OfferingIntentionDragTarget> createState() =>
@@ -910,7 +947,6 @@ class _OfferingIntentionDragTargetState
     return GestureDetector(
       key: const ValueKey<String>('offering-table-intention-drag'),
       behavior: HitTestBehavior.opaque,
-      onTapUp: (details) => widget.onTapAt(details.localPosition.dy),
       onVerticalDragDown: _beginDrag,
       onVerticalDragUpdate: _updateDrag,
       onVerticalDragEnd: _endDrag,
