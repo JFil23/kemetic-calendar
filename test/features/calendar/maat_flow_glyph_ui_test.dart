@@ -316,7 +316,7 @@ void main() {
       ),
       reason: 'Footer privacy copy should be low-emphasis.',
     );
-    expect(_countOccurrences(source, 'const _MaatFlowPrivacyFooter(),'), 11);
+    expect(_countOccurrences(source, 'const _MaatFlowPrivacyFooter(),'), 10);
     _expectFooterAfter(source, '...kTheTendingEvents.map(');
     _expectFooterAfter(source, '...kKeptWordEvents.map(');
     _expectFooterAfter(source, '...kWagEvents.map(');
@@ -329,7 +329,6 @@ void main() {
       source,
       '(occurrence) => _buildMoonReturnOccurrenceTile(context, occurrence)',
     );
-    _expectFooterAfter(source, '_buildReadingHouseSittingTile(');
   });
 
   test('all Ma’at Flow detail branches use the shared detail scaffold', () {

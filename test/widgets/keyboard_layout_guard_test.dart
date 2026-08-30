@@ -139,7 +139,8 @@ void main() {
         'lib/features/ai_generation/ai_flow_generation_modal.dart',
         'lib/features/calendar/calendar_flow_studio_page.dart',
         'lib/features/calendar/day_view.dart',
-        'lib/features/calendar/reading_house_authoring_page.dart',
+        'lib/features/calendar/the_reading_house/presentation/'
+            'reading_house_sitting_editor.dart',
         'lib/features/nodes/node_link_picker_sheet.dart',
         'lib/features/nodes/node_user_insights_section.dart',
         'lib/features/profile/flow_post_engagement_row.dart',

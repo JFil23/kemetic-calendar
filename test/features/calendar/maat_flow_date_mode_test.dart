@@ -705,12 +705,6 @@ const _previewInlineDetailBranches = [
     detailFunction: 'djedDetailText',
   ),
   (
-    name: 'Reading House',
-    start: 'Widget _buildReadingHouseSittingTile',
-    end: 'Widget _buildReadingHouseScaffold',
-    detailFunction: 'readingHouseDetailText',
-  ),
-  (
     name: 'Days Outside the Year',
     start: 'Widget _buildDaysOutsideYearEventTile',
     end: 'Widget _buildDaysOutsideYearScaffold',

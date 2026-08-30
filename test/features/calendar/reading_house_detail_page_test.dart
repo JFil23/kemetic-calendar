@@ -1,9 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/data/profile_repo.dart';
+import 'package:mobile/data/shared_calendar_models.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calendar.dart';
+import 'package:mobile/features/calendar/the_reading_house/reading_house_authority.dart';
 import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_detail_page.dart';
+import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_sitting_editor.dart';
+import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
 
 const _captureVisualCheckpoint = bool.fromEnvironment(
@@ -14,10 +21,13 @@ const _captureSurfaceKey = ValueKey<String>(
 );
 
 void main() {
-  Future<void> pumpHouse(
+  Future<_FakeReadingHouseAuthority> pumpHouse(
     WidgetTester tester, {
     Size size = const Size(390, 844),
+    _FakeReadingHouseAuthority? authority,
+    int? initialFlowId,
   }) async {
+    final fake = authority ?? _FakeReadingHouseAuthority();
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
@@ -28,6 +38,10 @@ void main() {
             key: ValueKey<Size>(size),
             timezone: TrackSkyTimeZone.pacific,
             initialStartDate: DateTime(2026, 9, 14),
+            initialFlowId: initialFlowId,
+            initiallyHeld: initialFlowId != null,
+            authority: fake,
+            resolvePersonalCalendarId: () async => 'personal-calendar',
           ),
         ),
       ),
@@ -43,6 +57,7 @@ void main() {
     );
     expect(heroLoadError, isNull);
     await tester.pumpAndSettle();
+    return fake;
   }
 
   Finder houseScrollable() => find
@@ -99,10 +114,10 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('solo, doors, and reader invite remain local visual state', (
+  testWidgets('solo, doors, and reader invite use the real authority seam', (
     tester,
   ) async {
-    await pumpHouse(tester);
+    final authority = await pumpHouse(tester);
     await jumpHouseScroll(tester, 650);
     await tester.tap(find.text('Solo study'));
     await tester.pumpAndSettle();
@@ -140,59 +155,260 @@ void main() {
       find.byKey(const ValueKey<String>('reading-house-reader-search')),
       'Amina',
     );
+    await tester.pump(const Duration(milliseconds: 350));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Amina Reed'));
     await tester.pumpAndSettle();
     expect(find.text('Amina Reed'), findsOneWidget);
     expect(find.text('1 invite pending'), findsOneWidget);
+    expect(authority.inviteCount, 1);
+    expect(authority.lastSnapshot?.openDoors, isTrue);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('sitting menu exposes editing and local placement actions', (
+  testWidgets(
+    'sittings use the shared editor with real date and time pickers',
+    (tester) async {
+      await pumpHouse(tester);
+      final firstSitting = find.byKey(
+        const ValueKey<String>('reading-house-sitting-1'),
+      );
+      await jumpHouseScroll(tester, 2000);
+      await tester.tap(firstSitting);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ReadingHouseSittingEditorSheet), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey<String>('reading_house_sitting_date_button')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey<String>('reading_house_sitting_time_button')),
+        findsOneWidget,
+      );
+      await tester.tap(
+        find.byKey(const ValueKey<String>('reading_house_sitting_save_button')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('NOT PLACED'), findsWidgets);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('hold is idempotent and placement is the event boundary', (
     tester,
   ) async {
-    await pumpHouse(tester);
-    final firstSitting = find.byKey(
-      const ValueKey<String>('reading-house-sitting-1'),
+    final authority = await pumpHouse(tester);
+
+    await tester.tap(find.byKey(const ValueKey<String>('reading-house-hold')));
+    await tester.pumpAndSettle();
+    expect(authority.ensureCount, 1);
+    expect(authority.lastSnapshot?.isScheduled, isFalse);
+    expect(authority.lastSnapshot?.flowId, authority.flowId);
+
+    await tester.tap(find.byKey(const ValueKey<String>('reading-house-held')));
+    await tester.pumpAndSettle();
+    expect(authority.ensureCount, 1);
+
+    await jumpHouseScroll(tester, 1500);
+    final placeReading = find.byKey(
+      const ValueKey<String>('reading-house-place-reading'),
+    );
+    await tester.ensureVisible(placeReading);
+    await tester.pumpAndSettle();
+    await tester.tap(placeReading);
+    await tester.pumpAndSettle();
+    expect(authority.ensureCount, 2);
+    expect(authority.lastSnapshot?.sittings, hasLength(3));
+    expect(
+      authority.lastSnapshot?.sittings.every(
+        (sitting) => sitting.scheduledDate != null,
+      ),
+      isTrue,
+    );
+  });
+
+  testWidgets('partial setup persists progressively and restores on reopen', (
+    tester,
+  ) async {
+    final authority = await pumpHouse(tester);
+    await tester.tap(find.byKey(const ValueKey<String>('reading-house-hold')));
+    await tester.pumpAndSettle();
+    await jumpHouseScroll(tester, 700);
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('reading-house-book')),
+      'The Odyssey',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey<String>('reading-house-question')),
+      'What does homecoming require?',
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pumpAndSettle();
+    expect(authority.lastSnapshot?.plan.bookTitle, 'The Odyssey');
+    expect(
+      authority.lastSnapshot?.plan.houseQuestion,
+      'What does homecoming require?',
+    );
+
+    await pumpHouse(
+      tester,
+      authority: authority,
+      initialFlowId: authority.flowId,
+    );
+    await jumpHouseScroll(tester, 700);
+    final book = tester.widget<TextField>(
+      find.byKey(const ValueKey<String>('reading-house-book')),
+    );
+    expect(book.controller?.text, 'The Odyssey');
+    final question = tester.widget<TextField>(
+      find.byKey(const ValueKey<String>('reading-house-question')),
+    );
+    expect(question.controller?.text, 'What does homecoming require?');
+  });
+
+  testWidgets('scheduled date and time persist through edit and reopen', (
+    tester,
+  ) async {
+    final authority = _FakeReadingHouseAuthority();
+    authority.lastSnapshot = ReadingHouseSnapshot(
+      flowId: authority.flowId,
+      calendarId: 'shared-house-calendar',
+      plan: const ReadingHousePlan(),
+      sittings: <ReadingHouseSitting>[
+        kReadingHouseSittings.first.copyWith(
+          scheduledDate: DateTime(2026, 9, 14),
+          hour: 20,
+          minute: 15,
+        ),
+        ...kReadingHouseSittings.skip(1),
+      ],
+      openDoors: false,
+      members: const <SharedCalendarMember>[_FakeReadingHouseAuthority._host],
+      held: true,
+      canEdit: true,
+      canManageMembership: true,
+      isSharedHouse: true,
+    );
+    await pumpHouse(
+      tester,
+      authority: authority,
+      initialFlowId: authority.flowId,
     );
     await jumpHouseScroll(tester, 2000);
-    await tester.tap(firstSitting);
+    await tester.tap(
+      find.byKey(const ValueKey<String>('reading-house-sitting-1')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey<String>('reading_house_sitting_save_button')),
+    );
     await tester.pumpAndSettle();
 
     expect(
-      find.byKey(const ValueKey<String>('reading-house-sitting-sheet')),
-      findsOneWidget,
+      authority.lastSnapshot?.sittings.first.scheduledDate,
+      DateTime(2026, 9, 14),
     );
-    expect(find.text('Edit reading section & prompt'), findsOneWidget);
-    expect(find.text('Choose date & time'), findsOneWidget);
+    expect(authority.lastSnapshot?.sittings.first.hour, 20);
+    expect(authority.lastSnapshot?.sittings.first.minute, 15);
 
-    await tester.tap(
-      find.byKey(const ValueKey<String>('reading-house-edit-sitting')),
+    await pumpHouse(
+      tester,
+      authority: authority,
+      initialFlowId: authority.flowId,
     );
-    await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey<String>('reading-house-sitting-editor')),
-      findsOneWidget,
-    );
-    expect(find.text('PRIVATE PROMPT'), findsOneWidget);
+    await jumpHouseScroll(tester, 2000);
+    expect(find.textContaining('8:15'), findsOneWidget);
+  });
 
-    await tester.tap(find.text('←  Sitting'));
-    await tester.pumpAndSettle();
+  testWidgets('accepted viewer sees the same house without write controls', (
+    tester,
+  ) async {
+    final authority = _FakeReadingHouseAuthority();
+    authority.lastSnapshot = ReadingHouseSnapshot(
+      flowId: authority.flowId,
+      calendarId: 'shared-house-calendar',
+      plan: const ReadingHousePlan(),
+      sittings: kReadingHouseSittings,
+      openDoors: false,
+      members: const <SharedCalendarMember>[
+        _FakeReadingHouseAuthority._host,
+        SharedCalendarMember(
+          userId: 'reader-user',
+          role: SharedCalendarRole.viewer,
+          status: SharedCalendarInviteStatus.accepted,
+          displayName: 'Nia Morgan',
+          handle: 'niam',
+        ),
+      ],
+      held: true,
+      canEdit: false,
+      canManageMembership: false,
+      isSharedHouse: true,
+    );
+    await pumpHouse(
+      tester,
+      authority: authority,
+      initialFlowId: authority.flowId,
+    );
+    await jumpHouseScroll(tester, 900);
+    expect(find.text('Nia Morgan'), findsOneWidget);
+    final book = tester.widget<TextField>(
+      find.byKey(const ValueKey<String>('reading-house-book')),
+    );
+    expect(book.enabled, isFalse);
+
+    await jumpHouseScroll(tester, 2000);
     await tester.tap(
-      find.byKey(const ValueKey<String>('reading-house-place-sitting')),
+      find.byKey(const ValueKey<String>('reading-house-sitting-1')),
     );
     await tester.pumpAndSettle();
-    expect(
-      find.byKey(const ValueKey<String>('reading-house-sitting-placement')),
-      findsOneWidget,
-    );
-    expect(find.text('Save date & time'), findsOneWidget);
+    expect(find.byType(ReadingHouseSittingEditorSheet), findsNothing);
+    expect(authority.ensureCount, 0);
+  });
+
+  testWidgets('stale reader search cannot replace the newer query', (
+    tester,
+  ) async {
+    final authority = _ControlledSearchAuthority();
+    await pumpHouse(tester, authority: authority);
+    await jumpHouseScroll(tester, 1050);
     await tester.tap(
-      find.byKey(const ValueKey<String>('reading-house-save-placement')),
+      find.byKey(const ValueKey<String>('reading-house-invite-reader')),
     );
     await tester.pumpAndSettle();
-    expect(find.textContaining('· 7:00 PM'), findsOneWidget);
-    expect(tester.takeException(), isNull);
+    final field = find.byKey(
+      const ValueKey<String>('reading-house-reader-search'),
+    );
+    await tester.enterText(field, 'Am');
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.enterText(field, 'Ni');
+    await tester.pump(const Duration(milliseconds: 350));
+
+    authority.complete(
+      'Ni',
+      UserSearchResult(
+        userId: 'nia-user',
+        displayName: 'Nia Morgan',
+        handle: 'niam',
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Nia Morgan'), findsOneWidget);
+    authority.complete(
+      'Am',
+      UserSearchResult(
+        userId: 'amina-user',
+        displayName: 'Amina Reed',
+        handle: 'aminareads',
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+    expect(find.text('Nia Morgan'), findsOneWidget);
+    expect(find.text('Amina Reed'), findsNothing);
+    expect(authority.lastExcluded, contains('host-user'));
   });
 
   testWidgets('narrow phone keeps the shared page free of layout overflow', (
@@ -273,4 +489,145 @@ Future<void> _loadVisualFonts() async {
     materialIcons.load(),
     hieroglyphs.load(),
   ]);
+}
+
+class _FakeReadingHouseAuthority implements ReadingHouseAuthority {
+  int get flowId => 41;
+  int ensureCount = 0;
+  int inviteCount = 0;
+  int searchCount = 0;
+  Set<String> lastExcluded = <String>{};
+  ReadingHouseSnapshot? lastSnapshot;
+
+  static const _host = SharedCalendarMember(
+    userId: 'host-user',
+    role: SharedCalendarRole.owner,
+    status: SharedCalendarInviteStatus.accepted,
+    displayName: 'Host Reader',
+    handle: 'host',
+  );
+
+  @override
+  String? get currentUserId => 'host-user';
+
+  @override
+  Future<ReadingHouseSnapshot> ensureHouse({
+    int? flowId,
+    String? calendarId,
+    required String personalCalendarId,
+    required ReadingHousePlan plan,
+    required List<ReadingHouseSitting> sittings,
+    required bool openDoors,
+    required TrackSkyTimeZone timezone,
+  }) async {
+    ensureCount += 1;
+    final snapshot = ReadingHouseSnapshot(
+      flowId: flowId ?? this.flowId,
+      calendarId: plan.isSolo ? personalCalendarId : 'shared-house-calendar',
+      plan: plan,
+      sittings: List<ReadingHouseSitting>.of(sittings),
+      openDoors: !plan.isSolo && openDoors,
+      members: lastSnapshot?.members ?? const <SharedCalendarMember>[_host],
+      held: true,
+      canEdit: true,
+      canManageMembership: !plan.isSolo,
+      isSharedHouse: !plan.isSolo,
+    );
+    lastSnapshot = snapshot;
+    return snapshot;
+  }
+
+  @override
+  Future<ReadingHouseSnapshot> inviteReader({
+    required ReadingHouseSnapshot house,
+    required UserSearchResult reader,
+  }) async {
+    inviteCount += 1;
+    final snapshot = ReadingHouseSnapshot(
+      flowId: house.flowId,
+      calendarId: house.calendarId,
+      plan: house.plan,
+      sittings: house.sittings,
+      openDoors: house.openDoors,
+      members: <SharedCalendarMember>[
+        ...house.members,
+        SharedCalendarMember(
+          userId: reader.userId,
+          role: SharedCalendarRole.viewer,
+          status: SharedCalendarInviteStatus.pending,
+          displayName: reader.displayName,
+          handle: reader.handle,
+        ),
+      ],
+      held: true,
+      canEdit: true,
+      canManageMembership: true,
+      isSharedHouse: true,
+    );
+    lastSnapshot = snapshot;
+    return snapshot;
+  }
+
+  @override
+  Future<ReadingHouseSnapshot> load({
+    required int flowId,
+    required ReadingHousePlan fallbackPlan,
+    required List<ReadingHouseSitting> fallbackSittings,
+  }) async {
+    return lastSnapshot ??
+        ReadingHouseSnapshot(
+          flowId: flowId,
+          calendarId: 'shared-house-calendar',
+          plan: fallbackPlan,
+          sittings: fallbackSittings,
+          openDoors: false,
+          members: const <SharedCalendarMember>[_host],
+          held: true,
+          canEdit: true,
+          canManageMembership: true,
+          isSharedHouse: true,
+        );
+  }
+
+  @override
+  Future<List<UserSearchResult>> searchReaders(
+    String query, {
+    required Iterable<String> excludedUserIds,
+  }) async {
+    searchCount += 1;
+    lastExcluded = <String>{...excludedUserIds};
+    final result = UserSearchResult(
+      userId: 'amina-user',
+      displayName: 'Amina Reed',
+      handle: 'aminareads',
+    );
+    if (excludedUserIds.contains(result.userId) ||
+        !query.toLowerCase().contains('amina')) {
+      return const <UserSearchResult>[];
+    }
+    return <UserSearchResult>[result];
+  }
+}
+
+class _ControlledSearchAuthority extends _FakeReadingHouseAuthority {
+  final Map<String, Completer<List<UserSearchResult>>> _pending =
+      <String, Completer<List<UserSearchResult>>>{};
+
+  @override
+  Future<List<UserSearchResult>> searchReaders(
+    String query, {
+    required Iterable<String> excludedUserIds,
+  }) {
+    searchCount += 1;
+    lastExcluded = <String>{...excludedUserIds};
+    return (_pending[query] ??= Completer<List<UserSearchResult>>()).future;
+  }
+
+  void complete(String query, UserSearchResult result) {
+    final completer = _pending[query];
+    if (completer == null) {
+      throw StateError('No pending search for $query.');
+    }
+    completer.complete(<UserSearchResult>[result]);
+  }
 }

@@ -1,12 +1,20 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:mobile/data/profile_repo.dart';
+import 'package:mobile/data/shared_calendar_models.dart';
+import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calendar.dart';
 import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
-import 'package:mobile/widgets/kemetic_date_picker.dart';
-import 'package:mobile/widgets/maat_flow_date_picker.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
+
+import '../reading_house_authority.dart';
+import 'reading_house_sitting_editor.dart';
 
 abstract final class ReadingHouseDetailTokens {
   static const Color pageBackground = Color(0xFF050504);
@@ -49,11 +57,6 @@ abstract final class ReadingHouseDetailTokens {
       );
 }
 
-/// Visual-first Reading House detail page.
-///
-/// All state in this page is deliberately ephemeral. The existing Reading
-/// House domain, membership, invitation, and scheduling authorities are left
-/// unchanged until the approved presentation is wired in a later pass.
 class ReadingHouseDetailPage extends StatefulWidget {
   const ReadingHouseDetailPage({
     super.key,
@@ -62,6 +65,13 @@ class ReadingHouseDetailPage extends StatefulWidget {
     this.initialPlan = const ReadingHousePlan(),
     this.initialSittings = kReadingHouseSittings,
     this.initiallyHeld = false,
+    this.initialFlowId,
+    this.initialCalendarId,
+    this.initialOpenDoors = false,
+    this.authority,
+    this.resolvePersonalCalendarId,
+    this.onHeld,
+    this.onPersisted,
     this.showBackButton = true,
     this.resizeToAvoidBottomInset = true,
   });
@@ -71,6 +81,13 @@ class ReadingHouseDetailPage extends StatefulWidget {
   final ReadingHousePlan initialPlan;
   final List<ReadingHouseSitting> initialSittings;
   final bool initiallyHeld;
+  final int? initialFlowId;
+  final String? initialCalendarId;
+  final bool initialOpenDoors;
+  final ReadingHouseAuthority? authority;
+  final Future<String?> Function()? resolvePersonalCalendarId;
+  final ValueChanged<int>? onHeld;
+  final Future<void> Function(ReadingHouseSnapshot snapshot)? onPersisted;
   final bool showBackButton;
   final bool resizeToAvoidBottomInset;
 
@@ -81,12 +98,19 @@ class ReadingHouseDetailPage extends StatefulWidget {
 class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
   late final TextEditingController _bookController;
   late final TextEditingController _editionController;
+  late final TextEditingController _questionController;
   late DateTime _windowStart;
   late List<ReadingHouseSitting> _sittings;
   late bool _withReaders;
   late bool _held;
-  bool _openDoors = false;
-  final List<_ReaderSearchResult> _invitedReaders = <_ReaderSearchResult>[];
+  late bool _openDoors;
+  int? _flowId;
+  String? _calendarId;
+  List<SharedCalendarMember> _members = const <SharedCalendarMember>[];
+  bool _canEdit = true;
+  bool _canManageMembership = true;
+  bool _busy = false;
+  Timer? _saveDebounce;
 
   @override
   void initState() {
@@ -98,18 +122,34 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
     _editionController = TextEditingController(
       text: widget.initialPlan.editionNote,
     );
+    _questionController = TextEditingController(
+      text: widget.initialPlan.houseQuestion == kReadingHouseDefaultQuestion
+          ? ''
+          : widget.initialPlan.houseQuestion,
+    );
     _windowStart = DateUtils.dateOnly(
       widget.initialStartDate ?? defaultReadingHouseStartDate(widget.timezone),
     );
     _sittings = List<ReadingHouseSitting>.of(widget.initialSittings);
     _withReaders = !widget.initialPlan.isSolo;
     _held = widget.initiallyHeld;
+    _openDoors = widget.initialOpenDoors;
+    _flowId = widget.initialFlowId;
+    _calendarId = widget.initialCalendarId;
+    _bookController.addListener(_scheduleProgressiveSave);
+    _editionController.addListener(_scheduleProgressiveSave);
+    _questionController.addListener(_scheduleProgressiveSave);
+    if (_flowId != null && widget.authority != null) {
+      unawaited(_loadHouse());
+    }
   }
 
   @override
   void dispose() {
+    _saveDebounce?.cancel();
     _bookController.dispose();
     _editionController.dispose();
+    _questionController.dispose();
     super.dispose();
   }
 
@@ -140,7 +180,103 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
     return markers.values.toList(growable: false);
   }
 
-  void _placeReading() {
+  ReadingHousePlan get _plan => widget.initialPlan.copyWith(
+    bookTitle: _bookController.text.trim(),
+    editionNote: _editionController.text.trim(),
+    houseQuestion: _questionController.text.trim(),
+    mode: _withReaders ? kReadingHouseDefaultMode : kReadingHouseSoloMode,
+  );
+
+  void _applySnapshot(ReadingHouseSnapshot snapshot) {
+    _flowId = snapshot.flowId;
+    _calendarId = snapshot.calendarId;
+    _held = snapshot.held;
+    _withReaders = !snapshot.plan.isSolo;
+    _openDoors = snapshot.openDoors;
+    _sittings = List<ReadingHouseSitting>.of(snapshot.sittings);
+    _members = snapshot.members;
+    _canEdit = snapshot.canEdit;
+    _canManageMembership = snapshot.canManageMembership;
+    final book = snapshot.plan.bookTitle.trim();
+    _bookController.text = book == kReadingHouseDefaultBookTitle ? '' : book;
+    _editionController.text = snapshot.plan.editionNote;
+    final question = snapshot.plan.houseQuestion.trim();
+    _questionController.text = question == kReadingHouseDefaultQuestion
+        ? ''
+        : question;
+  }
+
+  Future<void> _loadHouse() async {
+    final authority = widget.authority;
+    final flowId = _flowId;
+    if (authority == null || flowId == null || flowId <= 0) return;
+    setState(() => _busy = true);
+    try {
+      final snapshot = await authority.load(
+        flowId: flowId,
+        fallbackPlan: _plan,
+        fallbackSittings: _sittings,
+      );
+      if (!mounted) return;
+      setState(() => _applySnapshot(snapshot));
+    } catch (error) {
+      _showError('Could not load this Reading House: $error');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  void _scheduleProgressiveSave() {
+    if (!_held || !_canEdit || _busy) return;
+    _saveDebounce?.cancel();
+    _saveDebounce = Timer(
+      const Duration(milliseconds: 450),
+      () => unawaited(_persistHouse()),
+    );
+  }
+
+  Future<ReadingHouseSnapshot?> _persistHouse({bool showBusy = false}) async {
+    final authority = widget.authority;
+    final resolveCalendar = widget.resolvePersonalCalendarId;
+    if (authority == null || resolveCalendar == null || !_canEdit) return null;
+    if (showBusy && mounted) setState(() => _busy = true);
+    try {
+      final personalCalendarId = await resolveCalendar();
+      if (personalCalendarId == null || personalCalendarId.trim().isEmpty) {
+        throw StateError('Your personal calendar is unavailable.');
+      }
+      final snapshot = await authority.ensureHouse(
+        flowId: _flowId,
+        calendarId: _calendarId,
+        personalCalendarId: personalCalendarId.trim(),
+        plan: _plan,
+        sittings: _sittings,
+        openDoors: _openDoors,
+        timezone: widget.timezone,
+      );
+      if (!mounted) return snapshot;
+      final wasHeld = _held;
+      setState(() => _applySnapshot(snapshot));
+      if (!wasHeld && snapshot.flowId != null) {
+        widget.onHeld?.call(snapshot.flowId!);
+      }
+      await _notifyPersisted(snapshot);
+      return snapshot;
+    } catch (error) {
+      _showError('Could not save this Reading House: $error');
+      return null;
+    } finally {
+      if (showBusy && mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _holdHouse() async {
+    if (_held || _busy) return;
+    await _persistHouse(showBusy: true);
+  }
+
+  Future<void> _placeReading() async {
+    if (!_canEdit || _busy) return;
     setState(() {
       _sittings = <ReadingHouseSitting>[
         for (final sitting in _sittings)
@@ -151,28 +287,77 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
           ),
       ];
     });
+    if (_held) await _persistHouse(showBusy: true);
   }
 
   Future<void> _inviteReader() async {
-    final result = await showModalBottomSheet<_ReaderSearchResult>(
+    if (!_held) {
+      final held = await _persistHouse(showBusy: true);
+      if (held == null || !mounted) return;
+    }
+    final authority = widget.authority;
+    if (authority == null || !_canManageMembership) return;
+    final excluded = <String>{for (final member in _members) member.userId};
+    final result = await showModalBottomSheet<UserSearchResult>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => const _ReaderInviteSheet(),
+      builder: (_) =>
+          _ReaderInviteSheet(authority: authority, excludedUserIds: excluded),
     );
     if (result == null || !mounted) return;
-    if (_invitedReaders.any((reader) => reader.handle == result.handle)) return;
-    setState(() => _invitedReaders.add(result));
+    final current = ReadingHouseSnapshot(
+      flowId: _flowId,
+      calendarId: _calendarId,
+      plan: _plan,
+      sittings: _sittings,
+      openDoors: _openDoors,
+      members: _members,
+      held: _held,
+      canEdit: _canEdit,
+      canManageMembership: _canManageMembership,
+      isSharedHouse: _withReaders,
+    );
+    setState(() => _busy = true);
+    try {
+      final snapshot = await authority.inviteReader(
+        house: current,
+        reader: result,
+      );
+      if (mounted) setState(() => _applySnapshot(snapshot));
+      await _notifyPersisted(snapshot);
+    } catch (error) {
+      _showError('Could not invite that reader: $error');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _notifyPersisted(ReadingHouseSnapshot snapshot) async {
+    final callback = widget.onPersisted;
+    if (callback == null) return;
+    try {
+      await callback(snapshot);
+    } catch (error, stackTrace) {
+      if (kDebugMode) {
+        debugPrint('[ReadingHouse] post-save refresh failed: $error');
+        debugPrint('$stackTrace');
+      }
+    }
   }
 
   Future<void> _openSitting(ReadingHouseSitting sitting) async {
-    final edited = await showModalBottomSheet<ReadingHouseSitting>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _ReadingHouseSittingSheet(sitting: sitting),
+    if (!_canEdit) return;
+    final edited = await ReadingHouseSittingEditorSheet.show(
+      context,
+      sitting: sitting,
+      initialDate: sitting.scheduledDate ?? _windowStart,
+      initialTime: TimeOfDay(hour: sitting.hour, minute: sitting.minute),
+      flowDayForDate: (date) =>
+          date.difference(DateUtils.dateOnly(_windowStart)).inDays + 1,
+      accentColor: ReadingHouseDetailTokens.houseHighlight,
+      borderColor: const Color(0x664FA58D),
     );
     if (edited == null || !mounted) return;
     setState(() {
@@ -182,13 +367,23 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
         edited,
       );
     });
+    if (_held) await _persistHouse();
   }
 
   Future<void> _addSitting() async {
+    if (!_canEdit) return;
     final next = addReadingHouseSitting(_sittings);
     final added = next.last;
     setState(() => _sittings = next);
+    if (_held) await _persistHouse();
     await _openSitting(added);
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -202,8 +397,8 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
       bottomDock: MaatFlowDetailDock(
         theme: ReadingHouseDetailTokens.theme,
         joined: _held,
-        busy: false,
-        onPressed: () => setState(() => _held = true),
+        busy: _busy,
+        onPressed: _canEdit ? _holdHouse : null,
         actionLabel: 'Hold this house',
         actionNote:
             'This creates the house in My Flows. You do not need to schedule it yet.',
@@ -257,11 +452,21 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
   }
 
   Widget _buildHouseSetup() {
-    final inviteSummary = _invitedReaders.isEmpty
+    final invitedReaders = _members
+        .where(
+          (member) =>
+              member.userId != widget.authority?.currentUserId &&
+              !member.isOwner,
+        )
+        .toList(growable: false);
+    final pendingCount = invitedReaders
+        .where((member) => member.isPending)
+        .length;
+    final inviteSummary = pendingCount == 0
         ? 'No invites yet'
-        : _invitedReaders.length == 1
+        : pendingCount == 1
         ? '1 invite pending'
-        : '${_invitedReaders.length} invites pending';
+        : '$pendingCount invites pending';
     return Container(
       key: const ValueKey<String>('reading-house-setup'),
       padding: const EdgeInsets.fromLTRB(24, 26, 24, 30),
@@ -277,6 +482,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
             label: 'BOOK',
             hintText: 'Name the book',
             controller: _bookController,
+            enabled: _canEdit,
             topPadding: 0,
             fieldKey: const ValueKey<String>('reading-house-book'),
           ),
@@ -285,15 +491,43 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
             trailing: 'optional · can wait',
             hintText: 'Translator, edition, or link',
             controller: _editionController,
+            enabled: _canEdit,
             fieldKey: const ValueKey<String>('reading-house-edition'),
+          ),
+          _SetupTextField(
+            label: 'HOUSE QUESTION',
+            trailing: 'optional · can wait',
+            hintText: 'What is this book asking the house to hold?',
+            controller: _questionController,
+            enabled: _canEdit,
+            fieldKey: const ValueKey<String>('reading-house-question'),
           ),
           _SetupChoiceField(
             label: 'HOW ARE YOU READING?',
             firstLabel: 'Solo study',
             secondLabel: 'With readers',
             secondSelected: _withReaders,
-            onFirst: () => setState(() => _withReaders = false),
-            onSecond: () => setState(() => _withReaders = true),
+            onFirst: !_canEdit
+                ? null
+                : () {
+                    if (_members.any((member) => !member.isOwner)) {
+                      _showError(
+                        'Remove invited readers before changing this house to Solo study.',
+                      );
+                      return;
+                    }
+                    setState(() {
+                      _withReaders = false;
+                      _openDoors = false;
+                    });
+                    if (_held) unawaited(_persistHouse(showBusy: true));
+                  },
+            onSecond: !_canEdit
+                ? null
+                : () {
+                    setState(() => _withReaders = true);
+                    if (_held) unawaited(_persistHouse(showBusy: true));
+                  },
             note: _withReaders
                 ? 'Everyone who accepts sees this same house, even before it has dates.'
                 : 'A solo house stays with you and your private calendar.',
@@ -309,8 +543,18 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                 firstLabel: 'Closed · invited',
                 secondLabel: 'Open · Commons',
                 secondSelected: _openDoors,
-                onFirst: () => setState(() => _openDoors = false),
-                onSecond: () => setState(() => _openDoors = true),
+                onFirst: !_canEdit
+                    ? null
+                    : () {
+                        setState(() => _openDoors = false);
+                        if (_held) unawaited(_persistHouse(showBusy: true));
+                      },
+                onSecond: !_canEdit
+                    ? null
+                    : () {
+                        setState(() => _openDoors = true);
+                        if (_held) unawaited(_persistHouse(showBusy: true));
+                      },
                 note: _openDoors
                     ? 'Community members can discover this house in the Commons.'
                     : 'Closed houses only appear to people you invite.',
@@ -349,15 +593,15 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                           status: 'HOST',
                           host: true,
                         ),
-                        for (final reader in _invitedReaders) ...[
+                        for (final reader in invitedReaders) ...[
                           const SizedBox(height: 12),
                           _ReaderRow(
-                            initials: reader.initials,
-                            name: reader.name,
-                            status: 'INVITED',
+                            initials: _memberInitials(reader),
+                            name: reader.displayLabel,
+                            status: reader.isPending ? 'INVITED' : 'ACCEPTED',
                           ),
                         ],
-                        if (_invitedReaders.isEmpty)
+                        if (invitedReaders.isEmpty)
                           Padding(
                             padding: const EdgeInsets.only(left: 43, top: 12),
                             child: Text(
@@ -376,7 +620,9 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                             'reading-house-invite-reader',
                           ),
                           label: '+  Invite a reader',
-                          onTap: _inviteReader,
+                          onTap: _canManageMembership && !_busy
+                              ? () => unawaited(_inviteReader())
+                              : null,
                         ),
                       ],
                     ),
@@ -386,7 +632,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
           _HouseStateLine(
             held: _held,
             openDoors: _openDoors && _withReaders,
-            invitedCount: _withReaders ? _invitedReaders.length : 0,
+            invitedCount: _withReaders ? pendingCount : 0,
             placedCount: _placedCount,
           ),
         ],
@@ -436,7 +682,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
               key: const ValueKey<String>('reading-house-place-reading'),
               label: waiting <= 0 ? 'Reading placed' : 'Place the reading',
               color: ReadingHouseDetailTokens.gold,
-              onTap: waiting <= 0 ? null : _placeReading,
+              onTap: waiting <= 0 || !_canEdit || _busy ? null : _placeReading,
             ),
           ),
         ],
@@ -471,7 +717,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
             child: _DashedPillButton(
               key: const ValueKey<String>('reading-house-add-sitting'),
               label: '+  Add sitting',
-              onTap: _addSitting,
+              onTap: _canEdit ? () => unawaited(_addSitting()) : null,
             ),
           ),
         ],
@@ -486,6 +732,21 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
       context,
     ).formatTimeOfDay(TimeOfDay(hour: sitting.hour, minute: sitting.minute));
     return '${_kemeticDate(date)} · $time';
+  }
+
+  String _memberInitials(SharedCalendarMember member) {
+    final label = member.displayLabel.trim();
+    final words = label
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .toList(growable: false);
+    if (words.isEmpty) return 'R';
+    if (words.length == 1) {
+      return words.first
+          .substring(0, words.first.length.clamp(1, 2))
+          .toUpperCase();
+    }
+    return '${words.first[0]}${words.last[0]}'.toUpperCase();
   }
 }
 
@@ -698,6 +959,7 @@ class _SetupTextField extends StatelessWidget {
     required this.hintText,
     required this.controller,
     required this.fieldKey,
+    this.enabled = true,
     this.trailing,
     this.topPadding = 17,
   });
@@ -706,6 +968,7 @@ class _SetupTextField extends StatelessWidget {
   final String hintText;
   final TextEditingController controller;
   final Key fieldKey;
+  final bool enabled;
   final String? trailing;
   final double topPadding;
 
@@ -720,16 +983,20 @@ class _SetupTextField extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _UpperLabel(label),
+              Expanded(child: _UpperLabel(label)),
               if (trailing != null)
-                Text(
-                  trailing!,
-                  style: _uiStyle(
-                    color: const Color(0xFF4F5B55),
-                    fontSize: 10,
-                    letterSpacing: 0.6,
+                Flexible(
+                  child: Text(
+                    trailing!,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: _uiStyle(
+                      color: const Color(0xFF4F5B55),
+                      fontSize: 10,
+                      letterSpacing: 0.6,
+                    ),
                   ),
                 ),
             ],
@@ -737,6 +1004,8 @@ class _SetupTextField extends StatelessWidget {
           TextField(
             key: fieldKey,
             controller: controller,
+            enabled: enabled,
+            scrollPadding: keyboardManagedTextFieldScrollPadding,
             cursorColor: ReadingHouseDetailTokens.houseHighlight,
             style: _displayStyle(
               color: ReadingHouseDetailTokens.houseHighlight,
@@ -780,8 +1049,8 @@ class _SetupChoiceField extends StatelessWidget {
   final String firstLabel;
   final String secondLabel;
   final bool secondSelected;
-  final VoidCallback onFirst;
-  final VoidCallback onSecond;
+  final VoidCallback? onFirst;
+  final VoidCallback? onSecond;
   final String note;
   final Key fieldKey;
   final bool highlightedNote;
@@ -858,7 +1127,7 @@ class _ChoiceButton extends StatelessWidget {
 
   final String label;
   final bool selected;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1062,7 +1331,7 @@ class _SittingRow extends StatelessWidget {
 
   final ReadingHouseSitting sitting;
   final String status;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -1293,25 +1562,28 @@ class _DashedPillButton extends StatelessWidget {
   });
 
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 42,
-      child: CustomPaint(
-        foregroundPainter: const _DashedRoundedRectPainter(),
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(999),
-            onTap: onTap,
-            child: Center(
-              child: Text(
-                label,
-                style: _displayStyle(
-                  color: ReadingHouseDetailTokens.houseHighlight,
-                  fontSize: 16,
+    return Opacity(
+      opacity: onTap == null ? 0.45 : 1,
+      child: SizedBox(
+        height: 42,
+        child: CustomPaint(
+          foregroundPainter: const _DashedRoundedRectPainter(),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(999),
+              onTap: onTap,
+              child: Center(
+                child: Text(
+                  label,
+                  style: _displayStyle(
+                    color: ReadingHouseDetailTokens.houseHighlight,
+                    fontSize: 16,
+                  ),
                 ),
               ),
             ),
@@ -1346,338 +1618,6 @@ class _DashedRoundedRectPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-enum _SittingSheetView { menu, edit, place }
-
-class _ReadingHouseSittingSheet extends StatefulWidget {
-  const _ReadingHouseSittingSheet({required this.sitting});
-
-  final ReadingHouseSitting sitting;
-
-  @override
-  State<_ReadingHouseSittingSheet> createState() =>
-      _ReadingHouseSittingSheetState();
-}
-
-class _ReadingHouseSittingSheetState extends State<_ReadingHouseSittingSheet> {
-  late final TextEditingController _titleController;
-  late final TextEditingController _sectionController;
-  late final TextEditingController _themeController;
-  late final TextEditingController _promptController;
-  late final TextEditingController _hostNoteController;
-  late DateTime _date;
-  late TimeOfDay _time;
-  _SittingSheetView _view = _SittingSheetView.menu;
-
-  @override
-  void initState() {
-    super.initState();
-    final sitting = widget.sitting;
-    _titleController = TextEditingController(text: sitting.title);
-    _sectionController = TextEditingController(text: sitting.section);
-    _themeController = TextEditingController(text: sitting.theme);
-    _promptController = TextEditingController(text: sitting.privatePrompt);
-    _hostNoteController = TextEditingController(text: sitting.hostNote);
-    _date = DateUtils.dateOnly(sitting.scheduledDate ?? DateTime.now());
-    _time = TimeOfDay(hour: sitting.hour, minute: sitting.minute);
-  }
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    _sectionController.dispose();
-    _themeController.dispose();
-    _promptController.dispose();
-    _hostNoteController.dispose();
-    super.dispose();
-  }
-
-  ReadingHouseSitting _draft({bool place = false}) {
-    return widget.sitting.copyWith(
-      title: _titleController.text.trim().isEmpty
-          ? widget.sitting.title
-          : _titleController.text.trim(),
-      section: _sectionController.text.trim(),
-      theme: _themeController.text.trim(),
-      privatePrompt: _promptController.text.trim(),
-      hostNote: _hostNoteController.text.trim(),
-      scheduledDate: place ? _date : widget.sitting.scheduledDate,
-      hour: _time.hour,
-      minute: _time.minute,
-    );
-  }
-
-  Future<void> _pickDate() async {
-    final picked = await MaatFlowDatePicker.show(
-      context: context,
-      initialDate: _date,
-      initialMode: MaatFlowDatePickerMode.kemetic,
-    );
-    if (picked == null || !mounted) return;
-    setState(() => _date = DateUtils.dateOnly(picked.date));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-      child: FractionallySizedBox(
-        heightFactor: 0.88,
-        child: Material(
-          key: const ValueKey<String>('reading-house-sitting-sheet'),
-          color: const Color(0xFF0A0D0B),
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            side: BorderSide(color: Color(0x427FD9BC)),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 15, 20, 30),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    const Spacer(),
-                    const SizedBox(
-                      width: 42,
-                      height: 4,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: Color(0xFF33463E),
-                          borderRadius: BorderRadius.all(Radius.circular(99)),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: IconButton(
-                          key: const ValueKey<String>(
-                            'reading-house-sitting-close',
-                          ),
-                          onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(
-                            Icons.close,
-                            color: ReadingHouseDetailTokens.silver,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 180),
-                  child: switch (_view) {
-                    _SittingSheetView.menu => _buildMenu(),
-                    _SittingSheetView.edit => _buildEditor(),
-                    _SittingSheetView.place => _buildPlacement(),
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMenu() {
-    final number = widget.sitting.eventNumber.toString().padLeft(2, '0');
-    return Column(
-      key: const ValueKey<String>('reading-house-sitting-menu'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _SheetKicker('SITTING $number'),
-        const SizedBox(height: 8),
-        _SheetHeading(widget.sitting.title),
-        const SizedBox(height: 12),
-        Text(
-          widget.sitting.privatePrompt,
-          style: _displayStyle(
-            color: ReadingHouseDetailTokens.silver,
-            fontSize: 16,
-            height: 1.4,
-          ),
-        ),
-        const SizedBox(height: 10),
-        _OutlinePillButton(
-          key: const ValueKey<String>('reading-house-edit-sitting'),
-          label: 'Edit reading section & prompt',
-          color: ReadingHouseDetailTokens.houseHighlight,
-          onTap: () => setState(() => _view = _SittingSheetView.edit),
-        ),
-        const SizedBox(height: 10),
-        _OutlinePillButton(
-          key: const ValueKey<String>('reading-house-place-sitting'),
-          label: 'Choose date & time',
-          color: ReadingHouseDetailTokens.houseHighlight,
-          onTap: () => setState(() => _view = _SittingSheetView.place),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEditor() {
-    return Column(
-      key: const ValueKey<String>('reading-house-sitting-editor'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _SheetBack(onTap: () => setState(() => _view = _SittingSheetView.menu)),
-        const _SheetKicker('EDIT SITTING'),
-        const SizedBox(height: 8),
-        _SheetHeading(_titleController.text),
-        _SheetField(label: 'Sitting title', controller: _titleController),
-        _SheetField(
-          label: 'Section',
-          controller: _sectionController,
-          hintText: 'Chapters, pages, maxims, or passage',
-        ),
-        _SheetField(label: 'Theme', controller: _themeController, maxLines: 2),
-        _SheetField(
-          label: 'Private prompt',
-          controller: _promptController,
-          maxLines: 3,
-        ),
-        _SheetField(
-          label: 'Host note',
-          trailing: 'optional',
-          controller: _hostNoteController,
-          hintText: 'Passage to watch, context, or note for the house',
-          maxLines: 2,
-        ),
-        const SizedBox(height: 18),
-        _SheetSaveButton(
-          key: const ValueKey<String>('reading-house-save-sitting'),
-          label: 'Save sitting',
-          onTap: () => Navigator.of(context).pop(_draft()),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPlacement() {
-    return Column(
-      key: const ValueKey<String>('reading-house-sitting-placement'),
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _SheetBack(onTap: () => setState(() => _view = _SittingSheetView.menu)),
-        const _SheetKicker('PLACE SITTING'),
-        const SizedBox(height: 8),
-        _SheetHeading(widget.sitting.title),
-        const SizedBox(height: 14),
-        Text(
-          'Choose when this sitting should appear. You can move it again later.',
-          style: _displayStyle(
-            color: ReadingHouseDetailTokens.silver,
-            fontSize: 15,
-          ),
-        ),
-        const SizedBox(height: 18),
-        Container(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 16),
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color(0x2E3FA98A)),
-            borderRadius: BorderRadius.circular(14),
-            color: const Color(0x093FA98A),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const _SheetKicker('DATE'),
-              InkWell(
-                key: const ValueKey<String>('reading-house-sitting-date'),
-                onTap: _pickDate,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 11),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              _kemeticDate(_date),
-                              style: _displayStyle(
-                                color: ReadingHouseDetailTokens.houseHighlight,
-                                fontSize: 18,
-                              ),
-                            ),
-                            const SizedBox(height: 3),
-                            Text(
-                              MaterialLocalizations.of(
-                                context,
-                              ).formatMediumDate(_date),
-                              style: _uiStyle(
-                                color: ReadingHouseDetailTokens.silverLow,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const Icon(
-                        Icons.chevron_right,
-                        color: ReadingHouseDetailTokens.house,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const Divider(color: Color(0x247FD9BC), height: 1),
-              const SizedBox(height: 12),
-              const _SheetKicker('TIME'),
-              const SizedBox(height: 9),
-              Row(
-                children: [
-                  for (var hour = 18; hour <= 20; hour++) ...[
-                    if (hour != 18) const SizedBox(width: 8),
-                    Expanded(
-                      child: _ChoiceButton(
-                        label: '${hour - 12}:00 PM',
-                        selected: _time.hour == hour,
-                        onTap: () => setState(
-                          () => _time = TimeOfDay(hour: hour, minute: 0),
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 18),
-        _SheetSaveButton(
-          key: const ValueKey<String>('reading-house-save-placement'),
-          label: 'Save date & time',
-          onTap: () => Navigator.of(context).pop(_draft(place: true)),
-        ),
-      ],
-    );
-  }
-}
-
-class _SheetBack extends StatelessWidget {
-  const _SheetBack({required this.onTap});
-
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: TextButton(
-        onPressed: onTap,
-        style: TextButton.styleFrom(
-          foregroundColor: ReadingHouseDetailTokens.houseHighlight,
-          padding: const EdgeInsets.only(bottom: 16),
-        ),
-        child: Text('←  Sitting', style: _uiStyle(fontSize: 14)),
-      ),
-    );
-  }
 }
 
 class _SheetKicker extends StatelessWidget {
@@ -1716,148 +1656,86 @@ class _SheetHeading extends StatelessWidget {
   }
 }
 
-class _SheetField extends StatelessWidget {
-  const _SheetField({
-    required this.label,
-    required this.controller,
-    this.trailing,
-    this.hintText,
-    this.maxLines = 1,
-  });
-
-  final String label;
-  final String? trailing;
-  final String? hintText;
-  final TextEditingController controller;
-  final int maxLines;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 13),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _UpperLabel(label.toUpperCase()),
-              if (trailing != null)
-                Text(
-                  trailing!,
-                  style: _uiStyle(color: const Color(0xFF56615B), fontSize: 10),
-                ),
-            ],
-          ),
-          const SizedBox(height: 7),
-          TextField(
-            controller: controller,
-            maxLines: maxLines,
-            cursorColor: ReadingHouseDetailTokens.houseHighlight,
-            style: _uiStyle(
-              color: ReadingHouseDetailTokens.bone,
-              fontSize: 15,
-              height: 1.35,
-            ),
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: hintText,
-              hintStyle: _uiStyle(
-                color: ReadingHouseDetailTokens.silverLow,
-                fontSize: 15,
-              ),
-              filled: true,
-              fillColor: const Color(0xFF080A08),
-              contentPadding: const EdgeInsets.all(11),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Color(0x337FD9BC)),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: Color(0xB87FD9BC)),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SheetSaveButton extends StatelessWidget {
-  const _SheetSaveButton({super.key, required this.label, required this.onTap});
-
-  final String label;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 46,
-      child: OutlinedButton(
-        onPressed: onTap,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: ReadingHouseDetailTokens.houseHighlight,
-          backgroundColor: const Color(0x143FA98A),
-          side: const BorderSide(color: Color(0x7A7FD9BC)),
-          shape: const StadiumBorder(),
-          textStyle: _displayStyle(fontSize: 17),
-        ),
-        child: Text(label),
-      ),
-    );
-  }
-}
-
-class _ReaderSearchResult {
-  const _ReaderSearchResult({
-    required this.name,
-    required this.handle,
-    required this.initials,
-  });
-
-  final String name;
-  final String handle;
-  final String initials;
-}
-
 class _ReaderInviteSheet extends StatefulWidget {
-  const _ReaderInviteSheet();
+  const _ReaderInviteSheet({
+    required this.authority,
+    required this.excludedUserIds,
+  });
+
+  final ReadingHouseAuthority authority;
+  final Set<String> excludedUserIds;
 
   @override
   State<_ReaderInviteSheet> createState() => _ReaderInviteSheetState();
 }
 
 class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
-  static const _samples = <_ReaderSearchResult>[
-    _ReaderSearchResult(
-      name: 'Amina Reed',
-      handle: '@aminareads',
-      initials: 'AR',
-    ),
-    _ReaderSearchResult(name: 'Nia Morgan', handle: '@niam', initials: 'NM'),
-    _ReaderSearchResult(
-      name: 'Sam Carter',
-      handle: '@samcarter',
-      initials: 'SC',
-    ),
-  ];
-
   String _query = '';
+  List<UserSearchResult> _results = const <UserSearchResult>[];
+  Timer? _debounce;
+  int _searchSerial = 0;
+  bool _searching = false;
+  Object? _error;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onQueryChanged(String raw) {
+    final query = raw.trim();
+    final serial = ++_searchSerial;
+    _debounce?.cancel();
+    setState(() {
+      _query = query;
+      _error = null;
+      if (query.length < 2) {
+        _results = const <UserSearchResult>[];
+        _searching = false;
+      }
+    });
+    if (query.length < 2) return;
+    _debounce = Timer(const Duration(milliseconds: 300), () async {
+      if (mounted) setState(() => _searching = true);
+      try {
+        final results = await widget.authority.searchReaders(
+          query,
+          excludedUserIds: widget.excludedUserIds,
+        );
+        if (!mounted || serial != _searchSerial) return;
+        setState(() {
+          _results = results;
+          _searching = false;
+        });
+      } catch (error) {
+        if (!mounted || serial != _searchSerial) return;
+        setState(() {
+          _error = error;
+          _results = const <UserSearchResult>[];
+          _searching = false;
+        });
+      }
+    });
+  }
+
+  String _initials(UserSearchResult reader) {
+    final label = reader.name.trim();
+    final words = label
+        .split(RegExp(r'\s+'))
+        .where((word) => word.isNotEmpty)
+        .toList(growable: false);
+    if (words.isEmpty) return 'R';
+    if (words.length == 1) {
+      return words.first
+          .substring(0, words.first.length.clamp(1, 2))
+          .toUpperCase();
+    }
+    return '${words.first[0]}${words.last[0]}'.toUpperCase();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final normalized = _query.trim().toLowerCase();
-    final results = normalized.isEmpty
-        ? const <_ReaderSearchResult>[]
-        : _samples
-              .where(
-                (reader) =>
-                    reader.name.toLowerCase().contains(normalized) ||
-                    reader.handle.toLowerCase().contains(normalized),
-              )
-              .toList(growable: false);
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: Material(
@@ -1907,7 +1785,8 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
               TextField(
                 key: const ValueKey<String>('reading-house-reader-search'),
                 autofocus: true,
-                onChanged: (value) => setState(() => _query = value),
+                onChanged: _onQueryChanged,
+                scrollPadding: keyboardManagedTextFieldScrollPadding,
                 cursorColor: ReadingHouseDetailTokens.houseHighlight,
                 style: _uiStyle(
                   color: ReadingHouseDetailTokens.bone,
@@ -1937,11 +1816,15 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
               ),
               const SizedBox(height: 12),
               Text(
-                normalized.isEmpty
-                    ? 'Type a name or @handle. Visual preview only — no invite will be sent.'
-                    : results.isEmpty
-                    ? 'No local preview results.'
-                    : 'Choose a preview reader. No invite will be sent.',
+                _query.length < 2
+                    ? 'Type at least two characters to search profiles.'
+                    : _searching
+                    ? 'Searching…'
+                    : _error != null
+                    ? 'Search is unavailable. Please try again.'
+                    : _results.isEmpty
+                    ? 'No eligible readers found.'
+                    : 'Choose a reader to send a real invitation.',
                 style: _uiStyle(
                   color: ReadingHouseDetailTokens.silverLow,
                   fontSize: 12,
@@ -1950,10 +1833,10 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
                 ),
               ),
               const SizedBox(height: 8),
-              for (final reader in results)
+              for (final reader in _results)
                 InkWell(
                   key: ValueKey<String>(
-                    'reading-house-reader-result-${reader.handle}',
+                    'reading-house-reader-result-${reader.userId}',
                   ),
                   onTap: () => Navigator.of(context).pop(reader),
                   child: Container(
@@ -1974,7 +1857,7 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
                             color: Color(0x143FA98A),
                           ),
                           child: Text(
-                            reader.initials,
+                            _initials(reader),
                             style: _uiStyle(
                               color: ReadingHouseDetailTokens.houseHighlight,
                               fontSize: 11,
@@ -1995,7 +1878,9 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
                               ),
                               const SizedBox(height: 3),
                               Text(
-                                reader.handle,
+                                reader.handle?.trim().isNotEmpty == true
+                                    ? '@${reader.handle!.trim()}'
+                                    : '',
                                 style: _uiStyle(
                                   color: ReadingHouseDetailTokens.silverLow,
                                   fontSize: 10.5,

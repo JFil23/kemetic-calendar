@@ -180,6 +180,7 @@ import 'the_open_hand_enrollment.dart';
 import 'the_djed_flow.dart';
 import 'the_djed_enrollment.dart';
 import 'the_reading_house_flow.dart';
+import 'the_reading_house/reading_house_authority.dart';
 import 'the_reading_house/presentation/reading_house_detail_page.dart';
 import 'maat_decan_flow.dart';
 import '../settings/settings_prefs.dart';
@@ -7771,21 +7772,33 @@ class CalendarPage extends StatefulWidget {
     }
 
     if (template.kind == _MaatFlowTemplateKind.readingHouse) {
-      final result = await FlowJoinService().joinReadingHouseHeadless(
-        templateKey: template.key,
-        templateTitle: template.title,
-        templateOverview: template.overview,
-        templateColor: template.color,
-        personalCalendarId: personalCalendarId,
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-        startDate: startDate,
-        plan: readingHousePlanFromDraftValues(
-          kMaatFlowResponseDraftStore.valuesForFlow(template.key),
-        ),
-        readingHouseSittings: readingHouseSittings,
-        alertOffsetMinutes: kEventFilingNoAlertMinutes,
+      final calendarId = personalCalendarId?.trim();
+      if (calendarId == null || calendarId.isEmpty) return -1;
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final firstDate = DateUtils.dateOnly(
+        startDate ?? defaultReadingHouseStartDate(timezone),
       );
-      return stageResult(result);
+      final sittings = <ReadingHouseSitting>[
+        for (final sitting in normalizeReadingHouseSittingOrder(
+          readingHouseSittings ?? readingHouseStarterSittingsForAuthoring(),
+        ))
+          sitting.copyWith(
+            scheduledDate:
+                sitting.scheduledDate ??
+                firstDate.add(Duration(days: sitting.flowDay - 1)),
+          ),
+      ];
+      final snapshot = await LiveReadingHouseAuthority(Supabase.instance.client)
+          .ensureHouse(
+            personalCalendarId: calendarId,
+            plan: readingHousePlanFromDraftValues(
+              kMaatFlowResponseDraftStore.valuesForFlow(template.key),
+            ),
+            sittings: sittings,
+            openDoors: false,
+            timezone: timezone,
+          );
+      return snapshot.flowId ?? -1;
     }
 
     if (template.kind == _MaatFlowTemplateKind.maatDecan) {
@@ -8163,28 +8176,22 @@ class CalendarPage extends StatefulWidget {
     }
     if (readingHouseFlow != null) {
       final mountedHost = CalendarPage._mountedState;
-      final sharedCalendarsRepo =
-          mountedHost?._sharedCalendarsRepo ??
-          SharedCalendarsRepo(Supabase.instance.client);
-      final onCalendarChanged =
-          mountedHost?._moveReadingHouseFlowToCalendar ??
-          (flow, calendar) => _moveReadingHouseFlowToCalendarHeadless(
-            flow,
-            calendar,
-            flowsRepo,
-          );
       return _pushDetachedFlowStudioRoute<_FlowStudioResult>(
         navigator,
         MaterialPageRoute<_FlowStudioResult>(
           builder: (_) => _ReadingHouseAuthoringPage(
             flow: readingHouseFlow!,
-            calendar: mountedHost?._calendarSummary(
-              readingHouseFlow.calendarId,
-            ),
-            personalCalendarId: mountedHost?._personalCalendarId,
-            sharedCalendarsRepo: sharedCalendarsRepo,
-            onCalendarChanged: onCalendarChanged,
-            onSave: handleResult,
+            onPersisted: (_) async {
+              await flowsRepo.clearMyFiledFlowsCache();
+              unawaited(flowsRepo.refreshMyFiledFlows());
+              if (mountedHost?.mounted == true) {
+                await mountedHost!._requestHydration(
+                  _CalendarHydrationRequest.catalogReconcile(
+                    reason: 'reading_house_detached_persisted',
+                  ),
+                );
+              }
+            },
             resizeToAvoidBottomInset: false,
           ),
         ),
@@ -8225,34 +8232,6 @@ class CalendarPage extends StatefulWidget {
       },
       returnState: returnState,
     );
-  }
-
-  static Future<_Flow> _moveReadingHouseFlowToCalendarHeadless(
-    _Flow flow,
-    SharedCalendarSummary calendar,
-    FlowsRepo flowsRepo,
-  ) async {
-    final calendarId = calendar.id.trim();
-    if (calendarId.isEmpty) {
-      throw ArgumentError.value(
-        calendar.id,
-        'calendar.id',
-        'Must not be empty.',
-      );
-    }
-    await flowsRepo.updateCalendar(id: flow.id, calendarId: calendarId);
-    await UserEventsRepo(
-      Supabase.instance.client,
-    ).updateCalendarForFlowEvents(flowId: flow.id, calendarId: calendarId);
-    await _ensureSharedExperienceForFlow(
-      flowId: flow.id,
-      calendarId: calendarId,
-      source: 'reading_house_shared_calendar_move_headless',
-    );
-    await flowsRepo.clearMyFiledFlowsCache();
-    unawaited(flowsRepo.refreshMyFiledFlows());
-    flow.calendarId = calendarId;
-    return flow;
   }
 
   static Widget _buildDetachedMaatFlowTemplateDetailPage({
@@ -10065,17 +10044,22 @@ class _FlowEditorRoutePageState extends State<_FlowEditorRoutePage> {
   }
 
   Widget _buildReadingHouseAuthoringPage(_Flow flow) {
-    final mountedHost = CalendarPage._mountedState;
-    final sharedCalendarsRepo =
-        mountedHost?._sharedCalendarsRepo ??
-        SharedCalendarsRepo(Supabase.instance.client);
     return _ReadingHouseAuthoringPage(
       flow: flow,
-      calendar: mountedHost?._calendarSummary(flow.calendarId),
-      personalCalendarId: mountedHost?._personalCalendarId,
-      sharedCalendarsRepo: sharedCalendarsRepo,
-      onCalendarChanged: mountedHost?._moveReadingHouseFlowToCalendar,
-      onSave: _handleResult,
+      onPersisted: (_) async {
+        final mountedHost = CalendarPage._mountedState;
+        if (mountedHost?.mounted == true) {
+          await mountedHost!._requestHydration(
+            _CalendarHydrationRequest.catalogReconcile(
+              reason: 'reading_house_route_persisted',
+            ),
+          );
+          return;
+        }
+        final flowsRepo = FlowsRepo(Supabase.instance.client);
+        await flowsRepo.clearMyFiledFlowsCache();
+        unawaited(flowsRepo.refreshMyFiledFlows());
+      },
     );
   }
 
@@ -13276,10 +13260,14 @@ class CalendarPageState extends State<CalendarPage>
         MaterialPageRoute<_FlowStudioResult>(
           builder: (_) => _ReadingHouseAuthoringPage(
             flow: readingHouseFlow,
-            calendar: _calendarSummary(readingHouseFlow.calendarId),
-            personalCalendarId: _personalCalendarId,
-            sharedCalendarsRepo: _sharedCalendarsRepo,
-            onCalendarChanged: _moveReadingHouseFlowToCalendar,
+            onPersisted: (_) async {
+              if (!mounted) return;
+              await _requestHydration(
+                _CalendarHydrationRequest.catalogReconcile(
+                  reason: 'reading_house_editor_persisted',
+                ),
+              );
+            },
             resizeToAvoidBottomInset: persistOverlay,
           ),
         ),
@@ -15113,64 +15101,6 @@ class CalendarPageState extends State<CalendarPage>
     return _detailSheetTargetUsesCalendar(refreshed, calendarId)
         ? refreshed
         : optimisticTarget;
-  }
-
-  Future<_Flow> _moveReadingHouseFlowToCalendar(
-    _Flow flow,
-    SharedCalendarSummary calendar,
-  ) async {
-    final calendarId = calendar.id.trim();
-    if (calendarId.isEmpty) {
-      throw ArgumentError.value(
-        calendar.id,
-        'calendar.id',
-        'Must not be empty.',
-      );
-    }
-    await _flowsRepo.updateCalendar(id: flow.id, calendarId: calendarId);
-    await UserEventsRepo(
-      Supabase.instance.client,
-    ).updateCalendarForFlowEvents(flowId: flow.id, calendarId: calendarId);
-    await _ensureSharedExperienceForFlow(
-      flowId: flow.id,
-      calendarId: calendarId,
-      source: 'reading_house_shared_calendar_move',
-    );
-
-    _Flow? updated;
-    for (var i = 0; i < _flows.length; i++) {
-      final existing = _flows[i];
-      if (existing.id != flow.id) continue;
-      existing.calendarId = calendarId;
-      updated = existing;
-      break;
-    }
-    updated ??= flow..calendarId = calendarId;
-
-    final startDate = updated.start == null
-        ? null
-        : DateUtils.dateOnly(updated.start!);
-    final k = startDate == null ? null : KemeticMath.fromGregorian(startDate);
-    await _notifySharedCalendarItemAdded(
-      calendarId: calendarId,
-      itemType: 'flow',
-      itemId: updated.id.toString(),
-      itemTitle: updated.name,
-      flowId: updated.id,
-      startDate: startDate,
-      kYear: k?.kYear,
-      kMonth: k?.kMonth,
-      kDay: k?.kDay,
-    );
-    if (mounted) {
-      await _requestHydration(
-        _CalendarHydrationRequest.targeted(
-          reason: 'reading_house_shared_calendar_move',
-          intentKind: CalendarHydrationIntentKind.affectedDate,
-        ),
-      );
-    }
-    return updated;
   }
 
   Future<DayViewSheetEventTarget?> _moveReminderEventToCalendar(
@@ -27807,24 +27737,13 @@ class CalendarPageState extends State<CalendarPage>
         rootBuilder: (innerCtx) {
           return _ReadingHouseAuthoringPage(
             flow: readingHouseFlow,
-            calendar: _calendarSummary(readingHouseFlow.calendarId),
-            personalCalendarId: _personalCalendarId,
-            sharedCalendarsRepo: _sharedCalendarsRepo,
-            onCalendarChanged: _moveReadingHouseFlowToCalendar,
-            onSave: (result) async {
-              await _persistFlowStudioResult(result);
-              if (mounted) {
-                await _requestHydration(
-                  _CalendarHydrationRequest.catalogReconcile(
-                    reason: 'reading_house_authoring_save',
-                  ),
-                );
-              }
-              if (!innerCtx.mounted) return;
-              final rootNavigator = Navigator.of(innerCtx, rootNavigator: true);
-              if (rootNavigator.canPop()) {
-                rootNavigator.pop();
-              }
+            onPersisted: (_) async {
+              if (!mounted) return;
+              await _requestHydration(
+                _CalendarHydrationRequest.catalogReconcile(
+                  reason: 'reading_house_direct_persisted',
+                ),
+              );
             },
           );
         },

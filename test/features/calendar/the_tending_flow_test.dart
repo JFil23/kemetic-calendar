@@ -242,7 +242,7 @@ void main() {
     );
     expect(methodStart, isNonNegative);
     final methodEnd = source.indexOf(
-      'Future<FlowJoinResult> joinReadingHouseHeadless({',
+      'Future<FlowJoinResult> joinKeptWordHeadless({',
       methodStart,
     );
     expect(methodEnd, isNonNegative);

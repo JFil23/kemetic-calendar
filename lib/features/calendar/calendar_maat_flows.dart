@@ -2502,7 +2502,7 @@ class _MaatFlowTemplateDetailPageState
   bool _djedStartDateTouched = false;
   bool _djedJoinInFlight = false;
   bool _readingHouseStartDateTouched = false;
-  bool _readingHouseJoinInFlight = false;
+  ReadingHouseAuthority? _readingHouseAuthority;
   List<ReadingHouseSitting> _readingHouseSittings =
       readingHouseStarterSittingsForAuthoring();
   bool _maatDecanStartDateTouched = false;
@@ -4314,47 +4314,6 @@ class _MaatFlowTemplateDetailPageState
     }
     setState(() {
       _djedJoinInFlight = false;
-    });
-  }
-
-  Future<void> _joinReadingHouseFlow(DateTime selectedStart) async {
-    if (_readingHouseJoinInFlight) return;
-    setState(() {
-      _readingHouseJoinInFlight = true;
-    });
-
-    final int id;
-    try {
-      id = await widget.addInstance(
-        template: widget.template,
-        startDate: selectedStart,
-        trackSkyTimeZone: _previewTrackSkyTimeZone,
-        readingHouseSittings: _readingHouseSittings,
-      );
-    } catch (e, st) {
-      if (kDebugMode) {
-        _calendarDebugPrint('[readingHouse] join failed: $e');
-        _calendarDebugPrint('$st');
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not join The Reading House. Please retry.'),
-        ),
-      );
-      setState(() {
-        _readingHouseJoinInFlight = false;
-      });
-      return;
-    }
-
-    if (!mounted) return;
-    if (id > 0) {
-      await _completeJoin(id);
-      return;
-    }
-    setState(() {
-      _readingHouseJoinInFlight = false;
     });
   }
 
@@ -8366,251 +8325,6 @@ class _MaatFlowTemplateDetailPageState
     );
   }
 
-  DateTime _readingHouseDateForSitting(
-    ReadingHouseSitting sitting,
-    DateTime firstStart,
-  ) {
-    final schedule = readingHouseScheduleForSitting(
-      sitting,
-      firstStart,
-      _previewTrackSkyTimeZone,
-    );
-    return DateTime(
-      schedule.startLocal.year,
-      schedule.startLocal.month,
-      schedule.startLocal.day,
-    );
-  }
-
-  int _readingHouseFlowDayForDate(DateTime firstStart, DateTime sittingDate) {
-    final first = DateTime(firstStart.year, firstStart.month, firstStart.day);
-    final selected = DateTime(
-      sittingDate.year,
-      sittingDate.month,
-      sittingDate.day,
-    );
-    return math.max(1, selected.difference(first).inDays + 1);
-  }
-
-  Future<void> _editReadingHouseSitting(
-    BuildContext context,
-    ReadingHouseSitting sitting,
-    DateTime firstStart,
-  ) async {
-    final scheduledDate = _readingHouseDateForSitting(sitting, firstStart);
-    final edited = await showModalBottomSheet<ReadingHouseSitting>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _ReadingHouseSittingDraftSheet(
-        sitting: sitting,
-        initialDate: scheduledDate,
-        initialTime: TimeOfDay(hour: sitting.hour, minute: sitting.minute),
-        flowDayForDate: (date) => _readingHouseFlowDayForDate(firstStart, date),
-        accentColor: _palette.accent,
-        borderColor: _palette.accent.withValues(alpha: 0.35),
-        manageKeyboardInset: widget.resizeToAvoidBottomInset,
-      ),
-    );
-
-    if (edited == null || !mounted) return;
-    setState(() {
-      _readingHouseSittings = editReadingHouseSitting(
-        _readingHouseSittings,
-        sitting.eventNumber,
-        edited,
-      );
-    });
-  }
-
-  void _addReadingHouseSitting() {
-    setState(() {
-      _readingHouseSittings = addReadingHouseSitting(_readingHouseSittings);
-    });
-  }
-
-  void _deleteReadingHouseSitting(ReadingHouseSitting sitting) {
-    if (_readingHouseSittings.length <= 1) return;
-    setState(() {
-      _readingHouseSittings = deleteReadingHouseSitting(
-        _readingHouseSittings,
-        sitting.eventNumber,
-      );
-    });
-  }
-
-  void _moveReadingHouseSitting(int oldIndex, int newIndex) {
-    setState(() {
-      _readingHouseSittings = reorderReadingHouseSitting(
-        _readingHouseSittings,
-        oldIndex,
-        newIndex,
-      );
-    });
-  }
-
-  Widget _buildReadingHouseSittingTile(
-    BuildContext context,
-    ReadingHouseSitting sitting,
-    DateTime firstStart,
-    int index,
-  ) {
-    final schedule = readingHouseScheduleForSitting(
-      sitting,
-      firstStart,
-      _previewTrackSkyTimeZone,
-    );
-    final l10n = MaterialLocalizations.of(context);
-    final time = l10n.formatTimeOfDay(
-      TimeOfDay(
-        hour: schedule.startLocal.hour,
-        minute: schedule.startLocal.minute,
-      ),
-    );
-    final plan = readingHousePlanFromDraftValues(
-      kMaatFlowResponseDraftStore.valuesForFlow(kReadingHouseFlowKey),
-    );
-    final metadata =
-        sitting.sittingSource == kReadingHouseSittingSourceHostAuthored
-        ? 'Host authored'
-        : 'Starter default';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        _buildExpandableFlowEventTile(
-          title: readingHouseSittingTitle(sitting),
-          subtitle:
-              '$metadata · ${readingHouseTimingLabel(sitting)} · ${_dateLabel(context, schedule.startLocal)} at $time',
-          detailText: readingHouseDetailText(sitting, plan: plan),
-          borderColor: sitting.isHostAuthored
-              ? _palette.accent.withValues(alpha: 0.46)
-              : sitting.sharePromptOnComplete
-              ? _palette.accent.withValues(alpha: 0.42)
-              : Colors.white12,
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Tooltip(
-                message: 'Move up',
-                child: IconButton(
-                  onPressed: index == 0
-                      ? null
-                      : () => _moveReadingHouseSitting(index, index - 1),
-                  icon: const Icon(Icons.keyboard_arrow_up),
-                  color: _palette.accent,
-                ),
-              ),
-              Tooltip(
-                message: 'Move down',
-                child: IconButton(
-                  onPressed: index >= _readingHouseSittings.length - 1
-                      ? null
-                      : () => _moveReadingHouseSitting(index, index + 1),
-                  icon: const Icon(Icons.keyboard_arrow_down),
-                  color: _palette.accent,
-                ),
-              ),
-              Tooltip(
-                message: 'Edit sitting',
-                child: IconButton(
-                  onPressed: () =>
-                      _editReadingHouseSitting(context, sitting, firstStart),
-                  icon: const Icon(Icons.edit_outlined),
-                  color: _palette.accent,
-                ),
-              ),
-              Tooltip(
-                message: 'Delete sitting',
-                child: IconButton(
-                  onPressed: _readingHouseSittings.length <= 1
-                      ? null
-                      : () => _deleteReadingHouseSitting(sitting),
-                  icon: const Icon(Icons.delete_outline),
-                  color: const Color(0xFFD98E73),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // Kept as the behavior-connected legacy donor until the approved visual
-  // presentation is wired back onto persistence in a later pass.
-  // ignore: unused_element
-  Widget _buildReadingHouseScaffold(BuildContext context) {
-    final l10n = MaterialLocalizations.of(context);
-    final selectedStart =
-        _picked ?? defaultReadingHouseStartDate(_previewTrackSkyTimeZone);
-    final firstSchedule = readingHouseScheduleForDate(
-      _readingHouseSittings.first,
-      selectedStart,
-      _previewTrackSkyTimeZone,
-    );
-    final firstTime = l10n.formatTimeOfDay(
-      TimeOfDay(
-        hour: firstSchedule.startLocal.hour,
-        minute: firstSchedule.startLocal.minute,
-      ),
-    );
-    final initialPromptSlot = _buildCurrentInitialPromptSlot(
-      includeLeadingSeparator: false,
-    );
-
-    return _buildMaatFlowDetailScaffold(
-      context,
-      appendInitialPrompt: false,
-      joinButton: _buildTemplateStickyJoinButton(
-        text: _readingHouseJoinInFlight ? 'Joining…' : 'Add Flow',
-        onPressed: _readingHouseJoinInFlight
-            ? null
-            : () => _joinReadingHouseFlow(selectedStart),
-      ),
-      children: [
-        ..._buildMaatFlowOverviewZones(
-          content: _detailContentForTemplate(overrideChips: null),
-          tagline: kReadingHouseTagline,
-          initialPromptSlot: initialPromptSlot,
-          configurationControls: [
-            _buildStartDateRow(
-              context,
-              selectedStart,
-              label:
-                  'First sitting: ${_dateLabel(context, selectedStart)} at $firstTime',
-            ),
-          ],
-        ),
-        const _MaatFlowDetailSeparator(),
-        const _MaatFlowDetailSectionLabel('HOST SITTINGS'),
-        for (var index = 0; index < _readingHouseSittings.length; index++)
-          _buildReadingHouseSittingTile(
-            context,
-            _readingHouseSittings[index],
-            selectedStart,
-            index,
-          ),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: OutlinedButton.icon(
-            onPressed: _addReadingHouseSitting,
-            icon: const Icon(Icons.add),
-            label: const Text('Add Sitting'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: _palette.accent,
-              side: BorderSide(color: _palette.accent.withValues(alpha: 0.45)),
-            ),
-          ),
-        ),
-        const SizedBox(height: 10),
-        const _MaatFlowPrivacyFooter(),
-      ],
-    );
-  }
-
   Widget _buildReadingHouseVisualScaffold() {
     final selectedStart =
         _picked ?? defaultReadingHouseStartDate(_previewTrackSkyTimeZone);
@@ -8627,6 +8341,16 @@ class _MaatFlowTemplateDetailPageState
       initialPlan: initialPlan,
       initialSittings: _readingHouseSittings,
       initiallyHeld: widget.alreadyJoined,
+      initialFlowId: widget.joinedFlow?.id,
+      initialCalendarId: widget.joinedFlow?.calendarId,
+      authority: _readingHouseAuthority ??= LiveReadingHouseAuthority(
+        Supabase.instance.client,
+      ),
+      resolvePersonalCalendarId: CalendarPage._loadHeadlessPersonalCalendarId,
+      onHeld: (flowId) {
+        final onJoined = widget.onJoined;
+        if (onJoined != null) unawaited(onJoined(flowId));
+      },
       showBackButton: widget.showBackButton,
       resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
     );
