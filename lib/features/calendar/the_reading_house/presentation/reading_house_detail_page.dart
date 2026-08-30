@@ -20,6 +20,8 @@ abstract final class ReadingHouseDetailTokens {
   static const Color houseHighlight = Color(0xFF7FD9BC);
   static const Color houseDeep = Color(0xFF17362E);
   static const Color separator = Color(0xFF1E2A24);
+  static const String heroAsset = 'assets/the_reading_house/hero.png';
+  static const Alignment heroImageAlignment = Alignment(-0.18, 0);
 
   static const MaatFlowDetailTheme theme = MaatFlowDetailTheme(
     pageBackground: pageBackground,
@@ -519,41 +521,26 @@ class _ReadingHouseHeroBackdrop extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
+        Image.asset(
+          ReadingHouseDetailTokens.heroAsset,
+          key: const ValueKey<String>('reading-house-hero-image'),
+          fit: BoxFit.cover,
+          alignment: ReadingHouseDetailTokens.heroImageAlignment,
+          errorBuilder: (context, error, stackTrace) =>
+              const ColoredBox(color: ReadingHouseDetailTokens.pageBackground),
+        ),
         const DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Color(0xFF0C1812),
-                Color(0xFF09110D),
-                Color(0xFF060806),
-                ReadingHouseDetailTokens.pageBackground,
+                Color(0x10050504),
+                Color(0x18050504),
+                Color(0x66050504),
+                Color(0xB3050504),
               ],
-              stops: [0, 0.44, 0.76, 1],
-            ),
-          ),
-        ),
-        const DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              center: Alignment(-0.64, -0.68),
-              radius: 0.95,
-              colors: [Color(0x4750B090), Colors.transparent],
-            ),
-          ),
-        ),
-        CustomPaint(painter: _HouseArchitecturePainter()),
-        const Positioned(
-          top: 42,
-          right: -18,
-          child: Text(
-            kReadingHouseGlyph,
-            style: TextStyle(
-              color: Color(0x087FD9BC),
-              fontFamily: 'Noto Sans Egyptian Hieroglyphs',
-              fontSize: 224,
-              height: 1,
+              stops: [0.0, 0.46, 0.70, 1.0],
             ),
           ),
         ),
@@ -561,7 +548,7 @@ class _ReadingHouseHeroBackdrop extends StatelessWidget {
           left: 0,
           right: 0,
           bottom: 0,
-          height: 210,
+          height: 200,
           child: DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -569,11 +556,11 @@ class _ReadingHouseHeroBackdrop extends StatelessWidget {
                 end: Alignment.bottomCenter,
                 colors: [
                   Colors.transparent,
-                  Color(0x29050504),
-                  Color(0xD1050504),
+                  Color(0x24050504),
+                  ReadingHouseDetailTokens.pageBackground,
                   ReadingHouseDetailTokens.pageBackground,
                 ],
-                stops: [0, 0.35, 0.86, 1],
+                stops: [0.0, 0.38, 0.92, 1.0],
               ),
             ),
           ),
@@ -581,37 +568,6 @@ class _ReadingHouseHeroBackdrop extends StatelessWidget {
       ],
     );
   }
-}
-
-class _HouseArchitecturePainter extends CustomPainter {
-  const _HouseArchitecturePainter();
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final vertical = Paint()
-      ..color = ReadingHouseDetailTokens.houseHighlight.withValues(alpha: 0.05)
-      ..strokeWidth = 1;
-    for (final x in <double>[0.08, 0.29, 0.71]) {
-      canvas.drawLine(
-        Offset(size.width * x, 0),
-        Offset(size.width * x, size.height),
-        vertical,
-      );
-    }
-    final shelves = Paint()
-      ..color = ReadingHouseDetailTokens.bone.withValues(alpha: 0.025)
-      ..strokeWidth = 1;
-    for (double y = 38; y < size.height; y += 54) {
-      canvas.drawLine(
-        Offset.zero.translate(0, y),
-        Offset(size.width, y),
-        shelves,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _SheetHandle extends StatelessWidget {

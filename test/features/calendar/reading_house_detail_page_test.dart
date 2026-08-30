@@ -25,12 +25,23 @@ void main() {
         home: RepaintBoundary(
           key: _captureSurfaceKey,
           child: ReadingHouseDetailPage(
+            key: ValueKey<Size>(size),
             timezone: TrackSkyTimeZone.pacific,
             initialStartDate: DateTime(2026, 9, 14),
           ),
         ),
       ),
     );
+    await tester.pump();
+    Object? heroLoadError;
+    await tester.runAsync(
+      () => precacheImage(
+        const AssetImage(ReadingHouseDetailTokens.heroAsset),
+        tester.element(find.byType(ReadingHouseDetailPage)),
+        onError: (exception, stackTrace) => heroLoadError = exception,
+      ),
+    );
+    expect(heroLoadError, isNull);
     await tester.pumpAndSettle();
   }
 
@@ -56,6 +67,16 @@ void main() {
     expect(find.byType(MaatFlowDetailHero), findsOneWidget);
     expect(find.byType(MaatFlowDetailDock), findsOneWidget);
     expect(find.byType(MaatFlowThirtyDayCalendar), findsOneWidget);
+    final heroImage = tester.widget<Image>(
+      find.byKey(const ValueKey<String>('reading-house-hero-image')),
+    );
+    expect(heroImage.image, isA<AssetImage>());
+    expect(
+      (heroImage.image as AssetImage).assetName,
+      ReadingHouseDetailTokens.heroAsset,
+    );
+    expect(heroImage.fit, BoxFit.cover);
+    expect(heroImage.alignment, ReadingHouseDetailTokens.heroImageAlignment);
     expect(find.text('The Reading\nHouse'), findsOneWidget);
     expect(find.text('A house kept around one book.'), findsOneWidget);
     expect(find.text('BEFORE THE CALENDAR'), findsOneWidget);

@@ -114,6 +114,7 @@ flutter:
     - assets/widget/
     - assets/follow_the_sky/
     - assets/the_offering_table/
+    - assets/the_reading_house/
     - assets/profile/day_cycle_alt_2/
 
   # Using GoogleFonts package for all typography
