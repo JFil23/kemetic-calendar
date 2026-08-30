@@ -155,48 +155,58 @@ void main() {
     },
   );
 
-  test('live ripple eligibility uses the existing event schedule', () {
-    final now = DateTime(2026, 8, 29, 7, 31);
-    final today = KemeticMath.fromGregorian(now);
-    final prior = KemeticMath.fromGregorian(
-      now.subtract(const Duration(days: 1)),
+  test('live ripple eligibility covers today before and after event time', () {
+    final beforeEvent = DateTime(2026, 8, 29, 6, 0);
+    final afterEvent = DateTime(2026, 8, 29, 22, 0);
+    final today = KemeticMath.fromGregorian(beforeEvent);
+    final yesterday = KemeticMath.fromGregorian(
+      beforeEvent.subtract(const Duration(days: 1)),
     );
-    const live = EventItem(
-      title: 'Day 2: The Cup Before the Noise',
-      startMin: 450,
-      endMin: 455,
-      color: Color(0xFFC99A3D),
-      allDay: false,
-    );
-    const past = EventItem(
-      title: 'Day 1: The First Water',
-      startMin: 420,
-      endMin: 425,
-      color: Color(0xFFC99A3D),
-      allDay: false,
-    );
-    const future = EventItem(
-      title: 'Day 3: Bread Enough',
-      startMin: 480,
-      endMin: 485,
-      color: Color(0xFFC99A3D),
-      allDay: false,
+    final tomorrow = KemeticMath.fromGregorian(
+      beforeEvent.add(const Duration(days: 1)),
     );
 
-    bool isLive(EventItem event, {int? ky, int? km, int? kd}) =>
-        offeringTableEventIsLive(
-          ky: ky ?? today.kYear,
-          km: km ?? today.kMonth,
-          kd: kd ?? today.kDay,
-          event: event,
-          now: now,
-        );
+    bool isLive({
+      required int ky,
+      required int km,
+      required int kd,
+      required DateTime now,
+    }) => offeringTableEventIsLive(ky: ky, km: km, kd: kd, now: now);
 
-    expect(isLive(live), isTrue);
-    expect(isLive(past), isFalse);
-    expect(isLive(future), isFalse);
     expect(
-      isLive(live, ky: prior.kYear, km: prior.kMonth, kd: prior.kDay),
+      isLive(
+        ky: today.kYear,
+        km: today.kMonth,
+        kd: today.kDay,
+        now: beforeEvent,
+      ),
+      isTrue,
+    );
+    expect(
+      isLive(
+        ky: today.kYear,
+        km: today.kMonth,
+        kd: today.kDay,
+        now: afterEvent,
+      ),
+      isTrue,
+    );
+    expect(
+      isLive(
+        ky: yesterday.kYear,
+        km: yesterday.kMonth,
+        kd: yesterday.kDay,
+        now: beforeEvent,
+      ),
+      isFalse,
+    );
+    expect(
+      isLive(
+        ky: tomorrow.kYear,
+        km: tomorrow.kMonth,
+        kd: tomorrow.kDay,
+        now: beforeEvent,
+      ),
       isFalse,
     );
     expect(kOfferingTableRippleCycle, const Duration(milliseconds: 5400));
@@ -207,7 +217,7 @@ void main() {
   });
 
   testWidgets(
-    'only the live Day View block receives the shared ripple animation',
+    'every Offering block on today receives the shared ripple animation',
     (tester) async {
       final controller = AnimationController(
         vsync: tester,
@@ -233,11 +243,75 @@ void main() {
           block.dayNumber: block,
       };
       expect(byDay.keys, containsAll(<int>[1, 2, 3]));
-      expect(byDay[1]!.rippleAnimation, isNull);
+      expect(byDay[1]!.rippleAnimation, same(controller));
       expect(byDay[2]!.rippleAnimation, same(controller));
-      expect(byDay[3]!.rippleAnimation, isNull);
+      expect(byDay[3]!.rippleAnimation, same(controller));
     },
   );
+
+  testWidgets("reduced motion keeps today's shared ripple controller still", (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final now = DateTime.now();
+    final today = KemeticMath.fromGregorian(now);
+    final day = kOfferingTableDays.first;
+    final note = NoteData(
+      clientEventId: 'offering-reduced-motion-today',
+      title: offeringTableEventTitle(day),
+      allDay: false,
+      start: const TimeOfDay(hour: 7, minute: 30),
+      end: const TimeOfDay(hour: 7, minute: 33),
+      flowId: 81,
+      behaviorPayload: <String, dynamic>{
+        'kind': 'maat_offering_table_day',
+        'flow_key': kOfferingTableFlowKey,
+        'day': day.dayNumber,
+      },
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: DayViewPage(
+            initialKy: today.kYear,
+            initialKm: today.kMonth,
+            initialKd: today.kDay,
+            showGregorian: false,
+            notesForDay: (ky, km, kd) =>
+                ky == today.kYear && km == today.kMonth && kd == today.kDay
+                ? <NoteData>[note]
+                : const <NoteData>[],
+            flowIndex: <int, FlowData>{
+              81: FlowData(
+                id: 81,
+                name: kOfferingTableTitle,
+                color: const Color(0xFFC99A3D),
+                active: true,
+                notes: 'mode=gregorian;maat=$kOfferingTableFlowKey',
+              ),
+            },
+            activeLedgerFlowIds: const <int>{81},
+            getMonthName: (month) => 'Month $month',
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final block = tester.widget<OfferingTableEventBlockVisual>(
+      find.byType(OfferingTableEventBlockVisual).first,
+    );
+    final controller = block.rippleAnimation! as AnimationController;
+    expect(controller.isAnimating, isFalse);
+    expect(controller.value, 0);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('empty, received, and reduced-motion cups remain still', (
     tester,

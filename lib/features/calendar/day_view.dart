@@ -2123,18 +2123,13 @@ bool offeringTableEventIsLive({
   required int ky,
   required int km,
   required int kd,
-  required EventItem event,
   required DateTime now,
 }) {
   final localNow = now.toLocal();
   final kemeticNow = KemeticMath.fromGregorian(localNow);
-  if (ky != kemeticNow.kYear ||
-      km != kemeticNow.kMonth ||
-      kd != kemeticNow.kDay) {
-    return false;
-  }
-  final minute = localNow.hour * 60 + localNow.minute;
-  return event.startMin <= minute && minute < event.endMin;
+  return ky == kemeticNow.kYear &&
+      km == kemeticNow.kMonth &&
+      kd == kemeticNow.kDay;
 }
 
 class DayViewSheetEventTarget {
@@ -5490,7 +5485,6 @@ class _DayViewPageState extends State<DayViewPage>
         ky: _currentKy,
         km: _currentKm,
         kd: _currentKd,
-        event: event,
         now: now,
       )) {
         return true;
@@ -8145,7 +8139,6 @@ class _DayViewGridState extends State<DayViewGrid> {
                     ky: widget.ky,
                     km: widget.km,
                     kd: widget.kd,
-                    event: event,
                     now: _now,
                   )
               ? widget.offeringTableRippleAnimation
