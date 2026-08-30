@@ -17,6 +17,12 @@ class OfferingTablePracticePresentation {
   final List<String> steps;
 }
 
+const String _closingWaterStep = 'Drink water.';
+final RegExp _drinkingWaterActPattern = RegExp(
+  r'\bdrink(?:ing)?\s+(?:the\s+)?water\b',
+  caseSensitive: false,
+);
+
 const _firstFivePracticePresentations = <int, OfferingTablePracticePresentation>{
   1: OfferingTablePracticePresentation(
     previewSummary:
@@ -84,15 +90,33 @@ OfferingTablePracticePresentation offeringTablePracticePresentation(
   OfferingTableDay day,
 ) {
   final approved = _firstFivePracticePresentations[day.dayNumber];
-  if (approved != null) return approved;
+  final presentation =
+      approved ??
+      OfferingTablePracticePresentation(
+        previewSummary: _firstSentence(day.provisionAct),
+        why: day.purpose,
+        instruction: day.provisionAct,
+        steps: <String>[day.provisionAct, ...day.optionalSteps],
+      );
+
+  return _ensureClosingWaterStep(presentation);
+}
+
+OfferingTablePracticePresentation _ensureClosingWaterStep(
+  OfferingTablePracticePresentation presentation,
+) {
+  if (presentation.steps.any(_containsDrinkingWaterAct)) return presentation;
 
   return OfferingTablePracticePresentation(
-    previewSummary: _firstSentence(day.provisionAct),
-    why: day.purpose,
-    instruction: day.provisionAct,
-    steps: <String>[day.provisionAct, ...day.optionalSteps],
+    previewSummary: presentation.previewSummary,
+    why: presentation.why,
+    instruction: presentation.instruction,
+    steps: <String>[...presentation.steps, _closingWaterStep],
   );
 }
+
+bool _containsDrinkingWaterAct(String step) =>
+    _drinkingWaterActPattern.hasMatch(step);
 
 String _firstSentence(String value) {
   final normalized = value.trim();
