@@ -1,7 +1,3 @@
-import 'dart:typed_data';
-import 'dart:ui' as ui;
-
-import 'package:flutter/foundation.dart' show ValueListenable, listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
@@ -159,7 +155,7 @@ void main() {
     },
   );
 
-  test('live ripple eligibility covers today before and after event time', () {
+  test('ripple eligibility is today only, independent of event time', () {
     final beforeEvent = DateTime(2026, 8, 29, 6, 0);
     final afterEvent = DateTime(2026, 8, 29, 22, 0);
     final today = KemeticMath.fromGregorian(beforeEvent);
@@ -170,15 +166,15 @@ void main() {
       beforeEvent.add(const Duration(days: 1)),
     );
 
-    bool isLive({
+    bool isToday({
       required int ky,
       required int km,
       required int kd,
       required DateTime now,
-    }) => offeringTableEventIsLive(ky: ky, km: km, kd: kd, now: now);
+    }) => offeringTableEventIsToday(ky: ky, km: km, kd: kd, now: now);
 
     expect(
-      isLive(
+      isToday(
         ky: today.kYear,
         km: today.kMonth,
         kd: today.kDay,
@@ -187,7 +183,7 @@ void main() {
       isTrue,
     );
     expect(
-      isLive(
+      isToday(
         ky: today.kYear,
         km: today.kMonth,
         kd: today.kDay,
@@ -196,7 +192,7 @@ void main() {
       isTrue,
     );
     expect(
-      isLive(
+      isToday(
         ky: yesterday.kYear,
         km: yesterday.kMonth,
         kd: yesterday.kDay,
@@ -205,7 +201,7 @@ void main() {
       isFalse,
     );
     expect(
-      isLive(
+      isToday(
         ky: tomorrow.kYear,
         km: tomorrow.kMonth,
         kd: tomorrow.kDay,
@@ -220,139 +216,50 @@ void main() {
     );
   });
 
-  testWidgets(
-    'every Offering block on today receives the shared ripple animation',
-    (tester) async {
-      final controller = AnimationController(
-        vsync: tester,
-        duration: kOfferingTableRippleCycle,
-      );
-      addTearDown(controller.dispose);
-      final now = DateTime(2026, 8, 29, 7, 31);
-      final today = KemeticMath.fromGregorian(now);
-
-      await _pumpRippleDayView(
-        tester,
-        now: now,
-        controller: controller,
-        ky: today.kYear,
-        km: today.kMonth,
-        kd: today.kDay,
-      );
-
-      final byDay = <int, OfferingTableEventBlockVisual>{
-        for (final block in tester.widgetList<OfferingTableEventBlockVisual>(
-          find.byType(OfferingTableEventBlockVisual),
-        ))
-          block.dayNumber: block,
-      };
-      expect(byDay.keys, containsAll(<int>[1, 2, 3]));
-      expect(byDay[1]!.rippleAnimation, same(controller));
-      expect(byDay[2]!.rippleAnimation, same(controller));
-      expect(byDay[3]!.rippleAnimation, same(controller));
-    },
-  );
-
-  testWidgets('DayViewPage starts its real ripple after event hydration', (
+  testWidgets('Day View marks today true and past or future false', (
     tester,
   ) async {
-    final notes = <NoteData>[];
-    final dataVersion = ValueNotifier<int>(0);
-    addTearDown(dataVersion.dispose);
-
-    await _pumpRealRippleDayViewPage(
-      tester,
-      notes: notes,
-      dataVersion: dataVersion,
+    final now = DateTime.now();
+    final today = KemeticMath.fromGregorian(now);
+    final past = KemeticMath.fromGregorian(
+      now.subtract(const Duration(days: 3)),
     );
-    expect(find.byType(OfferingTableEventBlockVisual), findsNothing);
+    final future = KemeticMath.fromGregorian(now.add(const Duration(days: 3)));
 
-    notes.add(_offeringRippleNote());
-    dataVersion.value++;
-    await tester.pump();
+    Future<bool> render({
+      required int ky,
+      required int km,
+      required int kd,
+    }) async {
+      await _pumpRippleDayView(tester, ky: ky, km: km, kd: kd);
+      return tester
+          .widget<OfferingTableEventBlockVisual>(
+            find.byType(OfferingTableEventBlockVisual),
+          )
+          .animateRipple;
+    }
 
-    final controller = _realRippleController(tester);
-    final initialValue = controller.value;
-    await tester.pump(const Duration(milliseconds: 300));
-    final firstAdvance = controller.value;
-    await tester.pump(const Duration(milliseconds: 300));
-    final secondAdvance = controller.value;
-
-    expect(firstAdvance, isNot(initialValue));
-    expect(secondAdvance, isNot(firstAdvance));
-    expect(controller.isAnimating, isTrue);
-    expect(tester.takeException(), isNull);
+    expect(
+      await render(ky: today.kYear, km: today.kMonth, kd: today.kDay),
+      isTrue,
+    );
+    expect(
+      await render(ky: past.kYear, km: past.kMonth, kd: past.kDay),
+      isFalse,
+    );
+    expect(
+      await render(ky: future.kYear, km: future.kMonth, kd: future.kDay),
+      isFalse,
+    );
   });
 
-  testWidgets('hydration activation restarts the real DayViewPage controller', (
+  testWidgets('the cup owns its loop and reduced motion keeps it still', (
     tester,
   ) async {
-    final hydrationActivation = ValueNotifier<int>(0);
-    addTearDown(hydrationActivation.dispose);
-
-    await _pumpRealRippleDayViewPage(
-      tester,
-      notes: <NoteData>[_offeringRippleNote()],
-      hydrationActivation: hydrationActivation,
-    );
-    final controller = _realRippleController(tester);
-    controller
-      ..stop()
-      ..value = 0;
-
-    hydrationActivation.value++;
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(controller.isAnimating, isTrue);
-    expect(controller.value, greaterThan(0));
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets("reduced motion keeps today's shared ripple controller still", (
-    tester,
-  ) async {
-    await _pumpRealRippleDayViewPage(
-      tester,
-      notes: <NoteData>[_offeringRippleNote()],
-      mediaQueryData: const MediaQueryData(disableAnimations: true),
-    );
-    final controller = _realRippleController(tester);
-    expect(controller.isAnimating, isFalse);
-    expect(controller.value, 0);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('accessible navigation alone does not suppress today ripple', (
-    tester,
-  ) async {
-    await _pumpRealRippleDayViewPage(
-      tester,
-      notes: <NoteData>[_offeringRippleNote()],
-      mediaQueryData: const MediaQueryData(accessibleNavigation: true),
-    );
-    final controller = _realRippleController(tester);
-    final initialValue = controller.value;
-
-    await tester.pump(const Duration(milliseconds: 300));
-
-    expect(controller.isAnimating, isTrue);
-    expect(controller.value, isNot(initialValue));
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('empty, received, and reduced-motion cups remain still', (
-    tester,
-  ) async {
-    final controller = AnimationController(
-      vsync: tester,
-      duration: kOfferingTableRippleCycle,
-    );
-    addTearDown(controller.dispose);
-
     Future<OfferingTableRipplePainter> pumpState(
       OfferingTableBlockVisualState state, {
-      Animation<double>? animation,
+      bool animateRipple = true,
+      MediaQueryData mediaQueryData = const MediaQueryData(),
     }) async {
       await _pumpStaticBlock(
         tester,
@@ -362,7 +269,8 @@ void main() {
         title: 'Bread Enough',
         prompt: 'eat before the day starts',
         visualState: state,
-        rippleAnimation: animation,
+        animateRipple: animateRipple,
+        mediaQueryData: mediaQueryData,
       );
       return tester
           .widgetList<CustomPaint>(find.byType(CustomPaint))
@@ -371,30 +279,35 @@ void main() {
           .single;
     }
 
-    final animated = await pumpState(
-      OfferingTableBlockVisualState.named,
-      animation: controller,
-    );
+    final animated = await pumpState(OfferingTableBlockVisualState.named);
     expect(animated.visible, isTrue);
-    expect(animated.animation, same(controller));
+    expect(animated.animation, isA<AnimationController>());
+    final controller = animated.animation!;
+    final initialValue = controller.value;
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(controller.value, isNot(initialValue));
 
-    final empty = await pumpState(
-      OfferingTableBlockVisualState.empty,
-      animation: controller,
-    );
+    final empty = await pumpState(OfferingTableBlockVisualState.empty);
     expect(empty.visible, isFalse);
     expect(empty.animation, isNull);
 
-    final received = await pumpState(
-      OfferingTableBlockVisualState.received,
-      animation: controller,
-    );
+    final received = await pumpState(OfferingTableBlockVisualState.received);
     expect(received.visible, isFalse);
     expect(received.animation, isNull);
 
-    final reducedMotion = await pumpState(OfferingTableBlockVisualState.named);
+    final reducedMotion = await pumpState(
+      OfferingTableBlockVisualState.named,
+      mediaQueryData: const MediaQueryData(disableAnimations: true),
+    );
     expect(reducedMotion.visible, isTrue);
     expect(reducedMotion.animation, isNull);
+
+    final pastOrFuture = await pumpState(
+      OfferingTableBlockVisualState.named,
+      animateRipple: false,
+    );
+    expect(pastOrFuture.visible, isTrue);
+    expect(pastOrFuture.animation, isNull);
   });
 
   test('ripple frames match the approved pulse envelope', () {
@@ -410,17 +323,6 @@ void main() {
     expect(middle.opacity, lessThan(peak.opacity));
     expect(end.scale, closeTo(1, 0.0001));
     expect(end.opacity, closeTo(0, 0.0001));
-  });
-
-  test('ripple painter produces visibly different loop frames', () async {
-    final start = await _rasterizedRippleFrame(0);
-    final rise = await _rasterizedRippleFrame(0.18);
-    final middle = await _rasterizedRippleFrame(0.5);
-
-    expect(listEquals(start, rise), isFalse);
-    expect(listEquals(rise, middle), isFalse);
-    expect(_pixelDelta(start, rise), greaterThan(1000));
-    expect(_pixelDelta(rise, middle), greaterThan(1000));
   });
 
   testWidgets('Day View renders the canonical closing water checkbox', (
@@ -492,24 +394,28 @@ Future<void> _pumpStaticBlock(
   required String prompt,
   bool isPreview = false,
   OfferingTableBlockVisualState? visualState,
-  Animation<double>? rippleAnimation,
+  bool animateRipple = false,
+  MediaQueryData mediaQueryData = const MediaQueryData(),
 }) async {
   await tester.pumpWidget(
     MaterialApp(
-      home: Scaffold(
-        backgroundColor: Colors.black,
-        body: Align(
-          alignment: Alignment.topLeft,
-          child: OfferingTableEventBlockVisual(
-            dayNumber: dayNumber,
-            title: title,
-            prompt: prompt,
-            width: width,
-            height: height,
-            isPreview: isPreview,
-            dashedBorder: isPreview,
-            visualState: visualState,
-            rippleAnimation: rippleAnimation,
+      home: MediaQuery(
+        data: mediaQueryData,
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: OfferingTableEventBlockVisual(
+              dayNumber: dayNumber,
+              title: title,
+              prompt: prompt,
+              width: width,
+              height: height,
+              isPreview: isPreview,
+              dashedBorder: isPreview,
+              visualState: visualState,
+              animateRipple: animateRipple,
+            ),
           ),
         ),
       ),
@@ -518,105 +424,8 @@ Future<void> _pumpStaticBlock(
   await tester.pump();
 }
 
-NoteData _offeringRippleNote() {
-  final day = kOfferingTableDays.first;
-  return NoteData(
-    clientEventId: 'offering-real-ripple-today',
-    title: offeringTableEventTitle(day),
-    allDay: false,
-    start: const TimeOfDay(hour: 7, minute: 30),
-    end: const TimeOfDay(hour: 7, minute: 33),
-    flowId: 81,
-    behaviorPayload: <String, dynamic>{
-      'kind': 'maat_offering_table_day',
-      'flow_key': kOfferingTableFlowKey,
-      'day': day.dayNumber,
-    },
-  );
-}
-
-Future<void> _pumpRealRippleDayViewPage(
-  WidgetTester tester, {
-  required List<NoteData> notes,
-  ValueListenable<int>? dataVersion,
-  ValueListenable<int>? hydrationActivation,
-  MediaQueryData mediaQueryData = const MediaQueryData(),
-}) async {
-  tester.view.physicalSize = const Size(390, 844);
-  tester.view.devicePixelRatio = 1;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
-
-  final today = KemeticMath.fromGregorian(DateTime.now());
-  await tester.pumpWidget(
-    MaterialApp(
-      home: MediaQuery(
-        data: mediaQueryData,
-        child: DayViewPage(
-          initialKy: today.kYear,
-          initialKm: today.kMonth,
-          initialKd: today.kDay,
-          showGregorian: false,
-          notesForDay: (ky, km, kd) =>
-              ky == today.kYear && km == today.kMonth && kd == today.kDay
-              ? notes
-              : const <NoteData>[],
-          flowIndex: <int, FlowData>{
-            81: FlowData(
-              id: 81,
-              name: kOfferingTableTitle,
-              color: const Color(0xFFC99A3D),
-              active: true,
-              notes: 'mode=gregorian;maat=$kOfferingTableFlowKey',
-            ),
-          },
-          activeLedgerFlowIds: const <int>{81},
-          dataVersion: dataVersion,
-          hydrationActivation: hydrationActivation,
-          getMonthName: (month) => 'Month $month',
-        ),
-      ),
-    ),
-  );
-  await tester.pump();
-}
-
-AnimationController _realRippleController(WidgetTester tester) {
-  final block = tester.widget<OfferingTableEventBlockVisual>(
-    find.byType(OfferingTableEventBlockVisual).first,
-  );
-  return block.rippleAnimation! as AnimationController;
-}
-
-Future<Uint8List> _rasterizedRippleFrame(double value) async {
-  final recorder = ui.PictureRecorder();
-  final canvas = ui.Canvas(recorder);
-  canvas.drawRect(
-    const Rect.fromLTWH(0, 0, 56, 52),
-    Paint()..color = Colors.black,
-  );
-  OfferingTableRipplePainter(
-    visible: true,
-    animation: AlwaysStoppedAnimation<double>(value),
-  ).paint(canvas, const Size(56, 52));
-  final image = await recorder.endRecording().toImage(56, 52);
-  final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
-  image.dispose();
-  return bytes!.buffer.asUint8List();
-}
-
-int _pixelDelta(Uint8List left, Uint8List right) {
-  var delta = 0;
-  for (var index = 0; index < left.length; index++) {
-    delta += (left[index] - right[index]).abs();
-  }
-  return delta;
-}
-
 Future<void> _pumpRippleDayView(
   WidgetTester tester, {
-  required DateTime now,
-  required Animation<double> controller,
   required int ky,
   required int km,
   required int kd,
@@ -626,27 +435,7 @@ Future<void> _pumpRippleDayView(
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
 
-  NoteData noteFor({
-    required int dayIndex,
-    required int hour,
-    required int minute,
-    required int endMinute,
-  }) {
-    final day = kOfferingTableDays[dayIndex];
-    return NoteData(
-      clientEventId: 'offering-ripple-${day.dayNumber}',
-      title: offeringTableEventTitle(day),
-      allDay: false,
-      start: TimeOfDay(hour: hour, minute: minute),
-      end: TimeOfDay(hour: hour, minute: endMinute),
-      flowId: 80,
-      behaviorPayload: <String, dynamic>{
-        'kind': 'maat_offering_table_day',
-        'flow_key': kOfferingTableFlowKey,
-        'day': day.dayNumber,
-      },
-    );
-  }
+  final day = kOfferingTableDays.first;
 
   await tester.pumpWidget(
     MaterialApp(
@@ -656,9 +445,19 @@ Future<void> _pumpRippleDayView(
           km: km,
           kd: kd,
           notes: <NoteData>[
-            noteFor(dayIndex: 0, hour: 7, minute: 0, endMinute: 5),
-            noteFor(dayIndex: 1, hour: 7, minute: 30, endMinute: 35),
-            noteFor(dayIndex: 2, hour: 8, minute: 0, endMinute: 5),
+            NoteData(
+              clientEventId: 'offering-ripple-${day.dayNumber}',
+              title: offeringTableEventTitle(day),
+              allDay: false,
+              start: const TimeOfDay(hour: 7, minute: 30),
+              end: const TimeOfDay(hour: 7, minute: 33),
+              flowId: 80,
+              behaviorPayload: <String, dynamic>{
+                'kind': 'maat_offering_table_day',
+                'flow_key': kOfferingTableFlowKey,
+                'day': day.dayNumber,
+              },
+            ),
           ],
           showGregorian: false,
           flowIndex: <int, FlowData>{
@@ -672,8 +471,6 @@ Future<void> _pumpRippleDayView(
           },
           activeLedgerFlowIds: const <int>{80},
           initialScrollOffset: 6 * 60,
-          offeringTableRippleAnimation: controller,
-          nowProvider: () => now,
         ),
       ),
     ),

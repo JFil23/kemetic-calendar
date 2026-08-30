@@ -36,7 +36,7 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
     this.opacity = 1,
     this.dashedBorder = false,
     this.visualState,
-    this.rippleAnimation,
+    this.animateRipple = false,
   }) : assert(prompt != '');
 
   final int dayNumber;
@@ -48,7 +48,7 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
   final Widget? overlay;
   final double opacity;
   final bool dashedBorder;
-  final Animation<double>? rippleAnimation;
+  final bool animateRipple;
 
   /// Presentation-only fixture seam. Day View intentionally leaves this null
   /// until completion-to-received behavior is approved separately.
@@ -124,7 +124,7 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
                     stage: stage,
                     state: state,
                     tall: isTall,
-                    rippleAnimation: rippleAnimation,
+                    animateRipple: animateRipple,
                   ),
                 ),
               ),
@@ -357,13 +357,13 @@ class OfferingTableCupVisual extends StatelessWidget {
     required this.stage,
     required this.state,
     required this.tall,
-    this.rippleAnimation,
+    this.animateRipple = false,
   });
 
   final OfferingTableBlockStage stage;
   final OfferingTableBlockVisualState state;
   final bool tall;
-  final Animation<double>? rippleAnimation;
+  final bool animateRipple;
 
   @override
   Widget build(BuildContext context) {
@@ -378,13 +378,11 @@ class OfferingTableCupVisual extends StatelessWidget {
               CustomPaint(
                 painter: _OfferingTableCupPainter(stage: stage, state: state),
               ),
-              CustomPaint(
-                painter: OfferingTableRipplePainter(
-                  visible: state == OfferingTableBlockVisualState.named,
-                  animation: state == OfferingTableBlockVisualState.named
-                      ? rippleAnimation
-                      : null,
-                ),
+              _OfferingTableRippleLoop(
+                visible: state == OfferingTableBlockVisualState.named,
+                enabled:
+                    state == OfferingTableBlockVisualState.named &&
+                    animateRipple,
               ),
             ],
           ),
@@ -612,6 +610,79 @@ class _OfferingTableCupPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _OfferingTableCupPainter oldDelegate) {
     return oldDelegate.stage != stage || oldDelegate.state != state;
+  }
+}
+
+class _OfferingTableRippleLoop extends StatefulWidget {
+  const _OfferingTableRippleLoop({
+    required this.visible,
+    required this.enabled,
+  });
+
+  final bool visible;
+  final bool enabled;
+
+  @override
+  State<_OfferingTableRippleLoop> createState() =>
+      _OfferingTableRippleLoopState();
+}
+
+class _OfferingTableRippleLoopState extends State<_OfferingTableRippleLoop>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  bool _motionDisabled = false;
+
+  bool get _shouldAnimate =>
+      widget.visible && widget.enabled && !_motionDisabled;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: kOfferingTableRippleCycle,
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _motionDisabled = MediaQuery.disableAnimationsOf(context);
+    _syncController();
+  }
+
+  @override
+  void didUpdateWidget(covariant _OfferingTableRippleLoop oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.visible != widget.visible ||
+        oldWidget.enabled != widget.enabled) {
+      _syncController();
+    }
+  }
+
+  void _syncController() {
+    if (_shouldAnimate) {
+      if (!_controller.isAnimating) _controller.repeat();
+      return;
+    }
+    _controller.stop();
+    if (_controller.value != 0) _controller.value = 0;
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      painter: OfferingTableRipplePainter(
+        visible: widget.visible,
+        animation: _shouldAnimate ? _controller : null,
+      ),
+    );
   }
 }
 
