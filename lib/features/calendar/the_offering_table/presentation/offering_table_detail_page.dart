@@ -9,7 +9,6 @@ import 'package:mobile/features/calendar/presentation/maat_flow_preview_day.dart
 import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calendar.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_components.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_event_block_visual.dart';
-import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_presentation_copy.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_preview_day_sheet.dart';
 import 'package:mobile/features/calendar/the_offering_table_flow.dart';
 import 'package:mobile/features/calendar/the_offering_table_local_store.dart';
@@ -708,7 +707,7 @@ class _OfferingFlowEventCard extends StatelessWidget {
           child: OfferingTableEventBlockVisual(
             dayNumber: day.dayNumber,
             title: title,
-            teaser: offeringTablePracticePresentation(day).previewSummary,
+            prompt: day.eventBlockPrompt,
             height: 100,
             width: double.infinity,
             isPreview: !carried,

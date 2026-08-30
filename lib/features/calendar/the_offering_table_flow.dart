@@ -61,6 +61,7 @@ class OfferingTableDay {
   final int dayNumber;
   final String section;
   final String title;
+  final String eventBlockPrompt;
   final String purpose;
   final String provisionAct;
   final List<String> optionalSteps;
@@ -72,6 +73,7 @@ class OfferingTableDay {
     required this.dayNumber,
     required this.section,
     required this.title,
+    required this.eventBlockPrompt,
     required this.purpose,
     required this.provisionAct,
     this.optionalSteps = const <String>[],
@@ -119,6 +121,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 1,
     section: 'Personal Table',
     title: 'The First Water',
+    eventBlockPrompt: 'name what needs to be fed',
     purpose:
         'The Kemetic offering table began with water before anything else — not because water is symbolic, but because it is the most immediate provision. This rite does the same.',
     provisionAct:
@@ -133,6 +136,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 2,
     section: 'Personal Table',
     title: 'The Cup Before the Noise',
+    eventBlockPrompt: 'drink before the noise begins',
     purpose:
         'The day\'s demands begin competing for attention before the body has been given anything. This rite reverses that order.',
     provisionAct:
@@ -145,6 +149,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 3,
     section: 'Personal Table',
     title: 'Bread Enough',
+    eventBlockPrompt: 'eat before the day starts',
     purpose:
         'Food treated as fuel is not being received — it\'s being used. This rite makes one meal an act of provision rather than consumption.',
     provisionAct:
@@ -157,6 +162,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 4,
     section: 'Personal Table',
     title: 'The Body Washed',
+    eventBlockPrompt: 'care for the body before delay',
     purpose:
         'Neglect rarely announces itself — it accumulates in small deferrals. This rite names one and corrects it.',
     provisionAct:
@@ -169,6 +175,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 5,
     section: 'Personal Table',
     title: 'The Midpoint: Rest',
+    eventBlockPrompt: "make room for tonight's rest",
     purpose:
         'The Kemite counted rest as provision alongside bread and oil. This rite asks for the actual sleep count before it becomes a problem.',
     provisionAct:
@@ -183,6 +190,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 6,
     section: 'Personal Table',
     title: 'The Small Supply',
+    eventBlockPrompt: 'refill one thing running low',
     purpose:
         'The supplies that run out do so silently. This rite checks them while they can still be replenished easily.',
     provisionAct:
@@ -195,6 +203,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 7,
     section: 'Personal Table',
     title: 'Dignity at the Table',
+    eventBlockPrompt: 'protect one act of dignity',
     purpose:
         'The Kemetic offering table held ointment and linen alongside food — care for the body\'s surface, not only its interior. This rite addresses the same.',
     provisionAct:
@@ -207,6 +216,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 8,
     section: 'Personal Table',
     title: 'The Quiet Hunger',
+    eventBlockPrompt: 'give one quiet hunger a portion',
     purpose:
         'The hunger that doesn\'t feel like hunger is usually the oldest one. This rite names it before it gets louder.',
     provisionAct:
@@ -216,6 +226,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 9,
     section: 'Personal Table',
     title: 'The First Repair',
+    eventBlockPrompt: 'complete one repair before noon',
     purpose:
         'The first decan closes. One small gap is the only repair the seal requires — not everything, just the one that can move.',
     provisionAct:
@@ -225,6 +236,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 10,
     section: 'Personal Table',
     title: 'The Personal Table Sealed',
+    eventBlockPrompt: 'name what was fed and what remains',
     purpose:
         'The scribe\'s record closes with what is — not what was intended, but what actually happened. This rite produces that account.',
     provisionAct:
@@ -237,6 +249,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 11,
     section: 'Household Table',
     title: 'The Household Table Opens',
+    eventBlockPrompt: 'notice who shares your table',
     purpose:
         'You are provisioned now. The table extends outward. Who else depends on the same supply chain?',
     provisionAct:
@@ -251,6 +264,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 12,
     section: 'Household Table',
     title: 'The Dependent Named',
+    eventBlockPrompt: 'name what one dependent needs',
     purpose:
         'Abstract care changes nothing. Named care in exact words produces the act that can follow it.',
     provisionAct:
@@ -263,6 +277,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 13,
     section: 'Household Table',
     title: 'The Fair Share',
+    eventBlockPrompt: 'adjust one uneven share',
     purpose:
         'Someone is always carrying more than their share — usually quietly. This rite asks whether it\'s you or someone else, and acts accordingly.',
     provisionAct:
@@ -275,6 +290,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 14,
     section: 'Household Table',
     title: 'The Waiting Bowl',
+    eventBlockPrompt: 'refill what has been waiting',
     purpose:
         'Things run low without announcement. This rite finds the one that has been waiting for someone to notice.',
     provisionAct:
@@ -285,6 +301,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 15,
     section: 'Household Table',
     title: 'The Midpoint: Attention',
+    eventBlockPrompt: 'give one thing your full attention',
     purpose:
         'Attention given in full is rarer than bread. This rite names where the supply has been running short.',
     provisionAct:
@@ -297,6 +314,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 16,
     section: 'Household Table',
     title: 'The Cost Named',
+    eventBlockPrompt: 'name the true cost of care',
     purpose:
         'Care that does not account for its own cost depletes the one giving it. This rite names the cost before it becomes resentment.',
     provisionAct:
@@ -309,6 +327,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 17,
     section: 'Household Table',
     title: 'The Care Message',
+    eventBlockPrompt: 'send the practical care message',
     purpose:
         'The provision line breaks quietly through deferred communication. This rite names what needs to be said while saying it is still simple.',
     provisionAct:
@@ -318,6 +337,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 18,
     section: 'Household Table',
     title: 'The Shared Rest',
+    eventBlockPrompt: 'make room for shared rest',
     purpose:
         'Rest is a shared resource when multiple people live under one schedule. This rite asks what your pace is doing to the rest around it.',
     provisionAct:
@@ -330,6 +350,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 19,
     section: 'Household Table',
     title: 'The Unseen Labor',
+    eventBlockPrompt: 'recognize the labor that sustains',
     purpose:
         'What sustains a household without being recorded disappears from the account. This rite puts it in.',
     provisionAct:
@@ -342,6 +363,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 20,
     section: 'Household Table',
     title: 'The Household Table Sealed',
+    eventBlockPrompt: 'patch one household leak',
     purpose:
         'What improved? What still leaks? The second seal requires only these two facts, not a full solution.',
     provisionAct:
@@ -354,6 +376,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 21,
     section: 'Flowing Table',
     title: 'The Flowing Table Opens',
+    eventBlockPrompt: 'open one blocked channel',
     purpose:
         'Hapy did not stop at the nearest field. The flood that flows past you is also serving something downstream. This rite asks whether you are helping or obstructing.',
     provisionAct:
@@ -368,6 +391,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 22,
     section: 'Flowing Table',
     title: 'The Source Named',
+    eventBlockPrompt: 'trace one provision to its source',
     purpose:
         'What you use today did not begin with you. This rite traces one step back in the chain before the day moves forward.',
     provisionAct:
@@ -380,6 +404,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 23,
     section: 'Flowing Table',
     title: 'The River Unblocked',
+    eventBlockPrompt: 'move one delayed thing downstream',
     purpose:
         'Something you are holding — a reply, a payment, a permission — is keeping something else from moving. This rite moves it.',
     provisionAct:
@@ -389,6 +414,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 24,
     section: 'Flowing Table',
     title: 'The Hoard Checked',
+    eventBlockPrompt: 'let one surplus circulate',
     purpose:
         'Surplus is not a problem unless it\'s preventing flow. This rite checks the line between supply and obstruction.',
     provisionAct:
@@ -401,6 +427,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 25,
     section: 'Flowing Table',
     title: 'The Midpoint: Hapy',
+    eventBlockPrompt: 'let provision flow onward',
     purpose:
         'The flood was celebrated for its movement — what it reached and what grew because of it. This rite asks where your provision is reaching.',
     provisionAct:
@@ -415,6 +442,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 26,
     section: 'Flowing Table',
     title: 'The Return Given',
+    eventBlockPrompt: 'receive what has already been given',
     purpose:
         'In the temple, offerings were eventually consumed — that was called reversion, and it was sacred. Provision that is never received serves nothing. This rite uses what was given.',
     provisionAct:
@@ -424,6 +452,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 27,
     section: 'Flowing Table',
     title: 'The Land Remembered',
+    eventBlockPrompt: 'return one act of care to the land',
     purpose:
         'The table never existed apart from the land that supplied it. This rite names the land\'s role before the debt goes unrecorded.',
     provisionAct:
@@ -436,6 +465,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 28,
     section: 'Flowing Table',
     title: 'The Relationship Fed',
+    eventBlockPrompt: 'feed one sustaining relationship',
     purpose:
         'Relationships sustained by history alone are slowly depleting. This rite adds one provision before the account needs to draw down.',
     provisionAct:
@@ -445,6 +475,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 29,
     section: 'Flowing Table',
     title: 'The Flow Prepared',
+    eventBlockPrompt: "prepare tomorrow's first support",
     purpose:
         'The table that is set the night before is the table that works in the morning. This rite prepares one thing so tomorrow starts provisioned.',
     provisionAct:
@@ -457,6 +488,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 30,
     section: 'Flowing Table',
     title: 'The Table Is Complete',
+    eventBlockPrompt: 'name what the table truly held',
     purpose:
         'The table was never about perfection — it was about the record being honest. The cycle closes with accuracy, not with achievement.',
     provisionAct:

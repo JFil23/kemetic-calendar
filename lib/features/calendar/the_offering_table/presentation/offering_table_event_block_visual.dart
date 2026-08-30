@@ -3,6 +3,12 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+const Duration kOfferingTableRippleCycle = Duration(milliseconds: 5400);
+const Duration kOfferingTableRipplePhaseSeparation = Duration(
+  milliseconds: 1800,
+);
+const double _offeringTableRipplePhaseOffset = 1 / 3;
+
 enum OfferingTableBlockStage { personal, household, flowing }
 
 enum OfferingTableBlockVisualState { empty, named, received }
@@ -13,16 +19,16 @@ OfferingTableBlockStage offeringTableBlockStageForDay(int dayNumber) {
   return OfferingTableBlockStage.flowing;
 }
 
-/// Static Offering Table event-card face shared by its calendar surfaces.
+/// Offering Table event-card face shared by its calendar surfaces.
 ///
 /// Day View remains the interaction authority. This widget only presents the
-/// canonical day title and the already-resolved private intention.
+/// canonical day title and authored prompt.
 class OfferingTableEventBlockVisual extends StatelessWidget {
   const OfferingTableEventBlockVisual({
     super.key,
     required this.dayNumber,
     required this.title,
-    required this.teaser,
+    required this.prompt,
     required this.height,
     this.width,
     this.isPreview = false,
@@ -30,17 +36,19 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
     this.opacity = 1,
     this.dashedBorder = false,
     this.visualState,
-  });
+    this.rippleAnimation,
+  }) : assert(prompt != '');
 
   final int dayNumber;
   final String title;
-  final String teaser;
+  final String prompt;
   final double height;
   final double? width;
   final bool isPreview;
   final Widget? overlay;
   final double opacity;
   final bool dashedBorder;
+  final Animation<double>? rippleAnimation;
 
   /// Presentation-only fixture seam. Day View intentionally leaves this null
   /// until completion-to-received behavior is approved separately.
@@ -51,9 +59,7 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
   OfferingTableBlockVisualState get resolvedVisualState {
     final explicit = visualState;
     if (explicit != null) return explicit;
-    return teaser.trim().isEmpty
-        ? OfferingTableBlockVisualState.empty
-        : OfferingTableBlockVisualState.named;
+    return OfferingTableBlockVisualState.named;
   }
 
   @override
@@ -102,7 +108,7 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
               child: _OfferingTableCardText(
                 dayNumber: dayNumber,
                 title: title,
-                teaser: teaser,
+                prompt: prompt,
                 state: state,
                 tall: isTall,
               ),
@@ -118,6 +124,7 @@ class OfferingTableEventBlockVisual extends StatelessWidget {
                     stage: stage,
                     state: state,
                     tall: isTall,
+                    rippleAnimation: rippleAnimation,
                   ),
                 ),
               ),
@@ -242,14 +249,14 @@ class _OfferingTableCardText extends StatelessWidget {
   const _OfferingTableCardText({
     required this.dayNumber,
     required this.title,
-    required this.teaser,
+    required this.prompt,
     required this.state,
     required this.tall,
   });
 
   final int dayNumber;
   final String title;
-  final String teaser;
+  final String prompt;
   final OfferingTableBlockVisualState state;
   final bool tall;
 
@@ -257,9 +264,8 @@ class _OfferingTableCardText extends StatelessWidget {
   Widget build(BuildContext context) {
     final eyebrow =
         'THE OFFERING TABLE · DAY ${dayNumber.toString().padLeft(2, '0')}';
-    final named = teaser.trim().isNotEmpty;
     final received = state == OfferingTableBlockVisualState.received;
-    final teaserText = named ? '“${teaser.trim()}”' : 'nothing named yet';
+    final promptText = '“${prompt.trim()}”';
     return ClipRect(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -318,32 +324,25 @@ class _OfferingTableCardText extends StatelessWidget {
           ),
           if (tall) const SizedBox(height: 1),
           Text(
-            teaserText,
+            promptText,
             key: const ValueKey<String>('offering-table-block-teaser'),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             softWrap: false,
             style: TextStyle(
-              color: named
-                  ? (received
-                        ? const Color(0xFFB08D63)
-                        : const Color(0xFFF6D6B2))
-                  : const Color(0x66F6D6B2),
+              color: received
+                  ? const Color(0xFFB08D63)
+                  : const Color(0xFFF6D6B2),
               fontFamily: 'CormorantGaramond',
               fontFamilyFallback: const ['GentiumPlus', 'Georgia', 'serif'],
-              fontSize: named ? (tall ? 15 : 14) : 13.5,
-              fontWeight: named ? FontWeight.w500 : FontWeight.w400,
+              fontSize: tall ? 15 : 14,
+              fontWeight: FontWeight.w500,
               fontStyle: FontStyle.italic,
-              letterSpacing: named ? 0.25 : null,
+              letterSpacing: 0.25,
               height: 1.2,
-              shadows: named
-                  ? const [
-                      Shadow(
-                        color: Color(0x80040201),
-                        offset: Offset(0.5, 0.7),
-                      ),
-                    ]
-                  : null,
+              shadows: const [
+                Shadow(color: Color(0x80040201), offset: Offset(0.5, 0.7)),
+              ],
             ),
           ),
         ],
@@ -358,11 +357,13 @@ class OfferingTableCupVisual extends StatelessWidget {
     required this.stage,
     required this.state,
     required this.tall,
+    this.rippleAnimation,
   });
 
   final OfferingTableBlockStage stage;
   final OfferingTableBlockVisualState state;
   final bool tall;
+  final Animation<double>? rippleAnimation;
 
   @override
   Widget build(BuildContext context) {
@@ -378,8 +379,11 @@ class OfferingTableCupVisual extends StatelessWidget {
                 painter: _OfferingTableCupPainter(stage: stage, state: state),
               ),
               CustomPaint(
-                painter: _OfferingTableRipplePainter(
+                painter: OfferingTableRipplePainter(
                   visible: state == OfferingTableBlockVisualState.named,
+                  animation: state == OfferingTableBlockVisualState.named
+                      ? rippleAnimation
+                      : null,
                 ),
               ),
             ],
@@ -611,21 +615,36 @@ class _OfferingTableCupPainter extends CustomPainter {
   }
 }
 
-class _OfferingTableRipplePainter extends CustomPainter {
-  const _OfferingTableRipplePainter({required this.visible});
+@visibleForTesting
+class OfferingTableRipplePainter extends CustomPainter {
+  const OfferingTableRipplePainter({required this.visible, this.animation})
+    : super(repaint: animation);
 
   final bool visible;
+  final Animation<double>? animation;
 
   @override
   void paint(Canvas canvas, Size size) {
     if (!visible) return;
     canvas.save();
     canvas.scale(size.width / 56, size.height / 52);
-    for (final ring in const <({double scale, double opacity})>[
-      (scale: 0.42, opacity: 0.18),
-      (scale: 0.68, opacity: 0.13),
-      (scale: 0.92, opacity: 0.08),
-    ]) {
+    final driver = animation;
+    final rings = driver == null
+        ? const <({double scale, double opacity})>[
+            (scale: 0.42, opacity: 0.18),
+            (scale: 0.68, opacity: 0.13),
+            (scale: 0.92, opacity: 0.08),
+          ]
+        : List<({double scale, double opacity})>.generate(3, (index) {
+            final phase =
+                (driver.value - (index * _offeringTableRipplePhaseOffset)) % 1;
+            final easedScale = Curves.easeOutCubic.transform(phase);
+            return (
+              scale: 0.28 + (0.72 * easedScale),
+              opacity: (0.20 * math.pow(1 - phase, 1.45)).toDouble(),
+            );
+          }, growable: false);
+    for (final ring in rings) {
       canvas.drawOval(
         Rect.fromCenter(
           center: const Offset(28, 26.6),
@@ -642,8 +661,9 @@ class _OfferingTableRipplePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant _OfferingTableRipplePainter oldDelegate) {
-    return oldDelegate.visible != visible;
+  bool shouldRepaint(covariant OfferingTableRipplePainter oldDelegate) {
+    return oldDelegate.visible != visible ||
+        !identical(oldDelegate.animation, animation);
   }
 }
 

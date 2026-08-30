@@ -626,33 +626,8 @@ void main() {
       expect(find.byType(OfferingTableEventBlockVisual), findsNWidgets(5));
       expect(find.byType(MaatFlowPreviewEventRow), findsNWidgets(3));
       expect(find.text('VIEW PRACTICE'), findsNWidgets(5));
-      expect(
-        find.text(
-          '“Start with your most basic need before the day starts asking.”',
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.text('“Choose what reaches you before messages and tasks do.”'),
-        findsOneWidget,
-      );
-      expect(
-        find.text('“Turn one meal from fuel into actual provision.”'),
-        findsOneWidget,
-      );
-      expect(
-        find.text(
-          '“Correct one small act of body-care you have been deferring.”',
-        ),
-        findsOneWidget,
-      );
-      expect(
-        find.text(
-          '“Treat rest as something that must be provided, not hoped for.”',
-        ),
-        findsOneWidget,
-      );
       for (final day in kOfferingTableDays.take(5)) {
+        expect(find.text('“${day.eventBlockPrompt}”'), findsOneWidget);
         final badge = find.byKey(
           ValueKey<String>('offering-table-preview-event-${day.dayNumber}'),
         );

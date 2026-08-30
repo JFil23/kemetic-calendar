@@ -39,6 +39,23 @@ void main() {
   });
   tearDown(kMaatFlowResponseDraftStore.clearForTesting);
 
+  test('all thirty days own one non-empty authored event-block prompt', () {
+    expect(kOfferingTableDays, hasLength(30));
+    for (final day in kOfferingTableDays) {
+      expect(
+        day.eventBlockPrompt.trim(),
+        isNotEmpty,
+        reason: 'Day ${day.dayNumber}',
+      );
+      expect(
+        day.eventBlockPrompt,
+        isNot(contains('\n')),
+        reason: 'Day ${day.dayNumber} must remain one-line safe',
+      );
+    }
+    expect(kOfferingTableDays[2].eventBlockPrompt, 'eat before the day starts');
+  });
+
   test('all thirty days close the shared ritual checklist with water once', () {
     const daysWithExistingDrinkingWaterAct = <int>{2, 26, 30};
 

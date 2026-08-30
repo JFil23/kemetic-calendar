@@ -2118,6 +2118,25 @@ class EventItem {
   }
 }
 
+@visibleForTesting
+bool offeringTableEventIsLive({
+  required int ky,
+  required int km,
+  required int kd,
+  required EventItem event,
+  required DateTime now,
+}) {
+  final localNow = now.toLocal();
+  final kemeticNow = KemeticMath.fromGregorian(localNow);
+  if (ky != kemeticNow.kYear ||
+      km != kemeticNow.kMonth ||
+      kd != kemeticNow.kDay) {
+    return false;
+  }
+  final minute = localNow.hour * 60 + localNow.minute;
+  return event.startMin <= minute && minute < event.endMin;
+}
+
 class DayViewSheetEventTarget {
   final int ky;
   final int km;
@@ -5302,10 +5321,12 @@ class DayViewPage extends StatefulWidget {
   State<DayViewPage> createState() => _DayViewPageState();
 }
 
-class _DayViewPageState extends State<DayViewPage> {
+class _DayViewPageState extends State<DayViewPage>
+    with SingleTickerProviderStateMixin {
   static const double _miniCalendarHorizontalPadding = 8.0;
   static const double _miniCalendarChipMargin = 2.0;
   late PageController _pageController;
+  late final AnimationController _offeringTableRippleController;
   late int _currentKy;
   late int _currentKm;
   late int _currentKd;
@@ -5404,13 +5425,20 @@ class _DayViewPageState extends State<DayViewPage> {
     });
   }
 
-  void _handleHydrationDataVersionChanged() => _scheduleHydrationFrame();
+  void _handleHydrationDataVersionChanged() {
+    _scheduleHydrationFrame();
+    _syncOfferingTableRippleController();
+  }
 
   void _handleHydrationActivation() => _scheduleHydrationFrame();
 
   @override
   void initState() {
     super.initState();
+    _offeringTableRippleController = AnimationController(
+      vsync: this,
+      duration: kOfferingTableRippleCycle,
+    );
     _currentKy = widget.initialKy;
     _currentKm = widget.initialKm;
     _currentKd = widget.initialKd;
@@ -5436,6 +5464,55 @@ class _DayViewPageState extends State<DayViewPage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _handleEventDetailRequest();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncOfferingTableRippleController();
+  }
+
+  bool _hasLiveOfferingTableEvent(DateTime now) {
+    for (final event in _eventsForKemeticDay(
+      _currentKy,
+      _currentKm,
+      _currentKd,
+    )) {
+      final flow = _currentFlowChromeIndex()[event.flowId];
+      if (!isOfferingTableFlowReference(
+        flowName: flow?.name,
+        flowNotes: flow?.notes,
+        behaviorPayload: event.behaviorPayload,
+      )) {
+        continue;
+      }
+      if (offeringTableEventIsLive(
+        ky: _currentKy,
+        km: _currentKm,
+        kd: _currentKd,
+        event: event,
+        now: now,
+      )) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void _syncOfferingTableRippleController() {
+    final motionDisabled =
+        MediaQuery.maybeOf(context)?.disableAnimations == true ||
+        MediaQuery.maybeOf(context)?.accessibleNavigation == true;
+    final shouldAnimate =
+        !motionDisabled && _hasLiveOfferingTableEvent(DateTime.now());
+    if (!shouldAnimate) {
+      _offeringTableRippleController.stop();
+      if (_offeringTableRippleController.value != 0) {
+        _offeringTableRippleController.value = 0;
+      }
+    } else if (!_offeringTableRippleController.isAnimating) {
+      _offeringTableRippleController.repeat();
+    }
   }
 
   @override
@@ -5498,6 +5575,7 @@ class _DayViewPageState extends State<DayViewPage> {
       });
       _scheduleHydrationFrame();
     }
+    _syncOfferingTableRippleController();
   }
 
   @override
@@ -5510,6 +5588,7 @@ class _DayViewPageState extends State<DayViewPage> {
     widget.dataVersion?.removeListener(_handleHydrationDataVersionChanged);
     widget.hydrationActivation?.removeListener(_handleHydrationActivation);
     _restorationDebounce?.cancel();
+    _offeringTableRippleController.dispose();
     _pageController.dispose();
     _miniCalendarScrollController.dispose(); // 🔧 Don't forget to dispose
     super.dispose();
@@ -5604,6 +5683,7 @@ class _DayViewPageState extends State<DayViewPage> {
       _currentKm = kDate.kMonth;
       _currentKd = kDate.kDay;
     });
+    _syncOfferingTableRippleController();
     _scheduleHydrationFrame();
 
     // ✅ Don't duplicate state updates during Today jump
@@ -6223,6 +6303,8 @@ class _DayViewPageState extends State<DayViewPage> {
                               dataVersion: widget.dataVersion,
                               showGregorian: _showGregorian,
                               flowIndex: flowIndex,
+                              offeringTableRippleAnimation:
+                                  _offeringTableRippleController,
                               activeLedgerFlowIds: activeLedgerFlowIds,
                               initialScrollOffset: _savedScrollOffset, // 🔧 NEW
                               initialFirstVisibleMinute:
@@ -6323,6 +6405,8 @@ class DayViewGrid extends StatefulWidget {
   final ValueListenable<int>? dataVersion;
   final bool showGregorian;
   final Map<int, FlowData> flowIndex;
+  final Animation<double>? offeringTableRippleAnimation;
+  final DateTime Function()? nowProvider;
   final Set<int> activeLedgerFlowIds;
   final int? initialFirstVisibleMinute;
   final double? initialScrollOffset; // 🔧 NEW
@@ -6419,6 +6503,8 @@ class DayViewGrid extends StatefulWidget {
     this.dataVersion,
     required this.showGregorian,
     required this.flowIndex,
+    this.offeringTableRippleAnimation,
+    this.nowProvider,
     this.activeLedgerFlowIds = const <int>{},
     this.initialFirstVisibleMinute,
     this.initialScrollOffset, // 🔧 NEW
@@ -6485,10 +6571,6 @@ class _DayViewGridState extends State<DayViewGrid> {
   final Map<TrackSkyTimeZone, TrackSkyFlowData> _trackSkyDataByTimeZone =
       <TrackSkyTimeZone, TrackSkyFlowData>{};
   final Set<TrackSkyTimeZone> _trackSkyLoadingTimeZones = <TrackSkyTimeZone>{};
-  final OfferingTableLocalStore _offeringTableLocalStore =
-      const OfferingTableLocalStore();
-  final Map<int, String> _offeringTableNeedsByFlowId = <int, String>{};
-  final Set<int> _offeringTableLoadingFlowIds = <int>{};
   bool _hasScrolledToInitial = false; // Added for scroll persistence
   int? _tempDragStartMin; // minutes since midnight
   bool _isDraggingEvent = false;
@@ -6500,6 +6582,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   DayViewSheetEventTarget? _openDetailTarget;
   String _eventDetailPresentation = eventWorkspacePresentationDetail;
   int? get _focusStartMin => widget.focusStartMin;
+  DateTime get _now => (widget.nowProvider?.call() ?? DateTime.now()).toLocal();
 
   bool _isOnboardingTargetEvent(EventItem event) {
     final targetClientEventId = widget.onboardingEventClientEventId?.trim();
@@ -6516,7 +6599,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     super.initState();
     _scrollController.addListener(_onScroll); // Added listener
     _primeTrackSkyFlowData();
-    unawaited(_primeOfferingTableNeeds());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _scrollToSavedOrCurrentTime(); // Renamed method
     });
@@ -6529,7 +6611,6 @@ class _DayViewGridState extends State<DayViewGrid> {
     if (_computeFlowIndexHash(oldWidget.flowIndex) !=
         _computeFlowIndexHash(widget.flowIndex)) {
       _primeTrackSkyFlowData();
-      unawaited(_primeOfferingTableNeeds());
     }
     if (_eventDetailRestoreKey(oldWidget.initialEventDetailRestorationState) !=
         _eventDetailRestoreKey(widget.initialEventDetailRestorationState)) {
@@ -6907,7 +6988,7 @@ class _DayViewGridState extends State<DayViewGrid> {
     }
 
     // 4) Fallback: scroll to current time
-    final now = DateTime.now().toLocal();
+    final now = _now;
     final minutesSinceMidnight = now.hour * 60 + now.minute;
     final targetOffset =
         (minutesSinceMidnight * _kDayViewPixelsPerMinute) -
@@ -7175,41 +7256,6 @@ class _DayViewGridState extends State<DayViewGrid> {
         }
       }());
     }
-  }
-
-  Future<void> _primeOfferingTableNeeds() async {
-    final flowIds = <int>{};
-    for (final event in widget.notes) {
-      final flowId = event.flowId;
-      if (flowId == null) continue;
-      final flow = _chromeFlowForId(flowId);
-      if (!isOfferingTableFlowReference(
-        flowName: flow?.name,
-        flowNotes: flow?.notes,
-        behaviorPayload: event.behaviorPayload,
-      )) {
-        continue;
-      }
-      flowIds.add(flowId);
-    }
-    for (final flowId in flowIds) {
-      if (_offeringTableNeedsByFlowId.containsKey(flowId) ||
-          !_offeringTableLoadingFlowIds.add(flowId)) {
-        continue;
-      }
-      try {
-        final need = await _offeringTableLocalStore.loadNeed(flowId);
-        if (!mounted) return;
-        setState(() => _offeringTableNeedsByFlowId[flowId] = need);
-      } finally {
-        _offeringTableLoadingFlowIds.remove(flowId);
-      }
-    }
-  }
-
-  String _offeringTableNeedForEvent(EventItem event) {
-    final flowId = event.flowId;
-    return flowId == null ? '' : (_offeringTableNeedsByFlowId[flowId] ?? '');
   }
 
   TrackSkyEvent? _resolveTrackSkyEvent(
@@ -7754,7 +7800,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   Widget _buildTimelineOverlayLayer() {
-    final now = DateTime.now().toLocal();
+    final now = _now;
     return Positioned.fill(
       key: dayViewTimelineOverlayLayerKey,
       child: IgnorePointer(
@@ -8089,10 +8135,21 @@ class _DayViewGridState extends State<DayViewGrid> {
         return OfferingTableEventBlockVisual(
           dayNumber: offeringTableDay.dayNumber,
           title: offeringTableDay.title,
-          teaser: _offeringTableNeedForEvent(event),
+          prompt: offeringTableDay.eventBlockPrompt,
           width: block.width,
           height: height,
           isPreview: isPreview,
+          rippleAnimation:
+              !isPreview &&
+                  offeringTableEventIsLive(
+                    ky: widget.ky,
+                    km: widget.km,
+                    kd: widget.kd,
+                    event: event,
+                    now: _now,
+                  )
+              ? widget.offeringTableRippleAnimation
+              : null,
         );
       }
     }
@@ -8675,7 +8732,7 @@ class _DayViewGridState extends State<DayViewGrid> {
   }
 
   bool _isToday() {
-    final now = DateTime.now().toLocal();
+    final now = _now;
     final todayK = KemeticMath.fromGregorian(now);
     return widget.ky == todayK.kYear &&
         widget.km == todayK.kMonth &&
