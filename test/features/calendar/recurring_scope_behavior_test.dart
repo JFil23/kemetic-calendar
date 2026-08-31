@@ -279,7 +279,7 @@ void main() {
       final daySheetReminderLauncher = _sourceBetween(
         calendarPage,
         'Future<bool> openReminderEditorForSelectedDay',
-        'const fieldScrollPadding = keyboardManagedTextFieldScrollPadding',
+        'void selectDaySheetTab',
       );
       expect(
         daySheetReminderLauncher,

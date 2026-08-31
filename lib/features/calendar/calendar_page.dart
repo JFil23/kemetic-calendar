@@ -442,8 +442,8 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
   @override
   Widget build(BuildContext context) {
     final tone = _FlowStudioTone.resolve(_selectedColor);
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+    return KeyboardAwareEditableSurface(
+      manageSystemKeyboardInset: true,
       child: AnimatedContainer(
         key: const ValueKey('quick-add-sheet-surface'),
         duration: const Duration(milliseconds: 180),
@@ -581,7 +581,6 @@ class _QuickAddSheetState extends State<_QuickAddSheet> {
                   TextField(
                     key: const ValueKey('quick-add-input'),
                     controller: _textCtrl,
-                    scrollPadding: keyboardManagedTextFieldScrollPadding,
                     autofocus: false,
                     focusNode: _focusNode,
                     cursorColor: _selectedColor,
@@ -13934,9 +13933,6 @@ class CalendarPageState extends State<CalendarPage>
                     }
                   }
 
-                  const fieldScrollPadding =
-                      keyboardManagedTextFieldScrollPadding;
-
                   return Dialog(
                     backgroundColor: Colors.transparent,
                     insetPadding: const EdgeInsets.symmetric(
@@ -14010,7 +14006,6 @@ class CalendarPageState extends State<CalendarPage>
                                 const SizedBox(height: 8),
                                 TextField(
                                   controller: controllerTitle,
-                                  scrollPadding: fieldScrollPadding,
                                   enabled: !isSaving,
                                   style: const TextStyle(color: Colors.white),
                                   decoration: _darkInput('Title'),
@@ -14018,7 +14013,6 @@ class CalendarPageState extends State<CalendarPage>
                                 const SizedBox(height: 8),
                                 TextField(
                                   controller: controllerLocation,
-                                  scrollPadding: fieldScrollPadding,
                                   enabled: !isSaving,
                                   style: const TextStyle(color: Colors.white),
                                   decoration: _darkInput(
@@ -14029,7 +14023,6 @@ class CalendarPageState extends State<CalendarPage>
                                 const SizedBox(height: 8),
                                 TextField(
                                   controller: controllerDetail,
-                                  scrollPadding: fieldScrollPadding,
                                   enabled: !isSaving,
                                   style: const TextStyle(color: Colors.white),
                                   maxLines: 3,
@@ -17930,7 +17923,7 @@ class CalendarPageState extends State<CalendarPage>
                   16,
                   0,
                   16,
-                  16 + MediaQuery.of(sheetContext).viewInsets.bottom,
+                  16 + keyboardInsetOf(sheetContext),
                 ),
                 child: Container(
                   padding: const EdgeInsets.all(20),
@@ -21542,8 +21535,6 @@ class CalendarPageState extends State<CalendarPage>
                 );
                 final canEditSelectedCalendar =
                     selectedCalendar?.canEdit ?? true;
-                const reminderFieldScrollPadding =
-                    keyboardManagedTextFieldScrollPadding;
 
                 String dateLabel(DateTime d) =>
                     '${d.month.toString().padLeft(2, '0')}/${d.day.toString().padLeft(2, '0')}/${d.year}';
@@ -21563,7 +21554,6 @@ class CalendarPageState extends State<CalendarPage>
                       return TextFormField(
                         keyboardType: TextInputType.number,
                         initialValue: repeat.interval.toString(),
-                        scrollPadding: reminderFieldScrollPadding,
                         decoration: const InputDecoration(
                           labelText: 'Every N days',
                           labelStyle: TextStyle(color: Colors.white70),
@@ -21623,7 +21613,6 @@ class CalendarPageState extends State<CalendarPage>
                           repeat,
                           startLocal,
                         ).toList()..sort()).join(', '),
-                        scrollPadding: reminderFieldScrollPadding,
                         decoration: const InputDecoration(
                           labelText: 'Day of month (1-31, comma-separated)',
                           labelStyle: TextStyle(color: Colors.white70),
@@ -21647,7 +21636,6 @@ class CalendarPageState extends State<CalendarPage>
                       return TextFormField(
                         keyboardType: TextInputType.number,
                         initialValue: repeat.interval.toString(),
-                        scrollPadding: reminderFieldScrollPadding,
                         decoration: const InputDecoration(
                           labelText: 'Every N decans',
                           labelStyle: TextStyle(color: Colors.white70),
@@ -21674,7 +21662,6 @@ class CalendarPageState extends State<CalendarPage>
                           repeat,
                           startLocal,
                         ).toList()..sort()).join(', '),
-                        scrollPadding: reminderFieldScrollPadding,
                         decoration: const InputDecoration(
                           labelText: 'Day of decan (1-10, comma-separated)',
                           labelStyle: TextStyle(color: Colors.white70),
@@ -21701,7 +21688,6 @@ class CalendarPageState extends State<CalendarPage>
                           repeat,
                           startLocal,
                         ).toList()..sort()).join(', '),
-                        scrollPadding: reminderFieldScrollPadding,
                         decoration: const InputDecoration(
                           labelText:
                               'Day of Kemetic month (1-30, comma-separated)',
@@ -21775,11 +21761,7 @@ class CalendarPageState extends State<CalendarPage>
                         ),
                       ],
                     ),
-                    DaySheetTextField(
-                      controller: titleCtrl,
-                      hint: 'Title',
-                      scrollPadding: reminderFieldScrollPadding,
-                    ),
+                    DaySheetTextField(controller: titleCtrl, hint: 'Title'),
                     const SizedBox(height: 20),
                     DaySheetMetaRow(
                       label: 'Calendar',
@@ -29921,8 +29903,6 @@ class CalendarPageState extends State<CalendarPage>
                 );
               }
 
-              const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
-
               void selectDaySheetTab(DaySheetTab tab) {
                 final leavingFlows =
                     activeDaySheetTab == DaySheetTab.flows &&
@@ -30321,19 +30301,16 @@ class CalendarPageState extends State<CalendarPage>
 
                         DaySheetTextField(
                           controller: controllerTitle,
-                          scrollPadding: fieldScrollPadding,
                           hint: 'Title',
                         ),
 
                         DaySheetTextField(
                           controller: controllerLocation,
-                          scrollPadding: fieldScrollPadding,
                           hint: 'Location or video call',
                         ),
 
                         DaySheetTextField(
                           controller: controllerDetail,
-                          scrollPadding: fieldScrollPadding,
                           hint: 'Details (optional)',
                           minLines: 4,
                           maxLines: 6,
@@ -34154,7 +34131,7 @@ class CalendarPageState extends State<CalendarPage>
         borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
       ),
       builder: (sheetCtx) {
-        final inset = MediaQuery.of(sheetCtx).viewInsets.bottom;
+        final inset = keyboardInsetOf(sheetCtx);
         return SafeArea(
           child: Padding(
             padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + inset),

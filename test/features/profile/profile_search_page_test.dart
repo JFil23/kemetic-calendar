@@ -47,13 +47,15 @@ void main() {
 
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
     expect(scaffold.resizeToAvoidBottomInset, isTrue);
-    expect(scaffold.body, isA<Padding>());
+    expect(scaffold.body, isA<KeyboardAwareEditableSurface>());
 
-    final bodyPadding = scaffold.body! as Padding;
-    expect(bodyPadding.padding, const EdgeInsets.all(20));
+    final surface = scaffold.body! as KeyboardAwareEditableSurface;
+    expect(surface.manageSystemKeyboardInset, isFalse);
+    expect(surface.child, isA<Padding>());
+    expect((surface.child as Padding).padding, const EdgeInsets.all(20));
 
     final searchField = tester.widget<TextField>(find.byType(TextField));
-    expect(searchField.scrollPadding, keyboardManagedTextFieldScrollPadding);
+    expect(searchField.scrollPadding, const EdgeInsets.all(20));
     expect(tester.takeException(), isNull);
   });
 }

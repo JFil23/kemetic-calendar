@@ -4,6 +4,7 @@ import '../../data/profile_avatar_glyphs.dart';
 import '../../widgets/profile_avatar.dart';
 import '../../shared/glossy_text.dart';
 import '../../shared/kemetic_text.dart';
+import '../../widgets/keyboard_aware.dart';
 
 Future<List<String>?> showProfileGlyphAvatarComposer(
   BuildContext context, {
@@ -81,7 +82,7 @@ class _ProfileGlyphAvatarComposerSheetState
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final bottomInset = keyboardInsetOf(context);
     final phraseGlyphs = profileGlyphPhraseGlyphs(_selectedGlyphIds);
     final phraseMeaning = profileGlyphPhraseMeaning(_selectedGlyphIds);
     final avatarHeaderExtent = phraseMeaning.isNotEmpty ? 224.0 : 176.0;

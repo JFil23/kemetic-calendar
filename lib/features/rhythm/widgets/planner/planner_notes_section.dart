@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:mobile/features/rhythm/models/rhythm_models.dart';
 import 'package:mobile/features/rhythm/theme/rhythm_theme.dart';
-import 'package:mobile/widgets/keyboard_aware.dart';
 
 import 'planner_circle_control.dart';
 import 'planner_hairline_rule.dart';
@@ -109,7 +108,6 @@ class PlannerNotesSection extends StatelessWidget {
                 Expanded(
                   child: TextField(
                     controller: noteInputController,
-                    scrollPadding: keyboardManagedTextFieldScrollPadding,
                     minLines: 1,
                     maxLines: 3,
                     keyboardType: TextInputType.multiline,

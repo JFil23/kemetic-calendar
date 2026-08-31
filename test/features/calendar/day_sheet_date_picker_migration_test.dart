@@ -66,7 +66,8 @@ void main() {
     expect(daySheet, contains('return DaySheetKeyboardSafeFrame('));
     expect(daySheetFrame, contains('class DaySheetKeyboardSafeFrame'));
     expect(daySheetFrame, contains('child: Scaffold('));
-    expect(daySheetFrame, contains('resizeToAvoidBottomInset: true'));
+    expect(daySheetFrame, contains('resizeToAvoidBottomInset: !expanded'));
+    expect(daySheetFrame, contains('manageSystemKeyboardInset: expanded'));
     expect(daySheetFrame, isNot(contains('KeyboardSafeViewport(')));
     expect(daySheetFrame, isNot(contains('AnimatedPadding(')));
     expect(daySheetFrame, isNot(contains('viewInsetsBottom')));
@@ -304,7 +305,7 @@ void main() {
     final reminderEditor = _sourceBetween(
       daySheet,
       'Future<bool> openReminderEditorForSelectedDay',
-      'const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;',
+      'void selectDaySheetTab',
     );
 
     expect(selectedDaySources, contains('selYear'));
@@ -558,8 +559,10 @@ void main() {
       );
       expect(headerWiring, contains('await openQuickAdd(btnCtx)'));
       expect(
-        headerWiring,
-        contains('CalendarPage.openQuickAddFromAnyContext(btnCtx)'),
+        RegExp(
+          r'CalendarPage\.openQuickAddFromAnyContext\(\s*btnCtx,?\s*\)',
+        ).hasMatch(headerWiring),
+        isTrue,
       );
       expect(routeWiring, contains('onAddNote: (ky, km, kd) =>'));
       expect(routeWiring, contains('_openDaySheet(ky, km, kd'));

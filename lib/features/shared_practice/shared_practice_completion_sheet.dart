@@ -127,8 +127,8 @@ class _SharedPracticeCompletionSheetState
   Widget build(BuildContext context) {
     final title = widget.stepTitle?.trim();
     final media = MediaQuery.of(context);
-    return Padding(
-      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+    return KeyboardAwareEditableSurface(
+      manageSystemKeyboardInset: true,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxHeight: media.size.height * 0.9),
         child: DecoratedBox(
@@ -232,7 +232,6 @@ class _SharedPracticeCompletionSheetState
                   TextField(
                     controller: _noteController,
                     enabled: !_saving,
-                    scrollPadding: keyboardManagedTextFieldScrollPadding,
                     minLines: 3,
                     maxLines: 5,
                     style: const TextStyle(

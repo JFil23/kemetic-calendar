@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/widgets/day_sheet_components.dart';
-import 'package:mobile/widgets/keyboard_aware.dart';
 
 void main() {
   testWidgets('day sheet tab bar exposes Notes, Reminders, and Flows', (
@@ -80,14 +79,12 @@ void main() {
                       DaySheetTextField(
                         key: titleKey,
                         controller: titleController,
-                        scrollPadding: keyboardManagedTextFieldScrollPadding,
                         hint: 'Title',
                       ),
                       const SizedBox(height: 420),
                       DaySheetTextField(
                         key: detailsKey,
                         controller: detailsController,
-                        scrollPadding: keyboardManagedTextFieldScrollPadding,
                         hint: 'Details (optional)',
                         minLines: 4,
                         maxLines: 6,

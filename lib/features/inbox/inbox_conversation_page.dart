@@ -412,7 +412,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
   Widget build(BuildContext context) {
     final currentUserId = _inboxRepo.currentUserId;
 
-    return PopScope(
+    final page = PopScope(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
         if (didPop) return;
@@ -796,6 +796,7 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
         ),
       ),
     );
+    return KeyboardAwareEditableSurface(child: page);
   }
 
   Widget _buildComposer() {
@@ -814,7 +815,6 @@ class _InboxConversationPageState extends State<InboxConversationPage> {
               ),
               child: TextField(
                 controller: _messageController,
-                scrollPadding: keyboardManagedTextFieldScrollPadding,
                 style: const TextStyle(color: Colors.white),
                 maxLines: 4,
                 minLines: 1,

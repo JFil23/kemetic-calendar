@@ -780,10 +780,13 @@ void main() {
         'reading_house_sitting_editor.dart',
       ).readAsStringSync();
 
-      expect(detailSource, contains('keyboardManagedTextFieldScrollPadding'));
-      expect(detailSource, contains('keyboardInsetOf(context)'));
+      expect(detailSource, contains('KeyboardAwareEditableSurface('));
+      expect(detailSource, isNot(contains('scrollPadding:')));
+      expect(detailSource, isNot(contains('viewInsets')));
       expect(detailSource, contains('requestFocus: true'));
-      expect(sittingSource, contains('keyboardInsetOf(context)'));
+      expect(sittingSource, contains('KeyboardAwareEditableSurface('));
+      expect(sittingSource, isNot(contains('scrollPadding:')));
+      expect(sittingSource, isNot(contains('viewInsets')));
       expect(sittingSource, contains('requestFocus: true'));
       expect(sittingSource, contains('FocusScopeNode('));
       expect(sittingSource, contains('_releaseFocus();'));

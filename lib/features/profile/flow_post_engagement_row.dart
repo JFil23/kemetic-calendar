@@ -1082,10 +1082,9 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final keyboardInset = media.viewInsets.bottom;
-    final heightFactor = keyboardInset > 0 ? 0.72 : 0.46;
-    return Padding(
-      padding: EdgeInsets.only(bottom: keyboardInset),
+    final heightFactor = keyboardIsVisible(context) ? 0.72 : 0.46;
+    return KeyboardAwareEditableSurface(
+      manageSystemKeyboardInset: true,
       child: SizedBox(
         height: media.size.height * heightFactor,
         child: SafeArea(
@@ -1471,7 +1470,6 @@ class _FlowPostCommentsSheetState extends State<_FlowPostCommentsSheet> {
                 focusNode: _commentFocusNode,
                 maxLines: 3,
                 maxLength: 150,
-                scrollPadding: keyboardManagedTextFieldScrollPadding,
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   hintText: replyTarget == null

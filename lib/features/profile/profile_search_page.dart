@@ -176,8 +176,6 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
   @override
   Widget build(BuildContext context) {
     const bodyPadding = EdgeInsets.all(20);
-    const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
-
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: const Color(0xFF000000),
@@ -218,30 +216,32 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
               ]
             : null,
       ),
-      body: Padding(
-        padding: bodyPadding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSearchField(scrollPadding: fieldScrollPadding),
-            if (_isConversationMode && _selectedUsersById.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              _buildSelectedPeopleChips(),
+      body: KeyboardAwareEditableSurface(
+        child: Padding(
+          padding: bodyPadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSearchField(),
+              if (_isConversationMode && _selectedUsersById.isNotEmpty) ...[
+                const SizedBox(height: 12),
+                _buildSelectedPeopleChips(),
+              ],
+              const SizedBox(height: 20),
+              if (_searching)
+                const Center(
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
+                  ),
+                )
+              else if (_results.isEmpty && _query.length < 2)
+                _buildHint()
+              else if (_results.isEmpty)
+                _buildEmpty()
+              else
+                Expanded(child: _buildResultsList()),
             ],
-            const SizedBox(height: 20),
-            if (_searching)
-              const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(KemeticGold.base),
-                ),
-              )
-            else if (_results.isEmpty && _query.length < 2)
-              _buildHint()
-            else if (_results.isEmpty)
-              _buildEmpty()
-            else
-              Expanded(child: _buildResultsList()),
-          ],
+          ),
         ),
       ),
     );
@@ -287,11 +287,10 @@ class _ProfileSearchPageState extends State<ProfileSearchPage> {
     );
   }
 
-  Widget _buildSearchField({required EdgeInsets scrollPadding}) {
+  Widget _buildSearchField() {
     return TextField(
       controller: _controller,
       autofocus: true,
-      scrollPadding: scrollPadding,
       style: const TextStyle(color: Colors.white),
       decoration: InputDecoration(
         hintText: widget.hintText,

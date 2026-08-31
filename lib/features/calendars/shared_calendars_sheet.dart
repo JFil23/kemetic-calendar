@@ -648,7 +648,7 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
       ],
     );
 
-    return Container(
+    final sheet = Container(
       decoration: BoxDecoration(
         color: H3wCalendarSheetTokens.pageBase,
         borderRadius: widget.routeMode
@@ -673,6 +673,11 @@ class _SharedCalendarsSheetState extends State<SharedCalendarsSheet> {
                 child: content,
               ),
       ),
+    );
+    if (widget.routeMode) return sheet;
+    return KeyboardAwareEditableSurface(
+      manageSystemKeyboardInset: true,
+      child: sheet,
     );
   }
 
@@ -2681,7 +2686,7 @@ class _BirthdayEditorDialogState extends State<_BirthdayEditorDialog> {
         ? 'Choose date'
         : DateFormat.yMMMMd().format(_birthday!);
 
-    return Dialog(
+    final dialog = Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 26),
       child: Container(
@@ -2722,7 +2727,6 @@ class _BirthdayEditorDialogState extends State<_BirthdayEditorDialog> {
                 controller: _nameCtrl,
                 autofocus: false,
                 cursorColor: H3wCalendarSheetTokens.gold,
-                scrollPadding: keyboardManagedTextFieldScrollPadding,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 17,
@@ -2830,6 +2834,10 @@ class _BirthdayEditorDialogState extends State<_BirthdayEditorDialog> {
         ),
       ),
     );
+    return KeyboardAwareEditableSurface(
+      manageSystemKeyboardInset: true,
+      child: dialog,
+    );
   }
 }
 
@@ -2869,7 +2877,7 @@ class _CalendarEditorDialogState extends State<_CalendarEditorDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
+    final dialog = Dialog(
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 26),
       child: Container(
@@ -2920,7 +2928,6 @@ class _CalendarEditorDialogState extends State<_CalendarEditorDialog> {
                 controller: _nameCtrl,
                 autofocus: false,
                 cursorColor: H3wCalendarSheetTokens.sharedAccent,
-                scrollPadding: keyboardManagedTextFieldScrollPadding,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 17,
@@ -3039,6 +3046,10 @@ class _CalendarEditorDialogState extends State<_CalendarEditorDialog> {
           ),
         ),
       ),
+    );
+    return KeyboardAwareEditableSurface(
+      manageSystemKeyboardInset: true,
+      child: dialog,
     );
   }
 }

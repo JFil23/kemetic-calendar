@@ -300,23 +300,25 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
     return Scaffold(
       resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
       backgroundColor: OfferingTableDetailTokens.pageBackground,
-      body: Stack(
-        children: [
-          body,
-          if (widget.showBackButton)
-            Positioned(
-              top: MediaQuery.paddingOf(context).top + 4,
-              left: 4,
-              child: IconButton(
-                tooltip: 'Back',
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: OfferingTableDetailTokens.warmGold,
+      body: KeyboardAwareEditableSurface(
+        child: Stack(
+          children: [
+            body,
+            if (widget.showBackButton)
+              Positioned(
+                top: MediaQuery.paddingOf(context).top + 4,
+                left: 4,
+                child: IconButton(
+                  tooltip: 'Back',
+                  icon: const Icon(
+                    Icons.arrow_back,
+                    color: OfferingTableDetailTokens.warmGold,
+                  ),
+                  onPressed: () => Navigator.of(context).maybePop(),
                 ),
-                onPressed: () => Navigator.of(context).maybePop(),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -592,7 +594,6 @@ class _OfferingTableInitialEntry extends StatelessWidget {
               key: const ValueKey<String>('offering-table-initial-input'),
               controller: controller,
               readOnly: readOnly,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
               cursorColor: OfferingTableDetailTokens.warmGold,
               style: const TextStyle(
                 color: OfferingTableDetailTokens.glow,

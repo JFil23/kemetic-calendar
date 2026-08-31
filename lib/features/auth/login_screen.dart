@@ -393,7 +393,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(
+    final page = Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
         child: LayoutBuilder(
@@ -434,8 +434,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 28),
                           TextField(
                             controller: _emailController,
-                            scrollPadding:
-                                keyboardManagedTextFieldScrollPadding,
                             enabled: !_busy,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
@@ -448,8 +446,6 @@ class _LoginScreenState extends State<LoginScreen> {
                           const SizedBox(height: 12),
                           TextField(
                             controller: _passwordController,
-                            scrollPadding:
-                                keyboardManagedTextFieldScrollPadding,
                             enabled: !_busy,
                             obscureText: true,
                             textInputAction: TextInputAction.done,
@@ -570,6 +566,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       ),
     );
+    return KeyboardAwareEditableSurface(child: page);
   }
 }
 
@@ -697,7 +694,7 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(
+    final page = Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
         child: LayoutBuilder(
@@ -737,7 +734,6 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
                         const SizedBox(height: 28),
                         TextField(
                           controller: _passwordController,
-                          scrollPadding: keyboardManagedTextFieldScrollPadding,
                           enabled: !_busy && !_passwordUpdated,
                           obscureText: true,
                           textInputAction: TextInputAction.next,
@@ -749,7 +745,6 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
                         const SizedBox(height: 12),
                         TextField(
                           controller: _confirmPasswordController,
-                          scrollPadding: keyboardManagedTextFieldScrollPadding,
                           enabled: !_busy && !_passwordUpdated,
                           obscureText: true,
                           textInputAction: TextInputAction.done,
@@ -816,5 +811,6 @@ class _PasswordRecoveryScreenState extends State<PasswordRecoveryScreen> {
         ),
       ),
     );
+    return KeyboardAwareEditableSurface(child: page);
   }
 }

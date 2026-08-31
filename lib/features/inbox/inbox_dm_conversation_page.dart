@@ -113,7 +113,7 @@ class _InboxDmConversationPageState extends State<InboxDmConversationPage> {
         final title = summary?.titleFor(currentUserId) ?? 'Conversation';
         final isGroup = summary?.type == DmConversationType.group;
 
-        return Scaffold(
+        final page = Scaffold(
           backgroundColor: const Color(0xFF000000),
           appBar: AppBar(
             backgroundColor: const Color(0xFF000000),
@@ -209,6 +209,7 @@ class _InboxDmConversationPageState extends State<InboxDmConversationPage> {
             ),
           ),
         );
+        return KeyboardAwareEditableSurface(child: page);
       },
     );
   }
@@ -229,7 +230,6 @@ class _InboxDmConversationPageState extends State<InboxDmConversationPage> {
               ),
               child: TextField(
                 controller: _messageController,
-                scrollPadding: keyboardManagedTextFieldScrollPadding,
                 style: const TextStyle(color: Colors.white),
                 maxLines: 4,
                 minLines: 1,

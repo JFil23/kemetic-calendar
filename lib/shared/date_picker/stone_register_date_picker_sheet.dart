@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile/shared/date_picker/stone_register_date_picker_theme.dart';
 import 'package:mobile/shared/date_picker/stone_register_date_wheel.dart';
+import 'package:mobile/widgets/keyboard_aware.dart';
 
 enum StoneDatePickerCalendarMode { kemetic, gregorian }
 
@@ -91,7 +92,7 @@ class _StoneRegisterDatePickerSheetState<T>
     final subtitle = widget.subtitle ?? _subtitleForMode(_mode);
     final horizontal = compact ? 14.0 : 18.0;
     final top = inline ? 0.0 : 12.0;
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+    final bottomInset = keyboardInsetOf(context);
 
     final content = Padding(
       padding: EdgeInsets.only(

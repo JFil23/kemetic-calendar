@@ -85,6 +85,7 @@ import 'features/settings/settings_page.dart';
 import 'features/settings/settings_prefs.dart';
 import 'features/reflections/decan_reflection_detail_page.dart';
 import 'widgets/kemetic_keyboard.dart';
+import 'widgets/keyboard_aware.dart';
 import 'widgets/kemetic_day_info.dart';
 import 'services/app_restoration_service.dart';
 import 'services/app_window_service.dart';
@@ -2512,7 +2513,7 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
     if (!_launchOverlayDismissed.value) return true;
     if (!_dailyCosmicContextAuthenticated) return true;
     if (_globalOverlayModalDepth.value > 0) return true;
-    if (MediaQuery.viewInsetsOf(context).bottom > 0) return true;
+    if (keyboardIsVisible(context)) return true;
     if (GuidedOnboardingController.instance.suppressExternalOverlays) {
       return true;
     }
@@ -2565,7 +2566,7 @@ class _GlobalOverlayShellState extends State<_GlobalOverlayShell>
     if (supabase.auth.currentSession == null) return true;
     if (_dailyCosmicContextController.hasVisibleBadge) return true;
     if (_globalOverlayModalDepth.value > 0) return true;
-    if (MediaQuery.viewInsetsOf(context).bottom > 0) return true;
+    if (keyboardIsVisible(context)) return true;
     if (GuidedOnboardingController.instance.suppressExternalOverlays) {
       return true;
     }

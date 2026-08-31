@@ -38,7 +38,6 @@ Future<NodeLinkPickerResult?> showNodeLinkPickerSheet({
           final query = controller.text.trim().toLowerCase();
           final media = MediaQuery.of(ctx);
           final closedHeight = media.size.height * 0.72;
-          final keyboardInset = MediaQuery.viewInsetsOf(ctx).bottom;
           final filtered = nodes
               .where(
                 (node) =>
@@ -50,8 +49,8 @@ Future<NodeLinkPickerResult?> showNodeLinkPickerSheet({
               )
               .toList();
 
-          return Padding(
-            padding: EdgeInsets.only(bottom: keyboardInset),
+          return KeyboardAwareEditableSurface(
+            manageSystemKeyboardInset: true,
             child: Padding(
               padding: EdgeInsets.only(
                 left: 16,
@@ -96,7 +95,6 @@ Future<NodeLinkPickerResult?> showNodeLinkPickerSheet({
                     const SizedBox(height: 14),
                     TextField(
                       controller: controller,
-                      scrollPadding: keyboardManagedTextFieldScrollPadding,
                       style: const TextStyle(color: Colors.white),
                       decoration: const InputDecoration(
                         hintText: 'Search nodes...',

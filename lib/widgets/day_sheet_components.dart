@@ -3,6 +3,8 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'keyboard_aware.dart';
+
 enum DaySheetTab { notes, reminders, flows }
 
 const List<Color> daySheetColorPalette = <Color>[
@@ -116,57 +118,49 @@ class DaySheetKeyboardSafeFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final visibleHeight = math.max(
-      0.0,
-      media.size.height - media.viewInsets.bottom,
-    );
-    final sheetHeight = expanded
-        ? visibleHeight
-        : media.size.height * maxHeightFactor;
-    final bottomInset = expanded ? media.viewInsets.bottom : 0.0;
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: SizedBox(
-        key: daySheetKeyboardSafePaddingKey,
-        height: sheetHeight,
-        child: Scaffold(
-          backgroundColor: Colors.transparent,
-          resizeToAvoidBottomInset: !expanded,
-          body: Container(
-            key: daySheetKeyboardSafeFrameKey,
-            decoration: const BoxDecoration(
-              color: DaySheetTokens.bg,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-              border: Border(
-                top: BorderSide(color: DaySheetTokens.hair, width: 1),
-              ),
+    final frame = SizedBox(
+      key: daySheetKeyboardSafePaddingKey,
+      height: expanded ? null : media.size.height * maxHeightFactor,
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        resizeToAvoidBottomInset: !expanded,
+        body: Container(
+          key: daySheetKeyboardSafeFrameKey,
+          decoration: const BoxDecoration(
+            color: DaySheetTokens.bg,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            border: Border(
+              top: BorderSide(color: DaySheetTokens.hair, width: 1),
             ),
-            child: SafeArea(
-              top: false,
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: horizontalPadding,
-                  right: horizontalPadding,
-                  top: topPadding,
-                  bottom: media.padding.bottom + bottomPadding,
-                ),
-                child: scrollable
-                    ? SingleChildScrollView(
-                        key: daySheetKeyboardSafeScrollViewKey,
-                        keyboardDismissBehavior:
-                            ScrollViewKeyboardDismissBehavior.onDrag,
-                        padding: EdgeInsets.only(
-                          bottom: media.padding.bottom + scrollBottomPadding,
-                        ),
-                        child: child,
-                      )
-                    : child,
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: EdgeInsets.only(
+                left: horizontalPadding,
+                right: horizontalPadding,
+                top: topPadding,
+                bottom: media.padding.bottom + bottomPadding,
               ),
+              child: scrollable
+                  ? SingleChildScrollView(
+                      key: daySheetKeyboardSafeScrollViewKey,
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      padding: EdgeInsets.only(
+                        bottom: media.padding.bottom + scrollBottomPadding,
+                      ),
+                      child: child,
+                    )
+                  : child,
             ),
           ),
         ),
       ),
+    );
+    return KeyboardAwareEditableSurface(
+      manageSystemKeyboardInset: expanded,
+      child: expanded ? SizedBox.expand(child: frame) : frame,
     );
   }
 }
@@ -488,7 +482,6 @@ class DaySheetTextField extends StatelessWidget {
     required this.hint,
     this.minLines = 1,
     this.maxLines = 1,
-    this.scrollPadding = EdgeInsets.zero,
     this.enabled = true,
   });
 
@@ -496,7 +489,6 @@ class DaySheetTextField extends StatelessWidget {
   final String hint;
   final int minLines;
   final int maxLines;
-  final EdgeInsets scrollPadding;
   final bool enabled;
 
   @override
@@ -508,7 +500,6 @@ class DaySheetTextField extends StatelessWidget {
         enabled: enabled,
         minLines: minLines,
         maxLines: maxLines,
-        scrollPadding: scrollPadding,
         style: const TextStyle(
           fontFamily: DaySheetTokens.serif,
           fontSize: 18,

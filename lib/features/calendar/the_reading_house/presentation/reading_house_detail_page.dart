@@ -664,27 +664,29 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
     return Scaffold(
       resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
       backgroundColor: ReadingHouseDetailTokens.pageBackground,
-      body: Stack(
-        children: [
-          body,
-          if (widget.showBackButton)
-            Positioned(
-              top: MediaQuery.paddingOf(context).top + 4,
-              left: 4,
-              child: IconButton(
-                key: const ValueKey<String>('reading-house-back'),
-                tooltip: 'Back',
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: ReadingHouseDetailTokens.gold,
+      body: KeyboardAwareEditableSurface(
+        child: Stack(
+          children: [
+            body,
+            if (widget.showBackButton)
+              Positioned(
+                top: MediaQuery.paddingOf(context).top + 4,
+                left: 4,
+                child: IconButton(
+                  key: const ValueKey<String>('reading-house-back'),
+                  tooltip: 'Back',
+                  icon: const Icon(
+                    Icons.arrow_back,
+                    color: ReadingHouseDetailTokens.gold,
+                  ),
+                  onPressed: () {
+                    FocusManager.instance.primaryFocus?.unfocus();
+                    Navigator.of(context).maybePop();
+                  },
                 ),
-                onPressed: () {
-                  FocusManager.instance.primaryFocus?.unfocus();
-                  Navigator.of(context).maybePop();
-                },
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1275,7 +1277,6 @@ class _SetupTextField extends StatelessWidget {
             TextField(
               key: fieldKey,
               controller: controller,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
               cursorColor: ReadingHouseDetailTokens.houseHighlight,
               style: _displayStyle(
                 color: ReadingHouseDetailTokens.houseHighlight,
@@ -2094,8 +2095,8 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: keyboardInsetOf(context)),
+    return KeyboardAwareEditableSurface(
+      manageSystemKeyboardInset: true,
       child: Material(
         key: const ValueKey<String>('reading-house-invite-sheet'),
         color: const Color(0xFF0A0D0B),
@@ -2145,7 +2146,6 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
                 focusNode: _searchFocus,
                 autofocus: true,
                 onChanged: _onQueryChanged,
-                scrollPadding: keyboardManagedTextFieldScrollPadding,
                 cursorColor: ReadingHouseDetailTokens.houseHighlight,
                 style: _uiStyle(
                   color: ReadingHouseDetailTokens.bone,

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:mobile/features/rhythm/theme/rhythm_theme.dart';
-import 'package:mobile/widgets/keyboard_aware.dart';
 
 import 'planner_hairline_rule.dart';
 import 'planner_pager_dots.dart';
@@ -249,7 +248,6 @@ class _NutritionTextField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextField(
       controller: controller,
-      scrollPadding: keyboardManagedTextFieldScrollPadding,
       style: PlannerVisualTokens.inputText.copyWith(
         color: const Color(0xFFDCBE82),
       ),

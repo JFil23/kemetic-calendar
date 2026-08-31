@@ -6063,7 +6063,7 @@ class _DayViewPageState extends State<DayViewPage> {
         final flowIndex = _currentFlowChromeIndex();
         final activeLedgerFlowIds = _currentActiveLedgerFlowIds();
 
-        return PopScope(
+        final page = PopScope(
           canPop: true,
           onPopInvokedWithResult: (didPop, _) {
             if (didPop) {
@@ -6354,6 +6354,7 @@ class _DayViewPageState extends State<DayViewPage> {
             ),
           ),
         );
+        return KeyboardAwareEditableSurface(child: page);
       },
     );
   }
@@ -9303,7 +9304,6 @@ class _DecanWatchLocalNotesPanelState
           else ...[
             TextField(
               controller: _skyController,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines: 2,
               maxLines: 4,
               style: const TextStyle(color: Colors.white, fontSize: 13.5),
@@ -9314,7 +9314,6 @@ class _DecanWatchLocalNotesPanelState
             const SizedBox(height: 10),
             TextField(
               controller: _intentionController,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines: 2,
               maxLines: 4,
               style: const TextStyle(color: Colors.white, fontSize: 13.5),
@@ -11320,7 +11319,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
         const SizedBox(height: 12),
         TextField(
           controller: _eveningThresholdReleaseCarryController,
-          scrollPadding: keyboardManagedTextFieldScrollPadding,
           maxLines: 3,
           minLines: 2,
           onChanged: (_) => setState(() {}),
@@ -11601,7 +11599,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           controller: _readingHouseFragmentReferenceController,
           textCapitalization: TextCapitalization.sentences,
           textInputAction: TextInputAction.next,
-          scrollPadding: keyboardManagedTextFieldScrollPadding,
           style: TextStyle(color: style.selectedForegroundColor),
           decoration: decoration('Passage or page (optional)'),
         ),
@@ -11612,7 +11609,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           maxLines: 5,
           textCapitalization: TextCapitalization.sentences,
           textInputAction: TextInputAction.newline,
-          scrollPadding: keyboardManagedTextFieldScrollPadding,
           style: TextStyle(color: style.selectedForegroundColor),
           decoration: decoration('Fragment'),
         ),
@@ -11894,7 +11890,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
             maxLines: 4,
             textCapitalization: TextCapitalization.sentences,
             textInputAction: TextInputAction.newline,
-            scrollPadding: keyboardManagedTextFieldScrollPadding,
             style: TextStyle(color: style.selectedForegroundColor),
             decoration: decoration(),
           ),
@@ -11997,7 +11992,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           controller: _readingHouseMarginReferenceController,
           textCapitalization: TextCapitalization.sentences,
           textInputAction: TextInputAction.next,
-          scrollPadding: keyboardManagedTextFieldScrollPadding,
           style: TextStyle(color: style.selectedForegroundColor),
           decoration: decoration('Passage, page, or link (optional)'),
         ),
@@ -12008,7 +12002,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           maxLines: 5,
           textCapitalization: TextCapitalization.sentences,
           textInputAction: TextInputAction.newline,
-          scrollPadding: keyboardManagedTextFieldScrollPadding,
           style: TextStyle(color: style.selectedForegroundColor),
           decoration: decoration('House margin note'),
         ),
@@ -12330,7 +12323,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           maxLines: 5,
           textCapitalization: TextCapitalization.sentences,
           textInputAction: TextInputAction.newline,
-          scrollPadding: keyboardManagedTextFieldScrollPadding,
           style: TextStyle(color: style.selectedForegroundColor),
           decoration: decoration('Host announcement'),
         ),
@@ -12736,7 +12728,6 @@ class _MaatFlowCompletionPanelState extends State<_MaatFlowCompletionPanel> {
           maxLines: 4,
           textCapitalization: TextCapitalization.sentences,
           textInputAction: TextInputAction.newline,
-          scrollPadding: keyboardManagedTextFieldScrollPadding,
           style: TextStyle(color: style.selectedForegroundColor),
           decoration: decoration(),
         ),
@@ -13312,7 +13303,6 @@ class _TheTendingLocalNotesPanelState
           else
             TextField(
               controller: _controller,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines: _minLines,
               maxLines: 8,
               style: const TextStyle(color: Colors.white, fontSize: 13.5),
@@ -13629,7 +13619,6 @@ class _KeptWordLocalNotesPanelState extends State<_KeptWordLocalNotesPanel> {
           else
             TextField(
               controller: _controller,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines: _minLines,
               maxLines: 8,
               style: const TextStyle(color: Colors.white, fontSize: 13.5),
@@ -13876,7 +13865,6 @@ class _TheWagLocalNotesPanelState extends State<_TheWagLocalNotesPanel> {
           else
             TextField(
               controller: _controller,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines: _minLines,
               maxLines: 8,
               style: const TextStyle(color: Colors.white, fontSize: 13.5),
@@ -14094,7 +14082,6 @@ class _DaysOutsideYearLocalNotesPanelState
           else
             TextField(
               controller: _controller,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines: _minLines,
               maxLines: 8,
               style: const TextStyle(color: Colors.white, fontSize: 13.5),
@@ -14361,7 +14348,6 @@ class _OpenHandLocalNotesPanelState extends State<_OpenHandLocalNotesPanel> {
           else
             TextField(
               controller: _controller,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines:
                   widget.event.eventNumber == 4 ||
                       widget.event.eventNumber == 6 ||
@@ -14389,7 +14375,6 @@ class _OpenHandLocalNotesPanelState extends State<_OpenHandLocalNotesPanel> {
             const SizedBox(height: 10),
             TextField(
               controller: _deferredController,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
               style: const TextStyle(color: Colors.white, fontSize: 13.5),
               decoration: InputDecoration(
                 filled: true,
@@ -14695,7 +14680,6 @@ class _DjedLocalNotesPanelState extends State<_DjedLocalNotesPanel> {
           else
             TextField(
               controller: _controller,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
               minLines:
                   widget.event.eventNumber == 1 ||
                       widget.event.eventNumber == 4 ||

@@ -611,10 +611,8 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
-    const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
-    return Padding(
-      padding: EdgeInsets.only(bottom: keyboardInset),
+    return KeyboardAwareEditableSurface(
+      manageSystemKeyboardInset: true,
       child: SafeArea(
         top: false,
         child: SizedBox(
@@ -680,7 +678,6 @@ class _InsightEntryEditorSheetState extends State<_InsightEntryEditorSheet> {
                                 child: TextField(
                                   controller: _textCtrl,
                                   scrollController: _textScrollCtrl,
-                                  scrollPadding: fieldScrollPadding,
                                   onChanged: _onTextChanged,
                                   maxLines: null,
                                   expands: true,

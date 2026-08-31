@@ -206,7 +206,6 @@ class _ReadingHouseSittingEditorSheetState
       textInputAction: maxLines == 1
           ? TextInputAction.next
           : TextInputAction.newline,
-      scrollPadding: keyboardManagedTextFieldScrollPadding,
       style: const TextStyle(color: Color(0xFFE8D9C3)),
       decoration: _fieldDecoration(label, hintText: hintText),
     );
@@ -261,11 +260,8 @@ class _ReadingHouseSittingEditorSheetState
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final keyboardInset = widget.manageKeyboardInset
-        ? keyboardInsetOf(context)
-        : 0.0;
-    return Padding(
-      padding: EdgeInsets.only(bottom: keyboardInset),
+    return KeyboardAwareEditableSurface(
+      manageSystemKeyboardInset: widget.manageKeyboardInset,
       child: Padding(
         padding: EdgeInsets.only(
           left: 18,

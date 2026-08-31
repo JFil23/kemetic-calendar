@@ -203,9 +203,8 @@ class _TimedRhythmEditorPageState extends State<TimedRhythmEditorPage> {
   @override
   Widget build(BuildContext context) {
     const formPadding = EdgeInsets.all(16);
-    const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
 
-    return Scaffold(
+    final page = Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close),
@@ -235,7 +234,6 @@ class _TimedRhythmEditorPageState extends State<TimedRhythmEditorPage> {
               children: [
                 TextFormField(
                   controller: _title,
-                  scrollPadding: fieldScrollPadding,
                   style: RhythmTheme.heading,
                   decoration: const InputDecoration(labelText: 'Item title'),
                   validator: (v) =>
@@ -244,7 +242,6 @@ class _TimedRhythmEditorPageState extends State<TimedRhythmEditorPage> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _description,
-                  scrollPadding: fieldScrollPadding,
                   minLines: 2,
                   maxLines: 3,
                   decoration: const InputDecoration(labelText: 'Notes'),
@@ -321,6 +318,7 @@ class _TimedRhythmEditorPageState extends State<TimedRhythmEditorPage> {
         ),
       ),
     );
+    return KeyboardAwareEditableSurface(child: page);
   }
 
   Future<void> _save() async {
@@ -473,9 +471,8 @@ class _UntimedRhythmEditorPageState extends State<UntimedRhythmEditorPage> {
   @override
   Widget build(BuildContext context) {
     const formPadding = EdgeInsets.all(16);
-    const fieldScrollPadding = keyboardManagedTextFieldScrollPadding;
 
-    return Scaffold(
+    final page = Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.close),
@@ -505,7 +502,6 @@ class _UntimedRhythmEditorPageState extends State<UntimedRhythmEditorPage> {
               children: [
                 TextFormField(
                   controller: _title,
-                  scrollPadding: fieldScrollPadding,
                   style: RhythmTheme.heading,
                   decoration: const InputDecoration(labelText: 'Item name'),
                   validator: (v) =>
@@ -514,7 +510,6 @@ class _UntimedRhythmEditorPageState extends State<UntimedRhythmEditorPage> {
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _description,
-                  scrollPadding: fieldScrollPadding,
                   minLines: 3,
                   maxLines: 4,
                   decoration: const InputDecoration(
@@ -562,6 +557,7 @@ class _UntimedRhythmEditorPageState extends State<UntimedRhythmEditorPage> {
         ),
       ),
     );
+    return KeyboardAwareEditableSurface(child: page);
   }
 
   Future<void> _save() async {

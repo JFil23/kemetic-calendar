@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../maat_flow_visual_tokens.dart';
 import '../../presentation/maat_flow_preview_day.dart';
 import '../../the_offering_table_flow.dart';
+import '../../../../widgets/keyboard_aware.dart';
 import 'offering_table_day_components.dart';
 import 'offering_table_presentation_copy.dart';
 
@@ -67,7 +68,7 @@ class OfferingTablePreviewDaySheet extends StatelessWidget {
               22,
               12,
               22,
-              28 + MediaQuery.viewInsetsOf(context).bottom,
+              28 + keyboardInsetOf(context),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,

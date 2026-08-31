@@ -451,7 +451,6 @@ class InstrumentEventReflectionSection extends StatelessWidget {
                     TextField(
                       key: fieldKey,
                       controller: controller,
-                      scrollPadding: keyboardManagedTextFieldScrollPadding,
                       minLines: 3,
                       maxLines: 5,
                       style: TextStyle(

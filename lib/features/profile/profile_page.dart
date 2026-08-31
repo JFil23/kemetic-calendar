@@ -1234,7 +1234,6 @@ class _ProfilePageState extends State<ProfilePage>
         title: const Text('Ask to join', style: TextStyle(color: Colors.white)),
         content: TextField(
           controller: controller,
-          scrollPadding: keyboardManagedTextFieldScrollPadding,
           maxLines: 3,
           maxLength: 500,
           style: const TextStyle(color: Colors.white),
@@ -1860,7 +1859,7 @@ class _ProfilePageState extends State<ProfilePage>
             statusBarColor: Colors.transparent,
           );
 
-    return Scaffold(
+    final page = Scaffold(
       backgroundColor: const Color(0xFF000000),
       extendBodyBehindAppBar: showBackdrop && !_feedRevealed,
       appBar: AppBar(
@@ -1972,6 +1971,7 @@ class _ProfilePageState extends State<ProfilePage>
         ],
       ),
     );
+    return KeyboardAwareEditableSurface(child: page);
   }
 
   Widget _profileSkeletonBar({
@@ -4114,7 +4114,6 @@ class _ProfilePageState extends State<ProfilePage>
         children: [
           TextField(
             controller: _commonsAnswerController,
-            scrollPadding: keyboardManagedTextFieldScrollPadding,
             enabled: !_commonsAnswerSaving,
             minLines: 3,
             maxLines: 5,

@@ -318,9 +318,9 @@ void main() {
       await Scrollable.ensureVisible(
         tester.element(finder),
         alignment: 0.42,
-        duration: const Duration(milliseconds: 1),
+        duration: Duration.zero,
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
       await tester.tap(finder);
       await tester.pump();
       expect(

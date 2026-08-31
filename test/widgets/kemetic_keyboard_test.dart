@@ -99,6 +99,33 @@ void main() {
   });
 
   group('KemeticKeyboardHost', () {
+    testWidgets('preserves Flutter MediaQuery insets for descendants', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(390, 844);
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      addTearDown(tester.view.reset);
+
+      late double observedInset;
+      await tester.pumpWidget(
+        MaterialApp(
+          builder: (context, child) =>
+              KemeticKeyboardHost(child: child ?? const SizedBox.shrink()),
+          home: Builder(
+            builder: (context) {
+              observedInset = MediaQuery.viewInsetsOf(context).bottom;
+              return const SizedBox.expand();
+            },
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(observedInset, 300);
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('inserts text through the normal EditableText pipeline', (
       tester,
     ) async {
@@ -345,7 +372,6 @@ void main() {
 
         void expectVisibleGeometry(String phase) {
           final fieldRect = tester.getRect(field);
-          final textField = tester.widget<TextField>(field);
           final editable = tester.state<EditableTextState>(
             find.descendant(of: field, matching: find.byType(EditableText)),
           );
@@ -360,9 +386,9 @@ void main() {
           expect(fieldRect.bottom, lessThanOrEqualTo(500), reason: phase);
           expect(caretBottom, lessThanOrEqualTo(500), reason: phase);
           expect(
-            textField.scrollPadding,
-            keyboardManagedTextFieldScrollPadding,
-            reason: phase,
+            tester.widget<TextField>(field).scrollPadding,
+            const EdgeInsets.all(20),
+            reason: '$phase uses the Flutter field default',
           );
         }
 
@@ -493,6 +519,28 @@ void main() {
       },
     );
 
+    testWidgets('scoped surface reveals a field for the custom keyboard', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(const _CustomScrollableHarness());
+      final field = find.byKey(const ValueKey('kemetic-input'));
+      await tester.ensureVisible(field);
+      await tester.tap(field);
+      await tester.pump();
+
+      await _openCustomKeyboard(tester);
+
+      final fieldRect = tester.getRect(field);
+      final panelRect = tester.getRect(
+        find.byKey(const ValueKey('kemetic-keyboard-panel')),
+      );
+      expect(fieldRect.bottom, lessThanOrEqualTo(panelRect.top));
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('keeps the system keyboard cursor above the keyboard inset', (
       tester,
     ) async {
@@ -565,118 +613,41 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('scrolls expanding text fields above the keyboard inset', (
-      tester,
-    ) async {
-      tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = const Size(390, 844);
-      addTearDown(tester.view.reset);
-
-      final controller = TextEditingController();
-      final scrollController = ScrollController();
-      addTearDown(controller.dispose);
-      addTearDown(scrollController.dispose);
-
-      await tester.pumpWidget(
-        _ExpandingSystemKeyboardHarness(
-          controller: controller,
-          scrollController: scrollController,
-        ),
-      );
-      await tester.tap(find.byKey(const ValueKey('expanding-keyboard-input')));
-      await tester.pump();
-      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
-      await tester.pumpAndSettle();
-
-      final text = List<String>.generate(
-        40,
-        (index) => 'Journal line ${index + 1}',
-      ).join('\n');
-      controller.value = TextEditingValue(
-        text: text,
-        selection: TextSelection.collapsed(offset: text.length),
-      );
-      await tester.pumpAndSettle();
-
-      final editable = tester.state<EditableTextState>(
-        find.byType(EditableText),
-      );
-      final caretRect = editable.renderEditable.getLocalRectForCaret(
-        controller.selection.extent,
-      );
-      final caretBottom = editable.renderEditable
-          .localToGlobal(caretRect.bottomLeft)
-          .dy;
-
-      expect(scrollController.offset, greaterThan(0));
-      expect(caretBottom, lessThanOrEqualTo(544));
-      expect(tester.takeException(), isNull);
-    });
-
     testWidgets(
-      'recovers expanding text fields overscrolled away from the caret',
+      'ordinary Flutter keeps first middle and final fields visible',
       (tester) async {
         tester.view.devicePixelRatio = 1;
         tester.view.physicalSize = const Size(390, 844);
         addTearDown(tester.view.reset);
 
-        final controller = TextEditingController();
-        final scrollController = ScrollController();
-        addTearDown(controller.dispose);
-        addTearDown(scrollController.dispose);
+        await tester.pumpWidget(const _FieldPositionHarness());
 
-        await tester.pumpWidget(
-          _ExpandingSystemKeyboardHarness(
-            controller: controller,
-            scrollController: scrollController,
-          ),
-        );
-        await tester.tap(
-          find.byKey(const ValueKey('expanding-keyboard-input')),
-        );
-        await tester.pump();
-        tester.view.viewInsets = const FakeViewPadding(bottom: 300);
-        await tester.pumpAndSettle();
+        for (final key in const <ValueKey<String>>[
+          ValueKey<String>('first-keyboard-input'),
+          ValueKey<String>('middle-keyboard-input'),
+          ValueKey<String>('final-keyboard-input'),
+        ]) {
+          tester.view.viewInsets = FakeViewPadding.zero;
+          FocusManager.instance.primaryFocus?.unfocus();
+          await tester.pumpAndSettle();
+          await tester.ensureVisible(find.byKey(key));
+          await tester.tap(find.byKey(key));
+          await tester.pump();
+          tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+          await tester.pumpAndSettle();
 
-        final text = List<String>.generate(
-          40,
-          (index) => 'Journal line ${index + 1}',
-        ).join('\n');
-        final firstSelectionOffset = text.indexOf('Journal line 10');
-        controller.value = TextEditingValue(
-          text: text,
-          selection: TextSelection.collapsed(offset: firstSelectionOffset),
-        );
-        await tester.pumpAndSettle();
+          final rect = tester.getRect(find.byKey(key));
+          expect(rect.top, greaterThanOrEqualTo(0), reason: key.value);
+          expect(rect.bottom, lessThanOrEqualTo(544), reason: key.value);
+          await tester.enterText(find.byKey(key), '${key.value} typing');
+          await tester.pump();
+          expect(
+            tester.getRect(find.byKey(key)).bottom,
+            lessThanOrEqualTo(544),
+            reason: '${key.value} while typing',
+          );
+        }
 
-        scrollController.jumpTo(scrollController.position.maxScrollExtent);
-        controller.selection = TextSelection.collapsed(
-          offset: firstSelectionOffset + 'Journal'.length,
-        );
-        await tester.pumpAndSettle();
-
-        final editable = tester.state<EditableTextState>(
-          find.byType(EditableText),
-        );
-        final caretRect = editable.renderEditable.getLocalRectForCaret(
-          controller.selection.extent,
-        );
-        final caretTop = editable.renderEditable
-            .localToGlobal(caretRect.topLeft)
-            .dy;
-        final caretBottom = editable.renderEditable
-            .localToGlobal(caretRect.bottomLeft)
-            .dy;
-        final editableTop = editable.renderEditable
-            .localToGlobal(Offset.zero)
-            .dy;
-
-        expect(
-          scrollController.offset,
-          lessThan(scrollController.position.maxScrollExtent),
-        );
-        expect(caretTop, greaterThanOrEqualTo(editableTop + 8));
-        expect(caretBottom, lessThanOrEqualTo(544));
         expect(tester.takeException(), isNull);
       },
     );
@@ -1000,24 +971,48 @@ class _KeyboardHarness extends StatelessWidget {
       return MaterialApp(
         builder: (context, child) =>
             KemeticKeyboardHost(child: child ?? const SizedBox.shrink()),
-        home: Scaffold(body: _buildInputBody()),
+        home: Scaffold(
+          body: KeyboardAwareEditableSurface(child: _buildInputBody()),
+        ),
       );
     }
 
     return MaterialApp(
-      home: Scaffold(body: KemeticKeyboardHost(child: _buildInputBody())),
+      home: Scaffold(
+        body: KemeticKeyboardHost(
+          child: KeyboardAwareEditableSurface(child: _buildInputBody()),
+        ),
+      ),
     );
   }
 }
 
-class _ExpandingSystemKeyboardHarness extends StatelessWidget {
-  const _ExpandingSystemKeyboardHarness({
-    required this.controller,
-    required this.scrollController,
-  });
+class _FieldPositionHarness extends StatelessWidget {
+  const _FieldPositionHarness();
 
-  final TextEditingController controller;
-  final ScrollController scrollController;
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: Scaffold(
+        resizeToAvoidBottomInset: true,
+        body: ListView(
+          padding: const EdgeInsets.all(24),
+          children: const [
+            TextField(key: ValueKey<String>('first-keyboard-input')),
+            SizedBox(height: 360),
+            TextField(key: ValueKey<String>('middle-keyboard-input')),
+            SizedBox(height: 360),
+            TextField(key: ValueKey<String>('final-keyboard-input')),
+            SizedBox(height: 120),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CustomScrollableHarness extends StatelessWidget {
+  const _CustomScrollableHarness();
 
   @override
   Widget build(BuildContext context) {
@@ -1025,17 +1020,14 @@ class _ExpandingSystemKeyboardHarness extends StatelessWidget {
       builder: (context, child) =>
           KemeticKeyboardHost(child: child ?? const SizedBox.shrink()),
       home: Scaffold(
-        resizeToAvoidBottomInset: true,
-        body: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 280, 24, 0),
-          child: TextField(
-            key: const ValueKey('expanding-keyboard-input'),
-            controller: controller,
-            scrollController: scrollController,
-            expands: true,
-            maxLines: null,
-            keyboardType: TextInputType.multiline,
-            textInputAction: TextInputAction.newline,
+        body: KeyboardAwareEditableSurface(
+          child: ListView(
+            padding: const EdgeInsets.all(24),
+            children: const [
+              SizedBox(height: 680),
+              TextField(key: ValueKey<String>('kemetic-input')),
+              SizedBox(height: 220),
+            ],
           ),
         ),
       ),
@@ -1057,24 +1049,25 @@ class _SystemKeyboardInsetHarness extends StatelessWidget {
     final field = TextField(
       key: const ValueKey('system-keyboard-input'),
       controller: controller,
-      scrollPadding: keyboardManagedTextFieldScrollPadding,
     );
     return MaterialApp(
       builder: (context, child) =>
           KemeticKeyboardHost(child: child ?? const SizedBox.shrink()),
       home: Scaffold(
         resizeToAvoidBottomInset: true,
-        body: SingleChildScrollView(
-          controller: scrollController,
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const SizedBox(height: 720),
-                field,
-                const SizedBox(height: 360),
-              ],
+        body: KeyboardAwareEditableSurface(
+          child: SingleChildScrollView(
+            controller: scrollController,
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 720),
+                  field,
+                  const SizedBox(height: 360),
+                ],
+              ),
             ),
           ),
         ),
@@ -1159,8 +1152,8 @@ class _QuickAddSheetHarnessContentState
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+    return KeyboardAwareEditableSurface(
+      manageSystemKeyboardInset: true,
       child: SafeArea(
         top: false,
         child: SingleChildScrollView(
@@ -1179,7 +1172,6 @@ class _QuickAddSheetHarnessContentState
               TextField(
                 key: const ValueKey('quick-add-input'),
                 controller: _textCtrl,
-                scrollPadding: keyboardManagedTextFieldScrollPadding,
                 autofocus: false,
                 focusNode: _focusNode,
                 style: const TextStyle(color: Colors.white),

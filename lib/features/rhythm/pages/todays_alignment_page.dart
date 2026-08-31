@@ -29,7 +29,6 @@ import 'package:mobile/shared/glossy_text.dart';
 import 'package:mobile/shared/kemetic_text.dart';
 import 'package:mobile/widgets/kemetic_app_bar_action.dart';
 import 'package:mobile/widgets/kemetic_day_info.dart';
-import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:mobile/widgets/utility_sheet_route_scaffold.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/services/session_resume_service.dart';
@@ -1995,7 +1994,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
           title: const Text('Edit note', style: TextStyle(color: Colors.white)),
           content: TextField(
             controller: controller,
-            scrollPadding: keyboardManagedTextFieldScrollPadding,
             maxLines: 4,
             minLines: 2,
             autofocus: false,
@@ -2251,7 +2249,6 @@ class _TodaysAlignmentPageState extends State<TodaysAlignmentPage> {
       width: width,
       child: TextField(
         controller: controller,
-        scrollPadding: keyboardManagedTextFieldScrollPadding,
         style: RhythmTheme.subheading,
         decoration: InputDecoration(
           hintText: hintText,

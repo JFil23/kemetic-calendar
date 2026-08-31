@@ -25,6 +25,7 @@ import '../../services/restoration_coordinator.dart';
 import '../../services/session_resume_service.dart';
 import '../../widgets/kemetic_app_bar_action.dart';
 import '../../widgets/kemetic_heart_icon.dart';
+import '../../widgets/keyboard_aware.dart';
 import '../../widgets/profile_avatar.dart';
 import '../../widgets/utility_sheet_route_scaffold.dart';
 import '../calendar/calendar_page.dart' show CalendarPage;
@@ -2732,7 +2733,7 @@ class _FlowPreviewCardState extends State<FlowPreviewCard> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.of(context).viewInsets.bottom;
+    final bottomPadding = keyboardInsetOf(context);
     final screenHeight = MediaQuery.of(context).size.height;
 
     return Container(

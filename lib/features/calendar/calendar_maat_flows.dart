@@ -4418,10 +4418,8 @@ class _MaatFlowTemplateDetailPageState
         final media = MediaQuery.of(sheetCtx);
         return StatefulBuilder(
           builder: (sheetCtx, setSheetState) {
-            return AnimatedPadding(
-              duration: const Duration(milliseconds: 180),
-              curve: Curves.easeOut,
-              padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+            return KeyboardAwareEditableSurface(
+              manageSystemKeyboardInset: true,
               child: SafeArea(
                 top: false,
                 child: FractionallySizedBox(
@@ -4929,7 +4927,7 @@ class _MaatFlowTemplateDetailPageState
     final ctaPadding = embedded
         ? const EdgeInsets.fromLTRB(14, 10, 14, 14)
         : const EdgeInsets.fromLTRB(18, 14, 18, 22);
-    return Scaffold(
+    final page = Scaffold(
       resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
       backgroundColor: MaatFlowListTokens.pageBg,
       appBar: embedded ? null : _buildMaatFlowDetailAppBar(context),
@@ -4977,6 +4975,7 @@ class _MaatFlowTemplateDetailPageState
         ),
       ),
     );
+    return KeyboardAwareEditableSurface(child: page);
   }
 
   Widget? _buildCurrentInitialPromptSlot({
@@ -7094,7 +7093,6 @@ class _MaatFlowTemplateDetailPageState
             const _MaatFlowDetailSectionLabel('WHAT DO YOU CARRY TODAY?'),
             TextField(
               controller: _eveningThresholdInitialCarryController,
-              scrollPadding: keyboardManagedTextFieldScrollPadding,
               maxLines: 3,
               minLines: 2,
               textInputAction: TextInputAction.newline,
@@ -8787,7 +8785,7 @@ class _MaatFlowTemplateDetailPageState
       if (!FollowSkyV2Flags.useV2Production) {
         return _buildTrackSkyScaffold(context);
       }
-      return FollowSkyDetailPage(
+      final page = FollowSkyDetailPage(
         key: _followSkyDetailKey,
         standalone: false,
         isJoined: widget.alreadyJoined,
@@ -8827,6 +8825,7 @@ class _MaatFlowTemplateDetailPageState
           );
         },
       );
+      return KeyboardAwareEditableSurface(child: page);
     }
     if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
       return _buildDawnHouseRiteScaffold(context);
