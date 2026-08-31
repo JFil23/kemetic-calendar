@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import 'kemetic_keyboard.dart';
 import 'keyboard_viewport_metrics.dart';
@@ -8,6 +8,49 @@ import 'keyboard_viewport_metrics.dart';
 const ValueKey<String> keyboardAwareEditableSurfaceKey = ValueKey<String>(
   'keyboard-aware-editable-surface',
 );
+const ValueKey<String> editableModalSystemInsetOwnerKey = ValueKey<String>(
+  'editable-modal-system-inset-owner',
+);
+
+/// Opens an editable modal whose route content owns the system inset once.
+///
+/// The whole visible sheet is lifted above the system keyboard, then the
+/// consumed inset is removed for descendants. Inner editable surfaces remain
+/// responsible only for the overlaid Kemetic keyboard.
+Future<T?> showEditableModalBottomSheet<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+  Color? backgroundColor,
+}) {
+  return showModalBottomSheet<T>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    requestFocus: true,
+    backgroundColor: backgroundColor,
+    builder: (modalContext) =>
+        _EditableModalSystemInsetOwner(child: builder(modalContext)),
+  );
+}
+
+class _EditableModalSystemInsetOwner extends StatelessWidget {
+  const _EditableModalSystemInsetOwner({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    return Padding(
+      key: editableModalSystemInsetOwnerKey,
+      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+      child: MediaQuery(
+        data: media.removeViewInsets(removeBottom: true),
+        child: child,
+      ),
+    );
+  }
+}
 
 KeyboardViewportMetrics keyboardViewportMetricsOf(BuildContext context) {
   final scope = KemeticKeyboardScope.maybeOf(context);

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../widgets/keyboard_aware.dart';
 import '../maat_flow_visual_tokens.dart';
 
 /// Flow-owned colors applied to the shared Ma'at detail geometry.
@@ -93,6 +94,8 @@ class _MaatFlowDetailShellState extends State<MaatFlowDetailShell> {
 
   @override
   Widget build(BuildContext context) {
+    final showBottomDock =
+        widget.bottomDock != null && !keyboardIsVisible(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
@@ -157,7 +160,7 @@ class _MaatFlowDetailShellState extends State<MaatFlowDetailShell> {
                   ),
                 ],
               ),
-              if (widget.bottomDock != null)
+              if (showBottomDock)
                 Positioned(
                   left: 0,
                   right: 0,

@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('universal keyboard architecture guard', () {
-    test('raw viewport insets have exactly two production authorities', () {
+    test('raw viewport insets have exactly three production authorities', () {
       final owners =
           _dartSourcesUnder('lib')
               .where((file) => file.readAsStringSync().contains('viewInsets'))
@@ -16,8 +16,21 @@ void main() {
         owners,
         equals(<String>[
           'lib/widgets/kemetic_keyboard.dart',
+          'lib/widgets/keyboard_aware.dart',
           'lib/widgets/keyboard_viewport_metrics.dart',
         ]),
+      );
+    });
+
+    test('editable modal route consumes the system inset exactly once', () {
+      final source = File('lib/widgets/keyboard_aware.dart').readAsStringSync();
+
+      expect(source, contains('showEditableModalBottomSheet<T>'));
+      expect(source, contains('media.viewInsets.bottom'));
+      expect(source, contains('media.removeViewInsets(removeBottom: true)'));
+      expect(
+        RegExp(r'class _EditableModalSystemInsetOwner').allMatches(source),
+        hasLength(1),
       );
     });
 
@@ -120,6 +133,26 @@ void main() {
         expect(
           File(path).readAsStringSync(),
           contains('KeyboardAwareEditableSurface('),
+          reason: path,
+        );
+      }
+    });
+
+    test('representative editable modals use the shared route boundary', () {
+      const paths = <String>[
+        'lib/features/calendar/the_reading_house/presentation/'
+            'reading_house_detail_page.dart',
+        'lib/features/calendar/the_reading_house/presentation/'
+            'reading_house_sitting_editor.dart',
+        'lib/features/nodes/node_link_picker_sheet.dart',
+      ];
+
+      for (final path in paths) {
+        final source = File(path).readAsStringSync();
+        expect(source, contains('showEditableModalBottomSheet'), reason: path);
+        expect(
+          source,
+          isNot(contains('manageSystemKeyboardInset: true')),
           reason: path,
         );
       }

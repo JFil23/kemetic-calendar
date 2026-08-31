@@ -26,17 +26,15 @@ Future<NodeLinkPickerResult?> showNodeLinkPickerSheet({
   KemeticNode? currentNode,
 }) {
   final nodes = KemeticNodeLibrary.nodes;
-  return showModalBottomSheet<NodeLinkPickerResult>(
+  return showEditableModalBottomSheet<NodeLinkPickerResult>(
     context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
     backgroundColor: Colors.black,
     builder: (ctx) {
       final controller = TextEditingController();
       return StatefulBuilder(
         builder: (context, setSheet) {
           final query = controller.text.trim().toLowerCase();
-          final media = MediaQuery.of(ctx);
+          final media = MediaQuery.of(context);
           final closedHeight = media.size.height * 0.72;
           final filtered = nodes
               .where(
@@ -50,7 +48,6 @@ Future<NodeLinkPickerResult?> showNodeLinkPickerSheet({
               .toList();
 
           return KeyboardAwareEditableSurface(
-            manageSystemKeyboardInset: true,
             child: Padding(
               padding: EdgeInsets.only(
                 left: 16,

@@ -783,11 +783,13 @@ void main() {
       expect(detailSource, contains('KeyboardAwareEditableSurface('));
       expect(detailSource, isNot(contains('scrollPadding:')));
       expect(detailSource, isNot(contains('viewInsets')));
-      expect(detailSource, contains('requestFocus: true'));
+      expect(detailSource, contains('showEditableModalBottomSheet'));
+      expect(detailSource, isNot(contains('showModalBottomSheet')));
       expect(sittingSource, contains('KeyboardAwareEditableSurface('));
       expect(sittingSource, isNot(contains('scrollPadding:')));
       expect(sittingSource, isNot(contains('viewInsets')));
-      expect(sittingSource, contains('requestFocus: true'));
+      expect(sittingSource, contains('showEditableModalBottomSheet'));
+      expect(sittingSource, isNot(contains('showModalBottomSheet')));
       expect(sittingSource, contains('FocusScopeNode('));
       expect(sittingSource, contains('_releaseFocus();'));
       expect(sittingSource, contains('MaatFlowDatePicker.show('));

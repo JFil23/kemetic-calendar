@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_tokens.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
+import 'package:mobile/widgets/kemetic_keyboard.dart';
 
 void main() {
   const theme = MaatFlowDetailTheme(
@@ -96,5 +97,89 @@ void main() {
       ),
     );
     expect(opacity.opacity, lessThan(1));
+  });
+
+  testWidgets('shell hides its dock for the system keyboard and restores it', (
+    tester,
+  ) async {
+    Widget harness({required bool keyboardVisible}) {
+      return MaterialApp(
+        home: KemeticKeyboardScope(
+          isCustomKeyboardVisible: false,
+          customKeyboardInset: 0,
+          systemKeyboardInset: keyboardVisible ? 300 : 0,
+          keyboardInset: keyboardVisible ? 300 : 0,
+          visibleTop: 0,
+          visibleBottom: keyboardVisible ? 544 : 844,
+          isSystemKeyboardVisible: keyboardVisible,
+          child: Scaffold(
+            body: MaatFlowDetailShell(
+              theme: theme,
+              hero: const ColoredBox(color: Colors.blue),
+              sheet: const SizedBox(height: 1000),
+              bottomDock: const SizedBox(
+                key: ValueKey<String>('system-keyboard-dock'),
+                height: 100,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(harness(keyboardVisible: true));
+
+    expect(
+      find.byKey(const ValueKey<String>('system-keyboard-dock')),
+      findsNothing,
+    );
+
+    await tester.pumpWidget(harness(keyboardVisible: false));
+
+    expect(
+      find.byKey(const ValueKey<String>('system-keyboard-dock')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('shell hides its dock for the Kemetic keyboard and restores it', (
+    tester,
+  ) async {
+    Widget harness({required bool keyboardVisible}) {
+      return MaterialApp(
+        home: KemeticKeyboardScope(
+          isCustomKeyboardVisible: keyboardVisible,
+          customKeyboardInset: keyboardVisible ? 300 : 0,
+          systemKeyboardInset: 0,
+          keyboardInset: keyboardVisible ? 300 : 0,
+          visibleTop: 0,
+          visibleBottom: keyboardVisible ? 544 : 844,
+          isSystemKeyboardVisible: false,
+          child: Scaffold(
+            body: MaatFlowDetailShell(
+              theme: theme,
+              hero: const ColoredBox(color: Colors.blue),
+              sheet: const SizedBox(height: 1000),
+              bottomDock: const SizedBox(
+                key: ValueKey<String>('kemetic-keyboard-dock'),
+                height: 100,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(harness(keyboardVisible: true));
+    expect(
+      find.byKey(const ValueKey<String>('kemetic-keyboard-dock')),
+      findsNothing,
+    );
+
+    await tester.pumpWidget(harness(keyboardVisible: false));
+    expect(
+      find.byKey(const ValueKey<String>('kemetic-keyboard-dock')),
+      findsOneWidget,
+    );
   });
 }

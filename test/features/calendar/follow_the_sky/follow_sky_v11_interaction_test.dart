@@ -631,8 +631,8 @@ void main() {
       expect(tester.getRect(tabs), visualTabsRect);
       expect(tester.getRect(question), visualQuestionRect);
       expect(tester.getRect(field), visualFieldRect);
-      expect(tester.getRect(dock), visualDockRect);
-      expect(tester.getRect(dockControl), visualDockControlRect);
+      expect(dock, findsNothing);
+      expect(dockControl, findsNothing);
 
       FocusManager.instance.primaryFocus?.unfocus();
       tester.view.viewInsets = FakeViewPadding.zero;
@@ -643,6 +643,8 @@ void main() {
         tester.getRect(sheet).height,
         closeTo(closedSheetRect.height, 0.01),
       );
+      expect(dock, findsOneWidget);
+      expect(dockControl, findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -789,6 +791,7 @@ Future<void> _expectWorkedIntentionKeyboardContract(
     'What do you want to stay true to when conditions change?',
   );
   final preview = _byKeyPrefix('follow-sky-preview-day-').first;
+  final dock = find.byType(FollowSkyV11Dock);
   final scrollable = _followSkyScrollable();
   final scrollState = tester.state<ScrollableState>(scrollable);
 
@@ -809,6 +812,7 @@ Future<void> _expectWorkedIntentionKeyboardContract(
 
   final initialQuestionRect = tester.getRect(question);
   final initialFieldRect = tester.getRect(field);
+  expect(dock, findsOneWidget);
   expect(initialQuestionRect.top, closeTo(recordedQuestionTop, 0.5));
   expect(initialFieldRect.top, greaterThan(initialQuestionRect.bottom));
   expect(initialFieldRect.bottom, lessThan(tester.getRect(preview).top));
@@ -875,7 +879,7 @@ Future<void> _expectWorkedIntentionKeyboardContract(
         .localToGlobal(caretRect.bottomLeft)
         .dy;
 
-    expect(questionRect.top, greaterThanOrEqualTo(visibleTop), reason: phase);
+    expect(dock, findsNothing, reason: phase);
     expect(fieldRect.top, greaterThan(questionRect.bottom), reason: phase);
     expect(fieldRect.top, greaterThanOrEqualTo(visibleTop), reason: phase);
     expect(fieldRect.bottom, lessThanOrEqualTo(visibleBottom), reason: phase);
@@ -909,6 +913,7 @@ Future<void> _expectWorkedIntentionKeyboardContract(
   final dismissedOffsets = <double>[];
   for (var cycle = 0; cycle < 3; cycle++) {
     await closeKeyboard();
+    expect(dock, findsOneWidget, reason: '${scenario.label} cycle $cycle');
     dismissedOffsets.add(scrollState.position.pixels);
 
     await tester.tap(field);

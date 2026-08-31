@@ -466,11 +466,8 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
     if (authority == null || !_canManageMembership) return;
     final excluded = <String>{for (final member in _members) member.userId};
     FocusManager.instance.primaryFocus?.unfocus();
-    final invited = await showModalBottomSheet<SharedCalendarMember>(
+    final invited = await showEditableModalBottomSheet<SharedCalendarMember>(
       context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      requestFocus: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _ReaderInviteSheet(
         authority: authority,
@@ -2096,7 +2093,6 @@ class _ReaderInviteSheetState extends State<_ReaderInviteSheet> {
   @override
   Widget build(BuildContext context) {
     return KeyboardAwareEditableSurface(
-      manageSystemKeyboardInset: true,
       child: Material(
         key: const ValueKey<String>('reading-house-invite-sheet'),
         color: const Color(0xFF0A0D0B),

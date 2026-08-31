@@ -15,7 +15,6 @@ class ReadingHouseSittingEditorSheet extends StatefulWidget {
     required this.accentColor,
     required this.borderColor,
     this.onSave,
-    this.manageKeyboardInset = true,
   });
 
   final ReadingHouseSitting sitting;
@@ -25,7 +24,6 @@ class ReadingHouseSittingEditorSheet extends StatefulWidget {
   final Color accentColor;
   final Color borderColor;
   final Future<bool> Function(ReadingHouseSitting sitting)? onSave;
-  final bool manageKeyboardInset;
 
   static Future<ReadingHouseSitting?> show(
     BuildContext context, {
@@ -36,15 +34,11 @@ class ReadingHouseSittingEditorSheet extends StatefulWidget {
     required Color accentColor,
     required Color borderColor,
     Future<bool> Function(ReadingHouseSitting sitting)? onSave,
-    bool manageKeyboardInset = true,
   }) async {
     FocusManager.instance.primaryFocus?.unfocus();
     try {
-      return await showModalBottomSheet<ReadingHouseSitting>(
+      return await showEditableModalBottomSheet<ReadingHouseSitting>(
         context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        requestFocus: true,
         backgroundColor: Colors.transparent,
         builder: (_) => ReadingHouseSittingEditorSheet(
           sitting: sitting,
@@ -54,7 +48,6 @@ class ReadingHouseSittingEditorSheet extends StatefulWidget {
           accentColor: accentColor,
           borderColor: borderColor,
           onSave: onSave,
-          manageKeyboardInset: manageKeyboardInset,
         ),
       );
     } finally {
@@ -261,7 +254,6 @@ class _ReadingHouseSittingEditorSheetState
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     return KeyboardAwareEditableSurface(
-      manageSystemKeyboardInset: widget.manageKeyboardInset,
       child: Padding(
         padding: EdgeInsets.only(
           left: 18,
