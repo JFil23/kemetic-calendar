@@ -12,51 +12,9 @@ import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calen
 import 'package:mobile/features/calendar/the_reading_house_flow.dart';
 import 'package:mobile/features/calendar/track_sky_flow.dart';
 import 'package:mobile/widgets/keyboard_aware.dart';
-import 'package:mobile/widgets/keyboard_viewport_metrics.dart';
 
 import '../reading_house_authority.dart';
 import 'reading_house_sitting_editor.dart';
-
-@immutable
-class ReadingHouseScrollDiagnosticSample {
-  const ReadingHouseScrollDiagnosticSample({
-    required this.phase,
-    required this.source,
-    required this.offset,
-    required this.minScrollExtent,
-    required this.maxScrollExtent,
-    required this.focusedField,
-    required this.focusedTop,
-    required this.focusedBottom,
-    required this.mediaHeight,
-    required this.viewInsetBottom,
-    required this.systemKeyboardVisible,
-  });
-
-  final String phase;
-  final String source;
-  final double offset;
-  final double minScrollExtent;
-  final double maxScrollExtent;
-  final String focusedField;
-  final double? focusedTop;
-  final double? focusedBottom;
-  final double mediaHeight;
-  final double viewInsetBottom;
-  final bool systemKeyboardVisible;
-
-  String toReport() {
-    String number(double? value) =>
-        value == null ? 'n/a' : value.toStringAsFixed(1);
-    return 'ReadingHouse phase=$phase source=$source '
-        'field=$focusedField offset=${number(offset)} '
-        'min=${number(minScrollExtent)} max=${number(maxScrollExtent)} '
-        'fieldTop=${number(focusedTop)} fieldBottom=${number(focusedBottom)} '
-        'mediaHeight=${number(mediaHeight)} '
-        'viewInsetBottom=${number(viewInsetBottom)} '
-        'systemKeyboardVisible=$systemKeyboardVisible';
-  }
-}
 
 abstract final class ReadingHouseDetailTokens {
   static const Color pageBackground = Color(0xFF050504);
@@ -117,7 +75,6 @@ class ReadingHouseDetailPage extends StatefulWidget {
     this.onPersisted,
     this.showBackButton = true,
     this.resizeToAvoidBottomInset = true,
-    this.diagnosticScrollObserver,
   });
 
   final TrackSkyTimeZone timezone;
@@ -135,31 +92,12 @@ class ReadingHouseDetailPage extends StatefulWidget {
   final Future<void> Function(ReadingHouseSnapshot snapshot)? onPersisted;
   final bool showBackButton;
   final bool resizeToAvoidBottomInset;
-  final ValueChanged<ReadingHouseScrollDiagnosticSample>?
-  diagnosticScrollObserver;
-
-  /// Builds the exact decorated field currently used by Edition and House
-  /// Question, for the staging-only field/environment matrix.
-  static Widget buildSetupFieldDiagnostic({
-    required String label,
-    required String hintText,
-    required TextEditingController controller,
-    required Key fieldKey,
-  }) {
-    return _SetupTextField(
-      label: label,
-      hintText: hintText,
-      controller: controller,
-      fieldKey: fieldKey,
-    );
-  }
 
   @override
   State<ReadingHouseDetailPage> createState() => _ReadingHouseDetailPageState();
 }
 
-class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage>
-    with WidgetsBindingObserver {
+class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
   late final TextEditingController _bookController;
   late final TextEditingController _editionController;
   late final TextEditingController _questionController;
@@ -184,8 +122,6 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage>
   int _detailsSaveSerial = 0;
   int _memberRefreshSerial = 0;
   Timer? _saveDebounce;
-  Timer? _diagnosticKeyboardSettle;
-  String _lastDiagnosticTrigger = 'page-ready';
 
   @override
   void initState() {
@@ -224,164 +160,16 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage>
         widget.authority != null) {
       unawaited(_loadHouse());
     }
-    if (widget.diagnosticScrollObserver != null) {
-      WidgetsBinding.instance.addObserver(this);
-      FocusManager.instance.addListener(_handleDiagnosticFocusChanged);
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _emitScrollDiagnostic('page.ready', source: 'initial-layout');
-      });
-    }
   }
 
   @override
   void dispose() {
     _saveDebounce?.cancel();
-    _diagnosticKeyboardSettle?.cancel();
-    if (widget.diagnosticScrollObserver != null) {
-      WidgetsBinding.instance.removeObserver(this);
-      FocusManager.instance.removeListener(_handleDiagnosticFocusChanged);
-    }
     _scrollController.dispose();
     _bookController.dispose();
     _editionController.dispose();
     _questionController.dispose();
     super.dispose();
-  }
-
-  @override
-  void didUpdateWidget(covariant ReadingHouseDetailPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final hadObserver = oldWidget.diagnosticScrollObserver != null;
-    final hasObserver = widget.diagnosticScrollObserver != null;
-    if (hadObserver == hasObserver) return;
-    if (hasObserver) {
-      WidgetsBinding.instance.addObserver(this);
-      FocusManager.instance.addListener(_handleDiagnosticFocusChanged);
-    } else {
-      _diagnosticKeyboardSettle?.cancel();
-      WidgetsBinding.instance.removeObserver(this);
-      FocusManager.instance.removeListener(_handleDiagnosticFocusChanged);
-    }
-  }
-
-  @override
-  void didChangeMetrics() {
-    if (widget.diagnosticScrollObserver == null) return;
-    _lastDiagnosticTrigger = 'keyboard-metrics';
-    _emitScrollDiagnostic(
-      'keyboard.metrics.immediate',
-      source: 'platform-metrics',
-    );
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _emitScrollDiagnostic(
-        'keyboard.metrics.postFrame',
-        source: 'platform-metrics',
-      );
-    });
-    _diagnosticKeyboardSettle?.cancel();
-    _diagnosticKeyboardSettle = Timer(const Duration(milliseconds: 750), () {
-      _emitScrollDiagnostic(
-        'keyboard.metrics.settled',
-        source: 'platform-metrics',
-      );
-    });
-  }
-
-  void _handleDiagnosticFocusChanged() {
-    if (widget.diagnosticScrollObserver == null) return;
-    _lastDiagnosticTrigger = 'focus-change';
-    _emitScrollDiagnostic('focus.immediate', source: 'focus-manager');
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _emitScrollDiagnostic('focus.postFrame', source: 'focus-manager');
-    });
-  }
-
-  bool _handleDiagnosticScrollNotification(ScrollNotification notification) {
-    if (widget.diagnosticScrollObserver == null || notification.depth != 0) {
-      return false;
-    }
-    final source = switch (notification) {
-      ScrollStartNotification(:final dragDetails) =>
-        dragDetails == null
-            ? 'framework-scroll-after-$_lastDiagnosticTrigger'
-            : 'user-drag',
-      ScrollUpdateNotification(:final dragDetails) =>
-        dragDetails == null
-            ? 'framework-scroll-after-$_lastDiagnosticTrigger'
-            : 'user-drag',
-      OverscrollNotification(:final dragDetails) =>
-        dragDetails == null
-            ? 'framework-overscroll-after-$_lastDiagnosticTrigger'
-            : 'user-drag',
-      UserScrollNotification() => 'user-scroll-direction',
-      ScrollEndNotification() => 'scroll-end',
-      _ => 'scroll-notification',
-    };
-    _emitScrollDiagnostic('scroll.${notification.runtimeType}', source: source);
-    return false;
-  }
-
-  void _emitScrollDiagnostic(String phase, {required String source}) {
-    final observer = widget.diagnosticScrollObserver;
-    if (observer == null || !mounted) return;
-    final position = _scrollController.hasClients
-        ? _scrollController.position
-        : null;
-    final focus = FocusManager.instance.primaryFocus;
-    final focusedContext = focus?.context;
-    final focusedField = _focusedReadingHouseField(focusedContext);
-    final focusedRect = _focusedEditableRect(focusedContext);
-    final media = keyboardMediaGeometryOf(context);
-    final viewport = keyboardViewportMetricsOf(context);
-    observer(
-      ReadingHouseScrollDiagnosticSample(
-        phase: phase,
-        source: source,
-        offset: position?.pixels ?? 0,
-        minScrollExtent: position?.minScrollExtent ?? 0,
-        maxScrollExtent: position?.maxScrollExtent ?? 0,
-        focusedField: focusedField,
-        focusedTop: focusedRect?.top,
-        focusedBottom: focusedRect?.bottom,
-        mediaHeight: media.size.height,
-        viewInsetBottom: media.viewInsetBottom,
-        systemKeyboardVisible: viewport.systemKeyboardVisible,
-      ),
-    );
-  }
-
-  String _focusedReadingHouseField(BuildContext? focusedContext) {
-    if (focusedContext == null) return 'none';
-    final labels = <Key, String>{
-      const ValueKey<String>('reading-house-book'): 'Book',
-      const ValueKey<String>('reading-house-edition'): 'Edition',
-      const ValueKey<String>('reading-house-question'): 'House Question',
-    };
-    String? result;
-    focusedContext.visitAncestorElements((element) {
-      final label = labels[element.widget.key];
-      if (label != null) {
-        result = label;
-        return false;
-      }
-      return true;
-    });
-    return result ?? 'other';
-  }
-
-  Rect? _focusedEditableRect(BuildContext? focusedContext) {
-    if (focusedContext == null) return null;
-    Element? editableElement;
-    focusedContext.visitAncestorElements((element) {
-      if (element.widget is EditableText) {
-        editableElement = element;
-        return false;
-      }
-      return true;
-    });
-    final renderObject = editableElement?.findRenderObject();
-    if (renderObject is! RenderBox || !renderObject.hasSize) return null;
-    return renderObject.localToGlobal(Offset.zero) & renderObject.size;
   }
 
   int get _placedCount =>
@@ -847,7 +635,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage>
 
   @override
   Widget build(BuildContext context) {
-    final detailBody = MaatFlowDetailShell(
+    final body = MaatFlowDetailShell(
       theme: ReadingHouseDetailTokens.theme,
       scrollController: _scrollController,
       scrollKey: const ValueKey<String>('reading-house-scroll'),
@@ -872,12 +660,6 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage>
             ),
       sheet: _buildSheet(context),
     );
-    final body = widget.diagnosticScrollObserver == null
-        ? detailBody
-        : NotificationListener<ScrollNotification>(
-            onNotification: _handleDiagnosticScrollNotification,
-            child: detailBody,
-          );
 
     return Scaffold(
       resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
@@ -969,22 +751,15 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (_canEdit)
-            TextField(
-              key: const ValueKey<String>('reading-house-book'),
-              controller: _bookController,
-              decoration: const InputDecoration(labelText: 'Book'),
-            )
-          else
-            _SetupTextField(
-              label: 'BOOK',
-              hintText: 'Name the book',
-              controller: _bookController,
-              enabled: false,
-              readOnlyValue: _plan.displayBookTitle,
-              topPadding: 0,
-              fieldKey: const ValueKey<String>('reading-house-book'),
-            ),
+          _SetupTextField(
+            label: 'BOOK',
+            hintText: 'Name the book',
+            controller: _bookController,
+            enabled: _canEdit,
+            readOnlyValue: _plan.displayBookTitle,
+            topPadding: 0,
+            fieldKey: const ValueKey<String>('reading-house-book'),
+          ),
           _SetupTextField(
             label: 'EDITION',
             trailing: 'optional · can wait',
