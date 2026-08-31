@@ -94,6 +94,7 @@ import 'services/restoration_coordinator.dart';
 import 'services/restoration_trace.dart';
 import 'services/session_resume_service.dart';
 import 'core/supabase_runtime_config_guard.dart' as runtime_config;
+import 'debug/modal_keyboard_diagnostic_page.dart';
 
 // Conditional import: on web we use URL cleanup + visibility hook; elsewhere no-ops.
 import 'utils/web_history.dart'
@@ -121,6 +122,9 @@ const _debugInitialRouteEnv = String.fromEnvironment('H3W_DEBUG_ROUTE');
 const _debugDaySheetSmokeEnv = bool.fromEnvironment(
   'H3W_DEBUG_DAY_SHEET_SMOKE',
 );
+
+bool get _modalKeyboardDiagnosticsEnabled =>
+    kDebugMode || appEnvironmentEnv.trim().toLowerCase() == 'staging';
 
 bool _debugDaySheetSmokeBootRequested = false;
 
@@ -1545,6 +1549,16 @@ GoRouter _createRouter({required String initialLocation}) => GoRouter(
             child: CalendarPage.buildDebugDaySheetSmokeRoute(),
           );
         },
+      ),
+    if (_modalKeyboardDiagnosticsEnabled)
+      _calmRoute(
+        path: modalKeyboardDiagnosticRoute,
+        builder: (context, state) => SessionTrackedRoute(
+          location: state.uri.toString(),
+          child: const ModalKeyboardDiagnosticPage(
+            buildLabel: hydrationDiagnosticBuildEnv,
+          ),
+        ),
       ),
     _utilitySheetRoute(
       path: '/inbox',

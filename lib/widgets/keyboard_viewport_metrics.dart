@@ -14,6 +14,35 @@ typedef WebKeyboardViewportSnapshot = ({
 typedef KeyboardViewportMetricsResolver =
     KeyboardViewportMetrics Function(MediaQueryData media);
 
+/// Raw Flutter geometry exposed by the existing keyboard-metrics authority.
+///
+/// Diagnostic surfaces use this snapshot instead of becoming another reader
+/// of raw keyboard insets.
+@immutable
+class KeyboardMediaGeometry {
+  const KeyboardMediaGeometry({
+    required this.size,
+    required this.viewInsetBottom,
+    required this.viewPaddingBottom,
+    required this.paddingTop,
+  });
+
+  final Size size;
+  final double viewInsetBottom;
+  final double viewPaddingBottom;
+  final double paddingTop;
+}
+
+KeyboardMediaGeometry keyboardMediaGeometryOf(BuildContext context) {
+  final media = MediaQuery.of(context);
+  return KeyboardMediaGeometry(
+    size: media.size,
+    viewInsetBottom: media.viewInsets.bottom,
+    viewPaddingBottom: media.viewPadding.bottom,
+    paddingTop: media.padding.top,
+  );
+}
+
 /// One resolved description of the portion of the app viewport that is
 /// actually visible while a keyboard is present.
 ///
