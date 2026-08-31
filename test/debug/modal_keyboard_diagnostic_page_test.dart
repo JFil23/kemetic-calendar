@@ -23,6 +23,14 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  Future<void> openFieldMatrix(WidgetTester tester, String key) async {
+    final button = find.byKey(ValueKey<String>(key));
+    await tester.ensureVisible(button);
+    await tester.pumpAndSettle();
+    await tester.tap(button);
+    await tester.pumpAndSettle();
+  }
+
   test('diagnostic route is available only in debug or staging builds', () {
     final mainSource = File('lib/main.dart').readAsStringSync();
 
@@ -87,5 +95,68 @@ void main() {
       find.byKey(const ValueKey('reading_house_sitting_host_note_field')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('text-field matrix A uses unmodified stock Flutter fields', (
+    tester,
+  ) async {
+    await pumpHarness(tester);
+
+    await openFieldMatrix(tester, 'text-field-matrix-a');
+
+    final field = tester.widget<TextField>(
+      find.byKey(const ValueKey<String>('text-field-matrix-1')),
+    );
+    expect(field.decoration?.labelText, 'Baseline');
+    expect(field.decoration?.hintText, isNull);
+    expect(field.focusNode, isNull);
+    expect(field.style, isNull);
+    expect(field.scrollPadding, const EdgeInsets.all(20));
+    expect(field.autofillHints, isEmpty);
+  });
+
+  testWidgets('text-field matrix C uses the current Reading House field', (
+    tester,
+  ) async {
+    await pumpHarness(tester);
+
+    await openFieldMatrix(tester, 'text-field-matrix-c');
+
+    final field = tester.widget<TextField>(
+      find.byKey(const ValueKey<String>('text-field-matrix-1')),
+    );
+    expect(field.decoration?.labelText, isNull);
+    expect(field.decoration?.hintText, 'Current Reading House field');
+    expect(field.focusNode, isNull);
+    expect(field.scrollPadding, const EdgeInsets.all(20));
+    expect(field.autofillHints, isEmpty);
+    expect(find.text('CURRENT HꜣW FIELD 1'), findsOneWidget);
+  });
+
+  testWidgets('text-field matrix B and D use the actual Reading House tree', (
+    tester,
+  ) async {
+    await pumpHarness(tester);
+
+    await openFieldMatrix(tester, 'text-field-matrix-bd');
+
+    final book = tester.widget<TextField>(
+      find.byKey(const ValueKey<String>('reading-house-book')),
+    );
+    expect(book.decoration?.labelText, 'Book');
+    expect(book.decoration?.hintText, isNull);
+    expect(book.focusNode, isNull);
+    expect(book.style, isNull);
+    expect(book.scrollPadding, const EdgeInsets.all(20));
+    expect(book.autofillHints, isEmpty);
+
+    final edition = tester.widget<TextField>(
+      find.byKey(const ValueKey<String>('reading-house-edition')),
+    );
+    expect(edition.decoration?.labelText, isNull);
+    expect(edition.decoration?.hintText, 'Translator, edition, or link');
+    expect(edition.focusNode, isNull);
+    expect(edition.scrollPadding, const EdgeInsets.all(20));
+    expect(edition.autofillHints, isEmpty);
   });
 }

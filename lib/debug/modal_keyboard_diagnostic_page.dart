@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../features/calendar/the_reading_house/presentation/reading_house_sitting_editor.dart';
+import '../features/calendar/the_reading_house/presentation/reading_house_detail_page.dart';
 import '../features/calendar/the_reading_house_flow.dart';
+import '../features/calendar/track_sky_flow.dart';
 import '../widgets/keyboard_aware.dart';
 import '../widgets/keyboard_viewport_metrics.dart';
 import 'modal_keyboard_diagnostic_browser.dart';
@@ -110,6 +112,47 @@ class _ModalKeyboardDiagnosticPageState
         _entries.removeRange(0, _entries.length - 240);
       }
     });
+  }
+
+  void _recordFieldMatrix(String report) {
+    if (!mounted) return;
+    final entry =
+        '#${++_sequence} ${DateTime.now().toIso8601String()}\n$report';
+    setState(() {
+      _entries.add(entry);
+      if (_entries.length > 240) {
+        _entries.removeRange(0, _entries.length - 240);
+      }
+    });
+  }
+
+  Future<void> _openFieldMatrixBase({required bool currentField}) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => _FieldMatrixBasePage(
+          currentField: currentField,
+          onDiagnostic: _recordFieldMatrix,
+        ),
+      ),
+    );
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  Future<void> _openReadingHouseFieldMatrix() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => ReadingHouseDetailPage(
+          timezone: TrackSkyTimeZone.pacific,
+          initialStartDate: DateTime(2026, 9, 14),
+          showBackButton: true,
+          diagnosticScrollObserver: (sample) =>
+              _recordFieldMatrix(sample.toReport()),
+        ),
+      ),
+    );
+    FocusManager.instance.primaryFocus?.unfocus();
   }
 
   Future<void> _showBaseline({
@@ -268,6 +311,29 @@ class _ModalKeyboardDiagnosticPageState
               onPressed: _showReadingHouseCase,
               child: const Text('C — Actual Reading House sitting editor'),
             ),
+            const SizedBox(height: 24),
+            Text(
+              'Text-field 2 × 2 matrix',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              key: const ValueKey<String>('text-field-matrix-a'),
+              onPressed: () => _openFieldMatrixBase(currentField: false),
+              child: const Text('A — Base field + base environment'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              key: const ValueKey<String>('text-field-matrix-c'),
+              onPressed: () => _openFieldMatrixBase(currentField: true),
+              child: const Text('C — Current Hꜣw field + base environment'),
+            ),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              key: const ValueKey<String>('text-field-matrix-bd'),
+              onPressed: _openReadingHouseFieldMatrix,
+              child: const Text('B + D — Actual Reading House environment'),
+            ),
             const SizedBox(height: 16),
             Row(
               children: [
@@ -304,6 +370,154 @@ class _ModalKeyboardDiagnosticPageState
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _FieldMatrixBasePage extends StatefulWidget {
+  const _FieldMatrixBasePage({
+    required this.currentField,
+    required this.onDiagnostic,
+  });
+
+  final bool currentField;
+  final ValueChanged<String> onDiagnostic;
+
+  @override
+  State<_FieldMatrixBasePage> createState() => _FieldMatrixBasePageState();
+}
+
+class _FieldMatrixBasePageState extends State<_FieldMatrixBasePage>
+    with WidgetsBindingObserver {
+  final ScrollController _scrollController = ScrollController();
+  final List<TextEditingController> _controllers = List.generate(
+    3,
+    (_) => TextEditingController(),
+  );
+  Timer? _keyboardSettle;
+  String _lastTrigger = 'page-ready';
+
+  String get _caseName => widget.currentField
+      ? 'C.currentFieldBaseEnvironment'
+      : 'A.baseFieldBaseEnvironment';
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    FocusManager.instance.addListener(_handleFocusChanged);
+    _scrollController.addListener(_handleScrollChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _emit('page.ready', source: 'initial-layout');
+    });
+  }
+
+  @override
+  void dispose() {
+    _keyboardSettle?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    FocusManager.instance.removeListener(_handleFocusChanged);
+    _scrollController.removeListener(_handleScrollChanged);
+    _scrollController.dispose();
+    for (final controller in _controllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    _lastTrigger = 'keyboard-metrics';
+    _emit('keyboard.metrics.immediate', source: 'platform-metrics');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _emit('keyboard.metrics.postFrame', source: 'platform-metrics');
+    });
+    _keyboardSettle?.cancel();
+    _keyboardSettle = Timer(const Duration(milliseconds: 750), () {
+      _emit('keyboard.metrics.settled', source: 'platform-metrics');
+    });
+  }
+
+  void _handleFocusChanged() {
+    if (!_ownsPrimaryFocus) return;
+    _lastTrigger = 'focus-change';
+    _emit('focus.immediate', source: 'focus-manager');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _emit('focus.postFrame', source: 'focus-manager');
+    });
+  }
+
+  void _handleScrollChanged() {
+    _emit('scroll.offset', source: 'framework-or-user-after-$_lastTrigger');
+  }
+
+  bool get _ownsPrimaryFocus {
+    final focusedContext = FocusManager.instance.primaryFocus?.context;
+    if (focusedContext == null) return false;
+    var owns = false;
+    focusedContext.visitAncestorElements((element) {
+      if (identical(element, context)) {
+        owns = true;
+        return false;
+      }
+      return true;
+    });
+    return owns;
+  }
+
+  void _emit(String phase, {required String source}) {
+    if (!mounted) return;
+    final position = _scrollController.hasClients
+        ? _scrollController.position
+        : null;
+    final focusedContext = FocusManager.instance.primaryFocus?.context;
+    final rect = _editableTextRect(focusedContext);
+    final media = keyboardMediaGeometryOf(context);
+    final viewport = keyboardViewportMetricsOf(context);
+    widget.onDiagnostic(
+      '$_caseName phase=$phase source=$source '
+      'offset=${_number(position?.pixels ?? 0)} '
+      'min=${_number(position?.minScrollExtent ?? 0)} '
+      'max=${_number(position?.maxScrollExtent ?? 0)} '
+      'fieldTop=${_number(rect?.top)} fieldBottom=${_number(rect?.bottom)} '
+      'mediaHeight=${_number(media.size.height)} '
+      'viewInsetBottom=${_number(media.viewInsetBottom)} '
+      'systemKeyboardVisible=${viewport.systemKeyboardVisible}',
+    );
+  }
+
+  Widget _field(int index) {
+    final key = ValueKey<String>('text-field-matrix-${index + 1}');
+    if (!widget.currentField) {
+      return TextField(
+        key: key,
+        controller: _controllers[index],
+        decoration: const InputDecoration(labelText: 'Baseline'),
+      );
+    }
+    return ReadingHouseDetailPage.buildSetupFieldDiagnostic(
+      label: 'CURRENT HꜣW FIELD ${index + 1}',
+      hintText: 'Current Reading House field',
+      controller: _controllers[index],
+      fieldKey: key,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(_caseName)),
+      body: ListView(
+        controller: _scrollController,
+        children: [
+          _field(0),
+          const SizedBox(height: 420),
+          _field(1),
+          const SizedBox(height: 420),
+          _field(2),
+          const SizedBox(height: 220),
+        ],
       ),
     );
   }

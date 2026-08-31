@@ -26,6 +26,7 @@ void main() {
     Size size = const Size(390, 844),
     _FakeReadingHouseAuthority? authority,
     int? initialFlowId,
+    ValueChanged<ReadingHouseScrollDiagnosticSample>? diagnosticScrollObserver,
   }) async {
     final fake = authority ?? _FakeReadingHouseAuthority();
     await tester.binding.setSurfaceSize(size);
@@ -42,6 +43,7 @@ void main() {
             initiallyHeld: initialFlowId != null,
             authority: fake,
             resolvePersonalCalendarId: () async => 'personal-calendar',
+            diagnosticScrollObserver: diagnosticScrollObserver,
           ),
         ),
       ),
@@ -346,6 +348,68 @@ void main() {
     expect(tester.widget<TextField>(search).focusNode?.hasFocus, isTrue);
     expect(tester.testTextInput.isVisible, isTrue);
   });
+
+  testWidgets(
+    'Book is the stock-field canary while sibling fields stay exact',
+    (tester) async {
+      await pumpHouse(tester);
+      await jumpHouseScroll(tester, 700);
+
+      final book = tester.widget<TextField>(
+        find.byKey(const ValueKey<String>('reading-house-book')),
+      );
+      expect(book.decoration?.labelText, 'Book');
+      expect(book.decoration?.hintText, isNull);
+      expect(book.focusNode, isNull);
+      expect(book.style, isNull);
+      expect(book.scrollPadding, const EdgeInsets.all(20));
+      expect(book.autofillHints, isEmpty);
+
+      final edition = tester.widget<TextField>(
+        find.byKey(const ValueKey<String>('reading-house-edition')),
+      );
+      expect(edition.decoration?.labelText, isNull);
+      expect(edition.decoration?.hintText, 'Translator, edition, or link');
+      expect(edition.focusNode, isNull);
+      expect(edition.style, isNotNull);
+      expect(edition.scrollPadding, const EdgeInsets.all(20));
+      expect(edition.autofillHints, isEmpty);
+    },
+  );
+
+  testWidgets(
+    'diagnostic observer captures focus, metrics, and scroll offset',
+    (tester) async {
+      final samples = <ReadingHouseScrollDiagnosticSample>[];
+      await pumpHouse(tester, diagnosticScrollObserver: samples.add);
+      await jumpHouseScroll(tester, 700);
+
+      final book = find.byKey(const ValueKey<String>('reading-house-book'));
+      await tester.tap(book);
+      await tester.pump();
+      expect(
+        samples.any(
+          (sample) =>
+              sample.phase == 'focus.immediate' &&
+              sample.focusedField == 'Book',
+        ),
+        isTrue,
+      );
+
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      addTearDown(() => tester.view.viewInsets = FakeViewPadding.zero);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 800));
+      expect(
+        samples.any((sample) => sample.phase == 'keyboard.metrics.settled'),
+        isTrue,
+      );
+      expect(
+        samples.any((sample) => sample.phase.startsWith('scroll.')),
+        isTrue,
+      );
+    },
+  );
 
   testWidgets(
     'sitting editor keeps every field above the keyboard and clears modal focus',
