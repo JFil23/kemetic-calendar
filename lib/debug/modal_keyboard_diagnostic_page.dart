@@ -13,6 +13,13 @@ import 'modal_keyboard_diagnostic_browser.dart';
 
 const String modalKeyboardDiagnosticRoute = '/debug/modal-keyboard';
 
+const ValueKey<String> modalKeyboardCaseESystemInsetOwnerKey = ValueKey<String>(
+  'modal-keyboard-case-e-system-inset-owner',
+);
+const ValueKey<String> modalKeyboardCaseEContentKey = ValueKey<String>(
+  'modal-keyboard-case-e-content',
+);
+
 class ModalKeyboardDiagnosticPage extends StatefulWidget {
   const ModalKeyboardDiagnosticPage({super.key, required this.buildLabel});
 
@@ -202,6 +209,46 @@ class _ModalKeyboardDiagnosticPageState
     _capture('$caseName.modalClosed');
   }
 
+  Future<void> _showSingleSystemInsetOwnerProof() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final probeKey = GlobalKey<_KeyboardGeometryProbeState>();
+    final contentKey = GlobalKey();
+    _activeProbeKey = probeKey;
+    _lastSystemKeyboardVisible = null;
+    const caseName = 'E.singleRouteSystemInsetOwner';
+
+    final future = showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      requestFocus: true,
+      builder: (_) => _KeyboardGeometryProbe(
+        key: probeKey,
+        caseName: caseName,
+        contentGeometryKey: contentKey,
+        child: _DiagnosticSystemInsetOwner(
+          contentKey: contentKey,
+          child: const _ThreeFieldBaseline(),
+        ),
+      ),
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _capture('$caseName.beforeFocus');
+    });
+    unawaited(
+      Future<void>.delayed(const Duration(milliseconds: 350), () {
+        if (mounted && identical(_activeProbeKey, probeKey)) {
+          _capture('$caseName.beforeFocus.settled');
+        }
+      }),
+    );
+    await future;
+    if (!mounted) return;
+    _activeProbeKey = null;
+    _lastSystemKeyboardVisible = null;
+    _capture('$caseName.modalClosed');
+  }
+
   Future<void> _showReadingHouseCase() async {
     FocusManager.instance.primaryFocus?.unfocus();
     final probeKey = GlobalKey<_KeyboardGeometryProbeState>();
@@ -273,9 +320,9 @@ class _ModalKeyboardDiagnosticPageState
             ),
             const SizedBox(height: 8),
             const Text(
-              'Run A, B, and C on the installed iOS PWA. In each sheet, '
-              'focus the last field, wait for the keyboard animation, dismiss '
-              'the keyboard without closing the sheet, then close the sheet.',
+              'Run E first on the installed iOS PWA. Focus its top, middle, '
+              'and bottom fields. The sheet content must remain entirely '
+              'above the system keyboard. A, B, and C remain as controls.',
             ),
             const SizedBox(height: 16),
             FilledButton(
@@ -304,6 +351,12 @@ class _ModalKeyboardDiagnosticPageState
                 sharedSurfaceOwnsSystemInset: true,
               ),
               child: const Text('Probe — shared sheet owns system inset'),
+            ),
+            const SizedBox(height: 8),
+            FilledButton.tonal(
+              key: const ValueKey<String>('modal-keyboard-case-e'),
+              onPressed: _showSingleSystemInsetOwnerProof,
+              child: const Text('E — One route-level system-inset owner'),
             ),
             const SizedBox(height: 8),
             FilledButton(
@@ -551,15 +604,49 @@ class _ThreeFieldBaseline extends StatelessWidget {
   }
 }
 
+/// Diagnostic-only proof of one system-inset owner at the modal-content root.
+///
+/// The owner consumes the system keyboard inset exactly once, then removes it
+/// from the descendant MediaQuery so the stock fields cannot consume it again.
+/// This stays private until Case E proves the boundary on the installed iOS
+/// PWA; it is not the shared production modal implementation.
+class _DiagnosticSystemInsetOwner extends StatelessWidget {
+  const _DiagnosticSystemInsetOwner({
+    required this.contentKey,
+    required this.child,
+  });
+
+  final GlobalKey contentKey;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    return Padding(
+      key: modalKeyboardCaseESystemInsetOwnerKey,
+      padding: EdgeInsets.only(bottom: media.viewInsets.bottom),
+      child: MediaQuery(
+        data: media.removeViewInsets(removeBottom: true),
+        child: KeyedSubtree(
+          key: contentKey,
+          child: KeyedSubtree(key: modalKeyboardCaseEContentKey, child: child),
+        ),
+      ),
+    );
+  }
+}
+
 class _KeyboardGeometryProbe extends StatefulWidget {
   const _KeyboardGeometryProbe({
     super.key,
     required this.caseName,
     required this.child,
+    this.contentGeometryKey,
   });
 
   final String caseName;
   final Widget child;
+  final GlobalKey? contentGeometryKey;
 
   @override
   State<_KeyboardGeometryProbe> createState() => _KeyboardGeometryProbeState();
@@ -617,7 +704,7 @@ class _KeyboardGeometryProbeState extends State<_KeyboardGeometryProbe> {
           'systemVisible=${resolved.systemKeyboardVisible} '
           'hawKeyboardInset=${_number(keyboardInsetOf(context))}',
       'modalRouteRect=${_rect(_rectForRenderObject(modalElement?.findRenderObject()))}',
-      'sheetContentRect=${_rect(_rectForRenderObject(context.findRenderObject()))}',
+      'sheetContentRect=${_rect(_rectForRenderObject(widget.contentGeometryKey?.currentContext?.findRenderObject() ?? context.findRenderObject()))}',
       'focusedEditableRect=${_rect(focusedRect)}',
       position == null
           ? 'nearestScrollable=none'

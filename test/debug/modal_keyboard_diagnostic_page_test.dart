@@ -25,7 +25,11 @@ void main() {
 
   Future<void> openFieldMatrix(WidgetTester tester, String key) async {
     final button = find.byKey(ValueKey<String>(key));
-    await tester.ensureVisible(button);
+    await tester.scrollUntilVisible(
+      button,
+      240,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
     await tester.tap(button);
     await tester.pumpAndSettle();
@@ -76,6 +80,39 @@ void main() {
       find.byType(KeyboardAwareEditableSurface),
     );
     expect(surface.manageSystemKeyboardInset, isTrue);
+  });
+
+  testWidgets('case E has one modal-root system inset owner', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 645);
+    addTearDown(tester.view.reset);
+    await pumpHarness(tester);
+
+    await tester.tap(find.byKey(const ValueKey('modal-keyboard-case-e')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.byType(KeyboardAwareEditableSurface), findsNothing);
+    expect(find.byType(TextField), findsNWidgets(3));
+
+    tester.view.viewInsets = const FakeViewPadding(bottom: 311);
+    await tester.pump();
+
+    final keyboardTop = 645 - 311;
+    final contentRect = tester.getRect(
+      find.byKey(modalKeyboardCaseEContentKey),
+    );
+    expect(contentRect.bottom, lessThanOrEqualTo(keyboardTop));
+
+    final contentContext = tester.element(
+      find.byKey(modalKeyboardCaseEContentKey),
+    );
+    expect(MediaQuery.viewInsetsOf(contentContext).bottom, 0);
+    final owner = tester.widget<Padding>(
+      find.byKey(modalKeyboardCaseESystemInsetOwnerKey),
+    );
+    expect(owner.padding, const EdgeInsets.only(bottom: 311));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('case C runs the actual Reading House sitting editor', (
