@@ -140,15 +140,12 @@ void main() {
 
     expect(
       find.text(
-        'Provision begins with the most basic need. Tomorrow you practice noticing yours before the day takes over.',
+        'Day 1: Name one need you’ve been postponing. Then each morning the table offers a small practice so that need doesn’t get lost in the noise.',
       ),
       findsOneWidget,
     );
     expect(find.text('WHAT NEEDS FEEDING?'), findsOneWidget);
-    expect(
-      find.text('Name one need you have been putting off'),
-      findsOneWidget,
-    );
+    expect(find.text('What have you been putting off?'), findsOneWidget);
     expect(find.text('Name the need…'), findsOneWidget);
     expect(find.text('START DATE'), findsOneWidget);
     expect(
@@ -171,7 +168,7 @@ void main() {
 
     expect(
       find.text(
-        'Provision begins with the most basic need. Today you practice noticing yours before the day takes over.',
+        'Day 1: Name one need you’ve been postponing. Then each morning the table offers a small practice so that need doesn’t get lost in the noise.',
       ),
       findsOneWidget,
     );
@@ -246,7 +243,7 @@ void main() {
     expect(find.text('START DATE'), findsOneWidget);
     expect(
       find.text(
-        'Provision begins with the most basic need. On ${_monthDay(selected)} you practice noticing yours before the day takes over.',
+        'Day 1: Name one need you’ve been postponing. Then each morning the table offers a small practice so that need doesn’t get lost in the noise.',
       ),
       findsOneWidget,
     );
@@ -570,15 +567,17 @@ void main() {
       );
 
       expect(calendar, findsOneWidget);
-      expect(find.text('Here is your table.'), findsOneWidget);
-      expect(find.text('For the next thirty days.'), findsOneWidget);
-      expect(initialEntry, findsOneWidget);
-      expect(find.text('HOW THE TABLE WORKS'), findsOneWidget);
-      expect(find.text('WHAT NEEDS FEEDING?'), findsOneWidget);
       expect(
-        find.text('Name one need you have been putting off'),
+        find.text(
+          'Each day begins by noticing something you’ve been putting off,',
+        ),
         findsOneWidget,
       );
+      expect(find.text('then giving it a simple place.'), findsOneWidget);
+      expect(initialEntry, findsOneWidget);
+      expect(find.text('HOW IT WORKS'), findsOneWidget);
+      expect(find.text('WHAT NEEDS FEEDING?'), findsOneWidget);
+      expect(find.text('What have you been putting off?'), findsOneWidget);
       expect(find.text('Name the need…'), findsOneWidget);
       expect(
         find.byKey(const ValueKey<String>('offering-table-initial-input')),
@@ -715,6 +714,12 @@ void main() {
       await tester.drag(
         find.byKey(const ValueKey<String>('offering-table-scroll')),
         const Offset(0, -1000),
+      );
+      await tester.pumpAndSettle();
+      await Scrollable.ensureVisible(
+        tester.element(firstBadge),
+        alignment: 0.45,
+        duration: Duration.zero,
       );
       await tester.pumpAndSettle();
       await tester.tap(firstBadge);
@@ -1079,6 +1084,12 @@ void main() {
       final firstBadge = find.byKey(
         const ValueKey<String>('offering-table-preview-event-1'),
       );
+      await Scrollable.ensureVisible(
+        tester.element(firstBadge),
+        alignment: 0.45,
+        duration: Duration.zero,
+      );
+      await tester.pumpAndSettle();
       await tester.tap(firstBadge);
       await tester.pumpAndSettle();
 

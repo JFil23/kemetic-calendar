@@ -47,7 +47,10 @@ void main() {
 
       expect(find.text('THE OFFERING TABLE · DAY 03'), findsOneWidget);
       expect(find.text(day.title), findsWidgets);
-      expect(find.text('“eat before the day starts”'), findsOneWidget);
+      expect(
+        find.text('“Eat something before the day begins”'),
+        findsOneWidget,
+      );
       expect(find.textContaining('Protect my sleep.'), findsNothing);
       final block = tester.widget<OfferingTableEventBlockVisual>(
         find.byType(OfferingTableEventBlockVisual),
@@ -74,7 +77,7 @@ void main() {
     await _pumpDayView(tester, flowId: 72);
 
     expect(find.text(kOfferingTableDays.first.title), findsWidgets);
-    expect(find.text('“name what needs to be fed”'), findsOneWidget);
+    expect(find.text('“Name what needs to be fed”'), findsOneWidget);
     expect(find.textContaining('No need was named'), findsNothing);
     final block = tester.widget<OfferingTableEventBlockVisual>(
       find.byType(OfferingTableEventBlockVisual),

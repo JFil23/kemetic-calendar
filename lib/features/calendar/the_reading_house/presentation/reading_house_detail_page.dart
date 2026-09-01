@@ -749,7 +749,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _SetupTextField(
-            label: 'BOOK',
+            label: 'YOU’RE READING',
             hintText: 'Name the book',
             controller: _bookController,
             enabled: _canEdit,
@@ -758,8 +758,8 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
             fieldKey: const ValueKey<String>('reading-house-book'),
           ),
           _SetupTextField(
-            label: 'EDITION',
-            trailing: 'optional · can wait',
+            label: 'EDITION / TRANSLATION',
+            trailing: 'can skip',
             hintText: 'Translator, edition, or link',
             controller: _editionController,
             enabled: _canEdit,
@@ -767,18 +767,18 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
             fieldKey: const ValueKey<String>('reading-house-edition'),
           ),
           _SetupTextField(
-            label: 'HOUSE QUESTION',
-            trailing: 'optional · can wait',
-            hintText: 'What is this book asking the house to hold?',
+            label: 'THE QUESTION THIS HOUSE WILL HOLD',
+            trailing: 'can skip',
+            hintText: 'What would you do if you could live forever?',
             controller: _questionController,
             enabled: _canEdit,
             readOnlyValue: _plan.displayQuestion,
             fieldKey: const ValueKey<String>('reading-house-question'),
           ),
           _SetupChoiceField(
-            label: 'HOW ARE YOU READING?',
+            label: 'HOW WILL YOU READ?',
             firstLabel: 'Solo study',
-            secondLabel: 'With readers',
+            secondLabel: 'With readers · recommended',
             secondSelected: _withReaders,
             onFirst: !_canEdit || _savingMode
                 ? null
@@ -799,9 +799,9 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
               duration: const Duration(milliseconds: 180),
               opacity: _withReaders ? 1 : 0.32,
               child: _SetupChoiceField(
-                label: 'DOORS',
-                firstLabel: 'Closed · invited',
-                secondLabel: 'Open · Commons',
+                label: 'WHO CAN SEE THIS HOUSE?',
+                firstLabel: 'Closed · invite only',
+                secondLabel: 'Open · appears in the Commons',
                 secondSelected: _openDoors,
                 onFirst: !_canEdit || _savingDoors
                     ? null
@@ -876,7 +876,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                             key: const ValueKey<String>(
                               'reading-house-invite-reader',
                             ),
-                            label: '+  Invite a reader',
+                            label: '+ Invite someone',
                             onTap: () => unawaited(_inviteReader()),
                           ),
                         ],
@@ -916,8 +916,8 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
             windowStart: _windowStart,
             markers: _calendarMarkers(),
             theme: ReadingHouseDetailTokens.calendarTheme,
-            introFirstLine: 'When the house is ready,',
-            introSecondLine: 'place the reading.',
+            introFirstLine: 'Ready?',
+            introSecondLine: 'Place the reading now.',
             keyPrefix: 'reading-house-calendar',
           ),
           Padding(
@@ -941,7 +941,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                     ? 'Placing reading…'
                     : waiting <= 0
                     ? 'Reading placed'
-                    : 'Place the reading',
+                    : 'Place the sittings',
                 color: ReadingHouseDetailTokens.gold,
                 onTap: waiting <= 0 || _placingReading ? null : _placeReading,
                 busy: _placingReading,
@@ -981,7 +981,9 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
               padding: const EdgeInsets.fromLTRB(24, 16, 24, 22),
               child: _DashedPillButton(
                 key: const ValueKey<String>('reading-house-add-sitting'),
-                label: _addingSitting ? 'Adding sitting…' : '+  Add sitting',
+                label: _addingSitting
+                    ? 'Adding sitting…'
+                    : '+ Add another sitting',
                 onTap: !_addingSitting ? () => unawaited(_addSitting()) : null,
               ),
             )
@@ -1036,7 +1038,7 @@ class _ReadingHouseHero extends StatelessWidget {
       glyphBorder: ReadingHouseDetailTokens.houseHighlight,
       glyphGlow: ReadingHouseDetailTokens.houseHighlight,
       title: 'The Reading\nHouse',
-      subtitle: 'A house kept around one book.',
+      subtitle: 'One book. A few people. Shared attention.',
     );
   }
 }
@@ -1142,10 +1144,10 @@ class _BeforeCalendarIntro extends StatelessWidget {
           const SizedBox(height: 13),
           Text.rich(
             TextSpan(
-              text: 'Open the house first.\n',
+              text: 'Pick the book first.\n',
               children: [
                 TextSpan(
-                  text: 'The schedule can wait.',
+                  text: 'Nothing has to be scheduled yet.',
                   style: TextStyle(
                     color: ReadingHouseDetailTokens.silver,
                     fontStyle: FontStyle.italic,
@@ -1162,7 +1164,7 @@ class _BeforeCalendarIntro extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            'Choose a book, decide who may enter, and give invited readers time to answer before anyone has to place a sitting.',
+            'Invite the readers, then set the sittings whenever you’re ready.',
             style: _uiStyle(
               color: ReadingHouseDetailTokens.silverLow,
               fontSize: 13,
@@ -1562,10 +1564,7 @@ class _HouseStateLine extends StatelessWidget {
         spacing: 10,
         runSpacing: 7,
         children: [
-          _StateText(
-            held ? 'Held in your flows' : 'Not yet held',
-            emphasized: true,
-          ),
+          _StateText(held ? 'House is open' : 'Not yet held', emphasized: true),
           const _StateDot(),
           _StateText(openDoors ? 'Open in Commons' : 'Closed house'),
           const _StateDot(),
@@ -1578,7 +1577,7 @@ class _HouseStateLine extends StatelessWidget {
           _StateText(
             placedCount == 0
                 ? 'Not scheduled'
-                : '$placedCount ${placedCount == 1 ? 'sitting' : 'sittings'} placed',
+                : '$placedCount ${placedCount == 1 ? 'sitting' : 'sittings'} ready',
             muted: placedCount == 0,
           ),
         ],
@@ -1764,7 +1763,7 @@ class _ReadingFrame extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Refine the question, sections, prompts, and sitting details whenever the house is ready.',
+                  'This becomes the quiet center everyone returns to.',
                   style: _uiStyle(
                     color: ReadingHouseDetailTokens.silverLow,
                     fontSize: 12,

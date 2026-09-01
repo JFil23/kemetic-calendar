@@ -352,7 +352,7 @@ const List<ReadingHouseSitting> kReadingHouseSittings = <ReadingHouseSitting>[
     section: 'Opening section',
     theme: 'What is the text asking you to carry?',
     privatePrompt:
-        'Before company shapes the reading, what is this opening asking you to hold privately?',
+        'Before anyone else shapes the reading, what is this opening asking you to hold?',
     hostNote:
         'Begin with your own encounter. The house can receive a fragment later.',
   ),
@@ -372,7 +372,7 @@ const List<ReadingHouseSitting> kReadingHouseSittings = <ReadingHouseSitting>[
     section: 'Closing section',
     theme: 'What fragment should the house keep?',
     privatePrompt:
-        'Mark what remains after the book closes: sentence, question, practice, or passage.',
+        'When the book closes, what remains: a sentence, a question, a practice, or a passage?',
     hostNote: 'Choose one fragment privately. Shared surfaces come later.',
   ),
 ];

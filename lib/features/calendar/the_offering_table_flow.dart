@@ -123,7 +123,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 1,
     section: 'Personal Table',
     title: 'The First Water',
-    eventBlockPrompt: 'name what needs to be fed',
+    eventBlockPrompt: 'Name what needs to be fed',
     purpose:
         'The Kemetic offering table began with water before anything else — not because water is symbolic, but because it is the most immediate provision. This rite does the same.',
     provisionAct:
@@ -138,7 +138,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 2,
     section: 'Personal Table',
     title: 'The Cup Before the Noise',
-    eventBlockPrompt: 'drink before the noise begins',
+    eventBlockPrompt: 'Drink before the day starts talking',
     purpose:
         'The day\'s demands begin competing for attention before the body has been given anything. This rite reverses that order.',
     provisionAct:
@@ -151,7 +151,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 3,
     section: 'Personal Table',
     title: 'Bread Enough',
-    eventBlockPrompt: 'eat before the day starts',
+    eventBlockPrompt: 'Eat something before the day begins',
     purpose:
         'Food treated as fuel is not being received — it\'s being used. This rite makes one meal an act of provision rather than consumption.',
     provisionAct:
@@ -164,7 +164,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 4,
     section: 'Personal Table',
     title: 'The Body Washed',
-    eventBlockPrompt: 'care for the body before delay',
+    eventBlockPrompt: 'Care for the body before delay wins',
     purpose:
         'Neglect rarely announces itself — it accumulates in small deferrals. This rite names one and corrects it.',
     provisionAct:
@@ -177,7 +177,7 @@ const List<OfferingTableDay> kOfferingTableDays = <OfferingTableDay>[
     dayNumber: 5,
     section: 'Personal Table',
     title: 'The Midpoint: Rest',
-    eventBlockPrompt: "make room for tonight's rest",
+    eventBlockPrompt: 'Make a little room for tonight’s rest',
     purpose:
         'The Kemite counted rest as provision alongside bread and oil. This rite asks for the actual sleep count before it becomes a problem.',
     provisionAct:

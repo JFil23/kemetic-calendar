@@ -53,7 +53,10 @@ void main() {
         reason: 'Day ${day.dayNumber} must remain one-line safe',
       );
     }
-    expect(kOfferingTableDays[2].eventBlockPrompt, 'eat before the day starts');
+    expect(
+      kOfferingTableDays[2].eventBlockPrompt,
+      'Eat something before the day begins',
+    );
   });
 
   test('all thirty days close the shared ritual checklist with water once', () {

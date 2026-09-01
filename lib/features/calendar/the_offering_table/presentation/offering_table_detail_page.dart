@@ -238,15 +238,7 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
   }
 
   String _initialEntryIntro() {
-    final today = DateUtils.dateOnly(offeringTableNowInZone(widget.timezone));
-    final tomorrow = today.add(const Duration(days: 1));
-    final timing = DateUtils.isSameDay(_startDate, tomorrow)
-        ? 'Tomorrow'
-        : DateUtils.isSameDay(_startDate, today)
-        ? 'Today'
-        : 'On ${_shortMonthDay(_startDate)}';
-    return 'Provision begins with the most basic need. '
-        '$timing you practice noticing yours before the day takes over.';
+    return 'Day 1: Name one need you’ve been postponing. Then each morning the table offers a small practice so that need doesn’t get lost in the noise.';
   }
 
   List<OfferingTablePreviewOccurrence> _previewOccurrences() {
@@ -359,8 +351,9 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
               ),
           ],
           theme: OfferingTableDetailTokens.thirtyDayCalendarTheme,
-          introFirstLine: 'Here is your table.',
-          introSecondLine: 'For the next thirty days.',
+          introFirstLine:
+              'Each day begins by noticing something you’ve been putting off,',
+          introSecondLine: 'then giving it a simple place.',
           keyPrefix: 'offering-table-calendar',
         ),
         _OfferingTableInitialEntry(
@@ -532,7 +525,7 @@ class _OfferingTableInitialEntry extends StatelessWidget {
           const Row(
             children: [
               Text(
-                'HOW THE TABLE WORKS',
+                'HOW IT WORKS',
                 style: TextStyle(
                   color: OfferingTableDetailTokens.warmGold,
                   fontFamily: MaatFlowListTokens.fontFamily,
@@ -578,7 +571,7 @@ class _OfferingTableInitialEntry extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Name one need you have been putting off',
+            'What have you been putting off?',
             style: TextStyle(
               color: OfferingTableDetailTokens.mutedIvory,
               fontFamily: MaatFlowListTokens.fontFamily,
@@ -822,7 +815,7 @@ class _OfferingAllDaysList extends StatelessWidget {
                   children: [
                     Expanded(
                       child: Text(
-                        expanded ? 'Show first 5 days' : 'All 30 offerings',
+                        expanded ? 'Show first 5 days' : 'See all 30 offerings',
                         style: const TextStyle(
                           color: OfferingTableDetailTokens.mutedIvory,
                           fontFamily: MaatFlowListTokens.fontFamily,
@@ -871,7 +864,7 @@ class _OfferingAllDaysList extends StatelessWidget {
           const Padding(
             padding: EdgeInsets.fromLTRB(24, 22, 24, 0),
             child: Text(
-              'The table keeps the rhythm either way.',
+              'The table keeps the rhythm even if you miss a day.',
               style: TextStyle(
                 color: OfferingTableDetailTokens.silver,
                 fontFamily: MaatFlowListTokens.fontFamily,

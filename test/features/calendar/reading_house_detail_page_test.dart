@@ -93,7 +93,10 @@ void main() {
     expect(heroImage.fit, BoxFit.cover);
     expect(heroImage.alignment, ReadingHouseDetailTokens.heroImageAlignment);
     expect(find.text('The Reading\nHouse'), findsOneWidget);
-    expect(find.text('A house kept around one book.'), findsOneWidget);
+    expect(
+      find.text('One book. A few people. Shared attention.'),
+      findsOneWidget,
+    );
     expect(find.text('BEFORE THE CALENDAR'), findsOneWidget);
     expect(find.text('Set the house'), findsNothing);
     expect(find.text('No invites yet'), findsOneWidget);
@@ -110,7 +113,8 @@ void main() {
       find.byKey(const ValueKey<String>('reading-house-held')),
       findsOneWidget,
     );
-    expect(find.text('Held in your flows'), findsWidgets);
+    expect(find.text('House is open'), findsOneWidget);
+    expect(find.text('Held in your flows'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -126,7 +130,7 @@ void main() {
       findsNothing,
     );
 
-    await tester.tap(find.text('With readers'));
+    await tester.tap(find.text('With readers · recommended'));
     await tester.pumpAndSettle();
     expect(
       find.byKey(const ValueKey<String>('reading-house-readers')),
@@ -134,7 +138,7 @@ void main() {
     );
 
     await jumpHouseScroll(tester, 820);
-    await tester.tap(find.text('Open · Commons'));
+    await tester.tap(find.text('Open · appears in the Commons'));
     await tester.pumpAndSettle();
     expect(
       find.text('Community members can discover this house in the Commons.'),
@@ -173,7 +177,7 @@ void main() {
       final firstSitting = find.byKey(
         const ValueKey<String>('reading-house-sitting-1'),
       );
-      await jumpHouseScroll(tester, 2000);
+      await jumpHouseScroll(tester, 2300);
       await tester.tap(firstSitting);
       await tester.pumpAndSettle();
 
@@ -351,10 +355,12 @@ void main() {
     'sitting editor keeps every field above the keyboard and clears modal focus',
     (tester) async {
       await pumpHouse(tester);
-      await jumpHouseScroll(tester, 2000);
-      await tester.tap(
-        find.byKey(const ValueKey<String>('reading-house-sitting-1')),
+      await jumpHouseScroll(tester, 2300);
+      final firstSitting = find.byKey(
+        const ValueKey<String>('reading-house-sitting-1'),
       );
+      await tester.ensureVisible(firstSitting);
+      await tester.tap(firstSitting);
       await tester.pumpAndSettle();
 
       const fieldKeys = <String>[
@@ -481,10 +487,12 @@ void main() {
       authority: authority,
       initialFlowId: authority.flowId,
     );
-    await jumpHouseScroll(tester, 2000);
-    await tester.tap(
-      find.byKey(const ValueKey<String>('reading-house-sitting-1')),
+    await jumpHouseScroll(tester, 2300);
+    final firstSitting = find.byKey(
+      const ValueKey<String>('reading-house-sitting-1'),
     );
+    await tester.ensureVisible(firstSitting);
+    await tester.tap(firstSitting);
     await tester.pumpAndSettle();
     await tester.tap(
       find.byKey(const ValueKey<String>('reading_house_sitting_save_button')),
@@ -503,7 +511,7 @@ void main() {
       authority: authority,
       initialFlowId: authority.flowId,
     );
-    await jumpHouseScroll(tester, 2000);
+    await jumpHouseScroll(tester, 2300);
     expect(find.textContaining('8:15'), findsOneWidget);
   });
 
@@ -556,7 +564,7 @@ void main() {
       findsNothing,
     );
 
-    await jumpHouseScroll(tester, 2000);
+    await jumpHouseScroll(tester, 2300);
     await tester.tap(
       find.byKey(const ValueKey<String>('reading-house-sitting-1')),
     );
@@ -713,7 +721,7 @@ void main() {
     );
     authority.resetOperationCounts();
     await jumpHouseScroll(tester, 820);
-    await tester.tap(find.text('Open · Commons'));
+    await tester.tap(find.text('Open · appears in the Commons'));
     await tester.pump();
 
     expect(
@@ -754,12 +762,14 @@ void main() {
       initialFlowId: authority.flowId,
     );
     authority.resetOperationCounts();
-    await jumpHouseScroll(tester, 2000);
+    await jumpHouseScroll(tester, 2300);
+    final firstSitting = find.byKey(
+      const ValueKey<String>('reading-house-sitting-1'),
+    );
+    await tester.ensureVisible(firstSitting);
     final position = tester.state<ScrollableState>(houseScrollable()).position;
     final beforeOffset = position.pixels;
-    await tester.tap(
-      find.byKey(const ValueKey<String>('reading-house-sitting-1')),
-    );
+    await tester.tap(firstSitting);
     await tester.pumpAndSettle();
     await tester.tap(
       find.byKey(const ValueKey<String>('reading_house_sitting_save_button')),
@@ -830,7 +840,7 @@ void main() {
         matchesGoldenFile('/tmp/reading-house-${fixture.name}-calendar.png'),
       );
 
-      await jumpHouseScroll(tester, 2000);
+      await jumpHouseScroll(tester, 2300);
       await expectLater(
         find.byKey(_captureSurfaceKey),
         matchesGoldenFile('/tmp/reading-house-${fixture.name}-sittings.png'),

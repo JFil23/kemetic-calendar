@@ -192,7 +192,7 @@ void main() {
 
     expect(
       sitting.privatePrompt,
-      'Before company shapes the reading, what is this opening asking you to hold privately?',
+      'Before anyone else shapes the reading, what is this opening asking you to hold?',
     );
     expect(sitting.privatePrompt, isNot(contains('write one private line')));
     expect(sitting.privatePrompt, isNot(contains('save a short note')));
@@ -270,7 +270,7 @@ void main() {
     expect(payload['sitting_title'], 'Seal the Reading');
     expect(payload['section'], 'Closing section');
     expect(payload['theme'], 'What fragment should the house keep?');
-    expect(payload['private_prompt'], contains('Mark what remains'));
+    expect(payload['private_prompt'], contains('When the book closes'));
     expect(payload['host_note'], contains('Shared surfaces come later'));
     expect(payload['sitting_source'], 'starter_default');
     expect(payload['host_editable'], isFalse);
@@ -697,7 +697,7 @@ void main() {
     expect(
       detail,
       contains(
-        'Private prompt\nBefore company shapes the reading, what is this opening asking you to hold privately?',
+        'Private prompt\nBefore anyone else shapes the reading, what is this opening asking you to hold?',
       ),
     );
     expect(detail, isNot(contains('write one private line')));
@@ -1319,7 +1319,7 @@ void main() {
     expect(authoritySource, contains('_ensureSharedHouseCalendar'));
     expect(authoritySource, contains('setSharedPracticeVisibility'));
     expect(authoritySource, contains('_materializeScheduledSittings'));
-    expect(detailSource, contains("label: '+  Invite a reader'"));
+    expect(detailSource, contains("label: '+ Invite someone'"));
     expect(detailSource, contains('Everyone who accepts sees this same house'));
 
     expect(adapterSource, contains('ReadingHouseDetailPage('));
