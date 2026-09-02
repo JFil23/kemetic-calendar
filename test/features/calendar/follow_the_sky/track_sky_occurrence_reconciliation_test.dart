@@ -126,6 +126,7 @@ void main() {
     () async {
       final draft = enrollment.buildJoinDraft(
         catalog: catalog,
+        eligibleNights: enrollment.canonicalNights(catalog: catalog),
         ianaTimeZone: 'America/Los_Angeles',
         timezoneKey: 'pacific',
       );

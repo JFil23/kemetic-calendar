@@ -3,6 +3,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import 'maat_flow_identity.dart';
 import 'maat_flow_response_models.dart';
+import 'maat_flow_temporal_policy.dart';
 import 'track_sky_flow.dart';
 
 const String kReadingHouseFlowKey = 'the-reading-house';
@@ -358,7 +359,7 @@ const List<ReadingHouseSitting> kReadingHouseSittings = <ReadingHouseSitting>[
   ),
   ReadingHouseSitting(
     eventNumber: 2,
-    flowDay: 7,
+    flowDay: 11,
     title: 'Hold the Middle',
     section: 'Middle section',
     theme: 'Where does the book change your measure?',
@@ -367,7 +368,7 @@ const List<ReadingHouseSitting> kReadingHouseSittings = <ReadingHouseSitting>[
   ),
   ReadingHouseSitting(
     eventNumber: 3,
-    flowDay: 14,
+    flowDay: 21,
     title: 'Seal the Reading',
     section: 'Closing section',
     theme: 'What fragment should the house keep?',
@@ -379,7 +380,7 @@ const List<ReadingHouseSitting> kReadingHouseSittings = <ReadingHouseSitting>[
 
 int readingHouseDefaultFlowDayForIndex(int index) {
   if (index <= 0) return 1;
-  return index * 7;
+  return index * 10 + 1;
 }
 
 List<ReadingHouseSitting> readingHouseStarterSittingsForAuthoring() {
@@ -478,15 +479,10 @@ DateTime defaultReadingHouseStartDate(
   TrackSkyTimeZone timezone, {
   DateTime? now,
 }) {
-  final nowLocal = readingHouseNowInZone(timezone, now: now);
-  final today = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
-  final start = readingHouseScheduleForDate(
-    kReadingHouseSittings.first,
-    today,
-    timezone,
-  ).startLocal;
-  if (!start.isBefore(nowLocal)) return today;
-  return today.add(const Duration(days: 1));
+  return MaatFlowTemporalContext.fromInstant(
+    nowUtc: now ?? maatFlowSystemClock(),
+    timezone: timezone,
+  ).localDateAfter(3);
 }
 
 DateTime readingHouseNowInZone(TrackSkyTimeZone timezone, {DateTime? now}) {
@@ -560,6 +556,20 @@ ReadingHouseOccurrenceSchedule readingHouseScheduleForSitting(
     hour: sitting.hour,
     minute: sitting.minute,
   );
+}
+
+List<DateTime> readingHouseResolvedStarterDates(
+  DateTime firstStart,
+  Iterable<ReadingHouseSitting> sittings,
+) {
+  final first = DateTime(firstStart.year, firstStart.month, firstStart.day);
+  return List<DateTime>.unmodifiable(<DateTime>[
+    for (final sitting in sittings)
+      if (sitting.scheduledDate case final date?)
+        DateTime(date.year, date.month, date.day)
+      else
+        DateTime(first.year, first.month, first.day + sitting.flowDay - 1),
+  ]);
 }
 
 String readingHouseSittingTitle(ReadingHouseSitting sitting) {

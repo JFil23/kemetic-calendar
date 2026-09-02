@@ -22,7 +22,7 @@ class _ReadingHouseAuthoringPage extends StatelessWidget {
     final timezone = readingHouseTimeZoneFromFlowNotes(flow.notes);
     return ReadingHouseDetailPage(
       timezone: timezone,
-      initialStartDate: flow.start ?? defaultReadingHouseStartDate(timezone),
+      initialStartDate: flow.start,
       initialPlan: readingHousePlanFromFlowNotes(flow.notes),
       initialFlowId: flow.id,
       initialCalendarId: flow.calendarId,

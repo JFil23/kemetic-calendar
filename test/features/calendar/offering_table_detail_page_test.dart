@@ -10,6 +10,7 @@ import 'package:mobile/features/calendar/calendar_event_visual_style.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/widgets/follow_sky_v11_tokens.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
+import 'package:mobile/features/calendar/maat_flow_temporal_policy.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_preview_day.dart';
 import 'package:mobile/features/calendar/the_offering_table/presentation/offering_table_day_presentation.dart';
@@ -258,6 +259,95 @@ void main() {
     await tester.tap(find.byKey(const ValueKey<String>('offering-table-join')));
     await tester.pumpAndSettle();
     expect(joinedDate, selected);
+  });
+
+  testWidgets('local-midnight resume rebases an uncarried preview and Carry', (
+    tester,
+  ) async {
+    var nowUtc = DateTime.utc(2026, 9, 3, 6, 59);
+    DateTime? carriedStart;
+    await _pumpPage(
+      tester,
+      size: const Size(390, 844),
+      clock: () => nowUtc,
+      onJoin:
+          ({
+            required startDate,
+            required timezone,
+            required lens,
+            required noCupMode,
+          }) async {
+            carriedStart = startDate;
+            return 9026;
+          },
+    );
+
+    expect(
+      find.byKey(
+        const ValueKey<String>(
+          'offering-table-calendar-top-label-control-2026-09-03',
+        ),
+      ),
+      findsOneWidget,
+    );
+
+    nowUtc = DateTime.utc(2026, 9, 3, 7, 1);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(
+        const ValueKey<String>(
+          'offering-table-calendar-top-label-control-2026-09-04',
+        ),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('offering-table-join')));
+    await tester.pumpAndSettle();
+    expect(carriedStart, DateTime(2026, 9, 4));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    Supabase.instance.client.auth.stopAutoRefresh();
+    await tester.pump();
+  });
+
+  testWidgets('a carried Offering Table remains fixed after local midnight', (
+    tester,
+  ) async {
+    var nowUtc = DateTime.utc(2026, 9, 3, 6, 59);
+    await _pumpPage(
+      tester,
+      size: const Size(390, 844),
+      joinedFlowId: 9027,
+      joinedStartDate: DateTime(2026, 9, 3),
+      clock: () => nowUtc,
+    );
+
+    nowUtc = DateTime.utc(2026, 9, 3, 7, 1);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(
+        const ValueKey<String>(
+          'offering-table-calendar-top-label-control-2026-09-03',
+        ),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        const ValueKey<String>(
+          'offering-table-calendar-top-label-control-2026-09-04',
+        ),
+      ),
+      findsNothing,
+    );
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    Supabase.instance.client.auth.stopAutoRefresh();
+    await tester.pump();
   });
 
   testWidgets(
@@ -1477,6 +1567,7 @@ Future<void> _pumpPage(
   DateTime? joinedStartDate,
   List<DateTime> joinedScheduleDates = const <DateTime>[],
   TrackSkyTimeZone timezone = TrackSkyTimeZone.pacific,
+  MaatFlowClock? clock,
   OfferingTableJoinCallback? onJoin,
   OfferingTableLocalStore localStore = const OfferingTableLocalStore(),
   FollowSkyCalendarPreview calendarPreview = FollowSkyCalendarPreview.empty,
@@ -1494,6 +1585,7 @@ Future<void> _pumpPage(
         debugShowCheckedModeBanner: false,
         home: OfferingTableDetailPage(
           timezone: timezone,
+          clock: clock,
           calendarPreview: calendarPreview,
           initialStartDate: start,
           joinedFlowId: joinedFlowId,
@@ -1772,21 +1864,3 @@ String _dateKey(DateTime date) =>
     '${date.year.toString().padLeft(4, '0')}-'
     '${date.month.toString().padLeft(2, '0')}-'
     '${date.day.toString().padLeft(2, '0')}';
-
-String _monthDay(DateTime date) {
-  const months = <String>[
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  return '${months[date.month - 1]} ${date.day}';
-}

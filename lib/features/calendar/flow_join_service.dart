@@ -426,6 +426,9 @@ class FlowJoinService {
     CourseStartDateResolver? resolveTheCourseDefaultStartDate,
     CourseScheduleResolver? courseScheduleForDate,
     List<CourseEvent>? courseEvents,
+    MaatFlowClock? clock,
+    MaatFlowTemporalResolver temporalResolver =
+        const MaatFlowTemporalResolver(),
   }) : _userEventsRepo = userEventsRepo,
        _eventFiling = eventFiling ?? EventFilingService(),
        _upsertFlow = upsertFlow,
@@ -435,6 +438,8 @@ class FlowJoinService {
        _publishHeadlessCalendarInvalidation =
            publishHeadlessCalendarInvalidation ??
            CalendarPage._publishHeadlessCalendarInvalidation,
+       _clock = clock ?? maatFlowSystemClock,
+       _temporalResolver = temporalResolver,
        _persistEveningThresholdInitialCarry =
            persistEveningThresholdInitialCarry ??
            _defaultPersistEveningThresholdInitialCarry,
@@ -443,79 +448,66 @@ class FlowJoinService {
        _moonReturnOccurrencesForWindow =
            moonReturnOccurrencesForWindow ??
            _defaultMoonReturnOccurrencesForWindow,
-       _moonReturnNowInZone =
-           moonReturnNowInZone ?? _defaultMoonReturnNowInZone,
+       _moonReturnNowInZone = moonReturnNowInZone,
        _resolveWagWindow = resolveWagWindow ?? _defaultResolveWagWindow,
        _wagScheduleForEvent =
            wagScheduleForEvent ?? _defaultWagScheduleForEvent,
-       _wagNowInZone = wagNowInZone ?? _defaultWagNowInZone,
+       _wagNowInZone = wagNowInZone,
        _wagEvents = wagEvents ?? kWagEvents,
        _resolveDaysOutsideYearWindow =
            resolveDaysOutsideYearWindow ?? _defaultResolveDaysOutsideYearWindow,
        _daysOutsideYearScheduleForEvent =
            daysOutsideYearScheduleForEvent ??
            _defaultDaysOutsideYearScheduleForEvent,
-       _daysOutsideYearNowInZone =
-           daysOutsideYearNowInZone ?? _defaultDaysOutsideYearNowInZone,
+       _daysOutsideYearNowInZone = daysOutsideYearNowInZone,
        _daysOutsideYearEvents = daysOutsideYearEvents ?? kDaysOutsideEvents,
        _resolveDecanWatchWindow =
            resolveDecanWatchWindow ?? _defaultResolveDecanWatchWindow,
        _decanWatchOccurrencesForWindow =
            decanWatchOccurrencesForWindow ??
            _defaultDecanWatchOccurrencesForWindow,
-       _decanWatchNowInZone =
-           decanWatchNowInZone ?? _defaultDecanWatchNowInZone,
+       _decanWatchNowInZone = decanWatchNowInZone,
        _resolveOpenHandWindow =
            resolveOpenHandWindow ?? _defaultResolveOpenHandWindow,
        _openHandScheduleForEvent =
            openHandScheduleForEvent ?? _defaultOpenHandScheduleForEvent,
-       _openHandNowInZone = openHandNowInZone ?? _defaultOpenHandNowInZone,
+       _openHandNowInZone = openHandNowInZone,
        _openHandEvents = openHandEvents ?? kOpenHandEvents,
        _resolveDjedWindow = resolveDjedWindow ?? _defaultResolveDjedWindow,
        _djedScheduleForEvent =
            djedScheduleForEvent ?? _defaultDjedScheduleForEvent,
-       _djedNowInZone = djedNowInZone ?? _defaultDjedNowInZone,
+       _djedNowInZone = djedNowInZone,
        _djedEvents = djedEvents ?? kDjedEvents,
        _resolveDawnHouseRiteDefaultStartDate =
-           resolveDawnHouseRiteDefaultStartDate ??
-           _defaultResolveDawnHouseRiteStartDate,
+           resolveDawnHouseRiteDefaultStartDate,
        _dawnHouseRiteScheduleForDate =
            dawnHouseRiteScheduleForDate ?? _defaultDawnHouseRiteScheduleForDate,
        _dawnHouseRiteDays = dawnHouseRiteDays ?? kDawnHouseRiteDays,
        _resolveEveningThresholdRiteDefaultStartDate =
-           resolveEveningThresholdRiteDefaultStartDate ??
-           _defaultResolveEveningThresholdRiteStartDate,
+           resolveEveningThresholdRiteDefaultStartDate,
        _eveningThresholdScheduleForDate =
            eveningThresholdScheduleForDate ??
            _defaultEveningThresholdScheduleForDate,
        _eveningThresholdRiteDays =
            eveningThresholdRiteDays ?? kEveningThresholdRiteDays,
-       _resolveTheWeighingDefaultStartDate =
-           resolveTheWeighingDefaultStartDate ??
-           _defaultResolveTheWeighingStartDate,
+       _resolveTheWeighingDefaultStartDate = resolveTheWeighingDefaultStartDate,
        _theWeighingScheduleForDate =
            theWeighingScheduleForDate ?? _defaultTheWeighingScheduleForDate,
        _theWeighingEvents = theWeighingEvents ?? kTheWeighingEvents,
        _resolveOfferingTableDefaultStartDate =
-           resolveOfferingTableDefaultStartDate ??
-           _defaultResolveOfferingTableStartDate,
+           resolveOfferingTableDefaultStartDate,
        _offeringTableScheduleForDate =
            offeringTableScheduleForDate ?? _defaultOfferingTableScheduleForDate,
        _offeringTableDays = offeringTableDays ?? kOfferingTableDays,
-       _resolveTheTendingDefaultStartDate =
-           resolveTheTendingDefaultStartDate ??
-           _defaultResolveTheTendingStartDate,
+       _resolveTheTendingDefaultStartDate = resolveTheTendingDefaultStartDate,
        _theTendingScheduleForDate =
            theTendingScheduleForDate ?? _defaultTheTendingScheduleForDate,
        _theTendingEvents = theTendingEvents ?? kTheTendingEvents,
-       _resolveKeptWordDefaultStartDate =
-           resolveKeptWordDefaultStartDate ?? _defaultResolveKeptWordStartDate,
+       _resolveKeptWordDefaultStartDate = resolveKeptWordDefaultStartDate,
        _keptWordScheduleForDate =
            keptWordScheduleForDate ?? _defaultKeptWordScheduleForDate,
        _keptWordEvents = keptWordEvents ?? kKeptWordEvents,
-       _resolveTheCourseDefaultStartDate =
-           resolveTheCourseDefaultStartDate ??
-           _defaultResolveTheCourseStartDate,
+       _resolveTheCourseDefaultStartDate = resolveTheCourseDefaultStartDate,
        _courseScheduleForDate =
            courseScheduleForDate ?? _defaultCourseScheduleForDate,
        _courseEvents = courseEvents ?? kTheCourseEvents;
@@ -527,56 +519,90 @@ class FlowJoinService {
   final FlowJoinFileHeadlessEventDelivery _fileHeadlessEventDelivery;
   final FlowJoinPublishHeadlessCalendarInvalidation
   _publishHeadlessCalendarInvalidation;
+  final MaatFlowClock _clock;
+  final MaatFlowTemporalResolver _temporalResolver;
   final FlowJoinPersistEveningThresholdInitialCarry
   _persistEveningThresholdInitialCarry;
   final MoonReturnWindowResolver _resolveMoonReturnWindow;
   final MoonReturnOccurrenceResolver _moonReturnOccurrencesForWindow;
-  final MoonReturnNowProvider _moonReturnNowInZone;
+  final MoonReturnNowProvider? _moonReturnNowInZone;
   final WagWindowResolver _resolveWagWindow;
   final WagScheduleResolver _wagScheduleForEvent;
-  final WagNowProvider _wagNowInZone;
+  final WagNowProvider? _wagNowInZone;
   final List<WagEvent> _wagEvents;
   final DaysOutsideYearWindowResolver _resolveDaysOutsideYearWindow;
   final DaysOutsideYearScheduleResolver _daysOutsideYearScheduleForEvent;
-  final DaysOutsideYearNowProvider _daysOutsideYearNowInZone;
+  final DaysOutsideYearNowProvider? _daysOutsideYearNowInZone;
   final List<DaysOutsideEvent> _daysOutsideYearEvents;
   final DecanWatchWindowResolver _resolveDecanWatchWindow;
   final DecanWatchOccurrenceResolver _decanWatchOccurrencesForWindow;
-  final DecanWatchNowProvider _decanWatchNowInZone;
+  final DecanWatchNowProvider? _decanWatchNowInZone;
   final OpenHandWindowResolver _resolveOpenHandWindow;
   final OpenHandScheduleResolver _openHandScheduleForEvent;
-  final OpenHandNowProvider _openHandNowInZone;
+  final OpenHandNowProvider? _openHandNowInZone;
   final List<OpenHandEvent> _openHandEvents;
   final DjedWindowResolver _resolveDjedWindow;
   final DjedScheduleResolver _djedScheduleForEvent;
-  final DjedNowProvider _djedNowInZone;
+  final DjedNowProvider? _djedNowInZone;
   final List<DjedEvent> _djedEvents;
-  final DawnHouseRiteStartDateResolver _resolveDawnHouseRiteDefaultStartDate;
+  final DawnHouseRiteStartDateResolver? _resolveDawnHouseRiteDefaultStartDate;
   final DawnHouseRiteScheduleResolver _dawnHouseRiteScheduleForDate;
   final List<DawnHouseRiteDay> _dawnHouseRiteDays;
-  final EveningThresholdRiteStartDateResolver
+  final EveningThresholdRiteStartDateResolver?
   _resolveEveningThresholdRiteDefaultStartDate;
   final EveningThresholdRiteScheduleResolver _eveningThresholdScheduleForDate;
   final List<EveningThresholdRiteDay> _eveningThresholdRiteDays;
-  final TheWeighingStartDateResolver _resolveTheWeighingDefaultStartDate;
+  final TheWeighingStartDateResolver? _resolveTheWeighingDefaultStartDate;
   final TheWeighingScheduleResolver _theWeighingScheduleForDate;
   final List<TheWeighingEvent> _theWeighingEvents;
-  final OfferingTableStartDateResolver _resolveOfferingTableDefaultStartDate;
+  final OfferingTableStartDateResolver? _resolveOfferingTableDefaultStartDate;
   final OfferingTableScheduleResolver _offeringTableScheduleForDate;
   final List<OfferingTableDay> _offeringTableDays;
-  final TheTendingStartDateResolver _resolveTheTendingDefaultStartDate;
+  final TheTendingStartDateResolver? _resolveTheTendingDefaultStartDate;
   final TheTendingScheduleResolver _theTendingScheduleForDate;
   final List<TheTendingEvent> _theTendingEvents;
-  final KeptWordStartDateResolver _resolveKeptWordDefaultStartDate;
+  final KeptWordStartDateResolver? _resolveKeptWordDefaultStartDate;
   final KeptWordScheduleResolver _keptWordScheduleForDate;
   final List<KeptWordEvent> _keptWordEvents;
-  final CourseStartDateResolver _resolveTheCourseDefaultStartDate;
+  final CourseStartDateResolver? _resolveTheCourseDefaultStartDate;
   final CourseScheduleResolver _courseScheduleForDate;
   final List<CourseEvent> _courseEvents;
   _DeferredJoinContext? _deferredJoinContext;
 
   UserEventsRepo get _repo =>
       _userEventsRepo ?? UserEventsRepo(Supabase.instance.client);
+
+  MaatFlowTemporalContext _captureTemporalContext(TrackSkyTimeZone timezone) {
+    return MaatFlowTemporalContext.capture(timezone: timezone, clock: _clock);
+  }
+
+  DateTime _resolveTemporalStart(
+    MaatFlowKind kind,
+    TrackSkyTimeZone timezone, {
+    MaatFlowTemporalContext? context,
+    int eveningThresholdMinutes = kEveningThresholdDefaultMinutesAfterMidnight,
+    int eveningThresholdFallbackMinutes =
+        kEveningThresholdDefaultFallbackMinutes,
+  }) {
+    return _temporalResolver
+        .resolve(
+          kind: kind,
+          context: context ?? _captureTemporalContext(timezone),
+          eveningThresholdMinutes: eveningThresholdMinutes,
+          eveningThresholdFallbackMinutes: eveningThresholdFallbackMinutes,
+        )
+        .startDate;
+  }
+
+  MaatFlowKind _registeredKindForKey(String flowKey) {
+    final kind = resolveMaatFlowKind(
+      behaviorPayload: <String, dynamic>{'flow_key': flowKey},
+    );
+    if (kind == null) {
+      throw StateError('Ma’at Flow $flowKey has no registered identity.');
+    }
+    return kind;
+  }
 
   static Future<void> _defaultPersistEveningThresholdInitialCarry({
     required DateTime localDate,
@@ -833,8 +859,15 @@ class FlowJoinService {
       materializer: materializer,
       visibilityService: const SkyVisibilityService(),
     );
+    final temporal = _temporalResolver.resolve(
+      kind: MaatFlowKind.trackSky,
+      context: _captureTemporalContext(timezone),
+      skyCatalog: catalog,
+      skyEnrollment: enrollment,
+    );
     final draft = enrollment.buildJoinDraft(
       catalog: catalog,
+      eligibleNights: temporal.skyNights,
       ianaTimeZone: timezone.ianaName,
       timezoneKey: timezone.key,
       overview: templateOverview,
@@ -984,9 +1017,16 @@ class FlowJoinService {
     MoonReturnLens lens = MoonReturnLens.neutral,
     int alertOffsetMinutes = 0,
   }) async {
+    final temporalContext = _captureTemporalContext(timezone);
     final window = _resolveMoonReturnWindow(
       timezone: timezone,
-      startDate: startDate,
+      startDate:
+          startDate ??
+          _resolveTemporalStart(
+            MaatFlowKind.moonReturn,
+            timezone,
+            context: temporalContext,
+          ),
     );
     if (window == null) {
       return const FlowJoinResult.failure(
@@ -1004,7 +1044,9 @@ class FlowJoinService {
         DateUtils.dateOnly(occurrence.startLocal),
     };
     final orderedDates = dates.toList()..sort();
-    final nowLocal = _moonReturnNowInZone(timezone);
+    final nowLocal =
+        _moonReturnNowInZone?.call(timezone) ??
+        temporalContext.presentLocalDateTime;
     final notes = [
       'mode=astronomy',
       'split=1',
@@ -1095,7 +1137,17 @@ class FlowJoinService {
     WagLens lens = WagLens.neutral,
     int alertOffsetMinutes = 0,
   }) async {
-    final window = _resolveWagWindow(timezone: timezone, startDate: startDate);
+    final temporalContext = _captureTemporalContext(timezone);
+    final window = _resolveWagWindow(
+      timezone: timezone,
+      startDate:
+          startDate ??
+          _resolveTemporalStart(
+            MaatFlowKind.theWag,
+            timezone,
+            context: temporalContext,
+          ),
+    );
     if (window == null) {
       return const FlowJoinResult.failure(
         FlowJoinFailureCode.noEnrollmentWindow,
@@ -1124,7 +1176,8 @@ class FlowJoinService {
       return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
     }
 
-    final nowLocal = _wagNowInZone(timezone);
+    final nowLocal =
+        _wagNowInZone?.call(timezone) ?? temporalContext.presentLocalDateTime;
     final notes = [
       'mode=kemetic',
       'split=1',
@@ -1231,9 +1284,16 @@ class FlowJoinService {
     DateTime? startDate,
     int alertOffsetMinutes = 0,
   }) async {
+    final temporalContext = _captureTemporalContext(timezone);
     final window = _resolveDaysOutsideYearWindow(
       timezone: timezone,
-      startDate: startDate,
+      startDate:
+          startDate ??
+          _resolveTemporalStart(
+            MaatFlowKind.daysOutsideTheYear,
+            timezone,
+            context: temporalContext,
+          ),
     );
     if (window == null) {
       return const FlowJoinResult.failure(
@@ -1263,7 +1323,9 @@ class FlowJoinService {
       return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
     }
 
-    final nowLocal = _daysOutsideYearNowInZone(timezone);
+    final nowLocal =
+        _daysOutsideYearNowInZone?.call(timezone) ??
+        temporalContext.presentLocalDateTime;
     final notes = [
       'mode=kemetic',
       'split=1',
@@ -1374,9 +1436,16 @@ class FlowJoinService {
     DecanWatchLens lens = DecanWatchLens.neutral,
     int alertOffsetMinutes = 0,
   }) async {
+    final temporalContext = _captureTemporalContext(timezone);
     final window = _resolveDecanWatchWindow(
       timezone: timezone,
-      startDate: startDate,
+      startDate:
+          startDate ??
+          _resolveTemporalStart(
+            MaatFlowKind.decanWatch,
+            timezone,
+            context: temporalContext,
+          ),
     );
     if (window == null) {
       return const FlowJoinResult.failure(
@@ -1401,7 +1470,9 @@ class FlowJoinService {
     }
 
     final orderedDates = dates.toList()..sort();
-    final nowLocal = _decanWatchNowInZone(timezone);
+    final nowLocal =
+        _decanWatchNowInZone?.call(timezone) ??
+        temporalContext.presentLocalDateTime;
     final notes = [
       'mode=kemetic',
       'split=1',
@@ -1502,9 +1573,16 @@ class FlowJoinService {
     OpenHandLens lens = OpenHandLens.neutral,
     int alertOffsetMinutes = 0,
   }) async {
+    final temporalContext = _captureTemporalContext(timezone);
     final window = _resolveOpenHandWindow(
       timezone: timezone,
-      startDate: startDate,
+      startDate:
+          startDate ??
+          _resolveTemporalStart(
+            MaatFlowKind.theOpenHand,
+            timezone,
+            context: temporalContext,
+          ),
     );
     if (window == null) {
       return const FlowJoinResult.failure(
@@ -1534,7 +1612,9 @@ class FlowJoinService {
       return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
     }
 
-    final nowLocal = _openHandNowInZone(timezone);
+    final nowLocal =
+        _openHandNowInZone?.call(timezone) ??
+        temporalContext.presentLocalDateTime;
     final notes = [
       'mode=gregorian',
       'split=1',
@@ -1628,7 +1708,17 @@ class FlowJoinService {
     DjedLens lens = DjedLens.neutral,
     int alertOffsetMinutes = 0,
   }) async {
-    final window = _resolveDjedWindow(timezone: timezone, startDate: startDate);
+    final temporalContext = _captureTemporalContext(timezone);
+    final window = _resolveDjedWindow(
+      timezone: timezone,
+      startDate:
+          startDate ??
+          _resolveTemporalStart(
+            MaatFlowKind.theDjed,
+            timezone,
+            context: temporalContext,
+          ),
+    );
     if (window == null) {
       return const FlowJoinResult.failure(
         FlowJoinFailureCode.noEnrollmentWindow,
@@ -1657,7 +1747,8 @@ class FlowJoinService {
       return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
     }
 
-    final nowLocal = _djedNowInZone(timezone);
+    final nowLocal =
+        _djedNowInZone?.call(timezone) ?? temporalContext.presentLocalDateTime;
     final notes = [
       'mode=gregorian',
       'split=1',
@@ -1749,9 +1840,16 @@ class FlowJoinService {
     DateTime? startDate,
     int alertOffsetMinutes = 0,
   }) async {
+    final temporalContext = _captureTemporalContext(timezone);
     final window = _resolveDecanWatchWindow(
       timezone: timezone,
-      startDate: startDate,
+      startDate:
+          startDate ??
+          _resolveTemporalStart(
+            _registeredKindForKey(definition.key),
+            timezone,
+            context: temporalContext,
+          ),
     );
     if (window == null) {
       return const FlowJoinResult.failure(
@@ -1777,7 +1875,7 @@ class FlowJoinService {
       return const FlowJoinResult.failure(FlowJoinFailureCode.noOccurrences);
     }
 
-    final nowLocal = maatDecanFlowNowInZone(timezone);
+    final nowLocal = temporalContext.presentLocalDateTime;
     final startIso = CalendarPage._formatDetachedGregorian(flowStart);
     final prefix = definition.notesPrefix;
     final notes = [
@@ -1883,7 +1981,9 @@ class FlowJoinService {
     }
 
     final firstGregorian = DateUtils.dateOnly(
-      startDate ?? _resolveDawnHouseRiteDefaultStartDate(timezone),
+      startDate ??
+          _resolveDawnHouseRiteDefaultStartDate?.call(timezone) ??
+          _resolveTemporalStart(MaatFlowKind.dawnHouseRite, timezone),
     );
     final occurrences = <DawnHouseRiteOccurrenceSchedule>[
       for (var i = 0; i < days.length; i++)
@@ -2021,9 +2121,14 @@ class FlowJoinService {
 
     final firstGregorian = DateUtils.dateOnly(
       startDate ??
-          _resolveEveningThresholdRiteDefaultStartDate(
+          _resolveEveningThresholdRiteDefaultStartDate?.call(
             timezone,
             fallbackMinutesAfterMidnight: fallbackMinutesAfterMidnight,
+          ) ??
+          _resolveTemporalStart(
+            MaatFlowKind.eveningThresholdRite,
+            timezone,
+            eveningThresholdFallbackMinutes: fallbackMinutesAfterMidnight,
           ),
     );
     final occurrences = <EveningThresholdOccurrenceSchedule>[
@@ -2164,9 +2269,10 @@ class FlowJoinService {
 
     final firstGregorian = DateUtils.dateOnly(
       startDate ??
-          defaultEveningThresholdStartDate(
+          _resolveTemporalStart(
+            MaatFlowKind.eveningThreshold,
             timezone,
-            defaultMinutesAfterMidnight: defaultMinutesAfterMidnight,
+            eveningThresholdMinutes: defaultMinutesAfterMidnight,
           ),
     );
     final schedules = <({EveningThresholdEvent event, DateTime date})>[
@@ -2361,7 +2467,9 @@ class FlowJoinService {
     }
 
     final firstGregorian = DateUtils.dateOnly(
-      startDate ?? _resolveTheWeighingDefaultStartDate(timezone),
+      startDate ??
+          _resolveTheWeighingDefaultStartDate?.call(timezone) ??
+          _resolveTemporalStart(MaatFlowKind.theWeighing, timezone),
     );
     final occurrences = <TheWeighingOccurrenceSchedule>[
       for (final event in events)
@@ -2494,7 +2602,9 @@ class FlowJoinService {
     }
 
     final firstGregorian = DateUtils.dateOnly(
-      startDate ?? _resolveOfferingTableDefaultStartDate(timezone),
+      startDate ??
+          _resolveOfferingTableDefaultStartDate?.call(timezone) ??
+          _resolveTemporalStart(MaatFlowKind.offeringTable, timezone),
     );
     final occurrences = <OfferingTableOccurrenceSchedule>[
       for (var i = 0; i < days.length; i++)
@@ -2632,7 +2742,9 @@ class FlowJoinService {
     }
 
     final firstGregorian = DateUtils.dateOnly(
-      startDate ?? _resolveTheTendingDefaultStartDate(timezone),
+      startDate ??
+          _resolveTheTendingDefaultStartDate?.call(timezone) ??
+          _resolveTemporalStart(MaatFlowKind.theTending, timezone),
     );
     final occurrences = <TheTendingOccurrenceSchedule>[
       for (final event in events)
@@ -2764,7 +2876,9 @@ class FlowJoinService {
     }
 
     final firstGregorian = DateUtils.dateOnly(
-      startDate ?? _resolveKeptWordDefaultStartDate(timezone),
+      startDate ??
+          _resolveKeptWordDefaultStartDate?.call(timezone) ??
+          _resolveTemporalStart(MaatFlowKind.keptWord, timezone),
     );
     final occurrences = <KeptWordOccurrenceSchedule>[
       for (final event in events)
@@ -2896,7 +3010,9 @@ class FlowJoinService {
     }
 
     final firstGregorian = DateUtils.dateOnly(
-      startDate ?? _resolveTheCourseDefaultStartDate(timezone),
+      startDate ??
+          _resolveTheCourseDefaultStartDate?.call(timezone) ??
+          _resolveTemporalStart(MaatFlowKind.theCourse, timezone),
     );
     final joinedK = KemeticMath.fromGregorian(firstGregorian);
     final occurrences = <CourseOccurrenceSchedule>[
@@ -3303,10 +3419,6 @@ class FlowJoinService {
     return moonReturnOccurrencesForWindow(window: window);
   }
 
-  static DateTime _defaultMoonReturnNowInZone(TrackSkyTimeZone timezone) {
-    return moonReturnNowInZone(timezone);
-  }
-
   static WagEnrollmentWindow? _defaultResolveWagWindow({
     required TrackSkyTimeZone timezone,
     DateTime? startDate,
@@ -3323,10 +3435,6 @@ class FlowJoinService {
     required TrackSkyTimeZone timezone,
   }) {
     return wagScheduleForEvent(event: event, kYear: kYear, timezone: timezone);
-  }
-
-  static DateTime _defaultWagNowInZone(TrackSkyTimeZone timezone) {
-    return wagNowInZone(timezone);
   }
 
   static DaysOutsideYearEnrollmentWindow? _defaultResolveDaysOutsideYearWindow({
@@ -3349,10 +3457,6 @@ class FlowJoinService {
       closingKYear: closingKYear,
       timezone: timezone,
     );
-  }
-
-  static DateTime _defaultDaysOutsideYearNowInZone(TrackSkyTimeZone timezone) {
-    return daysOutsideNowInZone(timezone);
   }
 
   static DecanWatchEnrollmentWindow? _defaultResolveDecanWatchWindow({
@@ -3381,10 +3485,6 @@ class FlowJoinService {
     ];
   }
 
-  static DateTime _defaultDecanWatchNowInZone(TrackSkyTimeZone timezone) {
-    return decanWatchNowInZone(timezone);
-  }
-
   static OpenHandEnrollmentWindow? _defaultResolveOpenHandWindow({
     required TrackSkyTimeZone timezone,
     DateTime? startDate,
@@ -3401,10 +3501,6 @@ class FlowJoinService {
     required TrackSkyTimeZone timezone,
   }) {
     return openHandScheduleForEvent(event, flowStart, timezone);
-  }
-
-  static DateTime _defaultOpenHandNowInZone(TrackSkyTimeZone timezone) {
-    return openHandNowInZone(timezone);
   }
 
   static DjedEnrollmentWindow? _defaultResolveDjedWindow({
@@ -3425,31 +3521,11 @@ class FlowJoinService {
     return djedScheduleForEvent(event, flowStart, timezone);
   }
 
-  static DateTime _defaultDjedNowInZone(TrackSkyTimeZone timezone) {
-    return djedNowInZone(timezone);
-  }
-
-  static DateTime _defaultResolveDawnHouseRiteStartDate(
-    TrackSkyTimeZone timezone,
-  ) {
-    return defaultDawnHouseRiteStartDate(timezone);
-  }
-
   static DawnHouseRiteOccurrenceSchedule _defaultDawnHouseRiteScheduleForDate(
     DateTime date,
     TrackSkyTimeZone timezone,
   ) {
     return dawnHouseRiteScheduleForDate(date, timezone);
-  }
-
-  static DateTime _defaultResolveEveningThresholdRiteStartDate(
-    TrackSkyTimeZone timezone, {
-    required int fallbackMinutesAfterMidnight,
-  }) {
-    return defaultEveningThresholdRiteStartDate(
-      timezone,
-      fallbackMinutesAfterMidnight: fallbackMinutesAfterMidnight,
-    );
   }
 
   static EveningThresholdOccurrenceSchedule
@@ -3465,24 +3541,12 @@ class FlowJoinService {
     );
   }
 
-  static DateTime _defaultResolveTheWeighingStartDate(
-    TrackSkyTimeZone timezone,
-  ) {
-    return defaultTheWeighingStartDate(timezone);
-  }
-
   static TheWeighingOccurrenceSchedule _defaultTheWeighingScheduleForDate(
     TheWeighingEvent event,
     DateTime date,
     TrackSkyTimeZone timezone,
   ) {
     return theWeighingScheduleForDate(event, date, timezone);
-  }
-
-  static DateTime _defaultResolveOfferingTableStartDate(
-    TrackSkyTimeZone timezone,
-  ) {
-    return defaultOfferingTableStartDate(timezone);
   }
 
   static OfferingTableOccurrenceSchedule _defaultOfferingTableScheduleForDate(
@@ -3493,12 +3557,6 @@ class FlowJoinService {
     return offeringTableScheduleForDate(day, date, timezone);
   }
 
-  static DateTime _defaultResolveTheTendingStartDate(
-    TrackSkyTimeZone timezone,
-  ) {
-    return defaultTheTendingStartDate(timezone);
-  }
-
   static TheTendingOccurrenceSchedule _defaultTheTendingScheduleForDate(
     TheTendingEvent event,
     DateTime date,
@@ -3507,20 +3565,12 @@ class FlowJoinService {
     return theTendingScheduleForDate(event, date, timezone);
   }
 
-  static DateTime _defaultResolveKeptWordStartDate(TrackSkyTimeZone timezone) {
-    return defaultKeptWordStartDate(timezone);
-  }
-
   static KeptWordOccurrenceSchedule _defaultKeptWordScheduleForDate(
     KeptWordEvent event,
     DateTime date,
     TrackSkyTimeZone timezone,
   ) {
     return keptWordScheduleForDate(event, date, timezone);
-  }
-
-  static DateTime _defaultResolveTheCourseStartDate(TrackSkyTimeZone timezone) {
-    return defaultTheCourseStartDate(timezone);
   }
 
   static CourseOccurrenceSchedule _defaultCourseScheduleForDate(

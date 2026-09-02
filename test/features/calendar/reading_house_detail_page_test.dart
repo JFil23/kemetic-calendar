@@ -7,6 +7,7 @@ import 'package:mobile/data/profile_repo.dart';
 import 'package:mobile/data/shared_calendar_models.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calendar.dart';
+import 'package:mobile/features/calendar/maat_flow_temporal_policy.dart';
 import 'package:mobile/features/calendar/the_reading_house/reading_house_authority.dart';
 import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_detail_page.dart';
 import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_sitting_editor.dart';
@@ -26,6 +27,8 @@ void main() {
     Size size = const Size(390, 844),
     _FakeReadingHouseAuthority? authority,
     int? initialFlowId,
+    bool computedStart = false,
+    MaatFlowClock? clock,
   }) async {
     final fake = authority ?? _FakeReadingHouseAuthority();
     await tester.binding.setSurfaceSize(size);
@@ -37,11 +40,12 @@ void main() {
           child: ReadingHouseDetailPage(
             key: ValueKey<Size>(size),
             timezone: TrackSkyTimeZone.pacific,
-            initialStartDate: DateTime(2026, 9, 14),
+            initialStartDate: computedStart ? null : DateTime(2026, 9, 14),
             initialFlowId: initialFlowId,
             initiallyHeld: initialFlowId != null,
             authority: fake,
             resolvePersonalCalendarId: () async => 'personal-calendar',
+            clock: clock,
           ),
         ),
       ),
@@ -230,6 +234,42 @@ void main() {
         (sitting) => sitting.scheduledDate != null,
       ),
       isTrue,
+    );
+  });
+
+  testWidgets('computed preview dates are the dates persisted on placement', (
+    tester,
+  ) async {
+    final authority = await pumpHouse(
+      tester,
+      computedStart: true,
+      clock: () => DateTime.utc(2026, 9, 2, 18),
+    );
+
+    expect(
+      find.byKey(
+        const ValueKey<String>('reading-house-calendar-day-2026-09-05'),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('reading-house-hold')));
+    await tester.pumpAndSettle();
+    await jumpHouseScroll(tester, 1500);
+    final placeReading = find.byKey(
+      const ValueKey<String>('reading-house-place-reading'),
+    );
+    await tester.ensureVisible(placeReading);
+    await tester.pumpAndSettle();
+    await tester.tap(placeReading);
+    await tester.pumpAndSettle();
+
+    expect(
+      authority.lastSnapshot?.sittings.map((sitting) => sitting.scheduledDate),
+      <DateTime>[
+        DateTime(2026, 9, 5),
+        DateTime(2026, 9, 15),
+        DateTime(2026, 9, 25),
+      ],
     );
   });
 

@@ -2454,8 +2454,10 @@ class _MaatFlowArcChevron extends StatelessWidget {
 }
 
 class _MaatFlowTemplateDetailPageState
-    extends State<_MaatFlowTemplateDetailPage> {
+    extends State<_MaatFlowTemplateDetailPage>
+    with WidgetsBindingObserver {
   late TrackSkyTimeZone _previewTrackSkyTimeZone;
+  late MaatFlowTemporalContext _temporalContext;
   Future<TrackSkyFlowData>? _trackSkyFuture;
   final GlobalKey<FollowSkyDetailPageState> _followSkyDetailKey =
       GlobalKey<FollowSkyDetailPageState>();
@@ -2557,53 +2559,103 @@ class _MaatFlowTemplateDetailPageState
     return List<DateTime>.unmodifiable(ordered);
   }
 
+  MaatFlowKind get _registeredFlowKind {
+    final kind = resolveMaatFlowKind(
+      behaviorPayload: <String, dynamic>{'flow_key': widget.template.key},
+    );
+    if (kind == null) {
+      throw StateError(
+        'Ma’at Flow ${widget.template.key} has no registered identity.',
+      );
+    }
+    return kind;
+  }
+
+  DateTime _resolveTemporalStart(MaatFlowTemporalContext context) {
+    return const MaatFlowTemporalResolver()
+        .resolve(
+          kind: _registeredFlowKind,
+          context: context,
+          eveningThresholdFallbackMinutes: _eveningFallbackMinutes,
+        )
+        .startDate;
+  }
+
+  bool get _startDateWasExplicitlySelected => switch (widget.template.kind) {
+    _MaatFlowTemplateKind.sequence => false,
+    _MaatFlowTemplateKind.trackSky => false,
+    _MaatFlowTemplateKind.dawnHouseRite => _dawnStartDateTouched,
+    _MaatFlowTemplateKind.eveningThreshold => _eveningThresholdStartDateTouched,
+    _MaatFlowTemplateKind.eveningThresholdRite => _eveningStartDateTouched,
+    _MaatFlowTemplateKind.theWeighing => _theWeighingStartDateTouched,
+    _MaatFlowTemplateKind.offeringTable => false,
+    _MaatFlowTemplateKind.theTending => _theTendingStartDateTouched,
+    _MaatFlowTemplateKind.keptWord => _keptWordStartDateTouched,
+    _MaatFlowTemplateKind.theCourse => _courseStartDateTouched,
+    _MaatFlowTemplateKind.moonReturn => _moonReturnStartDateTouched,
+    _MaatFlowTemplateKind.theWag => _wagStartDateTouched,
+    _MaatFlowTemplateKind.decanWatch => _decanWatchStartDateTouched,
+    _MaatFlowTemplateKind.daysOutsideTheYear =>
+      _daysOutsideYearStartDateTouched,
+    _MaatFlowTemplateKind.theOpenHand => _openHandStartDateTouched,
+    _MaatFlowTemplateKind.theDjed => _djedStartDateTouched,
+    _MaatFlowTemplateKind.readingHouse => _readingHouseStartDateTouched,
+    _MaatFlowTemplateKind.maatDecan => _maatDecanStartDateTouched,
+  };
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed ||
+        widget.alreadyJoined ||
+        widget.template.kind == _MaatFlowTemplateKind.trackSky ||
+        _startDateWasExplicitlySelected) {
+      return;
+    }
+    final nextContext = MaatFlowTemporalContext.capture(
+      timezone: _previewTrackSkyTimeZone,
+    );
+    if (_temporalContext.hasSamePresentDay(nextContext)) return;
+    setState(() {
+      _temporalContext = nextContext;
+      _picked = _resolveTemporalStart(nextContext);
+    });
+  }
+
+  DateTime _effectiveStartForCarry(DateTime previewedStart) {
+    if (widget.alreadyJoined || _startDateWasExplicitlySelected) {
+      return previewedStart;
+    }
+    final nextContext = MaatFlowTemporalContext.capture(
+      timezone: _previewTrackSkyTimeZone,
+    );
+    if (_temporalContext.hasSamePresentDay(nextContext)) return previewedStart;
+    _temporalContext = nextContext;
+    final refreshed = _resolveTemporalStart(nextContext);
+    _picked = refreshed;
+    return refreshed;
+  }
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _previewTrackSkyTimeZone = detectTrackSkyTimeZone();
+    _temporalContext = MaatFlowTemporalContext.capture(
+      timezone: _previewTrackSkyTimeZone,
+    );
     if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
       _trackSkyFuture = loadTrackSkyFlowData(_previewTrackSkyTimeZone);
-    } else if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
-      _picked = defaultDawnHouseRiteStartDate(_previewTrackSkyTimeZone);
-    } else if (widget.template.kind == _MaatFlowTemplateKind.eveningThreshold) {
-      _picked = defaultEveningThresholdStartDate(_previewTrackSkyTimeZone);
-    } else if (widget.template.kind ==
-        _MaatFlowTemplateKind.eveningThresholdRite) {
-      _picked = defaultEveningThresholdRiteStartDate(
-        _previewTrackSkyTimeZone,
-        fallbackMinutesAfterMidnight: _eveningFallbackMinutes,
-      );
-    } else if (widget.template.kind == _MaatFlowTemplateKind.theWeighing) {
-      _picked = defaultTheWeighingStartDate(_previewTrackSkyTimeZone);
-    } else if (widget.template.kind == _MaatFlowTemplateKind.theTending) {
-      _picked = defaultTheTendingStartDate(_previewTrackSkyTimeZone);
-    } else if (widget.template.kind == _MaatFlowTemplateKind.keptWord) {
-      _picked = defaultKeptWordStartDate(_previewTrackSkyTimeZone);
-    } else if (widget.template.kind == _MaatFlowTemplateKind.theCourse) {
-      _picked = defaultTheCourseStartDate(_previewTrackSkyTimeZone);
-    } else if (widget.template.kind == _MaatFlowTemplateKind.moonReturn) {
-      _picked = moonReturnDefaultStartDate(_previewTrackSkyTimeZone);
-    } else if (widget.template.kind == _MaatFlowTemplateKind.theWag) {
-      _picked = defaultTheWagStartDate(_previewTrackSkyTimeZone);
-    } else if (widget.template.kind == _MaatFlowTemplateKind.decanWatch) {
-      _picked = defaultTheDecanWatchStartDate(_previewTrackSkyTimeZone);
-    } else if (widget.template.kind ==
-        _MaatFlowTemplateKind.daysOutsideTheYear) {
-      _picked = defaultTheDaysOutsideYearStartDate(_previewTrackSkyTimeZone);
-    } else if (widget.template.kind == _MaatFlowTemplateKind.theOpenHand) {
-      _picked = defaultTheOpenHandStartDate(_previewTrackSkyTimeZone);
-    } else if (widget.template.kind == _MaatFlowTemplateKind.theDjed) {
-      _picked = defaultTheDjedStartDate(_previewTrackSkyTimeZone);
-    } else if (widget.template.kind == _MaatFlowTemplateKind.readingHouse) {
-      _picked = defaultReadingHouseStartDate(_previewTrackSkyTimeZone);
-      _readingHouseSittings = readingHouseStarterSittingsForAuthoring();
-    } else if (widget.template.kind == _MaatFlowTemplateKind.maatDecan) {
-      _picked = defaultTheDecanWatchStartDate(_previewTrackSkyTimeZone);
+    } else {
+      _picked = _resolveTemporalStart(_temporalContext);
+      if (widget.template.kind == _MaatFlowTemplateKind.readingHouse) {
+        _readingHouseSittings = readingHouseStarterSittingsForAuthoring();
+      }
     }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _eveningThresholdInitialCarryController.dispose();
     super.dispose();
   }
@@ -3613,59 +3665,11 @@ class _MaatFlowTemplateDetailPageState
     }
     setState(() {
       _previewTrackSkyTimeZone = timezone;
+      _temporalContext = MaatFlowTemporalContext.capture(timezone: timezone);
       if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
         _trackSkyFuture = loadTrackSkyFlowData(timezone);
-      } else if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite &&
-          !_dawnStartDateTouched) {
-        _picked = defaultDawnHouseRiteStartDate(timezone);
-      } else if (widget.template.kind ==
-              _MaatFlowTemplateKind.eveningThreshold &&
-          !_eveningThresholdStartDateTouched) {
-        _picked = defaultEveningThresholdStartDate(timezone);
-      } else if (widget.template.kind ==
-              _MaatFlowTemplateKind.eveningThresholdRite &&
-          !_eveningStartDateTouched) {
-        _picked = defaultEveningThresholdRiteStartDate(
-          timezone,
-          fallbackMinutesAfterMidnight: _eveningFallbackMinutes,
-        );
-      } else if (widget.template.kind == _MaatFlowTemplateKind.theWeighing &&
-          !_theWeighingStartDateTouched) {
-        _picked = defaultTheWeighingStartDate(timezone);
-      } else if (widget.template.kind == _MaatFlowTemplateKind.theTending &&
-          !_theTendingStartDateTouched) {
-        _picked = defaultTheTendingStartDate(timezone);
-      } else if (widget.template.kind == _MaatFlowTemplateKind.keptWord &&
-          !_keptWordStartDateTouched) {
-        _picked = defaultKeptWordStartDate(timezone);
-      } else if (widget.template.kind == _MaatFlowTemplateKind.theCourse &&
-          !_courseStartDateTouched) {
-        _picked = defaultTheCourseStartDate(timezone);
-      } else if (widget.template.kind == _MaatFlowTemplateKind.moonReturn &&
-          !_moonReturnStartDateTouched) {
-        _picked = moonReturnDefaultStartDate(timezone);
-      } else if (widget.template.kind == _MaatFlowTemplateKind.theWag &&
-          !_wagStartDateTouched) {
-        _picked = defaultTheWagStartDate(timezone);
-      } else if (widget.template.kind == _MaatFlowTemplateKind.decanWatch &&
-          !_decanWatchStartDateTouched) {
-        _picked = defaultTheDecanWatchStartDate(timezone);
-      } else if (widget.template.kind ==
-              _MaatFlowTemplateKind.daysOutsideTheYear &&
-          !_daysOutsideYearStartDateTouched) {
-        _picked = defaultTheDaysOutsideYearStartDate(timezone);
-      } else if (widget.template.kind == _MaatFlowTemplateKind.theOpenHand &&
-          !_openHandStartDateTouched) {
-        _picked = defaultTheOpenHandStartDate(timezone);
-      } else if (widget.template.kind == _MaatFlowTemplateKind.theDjed &&
-          !_djedStartDateTouched) {
-        _picked = defaultTheDjedStartDate(timezone);
-      } else if (widget.template.kind == _MaatFlowTemplateKind.readingHouse &&
-          !_readingHouseStartDateTouched) {
-        _picked = defaultReadingHouseStartDate(timezone);
-      } else if (widget.template.kind == _MaatFlowTemplateKind.maatDecan &&
-          !_maatDecanStartDateTouched) {
-        _picked = defaultTheDecanWatchStartDate(timezone);
+      } else if (!_startDateWasExplicitlySelected) {
+        _picked = _resolveTemporalStart(_temporalContext);
       }
     });
   }
@@ -3811,10 +3815,10 @@ class _MaatFlowTemplateDetailPageState
       _eveningFallbackMinutes = _minutesFromTimeOfDay(picked);
       if (!_eveningStartDateTouched &&
           widget.template.kind == _MaatFlowTemplateKind.eveningThresholdRite) {
-        _picked = defaultEveningThresholdRiteStartDate(
-          _previewTrackSkyTimeZone,
-          fallbackMinutesAfterMidnight: _eveningFallbackMinutes,
+        _temporalContext = MaatFlowTemporalContext.capture(
+          timezone: _previewTrackSkyTimeZone,
         );
+        _picked = _resolveTemporalStart(_temporalContext);
       }
     });
   }
@@ -3829,7 +3833,7 @@ class _MaatFlowTemplateDetailPageState
     try {
       id = await widget.addInstance(
         template: widget.template,
-        startDate: selectedStart,
+        startDate: _effectiveStartForCarry(selectedStart),
         trackSkyTimeZone: _previewTrackSkyTimeZone,
         dawnDiscreetMode: _dawnDiscreetMode,
         dawnLens: _dawnLens,
@@ -3878,7 +3882,7 @@ class _MaatFlowTemplateDetailPageState
     try {
       id = await widget.addInstance(
         template: widget.template,
-        startDate: selectedStart,
+        startDate: _effectiveStartForCarry(selectedStart),
         trackSkyTimeZone: _previewTrackSkyTimeZone,
         eveningThresholdInitialCarry: initialCarry,
       );
@@ -3919,7 +3923,7 @@ class _MaatFlowTemplateDetailPageState
     try {
       id = await widget.addInstance(
         template: widget.template,
-        startDate: selectedStart,
+        startDate: _effectiveStartForCarry(selectedStart),
         trackSkyTimeZone: _previewTrackSkyTimeZone,
         eveningDiscreetMode: _eveningDiscreetMode,
         eveningLens: _eveningLens,
@@ -3962,7 +3966,7 @@ class _MaatFlowTemplateDetailPageState
     try {
       id = await widget.addInstance(
         template: widget.template,
-        startDate: selectedStart,
+        startDate: _effectiveStartForCarry(selectedStart),
         trackSkyTimeZone: _previewTrackSkyTimeZone,
         theWeighingLens: _theWeighingLens,
       );
@@ -4003,7 +4007,7 @@ class _MaatFlowTemplateDetailPageState
     try {
       id = await widget.addInstance(
         template: widget.template,
-        startDate: selectedStart,
+        startDate: _effectiveStartForCarry(selectedStart),
         trackSkyTimeZone: _previewTrackSkyTimeZone,
         theTendingLens: _theTendingLens,
       );
@@ -4044,7 +4048,7 @@ class _MaatFlowTemplateDetailPageState
     try {
       id = await widget.addInstance(
         template: widget.template,
-        startDate: selectedStart,
+        startDate: _effectiveStartForCarry(selectedStart),
         trackSkyTimeZone: _previewTrackSkyTimeZone,
         keptWordLens: _keptWordLens,
       );
@@ -4085,7 +4089,7 @@ class _MaatFlowTemplateDetailPageState
     try {
       id = await widget.addInstance(
         template: widget.template,
-        startDate: selectedStart,
+        startDate: _effectiveStartForCarry(selectedStart),
         trackSkyTimeZone: _previewTrackSkyTimeZone,
         courseLens: _courseLens,
       );
@@ -4126,7 +4130,7 @@ class _MaatFlowTemplateDetailPageState
     try {
       id = await widget.addInstance(
         template: widget.template,
-        startDate: selectedStart,
+        startDate: _effectiveStartForCarry(selectedStart),
         trackSkyTimeZone: _previewTrackSkyTimeZone,
         moonReturnLens: _moonReturnLens,
       );
@@ -4167,7 +4171,7 @@ class _MaatFlowTemplateDetailPageState
     try {
       id = await widget.addInstance(
         template: widget.template,
-        startDate: selectedStart,
+        startDate: _effectiveStartForCarry(selectedStart),
         trackSkyTimeZone: _previewTrackSkyTimeZone,
         wagLens: _wagLens,
       );
@@ -4206,7 +4210,7 @@ class _MaatFlowTemplateDetailPageState
     try {
       id = await widget.addInstance(
         template: widget.template,
-        startDate: selectedStart,
+        startDate: _effectiveStartForCarry(selectedStart),
         trackSkyTimeZone: _previewTrackSkyTimeZone,
         decanWatchLens: _decanWatchLens,
       );
@@ -4247,7 +4251,7 @@ class _MaatFlowTemplateDetailPageState
     try {
       id = await widget.addInstance(
         template: widget.template,
-        startDate: selectedStart,
+        startDate: _effectiveStartForCarry(selectedStart),
         trackSkyTimeZone: _previewTrackSkyTimeZone,
         openHandLens: _openHandLens,
       );
@@ -4288,7 +4292,7 @@ class _MaatFlowTemplateDetailPageState
     try {
       id = await widget.addInstance(
         template: widget.template,
-        startDate: selectedStart,
+        startDate: _effectiveStartForCarry(selectedStart),
         trackSkyTimeZone: _previewTrackSkyTimeZone,
         djedLens: _djedLens,
       );
@@ -4330,7 +4334,7 @@ class _MaatFlowTemplateDetailPageState
     try {
       id = await widget.addInstance(
         template: widget.template,
-        startDate: selectedStart,
+        startDate: _effectiveStartForCarry(selectedStart),
         trackSkyTimeZone: _previewTrackSkyTimeZone,
       );
     } catch (e, st) {
@@ -4370,7 +4374,7 @@ class _MaatFlowTemplateDetailPageState
     try {
       id = await widget.addInstance(
         template: widget.template,
-        startDate: selectedStart,
+        startDate: _effectiveStartForCarry(selectedStart),
         trackSkyTimeZone: _previewTrackSkyTimeZone,
       );
     } catch (e, st) {
@@ -6927,8 +6931,7 @@ class _MaatFlowTemplateDetailPageState
 
   Widget _buildDawnHouseRiteScaffold(BuildContext context) {
     final l10n = MaterialLocalizations.of(context);
-    final selectedStart =
-        _picked ?? defaultDawnHouseRiteStartDate(_previewTrackSkyTimeZone);
+    final selectedStart = _picked ?? _resolveTemporalStart(_temporalContext);
     final firstSchedule = dawnHouseRiteScheduleForDate(
       selectedStart,
       _previewTrackSkyTimeZone,
@@ -7040,8 +7043,7 @@ class _MaatFlowTemplateDetailPageState
 
   Widget _buildEveningThresholdScaffold(BuildContext context) {
     final l10n = MaterialLocalizations.of(context);
-    final selectedStart =
-        _picked ?? defaultEveningThresholdStartDate(_previewTrackSkyTimeZone);
+    final selectedStart = _picked ?? _resolveTemporalStart(_temporalContext);
     final initialCarryReady = _eveningThresholdInitialCarryController.text
         .trim()
         .isNotEmpty;
@@ -7184,12 +7186,7 @@ class _MaatFlowTemplateDetailPageState
 
   Widget _buildEveningThresholdRiteScaffold(BuildContext context) {
     final l10n = MaterialLocalizations.of(context);
-    final selectedStart =
-        _picked ??
-        defaultEveningThresholdRiteStartDate(
-          _previewTrackSkyTimeZone,
-          fallbackMinutesAfterMidnight: _eveningFallbackMinutes,
-        );
+    final selectedStart = _picked ?? _resolveTemporalStart(_temporalContext);
     final firstSchedule = eveningThresholdScheduleForDate(
       selectedStart,
       _previewTrackSkyTimeZone,
@@ -7342,8 +7339,7 @@ class _MaatFlowTemplateDetailPageState
 
   Widget _buildTheWeighingScaffold(BuildContext context) {
     final l10n = MaterialLocalizations.of(context);
-    final selectedStart =
-        _picked ?? defaultTheWeighingStartDate(_previewTrackSkyTimeZone);
+    final selectedStart = _picked ?? _resolveTemporalStart(_temporalContext);
     final firstEvent = kTheWeighingEvents.first;
     final firstSchedule = theWeighingScheduleForDate(
       firstEvent,
@@ -7435,8 +7431,7 @@ class _MaatFlowTemplateDetailPageState
 
   Widget _buildTheTendingScaffold(BuildContext context) {
     final l10n = MaterialLocalizations.of(context);
-    final selectedStart =
-        _picked ?? defaultTheTendingStartDate(_previewTrackSkyTimeZone);
+    final selectedStart = _picked ?? _resolveTemporalStart(_temporalContext);
     final firstEvent = kTheTendingEvents.first;
     final firstSchedule = theTendingScheduleForDate(
       firstEvent,
@@ -7535,8 +7530,7 @@ class _MaatFlowTemplateDetailPageState
 
   Widget _buildKeptWordScaffold(BuildContext context) {
     final l10n = MaterialLocalizations.of(context);
-    final selectedStart =
-        _picked ?? defaultKeptWordStartDate(_previewTrackSkyTimeZone);
+    final selectedStart = _picked ?? _resolveTemporalStart(_temporalContext);
     final firstEvent = kKeptWordEvents.first;
     final firstSchedule = keptWordScheduleForDate(
       firstEvent,
@@ -8324,8 +8318,7 @@ class _MaatFlowTemplateDetailPageState
   }
 
   Widget _buildReadingHouseVisualScaffold() {
-    final selectedStart =
-        _picked ?? defaultReadingHouseStartDate(_previewTrackSkyTimeZone);
+    final selectedStart = _picked ?? _resolveTemporalStart(_temporalContext);
     final draftPlan = readingHousePlanFromDraftValues(
       kMaatFlowResponseDraftStore.valuesForFlow(kReadingHouseFlowKey),
     );
@@ -8335,7 +8328,9 @@ class _MaatFlowTemplateDetailPageState
     );
     return ReadingHouseDetailPage(
       timezone: _previewTrackSkyTimeZone,
-      initialStartDate: selectedStart,
+      initialStartDate:
+          widget.joinedFlow?.start ??
+          (_readingHouseStartDateTouched ? selectedStart : null),
       initialPlan: initialPlan,
       initialSittings: _readingHouseSittings,
       initiallyHeld: widget.alreadyJoined,
@@ -8593,8 +8588,7 @@ class _MaatFlowTemplateDetailPageState
 
   Widget _buildCourseScaffold(BuildContext context) {
     final l10n = MaterialLocalizations.of(context);
-    final selectedStart =
-        _picked ?? defaultTheCourseStartDate(_previewTrackSkyTimeZone);
+    final selectedStart = _picked ?? _resolveTemporalStart(_temporalContext);
     final firstEvent = kTheCourseEvents.first;
     final firstSchedule = courseScheduleForDate(
       firstEvent,
@@ -8608,7 +8602,9 @@ class _MaatFlowTemplateDetailPageState
       ),
     );
 
-    final currentContext = courseContextForGregorianDate(DateTime.now());
+    final currentContext = courseContextForGregorianDate(
+      _temporalContext.presentLocalDate,
+    );
     final initialPromptSlot = _buildCurrentInitialPromptSlot(
       includeLeadingSeparator: false,
     );
@@ -8695,7 +8691,7 @@ class _MaatFlowTemplateDetailPageState
 
   Widget _buildSequenceScaffold(BuildContext context) {
     final l10n = MaterialLocalizations.of(context);
-    final selectedStart = _picked ?? DateUtils.dateOnly(DateTime.now());
+    final selectedStart = _picked ?? _resolveTemporalStart(_temporalContext);
     final startLabel = _picked == null
         ? 'Pick start date'
         : _startDateButtonLabel(context, _picked!);

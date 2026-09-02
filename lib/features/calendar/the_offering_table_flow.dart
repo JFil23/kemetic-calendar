@@ -3,6 +3,7 @@ import 'package:timezone/timezone.dart' as tz;
 
 import 'dawn_house_rite_flow.dart';
 import 'maat_flow_identity.dart';
+import 'maat_flow_temporal_policy.dart';
 import 'track_sky_flow.dart';
 
 const String kOfferingTableFlowKey = 'the-offering-table';
@@ -518,9 +519,10 @@ DateTime defaultOfferingTableStartDate(
   TrackSkyTimeZone timezone, {
   DateTime? now,
 }) {
-  final nowLocal = offeringTableNowInZone(timezone, now: now);
-  final today = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
-  return today.add(const Duration(days: 1));
+  return MaatFlowTemporalContext.fromInstant(
+    nowUtc: now ?? maatFlowSystemClock(),
+    timezone: timezone,
+  ).localDateAfter(1);
 }
 
 DateTime offeringTableNowInZone(TrackSkyTimeZone timezone, {DateTime? now}) {

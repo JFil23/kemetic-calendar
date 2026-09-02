@@ -152,6 +152,8 @@ import 'maat_flow_response_models.dart';
 import 'maat_flow_response_resolver.dart';
 import 'maat_flow_identity.dart';
 import 'maat_flow_catalog.dart';
+import 'maat_flow_temporal_policy.dart';
+import 'maat_flow_temporal_resolver.dart';
 import 'track_sky_flow.dart';
 import 'follow_the_sky/follow_the_sky.dart';
 import 'dawn_house_rite_flow.dart';
@@ -7667,16 +7669,23 @@ class CalendarPage extends StatefulWidget {
     );
 
     if (template.kind == _MaatFlowTemplateKind.offeringTable) {
+      final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final temporalContext = MaatFlowTemporalContext.capture(
+        timezone: timezone,
+      );
       return _joinOfferingTableHeadless(
         template: template,
         completionRequired: completionRequired,
         personalCalendarIdOverride: personalCalendarId,
         startDate:
             startDate ??
-            defaultOfferingTableStartDate(
-              trackSkyTimeZone ?? detectTrackSkyTimeZone(),
-            ),
-        timezone: trackSkyTimeZone ?? detectTrackSkyTimeZone(),
+            const MaatFlowTemporalResolver()
+                .resolve(
+                  kind: MaatFlowKind.offeringTable,
+                  context: temporalContext,
+                )
+                .startDate,
+        timezone: timezone,
         lens: offeringTableLens ?? OfferingTableLens.neutral,
         noCupMode: offeringNoCupMode == true,
       );
@@ -7774,18 +7783,30 @@ class CalendarPage extends StatefulWidget {
       final calendarId = personalCalendarId?.trim();
       if (calendarId == null || calendarId.isEmpty) return -1;
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
+      final temporalContext = MaatFlowTemporalContext.capture(
+        timezone: timezone,
+      );
       final firstDate = DateUtils.dateOnly(
-        startDate ?? defaultReadingHouseStartDate(timezone),
+        startDate ??
+            const MaatFlowTemporalResolver()
+                .resolve(
+                  kind: MaatFlowKind.readingHouse,
+                  context: temporalContext,
+                )
+                .startDate,
+      );
+      final normalizedSittings = normalizeReadingHouseSittingOrder(
+        readingHouseSittings ?? readingHouseStarterSittingsForAuthoring(),
+      );
+      final resolvedDates = readingHouseResolvedStarterDates(
+        firstDate,
+        normalizedSittings,
       );
       final sittings = <ReadingHouseSitting>[
-        for (final sitting in normalizeReadingHouseSittingOrder(
-          readingHouseSittings ?? readingHouseStarterSittingsForAuthoring(),
-        ))
-          sitting.copyWith(
-            scheduledDate:
-                sitting.scheduledDate ??
-                firstDate.add(Duration(days: sitting.flowDay - 1)),
-          ),
+        for (final (index, sitting) in normalizedSittings.indexed)
+          sitting.scheduledDate != null
+              ? sitting
+              : sitting.copyWith(scheduledDate: resolvedDates[index]),
       ];
       final snapshot = await LiveReadingHouseAuthority(Supabase.instance.client)
           .ensureHouse(

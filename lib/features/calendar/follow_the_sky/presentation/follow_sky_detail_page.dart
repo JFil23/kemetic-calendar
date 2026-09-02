@@ -14,7 +14,11 @@ import '../services/sky_catalog_repository.dart';
 import '../services/sky_visibility_service.dart';
 import '../services/track_sky_enrollment_service.dart';
 import '../services/track_sky_materializer.dart';
+import '../../maat_flow_identity.dart';
+import '../../maat_flow_temporal_policy.dart';
+import '../../maat_flow_temporal_resolver.dart';
 import '../../presentation/maat_flow_detail_shell.dart';
+import '../../track_sky_timezone.dart';
 import 'follow_sky_calendar_preview.dart';
 import 'turning_meaning.dart';
 import 'widgets/follow_sky_all_turnings_list.dart';
@@ -49,6 +53,7 @@ class FollowSkyDetailPage extends StatefulWidget {
     this.catalogRepository,
     this.initialCatalog,
     this.now,
+    this.clock,
     this.standalone = true,
     this.title = 'Follow the Sky',
     this.subtitle = FollowSkyV11Tokens.heroSubtitle,
@@ -74,6 +79,7 @@ class FollowSkyDetailPage extends StatefulWidget {
   final SkyCatalogRepository? catalogRepository;
   final SkyCatalog? initialCatalog;
   final DateTime? now;
+  final MaatFlowClock? clock;
   final bool standalone;
   final String title;
   final String subtitle;
@@ -83,7 +89,8 @@ class FollowSkyDetailPage extends StatefulWidget {
   State<FollowSkyDetailPage> createState() => FollowSkyDetailPageState();
 }
 
-class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
+class FollowSkyDetailPageState extends State<FollowSkyDetailPage>
+    with WidgetsBindingObserver {
   static const int _expandedTurningCount = 5;
 
   late final SkyCatalogRepository _catalogRepo;
@@ -99,6 +106,8 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
   bool _joining = false;
   late bool _carried;
   SkyCatalog? _catalog;
+  MaatFlowTemporalResolution? _temporalResolution;
+  late MaatFlowTemporalContext _temporalContext;
   Object? _error;
 
   bool get hasActiveCourse => false;
@@ -108,7 +117,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
   Future<void> carryCourseFromDock() => _carry();
 
   Future<void> openNextTurningFromDock() async {
-    final next = _catalog?.nextObservingNight(nowUtc: _now);
+    final next = _temporalResolution?.firstSkyNight;
     if (next == null) return;
     await _openTurningSheet(next);
   }
@@ -117,30 +126,17 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
   Future<void> openTurningSheetForTest(SkyObservingNight night) =>
       _openTurningSheet(night);
 
-  DateTime get _now => widget.now ?? DateTime.now().toUtc();
+  DateTime get _nowUtc => _temporalContext.nowUtc;
 
   List<SkyObservingNight> get _thirtyDayNights {
-    final until = _now.add(const Duration(days: 30));
-    return _canonicalNights
-        .where(
-          (night) =>
-              !night.primaryInstantUtc.isBefore(_now) &&
-              !night.primaryInstantUtc.isAfter(until),
-        )
+    final until = _nowUtc.add(const Duration(days: 30));
+    return _upcomingNights
+        .where((night) => !night.primaryInstantUtc.isAfter(until))
         .toList(growable: false);
   }
 
-  List<SkyObservingNight> get _upcomingNights {
-    return _canonicalNights
-        .where((night) => !night.primaryInstantUtc.isBefore(_now))
-        .toList(growable: false);
-  }
-
-  List<SkyObservingNight> get _canonicalNights {
-    final catalog = _catalog;
-    if (catalog == null) return const [];
-    return _enrollment.canonicalNights(catalog: catalog);
-  }
+  List<SkyObservingNight> get _upcomingNights =>
+      _temporalResolution?.skyNights ?? const <SkyObservingNight>[];
 
   List<SkyObservingNight> get _previewNights =>
       _upcomingNights.take(_expandedTurningCount).toList(growable: false);
@@ -150,23 +146,22 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
     return preview.isEmpty ? _thirtyDayNights : preview;
   }
 
-  SkyObservingNight? get _firstEclipsePreview {
+  SkyObservingNight? get _exampleNight {
     final nights = _intentionPreviewNights;
     for (final night in nights) {
       if (_excludedSkyEventIds.contains(night.skyEventId)) continue;
-      if (night.companion != null ||
-          night.displayName.toLowerCase().contains('eclipse')) {
-        return night;
-      }
+      return night;
     }
-    return nights.isNotEmpty ? nights.first : null;
+    return null;
   }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _carried = widget.isJoined;
     _ensureTz();
+    _temporalContext = _captureTemporalContext();
     _catalogRepo = widget.catalogRepository ?? SkyCatalogRepository();
     final materializer = TrackSkyMaterializer(toLocal: _toLocal, toUtc: _toUtc);
     _enrollment = TrackSkyEnrollmentService(
@@ -175,6 +170,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
     );
     if (widget.initialCatalog != null) {
       _catalog = widget.initialCatalog;
+      _temporalResolution = _resolveTemporal(widget.initialCatalog!);
     } else {
       unawaited(_load());
     }
@@ -189,19 +185,73 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
     if (widget.isJoined != oldWidget.isJoined && widget.isJoined != _carried) {
       _carried = widget.isJoined;
     }
+    if (widget.timezone != oldWidget.timezone ||
+        widget.now != oldWidget.now ||
+        widget.clock != oldWidget.clock) {
+      _temporalContext = _captureTemporalContext();
+      final catalog = _catalog;
+      if (catalog != null) _temporalResolution = _resolveTemporal(catalog);
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _exampleIntentionController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed || _carried) return;
+    _refreshTemporalResolution();
+  }
+
+  TrackSkyTimeZone get _sharedTimezone =>
+      TrackSkyTimeZoneX.tryParse(widget.timezone.key) ??
+      TrackSkyTimeZone.pacific;
+
+  MaatFlowTemporalContext _captureTemporalContext() {
+    return MaatFlowTemporalContext.capture(
+      timezone: _sharedTimezone,
+      clock: () => widget.now ?? widget.clock?.call() ?? maatFlowSystemClock(),
+    );
+  }
+
+  MaatFlowTemporalResolution _resolveTemporal(
+    SkyCatalog catalog, {
+    MaatFlowTemporalContext? context,
+  }) {
+    return const MaatFlowTemporalResolver().resolve(
+      kind: MaatFlowKind.trackSky,
+      context: context ?? _temporalContext,
+      skyCatalog: catalog,
+      skyEnrollment: _enrollment,
+    );
+  }
+
+  MaatFlowTemporalResolution? _refreshTemporalResolution() {
+    final catalog = _catalog;
+    if (catalog == null) return null;
+    final context = _captureTemporalContext();
+    final resolution = _resolveTemporal(catalog, context: context);
+    if (mounted) {
+      setState(() {
+        _temporalContext = context;
+        _temporalResolution = resolution;
+      });
+    } else {
+      _temporalContext = context;
+      _temporalResolution = resolution;
+    }
+    return resolution;
+  }
+
   void _setDraftIntentionForSkyNight(SkyObservingNight night, String value) {
     final nextValue = value.trim().isEmpty ? null : value;
     final currentValue = _draftIntentions[night.skyEventId];
-    final exampleNight = _firstEclipsePreview;
+    final exampleNight = _exampleNight;
     final nextExampleText = nextValue ?? '';
     final shouldSyncExample =
         exampleNight?.skyEventId == night.skyEventId &&
@@ -230,6 +280,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
       if (!mounted) return;
       setState(() {
         _catalog = catalog;
+        _temporalResolution = _resolveTemporal(catalog);
         _error = null;
       });
     } catch (e) {
@@ -271,10 +322,15 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
 
   Future<void> _carry() async {
     if (_catalog == null || widget.onJoin == null || _joining) return;
+    final resolution = _carried
+        ? _temporalResolution
+        : _refreshTemporalResolution();
+    if (resolution == null) return;
     setState(() => _joining = true);
     try {
       final draft = _enrollment.buildJoinDraft(
         catalog: _catalog!,
+        eligibleNights: resolution.skyNights,
         ianaTimeZone: widget.timezone.ianaName,
         timezoneKey: widget.timezone.key,
         excludedSkyEventIds: Set<String>.from(_excludedSkyEventIds),
@@ -358,9 +414,11 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
   }
 
   Widget _buildV11Body() {
-    final windowStart = DateUtils.dateOnly(_now.toLocal());
-    final exampleMeaning = TurningMeaningResolver.approvedLunarEclipse;
-    final exampleNight = _firstEclipsePreview;
+    final windowStart = _temporalContext.presentLocalDate;
+    final exampleNight = _exampleNight;
+    final exampleMeaning = exampleNight == null
+        ? null
+        : _meaningResolver.forNight(exampleNight);
     final orderedUpcomingNights = _upcomingNights;
     final previewNights = orderedUpcomingNights
         .take(_expandedTurningCount)
@@ -389,16 +447,15 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
             excludedSkyEventIds: _excludedSkyEventIds,
             carried: _carried,
           ),
-          FollowSkyTurningExample(
-            meaning: exampleMeaning,
-            controller: _exampleIntentionController,
-            onEditingFocusChanged: _handleExampleIntentionEditingChanged,
-            onChanged: (text) {
-              if (exampleNight != null) {
-                _setDraftIntentionForSkyNight(exampleNight, text);
-              }
-            },
-          ),
+          if (exampleMeaning != null)
+            FollowSkyTurningExample(
+              meaning: exampleMeaning,
+              controller: _exampleIntentionController,
+              onEditingFocusChanged: _handleExampleIntentionEditingChanged,
+              onChanged: (text) {
+                _setDraftIntentionForSkyNight(exampleNight!, text);
+              },
+            ),
           FollowSkyPreviewCalendar(
             skyNights: previewNights,
             calendarRows: widget.calendarPreview.rows,

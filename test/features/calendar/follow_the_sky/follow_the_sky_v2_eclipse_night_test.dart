@@ -148,6 +148,7 @@ void main() {
   test('enrollment never double-books eclipse companions as separate nights', () {
     final draft = enrollment.buildJoinDraft(
       catalog: catalog,
+      eligibleNights: enrollment.canonicalNights(catalog: catalog),
       ianaTimeZone: 'America/Los_Angeles',
       timezoneKey: 'pacific',
     );

@@ -180,8 +180,8 @@ void main() {
     expect(kReadingHouseSittings, hasLength(3));
     expect(kReadingHouseSittings.map((sitting) => sitting.flowDay), <int>[
       1,
-      7,
-      14,
+      11,
+      21,
     ]);
     expect(kReadingHouseSittings.first.title, 'Open the Text');
     expect(kReadingHouseSittings.last.sharePromptOnComplete, isFalse);
@@ -236,14 +236,14 @@ void main() {
         TrackSkyTimeZone.pacific,
         now: DateTime.utc(2026, 6, 2, 1, 30),
       ),
-      DateTime(2026, 6, 1),
+      DateTime(2026, 6, 4),
     );
     expect(
       defaultReadingHouseStartDate(
         TrackSkyTimeZone.pacific,
         now: DateTime.utc(2026, 6, 2, 3),
       ),
-      DateTime(2026, 6, 2),
+      DateTime(2026, 6, 4),
     );
   });
 
@@ -452,7 +452,7 @@ void main() {
     );
     expect(withAdded, hasLength(4));
     expect(withAdded.last.eventNumber, 4);
-    expect(withAdded.last.flowDay, 21);
+    expect(withAdded.last.flowDay, 31);
     expect(
       withAdded.last.sittingSource,
       kReadingHouseSittingSourceHostAuthored,

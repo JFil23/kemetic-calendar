@@ -6,6 +6,9 @@ import 'package:mobile/data/profile_repo.dart';
 import 'package:mobile/data/shared_calendar_models.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
+import 'package:mobile/features/calendar/maat_flow_identity.dart';
+import 'package:mobile/features/calendar/maat_flow_temporal_policy.dart';
+import 'package:mobile/features/calendar/maat_flow_temporal_resolver.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calendar.dart';
@@ -75,6 +78,7 @@ class ReadingHouseDetailPage extends StatefulWidget {
     this.onPersisted,
     this.showBackButton = true,
     this.resizeToAvoidBottomInset = true,
+    this.clock,
   });
 
   final TrackSkyTimeZone timezone;
@@ -92,17 +96,20 @@ class ReadingHouseDetailPage extends StatefulWidget {
   final Future<void> Function(ReadingHouseSnapshot snapshot)? onPersisted;
   final bool showBackButton;
   final bool resizeToAvoidBottomInset;
+  final MaatFlowClock? clock;
 
   @override
   State<ReadingHouseDetailPage> createState() => _ReadingHouseDetailPageState();
 }
 
-class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
+class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage>
+    with WidgetsBindingObserver {
   late final TextEditingController _bookController;
   late final TextEditingController _editionController;
   late final TextEditingController _questionController;
   final ScrollController _scrollController = ScrollController();
   late DateTime _windowStart;
+  late MaatFlowTemporalContext _temporalContext;
   late List<ReadingHouseSitting> _sittings;
   late bool _withReaders;
   late bool _held;
@@ -126,6 +133,8 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _temporalContext = _captureTemporalContext();
     final initialSnapshot = widget.initialSnapshot;
     final initialPlan = initialSnapshot?.plan ?? widget.initialPlan;
     final initialBook = initialPlan.bookTitle.trim();
@@ -139,7 +148,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
           : initialPlan.houseQuestion,
     );
     _windowStart = DateUtils.dateOnly(
-      widget.initialStartDate ?? defaultReadingHouseStartDate(widget.timezone),
+      widget.initialStartDate ?? _resolveComputedStartDate(),
     );
     _sittings = List<ReadingHouseSitting>.of(
       initialSnapshot?.sittings ?? widget.initialSittings,
@@ -163,7 +172,27 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
   }
 
   @override
+  void didUpdateWidget(covariant ReadingHouseDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.timezone != oldWidget.timezone ||
+        widget.clock != oldWidget.clock) {
+      _temporalContext = _captureTemporalContext();
+      if (!_held &&
+          widget.initialStartDate == null &&
+          !_sittings.any((sitting) => sitting.scheduledDate != null)) {
+        _windowStart = _resolveComputedStartDate();
+      }
+    }
+    if (widget.initialStartDate != oldWidget.initialStartDate &&
+        widget.initialStartDate != null &&
+        !_held) {
+      _windowStart = DateUtils.dateOnly(widget.initialStartDate!);
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _saveDebounce?.cancel();
     _scrollController.dispose();
     _bookController.dispose();
@@ -172,12 +201,52 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
     super.dispose();
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshComputedStartDate();
+  }
+
+  MaatFlowTemporalContext _captureTemporalContext() {
+    return MaatFlowTemporalContext.capture(
+      timezone: widget.timezone,
+      clock: widget.clock ?? maatFlowSystemClock,
+    );
+  }
+
+  DateTime _resolveComputedStartDate() {
+    return const MaatFlowTemporalResolver()
+        .resolve(kind: MaatFlowKind.readingHouse, context: _temporalContext)
+        .startDate;
+  }
+
+  void _refreshComputedStartDate() {
+    if (_held ||
+        widget.initialStartDate != null ||
+        _sittings.any((sitting) => sitting.scheduledDate != null)) {
+      return;
+    }
+    final nextContext = _captureTemporalContext();
+    if (_temporalContext.hasSamePresentDay(nextContext)) return;
+    final nextStart = const MaatFlowTemporalResolver()
+        .resolve(kind: MaatFlowKind.readingHouse, context: nextContext)
+        .startDate;
+    if (mounted) {
+      setState(() {
+        _temporalContext = nextContext;
+        _windowStart = nextStart;
+      });
+    } else {
+      _temporalContext = nextContext;
+      _windowStart = nextStart;
+    }
+  }
+
   int get _placedCount =>
       _sittings.where((sitting) => sitting.scheduledDate != null).length;
 
   List<MaatFlowThirtyDayMarker> _calendarMarkers() {
     final markers = <DateTime, MaatFlowThirtyDayMarker>{};
-    final today = DateUtils.dateOnly(readingHouseNowInZone(widget.timezone));
+    final today = _temporalContext.presentLocalDate;
     final end = _windowStart.add(const Duration(days: 29));
     if (!today.isBefore(_windowStart) && !today.isAfter(end)) {
       markers[today] = MaatFlowThirtyDayMarker(date: today, isToday: true);
@@ -216,6 +285,14 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
       _withReaders = !snapshot.plan.isSolo;
       _openDoors = snapshot.openDoors;
       _sittings = List<ReadingHouseSitting>.of(snapshot.sittings);
+      final persistedDates =
+          _sittings
+              .map((sitting) => sitting.scheduledDate)
+              .whereType<DateTime>()
+              .map(DateUtils.dateOnly)
+              .toList()
+            ..sort();
+      if (persistedDates.isNotEmpty) _windowStart = persistedDates.first;
       _members = snapshot.members;
       _canEdit = snapshot.canEdit;
       _canManageMembership = snapshot.canManageMembership;
@@ -319,6 +396,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
 
   Future<ReadingHouseSnapshot?> _holdHouse() async {
     if (_held) return _currentSnapshot;
+    _refreshComputedStartDate();
     final authority = widget.authority;
     if (authority == null || !_canEdit || _holding || _loadingHouse) {
       return null;
@@ -422,11 +500,17 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
 
   Future<void> _placeReading() async {
     if (!_canEdit || _placingReading) return;
+    _refreshComputedStartDate();
+    final resolvedDates = readingHouseResolvedStarterDates(
+      _windowStart,
+      _sittings,
+    );
     final next = <ReadingHouseSitting>[
-      for (final sitting in _sittings)
-        sitting.copyWith(
-          scheduledDate: _windowStart.add(Duration(days: sitting.flowDay - 1)),
-        ),
+      for (var index = 0; index < _sittings.length; index++)
+        if (_sittings[index].scheduledDate != null)
+          _sittings[index]
+        else
+          _sittings[index].copyWith(scheduledDate: resolvedDates[index]),
     ];
     if (!_held) {
       setState(() => _sittings = next);

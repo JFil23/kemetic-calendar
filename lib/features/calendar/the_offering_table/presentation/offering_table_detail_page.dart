@@ -3,6 +3,9 @@ import 'package:mobile/widgets/keyboard_aware.dart';
 import 'package:mobile/widgets/maat_flow_date_picker.dart';
 
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
+import 'package:mobile/features/calendar/maat_flow_identity.dart';
+import 'package:mobile/features/calendar/maat_flow_temporal_policy.dart';
+import 'package:mobile/features/calendar/maat_flow_temporal_resolver.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_preview_day.dart';
@@ -89,6 +92,7 @@ class OfferingTableDetailPage extends StatefulWidget {
     this.showBackButton = true,
     this.resizeToAvoidBottomInset = true,
     this.localStore = const OfferingTableLocalStore(),
+    this.clock,
   });
 
   final TrackSkyTimeZone timezone;
@@ -103,14 +107,17 @@ class OfferingTableDetailPage extends StatefulWidget {
   final bool showBackButton;
   final bool resizeToAvoidBottomInset;
   final OfferingTableLocalStore localStore;
+  final MaatFlowClock? clock;
 
   @override
   State<OfferingTableDetailPage> createState() =>
       _OfferingTableDetailPageState();
 }
 
-class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
+class _OfferingTableDetailPageState extends State<OfferingTableDetailPage>
+    with WidgetsBindingObserver {
   late DateTime _draftStartDate;
+  late MaatFlowTemporalContext _temporalContext;
   int? _carriedFlowId;
   final TextEditingController _initialEntryController = TextEditingController();
   bool _joining = false;
@@ -119,8 +126,10 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _temporalContext = _captureTemporalContext();
     _draftStartDate = DateUtils.dateOnly(
-      widget.initialStartDate ?? defaultOfferingTableStartDate(widget.timezone),
+      widget.initialStartDate ?? _resolveComputedStartDate(),
     );
     _carriedFlowId = widget.joinedFlowId;
     _loadJoinedIntention();
@@ -133,6 +142,19 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
       _carriedFlowId = widget.joinedFlowId;
       _loadJoinedIntention();
     }
+    if (widget.timezone != oldWidget.timezone ||
+        widget.clock != oldWidget.clock) {
+      _refreshComputedStartDate(force: true);
+    } else if (widget.initialStartDate != oldWidget.initialStartDate &&
+        widget.initialStartDate != null &&
+        !_joined) {
+      _draftStartDate = DateUtils.dateOnly(widget.initialStartDate!);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshComputedStartDate();
   }
 
   bool get _joined => _carriedFlowId != null;
@@ -159,12 +181,45 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _initialEntryController.dispose();
     super.dispose();
   }
 
+  MaatFlowTemporalContext _captureTemporalContext() {
+    return MaatFlowTemporalContext.capture(
+      timezone: widget.timezone,
+      clock: widget.clock ?? maatFlowSystemClock,
+    );
+  }
+
+  DateTime _resolveComputedStartDate() {
+    return const MaatFlowTemporalResolver()
+        .resolve(kind: MaatFlowKind.offeringTable, context: _temporalContext)
+        .startDate;
+  }
+
+  void _refreshComputedStartDate({bool force = false}) {
+    if (_joined || widget.initialStartDate != null) return;
+    final nextContext = _captureTemporalContext();
+    if (!force && _temporalContext.hasSamePresentDay(nextContext)) return;
+    final nextStart = const MaatFlowTemporalResolver()
+        .resolve(kind: MaatFlowKind.offeringTable, context: nextContext)
+        .startDate;
+    if (mounted) {
+      setState(() {
+        _temporalContext = nextContext;
+        _draftStartDate = nextStart;
+      });
+    } else {
+      _temporalContext = nextContext;
+      _draftStartDate = nextStart;
+    }
+  }
+
   Future<void> _join() async {
     if (_joining || _joined) return;
+    _refreshComputedStartDate();
     setState(() => _joining = true);
     int id;
     try {
@@ -317,7 +372,7 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
 
   Widget _buildSheet() {
     final occurrences = _previewOccurrences();
-    final today = DateUtils.dateOnly(offeringTableNowInZone(widget.timezone));
+    final today = _temporalContext.presentLocalDate;
     final surfaced = occurrences.take(5).toList(growable: false);
     final remaining = occurrences.skip(5).toList(growable: false);
     final ordinaryRowsByDay = _ordinaryRowsByDay(occurrences);
@@ -979,24 +1034,6 @@ String _shortDate(DateTime date) {
     'Dec',
   ];
   return '${months[date.month - 1]} ${date.day}, ${date.year}';
-}
-
-String _shortMonthDay(DateTime date) {
-  const months = <String>[
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  return '${months[date.month - 1]} ${date.day}';
 }
 
 String _formatTime(DateTime date) {
