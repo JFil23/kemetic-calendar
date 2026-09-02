@@ -7,6 +7,7 @@ import 'package:mobile/data/shared_calendar_models.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/maat_flow_identity.dart';
+import 'package:mobile/features/calendar/maat_flow_temporal_controller.dart';
 import 'package:mobile/features/calendar/maat_flow_temporal_policy.dart';
 import 'package:mobile/features/calendar/maat_flow_temporal_resolver.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
@@ -79,6 +80,9 @@ class ReadingHouseDetailPage extends StatefulWidget {
     this.showBackButton = true,
     this.resizeToAvoidBottomInset = true,
     this.clock,
+    this.presentDayIanaTimeZone,
+    this.ianaTimeZoneProvider,
+    this.temporalScheduler,
   });
 
   final TrackSkyTimeZone timezone;
@@ -97,19 +101,21 @@ class ReadingHouseDetailPage extends StatefulWidget {
   final bool showBackButton;
   final bool resizeToAvoidBottomInset;
   final MaatFlowClock? clock;
+  final String? presentDayIanaTimeZone;
+  final MaatFlowIanaTimeZoneProvider? ianaTimeZoneProvider;
+  final MaatFlowTemporalScheduler? temporalScheduler;
 
   @override
   State<ReadingHouseDetailPage> createState() => _ReadingHouseDetailPageState();
 }
 
-class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage>
-    with WidgetsBindingObserver {
+class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
   late final TextEditingController _bookController;
   late final TextEditingController _editionController;
   late final TextEditingController _questionController;
   final ScrollController _scrollController = ScrollController();
   late DateTime _windowStart;
-  late MaatFlowTemporalContext _temporalContext;
+  late MaatFlowTemporalController _temporalController;
   late List<ReadingHouseSitting> _sittings;
   late bool _withReaders;
   late bool _held;
@@ -133,8 +139,6 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _temporalContext = _captureTemporalContext();
     final initialSnapshot = widget.initialSnapshot;
     final initialPlan = initialSnapshot?.plan ?? widget.initialPlan;
     final initialBook = initialPlan.bookTitle.trim();
@@ -147,9 +151,6 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage>
           ? ''
           : initialPlan.houseQuestion,
     );
-    _windowStart = DateUtils.dateOnly(
-      widget.initialStartDate ?? _resolveComputedStartDate(),
-    );
     _sittings = List<ReadingHouseSitting>.of(
       initialSnapshot?.sittings ?? widget.initialSittings,
     );
@@ -158,6 +159,9 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage>
     _openDoors = initialSnapshot?.openDoors ?? widget.initialOpenDoors;
     _flowId = initialSnapshot?.flowId ?? widget.initialFlowId;
     _calendarId = initialSnapshot?.calendarId ?? widget.initialCalendarId;
+    _temporalController = _createTemporalController()..start();
+    _temporalController.addListener(_handleTemporalChange);
+    _windowStart = _temporalController.renderedStartDate;
     _members = initialSnapshot?.members ?? const <SharedCalendarMember>[];
     _canEdit = initialSnapshot?.canEdit ?? true;
     _canManageMembership = initialSnapshot?.canManageMembership ?? true;
@@ -174,25 +178,23 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage>
   @override
   void didUpdateWidget(covariant ReadingHouseDetailPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.timezone != oldWidget.timezone ||
-        widget.clock != oldWidget.clock) {
-      _temporalContext = _captureTemporalContext();
-      if (!_held &&
-          widget.initialStartDate == null &&
-          !_sittings.any((sitting) => sitting.scheduledDate != null)) {
-        _windowStart = _resolveComputedStartDate();
-      }
+    if (widget.clock != oldWidget.clock ||
+        widget.presentDayIanaTimeZone != oldWidget.presentDayIanaTimeZone ||
+        widget.ianaTimeZoneProvider != oldWidget.ianaTimeZoneProvider ||
+        widget.temporalScheduler != oldWidget.temporalScheduler) {
+      _replaceTemporalController();
     }
     if (widget.initialStartDate != oldWidget.initialStartDate &&
         widget.initialStartDate != null &&
         !_held) {
-      _windowStart = DateUtils.dateOnly(widget.initialStartDate!);
+      _temporalController.lockExplicitDate(widget.initialStartDate!);
     }
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    _temporalController.removeListener(_handleTemporalChange);
+    _temporalController.dispose();
     _saveDebounce?.cancel();
     _scrollController.dispose();
     _bookController.dispose();
@@ -201,44 +203,60 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage>
     super.dispose();
   }
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _refreshComputedStartDate();
-  }
+  MaatFlowTemporalContext get _temporalContext => _temporalController.context;
 
-  MaatFlowTemporalContext _captureTemporalContext() {
-    return MaatFlowTemporalContext.capture(
-      timezone: widget.timezone,
+  MaatFlowTemporalController _createTemporalController() {
+    final persistedDates =
+        _sittings
+            .map((sitting) => sitting.scheduledDate)
+            .whereType<DateTime>()
+            .map(DateUtils.dateOnly)
+            .toList()
+          ..sort();
+    final carried = _held || _flowId != null || persistedDates.isNotEmpty;
+    return MaatFlowTemporalController(
+      ianaTimeZone:
+          widget.presentDayIanaTimeZone ??
+          MaatFlowDeviceTimeZone.currentIanaTimeZone,
+      ianaTimeZoneProvider:
+          widget.ianaTimeZoneProvider ??
+          (widget.presentDayIanaTimeZone == null
+              ? MaatFlowDeviceTimeZone.refresh
+              : () async => widget.presentDayIanaTimeZone!),
       clock: widget.clock ?? maatFlowSystemClock,
+      scheduler: widget.temporalScheduler ?? scheduleMaatFlowTemporalCallback,
+      resolve: (context) => const MaatFlowTemporalResolver().resolve(
+        kind: MaatFlowKind.readingHouse,
+        context: context,
+      ),
+      explicitStartDate: carried
+          ? (persistedDates.isNotEmpty
+                ? persistedDates.first
+                : widget.initialStartDate)
+          : widget.initialStartDate,
+      carried: carried,
     );
   }
 
-  DateTime _resolveComputedStartDate() {
-    return const MaatFlowTemporalResolver()
-        .resolve(kind: MaatFlowKind.readingHouse, context: _temporalContext)
-        .startDate;
+  void _replaceTemporalController() {
+    final old = _temporalController;
+    final explicitDate = old.isExplicitlyLocked ? old.renderedStartDate : null;
+    old.removeListener(_handleTemporalChange);
+    old.dispose();
+    _temporalController = _createTemporalController();
+    if (explicitDate != null && !_held) {
+      _temporalController.lockExplicitDate(explicitDate);
+    }
+    _temporalController.addListener(_handleTemporalChange);
+    _temporalController.start();
+    _windowStart = _temporalController.renderedStartDate;
   }
 
-  void _refreshComputedStartDate() {
-    if (_held ||
-        widget.initialStartDate != null ||
-        _sittings.any((sitting) => sitting.scheduledDate != null)) {
-      return;
-    }
-    final nextContext = _captureTemporalContext();
-    if (_temporalContext.hasSamePresentDay(nextContext)) return;
-    final nextStart = const MaatFlowTemporalResolver()
-        .resolve(kind: MaatFlowKind.readingHouse, context: nextContext)
-        .startDate;
-    if (mounted) {
-      setState(() {
-        _temporalContext = nextContext;
-        _windowStart = nextStart;
-      });
-    } else {
-      _temporalContext = nextContext;
-      _windowStart = nextStart;
-    }
+  void _handleTemporalChange() {
+    if (!mounted) return;
+    setState(() {
+      _windowStart = _temporalController.renderedStartDate;
+    });
   }
 
   int get _placedCount =>
@@ -293,6 +311,14 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage>
               .toList()
             ..sort();
       if (persistedDates.isNotEmpty) _windowStart = persistedDates.first;
+      if (snapshot.held) {
+        _temporalController.lockCarried(
+          persistedStartDate: persistedDates.isEmpty
+              ? _windowStart
+              : persistedDates.first,
+          notify: false,
+        );
+      }
       _members = snapshot.members;
       _canEdit = snapshot.canEdit;
       _canManageMembership = snapshot.canManageMembership;
@@ -396,7 +422,6 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage>
 
   Future<ReadingHouseSnapshot?> _holdHouse() async {
     if (_held) return _currentSnapshot;
-    _refreshComputedStartDate();
     final authority = widget.authority;
     if (authority == null || !_canEdit || _holding || _loadingHouse) {
       return null;
@@ -500,7 +525,6 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage>
 
   Future<void> _placeReading() async {
     if (!_canEdit || _placingReading) return;
-    _refreshComputedStartDate();
     final resolvedDates = readingHouseResolvedStarterDates(
       _windowStart,
       _sittings,

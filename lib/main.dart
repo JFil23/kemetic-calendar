@@ -15,6 +15,7 @@ import 'data/user_events_repo.dart';
 import 'features/calendar/notify.dart';
 import 'features/calendar/calendar_page.dart';
 import 'features/calendar/calendar_hydration_diagnostics.dart';
+import 'features/calendar/maat_flow_temporal_controller.dart';
 import 'features/calendar/daily_cosmic_context_badge.dart';
 import 'features/calendar/ics_preview_card.dart';
 import 'utils/ics_parser.dart';
@@ -423,6 +424,7 @@ Future<void> main() async {
     _configureLogging();
 
     WidgetsFlutterBinding.ensureInitialized();
+    await MaatFlowDeviceTimeZone.initialize();
     CalendarHydrationDiagnostics.instance.setBuildLabel(
       kIsWeb ? hydrationDiagnosticBuildEnv : 'native',
     );

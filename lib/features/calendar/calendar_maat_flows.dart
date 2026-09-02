@@ -2454,18 +2454,15 @@ class _MaatFlowArcChevron extends StatelessWidget {
 }
 
 class _MaatFlowTemplateDetailPageState
-    extends State<_MaatFlowTemplateDetailPage>
-    with WidgetsBindingObserver {
+    extends State<_MaatFlowTemplateDetailPage> {
   late TrackSkyTimeZone _previewTrackSkyTimeZone;
-  late MaatFlowTemporalContext _temporalContext;
+  late MaatFlowTemporalController _temporalController;
   Future<TrackSkyFlowData>? _trackSkyFuture;
   final GlobalKey<FollowSkyDetailPageState> _followSkyDetailKey =
       GlobalKey<FollowSkyDetailPageState>();
   bool _dawnDiscreetMode = false;
   DawnHouseRiteLens _dawnLens = DawnHouseRiteLens.neutral;
-  bool _dawnStartDateTouched = false;
   bool _dawnJoinInFlight = false;
-  bool _eveningThresholdStartDateTouched = false;
   bool _eveningThresholdJoinInFlight = false;
   final TextEditingController _eveningThresholdInitialCarryController =
       TextEditingController();
@@ -2475,39 +2472,28 @@ class _MaatFlowTemplateDetailPageState
   int _eveningFallbackMinutes = kEveningThresholdDefaultFallbackMinutes;
   bool _eveningJoinInFlight = false;
   TheWeighingLens _theWeighingLens = TheWeighingLens.neutral;
-  bool _theWeighingStartDateTouched = false;
   bool _theWeighingJoinInFlight = false;
   TheTendingLens _theTendingLens = TheTendingLens.neutral;
-  bool _theTendingStartDateTouched = false;
   bool _theTendingJoinInFlight = false;
   KeptWordLens _keptWordLens = KeptWordLens.neutral;
-  bool _keptWordStartDateTouched = false;
   bool _keptWordJoinInFlight = false;
   CourseLens _courseLens = CourseLens.neutral;
-  bool _courseStartDateTouched = false;
   bool _courseJoinInFlight = false;
   MoonReturnLens _moonReturnLens = MoonReturnLens.neutral;
-  bool _moonReturnStartDateTouched = false;
   bool _moonReturnJoinInFlight = false;
   WagLens _wagLens = WagLens.neutral;
-  bool _wagStartDateTouched = false;
   bool _wagJoinInFlight = false;
   DecanWatchLens _decanWatchLens = DecanWatchLens.neutral;
-  bool _decanWatchStartDateTouched = false;
   bool _decanWatchJoinInFlight = false;
-  bool _daysOutsideYearStartDateTouched = false;
   bool _daysOutsideYearJoinInFlight = false;
   OpenHandLens _openHandLens = OpenHandLens.neutral;
-  bool _openHandStartDateTouched = false;
   bool _openHandJoinInFlight = false;
   DjedLens _djedLens = DjedLens.neutral;
-  bool _djedStartDateTouched = false;
   bool _djedJoinInFlight = false;
   bool _readingHouseStartDateTouched = false;
   ReadingHouseAuthority? _readingHouseAuthority;
   List<ReadingHouseSitting> _readingHouseSittings =
       readingHouseStarterSittingsForAuthoring();
-  bool _maatDecanStartDateTouched = false;
   bool _maatDecanJoinInFlight = false;
   bool _descriptionExpanded = false;
   final Set<String> _expandedMaatEventKeys = <String>{};
@@ -2524,6 +2510,12 @@ class _MaatFlowTemplateDetailPageState
   );
 
   Future<void> _completeJoin(int id) async {
+    if (_picked != null && !_temporalController.isCarried) {
+      _temporalController.lockCarried(
+        persistedStartDate: _picked,
+        notify: false,
+      );
+    }
     final onJoined = widget.onJoined;
     if (onJoined != null) {
       await onJoined(id);
@@ -2576,77 +2568,58 @@ class _MaatFlowTemplateDetailPageState
         .resolve(
           kind: _registeredFlowKind,
           context: context,
+          scheduleTimeZone: _previewTrackSkyTimeZone,
           eveningThresholdFallbackMinutes: _eveningFallbackMinutes,
         )
         .startDate;
   }
 
-  bool get _startDateWasExplicitlySelected => switch (widget.template.kind) {
-    _MaatFlowTemplateKind.sequence => false,
-    _MaatFlowTemplateKind.trackSky => false,
-    _MaatFlowTemplateKind.dawnHouseRite => _dawnStartDateTouched,
-    _MaatFlowTemplateKind.eveningThreshold => _eveningThresholdStartDateTouched,
-    _MaatFlowTemplateKind.eveningThresholdRite => _eveningStartDateTouched,
-    _MaatFlowTemplateKind.theWeighing => _theWeighingStartDateTouched,
-    _MaatFlowTemplateKind.offeringTable => false,
-    _MaatFlowTemplateKind.theTending => _theTendingStartDateTouched,
-    _MaatFlowTemplateKind.keptWord => _keptWordStartDateTouched,
-    _MaatFlowTemplateKind.theCourse => _courseStartDateTouched,
-    _MaatFlowTemplateKind.moonReturn => _moonReturnStartDateTouched,
-    _MaatFlowTemplateKind.theWag => _wagStartDateTouched,
-    _MaatFlowTemplateKind.decanWatch => _decanWatchStartDateTouched,
-    _MaatFlowTemplateKind.daysOutsideTheYear =>
-      _daysOutsideYearStartDateTouched,
-    _MaatFlowTemplateKind.theOpenHand => _openHandStartDateTouched,
-    _MaatFlowTemplateKind.theDjed => _djedStartDateTouched,
-    _MaatFlowTemplateKind.readingHouse => _readingHouseStartDateTouched,
-    _MaatFlowTemplateKind.maatDecan => _maatDecanStartDateTouched,
-  };
+  MaatFlowTemporalContext get _temporalContext => _temporalController.context;
 
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed ||
-        widget.alreadyJoined ||
-        widget.template.kind == _MaatFlowTemplateKind.trackSky ||
-        _startDateWasExplicitlySelected) {
+  MaatFlowTemporalResolution? _resolveTemporalResolution(
+    MaatFlowTemporalContext context,
+  ) {
+    if (widget.template.kind == _MaatFlowTemplateKind.trackSky) return null;
+    return const MaatFlowTemporalResolver().resolve(
+      kind: _registeredFlowKind,
+      context: context,
+      scheduleTimeZone: _previewTrackSkyTimeZone,
+      eveningThresholdFallbackMinutes: _eveningFallbackMinutes,
+    );
+  }
+
+  void _handleTemporalChange() {
+    if (!mounted || widget.template.kind == _MaatFlowTemplateKind.trackSky) {
       return;
     }
-    final nextContext = MaatFlowTemporalContext.capture(
-      timezone: _previewTrackSkyTimeZone,
-    );
-    if (_temporalContext.hasSamePresentDay(nextContext)) return;
     setState(() {
-      _temporalContext = nextContext;
-      _picked = _resolveTemporalStart(nextContext);
+      _picked = _temporalController.renderedStartDate;
     });
   }
 
   DateTime _effectiveStartForCarry(DateTime previewedStart) {
-    if (widget.alreadyJoined || _startDateWasExplicitlySelected) {
-      return previewedStart;
-    }
-    final nextContext = MaatFlowTemporalContext.capture(
-      timezone: _previewTrackSkyTimeZone,
-    );
-    if (_temporalContext.hasSamePresentDay(nextContext)) return previewedStart;
-    _temporalContext = nextContext;
-    final refreshed = _resolveTemporalStart(nextContext);
-    _picked = refreshed;
-    return refreshed;
+    final rendered = _temporalController.startDateForCarry;
+    assert(DateUtils.isSameDay(rendered, previewedStart));
+    return rendered;
   }
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _previewTrackSkyTimeZone = detectTrackSkyTimeZone();
-    _temporalContext = MaatFlowTemporalContext.capture(
-      timezone: _previewTrackSkyTimeZone,
+    _temporalController = MaatFlowTemporalController(
+      ianaTimeZone: MaatFlowDeviceTimeZone.currentIanaTimeZone,
+      ianaTimeZoneProvider: MaatFlowDeviceTimeZone.refresh,
+      resolve: _resolveTemporalResolution,
+      explicitStartDate: widget.joinedFlow?.start,
+      carried: widget.alreadyJoined,
     );
+    _temporalController.addListener(_handleTemporalChange);
+    _temporalController.start();
     if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
       _trackSkyFuture = loadTrackSkyFlowData(_previewTrackSkyTimeZone);
     } else {
-      _picked = _resolveTemporalStart(_temporalContext);
+      _picked = _temporalController.renderedStartDate;
       if (widget.template.kind == _MaatFlowTemplateKind.readingHouse) {
         _readingHouseSittings = readingHouseStarterSittingsForAuthoring();
       }
@@ -2655,7 +2628,8 @@ class _MaatFlowTemplateDetailPageState
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    _temporalController.removeListener(_handleTemporalChange);
+    _temporalController.dispose();
     _eveningThresholdInitialCarryController.dispose();
     super.dispose();
   }
@@ -2841,24 +2815,12 @@ class _MaatFlowTemplateDetailPageState
       _picked = DateUtils.dateOnly(picked.date);
       _markGenericMaatStartDateTouched();
     });
+    _temporalController.lockExplicitDate(picked.date);
   }
 
   void _markGenericMaatStartDateTouched() {
-    if (widget.template.kind == _MaatFlowTemplateKind.dawnHouseRite) {
-      _dawnStartDateTouched = true;
-    } else if (widget.template.kind == _MaatFlowTemplateKind.eveningThreshold) {
-      _eveningThresholdStartDateTouched = true;
-    } else if (widget.template.kind ==
-        _MaatFlowTemplateKind.eveningThresholdRite) {
+    if (widget.template.kind == _MaatFlowTemplateKind.eveningThresholdRite) {
       _eveningStartDateTouched = true;
-    } else if (widget.template.kind == _MaatFlowTemplateKind.theWeighing) {
-      _theWeighingStartDateTouched = true;
-    } else if (widget.template.kind == _MaatFlowTemplateKind.theTending) {
-      _theTendingStartDateTouched = true;
-    } else if (widget.template.kind == _MaatFlowTemplateKind.keptWord) {
-      _keptWordStartDateTouched = true;
-    } else if (widget.template.kind == _MaatFlowTemplateKind.theCourse) {
-      _courseStartDateTouched = true;
     } else if (widget.template.kind == _MaatFlowTemplateKind.readingHouse) {
       _readingHouseStartDateTouched = true;
     }
@@ -2960,8 +2922,10 @@ class _MaatFlowTemplateDetailPageState
                         onTap: () {
                           setState(() {
                             _picked = DateUtils.dateOnly(window.opensAtLocal);
-                            _moonReturnStartDateTouched = true;
                           });
+                          _temporalController.lockExplicitDate(
+                            window.opensAtLocal,
+                          );
                           Navigator.pop(sheetCtx);
                         },
                       );
@@ -3072,8 +3036,10 @@ class _MaatFlowTemplateDetailPageState
                         onTap: () {
                           setState(() {
                             _picked = DateUtils.dateOnly(window.opensAtLocal);
-                            _wagStartDateTouched = true;
                           });
+                          _temporalController.lockExplicitDate(
+                            window.opensAtLocal,
+                          );
                           Navigator.pop(sheetCtx);
                         },
                       );
@@ -3185,8 +3151,10 @@ class _MaatFlowTemplateDetailPageState
                         onTap: () {
                           setState(() {
                             _picked = DateUtils.dateOnly(window.opensAtLocal);
-                            _decanWatchStartDateTouched = true;
                           });
+                          _temporalController.lockExplicitDate(
+                            window.opensAtLocal,
+                          );
                           Navigator.pop(sheetCtx);
                         },
                       );
@@ -3298,8 +3266,10 @@ class _MaatFlowTemplateDetailPageState
                         onTap: () {
                           setState(() {
                             _picked = DateUtils.dateOnly(window.opensAtLocal);
-                            _openHandStartDateTouched = true;
                           });
+                          _temporalController.lockExplicitDate(
+                            window.opensAtLocal,
+                          );
                           Navigator.pop(sheetCtx);
                         },
                       );
@@ -3411,8 +3381,10 @@ class _MaatFlowTemplateDetailPageState
                         onTap: () {
                           setState(() {
                             _picked = DateUtils.dateOnly(window.opensAtLocal);
-                            _djedStartDateTouched = true;
                           });
+                          _temporalController.lockExplicitDate(
+                            window.opensAtLocal,
+                          );
                           Navigator.pop(sheetCtx);
                         },
                       );
@@ -3527,8 +3499,10 @@ class _MaatFlowTemplateDetailPageState
                         onTap: () {
                           setState(() {
                             _picked = DateUtils.dateOnly(window.opensAtLocal);
-                            _maatDecanStartDateTouched = true;
                           });
+                          _temporalController.lockExplicitDate(
+                            window.opensAtLocal,
+                          );
                           Navigator.pop(sheetCtx);
                         },
                       );
@@ -3639,8 +3613,10 @@ class _MaatFlowTemplateDetailPageState
                         onTap: () {
                           setState(() {
                             _picked = DateUtils.dateOnly(window.opensAtLocal);
-                            _daysOutsideYearStartDateTouched = true;
                           });
+                          _temporalController.lockExplicitDate(
+                            window.opensAtLocal,
+                          );
                           Navigator.pop(sheetCtx);
                         },
                       );
@@ -3665,13 +3641,13 @@ class _MaatFlowTemplateDetailPageState
     }
     setState(() {
       _previewTrackSkyTimeZone = timezone;
-      _temporalContext = MaatFlowTemporalContext.capture(timezone: timezone);
       if (widget.template.kind == _MaatFlowTemplateKind.trackSky) {
         _trackSkyFuture = loadTrackSkyFlowData(timezone);
-      } else if (!_startDateWasExplicitlySelected) {
-        _picked = _resolveTemporalStart(_temporalContext);
       }
     });
+    if (widget.template.kind != _MaatFlowTemplateKind.trackSky) {
+      _temporalController.replaceResolver(_resolveTemporalResolution);
+    }
   }
 
   String _dawnLensExplanation(DawnHouseRiteLens lens) {
@@ -3811,16 +3787,15 @@ class _MaatFlowTemplateDetailPageState
       },
     );
     if (picked == null || !mounted) return;
+    final shouldRefresh =
+        !_eveningStartDateTouched &&
+        widget.template.kind == _MaatFlowTemplateKind.eveningThresholdRite;
     setState(() {
       _eveningFallbackMinutes = _minutesFromTimeOfDay(picked);
-      if (!_eveningStartDateTouched &&
-          widget.template.kind == _MaatFlowTemplateKind.eveningThresholdRite) {
-        _temporalContext = MaatFlowTemporalContext.capture(
-          timezone: _previewTrackSkyTimeZone,
-        );
-        _picked = _resolveTemporalStart(_temporalContext);
-      }
     });
+    if (shouldRefresh) {
+      _temporalController.replaceResolver(_resolveTemporalResolution);
+    }
   }
 
   Future<void> _joinDawnHouseRiteFlow(DateTime selectedStart) async {

@@ -573,7 +573,10 @@ class FlowJoinService {
       _userEventsRepo ?? UserEventsRepo(Supabase.instance.client);
 
   MaatFlowTemporalContext _captureTemporalContext(TrackSkyTimeZone timezone) {
-    return MaatFlowTemporalContext.capture(timezone: timezone, clock: _clock);
+    return MaatFlowTemporalContext.capture(
+      ianaTimeZone: MaatFlowDeviceTimeZone.currentIanaTimeZone,
+      clock: _clock,
+    );
   }
 
   DateTime _resolveTemporalStart(
@@ -588,6 +591,7 @@ class FlowJoinService {
         .resolve(
           kind: kind,
           context: context ?? _captureTemporalContext(timezone),
+          scheduleTimeZone: timezone,
           eveningThresholdMinutes: eveningThresholdMinutes,
           eveningThresholdFallbackMinutes: eveningThresholdFallbackMinutes,
         )
@@ -862,6 +866,7 @@ class FlowJoinService {
     final temporal = _temporalResolver.resolve(
       kind: MaatFlowKind.trackSky,
       context: _captureTemporalContext(timezone),
+      scheduleTimeZone: timezone,
       skyCatalog: catalog,
       skyEnrollment: enrollment,
     );

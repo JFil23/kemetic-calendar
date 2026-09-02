@@ -46,6 +46,7 @@ void main() {
             authority: fake,
             resolvePersonalCalendarId: () async => 'personal-calendar',
             clock: clock,
+            presentDayIanaTimeZone: TrackSkyTimeZone.pacific.ianaName,
           ),
         ),
       ),

@@ -350,6 +350,74 @@ void main() {
     await tester.pump();
   });
 
+  testWidgets('a manually selected start survives midnight and Carry', (
+    tester,
+  ) async {
+    var nowUtc = DateTime.utc(2026, 9, 2, 18);
+    DateTime? carriedStart;
+    await _pumpPage(
+      tester,
+      size: const Size(390, 844),
+      clock: () => nowUtc,
+      onJoin:
+          ({
+            required startDate,
+            required timezone,
+            required lens,
+            required noCupMode,
+          }) async {
+            carriedStart = startDate;
+            return 9030;
+          },
+    );
+
+    final startControl = find.byKey(
+      const ValueKey<String>(
+        'offering-table-calendar-top-label-control-2026-09-03',
+      ),
+    );
+    await tester.ensureVisible(startControl);
+    await tester.pumpAndSettle();
+    await tester.tap(startControl);
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.byKey(const ValueKey<String>('stone-register-wheel-day')),
+      const Offset(0, -StoneRegisterDatePickerTheme.rowHeight),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Done'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(
+        const ValueKey<String>(
+          'offering-table-calendar-top-label-control-2026-09-04',
+        ),
+      ),
+      findsOneWidget,
+    );
+
+    nowUtc = DateTime.utc(2026, 9, 4, 8);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(
+        const ValueKey<String>(
+          'offering-table-calendar-top-label-control-2026-09-04',
+        ),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey<String>('offering-table-join')));
+    await tester.pumpAndSettle();
+    expect(carriedStart, DateTime(2026, 9, 4));
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+    Supabase.instance.client.auth.stopAutoRefresh();
+    await tester.pump();
+  });
+
   testWidgets(
     'joined detail reads the persisted schedule and cannot draft another start',
     (tester) async {
@@ -1586,6 +1654,7 @@ Future<void> _pumpPage(
         home: OfferingTableDetailPage(
           timezone: timezone,
           clock: clock,
+          presentDayIanaTimeZone: timezone.ianaName,
           calendarPreview: calendarPreview,
           initialStartDate: start,
           joinedFlowId: joinedFlowId,

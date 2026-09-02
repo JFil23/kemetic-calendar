@@ -23,7 +23,7 @@ void main() {
   MaatFlowTemporalContext context(DateTime nowUtc) {
     return MaatFlowTemporalContext.fromInstant(
       nowUtc: nowUtc,
-      timezone: TrackSkyTimeZone.pacific,
+      ianaTimeZone: TrackSkyTimeZone.pacific.ianaName,
     );
   }
 
@@ -33,6 +33,7 @@ void main() {
       context: context(nowUtc),
       skyCatalog: kind == MaatFlowKind.trackSky ? catalog : null,
       skyEnrollment: kind == MaatFlowKind.trackSky ? enrollment : null,
+      scheduleTimeZone: TrackSkyTimeZone.pacific,
     );
   }
 
@@ -91,7 +92,7 @@ void main() {
   test('one captured clock instant owns the local and Kemetic present day', () {
     var clockCalls = 0;
     final captured = MaatFlowTemporalContext.capture(
-      timezone: TrackSkyTimeZone.pacific,
+      ianaTimeZone: TrackSkyTimeZone.pacific.ianaName,
       clock: () {
         clockCalls += 1;
         return DateTime.utc(2026, 9, 2, 18, 45);
@@ -177,6 +178,21 @@ void main() {
     );
   });
 
+  test('specialist policies require an explicit schedule timezone', () {
+    expect(
+      () => resolver.resolve(
+        kind: MaatFlowKind.trackSky,
+        context: MaatFlowTemporalContext.fromInstant(
+          nowUtc: DateTime.utc(2026, 9, 2, 18),
+          ianaTimeZone: 'Asia/Kathmandu',
+        ),
+        skyCatalog: catalog,
+        skyEnrollment: enrollment,
+      ),
+      throwsA(isA<StateError>()),
+    );
+  });
+
   test('Follow the Sky advances only after the effective event window', () {
     final equinoxNight = catalog.observingNight(
       catalog.byId('autumn-equinox-2026')!,
@@ -217,7 +233,7 @@ void main() {
     final draft = enrollment.buildJoinDraft(
       catalog: catalog,
       eligibleNights: resolution.skyNights,
-      ianaTimeZone: resolution.context.timezone.ianaName,
+      ianaTimeZone: TrackSkyTimeZone.pacific.ianaName,
     );
 
     expect(draft.occurrences.first.skyEventId, 'autumn-equinox-2026');

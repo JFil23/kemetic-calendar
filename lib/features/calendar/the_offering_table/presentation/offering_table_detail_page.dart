@@ -4,6 +4,7 @@ import 'package:mobile/widgets/maat_flow_date_picker.dart';
 
 import 'package:mobile/features/calendar/follow_the_sky/presentation/follow_sky_calendar_preview.dart';
 import 'package:mobile/features/calendar/maat_flow_identity.dart';
+import 'package:mobile/features/calendar/maat_flow_temporal_controller.dart';
 import 'package:mobile/features/calendar/maat_flow_temporal_policy.dart';
 import 'package:mobile/features/calendar/maat_flow_temporal_resolver.dart';
 import 'package:mobile/features/calendar/maat_flow_visual_tokens.dart';
@@ -93,6 +94,9 @@ class OfferingTableDetailPage extends StatefulWidget {
     this.resizeToAvoidBottomInset = true,
     this.localStore = const OfferingTableLocalStore(),
     this.clock,
+    this.presentDayIanaTimeZone,
+    this.ianaTimeZoneProvider,
+    this.temporalScheduler,
   });
 
   final TrackSkyTimeZone timezone;
@@ -108,16 +112,17 @@ class OfferingTableDetailPage extends StatefulWidget {
   final bool resizeToAvoidBottomInset;
   final OfferingTableLocalStore localStore;
   final MaatFlowClock? clock;
+  final String? presentDayIanaTimeZone;
+  final MaatFlowIanaTimeZoneProvider? ianaTimeZoneProvider;
+  final MaatFlowTemporalScheduler? temporalScheduler;
 
   @override
   State<OfferingTableDetailPage> createState() =>
       _OfferingTableDetailPageState();
 }
 
-class _OfferingTableDetailPageState extends State<OfferingTableDetailPage>
-    with WidgetsBindingObserver {
-  late DateTime _draftStartDate;
-  late MaatFlowTemporalContext _temporalContext;
+class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
+  late MaatFlowTemporalController _temporalController;
   int? _carriedFlowId;
   final TextEditingController _initialEntryController = TextEditingController();
   bool _joining = false;
@@ -126,12 +131,9 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    _temporalContext = _captureTemporalContext();
-    _draftStartDate = DateUtils.dateOnly(
-      widget.initialStartDate ?? _resolveComputedStartDate(),
-    );
     _carriedFlowId = widget.joinedFlowId;
+    _temporalController = _createTemporalController()..start();
+    _temporalController.addListener(_handleTemporalChange);
     _loadJoinedIntention();
   }
 
@@ -140,27 +142,44 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage>
     super.didUpdateWidget(oldWidget);
     if (widget.joinedFlowId != oldWidget.joinedFlowId) {
       _carriedFlowId = widget.joinedFlowId;
+      if (_joined) {
+        _temporalController.lockCarried(
+          persistedStartDate: _joinedPersistedStartDate,
+        );
+      } else {
+        _temporalController.unlock();
+      }
       _loadJoinedIntention();
     }
-    if (widget.timezone != oldWidget.timezone ||
-        widget.clock != oldWidget.clock) {
-      _refreshComputedStartDate(force: true);
+    if (widget.clock != oldWidget.clock ||
+        widget.presentDayIanaTimeZone != oldWidget.presentDayIanaTimeZone ||
+        widget.ianaTimeZoneProvider != oldWidget.ianaTimeZoneProvider ||
+        widget.temporalScheduler != oldWidget.temporalScheduler) {
+      _replaceTemporalController();
     } else if (widget.initialStartDate != oldWidget.initialStartDate &&
         widget.initialStartDate != null &&
         !_joined) {
-      _draftStartDate = DateUtils.dateOnly(widget.initialStartDate!);
+      _temporalController.lockExplicitDate(widget.initialStartDate!);
     }
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) _refreshComputedStartDate();
   }
 
   bool get _joined => _carriedFlowId != null;
 
+  MaatFlowTemporalContext get _temporalContext => _temporalController.context;
+
+  DateTime? get _joinedPersistedStartDate {
+    final joinedStart = widget.joinedStartDate;
+    if (joinedStart != null) return DateUtils.dateOnly(joinedStart);
+    if (widget.joinedScheduleDates.isEmpty) return null;
+    final ordered = widget.joinedScheduleDates.map(DateUtils.dateOnly).toList()
+      ..sort();
+    return ordered.first;
+  }
+
   DateTime get _startDate {
-    if (widget.joinedFlowId == null) return _draftStartDate;
+    if (widget.joinedFlowId == null) {
+      return _temporalController.renderedStartDate;
+    }
     final joinedStart = widget.joinedStartDate;
     if (joinedStart != null) return DateUtils.dateOnly(joinedStart);
     if (widget.joinedScheduleDates.isNotEmpty) {
@@ -181,50 +200,58 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage>
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    _temporalController.removeListener(_handleTemporalChange);
+    _temporalController.dispose();
     _initialEntryController.dispose();
     super.dispose();
   }
 
-  MaatFlowTemporalContext _captureTemporalContext() {
-    return MaatFlowTemporalContext.capture(
-      timezone: widget.timezone,
+  MaatFlowTemporalController _createTemporalController() {
+    return MaatFlowTemporalController(
+      ianaTimeZone:
+          widget.presentDayIanaTimeZone ??
+          MaatFlowDeviceTimeZone.currentIanaTimeZone,
+      ianaTimeZoneProvider:
+          widget.ianaTimeZoneProvider ??
+          (widget.presentDayIanaTimeZone == null
+              ? MaatFlowDeviceTimeZone.refresh
+              : () async => widget.presentDayIanaTimeZone!),
       clock: widget.clock ?? maatFlowSystemClock,
+      scheduler: widget.temporalScheduler ?? scheduleMaatFlowTemporalCallback,
+      resolve: (context) => const MaatFlowTemporalResolver().resolve(
+        kind: MaatFlowKind.offeringTable,
+        context: context,
+      ),
+      explicitStartDate: _joined ? null : widget.initialStartDate,
+      carried: _joined,
     );
   }
 
-  DateTime _resolveComputedStartDate() {
-    return const MaatFlowTemporalResolver()
-        .resolve(kind: MaatFlowKind.offeringTable, context: _temporalContext)
-        .startDate;
+  void _replaceTemporalController() {
+    final old = _temporalController;
+    final explicitDate = old.isExplicitlyLocked ? old.renderedStartDate : null;
+    old.removeListener(_handleTemporalChange);
+    old.dispose();
+    _temporalController = _createTemporalController();
+    if (explicitDate != null && !_joined) {
+      _temporalController.lockExplicitDate(explicitDate);
+    }
+    _temporalController.addListener(_handleTemporalChange);
+    _temporalController.start();
   }
 
-  void _refreshComputedStartDate({bool force = false}) {
-    if (_joined || widget.initialStartDate != null) return;
-    final nextContext = _captureTemporalContext();
-    if (!force && _temporalContext.hasSamePresentDay(nextContext)) return;
-    final nextStart = const MaatFlowTemporalResolver()
-        .resolve(kind: MaatFlowKind.offeringTable, context: nextContext)
-        .startDate;
-    if (mounted) {
-      setState(() {
-        _temporalContext = nextContext;
-        _draftStartDate = nextStart;
-      });
-    } else {
-      _temporalContext = nextContext;
-      _draftStartDate = nextStart;
-    }
+  void _handleTemporalChange() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _join() async {
     if (_joining || _joined) return;
-    _refreshComputedStartDate();
+    final renderedStartDate = _temporalController.startDateForCarry;
     setState(() => _joining = true);
     int id;
     try {
       id = await widget.onJoin(
-        startDate: _startDate,
+        startDate: renderedStartDate,
         timezone: widget.timezone,
         lens: widget.lens,
         noCupMode: widget.noCupMode,
@@ -267,6 +294,7 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage>
       _carriedFlowId = id;
       _joining = false;
     });
+    _temporalController.lockCarried(persistedStartDate: renderedStartDate);
   }
 
   Future<void> _openOfferingDaySheet(
@@ -287,9 +315,7 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage>
     );
     if (result == null || !mounted) return;
 
-    setState(() {
-      _draftStartDate = DateUtils.dateOnly(result.date);
-    });
+    _temporalController.lockExplicitDate(result.date);
   }
 
   String _initialEntryIntro() {

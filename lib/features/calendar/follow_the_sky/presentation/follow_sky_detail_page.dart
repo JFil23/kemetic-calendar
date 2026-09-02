@@ -15,6 +15,7 @@ import '../services/sky_visibility_service.dart';
 import '../services/track_sky_enrollment_service.dart';
 import '../services/track_sky_materializer.dart';
 import '../../maat_flow_identity.dart';
+import '../../maat_flow_temporal_controller.dart';
 import '../../maat_flow_temporal_policy.dart';
 import '../../maat_flow_temporal_resolver.dart';
 import '../../presentation/maat_flow_detail_shell.dart';
@@ -54,6 +55,9 @@ class FollowSkyDetailPage extends StatefulWidget {
     this.initialCatalog,
     this.now,
     this.clock,
+    this.presentDayIanaTimeZone,
+    this.ianaTimeZoneProvider,
+    this.temporalScheduler,
     this.standalone = true,
     this.title = 'Follow the Sky',
     this.subtitle = FollowSkyV11Tokens.heroSubtitle,
@@ -80,6 +84,9 @@ class FollowSkyDetailPage extends StatefulWidget {
   final SkyCatalog? initialCatalog;
   final DateTime? now;
   final MaatFlowClock? clock;
+  final String? presentDayIanaTimeZone;
+  final MaatFlowIanaTimeZoneProvider? ianaTimeZoneProvider;
+  final MaatFlowTemporalScheduler? temporalScheduler;
   final bool standalone;
   final String title;
   final String subtitle;
@@ -89,8 +96,7 @@ class FollowSkyDetailPage extends StatefulWidget {
   State<FollowSkyDetailPage> createState() => FollowSkyDetailPageState();
 }
 
-class FollowSkyDetailPageState extends State<FollowSkyDetailPage>
-    with WidgetsBindingObserver {
+class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
   static const int _expandedTurningCount = 5;
 
   late final SkyCatalogRepository _catalogRepo;
@@ -106,11 +112,15 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage>
   bool _joining = false;
   late bool _carried;
   SkyCatalog? _catalog;
-  MaatFlowTemporalResolution? _temporalResolution;
-  late MaatFlowTemporalContext _temporalContext;
+  late MaatFlowTemporalController _temporalController;
   Object? _error;
 
   bool get hasActiveCourse => false;
+
+  MaatFlowTemporalResolution? get _temporalResolution =>
+      _temporalController.resolution;
+
+  MaatFlowTemporalContext get _temporalContext => _temporalController.context;
 
   Future<void> joinFromDock() => _carry();
 
@@ -158,20 +168,18 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _carried = widget.isJoined;
     _ensureTz();
-    _temporalContext = _captureTemporalContext();
     _catalogRepo = widget.catalogRepository ?? SkyCatalogRepository();
     final materializer = TrackSkyMaterializer(toLocal: _toLocal, toUtc: _toUtc);
     _enrollment = TrackSkyEnrollmentService(
       materializer: materializer,
       visibilityService: const SkyVisibilityService(),
     );
-    if (widget.initialCatalog != null) {
-      _catalog = widget.initialCatalog;
-      _temporalResolution = _resolveTemporal(widget.initialCatalog!);
-    } else {
+    _catalog = widget.initialCatalog;
+    _temporalController = _createTemporalController()..start();
+    _temporalController.addListener(_handleTemporalChange);
+    if (widget.initialCatalog == null) {
       unawaited(_load());
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -184,68 +192,84 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage>
     super.didUpdateWidget(oldWidget);
     if (widget.isJoined != oldWidget.isJoined && widget.isJoined != _carried) {
       _carried = widget.isJoined;
+      if (_carried) {
+        _temporalController.lockCarried(
+          persistedResolution: _temporalController.resolutionForCarry,
+        );
+      } else {
+        _temporalController.unlock();
+      }
     }
     if (widget.timezone != oldWidget.timezone ||
         widget.now != oldWidget.now ||
-        widget.clock != oldWidget.clock) {
-      _temporalContext = _captureTemporalContext();
-      final catalog = _catalog;
-      if (catalog != null) _temporalResolution = _resolveTemporal(catalog);
+        widget.clock != oldWidget.clock ||
+        widget.presentDayIanaTimeZone != oldWidget.presentDayIanaTimeZone ||
+        widget.ianaTimeZoneProvider != oldWidget.ianaTimeZoneProvider ||
+        widget.temporalScheduler != oldWidget.temporalScheduler) {
+      _replaceTemporalController();
     }
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
+    _temporalController.removeListener(_handleTemporalChange);
+    _temporalController.dispose();
     _exampleIntentionController.dispose();
     _scrollController.dispose();
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed || _carried) return;
-    _refreshTemporalResolution();
   }
 
   TrackSkyTimeZone get _sharedTimezone =>
       TrackSkyTimeZoneX.tryParse(widget.timezone.key) ??
       TrackSkyTimeZone.pacific;
 
-  MaatFlowTemporalContext _captureTemporalContext() {
-    return MaatFlowTemporalContext.capture(
-      timezone: _sharedTimezone,
+  MaatFlowTemporalController _createTemporalController() {
+    return MaatFlowTemporalController(
+      ianaTimeZone:
+          widget.presentDayIanaTimeZone ??
+          MaatFlowDeviceTimeZone.currentIanaTimeZone,
+      ianaTimeZoneProvider:
+          widget.ianaTimeZoneProvider ??
+          (widget.presentDayIanaTimeZone == null
+              ? MaatFlowDeviceTimeZone.refresh
+              : () async => widget.presentDayIanaTimeZone!),
       clock: () => widget.now ?? widget.clock?.call() ?? maatFlowSystemClock(),
+      scheduler: widget.temporalScheduler ?? scheduleMaatFlowTemporalCallback,
+      resolve: _resolveTemporal,
+      carried: _carried,
     );
   }
 
-  MaatFlowTemporalResolution _resolveTemporal(
-    SkyCatalog catalog, {
-    MaatFlowTemporalContext? context,
-  }) {
-    return const MaatFlowTemporalResolver().resolve(
-      kind: MaatFlowKind.trackSky,
-      context: context ?? _temporalContext,
-      skyCatalog: catalog,
-      skyEnrollment: _enrollment,
-    );
-  }
-
-  MaatFlowTemporalResolution? _refreshTemporalResolution() {
+  MaatFlowTemporalResolution? _resolveTemporal(
+    MaatFlowTemporalContext context,
+  ) {
     final catalog = _catalog;
     if (catalog == null) return null;
-    final context = _captureTemporalContext();
-    final resolution = _resolveTemporal(catalog, context: context);
-    if (mounted) {
-      setState(() {
-        _temporalContext = context;
-        _temporalResolution = resolution;
-      });
-    } else {
-      _temporalContext = context;
-      _temporalResolution = resolution;
+    return const MaatFlowTemporalResolver().resolve(
+      kind: MaatFlowKind.trackSky,
+      context: context,
+      skyCatalog: catalog,
+      skyEnrollment: _enrollment,
+      scheduleTimeZone: _sharedTimezone,
+    );
+  }
+
+  void _replaceTemporalController() {
+    final old = _temporalController;
+    final wasCarried = old.isCarried;
+    final carriedResolution = old.resolutionForCarry;
+    old.removeListener(_handleTemporalChange);
+    old.dispose();
+    _temporalController = _createTemporalController();
+    if (wasCarried) {
+      _temporalController.lockCarried(persistedResolution: carriedResolution);
     }
-    return resolution;
+    _temporalController.addListener(_handleTemporalChange);
+    _temporalController.start();
+  }
+
+  void _handleTemporalChange() {
+    if (mounted) setState(() {});
   }
 
   void _setDraftIntentionForSkyNight(SkyObservingNight night, String value) {
@@ -280,9 +304,9 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage>
       if (!mounted) return;
       setState(() {
         _catalog = catalog;
-        _temporalResolution = _resolveTemporal(catalog);
         _error = null;
       });
+      _temporalController.replaceResolver(_resolveTemporal);
     } catch (e) {
       if (!mounted) return;
       setState(() => _error = e);
@@ -322,9 +346,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage>
 
   Future<void> _carry() async {
     if (_catalog == null || widget.onJoin == null || _joining) return;
-    final resolution = _carried
-        ? _temporalResolution
-        : _refreshTemporalResolution();
+    final resolution = _temporalController.resolutionForCarry;
     if (resolution == null) return;
     setState(() => _joining = true);
     try {
@@ -337,7 +359,10 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage>
         intentionBySkyEventId: Map<String, String>.from(_draftIntentions),
       );
       await widget.onJoin!(draft);
-      if (mounted) setState(() => _carried = true);
+      if (mounted) {
+        setState(() => _carried = true);
+        _temporalController.lockCarried(persistedResolution: resolution);
+      }
     } finally {
       if (mounted) setState(() => _joining = false);
     }

@@ -2,7 +2,6 @@ import 'package:timezone/data/latest_all.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
 import '../../widgets/kemetic_date_picker.dart';
-import 'track_sky_timezone.dart';
 
 typedef MaatFlowClock = DateTime Function();
 
@@ -80,36 +79,34 @@ class MaatFlowTemporalPolicy {
 class MaatFlowTemporalContext {
   MaatFlowTemporalContext._({
     required this.nowUtc,
-    required this.timezone,
+    required this.ianaTimeZone,
     required this.presentLocalDateTime,
     required this.presentLocalDate,
     required this.presentKemeticDate,
   });
 
   factory MaatFlowTemporalContext.capture({
-    required TrackSkyTimeZone timezone,
+    required String ianaTimeZone,
     MaatFlowClock clock = maatFlowSystemClock,
   }) {
     return MaatFlowTemporalContext.fromInstant(
       nowUtc: clock().toUtc(),
-      timezone: timezone,
+      ianaTimeZone: ianaTimeZone,
     );
   }
 
   factory MaatFlowTemporalContext.fromInstant({
     required DateTime nowUtc,
-    required TrackSkyTimeZone timezone,
+    required String ianaTimeZone,
   }) {
     _ensureMaatFlowTimeZonesInitialized();
     final instant = nowUtc.toUtc();
-    final zoned = tz.TZDateTime.from(
-      instant,
-      tz.getLocation(timezone.ianaName),
-    );
+    final location = tz.getLocation(ianaTimeZone);
+    final zoned = tz.TZDateTime.from(instant, location);
     final localDate = DateTime(zoned.year, zoned.month, zoned.day);
     return MaatFlowTemporalContext._(
       nowUtc: instant,
-      timezone: timezone,
+      ianaTimeZone: location.name,
       presentLocalDateTime: DateTime(
         zoned.year,
         zoned.month,
@@ -126,7 +123,7 @@ class MaatFlowTemporalContext {
   }
 
   final DateTime nowUtc;
-  final TrackSkyTimeZone timezone;
+  final String ianaTimeZone;
   final DateTime presentLocalDateTime;
   final DateTime presentLocalDate;
   final ({int kYear, int kMonth, int kDay}) presentKemeticDate;
@@ -137,16 +134,27 @@ class MaatFlowTemporalContext {
     presentLocalDate.day + calendarDays,
   );
 
-  DateTime localDateForUtc(DateTime instantUtc) {
+  DateTime localDateForUtc(DateTime instantUtc, {String? ianaTimeZone}) {
     final zoned = tz.TZDateTime.from(
       instantUtc.toUtc(),
-      tz.getLocation(timezone.ianaName),
+      tz.getLocation(ianaTimeZone ?? this.ianaTimeZone),
     );
     return DateTime(zoned.year, zoned.month, zoned.day);
   }
 
+  DateTime get nextLocalMidnightUtc {
+    final location = tz.getLocation(ianaTimeZone);
+    return tz.TZDateTime(
+      location,
+      presentLocalDate.year,
+      presentLocalDate.month,
+      presentLocalDate.day + 1,
+    ).toUtc();
+  }
+
   bool hasSamePresentDay(MaatFlowTemporalContext other) =>
-      timezone == other.timezone && presentLocalDate == other.presentLocalDate;
+      ianaTimeZone == other.ianaTimeZone &&
+      presentLocalDate == other.presentLocalDate;
 }
 
 bool _maatFlowTimeZonesInitialized = false;

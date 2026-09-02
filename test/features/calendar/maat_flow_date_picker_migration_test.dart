@@ -88,9 +88,9 @@ void main() {
     final source = await File(
       'lib/features/calendar/calendar_maat_flows.dart',
     ).readAsString();
-    final touched = _sourceBetween(
+    final picker = _sourceBetween(
       source,
-      'void _markGenericMaatStartDateTouched()',
+      'Future<void> _pickDate() async',
       'Future<void> _pickMoonReturnWindowDate() async',
     );
     final startRow = _sourceBetween(
@@ -104,18 +104,15 @@ void main() {
       '@override\n  Widget build(BuildContext context)',
     );
 
-    for (final flag in <String>[
-      '_dawnStartDateTouched',
-      '_eveningThresholdStartDateTouched',
-      '_eveningStartDateTouched',
-      '_theWeighingStartDateTouched',
-      '_offeringStartDateTouched',
-      '_theTendingStartDateTouched',
-      '_keptWordStartDateTouched',
-      '_courseStartDateTouched',
-    ]) {
-      expect(touched, contains('$flag = true'));
-    }
+    // Lock semantics are exercised behaviorally by the shared temporal
+    // controller tests. This guard keeps the picker and Carry call sites on
+    // that authority without requiring the obsolete page-local flag shape.
+    expect(
+      picker,
+      contains('_temporalController.lockExplicitDate(picked.date)'),
+    );
+    expect(source, contains('_temporalController.startDateForCarry'));
+    expect(source, contains('_temporalController.lockCarried('));
     expect(startRow, contains('onPressed: _pickDate'));
     expect(startRow, contains('minimumSize: const Size.fromHeight(60)'));
     expect(sequenceJoin, contains('startDate: _picked!'));

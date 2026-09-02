@@ -521,7 +521,7 @@ DateTime defaultOfferingTableStartDate(
 }) {
   return MaatFlowTemporalContext.fromInstant(
     nowUtc: now ?? maatFlowSystemClock(),
-    timezone: timezone,
+    ianaTimeZone: timezone.ianaName,
   ).localDateAfter(1);
 }
 

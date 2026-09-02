@@ -154,6 +154,7 @@ import 'maat_flow_identity.dart';
 import 'maat_flow_catalog.dart';
 import 'maat_flow_temporal_policy.dart';
 import 'maat_flow_temporal_resolver.dart';
+import 'maat_flow_temporal_controller.dart';
 import 'track_sky_flow.dart';
 import 'follow_the_sky/follow_the_sky.dart';
 import 'dawn_house_rite_flow.dart';
@@ -7671,7 +7672,7 @@ class CalendarPage extends StatefulWidget {
     if (template.kind == _MaatFlowTemplateKind.offeringTable) {
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
       final temporalContext = MaatFlowTemporalContext.capture(
-        timezone: timezone,
+        ianaTimeZone: MaatFlowDeviceTimeZone.currentIanaTimeZone,
       );
       return _joinOfferingTableHeadless(
         template: template,
@@ -7784,7 +7785,7 @@ class CalendarPage extends StatefulWidget {
       if (calendarId == null || calendarId.isEmpty) return -1;
       final timezone = trackSkyTimeZone ?? detectTrackSkyTimeZone();
       final temporalContext = MaatFlowTemporalContext.capture(
-        timezone: timezone,
+        ianaTimeZone: MaatFlowDeviceTimeZone.currentIanaTimeZone,
       );
       final firstDate = DateUtils.dateOnly(
         startDate ??

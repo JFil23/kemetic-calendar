@@ -42,6 +42,7 @@ class MaatFlowTemporalResolver {
   MaatFlowTemporalResolution resolve({
     required MaatFlowKind kind,
     required MaatFlowTemporalContext context,
+    TrackSkyTimeZone? scheduleTimeZone,
     SkyCatalog? skyCatalog,
     TrackSkyEnrollmentService? skyEnrollment,
     int eveningThresholdMinutes = kEveningThresholdDefaultMinutesAfterMidnight,
@@ -59,6 +60,7 @@ class MaatFlowTemporalResolver {
         }
         return _dateResolution(kind, context, context.localDateAfter(offset));
       case MaatFlowTemporalPolicyKind.nextEligibleSkyEvent:
+        final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
         final catalog = skyCatalog;
         final enrollment = skyEnrollment;
         if (catalog == null || enrollment == null) {
@@ -66,9 +68,10 @@ class MaatFlowTemporalResolver {
             'Sky catalog and enrollment authority are required for ${kind.name}.',
           );
         }
+        final skyIanaTimeZone = timezone.ianaName;
         final nights = enrollment.upcomingNights(
           catalog: catalog,
-          ianaTimeZone: context.timezone.ianaName,
+          ianaTimeZone: skyIanaTimeZone,
           nowUtc: context.nowUtc,
         );
         if (nights.isEmpty) {
@@ -77,87 +80,108 @@ class MaatFlowTemporalResolver {
         return MaatFlowTemporalResolution(
           kind: kind,
           context: context,
-          startDate: context.localDateForUtc(nights.first.primaryInstantUtc),
+          startDate: context.localDateForUtc(
+            nights.first.primaryInstantUtc,
+            ianaTimeZone: skyIanaTimeZone,
+          ),
           skyNights: nights,
         );
       case MaatFlowTemporalPolicyKind.dawnHouseRite:
+        final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
         return _dateResolution(
           kind,
           context,
-          defaultDawnHouseRiteStartDate(context.timezone, now: context.nowUtc),
+          defaultDawnHouseRiteStartDate(timezone, now: context.nowUtc),
         );
       case MaatFlowTemporalPolicyKind.eveningThreshold:
+        final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
         return _dateResolution(
           kind,
           context,
           defaultEveningThresholdStartDate(
-            context.timezone,
+            timezone,
             now: context.nowUtc,
             defaultMinutesAfterMidnight: eveningThresholdMinutes,
           ),
         );
       case MaatFlowTemporalPolicyKind.eveningThresholdRite:
+        final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
         return _dateResolution(
           kind,
           context,
           defaultEveningThresholdRiteStartDate(
-            context.timezone,
+            timezone,
             now: context.nowUtc,
             fallbackMinutesAfterMidnight: eveningThresholdFallbackMinutes,
           ),
         );
       case MaatFlowTemporalPolicyKind.theWeighing:
+        final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
         return _dateResolution(
           kind,
           context,
-          defaultTheWeighingStartDate(context.timezone, now: context.nowUtc),
+          defaultTheWeighingStartDate(timezone, now: context.nowUtc),
         );
       case MaatFlowTemporalPolicyKind.theTending:
+        final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
         return _dateResolution(
           kind,
           context,
-          defaultTheTendingStartDate(context.timezone, now: context.nowUtc),
+          defaultTheTendingStartDate(timezone, now: context.nowUtc),
         );
       case MaatFlowTemporalPolicyKind.keptWord:
+        final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
         return _dateResolution(
           kind,
           context,
-          defaultKeptWordStartDate(context.timezone, now: context.nowUtc),
+          defaultKeptWordStartDate(timezone, now: context.nowUtc),
         );
       case MaatFlowTemporalPolicyKind.theCourse:
+        final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
         return _dateResolution(
           kind,
           context,
-          defaultTheCourseStartDate(context.timezone, now: context.nowUtc),
+          defaultTheCourseStartDate(timezone, now: context.nowUtc),
         );
       case MaatFlowTemporalPolicyKind.moonReturn:
+        final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
         return _dateResolution(
           kind,
           context,
-          moonReturnDefaultStartDate(context.timezone, now: context.nowUtc),
+          moonReturnDefaultStartDate(timezone, now: context.nowUtc),
         );
       case MaatFlowTemporalPolicyKind.nextWepRonpetWindow:
+        final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
         return _dateResolution(
           kind,
           context,
-          defaultTheWagStartDate(context.timezone, now: context.nowUtc),
+          defaultTheWagStartDate(timezone, now: context.nowUtc),
         );
       case MaatFlowTemporalPolicyKind.nextDecanWindow:
+        final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
         return _dateResolution(
           kind,
           context,
-          defaultTheDecanWatchStartDate(context.timezone, now: context.nowUtc),
+          defaultTheDecanWatchStartDate(timezone, now: context.nowUtc),
         );
       case MaatFlowTemporalPolicyKind.nextDaysOutsideYearWindow:
+        final timezone = _requireScheduleTimeZone(kind, scheduleTimeZone);
         return _dateResolution(
           kind,
           context,
-          defaultTheDaysOutsideYearStartDate(
-            context.timezone,
-            now: context.nowUtc,
-          ),
+          defaultTheDaysOutsideYearStartDate(timezone, now: context.nowUtc),
         );
     }
+  }
+
+  TrackSkyTimeZone _requireScheduleTimeZone(
+    MaatFlowKind kind,
+    TrackSkyTimeZone? scheduleTimeZone,
+  ) {
+    if (scheduleTimeZone != null) return scheduleTimeZone;
+    throw StateError(
+      'A specialist schedule timezone is required for ${kind.name}.',
+    );
   }
 
   MaatFlowTemporalResolution _dateResolution(
