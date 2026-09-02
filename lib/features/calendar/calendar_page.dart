@@ -8114,7 +8114,7 @@ class CalendarPage extends StatefulWidget {
   static Future<T?> _revealDetachedFlowStudioDetail<T>(
     NavigatorState navigator,
     MaatFlowDetailRevealer<T> revealDetail,
-    WidgetBuilder detailBuilder, {
+    MaatFlowDetailBuilder<T> detailBuilder, {
     required String parentRoute,
     required Map<String, dynamic> visibleState,
     required Map<String, dynamic> returnState,
@@ -8261,6 +8261,7 @@ class CalendarPage extends StatefulWidget {
     required FlowsRepo flowsRepo,
     _Flow? joinedFlow,
     VoidCallback? onClose,
+    VoidCallback? onDismiss,
   }) {
     final activeInstance =
         joinedFlow ??
@@ -8284,6 +8285,7 @@ class CalendarPage extends StatefulWidget {
         flowsRepo: flowsRepo,
         onClose: onClose,
       ),
+      onDismiss: onDismiss,
     );
   }
 
@@ -8300,12 +8302,13 @@ class CalendarPage extends StatefulWidget {
     return _revealDetachedFlowStudioDetail<int?>(
       navigator,
       revealDetail,
-      (_) => _buildDetachedMaatFlowTemplateDetailPage(
+      (_, dismissDetail) => _buildDetachedMaatFlowTemplateDetailPage(
         navigator: navigator,
         template: template,
         flowsRepo: flowsRepo,
         joinedFlow: joinedFlow,
         onClose: onClose,
+        onDismiss: () => unawaited(dismissDetail(null)),
       ),
       parentRoute: parentRoute,
       visibleState: <String, dynamic>{
@@ -8526,7 +8529,7 @@ class CalendarPage extends StatefulWidget {
       },
       initialDetailBuilder: restoredTemplate == null
           ? null
-          : (_) => _buildDetachedMaatFlowTemplateDetailPage(
+          : (_, dismissDetail) => _buildDetachedMaatFlowTemplateDetailPage(
               navigator: navigator,
               template: restoredTemplate,
               flowsRepo: flowsRepo,
@@ -8537,6 +8540,7 @@ class CalendarPage extends StatefulWidget {
                       restoredTemplate.key,
                     ),
               onClose: onClose,
+              onDismiss: () => unawaited(dismissDetail(null)),
             ),
       onInitialDetailDismissed: restoredTemplate == null
           ? null
@@ -13237,7 +13241,7 @@ class CalendarPageState extends State<CalendarPage>
   Future<T?> _revealFlowStudioDetail<T>(
     NavigatorState navigator,
     MaatFlowDetailRevealer<T> revealDetail,
-    WidgetBuilder detailBuilder, {
+    MaatFlowDetailBuilder<T> detailBuilder, {
     required Map<String, dynamic> visibleState,
     required Map<String, dynamic> returnState,
     bool persistOverlay = true,
@@ -13378,6 +13382,7 @@ class CalendarPageState extends State<CalendarPage>
     required _MaatFlowTemplate template,
     required bool persistOverlay,
     _Flow? joinedFlow,
+    VoidCallback? onDismiss,
   }) {
     final activeInstance =
         joinedFlow ?? _activeFlowForMaatTemplate(template.key);
@@ -13464,6 +13469,7 @@ class CalendarPageState extends State<CalendarPage>
         flowId: flowId,
         templateKey: template.key,
       ),
+      onDismiss: onDismiss,
     );
   }
 
@@ -13478,10 +13484,11 @@ class CalendarPageState extends State<CalendarPage>
     return _revealFlowStudioDetail<int?>(
       navigator,
       revealDetail,
-      (_) => _buildMaatFlowTemplateDetailPage(
+      (_, dismissDetail) => _buildMaatFlowTemplateDetailPage(
         template: template,
         persistOverlay: persistOverlay,
         joinedFlow: joinedFlow,
+        onDismiss: () => unawaited(dismissDetail(null)),
       ),
       visibleState: <String, dynamic>{
         'mode': _kFlowStudioModeMaatTemplate,
@@ -27522,10 +27529,11 @@ class CalendarPageState extends State<CalendarPage>
       },
       initialDetailBuilder: restoredTemplate == null
           ? null
-          : (_) => _buildMaatFlowTemplateDetailPage(
+          : (_, dismissDetail) => _buildMaatFlowTemplateDetailPage(
               template: restoredTemplate,
               persistOverlay: persistOverlay,
               joinedFlow: _activeFlowForMaatTemplate(restoredTemplate.key),
+              onDismiss: () => unawaited(dismissDetail(null)),
             ),
       onInitialDetailDismissed: restoredTemplate == null
           ? null

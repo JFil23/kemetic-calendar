@@ -97,6 +97,7 @@ class OfferingTableDetailPage extends StatefulWidget {
     this.presentDayIanaTimeZone,
     this.ianaTimeZoneProvider,
     this.temporalScheduler,
+    this.onDismiss,
   });
 
   final TrackSkyTimeZone timezone;
@@ -115,6 +116,7 @@ class OfferingTableDetailPage extends StatefulWidget {
   final String? presentDayIanaTimeZone;
   final MaatFlowIanaTimeZoneProvider? ianaTimeZoneProvider;
   final MaatFlowTemporalScheduler? temporalScheduler;
+  final VoidCallback? onDismiss;
 
   @override
   State<OfferingTableDetailPage> createState() =>
@@ -382,12 +384,15 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
                 top: MediaQuery.paddingOf(context).top + 4,
                 left: 4,
                 child: IconButton(
+                  key: const ValueKey<String>('offering-table-back'),
                   tooltip: 'Back',
                   icon: const Icon(
                     Icons.arrow_back,
                     color: OfferingTableDetailTokens.warmGold,
                   ),
-                  onPressed: () => Navigator.of(context).maybePop(),
+                  onPressed:
+                      widget.onDismiss ??
+                      () => Navigator.of(context).maybePop(),
                 ),
               ),
           ],

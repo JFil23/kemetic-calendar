@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/calendar/follow_the_sky/presentation/maat_list_to_detail_route.dart';
@@ -129,7 +131,7 @@ class _TransitionHarness extends StatelessWidget {
                   child: TextButton(
                     onPressed: () {
                       revealDetail(
-                        (detailContext) => ColoredBox(
+                        (detailContext, dismissDetail) => ColoredBox(
                           key: detailKey,
                           color: Colors.indigo,
                           child: Center(
@@ -139,7 +141,7 @@ class _TransitionHarness extends StatelessWidget {
                                 const Text('Detail page'),
                                 TextButton(
                                   onPressed: () =>
-                                      Navigator.of(detailContext).maybePop(),
+                                      unawaited(dismissDetail(null)),
                                   child: const Text('Back to list'),
                                 ),
                               ],

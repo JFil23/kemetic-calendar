@@ -2,8 +2,16 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+typedef MaatFlowDetailDismisser<T> = Future<void> Function(T? result);
+
+typedef MaatFlowDetailBuilder<T> =
+    Widget Function(
+      BuildContext context,
+      MaatFlowDetailDismisser<T> dismissDetail,
+    );
+
 typedef MaatFlowDetailRevealer<T> =
-    Future<T?> Function(WidgetBuilder detailBuilder);
+    Future<T?> Function(MaatFlowDetailBuilder<T> detailBuilder);
 
 typedef MaatFlowsListForegroundBuilder<T> =
     Widget Function(
@@ -44,7 +52,7 @@ class MaatFlowsListDetailReveal<T> extends StatefulWidget {
   );
 
   final MaatFlowsListForegroundBuilder<T> foregroundBuilder;
-  final WidgetBuilder? initialDetailBuilder;
+  final MaatFlowDetailBuilder<T>? initialDetailBuilder;
   final ValueChanged<T?>? onInitialDetailDismissed;
 
   @override
@@ -60,7 +68,7 @@ class _MaatFlowsListDetailRevealState<T>
   late final Listenable _animation;
   late final Animation<double> _transformProgress;
   late final Animation<double> _opacityProgress;
-  WidgetBuilder? _detailBuilder;
+  MaatFlowDetailBuilder<T>? _detailBuilder;
   Completer<T?>? _detailResult;
   bool _dismissing = false;
 
@@ -104,7 +112,7 @@ class _MaatFlowsListDetailRevealState<T>
     super.dispose();
   }
 
-  Future<T?> _revealDetail(WidgetBuilder detailBuilder) {
+  Future<T?> _revealDetail(MaatFlowDetailBuilder<T> detailBuilder) {
     final activeResult = _detailResult;
     if (_detailBuilder != null && activeResult != null) {
       return activeResult.future;
@@ -163,7 +171,9 @@ class _MaatFlowsListDetailRevealState<T>
           if (detailBuilder != null)
             KeyedSubtree(
               key: MaatFlowsListDetailReveal.detailSurfaceKey,
-              child: Builder(builder: detailBuilder),
+              child: Builder(
+                builder: (context) => detailBuilder(context, _dismissDetail),
+              ),
             ),
           AnimatedBuilder(
             animation: _animation,

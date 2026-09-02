@@ -188,7 +188,7 @@ class _MaatFlowsListPageWithSnapshot extends StatefulWidget {
   final String title;
   final List<_MaatFlowTemplate> templates;
   final VoidCallback? onClose;
-  final WidgetBuilder? initialDetailBuilder;
+  final MaatFlowDetailBuilder<int?>? initialDetailBuilder;
   final ValueChanged<int?>? onInitialDetailDismissed;
 
   @override
@@ -291,7 +291,7 @@ class _MaatFlowsListPage extends StatefulWidget {
   final String title;
   final List<_MaatFlowTemplate> templates;
   final VoidCallback? onClose;
-  final WidgetBuilder? initialDetailBuilder;
+  final MaatFlowDetailBuilder<int?>? initialDetailBuilder;
   final ValueChanged<int?>? onInitialDetailDismissed;
 
   @override
@@ -304,6 +304,8 @@ Widget buildMaatFlowsListPreviewForTesting({
   Map<String, (int total, int remaining)> completionCounts =
       const <String, (int total, int remaining)>{},
   Future<int?> Function(String templateKey)? onPickTemplate,
+  MaatFlowDetailBuilder<int?> Function(String templateKey)?
+  detailBuilderForTemplate,
   VoidCallback? onCreateNew,
   VoidCallback? onClose,
 }) {
@@ -334,7 +336,9 @@ Widget buildMaatFlowsListPreviewForTesting({
         remainingEventCount: counts.$2,
       );
     },
-    onPickTemplate: (template, _, _) async {
+    onPickTemplate: (template, _, revealDetail) async {
+      final detailBuilder = detailBuilderForTemplate?.call(template.key);
+      if (detailBuilder != null) return revealDetail(detailBuilder);
       return onPickTemplate == null ? null : await onPickTemplate(template.key);
     },
     onCreateNew: onCreateNew ?? () {},
@@ -349,6 +353,7 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
   DateTime? joinedStartDate,
   int joinedFlowId = 957,
   Future<int> Function()? onJoin,
+  VoidCallback? onDismiss,
 }) {
   final resolvedTemplate = _kMaatFlowTemplates.firstWhere(
     (candidate) => candidate.key == templateKey,
@@ -420,6 +425,7 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
           List<ReadingHouseSitting>? readingHouseSittings,
           String? eveningThresholdInitialCarry,
         }) => onJoin?.call() ?? Future<int>.value(1),
+    onDismiss: onDismiss,
   );
 }
 
@@ -2293,6 +2299,7 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
     this.followSkyCalendarPreview = FollowSkyCalendarPreview.empty,
     this.onFollowSkyCourseSaved,
     this.onFollowSkyProtectTime,
+    this.onDismiss,
   });
 
   final _MaatFlowTemplate template;
@@ -2328,6 +2335,7 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
   final bool showBackButton;
   final bool embeddedInOnboarding;
   final bool resizeToAvoidBottomInset;
+  final VoidCallback? onDismiss;
 
   String? get followSkyExistingFlowNotes => joinedFlow?.notes;
   int? get followSkyExistingFlowId => joinedFlow?.id;
@@ -4869,7 +4877,8 @@ class _MaatFlowTemplateDetailPageState
                 color: MaatFlowListTokens.gold,
                 size: 22,
               ),
-              onPressed: () => Navigator.of(context).maybePop(),
+              onPressed:
+                  widget.onDismiss ?? () => Navigator.of(context).maybePop(),
             )
           : const SizedBox.shrink(),
       title: _buildDateModeTitle(
@@ -8321,6 +8330,7 @@ class _MaatFlowTemplateDetailPageState
       },
       showBackButton: widget.showBackButton,
       resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
+      onDismiss: widget.onDismiss,
     );
   }
 
@@ -8770,6 +8780,7 @@ class _MaatFlowTemplateDetailPageState
         onHierarchyChanged: () {
           if (mounted) setState(() {});
         },
+        onDismiss: widget.onDismiss,
         onJoin: (draft) async {
           final result = await FlowJoinService().joinTrackSkyV2Headless(
             templateKey: widget.template.key,
@@ -8825,6 +8836,7 @@ class _MaatFlowTemplateDetailPageState
         noCupMode: offeringTableNoCupModeFromNotes(joinedFlow?.notes),
         showBackButton: widget.showBackButton,
         resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
+        onDismiss: widget.onDismiss,
         onJoin:
             ({
               required startDate,
