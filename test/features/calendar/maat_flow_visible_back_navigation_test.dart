@@ -41,7 +41,7 @@ void main() {
 
   for (final scenario in scenarios) {
     testWidgets(
-      '${scenario.templateKey} uses the Flow Studio Navigator for visible Back',
+      '${scenario.templateKey} visible back dismisses detail but keeps Ma’at Flows open',
       (tester) async {
         _setPhoneViewport(tester);
         await _pumpFlowStudio(
