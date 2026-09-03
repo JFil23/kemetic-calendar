@@ -182,4 +182,32 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('joined dock delegates to its supplied lifecycle action', (
+    tester,
+  ) async {
+    var presses = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MaatFlowDetailDock(
+            theme: theme,
+            joined: true,
+            busy: false,
+            onPressed: null,
+            onJoinedPressed: () => presses += 1,
+            actionLabel: 'Join',
+            actionNote: 'Join note',
+            joinedLabel: 'End Flow',
+            joinedNote: 'End note',
+            actionKey: const ValueKey<String>('join-action'),
+            joinedKey: const ValueKey<String>('joined-action'),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey<String>('joined-action')));
+    expect(presses, 1);
+  });
 }

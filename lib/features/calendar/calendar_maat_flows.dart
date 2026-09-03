@@ -2266,6 +2266,7 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
     this.followSkyCalendarPreview = FollowSkyCalendarPreview.empty,
     this.onFollowSkyCourseSaved,
     this.onFollowSkyProtectTime,
+    this.onEndFlow,
   });
 
   final _MaatFlowTemplate template;
@@ -2316,6 +2317,7 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
     required DateTime endLocal,
   })?
   onFollowSkyProtectTime;
+  final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
 
   @override
   State<_MaatFlowTemplateDetailPage> createState() =>
@@ -8294,6 +8296,7 @@ class _MaatFlowTemplateDetailPageState
         final onJoined = widget.onJoined;
         if (onJoined != null) unawaited(onJoined(flowId));
       },
+      onEndFlow: widget.onEndFlow,
       showBackButton: widget.showBackButton,
       backFallbackLocation: widget.backFallbackLocation,
       resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,

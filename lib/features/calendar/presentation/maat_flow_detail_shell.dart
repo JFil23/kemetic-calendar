@@ -347,6 +347,7 @@ class MaatFlowDetailDock extends StatelessWidget {
     required this.joinedNote,
     required this.actionKey,
     required this.joinedKey,
+    this.onJoinedPressed,
   });
 
   final MaatFlowDetailTheme theme;
@@ -359,6 +360,7 @@ class MaatFlowDetailDock extends StatelessWidget {
   final String joinedNote;
   final Key actionKey;
   final Key joinedKey;
+  final VoidCallback? onJoinedPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -402,7 +404,11 @@ class MaatFlowDetailDock extends StatelessWidget {
                     ),
                     elevation: 0,
                   ),
-                  onPressed: joined || busy ? null : onPressed,
+                  onPressed: busy
+                      ? null
+                      : joined
+                      ? onJoinedPressed
+                      : onPressed,
                   child: busy
                       ? SizedBox(
                           width: 18,

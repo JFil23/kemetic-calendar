@@ -8250,6 +8250,7 @@ class CalendarPage extends StatefulWidget {
         flowsRepo: flowsRepo,
         onClose: onClose,
       ),
+      onEndFlow: _endFlowHeadless,
     );
   }
 
@@ -13422,6 +13423,7 @@ class CalendarPageState extends State<CalendarPage>
         flowId: flowId,
         templateKey: template.key,
       ),
+      onEndFlow: (flowId) => _endFlow(flowId),
     );
   }
 

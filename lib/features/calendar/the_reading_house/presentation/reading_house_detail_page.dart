@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile/data/profile_repo.dart';
 import 'package:mobile/data/shared_calendar_models.dart';
 import 'package:mobile/features/calendar/calendar_page.dart' show KemeticMath;
+import 'package:mobile/features/calendar/end_flow_diagnostics.dart';
 import 'package:mobile/features/calendar/kemetic_month_metadata.dart';
 import 'package:mobile/features/calendar/maat_flow_identity.dart';
 import 'package:mobile/features/calendar/maat_flow_temporal_controller.dart';
@@ -77,6 +78,7 @@ class ReadingHouseDetailPage extends StatefulWidget {
     this.resolvePersonalCalendarId,
     this.onHeld,
     this.onPersisted,
+    this.onEndFlow,
     this.showBackButton = true,
     this.backFallbackLocation = kMaatFlowsListRoute,
     this.resizeToAvoidBottomInset = true,
@@ -99,6 +101,7 @@ class ReadingHouseDetailPage extends StatefulWidget {
   final Future<String?> Function()? resolvePersonalCalendarId;
   final ValueChanged<int>? onHeld;
   final Future<void> Function(ReadingHouseSnapshot snapshot)? onPersisted;
+  final Future<EndFlowOutcome> Function(int flowId)? onEndFlow;
   final bool showBackButton;
   final String backFallbackLocation;
   final bool resizeToAvoidBottomInset;
@@ -133,6 +136,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
   bool _savingDoors = false;
   bool _placingReading = false;
   bool _addingSitting = false;
+  bool _endingHouse = false;
   bool _applyingSnapshot = false;
   int _detailsSaveSerial = 0;
   int _memberRefreshSerial = 0;
@@ -623,6 +627,47 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
     unawaited(_notifyPersisted(snapshot));
   }
 
+  Future<void> _endHouse() async {
+    final endFlow = widget.onEndFlow;
+    final flowId = _flowId;
+    if (!_held ||
+        !_canEdit ||
+        _endingHouse ||
+        endFlow == null ||
+        flowId == null ||
+        flowId <= 0) {
+      return;
+    }
+
+    _saveDebounce?.cancel();
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() => _endingHouse = true);
+    final navigator = Navigator.of(context);
+    try {
+      final outcome = await endFlow(flowId);
+      if (!mounted) return;
+      if (outcome.result != EndFlowActionResult.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(endFlowFailureDisplayMessage(outcome)),
+            action: SnackBarAction(
+              label: 'Copy diagnostics',
+              onPressed: () => unawaited(
+                EndFlowDiagnostics.instance.copyTerminalDiagnostics(
+                  outcome.operationId,
+                ),
+              ),
+            ),
+          ),
+        );
+        return;
+      }
+      navigator.pop();
+    } finally {
+      if (mounted) setState(() => _endingHouse = false);
+    }
+  }
+
   Future<void> _notifyPersisted(ReadingHouseSnapshot snapshot) async {
     final callback = widget.onPersisted;
     if (callback == null) return;
@@ -754,14 +799,21 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
           : MaatFlowDetailDock(
               theme: ReadingHouseDetailTokens.theme,
               joined: _held,
-              busy: _holding,
+              busy: _holding || _endingHouse,
               onPressed: !_loadingHouse ? _holdHouse : null,
+              onJoinedPressed:
+                  !_loadingHouse && widget.onEndFlow != null && _flowId != null
+                  ? () => unawaited(_endHouse())
+                  : null,
               actionLabel: 'Hold this house',
               actionNote:
                   'This creates the house in My Flows. You do not need to schedule it yet.',
-              joinedLabel: 'Held in your flows',
-              joinedNote:
-                  'This house can stay partial while readers respond. Nothing needs to be scheduled yet.',
+              joinedLabel: widget.onEndFlow == null
+                  ? 'Held in your flows'
+                  : 'End this house',
+              joinedNote: widget.onEndFlow == null
+                  ? 'This house can stay partial while readers respond. Nothing needs to be scheduled yet.'
+                  : 'Removes this house and its scheduled sittings so you can begin again.',
               actionKey: const ValueKey<String>('reading-house-hold'),
               joinedKey: const ValueKey<String>('reading-house-held'),
             ),

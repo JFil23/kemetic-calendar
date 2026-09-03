@@ -7,6 +7,7 @@ import 'package:mobile/data/profile_repo.dart';
 import 'package:mobile/data/shared_calendar_models.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_detail_shell.dart';
 import 'package:mobile/features/calendar/presentation/maat_flow_thirty_day_calendar.dart';
+import 'package:mobile/features/calendar/end_flow_diagnostics.dart';
 import 'package:mobile/features/calendar/maat_flow_temporal_policy.dart';
 import 'package:mobile/features/calendar/the_reading_house/reading_house_authority.dart';
 import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_detail_page.dart';
@@ -71,6 +72,36 @@ void main() {
         matching: find.byType(Scrollable),
       )
       .first;
+
+  Future<void> pumpHeldHouseRoute(
+    WidgetTester tester, {
+    required Future<EndFlowOutcome> Function(int flowId) onEndFlow,
+  }) async {
+    final authority = _FakeReadingHouseAuthority();
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(
+      MaterialApp(
+        initialRoute: '/reading-house',
+        routes: <String, WidgetBuilder>{
+          '/': (_) => const Scaffold(
+            body: SizedBox(key: ValueKey<String>('maat-flows-list-after-end')),
+          ),
+          '/reading-house': (_) => ReadingHouseDetailPage(
+            timezone: TrackSkyTimeZone.pacific,
+            initialStartDate: DateTime(2026, 9, 14),
+            initialFlowId: authority.flowId,
+            initiallyHeld: true,
+            authority: authority,
+            resolvePersonalCalendarId: () async => 'personal-calendar',
+            presentDayIanaTimeZone: TrackSkyTimeZone.pacific.ianaName,
+            onEndFlow: onEndFlow,
+          ),
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
 
   Future<void> jumpHouseScroll(WidgetTester tester, double offset) async {
     final position = tester.state<ScrollableState>(houseScrollable()).position;
@@ -236,6 +267,68 @@ void main() {
       ),
       isTrue,
     );
+  });
+
+  testWidgets(
+    'held house ends through the supplied Flow authority and returns to the list route',
+    (tester) async {
+      final result = Completer<EndFlowOutcome>();
+      var calls = 0;
+      int? endedFlowId;
+      await pumpHeldHouseRoute(
+        tester,
+        onEndFlow: (flowId) {
+          calls += 1;
+          endedFlowId = flowId;
+          return result.future;
+        },
+      );
+
+      final endHouse = find.byKey(const ValueKey<String>('reading-house-held'));
+      expect(find.text('End this house'), findsOneWidget);
+      await tester.tap(endHouse);
+      await tester.pump();
+      expect(calls, 1);
+      expect(endedFlowId, 41);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      await tester.tap(endHouse);
+      await tester.pump();
+      expect(calls, 1);
+
+      result.complete(EndFlowOutcome.success(operationId: 'end-house-test'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey<String>('maat-flows-list-after-end')),
+        findsOneWidget,
+      );
+      expect(find.byType(ReadingHouseDetailPage), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('failed house end stays open and reports the canonical error', (
+    tester,
+  ) async {
+    await pumpHeldHouseRoute(
+      tester,
+      onEndFlow: (_) async => EndFlowOutcome.failure(
+        operationId: 'end-house-failure',
+        failureKind: EndFlowFailureKind.server,
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey<String>('reading-house-held')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(ReadingHouseDetailPage), findsOneWidget);
+    expect(
+      find.textContaining('The server couldn’t end this flow.'),
+      findsOneWidget,
+    );
+    expect(find.text('End this house'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('computed preview dates are the dates persisted on placement', (
