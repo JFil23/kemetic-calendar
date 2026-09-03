@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
+import 'package:mobile/features/inbox/shared_flow_details_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -91,14 +92,29 @@ void main() {
     tester,
   ) async {
     _setPhoneViewport(tester);
-    await tester.pumpWidget(
-      MaterialApp(
-        home: CalendarPage.buildCanonicalMaatFlowDetail(
-          name: 'The Reading House',
-          notes: 'maat=the-reading-house',
+    final router = GoRouter(
+      initialLocation: '/shared-flow',
+      routes: <RouteBase>[
+        GoRoute(
+          path: '/shared-flow',
+          builder: (_, _) => const SharedFlowDetailsPage(
+            payloadJson: <String, dynamic>{
+              'name': 'The Reading House',
+              'notes': 'maat=the-reading-house',
+            },
+            fallbackLocation: '/inbox',
+          ),
         ),
-      ),
+        GoRoute(
+          path: '/inbox',
+          builder: (_, _) => const Scaffold(
+            body: SizedBox(key: ValueKey<String>('inbox-fallback')),
+          ),
+        ),
+      ],
     );
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
     await tester.pump();
 
     final back = find.byKey(const ValueKey<String>('reading-house-back'));
@@ -108,7 +124,12 @@ void main() {
     await tester.tap(back);
     await tester.pumpAndSettle();
 
-    expect(back, findsOneWidget);
+    expect(back, findsNothing);
+    expect(
+      find.byKey(const ValueKey<String>('inbox-fallback')),
+      findsOneWidget,
+    );
+    expect(router.routerDelegate.currentConfiguration.uri.toString(), '/inbox');
     expect(tester.takeException(), isNull);
   });
 

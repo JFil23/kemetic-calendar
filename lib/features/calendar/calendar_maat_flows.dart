@@ -2258,6 +2258,7 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
     this.onJoined,
     this.joinedFlow,
     this.showBackButton = true,
+    this.backFallbackLocation = kMaatFlowsListRoute,
     this.embeddedInOnboarding = false,
     this.resizeToAvoidBottomInset = true,
     this.followSkyCandidates = const [],
@@ -2298,6 +2299,7 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
   final _Flow? joinedFlow;
   bool get alreadyJoined => joinedFlow != null;
   final bool showBackButton;
+  final String backFallbackLocation;
   final bool embeddedInOnboarding;
   final bool resizeToAvoidBottomInset;
 
@@ -4834,6 +4836,10 @@ class _MaatFlowTemplateDetailPageState
       leading: widget.showBackButton
           ? BackButton(
               color: MaatFlowListTokens.gold,
+              onPressed: () => popMaatFlowDetailOrGo(
+                context,
+                fallbackLocation: widget.backFallbackLocation,
+              ),
               style: IconButton.styleFrom(
                 padding: const EdgeInsets.only(left: 15),
                 alignment: Alignment.centerLeft,
@@ -8289,6 +8295,7 @@ class _MaatFlowTemplateDetailPageState
         if (onJoined != null) unawaited(onJoined(flowId));
       },
       showBackButton: widget.showBackButton,
+      backFallbackLocation: widget.backFallbackLocation,
       resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
     );
   }
@@ -8728,6 +8735,7 @@ class _MaatFlowTemplateDetailPageState
       final page = FollowSkyDetailPage(
         key: _followSkyDetailKey,
         standalone: false,
+        backFallbackLocation: widget.backFallbackLocation,
         isJoined: widget.alreadyJoined,
         existingFlowNotes: widget.followSkyExistingFlowNotes,
         existingFlowId: widget.followSkyExistingFlowId,
@@ -8793,6 +8801,7 @@ class _MaatFlowTemplateDetailPageState
         lens: offeringTableLensFromNotes(joinedFlow?.notes),
         noCupMode: offeringTableNoCupModeFromNotes(joinedFlow?.notes),
         showBackButton: widget.showBackButton,
+        backFallbackLocation: widget.backFallbackLocation,
         resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
         onJoin:
             ({

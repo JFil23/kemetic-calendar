@@ -78,6 +78,7 @@ class ReadingHouseDetailPage extends StatefulWidget {
     this.onHeld,
     this.onPersisted,
     this.showBackButton = true,
+    this.backFallbackLocation = kMaatFlowsListRoute,
     this.resizeToAvoidBottomInset = true,
     this.clock,
     this.presentDayIanaTimeZone,
@@ -99,6 +100,7 @@ class ReadingHouseDetailPage extends StatefulWidget {
   final ValueChanged<int>? onHeld;
   final Future<void> Function(ReadingHouseSnapshot snapshot)? onPersisted;
   final bool showBackButton;
+  final String backFallbackLocation;
   final bool resizeToAvoidBottomInset;
   final MaatFlowClock? clock;
   final String? presentDayIanaTimeZone;
@@ -780,6 +782,10 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                 child: BackButton(
                   key: const ValueKey<String>('reading-house-back'),
                   color: ReadingHouseDetailTokens.gold,
+                  onPressed: () => popMaatFlowDetailOrGo(
+                    context,
+                    fallbackLocation: widget.backFallbackLocation,
+                  ),
                 ),
               ),
           ],

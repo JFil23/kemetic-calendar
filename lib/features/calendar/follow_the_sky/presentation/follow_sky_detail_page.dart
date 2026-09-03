@@ -59,6 +59,7 @@ class FollowSkyDetailPage extends StatefulWidget {
     this.ianaTimeZoneProvider,
     this.temporalScheduler,
     this.standalone = true,
+    this.backFallbackLocation = kMaatFlowsListRoute,
     this.title = 'Follow the Sky',
     this.subtitle = FollowSkyV11Tokens.heroSubtitle,
     this.onHierarchyChanged,
@@ -88,6 +89,7 @@ class FollowSkyDetailPage extends StatefulWidget {
   final MaatFlowIanaTimeZoneProvider? ianaTimeZoneProvider;
   final MaatFlowTemporalScheduler? temporalScheduler;
   final bool standalone;
+  final String backFallbackLocation;
   final String title;
   final String subtitle;
   final VoidCallback? onHierarchyChanged;
@@ -425,6 +427,10 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
               child: BackButton(
                 key: const ValueKey<String>('follow-sky-back'),
                 color: FollowSkyV11Tokens.gold,
+                onPressed: () => popMaatFlowDetailOrGo(
+                  context,
+                  fallbackLocation: widget.backFallbackLocation,
+                ),
               ),
             ),
           ],

@@ -2,8 +2,23 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../core/navigation_fallback.dart';
 import '../../../widgets/keyboard_aware.dart';
 import '../maat_flow_visual_tokens.dart';
+
+const String kMaatFlowsListRoute = '/flows?mode=maatFlows';
+
+void popMaatFlowDetailOrGo(
+  BuildContext context, {
+  String fallbackLocation = kMaatFlowsListRoute,
+}) {
+  final navigator = Navigator.maybeOf(context);
+  if (navigator != null && navigator.canPop()) {
+    navigator.pop();
+    return;
+  }
+  popOrGo(context, fallbackLocation);
+}
 
 /// Flow-owned colors applied to the shared Ma'at detail geometry.
 class MaatFlowDetailTheme {

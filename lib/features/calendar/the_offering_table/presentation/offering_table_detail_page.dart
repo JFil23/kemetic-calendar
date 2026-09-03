@@ -91,6 +91,7 @@ class OfferingTableDetailPage extends StatefulWidget {
     this.lens = OfferingTableLens.neutral,
     this.noCupMode = false,
     this.showBackButton = true,
+    this.backFallbackLocation = kMaatFlowsListRoute,
     this.resizeToAvoidBottomInset = true,
     this.localStore = const OfferingTableLocalStore(),
     this.clock,
@@ -109,6 +110,7 @@ class OfferingTableDetailPage extends StatefulWidget {
   final OfferingTableLens lens;
   final bool noCupMode;
   final bool showBackButton;
+  final String backFallbackLocation;
   final bool resizeToAvoidBottomInset;
   final OfferingTableLocalStore localStore;
   final MaatFlowClock? clock;
@@ -384,6 +386,10 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
                 child: BackButton(
                   key: const ValueKey<String>('offering-table-back'),
                   color: OfferingTableDetailTokens.warmGold,
+                  onPressed: () => popMaatFlowDetailOrGo(
+                    context,
+                    fallbackLocation: widget.backFallbackLocation,
+                  ),
                 ),
               ),
           ],

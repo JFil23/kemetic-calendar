@@ -146,6 +146,7 @@ import 'decan_reflection_badge.dart';
 import 'event_filing_service.dart';
 import 'maat_flow_palette.dart';
 import 'maat_flow_visual_tokens.dart';
+import 'presentation/maat_flow_detail_shell.dart';
 import 'maat_flow_interactive_primitives.dart';
 import 'maat_flow_response_journal_blocks.dart';
 import 'maat_flow_response_models.dart';
@@ -5208,6 +5209,7 @@ class CalendarPage extends StatefulWidget {
     required String name,
     String? notes,
     List<dynamic> eventsJson = const <dynamic>[],
+    String backFallbackLocation = kMaatFlowsListRoute,
   }) {
     final templateKey = _canonicalMaatTemplateKeyForSnapshot(
       name: name,
@@ -5221,6 +5223,7 @@ class CalendarPage extends StatefulWidget {
       return _MaatFlowTemplateDetailPage(
         template: template,
         addInstance: _addMaatFlowInstanceHeadless,
+        backFallbackLocation: backFallbackLocation,
       );
     }
     return null;

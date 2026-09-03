@@ -566,6 +566,7 @@ class _SharedFlowDetailsPageState extends State<SharedFlowDetailsPage> {
           name: cleanFlowTitle(data.name),
           notes: data.notes,
           eventsJson: eventsJson,
+          backFallbackLocation: widget.fallbackLocation,
         );
         if (maatDetail != null) return maatDetail;
 
