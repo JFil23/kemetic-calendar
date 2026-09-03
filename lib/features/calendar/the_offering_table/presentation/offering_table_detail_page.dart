@@ -381,14 +381,9 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
               Positioned(
                 top: MediaQuery.paddingOf(context).top + 4,
                 left: 4,
-                child: IconButton(
+                child: BackButton(
                   key: const ValueKey<String>('offering-table-back'),
-                  tooltip: 'Back',
-                  icon: const Icon(
-                    Icons.arrow_back,
-                    color: OfferingTableDetailTokens.warmGold,
-                  ),
-                  onPressed: () => Navigator.of(context).pop(),
+                  color: OfferingTableDetailTokens.warmGold,
                 ),
               ),
           ],

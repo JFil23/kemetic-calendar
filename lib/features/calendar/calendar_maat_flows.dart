@@ -4832,16 +4832,13 @@ class _MaatFlowTemplateDetailPageState
       leadingWidth: 64,
       iconTheme: const IconThemeData(color: MaatFlowListTokens.gold),
       leading: widget.showBackButton
-          ? IconButton(
-              tooltip: 'Back',
-              padding: const EdgeInsets.only(left: 15),
-              alignment: Alignment.centerLeft,
-              icon: const Icon(
-                Icons.arrow_back,
-                color: MaatFlowListTokens.gold,
-                size: 22,
+          ? BackButton(
+              color: MaatFlowListTokens.gold,
+              style: IconButton.styleFrom(
+                padding: const EdgeInsets.only(left: 15),
+                alignment: Alignment.centerLeft,
+                iconSize: 22,
               ),
-              onPressed: () => Navigator.of(context).pop(),
             )
           : const SizedBox.shrink(),
       title: _buildDateModeTitle(

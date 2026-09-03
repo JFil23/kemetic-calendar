@@ -68,6 +68,7 @@ void main() {
         final back = find.byKey(scenario.backKey);
         await _pumpUntilFound(tester, back);
         expect(back, findsOneWidget);
+        expect(tester.widget(back), isA<BackButton>());
         final detailRoute = ModalRoute.of(tester.element(back));
         expect(detailRoute, isNotNull);
         expect(detailRoute, isNot(same(listRoute)));
@@ -85,6 +86,31 @@ void main() {
       },
     );
   }
+
+  testWidgets('visible Back never empties a first-route Ma’at detail', (
+    tester,
+  ) async {
+    _setPhoneViewport(tester);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: CalendarPage.buildCanonicalMaatFlowDetail(
+          name: 'The Reading House',
+          notes: 'maat=the-reading-house',
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final back = find.byKey(const ValueKey<String>('reading-house-back'));
+    expect(back, findsOneWidget);
+    expect(tester.widget(back), isA<BackButton>());
+
+    await tester.tap(back);
+    await tester.pumpAndSettle();
+
+    expect(back, findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('restored detail reconstructs list and detail routes', (
     tester,

@@ -777,14 +777,9 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
               Positioned(
                 top: MediaQuery.paddingOf(context).top + 4,
                 left: 4,
-                child: IconButton(
+                child: BackButton(
                   key: const ValueKey<String>('reading-house-back'),
-                  tooltip: 'Back',
-                  icon: const Icon(
-                    Icons.arrow_back,
-                    color: ReadingHouseDetailTokens.gold,
-                  ),
-                  onPressed: () => Navigator.of(context).pop(),
+                  color: ReadingHouseDetailTokens.gold,
                 ),
               ),
           ],

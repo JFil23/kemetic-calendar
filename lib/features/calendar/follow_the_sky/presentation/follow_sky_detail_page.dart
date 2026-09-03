@@ -422,13 +422,9 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
             Positioned(
               top: MediaQuery.paddingOf(context).top + 4,
               left: 4,
-              child: IconButton(
+              child: BackButton(
                 key: const ValueKey<String>('follow-sky-back'),
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: FollowSkyV11Tokens.gold,
-                ),
-                onPressed: () => Navigator.of(context).pop(),
+                color: FollowSkyV11Tokens.gold,
               ),
             ),
           ],
