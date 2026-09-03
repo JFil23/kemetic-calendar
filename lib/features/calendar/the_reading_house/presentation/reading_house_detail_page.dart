@@ -83,7 +83,6 @@ class ReadingHouseDetailPage extends StatefulWidget {
     this.presentDayIanaTimeZone,
     this.ianaTimeZoneProvider,
     this.temporalScheduler,
-    this.onDismiss,
   });
 
   final TrackSkyTimeZone timezone;
@@ -105,7 +104,6 @@ class ReadingHouseDetailPage extends StatefulWidget {
   final String? presentDayIanaTimeZone;
   final MaatFlowIanaTimeZoneProvider? ianaTimeZoneProvider;
   final MaatFlowTemporalScheduler? temporalScheduler;
-  final VoidCallback? onDismiss;
 
   @override
   State<ReadingHouseDetailPage> createState() => _ReadingHouseDetailPageState();
@@ -786,15 +784,7 @@ class _ReadingHouseDetailPageState extends State<ReadingHouseDetailPage> {
                     Icons.arrow_back,
                     color: ReadingHouseDetailTokens.gold,
                   ),
-                  onPressed: () {
-                    FocusManager.instance.primaryFocus?.unfocus();
-                    final dismiss = widget.onDismiss;
-                    if (dismiss != null) {
-                      dismiss();
-                      return;
-                    }
-                    Navigator.of(context).maybePop();
-                  },
+                  onPressed: () => Navigator.of(context).pop(),
                 ),
               ),
           ],

@@ -97,7 +97,6 @@ class OfferingTableDetailPage extends StatefulWidget {
     this.presentDayIanaTimeZone,
     this.ianaTimeZoneProvider,
     this.temporalScheduler,
-    this.onDismiss,
   });
 
   final TrackSkyTimeZone timezone;
@@ -116,7 +115,6 @@ class OfferingTableDetailPage extends StatefulWidget {
   final String? presentDayIanaTimeZone;
   final MaatFlowIanaTimeZoneProvider? ianaTimeZoneProvider;
   final MaatFlowTemporalScheduler? temporalScheduler;
-  final VoidCallback? onDismiss;
 
   @override
   State<OfferingTableDetailPage> createState() =>
@@ -390,9 +388,7 @@ class _OfferingTableDetailPageState extends State<OfferingTableDetailPage> {
                     Icons.arrow_back,
                     color: OfferingTableDetailTokens.warmGold,
                   ),
-                  onPressed:
-                      widget.onDismiss ??
-                      () => Navigator.of(context).maybePop(),
+                  onPressed: () => Navigator.of(context).pop(),
                 ),
               ),
           ],

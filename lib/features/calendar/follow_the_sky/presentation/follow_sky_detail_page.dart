@@ -62,7 +62,6 @@ class FollowSkyDetailPage extends StatefulWidget {
     this.title = 'Follow the Sky',
     this.subtitle = FollowSkyV11Tokens.heroSubtitle,
     this.onHierarchyChanged,
-    this.onDismiss,
   });
 
   final String? existingFlowNotes;
@@ -92,7 +91,6 @@ class FollowSkyDetailPage extends StatefulWidget {
   final String title;
   final String subtitle;
   final VoidCallback? onHierarchyChanged;
-  final VoidCallback? onDismiss;
 
   @override
   State<FollowSkyDetailPage> createState() => FollowSkyDetailPageState();
@@ -430,8 +428,7 @@ class FollowSkyDetailPageState extends State<FollowSkyDetailPage> {
                   Icons.arrow_back,
                   color: FollowSkyV11Tokens.gold,
                 ),
-                onPressed:
-                    widget.onDismiss ?? () => Navigator.of(context).maybePop(),
+                onPressed: () => Navigator.of(context).pop(),
               ),
             ),
           ],

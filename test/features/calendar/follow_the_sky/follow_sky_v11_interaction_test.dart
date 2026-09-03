@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -717,19 +716,16 @@ class _FollowSkyEditingSheetHarnessState
                 Expanded(
                   child: Navigator(
                     key: _navigatorKey,
-                    onGenerateInitialRoutes: (_, _) => [
+                    onGenerateInitialRoutes: (_, _) => <Route<void>>[
                       MaterialPageRoute<void>(
-                        builder: (context) => MaatFlowsListDetailReveal<void>(
-                          initialDetailBuilder: (context, dismissDetail) =>
-                              FollowSkyDetailPage(
-                                initialCatalog: widget.catalog,
-                                now: DateTime.utc(2026, 8, 24, 12),
-                                isJoined: true,
-                                standalone: false,
-                                onDismiss: () => unawaited(dismissDetail(null)),
-                              ),
-                          foregroundBuilder: (context, revealDetail) =>
-                              const ColoredBox(color: Colors.black),
+                        builder: (_) => const ColoredBox(color: Colors.black),
+                      ),
+                      MaterialPageRoute<void>(
+                        builder: (_) => FollowSkyDetailPage(
+                          initialCatalog: widget.catalog,
+                          now: DateTime.utc(2026, 8, 24, 12),
+                          isJoined: true,
+                          standalone: false,
                         ),
                       ),
                     ],

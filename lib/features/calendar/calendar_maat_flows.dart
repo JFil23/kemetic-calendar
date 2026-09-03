@@ -172,24 +172,16 @@ class _MaatFlowsListPageWithSnapshot extends StatefulWidget {
     required this.title,
     required this.templates,
     this.onClose,
-    this.initialDetailBuilder,
-    this.onInitialDetailDismissed,
   });
 
   final _MyFlowsFilingSnapshot? initialSnapshot;
   final Future<_MyFlowsFilingSnapshot> Function() loadSnapshot;
-  final Future<int?> Function(
-    _MaatFlowTemplate tpl,
-    _Flow? activeInstance,
-    MaatFlowDetailRevealer<int?> revealDetail,
-  )
+  final Future<int?> Function(_MaatFlowTemplate tpl, _Flow? activeInstance)
   onPickTemplate;
   final VoidCallback onCreateNew;
   final String title;
   final List<_MaatFlowTemplate> templates;
   final VoidCallback? onClose;
-  final MaatFlowDetailBuilder<int?>? initialDetailBuilder;
-  final ValueChanged<int?>? onInitialDetailDismissed;
 
   @override
   State<_MaatFlowsListPageWithSnapshot> createState() =>
@@ -259,8 +251,6 @@ class _MaatFlowsListPageWithSnapshotState
       onPickTemplate: widget.onPickTemplate,
       onCreateNew: widget.onCreateNew,
       onClose: widget.onClose,
-      initialDetailBuilder: widget.initialDetailBuilder,
-      onInitialDetailDismissed: widget.onInitialDetailDismissed,
     );
   }
 }
@@ -275,24 +265,16 @@ class _MaatFlowsListPage extends StatefulWidget {
     required this.title,
     required this.templates,
     this.onClose,
-    this.initialDetailBuilder,
-    this.onInitialDetailDismissed,
   });
 
   final _Flow? Function(String key) activeInstanceForKey;
   final _MaatFlowCompletionStatus? Function(String key)? progressForKey;
-  final Future<int?> Function(
-    _MaatFlowTemplate tpl,
-    _Flow? activeInstance,
-    MaatFlowDetailRevealer<int?> revealDetail,
-  )
+  final Future<int?> Function(_MaatFlowTemplate tpl, _Flow? activeInstance)
   onPickTemplate;
   final VoidCallback onCreateNew;
   final String title;
   final List<_MaatFlowTemplate> templates;
   final VoidCallback? onClose;
-  final MaatFlowDetailBuilder<int?>? initialDetailBuilder;
-  final ValueChanged<int?>? onInitialDetailDismissed;
 
   @override
   State<_MaatFlowsListPage> createState() => _MaatFlowsListPageState();
@@ -304,8 +286,6 @@ Widget buildMaatFlowsListPreviewForTesting({
   Map<String, (int total, int remaining)> completionCounts =
       const <String, (int total, int remaining)>{},
   Future<int?> Function(String templateKey)? onPickTemplate,
-  MaatFlowDetailBuilder<int?> Function(String templateKey)?
-  detailBuilderForTemplate,
   VoidCallback? onCreateNew,
   VoidCallback? onClose,
 }) {
@@ -336,9 +316,7 @@ Widget buildMaatFlowsListPreviewForTesting({
         remainingEventCount: counts.$2,
       );
     },
-    onPickTemplate: (template, _, revealDetail) async {
-      final detailBuilder = detailBuilderForTemplate?.call(template.key);
-      if (detailBuilder != null) return revealDetail(detailBuilder);
+    onPickTemplate: (template, _) async {
       return onPickTemplate == null ? null : await onPickTemplate(template.key);
     },
     onCreateNew: onCreateNew ?? () {},
@@ -353,7 +331,6 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
   DateTime? joinedStartDate,
   int joinedFlowId = 957,
   Future<int> Function()? onJoin,
-  VoidCallback? onDismiss,
 }) {
   final resolvedTemplate = _kMaatFlowTemplates.firstWhere(
     (candidate) => candidate.key == templateKey,
@@ -425,7 +402,6 @@ Widget buildMaatFlowTemplateDetailPreviewForTesting({
           List<ReadingHouseSitting>? readingHouseSittings,
           String? eveningThresholdInitialCarry,
         }) => onJoin?.call() ?? Future<int>.value(1),
-    onDismiss: onDismiss,
   );
 }
 
@@ -662,18 +638,13 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
   Future<void> _handlePickTemplate(
     _MaatFlowTemplate template,
     _Flow? activeInstance,
-    MaatFlowDetailRevealer<int?> revealDetail,
   ) async {
     unawaited(
       _markFlowStudioHelperCompleted(
         OnboardingHelperRegistry.flowStudioMaatFlows.id,
       ),
     );
-    final joinedFlowId = await widget.onPickTemplate(
-      template,
-      activeInstance,
-      revealDetail,
-    );
+    final joinedFlowId = await widget.onPickTemplate(template, activeInstance);
     if (!mounted || joinedFlowId == null || joinedFlowId <= 0) return;
     CalendarPage._rememberJoinedMaatFlowTemplate(
       templateKey: template.key,
@@ -740,135 +711,130 @@ class _MaatFlowsListPageState extends State<_MaatFlowsListPage> {
               .toList(growable: false);
     final hasWaitingSection = waiting.isNotEmpty;
 
-    return MaatFlowsListDetailReveal<int?>(
-      initialDetailBuilder: widget.initialDetailBuilder,
-      onInitialDetailDismissed: widget.onInitialDetailDismissed,
-      foregroundBuilder: (context, revealDetail) => Scaffold(
+    return Scaffold(
+      backgroundColor: MaatFlowListTokens.pageBg,
+      appBar: AppBar(
         backgroundColor: MaatFlowListTokens.pageBg,
-        appBar: AppBar(
-          backgroundColor: MaatFlowListTokens.pageBg,
-          foregroundColor: MaatFlowListTokens.gold,
-          surfaceTintColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          elevation: 0,
-          centerTitle: true,
-          toolbarHeight: 64,
-          leadingWidth: 64,
-          iconTheme: const IconThemeData(color: MaatFlowListTokens.gold),
-          leading: IconButton(
-            tooltip: 'Back',
-            padding: const EdgeInsets.only(left: 15),
-            alignment: Alignment.centerLeft,
-            icon: const Icon(
-              Icons.arrow_back,
-              color: MaatFlowListTokens.gold,
-              size: 22,
-            ),
-            onPressed: _handleClose,
+        foregroundColor: MaatFlowListTokens.gold,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        elevation: 0,
+        centerTitle: true,
+        toolbarHeight: 64,
+        leadingWidth: 64,
+        iconTheme: const IconThemeData(color: MaatFlowListTokens.gold),
+        leading: IconButton(
+          tooltip: 'Back',
+          padding: const EdgeInsets.only(left: 15),
+          alignment: Alignment.centerLeft,
+          icon: const Icon(
+            Icons.arrow_back,
+            color: MaatFlowListTokens.gold,
+            size: 22,
           ),
-          bottom: const PreferredSize(
-            preferredSize: Size.fromHeight(1),
-            child: Divider(height: 1, thickness: 1, color: Color(0xFF17150F)),
-          ),
-          title: Text(
-            widget.title,
-            style: const TextStyle(
-              color: MaatFlowListTokens.gold,
-              fontFamily: MaatFlowListTokens.fontFamily,
-              fontFamilyFallback: MaatFlowListTokens.fontFallback,
-              fontSize: 25,
-              fontWeight: FontWeight.w500,
-              height: 1,
-            ),
-          ),
-          actions: [
-            Padding(
-              padding: const EdgeInsets.only(right: 7),
-              child: IconButton(
-                key: _addFlowHelperKey,
-                tooltip: 'New flow',
-                icon: const Icon(
-                  Icons.add,
-                  color: MaatFlowListTokens.gold,
-                  size: 22,
-                ),
-                onPressed: _handleCreateNew,
-              ),
-            ),
-          ],
+          onPressed: _handleClose,
         ),
-        body: widget.templates.isEmpty
-            ? const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 24),
-                  child: Text(
-                    'No Ma’at flows yet.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontFamily: MaatFlowListTokens.fontFamily,
-                      fontFamilyFallback: MaatFlowListTokens.fontFallback,
-                      fontSize: 16,
-                    ),
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(1),
+          child: Divider(height: 1, thickness: 1, color: Color(0xFF17150F)),
+        ),
+        title: Text(
+          widget.title,
+          style: const TextStyle(
+            color: MaatFlowListTokens.gold,
+            fontFamily: MaatFlowListTokens.fontFamily,
+            fontFamilyFallback: MaatFlowListTokens.fontFallback,
+            fontSize: 25,
+            fontWeight: FontWeight.w500,
+            height: 1,
+          ),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 7),
+            child: IconButton(
+              key: _addFlowHelperKey,
+              tooltip: 'New flow',
+              icon: const Icon(
+                Icons.add,
+                color: MaatFlowListTokens.gold,
+                size: 22,
+              ),
+              onPressed: _handleCreateNew,
+            ),
+          ),
+        ],
+      ),
+      body: widget.templates.isEmpty
+          ? const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 24),
+                child: Text(
+                  'No Ma’at flows yet.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontFamily: MaatFlowListTokens.fontFamily,
+                    fontFamilyFallback: MaatFlowListTokens.fontFallback,
+                    fontSize: 16,
                   ),
                 ),
-              )
-            : ListView.separated(
-                padding: EdgeInsets.fromLTRB(
-                  MaatFlowListTokens.cardHorizontalMargin,
-                  24,
-                  MaatFlowListTokens.cardHorizontalMargin,
-                  AppBottomInsets.contentBottomPadding(context),
-                ),
-                itemCount: _visualItemCount(
+              ),
+            )
+          : ListView.separated(
+              padding: EdgeInsets.fromLTRB(
+                MaatFlowListTokens.cardHorizontalMargin,
+                24,
+                MaatFlowListTokens.cardHorizontalMargin,
+                AppBottomInsets.contentBottomPadding(context),
+              ),
+              itemCount: _visualItemCount(
+                joined,
+                filteredWaiting,
+                hasWaitingSection: hasWaitingSection,
+              ),
+              separatorBuilder: (_, _) => const SizedBox(height: 0),
+              itemBuilder: (ctx, i) {
+                final item = _visualItemAt(
+                  i,
                   joined,
                   filteredWaiting,
                   hasWaitingSection: hasWaitingSection,
-                ),
-                separatorBuilder: (_, _) => const SizedBox(height: 0),
-                itemBuilder: (ctx, i) {
-                  final item = _visualItemAt(
-                    i,
-                    joined,
-                    filteredWaiting,
-                    hasWaitingSection: hasWaitingSection,
-                  );
-                  switch (item) {
-                    case _MaatFlowSectionVisual(:final label):
-                      return _MaatFlowSectionLabel(label: label);
-                    case _MaatFlowCategoryTabsVisual():
-                      return _MaatFlowCategoryTabs(
-                        categories: visibleCategories,
-                        selected: selectedWaitingCategory,
-                        onSelected: _toggleWaitingCategory,
-                      );
-                    case _MaatFlowCardVisual(:final entry):
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          bottom: entry.status.joined
-                              ? MaatFlowListTokens.joinedCardGap
-                              : MaatFlowListTokens.unjoinedCardGap,
+                );
+                switch (item) {
+                  case _MaatFlowSectionVisual(:final label):
+                    return _MaatFlowSectionLabel(label: label);
+                  case _MaatFlowCategoryTabsVisual():
+                    return _MaatFlowCategoryTabs(
+                      categories: visibleCategories,
+                      selected: selectedWaitingCategory,
+                      onSelected: _toggleWaitingCategory,
+                    );
+                  case _MaatFlowCardVisual(:final entry):
+                    return Padding(
+                      padding: EdgeInsets.only(
+                        bottom: entry.status.joined
+                            ? MaatFlowListTokens.joinedCardGap
+                            : MaatFlowListTokens.unjoinedCardGap,
+                      ),
+                      child: _MaatFlowCard(
+                        key: maatFlowCatalogCardKeyForTesting(
+                          entry.template.key,
                         ),
-                        child: _MaatFlowCard(
-                          key: maatFlowCatalogCardKeyForTesting(
-                            entry.template.key,
-                          ),
-                          entry: entry,
-                          onTap: () async => _handlePickTemplate(
-                            entry.template,
-                            entry.activeInstance,
-                            revealDetail,
-                          ),
+                        entry: entry,
+                        onTap: () async => _handlePickTemplate(
+                          entry.template,
+                          entry.activeInstance,
                         ),
-                      );
-                    case _MaatFlowDividerVisual():
-                      return const SizedBox(
-                        height: MaatFlowListTokens.joinedToUnjoinedGap,
-                      );
-                  }
-                },
-              ),
-      ),
+                      ),
+                    );
+                  case _MaatFlowDividerVisual():
+                    return const SizedBox(
+                      height: MaatFlowListTokens.joinedToUnjoinedGap,
+                    );
+                }
+              },
+            ),
     );
   }
 
@@ -2299,7 +2265,6 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
     this.followSkyCalendarPreview = FollowSkyCalendarPreview.empty,
     this.onFollowSkyCourseSaved,
     this.onFollowSkyProtectTime,
-    this.onDismiss,
   });
 
   final _MaatFlowTemplate template;
@@ -2335,7 +2300,6 @@ class _MaatFlowTemplateDetailPage extends StatefulWidget {
   final bool showBackButton;
   final bool embeddedInOnboarding;
   final bool resizeToAvoidBottomInset;
-  final VoidCallback? onDismiss;
 
   String? get followSkyExistingFlowNotes => joinedFlow?.notes;
   int? get followSkyExistingFlowId => joinedFlow?.id;
@@ -4877,8 +4841,7 @@ class _MaatFlowTemplateDetailPageState
                 color: MaatFlowListTokens.gold,
                 size: 22,
               ),
-              onPressed:
-                  widget.onDismiss ?? () => Navigator.of(context).maybePop(),
+              onPressed: () => Navigator.of(context).pop(),
             )
           : const SizedBox.shrink(),
       title: _buildDateModeTitle(
@@ -8330,7 +8293,6 @@ class _MaatFlowTemplateDetailPageState
       },
       showBackButton: widget.showBackButton,
       resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
-      onDismiss: widget.onDismiss,
     );
   }
 
@@ -8780,7 +8742,6 @@ class _MaatFlowTemplateDetailPageState
         onHierarchyChanged: () {
           if (mounted) setState(() {});
         },
-        onDismiss: widget.onDismiss,
         onJoin: (draft) async {
           final result = await FlowJoinService().joinTrackSkyV2Headless(
             templateKey: widget.template.key,
@@ -8836,7 +8797,6 @@ class _MaatFlowTemplateDetailPageState
         noCupMode: offeringTableNoCupModeFromNotes(joinedFlow?.notes),
         showBackButton: widget.showBackButton,
         resizeToAvoidBottomInset: widget.resizeToAvoidBottomInset,
-        onDismiss: widget.onDismiss,
         onJoin:
             ({
               required startDate,

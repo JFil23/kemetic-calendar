@@ -1063,9 +1063,10 @@ void main() {
       );
 
       expect(rootRestore, contains('initialRoutesBuilder'));
-      expect(rootRestore, contains('hubRoute, listRoute'));
-      expect(rootRestore, contains('initialTemplate: restoredTemplate'));
-      expect(rootRestore, isNot(contains('detailRoute')));
+      expect(rootRestore, contains('hubRoute, listRoute, detailRoute'));
+      expect(rootRestore, contains('MaterialPageRoute<int?>'));
+      expect(rootRestore, contains('template: restoredTemplate'));
+      expect(rootRestore, isNot(contains('initialTemplate:')));
       expect(rootRestore, isNot(contains('FollowSkyDetailPageRoute')));
       expect(rootRouteSeed, isNot(contains('addPostFrameCallback')));
       expect(
@@ -1073,9 +1074,10 @@ void main() {
         contains('_openDayViewForStagedFlow(importedFlowId)'),
       );
       expect(detachedRestore, contains('onReturnToHub'));
-      expect(detachedRestore, contains('hubRoute(), listRoute'));
-      expect(detachedRestore, contains('initialTemplate: template'));
-      expect(detachedRestore, isNot(contains('detailRoute')));
+      expect(detachedRestore, contains('hubRoute(), listRoute, detailRoute'));
+      expect(detachedRestore, contains('MaterialPageRoute<int?>'));
+      expect(detachedRestore, contains('template: selectedTemplate'));
+      expect(detachedRestore, isNot(contains('initialTemplate:')));
       expect(detachedRestore, isNot(contains('addPostFrameCallback')));
     });
 

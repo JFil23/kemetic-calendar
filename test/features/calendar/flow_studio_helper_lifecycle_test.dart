@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/features/calendar/calendar_page.dart';
-import 'package:mobile/features/calendar/follow_the_sky/presentation/maat_list_to_detail_route.dart';
 import 'package:mobile/features/onboarding/guided_onboarding_overlay.dart';
 import 'package:mobile/features/onboarding/onboarding_progress.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -112,32 +111,33 @@ void main() {
     await _pumpRouteBackedMaatDetail(tester);
     await tester.pump(const Duration(milliseconds: 600));
 
-    expect(
-      find.byKey(MaatFlowsListDetailReveal.detailSurfaceKey),
-      findsOneWidget,
+    final listAppBar = find.widgetWithText(
+      AppBar,
+      "Ma'at Flows",
+      skipOffstage: false,
     );
-
-    await tester.binding.handlePopRoute();
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 500));
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(MaatFlowsListDetailReveal.detailSurfaceKey),
-      findsNothing,
-    );
-    expect(
-      find.byKey(MaatFlowsListDetailReveal.foregroundTransformKey),
-      findsOneWidget,
-    );
+    final detailBack = find.byKey(const ValueKey<String>('follow-sky-back'));
+    expect(listAppBar, findsOneWidget);
+    expect(detailBack, findsOneWidget);
+    final listRoute = ModalRoute.of(tester.element(listAppBar));
+    final detailRoute = ModalRoute.of(tester.element(detailBack));
+    expect(listRoute, isNotNull);
+    expect(detailRoute, isNotNull);
+    expect(detailRoute, isNot(same(listRoute)));
+    expect(listRoute!.isCurrent, isFalse);
+    expect(detailRoute!.isCurrent, isTrue);
 
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(MaatFlowsListDetailReveal.foregroundTransformKey),
-      findsNothing,
-    );
+    expect(find.byKey(const ValueKey<String>('follow-sky-back')), findsNothing);
+    expect(listRoute.isCurrent, isTrue);
+    expect(detailRoute.isCurrent, isFalse);
+    expect(find.text("Ma'at Flows"), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
     expect(find.text('Flow Studio'), findsOneWidget);
   });
 }

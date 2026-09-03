@@ -50,5 +50,4 @@ export 'presentation/follow_sky_detail_page.dart';
 export 'presentation/follow_sky_observation_presentation_model.dart';
 export 'presentation/follow_sky_observation_route.dart';
 export 'presentation/follow_sky_view_time_policy.dart';
-export 'presentation/maat_list_to_detail_route.dart';
 export 'presentation/turning_meaning.dart';

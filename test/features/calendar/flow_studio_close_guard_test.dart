@@ -77,9 +77,12 @@ void main() {
 
       final initialRoutesSection = source.substring(rootEnd, routeStart);
       expect(initialRoutesSection, contains('VoidCallback? onReturnToHub'));
-      expect(initialRoutesSection, contains('hubRoute(), listRoute'));
-      expect(initialRoutesSection, contains('initialTemplate: template'));
-      expect(initialRoutesSection, isNot(contains('detailRoute')));
+      expect(
+        initialRoutesSection,
+        contains('hubRoute(), listRoute, detailRoute'),
+      );
+      expect(initialRoutesSection, contains('MaterialPageRoute<int?>'));
+      expect(initialRoutesSection, isNot(contains('initialTemplate:')));
     },
   );
 
@@ -89,9 +92,9 @@ void main() {
       final source = File(
         'lib/features/calendar/calendar_page.dart',
       ).readAsStringSync();
-      final reveal = _sourceBetween(
+      final routePush = _sourceBetween(
         source,
-        'Future<T?> _revealFlowStudioDetail<T>(',
+        'Future<T?> _pushFlowStudioRoute<T>(',
         'Future<_FlowStudioResult?> _pushFlowStudioEditor(',
       );
       final detailPush = _sourceBetween(
@@ -105,16 +108,17 @@ void main() {
         '_Note? _firstFlowTargetNoteForDay(',
       );
 
-      expect(reveal, contains('NavigatorState navigator'));
-      expect(reveal, contains('navigator.mounted'));
+      expect(routePush, contains('NavigatorState navigator'));
+      expect(routePush, contains('navigator.mounted'));
       expect(
-        reveal.indexOf('navigator.mounted'),
-        lessThan(reveal.lastIndexOf('returnState,')),
+        routePush.indexOf('navigator.mounted'),
+        lessThan(routePush.lastIndexOf('returnState,')),
       );
       expect(
         detailPush,
-        contains('_revealFlowStudioDetail<int?>(\n      navigator,'),
+        contains('_pushFlowStudioRoute<int?>(\n      navigator,'),
       );
+      expect(detailPush, contains('MaterialPageRoute<int?>'));
       expect(completion, contains('rootNavigator.pop();'));
       expect(completion, contains('_schedulePendingStagedFlowDayViewIfAny();'));
       expect(
