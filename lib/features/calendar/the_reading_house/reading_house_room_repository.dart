@@ -202,6 +202,15 @@ class SupabaseReadingHouseRoomRepository implements ReadingHouseRoomDataSource {
 
   final SupabaseClient _client;
   static int _channelSerial = 0;
+  static const List<String> _publishedRoomActivityTables = <String>[
+    'reading_house_chat_messages',
+    'reading_house_shared_fragments',
+    'reading_house_fragment_replies',
+    'reading_house_announcements',
+  ];
+  static const List<String> _publishedRoomSummaryTables = <String>[
+    'reading_house_chat_messages',
+  ];
 
   @override
   String? get currentUserId => _client.auth.currentUser?.id;
@@ -355,87 +364,14 @@ class SupabaseReadingHouseRoomRepository implements ReadingHouseRoomDataSource {
       });
     }
 
-    void verifyAndEmit(PostgresChangePayload payload) {
-      final row = payload.newRecord.isNotEmpty
-          ? payload.newRecord
-          : payload.oldRecord;
-      if (_cleanString(row['calendar_id']) != identity.calendarId ||
-          _parseInt(row['flow_id']) != identity.flowId) {
-        return;
-      }
-      emit();
-    }
-
-    final filter = PostgresChangeFilter(
-      type: PostgresChangeFilterType.eq,
-      column: 'flow_id',
-      value: identity.flowId,
-    );
     final channelName =
         'reading_house_room_${identity.flowId}_${++_channelSerial}';
-    final channel = _client.channel(channelName)
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'reading_house_chat_messages',
-        filter: filter,
-        callback: verifyAndEmit,
-      )
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'reading_house_shared_fragments',
-        filter: filter,
-        callback: verifyAndEmit,
-      )
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'reading_house_fragment_replies',
-        filter: filter,
-        callback: verifyAndEmit,
-      )
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'reading_house_announcements',
-        filter: filter,
-        callback: verifyAndEmit,
-      )
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'flows',
-        filter: PostgresChangeFilter(
-          type: PostgresChangeFilterType.eq,
-          column: 'id',
-          value: identity.flowId,
-        ),
-        callback: (_) => emit(),
-      )
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'shared_calendar_members',
-        filter: PostgresChangeFilter(
-          type: PostgresChangeFilterType.eq,
-          column: 'calendar_id',
-          value: identity.calendarId,
-        ),
-        callback: (_) => emit(),
-      )
-      ..onPostgresChanges(
-        event: PostgresChangeEvent.all,
-        schema: 'public',
-        table: 'shared_calendars',
-        filter: PostgresChangeFilter(
-          type: PostgresChangeFilterType.eq,
-          column: 'id',
-          value: identity.calendarId,
-        ),
-        callback: (_) => emit(),
-      )
-      ..subscribe((status, [error]) {
+    final channel = _subscribeToRoomActivity(
+      channelName: channelName,
+      identity: identity,
+      tables: _publishedRoomActivityTables,
+      onActivity: emit,
+      onStatus: (status, error) {
         switch (status) {
           case RealtimeSubscribeStatus.subscribed:
           case RealtimeSubscribeStatus.channelError:
@@ -445,7 +381,8 @@ class SupabaseReadingHouseRoomRepository implements ReadingHouseRoomDataSource {
           case RealtimeSubscribeStatus.closed:
             break;
         }
-      });
+      },
+    );
 
     controller.onCancel = () async {
       debounce?.cancel();
@@ -457,8 +394,7 @@ class SupabaseReadingHouseRoomRepository implements ReadingHouseRoomDataSource {
 
   @override
   Stream<List<ReadingHouseRoomSummary>> watchSummaries() {
-    final userId = currentUserId;
-    if (userId == null) {
+    if (currentUserId == null) {
       return Stream<List<ReadingHouseRoomSummary>>.value(
         const <ReadingHouseRoomSummary>[],
       );
@@ -493,70 +429,19 @@ class SupabaseReadingHouseRoomRepository implements ReadingHouseRoomDataSource {
         if (roomChannels.containsKey(identity) || controller.isClosed) {
           continue;
         }
-        void verifyChatAndRefresh(PostgresChangePayload payload) {
-          final row = payload.newRecord.isNotEmpty
-              ? payload.newRecord
-              : payload.oldRecord;
-          if (_cleanString(row['calendar_id']) == identity.calendarId &&
-              _parseInt(row['flow_id']) == identity.flowId) {
-            scheduleRefresh();
-          }
-        }
-
-        final channel =
-            _client.channel(
-                'reading_house_summary_${identity.flowId}_${++_channelSerial}',
-              )
-              ..onPostgresChanges(
-                event: PostgresChangeEvent.all,
-                schema: 'public',
-                table: 'reading_house_chat_messages',
-                filter: PostgresChangeFilter(
-                  type: PostgresChangeFilterType.eq,
-                  column: 'flow_id',
-                  value: identity.flowId,
-                ),
-                callback: verifyChatAndRefresh,
-              )
-              ..onPostgresChanges(
-                event: PostgresChangeEvent.all,
-                schema: 'public',
-                table: 'flows',
-                filter: PostgresChangeFilter(
-                  type: PostgresChangeFilterType.eq,
-                  column: 'id',
-                  value: identity.flowId,
-                ),
-                callback: (_) => scheduleRefresh(),
-              )
-              ..onPostgresChanges(
-                event: PostgresChangeEvent.all,
-                schema: 'public',
-                table: 'shared_calendar_members',
-                filter: PostgresChangeFilter(
-                  type: PostgresChangeFilterType.eq,
-                  column: 'calendar_id',
-                  value: identity.calendarId,
-                ),
-                callback: (_) => scheduleRefresh(),
-              )
-              ..onPostgresChanges(
-                event: PostgresChangeEvent.all,
-                schema: 'public',
-                table: 'shared_calendars',
-                filter: PostgresChangeFilter(
-                  type: PostgresChangeFilterType.eq,
-                  column: 'id',
-                  value: identity.calendarId,
-                ),
-                callback: (_) => scheduleRefresh(),
-              )
-              ..subscribe((status, [error]) {
-                if (status == RealtimeSubscribeStatus.channelError ||
-                    status == RealtimeSubscribeStatus.timedOut) {
-                  scheduleRefresh();
-                }
-              });
+        final channel = _subscribeToRoomActivity(
+          channelName:
+              'reading_house_summary_${identity.flowId}_${++_channelSerial}',
+          identity: identity,
+          tables: _publishedRoomSummaryTables,
+          onActivity: scheduleRefresh,
+          onStatus: (status, error) {
+            if (status == RealtimeSubscribeStatus.channelError ||
+                status == RealtimeSubscribeStatus.timedOut) {
+              scheduleRefresh();
+            }
+          },
+        );
         roomChannels[identity] = channel;
       }
     }
@@ -586,36 +471,54 @@ class SupabaseReadingHouseRoomRepository implements ReadingHouseRoomDataSource {
       }
     };
 
-    final membershipChannel =
-        _client.channel('reading_house_membership_${++_channelSerial}')
-          ..onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: 'shared_calendar_members',
-            filter: PostgresChangeFilter(
-              type: PostgresChangeFilterType.eq,
-              column: 'user_id',
-              value: userId,
-            ),
-            callback: (_) => scheduleRefresh(),
-          )
-          ..subscribe((status, [error]) {
-            if (status == RealtimeSubscribeStatus.channelError ||
-                status == RealtimeSubscribeStatus.timedOut) {
-              scheduleRefresh();
-            }
-          });
-
     unawaited(refresh());
     controller.onCancel = () async {
       debounce?.cancel();
-      await membershipChannel.unsubscribe();
       await Future.wait<void>(
         roomChannels.values.map((channel) => channel.unsubscribe()),
       );
       await controller.close();
     };
     return controller.stream;
+  }
+
+  RealtimeChannel _subscribeToRoomActivity({
+    required String channelName,
+    required ReadingHouseRoomIdentity identity,
+    required Iterable<String> tables,
+    required void Function() onActivity,
+    required void Function(RealtimeSubscribeStatus status, Object? error)
+    onStatus,
+  }) {
+    final calendarId = identity.calendarId.trim();
+    final filter = PostgresChangeFilter(
+      type: PostgresChangeFilterType.eq,
+      column: 'flow_id',
+      value: identity.flowId,
+    );
+    final channel = _client.channel(channelName);
+
+    void verifyAndRefresh(PostgresChangePayload payload) {
+      final row = payload.newRecord.isNotEmpty
+          ? payload.newRecord
+          : payload.oldRecord;
+      if (_cleanString(row['calendar_id']) == calendarId &&
+          _parseInt(row['flow_id']) == identity.flowId) {
+        onActivity();
+      }
+    }
+
+    for (final table in tables) {
+      channel.onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: table,
+        filter: filter,
+        callback: verifyAndRefresh,
+      );
+    }
+    channel.subscribe((status, [error]) => onStatus(status, error));
+    return channel;
   }
 
   void _requireIdentity(ReadingHouseRoomIdentity identity) {

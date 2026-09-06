@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_day_behavior_surface.dart';
+import 'package:mobile/features/calendar/the_reading_house/presentation/reading_house_day_presentation.dart';
 import 'package:mobile/features/calendar/the_reading_house/reading_house_room_controller.dart';
 import 'package:mobile/features/calendar/the_reading_house/reading_house_room_repository.dart';
 
@@ -59,6 +62,76 @@ void main() {
     expect(controller.newMessageCount, 0);
     expect(source.markedAt[roomA], DateTime.utc(2026, 9, 5, 10, 2));
   });
+
+  testWidgets(
+    'open House renders a second reader live and rejects another House',
+    (tester) async {
+      const otherHouse = ReadingHouseRoomIdentity(
+        calendarId: 'calendar-b',
+        flowId: 41,
+      );
+      final source = _FakeRoomDataSource(
+        <ReadingHouseRoomIdentity, List<ReadingHouseRoomMessage>>{
+          roomA: <ReadingHouseRoomMessage>[_message('a-1', roomA, minute: 1)],
+          otherHouse: <ReadingHouseRoomMessage>[],
+        },
+      );
+      final controller = ReadingHouseRoomController(
+        dataSource: source,
+        identity: roomA,
+      );
+      addTearDown(controller.dispose);
+      await controller.start();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: AnimatedBuilder(
+              animation: controller,
+              builder: (context, _) => ReadingHouseChatPresentation(
+                fixture: readingHouseRoomVisualFixture(
+                  context: context,
+                  controller: controller,
+                  currentUserId: source.currentUserId,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('a-1'), findsOneWidget);
+      expect(source.watchStarts[roomA], 1);
+
+      source.post(
+        _message(
+          'Reader B arrived live',
+          roomA,
+          minute: 2,
+          authorId: 'reader-b',
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Reader B arrived live'), findsOneWidget);
+      expect(source.watchStarts[roomA], 1);
+      final roomAReadsAfterLiveMessage = source.messageReads[roomA];
+
+      source.post(
+        _message(
+          'Another House must stay private',
+          otherHouse,
+          minute: 3,
+          authorId: 'reader-c',
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Another House must stay private'), findsNothing);
+      expect(source.messageReads[roomA], roomAReadsAfterLiveMessage);
+      expect(source.watchStarts[roomA], 1);
+    },
+  );
 
   test(
     'locked and ended rooms reject sends before repository writes',
@@ -152,7 +225,12 @@ class _FakeRoomDataSource implements ReadingHouseRoomDataSource {
   final List<String> sentBodies = <String>[];
   final List<String> updated = <String>[];
   final List<String> deleted = <String>[];
-  final StreamController<void> activity = StreamController<void>.broadcast();
+  final Map<ReadingHouseRoomIdentity, int> messageReads =
+      <ReadingHouseRoomIdentity, int>{};
+  final Map<ReadingHouseRoomIdentity, int> watchStarts =
+      <ReadingHouseRoomIdentity, int>{};
+  final StreamController<ReadingHouseRoomIdentity> activity =
+      StreamController<ReadingHouseRoomIdentity>.broadcast();
 
   @override
   String? get currentUserId => 'current-user';
@@ -163,6 +241,7 @@ class _FakeRoomDataSource implements ReadingHouseRoomDataSource {
     DateTime? before,
     int limit = 50,
   }) async {
+    messageReads.update(identity, (count) => count + 1, ifAbsent: () => 1);
     final available = messages[identity] ?? const <ReadingHouseRoomMessage>[];
     return available
         .where(
@@ -211,8 +290,22 @@ class _FakeRoomDataSource implements ReadingHouseRoomDataSource {
     deleted.add('${identity.calendarId}:${identity.flowId}:$messageId');
   }
 
+  void post(ReadingHouseRoomMessage message) {
+    messages.update(
+      message.identity,
+      (existing) => <ReadingHouseRoomMessage>[...existing, message],
+      ifAbsent: () => <ReadingHouseRoomMessage>[message],
+    );
+    activity.add(message.identity);
+  }
+
   @override
-  Stream<void> watchRoom(ReadingHouseRoomIdentity identity) => activity.stream;
+  Stream<void> watchRoom(ReadingHouseRoomIdentity identity) {
+    watchStarts.update(identity, (count) => count + 1, ifAbsent: () => 1);
+    return activity.stream
+        .where((changedIdentity) => changedIdentity == identity)
+        .map((_) {});
+  }
 
   @override
   Stream<List<ReadingHouseRoomSummary>> watchSummaries() =>
